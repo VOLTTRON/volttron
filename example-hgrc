@@ -1,0 +1,48 @@
+## Copy this file to ~/.hgrc and modify as instructed below.
+
+[auth]
+bitbucket.prefix = *.bitbucket.org
+bitbucket.schemes = https
+
+## Replace USERNAME in next line with your Bitbucket username and uncomment
+#bitbucket.username = USERNAME
+
+[diff]
+git = 1
+nodates = 1
+
+[extensions]
+color =
+hgk =
+mq =
+pager =
+progress =
+purge =
+rebase =
+record =
+
+[hostfingerprints]
+bitbucket.org = 24:9c:45:8b:9c:aa:ba:55:4e:01:6d:58:ff:e4:28:7d:2a:14:ae:3b
+
+[pager]
+pager = less -FRX
+attend = annotate, cat, diff, export, glog, log, qdiff, help, status
+
+[paths]
+rtunetwork = https://bitbucket.org/berkeleylab/rtunetwork
+
+[ui]
+## Replace FULL NAME and email address in next line and uncomment
+#username = FULL NAME <email@your.domain>
+
+## If you do not have meld on your system, comment out the remaining
+## or change to your favorite 3-way merge application.
+merge = meld
+
+[merge-tools]
+meld.args = --auto-merge $local $base $other -o $output
+meld.gui = True
+
+[merge-patterns]
+** = meld
+

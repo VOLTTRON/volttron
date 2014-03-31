@@ -1,0 +1,127 @@
+{
+    "agent": {
+        "exec": "actuatoragent-0.1-py2.7.egg --config \"%c\" --sub \"%s\" --pub \"%p\""
+    },
+    "url": "http://localhost:8080/data",
+    "lock_timeout": 50400,
+    "schedule_publish_interval": 30,
+    "heartbeat_interval": 30,
+ 	"points":
+ 	{
+ 		"LBNL/Building46/RTU1":
+	 	{
+	 		"heartbeat_point":"PlatformHeartBeat",
+	 		"schedule":
+	 		{	
+	 		
+	 			"18:30": ["LBNL_AFDDAgent1","LBNL_DRAgent1"],
+	 			"20:00": ["LBNL_DRAgent1"]
+	 		}
+	 	},
+ 		"LBNL/Building46/RTU2":
+	 	{
+	 		"heartbeat_point":"PlatformHeartBeat",
+	 		"schedule":
+	 		{	
+	 		
+	 			"18:30": ["LBNL_AFDDAgent2","LBNL_DRAgent2"],
+	 			"20:00": ["LBNL_DRAgent2"]
+	 		}
+	 	},
+	 	"LBNL/Building46/RTU3":
+	 	{
+	 		"heartbeat_point":"PlatformHeartBeat",
+	 		"schedule":
+	 		{	
+	 		
+	 			"18:30": ["LBNL_AFDDAgent3","LBNL_DRAgent3"],
+	 			"20:00": ["LBNL_DRAgent3"]
+	 		}
+	 	},
+	 	"LBNL/Building46/RTU4":
+	 	{
+	 		"heartbeat_point":"PlatformHeartBeat",
+	 		"schedule":
+	 		{	
+	 		
+	 			"18:30": ["LBNL_AFDDAgent4","LBNL_DRAgent4"],
+	 			"20:00": ["LBNL_DRAgent4"]
+	 		}
+	 	},
+	 	"LBNL/Building46/RTU5":
+	 	{
+	 		"heartbeat_point":"PlatformHeartBeat",
+	 		"schedule":
+	 		{	
+	 		
+	 			"18:30": ["LBNL_AFDDAgent5","LBNL_DRAgent5"],
+	 			"20:00": ["LBNL_DRAgent5"]
+	 		}
+	 	},
+	 	"LBNL/Building46/RTU6":
+	 	{
+	 		"heartbeat_point":"PlatformHeartBeat",
+	 		"schedule":
+	 		{	
+	 		
+	 			"18:30": ["LBNL_AFDDAgent6","LBNL_DRAgent6"],
+	 			"20:00": ["LBNL_DRAgent6"]
+	 		}
+	 	},
+	 	"LBNL/Building46/RTU7":
+	 	{
+	 		"heartbeat_point":"PlatformHeartBeat",
+	 		"schedule":
+	 		{	
+	 		
+	 			"18:30": ["LBNL_AFDDAgent7","LBNL_DRAgent7"],
+	 			"20:00": ["LBNL_DRAgent7"]
+	 		}	
+	 	},
+	 	
+ 		"PNNL/TWT/RTU1":
+	 	{
+	 		"heartbeat_point":"PlatformHeartBeat",
+	 		"schedule":
+	 		{	
+	 		
+	 			"18:30": ["PNNL_AFDDAgent1","PNNL_DRAgent1"],
+	 			"20:00": ["PNNL_DRAgent1"]
+	 		}
+	 		
+	 	},
+	 	"PNNL/TWT/RTU2":
+	 	{
+	 		"heartbeat_point":"PlatformHeartBeat",
+	 		"schedule":
+	 		{	
+	 		
+	 			"18:30": ["PNNL_AFDDAgent2","PNNL_DRAgent2"],
+	 			"20:00": ["PNNL_DRAgent2"]
+	 		}
+	 		
+	 	},
+	 	"PNNL/TWT/RTU3":
+	 	{
+	 		"heartbeat_point":"PlatformHeartBeat",
+	 		"schedule":
+	 		{	
+	 		
+	 			"18:30": ["PNNL_AFDDAgent3","PNNL_DRAgent3"],
+	 			"20:00": ["PNNL_DRAgent3"]
+	 		}
+	 		
+	 	},
+	 	"PNNL/TWT/RTU4":
+	 	{
+	 		"heartbeat_point":"PlatformHeartBeat",
+	 		"schedule":
+	 		{	
+	 		
+	 			"18:30": ["PNNL_AFDDAgent4","PNNL_DRAgent4"],
+	 			"20:00": ["PNNL_DRAgent4"]
+	 		}
+	 		
+	 	}
+	 }
+}

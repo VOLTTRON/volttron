@@ -1,0 +1,86 @@
+Point Name,PNNL Point Name,Units,Unit Details,BACnet Object Type,Property,Writable,Index,Notes
+2400Stevens/FCB.Local Application.DA1-P,DischargeAirStaticPressure,inchesOfWater,-0.20 to 5.00,analogInput,presentValue,FALSE,3000108,Resolution: 0.001
+2400Stevens/FCB.Local Application.DA-T,DischargeAirTemperature,degreesFahrenheit,-50.00 to 250.00,analogInput,presentValue,FALSE,3000109,Resolution: 0.1
+2400Stevens/FCB.Local Application.MA-T,MixedAirTemperature,degreesFahrenheit,-50.00 to 250.00,analogInput,presentValue,FALSE,3000116,Resolution: 0.1
+2400Stevens/FCB.Local Application.OA-H,OutdoorAirHumidity,percentRelativeHumidity,0.00 to 100.00,analogInput,presentValue,FALSE,3000117,Resolution: 0.1
+2400Stevens/FCB.Local Application.PH-T,PreheatTemperature,degreesFahrenheit,-50.00 to 250.00,analogInput,presentValue,FALSE,3000119,Resolution: 0.1
+2400Stevens/FCB.Local Application.RA-T,ReturnAirTemperature,degreesFahrenheit,-50.00 to 250.00,analogInput,presentValue,FALSE,3000120,Resolution: 0.1
+2400Stevens/FCB.Local Application.RA-H,ReturnAirHumidity,percentRelativeHumidity,0.00 to 100.00,analogInput,presentValue,FALSE,3000124,Resolution: 0.1
+2400Stevens/FCB.Local Application.CLG-O,CoolingValveOutputCommand,percent,0.00 to 100.00 (default 0.0),analogOutput,presentValue,TRUE,3000107,Resolution: 0.1
+2400Stevens/FCB.Local Application.MAD-O,MixedAirDamperOutputCommand,percent,0.00 to 100.00 (default 0.0),analogOutput,presentValue,TRUE,3000110,Resolution: 0.1
+2400Stevens/FCB.Local Application.PH-O,PreheatValveOutputCommand,percent,0.00 to 100.00 (default 0.0),analogOutput,presentValue,TRUE,3000111,Resolution: 0.1
+2400Stevens/FCB.Local Application.RH-O,ReheatValveOutputCommand,percent,0.00 to 100.00 (default 0.0),analogOutput,presentValue,TRUE,3000112,Resolution: 0.1
+2400Stevens/FCB.Local Application.SF-O,SupplyFanSpeedOutputCommand,percent,0.00 to 100.00 (default 0.0),analogOutput,presentValue,TRUE,3000113,Resolution: 0.1
+2400Stevens/FCB.Local Application.RF-O,ReturnFanSpeedOutputCommand,percent,0.00 to 100.00 (default 0.0),analogOutput,presentValue,TRUE,3000122,Resolution: 0.1
+2400Stevens/Energy.OAT,OutdoorAirTemperature,days,No limits. (default 70.0),analogValue,presentValue,FALSE,3000019,
+2400Stevens/Programming.Test error data point,UnknownEnergyValue,noUnits,No limits. (default 0.0),analogValue,presentValue,FALSE,3000025,
+2400Stevens/AV1,AnalogVariable1,noUnits,No limits. (default 0.0),analogValue,presentValue,FALSE,3000026,
+2400Stevens/Programming.AV1,ProgrammingAnalogVariable1,noUnits,No limits. (default 0.0),analogValue,presentValue,FALSE,3000028,
+2400Stevens/AV2,AnalogVariable2,noUnits,No limits. (default 0.0),analogValue,presentValue,FALSE,3000033,
+2400Stevens/FCB.Local Application.DATHTGMAX-SP,DischargeAirTemperatureHeatingMaximumSetPoint,degreesFahrenheit,No limits. (default 105.0),analogValue,presentValue,FALSE,3000130,
+2400Stevens/FCB.Local Application.DATSATISFIED-SP,DischargeAirTemperatureSatisfiedSetPoint,degreesFahrenheit,No limits. (default 70.0),analogValue,presentValue,FALSE,3000131,
+2400Stevens/FCB.Local Application.DATCLGMIN-SP,DischargeAirTemperatureCoolingMinimumSetPoint,degreesFahrenheit,No limits. (default 55.0),analogValue,presentValue,FALSE,3000132,
+2400Stevens/FCB.Local Application.MAD-RAMPRATE,MixedAirDamperRampRate,UNKNOWN UNIT ENUM VALUE: 309,No limits. (default 0.0),analogValue,presentValue,FALSE,3000135,
+2400Stevens/FCB.Local Application.DATHTGUNOCC-SP,DischargeAirTemperautreHeatingUnoccupiedSetPoint,degreesFahrenheit,No limits. (default 90.0),analogValue,presentValue,FALSE,3000136,
+2400Stevens/FCB.Local Application.DATCLGUNOCC-SP,DischargeAirTemperautreCoolingUnoccupiedSetPoint,degreesFahrenheit,No limits. (default 55.0),analogValue,presentValue,FALSE,3000137,
+2400Stevens/FCB.Local Application.EFFDAT-SP,EffectiveDischargeAirTemperatureSetPoint,degreesFahrenheit,No limits. (default 0.0),analogValue,presentValue,FALSE,3000138,
+2400Stevens/FCB.Local Application.DAP-SP,DischargeAirStaticPressureSetPoint,inchesOfWater,No limits. (default 1.0),analogValue,presentValue,FALSE,3000139,
+2400Stevens/FCB.Local Application.ECONSWO-SP,EconomizerSwitchoverSetPoint,degreesFahrenheit,No limits. (default 68.0),analogValue,presentValue,FALSE,3000140,
+2400Stevens/FCB.Local Application.LT-PB,MixedAirLowTemperatureProportionalBand,degreesFahrenheit,No limits. (default 0.0),analogValue,presentValue,FALSE,3000142,
+2400Stevens/FCB.Local Application.LT-SP,MixedAirLowTemperatureSetPoint,degreesFahrenheit,No limits. (default 0.0),analogValue,presentValue,FALSE,3000143,
+2400Stevens/FCB.Local Application.OALT-SP,OutdoorAirTemperatureLowTemperatureSetPoint,degreesFahrenheit,No limits. (default 0.0),analogValue,presentValue,FALSE,3000144,
+2400Stevens/FCB.Local Application.OAD-MINPOS,OutdoorAirDamperMinimumPosition,percent,No limits. (default 10.0),analogValue,presentValue,FALSE,3000145,
+2400Stevens/FCB.Local Application.RAT-SP,ReturnAirTemperatureSetPoint,degreesFahrenheit,No limits. (default 72.0),analogValue,presentValue,FALSE,3000154,
+2400Stevens/FCB.Local Application.EMERGENCY SF-O,EmergencySupplyFanSpeedOutputCommand,percent,No limits. (default 70.0),analogValue,presentValue,FALSE,3000155,
+2400Stevens/FCB.Local Application.EMERGENCY DAP-SP,EmergencyDischargeAirStaticPressureSetPoint,inchesOfWater,No limits. (default 1.5),analogValue,presentValue,FALSE,3000156,
+2400Stevens/FCB.Local Application.RF-SFRSTLO,SupplyFanResetLowLimit,percent,No limits. (default 0.0),analogValue,presentValue,FALSE,3000158,
+2400Stevens/FCB.Local Application.RF-SFRSTHI,SupplyFanResetHighLimit,percent,No limits. (default 100.0),analogValue,presentValue,FALSE,3000159,
+2400Stevens/FCB.Local Application.RF-RFRSTLO,ReturnFanResetLowLimit,percent,No limits. (default 0.0),analogValue,presentValue,FALSE,3000160,
+2400Stevens/FCB.Local Application.RF-RFRSTHI,ReturnFanResetHighLimit,percent,No limits. (default 100.0),analogValue,presentValue,FALSE,3000161,
+2400Stevens/FCB.Local Application.CLGOCC-SP,SpaceOccupiedCoolingSetPoint,degreesFahrenheit,No limits. (default 74.0),analogValue,presentValue,FALSE,3000164,
+2400Stevens/FCB.Local Application.CLGSTBY-SP,SpaceStandbyCoolingSetPoint,degreesFahrenheit,No limits. (default 77.0),analogValue,presentValue,FALSE,3000165,
+2400Stevens/FCB.Local Application.CLGUNOCC-SP,SpaceUnoccupiedCoolingSetPoint,degreesFahrenheit,No limits. (default 82.0),analogValue,presentValue,FALSE,3000166,
+2400Stevens/FCB.Local Application.HTGOCC-SP,SpaceOccupiedHeatingSetPoint,degreesFahrenheit,No limits. (default 70.0),analogValue,presentValue,FALSE,3000167,
+2400Stevens/FCB.Local Application.HTGSTBY-SP,SpaceStandbyHeatingSetPoint,degreesFahrenheit,No limits. (default 66.0),analogValue,presentValue,FALSE,3000168,
+2400Stevens/FCB.Local Application.HTGUNOCC-SP,SpaceUnoccupiedHeatingSetPoint,degreesFahrenheit,No limits. (default 61.0),analogValue,presentValue,FALSE,3000169,
+2400Stevens/FCB.Local Application.EFFCLG-SP,SpaceEffectiveCoolingSetPoint,degreesFahrenheit,No limits. (default 0.0),analogValue,presentValue,FALSE,3000170,
+2400Stevens/FCB.Local Application.EFFHTG-SP,SpaceEffectiveHeatingSetPoint,degreesFahrenheit,No limits. (default 0.0),analogValue,presentValue,FALSE,3000171,
+2400Stevens/FCB.Local Application.PFRESTART-TIME,PreStartTimer,seconds,No limits. (default 60.0),analogValue,presentValue,FALSE,3000176,
+2400Stevens/FCB.Local Application.UNOCC-SATTIME,UnoccupiedSATTIME,seconds,No limits. (default 30.0),analogValue,presentValue,FALSE,3000181,TODO: Figure this out.
+2400Stevens/FCB.Local Application.OCCMODE-BYPASSTIME,OccupiedModeBypassTimer,seconds,No limits. (default 3600.0),analogValue,presentValue,FALSE,3000184,
+2400Stevens/FCB.Local Application.OA-T,OutdoorAirTemperature,noUnits,No limits. (default 72.0),analogValue,presentValue,FALSE,3000187,TODO: Should this be writable?
+2400Stevens/FCB.Local Application.LT-A,LowTemperatureAlarm,Enum,0-1,binaryInput,presentValue,FALSE,3000115,"BinaryPV: 0=inactive, 1=active"
+2400Stevens/FCB.Local Application.RF-S,ReturnFanStatus,Enum,0-1,binaryInput,presentValue,FALSE,3000123,"BinaryPV: 0=inactive, 1=active"
+2400Stevens/FCB.Local Application.SF-S,SupplyFanStatus,Enum,0-1,binaryInput,presentValue,FALSE,3000126,"BinaryPV: 0=inactive, 1=active"
+2400Stevens/FCB.Local Application.GEF-C,GeneralExhaustFanCommand,Enum,0-1 (default 0),binaryOutput,presentValue,TRUE,3000114,"BinaryPV: 0=inactive, 1=active"
+2400Stevens/FCB.Local Application.RF-C,ReturnFanCommand,Enum,0-1 (default 0),binaryOutput,presentValue,TRUE,3000121,"BinaryPV: 0=inactive, 1=active"
+2400Stevens/FCB.Local Application.SF-C,SupplyFanCommand,Enum,0-1 (default 0),binaryOutput,presentValue,TRUE,3000125,"BinaryPV: 0=inactive, 1=active"
+2400Stevens/FCB.Local Application.TEF-C,ToiletExhaustFanCommand,Enum,0-1 (default 0),binaryOutput,presentValue,TRUE,3000127,"BinaryPV: 0=inactive, 1=active"
+2400Stevens/FCB.Local Application.TUNING-RESET,TuningReset,Enum,0-1 (default 0),binaryValue,presentValue,TRUE,3000129,"BinaryPV: 0=inactive, 1=active"
+2400Stevens/FCB.Local Application.CLG-EN,CoolingEnable,Enum,0-1 (default 1),binaryValue,presentValue,TRUE,3000134,"BinaryPV: 0=inactive, 1=active"
+2400Stevens/FCB.Local Application.ECON-AVAILABLE,EconomizerAvailable,Enum,0-1 (default 0),binaryValue,presentValue,TRUE,3000141,"BinaryPV: 0=inactive, 1=active"
+2400Stevens/FCB.Local Application.PH-EN,PreheatEnable,Enum,0-1 (default 1),binaryValue,presentValue,TRUE,3000148,"BinaryPV: 0=inactive, 1=active"
+2400Stevens/FCB.Local Application.RH-EN,ReheatEnable,Enum,0-1 (default 1),binaryValue,presentValue,TRUE,3000153,"BinaryPV: 0=inactive, 1=active"
+2400Stevens/FCB.Local Application.PFRESTART-EN,PFRestartEnable,Enum,0-1 (default 1),binaryValue,presentValue,TRUE,3000175,"BinaryPV: 0=inactive, 1=active"
+2400Stevens/FCB.Local Application.PH-AVAILABLE,PreheatAvailable,Enum,0-1 (default 0),binaryValue,presentValue,TRUE,3000178,"BinaryPV: 0=inactive, 1=active"
+2400Stevens/FCB.Local Application.RH-AVAILABLE,ReheatAvailable,Enum,0-1 (default 0),binaryValue,presentValue,TRUE,3000179,"BinaryPV: 0=inactive, 1=active"
+2400Stevens/FCB.Local Application.CLG-AVAILABLE,CoolingAvailable,Enum,0-1 (default 0),binaryValue,presentValue,TRUE,3000180,"BinaryPV: 0=inactive, 1=active"
+2400Stevens/FCB.Local Application.APP-MODE,ApplicationMode,State,State count: 7 (default 7),multiStateValue,presentValue,FALSE,3000128,"1=Cool Only, 2=Heat Only, 3=Fan Only, 4=Water Flush, 5=Purge, 6=Vent, 7=Auto"
+2400Stevens/FCB.Local Application.DATSP-STATE,DischargeAirSetPoint,State,State count: 4 (default 1),multiStateValue,presentValue,FALSE,3000133,"1=Off, 2=Hold, 3=Heating DA-T Reset, 4=Cooling DA-T Reset"
+2400Stevens/FCB.Local Application.OCC-OVERRIDE,OccupancyOverride,State,State count: 5 (default 5),multiStateValue,presentValue,FALSE,3000146,"1=Occupied, 2=UnOccupied, 3=Bypass, 4=Standby, 5=Not Set"
+2400Stevens/FCB.Local Application.OCC-SCHEDULE,OccupancySchedule,State,State count: 4 (default 4),multiStateValue,presentValue,FALSE,3000147,"1=Occupied, 2=UnOccupied, 3=Standby, 4=Not Set"
+2400Stevens/FCB.Local Application.MAD-OUTSTATE,MixedAirDamperCommandOutputState,State,State count: 10 (default 1),multiStateValue,presentValue,FALSE,3000149,"1=FSCS Control, 2=Pressurize, 3=Depressurize, 4=Close, 5=Purge, 6=Min OA, 7=Hold, 8=Ramp Min OA, 9=Ramp Open, 10=T Control"
+2400Stevens/FCB.Local Application.CLG-OUTSTATE,CoolingCoilOutputState,State,State count: 9 (default 1),multiStateValue,presentValue,FALSE,3000150,"1=Off, 2=Max, 3=Limited Max, 4=Hold, 5=Water Flush, 6=T Control, 7=H Control, 8=Failsoft, 9=Low OA Temperature"
+2400Stevens/FCB.Local Application.PH-OUTSTATE,PreheatCoilOutputState,State,State count: 10 (default 1),multiStateValue,presentValue,FALSE,3000151,"1=Off, 2=Max, 3=Limited Max, 4=Hold, 5=Water Flush, 6=T Control, 7=LL-T Control, 8=Failsoft, 9=Low OA Temperature, 10=Remain In Control"
+2400Stevens/FCB.Local Application.RH-OUTSTATE,ReheatCoilOutputState,State,State count: 10 (default 1),multiStateValue,presentValue,FALSE,3000152,"1=Off, 2=Max, 3=Limited Max, 4=Hold, 5=Water Flush, 6=T Control, 7=LL-T Control, 8=Failsoft, 9=Low OA Temperature, 10=Remain In Control"
+2400Stevens/FCB.Local Application.SF-OUTSTATE,SupplyFanSpeedOutputState,State,State count: 6 (default 1),multiStateValue,presentValue,FALSE,3000157,"1=Off, 2=Min, 3=Emergency On, 4=Ramp, 5=S-P Control, 6=Hold"
+2400Stevens/FCB.Local Application.RF-OUTSTATE,ReturnFanSpeedOutputState,State,State count: 5 (default 1),multiStateValue,presentValue,FALSE,3000162,"1=Off, 2=Max, 3=Min, 4=Hold, 5=Fan Track Control"
+2400Stevens/FCB.Local Application.WC-C,WarmerCoolerCommand,State,State count: 4 (default 1),multiStateValue,presentValue,FALSE,3000163,"1=Normal, 2=Warmup, 3=Cooldown, 4=Coast"
+2400Stevens/FCB.Local Application.SMOKE SEQUENCE-STATE,SmokeSequenceState,State,State count: 6 (default 1),multiStateValue,presentValue,FALSE,3000172,"1=Normal, 2=Pressurize, 3=Depressurize, 4=Purge, 5=Shutdown, 6=Pre-Shutdown"
+2400Stevens/FCB.Local Application.NOFLOW-STATE,NoFlowState,State,State count: 4 (default 1),multiStateValue,presentValue,FALSE,3000173,"1=Normal, 2=Low Flow, 3=Self Reset Fault, 4=Manual Reset Fault"
+2400Stevens/FCB.Local Application.STARTSTOP-STATE,StartStopState,State,State count: 12 (default 1),multiStateValue,presentValue,FALSE,3000174,"1=Off, 2=SF Starts First, 3=RF Starts First, 4=Ramp SF, 5=Stabilize System, 6=Ramp Min OA, 7=On, 8=Close Dampers, 9=RF Stops First, 10=SF Stops First, 11=Fans Off, 12=Fan Fault"
+2400Stevens/FCB.Local Application.UNITEN-STATE,UnitEnableState,State,State count: 2 (default 1),multiStateValue,presentValue,FALSE,3000177,"1=Shutdown, 2=Enable"
+2400Stevens/FCB.Local Application.UNOCC-STATE,UnoccupiedState,State,State count: 5 (default 1),multiStateValue,presentValue,FALSE,3000182,"1=Unocc Cooling, 2=Unocc Heating, 3=Unocc Cntrl Not Req'd, 4=Satisfied, 5=Temperature Unreliable"
+2400Stevens/FCB.Local Application.EFF-OCC,EffectiveOccupancyState,State,State count: 4 (default 1),multiStateValue,presentValue,FALSE,3000183,"1=Occupied, 2=UnOccupied, 3=Bypass, 4=Standby"
+2400Stevens/FCB.Local Application.ZNT-STATE,ZoneTemperatureState,State,State count: 4 (default 1),multiStateValue,presentValue,FALSE,3000185,"1=Heating, 2=Satisfied, 3=Cooling, 4=Temperature Unreliable"
+2400Stevens/FCB.Local Application.AHU-STATE,AHUState,State,State count: 10 (default 1),multiStateValue,presentValue,FALSE,3000186,"1=Satisfied, 2=Econ, 3=Econ+Mech, 4=HX Cool+Mech, 5=HX Heat, 6=HX Heat+Preheat, 7=HX Heat+Preheat+Reheat, 8=Cooling Idle, 9=Heating Idle, 10=Temperature Unreliable"

@@ -1,0 +1,43 @@
+Point Name,PNNL Point Name,Units,Units Details,Modbus Register,Writable,Point Address,Notes
+CO2Sensor,ReturnAirCO2,PPM,0.00-2000.00,>f,FALSE,1001,CO2 Reading 0.00-2000.0 ppm
+CO2Stpt,ReturnAirCO2Stpt,PPM,1000.00 (default),>f,TRUE,1011,Setpoint to enable demand control ventilation 
+Cool1Spd,CoolSupplyFanSpeed1,%,0.00 to 100.00 (75 default),>f,TRUE,1005,Fan speed on cool 1 call
+Cool2Spd,CoolSupplyFanSpeed2,%,0.00 to 100.00 (90 default),>f,TRUE,1007,Fan speed on Cool2 Call
+Damper,DamperSignal,%,0.00 - 100.00,>f,FALSE,1023,Output to the economizer damper
+DaTemp,DischargeAirTemperature,F,(-)39.99 to 248.00,>f,FALSE,1009,Discharge air reading
+ESMEconMin,ESMDamperMinPosition,%,0.00 to 100.00 (5 default),>f,TRUE,1013,Minimum damper poistion during the energy savings mode
+FanPower,SupplyFanPower, kW,0.00 to 100.00,>f,FALSE,1015,Fan power from drive
+FanSpeed,SupplyFanSpeed,%,0.00 to 100.00,>f,FALSE,1003,Fan speed from drive
+FullSpd,SupplyFanFullSpeed,%,0.00 to 100.00 (100 default),>f,TRUE,1021,Fan speed during the standard mode and limit conditions
+Heat1Spd,HeatSupplyFanSpeed1,%,0.00 to 100.00 (75 default),>f,TRUE,1017,Fan speed on heat 1 Call
+Heat2Spd,HeatSupplyFanSpeed2,%,0.00 to 100.00 (90 default),>f,TRUE,1019,Fan speed on heat 2 Call
+MaTemp,MixedAirTemperature,F,(-)39.99 to 248.00,>f,FALSE,1025,Mixed Air Temperature from Probe
+MaTempAve,MixedAirAverage,F,(-)39.99 to 248.00,>f,FALSE,1027,Mixed Air Temperature from Averaging Sensor
+OaTemp,OutsideAirTemperature,F,(-)39.99 to 248.00,>f,FALSE,1029,Outside Air Temperature 
+OSAVolume,OudoorAirVolume,%,0.00 to 100.00,>f,FALSE,1031,Outside air volume claculated by multiplying damper and fan speed
+PowerEx Stpt,PowerExaustSetPoint,%,0.00 to 100.00 (100 default),>f,TRUE,1033,Setpoint that triggers the Power exhaust enable
+RaTemp,ReturnAirTemperature,F,(-)39.99 to 248.00,>f,FALSE,1037,Return air temperatuer reading
+DaTempLimit,DischargeAirTemperatureLimit,Normal / Alert / Limit,0.00 to 3.00,>f,FALSE,1041,"Status indicates that the supply sensor is limit or alert  0=Normal,  1=Alert, 3=Alarm"
+ServiceSwitch,ServiceSwitch,Enumeration,1 through 13,>l,FALSE,1039,"Status indicator of service switch 1=Unit Off, 2=Cool1 Fan 100%, 3=Cool2 Fan 100%, 4=Heat1 Fan 100%, 5=Heat2 Fan 100%, 6=Economizer 50% OSA, 7=Economizer100% OSA, 8=Heat2 Fan Auto, 9=Heat1 Fan auto, 10=Cool2 Fan Auto, 11=Cool1 Fan Auto, 12=Auto"
+StdEconMin,StandardDamperMinPosition,%,0.00 to 100.00 (20 default),>f,TRUE,1043,Minimum damper position during the standard mode
+StdEconStpt,StandardDamperChangeOverSetPoint,F,0.00 to 100.00 (55 default),>f,TRUE,1045,Economizer change-over setpoint during the standard mode
+UnitHealth,UnitHealth,Enumeration,0.00 to 10000.00,>f,FALSE,1047,1=Supply Sensor Fail 2=Return Sensor Fail 4=OSA Sensor Fail 8=CO2 Sensor Fail 16=Fan Run Fail 32=Fan Belt Fail 64=DriveFault  10000=Multiple Faults
+UnitPower,UnitPower,kW,0.00 to 100.00,>f,FALSE,1049,Unit power
+VentSpd,VentilationSupplyFanSpeed,%,0-100,>f,TRUE,1051,Fan speed when unit is vent mode
+DCVMaxVolume,DCVMaxVolume,%,0-100,>f,TRUE,1053,Outside air maximum volume setpoint when in DCV mode
+CoolCall1,CoolCall1,On / Off,on/off,BOOL,FALSE,1104,Status indidcator of cooling stage 1 need
+CoolCall2,CoolCall2,On / Off,on/off,BOOL,FALSE,1105,Status indicator of cooling stage 2 need
+CoolCmd1,CoolCommand1,On / Off,on/off,BOOL,FALSE,1106,Status indicator of a command to compressor #1
+CoolCmd2,CoolCommand2,On / Off,on/off,BOOL,FALSE,1107,Status indicator of a command to compressor #2
+EconMode,EconomizerMode,On / Off,on/off,BOOL,FALSE,1108,Status indicator of economizer mode operation
+ESMMode,ESMMode,CATALYST / Standard,on/off,BOOL,TRUE,1110,"Status indicator for normal or Catalyst operation.  Energy Savings is Catalyst oepration.  Point is a status, but it can also be overridden"
+FanCall,FanCall,On / Off,on/off,BOOL,FALSE,1111,Status indicator for fan need
+FanStatus,FanStatus,On / Off,on/off,BOOL,FALSE,1112,Status indicator for VFD running
+HeatCall1,HeatCall1,On / Off,on/off,BOOL,FALSE,1113,Status indicator of heating stage 1 need
+HeatCall2,HeatCall2,On / Off,on/off,BOOL,FALSE,1114,Status indicator of heating stage 2 need
+HeatCmd1,HeatCommand1,On / Off,on/off,BOOL,FALSE,1115,Status indicator of a command to heat #1
+HeatCmd2,HeatCommand2,On / Off,on/off,BOOL,FALSE,1116,Status indicator of a command to heat #2
+Occupied,Occupied,Occupied / Unoccupied,on/off,BOOL,FALSE,1117,Status indicator of occupancy need
+PowerExCmd,PowerExCmd,On / Off,on/off,BOOL,FALSE,1118,Status indicator of power exhaust command
+DriveFault,DriveFault,On / Off,on/off,BOOL,FALSE,1119,Status indicator of DriveFault
+VentMode,VentilationMode,On / Off,on/off,BOOL,FALSE,1120,Status indicator of Vent Mode

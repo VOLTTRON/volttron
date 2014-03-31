@@ -1,0 +1,68 @@
+{
+    "agent": {
+        "exec": "actuatoragent-0.1-py2.7.egg --config \"%c\" --sub \"%s\" --pub \"%p\""
+    },
+    "url": "http://localhost:8080/data",
+    "lock_timeout": 3600,
+    "schedule_publish_interval": 30,
+    "heartbeat_interval": 30,
+ 	"points":
+ 	{
+ 		"LBNL/Building46/RTU1":
+	 	{
+	 		"heartbeat_point":"PlatformHeartBeat"
+	 		
+	 	},
+ 		"LBNL/Building46/RTU2":
+	 	{
+	 		"heartbeat_point":"PlatformHeartBeat"
+	 		
+	 	},
+	 	"LBNL/Building46/RTU3":
+	 	{
+	 		"heartbeat_point":"PlatformHeartBeat"
+	 		
+	 	},
+	 	"LBNL/Building46/RTU4":
+	 	{
+	 		"heartbeat_point":"PlatformHeartBeat"
+	 		
+	 	},
+	 	"LBNL/Building46/RTU5":
+	 	{
+	 		"heartbeat_point":"PlatformHeartBeat"
+	 		
+	 	},
+	 	"LBNL/Building46/RTU6":
+	 	{
+	 		"heartbeat_point":"PlatformHeartBeat"
+	 		
+	 	},
+	 	"LBNL/Building46/RTU7":
+	 	{
+	 		"heartbeat_point":"PlatformHeartBeat"
+	 		
+	 	},
+	 	
+ 		"PNNL/TWT/RTU1":
+	 	{
+	 		"heartbeat_point":"PlatformHeartBeat"
+	 		
+	 	},
+	 	"PNNL/TWT/RTU2":
+	 	{
+	 		"heartbeat_point":"PlatformHeartBeat"
+	 		
+	 	},
+	 	"PNNL/TWT/RTU3":
+	 	{
+	 		"heartbeat_point":"PlatformHeartBeat"
+	 		
+	 	},
+	 	"PNNL/TWT/RTU4":
+	 	{
+	 		"heartbeat_point":"PlatformHeartBeat"
+	 		
+	 	}
+	 }
+}

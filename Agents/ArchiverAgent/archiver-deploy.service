@@ -1,0 +1,8 @@
+{
+    "agent": {
+        "exec": "archiveragent-0.1-py2.7.egg --config \"%c\" --sub \"%s\" --pub \"%p\""
+    },
+    "archiver_url": "http://ec2-54-212-252-174.us-west-2.compute.amazonaws.com/backend/api/query",
+    "agentid": "SMAP Archiver",
+    "source_name": "Transactional Network"
+}

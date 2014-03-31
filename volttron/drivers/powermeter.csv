@@ -1,0 +1,6 @@
+Point Name,PNNL Point Name,Units,Units Details,Modbus Register,Writable,Point Address,Notes
+SitePower1,SitePower1,kW,0.00 to 100.00,>f,FALSE,1049,whole building meter 1
+SitePower2,SitePower2,kW,0.00 to 100.00,>f,FALSE,1051,whole building meter 2
+SitePower3,SitePower3,kW,0.00 to 100.00,>f,FALSE,1053,whole building meter 3
+SitePower4,SitePower4,kW,0.00 to 100.00,>f,FALSE,1055,whole building meter 4
+TotalPower,TotalPower,kW,0.00 to 100.00,>f,FALSE,1057,total whole building (sum of 4 meters)

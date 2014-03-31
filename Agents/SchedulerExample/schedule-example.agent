@@ -1,0 +1,7 @@
+{
+    "agent": {
+        "exec": "schedule_exampleagent-0.1-py2.7.egg --config \"%c\" --sub \"%s\" --pub \"%p\""
+    },
+    "agentid": "schedule_example",
+    "message": "hello"    
+}
