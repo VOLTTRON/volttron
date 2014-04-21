@@ -346,14 +346,14 @@ class BACnetRegister(BaseRegister):
 
         
 class BACnetInterface(BaseInterface):
-    def __init__(self, self_address, target_address, self_port=47808, target_port=47808, config_file=configFile, **kwargs):
+    def __init__(self, self_address, target_address, config_file=configFile, **kwargs):
         super(BACnetInterface, self).__init__(**kwargs)
         self.reverse_point_map = {}
         self.object_property_map = defaultdict(list)
         
-        self.setup_device(self_address, self_port)
+        self.setup_device(self_address)
         self.parse_config(config_file)         
-        self.target_address = Address(target_address+':'+str(target_port))
+        self.target_address = Address(target_address)
         
         
         
@@ -366,7 +366,7 @@ class BACnetInterface(BaseInterface):
         self.object_property_map[register.object_type, 
                                  register.instance_number].append(register.property)
         
-    def setup_device(self, address, port):  
+    def setup_device(self, address):  
         this_device = LocalDeviceObject(
             objectName="sMap BACnet driver",
             objectIdentifier=599,
@@ -381,7 +381,7 @@ class BACnetInterface(BaseInterface):
         # set the property value to be just the bits
         this_device.protocolServicesSupported = pss.value
         
-        self.this_application = BACnet_application(this_device, address+':'+str(port))
+        self.this_application = BACnet_application(this_device, address)
         
         #We must use traditional python threads, otherwise the driver will
         # hang during startup while trying to scrape actuator values.
@@ -483,15 +483,11 @@ class BACnet(BaseSmapVolttron):
         self.set_metadata('/', {'Extra/Driver' : 'volttron.drivers.bacnet.BACnet'})
              
     def get_interface(self, opts):
-        target_ip_address = opts['target_ip_address']
-        target_port = int(opts.get('target_port',47808))
-        self_ip_address = opts['self_ip_address']
-        self_port = int(opts.get('self_port',47808))
+        target_ip_address = opts['target_address']
+        self_ip_address = opts['self_address']
         config = opts.get('register_config', configFile)
         
-        return BACnetInterface(self_ip_address, target_ip_address, 
-                               self_port=self_port, target_port=target_port, 
-                               config_file=config)
+        return BACnetInterface(self_ip_address, target_ip_address, config_file=config)
         
 if __name__ == "__main__":
     from pprint import pprint    
