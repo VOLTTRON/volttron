@@ -1,0 +1,13 @@
+#!/bin/sh
+
+# Sets up the environment to run the tests
+./bootstrap
+
+# Allow tests to run in the virtual environment.
+. volttron/activate
+
+# Move to root of volttron project
+cd volttron
+
+# Run all tests volttron.
+nosetests --with-xunit
