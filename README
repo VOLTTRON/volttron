@@ -1,4 +1,3 @@
-
 EXTERNAL DEPENDENCIES
 
 A few external dependencies are required for buildout to bootstrap the
@@ -17,7 +16,7 @@ libsodium source code is found at https://github.com/jedisct1/libsodium.
 
 On Arch, the following command will install the dependencies:
 
-   $ sudo pacman -S base-devel python2 openssl libsodium
+   $ sudo pacman -S base-devel python2 openssl openssl-dev libsodium
 
 
 BUILDING A DEVELOPMENT ENVIRONMENT
