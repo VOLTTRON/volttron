@@ -1,12 +1,9 @@
 #!/bin/sh
 
-pwd
-
 # Sets up the environment to run the tests
 chmod +x bootstrap
 
-
-
+./bootstrap
 
 # Allow tests to run in the virtual environment.
 . bin/activate
