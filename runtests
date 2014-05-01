@@ -4,10 +4,10 @@
 ./bootstrap
 
 # Allow tests to run in the virtual environment.
-. volttron/activate
+. bin/activate
 
 # Move to root of volttron project
 cd volttron
 
 # Run all tests volttron.
-nosetests --with-xunit
+nose --with-xunit
