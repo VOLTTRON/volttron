@@ -5,7 +5,7 @@ development environment: essential build tools (gcc, make, autodev-tools,
 etc.), python development files (headers), and openssl.  On Debian-based
 systems, these can all be installed with the following command:
 
-   $ sudo apt-get install build-essential python-dev openssl libevent-dev
+   $ sudo apt-get install build-essential python-dev openssl libssl-dev libevent-dev
 
 Please note that if you wish to use cryptographic authentication or
 point-to-point encryption, libsodium will also need to be installed.
@@ -16,7 +16,7 @@ libsodium source code is found at https://github.com/jedisct1/libsodium.
 
 On Arch, the following command will install the dependencies:
 
-   $ sudo pacman -S base-devel python2 openssl openssl-dev libsodium
+   $ sudo pacman -S base-devel python2 openssl libssl-dev libsodium
 
 
 BUILDING A DEVELOPMENT ENVIRONMENT
