@@ -1,10 +1,10 @@
-#!/bin/sh
+#!/bin/bash
 
 # Sets up the environment to run the tests
 #chmod +x bootstrap
 
 echo "running bootstrap"
-bash ./bootstrap
+./bootstrap
 
 # Allow tests to run in the virtual environment.
 . bin/activate
