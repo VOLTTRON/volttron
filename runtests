@@ -4,13 +4,13 @@
 #chmod +x bootstrap
 
 echo "running bootstrap"
-./bootstrap
+#./bootstrap
 
 # Allow tests to run in the virtual environment.
 . bin/activate
 
 # Move to root of volttron project
-cd volttron
+#cd volttron
 
 # Run all tests volttron.
 nose --with-xunit

@@ -2,6 +2,7 @@ import unittest
 import subprocess
 import time
 
+from volttron.lite.agent import PublishMixin
 
 """
 Test 
@@ -33,6 +34,8 @@ STOP_AGENT = "stop-agent"
 START_AGENT = "start-agent"
 BUILD_AGENT = "volttron/scripts/build-agent.sh"
 CONFIG_FILE = "test-config.ini"
+
+PUBLISH_ADDRESS = "ipc:///tmp/volttron-lite-agent-publish"
 
 archiver_dict = {"executable": "archiveragent-0.1-py2.7.egg",
                  "launch_file": "Agents/ArchiverAgent/archiver-test-deploy.service",
@@ -96,14 +99,11 @@ def startup_archiver():
     list_output = subprocess.check_output(["bin/volttron-ctrl","list-agents"])
     found_archiver = False
     for line in list_output.split('\n'):
-        print "hi"
-        print line
         bits = line.split()
         if len(bits) > 0 and bits[0] == ("archiver-test-deploy.service"):
-            print "FOUND IT"
             found_archiver = True
-            assert(bits[2].startswith('running') == True)
-    self.assertTrue(found_archiver)
+            assert(bits[2].startswith('running'))
+    assert(found_archiver)
 
 def shutdown_archiver():
     print subprocess.check_output(["bin/volttron-ctrl","stop-agent","archiver-test-deploy.service"])
@@ -120,43 +120,17 @@ class TestBuildAndInstallArchiver(unittest.TestCase):
 #         shutdown_archiver()
 #         print "teardown_class"
 
-    def setup(self):
+    def setUp(self):
         startup_archiver()
         print "setup test"
-        publisher = PublishMixin()
+        publisher = PublishMixin(PUBLISH_ADDRESS)
+        print "hello"
 #         --config Agents/ListenerAgent/listeneragent.launch.json --pub ipc:///tmp/volttron-lite-agent-publish --sub ipc:///tmp/volttron-lite-agent-subscribe
         
-    def teardown(self):
+    def tearDown(self):
         shutdown_archiver()
         print "teardown test"
         
     def test_something(self):
         print "test something"
          
-
-# try:
-#     time.sleep(3)
-#    
-#     
-#     print subprocess.check_output(["bin/volttron-ctrl","install-executable","Agents/archiveragent-0.1-py2.7.egg"])
-#     print subprocess.check_output(["bin/volttron-ctrl","load-agent","Agents/ArchiverAgent/archiver-test-deploy.service"])
-#     time.sleep(3)
-#     print subprocess.check_output(["bin/volttron-ctrl","start-agent","archiver-test-deploy.service"])
-#     time.sleep(3)
-#     list_output = subprocess.check_output(["bin/volttron-ctrl","list-agents"])
-#     found_archiver = False
-#     for line in list_output.split('\n'):
-#         print line
-#         bits = line.split()
-#         if bits[0] == ("archiver-test-deploy.service"):
-#             found_archiver = True
-#             assert(bits[2].startswith('running2') == True)
-#     assert found_archiver == True
-#     
-# except Exception as e: 
-#     print subprocess.check_output(["bin/volttron-ctrl","stop-agent","archiver-test-deploy.service"])
-#     print subprocess.check_output(["bin/volttron-ctrl","remove-executable","archiveragent-0.1-py2.7.egg"])
-#     print subprocess.check_output(["bin/volttron-ctrl","unload-agent","archiver-test-deploy.service"])
-#     print subprocess.check_output(["bin/volttron-ctrl","list-agents"])
-#     print "hello"
-#     p_process.kill()
