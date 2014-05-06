@@ -63,7 +63,7 @@ package = 'SMDS'
 setup(
     name = package + 'agent',
     version = "0.1",
-    install_requires = ['volttronlite'],
+    install_requires = ['volttron'],
     package_dir= {package: ''},
     py_modules = ['__main__', package + '.agent', package + '.settings'],
     entry_points = {

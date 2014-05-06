@@ -68,8 +68,8 @@ import os.path
 import zmq
 
 #Addresses agents use to setup the pub/sub
-publish_address = 'ipc:///tmp/volttron-lite-agent-publish'
-subscribe_address = 'ipc:///tmp/volttron-lite-agent-subscribe'
+publish_address = 'ipc:///tmp/volttron-platform-agent-publish'
+subscribe_address = 'ipc:///tmp/volttron-platform-agent-subscribe'
 
 import logging
 

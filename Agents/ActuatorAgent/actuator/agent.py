@@ -66,12 +66,12 @@ from dateutil.rrule import DAILY, rruleset, rrule
 
 import requests
 
-from volttron.lite.agent import BaseAgent, PublishMixin
-from volttron.lite.agent import matching, utils
-from volttron.lite.agent.utils import jsonapi
-from volttron.lite.messaging import topics
-from volttron.lite.messaging.utils import normtopic
-from volttron.lite.agent.sched import EventWithTime
+from volttron.platform.agent import BaseAgent, PublishMixin
+from volttron.platform.agent import matching, utils
+from volttron.platform.agent.utils import jsonapi
+from volttron.platform.messaging import topics
+from volttron.platform.messaging.utils import normtopic
+from volttron.platform.agent.sched import EventWithTime
 from scheduler import ScheduleManager
 
 
@@ -372,7 +372,7 @@ def ActuatorAgent(config_path, **kwargs):
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
     utils.default_main(ActuatorAgent,
-                       description='Example VOLTTRON Lite™ actuator agent',
+                       description='Example VOLTTRON platform™ actuator agent',
                        argv=argv)
 
 

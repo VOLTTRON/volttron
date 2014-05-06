@@ -62,11 +62,11 @@ import time
 import datetime
 import sys
 import time
-from volttron.lite.agent import BaseAgent, PublishMixin, periodic
-from volttron.lite.agent import green,utils, matching, sched
-from volttron.lite.agent.utils import jsonapi
-from volttron.lite.messaging import headers as headers_mod
-from volttron.lite.messaging import topics
+from volttron.platform.agent import BaseAgent, PublishMixin, periodic
+from volttron.platform.agent import green,utils, matching, sched
+from volttron.platform.agent.utils import jsonapi
+from volttron.platform.messaging import headers as headers_mod
+from volttron.platform.messaging import topics
 
 
 _log = logging.getLogger(__name__)

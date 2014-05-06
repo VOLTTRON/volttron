@@ -59,7 +59,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name = 'volttronlite',
+    name = 'volttron',
     version = '0.2',
     description = 'Agent Execution Platform',
     author = 'Volttron Team',
@@ -71,19 +71,19 @@ setup(
                         'pymodbus', 'pyopenssl', 'python-dateutil',
                         'pyzmq', 'requests', 'setuptools', 'simplejson',
                         'smap', 'twisted', 'zope.interface'],
-    package_data = {'volttron.lite': ['configspec.ini']},
+    package_data = {'volttron.platform': ['configspec.ini']},
     entry_points = '''
     [console_scripts]
-    volttron-lite = volttron.lite.main:_main
-    volttron-ctrl = volttron.lite.control:_main
+    volttron-platform = volttron.platform.main:_main
+    volttron-ctrl = volttron.platform.control:_main
 
-    #[volttron.lite.control.handlers]
-    #run_agent = volttron.lite.commands:run_agent.handler
-    #shutdown = volttron.lite.commands:shutdown.handler
+    #[volttron.platform.control.handlers]
+    #run_agent = volttron.platform.commands:run_agent.handler
+    #shutdown = volttron.platform.commands:shutdown.handler
 
-    #[volttron.lite.control.commands]
-    #run-agent = volttron.lite.commands:run_agent.command
-    #shutdown = volttron.lite.commands:shutdown.command
+    #[volttron.platform.control.commands]
+    #run-agent = volttron.platform.commands:run_agent.command
+    #shutdown = volttron.platform.commands:shutdown.command
     
     # Other useful commands that need implemented
     #load-agent
@@ -93,17 +93,17 @@ setup(
     #debug-shell
 
     [volttron.switchboard.directory]
-    #lite = volttron.core.directory.host:HostDirectory
+    #platform = volttron.core.directory.host:HostDirectory
 
     [volttron.switchboard.resmon]
-    lite = volttron.lite.resmon:ResourceMonitor
+    platform = volttron.platform.resmon:ResourceMonitor
     
     [volttron.switchboard.aip]
-    lite = volttron.lite.aip:AIPLite
+    platform = volttron.platform.aip:AIPplatform
 
 
     [volttron.switchboard.auth]
-    #lite = volttron.lite.auth:AuthManager
+    #platform = volttron.platform.auth:AuthManager
     ''',
     test_suite = 'nose.collector',
     zip_safe = False,

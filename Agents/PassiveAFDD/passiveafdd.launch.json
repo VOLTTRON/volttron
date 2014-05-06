@@ -23,7 +23,7 @@
    
     "aggregate_data": 1,
     "csv_input": 1,
-    "input_file": "/home/volttrondev/workspace/rtunetwork/Agents/PassiveAFDD/passiveafdd/sample_data/oae_sample_data.csv",
+    "input_file": "/home/volttrondev/workspace/volttron/Agents/PassiveAFDD/passiveafdd/sample_data/oae_sample_data.csv",
 
 	"oaf_temp_threshold": 4.0,
 	

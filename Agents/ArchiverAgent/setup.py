@@ -64,7 +64,7 @@ package = packages[0]
 setup(
     name = package + 'agent',
     version = "0.1",
-    install_requires = ['volttronlite', 'requests'],
+    install_requires = ['volttron', 'requests'],
     packages = packages,
     package_data = {'archiver': ['config.json']},
     entry_points = {

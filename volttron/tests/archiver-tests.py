@@ -2,7 +2,7 @@ import unittest
 import subprocess
 import time
 
-from volttron.lite.agent import PublishMixin
+from volttron.platform.agent import PublishMixin
 
 """
 Test 
@@ -23,7 +23,7 @@ p_process = None
 t_process = None
 
 #All paths relative to proj-dir/volttron
-VSTART = "bin/volttron-lite"
+VSTART = "bin/volttron-platform"
 VCTRL = "bin/volttron-ctrl"
 INST_EXEC = "install-executable"
 REM_EXEC = "remove-executable"
@@ -35,7 +35,7 @@ START_AGENT = "start-agent"
 BUILD_AGENT = "volttron/scripts/build-agent.sh"
 CONFIG_FILE = "test-config.ini"
 
-PUBLISH_ADDRESS = "ipc:///tmp/volttron-lite-agent-publish"
+PUBLISH_ADDRESS = "ipc:///tmp/volttron-platform-agent-publish"
 
 archiver_dict = {"executable": "archiveragent-0.1-py2.7.egg",
                  "launch_file": "Agents/ArchiverAgent/archiver-test-deploy.service",
@@ -125,7 +125,7 @@ class TestBuildAndInstallArchiver(unittest.TestCase):
         print "setup test"
         publisher = PublishMixin(PUBLISH_ADDRESS)
         print "hello"
-#         --config Agents/ListenerAgent/listeneragent.launch.json --pub ipc:///tmp/volttron-lite-agent-publish --sub ipc:///tmp/volttron-lite-agent-subscribe
+#         --config Agents/ListenerAgent/listeneragent.launch.json --pub ipc:///tmp/volttron-platform-agent-publish --sub ipc:///tmp/volttron-platform-agent-subscribe
         
     def tearDown(self):
         shutdown_archiver()

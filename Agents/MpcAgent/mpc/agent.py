@@ -2,8 +2,8 @@ import sys
 import MPC
 import CBC_Gui
 import datetime
-from volttron.lite.agent import BaseAgent, PublishMixin, periodic, matching, utils
-from volttron.lite.messaging import headers as headers_mod
+from volttron.platform.agent import BaseAgent, PublishMixin, periodic, matching, utils
+from volttron.platform.messaging import headers as headers_mod
 
 class MpcAgent(PublishMixin, BaseAgent):
 

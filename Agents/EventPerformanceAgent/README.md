@@ -1,9 +1,9 @@
 ## Installation
 
-Start by getting the Volttron Lite platform up and running: [RTUNetwork build 
+Start by getting the Volttron platform platform up and running: [RTUNetwork build 
 instructions](https://svn.pnl.gov/RTUNetwork/wiki/BuildingTheProject).
 
-You can find the [Volttron Lite source here](https://bitbucket.org/berkeleylab/rtunetwork/overview).
+You can find the [Volttron platform source here](https://bitbucket.org/berkeleylab/rtunetwork/overview).
 
 The Agents contained in this repo can be built just like normal Volttron agents. Aside from Volttron, the only dependency required by these agents is the loadshape module. Within each Agent, this dependency is declared both in setup.py as well as requirements.txt.
 

@@ -69,8 +69,8 @@ from datetime import datetime
 from baseagent import BaseAgent
 from simplejson.tests.test_pass1 import JSON
 
-publish_address = 'ipc:///tmp/volttron-lite-agent-publish'
-subscribe_address = 'ipc:///tmp/volttron-lite-agent-subscribe'
+publish_address = 'ipc:///tmp/volttron-platform-agent-publish'
+subscribe_address = 'ipc:///tmp/volttron-platform-agent-subscribe'
 
 topic_delim = '/' # The delimiter between topics
 

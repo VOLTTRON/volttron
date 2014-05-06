@@ -63,16 +63,16 @@ from smap.util import periodicSequentialCall
 import zmq
 import datetime
 
-from volttron.lite.agent.base import PublishMixin
+from volttron.platform.agent.base import PublishMixin
 
-from volttron.lite.messaging import headers as headers_mod
+from volttron.platform.messaging import headers as headers_mod
 
 import abc
 
 from twisted.internet.defer import maybeDeferred
 
 #Addresses agents use to setup the pub/sub
-default_publish_address = 'ipc:///tmp/volttron-lite-agent-publish'
+default_publish_address = 'ipc:///tmp/volttron-platform-agent-publish'
 
 class BaseRegister(object):
     def __init__(self, register_type, read_only, pointName, units, description = ''):

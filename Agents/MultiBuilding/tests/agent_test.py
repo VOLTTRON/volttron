@@ -78,14 +78,14 @@ zmq = zmq.green
 #zmq.Context = wrap_context(zmq.Context)
 
 
-from volttron.lite.main import agent_exchange
+from volttron.platform.main import agent_exchange
 from multibuilding.agent import MultiBuildingAgent
 
-from volttron.lite.agent import BaseAgent, PublishMixin, periodic
-from volttron.lite.agent import utils, matching
-from volttron.lite import messaging
-from volttron.lite.messaging import topics
-from volttron.lite.messaging.headers import COOKIE
+from volttron.platform.agent import BaseAgent, PublishMixin, periodic
+from volttron.platform.agent import utils, matching
+from volttron.platform import messaging
+from volttron.platform.messaging import topics
+from volttron.platform.messaging.headers import COOKIE
 
 
 def cookie_headers(request, **headers):

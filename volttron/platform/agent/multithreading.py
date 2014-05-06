@@ -3,18 +3,18 @@
 
 # Copyright (c) 2013, Battelle Memorial Institute
 # All rights reserved.
-#
+# 
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
-# are met:
-#
+# are met: 
+# 
 # 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
+#    notice, this list of conditions and the following disclaimer. 
 # 2. Redistributions in binary form must reproduce the above copyright
 #    notice, this list of conditions and the following disclaimer in
 #    the documentation and/or other materials provided with the
-#    distribution.
-#
+#    distribution. 
+# 
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
 # "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
 # LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -26,7 +26,7 @@
 # THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
+# 
 # The views and conclusions contained in the software and documentation
 # are those of the authors and should not be interpreted as representing
 # official policies, either expressed or implied, of the FreeBSD
@@ -41,7 +41,7 @@
 # responsibility for the accuracy, completeness, or usefulness or any
 # information, apparatus, product, software, or process disclosed, or
 # represents that its use would not infringe privately owned rights.
-#
+# 
 # Reference herein to any specific commercial product, process, or
 # service by trade name, trademark, manufacturer, or otherwise does not
 # necessarily constitute or imply its endorsement, recommendation, or
@@ -49,7 +49,7 @@
 # Battelle Memorial Institute. The views and opinions of authors
 # expressed herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
-#
+# 
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
@@ -57,84 +57,55 @@
 # pylint: disable=W0142,W0403
 #}}}
 
-'''VOLTTRON Lite™ agent event scheduling classes.'''
+'''VOLTTRON platform™ multi-threaded agent helper classes/functions.
+
+These utilities are meant to be used with the BaseAgent and threading to
+provide synchronization between threads and the main agent loop.
+'''
 
 
-import heapq
-import time as time_mod
+import threading
 
 
-class Event(object):
-    '''Base class for schedulable objects.'''
-
-    __slots__ = ['function', 'args', 'kwargs', 'canceled', 'finished']
-
-    def __init__(self, function, args=None, kwargs=None):
-        self.function = function
-        self.args = args or []
-        self.kwargs = kwargs or {}
-        self.canceled = False
-        self.finished = False
-
-    def cancel(self):
-        '''Mark the timer as canceled to avoid a callback.'''
-        self.canceled = True
-
-    def __call__(self, deadline):
-        if not self.canceled:
-            self.function(*self.args, **self.kwargs)
-        self.finished = True
-        
-class EventWithTime(Event): 
-    '''Event that passes deadline to event handler.'''
-    def __call__(self, deadline):
-        if not self.canceled:
-            self.function(deadline, *self.args, **self.kwargs)
-        self.finished = True
+class Timeout(Exception):
+    '''Raised in the thread when waiting on a queue times out.'''
 
 
-class RecurringEvent(Event):
-    __slots__ = ['period']
+class WaitQueue(object):
+    '''A holder for threads waiting on asynchronous data.'''
 
-    def __init__(self, period, function, args=None, kwargs=None):
-        super(RecurringEvent, self).__init__(function, args, kwargs)
-        self.period = period
+    def __init__(self, lock=None):
+        self.condition = threading.Condition(lock)
+        self.counter = 0
+        self.data = None
 
-    def __call__(self, deadline):
-        if not self.canceled:
-            self.function(*self.args, **self.kwargs)
-            if not self.canceled:
-                return deadline + self.period
-        self.finished = True
+    def wait(self, timeout=None):
+        '''Wait for data to become available and return it
 
+        If timeout is None, wait indefinitely.  Otherwise, timeout if
+        the thread hasn't been notified within timeout seconds.
+        '''
+        with self.condition:
+            return self._wait(timeout)
+    
+    def _wait(self, timeout=None):
+        counter = self.counter
+        self.condition.wait(timeout)
+        if counter != self.counter:
+            return self.data
+        raise Timeout
 
-class Queue(object):
-    def __init__(self):
-        self._queue = []
+    def notify_all(self, data):
+        '''Notify all waiting threads of the arrival of data.'''
+        with self.condition:
+            self.data = data
+            self.counter += 1
+            self.condition.notify_all()
 
-    def schedule(self, time, event):
-        heapq.heappush(self._queue, (time, event))
-
-    def execute(self, time):
-        if not self._queue:
-            return
-        deadline, callback = event = self._queue[0]
-        if deadline > time:
-            return
-        assert heapq.heappop(self._queue) == event
-        time = callback(deadline)
-        if time is not None:
-            if hasattr(time, 'timetuple'):
-                time = time_mod.mktime(time.timetuple())
-            heapq.heappush(self._queue, (time, callback))
-        return True
-
-    def delay(self, time):
-        if not self._queue:
-            return
-        deadline, _ = self._queue[0]
-        return deadline - time if deadline > time else 0
-
-    def __nonzero__(self):
-        return bool(self._queue)
+    def notify(self, data, n=1):
+        '''Notify n waiting threads of the arrival of data.'''
+        with self.condition:
+            self.data = data
+            self.counter += 1
+            self.condition.notify(n)
 

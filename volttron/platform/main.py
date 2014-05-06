@@ -118,7 +118,7 @@ class OptionParser(argparse.ArgumentParser):
     def __init__(self, progname):
         argparse.ArgumentParser.__init__(self, usage='%(prog)s [OPTION]...',
             prog=progname, add_help=False,
-            description='Volttron Lite agent platform daemon',
+            description='Volttron platform agent platform daemon',
             ) #formatter=self.GnuishHelpFormatter())
         self.add_argument('-c', '--config', metavar='FILE',
                 help='read configuration from FILE')
@@ -233,9 +233,9 @@ def main(argv=sys.argv):
         env.config['agent-exchange']['publish-address'] = pub_addr
 
     env.resmon = load_entry_point(
-            'volttronlite', 'volttron.switchboard.resmon', 'lite')(env)
+            'volttron', 'volttron.switchboard.resmon', 'platform')(env)
     env.aip = load_entry_point(
-            'volttronlite', 'volttron.switchboard.aip', 'lite')(env)
+            'volttron', 'volttron.switchboard.aip', 'platform')(env)
 
     # Configure logging
     level = max(0, logging.WARNING + opts.verboseness * 10)

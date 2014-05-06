@@ -76,9 +76,9 @@ import os.path
 import zmq
 import datetime
 
-from volttron.lite.agent.base import PublishMixin
+from volttron.platform.agent.base import PublishMixin
 
-from volttron.lite.messaging import headers as headers_mod
+from volttron.platform.messaging import headers as headers_mod
 
 MODBUS_REGISTER_SIZE = 2
 MODBUS_READ_MAX = 100
@@ -88,7 +88,7 @@ path = os.path.dirname(os.path.abspath(__file__))
 configFile = os.path.join(path, "example.csv")
 
 #Addresses agents use to setup the pub/sub
-default_publish_address = 'ipc:///tmp/volttron-lite-agent-publish'
+default_publish_address = 'ipc:///tmp/volttron-platform-agent-publish'
 
 class ModbusInterfaceException(ModbusException):
     pass

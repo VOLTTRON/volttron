@@ -55,7 +55,7 @@
 # under Contract DE-AC05-76RL01830
 #}}}
 
-'''VOLTTRON Lite™ topic matching for agent callbacks.
+'''VOLTTRON platform™ topic matching for agent callbacks.
 
 Declaratively attach topic prefix and additional tests for topic
 matching to agent methods allowing for automated callback registration

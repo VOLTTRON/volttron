@@ -63,10 +63,10 @@ import sys
 import greenlet
 from zmq.utils import jsonapi
 
-from volttron.lite.agent import BaseAgent, PublishMixin, periodic
-from volttron.lite.agent import green, utils, matching
-from volttron.lite.messaging import topics
-#from volttron.lite.messaging import headers as headers_mod
+from volttron.platform.agent import BaseAgent, PublishMixin, periodic
+from volttron.platform.agent import green, utils, matching
+from volttron.platform.messaging import topics
+#from volttron.platform.messaging import headers as headers_mod
 
 import settings
 
@@ -204,13 +204,13 @@ def AFDDAgent(config_path, **kwargs):
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
     utils.default_main(AFDDAgent,
-                       description='VOLTTRON Lite™ AFDD agent',
+                       description='VOLTTRON platform™ AFDD agent',
                        argv=argv)
 
 
 def test():
     import threading, time
-    from volttron.lite.agent import periodic
+    from volttron.platform.agent import periodic
 
     def TestAgent(config_path, condition, **kwargs):
         config = utils.load_config(config_path)

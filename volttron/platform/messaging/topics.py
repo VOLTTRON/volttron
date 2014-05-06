@@ -57,7 +57,7 @@
 # pylint: disable=W0142,W0403
 #}}}
 
-'''VOLTTRON Lite™ topic templates.
+'''VOLTTRON platform™ topic templates.
 
 Templates of standard topics.  Fields in the templates are replaced by
 calling the template with the field value included in the keyword

@@ -60,11 +60,11 @@
 import sys
 import random
 
-from volttron.lite.agent import BaseAgent, PublishMixin
-from volttron.lite.agent import utils, matching
-from volttron.lite.agent.utils import jsonapi
-from volttron.lite.messaging import headers as headers_mod
-from volttron.lite.messaging import topics
+from volttron.platform.agent import BaseAgent, PublishMixin
+from volttron.platform.agent import utils, matching
+from volttron.platform.agent.utils import jsonapi
+from volttron.platform.messaging import headers as headers_mod
+from volttron.platform.messaging import topics
 
 
 def ControllerAgent(config_path, **kwargs):
@@ -179,7 +179,7 @@ def ControllerAgent(config_path, **kwargs):
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
     utils.default_main(ControllerAgent,
-                       description='Example VOLTTRON Lite™ controller agent',
+                       description='Example VOLTTRON platform™ controller agent',
                        argv=argv)
 
 

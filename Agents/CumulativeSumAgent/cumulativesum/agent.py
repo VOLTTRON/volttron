@@ -2,10 +2,10 @@ import logging
 import sys
 import json
 
-from volttron.lite.agent import BaseAgent, PublishMixin
-from volttron.lite.agent import utils, matching
-from volttron.lite.messaging import headers as headers_mod
-from volttron.lite.messaging import topics
+from volttron.platform.agent import BaseAgent, PublishMixin
+from volttron.platform.agent import utils, matching
+from volttron.platform.messaging import headers as headers_mod
+from volttron.platform.messaging import topics
 
 from loadshape import Loadshape
 
@@ -74,7 +74,7 @@ class CumulativeSumAgent(PublishMixin, BaseAgent):
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
     utils.default_main(CumulativeSumAgent,
-                        description='Cumulative sum agent for VOLTTRON Lite',
+                        description='Cumulative sum agent for VOLTTRON platform',
                         argv=argv)
 
 if __name__ == '__main__':

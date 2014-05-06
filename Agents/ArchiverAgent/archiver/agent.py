@@ -60,12 +60,12 @@ import sys
 import requests
 from requests import ConnectionError
 
-from volttron.lite.agent import BaseAgent, PublishMixin
-from volttron.lite.agent import utils
-from volttron.lite.agent.utils import jsonapi
-from volttron.lite.agent.matching import match_all, match_start
-from volttron.lite.messaging import headers as headers_mod
-from volttron.lite.messaging import topics
+from volttron.platform.agent import BaseAgent, PublishMixin
+from volttron.platform.agent import utils
+from volttron.platform.agent.utils import jsonapi
+from volttron.platform.agent.matching import match_all, match_start
+from volttron.platform.messaging import headers as headers_mod
+from volttron.platform.messaging import topics
 
 import settings
 
@@ -313,7 +313,7 @@ def ArchiverAgent(config_path, **kwargs):
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
     utils.default_main(ArchiverAgent,
-                       description='VOLTTRON Lite™ archiver agent',
+                       description='VOLTTRON platform™ archiver agent',
                        argv=argv)
 
 
