@@ -65,9 +65,9 @@ import requests
 import xml.etree.ElementTree as ET
 from requests import ConnectionError
 
-from volttron.lite.agent import BaseAgent, PublishMixin, periodic
-from volttron.lite.agent import utils, matching
-from volttron.lite.messaging import headers as headers_mod, topics
+from volttron.platform.agent import BaseAgent, PublishMixin, periodic
+from volttron.platform.agent import utils, matching
+from volttron.platform.messaging import headers as headers_mod, topics
 
 import settings
 from settings import DEBUG as DEBUG

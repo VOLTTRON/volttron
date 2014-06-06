@@ -57,7 +57,7 @@
 # pylint: disable=W0142,W0403
 #}}}
 
-'''VOLTTRON Lite™ messaging header name constants.'''
+'''VOLTTRON platform™ messaging header name constants.'''
 
 
 __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'

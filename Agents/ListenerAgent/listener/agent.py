@@ -58,9 +58,9 @@ from datetime import datetime
 import logging
 import sys
 
-from volttron.lite.agent import BaseAgent, PublishMixin, periodic
-from volttron.lite.agent import utils, matching
-from volttron.lite.messaging import headers as headers_mod
+from volttron.platform.agent import BaseAgent, PublishMixin, periodic
+from volttron.platform.agent import utils, matching
+from volttron.platform.messaging import headers as headers_mod
 
 import settings
 
@@ -112,7 +112,7 @@ def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
     try:
         utils.default_main(ListenerAgent,
-                           description='Example VOLTTRON Lite™ heartbeat agent',
+                           description='Example VOLTTRON platform™ heartbeat agent',
                            argv=argv)
     except Exception as e:
         _log.exception('unhandled exception')

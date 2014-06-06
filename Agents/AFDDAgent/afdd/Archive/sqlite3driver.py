@@ -55,11 +55,11 @@
 # under Contract DE-AC05-76RL01830
 #}}}
 
-import sqlite3
+import sqplatform3
 
-class Sqlite3Driver:
+class Sqplatform3Driver:
     def __init__():
-        self._con = sqlite3.connect(':memory:')
+        self._con = sqplatform3.connect(':memory:')
         self._cur = con.cursor()
         
     def create_table(self, table_name, columns):

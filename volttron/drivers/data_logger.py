@@ -64,14 +64,14 @@ from smap import driver
 from smap.core import SmapException
 from smap.util import periodicSequentialCall
 
-from volttron.lite.messaging import headers as headers_mod, topics
+from volttron.platform.messaging import headers as headers_mod, topics
 
 import zmq
 
 
 #Addresses agents use to setup the pub/sub
-publish_address = 'ipc:///tmp/volttron-lite-agent-publish'
-subscribe_address = 'ipc:///tmp/volttron-lite-agent-subscribe'
+publish_address = 'ipc:///tmp/volttron-platform-agent-publish'
+subscribe_address = 'ipc:///tmp/volttron-platform-agent-subscribe'
 logging_topic = 'datalogger/log'
 
 

@@ -61,10 +61,10 @@ import sys
 import settings
 import greenlet
 from zmq.utils import jsonapi
-from volttron.lite.agent import BaseAgent, PublishMixin
-from volttron.lite.agent import green, utils, matching, sched
-from volttron.lite.messaging import topics
-#from volttron.lite.messaging import headers as headers_mod
+from volttron.platform.agent import BaseAgent, PublishMixin
+from volttron.platform.agent import green, utils, matching, sched
+from volttron.platform.messaging import topics
+#from volttron.platform.messaging import headers as headers_mod
 import time
 import datetime
 global fan1_norm
@@ -512,7 +512,7 @@ def dragent(config_path, **kwargs):
 def main(argv = sys.argv):
     '''Main method called by the eggsecutable.'''
     utils.default_main(dragent,
-                       description = 'VOLTTRON Lite™ DR agent',
+                       description = 'VOLTTRON platform™ DR agent',
                        argv=argv)
 if __name__ == "__main__":
     main()

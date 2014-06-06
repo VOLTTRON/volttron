@@ -59,9 +59,9 @@ import logging
 import sys
 import uuid
 
-from volttron.lite.agent import BaseAgent, PublishMixin, periodic
-from volttron.lite.agent import utils, matching
-from volttron.lite.messaging import topics, headers as headers_mod
+from volttron.platform.agent import BaseAgent, PublishMixin, periodic
+from volttron.platform.agent import utils, matching
+from volttron.platform.messaging import topics, headers as headers_mod
 
 import settings
 

@@ -57,55 +57,69 @@
 # pylint: disable=W0142,W0403
 #}}}
 
-'''VOLTTRON Lite™ multi-threaded agent helper classes/functions.
+'''VOLTTRON platform™ greenlet coroutine helper classes/functions.
 
-These utilities are meant to be used with the BaseAgent and threading to
-provide synchronization between threads and the main agent loop.
+These utilities are meant to be used with the BaseAgent and greenlet to
+provide synchronization between light threads (coroutines).
 '''
 
 
-import threading
+import greenlet
 
 
 class Timeout(Exception):
-    '''Raised in the thread when waiting on a queue times out.'''
+    '''Raised in the greenlet when waiting on a channel times out.'''
+
+
+def sleep(timeout, create_timer):
+    '''Yield execution for timeout seconds.'''
+    current = greenlet.getcurrent()
+    timer = create_timer(timeout, current.switch)
+    current.parent.switch()
 
 
 class WaitQueue(object):
-    '''A holder for threads waiting on asynchronous data.'''
+    '''A holder for tasklets waiting on asynchronous data.'''
 
-    def __init__(self, lock=None):
-        self.condition = threading.Condition(lock)
-        self.counter = 0
-        self.data = None
+    def __init__(self, create_timer):
+        '''create_timer will be used to create timeouts.'''
+        self.tasks = []
+        self._timer = create_timer
 
     def wait(self, timeout=None):
         '''Wait for data to become available and return it
 
         If timeout is None, wait indefinitely.  Otherwise, timeout if
-        the thread hasn't been notified within timeout seconds.
+        the task hasn't been notified within timeout seconds.
         '''
-        with self.condition:
-            return self._wait(timeout)
-    
-    def _wait(self, timeout=None):
-        counter = self.counter
-        self.condition.wait(timeout)
-        if counter != self.counter:
-            return self.data
-        raise Timeout
+        current = greenlet.getcurrent()
+        tasks = self.tasks
+        tasks.append(current)
+        if timeout:
+            timer = self._timer(timeout, current.throw, Timeout)
+        try:
+            return current.parent.switch()
+        finally:
+            if timeout:
+                timer.cancel()
+            tasks.remove(current)
 
     def notify_all(self, data):
-        '''Notify all waiting threads of the arrival of data.'''
-        with self.condition:
-            self.data = data
-            self.counter += 1
-            self.condition.notify_all()
+        '''Notify all waiting tasks of the arrival of data.'''
+        self.notify(data, None)
 
     def notify(self, data, n=1):
-        '''Notify n waiting threads of the arrival of data.'''
-        with self.condition:
-            self.data = data
-            self.counter += 1
-            self.condition.notify(n)
+        '''Notify n waiting tasks of the arrival of data.'''
+        if n is None or n < 0:
+            tasks, self.tasks = self.tasks, []
+        else:
+            tasks, self.tasks = self.tasks[:n], self.tasks[n:]
+        for task in list(tasks):
+            task.switch(data)
+
+    def kill_all(self):
+        '''Kill all the tasks in the queue.'''
+        tasks, self.tasks = self.tasks, []
+        for task in tasks:
+            task.throw()
 

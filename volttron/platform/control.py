@@ -56,7 +56,7 @@
 
 #}}}
 
-'''VOLTTRON Lite™ control classes/functions.'''
+'''VOLTTRON platform™ control classes/functions.'''
 
 
 import grp
@@ -146,7 +146,7 @@ def make_control_handler():
         return method
     handlers = dict((cls.__name__, make_class_method(cls.handler))
                     for name, cls in builtin_commands)
-    for ep in iter_entry_points(group='volttron.lite.control.handlers'):
+    for ep in iter_entry_points(group='volttron.platform.control.handlers'):
         if ep.name in handlers:
             warnings.warn('duplicate control handler entry point: {}'.format(
                     ep.name))
@@ -194,7 +194,7 @@ def load_commands():
     commands = {'help': None}
     for name, cmd in builtin_commands:
         commands[name] = cmd.parser()
-    for ep in iter_entry_points(group='volttron.lite.control.commands'):
+    for ep in iter_entry_points(group='volttron.platform.control.commands'):
         if ep.name in commands:
             warnings.warn('duplicate control command entry point: {}'.format(
                     ep.name))

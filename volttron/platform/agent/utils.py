@@ -57,7 +57,7 @@
 # pylint: disable=W0142,W0403
 #}}}
 
-'''VOLTTRON Lite™ agent helper classes/functions.'''
+'''VOLTTRON platform™ agent helper classes/functions.'''
 
 import argparse
 import logging

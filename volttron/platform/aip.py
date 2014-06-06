@@ -198,7 +198,7 @@ def log_stream(name, agent, pid, path, stream):
         log.handle(record)
 
 
-class AIPLite(object):
+class AIPplatform(object):
     '''Manages the main workflow of receiving and sending agents.'''
     
     def __init__(self, env, **kwargs):

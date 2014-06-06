@@ -61,10 +61,10 @@ import math
 from zmq.utils import jsonapi
 # _log = logging.getLogger(__name__)
 # logging.basicConfig(level=logging.DEBUG, stream=sys.stderr)
-from volttron.lite.agent import  utils
-from volttron.lite.messaging import headers as headers_mod
+from volttron.platform.agent import  utils
+from volttron.platform.messaging import headers as headers_mod
 import time
-from volttron.lite.messaging import topics
+from volttron.platform.messaging import topics
 
 
 class AFDD:

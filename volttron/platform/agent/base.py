@@ -57,7 +57,7 @@
 # pylint: disable=W0142,W0403
 #}}}
 
-'''VOLTTRON Lite™ base agent and helper classes/functions.'''
+'''VOLTTRON platform™ base agent and helper classes/functions.'''
 
 import random
 import string
@@ -191,7 +191,7 @@ class AgentBase(object):
 
 
 class BaseAgent(AgentBase):
-    '''Base class for creating VOLTTRON Lite™ agents.
+    '''Base class for creating VOLTTRON platform™ agents.
 
     This class can be used as is, but it won't do much.  It will sit and
     do nothing but listen for messages and exit when the platform

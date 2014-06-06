@@ -10,3 +10,7 @@
 /.installed.cfg
 /Agents/*/{build,dist}/
 /Agents/*.egg
+/.project
+/.pydevproject
+/twistd.pid
+/.settings

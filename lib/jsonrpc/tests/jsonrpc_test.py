@@ -344,14 +344,14 @@ class TestDispatcher(object):
         data = request['error']['data']
         self._test_error(request, 100, jsonrpc.UNHANDLED_EXCEPTION,
                          'unhandled exception')
-        assert data == "invalid literal for int() with base 16: 'abcdefg'"
+        assert data == "invalid platformral for int() with base 16: 'abcdefg'"
 
     def test_python_exception_in_method(self):
         request = self.dispatcher.dispatch({'id': 100, 'jsonrpc': '2.0',
                 'method': 'py.apply.flop'})
         data = request['error']['data']
         self._test_error(request, 100, jsonrpc.PYTHON_EXCEPTION,
-                         "invalid literal for int() with base 16: 'abcdefg'")
+                         "invalid platformral for int() with base 16: 'abcdefg'")
         assert data.pop('exc_type') == 'exceptions.ValueError'
         assert data.pop('exc_args')
         assert data.pop('tb_limit') == 20

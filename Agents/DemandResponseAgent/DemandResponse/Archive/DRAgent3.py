@@ -60,10 +60,10 @@ import time
 from zmq.utils import jsonapi
 import math
 
-from volttron.lite.agent import BaseAgent, PublishMixin
-from volttron.lite.agent import green, utils, matching, sched
-from volttron.lite.messaging import topics
-from volttron.lite.messaging import headers as headers_mod
+from volttron.platform.agent import BaseAgent, PublishMixin
+from volttron.platform.agent import green, utils, matching, sched
+from volttron.platform.messaging import topics
+from volttron.platform.messaging import headers as headers_mod
 
 debug_flag = False
 if not debug_flag:
@@ -480,7 +480,7 @@ def DemandResponseAgent(config_path, **kwargs):
 def main(argv = sys.argv):
     '''Main method called by the eggsecutable.'''
     utils.default_main(DemandResponseAgent,
-                       description = 'VOLTTRON LITE DR agent',
+                       description = 'VOLTTRON platform DR agent',
                        argv=argv)
 
 

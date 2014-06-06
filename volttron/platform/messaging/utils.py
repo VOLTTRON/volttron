@@ -57,7 +57,7 @@
 # pylint: disable=W0142,W0403
 #}}}
 
-'''VOLTTRON Lite™ messaging utilities.'''
+'''VOLTTRON platform™ messaging utilities.'''
 
 from string import Formatter
 
@@ -95,14 +95,14 @@ class TopicFormatter(Formatter):
     through unsubstituted by passing a value of None for that field.
 
     Normal formatter processing splits the format string into a stream
-    of string literals and replacement fields.  The replacement fields
+    of string platformrals and replacement fields.  The replacement fields
     are replaced by values passed in via the positional and keyword
     arguments and are converted and formatted according to the field
     format before being substituted in the token stream.  Finally, the
     stream is concatenated and returned.  The first replacement field
     missing a value in the provided arguments stops processing and an
     exception is raised.  The topic formatter follows the same behavior
-    except that instead of raising an exception, the previous literal is
+    except that instead of raising an exception, the previous platformral is
     truncated at the final double slash (//), and all the processed
     components are concatenated and the result returned.
 
@@ -113,21 +113,21 @@ class TopicFormatter(Formatter):
         if recursion_depth < 0:
             raise ValueError('maximum string recursion exceeded')
         result = []
-        for literal, name, format_spec, conversion in self.parse(format_string):
-            if literal:
-                result.append(literal)
+        for platformral, name, format_spec, conversion in self.parse(format_string):
+            if platformral:
+                result.append(platformral)
             if name is None:
                 continue
             try:
                 obj, arg_used = self.get_field(name, args, kwargs)
             except (KeyError, AttributeError) as e:
-                if literal:
+                if platformral:
                     try:
-                        literal, _ = literal.rsplit('//', 1)
+                        platformral, _ = platformral.rsplit('//', 1)
                     except ValueError:
                         pass
                     else:
-                        result[-1] = literal
+                        result[-1] = platformral
                         break
                 raise e
             used_args.add(arg_used)

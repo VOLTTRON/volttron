@@ -65,7 +65,7 @@ package = packages[0]
 setup(
     name = package,
     version = "0.1",
-    install_requires = ['volttronlite'],
+    install_requires = ['volttron'],
     packages = packages,
     entry_points = {
         'setuptools.installation': [
