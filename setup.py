@@ -66,11 +66,11 @@ setup(
     author_email = 'bora@pnnl.gov',
     url = 'http://www.pnnl.gov',
     packages = find_packages('.', exclude=['*.tests']),
-    install_requires = ['avro', 'bacpypes', 'configobj', 'gevent',
+    install_requires = ['avro', 'BACpypes', 'configobj', 'gevent',
                         'flexible-jsonrpc', 'numpy', 'posix-clock',
-                        'pymodbus', 'pyopenssl', 'python-dateutil',
+                        'pymodbus', 'pyOpenSSL', 'python-dateutil',
                         'pyzmq', 'requests', 'setuptools', 'simplejson',
-                        'smap', 'twisted', 'zope.interface'],
+                        'Smap', 'Twisted', 'zope.interface'],
     package_data = {'volttron.platform': ['configspec.ini']},
     entry_points = '''
     [console_scripts]
