@@ -58,53 +58,72 @@
 #from distutils.core import setup
 from setuptools import setup, find_packages
 
-setup(
-    name = 'volttron',
-    version = '0.2',
-    description = 'Agent Execution Platform',
-    author = 'Volttron Team',
-    author_email = 'bora@pnnl.gov',
-    url = 'http://www.pnnl.gov',
-    packages = find_packages('.', exclude=['*.tests']),
-    install_requires = ['avro', 'BACpypes', 'configobj', 'gevent',
-                        'flexible-jsonrpc', 'numpy', 'posix-clock',
-                        'pymodbus', 'pyOpenSSL', 'python-dateutil',
-                        'pyzmq', 'requests', 'setuptools', 'simplejson',
-                        'Smap', 'Twisted', 'zope.interface'],
-    package_data = {'volttron.platform': ['configspec.ini']},
-    entry_points = '''
-    [console_scripts]
-    volttron = volttron.platform.main:_main
-    volttron-ctrl = volttron.platform.control:_main
 
-    #[volttron.platform.control.handlers]
-    #run_agent = volttron.platform.commands:run_agent.handler
-    #shutdown = volttron.platform.commands:shutdown.handler
-
-    #[volttron.platform.control.commands]
-    #run-agent = volttron.platform.commands:run_agent.command
-    #shutdown = volttron.platform.commands:shutdown.command
-    
-    # Other useful commands that need implemented
-    #load-agent
-    #list-agents
-    #run-agent
-    #unload-agent
-    #debug-shell
-
-    [volttron.switchboard.directory]
-    #platform = volttron.core.directory.host:HostDirectory
-
-    [volttron.switchboard.resmon]
-    platform = volttron.platform.resmon:ResourceMonitor
-    
-    [volttron.switchboard.aip]
-    platform = volttron.platform.aip:AIPplatform
+install_requires = [
+    'avro>=1.7,<1.8',
+    'BACpypes>=0.9,<0.10',
+    'configobj>=4.7,<5',
+    'flexible-jsonrpc',
+    'gevent>=0.13,<0.14',
+    'numpy>=1.8,<1.9',
+    'posix-clock',
+    'pymodbus>=1.2,<1.3',
+    'pyOpenSSL>=0.13,<0.14',
+    'python-dateutil>=2,<3',
+    'pyzmq>=14.3,<14.4',
+    'requests>=2.2,<2.3',
+    'setuptools',
+    'simplejson>=3.3,<3.4',
+    'Smap==2.0.bcb1a7',
+    'Twisted>=13,<14',
+    'zope.interface>=4.0,<4.1',
+]
 
 
-    [volttron.switchboard.auth]
-    #platform = volttron.platform.auth:AuthManager
-    ''',
-    test_suite = 'nose.collector',
-    zip_safe = False,
-)
+if __name__ == '__main__':
+    setup(
+        name = 'volttron',
+        version = '0.2',
+        description = 'Agent Execution Platform',
+        author = 'Volttron Team',
+        author_email = 'bora@pnnl.gov',
+        url = 'http://www.pnnl.gov',
+        packages = find_packages('.', exclude=['*.tests']),
+        install_requires = install_requires,
+        package_data = {'volttron.platform': ['configspec.ini']},
+        entry_points = '''
+        [console_scripts]
+        volttron = volttron.platform.main:_main
+        volttron-ctrl = volttron.platform.control:_main
+
+        #[volttron.platform.control.handlers]
+        #run_agent = volttron.platform.commands:run_agent.handler
+        #shutdown = volttron.platform.commands:shutdown.handler
+
+        #[volttron.platform.control.commands]
+        #run-agent = volttron.platform.commands:run_agent.command
+        #shutdown = volttron.platform.commands:shutdown.command
+        
+        # Other useful commands that need implemented
+        #load-agent
+        #list-agents
+        #run-agent
+        #unload-agent
+        #debug-shell
+
+        [volttron.switchboard.directory]
+        #platform = volttron.core.directory.host:HostDirectory
+
+        [volttron.switchboard.resmon]
+        platform = volttron.platform.resmon:ResourceMonitor
+        
+        [volttron.switchboard.aip]
+        platform = volttron.platform.aip:AIPplatform
+
+
+        [volttron.switchboard.auth]
+        #platform = volttron.platform.auth:AuthManager
+        ''',
+        test_suite = 'nose.collector',
+        zip_safe = False,
+    )

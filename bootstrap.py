@@ -79,34 +79,35 @@ def stage1(directory=os.path.join(_path, 'env'), prompt='(volttron)'):
     subprocess.check_call([builder.env_exe, __file__])
 
 
-def req_name(req):
+def split_requirement(req):
     for i, c in enumerate(req):
         if not c.isalnum() and c not in '.-_':
-            return req[:i]
-    return req
+            return req[:i].lower(), req
+    return req.lower(), req
 
 
 def stage2(directory=_path):
-    requirements = {}
+    from setup import install_requires
+    requirements = dict(split_requirement(req) for req in install_requires)
     requirements_txt = os.path.join(_path, 'requirements.txt')
     if os.path.exists(requirements_txt):
         with open(requirements_txt) as file:
-            for line in file:
-                req = line.rstrip()
-                name = req_name(req)
-                requirements[name.lower()] = req
+            requirements.update(
+                    dict(split_requirement(req.rstrip()) for req in file))
     # Install packages provided only as eggs
     args = [sys.executable, '-m', 'easy_install']
     for name in ['bacpypes']:
         args.append(requirements.get(name, name))
+    print(' '.join(args))
     subprocess.check_call(args)
     # Install local packages and remaining dependencies
     args = [sys.executable, '-m', 'pip', 'install',
-            '--editable', os.path.join(directory, 'lib', 'jsonrpc'),
-            '--editable', os.path.join(directory, 'lib', 'clock'),
-            '--editable', directory]
-    if requirements:
-        args.extend(['--requirement', requirements_txt])
+            '-e', os.path.join(directory, 'lib', 'jsonrpc'),
+            '-e', os.path.join(directory, 'lib', 'clock'),
+            '-e', directory]
+    if os.path.exists(requirements_txt):
+        args.extend(['-r', requirements_txt])
+    print(' '.join(args))
     subprocess.check_call(args)
 
 
