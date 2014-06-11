@@ -1,14 +1,14 @@
 #! /bin/sh
 ### BEGIN INIT INFO
-# Provides:          volttron-lite
+# Provides:          volttron
 # Required-Start:    $remote_fs $syslog
 # Required-Stop:     $remote_fs $syslog
 # Should-Start:      $network $named
 # Should-Start:      $network $named
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
-# Short-Description: VOLTTRON (TM) Lite Daemon
-# Description:       VOLTTRON (TM) Lite agent execution platform.
+# Short-Description: VOLTTRON (TM) Daemon
+# Description:       VOLTTRON (TM) agent execution platform.
 ### END INIT INFO
 
 # Author: Brandon Carpenter <brandon.carpenter@pnnl.gov>
@@ -17,8 +17,8 @@
 
 # PATH should only include /usr/* if it runs after the mountnfs.sh script
 PATH=/sbin:/usr/sbin:/bin:/usr/bin
-DESC="VOLTTRON (TM) Lite agent execution platform"
-NAME=volttron-lite
+DESC="VOLTTRON (TM) agent execution platform"
+NAME=volttron
 USER=volttron
 VLHOME=/var/lib/volttron
 DAEMON=$VLHOME/bin/$NAME

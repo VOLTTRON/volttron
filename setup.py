@@ -74,7 +74,7 @@ setup(
     package_data = {'volttron.platform': ['configspec.ini']},
     entry_points = '''
     [console_scripts]
-    volttron-platform = volttron.platform.main:_main
+    volttron = volttron.platform.main:_main
     volttron-ctrl = volttron.platform.control:_main
 
     #[volttron.platform.control.handlers]
