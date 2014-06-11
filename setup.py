@@ -74,7 +74,7 @@ install_requires = [
     'requests>=2.2,<2.3',
     'setuptools',
     'simplejson>=3.3,<3.4',
-    'Smap==2.0.bcb1a7',
+    'Smap==2.0.24c780d',
     'Twisted>=13,<14',
     'zope.interface>=4.0,<4.1',
 ]
