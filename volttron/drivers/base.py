@@ -294,6 +294,10 @@ class BaseSmapVolttron(driver.SmapDriver, PublishMixin):
         periodicSequentialCall(self.read).start(self.interval)
         
     def read_callback(self, results):
+        # XXX: Does a warning need to be printed?
+        if results is None:
+            return
+
         now = str(datetime.datetime.utcnow())
         
         headers = {
