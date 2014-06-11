@@ -3,11 +3,7 @@
 *.egg-info
 *~
 
-/bin/
-/develop-eggs/
-/eggs/
-/parts/
-/.installed.cfg
+/env/
 /Agents/*/{build,dist}/
 /Agents/*.egg
 /.project
