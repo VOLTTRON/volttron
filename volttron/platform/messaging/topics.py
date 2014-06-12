@@ -107,13 +107,15 @@ PLATFORM_SHUTDOWN = PLATFORM(subtopic='shutdown')
 AGENT_SHUTDOWN = _('agent/{agent}/shutdown')
 AGENT_PING = _('agent/ping/{}/{}/{{cookie}}'.format(os.uname()[1], os.getpid()))
 
-_RTU_VALUE = _('RTU/{node}//{campus}//{building}//{unit}//{point}')
-RTU_VALUE = _(_RTU_VALUE.replace('{node}/', ''))
+DRIVER_TOPIC_BASE = 'devices'
+DEVICES_PATH = _('{base}//{node}//{campus}//{building}//{unit}//{point}')
+_DEVICES_VALUE = _(DEVICES_PATH.replace('{base}',DRIVER_TOPIC_BASE))
+#RTU_VALUE = _(_DEVICES_VALUE.replace('{node}/', ''))
 
-ACTUATOR_GET = _(_RTU_VALUE.replace('{node}', 'actuators/get'))
-ACTUATOR_SET = _(_RTU_VALUE.replace('{node}', 'actuators/set'))
+ACTUATOR_GET = _(_DEVICES_VALUE.replace('{node}', 'actuators/get'))
+ACTUATOR_SET = _(_DEVICES_VALUE.replace('{node}', 'actuators/set'))
 
-_ACTUATOR_SCHEDULE = _('RTU/actuators/schedule/{op}')
+_ACTUATOR_SCHEDULE = _(('{base}/actuators/schedule/{op}').replace('{base}',DRIVER_TOPIC_BASE))
 ACTUATOR_SCHEDULE_REQUEST = _(_ACTUATOR_SCHEDULE.replace('{op}', 'request'))
 ACTUATOR_SCHEDULE_RESULT = _(_ACTUATOR_SCHEDULE.replace('{op}', 'result'))
 ACTUATOR_SCHEDULE_ANNOUNCE_RAW = _(_ACTUATOR_SCHEDULE.replace('{op}','announce/{device}'))
@@ -122,8 +124,8 @@ ACTUATOR_SCHEDULE_ANNOUNCE_RAW = _(_ACTUATOR_SCHEDULE.replace('{op}','announce/{
 # and want to use the {campus}//{building}//{unit} style replacement
 ACTUATOR_SCHEDULE_ANNOUNCE = _(ACTUATOR_SCHEDULE_ANNOUNCE_RAW.replace('{device}','{campus}//{building}//{unit}'))
 
-ACTUATOR_ERROR = _(_RTU_VALUE.replace('{node}', 'actuators/error'))
-ACTUATOR_VALUE = _(_RTU_VALUE.replace('{node}', 'actuators/value'))
+ACTUATOR_ERROR = _(_DEVICES_VALUE.replace('{node}', 'actuators/error'))
+ACTUATOR_VALUE = _(_DEVICES_VALUE.replace('{node}', 'actuators/value'))
 
 BASE_ARCHIVER_REQUEST = _('archiver/request')
 BASE_ARCHIVER_FULL_REQUEST = _('archiver/full/request')

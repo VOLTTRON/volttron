@@ -85,7 +85,7 @@ class Headers(collections.MutableMapping):
         return self._dict[key.lower()][1]
     def __setitem__(self, key, value):
         self._dict[key.lower()] = key, value
-    def __deplatformm__(self, key):
+    def __delitem__(self, key):
         del self._dict[key.lower()]
     def __iter__(self):
         return (key for key, value in self._dict.itervalues())

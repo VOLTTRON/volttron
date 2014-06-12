@@ -66,6 +66,7 @@ import datetime
 from volttron.platform.agent.base import PublishMixin
 
 from volttron.platform.messaging import headers as headers_mod
+from volttron.platform.messaging.topics import DRIVER_TOPIC_BASE
 
 import abc
 
@@ -334,12 +335,12 @@ class BaseSmapVolttron(driver.SmapDriver, PublishMixin):
         
         
     def get_paths_for_point(self, point):
-        depth_first = 'RTU' + self._SmapDriver__join_id(point)
+        depth_first = DRIVER_TOPIC_BASE + self._SmapDriver__join_id(point)
          
         parts = depth_first.split('/')
         breadth_first_parts = parts[1:]
         breadth_first_parts.reverse()
-        breadth_first_parts = ['RTU'] + breadth_first_parts
+        breadth_first_parts = [DRIVER_TOPIC_BASE] + breadth_first_parts
         breadth_first = '/'.join(breadth_first_parts)
          
         return depth_first, breadth_first
