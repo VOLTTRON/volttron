@@ -23,8 +23,8 @@ p_process = None
 t_process = None
 
 #All paths relative to proj-dir/volttron
-VSTART = "bin/volttron-platform"
-VCTRL = "bin/volttron-ctrl"
+VSTART = "env/bin/volttron"
+VCTRL = "env/bin/volttron-ctrl"
 INST_EXEC = "install-executable"
 REM_EXEC = "remove-executable"
 LOAD_AGENT = "load-agent"
@@ -92,11 +92,11 @@ def build_and_setup_archiver():
 def startup_archiver():
     print "startup archiver"
     #Stop agent so we have a fresh start
-    print subprocess.check_output(["bin/volttron-ctrl","stop-agent","archiver-test-deploy.service"])
+    print subprocess.check_output(["env/bin/volttron-ctrl","stop-agent","archiver-test-deploy.service"])
     time.sleep(3)
-    print subprocess.check_output(["bin/volttron-ctrl","start-agent","archiver-test-deploy.service"])
+    print subprocess.check_output(["env/bin/volttron-ctrl","start-agent","archiver-test-deploy.service"])
     time.sleep(3)
-    list_output = subprocess.check_output(["bin/volttron-ctrl","list-agents"])
+    list_output = subprocess.check_output(["env/bin/volttron-ctrl","list-agents"])
     found_archiver = False
     for line in list_output.split('\n'):
         bits = line.split()
@@ -106,7 +106,7 @@ def startup_archiver():
     assert(found_archiver)
 
 def shutdown_archiver():
-    print subprocess.check_output(["bin/volttron-ctrl","stop-agent","archiver-test-deploy.service"])
+    print subprocess.check_output(["env/bin/volttron-ctrl","stop-agent","archiver-test-deploy.service"])
 
 class TestBuildAndInstallArchiver(unittest.TestCase):
 # 
