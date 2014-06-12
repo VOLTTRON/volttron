@@ -135,10 +135,10 @@ class ScheduleExampleAgent(PublishMixin, BaseAgent):
                 ["campus/building/device1", #First time slot.
                  "2014-1-31 12:27:00",     #Start of time slot.
                  "2014-1-31 12:29:00"],     #End of time slot.
-                ["campus/building/device1", #Second time slot.
+                ["campus/building/device2", #Second time slot.
                  "2014-1-31 12:26:00",     #Start of time slot.
                  "2014-1-31 12:30:00"],     #End of time slot.
-                ["campus/building/device2", #Third time slot.
+                ["campus/building/device3", #Third time slot.
                  "2014-1-31 12:30:00",     #Start of time slot.
                  "2014-1-31 12:32:00"],     #End of time slot.
                 #etc...
