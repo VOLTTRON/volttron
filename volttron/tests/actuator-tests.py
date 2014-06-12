@@ -1,8 +1,10 @@
 import unittest
 import subprocess
 import time
-
-from volttron.platform.agent import PublishMixin
+from datetime import datetime, timedelta
+import volttron.platform.messaging.topics
+from volttron.platform.agent import utils, matching
+from volttron.platform.agent import PublishMixin, BaseAgent
 
 """
 Test 
@@ -36,7 +38,7 @@ BUILD_AGENT = "volttron/scripts/build-agent.sh"
 CONFIG_FILE = "test-config.ini"
 
 PUBLISH_ADDRESS = "ipc:///tmp/volttron-platform-agent-publish"
-
+SUBSCRIBE_ADDRESS = "ipc:///tmp/volttron-lite-agent-subscribe"
 actuator_dict = {"executable": "actuatoragent-0.1-py2.7.egg",
                  "launch_file": "Agents/ActuatorAgent/actuator-test-deploy.service",
                  "agent_config": "actuator-test-deploy.service",
@@ -114,8 +116,10 @@ class TestBuildAndInstallAgent(unittest.TestCase):
     def setUp(self):
         startup_agent()
         print "setup test"
-        publisher = PublishMixin(PUBLISH_ADDRESS)
+        self.publisher = PublishMixin(PUBLISH_ADDRESS)
+        self.subagent = BaseAgent(SUBSCRIBE_ADDRESS)
         print "hello"
+        self._agent_id = "ActuatorTest"
         
     def tearDown(self):
         shutdown_agent()
@@ -123,4 +127,32 @@ class TestBuildAndInstallAgent(unittest.TestCase):
         
     def test_something(self):
         print "test something"
-         
+        self.publish_schedule()
+        
+    def publish_schedule(self):
+    
+        headers = {
+                    'AgentID': self._agent_id,
+                    'type': 'NEW_SCHEDULE',
+                    'requesterID': self._agent_id, #The name of the requesting agent.
+                    'taskID': self._agent_id + "-TASK", #The desired task ID for this task. It must be unique among all other scheduled tasks.
+                    'priority': 'LOW', #The desired task priority, must be 'HIGH', 'LOW', or 'LOW_PREEMPT'
+                } 
+        
+        now = datetime.now()
+        start =  now.strftime("%Y-%m-%d %H:%M:00")
+        end = (now + timedelta(minutes=1)).strftime("%Y-%m-%d %H:%M:00")
+        msg = [
+                ["campus/building/device1", #First time slot.
+                 start,     #Start of time slot.
+                 end],     #End of time slot.
+                #etc...
+            ]
+        
+        self.subagent.subscribe(self, prefix='',callback=self.on_match)
+        self.publish_json(topics.ACTUATOR_SCHEDULE_REQUEST, headers, msg)
+        time.sleep(20)
+        
+    def on_match(self, topic, headers, message, match):
+        print "**********************************JHELLO"
+ 
