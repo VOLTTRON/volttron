@@ -12,7 +12,7 @@ BASE_DIR="`dirname "$VOLTTRON_DIR"`"
 
 while [ -n "$*" ]; do
 	(cd "$BASE_DIR/Agents/$1" &&
-		"$BASE_DIR/bin/python" setup.py bdist_egg --dist-dir "$BASE_DIR/Agents")
+		"$BASE_DIR/env/bin/python" setup.py bdist_egg --dist-dir "$BASE_DIR/Agents")
 	shift
 done
 
