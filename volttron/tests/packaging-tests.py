@@ -22,6 +22,11 @@ class TestPackaging(unittest.TestCase):
             shutil.rmtree(TMP_AGENT_DIR)
         os.makedirs(TMP_AGENT_DIR)
 
+    def test_can_create_an_initial_package(self):
+        '''
+        
+        '''
+    
     
     def test_raises_package_error_if_invalid_settings_passed(self):
         '''
