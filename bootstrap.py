@@ -6,9 +6,11 @@ import sys
 
 
 _path = os.path.dirname(__file__) or os.getcwd()
+_envdir = os.path.join(_path, 'env')
+_prompt = '(volttron) '
 
 
-def stage1(directory=os.path.join(_path, 'env'), prompt='(volttron)'):
+def stage1(directory=_envdir, prompt=_prompt):
     import contextlib
     import re
     import shutil
@@ -111,7 +113,7 @@ def stage2(directory=_path):
     subprocess.check_call(args)
 
 
-def main(directory=os.path.join(_path, 'env'), prompt='(volttron)'):
+def main(directory=_envdir, prompt=_prompt):
     # Unfortunately, many dependencies are not yet available in Python3.
     if sys.version_info[:2] != (2, 7):
         sys.stderr.write('error: Python 2.7 is required\n')
