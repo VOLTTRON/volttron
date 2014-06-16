@@ -4,8 +4,14 @@ Agent Packaging Helper Class for Agent Transport
 
 '''
 import os
+import shutil
+import sys
 import wheel
 import logging
+import hashlib
+import time
+
+import pkg_resources
 
 from wheel.install import WheelFile
 
@@ -47,12 +53,21 @@ class AgentPackage:
 
         If the agent_dir contains a setup.py file then it is assumed that this 
         is a first time packaging of the agent.  
-    
-        TODO If the agent_dir doesn't contain a setup.py file then package and
-             ready for transport.
+        
+        returns a string containing the wheel package filename (not full path)
+        '''
+        if os.path.exists(os.path.join(agent_dir, "setup.py")):
+            pkg = self._create_initial_package(agent_dir)
+        else:
+            pkg = self._repackage_agent(agent_dir)
+            
+        return pkg
+
+    def _repackage_agent(self, agent_dir):
+        '''
         '''
         pass
-
+    
 
     def _create_initial_package(self, agent_dir):
         '''
@@ -68,9 +83,34 @@ class AgentPackage:
         Parameters:
             agent_dir - The root directory of the specific agent that is to be
                         packaged.
-               
+        
+        Returns The path and file name of the whl file.               
         '''
-        pass
+        pwd = os.path.abspath(os.curdir)
+        
+        unique_str = hashlib.sha224(str(time.gmtime())).hexdigest()
+        tmp_dir = os.path.join('/tmp/volttron-package-builds', os.path.basename(agent_dir))
+        tmp_dir += unique_str
+        print(tmp_dir)
+        #os.makedirs(tmp_dir)
+        shutil.copytree(agent_dir, tmp_dir)
+        
+        distdir = tmp_dir
+        os.chdir(distdir)
+        try:
+            sys.argv = ['', 'bdist_wheel']
+            exec(compile(open('setup.py').read(), 'setup.py', 'exec'))
+            
+            wheel_file_and_path = os.path.abspath('./dist')
+            wheel_file_and_path = os.path.join(wheel_file_and_path, os.listdir('./dist')[0])
+            
+        finally:
+            os.chdir(pwd)
+
+        return wheel_file_and_path
+        
+        #distdir = pkg_resources.resource_filename('wheel.test', dist)
+    
 #        pwd = os.path.abspath(os.curdir)
 #        distdir = pkg_resources.resource_filename('wheel.test', dist)
 #       os.chdir(distdir)

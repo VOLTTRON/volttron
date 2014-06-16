@@ -21,11 +21,36 @@ class TestPackaging(unittest.TestCase):
         if os.path.exists(TMP_AGENT_DIR):
             shutil.rmtree(TMP_AGENT_DIR)
         os.makedirs(TMP_AGENT_DIR)
+        
+        self.fixtureDir = os.path.join(os.path.dirname(__file__), "fixtures")
 
     def test_can_create_an_initial_package(self):
         '''
-        
+        Tests that a proper wheel package is created from the create_package method of
+        the AgentPackage class.
         '''
+        agent_name = "test-agent-package"
+        agent_to_package = os.path.join(self.fixtureDir, agent_name)
+        
+        # Create settings
+        Settings = namedtuple('Settings', ['agent_dir'])
+        settings = Settings(agent_dir=TMP_AGENT_DIR)
+        
+        agentPack = AgentPackage(settings)
+        package_name = agentPack.create_package(agent_to_package)
+        
+        self.assertIsNotNone(package_name, "Invalid package name")
+        # Wheel is in the correct location.
+        print(package_name)
+        self.assertTrue(os.path.exists(package_name))
+        #self.assertTrue(os.path.exists(os.path.join(TMP_AGENT_DIR, package_name)))
+        self.assertTrue(agent_name in package_name)
+        
+        # TODO Verify zip structure.
+        
+        
+        
+        
     
     
     def test_raises_package_error_if_invalid_settings_passed(self):
@@ -45,8 +70,7 @@ class TestPackaging(unittest.TestCase):
 
         # agent_dir not specified on the namedtuple
         BadSettings = namedtuple('BadSettings', ['not_agent_dir'])
-        badsettings = BadSettings(not_agent_dir = '50')  
-        print(badsettings.not_agent_dir)     
+        badsettings = BadSettings(not_agent_dir = '50')
         self.assertRaises(AgentPackageError, lambda: AgentPackage(badsettings))
   
 
