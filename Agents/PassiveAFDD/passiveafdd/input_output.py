@@ -111,7 +111,7 @@ def read_oae_csv(mainFileFullName):
 def result_writer(contents):
     try:
         home = os.path.expanduser("~")
-        dir1 = "workspace/rtunetwork/Agents/PassiveAFDD/passiveafdd/Results"
+        dir1 = "workspace/volttron/Agents/PassiveAFDD/passiveafdd/Results"
         dir = os.path.join(home,dir1)
         if not os.path.isdir(dir):
             os.makedirs(dir)

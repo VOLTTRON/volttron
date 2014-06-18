@@ -305,7 +305,7 @@ class AFDD:
             self.publish_to_smap("AFDD2 Error", self._afdd2_ret, None, None)
              
             if self._afdd2_ret >= 24.0:  
-                self._afdd3_ret = 36.0
+                self._afdd3_ret = 37.0
                 self.publish_to_smap("AFDD3 Error", self._afdd3_ret, "AFDD3 Energy Impact", -99.0)
                 return self._afdd3_ret
             
@@ -772,12 +772,12 @@ class AFDD:
                                 if not cool_call1 or (self.mat_missing and cool_cmd1):
                                     break
                                 
+                            oaf = oaf/(n + 1)
+                            avg_fanspeed = avg_fanspeed/(n + 1) 
                             if oaf < 0 or oaf > 1.25:
                                 self._log.debug("Unexpected value calculated for OAF")
                                 return 36.0, potential_cooling_savings
                             
-                            oaf = oaf/(n + 1)
-                            avg_fanspeed = avg_fanspeed/(n + 1)
                             self._log.debug('OAF: ' + str(oaf))
                             if 1.0 - oaf > self.afdd3_oaf_threshold:
                                 if not self.mat_missing:
@@ -835,13 +835,13 @@ class AFDD:
                                     cool_cmd1 = int(volttron_data[self.coolcmd1_name])
                                     if not cool_call1 or (self.mat_missing and cool_cmd1):
                                         break
-                                    
+    
+                                oaf = oaf/(n + 1)
+                                avg_fanspeed = fan_speed/(n + 1)   
                                 if oaf < 0 or oaf > 1.25:
                                     self._log.debug("Unexpected value calculated for OAF")
                                     return 36.0, potential_cooling_savings
                                 
-                                oaf = oaf/(n + 1)
-                                avg_fanspeed = fan_speed/(n + 1)
                                 self._log.debug('OAF: ' + str(oaf))
                                 if 1.0 - oaf > self.afdd3_oaf_threshold:
                                     if not self.mat_missing:
@@ -988,13 +988,13 @@ class AFDD:
                     fan_speed = float(volttron_data[self.fan_speed])
                     if cool_call1:
                         break
-                    
+
+                oaf = oaf/(n + 1)
+                avg_fanspeed = avg_fanspeed/(n + 1)    
                 if oaf < 0 or oaf > 1.25:
                     self._log.debug("Unexpected value calculated for OAF")
                     return 56.0, potential_cooling_savings
-                
-                oaf = oaf/(n + 1)
-                avg_fanspeed = avg_fanspeed/(n + 1)
+
                 self._log.debug('OAF: ' + str(oaf))
                 if(oaf - self.minimum_oa > self.afdd5_oaf_threshold): # Check to see if excess air is being brought into RTU
                     if not self.mat_missing:
@@ -1035,13 +1035,13 @@ class AFDD:
                         fan_speed = float(volttron_data[self.fan_speed])
                         if not cool_call1 or (self.mat_missing and cool_cmd1):
                             break
-                        
+
+                    oaf = oaf/(n + 1)
+                    avg_fanspeed = avg_fanspeed/(n + 1)    
                     if oaf < 0 or oaf > 1.25:
                         self._log.debug("Unexpected value calculated for OAF")
                         return 56.0, potential_cooling_savings
                     
-                    oaf = oaf/(n + 1)
-                    avg_fanspeed = avg_fanspeed/(n + 1)
                     self._log.debug('OAF: ' + str(oaf))
                     if(oaf - self.minimum_oa > self.afdd5_oaf_threshold): #Check to see if excess air is being brought into RTU
                         if not self.mat_missing:
@@ -1096,13 +1096,13 @@ class AFDD:
                         avg_fanspeed += fan_speed
                         if (n+1) < self.minutes_to_average:
                             volttron_data = self._agent.get_new_data()
-                            
+
+                    oaf = oaf/(n + 1)
+                    avg_fanspeed = avg_fanspeed/(n + 1)        
                     if oaf < 0 or oaf > 1.25:
                         self._log.debug("Unexpected value calculated for OAF")
                         return 56.0, potential_cooling_savings
-                    
-                    oaf = oaf/(n + 1)
-                    avg_fanspeed = avg_fanspeed/(n + 1)
+
                     self._log.debug('OAF: ' + str(oaf))
                     if(oaf - self.minimum_oa > self.afdd5_oaf_threshold):
                         if not self.mat_missing:                    
@@ -1153,12 +1153,12 @@ class AFDD:
                 oaf += (ma_temp-ra_temp)/(oa_temp-ra_temp)
                 if (n+1) < self.minutes_to_average:
                     volttron_data = self._agent.get_new_data()
-                    
+
+            oaf = oaf/(n + 1)       
             if oaf < 0 or oaf > 1.25:
                     self._log.debug("Unexpected value calculated for OAF")
                     return 66.0    
-                   
-            oaf = oaf/(n + 1)
+
             self._log.debug('OAF: ' + str(oaf))
             if(self.afdd6_min_oa-oaf > self.afdd6_oaf_threshold):
                 self._log.debug("Insufficient outdoor air intake")
@@ -1187,12 +1187,12 @@ class AFDD:
                     oaf +=(ma_temp-ra_temp)/(oa_temp-ra_temp)
                     if (n+1) < self.minutes_to_average:
                         volttron_data = self._agent.get_new_data()
-                        
+
+                oaf = oaf/(n + 1)        
                 if oaf < 0 or oaf > 1.25:
                     self._log.debug("Unexpected value calculated for OAF")
                     return 66.0    
-                    
-                oaf = oaf/(n + 1)
+
                 if(self.afdd6_min_oa-oaf> self.afdd6_oaf_threshold):
                     self._log.debug("Insufficient outdoor air intake")
                     return 61.0
@@ -1235,13 +1235,12 @@ class AFDD:
                     oaf +=(ma_temp-ra_temp)/(oa_temp-ra_temp)
                     if (n + 1) < self.minutes_to_average:
                         volttron_data = self._agent.get_new_data()
-                        
+
+                oaf = oaf/(n + 1)        
                 if oaf < 0 or oaf > 1.25:
                     self._log.debug("Unexpected value calculated for OAF")
                     return 66.0
-                 
-                oaf = oaf/(n + 1)
-                
+
                 if(self.afdd6_min_oa - oaf > self.afdd6_oaf_threshold):
                     self._log.debug("Insufficient outdoor-air intake")
                     return 61.0

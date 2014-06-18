@@ -93,7 +93,8 @@ from bacpypes.apdu import (ReadPropertyRequest,
                            ReadPropertyMultipleRequest,
                            ReadPropertyMultipleACK,
                            PropertyReference,
-                           ReadAccessSpecification)
+                           ReadAccessSpecification,
+                           encode_max_apdu_response)
 from bacpypes.primitivedata import Enumerated, Integer, Unsigned, Real, Boolean, Double
 from bacpypes.constructeddata import Array, Any
 from bacpypes.basetypes import ServicesSupported
@@ -346,12 +347,18 @@ class BACnetRegister(BaseRegister):
 
         
 class BACnetInterface(BaseInterface):
-    def __init__(self, self_address, target_address, config_file=configFile, **kwargs):
+    def __init__(self, self_address, target_address, 
+                 max_apdu_len=1024, seg_supported='segmentedBoth', 
+                 obj_id=599, obj_name='sMap BACnet driver', 
+                 ven_id=15,
+                 config_file=configFile, **kwargs):
         super(BACnetInterface, self).__init__(**kwargs)
         self.reverse_point_map = {}
         self.object_property_map = defaultdict(list)
         
-        self.setup_device(self_address)
+        self.setup_device(self_address, max_apdu_len=max_apdu_len, seg_supported=seg_supported, 
+                          obj_id=obj_id, obj_name=obj_name, 
+                          ven_id=ven_id)
         self.parse_config(config_file)         
         self.target_address = Address(target_address)
         
@@ -366,13 +373,27 @@ class BACnetInterface(BaseInterface):
         self.object_property_map[register.object_type, 
                                  register.instance_number].append(register.property)
         
-    def setup_device(self, address):  
+    def setup_device(self, address, 
+                     max_apdu_len=1024, seg_supported='segmentedBoth', 
+                     obj_id=599, obj_name='sMap BACnet driver', 
+                     ven_id=15):  
+        
+        print 'seg_supported', seg_supported
+        print 'max_apdu_len', max_apdu_len
+        print 'obj_id', obj_id
+        print 'obj_name', obj_name
+        print 'ven_id', ven_id
+        
+        #Check to see if they gave a valid apdu length.
+        if encode_max_apdu_response(max_apdu_len) is None:
+            raise ValueError('Invalid max_apdu_len: Valid options are 50, 128, 206, 480, 1024, and 1476')
+        
         this_device = LocalDeviceObject(
-            objectName="sMap BACnet driver",
-            objectIdentifier=599,
-            maxApduLengthAccepted=1024,
-            segmentationSupported="segmentedBoth",
-            vendorIdentifier=15,
+            objectName=obj_name,
+            objectIdentifier=obj_id,
+            maxApduLengthAccepted=max_apdu_len,
+            segmentationSupported=seg_supported,
+            vendorIdentifier=ven_id,
             )
         
         # build a bit string that knows about the bit names and leave it empty. We respond to NOTHING.
@@ -487,7 +508,18 @@ class BACnet(BaseSmapVolttron):
         self_ip_address = opts['self_address']
         config = opts.get('register_config', configFile)
         
-        return BACnetInterface(self_ip_address, target_ip_address, config_file=config)
+        max_apdu_len = int(opts.get('max_apdu_length', 1024))
+        
+        seg_supported  = opts.get('segmented_supported', 'segmentedBoth')
+        obj_id  = int(opts.get('object_id', 599))
+        obj_name  = opts.get('object_name', 'sMap BACnet driver')
+        ven_id  = int(opts.get('vendor_id', 15))
+        
+        return BACnetInterface(self_ip_address, target_ip_address, 
+                               max_apdu_len=max_apdu_len, seg_supported=seg_supported, 
+                               obj_id=obj_id, obj_name=obj_name, 
+                               ven_id=ven_id,
+                               config_file=config)
         
 if __name__ == "__main__":
     from pprint import pprint    
