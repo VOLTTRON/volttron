@@ -70,7 +70,7 @@ setup(
                         'flexible-jsonrpc', 'numpy', 'posix-clock',
                         'pymodbus', 'pyopenssl', 'python-dateutil',
                         'pyzmq', 'requests', 'setuptools', 'simplejson',
-                        'smap', 'twisted', 'zope.interface'],
+                        'smap', 'twisted', 'zope.interface','xlrd'],
     package_data = {'volttron.lite': ['configspec.ini']},
     entry_points = '''
     [console_scripts]
