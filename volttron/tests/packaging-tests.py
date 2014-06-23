@@ -4,8 +4,9 @@ import shutil
 import sys
 
 from collections import namedtuple
+from wheel.install import WheelFile
 
-from volttron.platform.packaging import AgentPackage
+from volttron.platform.packaging import create_package
 from volttron.platform.packaging import AgentPackageError
 
 # Temporary path for working during running of package/unpackage tests.
@@ -32,14 +33,9 @@ class TestPackaging(unittest.TestCase):
         agent_name = "test-agent-package"
         agent_to_package = os.path.join(self.fixtureDir, agent_name)
         
-        # Create settings
-        Settings = namedtuple('Settings', ['agent_dir'])
-        settings = Settings(agent_dir=TMP_AGENT_DIR)
+        package_name = create_package(agent_to_package)
         
-        agentPack = AgentPackage(settings)
-        package_name = agentPack.create_package(agent_to_package)
-        
-        self.assertIsNotNone(package_name, "Invalid package name")
+        self.assertIsNotNone(package_name, "Invalid package name {}".format(package_name))
         # Wheel is in the correct location.
         print(package_name)
         self.assertTrue(os.path.exists(package_name))
@@ -47,39 +43,31 @@ class TestPackaging(unittest.TestCase):
         self.assertTrue(agent_name in package_name)
         
         # TODO Verify zip structure.
+        whl = WheelFile(package_name)
         
+        #print(whl.check_version())
+        print("datadir_name:",whl.datadir_name)
+        print('distinfo_name',whl.distinfo_name)
+        print('context', whl.context())
+        print('arity', whl.arity)
+        print('compatibility_tags', whl.compatibility_tags)
+        print('compatible',whl.compatible)
         
         
         
     
     
-    def test_raises_package_error_if_invalid_settings_passed(self):
+    def test_raises_error_if_agent_dir_not_exists(self):
         '''
         This test passes under the following conditions:
-            1. The settings object has an angent-dir setting
-            2. The agent-dir exists
-            3. An AgentPackageError is thrown if agent-dir doesn't exist
-            4. An AgentPackageError is thrown if the settings object doesn't
-               include an agent-dir element.
+            1. An AgentPackageError is thrown if the passed agent directory 
+               doesen't exists.
         '''
-        # TODO allow global_settings to be validated here as well.
-        self.assertRaises(AgentPackageError, lambda: AgentPackage())
-        sys.exc_clear()
-        self.assertRaises(AgentPackageError, lambda: AgentPackage())
-        sys.exc_clear()
-
-        # agent_dir not specified on the namedtuple
-        BadSettings = namedtuple('BadSettings', ['not_agent_dir'])
-        badsettings = BadSettings(not_agent_dir = '50')
-        self.assertRaises(AgentPackageError, lambda: AgentPackage(badsettings))
-  
-
-        # invalid agent_dir specified
-        Settings = namedtuple('Settings', ['agent_dir'])
-        invalid_dir = Settings(agent_dir='/tmp/garbage')
-        self.assertRaises(AgentPackageError, lambda: AgentPackage(invalid_dir))
-
-        # Shouldn't throw an error
-        valid_settings = Settings(agent_dir=TMP_AGENT_DIR)
-
+        # 
+        fake_agent = '/tmp/Fake'
+        if os.path.exists(fake_agent):
+            shutil.rmtree(fake_agent, True)
+            
+        self.assertRaises(AgentPackageError, lambda: create_package(fake_agent))
+        
 

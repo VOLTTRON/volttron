@@ -10,113 +10,83 @@ import wheel
 import logging
 import hashlib
 import time
-
-import pkg_resources
+import setup
 
 from wheel.install import WheelFile
 
-# TODO Once available will be used instead of
-# the current hack 
-#from .config import settings as global_settings
 
-class AgentPackageError(Exception): pass
-
-class AgentPackage:
+class AgentPackageError(Exception):
     '''
-
+    A class for errors that are created during packaging/extracting
+    and signing agent package wheels.
     '''
-    def __init__(self, settings=None):
-        '''
-        Initializes an AgentPackage instance.  
+    pass
 
-        Parameters:
-            settings - If specified uses the passed settings rather than the
-                       settings from the config module.
-        '''
-        # TODO change to using the following instead when config is ready
-        #self._settings = global_settings
-        self._settings = settings
 
-        if settings:
-            self._settings = settings
+def create_package(agent_package_dir):
+    '''
+    Creates a packaged whl file from the passed agent_package_dir.  
+    
+    If the passed directory doesn't exist or there isn't a setup.py file 
+    the directory then AgentPackageError is raised.
+    
+    Parameters
+        agent_package_dir - The directory to package in the wheel file.
+        signature         - An optional signature file to sign the RECORD file.
+    
+    Returns    
+        string - The full path to the created whl file.
+    '''
+    if not os.path.isdir(agent_package_dir):
+        raise AgentPackageError("Invalid agent package directory specified")
+    
+    setup_file_path = os.path.join(agent_package_dir, 'setup.py')
+    
+    if os.path.exists(setup_file_path):
+        wheel_path = _create_initial_package(agent_package_dir)
+    else:
+        raise NotImplementedError("Packaging extracted wheels not available currently")
+        wheel_path = None
         
-        # Make sure settings available and agent_dir exists.
-        if (self._settings == None or
-                getattr(self._settings, 'agent_dir', None) == None or
-                not os.path.isdir(getattr(self._settings, 'agent_dir'))):
-            raise AgentPackageError('Invalid settings specified')
+    return wheel_path
 
-        
-    def create_package(self, agent_dir):
-        '''
-        Packages the passed agent_dir into a whl file.
 
-        If the agent_dir contains a setup.py file then it is assumed that this 
-        is a first time packaging of the agent.  
-        
-        returns a string containing the wheel package filename (not full path)
-        '''
-        if os.path.exists(os.path.join(agent_dir, "setup.py")):
-            pkg = self._create_initial_package(agent_dir)
-        else:
-            pkg = self._repackage_agent(agent_dir)
-            
-        return pkg
-
-    def _repackage_agent(self, agent_dir):
-        '''
-        '''
-        pass
+def _create_initial_package(agent_dir_to_package):
+    '''
+    Creates an initial whl file from the passed agent_dir_to_package.  
+    
     
 
-    def _create_initial_package(self, agent_dir):
-        '''
-        Creates an initial whl file from the passed agent_dir.  
+    After this function ...
+    The initial packaging signs the contents of the immutable data using a
+    certificate 
 
-        If the passed directory doesn't exist or there isn't a setup.py file 
-        the directory then AgentPackageError is raised.
-
-        After this function ...
-        The initial packaging signs the contents of the immutable data using a
-        certificate 
-
-        Parameters:
-            agent_dir - The root directory of the specific agent that is to be
-                        packaged.
-        
-        Returns The path and file name of the whl file.               
-        '''
-        pwd = os.path.abspath(os.curdir)
-        
-        unique_str = hashlib.sha224(str(time.gmtime())).hexdigest()
-        tmp_dir = os.path.join('/tmp/volttron-package-builds', os.path.basename(agent_dir))
-        tmp_dir += unique_str
-        print(tmp_dir)
-        #os.makedirs(tmp_dir)
-        shutil.copytree(agent_dir, tmp_dir)
-        
-        distdir = tmp_dir
-        os.chdir(distdir)
-        try:
-            sys.argv = ['', 'bdist_wheel']
-            exec(compile(open('setup.py').read(), 'setup.py', 'exec'))
-            
-            wheel_file_and_path = os.path.abspath('./dist')
-            wheel_file_and_path = os.path.join(wheel_file_and_path, os.listdir('./dist')[0])
-            
-        finally:
-            os.chdir(pwd)
-
-        return wheel_file_and_path
-        
-        #distdir = pkg_resources.resource_filename('wheel.test', dist)
+    Parameters:
+        agent_dir_to_package - The root directory of the specific agent that is to be
+                               packaged.
+        signature_function - The signature_function to use when signing the RECORD
     
-#        pwd = os.path.abspath(os.curdir)
-#        distdir = pkg_resources.resource_filename('wheel.test', dist)
-#       os.chdir(distdir)
-#        try:
-#            sys.argv = ['', 'bdist_wheel']
-#            exec(compile(open('setup.py').read(), 'setup.py', 'exec'))
-#        finally:
-#            os.chdir(pwd)
+    Returns The path and file name of the packaged whl file.               
+    '''
+    pwd = os.path.abspath(os.curdir)
+    
+    unique_str = hashlib.sha224(str(time.gmtime())).hexdigest()
+    tmp_dir = os.path.join('/tmp/volttron-package-builds', os.path.basename(agent_dir_to_package))
+    tmp_dir += unique_str
+    print(tmp_dir)
+    #os.makedirs(tmp_dir)
+    shutil.copytree(agent_dir_to_package, tmp_dir)
+    
+    distdir = tmp_dir
+    os.chdir(distdir)
+    try:
+        sys.argv = ['', 'bdist_wheel']
+        exec(compile(open('setup.py').read(), 'setup.py', 'exec'))
+        
+        wheel_file_and_path = os.path.abspath('./dist')
+        wheel_file_and_path = os.path.join(wheel_file_and_path, os.listdir('./dist')[0])        
+    finally:
+        os.chdir(pwd)            
+
+    return wheel_file_and_path
 
