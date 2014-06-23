@@ -14,6 +14,8 @@ import setup
 
 from wheel.install import WheelFile
 
+# The temporary directory for creating the wheel files.
+TMP_AGENT_BUILD_DIR = '/tmp/volttron-package-builds'
 
 class AgentPackageError(Exception):
     '''
@@ -71,10 +73,9 @@ def _create_initial_package(agent_dir_to_package):
     pwd = os.path.abspath(os.curdir)
     
     unique_str = hashlib.sha224(str(time.gmtime())).hexdigest()
-    tmp_dir = os.path.join('/tmp/volttron-package-builds', os.path.basename(agent_dir_to_package))
+    tmp_dir = os.path.join(TMP_AGENT_BUILD_DIR, os.path.basename(agent_dir_to_package))
     tmp_dir += unique_str
-    print(tmp_dir)
-    #os.makedirs(tmp_dir)
+    
     shutil.copytree(agent_dir_to_package, tmp_dir)
     
     distdir = tmp_dir
