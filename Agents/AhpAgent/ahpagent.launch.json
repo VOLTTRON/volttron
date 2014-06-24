@@ -4,14 +4,5 @@
     },
     "excel_doc":"/home/volttron/workspace/rtunetwork/Agents/AhpAgent/ahp/AHP_7_RTU.xls",
     "agentid": "ahp1",
-    "device_list":  [["HP1",  {"ZoneTemperature": "RMTEMP", "HeatingSetpoint": "SETPOINT", "CoolingSetpoint": "ClgSETPOINT", "FanCommand": "FAN_COMMAND", "CompressorCommand": "COMPRESSOR_COMMAND", "Mode": "MODE"}],
-                     ["HP2",  {"ZoneTemperature": "RMTEMP", "HeatingSetpoint": "SETPOINT", "CoolingSetpoint": "ClgSETPOINT", "FanCommand": "FAN_COMMAND", "CompressorCommand": "COMPRESSOR_COMMAND", "Mode": "MODE"}],
-                     ["HP3",  {"ZoneTemperature": "RMTEMP", "HeatingSetpoint": "SETPOINT", "CoolingSetpoint": "ClgSETPOINT", "FanCommand": "FAN_COMMAND", "CompressorCommand": "COMPRESSOR_COMMAND", "Mode": "MODE"}],
-                     ["HP4",  {"ZoneTemperature": "RMTEMP", "HeatingSetpoint": "SETPOINT", "CoolingSetpoint": "ClgSETPOINT", "FanCommand": "FAN_COMMAND", "CompressorCommand": "COMPRESSOR_COMMAND", "Mode": "MODE"}],
-                     ["HP5",  {"ZoneTemperature": "RMTEMP", "HeatingSetpoint": "SETPOINT", "CoolingSetpoint": "ClgSETPOINT", "FanCommand": "FAN_COMMAND", "CompressorCommand": "COMPRESSOR_COMMAND", "Mode": "MODE"}],
-                     ["HP6",  {"ZoneTemperature": "RMTEMP", "HeatingSetpoint": "SETPOINT", "CoolingSetpoint": "ClgSETPOINT", "FanCommand": "FAN_COMMAND", "CompressorCommand": "COMPRESSOR_COMMAND", "Mode": "MODE"}],
-                     ["HP7",  {"ZoneTemperature": "RMTEMP", "HeatingSetpoint": "SETPOINT", "CoolingSetpoint": "ClgSETPOINT", "FanCommand": "FAN_COMMAND", "CompressorCommand": "COMPRESSOR_COMMAND", "Mode": "MODE"}],
-                     ["HP8",  {"ZoneTemperature": "RMTEMP", "HeatingSetpoint": "SETPOINT", "CoolingSetpoint": "ClgSETPOINT", "FanCommand": "FAN_COMMAND", "CompressorCommand": "COMPRESSOR_COMMAND", "Mode": "MODE"}],
-                     ["HP9",  {"ZoneTemperature": "RMTEMP", "HeatingSetpoint": "SETPOINT", "CoolingSetpoint": "ClgSETPOINT", "FanCommand": "FAN_COMMAND", "CompressorCommand": "COMPRESSOR_COMMAND", "Mode": "MODE"}],
-                     ["HP10", {"ZoneTemperature": "RMTEMP", "HeatingSetpoint": "SETPOINT", "CoolingSetpoint": "ClgSETPOINT", "FanCommand": "FAN_COMMAND", "CompressorCommand": "COMPRESSOR_COMMAND", "Mode": "MODE"}]]
+    "device_list":  [["device_name",  {"ZoneTemperature": "", "HeatingSetpoint": "", "CoolingSetpoint": "", "FanCommand": "", "CompressorCommand": "", "Mode": ""}]]
 }
