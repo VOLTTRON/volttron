@@ -6,14 +6,20 @@ import sys
 from collections import namedtuple
 from wheel.install import WheelFile
 
-from volttron.platform.packaging import create_package
+from volttron.platform.packaging import (create_package,
+                                         extract_package)
+                                 
 from volttron.platform.packaging import AgentPackageError
 
 # Temporary path for working during running of package/unpackage tests.
 TMP_AGENT_DIR = '/tmp/agent-dir'
 
+AGENT_TESTCASE1_NAME = 'test-agent-package'
+
 class TestPackaging(unittest.TestCase):
 
+    def get_agent_fixture(self, agent_name):
+        return os.path.join(self.fixtureDir, agent_name)
     
     def setUp(self):
         '''
@@ -24,16 +30,29 @@ class TestPackaging(unittest.TestCase):
         os.makedirs(TMP_AGENT_DIR)
         
         self.fixtureDir = os.path.join(os.path.dirname(__file__), "fixtures")
+    
+#     def test_can_sign_wheel(self):
+#         wheel_package = create_package(get_agent_fixture(AGENT_TESTCASE1_NAME))
+#         
+        
+    def test_can_extract_package(self):
+        agent_name = AGENT_TESTCASE1_NAME
+                
+        package_name = create_package(self.get_agent_fixture(agent_name))
+        
+        installed_at = extract_package(package_name, '/tmp/test1')
+        whl = WheelFile(package_name)
+        
+        self.assertTrue(whl.datadir_name in installed_at)
 
     def test_can_create_an_initial_package(self):
         '''
         Tests that a proper wheel package is created from the create_package method of
         the AgentPackage class.
         '''
-        agent_name = "test-agent-package"
-        agent_to_package = os.path.join(self.fixtureDir, agent_name)
-        
-        package_name = create_package(agent_to_package)
+        agent_name = AGENT_TESTCASE1_NAME
+                
+        package_name = create_package(self.get_agent_fixture(agent_name))
         
         self.assertIsNotNone(package_name, "Invalid package name {}".format(package_name))
         # Wheel is in the correct location.
@@ -53,9 +72,6 @@ class TestPackaging(unittest.TestCase):
         print('compatibility_tags', whl.compatibility_tags)
         print('compatible',whl.compatible)
         
-        
-        
-    
     
     def test_raises_error_if_agent_dir_not_exists(self):
         '''

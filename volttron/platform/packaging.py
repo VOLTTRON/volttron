@@ -10,12 +10,13 @@ import wheel
 import logging
 import hashlib
 import time
-import setup
+import uuid
 
 from wheel.install import WheelFile
+from wheel.tool import unpack
 
 # The temporary directory for creating the wheel files.
-TMP_AGENT_BUILD_DIR = '/tmp/volttron-package-builds'
+TMP_AGENT_BUILD_DIR = '/tmp/volttron_wheel_builds'
 
 class AgentPackageError(Exception):
     '''
@@ -24,8 +25,57 @@ class AgentPackageError(Exception):
     '''
     pass
 
+def extract_package(wheel_file, install_dir, include_uuid=False, specific_uuid=None):
+    '''
+    Extracts a wheel file to the specified location.
+    
+    If include_uuid is True then a uuid will be generated under the passed
+    location directory.  
+    
+    The agent final directory will be based upon the wheel's data directory 
+    name in the following formats:
+        
+        if include_uuid == True
+            install_dir/datadir_name/uuid
+        else
+            install_dir/datadir_name
+    
+    Arguments
+        wheel_file     - The wheel file to extract.
+        install_dir    - The root directory where to extract the wheel
+        include_uuid   - Auto-generates a uuuid under install_dir to place
+                         the wheel file data
+        specific_uuid  - A specific uuid to use for extracting the agent to.
+        
+    Returns 
+        Full path to the extracted wheel file.
+    '''
+    whl = WheelFile(wheel_file)
+    
+    # The next lines are  building up the real_dir to be
+    #
+    #    install_dir/agent_dir/uuid 
+    #        or
+    #    install_dir/agent_dir
+    #
+    # depending on the options specified.
+    real_dir = os.path.join(install_dir, whl.datadir_name)
+        
+    # Only include the uuid if the caller wants it.
+    if include_uuid:
+        if uuid == None:
+            real_dir = os.path.join(real_dir, uuid.uuid4())
+        else:
+            real_dir = os.path.join(real_dir, uuid)
+    
+    unpack(wheel_file, dest = real_dir)
+    
+    return real_dir
+            
+            
+        
 
-def create_package(agent_package_dir):
+def create_package(agent_package_dir, storage_dir='/tmp/volttron_wheels'):
     '''
     Creates a packaged whl file from the passed agent_package_dir.  
     
@@ -45,7 +95,7 @@ def create_package(agent_package_dir):
     setup_file_path = os.path.join(agent_package_dir, 'setup.py')
     
     if os.path.exists(setup_file_path):
-        wheel_path = _create_initial_package(agent_package_dir)
+        wheel_path = _create_initial_package(agent_package_dir, storage_dir)
     else:
         raise NotImplementedError("Packaging extracted wheels not available currently")
         wheel_path = None
@@ -53,20 +103,16 @@ def create_package(agent_package_dir):
     return wheel_path
 
 
-def _create_initial_package(agent_dir_to_package):
+def _create_initial_package(agent_dir_to_package, storage_dir):
     '''
     Creates an initial whl file from the passed agent_dir_to_package.  
     
-    
-
-    After this function ...
-    The initial packaging signs the contents of the immutable data using a
-    certificate 
+    The function produces a wheel from the setup.py file located in 
+    agent_dir_to_package. 
 
     Parameters:
         agent_dir_to_package - The root directory of the specific agent that is to be
                                packaged.
-        signature_function - The signature_function to use when signing the RECORD
     
     Returns The path and file name of the packaged whl file.               
     '''
@@ -74,11 +120,17 @@ def _create_initial_package(agent_dir_to_package):
     
     unique_str = hashlib.sha224(str(time.gmtime())).hexdigest()
     tmp_dir = os.path.join(TMP_AGENT_BUILD_DIR, os.path.basename(agent_dir_to_package))
-    tmp_dir += unique_str
+    tmp_dir_unique = tmp_dir + unique_str
+    tries = 0
     
-    shutil.copytree(agent_dir_to_package, tmp_dir)
+    while os.path.exists(tmp_dir_unique) and tries < 5:
+        tmp_dir_unique = tmp_dir + hashlib.sha224(str(time.gmtime())).hexdigest()
+        tries += 1
+        time.sleep(1)
+        
+    shutil.copytree(agent_dir_to_package, tmp_dir_unique)
     
-    distdir = tmp_dir
+    distdir = tmp_dir_unique
     os.chdir(distdir)
     try:
         sys.argv = ['', 'bdist_wheel']
