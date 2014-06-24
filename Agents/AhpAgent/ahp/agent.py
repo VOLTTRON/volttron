@@ -62,12 +62,13 @@ def extract_criteria_matrix(excel_file):
 
 class Reading(object):
     """docstring for Reading"""
-    def __init__(self, timestamp, cooling_setpoint, heating_setpoint, temperature):
+    def __init__(self, timestamp, data):
         super(Reading, self).__init__()
         self.timestamp = timestamp
-        self.cooling_setpoint = cooling_setpoint
-        self.heating_setpoint = heating_setpoint
-        self.temperature = temperature
+        self.cooling_setpoint = data['CoolingSetpoint']
+        self.heating_setpoint = data['HeatingSetpoint']
+        self.temperature = data['ZoneTemperature']
+        self.data = data  # Store the rest of the desired points
 
     def diffHeating(self):
         return self.temperature - self.heating_setpoint
@@ -75,16 +76,16 @@ class Reading(object):
     def diffCooling(self):
         return self.temperature - self.cooling_setpoint
 
-    def printValues(self):
-        print "Timestamp:", self.timestamp
-        print 'CoolingSetpoint:', self.cooling_setpoint
-        print 'HeatingSetpoint:', self.heating_setpoint
-        print 'ZoneTemperature:', self.temperature
+    def printValues(self, logger=sys.stderr):
+        print >> logger, "Timestamp:", self.timestamp
+        print >> logger, 'CoolingSetpoint:', self.cooling_setpoint
+        print >> logger, 'HeatingSetpoint:', self.heating_setpoint
+        print >> logger, 'ZoneTemperature:', self.temperature
 
 
 class DeviceData(object):
     """docstring for DeviceData"""
-    def __init__(self, device, points):
+    def __init__(self, device, points, logger=sys.stderr):
         super(DeviceData, self).__init__()
         self.device = device
         self.points = points
@@ -98,17 +99,24 @@ class DeviceData(object):
         # seed()
         self.curtailmentCount = 0  # randint(0, 25)
         self.curtailmentAllowed = True
+        self.logger = logger
 
     def process_data(self, timestamp, data):
         self.lastReading = self.currentReading
-        self.currentReading = Reading(timestamp,
-                                      float(data[self.points['CoolingSetpoint']]),
-                                      float(data[self.points['HeatingSetpoint']]),
-                                      float(data[self.points['ZoneTemperature']]) + self.offset)
+        # Build a subdictionary remapped to the desired names
+        # remapped_data = dict((x[0], data[x[1]]) for x in self.points.items() if x[1] in data)
+        remapped_data = {x[0]: data[x[1]] for x in self.points.items() if x[1] in data}
+        remapped_data['ZoneTemperature'] += self.offset
+
+        self.currentReading = Reading(timestamp, remapped_data)
+        #                               float(data[self.points['CoolingSetpoint']]),
+        #                               float(data[self.points['HeatingSetpoint']]),
+        #                               float(data[self.points['ZoneTemperature']]) + self.offset)
         if self.curtailed:
             self.offset += .25
         elif self.currentReading.temperature + self.offset != self.currentReading.temperature:
             self.offset -= .25
+        # self.currentReading.printValues(self.logger)
 
         self.readings.append(self.currentReading)
         # self.currentReading.printValues()
@@ -199,16 +207,12 @@ def AhpAgent(config_path, **kwargs):
 
             # TODO: Load device list. Right now, it will come from the config file.
             #       Eventually this will come from the excel spreadsheet
-            self.device_list = [['HP5', {'ZoneTemperature': 'RMTEMP', 'HeatingSetpoint': 'SETPOINT', 'CoolingSetpoint': 'ClgSETPOINT'}],
-                                ['HP8', {'ZoneTemperature': 'RMTEMP', 'HeatingSetpoint': 'SETPOINT', 'CoolingSetpoint': 'ClgSETPOINT'}],
-                                ['HP3', {'ZoneTemperature': 'RMTEMP', 'HeatingSetpoint': 'SETPOINT', 'CoolingSetpoint': 'ClgSETPOINT'}],
-                                ['HP2', {'ZoneTemperature': 'RMTEMP', 'HeatingSetpoint': 'SETPOINT', 'CoolingSetpoint': 'ClgSETPOINT'}],
-                                ['HP7', {'ZoneTemperature': 'RMTEMP', 'HeatingSetpoint': 'SETPOINT', 'CoolingSetpoint': 'ClgSETPOINT'}]]
+            self.device_list = get_config('device_list')
 
             self.deviceLabels = [row[0] for row in self.device_list]
             self.deviceDataHandlers = {}
             for deviceRow in self.device_list:
-                self.deviceDataHandlers[deviceRow[0]] = DeviceData(deviceRow[0], deviceRow[1])
+                self.deviceDataHandlers[deviceRow[0]] = DeviceData(deviceRow[0], deviceRow[1], logger=self.logger)
             super(Agent, self).setup()
 
         # TODO: Set up subscriptions. Need to subscribe to sigma4/all
@@ -267,6 +271,9 @@ def AhpAgent(config_path, **kwargs):
         @match_headers({headers_mod.REQUESTER_ID: agent_id})
         @match_start('RTU/actuators/schedule/announce')
         def do_algorithm(self, topic, headers, message, match):
+            if not (headers[headers_mod.REQUESTER_ID] == agent_id):
+                return
+
             if self.ready:
                 self.ready = False
                 print >> self.logger, "====== Calculate Curtailment ======"
