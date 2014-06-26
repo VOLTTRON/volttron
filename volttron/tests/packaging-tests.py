@@ -2,6 +2,7 @@ import unittest
 import os
 import shutil
 import sys
+import uuid
 
 from collections import namedtuple
 from wheel.install import WheelFile
@@ -37,13 +38,17 @@ class TestPackaging(unittest.TestCase):
         
     def test_can_extract_package(self):
         agent_name = AGENT_TESTCASE1_NAME
-                
-        package_name = create_package(self.get_agent_fixture(agent_name))
-        
-        installed_at = extract_package(package_name, '/tmp/test1')
-        whl = WheelFile(package_name)
-        
-        self.assertTrue(whl.datadir_name in installed_at)
+        wheelhouse = '/tmp/extract_package/'
+        package_name = create_package(self.get_agent_fixture(agent_name),"/tmp/create_tmp_package/")
+         
+        installed_at = extract_package(package_name, wheelhouse)
+         
+        try:
+            whl = WheelFile(package_name)
+            self.assertTrue(whl.datadir_name in installed_at)
+        finally:
+            shutil.rmtree(installed_at)
+            shutil.rmtree(wheelhouse)
 
     def test_can_create_an_initial_package(self):
         '''
@@ -51,27 +56,22 @@ class TestPackaging(unittest.TestCase):
         the AgentPackage class.
         '''
         agent_name = AGENT_TESTCASE1_NAME
-                
-        package_name = create_package(self.get_agent_fixture(agent_name))
-        
+         
+        package_name = create_package(self.get_agent_fixture(agent_name),"/tmp/create_package")
+         
         self.assertIsNotNone(package_name, "Invalid package name {}".format(package_name))
         # Wheel is in the correct location.
         print(package_name)
         self.assertTrue(os.path.exists(package_name))
-        #self.assertTrue(os.path.exists(os.path.join(TMP_AGENT_DIR, package_name)))
-        self.assertTrue(agent_name in package_name)
-        
-        # TODO Verify zip structure.
-        whl = WheelFile(package_name)
-        
-        #print(whl.check_version())
-        print("datadir_name:",whl.datadir_name)
-        print('distinfo_name',whl.distinfo_name)
-        print('context', whl.context())
-        print('arity', whl.arity)
-        print('compatibility_tags', whl.compatibility_tags)
-        print('compatible',whl.compatible)
-        
+         
+        self.assertTrue('listeneragent' in package_name)
+         
+        try:
+            # TODO Verify zip structure.
+            whl = WheelFile(package_name)
+            whl.zipfile.close()
+        finally:
+            os.remove(package_name)
     
     def test_raises_error_if_agent_dir_not_exists(self):
         '''

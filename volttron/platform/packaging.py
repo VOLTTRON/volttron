@@ -15,8 +15,6 @@ import uuid
 from wheel.install import WheelFile
 from wheel.tool import unpack
 
-# The temporary directory for creating the wheel files.
-TMP_AGENT_BUILD_DIR = '/tmp/volttron_wheel_builds'
 
 class AgentPackageError(Exception):
     '''
@@ -24,6 +22,7 @@ class AgentPackageError(Exception):
     and signing agent package wheels.
     '''
     pass
+
 
 def extract_package(wheel_file, install_dir, include_uuid=False, specific_uuid=None):
     '''
@@ -67,7 +66,7 @@ def extract_package(wheel_file, install_dir, include_uuid=False, specific_uuid=N
             real_dir = os.path.join(real_dir, uuid.uuid4())
         else:
             real_dir = os.path.join(real_dir, uuid)
-    
+    os.makedirs(real_dir)
     unpack(wheel_file, dest = real_dir)
     
     return real_dir
@@ -75,7 +74,7 @@ def extract_package(wheel_file, install_dir, include_uuid=False, specific_uuid=N
             
         
 
-def create_package(agent_package_dir, storage_dir='/tmp/volttron_wheels'):
+def create_package(agent_package_dir, wheelhouse='/tmp/volttron_wheels'):
     '''
     Creates a packaged whl file from the passed agent_package_dir.  
     
@@ -95,7 +94,7 @@ def create_package(agent_package_dir, storage_dir='/tmp/volttron_wheels'):
     setup_file_path = os.path.join(agent_package_dir, 'setup.py')
     
     if os.path.exists(setup_file_path):
-        wheel_path = _create_initial_package(agent_package_dir, storage_dir)
+        wheel_path = _create_initial_package(agent_package_dir, wheelhouse)
     else:
         raise NotImplementedError("Packaging extracted wheels not available currently")
         wheel_path = None
@@ -103,7 +102,7 @@ def create_package(agent_package_dir, storage_dir='/tmp/volttron_wheels'):
     return wheel_path
 
 
-def _create_initial_package(agent_dir_to_package, storage_dir):
+def _create_initial_package(agent_dir_to_package, wheelhouse):
     '''
     Creates an initial whl file from the passed agent_dir_to_package.  
     
@@ -117,9 +116,10 @@ def _create_initial_package(agent_dir_to_package, storage_dir):
     Returns The path and file name of the packaged whl file.               
     '''
     pwd = os.path.abspath(os.curdir)
+    tmp_build_dir = '/tmp/whl_bld'
     
-    unique_str = hashlib.sha224(str(time.gmtime())).hexdigest()
-    tmp_dir = os.path.join(TMP_AGENT_BUILD_DIR, os.path.basename(agent_dir_to_package))
+    unique_str = str(uuid.uuid4())
+    tmp_dir = os.path.join(tmp_build_dir, os.path.basename(agent_dir_to_package))
     tmp_dir_unique = tmp_dir + unique_str
     tries = 0
     
@@ -132,14 +132,26 @@ def _create_initial_package(agent_dir_to_package, storage_dir):
     
     distdir = tmp_dir_unique
     os.chdir(distdir)
+    wheel_name = None
     try:
+        print(distdir)
         sys.argv = ['', 'bdist_wheel']
         exec(compile(open('setup.py').read(), 'setup.py', 'exec'))
         
-        wheel_file_and_path = os.path.abspath('./dist')
-        wheel_file_and_path = os.path.join(wheel_file_and_path, os.listdir('./dist')[0])        
+        wheel_name = os.listdir('./dist')[0]
+        
+        wheel_file_and_path = os.path.join(os.path.abspath('./dist'), wheel_name)
     finally:
-        os.chdir(pwd)            
+        os.chdir(pwd)     
+    
+    if not os.path.exists(wheelhouse):
+        os.makedirs(wheelhouse)
+        
+    final_dest = os.path.join(wheelhouse, wheel_name)
+#     print("moving {} to {}".format(wheel_file_and_path, final_dest))
+#     print("removing {}".format(tmp_dir_unique))
+    shutil.move(wheel_file_and_path, final_dest)       
+    shutil.rmtree(tmp_dir_unique, False)
 
-    return wheel_file_and_path
+    return final_dest
 
