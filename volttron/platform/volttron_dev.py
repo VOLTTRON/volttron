@@ -6,6 +6,9 @@ This module defines the entry point for the developer module.
 @author: craig
 '''
 import sys, argparse
+from packaging import (create_package,
+                       extract_package)
+
 
 # option decorator
 def option(*args, **kwds):
@@ -106,7 +109,12 @@ def main():
         @arg('agent', help="agent directory or name of currently installed agent.")
         def do_package(self, options):
             "Packages agent and create a whl file"
-            print options
+            #print options
+            import os
+            print os.path.abspath(os.curdir)
+            whl_path = create_package(options.agent)
+            if whl_path:
+                print('whl file created at {}'.format(whl_path))
 
         @option('-f', '--force', action='store_true',
                         help='force through installation')
