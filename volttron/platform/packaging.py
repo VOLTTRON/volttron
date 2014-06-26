@@ -73,6 +73,8 @@ def extract_package(wheel_file, install_dir, include_uuid=False, specific_uuid=N
             
             
         
+def repackage(agent_name):
+    raise AgentPackageError('Repackage is not available')
 
 def create_package(agent_package_dir, wheelhouse='/tmp/volttron_wheels'):
     '''

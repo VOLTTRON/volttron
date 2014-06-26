@@ -55,9 +55,7 @@ if __name__ == '__main__':
         pass
     
     args = parser.parse_args(['package', '/tmp/wheel'])
-    print(args)
-    print('subparser_name')
-    
+        
     # whl_path will be specified if there is a package or repackage command
     # is specified and it was successful.
     whl_path = None

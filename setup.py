@@ -95,6 +95,7 @@ if __name__ == '__main__':
         [console_scripts]
         volttron = volttron.platform.main:_main
         volttron-ctrl = volttron.platform.control:_main
+        volttron-dev = volttron.dev.control:_main
 
         #[volttron.platform.control.handlers]
         #run_agent = volttron.platform.commands:run_agent.handler
