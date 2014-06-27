@@ -77,6 +77,7 @@ from weakref import WeakValueDictionary
 import gevent
 from gevent import select
 import simplejson as jsonapi
+from wheel.tool import unpack
 import zmq
 
 from environment import get_environment
@@ -268,51 +269,26 @@ class AIPplatform(object):
                 errors.append((name, str(e)))
         return errors
 
-    def install_executable(self, exe_path, name=None, force=False):
-        abspath = os.path.join(self.bin_dir, os.path.basename(name or exe_path))
-        copyfile(exe_path, abspath, not force)
-        os.chmod(abspath, 0755)
+    def install_agent(self, agent_wheel):
+        unpack(agent_wheel, dest=self.install_dir)
 
-    def remove_executable(self, exe_name, force=True):
-        # XXX: check if installed agents are using executable
-        #      use force flag to remove regardless
-        if os.path.sep in exe_name:
-            raise ValueError('invalid executable: {!r}'.format(exe_name))
-        abspath = os.path.join(self.bin_dir, exe_name)
-        os.unlink(abspath)
-
-    def list_executables(self):
-        return os.listdir(self.bin_dir)
-
-    def load_agent(self, agent_config, name=None, force=False):
-        # XXX: check that agent executable exists in bin directory
-        install_path = os.path.join(self.install_dir,
-                                    os.path.basename(name or agent_config))
-        shutil.copyfile(agent_config, install_path)
-
-    def unload_agent(self, agent_name):
+    def remove_agent(self, agent_name):
         if os.path.sep in agent_name:
             raise ValueError('invalid agent: {!r}'.format(agent_name))
         auto_path = os.path.join(self.autostart_dir, agent_name)
         if os.path.exists(auto_path):
             os.unlink(auto_path)
         agent_path = os.path.join(self.install_dir, agent_name)
-        os.unlink(agent_path)
+        shutil.rmtree(agent_path)
 
     def list_agents(self):
         names = set(os.listdir(self.install_dir)) | set(self.agents.keys())
-        result = []
-        for name in names:
-            try:
-                enabled = self.is_enabled(name)
-            except ValueError:
-                enabled = None
-            result.append((name, enabled, self.agent_status(name)))
-        return result
+        return [(name, self.is_enabled(name), self.agent_status(name))
+                for name in names]
 
     def is_enabled(self, agent_name):
         if os.path.sep in agent_name:
-            raise ValueError('invalid agent: {!r}'.format(agent_name))
+            return None
         return os.path.exists(os.path.join(self.autostart_dir, agent_name))
 
     def enable_agent(self, agent_name):
@@ -333,26 +309,45 @@ class AIPplatform(object):
             raise ValueError('invalid agent: {!r}'.format(agent_name))
         os.unlink(os.path.join(self.autostart_dir, agent_name))
 
-    def _launch_agent(self, agent_config, name=None):
+    def _launch_agent(self, agent_path, name=None):
         if name is None:
-            name = agent_config
+            name = agent_path
         execenv = self.agents.get(name)
         if execenv:
             if execenv.process.poll() is None:
                 raise ValueError('agent is already running')
-        config = jsonapi.load(open(agent_config))
-        argv = parse_agent_args(config['agent']['exec'], {
-                'c': agent_config, 's': self.subscribe_address,
-                'p': self.publish_address})
-        argv[0] = os.path.join(self.bin_dir, os.path.basename(argv[0]))
+        basename = os.path.basename(agent_path)
+        metadata_json = os.path.join(
+                agent_path, basename + '.dist-info', 'metadata.json')
+        metadata = jsonapi.load(open(metadata_json))
+        try:
+            module = metadata['exports']['volttron.agent']['launch']
+        except KeyError:
+            try:
+                module = metadata['exports']['setuptools.installation']['eggsecutable']
+            except KeyError:
+                raise ValueError('no agent launch class specified in package')
+        try:
+            config = metadata['extensions']['volttron.agent']['config']
+        except KeyError:
+            config = None
         environ = os.environ.copy()
-        environ['PYTHONPATH'] = ':'.join(sys.path)
+        environ['PYTHONPATH'] = ':'.join([agent_path] + sys.path)
         environ['PATH'] = (os.path.abspath(os.path.dirname(sys.executable)) +
                            ':' + environ['PATH'])
-        environ['AGENT_CONFIG'] = agent_config
+        if config:
+            environ['AGENT_CONFIG'] = config
+        elif 'AGENT_CONFIG' in environ:
+            del environ['AGENT_CONFIG']
         environ['AGENT_SUB_ADDR'] = self.subscribe_address
         environ['AGENT_PUB_ADDR'] = self.publish_address
         execenv, _ = self.env.resmon.reserve_soft_resources('')
+        module, _, func = module.partition(':')
+        if func:
+            code = '__import__({0!r}, fromlist=[{1!r}]).{1}()'.format(module, func)
+            argv = [sys.executable, '-c', code]
+        else:
+            argv = [sys.executable, '-m', module]
         execenv.execute(argv, cwd=self.run_dir, env=environ, close_fds=True,
                         stdin=open(os.devnull), stdout=PIPE, stderr=PIPE)
         self.agents[name] = execenv

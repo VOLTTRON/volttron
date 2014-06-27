@@ -79,112 +79,44 @@ def command(command=None, aliases=None):
     return decorator(command, True)
 
 
-@command('install-executable')
-class install_executable(object):
+@command('install', ['add'])
+class install_agent(object):
     @staticmethod
-    def handler(exe_path, name=None, force=False):
-        get_environment().aip.install_executable(exe_path, name, force)
+    def handler(agent_wheel):
+        get_environment().aip.install_agent(agent_wheel)
 
     @staticmethod
     def execute(env, parser, args):
-        ControlConnector(env.config).call.install_executable(
-                os.path.abspath(args.executable), args.name, args.force)
+        ControlConnector(env.config).call.install_agent(
+                os.path.abspath(args.agent_wheel))
 
     @classmethod
     def parser(cls):
-        parser = CommandParser(help='install agent executable',
+        parser = CommandParser(help='install agent',
                                handler=cls.execute, aliases=cls.aliases)
-        parser.add_argument('executable', help='path to agent executable')
-        parser.add_argument('name', nargs='?',
-                help='new name to give the installed executable')
-        parser.add_argument('-f', '--force', action='store_true',
-                help='overwrite any existing executable')
+        parser.add_argument('agent_wheel', help='path to agent wheel file')
         return parser
 
 
-@command('remove-executable', ['rmexe'])
-class remove_executable(object):
-    @staticmethod
-    def handler(exe_name, force=False):
-        get_environment().aip.remove_executable(exe_name, force)
-
-    @staticmethod
-    def execute(env, parser, args):
-        ControlConnector(env.config).call.remove_executable(
-                args.executable, args.force)
-
-    @classmethod
-    def parser(cls):
-        parser = CommandParser(help='remove agent executable',
-                               handler=cls.execute, aliases=cls.aliases)
-        parser.add_argument('executable', help='name of agent executable')
-        parser.add_argument('-f', '--force', action='store_true',
-                help='force removal of executable')
-        return parser
-
-
-@command('list-executables', ['lsexe'])
-class list_executables(object):
-    @staticmethod
-    def handler():
-        return get_environment().aip.list_executables()
-
-    @staticmethod
-    def execute(env, parser, args):
-        exes = ControlConnector(env.config).call.list_executables()
-        if not exes:
-            return
-        exes.sort()
-        print '\n'.join(exes)
-
-    @classmethod
-    def parser(cls):
-        return CommandParser(help='list agent executables',
-                               handler=cls.execute, aliases=cls.aliases)
-
-
-@command('load-agent')
-class load_agent(object):
-    @staticmethod
-    def handler(agent_config, name=None, force=False):
-        get_environment().aip.load_agent(agent_config, name, force)
-
-    @staticmethod
-    def execute(env, parser, args):
-        ControlConnector(env.config).call.load_agent(
-                os.path.abspath(args.launch_file), args.name, args.force)
-
-    @classmethod
-    def parser(cls):
-        parser = CommandParser(help='install agent launch file',
-                               handler=cls.execute, aliases=cls.aliases)
-        parser.add_argument('launch_file', help='path to JSON agent launch file')
-        parser.add_argument('name', nargs='?',
-                help='new name to give the installed agent')
-        parser.add_argument('-f', '--force', action='store_true',
-                help='overwrite any existing agent')
-        return parser
-
-
-@command('unload-agent')
-class unload_agent(object):
+@command('remove', ['rm'])
+class remove_agent(object):
     @staticmethod
     def handler(agent_name):
-        get_environment().aip.unload_agent(agent_name)
+        get_environment().aip.remove_agent(agent_name)
 
     @staticmethod
     def execute(env, parser, args):
-        ControlConnector(env.config).call.unload_agent(args.agent_name)
+        ControlConnector(env.config).call.remove_agent(args.agent_name)
 
     @classmethod
     def parser(cls):
-        parser = CommandParser(help='remove agent launch file',
+        parser = CommandParser(help='remove agent',
                                handler=cls.execute, aliases=cls.aliases)
-        parser.add_argument('agent_name', help='name of agent to remove')
+        parser.add_argument('agent_name', help='name of agent')
         return parser
 
 
-@command('list-agents', ['lsa'])
+@command('list', ['ls'])
 class list_agents(object):
     @staticmethod
     def handler():
@@ -216,7 +148,7 @@ class list_agents(object):
                              handler=cls.execute, aliases=cls.aliases)
 
 
-@command('enable-agent')
+@command('enable')
 class enable_agent(object):
     @staticmethod
     def handler(agent_name):
@@ -234,7 +166,7 @@ class enable_agent(object):
         return parser
 
 
-@command('disable-agent')
+@command('disable')
 class disable_agent(object):
     @staticmethod
     def handler(agent_name):
@@ -252,7 +184,7 @@ class disable_agent(object):
         return parser
 
 
-@command('start-agent')
+@command('start')
 class start_agent(object):
     @staticmethod
     def handler(agent_name):
@@ -270,7 +202,7 @@ class start_agent(object):
         return parser
 
 
-@command('stop-agent')
+@command('stop')
 class stop_agent(object):
     @staticmethod
     def handler(agent_name):
@@ -288,7 +220,7 @@ class stop_agent(object):
         return parser
 
 
-@command('run-agent', ['run_agent'])
+@command('run')
 class run_agent(object):
     @staticmethod
     def handler(config_path):
@@ -299,7 +231,6 @@ class run_agent(object):
         conn = ControlConnector(env.config)
         for config in args.agent_config:
             conn.call.run_agent(os.path.abspath(os.path.expanduser(config)))
-            print '{}: OK'.format(config)
 
     @classmethod
     def parser(cls):
