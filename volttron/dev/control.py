@@ -18,10 +18,8 @@ def create_agent_package(agent_descriptor, do_create):
         create_package(agent_descriptor)
     else:
         repackage(agent_descriptor)
-        
 
-
-if __name__ == '__main__':
+def _main():
     import argparse
     
     parser = argparse.ArgumentParser()
@@ -54,7 +52,7 @@ if __name__ == '__main__':
     except:
         pass
     
-    args = parser.parse_args(['package', '/tmp/wheel'])
+    args = parser.parse_args()
         
     # whl_path will be specified if there is a package or repackage command
     # is specified and it was successful.
@@ -66,7 +64,12 @@ if __name__ == '__main__':
         whl_path = create_agent_package(args.agent_name, False)
     elif args.subparser_name == 'sign':
         result = sign_agent_package(args.package)
+        
             
     if whl_path:
         print("Package created at: {}".format(whl_path))
-    
+        
+
+
+if __name__ == '__main__':
+    _main()
