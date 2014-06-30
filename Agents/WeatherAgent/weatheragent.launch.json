@@ -2,6 +2,7 @@
     "agent": {
         "exec": "weatheragent-.1-py2.7.egg --config \"%c\" --sub \"%s\" --pub \"%p\""
     },
+    "key": "KEY",
     "agentid": "Weather1",
     "poll_time": 600,
     "minute_threshold" : 5,
