@@ -67,7 +67,7 @@ setup(
     install_requires = [], # ['volttron'],
     packages = packages, 
     #install_data = {'': '/tmp/data'},
-    data_files = {'foo': ['LICENSE']},
+    data_files = {'LICENSE'},
     include_package_data=True,
 )
 

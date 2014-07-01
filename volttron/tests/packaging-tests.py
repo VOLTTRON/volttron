@@ -5,16 +5,15 @@ import sys
 import uuid
 
 from collections import namedtuple
-from wheel.install import WheelFile
+from wheel.install import (WheelFile,
+                           VerifyingZipFile)
 
 from volttron.platform.packaging import (create_package,
                                          extract_package)
                                  
 from volttron.platform.packaging import AgentPackageError
 
-# Temporary path for working during running of package/unpackage tests.
-TMP_AGENT_DIR = '/tmp/agent-dir'
-
+# this is located in the tests/fixtures directory.
 AGENT_TESTCASE1_NAME = 'test-agent-package'
 
 class TestPackaging(unittest.TestCase):
@@ -23,13 +22,6 @@ class TestPackaging(unittest.TestCase):
         return os.path.join(self.fixtureDir, agent_name)
     
     def setUp(self):
-        '''
-        Recreates the temporary agent directory before each run
-        '''
-        if os.path.exists(TMP_AGENT_DIR):
-            shutil.rmtree(TMP_AGENT_DIR)
-        os.makedirs(TMP_AGENT_DIR)
-        
         self.fixtureDir = os.path.join(os.path.dirname(__file__), "fixtures")
     
 #     def test_can_sign_wheel(self):
@@ -37,41 +29,55 @@ class TestPackaging(unittest.TestCase):
 #         
         
     def test_can_extract_package(self):
-        agent_name = AGENT_TESTCASE1_NAME
         wheelhouse = '/tmp/extract_package/'
-        package_name = create_package(self.get_agent_fixture(agent_name),"/tmp/create_tmp_package/")
+        
+        # Create the package in order to extract it.
+        package_name = create_package(self.get_agent_fixture('test-agent-package'),"/tmp/create_tmp_package/")
          
         installed_at = extract_package(package_name, wheelhouse)
          
         try:
-            whl = WheelFile(package_name)
-            self.assertTrue(whl.datadir_name in installed_at)
+            wf = WheelFile(package_name)
+            self.assertIsNone(wf.verify())
+            wf.zipfile.extractall(wheelhouse)
+            self.assertTrue(wf.datadir_name in installed_at)
+            wf.zipfile.close()
         finally:
             shutil.rmtree(installed_at)
             shutil.rmtree(wheelhouse)
 
-    def test_can_create_an_initial_package(self):
+    def test_can_create_package(self):
         '''
         Tests that a proper wheel package is created from the create_package method of
         the AgentPackage class.
         '''
         agent_name = AGENT_TESTCASE1_NAME
+        package_tmp_dir = "/tmp/create_package"
+        expected_package_name = 'listeneragent-0.1-py2-none-any.whl'
+        
+        returned_package = create_package(self.get_agent_fixture(agent_name), package_tmp_dir)
          
-        package_name = create_package(self.get_agent_fixture(agent_name),"/tmp/create_package")
-         
-        self.assertIsNotNone(package_name, "Invalid package name {}".format(package_name))
+        self.assertIsNotNone(returned_package, "Invalid package name {}".format(returned_package))
+        self.assertTrue(os.path.exists(returned_package))
+        self.assertEqual(expected_package_name, os.path.basename(returned_package))
         # Wheel is in the correct location.
-        print(package_name)
-        self.assertTrue(os.path.exists(package_name))
-         
-        self.assertTrue('listeneragent' in package_name)
-         
+        self.assertEqual(os.path.join(package_tmp_dir, expected_package_name), returned_package)
+        self.assertTrue(os.path.exists(returned_package))
+                  
         try:
-            # TODO Verify zip structure.
-            whl = WheelFile(package_name)
-            whl.zipfile.close()
+            wf = WheelFile(returned_package)
+            # sets up the expected hashes for all of the wheel directory.
+            self.assertIsNone(wf.verify())
+            
+            # Reading the files
+            # if the hash doesn't match it will throw an exception.
+            for o in wf.zipfile.infolist():
+                wf.zipfile.open(o).read()
+            
+            wf.zipfile.close()
         finally:
-            os.remove(package_name)
+            shutil.rmtree(package_tmp_dir)
+            
     
     def test_raises_error_if_agent_dir_not_exists(self):
         '''
