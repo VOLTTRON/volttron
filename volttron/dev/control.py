@@ -5,19 +5,11 @@ Created on Jun 26, 2014
 '''
 
 from volttron.platform.packaging import (create_package,
-                                         repackage)
+                                         repackage,
+                                         AgentPackageError)
 
 def sign_agent_package(agent_package):
     pass
-    
-
-def create_agent_package(agent_descriptor, do_create):
-    '''
-    '''
-    if do_create:
-        create_package(agent_descriptor)
-    else:
-        repackage(agent_descriptor)
 
 def _main():
     import argparse
@@ -28,10 +20,10 @@ def _main():
                                        help = 'additional help', 
                                        dest='subparser_name')
     package_parser = subparsers.add_parser('package',
-                                           help="Create agent package (whl) from a directory or installed agent name.")
+        help="Create agent package (whl) from a directory or installed agent name.")
     
     package_parser.add_argument('agent_directory', 
-                                help='Directory for packaging an agent for the first time (requires setup.py file).')
+        help='Directory for packaging an agent for the first time (requires setup.py file).')
     
     repackage_parser = subparsers.add_parser('repackage',
                                            help="Creates agent package from a currently installed agent.")
@@ -58,12 +50,15 @@ def _main():
     # is specified and it was successful.
     whl_path = None
     
-    if args.subparser_name == 'package':
-        whl_path = create_agent_package(args.agent_directory, True)
-    elif args.subparser_name == 'repackage':
-        whl_path = create_agent_package(args.agent_name, False)
-    elif args.subparser_name == 'sign':
-        result = sign_agent_package(args.package)
+    try:
+        if args.subparser_name == 'package':
+            whl_path = create_package(args.agent_directory)
+        elif args.subparser_name == 'repackage':
+            whl_path = repackage(args.agent_name)
+        elif args.subparser_name == 'sign':
+            result = sign_agent_package(args.package)
+    except AgentPackageError as e:
+        print(e.message)
         
             
     if whl_path:
