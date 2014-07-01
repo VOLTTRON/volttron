@@ -29,22 +29,31 @@ class TestPackaging(unittest.TestCase):
 #         
         
     def test_can_extract_package(self):
-        wheelhouse = '/tmp/extract_package/'
         
-        # Create the package in order to extract it.
-        package_name = create_package(self.get_agent_fixture('test-agent-package'),"/tmp/create_tmp_package/")
+        wheelhouse = '/tmp/extract_package'
+        expected_install_at = os.path.join(wheelhouse, 'listeneragent-0.1')
+        test_wheel_name = 'listeneragent-0.1-py2-none-any.whl'
+        wheel_file = os.path.join(self.fixtureDir, test_wheel_name)
          
-        installed_at = extract_package(package_name, wheelhouse)
+        installed_at = extract_package(wheel_file, wheelhouse)
          
         try:
-            wf = WheelFile(package_name)
+            self.assertIsNotNone(installed_at)
+            self.assertTrue(os.path.isdir(installed_at))
+            self.assertEqual(expected_install_at, installed_at)
+            
+            # use the wheel file to verify that everything was extracted properly.
+            wf = WheelFile(wheel_file)
             self.assertIsNone(wf.verify())
-            wf.zipfile.extractall(wheelhouse)
-            self.assertTrue(wf.datadir_name in installed_at)
+            
+            for o in wf.zipfile.infolist():
+                self.assertTrue(os.path.exists(os.path.join(expected_install_at, o.filename)))            
+            
             wf.zipfile.close()
         finally:
             shutil.rmtree(installed_at)
             shutil.rmtree(wheelhouse)
+
 
     def test_can_create_package(self):
         '''
@@ -77,6 +86,7 @@ class TestPackaging(unittest.TestCase):
             wf.zipfile.close()
         finally:
             shutil.rmtree(package_tmp_dir)
+
             
     
     def test_raises_error_if_agent_dir_not_exists(self):

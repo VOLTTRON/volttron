@@ -47,18 +47,9 @@ def extract_package(wheel_file, install_dir, include_uuid=False, specific_uuid=N
         specific_uuid  - A specific uuid to use for extracting the agent to.
         
     Returns 
-        Full path to the extracted wheel file.
+        The folder where the wheel was extracted to.
     '''
-    whl = WheelFile(wheel_file)
-    
-    # The next lines are  building up the real_dir to be
-    #
-    #    install_dir/agent_dir/uuid 
-    #        or
-    #    install_dir/agent_dir
-    #
-    # depending on the options specified.
-    real_dir = os.path.join(install_dir, whl.datadir_name)
+    real_dir = install_dir
         
     # Only include the uuid if the caller wants it.
     if include_uuid:
@@ -66,10 +57,17 @@ def extract_package(wheel_file, install_dir, include_uuid=False, specific_uuid=N
             real_dir = os.path.join(real_dir, uuid.uuid4())
         else:
             real_dir = os.path.join(real_dir, uuid)
-    os.makedirs(real_dir)
-    unpack(wheel_file, dest = real_dir)
     
-    return real_dir
+    if not os.path.isdir(real_dir):
+        os.makedirs(real_dir)
+        
+    wf = WheelFile(wheel_file)
+    namever = wf.parsed_filename.group('namever')
+    destination = os.path.join(real_dir, namever)
+    sys.stderr.write("Unpacking to: %s\n" % (destination))
+    wf.zipfile.extractall(destination)
+    wf.zipfile.close()
+    return destination
             
             
         
