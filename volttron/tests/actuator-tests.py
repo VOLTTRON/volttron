@@ -26,7 +26,7 @@ t_process = None
 
 #All paths relative to proj-dir/volttron
 VSTART = "env/bin/volttron"
-VCTRL = "env/bin/volttron-ctrl"
+VCTRL = "env/bin/volttron-ctl"
 INST_EXEC = "install-executable"
 REM_EXEC = "remove-executable"
 LOAD_AGENT = "load-agent"
