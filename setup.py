@@ -103,7 +103,7 @@ if __name__ == '__main__':
         #[volttron.platform.control.commands]
         #run-agent = volttron.platform.commands:run_agent.command
         #shutdown = volttron.platform.commands:shutdown.command
-        
+
         # Other useful commands that need implemented
         #load-agent
         #list-agents
@@ -116,7 +116,7 @@ if __name__ == '__main__':
 
         [volttron.switchboard.resmon]
         platform = volttron.platform.resmon:ResourceMonitor
-        
+
         [volttron.switchboard.aip]
         platform = volttron.platform.aip:AIPplatform
 
