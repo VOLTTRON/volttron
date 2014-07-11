@@ -69,7 +69,7 @@ from pkg_resources import load_entry_point
 from zmq import green as zmq
 
 from . import config
-from .control import control_loop
+from .control.server import control_loop
 from .agent import utils
 
 
@@ -152,10 +152,6 @@ def agent_exchange(in_addr, out_addr, logger_name=None):
 
 
 def main(argv=sys.argv):
-    expandall = lambda string: os.path.expandvars(os.path.expanduser(string))
-    home = expandall(os.environ.get('VOLTTRON_HOME', '~/.volttron'))
-    os.environ['VOLTTRON_HOME'] = home
-
     # Setup option parser
     progname = os.path.basename(argv[0])
     parser = config.ArgumentParser(usage='%(prog)s [OPTION]...',
@@ -195,21 +191,15 @@ def main(argv=sys.argv):
 
     # Parse and expand options
     opts = parser.parse_args(argv[1:])
+    expandall = lambda string: os.path.expandvars(os.path.expanduser(string))
+    opts.volttron_home = expandall(os.environ.get('VOLTTRON_HOME', '~/.volttron'))
+    os.environ['VOLTTRON_HOME'] = opts.volttron_home
     opts.control_socket = expandall(opts.control_socket)
     opts.publish_address = expandall(opts.publish_address)
     opts.subscribe_address = expandall(opts.subscribe_address)
-    if opts.show_config:
-        seen = set()
-        for action in parser._actions:
-            if (not action.option_strings or
-                    action.dest is argparse.SUPPRESS or action.dest in seen):
-                continue
-            seen.add(action.dest)
-            try:
-                value = getattr(opts, action.dest)
-            except AttributeError:
-                continue
-            print action.dest, repr(value)
+    if getattr(opts, 'show_config', False):
+        for name, value in sorted(vars(opts).iteritems()):
+            print name, repr(value)
         return
 
     # Set configuration
@@ -238,7 +228,8 @@ def main(argv=sys.argv):
 
     # Main loops
     try:
-        exchange = gevent.spawn(agent_exchange, pub_addr, sub_addr)
+        exchange = gevent.spawn(
+            agent_exchange, opts.publish_address, opts.subscribe_address)
         try:
             control = gevent.spawn(control_loop, opts)
             exchange.link(lambda *a: control.kill())

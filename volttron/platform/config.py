@@ -188,6 +188,7 @@ def env_var_formatter(formatter_class):
     '''Decorator to automatically add env_var documentation to help.'''
     class EnvHelpFormatter(formatter_class):
         def _get_help_string(self, action):
+            # pylint: disable=super-on-old-class
             help = super(EnvHelpFormatter, self)._get_help_string(action)
             if '%(env_var)' not in help:
                 env_var = getattr(action, 'env_var', None)
@@ -383,7 +384,7 @@ class TrackingArgumentParser(ArgumentParser):
         return super(TrackingArgumentParser, self)._parse_known_args(arg_strings, namespace)
 
     def _setup_tracking(self):
-        def __call__(action, parser, namespace,  values, option_string=None, **kwargs):
+        def __call__(action, parser, namespace, values, option_string=None, **kwargs):
             source = getattr(option_string, 'source',
                              ('command-line', option_string))
             self.pre_action(action, parser, namespace, values, option_string, source)

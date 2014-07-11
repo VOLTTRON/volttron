@@ -3,18 +3,18 @@
 
 # Copyright (c) 2013, Battelle Memorial Institute
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
-# are met: 
-# 
+# are met:
+#
 # 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer. 
+#    notice, this list of conditions and the following disclaimer.
 # 2. Redistributions in binary form must reproduce the above copyright
 #    notice, this list of conditions and the following disclaimer in
 #    the documentation and/or other materials provided with the
-#    distribution. 
-# 
+#    distribution.
+#
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
 # "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
 # LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -26,7 +26,7 @@
 # THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-# 
+#
 # The views and conclusions contained in the software and documentation
 # are those of the authors and should not be interpreted as representing
 # official policies, either expressed or implied, of the FreeBSD
@@ -41,7 +41,7 @@
 # responsibility for the accuracy, completeness, or usefulness or any
 # information, apparatus, product, software, or process disclosed, or
 # represents that its use would not infringe privately owned rights.
-# 
+#
 # Reference herein to any specific commercial product, process, or
 # service by trade name, trademark, manufacturer, or otherwise does not
 # necessarily constitute or imply its endorsement, recommendation, or
@@ -49,12 +49,12 @@
 # Battelle Memorial Institute. The views and opinions of authors
 # expressed herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
-# 
+#
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 
-# pylint: disable=W0142,W0403
+# pylint: disable=W0142
 #}}}
 
 
@@ -72,7 +72,6 @@ import signal
 from subprocess import PIPE
 import sys
 import syslog
-from weakref import WeakValueDictionary
 
 import gevent
 from gevent import select
@@ -80,15 +79,15 @@ import simplejson as jsonapi
 from wheel.tool import unpack
 import zmq
 
-from environment import get_environment
-import messaging
-from messaging import topics
+from . import messaging
+from .messaging import topics
 
 
 def _split_prefix(a, b):
     a = a.split(os.path.sep)
     b = b.split(os.path.sep)
     common = []
+    i = 0
     for i in range(min([len(a), len(b)])):
         if a[i] != b[i]:
             break
@@ -151,7 +150,8 @@ def gevent_readlines(fd):
         if len(parts) < 2:
             data.extend(parts)
         else:
-            first, rest, data = ''.join(data + parts[0:1]), parts[1:-1], parts[-1:]
+            first, rest, data = (
+                ''.join(data + parts[0:1]), parts[1:-1], parts[-1:])
             yield first
             for line in rest:
                 yield line
@@ -201,14 +201,14 @@ def log_stream(name, agent, pid, path, stream):
 
 class AIPplatform(object):
     '''Manages the main workflow of receiving and sending agents.'''
-    
+
     def __init__(self, env, **kwargs):
         self.env = env
         self.agents = {}
 
     def setup(self):
-        for path in [self.run_dir, self.config_dir, self.bin_dir,
-                         self.install_dir, self.autostart_dir]:
+        for path in [self.run_dir, self.config_dir,
+                     self.install_dir, self.autostart_dir]:
             if not os.path.exists(path):
                 os.makedirs(path, 0775)
 
@@ -225,12 +225,12 @@ class AIPplatform(object):
 
     def _sub_socket(self):
         sock = messaging.Socket(zmq.SUB)
-        sock.connect(self.env.config['agent-exchange']['subscribe-address'])
+        sock.connect(self.env.subscribe_address)
         return sock
 
     def _pub_socket(self):
         sock = messaging.Socket(zmq.PUSH)
-        sock.connect(self.env.config['agent-exchange']['publish-address'])
+        sock.connect(self.env.publish_address)
         return sock
 
     def shutdown(self):
@@ -239,19 +239,13 @@ class AIPplatform(object):
                               {'reason': 'Received shutdown command'},
                               flags=zmq.NOBLOCK)
 
-    subscribe_address = property(
-            lambda me: me.env.config['agent-exchange']['subscribe-address'])
-    publish_address = property(
-            lambda me: me.env.config['agent-exchange']['publish-address'])
+    subscribe_address = property(lambda me: me.env.subscribe_address)
+    publish_address = property(lambda me: me.env.publish_address)
 
-    config_dir = property(lambda me: os.path.abspath(os.path.expanduser(
-                         me.env.config['agent-paths']['config-dir'])))
+    config_dir = property(lambda me: os.path.abspath(me.env.volttron_home))
     install_dir = property(lambda me: os.path.join(me.config_dir, 'agents'))
     autostart_dir = property(lambda me: os.path.join(me.config_dir, 'autostart'))
-    bin_dir = property(lambda me: os.path.abspath(os.path.expanduser(
-                         me.env.config['agent-paths']['bin-dir'])))
-    run_dir = property(lambda me: os.path.abspath(os.path.expanduser(
-                         me.env.config['agent-paths']['run-dir'])))
+    run_dir = property(lambda me: os.path.join(me.config_dir, 'run'))
 
     def autostart(self):
         names = os.listdir(self.autostart_dir)
@@ -282,6 +276,9 @@ class AIPplatform(object):
         shutil.rmtree(agent_path)
 
     def list_agents(self):
+        return set(os.listdir(self.install_dir))
+
+    def status_agents(self):
         names = set(os.listdir(self.install_dir)) | set(self.agents.keys())
         return [(name, self.is_enabled(name), self.agent_status(name))
                 for name in names]
@@ -361,7 +358,7 @@ class AIPplatform(object):
 
     def launch_agent(self, agent_config):
         self._launch_agent(os.path.abspath(agent_config))
-        
+
     def agent_status(self, agent_name):
         execenv = self.agents.get(agent_name)
         return (execenv and execenv.process.pid,

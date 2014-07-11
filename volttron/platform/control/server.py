@@ -64,31 +64,52 @@ import logging
 import os
 import pwd
 import struct
-import sys
-import warnings
 
 import gevent
 from gevent import socket
-from pkg_resources import iter_entry_points
+
+try:
+    import simplejson as json
+except ImportError:
+    import json
 
 import flexjsonrpc.green as jsonrpc
 from flexjsonrpc.framing import raw as framing
 
-from .command import dispatch_loop
-from .commands import commands as builtin_commands
-from ..core import control
-from .environment import get_environment
 
-
-__version__ = '0.1'
-
-__all__ = ['control_loop']
+__all__ = ['control_loop', 'ControlConnector']
 
 
 _log = logging.getLogger(__name__)
 
 
 SO_PEERCRED = 17
+
+
+def dispatch_loop(stream, dispatcher):
+    for chunk in stream:
+        try:
+            request = json.loads(chunk)
+        except Exception as e:
+            stream.write_chunk(json.dumps(jsonrpc.parse_error(str(e))))
+            return
+        response = dispatcher.dispatch(request)
+        if response:
+            stream.write_chunk(json.dumps(response))
+
+class ControlConnector(jsonrpc.PyConnector):
+    def __init__(self, address):
+        if address[:1] == '@':
+            address = '\x00' + address[1:]
+        self._sock = sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        sock.connect(address)
+        stream = framing.Stream(sock.makefile('rb', -1), sock.makefile('rw', 0))
+        self._requester = requester = jsonrpc.Requester(
+                lambda chunk: stream.write_chunk(json.dumps(chunk)))
+        super(ControlConnector, self).__init__(requester)
+        self._dispatcher = dispatcher = jsonrpc.Dispatcher(
+                None, requester.handle_response)
+        self._task = gevent.spawn(dispatch_loop, stream, dispatcher)
 
 
 def get_peercred(sock):
@@ -136,29 +157,23 @@ def authorize_user(uid, gid, users=None, groups=None, allow_root=True):
     return False
 
 
-def make_control_handler():
-    '''Factory to build ControlHandler class from control handler entry points.
-    '''
-    def make_class_method(func):
-        def method(self, *args, **kwargs):
-            return func(*args, **kwargs)
-        method.__name__ = func.__name__
-        return method
-    handlers = dict((cls.__name__, make_class_method(cls.handler))
-                    for name, cls in builtin_commands)
-    for ep in iter_entry_points(group='volttron.platform.control.handlers'):
-        if ep.name in handlers:
-            warnings.warn('duplicate control handler entry point: {}'.format(
-                    ep.name))
-            continue
-        handlers[ep.name] = make_class_method(ep.load())
-    return type('ControlHandler', (jsonrpc.BaseHandler,), handlers)
+class ControlHandler(jsonrpc.BaseHandler):
+    def __init__(self, env):
+        self._env = env
+    def status_agents(self):
+        return self._env.aip.status_agents()
+    def start_agent(self, agent_name):
+        self._env.aip.start_agent(agent_name)
+    def stop_agent(self, agent_name):
+        self._env.aip.stop_agent(agent_name)
+    def shutdown(self):
+        self._env.aip.shutdown()
 
 
-def _verify_request(config, request, client_address):
+def _verify_request(opts, request, client_address):
     pid, uid, gid = get_peercred(request)
     authorized = authorize_user(
-            uid, gid, config['users'], config['groups'], config['allow-root'])
+            uid, gid, opts.allow_users, opts.allow_groups, opts.allow_root)
     _log.info('Connection from addr={!r}, pid={}, uid={}, gid={} '
               '{}authorized'.format(client_address, pid, uid, gid,
                                     '' if authorized else 'not '))
@@ -173,10 +188,9 @@ def _handle_request(sock, handler):
     dispatch_loop(stream, dispatcher)
 
 
-def control_loop(config):
-    handler = make_control_handler()()
-    config = config['control']
-    address = config['socket']
+def control_loop(opts):
+    handler = ControlHandler(opts)
+    address = opts.control_socket
     if address[:1] == '@':
         address = '\00' + address[1:]
     sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM, 0)
@@ -184,51 +198,7 @@ def control_loop(config):
     sock.listen(5)
     while True:
         client, client_address = sock.accept()
-        if _verify_request(config, client, client_address):
+        if _verify_request(opts, client, client_address):
             gevent.spawn(_handle_request, client, handler)
         else:
             client.close()
-
-
-def load_commands():
-    commands = {'help': None}
-    for name, cmd in builtin_commands:
-        commands[name] = cmd.parser()
-    for ep in iter_entry_points(group='volttron.platform.control.commands'):
-        if ep.name in commands:
-            warnings.warn('duplicate control command entry point: {}'.format(
-                    ep.name))
-            continue
-        commands[ep.name] = parser = ep.load()()
-        aliases = []
-        for alias in (getattr(parser, 'aliases', None) or ()):
-            if alias in commands:
-                warnings.warn('duplicate control command alias: {}'.format(
-                        alias))
-                continue
-            commands[alias] = None
-            aliases.append(alias)
-        aliases.sort()
-        parser.aliases = aliases
-    return [(name, parser) for name, parser in commands.iteritems() if parser]
-
-
-def main(argv=sys.argv):
-    env = get_environment()
-    commands = load_commands()
-    parser, args = control.parse_command(commands, argv, version=__version__,
-            description='Control volttron and perform other related tasks')
-    env.config.parser_load(parser, args.config, args.extra_config)
-    try:
-        return args.handler(env, parser, args)
-    except jsonrpc.RemoteError as e:
-        e.print_tb()
-        return os.EX_SOFTWARE
-
-def _main():
-    '''Entry point for scripts.'''
-    try:
-        sys.exit(main())
-    except KeyboardInterrupt:
-        pass
-
