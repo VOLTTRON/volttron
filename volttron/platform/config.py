@@ -441,8 +441,7 @@ def get_volttron_parser(*args, **kwargs):
     parser.add_argument('-c', '--config', metavar='FILE',
         action='parse_config', ignore_unknown=True,
         help='read configuration from FILE')
-    parser.add_argument('-l', '--log', metavar='FILE',
-        type=_argparse.FileType('w', 1), default=_sys.stderr,
+    parser.add_argument('-l', '--log', metavar='FILE', default=None,
         help='send log output to FILE instead of stderr')
     parser.add_argument('-L', '--log-config', metavar='FILE',
         help='read logging configuration from FILE')
@@ -454,3 +453,17 @@ def get_volttron_parser(*args, **kwargs):
         default=_logging.WARNING,
         help='set logger verboseness')
     return parser
+
+
+def get_volttron_defaults():
+    return {
+        'log': None,
+        'autostart': True,
+        'publish_address': 'ipc://$VOLTTRON_HOME/run/publish',
+        'subscribe_address': 'ipc://$VOLTTRON_HOME/run/subscribe',
+        'control_socket': '@$VOLTTRON_HOME/run/control',
+        'allow_root': False,
+        'allow_users': None,
+        'allow_groups': None,
+        'verboseness': _logging.WARNING,
+    }
