@@ -62,7 +62,6 @@ from setuptools import setup, find_packages
 install_requires = [
     'avro>=1.7,<1.8',
     'BACpypes>=0.9,<0.10',
-    'configobj>=4.7,<5',
     'flexible-jsonrpc',
     'gevent>=0.13,<0.14',
     'numpy>=1.8,<1.9',
@@ -91,7 +90,6 @@ if __name__ == '__main__':
         url = 'http://www.pnnl.gov',
         packages = find_packages('.', exclude=['*.tests']),
         install_requires = install_requires,
-        package_data = {'volttron.platform': ['configspec.ini']},
         entry_points = '''
         [console_scripts]
         volttron = volttron.platform.main:_main
