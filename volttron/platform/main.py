@@ -72,6 +72,15 @@ from . import config
 from .control.server import control_loop
 from .agent import utils
 
+try:
+    from volttron.restricted import aip
+except ImportError:
+    from . import aip
+try:
+    from volttron.restricted import resmon
+except ImportError:
+    from . import resmon
+
 
 __version__ = '1.9'
 
@@ -203,10 +212,8 @@ def main(argv=sys.argv):
         return
 
     # Set configuration
-    opts.resmon = load_entry_point(
-            'volttron', 'volttron.switchboard.resmon', 'platform')(opts)
-    opts.aip = load_entry_point(
-            'volttron', 'volttron.switchboard.aip', 'platform')(opts)
+    opts.resmon = resmon.ResourceMonitor(opts)
+    opts.aip = aip.AIPplatform(opts)
 
     # Configure logging
     level = max(0, opts.verboseness)

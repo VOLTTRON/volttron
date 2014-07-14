@@ -90,25 +90,13 @@ if __name__ == '__main__':
         url = 'http://www.pnnl.gov',
         packages = find_packages('.', exclude=['*.tests']),
         install_requires = install_requires,
-        entry_points = '''
-        [console_scripts]
-        volttron = volttron.platform.main:_main
-        volttron-ctl = volttron.platform.control.client:_main
-        volttron-pkg = volttron.platform.packaging:_main
-
-        [volttron.switchboard.directory]
-        #platform = volttron.core.directory.host:HostDirectory
-
-        [volttron.switchboard.resmon]
-        platform = volttron.platform.resmon:ResourceMonitor
-
-        [volttron.switchboard.aip]
-        platform = volttron.platform.aip:AIPplatform
-
-
-        [volttron.switchboard.auth]
-        #platform = volttron.platform.auth:AuthManager
-        ''',
+        entry_points = {
+            'console_scripts': [
+                'volttron = volttron.platform.main:_main',
+                'volttron-ctl = volttron.platform.control.client:_main',
+                'volttron-pkg = volttron.platform.packaging:_main',
+            ]
+        },
         test_suite = 'nose.collector',
         zip_safe = False,
     )
