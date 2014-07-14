@@ -533,7 +533,7 @@ def passiveafdd(config_path, **kwargs):
                         energy_impact[points] = 0
             return energy_impact
         
-        @matching.match_exact(topics.RTU_VALUE(point='all', **rtu_path))
+        @matching.match_exact(topics.DEVICES_VALUE(point='all', **rtu_path))
         def datahandler(self, topic, header, message, match):
             """watching for new data"""
             data = jsonapi.loads(message[0])

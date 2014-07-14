@@ -95,7 +95,7 @@ def DemandResponseAgent(config_path, **kwargs):
             #self.schedule(DT,sched.Event(self.check_signal,[signal]))
             self.start_timer=self.periodic_timer(10,self.get_signal)
             
-        @matching.match_exact(topics.RTU_VALUE(point='MixedAirTemperature', **rtu_path))
+        @matching.match_exact(topics.DEVICES_VALUE(point='MixedAirTemperature', **rtu_path))
         def on_new_data(self, topic, headers, message, match):
             data = jsonapi.loads(message[0])
             mixed_air_temperature=data

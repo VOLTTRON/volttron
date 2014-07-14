@@ -151,7 +151,7 @@ def sign_agent_package(agent_package):
 
 
 def main(argv=sys.argv):
-    import argparse
+    import config
 
     expandall = lambda string: os.path.expandvars(os.path.expanduser(string))
     home = expandall(os.environ.get('VOLTTRON_HOME', '~/.volttron'))
@@ -159,7 +159,7 @@ def main(argv=sys.argv):
 
     # Setup option parser
     progname = os.path.basename(argv[0])
-    parser = argparse.ArgumentParser(
+    parser = config.ArgumentParser(
         prog=progname,
         description='VOLTTRON packaging and signing utility',
     )
@@ -187,8 +187,23 @@ def main(argv=sys.argv):
 
         verify_parser = subparsers.add_parser('verify',
                                               help='The agent package to verify (whl).')
-        verify_parser.add_argument('package')
         # TODO add arguments for signing the wheel package here.
+        
+        enable_restricted_parser = subparsers.add_parser('enable-restricted',
+                                                         help='Enable the restricted features of VOLTTRON')
+        
+        creator_key_parser = subparsers.add_parser('set-creator-key',
+                                                         help='Set the key for the creator of the agent code')
+        
+        soi_admin_key_parser = subparsers.add_parser('set-SOI-admin-key',
+                                                         help='Set the key for administrator of this Scope of Influence')
+        
+        initiator_key_parser = subparsers.add_parser('set-initiator-key',
+                                                         help='Set the key for the initator of this agent')
+        
+        source_key_parser = subparsers.add_parser('set-source-key',
+                                                         help='Set the key for the most recent host of this agent') 
+        
     except:
         pass
 
