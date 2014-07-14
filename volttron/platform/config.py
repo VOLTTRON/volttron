@@ -446,9 +446,9 @@ def get_volttron_parser(*args, **kwargs):
         help='send log output to FILE instead of stderr')
     parser.add_argument('-L', '--log-config', metavar='FILE',
         help='read logging configuration from FILE')
-    parser.add_argument('-q', '--quiet', action='add_const', const=-10, dest='verboseness',
+    parser.add_argument('-q', '--quiet', action='add_const', const=10, dest='verboseness',
         help='decrease logger verboseness; may be used multiple times')
-    parser.add_argument('-v', '--verbose', action='add_const', const=10, dest='verboseness',
+    parser.add_argument('-v', '--verbose', action='add_const', const=-10, dest='verboseness',
         help='increase logger verboseness; may be used multiple times')
     parser.add_argument('--verboseness', type=int, metavar='LEVEL',
         default=_logging.WARNING,
@@ -467,4 +467,5 @@ def get_volttron_defaults():
         'allow_users': None,
         'allow_groups': None,
         'verboseness': _logging.WARNING,
+        'resource_monitor': True,
     }

@@ -69,6 +69,7 @@ from os import O_NONBLOCK
 import shlex
 import shutil
 import signal
+import subprocess
 from subprocess import PIPE
 import sys
 import syslog
@@ -81,6 +82,9 @@ import zmq
 
 from . import messaging
 from .messaging import topics
+
+
+_log = logging.getLogger(__name__)
 
 
 def _split_prefix(a, b):
@@ -199,6 +203,27 @@ def log_stream(name, agent, pid, path, stream):
         log.handle(record)
 
 
+class ExecutionEnvironment(object):
+    '''Environment reserved for agent execution.
+
+    Deleting ExecutionEnvironment objects should cause the process to
+    end and all resources to be returned to the system.
+    '''
+    def __init__(self):
+        self.process = None
+
+    def execute(self, *args, **kwargs):
+        try:
+            self.process = subprocess.Popen(*args, **kwargs)
+        except OSError as e:
+            if e.filename:
+                raise
+            raise OSError(*(e.args + (args[0],)))
+
+    def __call__(self, *args, **kwargs):
+        self.execute(*args, **kwargs)
+
+
 class AIPplatform(object):
     '''Manages the main workflow of receiving and sending agents.'''
 
@@ -276,7 +301,7 @@ class AIPplatform(object):
         shutil.rmtree(agent_path)
 
     def list_agents(self):
-        return set(os.listdir(self.install_dir))
+        return os.listdir(self.install_dir)
 
     def status_agents(self):
         names = set(os.listdir(self.install_dir)) | set(self.agents.keys())
@@ -306,16 +331,57 @@ class AIPplatform(object):
             raise ValueError('invalid agent: {!r}'.format(agent_name))
         os.unlink(os.path.join(self.autostart_dir, agent_name))
 
+    def _verify_agent(self):
+        pass
+
+    def _check_resources(self, resmon, agent_name, execreqs_json):
+        if not os.path.exists(execreqs_json):
+            _log.warning('agent is missing execution requirements file: %s',
+                       execreqs_json)
+            execreqs = {}
+        else:
+            try:
+                with open(execreqs_json) as file:
+                    execreqs = jsonapi.load(file)
+            except Exception as e:
+                msg = 'error reading execution requirements: {}: {}'.format(
+                       execreqs_json, e)
+                _log.error(msg)
+                raise ValueError(msg)
+        hard_reqs = execreqs.get('hard_requirements', {})
+        failed_terms = resmon.check_hard_resources(hard_reqs)
+        if failed_terms:
+            msg = '\n'.join('  {}: {} ({})'.format(
+                             term, hard_reqs[term], avail)
+                            for term, avail in failed_terms.iteritems())
+            _log.error('hard resource requirements not met: %r: %s',
+                       agent_name, msg)
+            raise ValueError('hard resource requirements not met')
+        requirements = execreqs.get('requirements', {})
+        execenv, failed_terms = self.env.resmon.reserve_soft_resources(requirements)
+        if execenv is None:
+            msg = '\n'.join('  {}: {} ({})'.format(
+                             term, requirements.get(term, '<unset>'), avail)
+                            for term, avail in failed_terms.iteritems())
+            _log.error('soft resource requirements not met for agent %r:\n%s',
+                       agent_name, msg)
+            raise ValueError('soft resource requirements not met')
+        return execenv
+
     def _launch_agent(self, agent_path, name=None):
         if name is None:
             name = agent_path
         execenv = self.agents.get(name)
         if execenv:
             if execenv.process.poll() is None:
+                _log.warning('request to start already running agent: ' + name)
                 raise ValueError('agent is already running')
         basename = os.path.basename(agent_path)
-        metadata_json = os.path.join(
-                agent_path, basename + '.dist-info', 'metadata.json')
+        dist_info = os.path.join(agent_path, basename + '.dist-info')
+        if not os.path.exists(dist_info):
+            _log.error('missing required agent metadata: ' + dist_info)
+            raise ValueError('missing required agent metadata')
+        metadata_json = os.path.join(dist_info, 'metadata.json')
         metadata = jsonapi.load(open(metadata_json))
         try:
             module = metadata['exports']['volttron.agent']['launch']
@@ -323,10 +389,11 @@ class AIPplatform(object):
             try:
                 module = metadata['exports']['setuptools.installation']['eggsecutable']
             except KeyError:
+                _log.error('no agent launch class specified in package: ' + name)
                 raise ValueError('no agent launch class specified in package')
-        try:
-            config = metadata['extensions']['volttron.agent']['config']
-        except KeyError:
+        execreqs_json = os.path.join(dist_info, 'execreqs.json')
+        config = os.path.join(dist_info, 'config')
+        if not os.path.exists(config):
             config = None
         environ = os.environ.copy()
         environ['PYTHONPATH'] = ':'.join([agent_path] + sys.path)
@@ -338,13 +405,16 @@ class AIPplatform(object):
             del environ['AGENT_CONFIG']
         environ['AGENT_SUB_ADDR'] = self.subscribe_address
         environ['AGENT_PUB_ADDR'] = self.publish_address
-        execenv, _ = self.env.resmon.reserve_soft_resources('')
         module, _, func = module.partition(':')
         if func:
             code = '__import__({0!r}, fromlist=[{1!r}]).{1}()'.format(module, func)
             argv = [sys.executable, '-c', code]
         else:
             argv = [sys.executable, '-m', module]
+        if self.env.resmon is None:
+            execenv = ExecutionEnvironment()
+        else:
+            execenv = self._check_resources(self.env.resmon, name, execreqs_json)
         execenv.execute(argv, cwd=self.run_dir, env=environ, close_fds=True,
                         stdin=open(os.devnull), stdout=PIPE, stderr=PIPE)
         self.agents[name] = execenv

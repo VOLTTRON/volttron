@@ -68,6 +68,7 @@ import gevent
 from pkg_resources import load_entry_point
 from zmq import green as zmq
 
+from . import __version__
 from . import config
 from .control.server import control_loop
 from .agent import utils
@@ -79,14 +80,12 @@ except ImportError:
 try:
     from volttron.restricted import resmon
 except ImportError:
-    from . import resmon
-
-
-__version__ = '1.9'
+    resmon = None
 
 
 _log = logging.getLogger(os.path.basename(sys.argv[0])
                          if __name__ == '__main__' else __name__)
+_log.setLevel(logging.DEBUG)
 
 
 def log_to_file(file, level=logging.WARNING,
@@ -196,6 +195,14 @@ def main(argv=sys.argv):
     control.add_argument('--allow-groups', action='store_list',
         help='user groups allowed to connect to control socket')
 
+    if resmon is not None:
+        restrict = parser.add_argument_group('restricted options')
+        restrict.add_argument('--resource-monitor', action='store_true',
+            inverse='--no-resource-monitor',
+            help='enable agent resource management')
+        restrict.add_argument('--no-resource-monitor', action='store_false',
+            dest='resource_monitor', help=argparse.SUPPRESS)
+
     parser.set_defaults(**config.get_volttron_defaults())
 
     # Parse and expand options
@@ -211,12 +218,8 @@ def main(argv=sys.argv):
             print name, repr(value)
         return
 
-    # Set configuration
-    opts.resmon = resmon.ResourceMonitor(opts)
-    opts.aip = aip.AIPplatform(opts)
-
     # Configure logging
-    level = max(0, opts.verboseness)
+    level = max(1, opts.verboseness)
     if opts.log is None:
         log_to_file(sys.stderr, level)
     elif opts.log == '-':
@@ -228,10 +231,18 @@ def main(argv=sys.argv):
     if opts.log_config:
         logging.config.fileConfig(opts.log_config)
 
+    # Set configuration
+    if resmon is not None and opts.resource_monitor:
+        _log.info('Resource monitor enabled')
+        opts.resmon = resmon.ResourceMonitor()
+    else:
+        opts.resmon = None
+    opts.aip = aip.AIPplatform(opts)
     opts.aip.setup()
     if opts.autostart:
         for name, error in opts.aip.autostart():
             _log.error('error starting {!r}: {}\n'.format(name, error))
+
 
     # Main loops
     try:
