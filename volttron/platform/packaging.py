@@ -151,7 +151,7 @@ def sign_agent_package(agent_package):
 
 
 def main(argv=sys.argv):
-    import argparse
+    import config as argparse
 
     expandall = lambda string: os.path.expandvars(os.path.expanduser(string))
     home = expandall(os.environ.get('VOLTTRON_HOME', '~/.volttron'))

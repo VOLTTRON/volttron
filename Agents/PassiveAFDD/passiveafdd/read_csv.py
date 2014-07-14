@@ -59,7 +59,7 @@ These are used as follows:
 - If *colReadFcn* raises an exception, processing stops.
 - *colDefault* can have any type.  Its type does not have to match those
   returned by *colReadFcn*.
-- If *colDesc* is ``None``, i.e., the platformral Python ``None``, it means to skip
+- If *colDesc* is ``None``, i.e., the literal Python ``None``, it means to skip
   the column.
 
 **Enhancements:**
