@@ -415,10 +415,12 @@ class AIPplatform(object):
             execenv = ExecutionEnvironment()
         else:
             execenv = self._check_resources(self.env.resmon, name, execreqs_json)
+        _log.info('starting agent ' + name)
         execenv.execute(argv, cwd=self.run_dir, env=environ, close_fds=True,
                         stdin=open(os.devnull), stdout=PIPE, stderr=PIPE)
         self.agents[name] = execenv
         pid = execenv.process.pid
+        _log.info('agent {} has PID {}'.format(name, pid))
         gevent.spawn(log_stream, 'agents.stderr', name, pid, argv[0],
                      _log_stream('agents.log', name, pid, logging.ERROR,
                                  gevent_readlines(execenv.process.stderr)))
