@@ -58,7 +58,9 @@
 #}}}
 
 import argparse
+import grp
 import os
+import pwd
 import sys
 
 from flexjsonrpc.core import RemoteError
@@ -66,6 +68,11 @@ from flexjsonrpc.core import RemoteError
 from .. import aip
 from .. import config
 from .server import ControlConnector
+
+try:
+    from volttron.restricted import resmon
+except ImportError:
+    resmon = None
 
 
 def install_agent(parser, opts):
@@ -118,6 +125,36 @@ def run_agent(parser, opts):
 
 def shutdown_agent(parser, opts):
     ControlConnector(opts.control_socket).call.shutdown()
+
+def create_cgroup(parser, opts):
+    user = opts.user
+    group = opts.group
+    if user is None:
+        uid = os.getuid()
+    else:
+        try:
+            uid = int(user)
+        except ValueError:
+            try:
+                uid = pwd.getpwnam(user).pw_uid
+            except KeyError:
+                parser.error('unknown user: {}'.format(user))
+    if group is None:
+        gid = os.getgid()
+    else:
+        try:
+            gid = int(group)
+        except ValueError:
+            try:
+                gid = grp.getgrnam(group).gr_gid
+            except KeyError:
+                parser.error('unknown group: {}'.format(group))
+    for name in resmon._cgroups_used:
+        path = os.path.join(resmon._cgroups_root, name, 'volttron')
+        if not os.path.exists(path):
+            os.mkdir(path, 0775)
+        os.chmod(path, 0775)
+        os.chown(path, uid, gid)
 
 
 def main(argv=sys.argv):
@@ -172,6 +209,15 @@ def main(argv=sys.argv):
     shutdown = subparsers.add_parser('shutdown',
         help='stop all agents')
     shutdown.set_defaults(func=shutdown_agent)
+
+    if resmon:
+        cgroup = subparsers.add_parser('create-cgroup',
+            help='setup VOLTTRON control group for restricted execution')
+        cgroup.add_argument('-u', '--user', metavar='USER',
+            help='group name or ID')
+        cgroup.add_argument('-g', '--group', metavar='GROUP',
+            help='group name or ID')
+        cgroup.set_defaults(func=create_cgroup, user=None, group=None)
 
     parser.set_defaults(**config.get_volttron_defaults())
 
