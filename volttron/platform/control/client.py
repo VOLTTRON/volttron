@@ -61,6 +61,8 @@ import argparse
 import os
 import sys
 
+from flexjsonrpc.core import RemoteError
+
 from .. import aip
 from .. import config
 from .server import ControlConnector
@@ -180,7 +182,10 @@ def main(argv=sys.argv):
     opts.control_socket = expandall(opts.control_socket)
     opts.aip = aip.AIPplatform(opts)
     opts.aip.setup()
-    opts.func(parser, opts)
+    try:
+        opts.func(parser, opts)
+    except RemoteError as e:
+        e.print_tb()
 
 
 def _main():
