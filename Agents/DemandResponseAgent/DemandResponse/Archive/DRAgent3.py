@@ -168,7 +168,7 @@ def DemandResponseAgent(config_path, **kwargs):
                 if self.actuator_handler is not None:
                     self.actuator_handler(match, jsonapi.loads(message[0]))
 
-        @matching.match_exact(topics.RTU_VALUE(point='all', **rtu_path))
+        @matching.match_exact(topics.DEVICES_VALUE(point='all', **rtu_path))
         def _on_new_data(self, topic, headers, message, match):
             """watching for new data"""
             data = jsonapi.loads(message[0])

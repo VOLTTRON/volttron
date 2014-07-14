@@ -197,7 +197,7 @@ def AFDDAgent(config_path, **kwargs):
             print 'response received'
             self.task_timer.cancel()
 
-        @matching.match_exact(topics.RTU_VALUE(point='all', **rtu_path))
+        @matching.match_exact(topics.DEVICES_VALUE(point='all', **rtu_path))
         def on_new_data(self, topic, headers, message, match):
             data = jsonapi.loads(message[0])
             #Check override status
@@ -337,7 +337,7 @@ if __name__ == '__main__':
 #                     'ReturnAirCO2Stpt': 65,
 #                     'FanStatus': 1
 #                 }
-#                 self.publish_ex(topics.RTU_VALUE(point='all', **rtu_path),
+#                 self.publish_ex(topics.DEVICES_VALUE(point='all', **rtu_path),
 #                                 {}, ('application/json', jsonapi.dumps(data)))
 # 
 #         Agent.__name__ = 'TestAgent'

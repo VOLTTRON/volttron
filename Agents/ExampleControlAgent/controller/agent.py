@@ -127,7 +127,7 @@ def ControllerAgent(config_path, **kwargs):
             }
             self.publish(topics.ACTUATOR_LOCK_ACQUIRE(**rtu_path), headers)
 
-        @matching.match_exact(topics.RTU_VALUE(point='OutsideAirTemperature',
+        @matching.match_exact(topics.DEVICES_VALUE(point='OutsideAirTemperature',
                                                **rtu_path))
         def on_outside_temp(self, topic, headers, message, match):
             '''Respond to the outside air temperature events.'''

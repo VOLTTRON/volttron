@@ -110,7 +110,7 @@ AGENT_PING = _('agent/ping/{}/{}/{{cookie}}'.format(os.uname()[1], os.getpid()))
 DRIVER_TOPIC_BASE = 'devices'
 DEVICES_PATH = _('{base}//{node}//{campus}//{building}//{unit}//{point}')
 _DEVICES_VALUE = _(DEVICES_PATH.replace('{base}',DRIVER_TOPIC_BASE))
-#RTU_VALUE = _(_DEVICES_VALUE.replace('{node}/', ''))
+DEVICES_VALUE = _(_DEVICES_VALUE.replace('{node}/', ''))
 
 ACTUATOR_GET = _(_DEVICES_VALUE.replace('{node}', 'actuators/get'))
 ACTUATOR_SET = _(_DEVICES_VALUE.replace('{node}', 'actuators/set'))
