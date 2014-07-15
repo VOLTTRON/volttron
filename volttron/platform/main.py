@@ -239,7 +239,7 @@ def main(argv=sys.argv):
         logging.config.fileConfig(opts.log_config)
 
     # Set configuration
-    if opts.verify_agents:
+    if auth is not None and opts.verify_agents:
         _log.info('Agent integrity verification enabled')
     if resmon is not None and opts.resource_monitor:
         _log.info('Resource monitor enabled')

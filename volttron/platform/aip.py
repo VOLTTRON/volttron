@@ -389,10 +389,17 @@ class AIPplatform(object):
         metadata_json = os.path.join(dist_info, 'metadata.json')
         metadata = jsonapi.load(open(metadata_json))
         try:
-            module = metadata['exports']['volttron.agent']['launch']
+            exports = metadata['extensions']['python.exports']
         except KeyError:
             try:
-                module = metadata['exports']['setuptools.installation']['eggsecutable']
+                exports = metadata['exports']
+            except KeyError:
+                raise ValueError('no entry points exported')
+        try:
+            module = exports['volttron.agent']['launch']
+        except KeyError:
+            try:
+                module = exports['setuptools.installation']['eggsecutable']
             except KeyError:
                 _log.error('no agent launch class specified in package: ' + name)
                 raise ValueError('no agent launch class specified in package')
