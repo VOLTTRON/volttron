@@ -3,18 +3,18 @@
 
 # Copyright (c) 2013, Battelle Memorial Institute
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
-# are met: 
-# 
+# are met:
+#
 # 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer. 
+#    notice, this list of conditions and the following disclaimer.
 # 2. Redistributions in binary form must reproduce the above copyright
 #    notice, this list of conditions and the following disclaimer in
 #    the documentation and/or other materials provided with the
-#    distribution. 
-# 
+#    distribution.
+#
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
 # "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
 # LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -26,7 +26,7 @@
 # THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-# 
+#
 # The views and conclusions contained in the software and documentation
 # are those of the authors and should not be interpreted as representing
 # official policies, either expressed or implied, of the FreeBSD
@@ -41,7 +41,7 @@
 # responsibility for the accuracy, completeness, or usefulness or any
 # information, apparatus, product, software, or process disclosed, or
 # represents that its use would not infringe privately owned rights.
-# 
+#
 # Reference herein to any specific commercial product, process, or
 # service by trade name, trademark, manufacturer, or otherwise does not
 # necessarily constitute or imply its endorsement, recommendation, or
@@ -49,12 +49,12 @@
 # Battelle Memorial Institute. The views and opinions of authors
 # expressed herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
-# 
+#
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 
-# pylint: disable=W0142,W0403
+# pylint: disable=W0142
 #}}}
 
 
@@ -69,10 +69,10 @@ from os import O_NONBLOCK
 import shlex
 import shutil
 import signal
+import subprocess
 from subprocess import PIPE
 import sys
 import syslog
-from weakref import WeakValueDictionary
 
 import gevent
 from gevent import select
@@ -80,15 +80,18 @@ import simplejson as jsonapi
 from wheel.tool import unpack
 import zmq
 
-from environment import get_environment
-import messaging
-from messaging import topics
+from . import messaging
+from .messaging import topics
+
+
+_log = logging.getLogger(__name__)
 
 
 def _split_prefix(a, b):
     a = a.split(os.path.sep)
     b = b.split(os.path.sep)
     common = []
+    i = 0
     for i in range(min([len(a), len(b)])):
         if a[i] != b[i]:
             break
@@ -151,7 +154,8 @@ def gevent_readlines(fd):
         if len(parts) < 2:
             data.extend(parts)
         else:
-            first, rest, data = ''.join(data + parts[0:1]), parts[1:-1], parts[-1:]
+            first, rest, data = (
+                ''.join(data + parts[0:1]), parts[1:-1], parts[-1:])
             yield first
             for line in rest:
                 yield line
@@ -199,16 +203,37 @@ def log_stream(name, agent, pid, path, stream):
         log.handle(record)
 
 
+class ExecutionEnvironment(object):
+    '''Environment reserved for agent execution.
+
+    Deleting ExecutionEnvironment objects should cause the process to
+    end and all resources to be returned to the system.
+    '''
+    def __init__(self):
+        self.process = None
+
+    def execute(self, *args, **kwargs):
+        try:
+            self.process = subprocess.Popen(*args, **kwargs)
+        except OSError as e:
+            if e.filename:
+                raise
+            raise OSError(*(e.args + (args[0],)))
+
+    def __call__(self, *args, **kwargs):
+        self.execute(*args, **kwargs)
+
+
 class AIPplatform(object):
     '''Manages the main workflow of receiving and sending agents.'''
-    
+
     def __init__(self, env, **kwargs):
         self.env = env
         self.agents = {}
 
     def setup(self):
-        for path in [self.run_dir, self.config_dir, self.bin_dir,
-                         self.install_dir, self.autostart_dir]:
+        for path in [self.run_dir, self.config_dir,
+                     self.install_dir, self.autostart_dir]:
             if not os.path.exists(path):
                 os.makedirs(path, 0775)
 
@@ -225,12 +250,12 @@ class AIPplatform(object):
 
     def _sub_socket(self):
         sock = messaging.Socket(zmq.SUB)
-        sock.connect(self.env.config['agent-exchange']['subscribe-address'])
+        sock.connect(self.env.subscribe_address)
         return sock
 
     def _pub_socket(self):
         sock = messaging.Socket(zmq.PUSH)
-        sock.connect(self.env.config['agent-exchange']['publish-address'])
+        sock.connect(self.env.publish_address)
         return sock
 
     def shutdown(self):
@@ -239,19 +264,13 @@ class AIPplatform(object):
                               {'reason': 'Received shutdown command'},
                               flags=zmq.NOBLOCK)
 
-    subscribe_address = property(
-            lambda me: me.env.config['agent-exchange']['subscribe-address'])
-    publish_address = property(
-            lambda me: me.env.config['agent-exchange']['publish-address'])
+    subscribe_address = property(lambda me: me.env.subscribe_address)
+    publish_address = property(lambda me: me.env.publish_address)
 
-    config_dir = property(lambda me: os.path.abspath(os.path.expanduser(
-                         me.env.config['agent-paths']['config-dir'])))
+    config_dir = property(lambda me: os.path.abspath(me.env.volttron_home))
     install_dir = property(lambda me: os.path.join(me.config_dir, 'agents'))
     autostart_dir = property(lambda me: os.path.join(me.config_dir, 'autostart'))
-    bin_dir = property(lambda me: os.path.abspath(os.path.expanduser(
-                         me.env.config['agent-paths']['bin-dir'])))
-    run_dir = property(lambda me: os.path.abspath(os.path.expanduser(
-                         me.env.config['agent-paths']['run-dir'])))
+    run_dir = property(lambda me: os.path.join(me.config_dir, 'run'))
 
     def autostart(self):
         names = os.listdir(self.autostart_dir)
@@ -282,6 +301,9 @@ class AIPplatform(object):
         shutil.rmtree(agent_path)
 
     def list_agents(self):
+        return os.listdir(self.install_dir)
+
+    def status_agents(self):
         names = set(os.listdir(self.install_dir)) | set(self.agents.keys())
         return [(name, self.is_enabled(name), self.agent_status(name))
                 for name in names]
@@ -309,16 +331,57 @@ class AIPplatform(object):
             raise ValueError('invalid agent: {!r}'.format(agent_name))
         os.unlink(os.path.join(self.autostart_dir, agent_name))
 
+    def _verify_agent(self):
+        pass
+
+    def _check_resources(self, resmon, agent_name, execreqs_json):
+        if not os.path.exists(execreqs_json):
+            _log.warning('agent is missing execution requirements file: %s',
+                       execreqs_json)
+            execreqs = {}
+        else:
+            try:
+                with open(execreqs_json) as file:
+                    execreqs = jsonapi.load(file)
+            except Exception as e:
+                msg = 'error reading execution requirements: {}: {}'.format(
+                       execreqs_json, e)
+                _log.error(msg)
+                raise ValueError(msg)
+        hard_reqs = execreqs.get('hard_requirements', {})
+        failed_terms = resmon.check_hard_resources(hard_reqs)
+        if failed_terms:
+            msg = '\n'.join('  {}: {} ({})'.format(
+                             term, hard_reqs[term], avail)
+                            for term, avail in failed_terms.iteritems())
+            _log.error('hard resource requirements not met: %r: %s',
+                       agent_name, msg)
+            raise ValueError('hard resource requirements not met')
+        requirements = execreqs.get('requirements', {})
+        execenv, failed_terms = self.env.resmon.reserve_soft_resources(requirements)
+        if execenv is None:
+            msg = '\n'.join('  {}: {} ({})'.format(
+                             term, requirements.get(term, '<unset>'), avail)
+                            for term, avail in failed_terms.iteritems())
+            _log.error('soft resource requirements not met for agent %r:\n%s',
+                       agent_name, msg)
+            raise ValueError('soft resource requirements not met')
+        return execenv
+
     def _launch_agent(self, agent_path, name=None):
         if name is None:
             name = agent_path
         execenv = self.agents.get(name)
         if execenv:
             if execenv.process.poll() is None:
+                _log.warning('request to start already running agent: ' + name)
                 raise ValueError('agent is already running')
         basename = os.path.basename(agent_path)
-        metadata_json = os.path.join(
-                agent_path, basename + '.dist-info', 'metadata.json')
+        dist_info = os.path.join(agent_path, basename + '.dist-info')
+        if not os.path.exists(dist_info):
+            _log.error('missing required agent metadata: ' + dist_info)
+            raise ValueError('missing required agent metadata')
+        metadata_json = os.path.join(dist_info, 'metadata.json')
         metadata = jsonapi.load(open(metadata_json))
         try:
             module = metadata['exports']['volttron.agent']['launch']
@@ -326,10 +389,11 @@ class AIPplatform(object):
             try:
                 module = metadata['exports']['setuptools.installation']['eggsecutable']
             except KeyError:
+                _log.error('no agent launch class specified in package: ' + name)
                 raise ValueError('no agent launch class specified in package')
-        try:
-            config = metadata['extensions']['volttron.agent']['config']
-        except KeyError:
+        execreqs_json = os.path.join(dist_info, 'execreqs.json')
+        config = os.path.join(dist_info, 'config')
+        if not os.path.exists(config):
             config = None
         environ = os.environ.copy()
         environ['PYTHONPATH'] = ':'.join([agent_path] + sys.path)
@@ -341,17 +405,22 @@ class AIPplatform(object):
             del environ['AGENT_CONFIG']
         environ['AGENT_SUB_ADDR'] = self.subscribe_address
         environ['AGENT_PUB_ADDR'] = self.publish_address
-        execenv, _ = self.env.resmon.reserve_soft_resources('')
         module, _, func = module.partition(':')
         if func:
             code = '__import__({0!r}, fromlist=[{1!r}]).{1}()'.format(module, func)
             argv = [sys.executable, '-c', code]
         else:
             argv = [sys.executable, '-m', module]
+        if self.env.resmon is None:
+            execenv = ExecutionEnvironment()
+        else:
+            execenv = self._check_resources(self.env.resmon, name, execreqs_json)
+        _log.info('starting agent ' + name)
         execenv.execute(argv, cwd=self.run_dir, env=environ, close_fds=True,
                         stdin=open(os.devnull), stdout=PIPE, stderr=PIPE)
         self.agents[name] = execenv
         pid = execenv.process.pid
+        _log.info('agent {} has PID {}'.format(name, pid))
         gevent.spawn(log_stream, 'agents.stderr', name, pid, argv[0],
                      _log_stream('agents.log', name, pid, logging.ERROR,
                                  gevent_readlines(execenv.process.stderr)))
@@ -361,7 +430,7 @@ class AIPplatform(object):
 
     def launch_agent(self, agent_config):
         self._launch_agent(os.path.abspath(agent_config))
-        
+
     def agent_status(self, agent_name):
         execenv = self.agents.get(agent_name)
         return (execenv and execenv.process.pid,

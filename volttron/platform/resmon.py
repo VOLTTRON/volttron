@@ -71,10 +71,11 @@ without worrying about where to find the monitor instance.
 '''
 
 
-import configobj
 #import ctypes
 #from ctypes import c_int, c_ulong
+from ast import literal_eval
 import os
+import re
 import subprocess
 
 
@@ -103,11 +104,28 @@ __version__ = '0.1'
 #get_pdeathsig.errcheck = _errcheck
 
 
+
+_var_re = re.compile(
+    r'''^\s*([a-zA-Z0-9_]+)=("(?:\\.|[^"])*"|'[^']*'|[^#]*?)\s*(?:#.*)?$''')
+
+def _iter_shell_vars(file):
+    for key, value in (match.groups() for match in
+            (_var_re.match(line) for line in file) if match):
+        if value[:1] == "'" == value[-1:]:
+            yield key, value[1:-1]
+        elif value[:1] == '"' == value[-1:]:
+            yield key, literal_eval(value)
+        else:
+            yield key, value
+
 def lsb_release(path='/etc/lsb-release'):
     try:
-        lsb = configobj.ConfigObj(open(path))
-    except EnvironmentError as e:
-        lsb = configobj.ConfigObj()
+        file = open(path)
+    except EnvironmentError:
+        lsb = {}
+    else:
+        with file:
+            lsb = dict(_iter_shell_vars(file))
     return [
         ('LSB Version', lsb.get('LSB_VERSION', 'n/a')),
         ('Distributor ID', lsb.get('DISTRIB_ID', 'n/a')),

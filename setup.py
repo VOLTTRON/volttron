@@ -62,7 +62,6 @@ from setuptools import setup, find_packages
 install_requires = [
     'avro>=1.7,<1.8',
     'BACpypes>=0.9,<0.10',
-    'configobj>=4.7,<5',
     'flexible-jsonrpc',
     'gevent>=0.13,<0.14',
     'numpy>=1.8,<1.9',
@@ -91,41 +90,13 @@ if __name__ == '__main__':
         url = 'http://www.pnnl.gov',
         packages = find_packages('.', exclude=['*.tests']),
         install_requires = install_requires,
-        package_data = {'volttron.platform': ['configspec.ini']},
-        entry_points = '''
-        [console_scripts]
-        volttron = volttron.platform.main:_main
-        volttron-ctl = volttron.platform.control:_main
-        volttron-pkg = volttron.dev.control:_main
-
-        #[volttron.platform.control.handlers]
-        #run_agent = volttron.platform.commands:run_agent.handler
-        #shutdown = volttron.platform.commands:shutdown.handler
-
-        #[volttron.platform.control.commands]
-        #run-agent = volttron.platform.commands:run_agent.command
-        #shutdown = volttron.platform.commands:shutdown.command
-        
-        # Other useful commands that need implemented
-        #load-agent
-        #list-agents
-        #run-agent
-        #unload-agent
-        #debug-shell
-
-        [volttron.switchboard.directory]
-        #platform = volttron.core.directory.host:HostDirectory
-
-        [volttron.switchboard.resmon]
-        platform = volttron.platform.resmon:ResourceMonitor
-        
-        [volttron.switchboard.aip]
-        platform = volttron.platform.aip:AIPplatform
-
-
-        [volttron.switchboard.auth]
-        #platform = volttron.platform.auth:AuthManager
-        ''',
+        entry_points = {
+            'console_scripts': [
+                'volttron = volttron.platform.main:_main',
+                'volttron-ctl = volttron.platform.control.client:_main',
+                'volttron-pkg = volttron.platform.packaging:_main',
+            ]
+        },
         test_suite = 'nose.collector',
         zip_safe = False,
     )

@@ -142,7 +142,7 @@ def DemandResponseAgent(config_path, **kwargs):
             """acquire lock fom actuator agent"""
             super(Agent, self).setup()
            
-        @matching.match_exact(topics.RTU_VALUE(point='CoolCall1', **rtu_path))    
+        @matching.match_exact(topics.DEVICES_VALUE(point='CoolCall1', **rtu_path))    
         def dr_signal(self, topic, headers, message, match):
             data = jsonapi.loads(message[0])
             if not self.running and bool(data):
@@ -189,7 +189,7 @@ def DemandResponseAgent(config_path, **kwargs):
             if self.lock_acquired and not holding_lock:
                 self.start()
 
-        @matching.match_exact(topics.RTU_VALUE(point='all', **rtu_path))
+        @matching.match_exact(topics.DEVICES_VALUE(point='all', **rtu_path))
         def _on_new_data(self, topic, headers, message, match):
             """watching for new data"""
             data = jsonapi.loads(message[0])
@@ -256,7 +256,7 @@ def DemandResponseAgent(config_path, **kwargs):
             self._sleep(600)#If controller loses volttron heartbeat will reset
             self.running = False
          
-        @matching.match_exact(topics.RTU_VALUE(point='Occupied', **rtu_path)) # for now look for Occuppied, DR Override will be added
+        @matching.match_exact(topics.DEVICES_VALUE(point='Occupied', **rtu_path)) # for now look for Occuppied, DR Override will be added
         def _override(self, topic, headers, message, match):
             """watch for override from controller"""
             data = jsonapi.loads(message[0])

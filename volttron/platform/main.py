@@ -58,89 +58,34 @@
 #}}}
 
 import argparse
-from contextlib import nested, closing
+from contextlib import closing
 import logging
 from logging import handlers
 import os
-import re
 import sys
 
 import gevent
 from pkg_resources import load_entry_point
 from zmq import green as zmq
 
-from environment import get_environment
-from control import control_loop
-from agent import utils
+from . import __version__
+from . import config
+from .control.server import control_loop
+from .agent import utils
 
-
-__version__ = '0.1'
+try:
+    from volttron.restricted import aip
+except ImportError:
+    from . import aip
+try:
+    from volttron.restricted import resmon
+except ImportError:
+    resmon = None
 
 
 _log = logging.getLogger(os.path.basename(sys.argv[0])
                          if __name__ == '__main__' else __name__)
-
-
-class CountdownAction(argparse._CountAction):
-    def __call__(self, parser, namespace, values, option_string=None):
-        setattr(namespace, self.dest, getattr(namespace, self.dest, 0) - 1)
-
-
-class ConfigSetAction(argparse._StoreAction):
-    _confsetre = re.compile(
-            r'^\s*([A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)+)\s*=\s*(\S.*?)\s*$')
-    def __call__(self, parser, namespace, values, option_string=None):
-        value = getattr(namespace, self.dest, None)
-        if value is None:
-            value = []
-            setattr(namespace, self.dest, value)
-        if isinstance(values, basestring):
-            values = [values]
-        for string in values:
-            match = ConfigSetAction._confsetre.match(string)
-            if match is None:
-                raise argparse.ArgumentTypeError(
-                        'not a valid config string: {!r} '
-                        "(use 'section.name=value')".format(string))
-            names, setting = match.groups()
-            value.append((names.split('.'), setting))
-
-
-class DeprecatedAction(argparse.Action):
-    def __call__(self, parser, namespace, values, option_string=None):
-        sys.stderr.write('{}: warning: {!r} option is deprecated and has no '
-                         'effect.  Please remove this option from any scripts '
-                         'to prevent future errors.\n'.format(
-                                 parser.prog, option_string))
-
-
-class OptionParser(argparse.ArgumentParser):
-    def __init__(self, progname):
-        argparse.ArgumentParser.__init__(self, usage='%(prog)s [OPTION]...',
-            prog=progname, add_help=False,
-            description='Volttron platform agent platform daemon',
-            ) #formatter=self.GnuishHelpFormatter())
-        self.add_argument('-c', '--config', metavar='FILE',
-                help='read configuration from FILE')
-        self.add_argument('-l', '--log', metavar='FILE',
-                help='send log output to FILE instead of stderr')
-        self.add_argument('-L', '--log-config', metavar='FILE',
-                help='read logging configuration from FILE')
-        self.add_argument('-q', '--quiet', action='count',
-                dest='verboseness', default=0,
-                help='decrease logger verboseness; may be used multiple times')
-        self.add_argument('-s', '--set', action=ConfigSetAction, default=[],
-                dest='extra_config', metavar="SECTION.NAME=VALUE",
-                help='specify additional configuration')
-        self.add_argument('--skip-autostart', action='store_true',
-                help='skip automatic starting of enabled agents and services')
-        self.add_argument('-v', '--verbose', action=CountdownAction, dest='verboseness',
-                help='increase logger verboseness; may be used multiple times')
-        self.add_argument('--help', action='help',
-                help='show this help message and exit')
-        self.add_argument('--version', action='version',
-                version='%(prog)s ' + __version__,
-                help='show version information and exit')
+_log.setLevel(logging.DEBUG)
 
 
 def log_to_file(file, level=logging.WARNING,
@@ -174,8 +119,8 @@ def agent_exchange(in_addr, out_addr, logger_name=None):
     '''
     log = _log if logger_name is None else logging.getLogger(logger_name)
     ctx = zmq.Context.instance()
-    with nested(closing(ctx.socket(zmq.PULL)),
-                closing(ctx.socket(zmq.XPUB))) as (in_sock, out_sock):
+    with closing(ctx.socket(zmq.PULL)) as in_sock, \
+            closing(ctx.socket(zmq.XPUB)) as out_sock:
         in_sock.bind(in_addr)
         out_sock.bind(out_addr)
         poller = zmq.Poller()
@@ -215,30 +160,66 @@ def agent_exchange(in_addr, out_addr, logger_name=None):
 
 
 def main(argv=sys.argv):
-    # Parse options
-    parser = OptionParser(os.path.basename(argv[0]))
+    # Setup option parser
+    progname = os.path.basename(argv[0])
+    parser = config.ArgumentParser(usage='%(prog)s [OPTION]...',
+        prog=progname, add_help=False,
+        description='VOLTTRON platform service',
+        parents=[config.get_volttron_parser()],
+        argument_default=argparse.SUPPRESS,
+    )
+    parser.add_argument('--show-config', action='store_true',
+        help=argparse.SUPPRESS)
+    parser.add_help_argument()
+    parser.add_version_argument(version='%(prog)s ' + __version__)
+
+    agents = parser.add_argument_group('agent options')
+    agents.add_argument('--autostart', action='store_true', inverse='--no-autostart',
+        help='automatically start enabled agents and services')
+    agents.add_argument('--no-autostart', action='store_false', dest='autostart',
+        help=argparse.SUPPRESS)
+    agents.add_argument('--publish-address', metavar='ZMQADDR',
+        help='ZeroMQ URL for used for agent publishing')
+    agents.add_argument('--subscribe-address', metavar='ZMQADDR',
+        help='ZeroMQ URL for used for agent subscriptions')
+
+    control = parser.add_argument_group('control options')
+    control.add_argument('--control-socket', metavar='FILE',
+        help='path to socket used for control messages')
+    control.add_argument('--allow-root', action='store_true', inverse='--no-allow-root',
+        help='allow root to connect to control socket')
+    control.add_argument('--no-allow-root', action='store_false', dest='allow_root',
+        help=argparse.SUPPRESS)
+    control.add_argument('--allow-users', action='store_list',
+        help='users allowed to connect to control socket')
+    control.add_argument('--allow-groups', action='store_list',
+        help='user groups allowed to connect to control socket')
+
+    if resmon is not None:
+        restrict = parser.add_argument_group('restricted options')
+        restrict.add_argument('--resource-monitor', action='store_true',
+            inverse='--no-resource-monitor',
+            help='enable agent resource management')
+        restrict.add_argument('--no-resource-monitor', action='store_false',
+            dest='resource_monitor', help=argparse.SUPPRESS)
+
+    parser.set_defaults(**config.get_volttron_defaults())
+
+    # Parse and expand options
     opts = parser.parse_args(argv[1:])
-
-    # Load configuration
-    env = get_environment()
-    env.config.parser_load(parser, opts.config, opts.extra_config)
-    sub_addr = env.config['agent-exchange']['subscribe-address']
-    append_pid = env.config['agent-exchange']['append-pid']
-    if append_pid and sub_addr.startswith('ipc://'):
-        sub_addr += '.{}'.format(os.getpid())
-        env.config['agent-exchange']['subscribe-address'] = sub_addr
-    pub_addr = env.config['agent-exchange']['publish-address']
-    if append_pid and pub_addr.startswith('ipc://'):
-        pub_addr += '.{}'.format(os.getpid())
-        env.config['agent-exchange']['publish-address'] = pub_addr
-
-    env.resmon = load_entry_point(
-            'volttron', 'volttron.switchboard.resmon', 'platform')(env)
-    env.aip = load_entry_point(
-            'volttron', 'volttron.switchboard.aip', 'platform')(env)
+    expandall = lambda string: os.path.expandvars(os.path.expanduser(string))
+    opts.volttron_home = expandall(os.environ.get('VOLTTRON_HOME', '~/.volttron'))
+    os.environ['VOLTTRON_HOME'] = opts.volttron_home
+    opts.control_socket = expandall(opts.control_socket)
+    opts.publish_address = expandall(opts.publish_address)
+    opts.subscribe_address = expandall(opts.subscribe_address)
+    if getattr(opts, 'show_config', False):
+        for name, value in sorted(vars(opts).iteritems()):
+            print name, repr(value)
+        return
 
     # Configure logging
-    level = max(0, logging.WARNING + opts.verboseness * 10)
+    level = max(1, opts.verboseness)
     if opts.log is None:
         log_to_file(sys.stderr, level)
     elif opts.log == '-':
@@ -250,28 +231,40 @@ def main(argv=sys.argv):
     if opts.log_config:
         logging.config.fileConfig(opts.log_config)
 
-    env.aip.setup()
-    if not opts.skip_autostart:
-        for name, error in env.aip.autostart():
+    # Set configuration
+    if resmon is not None and opts.resource_monitor:
+        _log.info('Resource monitor enabled')
+        opts.resmon = resmon.ResourceMonitor()
+    else:
+        opts.resmon = None
+    opts.aip = aip.AIPplatform(opts)
+    opts.aip.setup()
+    if opts.autostart:
+        for name, error in opts.aip.autostart():
             _log.error('error starting {!r}: {}\n'.format(name, error))
+
 
     # Main loops
     try:
-        exchange = gevent.spawn(agent_exchange, pub_addr, sub_addr)
+        exchange = gevent.spawn(
+            agent_exchange, opts.publish_address, opts.subscribe_address)
         try:
-            control = gevent.spawn(control_loop, env.config)
+            control = gevent.spawn(control_loop, opts)
             exchange.link(lambda *a: control.kill())
             control.join()
         finally:
             exchange.kill()
     finally:
-        env.aip.finish()
+        opts.aip.finish()
 
 
 def _main():
     '''Entry point for scripts.'''
     try:
-        sys.exit(main(sys.argv))
+        sys.exit(main())
     except KeyboardInterrupt:
         pass
 
+
+if __name__ == '__main__':
+    _main()

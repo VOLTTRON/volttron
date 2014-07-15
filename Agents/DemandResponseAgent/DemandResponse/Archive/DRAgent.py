@@ -145,7 +145,7 @@ def dragent(config_path, **kwargs):
             if self.lock_acquired and not holding_lock:
                 self.start()
 
-        @matching.match_exact(topics.RTU_VALUE(point='all', **rtu_path))
+        @matching.match_exact(topics.DEVICES_VALUE(point='all', **rtu_path))
         def __on_new_data(self, topic, headers, message, match):
             """watching for new data"""
             data = jsonapi.loads(message[0])
@@ -217,7 +217,7 @@ def dragent(config_path, **kwargs):
                     self.start() 
             
          
-        @matching.match_exact(topics.RTU_VALUE(point='Occupied', **rtu_path))
+        @matching.match_exact(topics.DEVICES_VALUE(point='Occupied', **rtu_path))
         def __overide(self, topic, headers, message, match):
             """watch for override from controller"""
             data = jsonapi.loads(message[0])
