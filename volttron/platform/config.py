@@ -467,5 +467,6 @@ def get_volttron_defaults():
         'allow_users': None,
         'allow_groups': None,
         'verboseness': _logging.WARNING,
+        'verify_agents': True,
         'resource_monitor': True,
     }

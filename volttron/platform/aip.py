@@ -83,6 +83,11 @@ import zmq
 from . import messaging
 from .messaging import topics
 
+try:
+    from volttron.restricted import auth
+except ImportError:
+    auth = None
+
 
 _log = logging.getLogger(__name__)
 
@@ -331,10 +336,8 @@ class AIPplatform(object):
             raise ValueError('invalid agent: {!r}'.format(agent_name))
         os.unlink(os.path.join(self.autostart_dir, agent_name))
 
-    def _verify_agent(self):
-        pass
-
-    def _check_resources(self, resmon, agent_name, execreqs_json):
+    def _check_resources(self, resmon, agent_name, dist_info):
+        execreqs_json = os.path.join(dist_info, 'execreqs.json')
         if not os.path.exists(execreqs_json):
             _log.warning('agent is missing execution requirements file: %s',
                        execreqs_json)
@@ -381,6 +384,8 @@ class AIPplatform(object):
         if not os.path.exists(dist_info):
             _log.error('missing required agent metadata: ' + dist_info)
             raise ValueError('missing required agent metadata')
+        if auth is not None and self.env.verify_agents:
+            auth.UnpackedPackageVerifier(dist_info).verify()
         metadata_json = os.path.join(dist_info, 'metadata.json')
         metadata = jsonapi.load(open(metadata_json))
         try:
@@ -391,7 +396,6 @@ class AIPplatform(object):
             except KeyError:
                 _log.error('no agent launch class specified in package: ' + name)
                 raise ValueError('no agent launch class specified in package')
-        execreqs_json = os.path.join(dist_info, 'execreqs.json')
         config = os.path.join(dist_info, 'config')
         if not os.path.exists(config):
             config = None
@@ -414,7 +418,7 @@ class AIPplatform(object):
         if self.env.resmon is None:
             execenv = ExecutionEnvironment()
         else:
-            execenv = self._check_resources(self.env.resmon, name, execreqs_json)
+            execenv = self._check_resources(self.env.resmon, name, dist_info)
         _log.info('starting agent ' + name)
         execenv.execute(argv, cwd=self.run_dir, env=environ, close_fds=True,
                         stdin=open(os.devnull), stdout=PIPE, stderr=PIPE)
