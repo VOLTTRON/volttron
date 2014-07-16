@@ -126,7 +126,7 @@ def run_agent(parser, opts):
 def shutdown_agent(parser, opts):
     ControlConnector(opts.control_socket).call.shutdown()
 
-def create_cgroup(parser, opts):
+def create_cgroups(parser, opts):
     user = opts.user
     group = opts.group
     if user is None:
@@ -211,13 +211,13 @@ def main(argv=sys.argv):
     shutdown.set_defaults(func=shutdown_agent)
 
     if resmon:
-        cgroup = subparsers.add_parser('create-cgroup',
+        cgroup = subparsers.add_parser('create-cgroups',
             help='setup VOLTTRON control group for restricted execution')
         cgroup.add_argument('-u', '--user', metavar='USER',
             help='group name or ID')
         cgroup.add_argument('-g', '--group', metavar='GROUP',
             help='group name or ID')
-        cgroup.set_defaults(func=create_cgroup, user=None, group=None)
+        cgroup.set_defaults(func=create_cgroups, user=None, group=None)
 
     parser.set_defaults(**config.get_volttron_defaults())
 
