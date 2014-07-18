@@ -77,7 +77,7 @@ install_requires = [
     'Smap==2.0.24c780d',
     'Twisted>=13,<14',
     'zope.interface>=4.0,<4.1',
-    'wheel>=0.23.0',  # needed for agent mobility
+    'wheel>=0.24,<0.25'
 ]
 
 
