@@ -13,6 +13,14 @@ import wheel
 from wheel.install import WheelFile
 from wheel.tool import unpack
 
+try:
+    from volttron.restricted import auth
+except ImportError:
+    auth = None
+
+_log = logging.getLogger(os.path.basename(sys.argv[0])
+                         if __name__ == '__main__' else __name__)
+
 
 class AgentPackageError(Exception):
     '''Raised for errors during packaging, extraction and signing.'''
@@ -179,33 +187,46 @@ def main(argv=sys.argv):
     repackage_parser.add_argument('agent_name',
                                 help='The name of a currently installed agent.')
 
-    try:
-        import volttron.restricted.auth
-        sign_parser = subparsers.add_parser('sign')
-        sign_parser.add_argument('package',
-                                 help='The agent package to sign (whl).')
+    if auth is not None:
+        sign_cmd = subparsers.add_parser('sign',
+            help='sign a package')
+        sign_opts = sign_cmd.add_mutually_exclusive_group(required=True)
+        sign_opts.add_argument('--creator', action='store_true',
+            help='sign as the creator of the package')
+        sign_opts.add_argument('--soi', action='store_true',
+            help='sign as the soi administrator')
+        sign_opts.add_argument('--initiator', action='store_true',
+            help='sign as the initiator of the package')
+
+        sign_cmd.add_argument('--cert', metavar='CERT',
+            help='certificate to use to sign the package')
+
+        sign_cmd.add_argument('--config-file', metavar='CONFIG',
+            help='agent configuration file')
+        sign_cmd.add_argument('--contract', metavar='CONTRACT',
+            help='agent resource contract file')
+        #restricted = subparsers.add_parser('sign')
+#         restricted.add_argument('package',
+#             help='The agent package to sign (whl).')
 
         verify_parser = subparsers.add_parser('verify',
-                                              help='The agent package to verify (whl).')
+            help='The agent package to verify (whl).')
         # TODO add arguments for signing the wheel package here.
-        
+
         enable_restricted_parser = subparsers.add_parser('enable-restricted',
-                                                         help='Enable the restricted features of VOLTTRON')
-        
+            help='Enable the restricted features of VOLTTRON')
+
         creator_key_parser = subparsers.add_parser('set-creator-key',
-                                                         help='Set the key for the creator of the agent code')
-        
+            help='Set the key for the creator of the agent code')
+
         soi_admin_key_parser = subparsers.add_parser('set-SOI-admin-key',
-                                                         help='Set the key for administrator of this Scope of Influence')
-        
+            help='Set the key for administrator of this Scope of Influence')
+
         initiator_key_parser = subparsers.add_parser('set-initiator-key',
-                                                         help='Set the key for the initator of this agent')
-        
+            help='Set the key for the initator of this agent')
+
         source_key_parser = subparsers.add_parser('set-source-key',
-                                                         help='Set the key for the most recent host of this agent') 
-        
-    except:
-        pass
+            help='Set the key for the most recent host of this agent')
 
     args = parser.parse_args(argv[1:])
 
