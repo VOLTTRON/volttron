@@ -64,6 +64,7 @@ install_requires = [
     'BACpypes>=0.9,<0.10',
     'flexible-jsonrpc',
     'gevent>=0.13,<0.14',
+    'nose>=1.3.3,<1.3.4',
     'numpy>=1.8,<1.9',
     'posix-clock',
     'pymodbus>=1.2,<1.3',
@@ -88,7 +89,7 @@ if __name__ == '__main__':
         author = 'Volttron Team',
         author_email = 'bora@pnnl.gov',
         url = 'http://www.pnnl.gov',
-        packages = find_packages('.', exclude=['*.tests']),
+        packages = find_packages('.'),
         install_requires = install_requires,
         entry_points = {
             'console_scripts': [
