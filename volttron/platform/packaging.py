@@ -13,6 +13,8 @@ import wheel
 from wheel.install import WheelFile
 from wheel.tool import unpack
 
+from . import config
+
 try:
     from volttron.restricted import auth
 except ImportError:
@@ -159,7 +161,6 @@ def sign_agent_package(agent_package):
 
 
 def main(argv=sys.argv):
-    import config
 
     expandall = lambda string: os.path.expandvars(os.path.expanduser(string))
     home = expandall(os.environ.get('VOLTTRON_HOME', '~/.volttron'))
