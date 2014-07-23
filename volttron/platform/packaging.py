@@ -16,9 +16,10 @@ from wheel.tool import unpack
 from . import config
 
 try:
-    from volttron.restricted import auth
+    from volttron.restricted import (auth, certs)
 except ImportError:
     auth = None
+    certs = None
 
 _log = logging.getLogger(os.path.basename(sys.argv[0])
                          if __name__ == '__main__' else __name__)
@@ -159,6 +160,61 @@ def _create_initial_package(agent_dir_to_package, wheelhouse):
 def sign_agent_package(agent_package):
     pass
 
+def _create_ca():
+    '''Creates a root ca cert using the Certs class'''
+    crts = certs.Certs('~/.volttron/certificates')
+    if crts.ca_exists():
+        msg = '''Creating a new root ca will overwrite the current ca and
+invalidate any signed certs.
+
+Are you sure you want to do this? type 'yes' to continue: '''
+
+        continue_yes = raw_input(msg)
+        if continue_yes.upper() != 'YES':
+            return
+
+    data = _create_cert_ui(certs.ROOT_CA_CN)
+    crts.create_root_ca(**data)
+
+
+def _create_cert_ui(cn):
+    '''Runs through the different options for the user to create a cert.
+
+        C  - Country
+        ST - State
+        L  - Location
+        O  - Organization
+        OU - Organizational Unit
+        CN - Common Name
+    '''
+    input_order = ['C', 'ST', 'L', 'O', 'OU', 'CN']
+    input_defaults = {'C':'US',
+                      'ST': 'Washington',
+                      'L': 'Richland',
+                      'O': 'PNNL',
+                      'OU': 'Volttron Team',
+                      'CN': cn}
+    input_help = {'C': 'Country',
+                  'ST': 'State',
+                  'L': 'Location',
+                  'O': 'Organization',
+                  'OU': 'Organization Unit',
+                  'CN': 'Common Name'}
+    output_items = {}
+    sys.stdout.write("Please enter the following for certificate creation:\n")
+    for item in input_order:
+        cmd = '\t{} - {}({}): '.format(item, input_help[item],
+                                              input_defaults[item])
+        output_items[item] = raw_input(cmd)
+        if len(output_items[item].strip()) == 0:
+            output_items[item] = input_defaults[item]
+
+    return output_items
+
+
+
+
+
 
 def main(argv=sys.argv):
 
@@ -189,6 +245,15 @@ def main(argv=sys.argv):
                                 help='The name of a currently installed agent.')
 
     if auth is not None:
+        create_ca_cmd = subparsers.add_parser('create_ca')
+        create_cert_cmd = subparsers.add_parser('create_cert')
+        create_cert_cmd.add_argument('--creator', action='store_true',
+            help='create a creator cert')
+        create_cert_cmd.add_argument('--soi', action='store_true',
+            help='create an soi administrator cert')
+        create_cert_cmd.add_argument('--initiator', action='store_true',
+            help='create an initiator cert')
+
         sign_cmd = subparsers.add_parser('sign',
             help='sign a package')
 
@@ -242,6 +307,8 @@ def main(argv=sys.argv):
             whl_path = repackage(args.agent_name)
         elif args.subparser_name == 'sign':
             result = sign_agent_package(args.package)
+        elif args.subparser_name == 'create_ca':
+            _create_ca()
     except AgentPackageError as e:
         print(e.message)
 
