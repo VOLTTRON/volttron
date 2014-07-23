@@ -156,9 +156,20 @@ def _create_initial_package(agent_dir_to_package, wheelhouse):
 
     return final_dest
 
+def _sign_agent_package(agent_package, **kwargs):
+    '''Sign an agent package using'''
+    cert_type = _cert_type_from_kwargs(**kwargs)
 
-def sign_agent_package(agent_package):
-    pass
+
+def _cert_type_from_kwargs(**kwargs):
+    '''Return cert type string from kwargs values'''
+
+    for k in ('soi', 'creator', 'initiator'):
+        if k in kwargs and kwargs[k]:
+            return k
+
+    return None
+
 
 def _create_ca():
     '''Creates a root ca cert using the Certs class'''
@@ -177,12 +188,9 @@ Are you sure you want to do this? type 'yes' to continue: '''
     crts.create_root_ca(**data)
 
 def _create_cert(name=None, **kwargs):
-    cert_type = None
+    '''Create a cert using options specified on the command line'''
 
-    for k in ('soi', 'creator', 'initiator'):
-        if k in kwargs and kwargs[k]:
-            cert_type = k
-            break
+    cert_type = _cert_type_from_kwargs(**kwargs)
 
     if name == None:
         name = cert_type
@@ -290,6 +298,8 @@ def main(argv=sys.argv):
             help='agent configuration file')
         sign_cmd.add_argument('--contract', metavar='CONTRACT',
             help='agent resource contract file')
+        sign_cmd.add_argument('--package', metavar='PACKAGE',
+            help='agent package to sign')
 
 
         #restricted = subparsers.add_parser('sign')
@@ -319,20 +329,28 @@ def main(argv=sys.argv):
     # whl_path will be specified if there is a package or repackage command
     # is specified and it was successful.
     whl_path = None
+    user_type = None
 
     try:
+
         if args.subparser_name == 'package':
             whl_path = create_package(args.agent_directory)
         elif args.subparser_name == 'repackage':
             whl_path = repackage(args.agent_name)
-        elif args.subparser_name == 'sign':
-            result = sign_agent_package(args.package)
+        elif args.subparser_name == 'sign' or \
+            args.subparser_name == 'create_cert':
+            user_type = {'soi': args.soi,
+                         'creator': args.creator,
+                         'initiator': args.initiator}
+
+            if args.subparser_name == 'sign':
+                result = _sign_agent_package(args.package, **user_type)
+            else:
+                _create_cert(name=args.name, **user_type)
         elif args.subparser_name == 'create_ca':
             _create_ca()
-        elif args.subparser_name == 'create_cert':
-            _create_cert(name=args.name, **{'soi': args.soi,
-                                            'creator': args.creator,
-                                            'initiator': args.initiator})
+#         elif args.subparser_name == 'create_cert':
+#             _create_cert(name=args.name, **)
     except AgentPackageError as e:
         print(e.message)
 
