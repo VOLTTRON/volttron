@@ -176,6 +176,23 @@ Are you sure you want to do this? type 'yes' to continue: '''
     data = _create_cert_ui(certs.ROOT_CA_CN)
     crts.create_root_ca(**data)
 
+def _create_cert(name=None, **kwargs):
+    cert_type = None
+
+    for k in ('soi', 'creator', 'initiator'):
+        if k in kwargs and kwargs[k]:
+            cert_type = k
+            break
+
+    if name == None:
+        name = cert_type
+        cert_data = _create_cert_ui(cert_type)
+    else:
+        cert_data = _create_cert_ui('{} ({})'.format(cert_type, name))
+
+    crts = certs.Certs('~/.volttron/certificates')
+    crts.create_ca_signed_cert(name, **cert_data)
+
 
 def _create_cert_ui(cn):
     '''Runs through the different options for the user to create a cert.
@@ -247,12 +264,15 @@ def main(argv=sys.argv):
     if auth is not None:
         create_ca_cmd = subparsers.add_parser('create_ca')
         create_cert_cmd = subparsers.add_parser('create_cert')
-        create_cert_cmd.add_argument('--creator', action='store_true',
+        create_cert_opts = create_cert_cmd.add_mutually_exclusive_group(required=True)
+        create_cert_opts.add_argument('--creator', action='store_true',
             help='create a creator cert')
-        create_cert_cmd.add_argument('--soi', action='store_true',
+        create_cert_opts.add_argument('--soi', action='store_true',
             help='create an soi administrator cert')
-        create_cert_cmd.add_argument('--initiator', action='store_true',
+        create_cert_opts.add_argument('--initiator', action='store_true',
             help='create an initiator cert')
+        create_cert_cmd.add_argument('--name',
+            help='file name to store the cert under (no extension)')
 
         sign_cmd = subparsers.add_parser('sign',
             help='sign a package')
@@ -309,6 +329,10 @@ def main(argv=sys.argv):
             result = sign_agent_package(args.package)
         elif args.subparser_name == 'create_ca':
             _create_ca()
+        elif args.subparser_name == 'create_cert':
+            _create_cert(name=args.name, **{'soi': args.soi,
+                                            'creator': args.creator,
+                                            'initiator': args.initiator})
     except AgentPackageError as e:
         print(e.message)
 
