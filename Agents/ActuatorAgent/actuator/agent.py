@@ -60,6 +60,7 @@
 import datetime
 import sys
 import time
+import logging
 
 from collections import OrderedDict
 from dateutil.rrule import DAILY, rruleset, rrule
@@ -70,6 +71,7 @@ from volttron.lite.agent import BaseAgent, PublishMixin
 from volttron.lite.agent import matching, utils
 from volttron.lite.agent.utils import jsonapi
 from volttron.lite.messaging import topics
+from volttron.lite.agent import utils
 from volttron.lite.messaging.utils import normtopic
 from volttron.lite.agent.sched import EventWithTime
 from scheduler import ScheduleManager
@@ -90,6 +92,10 @@ SCHEDULE_CANCEL_PREEMPTED = 'PREEMPTED'
 ACTUATOR_COLLECTION = 'actuators'
 
 
+utils.setup_logging()
+_log = logging.getLogger(__name__)
+
+
 def ActuatorAgent(config_path, **kwargs):
     config = utils.load_config(config_path)
     url = config['url']
@@ -99,6 +105,7 @@ def ActuatorAgent(config_path, **kwargs):
     schedule_state_file = config.get('schedule_state_file')
     preempt_grace_time = config.get('preempt_grace_time', 60)
     minimum_slot_time = config.get('preempt_grace_time', preempt_grace_time*2)
+    connection_timeout=config.get('connection-timeout', 10)
     
     class Agent(PublishMixin, BaseAgent):
         '''Agent to listen for requests to talk to the sMAP driver.'''
@@ -132,13 +139,16 @@ def ActuatorAgent(config_path, **kwargs):
             publish_topic = '/'.join([point, actuator])
             
             def update_heartbeat_value():
+                _log.debug('update_heartbeat')
                 value[0] = not value[0]
                 payload = {'state': str(int(value[0]))}
                 try:
-                    r = requests.put(request_url, params=payload)
+                    _log.debug('About to publish actuation')
+                    r = requests.put(request_url, params=payload, timeout=connection_timeout)
                     self.process_smap_request_result(r, publish_topic, None)
-                except requests.exceptions.ConnectionError:
+                except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as ex:
                     print "Warning: smap driver not running."
+                    _log.error("Connection error: "+str(ex))
             
             return update_heartbeat_value
         
@@ -150,6 +160,7 @@ def ActuatorAgent(config_path, **kwargs):
             self.update_device_state_and_schedule(now)
             
         def update_device_state_and_schedule(self, now):
+            _log.debug("update_device_state_and schedule")
             self._device_states = self._schedule_manager.get_schedule_state(now)
             schedule_next_event_time = self._schedule_manager.get_next_event_time(now)
             new_update_event_time = self._get_ajusted_next_event_time(now, schedule_next_event_time)
@@ -169,6 +180,7 @@ def ActuatorAgent(config_path, **kwargs):
             
             
         def _get_ajusted_next_event_time(self, now, next_event_time):
+            _log.debug("_get_adjusted_next_event_time")
             latest_next = now + datetime.timedelta(seconds=schedule_publish_interval)
             #Round to the next second to fix timer goofyness in agent timers.
             if latest_next.microsecond:
@@ -194,9 +206,9 @@ def ActuatorAgent(config_path, **kwargs):
                 request_url = '/'.join([url, collection_tokens,
                                         ACTUATOR_COLLECTION, point_name])
                 try:
-                    r = requests.get(request_url)
+                    r = requests.get(request_url, timeout=connection_timeout)
                     self.process_smap_request_result(r, point, requester)
-                except (requests.exceptions.ConnectionError) as ex:
+                except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as ex:
                     error = {'type': ex.__class__.__name__, 'value': str(ex)}
                     self.push_result_topic_pair(ERROR_RESPONSE_PREFIX,
                                                 point, headers, error)
@@ -208,12 +220,15 @@ def ActuatorAgent(config_path, **kwargs):
 
         @matching.match_regex(topics.ACTUATOR_SET() + '/(.+)')
         def handle_set(self, topic, headers, message, match):
+            _log.debug('handle_set: {topic},{headers}, {message}'.
+                       format(topic=topic, headers=headers, message=message))
             point = match.group(1)
             collection_tokens, point_name = point.rsplit('/', 1)
             requester = headers.get('requesterID')
             headers = self.get_headers(requester)
             if not message:
                 error = {'type': 'ValueError', 'value': 'missing argument'}
+                _log.debug('ValueError: '+str(error))
                 self.push_result_topic_pair(ERROR_RESPONSE_PREFIX,
                                             point, headers, error)
                 return
@@ -226,6 +241,7 @@ def ActuatorAgent(config_path, **kwargs):
                     # Could be ValueError of JSONDecodeError depending
                     # on if simplesjson was used.  JSONDecodeError
                     # inherits from ValueError
+                    _log.debug('ValueError: '+message)
                     error = {'type': 'ValueError', 'value': str(ex)}
                     self.push_result_topic_pair(ERROR_RESPONSE_PREFIX,
                                                 point, headers, error)
@@ -236,19 +252,24 @@ def ActuatorAgent(config_path, **kwargs):
                                         ACTUATOR_COLLECTION, point_name])
                 payload = {'state': str(message)}
                 try:
-                    r = requests.put(request_url, params=payload)
+                    r = requests.put(request_url, params=payload, timeout=connection_timeout)
                     self.process_smap_request_result(r, point, requester)
-                except (requests.exceptions.ConnectionError) as ex:
+                except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as ex:
+                    
                     error = {'type': ex.__class__.__name__, 'value': str(ex)}
                     self.push_result_topic_pair(ERROR_RESPONSE_PREFIX,
                                                 point, headers, error)
+                    _log.debug('ConnectionError: '+str(error))
             else:
                 error = {'type': 'LockError',
                          'value': 'does not have this lock'}
+                _log.debug('LockError: '+str(error))
                 self.push_result_topic_pair(ERROR_RESPONSE_PREFIX,
                                             point, headers, error)
 
         def check_lock(self, device, requester):
+            _log.debug('check_lock: {device}, {requester}'.format(device=device, 
+                                                                  requester=requester))
             device = device.strip('/')
             if device in self._device_states:
                 device_state = self._device_states[device]
@@ -259,6 +280,8 @@ def ActuatorAgent(config_path, **kwargs):
         def handle_schedule_request(self, topic, headers, message, match):
             request_type = headers.get('type')
             now = datetime.datetime.now()
+            _log.debug('handle_schedule_request: {topic}, {headers}, {message}'.
+                       format(topic=topic, headers=str(headers), message=str(message)))
             
             if request_type == SCHEDULE_ACTION_NEW:
                 self.handle_new(headers, message, now)
@@ -267,6 +290,7 @@ def ActuatorAgent(config_path, **kwargs):
                 self.handle_cancel(headers, now)
                 
             else:
+                _log.debug('handle-schedule_request, invalid request type')
                 self.publish_json(topics.ACTUATOR_SCHEDULE_RESULT(), headers,
                                   {'result':SCHEDULE_RESPONSE_FAILURE, 
                                    'data': {},
@@ -278,6 +302,9 @@ def ActuatorAgent(config_path, **kwargs):
             taskID = headers.get('taskID')
             priority = headers.get('priority')
             
+            _log.debug("Got new schedule request: {headers}, {message}".
+                       format(headers = str(headers), message = str(message)))
+            
             try:
                 requests = jsonapi.loads(message[0])
             except (ValueError, IndexError) as ex:
@@ -286,7 +313,9 @@ def ActuatorAgent(config_path, **kwargs):
                 # inherits from ValueError
                 
                 #We let the schedule manager tell us this is a bad request.
+                _log.error('bad request: {request}, {error}'.format(request=requests, error=str(ex)))
                 requests = []
+                
             
             result = self._schedule_manager.request_slots(requester, taskID, requests, priority, now)
             success = SCHEDULE_RESPONSE_SUCCESS if result.success else SCHEDULE_RESPONSE_FAILURE
@@ -343,23 +372,32 @@ def ActuatorAgent(config_path, **kwargs):
             return headers
 
         def process_smap_request_result(self, request, point, requester):
+            _log.debug('Start of process_smap: \n{request}, \n{point}, \n{requester}'.
+                       format(request=request,point=point,requester=requester))
             headers = self.get_headers(requester)
             try:
+                
                 request.raise_for_status()
                 results = request.json()
                 readings = results['Readings']
+                _log.debug('Readings: {readings}'.format(readings=readings))
                 reading = readings[0][1]
                 self.push_result_topic_pair(VALUE_RESPONSE_PREFIX,
                                             point, headers, reading)
             except requests.exceptions.HTTPError as ex:
                 error = {'type': ex.__class__.__name__, 'value': str(request.text)}
+                _log.error('process_smap HTTPError: '+str(error))
                 self.push_result_topic_pair(ERROR_RESPONSE_PREFIX,
                                             point, headers, error)
             except (ValueError, IndexError, KeyError,
                         requests.exceptions.ConnectionError) as ex:
                 error = {'type': ex.__class__.__name__, 'value': str(ex)}
+                _log.error('process_smap RequestError: '+str(error))
                 self.push_result_topic_pair(ERROR_RESPONSE_PREFIX,
                                             point, headers, error)
+                
+            _log.debug('End of process_smap: \n{request}, \n{point}, \n{requester}'.
+                       format(request=request,point=point,requester=requester))
 
         def push_result_topic_pair(self, prefix, point, headers, *args):
             topic = normtopic('/'.join([prefix, point]))
@@ -372,7 +410,7 @@ def ActuatorAgent(config_path, **kwargs):
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
     utils.default_main(ActuatorAgent,
-                       description='Example VOLTTRON Lite™ actuator agent',
+                       description='Example VOLTTRON platform™ actuator agent',
                        argv=argv)
 
 
