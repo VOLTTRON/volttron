@@ -361,7 +361,7 @@ class AIPplatform(object):
                        agent_name, msg)
             raise ValueError('hard resource requirements not met')
         requirements = execreqs.get('requirements', {})
-        execenv, failed_terms = self.env.resmon.reserve_soft_resources(requirements)
+        execenv, failed_terms = resmon.reserve_soft_resources(requirements)
         if execenv is None:
             msg = '\n'.join('  {}: {} ({})'.format(
                              term, requirements.get(term, '<unset>'), avail)
@@ -422,10 +422,11 @@ class AIPplatform(object):
             argv = [sys.executable, '-c', code]
         else:
             argv = [sys.executable, '-m', module]
-        if self.env.resmon is None:
+        resmon = getattr(self.env, 'resmon', None)
+        if resmon is None:
             execenv = ExecutionEnvironment()
         else:
-            execenv = self._check_resources(self.env.resmon, name, dist_info)
+            execenv = self._check_resources(resmon, name, dist_info)
         _log.info('starting agent ' + name)
         execenv.execute(argv, cwd=self.run_dir, env=environ, close_fds=True,
                         stdin=open(os.devnull), stdout=PIPE, stderr=PIPE)

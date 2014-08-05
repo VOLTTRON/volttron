@@ -75,13 +75,12 @@ from .control.server import control_loop
 from .agent import utils
 
 try:
-    from volttron.restricted import auth
+    import volttron.restricted
 except ImportError:
-    auth = None
-try:
-    from volttron.restricted import resmon
-except ImportError:
-    resmon = None
+    have_restricted = False
+else:
+    from volttron.restricted import comms, resmon
+    have_restricted = True
 
 
 _log = logging.getLogger(os.path.basename(sys.argv[0])
@@ -196,19 +195,17 @@ def main(argv=sys.argv):
     control.add_argument('--allow-groups', action='store_list',
         help='user groups allowed to connect to control socket')
 
-    if auth is not None or resmon is not None:
+    if have_restricted:
         restrict = parser.add_argument_group('restricted options')
-        if auth is not None:
-            restrict.add_argument('--verify-agents', action='store_true',
-                help='verify agent integrity before execution')
-            restrict.add_argument('--no-verify-agents', action='store_false',
-                dest='verify_agents', help=argparse.SUPPRESS)
-        if resmon is not None:
-            restrict.add_argument('--resource-monitor', action='store_true',
-                inverse='--no-resource-monitor',
-                help='enable agent resource management')
-            restrict.add_argument('--no-resource-monitor', action='store_false',
-                dest='resource_monitor', help=argparse.SUPPRESS)
+        restrict.add_argument('--verify-agents', action='store_true',
+            help='verify agent integrity before execution')
+        restrict.add_argument('--no-verify-agents', action='store_false',
+            dest='verify_agents', help=argparse.SUPPRESS)
+        restrict.add_argument('--resource-monitor', action='store_true',
+            inverse='--no-resource-monitor',
+            help='enable agent resource management')
+        restrict.add_argument('--no-resource-monitor', action='store_false',
+            dest='resource_monitor', help=argparse.SUPPRESS)
 
     parser.set_defaults(**config.get_volttron_defaults())
 
@@ -239,13 +236,12 @@ def main(argv=sys.argv):
         logging.config.fileConfig(opts.log_config)
 
     # Set configuration
-    if auth is not None and opts.verify_agents:
-        _log.info('Agent integrity verification enabled')
-    if resmon is not None and opts.resource_monitor:
-        _log.info('Resource monitor enabled')
-        opts.resmon = resmon.ResourceMonitor()
-    else:
-        opts.resmon = None
+    if have_restricted:
+        if opts.verify_agents:
+            _log.info('Agent integrity verification enabled')
+        if opts.resource_monitor:
+            _log.info('Resource monitor enabled')
+            opts.resmon = resmon.ResourceMonitor()
     opts.aip = aip.AIPplatform(opts)
     opts.aip.setup()
     if opts.autostart:
