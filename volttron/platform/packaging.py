@@ -193,8 +193,12 @@ def _cert_type_from_kwargs(**kwargs):
     '''Return cert type string from kwargs values'''
 
     for k in ('soi', 'creator', 'initiator'):
-        if k in kwargs['user_type'] and kwargs['user_type'][k]:
-            return k
+        try:
+            if k in kwargs['user_type'] and kwargs['user_type'][k]:
+                return k
+        except:
+            if k in kwargs and kwargs[k]:
+                return k
 
     return None
 
@@ -212,7 +216,7 @@ Are you sure you want to do this? type 'yes' to continue: '''
         if continue_yes.upper() != 'YES':
             return
 
-    data = _create_cert_ui(certs.ROOT_CA_CN)
+    data = _create_cert_ui(certs.DEFAULT_ROOT_CA_CN)
     crts.create_root_ca(**data)
 
 def _create_cert(name=None, **kwargs):
@@ -374,27 +378,35 @@ def main(argv=sys.argv):
             whl_path = create_package(args.agent_directory)
         elif args.subparser_name == 'repackage':
             whl_path = repackage(args.agent_name)
-        elif args.subparser_name == 'sign' or \
-            args.subparser_name == 'create_cert':
-            user_type = {'soi': args.soi,
-                          'creator': args.creator,
-                          'initiator': args.initiator}
+        else:
+            if auth is not None:
+                try:
+                    if args.subparser_name == 'create_ca':
+                        _create_ca()
+                    else:
+                        user_type = {'soi': args.soi,
+                                  'creator': args.creator,
+                                  'initiator': args.initiator}
+                        if args.subparser_name == 'sign':
+                            in_args = {
+                                    'config_file': args.config_file,
+                                    'user_type': user_type,
+                                    'contract': args.contract,
+                                }
 
-            if args.subparser_name == 'sign':
-                in_args = {
-                            'config_file': args.config_file,
-                            'user_type': user_type,
-                            'contract': args.contract,
-                        }
+                            result = _sign_agent_package(args.package, **in_args)
 
-                result = _sign_agent_package(args.package, **in_args)
-            else:
-                _create_cert(name=args.name, **user_type)
-        elif args.subparser_name == 'create_ca':
-            _create_ca()
+                        elif args.subparser_name == 'create_cert':
+                            _create_cert(name=args.name, **user_type)
+                except auth.AuthError as e:
+                    print(e.message)
+
+
 #         elif args.subparser_name == 'create_cert':
 #             _create_cert(name=args.name, **)
     except AgentPackageError as e:
+        print(e.message)
+    except auth.AuthError as e:
         print(e.message)
 
 
