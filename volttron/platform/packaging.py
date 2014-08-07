@@ -13,7 +13,7 @@ import wheel
 from wheel.install import WheelFile
 from wheel.tool import unpack
 
-from . import config
+from volttron.platform import config
 
 try:
     from volttron.restricted import (auth, certs)
@@ -156,16 +156,44 @@ def _create_initial_package(agent_dir_to_package, wheelhouse):
 
     return final_dest
 
+def _files_from_kwargs(**kwargs):
+    files = []
+    if 'contract' in kwargs and kwargs['contract'] != None:
+        files.append(kwargs['contract'])
+    if 'config_file' in kwargs and kwargs['config_file'] != None:
+        files.append(kwargs['config_file'])
+
+    return files
+
 def _sign_agent_package(agent_package, **kwargs):
     '''Sign an agent package using'''
+    if not os.path.exists(agent_package):
+        raise AgentPackageError('Invalid package {}'.format(agent_package))
+
     cert_type = _cert_type_from_kwargs(**kwargs)
+    files = _files_from_kwargs(**kwargs)
+
+    if cert_type == 'soi':
+        verified = auth.sign_as_admin(agent_package, 'soi')
+    elif cert_type == 'creator':
+        verified = auth.sign_as_creator(agent_package, 'creator')
+    elif cert_type == 'initiator':
+        verified = auth.sign_as_initiator(agent_package, 'initiator', files)
+    else:
+        raise AgentPackageError('Unknown packaging options')
+
+    if verified:
+        print('{} signed as {}'.format(agent_package, cert_type))
+    else:
+        print('Verification of signing failed!')
+
 
 
 def _cert_type_from_kwargs(**kwargs):
     '''Return cert type string from kwargs values'''
 
     for k in ('soi', 'creator', 'initiator'):
-        if k in kwargs and kwargs[k]:
+        if k in kwargs['user_type'] and kwargs['user_type'][k]:
             return k
 
     return None
@@ -190,6 +218,11 @@ Are you sure you want to do this? type 'yes' to continue: '''
 def _create_cert(name=None, **kwargs):
     '''Create a cert using options specified on the command line'''
 
+    crts = certs.Certs('~/.volttron/certificates')
+    if not crts.ca_exists():
+        sys.stderr.write('Root CA ot must be created before certificates\n')
+        sys.exit(0)
+
     cert_type = _cert_type_from_kwargs(**kwargs)
 
     if name == None:
@@ -198,7 +231,7 @@ def _create_cert(name=None, **kwargs):
     else:
         cert_data = _create_cert_ui('{} ({})'.format(cert_type, name))
 
-    crts = certs.Certs('~/.volttron/certificates')
+
     crts.create_ca_signed_cert(name, **cert_data)
 
 
@@ -270,6 +303,10 @@ def main(argv=sys.argv):
                                 help='The name of a currently installed agent.')
 
     if auth is not None:
+        cert_dir = os.path.expanduser('~/.volttron/certificates')
+        if not os.path.exists(cert_dir):
+            os.makedirs('/'.join((cert_dir, 'certs')))
+            os.makedirs('/'.join((cert_dir, 'private')))
         create_ca_cmd = subparsers.add_parser('create_ca')
         create_cert_cmd = subparsers.add_parser('create_cert')
         create_cert_opts = create_cert_cmd.add_mutually_exclusive_group(required=True)
@@ -340,11 +377,17 @@ def main(argv=sys.argv):
         elif args.subparser_name == 'sign' or \
             args.subparser_name == 'create_cert':
             user_type = {'soi': args.soi,
-                         'creator': args.creator,
-                         'initiator': args.initiator}
+                          'creator': args.creator,
+                          'initiator': args.initiator}
 
             if args.subparser_name == 'sign':
-                result = _sign_agent_package(args.package, **user_type)
+                in_args = {
+                            'config_file': args.config_file,
+                            'user_type': user_type,
+                            'contract': args.contract,
+                        }
+
+                result = _sign_agent_package(args.package, **in_args)
             else:
                 _create_cert(name=args.name, **user_type)
         elif args.subparser_name == 'create_ca':

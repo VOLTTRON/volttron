@@ -2,6 +2,7 @@ import unittest
 import os
 import shutil
 import sys
+import tempfile
 import uuid
 
 from collections import namedtuple
@@ -11,6 +12,14 @@ from volttron.platform.packaging import (create_package,
                                          extract_package)
 
 from volttron.platform.packaging import AgentPackageError
+
+try:
+    from volttron.restricted import (auth, certs)
+except:
+    auth = None
+    certs = None
+
+
 
 # this is located in the tests/fixtures directory.
 AGENT_TESTCASE1_NAME = 'test-agent-package'
@@ -24,13 +33,75 @@ class TestPackaging(unittest.TestCase):
     def setUp(self):
         self.fixtureDir = os.path.join(os.path.dirname(__file__), "fixtures")
 
-#     def test_can_sign_wheel(self):
-#         wheel_package = create_package(get_agent_fixture(AGENT_TESTCASE1_NAME))
-#
+        # now change to the newly created tmpdir
+        self.tmpdir = tempfile.mkdtemp()
+        self.delete_temp = True
+        os.chdir(self.tmpdir)
+        # only do the certs stuf if the restricted are available.
+        if certs:
+            self.certificate_dir = os.path.join(self.tmpdir, 'certs')
+            self.certs_dir = os.path.join(self.tmpdir, 'certs/certs')
+            self.private_dir = os.path.join(self.tmpdir, 'certs/private')
+
+            os.makedirs(self.certs_dir)
+            os.makedirs(self.private_dir)
+
+            self.admin_cert_name = 'admin'
+            self.creator_cert_name = 'creator'
+            self.initiator_cert_name = 'initiator'
+
+            admin = {'C': 'US', 'CN': self.admin_cert_name}
+            creator = {'C': 'US', 'CN': self.creator_cert_name}
+            initiator = {'C': 'US', 'CN': self.initiator_cert_name}
+
+            self.certsobj = certs.Certs(self.certificate_dir)
+            self.certsobj.create_root_ca()
+            self.certsobj.create_ca_signed_cert(self.admin_cert_name, **admin)
+            self.certsobj.create_ca_signed_cert(self.creator_cert_name, **creator)
+            self.certsobj.create_ca_signed_cert(self.initiator_cert_name, **initiator)
+
+
+        os.mkdir('packagetest')
+        with open(os.path.join('packagetest', '__init__.py'), 'w') as file:
+            pass
+        with open(os.path.join('packagetest', 'packagetest.py'), 'w') as file:
+            file.write('''
+import sys
+
+if __name__ == '__main__':
+sys.stdout.write('Hello World!\n')
+''')
+        with open(os.path.join('setup.py'), 'w') as file:
+            file.write('''
+from setuptools import setup
+
+setup(
+name = 'packagetest',
+version = '0.1',
+packages = ['packagetest'],
+zip_safe = False,
+)
+''')
+        p = subprocess.Popen([sys.executable, 'setup.py', 'bdist_wheel'])
+        p.wait()
+        self.wheel = os.path.join('dist', 'packagetest-0.1-py2-none-any.whl')
+
+    def tearDown(self):
+        if self.delete_temp:
+            shutil.rmtree(self.tmpdir, True)
+        else:
+            print('leaving tempdir: {}'.format(self.tmpdir))
+
+    if auth != None:
+        def test_can_sign_as_creator(self):
+
+
+
+            auth.si
+            print('successful!')
 
     def test_can_extract_package(self):
-
-        wheelhouse = '/tmp/extract_package'
+        wheelhouse = os.path.join(self.tmpdir, 'extract_package')
         expected_install_at = os.path.join(wheelhouse, 'listeneragent-0.1')
         test_wheel_name = 'listeneragent-0.1-py2-none-any.whl'
         wheel_file = os.path.join(self.fixtureDir, test_wheel_name)
@@ -62,7 +133,7 @@ class TestPackaging(unittest.TestCase):
         the AgentPackage class.
         '''
         agent_name = AGENT_TESTCASE1_NAME
-        package_tmp_dir = "/tmp/create_package"
+        package_tmp_dir = os.path.join(self.tmpdir, 'create_package')
         expected_package_name = 'listeneragent-0.1-py2-none-any.whl'
 
         returned_package = create_package(
@@ -95,11 +166,11 @@ class TestPackaging(unittest.TestCase):
     def test_raises_error_if_agent_dir_not_exists(self):
         '''
         This test passes under the following conditions:
-            1. An AgentPackageError is thrown if the passed agent directory 
+            1. An AgentPackageError is thrown if the passed agent directory
                doesen't exists.
         '''
         #
-        fake_agent = '/tmp/Fake'
+        fake_agent = package_tmp_dir = os.path.join(self.tmpdir, 'fake')
         if os.path.exists(fake_agent):
             shutil.rmtree(fake_agent, True)
 
