@@ -392,6 +392,7 @@ def main(argv=sys.argv):
                             print('Invalid package name {}'.format(args.package))
                         verifier = auth.ZipPackageVerifier(args.package)
                         verifier.verify()
+                        print "Package is verified"
                     else:
                         user_type = {'soi': args.soi,
                                   'creator': args.creator,
