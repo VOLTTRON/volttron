@@ -294,7 +294,11 @@ class AIPplatform(object):
         return errors
 
     def install_agent(self, agent_wheel):
-        unpack(agent_wheel, dest=self.install_dir)
+        if auth is not None:
+            unpacker = auth.VolttronPackageWheelFile(agent_wheel)
+            unpacker.unpack(dest=self.install_dir)
+        else:
+            unpack(agent_wheel, dest=self.install_dir)
 
     def remove_agent(self, agent_name):
         if os.path.sep in agent_name:

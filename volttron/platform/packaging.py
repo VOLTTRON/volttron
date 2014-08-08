@@ -166,7 +166,7 @@ def _files_from_kwargs(**kwargs):
     return files
 
 def _sign_agent_package(agent_package, **kwargs):
-    '''Sign an agent package using'''
+    '''Sign an agent package'''
     if not os.path.exists(agent_package):
         raise AgentPackageError('Invalid package {}'.format(agent_package))
 
@@ -174,9 +174,11 @@ def _sign_agent_package(agent_package, **kwargs):
     files = _files_from_kwargs(**kwargs)
 
     if cert_type == 'soi':
+        if files:
+            raise AgentPackageError("soi's aren't allowd to add files.")
         verified = auth.sign_as_admin(agent_package, 'soi')
     elif cert_type == 'creator':
-        verified = auth.sign_as_creator(agent_package, 'creator')
+        verified = auth.sign_as_creator(agent_package, 'creator', files)
     elif cert_type == 'initiator':
         verified = auth.sign_as_initiator(agent_package, 'initiator', files)
     else:
