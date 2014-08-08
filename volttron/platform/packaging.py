@@ -341,7 +341,7 @@ def main(argv=sys.argv):
             help='agent configuration file')
         sign_cmd.add_argument('--contract', metavar='CONTRACT',
             help='agent resource contract file')
-        sign_cmd.add_argument('--package', metavar='PACKAGE',
+        sign_cmd.add_argument('package', metavar='PACKAGE',
             help='agent package to sign')
 
 
@@ -350,6 +350,8 @@ def main(argv=sys.argv):
 #             help='The agent package to sign (whl).')
 
         verify_cmd = subparsers.add_parser('verify',
+            help='verify an agent package')
+        verify_cmd.add_argument('package', metavar='PACKAGE',
             help='agent package to verify')
 
 #         enable_restricted_parser = subparsers.add_parser('enable-restricted',
@@ -385,6 +387,11 @@ def main(argv=sys.argv):
                 try:
                     if args.subparser_name == 'create_ca':
                         _create_ca()
+                    elif args.subparser_name == 'verify':
+                        if not os.path.exists(args.package):
+                            print('Invalid package name {}'.format(args.package))
+                        verifier = auth.ZipPackageVerifier(args.package)
+                        verifier.verify()
                     else:
                         user_type = {'soi': args.soi,
                                   'creator': args.creator,
