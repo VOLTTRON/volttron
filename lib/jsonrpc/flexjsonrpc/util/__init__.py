@@ -55,13 +55,22 @@
 # under Contract DE-AC05-76RL01830
 #}}}
 
-from ..core import parse_error
+import socket
+import threading
+
+try:
+    import simplejson as jsonapi
+except ImportError:
+    import json as jsonapi
+
+from ..core import Requester, Dispatcher, PyConnector, parse_error
+from ..framing import raw
 
 
-__all__ = ['dispatch_loop']
+__all__ = ['dispatch_loop', 'Connection']
 
 
-def dispatch_loop(stream, dispatcher, jsonlib, log=None):
+def dispatch_loop(stream, dispatcher, jsonlib=jsonapi, log=None):
     if log is None:
         log = lambda data, **kwargs: None
     for chunk in stream:
@@ -76,3 +85,57 @@ def dispatch_loop(stream, dispatcher, jsonlib, log=None):
             log(response, direction='out')
             stream.write_chunk(jsonlib.dumps(response))
 
+
+class Connection(PyConnector):
+    '''Simple connection handler.
+
+    Simplifies setting up a connection and making RPC calls.
+
+    Defaults to using simplejson for JSON serialization if it is
+    available.  Otherwise, the built-in json module is used. Another
+    implementation may be used by setting the module-level jsonapi
+    attribute to a module/object supporting the dumps() and loads()
+    methods.
+
+    sock is a socket or socket-like object that should support the
+    close(), makefile(), and shutdown() methods. handler, if given,
+    should be a subclass of flexjsonrpc.BaseHandler and is used to
+    export methods and attributes to the remote connection. Raw
+    framing is used by default but may be changed using the framing
+    argument. A daemonic thread is started for the dispatch loop and
+    may be made non-daemonic by setting the daemon argument to False.
+    '''
+
+    def __init__(self, sock, handler=None, framing=raw, daemon=True):
+        self.sock = sock
+        self.stream = framing.Stream(sock.makefile('rb+'))
+        send = lambda chunk: self.stream.write_chunk(jsonapi.dumps(chunk))
+        requester = Requester(send)
+        self.dispatcher = Dispatcher(handler, requester.handle_response)
+        super(Connection, self).__init__(requester)
+        args = (self.stream, self.dispatcher, jsonapi)
+        self.thread = threading.Thread(target=dispatch_loop, args=args)
+        self.thread.daemon = daemon
+        self.thread.start()
+
+    def shutdown(self):
+        '''Attempt to shutdown the connection, if supported.'''
+        try:
+            self.sock.shutdown(socket.SHUT_RDWR)
+        except AttributeError:
+            pass
+
+    def close(self):
+        '''Attempt to close the connection and file stream.'''
+        try:
+            self.sock.close()
+        except AttributeError:
+            pass
+        self.stream.rfile.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        self.shutdown()
+        self.close()

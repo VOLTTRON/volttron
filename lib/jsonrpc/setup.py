@@ -63,7 +63,7 @@ except ImportError:
     from distutils.core import setup
 
 setup(name='flexible-jsonrpc',
-      version='1.1',
+      version='1.2',
       description='Flexible bidirectional JSON-RPC 2.0 library',
       author='Brandon Carpenter',
       author_email='brandon.carpenter@pnnl.gov',
