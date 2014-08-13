@@ -378,6 +378,11 @@ class AIPplatform(object):
     def _launch_agent(self, agent_path, name=None):
         if name is None:
             name = agent_path
+            
+        if not os.path.exists(agent_path):
+            _log.error('Agent not installed: '+agent_path)
+            raise ValueError('Agent not installed: '+agent_path)
+        
         execenv = self.agents.get(name)
         if execenv:
             if execenv.process.poll() is None:
