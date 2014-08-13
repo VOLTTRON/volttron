@@ -391,7 +391,7 @@ class AIPplatform(object):
         
         dist_data = os.path.join(agent_path, basename + '.data')        
         if not os.path.exists(dist_data):
-            _log.error('missing required agent metadata: ' + dist_info)
+            _log.error('missing required agent metadata: ' + dist_data)
             raise ValueError('missing required agent metadata')
         
         if auth is not None and self.env.verify_agents:
