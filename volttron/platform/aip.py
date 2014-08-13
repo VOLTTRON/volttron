@@ -340,8 +340,8 @@ class AIPplatform(object):
             raise ValueError('invalid agent: {!r}'.format(agent_name))
         os.unlink(os.path.join(self.autostart_dir, agent_name))
 
-    def _check_resources(self, resmon, agent_name, dist_info):
-        execreqs_json = os.path.join(dist_info, 'execreqs.json')
+    def _check_resources(self, resmon, agent_name, dist_data):
+        execreqs_json = os.path.join(dist_data, 'execreqs.json')
         if not os.path.exists(execreqs_json):
             _log.warning('agent is missing execution requirements file: %s',
                        execreqs_json)
@@ -386,8 +386,14 @@ class AIPplatform(object):
         basename = os.path.basename(agent_path)
         dist_info = os.path.join(agent_path, basename + '.dist-info')
         if not os.path.exists(dist_info):
+            _log.error('missing required package metadata: ' + dist_info)
+            raise ValueError('missing required package metadata')
+        
+        dist_data = os.path.join(agent_path, basename + '.data')        
+        if not os.path.exists(dist_data):
             _log.error('missing required agent metadata: ' + dist_info)
             raise ValueError('missing required agent metadata')
+        
         if auth is not None and self.env.verify_agents:
             auth.UnpackedPackageVerifier(dist_info).verify()
         metadata_json = os.path.join(dist_info, 'metadata.json')
@@ -407,7 +413,7 @@ class AIPplatform(object):
             except KeyError:
                 _log.error('no agent launch class specified in package: ' + name)
                 raise ValueError('no agent launch class specified in package')
-        config = os.path.join(dist_info, 'config')
+        config = os.path.join(dist_data, 'config')
         if not os.path.exists(config):
             config = None
         environ = os.environ.copy()
@@ -430,7 +436,7 @@ class AIPplatform(object):
         if resmon is None:
             execenv = ExecutionEnvironment()
         else:
-            execenv = self._check_resources(resmon, name, dist_info)
+            execenv = self._check_resources(resmon, name, dist_data)
         _log.info('starting agent ' + name)
         execenv.execute(argv, cwd=self.run_dir, env=environ, close_fds=True,
                         stdin=open(os.devnull), stdout=PIPE, stderr=PIPE)
