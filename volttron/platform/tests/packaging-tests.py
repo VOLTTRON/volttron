@@ -4,6 +4,7 @@ import shutil
 import sys
 import tempfile
 import uuid
+import subprocess
 
 from collections import namedtuple
 from wheel.install import (WheelFile, VerifyingZipFile)
