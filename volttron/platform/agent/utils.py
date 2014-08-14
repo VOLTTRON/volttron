@@ -141,40 +141,13 @@ def start_agent_thread(cls, **kwargs):
     return thread
 
 
-class ArgumentParser(argparse.ArgumentParser):
-    def __init__(self, *args, **kwargs):
-        super(ArgumentParser, self).__init__(*args, **kwargs)
-        self.add_argument('-c', '--config', metavar='FILE', type=str,
-                default=os.environ.get('AGENT_CONFIG'),
-                help='Configuration file')
-        self.add_argument('-p', '--pub', metavar='URL', type=str,
-                default=os.environ.get('AGENT_PUB_ADDR'),
-                help='Publish address')
-        self.add_argument('-s', '--sub', metavar='URL', type=str,
-                default=os.environ.get('AGENT_SUB_ADDR'),
-                help='Subscribe address')
-
-    def parse_args(self, *args, **kwargs):
-        opts = super(ArgumentParser, self).parse_args(*args, **kwargs)
-        if not opts.config:
-            self.error('unknown configuration file: missing --config option '
-                       'and AGENT_CONFIG environment variable')
-        if not opts.pub:
-            self.error('unknown publish address: missing --pub option '
-                       'and AGENT_PUB_ADDR environment variable')
-        if not opts.sub:
-            self.error('unknown subscribe address: missing --sub option '
-                       'and AGENT_SUB_ADDR environment variable')
-        return opts
-
-
 def isapipe(fd):
     fd = getattr(fd, 'fileno', lambda: fd)()
     return stat.S_ISFIFO(os.fstat(fd).st_mode)
 
 
 def default_main(agent_class, description, argv=sys.argv,
-                 parser_class=ArgumentParser, **kwargs):
+                 parser_class=argparse.ArgumentParser, **kwargs):
     '''Default main entry point implementation.'''
     try:
         # If stdout is a pipe, re-open it line buffered
@@ -187,9 +160,9 @@ def default_main(agent_class, description, argv=sys.argv,
         parser = parser_class(prog=os.path.basename(argv[0]),
                               description=description)
         opts = parser.parse_args(argv[1:])
-        agent = agent_class(subscribe_address=opts.sub,
-                            publish_address=opts.pub,
-                            config_path=opts.config, **kwargs)
+        agent = agent_class(subscribe_address=os.environ['AGENT_SUB_ADDR'],
+                            publish_address=os.environ['AGENT_PUB_ADDR'],
+                            config_path=os.environ.get('AGENT_CONFIG',None), **kwargs)
         agent.run()
     except KeyboardInterrupt:
         pass
