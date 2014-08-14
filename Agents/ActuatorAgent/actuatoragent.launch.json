@@ -10,9 +10,6 @@
     "connection-timeout": 10,
  	"points":
  	{
- 		#"lbnl/building46/file":
-	 	#{
-	 #		"heartbeat_point":"ESMMode"
-	 #	}
+ 
 	 }
 }
