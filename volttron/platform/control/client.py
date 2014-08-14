@@ -70,9 +70,20 @@ from .. import config
 from .server import ControlConnector
 
 try:
-    from volttron.restricted import resmon
+    import volttron.restricted
 except ImportError:
-    resmon = None
+    have_restricted = False
+else:
+    import contextlib
+    import errno
+    import socket
+    
+    from paramiko import RSAKey, PasswordRequiredException, SSHException
+    from paramiko.config import SSHConfig
+    from paramiko.hostkeys import HostKeys
+    from volttron.restricted import resmon
+    from volttron.restricted.comms import CommsClient
+    have_restricted = True
 
 
 def install_agent(parser, opts):
@@ -157,6 +168,40 @@ def create_cgroups(parser, opts):
         os.chown(path, uid, gid)
 
 
+def send_agent(parser, opts):
+    ssh_dir = os.path.join(opts.volttron_home, 'ssh')
+    ssh_config = SSHConfig()
+    host_keys = HostKeys()
+    try:
+        try:
+            ssh_config.parse(open(os.path.join(ssh_dir, 'config')))
+        except IOError as exc:
+            if exc.errno != errno.ENOENT:
+                raise
+        priv_key = RSAKey(filename=os.path.join(ssh_dir, 'id_rsa'))
+        try:
+            host_keys.load(os.path.join(ssh_dir, 'known_hosts'))
+        except IOError as exc:
+            if exc.errno != errno.ENOENT:
+                raise
+    except (OSError, IOError, PasswordRequiredException, SSHException) as exc:
+        parser.error(exc)
+    host = ssh_config.lookup(opts.host)
+    hostname = host.get('hostname', opts.host)
+    port = host.get('port', opts.port)
+    address = hostname, port
+    keys = host_keys.lookup(hostname)
+    if not keys:
+        host_key = None
+    else:
+        host_key = keys.get('ssh-rsa')
+    if host_key is None:
+        sys.stderr.write('warning: no public key found for remote host\n')
+    with open(opts.agent_wheel) as file, contextlib.closing(CommsClient( \
+            address, host_key, socket.gethostname(), priv_key)) as client:
+        client.send_and_start_agent(file)
+
+
 def main(argv=sys.argv):
     parser = config.ArgumentParser(
         prog=os.path.basename(argv[0]),
@@ -210,13 +255,21 @@ def main(argv=sys.argv):
         help='stop all agents')
     shutdown.set_defaults(func=shutdown_agent)
 
-    if resmon:
+    if have_restricted:
+        send = subparsers.add_parser('send-agent',
+            help='send mobile agent to and start on a remote platform')
+        send.add_argument('-p', '--port', type=int, metavar='NUMBER',
+            help='alternate port number to connect to')
+        send.add_argument('host', help='DNS name or IP address of host')
+        send.add_argument('agent_wheel', help='agent package to send')
+        send.set_defaults(func=send_agent, port=2522)
+
         cgroup = subparsers.add_parser('create-cgroups',
             help='setup VOLTTRON control group for restricted execution')
         cgroup.add_argument('-u', '--user', metavar='USER',
-            help='group name or ID')
+            help='owning user name or ID')
         cgroup.add_argument('-g', '--group', metavar='GROUP',
-            help='group name or ID')
+            help='owning group name or ID')
         cgroup.set_defaults(func=create_cgroups, user=None, group=None)
 
     parser.set_defaults(**config.get_volttron_defaults())

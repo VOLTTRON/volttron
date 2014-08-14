@@ -469,4 +469,5 @@ def get_volttron_defaults():
         'verboseness': _logging.WARNING,
         'verify_agents': True,
         'resource_monitor': True,
+        'mobility': False,
     }
