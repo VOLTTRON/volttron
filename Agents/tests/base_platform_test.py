@@ -1,7 +1,9 @@
 import os
+import shutil
 import subprocess
 import sys
 import time
+import tempfile
 
 import unittest
 
@@ -22,9 +24,16 @@ VCTRL = "env/bin/volttron-ctl"
 class BasePlatformTest(unittest.TestCase):
     
     @classmethod
+    def writePConfig(cls):
+    
+    @classmethod
     def setUpClass(cls):
         '''Setup platform here (only called on time per class)'''
         os.chdir('../../')
+        
+        cls.tempdir = tempfile.mkdtemp()
+        
+        
         
         cls.p_process = subprocess.Popen([VSTART])
 #                                           "-c", CONFIG_FILE, "-v", "-l", "volttron.log"])
@@ -43,5 +52,6 @@ class BasePlatformTest(unittest.TestCase):
             cls.t_process.kill()
         else: 
             print "NULL"
-    
+            
+        shutil.rmtree(cls.tempdir, True)
     
