@@ -79,7 +79,8 @@ try:
 except ImportError:
     have_restricted = False
 else:
-    from volttron.restricted import comms, resmon
+    from volttron.restricted import comms, comms_server, resmon
+    from paramiko import RSAKey, PasswordRequiredException, SSHException
     have_restricted = True
 
 
@@ -206,6 +207,10 @@ def main(argv=sys.argv):
             help='enable agent resource management')
         restrict.add_argument('--no-resource-monitor', action='store_false',
             dest='resource_monitor', help=argparse.SUPPRESS)
+        restrict.add_argument('--mobility', action='store_true',
+            help='enable agent mobility')
+        restrict.add_argument('--no-mobility', action='store_false',
+            dest='mobility', help=argparse.SUPPRESS)
 
     parser.set_defaults(**config.get_volttron_defaults())
 
@@ -235,6 +240,15 @@ def main(argv=sys.argv):
     if opts.log_config:
         logging.config.fileConfig(opts.log_config)
 
+    # Setup mobility server
+    if have_restricted and opts.mobility:
+        ssh_dir = os.path.join(opts.volttron_home, 'ssh')
+        try:
+            priv_key = RSAKey(filename=os.path.join(ssh_dir, 'id_rsa'))
+            authorized_keys = comms.load_authorized_keys(os.path.join(ssh_dir, 'authorized_keys'))
+        except (OSError, IOError, PasswordRequiredException, SSHException) as exc:
+            parser.error(exc)
+
     # Set configuration
     if have_restricted:
         if opts.verify_agents:
@@ -248,16 +262,21 @@ def main(argv=sys.argv):
         for name, error in opts.aip.autostart():
             _log.error('error starting {!r}: {}\n'.format(name, error))
 
-
     # Main loops
     try:
         exchange = gevent.spawn(
             agent_exchange, opts.publish_address, opts.subscribe_address)
+        if have_restricted and opts.mobility:
+            mobility = comms_server.ThreadedServer(
+                ('0.0.0.0', 2522), priv_key, authorized_keys, opts.aip.land_agent)
+            mobility.start()
         try:
             control = gevent.spawn(control_loop, opts)
             exchange.link(lambda *a: control.kill())
             control.join()
         finally:
+            if have_restricted and opts.mobility:
+                mobility.stop()
             exchange.kill()
     finally:
         opts.aip.finish()

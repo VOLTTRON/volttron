@@ -293,10 +293,23 @@ class AIPplatform(object):
                 errors.append((name, str(e)))
         return errors
 
+    def land_agent(self, agent_wheel):
+        if auth is None:
+            raise NotImplementedError()
+        agent_name = self.install_agent(agent_wheel)
+        try:
+            self.start_agent(agent_name)
+            self.enable_agent(agent_name)
+        except:
+            self.stop_agent(agent_name)
+            self.remove_agent(agent_name)
+            raise
+
     def install_agent(self, agent_wheel):
         if auth is not None and self.env.verify_agents:
             unpacker = auth.VolttronPackageWheelFile(agent_wheel)
             unpacker.unpack(dest=self.install_dir)
+            return unpacker.parsed_filename.group('namever')
         else:
             unpack(agent_wheel, dest=self.install_dir)
 
