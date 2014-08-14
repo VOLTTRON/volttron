@@ -23,6 +23,7 @@ VCTRL = "env/bin/volttron-ctl"
 # BUILD_AGENT = "volttron/scripts/build-agent.sh"
 CONFIG_FILE = "test-config.ini"
 SMAP_FILE = "test-smap.ini"
+SMAP_KEY_FILE = 'test-smap-key.ini'
 
 PLATFORM_CONFIG = """
 """
@@ -30,7 +31,13 @@ PLATFORM_CONFIG = """
 TWISTED_CONFIG = """
 """
 
-SMAP_KEY = ""
+try:
+    SMAP_KEY = open(SMAP_KEY_FILE, 'r').read()
+except:
+    sys.stderr.write("SMAP key file was not read\n")
+    sys.stderr.write("It should be located at:\n\t{}".format(
+                     os.path.abspath('../../../{}\n'.format(SMAP_KEY_FILE)))
+                     )
 
 class BasePlatformTest(unittest.TestCase):
 
