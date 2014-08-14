@@ -157,13 +157,22 @@ def _create_initial_package(agent_dir_to_package, wheelhouse):
     return final_dest
 
 def _files_from_kwargs(**kwargs):
-    files = []
-    if 'contract' in kwargs and kwargs['contract'] != None:
-        files.append(kwargs['contract'])
-    if 'config_file' in kwargs and kwargs['config_file'] != None:
-        files.append(kwargs['config_file'])
+    '''Grabs the contract and config file from the kwargs
 
-    return files
+    Returns None if neither exist.
+    '''
+
+    files = {}
+
+    if 'contract' in kwargs and kwargs['contract'] != None:
+        files['contract'] = kwargs['contract']
+    if 'config_file' in kwargs and kwargs['config_file'] != None:
+        files['config_file'] = kwargs['config_file']
+
+    if len(files.keys()) > 0:
+        return files
+
+    return None
 
 def _sign_agent_package(agent_package, **kwargs):
     '''Sign an agent package'''
