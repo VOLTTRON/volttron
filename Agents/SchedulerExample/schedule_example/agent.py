@@ -54,7 +54,7 @@
 #}}}
 
 
-from datetime import datetime
+import datetime
 import logging
 import sys
 import uuid
@@ -80,8 +80,10 @@ def DatetimeFromValue(ts):
     return ts
 
 class ScheduleExampleAgent(PublishMixin, BaseAgent):
-    '''Listens to everything and publishes a heartbeat according to the
-    heartbeat period specified in the settings module.
+    '''This agent can be used to demonstrate scheduling and 
+    acutation of devices. It reserves a non-existant device, then
+    acts when its time comes up. Since there is no device, this 
+    will cause an error.
     '''
 
     def __init__(self, config_path, **kwargs):
@@ -97,53 +99,51 @@ class ScheduleExampleAgent(PublishMixin, BaseAgent):
         
         self.publish_schedule()
 
-    @matching.match_all
-    def on_match(self, topic, headers, message, match):
-        '''Use match_all to receive all messages and print them out.'''
-        _log.debug("Topic: {topic}, Headers: {headers}, "
-                         "Message: {message}".format(
-                         topic=topic, headers=headers, message=message))
 
-    # Demonstrate periodic decorator and settings access
-    @periodic(settings.HEARTBEAT_PERIOD)
-    def publish_heartbeat(self):
-        '''Send heartbeat message every HEARTBEAT_PERIOD seconds.
-
-        HEARTBEAT_PERIOD is set and can be adjusted in the settings module.
-        '''
-        now = datetime.utcnow().isoformat(' ') + 'Z'
+    @matching.match_exact(topics.ACTUATOR_SCHEDULE_ANNOUNCE(campus='campus',
+                                         building='building',unit='unit'))
+    def actuate(self, topic, headers, message, match):
+        '''Match the announce for our fake device'''
         headers = {
-            'AgentID': self._agent_id,
-            headers_mod.CONTENT_TYPE: headers_mod.CONTENT_TYPE.PLAIN_TEXT,
-            headers_mod.DATE: now,
-        }
-        self.publish('heartbeat/example_agent', headers, now)
+                    'requesterID': self._agent_id,
+                   }
+        self.publish_json(topics.ACTUATOR_SET(campus='campus',
+                                         building='building',unit='unit',
+                                         point='point'),
+                                 headers, str(0.0))
 
-    
+    @periodic(settings.HEARTBEAT_PERIOD)
     def publish_schedule(self):
-    
+        '''Periodically publish a schedule request'''
         headers = {
                     'AgentID': self._agent_id,
                     'type': 'NEW_SCHEDULE',
                     'requesterID': self._agent_id, #The name of the requesting agent.
-                    'taskID': self._agent_id + "-TASK", #The desired task ID for this task. It must be unique among all other scheduled tasks.
+                    'taskID': self._agent_id + "-ExampleTask", #The desired task ID for this task. It must be unique among all other scheduled tasks.
                     'priority': 'LOW', #The desired task priority, must be 'HIGH', 'LOW', or 'LOW_PREEMPT'
                 } 
         
-        
+        start = str(datetime.datetime.now())
+        end = str(datetime.datetime.now() + datetime.timedelta(minutes=1))
+
+
         msg = [
-                ["campus/building/device1", #First time slot.
-                 "2014-1-31 12:27:00",     #Start of time slot.
-                 "2014-1-31 12:29:00"],     #End of time slot.
-                ["campus/building/device2", #Second time slot.
-                 "2014-1-31 12:26:00",     #Start of time slot.
-                 "2014-1-31 12:30:00"],     #End of time slot.
-                ["campus/building/device3", #Third time slot.
-                 "2014-1-31 12:30:00",     #Start of time slot.
-                 "2014-1-31 12:32:00"],     #End of time slot.
+               ['campus/building/unit',start,end]
+               #Could add more devices
+#                 ["campus/building/device1", #First time slot.
+#                  "2014-1-31 12:27:00",     #Start of time slot.
+#                  "2016-1-31 12:29:00"],     #End of time slot.
+#                 ["campus/building/device2", #Second time slot.
+#                  "2014-1-31 12:26:00",     #Start of time slot.
+#                  "2016-1-31 12:30:00"],     #End of time slot.
+#                 ["campus/building/device3", #Third time slot.
+#                  "2014-1-31 12:30:00",     #Start of time slot.
+#                  "2016-1-31 12:32:00"],     #End of time slot.
                 #etc...
             ]
         self.publish_json(topics.ACTUATOR_SCHEDULE_REQUEST, headers, msg)
+        
+        
 
 
 def main(argv=sys.argv):
