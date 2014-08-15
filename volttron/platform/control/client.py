@@ -68,6 +68,11 @@ from flexjsonrpc.core import RemoteError
 from .. import aip
 from .. import config
 from .server import ControlConnector
+from . import (CTL_STATUS,
+               CTL_INSTALL,
+               CTL_STATUS,
+               CTL_START,
+               CTL_STOP)
 
 try:
     import volttron.restricted
@@ -223,7 +228,7 @@ def main(argv=sys.argv):
     list_ = subparsers.add_parser('list', help='list installed agent')
     list_.set_defaults(func=list_agents)
 
-    status = subparsers.add_parser('status', help='show status of agents')
+    status = subparsers.add_parser(CTL_STATUS, help='show status of agents')
     status.set_defaults(func=status_agents)
 
     enable = subparsers.add_parser('enable',
