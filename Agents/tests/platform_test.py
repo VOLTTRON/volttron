@@ -1,10 +1,13 @@
 import unittest
-from base_platform_test import BasePlatformTest
+from base import BasePlatformTest
+from volttron.platform.control import (CTL_STATUS,)
 
 class PlatformTests(BasePlatformTest):
     
     def setUp(self):
-        pass
+        #Config file is relative to root of project
+        super(PlatformTests, self).setUp()
+        self.startup_platform("base-platform-test.json")
     
     def test_platform_startup(self):
         self.assertIsNotNone(self.p_process, "Platform process is none")
@@ -12,7 +15,13 @@ class PlatformTests(BasePlatformTest):
 
 
     def tearDown(self):
-        pass
+        super(PlatformTests, self).tearDown()
+ 
+    def test_platform_startup2(self):
+        self.assertIsNotNone(self.p_process, "Platform process is none")
+        self.assertIsNotNone(self.t_process, "Twistd process is none")
+
+
 
 if __name__ == "__main__":
     unittest.main()
