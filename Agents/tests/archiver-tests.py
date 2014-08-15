@@ -31,8 +31,8 @@ class ArchiverTests(base.BasePlatformTest):
         self.assertIsNotNone(agent_wheel,"Agent wheel was not built")
         self.assertTrue(agent_wheel.endswith("archiveragent-0.1-py2-none-any.whl"))
      
-#     def test_build_and_install(self):
-#         self.build_and_install_agent("Agents/ArchiverAgent")
+    def test_build_and_install(self):
+        self.build_and_install_agent("Agents/ArchiverAgent")
 
 # def build_and_setup_archiver():
 #     print "build_and_setup_archiver"
