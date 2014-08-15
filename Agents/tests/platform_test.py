@@ -17,11 +17,6 @@ class PlatformTests(BasePlatformTest):
     def tearDown(self):
         super(PlatformTests, self).tearDown()
  
-    def test_platform_startup2(self):
-        self.assertIsNotNone(self.p_process, "Platform process is none")
-        self.assertIsNotNone(self.t_process, "Twistd process is none")
-
-
 
 if __name__ == "__main__":
     unittest.main()
