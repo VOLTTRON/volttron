@@ -62,6 +62,7 @@
 
 
 import contextlib
+import errno
 from fcntl import fcntl, F_GETFL, F_SETFL
 import logging
 import os
@@ -73,6 +74,7 @@ import subprocess
 from subprocess import PIPE
 import sys
 import syslog
+import uuid
 
 import gevent
 from gevent import select
@@ -237,8 +239,7 @@ class AIPplatform(object):
         self.agents = {}
 
     def setup(self):
-        for path in [self.run_dir, self.config_dir,
-                     self.install_dir, self.autostart_dir]:
+        for path in [self.run_dir, self.config_dir, self.install_dir]:
             if not os.path.exists(path):
                 os.makedirs(path, 0775)
 
@@ -274,87 +275,118 @@ class AIPplatform(object):
 
     config_dir = property(lambda me: os.path.abspath(me.env.volttron_home))
     install_dir = property(lambda me: os.path.join(me.config_dir, 'agents'))
-    autostart_dir = property(lambda me: os.path.join(me.config_dir, 'autostart'))
     run_dir = property(lambda me: os.path.join(me.config_dir, 'run'))
 
     def autostart(self):
-        names = os.listdir(self.autostart_dir)
-        names.sort()
-        services, agents, errors = [], [], []
-        for name in names:
-            if name.endswith('.service'):
-                services.append(name)
-            else:
-                agents.append(name)
-        for name in services + agents:
+        agents, errors = [], []
+        for agent_uuid, agent_name in self.list_agents().iteritems():
             try:
-                self.start_agent(name)
-            except Exception as e:
-                errors.append((name, str(e)))
+                priority = self._agent_priority(agent_uuid)
+            except EnvironmentError as exc:
+                errors.append((agent_uuid, str(exc)))
+                continue
+            if priority is not None:
+                agents.append((priority, agent_uuid))
+        agents.sort(reverse=True)
+        for _, agent_uuid in agents:
+            try:
+                self.start_agent(agent_uuid)
+            except Exception as exc:
+                errors.append((agent_uuid, str(exc)))
         return errors
 
     def land_agent(self, agent_wheel):
         if auth is None:
             raise NotImplementedError()
-        agent_name = self.install_agent(agent_wheel)
+        agent_uuid = self.install_agent(agent_wheel)
         try:
-            self.start_agent(agent_name)
-            self.enable_agent(agent_name)
+            self.start_agent(agent_uuid)
+            self.enable_agent(agent_uuid)
         except:
-            self.stop_agent(agent_name)
-            self.remove_agent(agent_name)
+            self.stop_agent(agent_uuid)
+            self.remove_agent(agent_uuid)
             raise
+        return agent_uuid
 
     def install_agent(self, agent_wheel):
-        if auth is not None and self.env.verify_agents:
-            unpacker = auth.VolttronPackageWheelFile(agent_wheel)
-            unpacker.unpack(dest=self.install_dir)
-            return unpacker.parsed_filename.group('namever')
-        else:
-            unpack(agent_wheel, dest=self.install_dir)
+        while True:
+            agent_uuid = str(uuid.uuid4())
+            if agent_uuid in self.agents:
+                continue
+            agent_path = os.path.join(self.install_dir, agent_uuid)
+            try:
+                os.mkdir(agent_path)
+                break
+            except OSError as exc:
+                if exc.errno != errno.EEXIST:
+                    raise
+        try:
+            if auth is not None and self.env.verify_agents:
+                unpacker = auth.VolttronPackageWheelFile(agent_wheel)
+                unpacker.unpack(dest=agent_path)
+            else:
+                unpack(agent_wheel, dest=agent_path)
+        except Exception:
+            shutil.rmtree(agent_path)
+            raise
+        return agent_uuid
 
-    def remove_agent(self, agent_name):
-        if os.path.sep in agent_name:
-            raise ValueError('invalid agent: {!r}'.format(agent_name))
-        auto_path = os.path.join(self.autostart_dir, agent_name)
-        if os.path.exists(auto_path):
-            os.unlink(auto_path)
-        agent_path = os.path.join(self.install_dir, agent_name)
-        shutil.rmtree(agent_path)
+    def remove_agent(self, agent_uuid):
+        if agent_uuid not in os.listdir(self.install_dir):
+            raise ValueError('invalid agent')
+        shutil.rmtree(os.path.join(self.install_dir, agent_uuid))
 
     def list_agents(self):
-        return os.listdir(self.install_dir)
+        agents = {}
+        for agent_uuid in os.listdir(self.install_dir):
+            agent_path = os.path.join(self.install_dir, agent_uuid)
+            for agent_name in os.listdir(agent_path):
+                dist_info = os.path.join(
+                    agent_path, agent_name, agent_name + '.dist-info')
+                if os.path.exists(dist_info):
+                    agents[agent_uuid] = agent_name
+                    break
+        return agents
+
+    def active_agents(self):
+        return {agent_uuid: execenv.name
+                for agent_uuid, execenv in self.agents.iteritems()}
 
     def status_agents(self):
-        names = set(os.listdir(self.install_dir)) | set(self.agents.keys())
-        return [(name, self.is_enabled(name), self.agent_status(name))
-                for name in names]
+        agents = self.list_agents()
+        agents.update(self.active_agents())
+        return [(agent_uuid, agent_name, self._agent_priority(agent_uuid),
+                 self.agent_status(agent_uuid))
+                for agent_uuid, agent_name in agents.iteritems()]
 
-    def is_enabled(self, agent_name):
-        if os.path.sep in agent_name:
-            return None
-        return os.path.exists(os.path.join(self.autostart_dir, agent_name))
+    def _agent_priority(self, agent_uuid):
+        autostart = os.path.join(self.install_dir, agent_uuid, 'AUTOSTART')
+        try:
+            with open(autostart) as file:
+                return file.readline(100).strip()
+        except EnvironmentError as exc:
+            if exc.errno != errno.ENOENT:
+                raise
 
-    def enable_agent(self, agent_name):
-        if os.path.sep in agent_name:
-            raise ValueError('invalid agent: {!r}'.format(agent_name))
-        agent_dir = self.install_dir
-        auto_dir = self.autostart_dir
-        agent_abspath = os.path.join(agent_dir, agent_name)
-        auto_path = os.path.join(auto_dir, agent_name)
-        common_path, agent_rem, auto_len = _split_prefix(agent_dir, auto_dir)
-        if auto_len < 5:
-            agent_dir = os.path.join(*(['..'] * auto_len + agent_rem))
-        agent_path = os.path.join(agent_dir, agent_name)
-        os.symlink(agent_path, auto_path)
+    def enable_agent(self, agent_uuid, priority='50'):
+        if agent_uuid not in os.listdir(self.install_dir):
+            raise ValueError('invalid agent')
+        autostart = os.path.join(self.install_dir, agent_uuid, 'AUTOSTART')
+        with open(autostart, 'w') as file:
+            file.write(priority.strip())
 
-    def disable_agent(self, agent_name):
-        if os.path.sep in agent_name:
-            raise ValueError('invalid agent: {!r}'.format(agent_name))
-        os.unlink(os.path.join(self.autostart_dir, agent_name))
+    def disable_agent(self, agent_uuid):
+        if agent_uuid not in os.listdir(self.install_dir):
+            raise ValueError('invalid agent')
+        autostart = os.path.join(self.install_dir, agent_uuid, 'AUTOSTART')
+        try:
+            os.unlink(autostart)
+        except OSError as exc:
+            if exc.errno != errno.ENOENT:
+                raise
 
-    def _check_resources(self, resmon, agent_name, dist_data):
-        execreqs_json = os.path.join(dist_data, 'execreqs.json')
+    def _check_resources(self, resmon, agent_path, dist_info):
+        execreqs_json = os.path.join(dist_info, 'execreqs.json')
         if not os.path.exists(execreqs_json):
             _log.warning('agent is missing execution requirements file: %s',
                        execreqs_json)
@@ -363,9 +395,9 @@ class AIPplatform(object):
             try:
                 with open(execreqs_json) as file:
                     execreqs = jsonapi.load(file)
-            except Exception as e:
+            except Exception as exc:
                 msg = 'error reading execution requirements: {}: {}'.format(
-                       execreqs_json, e)
+                       execreqs_json, exc)
                 _log.error(msg)
                 raise ValueError(msg)
         hard_reqs = execreqs.get('hard_requirements', {})
@@ -375,7 +407,7 @@ class AIPplatform(object):
                              term, hard_reqs[term], avail)
                             for term, avail in failed_terms.iteritems())
             _log.error('hard resource requirements not met: %r: %s',
-                       agent_name, msg)
+                       agent_path, msg)
             raise ValueError('hard resource requirements not met')
         requirements = execreqs.get('requirements', {})
         execenv, failed_terms = resmon.reserve_soft_resources(requirements)
@@ -384,34 +416,21 @@ class AIPplatform(object):
                              term, requirements.get(term, '<unset>'), avail)
                             for term, avail in failed_terms.iteritems())
             _log.error('soft resource requirements not met for agent %r:\n%s',
-                       agent_name, msg)
+                       agent_path, msg)
             raise ValueError('soft resource requirements not met')
         return execenv
 
-    def _launch_agent(self, agent_path, name=None):
-        if name is None:
-            name = agent_path
-            
-        if not os.path.exists(agent_path):
-            _log.error('Agent not installed: '+agent_path)
-            raise ValueError('Agent not installed: '+agent_path)
-        
-        execenv = self.agents.get(name)
-        if execenv:
-            if execenv.process.poll() is None:
-                _log.warning('request to start already running agent: ' + name)
-                raise ValueError('agent is already running')
+    def _launch_agent(self, agent_uuid, agent_path, name=None):
+        execenv = self.agents.get(agent_uuid)
+        if execenv and execenv.process.poll() is None:
+            _log.warning('request to start already running agent %s', agent_path)
+            raise ValueError('agent is already running')
+
         basename = os.path.basename(agent_path)
         dist_info = os.path.join(agent_path, basename + '.dist-info')
         if not os.path.exists(dist_info):
             _log.error('missing required package metadata: ' + dist_info)
             raise ValueError('missing required package metadata')
-        
-        dist_data = os.path.join(agent_path, basename + '.data')        
-        if not os.path.exists(dist_data):
-            _log.error('missing required agent metadata: ' + dist_data)
-            raise ValueError('missing required agent metadata')
-        
         if auth is not None and self.env.verify_agents:
             auth.UnpackedPackageVerifier(dist_info).verify()
         metadata_json = os.path.join(dist_info, 'metadata.json')
@@ -429,21 +448,21 @@ class AIPplatform(object):
             try:
                 module = exports['setuptools.installation']['eggsecutable']
             except KeyError:
-                _log.error('no agent launch class specified in package: ' + name)
+                _log.error('no agent launch class specified in package %s', agent_path)
                 raise ValueError('no agent launch class specified in package')
-        config = os.path.join(dist_data, 'config')
-        if not os.path.exists(config):
-            config = None
+        config = os.path.join(dist_info, 'config')
+
         environ = os.environ.copy()
         environ['PYTHONPATH'] = ':'.join([agent_path] + sys.path)
         environ['PATH'] = (os.path.abspath(os.path.dirname(sys.executable)) +
                            ':' + environ['PATH'])
-        if config:
+        if os.path.exists(config):
             environ['AGENT_CONFIG'] = config
         elif 'AGENT_CONFIG' in environ:
             del environ['AGENT_CONFIG']
         environ['AGENT_SUB_ADDR'] = self.subscribe_address
         environ['AGENT_PUB_ADDR'] = self.publish_address
+
         module, _, func = module.partition(':')
         if func:
             code = '__import__({0!r}, fromlist=[{1!r}]).{1}()'.format(module, func)
@@ -454,13 +473,14 @@ class AIPplatform(object):
         if resmon is None:
             execenv = ExecutionEnvironment()
         else:
-            execenv = self._check_resources(resmon, name, dist_data)
-        _log.info('starting agent ' + name)
+            execenv = self._check_resources(resmon, name, dist_info)
+        execenv.name = name or agent_path
+        _log.info('starting agent %s', agent_path)
         execenv.execute(argv, cwd=self.run_dir, env=environ, close_fds=True,
                         stdin=open(os.devnull), stdout=PIPE, stderr=PIPE)
-        self.agents[name] = execenv
+        self.agents[agent_uuid] = execenv
         pid = execenv.process.pid
-        _log.info('agent {} has PID {}'.format(name, pid))
+        _log.info('agent %s has PID %s', agent_path, pid)
         gevent.spawn(log_stream, 'agents.stderr', name, pid, argv[0],
                      _log_stream('agents.log', name, pid, logging.ERROR,
                                  gevent_readlines(execenv.process.stderr)))
@@ -468,25 +488,36 @@ class AIPplatform(object):
                      ((logging.INFO, line) for line in
                       gevent_readlines(execenv.process.stdout)))
 
-    def launch_agent(self, agent_config):
-        self._launch_agent(os.path.abspath(agent_config))
+    def launch_agent(self, agent_path):
+        while True:
+            agent_uuid = str(uuid.uuid4())
+            if not (agent_uuid in self.agents or
+                    os.path.exists(os.path.join(self.install_dir, agent_uuid))):
+                break
+        if not os.path.exists(agent_path):
+            msg = 'agent not found: {}'.format(agent_path)
+            _log.error(msg)
+            raise ValueError(msg)
+        self._launch_agent(agent_uuid, os.path.abspath(agent_path))
 
-    def agent_status(self, agent_name):
-        execenv = self.agents.get(agent_name)
-        return (execenv and execenv.process.pid,
-                execenv and execenv.process.poll())
+    def agent_status(self, agent_uuid):
+        execenv = self.agents.get(agent_uuid)
+        if execenv is None:
+            return (None, None)
+        return (execenv.process.pid, execenv.process.poll())
 
-    def start_agent(self, agent_name):
-        if os.path.sep in agent_name:
-            raise ValueError('invalid agent: {!r}'.format(agent_name))
+    def start_agent(self, agent_uuid):
+        try:
+            agent_name = self.list_agents()[agent_uuid]
+        except KeyError:
+            raise ValueError('invalid agent: {!r}'.format(agent_uuid))
         self._launch_agent(
-                os.path.join(self.install_dir, agent_name), agent_name)
+                agent_uuid, os.path.join(self.install_dir, agent_uuid, agent_name), agent_name)
 
-    def stop_agent(self, agent_name):
-        if '/' in agent_name:
-            agent_name = os.path.abspath(agent_name)
-        execenv = self.agents.get(agent_name)
-        if not execenv:
+    def stop_agent(self, agent_uuid):
+        try:
+            execenv = self.agents[agent_uuid]
+        except KeyError:
             return
         if execenv.process.poll() is None:
             execenv.process.send_signal(signal.SIGINT)

@@ -61,6 +61,7 @@ import argparse
 import grp
 import os
 import pwd
+import re
 import sys
 
 from flexjsonrpc.core import RemoteError
@@ -91,55 +92,141 @@ else:
     have_restricted = True
 
 
+def search_agents(agents, queries):
+    for query in queries:
+        strings = re.split(r'([*?])', query)
+        parts = ['^']
+        if len(strings) == 1:
+            parts.append(re.escape(query))
+        else:
+            parts.extend('.*' if s == '*' else
+                         '.' if s == '?' else re.escape(s)
+                         for s in strings)
+            parts.append('$')
+        regex = re.compile(''.join(parts))
+        yield query, [uuid for uuid, name in agents.iteritems()
+                      if regex.search(uuid) or regex.search(name)]
+
 def install_agent(parser, opts):
-    opts.aip.install_agent(opts.wheel)
+    for wheel in opts.wheel:
+        opts.aip.install_agent(wheel)
 
 def remove_agent(parser, opts):
-    opts.aip.remove_agent(opts.agent)
+    agents = opts.aip.list_agents()
+    for query, uuids in search_agents(agents, opts.agent):
+        if not uuids:
+            opts.stderr.write('{}: agent not found: {}\n'.format(
+                    opts.command, query))
+        elif len(uuids) > 1:
+            if not opts.force:
+                opts.stderr.write('{}: query returned multiple agents: {}\n'.format(
+                        opts.command, query))
+                continue
+        for uuid in uuids:
+            opts.stdout.write('Removing {} {}\n'.format(uuid, agents[uuid]))
+            opts.aip.remove_agent(uuid)
+
+
+def _calc_min_uuid_length(agents):
+    n = 0
+    for uuid1 in agents:
+        for uuid2 in agents:
+            if uuid1 == uuid2:
+                continue
+            common_len = len(os.path.commonprefix([uuid1, uuid2]))
+            if common_len > n:
+                n = common_len
+    return n + 1
 
 def list_agents(parser, opts):
     agents = opts.aip.list_agents()
     if not agents:
         return
-    agents.sort()
-    for name in agents:
-        sys.stdout.writelines([name, '\n'])
+    if opts.pattern:
+        filtered = {}
+        for query, uuids in search_agents(agents, opts.pattern):
+            if not uuids:
+                opts.stderr.write('{}: agent not found: {}\n'.format(
+                        opts.command, query))
+            for uuid in uuids:
+                filtered[uuid] = agents[uuid]
+        agents = filtered
+    if not opts.min_uuid_len:
+        n = None
+    else:
+        n = max(_calc_min_uuid_length(agents), opts.min_uuid_len)
+    agents = agents.items()
+    agents.sort(key=lambda i: i[1])
+    for uuid, name in agents:
+        opts.stdout.writelines([uuid[:n], '  ', name, '\n'])
 
 def status_agents(parser, opts):
     agents = ControlConnector(opts.control_socket).call.status_agents()
     if not agents:
         return
-    agents.sort()
-    width = max(5, min(60, max(len(x[0]) for x in agents)))
-    fmt = '{:{}}  {:>9}  {:>6}\n'
-    sys.stderr.write(fmt.format('AGENT', width, 'AUTOSTART', 'STATUS'))
-    for name, enabled, (pid, status) in agents:
-        if enabled is None:
-            enabled = 'n/a'
-        elif enabled:
-            enabled = 'enabled '
-        else:
-            enabled = 'disabled '
-        sys.stdout.write(fmt.format(name, width, enabled,
+    agents.sort(key=lambda x: x[1])
+    if not opts.min_uuid_len:
+        n = 36
+    else:
+        n = max(_calc_min_uuid_length(agents), opts.min_uuid_len)
+    width = max(5, min(58-n, max(len(x[0]) for x in agents)))
+    fmt = '{} {:{}} {:>3} {:>6}\n'
+    opts.stderr.write(fmt.format(' '*n, 'AGENT', width, 'PRI', 'STATUS'))
+    for uuid, name, priority, (pid, status) in agents:
+        if priority is None:
+            priority = ''
+        opts.stdout.write(fmt.format(uuid[:n], name, width, priority,
             ('running [{}]'.format(pid) if status is None else str(status))
              if pid else ''))
 
 def enable_agent(parser, opts):
-    opts.aip.enable_agent(opts.agent)
+    agents = opts.aip.list_agents()
+    for query, uuids in search_agents(agents, opts.agent):
+        if not uuids:
+            opts.stderr.write('{}: agent not found: {}\n'.format(
+                    opts.command, query))
+        for uuid in uuids:
+            opts.stdout.write('Enabling {} {} with priority {}\n'.format(
+                    uuid, agents[uuid], opts.priority))
+            opts.aip.enable_agent(uuid, opts.priority)
 
 def disable_agent(parser, opts):
-    opts.aip.disable_agent(opts.agent)
+    agents = opts.aip.list_agents()
+    for query, uuids in search_agents(agents, opts.agent):
+        if not uuids:
+            opts.stderr.write('{}: agent not found: {}\n'.format(
+                    opts.command, query))
+        for uuid in uuids:
+            opts.stdout.write('Disabling {} {}\n'.format(uuid, agents[uuid]))
+            opts.aip.disable_agent(uuid)
 
 def start_agent(parser, opts):
-    ControlConnector(opts.control_socket).call.start_agent(opts.agent)
+    agents = opts.aip.list_agents()
+    conn = ControlConnector(opts.control_socket)
+    for query, uuids in search_agents(agents, opts.agent):
+        if not uuids:
+            opts.stderr.write('{}: agent not found: {}\n'.format(
+                    opts.command, query))
+        for uuid in uuids:
+            opts.stdout.write('Starting {} {}\n'.format(uuid, agents[uuid]))
+            conn.call.start_agent(uuid)
 
 def stop_agent(parser, opts):
-    ControlConnector(opts.control_socket).call.stop_agent(opts.agent)
+    agents = opts.aip.list_agents()
+    conn = ControlConnector(opts.control_socket)
+    for query, uuids in search_agents(agents, opts.agent):
+        if not uuids:
+            opts.stderr.write('{}: agent not found: {}\n'.format(
+                    opts.command, query))
+        for uuid in uuids:
+            opts.stdout.write('Stopping {} {}\n'.format(uuid, agents[uuid]))
+            conn.call.stop_agent(uuid)
 
 def run_agent(parser, opts):
-    ControlConnector(opts.control_socket).call.run_agent(opts.agent)
+    for directory in opts.directory:
+        ControlConnector(opts.control_socket).call.run_agent(directory)
 
-def shutdown_agent(parser, opts):
+def shutdown_agents(parser, opts):
     ControlConnector(opts.control_socket).call.shutdown()
 
 def create_cgroups(parser, opts):
@@ -201,64 +288,89 @@ def send_agent(parser, opts):
     else:
         host_key = keys.get('ssh-rsa')
     if host_key is None:
-        sys.stderr.write('warning: no public key found for remote host\n')
-    with open(opts.agent_wheel) as file, contextlib.closing(CommsClient( \
+        opts.stderr.write('warning: no public key found for remote host\n')
+    with contextlib.closing(CommsClient(
             address, host_key, socket.gethostname(), priv_key)) as client:
-        client.send_and_start_agent(file)
+        for wheel in opts.agent_wheel:
+            with open(wheel) as file:
+                client.send_and_start_agent(file)
+
+
+def priority(value):
+    n = int(value)
+    if not 0 <= n < 100:
+        raise ValueError('invalid priority (0 <= n < 100): {}'.format(n))
+    return '{:02}'.format(n)
 
 
 def main(argv=sys.argv):
     parser = config.ArgumentParser(
         prog=os.path.basename(argv[0]),
         description='Manage and control VOLTTRON agents.',
+        usage='%(prog)s command [OPTIONS] ...',
     )
+
     parser.add_argument('--control-socket', metavar='FILE',
         help='path to socket used for control messages')
 
-    subparsers = parser.add_subparsers(help='command help')
+    subparsers = parser.add_subparsers(title='commands', metavar='', dest='command')
 
     install = subparsers.add_parser('install', help='install agent from wheel')
-    install.add_argument('wheel', help='path to agent wheel')
+    install.add_argument('wheel', nargs='+', help='path to agent wheel')
+    if have_restricted:
+        install.add_argument('--verify', action='store_true', dest='verify_agents', 
+            help='verify agent integrity during install')
+        install.add_argument('--no-verify', action='store_false',
+            dest='verify_agents', help=argparse.SUPPRESS)
     install.set_defaults(func=install_agent)
 
     remove = subparsers.add_parser('remove', help='remove agent')
-    remove.add_argument('agent', help='name of agent')
+    remove.add_argument('agent', nargs='+', help='UUID or name of agent')
+    remove.add_argument('-f', '--force', action='store_true',
+        help='force removal of multiple agents')
     remove.set_defaults(func=remove_agent)
 
     list_ = subparsers.add_parser('list', help='list installed agent')
-    list_.set_defaults(func=list_agents)
+    list_.add_argument('pattern', nargs='*', help='UUID or name of agent (w/ optional wildcards)')
+    list_.add_argument('-n', dest='min_uuid_len', type=int, metavar='N',
+        help='show at least N characters of UUID (0 to show all)')
+    list_.set_defaults(func=list_agents, min_uuid_len=1)
 
     status = subparsers.add_parser(CTL_STATUS, help='show status of agents')
-    status.set_defaults(func=status_agents)
+    status.add_argument('-n', dest='min_uuid_len', type=int, metavar='N',
+        help='show at least N characters of UUID (0 to show all)')
+    status.set_defaults(func=status_agents, min_uuid_len=1)
 
     enable = subparsers.add_parser('enable',
         help='enable agent to start automatically')
-    enable.add_argument('agent', help='name of agent')
-    enable.set_defaults(func=enable_agent)
+    enable.add_argument('agent', nargs='+', help='UUID or name of agent')
+    enable.add_argument('-p', '--priority', type=priority,
+        help='2-digit priority from 00 to 99')
+    enable.set_defaults(func=enable_agent, priority='50')
 
     disable = subparsers.add_parser('disable',
         help='prevent agent from start automatically')
-    disable.add_argument('agent', help='name of agent')
+    disable.add_argument('agent', nargs='+', help='UUID or name of agent')
     disable.set_defaults(func=disable_agent)
 
     start = subparsers.add_parser('start',
         help='start installed agent')
-    start.add_argument('agent', help='name of agent')
+    start.add_argument('agent', nargs='+', help='UUID or name of agent')
     start.set_defaults(func=start_agent)
 
     stop = subparsers.add_parser('stop',
         help='stop agent')
-    stop.add_argument('agent', help='name of agent')
+    stop.add_argument('agent', nargs='+', help='UUID or name of agent')
     stop.set_defaults(func=stop_agent)
 
     run = subparsers.add_parser('run',
         help='start any agent by path')
-    run.add_argument('agent', help='path to agent directory')
+    run.add_argument('directory', nargs='+', help='path to agent directory')
     run.set_defaults(func=run_agent)
 
     shutdown = subparsers.add_parser('shutdown',
         help='stop all agents')
-    shutdown.set_defaults(func=shutdown_agent)
+    shutdown.set_defaults(func=shutdown_agents)
 
     if have_restricted:
         send = subparsers.add_parser('send-agent',
@@ -266,7 +378,8 @@ def main(argv=sys.argv):
         send.add_argument('-p', '--port', type=int, metavar='NUMBER',
             help='alternate port number to connect to')
         send.add_argument('host', help='DNS name or IP address of host')
-        send.add_argument('agent_wheel', help='agent package to send')
+        send.add_argument('agent_wheel', nargs='+',
+            help='agent package to send')
         send.set_defaults(func=send_agent, port=2522)
 
         cgroup = subparsers.add_parser('create-cgroups',
@@ -286,6 +399,8 @@ def main(argv=sys.argv):
     opts.control_socket = expandall(opts.control_socket)
     opts.aip = aip.AIPplatform(opts)
     opts.aip.setup()
+    opts.stdout = sys.stdout
+    opts.stderr = sys.stderr
     try:
         opts.func(parser, opts)
     except RemoteError as e:
