@@ -334,6 +334,8 @@ class AIPplatform(object):
     def remove_agent(self, agent_uuid):
         if agent_uuid not in os.listdir(self.install_dir):
             raise ValueError('invalid agent')
+        self.stop_agent(agent_uuid)
+        self.agents.pop(agent_uuid, None)
         shutil.rmtree(os.path.join(self.install_dir, agent_uuid))
 
     def list_agents(self):
