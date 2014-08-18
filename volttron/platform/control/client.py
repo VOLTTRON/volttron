@@ -59,6 +59,7 @@
 
 import argparse
 import grp
+import inspect
 import os
 import pwd
 import re
@@ -91,6 +92,8 @@ else:
     from volttron.restricted.comms import CommsClient
     have_restricted = True
 
+_stdout = sys.stdout
+_stderr = sys.stderr
 
 def search_agents(agents, queries):
     for query in queries:
@@ -107,25 +110,24 @@ def search_agents(agents, queries):
         yield query, [uuid for uuid, name in agents.iteritems()
                       if regex.search(uuid) or regex.search(name)]
 
-def install_agent(parser, opts):
-    for wheel in opts.wheel:
-        opts.aip.install_agent(wheel)
+def install_agent(aip, wheels):
+    for wheel in wheels:
+        uuid = aip.install_agent(wheel)
+        name = aip.agent_name(uuid)
+        _stdout.write('Installed {} as {} {}\n'.format(wheel, uuid, name))
 
-def remove_agent(parser, opts):
-    agents = opts.aip.list_agents()
-    for query, uuids in search_agents(agents, opts.agent):
+def remove_agent(aip, onerror, patterns, force=False):
+    agents = aip.list_agents()
+    for query, uuids in search_agents(agents, patterns):
         if not uuids:
-            opts.stderr.write('{}: agent not found: {}\n'.format(
-                    opts.command, query))
+            onerror('agent not found: {}'.format(query))
         elif len(uuids) > 1:
-            if not opts.force:
-                opts.stderr.write('{}: query returned multiple agents: {}\n'.format(
-                        opts.command, query))
+            if not force:
+                onerror('query returned multiple agents: {}'.format(query))
                 continue
         for uuid in uuids:
-            opts.stdout.write('Removing {} {}\n'.format(uuid, agents[uuid]))
-            opts.aip.remove_agent(uuid)
-
+            _stdout.write('Removing {} {}\n'.format(uuid, agents[uuid]))
+            aip.remove_agent(uuid)
 
 def _calc_min_uuid_length(agents):
     n = 0
@@ -138,100 +140,93 @@ def _calc_min_uuid_length(agents):
                 n = common_len
     return n + 1
 
-def list_agents(parser, opts):
-    agents = opts.aip.list_agents()
+def list_agents(aip, onerror, patterns=None, min_uuid_len=1):
+    agents = aip.list_agents()
     if not agents:
         return
-    if opts.pattern:
+    if patterns:
         filtered = {}
-        for query, uuids in search_agents(agents, opts.pattern):
+        for query, uuids in search_agents(agents, patterns):
             if not uuids:
-                opts.stderr.write('{}: agent not found: {}\n'.format(
-                        opts.command, query))
+                onerror('agent not found: {}'.format(query))
             for uuid in uuids:
                 filtered[uuid] = agents[uuid]
         agents = filtered
-    if not opts.min_uuid_len:
+    if not min_uuid_len:
         n = None
     else:
-        n = max(_calc_min_uuid_length(agents), opts.min_uuid_len)
+        n = max(_calc_min_uuid_length(agents), min_uuid_len)
     agents = agents.items()
     agents.sort(key=lambda i: i[1])
     for uuid, name in agents:
-        opts.stdout.writelines([uuid[:n], '  ', name, '\n'])
+        _stdout.writelines([uuid[:n], ' ', name, '\n'])
 
-def status_agents(parser, opts):
-    agents = ControlConnector(opts.control_socket).call.status_agents()
+def status_agents(control_socket, min_uuid_len=1):
+    agents = ControlConnector(control_socket).call.status_agents()
     if not agents:
         return
     agents.sort(key=lambda x: x[1])
-    if not opts.min_uuid_len:
+    if not min_uuid_len:
         n = 36
     else:
-        n = max(_calc_min_uuid_length(agents), opts.min_uuid_len)
+        n = max(_calc_min_uuid_length(agents), min_uuid_len)
     width = max(5, min(58-n, max(len(x[0]) for x in agents)))
     fmt = '{} {:{}} {:>3} {:>6}\n'
-    opts.stderr.write(fmt.format(' '*n, 'AGENT', width, 'PRI', 'STATUS'))
+    _stderr.write(fmt.format(' '*n, 'AGENT', width, 'PRI', 'STATUS'))
     for uuid, name, priority, (pid, status) in agents:
         if priority is None:
             priority = ''
-        opts.stdout.write(fmt.format(uuid[:n], name, width, priority,
+        _stdout.write(fmt.format(uuid[:n], name, width, priority,
             ('running [{}]'.format(pid) if status is None else str(status))
              if pid else ''))
 
-def enable_agent(parser, opts):
-    agents = opts.aip.list_agents()
-    for query, uuids in search_agents(agents, opts.agent):
+def enable_agent(aip, onerror, patterns, priority='50'):
+    agents = aip.list_agents()
+    for query, uuids in search_agents(agents, patterns):
         if not uuids:
-            opts.stderr.write('{}: agent not found: {}\n'.format(
-                    opts.command, query))
+            onerror('agent not found: {}'.format(query))
         for uuid in uuids:
-            opts.stdout.write('Enabling {} {} with priority {}\n'.format(
-                    uuid, agents[uuid], opts.priority))
-            opts.aip.enable_agent(uuid, opts.priority)
+            _stdout.write('Enabling {} {} with priority {}\n'.format(
+                    uuid, agents[uuid], priority))
+            aip.enable_agent(uuid, priority=priority)
 
-def disable_agent(parser, opts):
-    agents = opts.aip.list_agents()
-    for query, uuids in search_agents(agents, opts.agent):
+def disable_agent(aip, onerror, patterns):
+    agents = aip.list_agents()
+    for query, uuids in search_agents(agents, patterns):
         if not uuids:
-            opts.stderr.write('{}: agent not found: {}\n'.format(
-                    opts.command, query))
+            onerror('agent not found: {}'.format(query))
         for uuid in uuids:
-            opts.stdout.write('Disabling {} {}\n'.format(uuid, agents[uuid]))
-            opts.aip.disable_agent(uuid)
+            _stdout.write('Disabling {} {}\n'.format(uuid, agents[uuid]))
+            aip.disable_agent(uuid)
 
-def start_agent(parser, opts):
-    agents = opts.aip.list_agents()
-    conn = ControlConnector(opts.control_socket)
-    for query, uuids in search_agents(agents, opts.agent):
+def start_agent(aip, onerror, pattern, control_socket):
+    agents = aip.list_agents()
+    conn = ControlConnector(control_socket)
+    for query, uuids in search_agents(agents, patterns):
         if not uuids:
-            opts.stderr.write('{}: agent not found: {}\n'.format(
-                    opts.command, query))
+            onerror('agent not found: {}'.format(query))
         for uuid in uuids:
-            opts.stdout.write('Starting {} {}\n'.format(uuid, agents[uuid]))
+            _stdout.write('Starting {} {}\n'.format(uuid, agents[uuid]))
             conn.call.start_agent(uuid)
 
-def stop_agent(parser, opts):
-    agents = opts.aip.list_agents()
-    conn = ControlConnector(opts.control_socket)
-    for query, uuids in search_agents(agents, opts.agent):
+def stop_agent(aip, onerror, pattern, control_socket):
+    agents = aip.list_agents()
+    conn = ControlConnector(control_socket)
+    for query, uuids in search_agents(agents, pattern):
         if not uuids:
-            opts.stderr.write('{}: agent not found: {}\n'.format(
-                    opts.command, query))
+            onerror('agent not found: {}'.format(query))
         for uuid in uuids:
-            opts.stdout.write('Stopping {} {}\n'.format(uuid, agents[uuid]))
+            _stdout.write('Stopping {} {}\n'.format(uuid, agents[uuid]))
             conn.call.stop_agent(uuid)
 
-def run_agent(parser, opts):
-    for directory in opts.directory:
-        ControlConnector(opts.control_socket).call.run_agent(directory)
+def run_agent(directories, control_socket):
+    for directory in directories:
+        ControlConnector(control_socket).call.run_agent(directory)
 
-def shutdown_agents(parser, opts):
-    ControlConnector(opts.control_socket).call.shutdown()
+def shutdown_agents(control_socket):
+    ControlConnector(control_socket).call.shutdown()
 
-def create_cgroups(parser, opts):
-    user = opts.user
-    group = opts.group
+def create_cgroups(onerror, user=None, group=None):
     if user is None:
         uid = os.getuid()
     else:
@@ -241,7 +236,8 @@ def create_cgroups(parser, opts):
             try:
                 uid = pwd.getpwnam(user).pw_uid
             except KeyError:
-                parser.error('unknown user: {}'.format(user))
+                onerror('unknown user: {}'.format(user))
+                return os.EX_NOUSER
     if group is None:
         gid = os.getgid()
     else:
@@ -251,7 +247,8 @@ def create_cgroups(parser, opts):
             try:
                 gid = grp.getgrnam(group).gr_gid
             except KeyError:
-                parser.error('unknown group: {}'.format(group))
+                onerror('unknown group: {}'.format(group))
+                return os.EX_NOUSER
     for name in resmon._cgroups_used:
         path = os.path.join(resmon._cgroups_root, name, 'volttron')
         if not os.path.exists(path):
@@ -260,8 +257,8 @@ def create_cgroups(parser, opts):
         os.chown(path, uid, gid)
 
 
-def send_agent(parser, opts):
-    ssh_dir = os.path.join(opts.volttron_home, 'ssh')
+def send_agent(volttron_home, wheels, host, port=2522):
+    ssh_dir = os.path.join(volttron_home, 'ssh')
     ssh_config = SSHConfig()
     host_keys = HostKeys()
     try:
@@ -277,10 +274,15 @@ def send_agent(parser, opts):
             if exc.errno != errno.ENOENT:
                 raise
     except (OSError, IOError, PasswordRequiredException, SSHException) as exc:
-        parser.error(exc)
-    host = ssh_config.lookup(opts.host)
-    hostname = host.get('hostname', opts.host)
-    port = host.get('port', opts.port)
+        onerror(str(exc))
+        if isinstance(exc, OSError):
+            return os.EX_OSERR
+        if isinstance(exc, IOError):
+            return os.EX_IOERR
+        return os.EX_SOFTWARE
+    host = ssh_config.lookup(host)
+    hostname = host.get('hostname', host)
+    port = host.get('port', port)
     address = hostname, port
     keys = host_keys.lookup(hostname)
     if not keys:
@@ -288,10 +290,10 @@ def send_agent(parser, opts):
     else:
         host_key = keys.get('ssh-rsa')
     if host_key is None:
-        opts.stderr.write('warning: no public key found for remote host\n')
+        _stderr.write('warning: no public key found for remote host\n')
     with contextlib.closing(CommsClient(
             address, host_key, socket.gethostname(), priv_key)) as client:
-        for wheel in opts.agent_wheel:
+        for wheel in wheels:
             with open(wheel) as file:
                 client.send_and_start_agent(file)
 
@@ -320,18 +322,19 @@ def main(argv=sys.argv):
     if have_restricted:
         install.add_argument('--verify', action='store_true', dest='verify_agents', 
             help='verify agent integrity during install')
-        install.add_argument('--no-verify', action='store_false',
-            dest='verify_agents', help=argparse.SUPPRESS)
+        install.add_argument('--no-verify', action='store_false', dest='verify_agents',
+            help=argparse.SUPPRESS)
     install.set_defaults(func=install_agent)
 
     remove = subparsers.add_parser('remove', help='remove agent')
-    remove.add_argument('agent', nargs='+', help='UUID or name of agent')
+    remove.add_argument('pattern', nargs='+', help='UUID or name of agent')
     remove.add_argument('-f', '--force', action='store_true',
         help='force removal of multiple agents')
-    remove.set_defaults(func=remove_agent)
+    remove.set_defaults(func=remove_agent, force=False)
 
     list_ = subparsers.add_parser('list', help='list installed agent')
-    list_.add_argument('pattern', nargs='*', help='UUID or name of agent (w/ optional wildcards)')
+    list_.add_argument('pattern', nargs='*',
+        help='UUID or name of agent')
     list_.add_argument('-n', dest='min_uuid_len', type=int, metavar='N',
         help='show at least N characters of UUID (0 to show all)')
     list_.set_defaults(func=list_agents, min_uuid_len=1)
@@ -343,29 +346,37 @@ def main(argv=sys.argv):
 
     enable = subparsers.add_parser('enable',
         help='enable agent to start automatically')
-    enable.add_argument('agent', nargs='+', help='UUID or name of agent')
+    enable.add_argument('pattern', nargs='+', help='UUID or name of agent')
     enable.add_argument('-p', '--priority', type=priority,
         help='2-digit priority from 00 to 99')
     enable.set_defaults(func=enable_agent, priority='50')
 
     disable = subparsers.add_parser('disable',
         help='prevent agent from start automatically')
-    disable.add_argument('agent', nargs='+', help='UUID or name of agent')
+    disable.add_argument('pattern', nargs='+', help='UUID or name of agent')
     disable.set_defaults(func=disable_agent)
 
     start = subparsers.add_parser('start',
         help='start installed agent')
-    start.add_argument('agent', nargs='+', help='UUID or name of agent')
+    start.add_argument('pattern', nargs='+', help='UUID or name of agent')
+    start.add_argument('--verify', action='store_true', dest='verify_agents', 
+        help='verify agent integrity during install')
+    start.add_argument('--no-verify', action='store_false', dest='verify_agents',
+        help=argparse.SUPPRESS)
     start.set_defaults(func=start_agent)
 
     stop = subparsers.add_parser('stop',
         help='stop agent')
-    stop.add_argument('agent', nargs='+', help='UUID or name of agent')
+    stop.add_argument('pattern', nargs='+', help='UUID or name of agent')
     stop.set_defaults(func=stop_agent)
 
     run = subparsers.add_parser('run',
         help='start any agent by path')
     run.add_argument('directory', nargs='+', help='path to agent directory')
+    run.add_argument('--verify', action='store_true', dest='verify_agents', 
+        help='verify agent integrity during install')
+    run.add_argument('--no-verify', action='store_false', dest='verify_agents',
+        help=argparse.SUPPRESS)
     run.set_defaults(func=run_agent)
 
     shutdown = subparsers.add_parser('shutdown',
@@ -399,10 +410,23 @@ def main(argv=sys.argv):
     opts.control_socket = expandall(opts.control_socket)
     opts.aip = aip.AIPplatform(opts)
     opts.aip.setup()
-    opts.stdout = sys.stdout
-    opts.stderr = sys.stderr
+    opts.onerror = lambda msg: _stderr.writelines([opts.command, ': ', msg, '\n'])
+    opts.parser = parser
+
+    argspec = inspect.getargspec(opts.func)
+    args = {}
+    for argname in argspec.args:
+        try:
+            args[argname] = getattr(opts, argname)
+        except AttributeError:
+            if argname.endswith('s'):
+                name = (argname[:-3]+'y') if argname.endswith('ies') else argname[-1]
+                try:
+                    args[argname] = getattr(opts, name)
+                except AttributeError:
+                    pass
     try:
-        opts.func(parser, opts)
+        return opts.func(**args)
     except RemoteError as e:
         e.print_tb()
 
