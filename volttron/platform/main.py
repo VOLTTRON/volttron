@@ -216,7 +216,7 @@ def main(argv=sys.argv):
 
     # Parse and expand options
     opts = parser.parse_args(argv[1:])
-    expandall = lambda string: os.path.expandvars(os.path.expanduser(string))
+    expandall = lambda string: os.path.expanduser(os.path.expandvars(string))
     opts.volttron_home = expandall(os.environ.get('VOLTTRON_HOME', '~/.volttron'))
     os.environ['VOLTTRON_HOME'] = opts.volttron_home
     opts.control_socket = expandall(opts.control_socket)

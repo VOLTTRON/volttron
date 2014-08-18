@@ -291,7 +291,7 @@ def _create_cert_ui(cn):
 
 def main(argv=sys.argv):
 
-    expandall = lambda string: os.path.expandvars(os.path.expanduser(string))
+    expandall = lambda string: os.path.expanduser(os.path.expandvars(string))
     home = expandall(os.environ.get('VOLTTRON_HOME', '~/.volttron'))
     os.environ['VOLTTRON_HOME'] = home
 
