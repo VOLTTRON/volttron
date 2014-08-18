@@ -338,16 +338,20 @@ class AIPplatform(object):
         self.agents.pop(agent_uuid, None)
         shutil.rmtree(os.path.join(self.install_dir, agent_uuid))
 
+    def agent_name(self, agent_uuid):
+        agent_path = os.path.join(self.install_dir, agent_uuid)
+        for agent_name in os.listdir(agent_path):
+            dist_info = os.path.join(
+                agent_path, agent_name, agent_name + '.dist-info')
+            if os.path.exists(dist_info):
+                return agent_name
+
     def list_agents(self):
         agents = {}
         for agent_uuid in os.listdir(self.install_dir):
-            agent_path = os.path.join(self.install_dir, agent_uuid)
-            for agent_name in os.listdir(agent_path):
-                dist_info = os.path.join(
-                    agent_path, agent_name, agent_name + '.dist-info')
-                if os.path.exists(dist_info):
-                    agents[agent_uuid] = agent_name
-                    break
+            agent_name = self.agent_name(agent_uuid)
+            if agent_name:
+                agents[agent_uuid] = agent_name
         return agents
 
     def active_agents(self):
