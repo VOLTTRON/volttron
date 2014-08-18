@@ -164,6 +164,8 @@ class ControlHandler(jsonrpc.BaseHandler):
         return self._env.aip.status_agents()
     def start_agent(self, agent_name):
         self._env.aip.start_agent(agent_name)
+    def run_agent(self, agent_path):
+        self._env.aip.launch_agent(agent_path)
     def stop_agent(self, agent_name):
         self._env.aip.stop_agent(agent_name)
     def shutdown(self):
