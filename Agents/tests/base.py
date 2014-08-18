@@ -26,13 +26,16 @@ VCTRL = "env/bin/volttron-ctl"
 # STOP_AGENT = "stop-agent"
 # START_AGENT = "start-agent"
 # BUILD_AGENT = "volttron/scripts/build-agent.sh"
-CONFIG_FILE = "test-config.ini"
-SMAP_FILE = "test-smap.ini"
-TEST_CONFIG_FILE = 'base-platform-test.json'
-SMAP_KEY_FILE = 'test-smap-key.ini'
-SMAP_UUID_FILE = 'test-smap-uuid.ini'
 
-PLATFORM_CONFIG = """
+#Filenames for the config files which are created during setup and then
+#passed on the command line
+TMP_PLATFORM_CONFIG_FILENAME = "test-config.ini"
+TMP_SMAP_CONFIG_FILENAME = "test-smap.ini"
+
+#Used to fill in TWISTED_CONFIG template
+TEST_CONFIG_FILE = 'base-platform-test.json'
+
+PLATFORM_CONFIG_UNRESTRICTED = """
 [agent-exchange]
 append-pid = false
 
@@ -42,6 +45,9 @@ agents-dir = {tmpdir}/Agents
 autostart-dir = {tmpdir}/autostart
 bin-dir = {tmpdir}/bin
 run-dir = {tmpdir}/tmp
+
+no-resource-monitor
+no-verify-agents
 
 """
 
@@ -60,6 +66,13 @@ interval = 1
 
 """
 
+UNRESTRICTED = 0
+VERIFY_ONLY = 1
+RESOURCE_CHECK_ONLY = 2
+RESTRICTED = 3
+
+MODES = (UNRESTRICTED, VERIFY_ONLY, RESOURCE_CHECK_ONLY)
+
 rel_path = '../../'
 
 
@@ -69,27 +82,40 @@ class BasePlatformTest(unittest.TestCase):
         self.originaldir = os.getcwd()
         os.chdir(rel_path) 
     
-    def startup_platform(self, platform_config):
+    def startup_platform(self, platform_config, mode=UNRESTRICTED):
         try:
             config = json.loads(open(platform_config, 'r').read())
         except Exception as e:
             sys.stderr.write (str(e))
             self.fail("Could not load configuration file for tests")
+        
         self.tmpdir = tempfile.mkdtemp()
         config['tmpdir'] = self.tmpdir
         
-        pconfig = os.path.join(self.tmpdir, CONFIG_FILE)
-        with closing(open(pconfig, 'w')) as cfg:
-            cfg.write(PLATFORM_CONFIG.format(**config))
+        pconfig = os.path.join(self.tmpdir, TMP_PLATFORM_CONFIG_FILENAME)
+        
+        self.mode = mode
+        
+        self.assertIn(self.mode, MODES, 'Invalid platform mode set: '+str(mode))
+        
+        if self.mode == UNRESTRICTED:
+            with closing(open(pconfig, 'w')) as cfg:
+                cfg.write(PLATFORM_CONFIG_UNRESTRICTED.format(**config))
+        else:
+            self.fail("Platform mode not implemented: "+str(mode))
 
-        tconfig = os.path.join(self.tmpdir, SMAP_FILE)
+        tconfig = os.path.join(self.tmpdir, TMP_SMAP_CONFIG_FILENAME)
         with closing(open(tconfig, 'w')) as cfg:
             cfg.write(TWISTED_CONFIG.format(**config))
 
         lfile = os.path.join(self.tmpdir, "volttron.log")
 
-        self.p_process = subprocess.Popen([VSTART, "-c", pconfig, "-v", "-l", lfile])
-        self.t_process = subprocess.Popen(["twistd", "-n", "smap", tconfig])
+        pparams = [VSTART, "-c", pconfig, "-v", "-l", lfile]
+        print pparams
+        self.p_process = subprocess.Popen(pparams)
+        tparams = ["twistd", "-n", "smap", tconfig]
+        print tparams
+        self.t_process = subprocess.Popen(tparams)
         #self.t_process = subprocess.Popen(["twistd", "-n", "smap", "test-smap.ini"])
 
 
@@ -118,7 +144,10 @@ class BasePlatformTest(unittest.TestCase):
         agent_wheel = self.build_agentpackage(agent_dir)
         self.assertIsNotNone(agent_wheel,"Agent wheel was not built")
         results = subprocess.check_output([VCTRL,CTL_INSTALL,agent_wheel])
-        self.assertTrue(results.startwith('Unpacking to: '))
+        if self.mode == UNRESTRICTED or self.mode == RESOURCE_CHECK_ONLY:
+            self.assertTrue(len(results) == 0)
+        elif self.mode == RESTRICTED or self.mode == VERIFY_ONLY:    
+            self.assertTrue(results.startswith('Unpacking to: '))
 
 
     def shutdown_platform(self):

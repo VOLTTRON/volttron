@@ -11,28 +11,29 @@ from volttron.platform.agent import PublishMixin
 """
 Test 
 """
+AGENT_DIR = "Agents/ListenerAgent"
+AGENT_NAME = "listeneragent-0.1"
+WHEEL_NAME = "listeneragent-0.1-py2-none-any.whl"
 
-archiver_dict = {"executable": "archiveragent-0.1-py2.7.egg",
-                 "launch_file": "Agents/ArchiverAgent/archiver-test-deploy.service",
-                 "agent_name": "archiver-test-deploy.service"}
-
-
-class ArchiverTests(base.BasePlatformTest):
+class ListenerTests(base.BasePlatformTest):
 
     def setUp(self):
-        super(ArchiverTests, self).setUp()
+        super(ListenerTests, self).setUp()
         self.startup_platform("base-platform-test.json")
         
     def tearDown(self):
-        super(ArchiverTests, self).tearDown()
+        super(ListenerTests, self).tearDown()
     
     def test_build(self):
-        agent_wheel = self.build_agentpackage("Agents/ArchiverAgent")
+        agent_wheel = self.build_agentpackage(AGENT_DIR)
         self.assertIsNotNone(agent_wheel,"Agent wheel was not built")
-        self.assertTrue(agent_wheel.endswith("archiveragent-0.1-py2-none-any.whl"))
+        self.assertTrue(agent_wheel.endswith(WHEEL_NAME))
      
     def test_build_and_install(self):
-        self.build_and_install_agent("Agents/ArchiverAgent")
+        self.build_and_install_agent(AGENT_DIR)
+
+    def test_build_install_and_start(self):
+        self.build_install_run_agent(AGENT_DIR, AGENT_NAME)
 
 # def build_and_setup_archiver():
 #     print "build_and_setup_archiver"
