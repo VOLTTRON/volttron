@@ -327,7 +327,7 @@ def main(argv=sys.argv):
     shutdown.set_defaults(func=shutdown_agents)
 
     if have_restricted:
-        send = subparsers.add_parser('send-agent',
+        send = subparsers.add_parser('send',
             help='send mobile agent to and start on a remote platform')
         send.add_argument('-p', '--port', type=int, metavar='NUMBER',
             help='alternate port number to connect to')
