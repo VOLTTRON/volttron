@@ -57,6 +57,9 @@
 # pylint: disable=W0142,W0403
 #}}}
 
+import gevent.monkey
+gevent.monkey.patch_all()
+
 import argparse
 from contextlib import closing
 import logging
