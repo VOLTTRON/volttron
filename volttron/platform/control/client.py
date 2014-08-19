@@ -190,7 +190,7 @@ def disable_agent(aip, onerror, patterns):
             _stdout.write('Disabling {} {}\n'.format(uuid, agents[uuid]))
             aip.disable_agent(uuid)
 
-def start_agent(aip, onerror, pattern, control_socket):
+def start_agent(aip, onerror, patterns, control_socket):
     agents = aip.list_agents()
     conn = ControlConnector(control_socket)
     for query, uuids in search_agents(agents, patterns):
@@ -200,10 +200,10 @@ def start_agent(aip, onerror, pattern, control_socket):
             _stdout.write('Starting {} {}\n'.format(uuid, agents[uuid]))
             conn.call.start_agent(uuid)
 
-def stop_agent(aip, onerror, pattern, control_socket):
+def stop_agent(aip, onerror, patterns, control_socket):
     agents = aip.list_agents()
     conn = ControlConnector(control_socket)
-    for query, uuids in search_agents(agents, pattern):
+    for query, uuids in search_agents(agents, patterns):
         if not uuids:
             onerror('agent not found: {}'.format(query))
         for uuid in uuids:
