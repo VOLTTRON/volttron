@@ -420,12 +420,13 @@ def main(argv=sys.argv):
             args[argname] = getattr(opts, argname)
         except AttributeError:
             if argname.endswith('s'):
-                name = (argname[:-3]+'y') if argname.endswith('ies') else argname[-1]
+                name = (argname[:-3]+'y') if argname.endswith('ies') else argname[:-1]
                 try:
                     args[argname] = getattr(opts, name)
                 except AttributeError:
                     pass
     try:
+        print args
         return opts.func(**args)
     except RemoteError as e:
         e.print_tb()
