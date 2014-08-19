@@ -8,12 +8,15 @@ import tempfile
 import unittest
 
 from contextlib import closing
+from StringIO import StringIO
 
-from volttron.platform.control import (CTL_STATUS,
-                                       CTL_INSTALL,
-                                       CTL_STATUS,
-                                       CTL_START,
-                                       CTL_STOP)
+from volttron.platform import aip
+from volttron.platform.control import server
+# from volttron.platform.control import (CTL_STATUS,
+#                                        CTL_INSTALL,
+#                                        CTL_STATUS,
+#                                        CTL_START,
+#                                        CTL_STOP)
 
 #All paths relative to proj-dir/volttron
 VSTART = "env/bin/volttron"
@@ -49,6 +52,8 @@ run-dir = {tmpdir}/tmp
 no-resource-monitor
 no-verify-agents
 
+control-socket = {tmpdir}/run/control
+
 """
 
 TWISTED_CONFIG = """
@@ -81,6 +86,19 @@ class BasePlatformTest(unittest.TestCase):
     def setUp(self):
         self.originaldir = os.getcwd()
         os.chdir(rel_path) 
+        self.tmpdir = tempfile.mkdtemp()
+        os.environ['VOLTTRON_HOME'] = self.tmpdir
+        
+    def setup_connector(self):
+        path = os.path.expandvars('$VOLTTRON_HOME/run/control')
+        
+        tries = 0
+        max_tries = 5
+        while(not os.path.exists(path) and tries < max_tries):
+            time.sleep(5)
+            tries += 1
+            
+        self.conn= server.ControlConnector(path)
     
     def startup_platform(self, platform_config, mode=UNRESTRICTED):
         try:
@@ -89,7 +107,7 @@ class BasePlatformTest(unittest.TestCase):
             sys.stderr.write (str(e))
             self.fail("Could not load configuration file for tests")
         
-        self.tmpdir = tempfile.mkdtemp()
+#         self.tmpdir = tempfile.mkdtemp()
         config['tmpdir'] = self.tmpdir
         
         pconfig = os.path.join(self.tmpdir, TMP_PLATFORM_CONFIG_FILENAME)
@@ -111,24 +129,19 @@ class BasePlatformTest(unittest.TestCase):
         lfile = os.path.join(self.tmpdir, "volttron.log")
 
         pparams = [VSTART, "-c", pconfig, "-v", "-l", lfile]
-        print pparams
         self.p_process = subprocess.Popen(pparams)
         tparams = ["twistd", "-n", "smap", tconfig]
-        print tparams
         self.t_process = subprocess.Popen(tparams)
         #self.t_process = subprocess.Popen(["twistd", "-n", "smap", "test-smap.ini"])
 
 
     def build_agentpackage(self, distdir):
         pwd = os.getcwd()
-        print (os.getcwd())
         try:
             basepackage = os.path.join(self.tmpdir,distdir)
-            print(os.path.abspath(distdir))
             shutil.copytree(os.path.abspath(distdir), basepackage)
             
             os.chdir(basepackage)
-            print(distdir)
             sys.argv = ['', 'bdist_wheel']
             exec(compile(open('setup.py').read(), 'setup.py', 'exec'))
     
@@ -140,15 +153,46 @@ class BasePlatformTest(unittest.TestCase):
             
         return wheel_file_and_path
 
-    def build_and_install_agent(self, agent_dir):
+
+    def direct_buid_install_agent(self, agent_dir):
         agent_wheel = self.build_agentpackage(agent_dir)
         self.assertIsNotNone(agent_wheel,"Agent wheel was not built")
-        results = subprocess.check_output([VCTRL,CTL_INSTALL,agent_wheel])
-        if self.mode == UNRESTRICTED or self.mode == RESOURCE_CHECK_ONLY:
-            self.assertTrue(len(results) == 0)
-        elif self.mode == RESTRICTED or self.mode == VERIFY_ONLY:    
-            self.assertTrue(results.startswith('Unpacking to: '))
+        
+        opts = type('Options', (), {'verify_agents': False, 'volttron_home': self.tmpdir})()
+        test_aip = aip.AIPplatform(opts)
+        test_aip.setup()
+        uuid = test_aip.install_agent(agent_wheel)
+        #aip volttron_home, verify_agents
+        return uuid
+#         conn.call.start_agent()
 
+
+    def direct_build_install_run_agent(self, agent_dir):
+        agent_uuid = self.direct_buid_install_agent(agent_dir)
+        self.direct_start_agent(agent_uuid)  
+            
+    def direct_start_agent(self, agent_uuid):
+        
+        self.conn.call.start_agent(agent_uuid)
+        time.sleep(3)
+        status = self.conn.call.status_agents()
+        self.assertEquals(len(status[0]), 4, 'Unexpected status message')
+        status_uuid = status[0][0]
+        self.assertEquals(status_uuid, agent_uuid, "Agent status shows error")
+        
+        self.assertEquals(len(status[0][3]), 2, 'Unexpected agent status message')
+        status_agent_status = status[0][3][1]
+        self.assertEquals(status_agent_status, 0, "Agent status shows error")
+        print status
+        
+    def direct_stop_agent(self, agent_uuid):
+        result = self.conn.stop_agent(agent_uuid)
+        print result
+
+            
+    def check_default_dir(self, dir_to_check):
+        default_dir = os.path.expanduser("~/.volttron/agents")
+        self.assertNotIn(default_dir, dir_to_check, "Platform is using defaults")
 
     def shutdown_platform(self):
         '''Stop platform here'''
@@ -172,3 +216,29 @@ class BasePlatformTest(unittest.TestCase):
             sys.stderr.write( str(e))
         finally:
             os.chdir(self.originaldir)
+            
+
+#     def build_install_run_agent(self, agent_dir, agent_name):
+#         self.build_and_install_agent(agent_dir)
+#         results = subprocess.check_output([VCTRL,CTL_START,agent_name])
+#         self.assertTrue(len(results) == 0)
+#         results = subprocess.check_output([VCTRL,CTL_STATUS])
+#         print results
+#         self.assertIn('running', results, "Agent was not started")
+#         
+
+#     def build_and_install_agent(self, agent_dir):
+#         agent_wheel = self.build_agentpackage(agent_dir)
+#         self.assertIsNotNone(agent_wheel,"Agent wheel was not built")
+#         
+#         sys.stderr = std_err = StringIO()
+#         
+#         results = subprocess.check_output([VCTRL,CTL_INSTALL,agent_wheel])
+#         print ("results: "+results)
+#         if self.mode == UNRESTRICTED or self.mode == RESOURCE_CHECK_ONLY:
+#             self.assertTrue(len(results) == 0)
+#             proc_out = std_err.getvalue().split(':')
+#             print (proc_out)
+#             self.check_default_dir(proc_out[1].strip())
+#         elif self.mode == RESTRICTED or self.mode == VERIFY_ONLY:    
+#             self.assertTrue(results.startswith('Unpacking to: '))
