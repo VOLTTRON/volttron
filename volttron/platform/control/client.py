@@ -421,7 +421,6 @@ def main(argv=sys.argv):
                 except AttributeError:
                     pass
     try:
-        print args
         return opts.func(**args)
     except RemoteError as e:
         e.print_tb()
