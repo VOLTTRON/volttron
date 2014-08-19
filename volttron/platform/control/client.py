@@ -3,18 +3,18 @@
 
 # Copyright (c) 2013, Battelle Memorial Institute
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
-# are met: 
-# 
+# are met:
+#
 # 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer. 
+#    notice, this list of conditions and the following disclaimer.
 # 2. Redistributions in binary form must reproduce the above copyright
 #    notice, this list of conditions and the following disclaimer in
 #    the documentation and/or other materials provided with the
-#    distribution. 
-# 
+#    distribution.
+#
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
 # "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
 # LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -26,7 +26,7 @@
 # THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-# 
+#
 # The views and conclusions contained in the software and documentation
 # are those of the authors and should not be interpreted as representing
 # official policies, either expressed or implied, of the FreeBSD
@@ -41,7 +41,7 @@
 # responsibility for the accuracy, completeness, or usefulness or any
 # information, apparatus, product, software, or process disclosed, or
 # represents that its use would not infringe privately owned rights.
-# 
+#
 # Reference herein to any specific commercial product, process, or
 # service by trade name, trademark, manufacturer, or otherwise does not
 # necessarily constitute or imply its endorsement, recommendation, or
@@ -49,7 +49,7 @@
 # Battelle Memorial Institute. The views and opinions of authors
 # expressed herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
-# 
+#
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
@@ -70,11 +70,6 @@ from flexjsonrpc.core import RemoteError
 from .. import aip
 from .. import config
 from .server import ControlConnector
-from . import (CTL_STATUS,
-               CTL_INSTALL,
-               CTL_STATUS,
-               CTL_START,
-               CTL_STOP)
 
 try:
     import volttron.restricted
@@ -84,7 +79,7 @@ else:
     import contextlib
     import errno
     import socket
-    
+
     from paramiko import RSAKey, PasswordRequiredException, SSHException
     from paramiko.config import SSHConfig
     from paramiko.hostkeys import HostKeys
@@ -320,7 +315,7 @@ def main(argv=sys.argv):
     install = subparsers.add_parser('install', help='install agent from wheel')
     install.add_argument('wheel', nargs='+', help='path to agent wheel')
     if have_restricted:
-        install.add_argument('--verify', action='store_true', dest='verify_agents', 
+        install.add_argument('--verify', action='store_true', dest='verify_agents',
             help='verify agent integrity during install')
         install.add_argument('--no-verify', action='store_false', dest='verify_agents',
             help=argparse.SUPPRESS)
@@ -339,7 +334,7 @@ def main(argv=sys.argv):
         help='show at least N characters of UUID (0 to show all)')
     list_.set_defaults(func=list_agents, min_uuid_len=1)
 
-    status = subparsers.add_parser(CTL_STATUS, help='show status of agents')
+    status = subparsers.add_parser('status', help='show status of agents')
     status.add_argument('-n', dest='min_uuid_len', type=int, metavar='N',
         help='show at least N characters of UUID (0 to show all)')
     status.set_defaults(func=status_agents, min_uuid_len=1)
@@ -359,7 +354,7 @@ def main(argv=sys.argv):
     start = subparsers.add_parser('start',
         help='start installed agent')
     start.add_argument('pattern', nargs='+', help='UUID or name of agent')
-    start.add_argument('--verify', action='store_true', dest='verify_agents', 
+    start.add_argument('--verify', action='store_true', dest='verify_agents',
         help='verify agent integrity during install')
     start.add_argument('--no-verify', action='store_false', dest='verify_agents',
         help=argparse.SUPPRESS)
@@ -373,7 +368,7 @@ def main(argv=sys.argv):
     run = subparsers.add_parser('run',
         help='start any agent by path')
     run.add_argument('directory', nargs='+', help='path to agent directory')
-    run.add_argument('--verify', action='store_true', dest='verify_agents', 
+    run.add_argument('--verify', action='store_true', dest='verify_agents',
         help='verify agent integrity during install')
     run.add_argument('--no-verify', action='store_false', dest='verify_agents',
         help=argparse.SUPPRESS)
