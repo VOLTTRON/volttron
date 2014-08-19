@@ -160,6 +160,8 @@ def authorize_user(uid, gid, users=None, groups=None, allow_root=True):
 class ControlHandler(jsonrpc.BaseHandler):
     def __init__(self, env):
         self._env = env
+    def clear_status(self, clear_all=False):
+        self._env.aip.clear_status(clear_all)
     def status_agents(self):
         return self._env.aip.status_agents()
     def start_agent(self, agent_name):

@@ -356,6 +356,19 @@ class AIPplatform(object):
         return {agent_uuid: execenv.name
                 for agent_uuid, execenv in self.agents.iteritems()}
 
+    def clear_status(self, clear_all=False):
+        remove = []
+        for agent_uuid, execenv in self.agents.iteritems():
+            if execenv.process.poll() is not None:
+                if clear_all:
+                    remove.append(agent_uuid)
+                else:
+                    path = os.path.join(self.install_dir, agent_uuid)
+                    if not os.path.exists(path):
+                        remove.append(agent_uuid)
+        for agent_uuid in remove:
+            self.agents.pop(agent_uuid, None)
+
     def status_agents(self):
         agents = self.list_agents()
         agents.update(self.active_agents())

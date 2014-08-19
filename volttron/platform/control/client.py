@@ -169,6 +169,9 @@ def status_agents(control_socket, min_uuid_len=1):
             ('running [{}]'.format(pid) if status is None else str(status))
              if pid else ''))
 
+def clear_status(control_socket, clear_all=False):
+    ControlConnector(control_socket).call.clear_status(clear_all)
+
 def enable_agent(aip, onerror, patterns, priority='50'):
     agents = aip.list_agents()
     for query, uuids in search_agents(agents, patterns):
@@ -286,6 +289,11 @@ def main(argv=sys.argv):
     status.add_argument('-n', dest='min_uuid_len', type=int, metavar='N',
         help='show at least N characters of UUID (0 to show all)')
     status.set_defaults(func=status_agents, min_uuid_len=1)
+
+    clear = subparsers.add_parser('clear', help='clear status of defunct agents')
+    clear.add_argument('-a', '--all', dest='clear_all', action='store_true',
+        help='clear the status of all agents')
+    clear.set_defaults(func=clear_status, clear_all=False)
 
     enable = subparsers.add_parser('enable',
         help='enable agent to start automatically')
