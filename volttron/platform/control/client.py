@@ -76,15 +76,8 @@ try:
 except ImportError:
     have_restricted = False
 else:
-    import contextlib
-    import errno
-    import socket
-
-    from paramiko import RSAKey, PasswordRequiredException, SSHException
-    from paramiko.config import SSHConfig
-    from paramiko.hostkeys import HostKeys
-    from volttron.restricted import resmon
-    from volttron.restricted.comms import CommsClient
+    from paramiko import PasswordRequiredException, SSHException
+    from volttron.restricted import comms, resmon
     have_restricted = True
 
 _stdout = sys.stdout
@@ -252,22 +245,10 @@ def create_cgroups(onerror, user=None, group=None):
         os.chown(path, uid, gid)
 
 
-def send_agent(volttron_home, wheels, host, port=2522):
+def send_agent(onerror, volttron_home, wheels, host, port=2522):
     ssh_dir = os.path.join(volttron_home, 'ssh')
-    ssh_config = SSHConfig()
-    host_keys = HostKeys()
     try:
-        try:
-            ssh_config.parse(open(os.path.join(ssh_dir, 'config')))
-        except IOError as exc:
-            if exc.errno != errno.ENOENT:
-                raise
-        priv_key = RSAKey(filename=os.path.join(ssh_dir, 'id_rsa'))
-        try:
-            host_keys.load(os.path.join(ssh_dir, 'known_hosts'))
-        except IOError as exc:
-            if exc.errno != errno.ENOENT:
-                raise
+        host_key, client = comms.client(ssh_dir, host, port)
     except (OSError, IOError, PasswordRequiredException, SSHException) as exc:
         onerror(str(exc))
         if isinstance(exc, OSError):
@@ -275,19 +256,9 @@ def send_agent(volttron_home, wheels, host, port=2522):
         if isinstance(exc, IOError):
             return os.EX_IOERR
         return os.EX_SOFTWARE
-    host = ssh_config.lookup(host)
-    hostname = host.get('hostname', host)
-    port = host.get('port', port)
-    address = hostname, port
-    keys = host_keys.lookup(hostname)
-    if not keys:
-        host_key = None
-    else:
-        host_key = keys.get('ssh-rsa')
     if host_key is None:
         _stderr.write('warning: no public key found for remote host\n')
-    with contextlib.closing(CommsClient(
-            address, host_key, socket.gethostname(), priv_key)) as client:
+    with client:
         for wheel in wheels:
             with open(wheel) as file:
                 client.send_and_start_agent(file)
@@ -384,7 +355,7 @@ def main(argv=sys.argv):
         send.add_argument('-p', '--port', type=int, metavar='NUMBER',
             help='alternate port number to connect to')
         send.add_argument('host', help='DNS name or IP address of host')
-        send.add_argument('agent_wheel', nargs='+',
+        send.add_argument('wheel', nargs='+',
             help='agent package to send')
         send.set_defaults(func=send_agent, port=2522)
 
