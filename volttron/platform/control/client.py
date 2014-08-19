@@ -152,7 +152,7 @@ def list_agents(aip, onerror, patterns=None, min_uuid_len=1):
     else:
         n = max(_calc_min_uuid_length(agents), min_uuid_len)
     agents = agents.items()
-    agents.sort(key=lambda i: i[1])
+    agents.sort(key=lambda x: (x[1], x[0]))
     for uuid, name in agents:
         _stdout.writelines([uuid[:n], ' ', name, '\n'])
 
@@ -160,11 +160,11 @@ def status_agents(control_socket, min_uuid_len=1):
     agents = ControlConnector(control_socket).call.status_agents()
     if not agents:
         return
-    agents.sort(key=lambda x: x[1])
+    agents.sort(key=lambda x: (x[1], x[0]))
     if not min_uuid_len:
         n = 36
     else:
-        n = max(_calc_min_uuid_length(agents), min_uuid_len)
+        n = max(_calc_min_uuid_length(zip(*agents)[0]), min_uuid_len)
     width = max(5, min(58-n, max(len(x[0]) for x in agents)))
     fmt = '{} {:{}} {:>3} {:>6}\n'
     _stderr.write(fmt.format(' '*n, 'AGENT', width, 'PRI', 'STATUS'))
