@@ -61,10 +61,8 @@ import gevent.monkey
 gevent.monkey.patch_all()
 
 import argparse
-import grp
 import inspect
 import os
-import pwd
 import re
 import sys
 
@@ -218,35 +216,11 @@ def shutdown_agents(control_socket):
     ControlConnector(control_socket).call.shutdown()
 
 def create_cgroups(onerror, user=None, group=None):
-    if user is None:
-        uid = os.getuid()
-    else:
-        try:
-            uid = int(user)
-        except ValueError:
-            try:
-                uid = pwd.getpwnam(user).pw_uid
-            except KeyError:
-                onerror('unknown user: {}'.format(user))
-                return os.EX_NOUSER
-    if group is None:
-        gid = os.getgid()
-    else:
-        try:
-            gid = int(group)
-        except ValueError:
-            try:
-                gid = grp.getgrnam(group).gr_gid
-            except KeyError:
-                onerror('unknown group: {}'.format(group))
-                return os.EX_NOUSER
-    for name in resmon._cgroups_used:
-        path = os.path.join(resmon._cgroups_root, name, 'volttron')
-        if not os.path.exists(path):
-            os.mkdir(path, 0775)
-        os.chmod(path, 0775)
-        os.chown(path, uid, gid)
-
+    try:
+        resmon.create_cgroups(user=user, group=group)
+    except ValueError as exc:
+        onerror(str(exc))
+        return os.EX_NOUSER
 
 def send_agent(onerror, volttron_home, wheels, host, port=2522):
     ssh_dir = os.path.join(volttron_home, 'ssh')
