@@ -61,7 +61,7 @@ from setuptools import setup, find_packages
 
 install_requires = [
     'avro>=1.7,<1.8',
-    'BACpypes>=0.9,<0.10',
+    'BACpypes>=0.10,<0.11',
     'flexible-jsonrpc',
     'gevent>=0.13,<0.14',
     'nose>=1.3.3,<1.3.4',
