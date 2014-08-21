@@ -1,0 +1,5 @@
+{
+	"agentid": "MobileExample",
+	"command_to_execute": "ps aux | grep python",
+	"results_csv": "results.csv"
+}

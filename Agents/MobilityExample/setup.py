@@ -53,51 +53,24 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
+
 #}}}
 
-#from distutils.core import setup
 from setuptools import setup, find_packages
 
+#get environ for agent name/identifier
+packages = find_packages('.')
+package = packages[0]
 
-install_requires = [
-    'avro>=1.7,<1.8',
-    'BACpypes>=0.10,<0.11',
-    'flexible-jsonrpc',
-    'gevent>=0.13,<0.14',
-    'nose>=1.3.3,<1.3.4',
-    'numpy>=1.8,<1.9',
-    'posix-clock',
-    'pymodbus>=1.2,<1.3',
-    'pyOpenSSL>=0.13,<0.14',
-    'python-dateutil>=2,<3',
-    'pyzmq>=14.3,<14.4',
-    'requests>=2.2,<2.3',
-    'setuptools',
-    'simplejson>=3.3,<3.4',
-    'Smap==2.0.24c780d',
-    'Twisted>=13,<14',
-    'zope.interface>=4.0,<4.1',
-    'wheel>=0.24,<0.25'
-]
+setup(
+    name = package + 'agent',
+    version = "0.1",
+    install_requires = ['volttron'],
+    packages = packages,
+    entry_points = {
+        'setuptools.installation': [
+            'eggsecutable = ' + package + '.agent:main',
+        ]
+    }
+)
 
-
-if __name__ == '__main__':
-    setup(
-        name = 'volttron',
-        version = '0.2',
-        description = 'Agent Execution Platform',
-        author = 'Volttron Team',
-        author_email = 'bora@pnnl.gov',
-        url = 'http://www.pnnl.gov',
-        packages = find_packages('.'),
-        install_requires = install_requires,
-        entry_points = {
-            'console_scripts': [
-                'volttron = volttron.platform.main:_main',
-                'volttron-ctl = volttron.platform.control.client:_main',
-                'volttron-pkg = volttron.platform.packaging:_main',
-            ]
-        },
-        test_suite = 'nose.collector',
-        zip_safe = False,
-    )

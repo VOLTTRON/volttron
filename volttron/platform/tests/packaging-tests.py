@@ -98,7 +98,6 @@ zip_safe = False,
 
 
 
-            auth.si
             print('successful!')
 
     def test_can_extract_package(self):
