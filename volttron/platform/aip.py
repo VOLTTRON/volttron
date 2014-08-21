@@ -392,6 +392,20 @@ class AIPplatform(object):
                  self.agent_status(agent_uuid))
                 for agent_uuid, agent_name in agents.iteritems()]
 
+    def tag_agent(self, agent_uuid, tag):
+        tag_file = os.path.join(self.install_dir, agent_uuid, 'tag')
+        if not tag:
+            with ignore_enoent:
+                os.unlink(tag_file)
+        else:
+            with open(tag_file, 'w') as file:
+                file.write(tag[:64])
+
+    def agent_tag(self, agent_uuid):
+        tag_file = os.path.join(self.install_dir, agent_uuid, 'tag')
+        with ignore_enoent, open(tag_file, 'r') as file:
+            return file.readline(64)
+
     def _agent_priority(self, agent_uuid):
         autostart = os.path.join(self.install_dir, agent_uuid, 'AUTOSTART')
         with ignore_enoent, open(autostart) as file:

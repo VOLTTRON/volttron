@@ -84,26 +84,52 @@ else:
 _stdout = sys.stdout
 _stderr = sys.stderr
 
+def search_agent(agents, query):
+    strings = re.split(r'([*?])', query)
+    parts = ['^']
+    if len(strings) == 1:
+        parts.append(re.escape(query))
+    else:
+        parts.extend('.*' if s == '*' else
+                     '.' if s == '?' else re.escape(s)
+                     for s in strings)
+        parts.append('$')
+    regex = re.compile(''.join(parts))
+    return [uuid for uuid, name in agents.iteritems()
+            if regex.search(uuid) or regex.search(name)]
+
 def search_agents(agents, queries):
     for query in queries:
-        strings = re.split(r'([*?])', query)
-        parts = ['^']
-        if len(strings) == 1:
-            parts.append(re.escape(query))
-        else:
-            parts.extend('.*' if s == '*' else
-                         '.' if s == '?' else re.escape(s)
-                         for s in strings)
-            parts.append('$')
-        regex = re.compile(''.join(parts))
-        yield query, [uuid for uuid, name in agents.iteritems()
-                      if regex.search(uuid) or regex.search(name)]
+        yield query, search_agent(agents, query)
 
 def install_agent(aip, wheels):
     for wheel in wheels:
         uuid = aip.install_agent(wheel)
         name = aip.agent_name(uuid)
         _stdout.write('Installed {} as {} {}\n'.format(wheel, uuid, name))
+
+def tag_agent(aip, onerror, agent, tag=None, remove=False):
+    assert not (tag and remove)
+    agents = aip.list_agents()
+    uuids = search_agent(agents, agent)
+    if not uuids:
+        onerror('agent not found: {}'.format(agent))
+    elif len(uuids) > 1:
+        onerror('query returned multiple agents: {}'.format(agent))
+    else:
+        uuid, = uuids
+        name = agents[uuid]
+        if not tag:
+            if remove:
+                _stdout.write('Removing tag for {} {}\n'.format(uuid, name))
+                aip.tag_agent(uuid, None)
+            else:
+                tag = aip.agent_tag(uuid)
+                if tag is not None:
+                    _stdout.writelines([tag, '\n'])
+        else:
+            _stdout.write('Tagging {} {}\n'.format(uuid, name))
+            aip.tag_agent(uuid, tag)
 
 def remove_agent(aip, onerror, patterns, force=False):
     agents = aip.list_agents()
@@ -148,6 +174,9 @@ def list_agents(aip, onerror, patterns=None, min_uuid_len=1):
     agents = agents.items()
     agents.sort(key=lambda x: (x[1], x[0]))
     for uuid, name in agents:
+        tag = aip.agent_tag(uuid)
+        if tag is not None:
+            name += ' ({})'.format(tag)
         _stdout.writelines([uuid[:n], ' ', name, '\n'])
 
 def status_agents(control_socket, min_uuid_len=1):
@@ -271,6 +300,13 @@ def main(argv=sys.argv):
         install.add_argument('--no-verify', action='store_false', dest='verify_agents',
             help=argparse.SUPPRESS)
     install.set_defaults(func=install_agent)
+
+    tag = subparsers.add_parser('tag', help='set, show, or remove agent tag')
+    tag.add_argument('agent', help='UUID or name of agent')
+    group = tag.add_mutually_exclusive_group()
+    group.add_argument('tag', nargs='?', const=None, help='tag to give agent')
+    group.add_argument('-r', '--remove', action='store_true', help='remove tag')
+    tag.set_defaults(func=tag_agent, tag=None, remove=False)
 
     remove = subparsers.add_parser('remove', help='remove agent')
     remove.add_argument('pattern', nargs='+', help='UUID or name of agent')
