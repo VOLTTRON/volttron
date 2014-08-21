@@ -210,6 +210,22 @@ def log_stream(name, agent, pid, path, stream):
         log.handle(record)
 
 
+class IgnoreErrno(object):
+    ignore = []
+    def __init__(self, errno, *more):
+        self.ignore = [errno]
+        self.ignore.extend(more)
+    def __enter__(self):
+        return
+    def __exit__(self, exc_type, exc_value, traceback):
+        try:
+            return exc_value.errno in self.ignore
+        except AttributeError:
+            pass
+
+ignore_enoent = IgnoreErrno(errno.ENOENT)
+
+
 class ExecutionEnvironment(object):
     '''Environment reserved for agent execution.
 
@@ -378,12 +394,8 @@ class AIPplatform(object):
 
     def _agent_priority(self, agent_uuid):
         autostart = os.path.join(self.install_dir, agent_uuid, 'AUTOSTART')
-        try:
-            with open(autostart) as file:
-                return file.readline(100).strip()
-        except EnvironmentError as exc:
-            if exc.errno != errno.ENOENT:
-                raise
+        with ignore_enoent, open(autostart) as file:
+            return file.readline(100).strip()
 
     def enable_agent(self, agent_uuid, priority='50'):
         if agent_uuid not in os.listdir(self.install_dir):
@@ -396,11 +408,8 @@ class AIPplatform(object):
         if agent_uuid not in os.listdir(self.install_dir):
             raise ValueError('invalid agent')
         autostart = os.path.join(self.install_dir, agent_uuid, 'AUTOSTART')
-        try:
+        with ignore_enoent:
             os.unlink(autostart)
-        except OSError as exc:
-            if exc.errno != errno.ENOENT:
-                raise
 
     def _check_resources(self, resmon, agent_path, dist_info):
         execreqs_json = os.path.join(dist_info, 'execreqs.json')
