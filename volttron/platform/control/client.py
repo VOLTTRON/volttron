@@ -61,7 +61,7 @@ import gevent.monkey
 gevent.monkey.patch_all()
 
 import argparse
-import inspect
+import collections
 import os
 import re
 import sys
@@ -84,182 +84,233 @@ else:
 _stdout = sys.stdout
 _stderr = sys.stderr
 
-def search_agent(agents, query):
-    strings = re.split(r'([*?])', query)
-    parts = ['^']
+
+Agent = collections.namedtuple('Agent', 'name tag uuid')
+
+def _list_agents(aip):
+    return [Agent(name, aip.agent_tag(uuid), uuid)
+            for uuid, name in aip.list_agents().iteritems()]
+
+def escape(pattern):
+    strings = re.split(r'([*?])', pattern)
     if len(strings) == 1:
-        parts.append(re.escape(query))
-    else:
-        parts.extend('.*' if s == '*' else
-                     '.' if s == '?' else re.escape(s)
-                     for s in strings)
-        parts.append('$')
-    regex = re.compile(''.join(parts))
-    return [uuid for uuid, name in agents.iteritems()
-            if regex.search(uuid) or regex.search(name)]
+        return re.escape(pattern), False
+    return ''.join('.*' if s == '*' else '.' if s == '?' else
+                   s if s in [r'\?', r'\*'] else re.escape(s)
+                   for s in strings), True
 
-def search_agents(agents, queries):
-    for query in queries:
-        yield query, search_agent(agents, query)
+def filter_agents(agents, patterns, opts):
+    by_name, by_tag, by_uuid = opts.by_name, opts.by_tag, opts.by_uuid
+    for pattern in patterns:
+        regex, wildcard = escape(pattern)
+        result = set()
+        if not (by_uuid or by_name or by_tag):
+            reobj = re.compile(regex)
+            matches = [agent for agent in agents if reobj.match(agent.uuid)]
+            if len(matches) == 1:
+                result.update(matches)
+        else:
+            reobj = re.compile(regex + '$')
+            if by_uuid:
+                result.update(agent for agent in agents if reobj.match(agent.uuid))
+            if by_name:
+                result.update(agent for agent in agents if reobj.match(agent.name))
+            if by_tag:
+                result.update(agent for agent in agents if reobj.match(agent.tag or ''))
+        yield pattern, result
 
-def install_agent(aip, wheels):
-    for wheel in wheels:
-        uuid = aip.install_agent(wheel)
+def filter_agent(agents, pattern, opts):
+    return next(filter_agents(agents, [pattern], opts))[1]
+
+
+def install_agent(opts):
+    aip = opts.aip
+    for wheel in opts.wheel:
+        try:
+            uuid = aip.install_agent(wheel)
+        except Exception as exc:
+            _stderr.write('{}: {}: {}'.format(opts.command, exc, wheel))
+            return 10
         name = aip.agent_name(uuid)
         _stdout.write('Installed {} as {} {}\n'.format(wheel, uuid, name))
 
-def tag_agent(aip, onerror, agent, tag=None, remove=False):
-    assert not (tag and remove)
-    agents = aip.list_agents()
-    uuids = search_agent(agents, agent)
-    if not uuids:
-        onerror('agent not found: {}'.format(agent))
-    elif len(uuids) > 1:
-        onerror('query returned multiple agents: {}'.format(agent))
-    else:
-        uuid, = uuids
-        name = agents[uuid]
-        if not tag:
-            if remove:
-                _stdout.write('Removing tag for {} {}\n'.format(uuid, name))
-                aip.tag_agent(uuid, None)
-            else:
-                tag = aip.agent_tag(uuid)
-                if tag is not None:
-                    _stdout.writelines([tag, '\n'])
+def tag_agent(opts):
+    agents = filter_agent(_list_agents(opts.aip), opts.agent, opts)
+    if len(agents) != 1:
+        if agents:
+            msg = 'multiple agents selected'
         else:
-            _stdout.write('Tagging {} {}\n'.format(uuid, name))
-            aip.tag_agent(uuid, tag)
+            msg = 'agent not found'
+        _stderr.write('{}: {}: {}\n'.format(opts.command, msg, opts.agent))
+        return 10
+    agent, = agents
+    if opts.tag:
+        _stdout.write('Tagging {} {}\n'.format(agent.uuid, agent.name))
+        opts.aip.tag_agent(agent.uuid, opts.tag)
+    elif opts.remove:
+        if agent.tag is not None:
+            _stdout.write('Removing tag for {} {}\n'.format(agent.uuid, agent.name))
+            opts.aip.tag_agent(agent.uuid, None)
+    else:
+        if agent.tag is not None:
+            _stdout.writelines([agent.tag, '\n'])
 
-def remove_agent(aip, onerror, patterns, force=False):
-    agents = aip.list_agents()
-    for query, uuids in search_agents(agents, patterns):
-        if not uuids:
-            onerror('agent not found: {}'.format(query))
-        elif len(uuids) > 1:
-            if not force:
-                onerror('query returned multiple agents: {}'.format(query))
-                continue
-        for uuid in uuids:
-            _stdout.write('Removing {} {}\n'.format(uuid, agents[uuid]))
-            aip.remove_agent(uuid)
+def remove_agent(opts):
+    agents = _list_agents(opts.aip)
+    for pattern, match in filter_agents(agents, opts.pattern, opts):
+        if not match:
+            _stderr.write('{}: agent not found: {}\n'.format(opts.command, pattern))
+        elif len(match) > 1 and not opts.force:
+            _stderr.write('{}: pattern returned multiple agents: {}\n'.format(opts.command, pattern))
+            _stderr.write('Use -f or --force to force removal of multiple agents.\n')
+            return 10
+        for agent in match:
+            _stdout.write('Removing {} {}\n'.format(agent.uuid, agent.name))
+            opts.aip.remove_agent(agent.uuid)
 
 def _calc_min_uuid_length(agents):
     n = 0
-    for uuid1 in agents:
-        for uuid2 in agents:
-            if uuid1 == uuid2:
+    for agent1 in agents:
+        for agent2 in agents:
+            if agent1 is agent2:
                 continue
-            common_len = len(os.path.commonprefix([uuid1, uuid2]))
+            common_len = len(os.path.commonprefix([agent1.uuid, agent2.uuid]))
             if common_len > n:
                 n = common_len
     return n + 1
 
-def list_agents(aip, onerror, patterns=None, min_uuid_len=1):
-    agents = aip.list_agents()
+def list_agents(opts):
+    agents = _list_agents(opts.aip)
+    if opts.pattern:
+        filtered = set()
+        for pattern, match in filter_agents(agents, opts.pattern, opts):
+            if not match:
+                _stderr.write('{}: agent not found: {}\n'.format(opts.command, pattern))
+            filtered |= match
+        agents = list(filtered)
     if not agents:
         return
-    if patterns:
-        filtered = {}
-        for query, uuids in search_agents(agents, patterns):
-            if not uuids:
-                onerror('agent not found: {}'.format(query))
-            for uuid in uuids:
-                filtered[uuid] = agents[uuid]
-        agents = filtered
-    if not min_uuid_len:
+    if not opts.min_uuid_len:
         n = None
     else:
-        n = max(_calc_min_uuid_length(agents), min_uuid_len)
-    agents = agents.items()
-    agents.sort(key=lambda x: (x[1], x[0]))
-    for uuid, name in agents:
-        tag = aip.agent_tag(uuid)
-        if tag is not None:
-            name += ' ({})'.format(tag)
-        _stdout.writelines([uuid[:n], ' ', name, '\n'])
+        n = max(_calc_min_uuid_length(agents), opts.min_uuid_len)
+    agents.sort()
+    name_width = max(5, max(len(agent.name) for agent in agents))
+    tag_width = max(3, max(len(agent.tag or '') for agent in agents))
+    fmt = '{} {:{}} {:{}} {:>3}\n'
+    _stderr.write(fmt.format(' '*n, 'AGENT', name_width, 'TAG', tag_width, 'PRI'))
+    for agent in agents:
+        priority = opts.aip.agent_priority(agent.uuid) or ''
+        _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
+                                 agent.tag or '', tag_width, priority))
 
-def status_agents(control_socket, min_uuid_len=1):
-    agents = ControlConnector(control_socket).call.status_agents()
+def status_agents(opts):
+    agents = {agent.uuid: agent for agent in _list_agents(opts.aip)}
+    status = {}
+    for uuid, name, stat in \
+            ControlConnector(opts.control_socket).call.status_agents():
+        try:
+            agent = agents[uuid]
+        except KeyError:
+            agents[uuid] = agent = Agent(name, None, uuid)
+        status[uuid] = stat
+    agents = agents.values()
+    if opts.pattern:
+        filtered = set()
+        for pattern, match in filter_agents(agents, opts.pattern, opts):
+            if not match:
+                _stderr.write('{}: agent not found: {}\n'.format(opts.command, pattern))
+            filtered |= match
+        agents = list(filtered)
     if not agents:
         return
-    agents.sort(key=lambda x: (x[1], x[0]))
-    if not min_uuid_len:
+    agents.sort()
+    if not opts.min_uuid_len:
         n = 36
     else:
-        n = max(_calc_min_uuid_length(zip(*agents)[0]), min_uuid_len)
-    width = max(5, min(58-n, max(len(x[0]) for x in agents)))
-    fmt = '{} {:{}} {:>3} {:>6}\n'
-    _stderr.write(fmt.format(' '*n, 'AGENT', width, 'PRI', 'STATUS'))
-    for uuid, name, priority, (pid, status) in agents:
-        if priority is None:
-            priority = ''
-        _stdout.write(fmt.format(uuid[:n], name, width, priority,
-            ('running [{}]'.format(pid) if status is None else str(status))
-             if pid else ''))
+        n = max(_calc_min_uuid_length(agents), opts.min_uuid_len)
+    name_width = max(5, max(len(agent.name) for agent in agents))
+    tag_width = max(3, max(len(agent.tag or '') for agent in agents))
+    fmt = '{} {:{}} {:{}} {:>6}\n'
+    _stderr.write(fmt.format(' '*n, 'AGENT', name_width, 'TAG', tag_width, 'STATUS'))
+    for agent in agents:
+        try:
+            pid, stat = status[agent.uuid]
+        except KeyError:
+            pid = stat = None
+        _stdout.write(fmt.format(agent.uuid[:n], agent.name, name_width,
+            agent.tag or '', tag_width, ('running [{}]'.format(pid)
+                 if stat is None else str(stat)) if pid else ''))
 
-def clear_status(control_socket, clear_all=False):
-    ControlConnector(control_socket).call.clear_status(clear_all)
+def clear_status(opts):
+    ControlConnector(opts.control_socket).call.clear_status(opts.clear_all)
 
-def enable_agent(aip, onerror, patterns, priority='50'):
-    agents = aip.list_agents()
-    for query, uuids in search_agents(agents, patterns):
-        if not uuids:
-            onerror('agent not found: {}'.format(query))
-        for uuid in uuids:
+def enable_agent(opts):
+    agents = _list_agents(opts.aip)
+    for pattern, match in filter_agents(agents, opts.pattern, opts):
+        if not match:
+            _stderr.write('{}: agent not found: {}\n'.format(opts.command, pattern))
+        for agent in match:
             _stdout.write('Enabling {} {} with priority {}\n'.format(
-                    uuid, agents[uuid], priority))
-            aip.enable_agent(uuid, priority=priority)
+                    agent.uuid, agent.name, opts.priority))
+            opts.aip.prioritize_agent(agent.uuid, opts.priority)
 
-def disable_agent(aip, onerror, patterns):
-    agents = aip.list_agents()
-    for query, uuids in search_agents(agents, patterns):
-        if not uuids:
-            onerror('agent not found: {}'.format(query))
-        for uuid in uuids:
-            _stdout.write('Disabling {} {}\n'.format(uuid, agents[uuid]))
-            aip.disable_agent(uuid)
+def disable_agent(opts):
+    agents = _list_agents(opts.aip)
+    for pattern, match in filter_agents(agents, opts.pattern, opts):
+        if not match:
+            _stderr.write('{}: agent not found: {}\n'.format(opts.command, pattern))
+        for agent in match:
+            priority = opts.aip.agent_priority(agent.uuid)
+            if priority is not None:
+                _stdout.write('Disabling {} {}\n'.format(agent.uuid, agent.name))
+                opts.aip.prioritize_agent(agent.uuid, None)
 
-def start_agent(aip, onerror, patterns, control_socket):
-    agents = aip.list_agents()
-    conn = ControlConnector(control_socket)
-    for query, uuids in search_agents(agents, patterns):
-        if not uuids:
-            onerror('agent not found: {}'.format(query))
-        for uuid in uuids:
-            _stdout.write('Starting {} {}\n'.format(uuid, agents[uuid]))
-            conn.call.start_agent(uuid)
+def start_agent(opts):
+    conn = ControlConnector(opts.control_socket)
+    agents = _list_agents(opts.aip)
+    for pattern, match in filter_agents(agents, opts.pattern, opts):
+        if not match:
+            _stderr.write('{}: agent not found: {}\n'.format(opts.command, pattern))
+        for agent in match:
+            pid, status = conn.call.agent_status(agent.uuid)
+            if pid is None:
+                _stdout.write('Starting {} {}\n'.format(agent.uuid, agent.name))
+                conn.call.start_agent(agent.uuid)
 
-def stop_agent(aip, onerror, patterns, control_socket):
-    agents = aip.list_agents()
-    conn = ControlConnector(control_socket)
-    for query, uuids in search_agents(agents, patterns):
-        if not uuids:
-            onerror('agent not found: {}'.format(query))
-        for uuid in uuids:
-            _stdout.write('Stopping {} {}\n'.format(uuid, agents[uuid]))
-            conn.call.stop_agent(uuid)
+def stop_agent(opts):
+    conn = ControlConnector(opts.control_socket)
+    agents = _list_agents(opts.aip)
+    for pattern, match in filter_agents(agents, opts.pattern, opts):
+        if not match:
+            _stderr.write('{}: agent not found: {}\n'.format(opts.command, pattern))
+        for agent in match:
+            pid, status = conn.call.agent_status(agent.uuid)
+            if pid and status is None:
+                _stdout.write('Stopping {} {}\n'.format(agent.uuid, agent.name))
+                conn.call.stop_agent(agent.uuid)
 
 def run_agent(directories, control_socket):
-    for directory in directories:
-        ControlConnector(control_socket).call.run_agent(directory)
+    conn.ControlConnector(opts.control_socket)
+    for directory in opts.directories:
+        conn.call.run_agent(directory)
 
-def shutdown_agents(control_socket):
-    ControlConnector(control_socket).call.shutdown()
+def shutdown_agents(opts):
+    ControlConnector(opts.control_socket).call.shutdown()
 
-def create_cgroups(onerror, user=None, group=None):
+def create_cgroups(opts):
     try:
-        resmon.create_cgroups(user=user, group=group)
+        resmon.create_cgroups(user=opts.user, group=opts.group)
     except ValueError as exc:
-        onerror(str(exc))
+        _stderr.write('{}: {}\n'.format(opts.command, exc))
         return os.EX_NOUSER
 
-def send_agent(onerror, volttron_home, wheels, host, port=2522):
-    ssh_dir = os.path.join(volttron_home, 'ssh')
+def send_agent(opts):
+    ssh_dir = os.path.join(opts.volttron_home, 'ssh')
     try:
-        host_key, client = comms.client(ssh_dir, host, port)
+        host_key, client = comms.client(ssh_dir, opts.host, opts.port)
     except (OSError, IOError, PasswordRequiredException, SSHException) as exc:
-        onerror(str(exc))
+        _stderr.write('{}: {}\n'.format(opts.command, exc))
         if isinstance(exc, OSError):
             return os.EX_OSERR
         if isinstance(exc, IOError):
@@ -268,7 +319,7 @@ def send_agent(onerror, volttron_home, wheels, host, port=2522):
     if host_key is None:
         _stderr.write('warning: no public key found for remote host\n')
     with client:
-        for wheel in wheels:
+        for wheel in opts.wheel:
             with open(wheel) as file:
                 client.send_and_start_agent(file)
 
@@ -287,6 +338,15 @@ def main(argv=sys.argv):
         usage='%(prog)s command [OPTIONS] ...',
     )
 
+    filterable = config.ArgumentParser(add_help=False)
+    filterable.add_argument('--name', dest='by_name', action='store_true',
+        help='filter/search by agent name')
+    filterable.add_argument('--tag', dest='by_tag', action='store_true',
+        help='filter/search by tag name')
+    filterable.add_argument('--uuid', dest='by_uuid', action='store_true',
+        help='filter/search by UUID (default)')
+    filterable.set_defaults(by_name=False, by_tag=False, by_uuid=False)
+
     parser.add_argument('--control-socket', metavar='FILE',
         help='path to socket used for control messages')
 
@@ -301,27 +361,33 @@ def main(argv=sys.argv):
             help=argparse.SUPPRESS)
     install.set_defaults(func=install_agent)
 
-    tag = subparsers.add_parser('tag', help='set, show, or remove agent tag')
+    tag = subparsers.add_parser('tag', parents=[filterable],
+        help='set, show, or remove agent tag')
     tag.add_argument('agent', help='UUID or name of agent')
     group = tag.add_mutually_exclusive_group()
     group.add_argument('tag', nargs='?', const=None, help='tag to give agent')
     group.add_argument('-r', '--remove', action='store_true', help='remove tag')
     tag.set_defaults(func=tag_agent, tag=None, remove=False)
 
-    remove = subparsers.add_parser('remove', help='remove agent')
+    remove = subparsers.add_parser('remove', parents=[filterable],
+        help='remove agent')
     remove.add_argument('pattern', nargs='+', help='UUID or name of agent')
     remove.add_argument('-f', '--force', action='store_true',
         help='force removal of multiple agents')
     remove.set_defaults(func=remove_agent, force=False)
 
-    list_ = subparsers.add_parser('list', help='list installed agent')
+    list_ = subparsers.add_parser('list', parents=[filterable],
+        help='list installed agent')
     list_.add_argument('pattern', nargs='*',
         help='UUID or name of agent')
     list_.add_argument('-n', dest='min_uuid_len', type=int, metavar='N',
         help='show at least N characters of UUID (0 to show all)')
     list_.set_defaults(func=list_agents, min_uuid_len=1)
 
-    status = subparsers.add_parser('status', help='show status of agents')
+    status = subparsers.add_parser('status', parents=[filterable],
+        help='show status of agents')
+    status.add_argument('pattern', nargs='*',
+        help='UUID or name of agent')
     status.add_argument('-n', dest='min_uuid_len', type=int, metavar='N',
         help='show at least N characters of UUID (0 to show all)')
     status.set_defaults(func=status_agents, min_uuid_len=1)
@@ -331,19 +397,19 @@ def main(argv=sys.argv):
         help='clear the status of all agents')
     clear.set_defaults(func=clear_status, clear_all=False)
 
-    enable = subparsers.add_parser('enable',
+    enable = subparsers.add_parser('enable', parents=[filterable],
         help='enable agent to start automatically')
     enable.add_argument('pattern', nargs='+', help='UUID or name of agent')
     enable.add_argument('-p', '--priority', type=priority,
         help='2-digit priority from 00 to 99')
     enable.set_defaults(func=enable_agent, priority='50')
 
-    disable = subparsers.add_parser('disable',
+    disable = subparsers.add_parser('disable', parents=[filterable],
         help='prevent agent from start automatically')
     disable.add_argument('pattern', nargs='+', help='UUID or name of agent')
     disable.set_defaults(func=disable_agent)
 
-    start = subparsers.add_parser('start',
+    start = subparsers.add_parser('start', parents=[filterable],
         help='start installed agent')
     start.add_argument('pattern', nargs='+', help='UUID or name of agent')
     start.add_argument('--verify', action='store_true', dest='verify_agents',
@@ -352,7 +418,7 @@ def main(argv=sys.argv):
         help=argparse.SUPPRESS)
     start.set_defaults(func=start_agent)
 
-    stop = subparsers.add_parser('stop',
+    stop = subparsers.add_parser('stop', parents=[filterable],
         help='stop agent')
     stop.add_argument('pattern', nargs='+', help='UUID or name of agent')
     stop.set_defaults(func=stop_agent)
@@ -397,23 +463,9 @@ def main(argv=sys.argv):
     opts.control_socket = expandall(opts.control_socket)
     opts.aip = aip.AIPplatform(opts)
     opts.aip.setup()
-    opts.onerror = lambda msg: _stderr.writelines([opts.command, ': ', msg, '\n'])
-    opts.parser = parser
 
-    argspec = inspect.getargspec(opts.func)
-    args = {}
-    for argname in argspec.args:
-        try:
-            args[argname] = getattr(opts, argname)
-        except AttributeError:
-            if argname.endswith('s'):
-                name = (argname[:-3]+'y') if argname.endswith('ies') else argname[:-1]
-                try:
-                    args[argname] = getattr(opts, name)
-                except AttributeError:
-                    pass
     try:
-        return opts.func(**args)
+        return opts.func(opts)
     except RemoteError as e:
         e.print_tb()
 

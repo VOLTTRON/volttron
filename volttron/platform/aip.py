@@ -317,7 +317,7 @@ class AIPplatform(object):
         agent_uuid = self.install_agent(agent_wheel)
         try:
             self.start_agent(agent_uuid)
-            self.enable_agent(agent_uuid)
+            self.prioritize_agent(agent_uuid)
         except:
             self.stop_agent(agent_uuid)
             self.remove_agent(agent_uuid)
@@ -386,14 +386,11 @@ class AIPplatform(object):
             self.agents.pop(agent_uuid, None)
 
     def status_agents(self):
-        agents = self.list_agents()
-        agents.update(self.active_agents())
-        return [(agent_uuid, agent_name, self._agent_priority(agent_uuid),
-                 self.agent_status(agent_uuid))
-                for agent_uuid, agent_name in agents.iteritems()]
+        return [(agent_uuid, agent_name, self.agent_status(agent_uuid))
+                for agent_uuid, agent_name in self.active_agents().iteritems()]
 
     def tag_agent(self, agent_uuid, tag):
-        tag_file = os.path.join(self.install_dir, agent_uuid, 'tag')
+        tag_file = os.path.join(self.install_dir, agent_uuid, 'TAG')
         if not tag:
             with ignore_enoent:
                 os.unlink(tag_file)
@@ -402,7 +399,9 @@ class AIPplatform(object):
                 file.write(tag[:64])
 
     def agent_tag(self, agent_uuid):
-        tag_file = os.path.join(self.install_dir, agent_uuid, 'tag')
+        if '/' in agent_uuid or agent_uuid in ['.', '..']:
+            raise ValueError('invalid agent')
+        tag_file = os.path.join(self.install_dir, agent_uuid, 'TAG')
         with ignore_enoent, open(tag_file, 'r') as file:
             return file.readline(64)
 
@@ -411,19 +410,21 @@ class AIPplatform(object):
         with ignore_enoent, open(autostart) as file:
             return file.readline(100).strip()
 
-    def enable_agent(self, agent_uuid, priority='50'):
-        if agent_uuid not in os.listdir(self.install_dir):
+    def agent_priority(self, agent_uuid):
+        if '/' in agent_uuid or agent_uuid in ['.', '..']:
             raise ValueError('invalid agent')
-        autostart = os.path.join(self.install_dir, agent_uuid, 'AUTOSTART')
-        with open(autostart, 'w') as file:
-            file.write(priority.strip())
+        return self._agent_priority(agent_uuid)
 
-    def disable_agent(self, agent_uuid):
-        if agent_uuid not in os.listdir(self.install_dir):
+    def prioritize_agent(self, agent_uuid, priority='50'):
+        if '/' in agent_uuid or agent_uuid in ['.', '..']:
             raise ValueError('invalid agent')
         autostart = os.path.join(self.install_dir, agent_uuid, 'AUTOSTART')
-        with ignore_enoent:
-            os.unlink(autostart)
+        if priority is None:
+            with ignore_enoent:
+                os.unlink(autostart)
+        else:
+            with open(autostart, 'w') as file:
+                file.write(priority.strip())
 
     def _check_resources(self, resmon, agent_path, dist_info):
         execreqs_json = os.path.join(dist_info, 'execreqs.json')

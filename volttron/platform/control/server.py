@@ -162,6 +162,8 @@ class ControlHandler(jsonrpc.BaseHandler):
         self._env = env
     def clear_status(self, clear_all=False):
         self._env.aip.clear_status(clear_all)
+    def agent_status(self, agent_name):
+        return self._env.aip.agent_status(agent_name)
     def status_agents(self):
         return self._env.aip.status_agents()
     def start_agent(self, agent_name):
