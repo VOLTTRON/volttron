@@ -146,9 +146,12 @@ def isapipe(fd):
     return stat.S_ISFIFO(os.fstat(fd).st_mode)
 
 
-def default_main(agent_class, description, argv=sys.argv,
+def default_main(agent_class, description=None, argv=sys.argv,
                  parser_class=argparse.ArgumentParser, **kwargs):
-    '''Default main entry point implementation.'''
+    '''Default main entry point implementation.
+    
+    description and parser_class are depricated. Please avoid using them.
+    '''
     try:
         # If stdout is a pipe, re-open it line buffered
         if isapipe(sys.stdout):
@@ -156,13 +159,25 @@ def default_main(agent_class, description, argv=sys.argv,
             # get garbage collected and close the underlying descriptor.
             stdout = sys.stdout
             sys.stdout = os.fdopen(stdout.fileno(), 'w', 1)
-        # Parse options
-        parser = parser_class(prog=os.path.basename(argv[0]),
-                              description=description)
-        opts = parser.parse_args(argv[1:])
-        agent = agent_class(subscribe_address=os.environ['AGENT_SUB_ADDR'],
-                            publish_address=os.environ['AGENT_PUB_ADDR'],
-                            config_path=os.environ.get('AGENT_CONFIG',None), **kwargs)
+        try:
+            sub_addr = os.environ['AGENT_SUB_ADDR']
+            pub_addr = os.environ['AGENT_PUB_ADDR']
+        except KeyError as exc:
+            sys.stderr.write(
+                'missing environment variable: {}\n'.format(exc.args[0]))
+            sys.exit(1)
+        if sub_addr.startswith('ipc://'):
+            if not os.path.exists(sub_addr[6:]):
+                sys.stderr.write('warning: subscription socket does not '
+                                 'exist: {}\n'.format(sub_addr[6:]))
+        if pub_addr.startswith('ipc://'):
+            if not os.path.exists(pub_addr[6:]):
+                sys.stderr.write('warning: publish socket does not '
+                                 'exist: {}\n'.format(pub_addr[6:]))
+        config = os.environ.get('AGENT_CONFIG')
+        agent = agent_class(subscribe_address=sub_addr,
+                            publish_address=pub_addr,
+                            config_path=config, **kwargs)
         agent.run()
     except KeyboardInterrupt:
         pass
