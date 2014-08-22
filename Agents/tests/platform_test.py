@@ -1,6 +1,5 @@
 import unittest
 from base import BasePlatformTest
-from volttron.platform.control import (CTL_STATUS,)
 
 class PlatformTests(BasePlatformTest):
     

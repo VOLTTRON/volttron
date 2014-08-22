@@ -12,6 +12,15 @@ from StringIO import StringIO
 
 from volttron.platform import aip
 from volttron.platform.control import server
+from volttron.platform import packaging
+
+try:
+    from volttron.restricted import (auth, certs)
+except ImportError:
+    auth = None
+    certs = None
+    
+
 # from volttron.platform.control import (CTL_STATUS,
 #                                        CTL_INSTALL,
 #                                        CTL_STATUS,
@@ -87,6 +96,8 @@ class BasePlatformTest(unittest.TestCase):
         self.originaldir = os.getcwd()
         os.chdir(rel_path) 
         self.tmpdir = tempfile.mkdtemp()
+        self.wheelhouse = '/'.join((self.tmpdir, 'wheelhouse'))
+        os.makedirs(self.wheelhouse)
         os.environ['VOLTTRON_HOME'] = self.tmpdir
         
     def setup_connector(self):
@@ -144,18 +155,28 @@ class BasePlatformTest(unittest.TestCase):
             os.chdir(basepackage)
             sys.argv = ['', 'bdist_wheel']
             exec(compile(open('setup.py').read(), 'setup.py', 'exec'))
-    
+     
             wheel_name = os.listdir('./dist')[0]
-    
+     
             wheel_file_and_path = os.path.join(os.path.abspath('./dist'), wheel_name)
         finally:
             os.chdir(pwd)
             
         return wheel_file_and_path
+    
+    def direct_build_agentpackage(self, agent_dir):
+        wheel_path = packaging.create_package(agent_dir, self.wheelhouse)
+            
+        return wheel_path
+
+    def direct_configure_agentpackage(self, agent_wheel, config_file):
+        packaging.add_files_to_package(agent_wheel, {'config_file':config_file})
+            
 
 
-    def direct_buid_install_agent(self, agent_dir):
-        agent_wheel = self.build_agentpackage(agent_dir)
+    def direct_buid_install_agent(self, agent_dir, config_file):
+        agent_wheel = self.direct_build_agentpackage(agent_dir)
+        self.direct_configure_agentpackage(agent_wheel, config_file)
         self.assertIsNotNone(agent_wheel,"Agent wheel was not built")
         
         opts = type('Options', (), {'verify_agents': False, 'volttron_home': self.tmpdir})()
@@ -167,22 +188,29 @@ class BasePlatformTest(unittest.TestCase):
 #         conn.call.start_agent()
 
 
-    def direct_build_install_run_agent(self, agent_dir):
-        agent_uuid = self.direct_buid_install_agent(agent_dir)
+    def direct_build_install_run_agent(self, agent_dir, config_file):
+        agent_uuid = self.direct_buid_install_agent(agent_dir, config_file)
         self.direct_start_agent(agent_uuid)  
             
     def direct_start_agent(self, agent_uuid):
         
         self.conn.call.start_agent(agent_uuid)
         time.sleep(3)
-        status = self.conn.call.status_agents()
+        
+        opts = type('Options', (), {'verify_agents': False, 'volttron_home': self.tmpdir})()
+        test_aip = aip.AIPplatform(opts)
+        test_aip.setup()
+        status = test_aip.status_agents()
+        
+#         status = self.conn.call.status_agents()
         self.assertEquals(len(status[0]), 4, 'Unexpected status message')
         status_uuid = status[0][0]
         self.assertEquals(status_uuid, agent_uuid, "Agent status shows error")
         
         self.assertEquals(len(status[0][3]), 2, 'Unexpected agent status message')
         status_agent_status = status[0][3][1]
-        self.assertEquals(status_agent_status, 0, "Agent status shows error")
+        self.assertNotIsInstance(status_agent_status, int, "Agent did not start successfully")
+        self.assertIn("running",status_agent_status, "Agent status shows error")
         print status
         
     def direct_stop_agent(self, agent_uuid):

@@ -12,8 +12,9 @@ from volttron.platform.agent import PublishMixin
 Test 
 """
 AGENT_DIR = "Agents/ListenerAgent"
-AGENT_NAME = "listeneragent-0.1"
-WHEEL_NAME = "listeneragent-0.1-py2-none-any.whl"
+CONFIG_FILE = "Agents/ListenerAgent/config"
+# AGENT_NAME = "listeneragent-0.1"
+# WHEEL_NAME = "listeneragent-0.1-py2-none-any.whl"
 
 class ListenerTests(base.BasePlatformTest):
 
@@ -36,8 +37,8 @@ class ListenerTests(base.BasePlatformTest):
 #         print "started"
 
     def test_direct_build_and_install(self):
-        self.direct_buid_install_agent(AGENT_DIR)
+        self.direct_buid_install_agent(AGENT_DIR, CONFIG_FILE)
 
     def test_direct_install_and_start(self):
-        self.direct_build_install_run_agent(AGENT_DIR)
+        self.direct_build_install_run_agent(AGENT_DIR, CONFIG_FILE)
 
