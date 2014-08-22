@@ -186,6 +186,10 @@ def get_volttron_parser(*args, **kwargs):
 
 
 def main(argv=sys.argv):
+    volttron_home = config.expandall(
+            os.environ.get('VOLTTRON_HOME', '~/.volttron'))
+    os.environ['VOLTTRON_HOME'] = volttron_home
+
     # Setup option parser
     parser = config.ArgumentParser(
         prog=os.path.basename(argv[0]), add_help=False,
@@ -194,7 +198,7 @@ def main(argv=sys.argv):
         argument_default=argparse.SUPPRESS,
     )
     parser.add_argument('-c', '--config', metavar='FILE',
-        action='parse_config', ignore_unknown=True,
+        action='parse_config', ignore_unknown=True, sections=[None, 'volttron'],
         help='read configuration from FILE')
     parser.add_argument('-l', '--log', metavar='FILE', default=None,
         help='send log output to FILE instead of stderr')
@@ -262,7 +266,7 @@ def main(argv=sys.argv):
         log = None,
         log_config = None,
         verboseness = logging.WARNING,
-        volttron_home = os.environ.get('VOLTTRON_HOME', '~/.volttron'),
+        volttron_home = volttron_home,
         autostart = True,
         publish_address = 'ipc://$VOLTTRON_HOME/run/publish',
         subscribe_address = 'ipc://$VOLTTRON_HOME/run/subscribe',
@@ -278,13 +282,14 @@ def main(argv=sys.argv):
     )
 
     # Parse and expand options
-    opts = parser.parse_args(argv[1:])
-    expandall = lambda string: os.path.expanduser(os.path.expandvars(string))
-    opts.volttron_home = expandall(opts.volttron_home)
-    os.environ['VOLTTRON_HOME'] = opts.volttron_home
-    opts.control_socket = expandall(opts.control_socket)
-    opts.publish_address = expandall(opts.publish_address)
-    opts.subscribe_address = expandall(opts.subscribe_address)
+    args = argv[1:]
+    conf = os.path.join(volttron_home, 'config')
+    if os.path.exists(conf) and 'SKIP_VOLTTRON_CONFIG' not in os.environ:
+        args = ['--config', conf] + args
+    opts = parser.parse_args(args)
+    opts.control_socket = config.expandall(opts.control_socket)
+    opts.publish_address = config.expandall(opts.publish_address)
+    opts.subscribe_address = config.expandall(opts.subscribe_address)
     if have_restricted:
         # Set mobility defaults
         if opts.mobility_address is None:

@@ -332,6 +332,10 @@ def priority(value):
 
 
 def main(argv=sys.argv):
+    volttron_home = config.expandall(
+            os.environ.get('VOLTTRON_HOME', '~/.volttron'))
+    os.environ['VOLTTRON_HOME'] = volttron_home
+
     parser = config.ArgumentParser(
         prog=os.path.basename(argv[0]), add_help=False,
         description='Manage and control VOLTTRON agents.',
@@ -355,7 +359,7 @@ def main(argv=sys.argv):
         help='path to socket used for control messages')
     parser.add_help_argument()
     parser.set_defaults(
-        volttron_home = os.environ.get('VOLTTRON_HOME', '~/.volttron'),
+        volttron_home=volttron_home,
         control_socket='@$VOLTTRON_HOME/run/control',
     )
 
@@ -463,11 +467,12 @@ def main(argv=sys.argv):
             help='owning group name or ID')
         cgroup.set_defaults(func=create_cgroups, user=None, group=None)
 
-    opts = parser.parse_args(argv[1:])
-    expandall = lambda string: os.path.expanduser(os.path.expandvars(string))
-    opts.volttron_home = expandall(opts.volttron_home)
-    os.environ['VOLTTRON_HOME'] = opts.volttron_home
-    opts.control_socket = expandall(opts.control_socket)
+    args = argv[1:]
+    conf = os.path.join(volttron_home, 'config')
+    if os.path.exists(conf) and 'SKIP_VOLTTRON_CONFIG' not in os.environ:
+        args = ['--config', conf] + args
+    opts = parser.parse_args(args)
+    opts.control_socket = config.expandall(opts.control_socket)
     opts.aip = aip.AIPplatform(opts)
     opts.aip.setup()
 

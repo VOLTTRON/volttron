@@ -100,18 +100,17 @@ class ConfigFileAction(_argparse.Action):
     will be processed after environment variables.
     '''
 
-    _ignored_re = _re.compile(r'^\s*(?:\[.*?\]\s*)?(?:[#;].*)?$')
-    _setting_re = _re.compile(r'^(\S+?)(?:(?:\s*[:=]\s*|\s+)(.*))?$')
-
     def __init__(self, option_strings, dest,
                  required=False, help=None, metavar=None, **kwargs):
         ignore_unknown = kwargs.pop('ignore_unknown', None)
         inline = kwargs.pop('inline', False)
+        sections = kwargs.pop('sections', None)
         super(ConfigFileAction, self).__init__(
             option_strings=option_strings, dest=_argparse.SUPPRESS,
                 required=required, help=help, metavar=metavar)
         self.ignore_unknown = ignore_unknown
         self.inline = inline
+        self.sections = sections
         self.preprocess = True
 
     def __call__(self, parser, namespace, path, option_string=None, seen_files=None):
@@ -129,7 +128,9 @@ class ConfigFileAction(_argparse.Action):
                     # XXX: Should a warning be issued?
                     return [], []
                 seen_files.add(file_id)
-                for key, args, lineno in self.itersettings(parser, file):
+                for section, key, args, lineno in self.itersettings(parser, file):
+                    if self.sections is not None and section not in self.sections:
+                        continue
                     source = ('config', (path, lineno, key))
                     opt = TrackingString((key if key.startswith('--')
                                          else ('--' + key)), source=source)
@@ -168,19 +169,32 @@ class ConfigFileAction(_argparse.Action):
         return ([], arg_strings) if self.inline else (arg_strings, [])
 
     def itersettings(self, parser, conffile):
+        section_re = _re.compile(r'^\s*\[\s*((?:\\.|[^\]])*?)\s*\](.*)$')
+        comment_re = _re.compile(r'^\s*(?:[#;].*)?$')
+        setting_re = _re.compile(r'^(\S+?)(?:(?:\s*[:=]\s*|\s+)(.*))?$')
+        section = None
         for lineno, line in enumerate(conffile):
             if not line:
                 break
             line = line.strip()
-            if self._ignored_re.match(line):
+            if not line or comment_re.match(line):
                 continue
-            key, value = self._setting_re.match(line).groups()
+            match = section_re.match(line)
+            if match:
+                section, rest = match.groups()
+                if not comment_re.match(rest):
+                    err = 'invalid syntax after section: {!r}'.format(rest)
+                    parser.error('{}: {} (line {})'.format(conffile.name, err, lineno))
+                # Remove backslash escapes
+                section = _re.sub(r'\\(.)', r'\1', section)
+                continue
+            key, value = setting_re.match(line).groups()
             if value is not None:
                 try:
                     value = _shlex.split(value, True, True)
                 except ValueError as e:
                     parser.error('{}: {} (line {})'.format(conffile.name, e, lineno))
-            yield key, value, lineno
+            yield section, key, value, lineno
 
 
 def env_var_formatter(formatter_class=_argparse.HelpFormatter):
@@ -432,3 +446,7 @@ def _patch_argparse():
         return action
     _argparse._ActionsContainer.add_argument = add_argument
 _patch_argparse()
+
+
+def expandall(string):
+    return _os.path.expanduser(_os.path.expandvars(string))
