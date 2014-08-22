@@ -96,7 +96,8 @@ def MobileExampleAgent(config_path, **kwargs):
             # Always call the base class setup()
             super(Agent, self).setup()
             
-            self.exec_command()
+            
+            self.timer(2, self.exec_command)
             
         def exec_command(self):
             results = subprocess.check_output(self._command_to_execute.split(" "), shell=True)
