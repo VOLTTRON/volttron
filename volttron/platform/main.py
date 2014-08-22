@@ -216,9 +216,9 @@ def main(argv=sys.argv):
         restrict.add_argument('--no-mobility', action='store_false',
             dest='mobility', help=argparse.SUPPRESS)
         restrict.add_argument('--mobility-address',
-            help='specify the address on which to listen [default: %(default]s)')
+            help='specify the address on which to listen')
         restrict.add_argument('--mobility-port', type=int,
-            help='specify the port on which to listen [default: %(default)s]')
+            help='specify the port on which to listen (default: 2522)')
         parser.set_defaults(
             mobility=None, mobility_address=None, mobility_port=None)
 
