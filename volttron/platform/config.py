@@ -11,7 +11,6 @@ the order encountered.
 '''
 
 import argparse as _argparse
-import logging as _logging
 import os as _os
 import re as _re
 import shlex as _shlex
@@ -184,7 +183,7 @@ class ConfigFileAction(_argparse.Action):
             yield key, value, lineno
 
 
-def env_var_formatter(formatter_class):
+def env_var_formatter(formatter_class=_argparse.HelpFormatter):
     '''Decorator to automatically add env_var documentation to help.'''
     class EnvHelpFormatter(formatter_class):
         def _get_help_string(self, action):
@@ -433,40 +432,3 @@ def _patch_argparse():
         return action
     _argparse._ActionsContainer.add_argument = add_argument
 _patch_argparse()
-
-
-def get_volttron_parser(*args, **kwargs):
-    '''Return standard parser for VOLTTRON tools.'''
-    kwargs.setdefault('add_help', False)
-    parser = ArgumentParser(*args, **kwargs)
-    parser.add_argument('-c', '--config', metavar='FILE',
-        action='parse_config', ignore_unknown=True,
-        help='read configuration from FILE')
-    parser.add_argument('-l', '--log', metavar='FILE', default=None,
-        help='send log output to FILE instead of stderr')
-    parser.add_argument('-L', '--log-config', metavar='FILE',
-        help='read logging configuration from FILE')
-    parser.add_argument('-q', '--quiet', action='add_const', const=10, dest='verboseness',
-        help='decrease logger verboseness; may be used multiple times')
-    parser.add_argument('-v', '--verbose', action='add_const', const=-10, dest='verboseness',
-        help='increase logger verboseness; may be used multiple times')
-    parser.add_argument('--verboseness', type=int, metavar='LEVEL',
-        default=_logging.WARNING,
-        help='set logger verboseness')
-    return parser
-
-
-def get_volttron_defaults():
-    return {
-        'log': None,
-        'autostart': True,
-        'publish_address': 'ipc://$VOLTTRON_HOME/run/publish',
-        'subscribe_address': 'ipc://$VOLTTRON_HOME/run/subscribe',
-        'control_socket': '@$VOLTTRON_HOME/run/control',
-        'allow_root': False,
-        'allow_users': None,
-        'allow_groups': None,
-        'verboseness': _logging.WARNING,
-        'verify_agents': True,
-        'resource_monitor': True,
-    }

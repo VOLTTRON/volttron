@@ -164,15 +164,51 @@ def agent_exchange(in_addr, out_addr, logger_name=None):
                                 ('' if topic[:1] == '/' else '/'), topic))
 
 
+def get_volttron_parser(*args, **kwargs):
+    '''Return standard parser for VOLTTRON tools.'''
+    kwargs.setdefault('add_help', False)
+    parser = ArgumentParser(*args, **kwargs)
+    parser.add_argument('-c', '--config', metavar='FILE',
+        action='parse_config', ignore_unknown=True,
+        help='read configuration from FILE')
+    parser.add_argument('-l', '--log', metavar='FILE', default=None,
+        help='send log output to FILE instead of stderr')
+    parser.add_argument('-L', '--log-config', metavar='FILE',
+        help='read logging configuration from FILE')
+    parser.add_argument('-q', '--quiet', action='add_const', const=10, dest='verboseness',
+        help='decrease logger verboseness; may be used multiple times')
+    parser.add_argument('-v', '--verbose', action='add_const', const=-10, dest='verboseness',
+        help='increase logger verboseness; may be used multiple times')
+    parser.add_argument('--verboseness', type=int, metavar='LEVEL',
+        default=logging.WARNING,
+        help='set logger verboseness')
+    return parser
+
+
 def main(argv=sys.argv):
     # Setup option parser
-    progname = os.path.basename(argv[0])
-    parser = config.ArgumentParser(usage='%(prog)s [OPTION]...',
-        prog=progname, add_help=False,
+    parser = config.ArgumentParser(
+        prog=os.path.basename(argv[0]), add_help=False,
         description='VOLTTRON platform service',
-        parents=[config.get_volttron_parser()],
+        usage='%(prog)s [OPTION]...',
         argument_default=argparse.SUPPRESS,
     )
+    parser.add_argument('-c', '--config', metavar='FILE',
+        action='parse_config', ignore_unknown=True,
+        help='read configuration from FILE')
+    parser.add_argument('-l', '--log', metavar='FILE', default=None,
+        help='send log output to FILE instead of stderr')
+    parser.add_argument('-L', '--log-config', metavar='FILE',
+        help='read logging configuration from FILE')
+    parser.add_argument('-q', '--quiet', action='add_const', const=10, dest='verboseness',
+        help='decrease logger verboseness; may be used multiple times')
+    parser.add_argument('-v', '--verbose', action='add_const', const=-10, dest='verboseness',
+        help='increase logger verboseness; may be used multiple times')
+    parser.add_argument('--verboseness', type=int, metavar='LEVEL',
+        default=logging.WARNING,
+        help='set logger verboseness')
+    #parser.add_argument('--volttron-home', env_var='VOLTTRON_HOME', metavar='PATH',
+    #    help='VOLTTRON configuration directory')
     parser.add_argument('--show-config', action='store_true',
         help=argparse.SUPPRESS)
     parser.add_help_argument()
@@ -195,9 +231,9 @@ def main(argv=sys.argv):
         help='allow root to connect to control socket')
     control.add_argument('--no-allow-root', action='store_false', dest='allow_root',
         help=argparse.SUPPRESS)
-    control.add_argument('--allow-users', action='store_list',
+    control.add_argument('--allow-users', action='store_list', metavar='LIST',
         help='users allowed to connect to control socket')
-    control.add_argument('--allow-groups', action='store_list',
+    control.add_argument('--allow-groups', action='store_list', metavar='LIST',
         help='user groups allowed to connect to control socket')
 
     if have_restricted:
@@ -215,35 +251,47 @@ def main(argv=sys.argv):
             help='enable agent mobility')
         restrict.add_argument('--no-mobility', action='store_false',
             dest='mobility', help=argparse.SUPPRESS)
-        restrict.add_argument('--mobility-address',
+        restrict.add_argument('--mobility-address', metavar='ADDRESS',
             help='specify the address on which to listen')
-        restrict.add_argument('--mobility-port', type=int,
-            help='specify the port on which to listen (default: 2522)')
+        restrict.add_argument('--mobility-port', type=int, metavar='NUMBER',
+            help='specify the port on which to listen')
         parser.set_defaults(
             mobility=None, mobility_address=None, mobility_port=None)
 
-    parser.set_defaults(**config.get_volttron_defaults())
+    parser.set_defaults(
+        log = None,
+        log_config = None,
+        verboseness = logging.WARNING,
+        volttron_home = os.environ.get('VOLTTRON_HOME', '~/.volttron'),
+        autostart = True,
+        publish_address = 'ipc://$VOLTTRON_HOME/run/publish',
+        subscribe_address = 'ipc://$VOLTTRON_HOME/run/subscribe',
+        control_socket = '@$VOLTTRON_HOME/run/control',
+        allow_root = False,
+        allow_users = None,
+        allow_groups = None,
+        verify_agents = True,
+        resource_monitor = True,
+        mobility = False,
+        mobility_address = None,
+        mobility_port = 2522
+    )
 
     # Parse and expand options
     opts = parser.parse_args(argv[1:])
     expandall = lambda string: os.path.expanduser(os.path.expandvars(string))
-    opts.volttron_home = expandall(os.environ.get('VOLTTRON_HOME', '~/.volttron'))
+    opts.volttron_home = expandall(opts.volttron_home)
     os.environ['VOLTTRON_HOME'] = opts.volttron_home
     opts.control_socket = expandall(opts.control_socket)
     opts.publish_address = expandall(opts.publish_address)
     opts.subscribe_address = expandall(opts.subscribe_address)
     if have_restricted:
         # Set mobility defaults
-        if opts.mobility is None:
-            opts.mobility = (opts.mobility_address is not None or
-                             opts.mobility_port is not None)
         if opts.mobility_address is None:
             info = socket.getaddrinfo(
                 None, 0, 0, socket.SOCK_STREAM, 0, socket.AI_NUMERICHOST)
             family = info[0][0] if info else ''
             opts.mobility_address = '::' if family == socket.AF_INET6 else ''
-        if opts.mobility_port is None:
-            opts.mobility_port = 2522
     if getattr(opts, 'show_config', False):
         for name, value in sorted(vars(opts).iteritems()):
             print name, repr(value)
