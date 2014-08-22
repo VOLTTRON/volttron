@@ -65,6 +65,7 @@ from contextlib import closing
 import logging
 from logging import handlers
 import os
+import socket
 import sys
 
 import gevent
@@ -214,6 +215,12 @@ def main(argv=sys.argv):
             help='enable agent mobility')
         restrict.add_argument('--no-mobility', action='store_false',
             dest='mobility', help=argparse.SUPPRESS)
+        restrict.add_argument('--mobility-address',
+            help='specify the address on which to listen [default: %(default]s)')
+        restrict.add_argument('--mobility-port', type=int,
+            help='specify the port on which to listen [default: %(default)s]')
+        parser.set_defaults(
+            mobility=None, mobility_address=None, mobility_port=None)
 
     parser.set_defaults(**config.get_volttron_defaults())
 
@@ -225,6 +232,18 @@ def main(argv=sys.argv):
     opts.control_socket = expandall(opts.control_socket)
     opts.publish_address = expandall(opts.publish_address)
     opts.subscribe_address = expandall(opts.subscribe_address)
+    if have_restricted:
+        # Set mobility defaults
+        if opts.mobility is None:
+            opts.mobility = (opts.mobility_address is not None or
+                             opts.mobility_port is not None)
+        if opts.mobility_address is None:
+            info = socket.getaddrinfo(
+                None, 0, 0, socket.SOCK_STREAM, 0, socket.AI_NUMERICHOST)
+            family = info[0][0] if info else ''
+            opts.mobility_address = '::' if family == socket.AF_INET6 else ''
+        if opts.mobility_port is None:
+            opts.mobility_port = 2522
     if getattr(opts, 'show_config', False):
         for name, value in sorted(vars(opts).iteritems()):
             print name, repr(value)
@@ -270,8 +289,9 @@ def main(argv=sys.argv):
         exchange = gevent.spawn(
             agent_exchange, opts.publish_address, opts.subscribe_address)
         if have_restricted and opts.mobility:
+            address = (opts.mobility_address, opts.mobility_port)
             mobility = comms_server.ThreadedServer(
-                ('0.0.0.0', 2522), priv_key, authorized_keys, opts.aip.land_agent)
+                address, priv_key, authorized_keys, opts.aip.land_agent)
             mobility.start()
         try:
             control = gevent.spawn(control_loop, opts)
