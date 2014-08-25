@@ -352,8 +352,8 @@ def main(argv=sys.argv):
         help='filter/search by UUID (default)')
     filterable.set_defaults(by_name=False, by_tag=False, by_uuid=False)
 
-    parser.add_argument('-c', '--config', metavar='FILE',
-        action='parse_config', ignore_unknown=True,
+    parser.add_argument('-c', '--config', metavar='FILE', action='parse_config',
+        ignore_unknown=True, sections=[None, 'volttron-ctl'],
         help='read configuration from FILE')
     parser.add_argument('--control-socket', metavar='FILE',
         help='path to socket used for control messages')
