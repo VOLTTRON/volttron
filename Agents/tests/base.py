@@ -12,6 +12,15 @@ from StringIO import StringIO
 
 from volttron.platform import aip
 from volttron.platform.control import server
+from volttron.platform import packaging
+
+try:
+    from volttron.restricted import (auth, certs)
+except ImportError:
+    auth = None
+    certs = None
+    
+
 # from volttron.platform.control import (CTL_STATUS,
 #                                        CTL_INSTALL,
 #                                        CTL_STATUS,
@@ -19,8 +28,6 @@ from volttron.platform.control import server
 #                                        CTL_STOP)
 
 #All paths relative to proj-dir/volttron
-VSTART = "env/bin/volttron"
-VCTRL = "env/bin/volttron-ctl"
 # INST_EXEC = "install"
 # REM_EXEC = "remove-executable"
 # LOAD_AGENT = "load-agent"
@@ -55,6 +62,23 @@ no-verify-agents
 control-socket = {tmpdir}/run/control
 
 """
+PLATFORM_CONFIG_RESTRICTED = """
+[agent-exchange]
+append-pid = false
+
+[agent-paths]
+config-dir = config
+agents-dir = {tmpdir}/Agents
+autostart-dir = {tmpdir}/autostart
+bin-dir = {tmpdir}/bin
+run-dir = {tmpdir}/tmp
+
+control-socket = {tmpdir}/run/control
+mobility-address = 127.0.0.1
+mobility-port = {mobility-port}
+"""
+
+
 
 TWISTED_CONFIG = """
 [report 0]
@@ -76,18 +100,27 @@ VERIFY_ONLY = 1
 RESOURCE_CHECK_ONLY = 2
 RESTRICTED = 3
 
-MODES = (UNRESTRICTED, VERIFY_ONLY, RESOURCE_CHECK_ONLY)
+MODES = (UNRESTRICTED, VERIFY_ONLY, RESOURCE_CHECK_ONLY, RESTRICTED)
 
 rel_path = '../../'
 
+VSTART = os.path.join(rel_path, "env/bin/volttron")
+VCTRL = os.path.join(rel_path, "env/bin/volttron-ctl")
+print VSTART
 
 class BasePlatformTest(unittest.TestCase):
 
     def setUp(self):
         self.originaldir = os.getcwd()
-        os.chdir(rel_path) 
+#         os.chdir(rel_path) 
         self.tmpdir = tempfile.mkdtemp()
+        self.wheelhouse = '/'.join((self.tmpdir, 'wheelhouse'))
+        os.makedirs(self.wheelhouse)
         os.environ['VOLTTRON_HOME'] = self.tmpdir
+        
+        opts = type('Options', (), {'verify_agents': False, 'volttron_home': self.tmpdir})()
+        self.test_aip = aip.AIPplatform(opts)
+        self.test_aip.setup()
         
     def setup_connector(self):
         path = os.path.expandvars('$VOLTTRON_HOME/run/control')
@@ -100,7 +133,7 @@ class BasePlatformTest(unittest.TestCase):
             
         self.conn= server.ControlConnector(path)
     
-    def startup_platform(self, platform_config, mode=UNRESTRICTED):
+    def startup_platform(self, platform_config, use_twistd = True, mode=UNRESTRICTED):
         try:
             config = json.loads(open(platform_config, 'r').read())
         except Exception as e:
@@ -119,7 +152,12 @@ class BasePlatformTest(unittest.TestCase):
         if self.mode == UNRESTRICTED:
             with closing(open(pconfig, 'w')) as cfg:
                 cfg.write(PLATFORM_CONFIG_UNRESTRICTED.format(**config))
+        elif self.mode == RESTRICTED:
+            with closing(open(pconfig, 'w')) as cfg:
+                cfg.write(PLATFORM_CONFIG_RESTRICTED.format(**config))
+                self.create_certs()
         else:
+            
             self.fail("Platform mode not implemented: "+str(mode))
 
         tconfig = os.path.join(self.tmpdir, TMP_SMAP_CONFIG_FILENAME)
@@ -127,13 +165,20 @@ class BasePlatformTest(unittest.TestCase):
             cfg.write(TWISTED_CONFIG.format(**config))
 
         lfile = os.path.join(self.tmpdir, "volttron.log")
-
+        os.environ['VOLTTRON_HOME'] = self.tmpdir 
+        print (os.environ['VOLTTRON_HOME'])
         pparams = [VSTART, "-c", pconfig, "-v", "-l", lfile]
+        print pparams
         self.p_process = subprocess.Popen(pparams)
-        tparams = ["twistd", "-n", "smap", tconfig]
-        self.t_process = subprocess.Popen(tparams)
+        
+        self.use_twistd = use_twistd
+        if self.use_twistd:
+            tparams = ["twistd", "-n", "smap", tconfig]
+            self.t_process = subprocess.Popen(tparams)
         #self.t_process = subprocess.Popen(["twistd", "-n", "smap", "test-smap.ini"])
 
+    def create_certs(self):
+        auth.create_root_ca(self.tmpdir, ca_name)
 
     def build_agentpackage(self, distdir):
         pwd = os.getcwd()
@@ -144,45 +189,59 @@ class BasePlatformTest(unittest.TestCase):
             os.chdir(basepackage)
             sys.argv = ['', 'bdist_wheel']
             exec(compile(open('setup.py').read(), 'setup.py', 'exec'))
-    
+     
             wheel_name = os.listdir('./dist')[0]
-    
+     
             wheel_file_and_path = os.path.join(os.path.abspath('./dist'), wheel_name)
         finally:
             os.chdir(pwd)
             
         return wheel_file_and_path
+    
+    def direct_build_agentpackage(self, agent_dir):
+        wheel_path = packaging.create_package(os.path.join(rel_path, agent_dir), self.wheelhouse)
+            
+        return wheel_path
+
+    def direct_configure_agentpackage(self, agent_wheel, config_file):
+        packaging.add_files_to_package(agent_wheel, {'config_file':os.path.join(rel_path, config_file)})
+            
 
 
-    def direct_buid_install_agent(self, agent_dir):
-        agent_wheel = self.build_agentpackage(agent_dir)
+    def direct_buid_install_agent(self, agent_dir, config_file):
+        agent_wheel = self.direct_build_agentpackage(agent_dir)
+        self.direct_configure_agentpackage(agent_wheel, config_file)
         self.assertIsNotNone(agent_wheel,"Agent wheel was not built")
         
-        opts = type('Options', (), {'verify_agents': False, 'volttron_home': self.tmpdir})()
-        test_aip = aip.AIPplatform(opts)
-        test_aip.setup()
-        uuid = test_aip.install_agent(agent_wheel)
+        uuid = self.test_aip.install_agent(agent_wheel)
         #aip volttron_home, verify_agents
         return uuid
 #         conn.call.start_agent()
 
+    def direct_remove_agent(self, uuid):
+        uuid = self.test_aip.remove_agent(uuid)
 
-    def direct_build_install_run_agent(self, agent_dir):
-        agent_uuid = self.direct_buid_install_agent(agent_dir)
+    def direct_build_install_run_agent(self, agent_dir, config_file):
+        agent_uuid = self.direct_buid_install_agent(agent_dir, config_file)
         self.direct_start_agent(agent_uuid)  
             
     def direct_start_agent(self, agent_uuid):
         
         self.conn.call.start_agent(agent_uuid)
         time.sleep(3)
+        
         status = self.conn.call.status_agents()
-        self.assertEquals(len(status[0]), 4, 'Unexpected status message')
+#         self.test_aip.status_agents()
+        
+#         status = self.conn.call.status_agents()
+#         self.assertEquals(len(status[0]), 4, 'Unexpected status message')
         status_uuid = status[0][0]
         self.assertEquals(status_uuid, agent_uuid, "Agent status shows error")
         
-        self.assertEquals(len(status[0][3]), 2, 'Unexpected agent status message')
-        status_agent_status = status[0][3][1]
-        self.assertEquals(status_agent_status, 0, "Agent status shows error")
+        self.assertEquals(len(status[0][2]), 2, 'Unexpected agent status message')
+        status_agent_status = status[0][2][1]
+        self.assertNotIsInstance(status_agent_status, int, "Agent did not start successfully")
+#         self.assertIn("running",status_agent_status, "Agent status shows error")
         print status
         
     def direct_stop_agent(self, agent_uuid):
@@ -197,11 +256,13 @@ class BasePlatformTest(unittest.TestCase):
     def shutdown_platform(self):
         '''Stop platform here'''
         if self.p_process != None:
+            self.conn.call.shutdown()
+            time.sleep(3)
             self.p_process.kill()
         else:
             print "NULL"
 
-        if self.t_process != None:
+        if self.use_twistd and self.t_process != None:
             self.t_process.kill()
             self.t_process.wait()
         else:
@@ -217,6 +278,8 @@ class BasePlatformTest(unittest.TestCase):
         finally:
             os.chdir(self.originaldir)
             
+    def do_nothing(self):
+        pass
 
 #     def build_install_run_agent(self, agent_dir, agent_name):
 #         self.build_and_install_agent(agent_dir)

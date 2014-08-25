@@ -1,6 +1,7 @@
 '''Agent packaging and signing support.
 '''
 
+import csv
 import hashlib
 import logging
 import os
@@ -9,17 +10,27 @@ import sys
 import time
 import uuid
 import wheel
+import tempfile
+import zipfile
 
+from wheel.install import (WheelFile, BadWheelFile)
+from contextlib import closing
+
+from collections import Iterable
 from wheel.install import WheelFile
 from wheel.tool import unpack
-
+from wheel.util import (native,
+                        open_for_csv,
+                        urlsafe_b64decode)
 from volttron.platform import config
 
 try:
-    from volttron.restricted import (auth, certs)
+     from volttron.restricted import (auth, certs)
 except ImportError:
-    auth = None
-    certs = None
+     auth = None
+     certs = None
+
+from volttron.restricted.auth import ZipPackageVerifier, VolttronPackageVerifier
 
 _log = logging.getLogger(os.path.basename(sys.argv[0])
                          if __name__ == '__main__' else __name__)
@@ -184,7 +195,7 @@ def _sign_agent_package(agent_package, **kwargs):
 
     if cert_type == 'soi':
         if files:
-            raise AgentPackageError("soi's aren't allowd to add files.")
+            raise AgentPackageError("soi's aren't allowed to add files.")
         verified = auth.sign_as_admin(agent_package, 'soi')
     elif cert_type == 'creator':
         verified = auth.sign_as_creator(agent_package, 'creator', files)
@@ -287,6 +298,219 @@ def _create_cert_ui(cn):
 
 
 
+def add_files_to_package(package, files=None):
+
+    whl = VolttronPackageWheelFileNoSign(package, append=True)
+    whl.add_files(files, whl)
+
+#TODO: Make this this base class and have auth extend it
+class VolttronPackageWheelFileNoSign(WheelFile):
+    AGENT_DATA_ZIP = 'agent_data.zip'
+
+    def __init__(self,
+                 filename,**kwargs):
+
+        super(VolttronPackageWheelFileNoSign, self).__init__(filename, **kwargs)
+
+    @property
+    def agent_data_dir(self):
+        return "%s.agent-data" % self.parsed_filename.group('namever')
+
+    @property
+    def agent_data_name(self):
+        return "%s/%s" % (self.agent_data_dir, self.AGENT_DATA_ZIP)
+
+    @property
+    def ready_to_move(self):
+        return True
+
+
+    def contains(self, path):
+        '''Does the wheel contain the specified path?'''
+
+        for x in self.zipfile.filelist:
+            if x.filename == path:
+                return True
+        return False
+
+    def add_agent_data(self, agent_dir):
+        '''Adds the agent's data to the wheel file
+
+        agent_dir is the root for an installed agent.
+        '''
+        try:
+            tmpdir = tempfile.mkdtemp()
+            abs_agent_dir = os.path.join(agent_dir, self.agent_data_dir)
+            zipFilename = os.path.join(tmpdir, 'tmp')
+            zipFilename = shutil.make_archive(zipFilename, "zip",
+                                              abs_agent_dir)
+            self.zipfile.write(zipFilename, self.agent_data_name)
+            self.__setupzipfile__()
+        finally:
+            shutil.rmtree(tmpdir, True)
+
+    def add_files(self, files_to_add=None, basedir='.'):
+
+        if files_to_add == None or len(files_to_add) == 0:
+            return
+
+        records = ZipPackageVerifier(self.filename).get_records()
+
+        if (len(records) < 1):
+            raise ValueError('Invalid wheel file no records found')
+
+        last_record_name = records[-1]
+#         new_record_name = "RECORD.{}".format(len(records))
+# 
+        tmp_dir = tempfile.mkdtemp()
+        record_path = '/'.join((self.distinfo_name, last_record_name))
+        tmp_new_record_file = '/'.join((tmp_dir, self.distinfo_name, last_record_name))
+        self.zipfile.extract('/'.join((self.distinfo_name, last_record_name)), path = tmp_dir)
+        
+        self.remove_files('/'.join((self.distinfo_name, 'config')))
+        
+        with closing(open_for_csv(tmp_new_record_file,"a+")) as record_file:
+            writer = csv.writer(record_file)
+
+
+            if files_to_add:
+                if 'config_file' in files_to_add.keys():
+                    try:
+                        data = open(files_to_add['config_file']).read()
+                    except Exception as e:
+                        _log.error("couldn't access {}" % files_to_add['config_file'])
+                        raise
+    
+                    if files_to_add['config_file'] != 'config':
+                        msg = 'WARNING: renaming passed config file: {}'.format(
+                                                    files_to_add['config_file'])
+                        msg += ' to config'
+                        sys.stderr.write(msg)
+                        _log.warn(msg)
+    
+                    self.zipfile.writestr("%s/%s" % (self.distinfo_name, 'config'),
+                                          data)
+                    
+                    (hash_data, size, digest) = self._record_digest(data)
+                    record_path = '/'.join((self.distinfo_name, 'config'))
+                    writer.writerow((record_path, hash_data, size))
+                    
+                if 'contract' in files_to_add.keys() and files_to_add['contract'] is not None:
+                    try:
+                        data = open(files_to_add['contract']).read()
+                    except Exception as e:
+                        _log.error("couldn't access {}" % files_to_add['contract'])
+                        raise
+    
+                    if files_to_add['contract'] != 'execreqs.json':
+                        msg = 'WARNING: renaming passed contract file: {}'.format(
+                                                    files_to_add['contract'])
+                        msg += ' to execreqs.json'
+                        sys.stderr.write(msg)
+                        _log.warn(msg)
+    
+                    self.zipfile.writestr("%s/%s" % (self.distinfo_name, 'execreqs.json'),
+                                          data)
+                    (hash_data, size, digest) = self._record_digest(data)
+                    record_path = '/'.join((self.distinfo_name, 'execreqs.json'))
+                    writer.writerow((record_path, hash_data, size))
+                    
+                        
+                self.__setupzipfile__()
+                
+        self.pop_records_file()
+            
+        new_record_content = open(tmp_new_record_file, 'r').read()
+        self.zipfile.writestr(self.distinfo_name+"/"+last_record_name,
+                new_record_content)
+        
+        self.zipfile.close()
+        self.__setupzipfile__()
+
+    def pop_records_file(self):
+        '''Pop off the last records file that was added'''
+        records = ZipPackageVerifier(self.filename).get_records()
+        topop = (os.path.join(self.distinfo_name, records[0]),)
+        self.remove_files(topop)
+
+        
+
+    def remove_files(self, files):
+        '''Relative to files in the package, ie: ./dist-info/config
+        '''
+        if not isinstance(files, Iterable):
+            files = [files]
+        tmpdir = tempfile.mkdtemp()
+        zipFilename = os.path.join(tmpdir, 'tmp.zip')
+        newZip = zipfile.ZipFile(zipFilename, 'w')
+
+        for f in self.zipfile.infolist():
+            if f.filename not in files:
+                buf = self.zipfile.read(f.filename)
+                newZip.writestr(f.filename, buf)
+        newZip.close()
+        self.zipfile.close()
+        self.fp = None
+        os.remove(self.filename)
+        shutil.move(zipFilename, self.filename)
+        self.__setupzipfile__()
+
+
+
+    def unpack(self, dest='.'):
+        namever = self.parsed_filename.group('namever')
+        destination = os.path.join(dest, namever)
+        sys.stderr.write("Unpacking to: %s\n" % (destination))
+        self.zipfile.extractall(destination)
+        self.zipfile.close()
+
+        data_dir = os.path.join(dest, self.agent_data_dir)
+        data_file = os.path.join(dest, self.agent_data_name)
+        if not os.path.isdir(data_dir):
+            _log.debug("no agent_data creating agent data directory")
+            os.mkdir(data_dir)
+            return
+        
+        if not os.path.isfile(data_file):
+            _log.debug("no agent_data.zip")
+            return
+        
+        _log.debug("extracting agent_data")
+        zip = zipfile.ZipFile(data_file)
+        zip.extractall(self.agent_data_name)
+        zip.close()
+        os.remove(data_file)
+
+    def _record_digest(self, data):
+        '''Returns a three tuple of hash, size and digest.'''
+
+        from wheel.util import urlsafe_b64encode
+
+        digest = hashlib.sha256(data).digest()
+        hash_text = 'sha256=' + native(urlsafe_b64encode(digest))
+        size = len(data)
+        return (hash_text, size, digest)
+
+    def contains(self, path):
+        '''Does the wheel contain the specified path?'''
+
+        for x in self.zipfile.filelist:
+            if x.filename == path:
+                return True
+
+    def __setupzipfile__(self):
+        self.zipfile.close()
+        self.fp = None
+
+        mode = 'r'
+        if self.append:
+            mode = 'a'
+
+        self.zipfile = zipfile.ZipFile(self.filename,
+                                               mode=mode,
+                              )
+
+
 
 
 def main(argv=sys.argv):
@@ -316,6 +540,15 @@ def main(argv=sys.argv):
 
     repackage_parser.add_argument('agent_name',
                                 help='The name of a currently installed agent.')
+    
+    config_parser = subparsers.add_parser('configure',
+        help='add a configuration file to an agent package')
+    config_parser.add_argument('package', metavar='PACKAGE',
+            help='agent package to configure')
+    config_parser.add_argument('config_file', metavar='CONFIG',
+        help='configuration file to add to wheel.')
+    
+
 
     if auth is not None:
         cert_dir = os.path.expanduser('~/.volttron/certificates')
@@ -352,7 +585,6 @@ def main(argv=sys.argv):
             help='agent resource contract file')
         sign_cmd.add_argument('package', metavar='PACKAGE',
             help='agent package to sign')
-
 
         #restricted = subparsers.add_parser('sign')
 #         restricted.add_argument('package',
@@ -391,6 +623,8 @@ def main(argv=sys.argv):
             whl_path = create_package(args.agent_directory)
         elif args.subparser_name == 'repackage':
             whl_path = repackage(args.agent_name)
+        elif args.subparser_name == 'configure' :
+            add_files_to_package(args.package, {'config_file': args.config_file})
         else:
             if auth is not None:
                 try:
@@ -412,7 +646,6 @@ def main(argv=sys.argv):
                                     'user_type': user_type,
                                     'contract': args.contract,
                                 }
-
                             result = _sign_agent_package(args.package, **in_args)
 
                         elif args.subparser_name == 'create_cert':
@@ -425,8 +658,8 @@ def main(argv=sys.argv):
 #             _create_cert(name=args.name, **)
     except AgentPackageError as e:
         print(e.message)
-    except auth.AuthError as e:
-        print(e.message)
+    except Exception as e:
+        print e
 
 
     if whl_path:
