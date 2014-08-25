@@ -2,7 +2,7 @@
     "agent": {
         "exec": "archiveragent-0.1-py2.7.egg --config \"%c\" --sub \"%s\" --pub \"%p\""
     },
-    "archiver_url": "http://smap.lbl.gov/backend/api/query",
+    "archiver_url": "http://<smap url here>/backend/api/query",
     "agentid": "Archiver1",
     "source_name": "<Your Source Here>"
 }
