@@ -1,6 +1,7 @@
 '''Agent packaging and signing support.
 '''
 
+import csv
 import hashlib
 import logging
 import os
@@ -10,11 +11,12 @@ import time
 import uuid
 import wheel
 import tempfile
-import csv
+import zipfile
+
 from wheel.install import (WheelFile, BadWheelFile)
-from zipfile import ZipFile
 from contextlib import closing
 
+from collections import Iterable
 from wheel.install import WheelFile
 from wheel.tool import unpack
 from wheel.util import (native,
@@ -23,10 +25,10 @@ from wheel.util import (native,
 from volttron.platform import config
 
 try:
-    from volttron.restricted import (auth, certs)
+     from volttron.restricted import (auth, certs)
 except ImportError:
-    auth = None
-    certs = None
+     auth = None
+     certs = None
 
 from volttron.restricted.auth import ZipPackageVerifier, VolttronPackageVerifier
 
@@ -297,15 +299,11 @@ def _create_cert_ui(cn):
 
 
 def add_files_to_package(package, files=None):
-#     whl = VolttronPackageWheelFile(package, append=True)
+
     whl = VolttronPackageWheelFileNoSign(package, append=True)
-    print "moo"
     whl.add_files(files, whl)
-#     for file in files:
-#         
-#         whl.write('Agents/ListenerAgent/config', 'listeneragent-0.1.dist-info/config')
-#     whl.close()
-    
+
+#TODO: Make this this base class and have auth extend it
 class VolttronPackageWheelFileNoSign(WheelFile):
     AGENT_DATA_ZIP = 'agent_data.zip'
 
@@ -368,6 +366,9 @@ class VolttronPackageWheelFileNoSign(WheelFile):
         record_path = '/'.join((self.distinfo_name, last_record_name))
         tmp_new_record_file = '/'.join((tmp_dir, self.distinfo_name, last_record_name))
         self.zipfile.extract('/'.join((self.distinfo_name, last_record_name)), path = tmp_dir)
+        
+        self.remove_files('/'.join((self.distinfo_name, 'config')))
+        
         with closing(open_for_csv(tmp_new_record_file,"a+")) as record_file:
             writer = csv.writer(record_file)
 
@@ -417,12 +418,43 @@ class VolttronPackageWheelFileNoSign(WheelFile):
                         
                 self.__setupzipfile__()
                 
+        self.pop_records_file()
+            
         new_record_content = open(tmp_new_record_file, 'r').read()
         self.zipfile.writestr(self.distinfo_name+"/"+last_record_name,
                 new_record_content)
         
         self.zipfile.close()
         self.__setupzipfile__()
+
+    def pop_records_file(self):
+        '''Pop off the last records file that was added'''
+        records = ZipPackageVerifier(self.filename).get_records()
+        topop = (os.path.join(self.distinfo_name, records[0]),)
+        self.remove_files(topop)
+
+        
+
+    def remove_files(self, files):
+        '''Relative to files in the package, ie: ./dist-info/config
+        '''
+        if not isinstance(files, Iterable):
+            files = [files]
+        tmpdir = tempfile.mkdtemp()
+        zipFilename = os.path.join(tmpdir, 'tmp.zip')
+        newZip = zipfile.ZipFile(zipFilename, 'w')
+
+        for f in self.zipfile.infolist():
+            if f.filename not in files:
+                buf = self.zipfile.read(f.filename)
+                newZip.writestr(f.filename, buf)
+        newZip.close()
+        self.zipfile.close()
+        self.fp = None
+        os.remove(self.filename)
+        shutil.move(zipFilename, self.filename)
+        self.__setupzipfile__()
+
 
 
     def unpack(self, dest='.'):
@@ -474,7 +506,7 @@ class VolttronPackageWheelFileNoSign(WheelFile):
         if self.append:
             mode = 'a'
 
-        self.zipfile = ZipFile(self.filename,
+        self.zipfile = zipfile.ZipFile(self.filename,
                                                mode=mode,
                               )
 
@@ -508,15 +540,14 @@ def main(argv=sys.argv):
 
     repackage_parser.add_argument('agent_name',
                                 help='The name of a currently installed agent.')
-    if auth is None:
-        
-        config_parser = subparsers.add_parser('configure',
-        help="Add a configuration file to an agent package")
-        config_parser.add_argument('wheel_file',
-        help='Location of wheel file')
-        config_parser.add_argument('config_file',
-        help='Configuration file to add to wheel.')
-
+    
+    config_parser = subparsers.add_parser('configure',
+        help='add a configuration file to an agent package')
+    config_parser.add_argument('package', metavar='PACKAGE',
+            help='agent package to configure')
+    config_parser.add_argument('config_file', metavar='CONFIG',
+        help='configuration file to add to wheel.')
+    
 
 
     if auth is not None:
@@ -554,9 +585,6 @@ def main(argv=sys.argv):
             help='agent resource contract file')
         sign_cmd.add_argument('package', metavar='PACKAGE',
             help='agent package to sign')
-        sign_cmd.add_argument('--unsecured_config', action='store_true',
-            help='Configure the agent without signing')
-
 
         #restricted = subparsers.add_parser('sign')
 #         restricted.add_argument('package',
@@ -593,12 +621,10 @@ def main(argv=sys.argv):
 
         if args.subparser_name == 'package':
             whl_path = create_package(args.agent_directory)
-            
         elif args.subparser_name == 'repackage':
             whl_path = repackage(args.agent_name)
         elif args.subparser_name == 'configure' :
-#             ?{'config':'Agents/ListenerAgent/config'}
-            add_files_to_package(args.wheel_file, {'config_file': args.config_file})
+            add_files_to_package(args.package, {'config_file': args.config_file})
         else:
             if auth is not None:
                 try:
@@ -620,10 +646,7 @@ def main(argv=sys.argv):
                                     'user_type': user_type,
                                     'contract': args.contract,
                                 }
-                            if args.unsecured_config is True:
-                                add_files_to_package(args.package, in_args)
-                            else:
-                                result = _sign_agent_package(args.package, **in_args)
+                            result = _sign_agent_package(args.package, **in_args)
 
                         elif args.subparser_name == 'create_cert':
                             _create_cert(name=args.name, **user_type)
@@ -634,8 +657,6 @@ def main(argv=sys.argv):
 #         elif args.subparser_name == 'create_cert':
 #             _create_cert(name=args.name, **)
     except AgentPackageError as e:
-        print(e.message)
-    except auth.AuthError as e:
         print(e.message)
     except Exception as e:
         print e
