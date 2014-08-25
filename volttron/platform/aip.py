@@ -67,7 +67,6 @@ from fcntl import fcntl, F_GETFL, F_SETFL
 import logging
 import os
 from os import O_NONBLOCK
-import shlex
 import shutil
 import signal
 import subprocess
@@ -92,50 +91,6 @@ except ImportError:
 
 
 _log = logging.getLogger(__name__)
-
-
-def _split_prefix(a, b):
-    a = a.split(os.path.sep)
-    b = b.split(os.path.sep)
-    common = []
-    i = 0
-    for i in range(min([len(a), len(b)])):
-        if a[i] != b[i]:
-            break
-        common.append(a[i])
-    del a[:i], b[:i]
-    return os.path.join(*common), a, len(b)
-
-
-def try_unlink(filename):
-    try:
-        os.unlink(filename)
-    except Exception:
-        pass
-
-
-def open_exclusive(filename, *args):
-    fd = os.open(filename, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0644)
-    try:
-        return os.fdopen(fd, *args)
-    except:
-        os.close(fd)
-        try_unlink(filename)
-        raise
-
-
-def copyfile(src, dst, exclusive=True):
-    src_file = open(src, 'rb')
-    dst_file = (open_exclusive if exclusive else open)(dst, 'wb')
-    try:
-        while True:
-            buf = src_file.read(4096)
-            if not buf:
-                return
-            dst_file.write(buf)
-    except:
-        try_unlink(dst)
-        raise
 
 
 def process_wait(p):
@@ -580,33 +535,3 @@ class AIPplatform(object):
             except gevent.Timeout:
                 raise ValueError('process is unresponsive')
         return execenv.process.poll()
-
-
-def replace_macros(string, macros):
-    '''Replace all occurances of %x style macros in string.
-
-    macros should be a dictionary mapping single characters to string
-    replacements.  '%' characters may be escaped using a double '%'.
-    Macros not in the macros dictionary are replaced with an empty
-    string.
-    '''
-    buf = []
-    escape = None
-    for c in string:
-        if escape:
-            if c != '%':
-                c = macros.get(c, '')
-            escape = None
-        elif c == '%':
-            escape = c
-            continue
-        buf.append(c)
-    return ''.join(buf)
-
-
-def parse_agent_args(exec_string, macros):
-    '''Parse exec_string into argv and return, replacing macros.'''
-    argv = shlex.split(exec_string)
-    argv[1:] = [replace_macros(arg, macros) for arg in argv[1:]]
-    return argv
-
