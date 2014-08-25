@@ -30,7 +30,6 @@ except ImportError:
      auth = None
      certs = None
 
-from volttron.restricted.auth import ZipPackageVerifier, VolttronPackageVerifier
 
 _log = logging.getLogger(os.path.basename(sys.argv[0])
                          if __name__ == '__main__' else __name__)
