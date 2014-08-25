@@ -20,7 +20,7 @@ class ListenerTests(base.BasePlatformTest):
 
     def setUp(self):
         super(ListenerTests, self).setUp()
-        self.startup_platform("base-platform-test.json")
+        self.startup_platform("base-platform-test.json", use_twistd=False)
         self.setup_connector()
         
     def tearDown(self):
@@ -36,8 +36,9 @@ class ListenerTests(base.BasePlatformTest):
 #         self.direct_start_agent(uuid)
 #         print "started"
 
-    def test_direct_build_and_install(self):
-        self.direct_buid_install_agent(AGENT_DIR, CONFIG_FILE)
+#     def test_direct_build_and_install(self):
+#         uuid = self.direct_buid_install_agent(AGENT_DIR, CONFIG_FILE)
+#         self.direct_remove_agent(uuid)
 
     def test_direct_install_and_start(self):
         self.direct_build_install_run_agent(AGENT_DIR, CONFIG_FILE)
