@@ -46,22 +46,13 @@ TMP_SMAP_CONFIG_FILENAME = "test-smap.ini"
 TEST_CONFIG_FILE = 'base-platform-test.json'
 
 PLATFORM_CONFIG_UNRESTRICTED = """
-[agent-exchange]
-append-pid = false
-
-[agent-paths]
-config-dir = config
-agents-dir = {tmpdir}/Agents
-autostart-dir = {tmpdir}/autostart
-bin-dir = {tmpdir}/bin
-run-dir = {tmpdir}/tmp
-
 no-resource-monitor
 no-verify-agents
 
 control-socket = {tmpdir}/run/control
-
 """
+
+
 PLATFORM_CONFIG_RESTRICTED = """
 [agent-exchange]
 append-pid = false
