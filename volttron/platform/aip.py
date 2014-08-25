@@ -501,7 +501,7 @@ class AIPplatform(object):
         if os.path.exists(config):
             environ['AGENT_CONFIG'] = config
         else:
-            del environ.pop('AGENT_CONFIG', None)
+            environ.pop('AGENT_CONFIG', None)
         if tag:
             environ['AGENT_TAG'] = tag
         else:
