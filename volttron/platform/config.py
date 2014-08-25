@@ -79,12 +79,18 @@ class ConfigFileAction(_argparse.Action):
 
     The file should contain one "long option" per line, with or without
     the leading option characters (usually --), and otherwise entered as
-    on the command-line with shell-style quoting. INI-style sections,
-    lines beginning with a hash (#) or semicolon (;), and empty lines
-    are ignored. Hashes and semicolons may also be used to comment
-    option lines, excluding everything from the comment character to the
-    end of the line. Key-value pairs may be separated by =, : or
-    whitespace.
+    on the command-line with shell-style quoting. Lines beginning with
+    a hash (#) or semicolon (;) and empty lines are ignored. Hashes (#)
+    may also be used to comment option lines, excluding everything from
+    the comment character to the end of the line. Key-value options may
+    be separated by =, : or whitespace.
+
+    By default, INI-style section markers are ignored. If, however, a
+    program wants only to use settings in certain sections, it may pass
+    a list of sections to allow. All other sections will be ignored.
+    Section names are case-sensitive. The special None section will
+    include global values which appear in the file before and section is
+    declared.
 
     Options which set their config flag to False will not be allowed in
     configuration files. A default value can be set on the parser with
@@ -194,6 +200,15 @@ class ConfigFileAction(_argparse.Action):
                     value = _shlex.split(value, True, True)
                 except ValueError as e:
                     parser.error('{}: {} (line {})'.format(conffile.name, e, lineno))
+            yield section, key, value, lineno
+
+
+def CaseInsensitiveConfigFileAction(ConfigFileAction):
+    def itersettings(self, parser, conffile):
+        itersettings = super(CaseInsensitiveConfigFileAction, self).itersettings
+        for section, key, value, lineno in itersettings(parser, conffile):
+            if section is not None:
+                section = section.lower()
             yield section, key, value, lineno
 
 
