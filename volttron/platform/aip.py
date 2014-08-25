@@ -492,6 +492,7 @@ class AIPplatform(object):
                 _log.error('no agent launch class specified in package %s', agent_path)
                 raise ValueError('no agent launch class specified in package')
         config = os.path.join(dist_info, 'config')
+        tag = self.agent_tag(agent_uuid)
 
         environ = os.environ.copy()
         environ['PYTHONPATH'] = ':'.join([agent_path] + sys.path)
@@ -499,8 +500,12 @@ class AIPplatform(object):
                            ':' + environ['PATH'])
         if os.path.exists(config):
             environ['AGENT_CONFIG'] = config
-        elif 'AGENT_CONFIG' in environ:
-            del environ['AGENT_CONFIG']
+        else:
+            del environ.pop('AGENT_CONFIG', None)
+        if tag:
+            environ['AGENT_TAG'] = tag
+        else:
+            environ.pop('AGENT_TAG', None)
         environ['AGENT_SUB_ADDR'] = self.subscribe_address
         environ['AGENT_PUB_ADDR'] = self.publish_address
 
