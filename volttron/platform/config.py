@@ -11,7 +11,6 @@ the order encountered.
 '''
 
 import argparse as _argparse
-import logging as _logging
 import os as _os
 import re as _re
 import shlex as _shlex
@@ -80,12 +79,18 @@ class ConfigFileAction(_argparse.Action):
 
     The file should contain one "long option" per line, with or without
     the leading option characters (usually --), and otherwise entered as
-    on the command-line with shell-style quoting. INI-style sections,
-    lines beginning with a hash (#) or semicolon (;), and empty lines
-    are ignored. Hashes and semicolons may also be used to comment
-    option lines, excluding everything from the comment character to the
-    end of the line. Key-value pairs may be separated by =, : or
-    whitespace.
+    on the command-line with shell-style quoting. Lines beginning with
+    a hash (#) or semicolon (;) and empty lines are ignored. Hashes (#)
+    may also be used to comment option lines, excluding everything from
+    the comment character to the end of the line. Key-value options may
+    be separated by =, : or whitespace.
+
+    By default, INI-style section markers are ignored. If, however, a
+    program wants only to use settings in certain sections, it may pass
+    a list of sections to allow. All other sections will be ignored.
+    Section names are case-sensitive. The special None section will
+    include global values which appear in the file before and section is
+    declared.
 
     Options which set their config flag to False will not be allowed in
     configuration files. A default value can be set on the parser with
@@ -101,18 +106,17 @@ class ConfigFileAction(_argparse.Action):
     will be processed after environment variables.
     '''
 
-    _ignored_re = _re.compile(r'^\s*(?:\[.*?\]\s*)?(?:[#;].*)?$')
-    _setting_re = _re.compile(r'^(\S+?)(?:(?:\s*[:=]\s*|\s+)(.*))?$')
-
     def __init__(self, option_strings, dest,
                  required=False, help=None, metavar=None, **kwargs):
         ignore_unknown = kwargs.pop('ignore_unknown', None)
         inline = kwargs.pop('inline', False)
+        sections = kwargs.pop('sections', None)
         super(ConfigFileAction, self).__init__(
             option_strings=option_strings, dest=_argparse.SUPPRESS,
                 required=required, help=help, metavar=metavar)
         self.ignore_unknown = ignore_unknown
         self.inline = inline
+        self.sections = sections
         self.preprocess = True
 
     def __call__(self, parser, namespace, path, option_string=None, seen_files=None):
@@ -130,7 +134,9 @@ class ConfigFileAction(_argparse.Action):
                     # XXX: Should a warning be issued?
                     return [], []
                 seen_files.add(file_id)
-                for key, args, lineno in self.itersettings(parser, file):
+                for section, key, args, lineno in self.itersettings(parser, file):
+                    if self.sections is not None and section not in self.sections:
+                        continue
                     source = ('config', (path, lineno, key))
                     opt = TrackingString((key if key.startswith('--')
                                          else ('--' + key)), source=source)
@@ -169,22 +175,44 @@ class ConfigFileAction(_argparse.Action):
         return ([], arg_strings) if self.inline else (arg_strings, [])
 
     def itersettings(self, parser, conffile):
+        section_re = _re.compile(r'^\s*\[\s*((?:\\.|[^\]])*?)\s*\](.*)$')
+        comment_re = _re.compile(r'^\s*(?:[#;].*)?$')
+        setting_re = _re.compile(r'^(\S+?)(?:(?:\s*[:=]\s*|\s+)(.*))?$')
+        section = None
         for lineno, line in enumerate(conffile):
             if not line:
                 break
             line = line.strip()
-            if self._ignored_re.match(line):
+            if not line or comment_re.match(line):
                 continue
-            key, value = self._setting_re.match(line).groups()
+            match = section_re.match(line)
+            if match:
+                section, rest = match.groups()
+                if not comment_re.match(rest):
+                    err = 'invalid syntax after section: {!r}'.format(rest)
+                    parser.error('{}: {} (line {})'.format(conffile.name, err, lineno))
+                # Remove backslash escapes
+                section = _re.sub(r'\\(.)', r'\1', section)
+                continue
+            key, value = setting_re.match(line).groups()
             if value is not None:
                 try:
                     value = _shlex.split(value, True, True)
                 except ValueError as e:
                     parser.error('{}: {} (line {})'.format(conffile.name, e, lineno))
-            yield key, value, lineno
+            yield section, key, value, lineno
 
 
-def env_var_formatter(formatter_class):
+def CaseInsensitiveConfigFileAction(ConfigFileAction):
+    def itersettings(self, parser, conffile):
+        itersettings = super(CaseInsensitiveConfigFileAction, self).itersettings
+        for section, key, value, lineno in itersettings(parser, conffile):
+            if section is not None:
+                section = section.lower()
+            yield section, key, value, lineno
+
+
+def env_var_formatter(formatter_class=_argparse.HelpFormatter):
     '''Decorator to automatically add env_var documentation to help.'''
     class EnvHelpFormatter(formatter_class):
         def _get_help_string(self, action):
@@ -435,38 +463,5 @@ def _patch_argparse():
 _patch_argparse()
 
 
-def get_volttron_parser(*args, **kwargs):
-    '''Return standard parser for VOLTTRON tools.'''
-    kwargs.setdefault('add_help', False)
-    parser = ArgumentParser(*args, **kwargs)
-    parser.add_argument('-c', '--config', metavar='FILE',
-        action='parse_config', ignore_unknown=True,
-        help='read configuration from FILE')
-    parser.add_argument('-l', '--log', metavar='FILE', default=None,
-        help='send log output to FILE instead of stderr')
-    parser.add_argument('-L', '--log-config', metavar='FILE',
-        help='read logging configuration from FILE')
-    parser.add_argument('-q', '--quiet', action='add_const', const=10, dest='verboseness',
-        help='decrease logger verboseness; may be used multiple times')
-    parser.add_argument('-v', '--verbose', action='add_const', const=-10, dest='verboseness',
-        help='increase logger verboseness; may be used multiple times')
-    parser.add_argument('--verboseness', type=int, metavar='LEVEL',
-        default=_logging.WARNING,
-        help='set logger verboseness')
-    return parser
-
-
-def get_volttron_defaults():
-    return {
-        'log': None,
-        'autostart': True,
-        'publish_address': 'ipc://$VOLTTRON_HOME/run/publish',
-        'subscribe_address': 'ipc://$VOLTTRON_HOME/run/subscribe',
-        'control_socket': '@$VOLTTRON_HOME/run/control',
-        'allow_root': False,
-        'allow_users': None,
-        'allow_groups': None,
-        'verboseness': _logging.WARNING,
-        'verify_agents': True,
-        'resource_monitor': True,
-    }
+def expandall(string):
+    return _os.path.expanduser(_os.path.expandvars(string))

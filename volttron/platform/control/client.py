@@ -332,10 +332,15 @@ def priority(value):
 
 
 def main(argv=sys.argv):
+    volttron_home = config.expandall(
+            os.environ.get('VOLTTRON_HOME', '~/.volttron'))
+    os.environ['VOLTTRON_HOME'] = volttron_home
+
     parser = config.ArgumentParser(
-        prog=os.path.basename(argv[0]),
+        prog=os.path.basename(argv[0]), add_help=False,
         description='Manage and control VOLTTRON agents.',
         usage='%(prog)s command [OPTIONS] ...',
+        argument_default=argparse.SUPPRESS,
     )
 
     filterable = config.ArgumentParser(add_help=False)
@@ -347,8 +352,16 @@ def main(argv=sys.argv):
         help='filter/search by UUID (default)')
     filterable.set_defaults(by_name=False, by_tag=False, by_uuid=False)
 
+    parser.add_argument('-c', '--config', metavar='FILE', action='parse_config',
+        ignore_unknown=True, sections=[None, 'volttron-ctl'],
+        help='read configuration from FILE')
     parser.add_argument('--control-socket', metavar='FILE',
         help='path to socket used for control messages')
+    parser.add_help_argument()
+    parser.set_defaults(
+        volttron_home=volttron_home,
+        control_socket='@$VOLTTRON_HOME/run/control',
+    )
 
     subparsers = parser.add_subparsers(title='commands', metavar='', dest='command')
 
@@ -359,7 +372,7 @@ def main(argv=sys.argv):
             help='verify agent integrity during install')
         install.add_argument('--no-verify', action='store_false', dest='verify_agents',
             help=argparse.SUPPRESS)
-    install.set_defaults(func=install_agent)
+    install.set_defaults(func=install_agent, verify_agents=True)
 
     tag = subparsers.add_parser('tag', parents=[filterable],
         help='set, show, or remove agent tag')
@@ -454,13 +467,12 @@ def main(argv=sys.argv):
             help='owning group name or ID')
         cgroup.set_defaults(func=create_cgroups, user=None, group=None)
 
-    parser.set_defaults(**config.get_volttron_defaults())
-
-    opts = parser.parse_args(argv[1:])
-    expandall = lambda string: os.path.expanduser(os.path.expandvars(string))
-    opts.volttron_home = expandall(os.environ.get('VOLTTRON_HOME', '~/.volttron'))
-    os.environ['VOLTTRON_HOME'] = opts.volttron_home
-    opts.control_socket = expandall(opts.control_socket)
+    args = argv[1:]
+    conf = os.path.join(volttron_home, 'config')
+    if os.path.exists(conf) and 'SKIP_VOLTTRON_CONFIG' not in os.environ:
+        args = ['--config', conf] + args
+    opts = parser.parse_args(args)
+    opts.control_socket = config.expandall(opts.control_socket)
     opts.aip = aip.AIPplatform(opts)
     opts.aip.setup()
 
