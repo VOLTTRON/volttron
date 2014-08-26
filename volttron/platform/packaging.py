@@ -32,8 +32,6 @@ from wheel.util import (native,
 from volttron.platform.packages import (BasePackageVerifier, VolttronPackageWheelFileNoSign, ZipPackageVerifier)
 from volttron.platform import config
 
-from volttron.restricted import (auth, certs)
-
 try:
      from volttron.restricted import (auth, certs)
 except ImportError:
