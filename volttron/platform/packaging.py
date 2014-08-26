@@ -37,7 +37,6 @@ from volttron.restricted import (auth, certs)
 try:
      from volttron.restricted import (auth, certs)
 except ImportError:
-     print "HI"
      auth = None
      certs = None
 
