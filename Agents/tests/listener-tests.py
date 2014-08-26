@@ -21,7 +21,6 @@ class ListenerTests(base.BasePlatformTest):
     def setUp(self):
         super(ListenerTests, self).setUp()
         self.startup_platform("base-platform-test.json", use_twistd=False)
-        self.setup_connector()
         
     def tearDown(self):
         super(ListenerTests, self).tearDown()

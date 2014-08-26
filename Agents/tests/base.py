@@ -73,7 +73,7 @@ mobility-port = {mobility-port}
 
 TWISTED_CONFIG = """
 [report 0]
-ReportDeliveryLocation = {smap-uri}
+ReportDeliveryLocation = {smap-uri}/add/{smap-key}
 
 [/]
 type = Collection
@@ -93,7 +93,7 @@ RESTRICTED = 3
 
 MODES = (UNRESTRICTED, VERIFY_ONLY, RESOURCE_CHECK_ONLY, RESTRICTED)
 
-rel_path = '../../'
+rel_path = './'
 
 VSTART = os.path.join(rel_path, "env/bin/volttron")
 VCTRL = os.path.join(rel_path, "env/bin/volttron-ctl")
@@ -113,6 +113,7 @@ class BasePlatformTest(unittest.TestCase):
         self.test_aip = aip.AIPplatform(opts)
         self.test_aip.setup()
         
+        
     def setup_connector(self):
         path = os.path.expandvars('$VOLTTRON_HOME/run/control')
         
@@ -125,6 +126,9 @@ class BasePlatformTest(unittest.TestCase):
         self.conn= server.ControlConnector(path)
     
     def startup_platform(self, platform_config, use_twistd = True, mode=UNRESTRICTED):
+        
+        
+        
         try:
             config = json.loads(open(platform_config, 'r').read())
         except Exception as e:
@@ -164,9 +168,31 @@ class BasePlatformTest(unittest.TestCase):
         
         self.use_twistd = use_twistd
         if self.use_twistd:
-            tparams = ["twistd", "-n", "smap", tconfig]
+            tparams = ["env/bin/twistd", "-n", "smap", tconfig]
             self.t_process = subprocess.Popen(tparams)
+            time.sleep(5)
         #self.t_process = subprocess.Popen(["twistd", "-n", "smap", "test-smap.ini"])
+
+        self.setup_connector()
+
+    def fillout_file(self, filename, template, config_file):
+        
+        try:
+            config = json.loads(open(config_file, 'r').read())
+        except Exception as e:
+            sys.stderr.write (str(e))
+            self.fail("Could not load configuration file for tests")
+        
+#         self.tmpdir = tempfile.mkdtemp()
+        config['tmpdir'] = self.tmpdir
+        
+        outfile = os.path.join(self.tmpdir, filename)
+        with closing(open(outfile, 'w')) as cfg:
+            cfg.write(template.format(**config))
+            
+        return outfile
+
+
 
     def create_certs(self):
         auth.create_root_ca(self.tmpdir, ca_name)
@@ -247,7 +273,8 @@ class BasePlatformTest(unittest.TestCase):
     def shutdown_platform(self):
         '''Stop platform here'''
         if self.p_process != None:
-            self.conn.call.shutdown()
+            if self.conn is not None:
+                self.conn.call.shutdown()
             time.sleep(3)
             self.p_process.kill()
         else:

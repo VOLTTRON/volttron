@@ -1,11 +1,14 @@
 '''Agent packaging and signing support.
 '''
-
+import base64
 import csv
 import hashlib
 import logging
 import os
+import posixpath
+import re
 import shutil
+import StringIO
 import sys
 import time
 import uuid
@@ -510,7 +513,167 @@ class VolttronPackageWheelFileNoSign(WheelFile):
                               )
 
 
+#
+# Signature verification in the class below has the limitation that only
+# a single certificate may be used for verification. Ideally, the
+# certificate should be extracted from the signature file and verified
+# against a certificate authority (CA) in the CA store. See
+# http://code.activestate.com/recipes/285211/ for an alternate solution
+# using M2Crypto.
+#
+class BasePackageVerifier(object):
+    '''Base class for implementing wheel package verification.
 
+    Verifies wheel packages as defined in PEP-427. May be inherited with
+    minimal modifications to support different storage mechanisms, such
+    as a filesystem, Zip file, or tarball. All paths are expected to be
+    POSIX-style with forward-slashes. Subclasses should implement
+    listdir and open and may override __init__, if needed.
+
+    As an extension of the original specification, multiple levels of
+    RECORD files and signatures are supported by appending incrementing
+    integers to the RECORD files. Verification happens in reverse order
+    and later RECORD files should contain hashes of the previous RECORD
+    and associated signature file(s).
+    '''
+
+    _record_re = re.compile(r'^RECORD(?:\.\d+)?$')
+
+    def __init__(self, dist_info, **kwargs):
+        '''Initialize the instance with the dist-info directory name.
+
+        dist_info should contain the name of a single directory, not a
+        multi-component path.
+        '''
+        self.dist_info = dist_info
+
+
+
+    def listdir(self, path):
+        '''Return a possibly empty list of files from a directory.
+
+        This could return the contents of a directory in an archive or
+        whatever makes sense for the storage mechanism. Paths will
+        typically be relative to the package, however, for installed
+        packages, absolute paths are possible.
+        '''
+        raise NotImplementedError()
+
+    def open(self, path, mode='r'):
+        '''Return a file-like object for the given file.
+
+        mode is interpreted the same as for the built-in open and will
+        be either 'r' or 'rb'. Only the __iter__(), read(), and close()
+        methods are used.
+        '''
+        raise NotImplementedError()
+
+    def iter_hashes(self, name='RECORD'):
+        '''Iterate over the files and hashes of a RECORD file.
+
+        The RECORD file with the given name will be iterated over
+        yielding a three tuple with each iteration: filename (relative
+        to the package), computed hash (just calculated), and expected
+        hash (from RECORD file).
+        '''
+        hashless = [posixpath.join(self.dist_info, name + ext)
+                    for ext in ['', '.jws', '.p7s']]
+        path = posixpath.join(self.dist_info, name)
+        with closing(self.open(path)) as record_file:
+            for row in csv.reader(record_file):
+                filename, hashspec = row[:2]
+                if not hashspec:
+                    if filename not in hashless:
+                        yield filename, None, None
+                    continue
+                algo, expected_hash = hashspec.split('=', 1)
+                hash = hashlib.new(algo)
+                with closing(self.open(filename, 'rb')) as file:
+                    while True:
+                        data = file.read(4096)
+                        if not data:
+                            break
+                        hash.update(data)
+                hash = base64.urlsafe_b64encode(hash.digest()).rstrip('=')
+                yield filename, hash, expected_hash
+
+    def get_records(self):
+        '''Return a reverse sorted list of RECORD names from the package.
+
+        Returns all RECORD files in the dist_info directory.
+        '''
+        records = [name for name in self.listdir(self.dist_info)
+                   if self._record_re.match(name)]
+        records.sort(key=lambda x: int((x.split('.', 1) + [-1])[1]), reverse=True)
+        if not records:
+            raise ValueError('missing RECORD file(s) in .dist-info directory')
+        return records
+
+#     def verify(self):
+#         '''Verify the hashes of every file in the RECORD files of the package.
+# 
+#         if a problem exists AuthError is raised
+#         '''
+#         for record in self.get_records():
+#             # only if the function exists will we look for the smime
+#             # signature.
+#             if getattr(self, 'verify_smime_signature', None) is not None:
+#                 try:
+#                     if not self.verify_smime_signature(record):
+#                         path = posixpath.join(self.dist_info, record)
+#                         msg = '{}: failed signature verification'.format(path)
+#                         _log.debug(msg)
+#                         raise AuthError(msg)
+#                 except KeyError as e:
+#                     path = posixpath.join(self.dist_info, record)
+#                     msg = '{}: failed signature verification'.format(path)
+#                     _log.debug(msg)
+#                     raise AuthError(msg)
+#             for path, hash, expected_hash in self.iter_hashes(record):
+#                 if not expected_hash:
+#                     _log.warning('{}: no hash for file'.format(path))
+#                 elif hash != expected_hash:
+#                     msg = '{}: failed hash verification'.format(path)
+#                     _log.error(msg)
+#                     _log.debug('{}: hashes are not equal: computed={}, expected={}'.format(
+#                             path, hash, expected_hash))
+#                     raise AuthError(msg)
+                
+                
+class ZipPackageVerifier(BasePackageVerifier):
+    '''Verify files of a Zip file.'''
+
+    def __init__(self, zip_path, mode='r', **kwargs):
+        self._zipfile = zipfile.ZipFile(zip_path)
+        self._namelist = self._zipfile.namelist()
+
+        names = [name for name in self._namelist
+                 if name.endswith('.dist-info/RECORD') and name.count('/') == 1]
+        if len(names) != 1:
+            raise ValueError('unable to determine dist-info directory')
+        dist_info = names[0].split('/', 1)[0]
+        super(ZipPackageVerifier, self).__init__(dist_info, **kwargs)
+
+    def listdir(self, path):
+        if path[-1:] != '/':
+            path += '/'
+        n = len(path)
+        return [name[n:].split('/', 1)[0]
+                for name in self._namelist if name.startswith(path)]
+
+    def verify_smime_signature(self, name='RECORD'):
+        '''Verify the S/MIME (.p7s) signature of named RECORD file.'''
+        record = posixpath.join(self.dist_info, name)
+        record_p7s = record + '.p7s'
+
+
+        content = StringIO.StringIO()
+        content.write(self._zipfile.read(record_p7s))
+        content.seek(0)
+        return self._certsobj.verify_smime(content)
+
+    def open(self, path, mode='r'):
+        return self._zipfile.open(path, 'r')
 
 def main(argv=sys.argv):
 
@@ -632,7 +795,7 @@ def main(argv=sys.argv):
                     elif args.subparser_name == 'verify':
                         if not os.path.exists(args.package):
                             print('Invalid package name {}'.format(args.package))
-                        verifier = auth.ZipPackageVerifier(args.package)
+                        verifier = ZipPackageVerifier(args.package)
                         verifier.verify()
                         print "Package is verified"
                     else:
@@ -663,6 +826,105 @@ def main(argv=sys.argv):
 
     if whl_path:
         print("Package created at: {}".format(whl_path))
+
+
+#
+# Signature verification in the class below has the limitation that only
+# a single certificate may be used for verification. Ideally, the
+# certificate should be extracted from the signature file and verified
+# against a certificate authority (CA) in the CA store. See
+# http://code.activestate.com/recipes/285211/ for an alternate solution
+# using M2Crypto.
+#
+class BasePackageVerifier(object):
+    '''Base class for implementing wheel package verification.
+
+    Verifies wheel packages as defined in PEP-427. May be inherited with
+    minimal modifications to support different storage mechanisms, such
+    as a filesystem, Zip file, or tarball. All paths are expected to be
+    POSIX-style with forward-slashes. Subclasses should implement
+    listdir and open and may override __init__, if needed.
+
+    As an extension of the original specification, multiple levels of
+    RECORD files and signatures are supported by appending incrementing
+    integers to the RECORD files. Verification happens in reverse order
+    and later RECORD files should contain hashes of the previous RECORD
+    and associated signature file(s).
+    '''
+
+    _record_re = re.compile(r'^RECORD(?:\.\d+)?$')
+
+    def __init__(self, dist_info, digest='sha256', **kwargs):
+        '''Initialize the instance with the dist-info directory name.
+
+        dist_info should contain the name of a single directory, not a
+        multi-component path.
+        '''
+        self.dist_info = dist_info
+        self.digest = digest
+
+       
+
+    def listdir(self, path):
+        '''Return a possibly empty list of files from a directory.
+
+        This could return the contents of a directory in an archive or
+        whatever makes sense for the storage mechanism. Paths will
+        typically be relative to the package, however, for installed
+        packages, absolute paths are possible.
+        '''
+        raise NotImplementedError()
+
+    def open(self, path, mode='r'):
+        '''Return a file-like object for the given file.
+
+        mode is interpreted the same as for the built-in open and will
+        be either 'r' or 'rb'. Only the __iter__(), read(), and close()
+        methods are used.
+        '''
+        raise NotImplementedError()
+
+    def iter_hashes(self, name='RECORD'):
+        '''Iterate over the files and hashes of a RECORD file.
+
+        The RECORD file with the given name will be iterated over
+        yielding a three tuple with each iteration: filename (relative
+        to the package), computed hash (just calculated), and expected
+        hash (from RECORD file).
+        '''
+        hashless = [posixpath.join(self.dist_info, name + ext)
+                    for ext in ['', '.jws', '.p7s']]
+        path = posixpath.join(self.dist_info, name)
+        with closing(self.open(path)) as record_file:
+            for row in csv.reader(record_file):
+                filename, hashspec = row[:2]
+                if not hashspec:
+                    if filename not in hashless:
+                        yield filename, None, None
+                    continue
+                algo, expected_hash = hashspec.split('=', 1)
+                hash = hashlib.new(algo)
+                with closing(self.open(filename, 'rb')) as file:
+                    while True:
+                        data = file.read(4096)
+                        if not data:
+                            break
+                        hash.update(data)
+                hash = base64.urlsafe_b64encode(hash.digest()).rstrip('=')
+                yield filename, hash, expected_hash
+
+    def get_records(self):
+        '''Return a reverse sorted list of RECORD names from the package.
+
+        Returns all RECORD files in the dist_info directory.
+        '''
+        records = [name for name in self.listdir(self.dist_info)
+                   if self._record_re.match(name)]
+        records.sort(key=lambda x: int((x.split('.', 1) + [-1])[1]), reverse=True)
+        if not records:
+            raise ValueError('missing RECORD file(s) in .dist-info directory')
+        return records
+
 
 
 def _main():

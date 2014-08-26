@@ -12,31 +12,48 @@ from volttron.platform.agent import PublishMixin
 Test 
 """
 
-archiver_dict = {"executable": "archiveragent-0.1-py2.7.egg",
-                 "launch_file": "Agents/ArchiverAgent/archiver-test-deploy.service",
-                 "agent_name": "archiver-test-deploy.service"}
+AGENT_CONFIG = """
+{{
+    "archiver_url": "/{smap-uri}/api/query",
+    "agentid": "SMAP Archiver",
+    "source_name": "{smap-source}"
+}}
 
+"""
+
+
+# 
+# archiver_dict = {"executable": "archiveragent-0.1-py2.7.egg",
+#                  "launch_file": "Agents/ArchiverAgent/archiver-test-deploy.service",
+#                  "agent_name": "archiver-test-deploy.service"}
+AGENT_DIR = "Agents/ArchiverAgent"
+CONFIG_FILE_NAME = "archiveragent.service"
 
 class ArchiverTests(base.BasePlatformTest):
 
     def setUp(self):
         super(ArchiverTests, self).setUp()
         self.startup_platform("base-platform-test.json")
-        self.setup_connector()
         
     def tearDown(self):
         super(ArchiverTests, self).tearDown()
-    
-    def test_build(self):
-        agent_wheel = self.build_agentpackage("Agents/ArchiverAgent")
-        self.assertIsNotNone(agent_wheel,"Agent wheel was not built")
-        self.assertTrue(agent_wheel.endswith("archiveragent-0.1-py2-none-any.whl"))
+#     
+#     def test_build(self):
+#         agent_wheel = self.build_agentpackage("Agents/ArchiverAgent")
+#         self.assertIsNotNone(agent_wheel,"Agent wheel was not built")
+#         self.assertTrue(agent_wheel.endswith("archiveragent-0.1-py2-none-any.whl"))
+#      
      
-    def test_direct_build_and_install(self):
-        self.direct_buid_install_agent("Agents/ArchiverAgent")
-
-    def direct_build_install_run_agent(self):
-        self.direct_build_install_run_agent("Agents/ArchiverAgent")
+    def test_direct_install_and_start(self):
+        config = self.fillout_file(CONFIG_FILE_NAME, AGENT_CONFIG, "base-platform-test.json")
+        
+        self.direct_build_install_run_agent(AGENT_DIR, config)
+     
+#     def test_direct_build_and_install(self):
+#         self.direct_buid_install_agent("Agents/ArchiverAgent")
+# 
+#     def direct_build_install_run_agent(self):
+#         self.direct_build_install_run_agent("Agents/ArchiverAgent")
 
 # def build_and_setup_archiver():
 #     print "build_and_setup_archiver"
