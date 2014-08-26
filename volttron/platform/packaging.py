@@ -4,6 +4,7 @@ import base64
 from collections import Iterable
 from contextlib import closing
 import csv
+import errno
 import hashlib
 import logging
 import os
@@ -18,6 +19,10 @@ import wheel
 import tempfile
 import zipfile
 
+try:
+    import simplejson as jsonapi
+except ImportError:
+    import json as jsonapi
 
 from wheel.install import WheelFile
 from wheel.tool import unpack
@@ -88,9 +93,61 @@ def extract_package(wheel_file, install_dir,
     return destination
 
 
-def repackage(agent_name):
-    raise AgentPackageError('Repackage is not available')
+def repackage(directory, dest=None):
+    '''Repack an wheel unpacked into the given directory.
 
+    All files in the RECORD files are added back to the wheel, which is
+    written in the current working directory if dest is None or in the
+    directory given by dest otherwise.
+    '''
+    for name in os.listdir(directory):
+        if not name.endswith('.dist-info'):
+            continue
+        distinfo = os.path.join(directory, name)
+        try:
+            with open(os.path.join(distinfo, 'metadata.json')) as file:
+                metadata = jsonapi.load(file)
+            with open(os.path.join(distinfo, 'WHEEL')) as file:
+                wheel = {key.strip().lower(): value.strip()
+                         for key, value in
+                         (parts for line in file if line
+                          for parts in [line.split(':', 1)] if len(parts) == 2)}
+        except EnvironmentError as exc:
+            if exc.errno == errno.ENOENT:
+                continue
+            raise
+        try:
+            metadata['tag'] = wheel['tag']
+            pkgname = '{name}-{version}-{tag}'.format(**metadata)
+        except KeyError:
+            continue
+        if not pkgname.startswith(name[:-10] + '-'):
+            continue
+        break
+    else:
+        raise AgentPackageError('directory does not appear to contain a '
+                                'valid agent package')
+
+    regex = re.compile(r'^RECORD(?:\.\d+)?$')
+    records = [name for name in os.listdir(distinfo) if regex.match(name)]
+    records.sort()
+    wheelname = pkgname + '.whl'
+    if dest is not None:
+        dest = os.path.expanduser(os.path.expandvars(dest))
+        wheelname = os.path.join(dest, wheelname)
+    with zipfile.ZipFile(wheelname, 'w') as wheelfile:
+        try:
+            for record in records:
+                with open(os.path.join(distinfo, record)) as file:
+                    csvfile = csv.reader(file)
+                    for row in csvfile:
+                        name = row[0]
+                        wheelfile.write(os.path.join(directory, name), name)
+        except Exception:
+            wheelfile.close()
+            os.unlink(wheelfile.filename)
+            raise
+    return wheelfile.filename
 
 def create_package(agent_package_dir, wheelhouse='/tmp/volttron_wheels'):
     '''Creates a packaged whl file from the passed agent_package_dir.
@@ -691,9 +748,11 @@ def main(argv=sys.argv):
 
     repackage_parser = subparsers.add_parser('repackage',
                                            help="Creates agent package from a currently installed agent.")
-
-    repackage_parser.add_argument('agent_name',
-                                help='The name of a currently installed agent.')
+    repackage_parser.add_argument('directory',
+        help='Directory where agent is installed')
+    repackage_parser.add_argument('--dest',
+        help='Directory to place the wheel file')
+    repackage_parser.set_defaults(dest=None)
     
     config_parser = subparsers.add_parser('configure',
         help='add a configuration file to an agent package')
@@ -776,7 +835,7 @@ def main(argv=sys.argv):
         if args.subparser_name == 'package':
             whl_path = create_package(args.agent_directory)
         elif args.subparser_name == 'repackage':
-            whl_path = repackage(args.agent_name)
+            whl_path = repackage(args.directory, dest=args.dest)
         elif args.subparser_name == 'configure' :
             add_files_to_package(args.package, {'config_file': args.config_file})
         else:
