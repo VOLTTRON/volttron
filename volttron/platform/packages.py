@@ -29,6 +29,8 @@ from wheel.util import (native,
                         urlsafe_b64decode)
 from volttron.platform import config
 
+_log = logging.getLogger(__name__)
+
 #TODO: Make this this base class and have auth extend it
 class VolttronPackageWheelFileNoSign(WheelFile):
     AGENT_DATA_ZIP = 'agent_data.zip'
@@ -80,7 +82,7 @@ class VolttronPackageWheelFileNoSign(WheelFile):
         if files_to_add == None or len(files_to_add) == 0:
             return
 
-        records = auth.ZipPackageVerifier(self.filename).get_records()
+        records = ZipPackageVerifier(self.filename).get_records()
 
         if (len(records) < 1):
             raise ValueError('Invalid wheel file no records found')
@@ -155,7 +157,7 @@ class VolttronPackageWheelFileNoSign(WheelFile):
 
     def pop_records_file(self):
         '''Pop off the last records file that was added'''
-        records = auth.ZipPackageVerifier(self.filename).get_records()
+        records = ZipPackageVerifier(self.filename).get_records()
         topop = (os.path.join(self.distinfo_name, records[0]),)
         self.remove_files(topop)
 

@@ -29,7 +29,7 @@ from wheel.tool import unpack
 from wheel.util import (native,
                         open_for_csv,
                         urlsafe_b64decode)
-from volttron.platform.packages import (BasePackageVerifier, ZipPackageVerifier)
+from volttron.platform.packages import (BasePackageVerifier, VolttronPackageWheelFileNoSign, ZipPackageVerifier)
 from volttron.platform import config
 
 from volttron.restricted import (auth, certs)
