@@ -1,6 +1,8 @@
 '''Agent packaging and signing support.
 '''
 import base64
+from collections import Iterable
+from contextlib import closing
 import csv
 import hashlib
 import logging
@@ -16,10 +18,7 @@ import wheel
 import tempfile
 import zipfile
 
-from wheel.install import (WheelFile, BadWheelFile)
-from contextlib import closing
 
-from collections import Iterable
 from wheel.install import WheelFile
 from wheel.tool import unpack
 from wheel.util import (native,
@@ -356,7 +355,7 @@ class VolttronPackageWheelFileNoSign(WheelFile):
         if files_to_add == None or len(files_to_add) == 0:
             return
 
-        records = ZipPackageVerifier(self.filename).get_records()
+        records = auth.ZipPackageVerifier(self.filename).get_records()
 
         if (len(records) < 1):
             raise ValueError('Invalid wheel file no records found')
@@ -431,7 +430,7 @@ class VolttronPackageWheelFileNoSign(WheelFile):
 
     def pop_records_file(self):
         '''Pop off the last records file that was added'''
-        records = ZipPackageVerifier(self.filename).get_records()
+        records = auth.ZipPackageVerifier(self.filename).get_records()
         topop = (os.path.join(self.distinfo_name, records[0]),)
         self.remove_files(topop)
 
@@ -492,13 +491,6 @@ class VolttronPackageWheelFileNoSign(WheelFile):
         hash_text = 'sha256=' + native(urlsafe_b64encode(digest))
         size = len(data)
         return (hash_text, size, digest)
-
-    def contains(self, path):
-        '''Does the wheel contain the specified path?'''
-
-        for x in self.zipfile.filelist:
-            if x.filename == path:
-                return True
 
     def __setupzipfile__(self):
         self.zipfile.close()
@@ -795,7 +787,7 @@ def main(argv=sys.argv):
                     elif args.subparser_name == 'verify':
                         if not os.path.exists(args.package):
                             print('Invalid package name {}'.format(args.package))
-                        verifier = ZipPackageVerifier(args.package)
+                        verifier = auth.ZipPackageVerifier(args.package)
                         verifier.verify()
                         print "Package is verified"
                     else:
@@ -808,7 +800,7 @@ def main(argv=sys.argv):
                                     'user_type': user_type,
                                     'contract': args.contract,
                                 }
-                            result = _sign_agent_package(args.package, **in_args)
+                            _sign_agent_package(args.package, **in_args)
 
                         elif args.subparser_name == 'create_cert':
                             _create_cert(name=args.name, **user_type)
