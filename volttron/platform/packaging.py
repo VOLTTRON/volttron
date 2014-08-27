@@ -29,8 +29,8 @@ from wheel.tool import unpack
 from wheel.util import (native,
                         open_for_csv,
                         urlsafe_b64decode)
-from volttron.platform.packages import (BasePackageVerifier, VolttronPackageWheelFileNoSign, ZipPackageVerifier)
-from volttron.platform import config
+from .packages import *
+from . import config
 
 try:
      from volttron.restricted import (auth, certs)
@@ -101,54 +101,12 @@ def repackage(directory, dest=None):
     written in the current working directory if dest is None or in the
     directory given by dest otherwise.
     '''
-    for name in os.listdir(directory):
-        if not name.endswith('.dist-info'):
-            continue
-        distinfo = os.path.join(directory, name)
-        try:
-            with open(os.path.join(distinfo, 'metadata.json')) as file:
-                metadata = jsonapi.load(file)
-            with open(os.path.join(distinfo, 'WHEEL')) as file:
-                wheel = {key.strip().lower(): value.strip()
-                         for key, value in
-                         (parts for line in file if line
-                          for parts in [line.split(':', 1)] if len(parts) == 2)}
-        except EnvironmentError as exc:
-            if exc.errno == errno.ENOENT:
-                continue
-            raise
-        try:
-            metadata['tag'] = wheel['tag']
-            pkgname = '{name}-{version}-{tag}'.format(**metadata)
-        except KeyError:
-            continue
-        if not pkgname.startswith(name[:-10] + '-'):
-            continue
-        break
-    else:
-        raise AgentPackageError('directory does not appear to contain a '
-                                'valid agent package')
+    try:
+        pkg = UnpackedPackage(directory)
+    except ValueError as exc:
+        raise AgentPackageError(*exc.args)
+    return pkg.repack(dest)
 
-    regex = re.compile(r'^RECORD(?:\.\d+)?$')
-    records = [name for name in os.listdir(distinfo) if regex.match(name)]
-    records.sort()
-    wheelname = pkgname + '.whl'
-    if dest is not None:
-        dest = os.path.expanduser(os.path.expandvars(dest))
-        wheelname = os.path.join(dest, wheelname)
-    with zipfile.ZipFile(wheelname, 'w') as wheelfile:
-        try:
-            for record in records:
-                with open(os.path.join(distinfo, record)) as file:
-                    csvfile = csv.reader(file)
-                    for row in csvfile:
-                        name = row[0]
-                        wheelfile.write(os.path.join(directory, name), name)
-        except Exception:
-            wheelfile.close()
-            os.unlink(wheelfile.filename)
-            raise
-    return wheelfile.filename
 
 def create_package(agent_package_dir, wheelhouse='/tmp/volttron_wheels'):
     '''Creates a packaged whl file from the passed agent_package_dir.
