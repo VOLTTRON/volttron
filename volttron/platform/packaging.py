@@ -42,6 +42,7 @@ except ImportError:
 _log = logging.getLogger(os.path.basename(sys.argv[0])
                          if __name__ == '__main__' else __name__)
 
+DEFAULT_CERTS_DIR = '~/.volttron/certificates'
 
 class AgentPackageError(Exception):
     '''Raised for errors during packaging, extraction and signing.'''
@@ -209,15 +210,21 @@ def _sign_agent_package(agent_package, **kwargs):
 
     cert_type = _cert_type_from_kwargs(**kwargs)
     files = _files_from_kwargs(**kwargs)
+    certs_dir = kwargs.get('certs_dir', None)
+    
+    certsobj = None
+    
+    if certs_dir is not None:
+        certsobj = certs.Certs(certs_dir)
 
     if cert_type == 'soi':
         if files:
             raise AgentPackageError("soi's aren't allowed to add files.")
-        verified = auth.sign_as_admin(agent_package, 'soi')
+        verified = auth.sign_as_admin(agent_package, 'soi', certsobj = certsobj)
     elif cert_type == 'creator':
-        verified = auth.sign_as_creator(agent_package, 'creator', files)
+        verified = auth.sign_as_creator(agent_package, 'creator', files, certsobj = certsobj)
     elif cert_type == 'initiator':
-        verified = auth.sign_as_initiator(agent_package, 'initiator', files)
+        verified = auth.sign_as_initiator(agent_package, 'initiator', files, certsobj = certsobj)
     else:
         raise AgentPackageError('Unknown packaging options')
 
@@ -242,9 +249,9 @@ def _cert_type_from_kwargs(**kwargs):
     return None
 
 
-def _create_ca():
+def _create_ca(certs_dir=DEFAULT_CERTS_DIR):
     '''Creates a root ca cert using the Certs class'''
-    crts = certs.Certs('~/.volttron/certificates')
+    crts = certs.Certs(certs_dir)
     if crts.ca_exists():
         msg = '''Creating a new root ca will overwrite the current ca and
 invalidate any signed certs.
@@ -258,10 +265,10 @@ Are you sure you want to do this? type 'yes' to continue: '''
     data = _create_cert_ui(certs.DEFAULT_ROOT_CA_CN)
     crts.create_root_ca(**data)
 
-def _create_cert(name=None, **kwargs):
+def _create_cert(name=None, certs_dir= DEFAULT_CERTS_DIR,**kwargs):
     '''Create a cert using options specified on the command line'''
 
-    crts = certs.Certs('~/.volttron/certificates')
+    crts = certs.Certs(certs_dir)
     if not crts.ca_exists():
         sys.stderr.write('Root CA ot must be created before certificates\n')
         sys.exit(0)
@@ -361,7 +368,7 @@ def main(argv=sys.argv):
     
 
     if auth is not None:
-        cert_dir = os.path.expanduser('~/.volttron/certificates')
+        cert_dir = os.path.expanduser(DEFAULT_CERTS_DIR)
         if not os.path.exists(cert_dir):
             os.makedirs('/'.join((cert_dir, 'certs')))
             os.makedirs('/'.join((cert_dir, 'private')))
@@ -393,6 +400,8 @@ def main(argv=sys.argv):
             help='agent configuration file')
         sign_cmd.add_argument('--contract', metavar='CONTRACT',
             help='agent resource contract file')
+        sign_cmd.add_argument('--certs_dir', metavar='CERTS_DIR',
+            help='certificates directory')
         sign_cmd.add_argument('package', metavar='PACKAGE',
             help='agent package to sign')
 
@@ -455,6 +464,7 @@ def main(argv=sys.argv):
                                     'config_file': args.config_file,
                                     'user_type': user_type,
                                     'contract': args.contract,
+                                    'certs_dir': args.certs_dir
                                 }
                             _sign_agent_package(args.package, **in_args)
 
@@ -475,103 +485,6 @@ def main(argv=sys.argv):
     if whl_path:
         print("Package created at: {}".format(whl_path))
 
-
-#
-# Signature verification in the class below has the limitation that only
-# a single certificate may be used for verification. Ideally, the
-# certificate should be extracted from the signature file and verified
-# against a certificate authority (CA) in the CA store. See
-# http://code.activestate.com/recipes/285211/ for an alternate solution
-# using M2Crypto.
-#
-class BasePackageVerifier(object):
-    '''Base class for implementing wheel package verification.
-
-    Verifies wheel packages as defined in PEP-427. May be inherited with
-    minimal modifications to support different storage mechanisms, such
-    as a filesystem, Zip file, or tarball. All paths are expected to be
-    POSIX-style with forward-slashes. Subclasses should implement
-    listdir and open and may override __init__, if needed.
-
-    As an extension of the original specification, multiple levels of
-    RECORD files and signatures are supported by appending incrementing
-    integers to the RECORD files. Verification happens in reverse order
-    and later RECORD files should contain hashes of the previous RECORD
-    and associated signature file(s).
-    '''
-
-    _record_re = re.compile(r'^RECORD(?:\.\d+)?$')
-
-    def __init__(self, dist_info, digest='sha256', **kwargs):
-        '''Initialize the instance with the dist-info directory name.
-
-        dist_info should contain the name of a single directory, not a
-        multi-component path.
-        '''
-        self.dist_info = dist_info
-        self.digest = digest
-
-       
-
-    def listdir(self, path):
-        '''Return a possibly empty list of files from a directory.
-
-        This could return the contents of a directory in an archive or
-        whatever makes sense for the storage mechanism. Paths will
-        typically be relative to the package, however, for installed
-        packages, absolute paths are possible.
-        '''
-        raise NotImplementedError()
-
-    def open(self, path, mode='r'):
-        '''Return a file-like object for the given file.
-
-        mode is interpreted the same as for the built-in open and will
-        be either 'r' or 'rb'. Only the __iter__(), read(), and close()
-        methods are used.
-        '''
-        raise NotImplementedError()
-
-    def iter_hashes(self, name='RECORD'):
-        '''Iterate over the files and hashes of a RECORD file.
-
-        The RECORD file with the given name will be iterated over
-        yielding a three tuple with each iteration: filename (relative
-        to the package), computed hash (just calculated), and expected
-        hash (from RECORD file).
-        '''
-        hashless = [posixpath.join(self.dist_info, name + ext)
-                    for ext in ['', '.jws', '.p7s']]
-        path = posixpath.join(self.dist_info, name)
-        with closing(self.open(path)) as record_file:
-            for row in csv.reader(record_file):
-                filename, hashspec = row[:2]
-                if not hashspec:
-                    if filename not in hashless:
-                        yield filename, None, None
-                    continue
-                algo, expected_hash = hashspec.split('=', 1)
-                hash = hashlib.new(algo)
-                with closing(self.open(filename, 'rb')) as file:
-                    while True:
-                        data = file.read(4096)
-                        if not data:
-                            break
-                        hash.update(data)
-                hash = base64.urlsafe_b64encode(hash.digest()).rstrip('=')
-                yield filename, hash, expected_hash
-
-    def get_records(self):
-        '''Return a reverse sorted list of RECORD names from the package.
-
-        Returns all RECORD files in the dist_info directory.
-        '''
-        records = [name for name in self.listdir(self.dist_info)
-                   if self._record_re.match(name)]
-        records.sort(key=lambda x: int((x.split('.', 1) + [-1])[1]), reverse=True)
-        if not records:
-            raise ValueError('missing RECORD file(s) in .dist-info directory')
-        return records
 
 
 
