@@ -237,6 +237,7 @@ class VolttronPackageWheelFileNoSign(WheelFile):
 
 
 _record_re = re.compile(r'^RECORD(?:\.\d+)?$')
+_all_record_re = re.compile(r'^(?:.*/)?RECORD(?:\.\d+)?(?:\.p7s)?$')
 
 
 #
@@ -411,6 +412,7 @@ class UnpackedPackage(object):
         self.distinfo = self._get_dist_info()
 
     def _get_dist_info(self):
+        '''Find the package.dist-info directory.'''
         basename = os.path.basename(self.directory)
         path = os.path.join(self.directory, basename + '.dist-info')
         if os.path.exists(path):
@@ -423,6 +425,7 @@ class UnpackedPackage(object):
                          'agent package: {}'.format(self.directory))
 
     def get_metadata(self):
+        '''Parse package.dist-info/metadata.json and return a dictionary.'''
         with open(os.path.join(self.distinfo, 'metadata.json')) as file:
             return jsonapi.load(file)
 
@@ -432,6 +435,7 @@ class UnpackedPackage(object):
         self._version = metadata['version']
 
     def get_wheelmeta(self):
+        '''Parse package.dist-info/WHEEL and return a dictionary.'''
         with open(os.path.join(self.distinfo, 'WHEEL')) as file:
             return {key.strip().lower(): value.strip()
                     for key, value in
@@ -478,6 +482,13 @@ class UnpackedPackage(object):
         return '-'.join([self.name, self.version, self.tag]) + '.whl'
 
     def repack(self, dest=None, exclude=None):
+        '''Recreate the package from the RECORD files.
+
+        Put the package in the directory given by dest or in the current
+        directory if dest is None. If exclude is given, do not add files
+        for RECORD files in exclude. Returns the path to the new package.
+        '''
+        # Get a list of the record files and sort them ascending
         records = [name for name in os.listdir(self.distinfo)
                    if _record_re.match(name)]
         records.sort()
@@ -485,18 +496,19 @@ class UnpackedPackage(object):
         if dest is not None:
             dest = os.path.expanduser(os.path.expandvars(dest))
             wheelname = os.path.join(dest, wheelname)
+        # Recreate the package
         with zipfile.ZipFile(wheelname, 'w') as wheelfile:
-            try:
-                for record in records:
-                    if exclude and record in exclude:
-                        continue
-                    with open(os.path.join(self.distinfo, record)) as file:
-                        csvfile = csv.reader(file)
-                        for row in csvfile:
-                            name = row[0]
-                            wheelfile.write(os.path.join(self.directory, name), name)
-            except Exception:
-                wheelfile.close()
-                os.unlink(wheelfile.filename)
-                raise
+            for record in records:
+                # Exclude and record files in exclude
+                if exclude and record in exclude:
+                    continue
+                with open(os.path.join(self.distinfo, record)) as file:
+                    csvfile = csv.reader(file)
+                    for row in csvfile:
+                        name = row[0]
+                        # Skip already added RECORD files or signatures
+                        if (_all_record_re.match(name) and
+                                name in wheelfile.namelist()):
+                            continue
+                        wheelfile.write(os.path.join(self.directory, name), name)
         return wheelfile.filename
