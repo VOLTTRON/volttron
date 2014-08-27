@@ -1,5 +1,4 @@
 import base64
-from collections import Iterable
 from contextlib import closing
 import csv
 import errno
@@ -165,29 +164,41 @@ class VolttronPackageWheelFileNoSign(WheelFile):
         topop = (os.path.join(self.distinfo_name, records[0]),)
         self.remove_files(topop)
 
-        
+    def pop_record_and_files(self):
+        '''Pop off the last record file and files listed in it.
+
+        Only removes files that are not listed in remaining records.
+        '''
+        records = ZipPackageVerifier(self.filename).get_records()
+        record = records.pop(0)
+        zf = self.zipfile
+        keep = set(row[0] for name in records for row in
+            csv.reader(zf.open(posixpath.join(self.distinfo_name, name))))
+        drop = set(row[0] for row in
+            csv.reader(zf.open(posixpath.join(self.distinfo_name, record))))
+        # These two should already be listed, but add them just in case
+        drop.add(posixpath.join(self.distinfo_name, record))
+        self.remove_files(drop - keep)
 
     def remove_files(self, files):
-        '''Relative to files in the package, ie: ./dist-info/config
-        '''
-        if not isinstance(files, Iterable):
+        '''Relative to files in the package, ie: ./dist-info/config.'''
+        if isinstance(files, basestring):
             files = [files]
         tmpdir = tempfile.mkdtemp()
-        zipFilename = os.path.join(tmpdir, 'tmp.zip')
-        newZip = zipfile.ZipFile(zipFilename, 'w')
-
-        for f in self.zipfile.infolist():
-            if f.filename not in files:
-                buf = self.zipfile.read(f.filename)
-                newZip.writestr(f.filename, buf)
-        newZip.close()
-        self.zipfile.close()
-        self.fp = None
-        os.remove(self.filename)
-        shutil.move(zipFilename, self.filename)
-        self.__setupzipfile__()
-
-
+        try:
+            newzip = zipfile.ZipFile(os.path.join(tmpdir, 'tmp.zip'), 'w')
+            with newzip:
+                for f in self.zipfile.infolist():
+                    if f.filename not in files:
+                        buf = self.zipfile.read(f.filename)
+                        newzip.writestr(f.filename, buf)
+            self.zipfile.close()
+            self.fp = None
+            os.remove(self.filename)
+            shutil.move(newzip.filename, self.filename)
+            self.__setupzipfile__()
+        finally:
+            shutil.rmtree(tmpdir, True)
 
     def unpack(self, dest='.'):
         namever = self.parsed_filename.group('namever')
