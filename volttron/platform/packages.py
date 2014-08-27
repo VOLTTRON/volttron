@@ -29,6 +29,10 @@ from wheel.util import (native,
                         urlsafe_b64decode)
 from volttron.platform import config
 
+
+__all__ = ('BasePackageVerifier', 'VolttronPackageWheelFileNoSign',
+           'ZipPackageVerifier', 'UnpackedPackage')
+
 _log = logging.getLogger(__name__)
 
 #TODO: Make this this base class and have auth extend it
@@ -232,6 +236,9 @@ class VolttronPackageWheelFileNoSign(WheelFile):
                               )
 
 
+_record_re = re.compile(r'^RECORD(?:\.\d+)?$')
+
+
 #
 # Signature verification in the class below has the limitation that only
 # a single certificate may be used for verification. Ideally, the
@@ -255,8 +262,6 @@ class BasePackageVerifier(object):
     and later RECORD files should contain hashes of the previous RECORD
     and associated signature file(s).
     '''
-
-    _record_re = re.compile(r'^RECORD(?:\.\d+)?$')
 
     def __init__(self, dist_info, **kwargs):
         '''Initialize the instance with the dist-info directory name.
@@ -322,7 +327,7 @@ class BasePackageVerifier(object):
         Returns all RECORD files in the dist_info directory.
         '''
         records = [name for name in self.listdir(self.dist_info)
-                   if self._record_re.match(name)]
+                   if _record_re.match(name)]
         records.sort(key=lambda x: int((x.split('.', 1) + [-1])[1]), reverse=True)
         if not records:
             raise ValueError('missing RECORD file(s) in .dist-info directory')
@@ -393,3 +398,105 @@ class ZipPackageVerifier(BasePackageVerifier):
 
     def open(self, path, mode='r'):
         return self._zipfile.open(path, 'r')
+
+
+class UnpackedPackage(object):
+    '''Represents an package unpacked into a directory.
+
+    Allows one access to the package metadata and methods to repack.
+    '''
+
+    def __init__(self, base_directory):
+        self.directory = base_directory
+        self.distinfo = self._get_dist_info()
+
+    def _get_dist_info(self):
+        basename = os.path.basename(self.directory)
+        path = os.path.join(self.directory, basename + '.dist-info')
+        if os.path.exists(path):
+            return path
+        for name in os.listdir(self.directory):
+            if not name.endswith('.dist-info'):
+                continue
+            return os.path.join(self.directory, name)
+        raise ValueError('directory does not contain a valid '
+                         'agent package: {}'.format(self.directory))
+
+    def get_metadata(self):
+        with open(os.path.join(self.distinfo, 'metadata.json')) as file:
+            return jsonapi.load(file)
+
+    def _read_metadata(self):
+        metadata = self.get_metadata()
+        self._name = metadata['name']
+        self._version = metadata['version']
+
+    def get_wheelmeta(self):
+        with open(os.path.join(self.distinfo, 'WHEEL')) as file:
+            return {key.strip().lower(): value.strip()
+                    for key, value in
+                    (parts for line in file if line
+                     for parts in [line.split(':', 1)] if len(parts) == 2)}
+
+    def _read_wheelmeta(self):
+        meta = self.get_wheelmeta()
+        self._tag = meta['tag']
+
+    @property
+    def name(self):
+        try:
+            return self._name
+        except AttributeError:
+            pass
+        self._read_metadata()
+        return self._name
+    
+    @property
+    def version(self):
+        try:
+            return self._version
+        except AttributeError:
+            pass
+        self._read_metadata()
+        return self._version
+    
+    @property
+    def tag(self):
+        try:
+            return self._tag
+        except AttributeError:
+            pass
+        self._read_wheelmeta()
+        return self._tag
+    
+    @property
+    def package_name(self):
+        return '-'.join([self.name, self.version])
+    
+    @property
+    def wheel_name(self):
+        return '-'.join([self.name, self.version, self.tag]) + '.whl'
+
+    def repack(self, dest=None, exclude=None):
+        records = [name for name in os.listdir(self.distinfo)
+                   if _record_re.match(name)]
+        records.sort()
+        wheelname = self.wheel_name
+        if dest is not None:
+            dest = os.path.expanduser(os.path.expandvars(dest))
+            wheelname = os.path.join(dest, wheelname)
+        with zipfile.ZipFile(wheelname, 'w') as wheelfile:
+            try:
+                for record in records:
+                    if exclude and record in exclude:
+                        continue
+                    with open(os.path.join(self.distinfo, record)) as file:
+                        csvfile = csv.reader(file)
+                        for row in csvfile:
+                            name = row[0]
+                            wheelfile.write(os.path.join(self.directory, name), name)
+            except Exception:
+                wheelfile.close()
+                os.unlink(wheelfile.filename)
+                raise
+        return wheelfile.filename
