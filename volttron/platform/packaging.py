@@ -485,7 +485,7 @@ def main(argv=sys.argv):
                     elif args.subparser_name == 'verify':
                         if not os.path.exists(args.package):
                             print('Invalid package name {}'.format(args.package))
-                        verifier = auth.ZipPackageVerifier(args.package)
+                        verifier = auth.SignedZipPackageVerifier(args.package)
                         verifier.verify()
                         print "Package is verified"
                     else:
