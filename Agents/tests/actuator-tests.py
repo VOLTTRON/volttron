@@ -16,29 +16,33 @@ actuator_dict = {"executable": "actuatoragent-0.1-py2.7.egg",
                  "agent_dir": "ActuatorAgent"}
  
  
+
  
 AGENT_DIR = "Agents/ActuatorAgent"
+CONFIG_FILE = "Agents/ActuatorAgent/actuatoragent.launch.json"
 
 class ActuatorTests(base.BasePlatformTest):
 
     def setUp(self):
         super(ActuatorTests, self).setUp()
         self.startup_platform("base-platform-test.json")
-        self.setup_connector()
         
     def tearDown(self):
         super(ActuatorTests, self).tearDown()
     
-    def test_direct_build_and_install(self):
-        self.direct_buid_install_agent(AGENT_DIR)
+#     def test_direct_build_and_install(self):
+#         self.direct_buid_install_agent(AGENT_DIR)
+# 
+#     def test_direct_install_and_start(self):
+#         self.direct_build_install_run_agent(AGENT_DIR)
 
     def test_direct_install_and_start(self):
-        self.direct_build_install_run_agent(AGENT_DIR)
+        self.direct_build_install_run_agent(AGENT_DIR, CONFIG_FILE)
 
          
-    def test_schedule(self):
-        print "test something"
-#         self.publish_schedule()
+#     def test_schedule(self):
+#         print "test something"
+# #         self.publish_schedule()
          
     def publish_schedule(self):
      
