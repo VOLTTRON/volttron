@@ -61,7 +61,7 @@ import datetime
 import logging
 
 from volttron.platform.agent import BaseAgent, PublishMixin, periodic
-from volttron.platform.agent import jsonapi
+from volttron.platform.agent.utils import jsonapi
 from volttron.platform.agent import utils
 from volttron.platform.agent.matching import match_start
 from volttron.platform.messaging import headers as headers_mod
@@ -134,6 +134,7 @@ class RequestCounter:
 
 
 def WeatherAgent(config_path, **kwargs):
+    print "=============== " + config_path + " ==============="
     config = utils.load_config(config_path)
 
     def get_config(name):
@@ -201,7 +202,7 @@ def WeatherAgent(config_path, **kwargs):
             return weather_dict
 
         def publish_all(self, observation, topic_prefix="weather", headers={}):
-            self.publish_subtopic(self.build_dictionary(observation), topic_prefix)
+            self.publish_subtopic(self.build_dictionary(observation), topic_prefix, headers)
 
         def publish_subtopic(self, publish_item, topic_prefix, headers):
             #TODO: Update to use the new topic templates
@@ -213,7 +214,7 @@ def WeatherAgent(config_path, **kwargs):
 
                 # Loop over contents, call publish_subtopic on each
                 for topic in publish_item.keys():
-                    self.publish_subtopic(publish_item[topic], topic_prefix + topic_delim + topic)
+                    self.publish_subtopic(publish_item[topic], topic_prefix + topic_delim + topic, headers)
 
             else:
                 # Item is a scalar type, publish it as is
