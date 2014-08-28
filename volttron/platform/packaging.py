@@ -227,8 +227,6 @@ def _sign_agent_package(agent_package, **kwargs):
         verified = auth.sign_as_initiator(agent_package, 'initiator', files, certsobj = certsobj)
     elif cert_type == 'platform':
         verified = auth.sign_as_platform(agent_package, 'platform', files)
-    elif cert_type == 'platform':
-        verified = auth.sign_as_platform(agent_package, 'platform', files)
     else:
         raise AgentPackageError('Unknown packaging options')
 

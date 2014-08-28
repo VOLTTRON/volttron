@@ -86,6 +86,7 @@ from .messaging import topics
 
 try:
     from volttron.restricted import auth
+    from volttron.restricted.resmon import ResourceError
 except ImportError:
     auth = None
 
@@ -381,40 +382,51 @@ class AIPplatform(object):
             with open(autostart, 'w') as file:
                 file.write(priority.strip())
 
-    def _check_resources(self, resmon, agent_path, dist_info):
-        execreqs_json = os.path.join(dist_info, 'execreqs.json')
-        if not os.path.exists(execreqs_json):
-            _log.warning('agent is missing execution requirements file: %s',
-                       execreqs_json)
-            execreqs = {}
-        else:
-            try:
-                with open(execreqs_json) as file:
-                    execreqs = jsonapi.load(file)
-            except Exception as exc:
-                msg = 'error reading execution requirements: {}: {}'.format(
-                       execreqs_json, exc)
-                _log.error(msg)
-                raise ValueError(msg)
+    def _check_resources(self, resmon, ident, execreqs, reserve=False):
         hard_reqs = execreqs.get('hard_requirements', {})
         failed_terms = resmon.check_hard_resources(hard_reqs)
         if failed_terms:
             msg = '\n'.join('  {}: {} ({})'.format(
                              term, hard_reqs[term], avail)
                             for term, avail in failed_terms.iteritems())
-            _log.error('hard resource requirements not met: %r: %s',
-                       agent_path, msg)
+            _log.error('hard resource requirements not met: %r:\n%s', ident, msg)
             raise ValueError('hard resource requirements not met')
         requirements = execreqs.get('requirements', {})
-        execenv, failed_terms = resmon.reserve_soft_resources(requirements)
-        if execenv is None:
-            msg = '\n'.join('  {}: {} ({})'.format(
-                             term, requirements.get(term, '<unset>'), avail)
-                            for term, avail in failed_terms.iteritems())
-            _log.error('soft resource requirements not met for agent %r:\n%s',
-                       agent_path, msg)
-            raise ValueError('soft resource requirements not met')
-        return execenv
+        try:
+            if reserve:
+                return resmon.reserve_soft_resources(requirements)
+            else:
+                failed_terms = resmon.check_soft_resources(requirements)
+                if failed_terms:
+                    errmsg = 'soft resource requirements not met'
+                else:
+                    return
+        except ResourceError as exc:
+            errmsg, failed_terms = exc.args
+        msg = '\n'.join('  {}: {} ({})'.format(
+                         term, requirements.get(term, '<unset>'), avail)
+                        for term, avail in failed_terms.iteritems())
+        _log.error('%s %r:\n%s', errmsg, ident, msg)
+        raise ValueError(errmsg)
+
+    def check_resources(self, resmon, ident, execreqs):
+        self._check_resources(resmon, ident, execreqs)
+
+    def _reserve_resources(self, resmon, ident, execreqs):
+        return self._check_resources(resmon, ident, execreqs, reserve=True)
+
+    def read_execreqs(self, dist_info):
+        execreqs_json = os.path.join(dist_info, 'execreqs.json')
+        try:
+            with ignore_enoent, open(execreqs_json) as file:
+                return jsonapi.load(file)
+        except Exception as exc:
+            msg = 'error reading execution requirements: {}: {}'.format(
+                   execreqs_json, exc)
+            _log.error(msg)
+            raise ValueError(msg)
+        _log.warning('missing execution requirements: %s', execreqs_json)
+        return {}
 
     def _launch_agent(self, agent_uuid, agent_path, name=None):
         execenv = self.agents.get(agent_uuid)
@@ -474,7 +486,8 @@ class AIPplatform(object):
         if resmon is None:
             execenv = ExecutionEnvironment()
         else:
-            execenv = self._check_resources(resmon, name, dist_info)
+            execreqs = self.read_execreqs(dist_info)
+            execenv = self._reserve_resources(resmon, name, execreqs)
         execenv.name = name or agent_path
         _log.info('starting agent %s', agent_path)
         execenv.execute(argv, cwd=self.run_dir, env=environ, close_fds=True,
