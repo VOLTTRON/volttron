@@ -1,18 +1,13 @@
 import base64
 from contextlib import closing
 import csv
-import errno
 import hashlib
 import logging
 import os
 import posixpath
 import re
 import shutil
-import StringIO
 import sys
-import time
-import uuid
-import wheel
 import tempfile
 import zipfile
 
@@ -22,11 +17,8 @@ except ImportError:
     import json as jsonapi
 
 from wheel.install import WheelFile
-from wheel.tool import unpack
 from wheel.util import (native,
-                        open_for_csv,
-                        urlsafe_b64decode)
-from volttron.platform import config
+                        open_for_csv)
 
 
 __all__ = ('BasePackageVerifier', 'VolttronPackageWheelFileNoSign',
@@ -41,20 +33,8 @@ class VolttronPackageWheelFileNoSign(WheelFile):
     def __init__(self,
                  filename,**kwargs):
 
-        super(VolttronPackageWheelFileNoSign, self).__init__(filename, **kwargs)
-
-    @property
-    def agent_data_dir(self):
-        return "%s.agent-data" % self.parsed_filename.group('namever')
-
-    @property
-    def agent_data_name(self):
-        return "%s/%s" % (self.agent_data_dir, self.AGENT_DATA_ZIP)
-
-    @property
-    def ready_to_move(self):
-        return True
-
+        super(VolttronPackageWheelFileNoSign, self).__init__(filename, 
+                                                             **kwargs)
 
     def contains(self, path):
         '''Does the wheel contain the specified path?'''
@@ -63,22 +43,6 @@ class VolttronPackageWheelFileNoSign(WheelFile):
             if x.filename == path:
                 return True
         return False
-
-    def add_agent_data(self, agent_dir):
-        '''Adds the agent's data to the wheel file
-
-        agent_dir is the root for an installed agent.
-        '''
-        try:
-            tmpdir = tempfile.mkdtemp()
-            abs_agent_dir = os.path.join(agent_dir, self.agent_data_dir)
-            zipFilename = os.path.join(tmpdir, 'tmp')
-            zipFilename = shutil.make_archive(zipFilename, "zip",
-                                              abs_agent_dir)
-            self.zipfile.write(zipFilename, self.agent_data_name)
-            self.__setupzipfile__()
-        finally:
-            shutil.rmtree(tmpdir, True)
 
     def add_files(self, files_to_add=None, basedir='.'):
 
@@ -95,8 +59,10 @@ class VolttronPackageWheelFileNoSign(WheelFile):
 # 
         tmp_dir = tempfile.mkdtemp()
         record_path = '/'.join((self.distinfo_name, last_record_name))
-        tmp_new_record_file = '/'.join((tmp_dir, self.distinfo_name, last_record_name))
-        self.zipfile.extract('/'.join((self.distinfo_name, last_record_name)), path = tmp_dir)
+        tmp_new_record_file = '/'.join((tmp_dir, self.distinfo_name, 
+                                        last_record_name))
+        self.zipfile.extract('/'.join((self.distinfo_name, last_record_name)), 
+                             path = tmp_dir)
         
         self.remove_files('/'.join((self.distinfo_name, 'config')))
         
@@ -206,23 +172,6 @@ class VolttronPackageWheelFileNoSign(WheelFile):
         sys.stderr.write("Unpacking to: %s\n" % (destination))
         self.zipfile.extractall(destination)
         self.zipfile.close()
-
-        data_dir = os.path.join(dest, self.agent_data_dir)
-        data_file = os.path.join(dest, self.agent_data_name)
-        if not os.path.isdir(data_dir):
-            _log.debug("no agent_data creating agent data directory")
-            os.mkdir(data_dir)
-            return
-        
-        if not os.path.isfile(data_file):
-            _log.debug("no agent_data.zip")
-            return
-        
-        _log.debug("extracting agent_data")
-        zip = zipfile.ZipFile(data_file)
-        zip.extractall(self.agent_data_name)
-        zip.close()
-        os.remove(data_file)
 
     def _record_digest(self, data):
         '''Returns a three tuple of hash, size and digest.'''
@@ -345,36 +294,6 @@ class BasePackageVerifier(object):
             raise ValueError('missing RECORD file(s) in .dist-info directory')
         return records
 
-#     def verify(self):
-#         '''Verify the hashes of every file in the RECORD files of the package.
-# 
-#         if a problem exists AuthError is raised
-#         '''
-#         for record in self.get_records():
-#             # only if the function exists will we look for the smime
-#             # signature.
-#             if getattr(self, 'verify_smime_signature', None) is not None:
-#                 try:
-#                     if not self.verify_smime_signature(record):
-#                         path = posixpath.join(self.dist_info, record)
-#                         msg = '{}: failed signature verification'.format(path)
-#                         _log.debug(msg)
-#                         raise AuthError(msg)
-#                 except KeyError as e:
-#                     path = posixpath.join(self.dist_info, record)
-#                     msg = '{}: failed signature verification'.format(path)
-#                     _log.debug(msg)
-#                     raise AuthError(msg)
-#             for path, hash, expected_hash in self.iter_hashes(record):
-#                 if not expected_hash:
-#                     _log.warning('{}: no hash for file'.format(path))
-#                 elif hash != expected_hash:
-#                     msg = '{}: failed hash verification'.format(path)
-#                     _log.error(msg)
-#                     _log.debug('{}: hashes are not equal: computed={}, expected={}'.format(
-#                             path, hash, expected_hash))
-#                     raise AuthError(msg)
-                
                 
 class ZipPackageVerifier(BasePackageVerifier):
     '''Verify files of a Zip file.'''
@@ -396,17 +315,6 @@ class ZipPackageVerifier(BasePackageVerifier):
         n = len(path)
         return [name[n:].split('/', 1)[0]
                 for name in self._namelist if name.startswith(path)]
-
-    def verify_smime_signature(self, name='RECORD'):
-        '''Verify the S/MIME (.p7s) signature of named RECORD file.'''
-        record = posixpath.join(self.dist_info, name)
-        record_p7s = record + '.p7s'
-
-
-        content = StringIO.StringIO()
-        content.write(self._zipfile.read(record_p7s))
-        content.seek(0)
-        return self._certsobj.verify_smime(content)
 
     def open(self, path, mode='r'):
         return self._zipfile.open(path, 'r')

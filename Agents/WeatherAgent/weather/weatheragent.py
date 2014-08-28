@@ -134,7 +134,6 @@ class RequestCounter:
 
 
 def WeatherAgent(config_path, **kwargs):
-    print "=============== " + config_path + " ==============="
     config = utils.load_config(config_path)
 
     def get_config(name):

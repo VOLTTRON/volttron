@@ -274,7 +274,7 @@ def start_agent(opts):
             _stderr.write('{}: agent not found: {}\n'.format(opts.command, pattern))
         for agent in match:
             pid, status = conn.call.agent_status(agent.uuid)
-            if pid is None:
+            if pid is None or status is not None:
                 _stdout.write('Starting {} {}\n'.format(agent.uuid, agent.name))
                 conn.call.start_agent(agent.uuid)
 
@@ -336,11 +336,20 @@ def main(argv=sys.argv):
             os.environ.get('VOLTTRON_HOME', '~/.volttron'))
     os.environ['VOLTTRON_HOME'] = volttron_home
 
+    global_args = config.ArgumentParser(description='global options', add_help=False)
+    global_args.add_argument('-c', '--config', metavar='FILE',
+        action='parse_config', ignore_unknown=True,
+        sections=[None, 'global', 'volttron-ctl'],
+        help='read configuration from FILE')
+    global_args.add_argument('--control-socket', metavar='FILE',
+        help='path to socket used for control messages')
+
     parser = config.ArgumentParser(
         prog=os.path.basename(argv[0]), add_help=False,
         description='Manage and control VOLTTRON agents.',
         usage='%(prog)s command [OPTIONS] ...',
         argument_default=argparse.SUPPRESS,
+        parents=[global_args]
     )
 
     filterable = config.ArgumentParser(add_help=False)
@@ -352,11 +361,6 @@ def main(argv=sys.argv):
         help='filter/search by UUID (default)')
     filterable.set_defaults(by_name=False, by_tag=False, by_uuid=False)
 
-    parser.add_argument('-c', '--config', metavar='FILE', action='parse_config',
-        ignore_unknown=True, sections=[None, 'volttron-ctl'],
-        help='read configuration from FILE')
-    parser.add_argument('--control-socket', metavar='FILE',
-        help='path to socket used for control messages')
     parser.add_help_argument()
     parser.set_defaults(
         volttron_home=volttron_home,
@@ -364,8 +368,13 @@ def main(argv=sys.argv):
     )
 
     subparsers = parser.add_subparsers(title='commands', metavar='', dest='command')
+    def add_parser(*args, **kwargs):
+        parents = kwargs.get('parents', [])
+        parents.append(global_args)
+        kwargs['parents'] = parents
+        return subparsers.add_parser(*args, **kwargs)
 
-    install = subparsers.add_parser('install', help='install agent from wheel')
+    install = add_parser('install', help='install agent from wheel')
     install.add_argument('wheel', nargs='+', help='path to agent wheel')
     if have_restricted:
         install.add_argument('--verify', action='store_true', dest='verify_agents',
@@ -374,7 +383,7 @@ def main(argv=sys.argv):
             help=argparse.SUPPRESS)
     install.set_defaults(func=install_agent, verify_agents=True)
 
-    tag = subparsers.add_parser('tag', parents=[filterable],
+    tag = add_parser('tag', parents=[filterable],
         help='set, show, or remove agent tag')
     tag.add_argument('agent', help='UUID or name of agent')
     group = tag.add_mutually_exclusive_group()
@@ -382,14 +391,14 @@ def main(argv=sys.argv):
     group.add_argument('-r', '--remove', action='store_true', help='remove tag')
     tag.set_defaults(func=tag_agent, tag=None, remove=False)
 
-    remove = subparsers.add_parser('remove', parents=[filterable],
+    remove = add_parser('remove', parents=[filterable],
         help='remove agent')
     remove.add_argument('pattern', nargs='+', help='UUID or name of agent')
     remove.add_argument('-f', '--force', action='store_true',
         help='force removal of multiple agents')
     remove.set_defaults(func=remove_agent, force=False)
 
-    list_ = subparsers.add_parser('list', parents=[filterable],
+    list_ = add_parser('list', parents=[filterable],
         help='list installed agent')
     list_.add_argument('pattern', nargs='*',
         help='UUID or name of agent')
@@ -397,7 +406,7 @@ def main(argv=sys.argv):
         help='show at least N characters of UUID (0 to show all)')
     list_.set_defaults(func=list_agents, min_uuid_len=1)
 
-    status = subparsers.add_parser('status', parents=[filterable],
+    status = add_parser('status', parents=[filterable],
         help='show status of agents')
     status.add_argument('pattern', nargs='*',
         help='UUID or name of agent')
@@ -405,24 +414,24 @@ def main(argv=sys.argv):
         help='show at least N characters of UUID (0 to show all)')
     status.set_defaults(func=status_agents, min_uuid_len=1)
 
-    clear = subparsers.add_parser('clear', help='clear status of defunct agents')
+    clear = add_parser('clear', help='clear status of defunct agents')
     clear.add_argument('-a', '--all', dest='clear_all', action='store_true',
         help='clear the status of all agents')
     clear.set_defaults(func=clear_status, clear_all=False)
 
-    enable = subparsers.add_parser('enable', parents=[filterable],
+    enable = add_parser('enable', parents=[filterable],
         help='enable agent to start automatically')
     enable.add_argument('pattern', nargs='+', help='UUID or name of agent')
     enable.add_argument('-p', '--priority', type=priority,
         help='2-digit priority from 00 to 99')
     enable.set_defaults(func=enable_agent, priority='50')
 
-    disable = subparsers.add_parser('disable', parents=[filterable],
+    disable = add_parser('disable', parents=[filterable],
         help='prevent agent from start automatically')
     disable.add_argument('pattern', nargs='+', help='UUID or name of agent')
     disable.set_defaults(func=disable_agent)
 
-    start = subparsers.add_parser('start', parents=[filterable],
+    start = add_parser('start', parents=[filterable],
         help='start installed agent')
     start.add_argument('pattern', nargs='+', help='UUID or name of agent')
     start.add_argument('--verify', action='store_true', dest='verify_agents',
@@ -431,12 +440,12 @@ def main(argv=sys.argv):
         help=argparse.SUPPRESS)
     start.set_defaults(func=start_agent)
 
-    stop = subparsers.add_parser('stop', parents=[filterable],
+    stop = add_parser('stop', parents=[filterable],
         help='stop agent')
     stop.add_argument('pattern', nargs='+', help='UUID or name of agent')
     stop.set_defaults(func=stop_agent)
 
-    run = subparsers.add_parser('run',
+    run = add_parser('run',
         help='start any agent by path')
     run.add_argument('directory', nargs='+', help='path to agent directory')
     run.add_argument('--verify', action='store_true', dest='verify_agents',
@@ -445,12 +454,12 @@ def main(argv=sys.argv):
         help=argparse.SUPPRESS)
     run.set_defaults(func=run_agent)
 
-    shutdown = subparsers.add_parser('shutdown',
+    shutdown = add_parser('shutdown',
         help='stop all agents')
     shutdown.set_defaults(func=shutdown_agents)
 
     if have_restricted:
-        send = subparsers.add_parser('send',
+        send = add_parser('send',
             help='send mobile agent to and start on a remote platform')
         send.add_argument('-p', '--port', type=int, metavar='NUMBER',
             help='alternate port number to connect to')
@@ -459,7 +468,7 @@ def main(argv=sys.argv):
             help='agent package to send')
         send.set_defaults(func=send_agent, port=2522)
 
-        cgroup = subparsers.add_parser('create-cgroups',
+        cgroup = add_parser('create-cgroups',
             help='setup VOLTTRON control group for restricted execution')
         cgroup.add_argument('-u', '--user', metavar='USER',
             help='owning user name or ID')
