@@ -93,27 +93,11 @@ def DemandResponseAgent(config_path, **kwargs):
     occupied_status = config.get('occupied_status')
     space_temp = config.get('space_temp')
     volttron_flag = config.get('volttron_flag')
-    log_filename = config.get('file_name')
-    
-    debug_flag = False
-    if not debug_flag:
-        _log = logging.getLogger(__name__)
-        logging.basicConfig(level=logging.DEBUG, stream=sys.stderr,
-                            format='%(asctime)s   %(levelname)-8s %(message)s',
-                            datefmt='%Y-%m-%d %H:%M:%S')
-    else:
-        _log = logging.getLogger(__name__)
-        logging.basicConfig(level=logging.NOTSET, stream=sys.stderr,
+
+    _log = logging.getLogger(__name__)
+    logging.basicConfig(level=logging.DEBUG, stream=sys.stderr,
                         format='%(asctime)s   %(levelname)-8s %(message)s',
-                        datefmt='%Y-%m-%d %H:%M:%S',
-                        filename=log_filename,
-                        filemode='a+')
-        fmt_str = '%(asctime)s   %(levelname)-8s    %(message)s'
-        formatter = logging.Formatter(fmt_str, datefmt = '%Y-%m-%d %H:%M:%S')
-        console = logging.StreamHandler()
-        console.setLevel(logging.DEBUG)
-        console.setFormatter(formatter)
-        logging.getLogger("").addHandler(console)
+                        datefmt='%Y-%m-%d %H:%M:%S')
     
     class Agent(PublishMixin, BaseAgent):
         """Class agent"""
