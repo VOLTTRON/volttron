@@ -242,9 +242,9 @@ def main(argv=sys.argv):
 
     if have_restricted:
         restrict = parser.add_argument_group('restricted options')
-        restrict.add_argument('--verify-agents', action='store_true',
+        restrict.add_argument('--verify', action='store_true',
             help='verify agent integrity before execution')
-        restrict.add_argument('--no-verify-agents', action='store_false',
+        restrict.add_argument('--no-verify', action='store_false',
             dest='verify_agents', help=argparse.SUPPRESS)
         restrict.add_argument('--resource-monitor', action='store_true',
             inverse='--no-resource-monitor',
