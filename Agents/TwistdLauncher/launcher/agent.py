@@ -57,6 +57,7 @@
 from datetime import datetime
 import logging
 import os
+import signal
 import subprocess
 import sys
 import time
@@ -72,25 +73,55 @@ utils.setup_logging()
 _log = logging.getLogger(__name__)
 
 
+class ProcessAgent(BaseAgent):
+    def __init__(self, subscribe_address, process, **kwargs):
+        BaseAgent.__init__(self, subscribe_address, **kwargs)
+        self.process = process
+    def setup(self):
+        BaseAgent.setup(self)
+    
+    @periodic(1)
+    def poll_process(self):
+        if self.process.poll() is not None:
+            self._sub.close()
+            
+    def finish(self):
+        if self.process is None:
+            return
+        if self.process.poll() is None:
+            self.process.send_signal(signal.SIGINT)
+            time.sleep(2)
+        if self.process.poll() is None:
+            self.process.terminate()
+            time.sleep(2)
+            
+        if self.process.poll() is None:
+            self.process.kill()
+            time.sleep(2)
+
+
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
     p_process = None
     
     try:
-        config_path = os.environ.get('AGENT_CONFIG')
         
+        config_path = os.environ.get('AGENT_CONFIG')
+        sub_path = os.environ.get('AGENT_SUB_ADDR') 
         config = utils.load_config(config_path)
         
         command = config['exec']
         
         p_process = subprocess.Popen(command.split())
-        p_process.wait()
+        agent = ProcessAgent(sub_path, p_process)
+        agent.run()
+        
     except Exception as e:
         _log.exception('unhandled exception')
     
     finally:
         if p_process is None:
-            return
+            return 1
         if p_process.poll() is None:
             p_process.send_signal(signal.SIGINT)
             time.sleep(2)
