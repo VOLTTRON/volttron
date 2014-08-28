@@ -201,7 +201,7 @@ def WeatherAgent(config_path, **kwargs):
             return weather_dict
 
         def publish_all(self, observation, topic_prefix="weather", headers={}):
-            self.publish_subtopic(self.build_dictionary(observation), topic_prefix)
+            self.publish_subtopic(self.build_dictionary(observation), topic_prefix, headers)
 
         def publish_subtopic(self, publish_item, topic_prefix, headers):
             #TODO: Update to use the new topic templates
