@@ -232,7 +232,7 @@ def WeatherAgent(config_path, **kwargs):
 
         @match_start("weather/request")
         def handle_request(self, topic, headers, message, matched):
-            msg = jsonapi.loads(message)
+            msg = jsonapi.loads(message[0])
             request_url = self.baseUrl
 
             # Identify if a zipcode or region/city was sent
