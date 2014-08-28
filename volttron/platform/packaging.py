@@ -225,6 +225,10 @@ def _sign_agent_package(agent_package, **kwargs):
         verified = auth.sign_as_creator(agent_package, 'creator', files, certsobj = certsobj)
     elif cert_type == 'initiator':
         verified = auth.sign_as_initiator(agent_package, 'initiator', files, certsobj = certsobj)
+    elif cert_type == 'platform':
+        verified = auth.sign_as_platform(agent_package, 'platform', files)
+    elif cert_type == 'platform':
+        verified = auth.sign_as_platform(agent_package, 'platform', files)
     else:
         raise AgentPackageError('Unknown packaging options')
 
@@ -238,7 +242,7 @@ def _sign_agent_package(agent_package, **kwargs):
 def _cert_type_from_kwargs(**kwargs):
     '''Return cert type string from kwargs values'''
 
-    for k in ('soi', 'creator', 'initiator'):
+    for k in ('soi', 'creator', 'initiator', 'platform'):
         try:
             if k in kwargs['user_type'] and kwargs['user_type'][k]:
                 return k
@@ -381,6 +385,8 @@ def main(argv=sys.argv):
             help='create an soi administrator cert')
         create_cert_opts.add_argument('--initiator', action='store_true',
             help='create an initiator cert')
+        create_cert_opts.add_argument('--platform', action='store_true',
+            help='create a platform cert')
         create_cert_cmd.add_argument('--name',
             help='file name to store the cert under (no extension)')
 
@@ -394,6 +400,8 @@ def main(argv=sys.argv):
             help='sign as the soi administrator')
         sign_opts.add_argument('--initiator', action='store_true',
             help='sign as the initiator of the package')
+        sign_opts.add_argument('--platform', action='store_true',
+            help='sign the mutable luggage of the package as the platform')
         sign_cmd.add_argument('--cert', metavar='CERT',
             help='certificate to use to sign the package')
         sign_cmd.add_argument('--config-file', metavar='CONFIG',
@@ -458,7 +466,8 @@ def main(argv=sys.argv):
                     else:
                         user_type = {'soi': args.soi,
                                   'creator': args.creator,
-                                  'initiator': args.initiator}
+                                  'initiator': args.initiator,
+                                  'platform': args.platform}
                         if args.subparser_name == 'sign':
                             in_args = {
                                     'config_file': args.config_file,
