@@ -274,7 +274,7 @@ def start_agent(opts):
             _stderr.write('{}: agent not found: {}\n'.format(opts.command, pattern))
         for agent in match:
             pid, status = conn.call.agent_status(agent.uuid)
-            if pid is None:
+            if pid is None or status is not None:
                 _stdout.write('Starting {} {}\n'.format(agent.uuid, agent.name))
                 conn.call.start_agent(agent.uuid)
 
