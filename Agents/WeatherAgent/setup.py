@@ -53,16 +53,17 @@
 
 from setuptools import setup, find_packages
 
+packages = find_packages('.')
+package = packages[0]
+
 setup(
-    name = "weatheragent",
-    version = ".1",
-    packages = find_packages(),
-    install_requires = ['zmq'],
-    entry_points = {
+    name=package + "agent",
+    version="0.1",
+    packages=packages,
+    install_requires=['volttron'],
+    entry_points={
         'setuptools.installation': [
-                                    'eggsecutable = weather.weatheragent:main',
+            'eggsecutable = ' + package + '.weatheragent:main',
         ]
     }
-    
-
-      )
+)
