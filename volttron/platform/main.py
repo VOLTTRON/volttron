@@ -241,17 +241,20 @@ def main(argv=sys.argv):
         help='user groups allowed to connect to control socket')
 
     if have_restricted:
-        class DisableRestrictedAction(argparse.Action):
-            def __init__(self, option_strings, dest, help=None, **kwargs):
-                super(DisableRestrictedAction, self).__init__(option_strings,
-                    dest=argparse.SUPPRESS, nargs=0, help=help)
+        class RestrictedAction(argparse.Action):
+            def __init__(self, option_strings, dest, const=True, help=None, **kwargs):
+                super(RestrictedAction, self).__init__(option_strings,
+                    dest=argparse.SUPPRESS, nargs=0, const=const, help=help)
             def __call__(self, parser, namespace, values, option_string=None):
-                namespace.verify_agents = False
-                namespace.resource_monitor = False
-                namespace.mobility = False
+                namespace.verify_agents = self.const
+                namespace.resource_monitor = self.const
+                namespace.mobility = self.const
         restrict = parser.add_argument_group('restricted options')
-        restrict.add_argument('--no-restricted', action=DisableRestrictedAction,
-            help='shortcut to disable all restricted features')
+        restrict.add_argument('--restricted', action=RestrictedAction,
+            inverse='--no-restricted',
+            help='shortcut to enable all restricted features')
+        restrict.add_argument('--no-restricted', action=RestrictedAction,
+            const=False, help=argparse.SUPPRESS)
         restrict.add_argument('--verify', action='store_true',
             inverse='--no-verify',
             help='verify agent integrity before execution')
