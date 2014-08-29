@@ -47,7 +47,7 @@ TEST_CONFIG_FILE = 'base-platform-test.json'
 
 PLATFORM_CONFIG_UNRESTRICTED = """
 no-resource-monitor
-no-verify-agents
+no-verify
 
 control-socket = {tmpdir}/run/control
 """
