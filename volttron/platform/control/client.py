@@ -127,12 +127,18 @@ def install_agent(opts):
     aip = opts.aip
     for wheel in opts.wheel:
         try:
-            uuid = aip.install_agent(wheel)
+            tag, filename = wheel.split('=', 1)
+        except ValueError:
+            tag, filename = None, wheel
+        try:
+            uuid = aip.install_agent(filename)
+            if tag:
+                aip.tag_agent(uuid, tag)
         except Exception as exc:
-            _stderr.write('{}: {}: {}'.format(opts.command, exc, wheel))
+            _stderr.write('{}: {}: {}'.format(opts.command, exc, filename))
             return 10
         name = aip.agent_name(uuid)
-        _stdout.write('Installed {} as {} {}\n'.format(wheel, uuid, name))
+        _stdout.write('Installed {} as {} {}\n'.format(filename, uuid, name))
 
 def tag_agent(opts):
     agents = filter_agent(_list_agents(opts.aip), opts.agent, opts)
@@ -374,7 +380,10 @@ def main(argv=sys.argv):
         kwargs['parents'] = parents
         return subparsers.add_parser(*args, **kwargs)
 
-    install = add_parser('install', help='install agent from wheel')
+    install = add_parser('install', help='install agent from wheel',
+        epilog='The wheel argument can take the form tag=wheelfile to tag the '
+               'agent during install without requiring a separate call to '
+               'the tag command.')
     install.add_argument('wheel', nargs='+', help='path to agent wheel')
     if have_restricted:
         install.add_argument('--verify', action='store_true', dest='verify_agents',
