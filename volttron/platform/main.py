@@ -253,6 +253,7 @@ def main(argv=sys.argv):
         restrict.add_argument('--no-restricted', action=DisableRestrictedAction,
             help='shortcut to disable all restricted features')
         restrict.add_argument('--verify', action='store_true',
+            inverse='--no-verify',
             help='verify agent integrity before execution')
         restrict.add_argument('--no-verify', action='store_false',
             dest='verify_agents', help=argparse.SUPPRESS)
@@ -262,6 +263,7 @@ def main(argv=sys.argv):
         restrict.add_argument('--no-resource-monitor', action='store_false',
             dest='resource_monitor', help=argparse.SUPPRESS)
         restrict.add_argument('--mobility', action='store_true',
+            inverse='--no-mobility',
             help='enable agent mobility')
         restrict.add_argument('--no-mobility', action='store_false',
             dest='mobility', help=argparse.SUPPRESS)
