@@ -196,6 +196,9 @@ def main(argv=sys.argv):
         description='VOLTTRON platform service',
         usage='%(prog)s [OPTION]...',
         argument_default=argparse.SUPPRESS,
+        epilog='Boolean options, which take no argument, may be inversed by '
+               'prefixing the option with no- (e.g. --autostart may be '
+               'inversed using --no-autostart).'
     )
     parser.add_argument('-c', '--config', metavar='FILE',
         action='parse_config', ignore_unknown=True, sections=[None, 'volttron'],
