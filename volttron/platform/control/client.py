@@ -296,9 +296,9 @@ def stop_agent(opts):
                 _stdout.write('Stopping {} {}\n'.format(agent.uuid, agent.name))
                 conn.call.stop_agent(agent.uuid)
 
-def run_agent(directories, control_socket):
-    conn.ControlConnector(opts.control_socket)
-    for directory in opts.directories:
+def run_agent(opts):
+    conn = ControlConnector(opts.control_socket)
+    for directory in opts.directory:
         conn.call.run_agent(directory)
 
 def shutdown_agents(opts):
