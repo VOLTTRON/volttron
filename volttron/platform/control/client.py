@@ -64,6 +64,7 @@ import argparse
 import collections
 import os
 import re
+import signal
 import sys
 import traceback
 
@@ -71,7 +72,7 @@ from flexjsonrpc.core import RemoteError
 
 from .. import aip
 from .. import config
-from .server import ControlConnector
+from .server import ControlConnector, get_peercred
 
 try:
     import volttron.restricted
@@ -305,7 +306,11 @@ def run_agent(opts):
         conn.call.run_agent(directory)
 
 def shutdown_agents(opts):
-    ControlConnector(opts.control_socket).call.shutdown()
+    conn = ControlConnector(opts.control_socket)
+    conn.call.shutdown()
+    if opts.platform:
+        pid, uid, gid = get_peercred(conn._sock)
+        os.kill(pid, signal.SIGINT)
 
 def create_cgroups(opts):
     try:
@@ -472,7 +477,9 @@ def main(argv=sys.argv):
 
     shutdown = add_parser('shutdown',
         help='stop all agents')
-    shutdown.set_defaults(func=shutdown_agents)
+    shutdown.add_argument('--platform', action='store_true',
+        help='also stop the platform process')
+    shutdown.set_defaults(func=shutdown_agents, platform=False)
 
     if have_restricted:
         send = add_parser('send',
