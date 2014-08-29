@@ -65,6 +65,7 @@ import collections
 import os
 import re
 import sys
+import traceback
 
 from flexjsonrpc.core import RemoteError
 
@@ -135,7 +136,9 @@ def install_agent(opts):
             if tag:
                 aip.tag_agent(uuid, tag)
         except Exception as exc:
-            _stderr.write('{}: {}: {}'.format(opts.command, exc, filename))
+            if opts.debug:
+                traceback.print_exc()
+            _stderr.write('{}: error: {}: {}\n'.format(opts.command, exc, filename))
             return 10
         name = aip.agent_name(uuid)
         _stdout.write('Installed {} as {} {}\n'.format(filename, uuid, name))
@@ -147,7 +150,7 @@ def tag_agent(opts):
             msg = 'multiple agents selected'
         else:
             msg = 'agent not found'
-        _stderr.write('{}: {}: {}\n'.format(opts.command, msg, opts.agent))
+        _stderr.write('{}: error: {}: {}\n'.format(opts.command, msg, opts.agent))
         return 10
     agent, = agents
     if opts.tag:
@@ -165,9 +168,9 @@ def remove_agent(opts):
     agents = _list_agents(opts.aip)
     for pattern, match in filter_agents(agents, opts.pattern, opts):
         if not match:
-            _stderr.write('{}: agent not found: {}\n'.format(opts.command, pattern))
+            _stderr.write('{}: error: agent not found: {}\n'.format(opts.command, pattern))
         elif len(match) > 1 and not opts.force:
-            _stderr.write('{}: pattern returned multiple agents: {}\n'.format(opts.command, pattern))
+            _stderr.write('{}: error: pattern returned multiple agents: {}\n'.format(opts.command, pattern))
             _stderr.write('Use -f or --force to force removal of multiple agents.\n')
             return 10
         for agent in match:
@@ -191,7 +194,7 @@ def list_agents(opts):
         filtered = set()
         for pattern, match in filter_agents(agents, opts.pattern, opts):
             if not match:
-                _stderr.write('{}: agent not found: {}\n'.format(opts.command, pattern))
+                _stderr.write('{}: error: agent not found: {}\n'.format(opts.command, pattern))
             filtered |= match
         agents = list(filtered)
     if not agents:
@@ -225,7 +228,7 @@ def status_agents(opts):
         filtered = set()
         for pattern, match in filter_agents(agents, opts.pattern, opts):
             if not match:
-                _stderr.write('{}: agent not found: {}\n'.format(opts.command, pattern))
+                _stderr.write('{}: error: agent not found: {}\n'.format(opts.command, pattern))
             filtered |= match
         agents = list(filtered)
     if not agents:
@@ -255,7 +258,7 @@ def enable_agent(opts):
     agents = _list_agents(opts.aip)
     for pattern, match in filter_agents(agents, opts.pattern, opts):
         if not match:
-            _stderr.write('{}: agent not found: {}\n'.format(opts.command, pattern))
+            _stderr.write('{}: error: agent not found: {}\n'.format(opts.command, pattern))
         for agent in match:
             _stdout.write('Enabling {} {} with priority {}\n'.format(
                     agent.uuid, agent.name, opts.priority))
@@ -265,7 +268,7 @@ def disable_agent(opts):
     agents = _list_agents(opts.aip)
     for pattern, match in filter_agents(agents, opts.pattern, opts):
         if not match:
-            _stderr.write('{}: agent not found: {}\n'.format(opts.command, pattern))
+            _stderr.write('{}: error: agent not found: {}\n'.format(opts.command, pattern))
         for agent in match:
             priority = opts.aip.agent_priority(agent.uuid)
             if priority is not None:
@@ -277,7 +280,7 @@ def start_agent(opts):
     agents = _list_agents(opts.aip)
     for pattern, match in filter_agents(agents, opts.pattern, opts):
         if not match:
-            _stderr.write('{}: agent not found: {}\n'.format(opts.command, pattern))
+            _stderr.write('{}: error: agent not found: {}\n'.format(opts.command, pattern))
         for agent in match:
             pid, status = conn.call.agent_status(agent.uuid)
             if pid is None or status is not None:
@@ -289,7 +292,7 @@ def stop_agent(opts):
     agents = _list_agents(opts.aip)
     for pattern, match in filter_agents(agents, opts.pattern, opts):
         if not match:
-            _stderr.write('{}: agent not found: {}\n'.format(opts.command, pattern))
+            _stderr.write('{}: error: agent not found: {}\n'.format(opts.command, pattern))
         for agent in match:
             pid, status = conn.call.agent_status(agent.uuid)
             if pid and status is None:
@@ -308,7 +311,7 @@ def create_cgroups(opts):
     try:
         resmon.create_cgroups(user=opts.user, group=opts.group)
     except ValueError as exc:
-        _stderr.write('{}: {}\n'.format(opts.command, exc))
+        _stderr.write('{}: error: {}\n'.format(opts.command, exc))
         return os.EX_NOUSER
 
 def send_agent(opts):
@@ -316,7 +319,9 @@ def send_agent(opts):
     try:
         host_key, client = comms.client(ssh_dir, opts.host, opts.port)
     except (OSError, IOError, PasswordRequiredException, SSHException) as exc:
-        _stderr.write('{}: {}\n'.format(opts.command, exc))
+        if opts.debug:
+            traceback.print_exc()
+        _stderr.write('{}: error: {}\n'.format(opts.command, exc))
         if isinstance(exc, OSError):
             return os.EX_OSERR
         if isinstance(exc, IOError):
@@ -347,6 +352,8 @@ def main(argv=sys.argv):
         action='parse_config', ignore_unknown=True,
         sections=[None, 'global', 'volttron-ctl'],
         help='read configuration from FILE')
+    global_args.add_argument('--debug', action='store_true',
+        help='show tracbacks for errors rather than a brief message')
     global_args.add_argument('--control-socket', metavar='FILE',
         help='path to socket used for control messages')
 
@@ -496,8 +503,18 @@ def main(argv=sys.argv):
 
     try:
         return opts.func(opts)
-    except RemoteError as e:
-        e.print_tb()
+    except RemoteError as exc:
+        print_tb = exc.print_tb
+        error = exc.message
+    except Exception as exc:
+        print_tb = traceback.print_exc
+        error = str(exc)
+    else:
+        return 0
+    if opts.debug:
+        print_tb()
+    _stderr.write('{}: error: {}\n'.format(opts.command, error))
+    return 20
 
 
 def _main():
