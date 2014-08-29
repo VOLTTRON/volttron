@@ -54,7 +54,7 @@ class VolttronPackageWheelFileNoSign(WheelFile):
         if (len(records) < 1):
             raise ValueError('Invalid wheel file no records found')
 
-        last_record_name = records[-1]
+        last_record_name = records[0]
 #         new_record_name = "RECORD.{}".format(len(records))
 # 
         tmp_dir = tempfile.mkdtemp()
