@@ -272,7 +272,7 @@ def main(argv=sys.argv):
         restrict.add_argument('--mobility-port', type=int, metavar='NUMBER',
             help='specify the port on which to listen')
         parser.set_defaults(
-            mobility=None, mobility_address=None, mobility_port=None)
+            mobility=True, mobility_address=None, mobility_port=None)
 
     parser.set_defaults(
         log = None,
