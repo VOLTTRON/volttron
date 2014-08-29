@@ -10,16 +10,9 @@ import base
 """
 Test 
 """
-actuator_dict = {"executable": "actuatoragent-0.1-py2.7.egg",
-                 "launch_file": "Agents/ActuatorAgent/actuator-test-deploy.service",
-                 "agent_config": "actuator-test-deploy.service",
-                 "agent_dir": "ActuatorAgent"}
- 
- 
-
  
 AGENT_DIR = "Agents/ActuatorAgent"
-CONFIG_FILE = "Agents/ActuatorAgent/actuatoragent.launch.json"
+CONFIG_FILE = "Agents/ActuatorAgent/actuator-deploy.service"
 
 class ActuatorTests(base.BasePlatformTest):
 
