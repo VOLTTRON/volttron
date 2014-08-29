@@ -241,6 +241,7 @@ class BasePlatformTest(unittest.TestCase):
     def direct_build_install_run_agent(self, agent_dir, config_file):
         agent_uuid = self.direct_buid_install_agent(agent_dir, config_file)
         self.direct_start_agent(agent_uuid)  
+        return agent_uuid
             
     def direct_start_agent(self, agent_uuid):
         
@@ -262,7 +263,7 @@ class BasePlatformTest(unittest.TestCase):
         print status
         
     def direct_stop_agent(self, agent_uuid):
-        result = self.conn.stop_agent(agent_uuid)
+        result = self.conn.call.stop_agent(agent_uuid)
         print result
 
             
@@ -278,13 +279,13 @@ class BasePlatformTest(unittest.TestCase):
             time.sleep(3)
             self.p_process.kill()
         else:
-            print "NULL"
+            print "platform process was null"
 
         if self.use_twistd and self.t_process != None:
             self.t_process.kill()
             self.t_process.wait()
-        else:
-            print "NULL"
+        elif self.use_twistd:
+            print "twistd process was null"
         if self.tmpdir != None:
             shutil.rmtree(self.tmpdir, True)
     

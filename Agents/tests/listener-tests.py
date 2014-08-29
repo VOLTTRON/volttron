@@ -24,7 +24,7 @@ class ListenerTests(base.BasePlatformTest):
         
     def tearDown(self):
         super(ListenerTests, self).tearDown()
-    
+        
 #     def test_build(self):
 #         agent_wheel = self.build_agentpackage(AGENT_DIR)
 #         self.assertIsNotNone(agent_wheel,"Agent wheel was not built")
@@ -32,13 +32,17 @@ class ListenerTests(base.BasePlatformTest):
 #      
 #     def test_build_and_install(self):
 #         uuid = self.direct_install_agent(AGENT_DIR)
-#         self.direct_start_agent(uuid)
-#         print "started"
 
 #     def test_direct_build_and_install(self):
 #         uuid = self.direct_buid_install_agent(AGENT_DIR, CONFIG_FILE)
-#         self.direct_remove_agent(uuid)
+#         
+# 
+#     def test_direct_install_and_start(self):
+#         self.direct_build_install_run_agent(AGENT_DIR, CONFIG_FILE)
 
-    def test_direct_install_and_start(self):
-        self.direct_build_install_run_agent(AGENT_DIR, CONFIG_FILE)
-
+    def test_direct_install_start_stop_start(self):
+        uuid = self.direct_build_install_run_agent(AGENT_DIR, CONFIG_FILE)
+        time.sleep(5)
+        self.direct_stop_agent(uuid)
+        time.sleep(5)
+        self.direct_start_agent(uuid)
