@@ -316,13 +316,15 @@ class AIPplatform(object):
                 agent_path, agent_name, agent_name + '.dist-info')
             if os.path.exists(dist_info):
                 return agent_name
+        raise KeyError(agent_uuid)
 
     def list_agents(self):
         agents = {}
         for agent_uuid in os.listdir(self.install_dir):
-            agent_name = self.agent_name(agent_uuid)
-            if agent_name:
-                agents[agent_uuid] = agent_name
+            try:
+                agents[agent_uuid] = self.agent_name(agent_uuid)
+            except KeyError:
+                pass
         return agents
 
     def active_agents(self):
@@ -522,12 +524,9 @@ class AIPplatform(object):
         return (execenv.process.pid, execenv.process.poll())
 
     def start_agent(self, agent_uuid):
-        try:
-            agent_name = self.list_agents()[agent_uuid]
-        except KeyError:
-            raise ValueError('invalid agent: {!r}'.format(agent_uuid))
+        name = self.agent_name(agent_uuid)
         self._launch_agent(
-                agent_uuid, os.path.join(self.install_dir, agent_uuid, agent_name), agent_name)
+            agent_uuid, os.path.join(self.install_dir, agent_uuid, name), name)
 
     def stop_agent(self, agent_uuid):
         try:
