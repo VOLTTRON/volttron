@@ -196,6 +196,9 @@ def main(argv=sys.argv):
         description='VOLTTRON platform service',
         usage='%(prog)s [OPTION]...',
         argument_default=argparse.SUPPRESS,
+        epilog='Boolean options, which take no argument, may be inversed by '
+               'prefixing the option with no- (e.g. --autostart may be '
+               'inversed using --no-autostart).'
     )
     parser.add_argument('-c', '--config', metavar='FILE',
         action='parse_config', ignore_unknown=True, sections=[None, 'volttron'],
@@ -241,18 +244,22 @@ def main(argv=sys.argv):
         help='user groups allowed to connect to control socket')
 
     if have_restricted:
-        class DisableRestrictedAction(argparse.Action):
-            def __init__(self, option_strings, dest, help=None, **kwargs):
-                super(DisableRestrictedAction, self).__init__(option_strings,
-                    dest=argparse.SUPPRESS, nargs=0, help=help)
+        class RestrictedAction(argparse.Action):
+            def __init__(self, option_strings, dest, const=True, help=None, **kwargs):
+                super(RestrictedAction, self).__init__(option_strings,
+                    dest=argparse.SUPPRESS, nargs=0, const=const, help=help)
             def __call__(self, parser, namespace, values, option_string=None):
-                namespace.verify_agents = False
-                namespace.resource_monitor = False
-                namespace.mobility = False
+                namespace.verify_agents = self.const
+                namespace.resource_monitor = self.const
+                namespace.mobility = self.const
         restrict = parser.add_argument_group('restricted options')
-        restrict.add_argument('--no-restricted', action=DisableRestrictedAction,
-            help='shortcut to disable all restricted features')
+        restrict.add_argument('--restricted', action=RestrictedAction,
+            inverse='--no-restricted',
+            help='shortcut to enable all restricted features')
+        restrict.add_argument('--no-restricted', action=RestrictedAction,
+            const=False, help=argparse.SUPPRESS)
         restrict.add_argument('--verify', action='store_true',
+            inverse='--no-verify',
             help='verify agent integrity before execution')
         restrict.add_argument('--no-verify', action='store_false',
             dest='verify_agents', help=argparse.SUPPRESS)
@@ -262,6 +269,7 @@ def main(argv=sys.argv):
         restrict.add_argument('--no-resource-monitor', action='store_false',
             dest='resource_monitor', help=argparse.SUPPRESS)
         restrict.add_argument('--mobility', action='store_true',
+            inverse='--no-mobility',
             help='enable agent mobility')
         restrict.add_argument('--no-mobility', action='store_false',
             dest='mobility', help=argparse.SUPPRESS)
@@ -269,8 +277,6 @@ def main(argv=sys.argv):
             help='specify the address on which to listen')
         restrict.add_argument('--mobility-port', type=int, metavar='NUMBER',
             help='specify the port on which to listen')
-        parser.set_defaults(
-            mobility=None, mobility_address=None, mobility_port=None)
 
     parser.set_defaults(
         log = None,
@@ -286,7 +292,7 @@ def main(argv=sys.argv):
         allow_groups = None,
         verify_agents = True,
         resource_monitor = True,
-        mobility = False,
+        mobility = True,
         mobility_address = None,
         mobility_port = 2522
     )
