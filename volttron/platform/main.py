@@ -71,6 +71,9 @@ import sys
 import gevent
 from pkg_resources import load_entry_point
 from zmq import green as zmq
+# Override zmq to use greenlets with mobility agent
+zmq.green = zmq
+sys.modules['zmq'] = zmq
 
 from . import aip
 from . import __version__
@@ -84,6 +87,7 @@ except ImportError:
     have_restricted = False
 else:
     from volttron.restricted import comms, comms_server, resmon
+    from volttron.restricted.mobility import MobilityAgent
     from paramiko import RSAKey, PasswordRequiredException, SSHException
     have_restricted = True
 
@@ -359,16 +363,18 @@ def main(argv=sys.argv):
             agent_exchange, opts.publish_address, opts.subscribe_address)
         if have_restricted and opts.mobility:
             address = (opts.mobility_address, opts.mobility_port)
-            mobility = comms_server.ThreadedServer(
-                address, priv_key, authorized_keys, opts.aip.land_agent)
-            mobility.start()
+            mobility_in = comms_server.ThreadedServer(
+                address, priv_key, authorized_keys, opts.aip)
+            mobility_in.start()
+            mobility_out = MobilityAgent(opts.aip,
+                subscribe_address=opts.subscribe_address,
+                publish_address=opts.publish_address)
+            gevent.spawn(mobility_out.run)
         try:
             control = gevent.spawn(control_loop, opts)
             exchange.link(lambda *a: control.kill())
             control.join()
         finally:
-            if have_restricted and opts.mobility:
-                mobility.stop()
             exchange.kill()
     finally:
         opts.aip.finish()
