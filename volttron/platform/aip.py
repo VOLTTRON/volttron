@@ -497,7 +497,11 @@ class AIPplatform(object):
             execenv = self._reserve_resources(resmon, execreqs)
         execenv.name = name or agent_path
         _log.info('starting agent %s', agent_path)
-        execenv.execute(argv, cwd=self.run_dir, env=environ, close_fds=True,
+        data_dir = os.path.join(os.path.dirname(pkg.distinfo),
+                                '{}.agent-data'.format(pkg.package_name))
+        if not os.path.exists(data_dir):
+            os.mkdir(data_dir)
+        execenv.execute(argv, cwd=data_dir, env=environ, close_fds=True,
                         stdin=open(os.devnull), stdout=PIPE, stderr=PIPE)
         self.agents[agent_uuid] = execenv
         pid = execenv.process.pid
