@@ -17,8 +17,7 @@ except ImportError:
     import json as jsonapi
 
 from wheel.install import WheelFile
-from wheel.util import (native,
-                        open_for_csv)
+from wheel.util import native, open_for_csv
 
 
 __all__ = ('BasePackageVerifier', 'VolttronPackageWheelFileNoSign',
@@ -343,62 +342,45 @@ class UnpackedPackage(object):
         raise ValueError('directory does not contain a valid '
                          'agent package: {}'.format(self.directory))
 
-    def get_metadata(self):
+    @property
+    def metadata(self):
         '''Parse package.dist-info/metadata.json and return a dictionary.'''
-        with open(os.path.join(self.distinfo, 'metadata.json')) as file:
-            return jsonapi.load(file)
+        try:
+            return self._metadata
+        except AttributeError:
+            with open(os.path.join(self.distinfo, 'metadata.json')) as file:
+                self._metadata = jsonapi.load(file)
+        return self._metadata
 
-    def _read_metadata(self):
-        metadata = self.get_metadata()
-        self._name = metadata['name']
-        self._version = metadata['version']
-
-    def get_wheelmeta(self):
+    @property
+    def wheelmeta(self):
         '''Parse package.dist-info/WHEEL and return a dictionary.'''
-        with open(os.path.join(self.distinfo, 'WHEEL')) as file:
-            return {key.strip().lower(): value.strip()
+        try:
+            return self._wheelmeta
+        except AttributeError:
+            with open(os.path.join(self.distinfo, 'WHEEL')) as file:
+                self._wheelmeta = {
+                    key.strip().lower(): value.strip()
                     for key, value in
                     (parts for line in file if line
-                     for parts in [line.split(':', 1)] if len(parts) == 2)}
+                    for parts in [line.split(':', 1)] if len(parts) == 2)
+                }
+        return self._wheelmeta
 
-    def _read_wheelmeta(self):
-        meta = self.get_wheelmeta()
-        self._tag = meta['tag']
-
-    @property
-    def name(self):
-        try:
-            return self._name
-        except AttributeError:
-            pass
-        self._read_metadata()
-        return self._name
-    
-    @property
-    def version(self):
-        try:
-            return self._version
-        except AttributeError:
-            pass
-        self._read_metadata()
-        return self._version
-    
-    @property
-    def tag(self):
-        try:
-            return self._tag
-        except AttributeError:
-            pass
-        self._read_wheelmeta()
-        return self._tag
-    
     @property
     def package_name(self):
-        return '-'.join([self.name, self.version])
+        metadata = self.metadata
+        name = metadata['name']
+        version = metadata['version']
+        return '-'.join([name, version])
     
     @property
     def wheel_name(self):
-        return '-'.join([self.name, self.version, self.tag]) + '.whl'
+        metadata = self.metadata
+        name = metadata['name']
+        version = metadata['version']
+        tag = self.wheelmeta['tag']
+        return '-'.join([name, version, tag]) + '.whl'
 
     def repack(self, dest=None, exclude=None):
         '''Recreate the package from the RECORD files.
