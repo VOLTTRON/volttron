@@ -83,6 +83,7 @@ import zmq
 
 from . import messaging
 from .messaging import topics
+from .packages import UnpackedPackage
 
 try:
     from volttron.restricted import auth
@@ -275,7 +276,6 @@ class AIPplatform(object):
             self.start_agent(agent_uuid)
             self.prioritize_agent(agent_uuid)
         except:
-            self.stop_agent(agent_uuid)
             self.remove_agent(agent_uuid)
             raise
         return agent_uuid
@@ -306,6 +306,8 @@ class AIPplatform(object):
     def remove_agent(self, agent_uuid):
         if agent_uuid not in os.listdir(self.install_dir):
             raise ValueError('invalid agent')
+        self.stop_agent(agent_uuid)
+        self.agents.pop(agent_uuid, None)
         shutil.rmtree(os.path.join(self.install_dir, agent_uuid))
 
     def agent_name(self, agent_uuid):
@@ -315,13 +317,15 @@ class AIPplatform(object):
                 agent_path, agent_name, agent_name + '.dist-info')
             if os.path.exists(dist_info):
                 return agent_name
+        raise KeyError(agent_uuid)
 
     def list_agents(self):
         agents = {}
         for agent_uuid in os.listdir(self.install_dir):
-            agent_name = self.agent_name(agent_uuid)
-            if agent_name:
-                agents[agent_uuid] = agent_name
+            try:
+                agents[agent_uuid] = self.agent_name(agent_uuid)
+            except KeyError:
+                pass
         return agents
 
     def active_agents(self):
@@ -382,14 +386,14 @@ class AIPplatform(object):
             with open(autostart, 'w') as file:
                 file.write(priority.strip())
 
-    def _check_resources(self, resmon, ident, execreqs, reserve=False):
+    def _check_resources(self, resmon, execreqs, reserve=False):
         hard_reqs = execreqs.get('hard_requirements', {})
         failed_terms = resmon.check_hard_resources(hard_reqs)
         if failed_terms:
             msg = '\n'.join('  {}: {} ({})'.format(
                              term, hard_reqs[term], avail)
                             for term, avail in failed_terms.iteritems())
-            _log.error('hard resource requirements not met: %r:\n%s', ident, msg)
+            _log.error('hard resource requirements not met:\n%s', msg)
             raise ValueError('hard resource requirements not met')
         requirements = execreqs.get('requirements', {})
         try:
@@ -406,16 +410,23 @@ class AIPplatform(object):
         msg = '\n'.join('  {}: {} ({})'.format(
                          term, requirements.get(term, '<unset>'), avail)
                         for term, avail in failed_terms.iteritems())
-        _log.error('%s %r:\n%s', errmsg, ident, msg)
+        _log.error('%s:\n%s', errmsg, msg)
         raise ValueError(errmsg)
 
-    def check_resources(self, resmon, ident, execreqs):
-        self._check_resources(resmon, ident, execreqs)
+    def check_resources(self, execreqs):
+        resmon = getattr(self.env, 'resmon', None)
+        if resmon:
+            return self._check_resources(resmon, execreqs, reserve=False)
 
-    def _reserve_resources(self, resmon, ident, execreqs):
-        return self._check_resources(resmon, ident, execreqs, reserve=True)
+    def _reserve_resources(self, resmon, execreqs):
+        return self._check_resources(resmon, execreqs, reserve=True)
 
-    def read_execreqs(self, dist_info):
+    def get_execreqs(self, agent_uuid):
+        name = self.agent_name(agent_uuid)
+        pkg = UnpackedPackage(os.path.join(self.install_dir, agent_uuid, name))
+        return self._read_execreqs(pkg.distinfo)
+
+    def _read_execreqs(self, dist_info):
         execreqs_json = os.path.join(dist_info, 'execreqs.json')
         try:
             with ignore_enoent, open(execreqs_json) as file:
@@ -434,15 +445,10 @@ class AIPplatform(object):
             _log.warning('request to start already running agent %s', agent_path)
             raise ValueError('agent is already running')
 
-        basename = os.path.basename(agent_path)
-        dist_info = os.path.join(agent_path, basename + '.dist-info')
-        if not os.path.exists(dist_info):
-            _log.error('missing required package metadata: ' + dist_info)
-            raise ValueError('missing required package metadata')
+        pkg = UnpackedPackage(agent_path)
         if auth is not None and self.env.verify_agents:
-            auth.UnpackedPackageVerifier(dist_info).verify()
-        metadata_json = os.path.join(dist_info, 'metadata.json')
-        metadata = jsonapi.load(open(metadata_json))
+            auth.UnpackedPackageVerifier(pkg.distinfo).verify()
+        metadata = pkg.metadata
         try:
             exports = metadata['extensions']['python.exports']
         except KeyError:
@@ -458,7 +464,7 @@ class AIPplatform(object):
             except KeyError:
                 _log.error('no agent launch class specified in package %s', agent_path)
                 raise ValueError('no agent launch class specified in package')
-        config = os.path.join(dist_info, 'config')
+        config = os.path.join(pkg.distinfo, 'config')
         tag = self.agent_tag(agent_uuid)
 
         environ = os.environ.copy()
@@ -475,6 +481,7 @@ class AIPplatform(object):
             environ.pop('AGENT_TAG', None)
         environ['AGENT_SUB_ADDR'] = self.subscribe_address
         environ['AGENT_PUB_ADDR'] = self.publish_address
+        environ['AGENT_UUID'] = agent_uuid
 
         module, _, func = module.partition(':')
         if func:
@@ -486,11 +493,15 @@ class AIPplatform(object):
         if resmon is None:
             execenv = ExecutionEnvironment()
         else:
-            execreqs = self.read_execreqs(dist_info)
-            execenv = self._reserve_resources(resmon, name, execreqs)
+            execreqs = self._read_execreqs(pkg.distinfo)
+            execenv = self._reserve_resources(resmon, execreqs)
         execenv.name = name or agent_path
         _log.info('starting agent %s', agent_path)
-        execenv.execute(argv, cwd=self.run_dir, env=environ, close_fds=True,
+        data_dir = os.path.join(os.path.dirname(pkg.distinfo),
+                                '{}.agent-data'.format(pkg.package_name))
+        if not os.path.exists(data_dir):
+            os.mkdir(data_dir)
+        execenv.execute(argv, cwd=data_dir, env=environ, close_fds=True,
                         stdin=open(os.devnull), stdout=PIPE, stderr=PIPE)
         self.agents[agent_uuid] = execenv
         pid = execenv.process.pid
@@ -521,12 +532,9 @@ class AIPplatform(object):
         return (execenv.process.pid, execenv.process.poll())
 
     def start_agent(self, agent_uuid):
-        try:
-            agent_name = self.list_agents()[agent_uuid]
-        except KeyError:
-            raise ValueError('invalid agent: {!r}'.format(agent_uuid))
+        name = self.agent_name(agent_uuid)
         self._launch_agent(
-                agent_uuid, os.path.join(self.install_dir, agent_uuid, agent_name), agent_name)
+            agent_uuid, os.path.join(self.install_dir, agent_uuid, name), name)
 
     def stop_agent(self, agent_uuid):
         try:
