@@ -87,6 +87,7 @@ from .packages import UnpackedPackage
 
 try:
     from volttron.restricted import auth
+    from volttron.restricted import certs
     from volttron.restricted.resmon import ResourceError
 except ImportError:
     auth = None
@@ -294,7 +295,7 @@ class AIPplatform(object):
                     raise
         try:
             if auth is not None and self.env.verify_agents:
-                unpacker = auth.VolttronPackageWheelFile(agent_wheel)
+                unpacker = auth.VolttronPackageWheelFile(agent_wheel, certsobj=certs.Certs())
                 unpacker.unpack(dest=agent_path)
             else:
                 unpack(agent_wheel, dest=agent_path)
