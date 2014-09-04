@@ -10,3 +10,4 @@
 /.pydevproject
 /twistd.pid
 /.settings
+/build
