@@ -139,7 +139,7 @@ def open_file():
     tk.withdraw() 
     file_path = askopenfilename(defaultextension='.csv', title='choose csv file for AFDD',
                                 initialfile='', parent=tk, initialdir = os.path.expanduser('~/workspace'))
-    filename, filextension = os.path.spplatformxt(file_path)
+    filename, filextension = os.path.splitext(file_path)
     if filextension != '.csv' and filextension !='':
         file_path = 'File Selected is not a csv'
         return file_path
