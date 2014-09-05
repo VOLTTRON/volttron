@@ -58,7 +58,7 @@
 import clock
 import logging
 import sys
-
+import math
 import greenlet
 from zmq.utils import jsonapi
 
@@ -70,10 +70,6 @@ from volttron.platform.messaging import headers as headers_mod, topics
 import afdd
 import datetime
 
-
-#_log = logging.getLogger(__name__)
-#logging.basicConfig(level=logging.DEBUG, stream=sys.stderr)
-
 def AFDDAgent(config_path, **kwargs):
     config = utils.load_config(config_path)
     agent_id = config['agentid']
@@ -84,7 +80,6 @@ def AFDDAgent(config_path, **kwargs):
     rtu_path = dict((key, config[key])
                     for key in ['campus', 'building', 'unit'])
     
-    log_filename = config.get('file_name')
     
     day_run_interval = config.get('day_run_interval')
     
@@ -95,28 +90,14 @@ def AFDDAgent(config_path, **kwargs):
     volttron_flag = config.get('volttron_flag')
     
     debug_flag = True
+
+    zip_code = config.get('zip_code')
     
-    
-    if not debug_flag:
-        _log = logging.getLogger(__name__)
-        logging.basicConfig(level=logging.DEBUG, stream=sys.stderr,
-                            format='%(asctime)s   %(levelname)-8s %(message)s',
-                            datefmt='%m-%d-%y %H:%M:%S')
-    else:
-        _log = logging.getLogger(__name__)
-        logging.basicConfig(level=logging.NOTSET, stream=sys.stderr,
+    _log = logging.getLogger(__name__)
+    logging.basicConfig(level=logging.DEBUG, stream=sys.stderr,
                         format='%(asctime)s   %(levelname)-8s %(message)s',
-                        datefmt= '%m-%d-%y %H:%M:%S',
-                        filename=log_filename,
-                        filemode='a+')
-        fmt_str = '%(asctime)s   %(levelname)-8s    %(message)s'
-        formatter = logging.Formatter(fmt_str,datefmt = '%m-%d-%y %H:%M:%S')
-        console = logging.StreamHandler()
-        console.setLevel(logging.DEBUG)
-        console.setFormatter(formatter)
-        logging.getLogger("").addHandler(console)
-        _log.debug(rtu_path)
-        
+                        datefmt='%m-%d-%y %H:%M:%S')
+  
     class Agent(PublishMixin, BaseAgent):
         def __init__(self, **kwargs):
             super(Agent, self).__init__(**kwargs)
@@ -125,6 +106,8 @@ def AFDDAgent(config_path, **kwargs):
             self.tasklet = None
             self.data_queue = green.WaitQueue(self.timer)
             self.value_queue = green.WaitQueue(self.timer)
+            self.weather_data_queue = green.WaitQueue(self.timer)
+            
             self.last_run_time = None
             self.is_running = False 
             self.remaining_time = None
@@ -136,9 +119,9 @@ def AFDDAgent(config_path, **kwargs):
         def setup(self):
             super(Agent, self).setup()
             self.scheduled_task()
-            
 
         def startrun(self, algo=None):
+            print 'start diagnostic'
             if algo is None:
                 algo = afdd.AFDD(self,config_path).run_all
             self.tasklet = greenlet.greenlet(algo)
@@ -147,22 +130,33 @@ def AFDDAgent(config_path, **kwargs):
             self.tasklet.switch()
         
         def scheduled_task(self):
+            '''
+            Schedule re-occuring diagnostics
+            '''
+            print 'Schedule Dx'
             headers = {         
                                 'type':  'NEW_SCHEDULE',
                                'requesterID': agent_id,
                                'taskID': agent_id,
                                'priority': 'LOW_PREEMPT'
                                }
-            if datetime.datetime.now().hour > start_hour:
-                self.start = datetime.datetime.now().replace(hour=start_hour, minute=start_minute)
+
+            min_run_hour = math.floor(min_run_window/3600)
+            min_run_minute = int((min_run_window/3600 - min_run_hour)*60)
+
+            self.start = datetime.datetime.now().replace(hour=start_hour, minute=start_minute)
+            self.end = self.start + datetime.timedelta(hours=2,minutes=30)
+            run_start = self.end - datetime.datetime.now()
+            required_diagnostic_time = datetime.timedelta(hours = min_run_hour, minutes=min_run_minute)
+
+            if run_start < required_diagnostic_time:
                 self.start = self.start + datetime.timedelta(days=1)
                 self.end = self.start + datetime.timedelta(hours=2,minutes=30)
                 sched_time = datetime.datetime.now() + datetime.timedelta(days=day_run_interval + 1)
                 sched_time=sched_time.replace(hour=0,minute=1)
             else:
-                self.start = datetime.datetime.now().replace(hour=start_hour, minute=start_minute)
-                self.end = self.start + datetime.timedelta(hours=2,minutes=30)
                 sched_time = datetime.datetime.now() + datetime.timedelta(days=day_run_interval)
+
             self.start = str(self.start)
             self.end = str(self.end)
             self.task_timer = self.periodic_timer(60, self.publish_json,
@@ -178,6 +172,7 @@ def AFDDAgent(config_path, **kwargs):
         @matching.match_headers({headers_mod.REQUESTER_ID: agent_id})   
         @matching.match_exact(topics.ACTUATOR_SCHEDULE_ANNOUNCE(**rtu_path))
         def on_schedule(self, topic, headers, message, match):
+            print 'running'
             msg = jsonapi.loads(message[0])
             now = datetime.datetime.now()
             self.remaining_time = headers.get('window', 0)
@@ -253,9 +248,28 @@ def AFDDAgent(config_path, **kwargs):
                 return self.value_queue.wait(timeout)
             except green.Timeout:
                 return True
+            
+        def weather_request(self,timeout=None):
+            _log.debug('weather request for {}'.format(zip_code))
+            headers = {
+                       'Content-Type': 'text/plain',
+                       'requesterID': agent_id
+                    }
+            msg = {'zipcode': str(zip_code)}
+            self.publish_json('weather/request',headers, msg)
+            try:
+                return self.weather_data_queue.wait(timeout)
+            except green.Timeout:
+                return 'INCONCLUSIVE'
+
+        matching.match_headers({headers_mod.REQUESTER_ID: agent_id})
+        @matching.match_exact('weather/response/temperature/temp_f')
+        def weather_response(self, topic, headers, message, match):
+            data = float(jsonapi.loads(message[0]))
+            print data
+            self.weather_data_queue.notify_all(data)
         
-        
-        
+
     Agent.__name__ = 'AFDDAgent'
     return Agent(**kwargs)
 
@@ -271,87 +285,3 @@ if __name__ == '__main__':
         sys.exit(main())
     except KeyboardInterrupt:
         pass
-    
-
-#         def setup(self):
-#             super(Agent, self).setup()
-#             headers = {
-#                     'Content-Type': 'text/plain',
-#                     'requesterID': agent_id,
-#             }
-#             self.lock_timer = self.periodic_timer(2, self.publish,
-#                     topics.ACTUATOR_LOCK_ACQUIRE(**rtu_path), headers)
-
-#Testing functions
-# def test():
-#     import threading, time
-#     from volttron.platform.agent import periodic
-# 
-#     def TestAgent(config_path, condition, **kwargs):
-#         config = utils.load_config(config_path)
-#         agent_id = config['agentid']
-#         rtu_path = dict((key, config[key])
-#                         for key in ['campus', 'building', 'unit'])
-# 
-#         class Agent(PublishMixin, BaseAgent):
-#             def __init__(self, **kwargs):
-#                 super(Agent, self).__init__(**kwargs)
-#                 
-#             def setup(self):
-#                 super(Agent, self).setup()
-#                 self.damper = 0
-#                 with condition:
-#                     condition.notify()                
-# 
-#             @matching.match_regex(topics.ACTUATOR_LOCK_ACQUIRE() + '(/.*)')
-#             def on_lock_result(self, topic, headers, message, match):
-#                 _log.debug("Topic: {topic}, {headers}, Message: {message}".format(
-#                         topic=topic, headers=headers, message=message))
-#                 self.publish(topics.ACTUATOR_LOCK_RESULT() + match.group(0),
-#                              headers, jsonapi.dumps('SUCCESS'))
-# 
-#             @matching.match_regex(topics.ACTUATOR_SET() + '(/.*/([^/]+))')
-#             def on_new_data(self, topic, headers, message, match):
-#                 _log.debug("Topic: {topic}, {headers}, Message: {message}".format(
-#                         topic=topic, headers=headers, message=message))
-#                 if match.group(2) == 'Damper':
-#                     self.damper = int(message[0])
-#                 self.publish(topics.ACTUATOR_VALUE() + match.group(0),
-#                              headers, message[0])
-# 
-#            # @periodic(5)
-#             def send_data(self):
-#                 data = {
-#                     'ReturnAirTemperature': 78,
-#                     'OutsideAirTemperature': 71,
-#                     'DischargeAirTemperature': 76,
-#                     'MixedAirTemperature': 72,
-#                     'DamperSignal': 0,
-#                     'CoolCommand1': 0,
-#                     'CoolCommand2':0,
-#                     'OutsideAirVirtualPoint': 75-10,
-#                     'CoolCall1':1,
-#                     'HeatCommand1':0,
-#                     'HeatCommand2':0,
-#                     'SupplyFanSpeed':75,
-#                     'ReturnAirCO2Stpt': 65,
-#                     'FanStatus': 1
-#                 }
-#                 self.publish_ex(topics.DEVICES_VALUE(point='all', **rtu_path),
-#                                 {}, ('application/json', jsonapi.dumps(data)))
-# 
-#         Agent.__name__ = 'TestAgent'
-#         return Agent(**kwargs)
-# 
-#     #settings.afdd2_seconds_to_steady_state = 3
-#     #settings.sync_trial_time = 10
-#     condition = threading.Condition()
-#     t = threading.Thread(target=utils.default_main, args=(TestAgent, 'test'),
-#                          kwargs={'condition': condition})
-#     t.daemon = True
-#     t.start()
-#     with condition:
-#         condition.wait()
-#     main()
-
-
