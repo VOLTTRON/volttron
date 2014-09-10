@@ -68,7 +68,7 @@ setup(
     packages = packages,
     entry_points = {
         'setuptools.installation': [
-            'eggsecutable = ' + package + '.DRAGENT:main',
+            'eggsecutable = ' + package + '.dragent:main',
         ]
     }
 )
