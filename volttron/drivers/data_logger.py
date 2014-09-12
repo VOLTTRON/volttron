@@ -55,6 +55,8 @@
 # under Contract DE-AC05-76RL01830
 #}}}
 
+import logging
+import os
 try:
     import simplejson as json
 except ImportError:
@@ -68,10 +70,27 @@ from volttron.platform.messaging import headers as headers_mod, topics
 
 import zmq
 
+_log = logging.getLogger(__name__)
 
 #Addresses agents use to setup the pub/sub
-publish_address = 'ipc:///tmp/volttron-platform-agent-publish'
-subscribe_address = 'ipc:///tmp/volttron-platform-agent-subscribe'
+CAN_PUBLISH = False
+CAN_SUBSCRIBE = False
+
+publish_address = 'ipc://$VOLTTRON_HOME/run/no-publisher'
+subscribe_address = 'ipc://$VOLTTRON_HOME/run/no-subscriber'
+if 'AGENT_PUB_ADDR' in os.environ:
+    publish_address = os.environ['AGENT_PUB_ADDR'] 
+    CAN_PUBLISH = True
+else:
+    _log.error("NO PUBLISH ADDRESS IN ENVIRONMENT")
+    CAN_PUBLISH = False
+if 'AGENT_SUB_ADDR' in os.environ:
+    subscribe_address = os.environ['AGENT_SUB_ADDR'] 
+    CAN_SUBSCRIBE = True
+else:
+    _log.error("NO SUBSCRIBE ADDRESS IN ENVIRONMENT")
+    CAN_SUBSCRIBE = False
+
 logging_topic = 'datalogger/log'
 
 
