@@ -121,7 +121,7 @@ def AFDDAgent(config_path, **kwargs):
             self.scheduled_task()
 
         def startrun(self, algo=None):
-            print 'start diagnostic'
+            _log.debug('start diagnostic')
             if algo is None:
                 algo = afdd.AFDD(self,config_path).run_all
             self.tasklet = greenlet.greenlet(algo)
@@ -133,7 +133,7 @@ def AFDDAgent(config_path, **kwargs):
             '''
             Schedule re-occuring diagnostics
             '''
-            print 'Schedule Dx'
+            _log.debug('Schedule Dx')
             headers = {         
                                 'type':  'NEW_SCHEDULE',
                                'requesterID': agent_id,
@@ -153,15 +153,17 @@ def AFDDAgent(config_path, **kwargs):
                 self.start = self.start + datetime.timedelta(days=1)
                 self.end = self.start + datetime.timedelta(hours=2,minutes=30)
                 sched_time = datetime.datetime.now() + datetime.timedelta(days=day_run_interval + 1)
-                sched_time=sched_time.replace(hour=0,minute=1)
+                sched_time = sched_time.replace(hour=0,minute=1)
             else:
                 sched_time = datetime.datetime.now() + datetime.timedelta(days=day_run_interval)
+
 
             self.start = str(self.start)
             self.end = str(self.end)
             self.task_timer = self.periodic_timer(60, self.publish_json,
                                       topics.ACTUATOR_SCHEDULE_REQUEST(), headers,[["{campus}/{building}/{unit}".format(**rtu_path),self.start,self.end]])
-            self.next = self.schedule(sched_time, self.scheduled_task)
+            event = sched.Event(self.scheduled_task)
+            self.next = self.schedule(sched_time, event)
             
         @matching.match_headers({headers_mod.REQUESTER_ID: agent_id,'type': 'CANCEL_SCHEDULE'})  
         @matching.match_exact(topics.ACTUATOR_SCHEDULE_RESULT())
@@ -189,7 +191,7 @@ def AFDDAgent(config_path, **kwargs):
         @matching.match_exact(topics.ACTUATOR_SCHEDULE_RESULT())
         def schedule_result(self, topic, headers, message, match):
             msg = jsonapi.loads(message[0])
-            print 'response received'
+            _log.debug('Actuator response received')
             self.task_timer.cancel()
 
         @matching.match_exact(topics.DEVICES_VALUE(point='all', **rtu_path))
