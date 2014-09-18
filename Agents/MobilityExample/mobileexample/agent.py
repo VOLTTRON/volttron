@@ -52,14 +52,15 @@
 # under Contract DE-AC05-76RL01830
 
 #}}}
-
-import os
-import sys
-import json
-import subprocess
 import csv
 import datetime
+import errno
+import json
+import logging
+import os
 import platform
+import subprocess
+import sys
 
 from volttron.platform.agent import BaseAgent, PublishMixin, periodic
 from volttron.platform.agent import utils, matching
@@ -69,16 +70,17 @@ date_format = "%s000.0"
 readable_format = "%m/%d/%Y %H:%M:%S"
 headers = {'time','host','process'}
 
+utils.setup_logging()
+_log = logging.getLogger(__name__)
+
+
 def MobileExampleAgent(config_path, **kwargs):
     config = utils.load_config(config_path)
 
-    def get_config(name):
-        try:
-            value = kwargs.pop(name)
-        except KeyError:
-            return config[name]
+    config = utils.load_config(config_path)
+    hosts = config['hosts']
+    uuid = os.environ['AGENT_UUID']
 
-    agent_id = get_config('agentid')
 
     class Agent(PublishMixin, BaseAgent):
         '''This agent grabs a day's worth of data for a Catalyst's Data points
@@ -90,9 +92,8 @@ def MobileExampleAgent(config_path, **kwargs):
             super(Agent, self).__init__(**kwargs)
         
         def setup(self):
-            self._agent_id = get_config('agentid')
-            self._command_to_execute = get_config('command_to_execute')
-            self._results_csv = get_config('results_csv')
+            self._command_to_execute = config.get('command_to_execute')
+            self._results_csv = config.get('results_csv')
             # Always call the base class setup()
             super(Agent, self).setup()
             
@@ -116,11 +117,30 @@ def MobileExampleAgent(config_path, **kwargs):
                     if (process != ''):
                         row = {'time':str(now),'host': hostname,'process': process}
                         dw.writerow(row)
-                    
-            print ("Time to move")
-            self._sub.close()
             
-                
+            self.move()
+            
+        def move(self):
+            count = 0
+            try:
+                file = open('count', 'r')
+            except IOError as exc:
+                if exc.errno != errno.ENOENT:
+                    _log.error('error opening count file: %s', exc)
+                    return
+            else:
+                try:
+                    count = int(file.read().strip())
+                except ValueError:
+                    count = 0
+                    
+            if (count < len(hosts)):
+                host = hosts[count]
+                with open('count', 'w') as file:
+                    file.write(str(count + 1))
+                self.publish('platform/move/request/' + uuid, {}, host)  
+            else: 
+                _log.info("Agent done moving")
         
     Agent.__name__ = 'MobileExampleAgent'
     return Agent(**kwargs)
