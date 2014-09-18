@@ -103,7 +103,9 @@ class ScheduleExampleAgent(PublishMixin, BaseAgent):
     @matching.match_exact(topics.ACTUATOR_SCHEDULE_ANNOUNCE(campus='campus',
                                          building='building',unit='unit'))
     def actuate(self, topic, headers, message, match):
-        '''Match the announce for our fake device'''
+        '''Match the announce for our fake device
+        Then take an action. Note, this command will fail since there is no 
+        actual device'''
         headers = {
                     'requesterID': self._agent_id,
                    }
