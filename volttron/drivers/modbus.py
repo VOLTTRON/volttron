@@ -88,8 +88,6 @@ PYMODBUS_REGISTER_STRUCT = struct.Struct('>H')
 path = os.path.dirname(os.path.abspath(__file__))
 configFile = os.path.join(path, "example.csv")
 
-#Addresses agents use to setup the pub/sub
-default_publish_address = 'ipc:///tmp/volttron-platform-agent-publish'
 
 class ModbusInterfaceException(ModbusException):
     pass
@@ -407,8 +405,6 @@ class Modbus(BaseSmapVolttron):
         slave_id = int(opts.get('slave_id',0))
         port = int(opts.get('port',502))
         catalyst_config = opts.get('register_config', configFile)
-        
-        print (ip_address, slave_id, port, catalyst_config)
         
         return ModbusInterface(ip_address, slave_id=slave_id, port=port, config_file=catalyst_config)
 
