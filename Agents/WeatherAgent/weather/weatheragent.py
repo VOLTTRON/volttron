@@ -81,8 +81,6 @@ http://www.wunderground.com/weather/api/
 ********
 '''
 
-publish_address = 'ipc:///tmp/volttron-platform-agent-publish'
-subscribe_address = 'ipc:///tmp/volttron-platform-agent-subscribe'
 topic_delim = '/'
 
 
