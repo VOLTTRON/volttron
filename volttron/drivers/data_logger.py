@@ -116,7 +116,6 @@ class DataLogger(driver.SmapDriver):
             else:
                 #Examine the message we recieved
                 message = self._sub.recv_multipart()
-                print message
 
                 # Parse the topic to get the location to store the data in
                 path_elements = message[0][len(logging_topic):].split('/')[1:]
@@ -163,8 +162,6 @@ class DataLogger(driver.SmapDriver):
                                 dtype = data[ts_string]['data_type']
                             ts = self.add_timeseries(ts_path, units, data_type=dtype)
                             self.known_timeseries[ts_path] = ts
-
-                        print type(data[ts_string])
 
                         if type(data[ts_string]['Readings']) is list:
                             for item in data[ts_string]['Readings']:
