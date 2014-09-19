@@ -455,10 +455,11 @@ def main(argv=sys.argv):
     start = add_parser('start', parents=[filterable],
         help='start installed agent')
     start.add_argument('pattern', nargs='+', help='UUID or name of agent')
-    start.add_argument('--verify', action='store_true', dest='verify_agents',
-        help='verify agent integrity during install')
-    start.add_argument('--no-verify', action='store_false', dest='verify_agents',
-        help=argparse.SUPPRESS)
+    if have_restricted:
+        start.add_argument('--verify', action='store_true', dest='verify_agents',
+            help='verify agent integrity during start')
+        start.add_argument('--no-verify', action='store_false', dest='verify_agents',
+            help=argparse.SUPPRESS)
     start.set_defaults(func=start_agent)
 
     stop = add_parser('stop', parents=[filterable],
@@ -469,10 +470,11 @@ def main(argv=sys.argv):
     run = add_parser('run',
         help='start any agent by path')
     run.add_argument('directory', nargs='+', help='path to agent directory')
-    run.add_argument('--verify', action='store_true', dest='verify_agents',
-        help='verify agent integrity during install')
-    run.add_argument('--no-verify', action='store_false', dest='verify_agents',
-        help=argparse.SUPPRESS)
+    if have_restricted:
+        run.add_argument('--verify', action='store_true', dest='verify_agents',
+            help='verify agent integrity during run')
+        run.add_argument('--no-verify', action='store_false', dest='verify_agents',
+            help=argparse.SUPPRESS)
     run.set_defaults(func=run_agent)
 
     shutdown = add_parser('shutdown',
