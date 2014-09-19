@@ -56,6 +56,7 @@ control-socket = {tmpdir}/run/control
 
 PLATFORM_CONFIG_RESTRICTED = """
 mobility-address = {mobility-address}
+control-socket = {tmpdir}/run/control
 """
 
 
@@ -88,32 +89,16 @@ VSTART = os.path.join(rel_path, "env/bin/volttron")
 VCTRL = os.path.join(rel_path, "env/bin/volttron-ctl")
 print VSTART
 
-class BasePlatformTest(unittest.TestCase):
+class PlatformWrapper():
 
-    def setUp(self):
-        self.originaldir = os.getcwd()
+    def __init__(self):
 #         os.chdir(rel_path) 
         self.tmpdir = tempfile.mkdtemp()
         self.wheelhouse = '/'.join((self.tmpdir, 'wheelhouse'))
         os.makedirs(self.wheelhouse)
         os.environ['VOLTTRON_HOME'] = self.tmpdir
         
-        opts = type('Options', (), {'verify_agents': False, 'volttron_home': self.tmpdir})()
-        self.test_aip = aip.AIPplatform(opts)
-        self.test_aip.setup()
         
-        
-    def setup_connector(self):
-        path = os.path.expandvars('$VOLTTRON_HOME/run/control')
-        
-        tries = 0
-        max_tries = 5
-        while(not os.path.exists(path) and tries < max_tries):
-            time.sleep(5)
-            tries += 1
-            
-        self.conn= server.ControlConnector(path)
-    
     def startup_platform(self, platform_config, volttron_home=None, use_twistd = True, mode=UNRESTRICTED):
         
         
@@ -131,20 +116,28 @@ class BasePlatformTest(unittest.TestCase):
         
         self.mode = mode
         
-        self.assertIn(self.mode, MODES, 'Invalid platform mode set: '+str(mode))
+        assert(self.mode in MODES, 'Invalid platform mode set: '+str(mode))
+        
+        opts = None
         
         if self.mode == UNRESTRICTED:
             with closing(open(pconfig, 'w')) as cfg:
                 cfg.write(PLATFORM_CONFIG_UNRESTRICTED.format(**config))
+            opts = type('Options', (), {'verify_agents': False,'volttron_home': self.tmpdir})()
         elif self.mode == RESTRICTED:
             with closing(open(pconfig, 'w')) as cfg:
                 cfg.write(PLATFORM_CONFIG_RESTRICTED.format(**config))
-            
+            opts = type('Options', (), {'verify_agents': True, 'volttron_home': self.tmpdir})()
             
 #                 self.create_certs()
         else:
             
             self.fail("Platform mode not implemented: "+str(mode))
+            
+            
+        self.test_aip = aip.AIPplatform(opts)
+        self.test_aip.setup()
+            
 
         tconfig = os.path.join(self.tmpdir, TMP_SMAP_CONFIG_FILENAME)
 
@@ -157,9 +150,21 @@ class BasePlatformTest(unittest.TestCase):
         print pparams
         self.p_process = subprocess.Popen(pparams)
         
-        self.setup_connector()
-        if self.mode == RESTRICTED:
-            self.conn.call.create_cgroups()
+        #Setup connector
+        path = os.path.expandvars('$VOLTTRON_HOME/run/control')
+        
+        time.sleep(5)
+        tries = 0
+        max_tries = 5
+        while(not os.path.exists(path) and tries < max_tries):
+            time.sleep(5)
+            tries += 1
+             
+        self.conn= server.ControlConnector(path)
+ 
+ 
+#         if self.mode == RESTRICTED:
+#             self.conn.call.create_cgroups()
         
         self.use_twistd = use_twistd
         if self.use_twistd:
@@ -200,7 +205,7 @@ class BasePlatformTest(unittest.TestCase):
         try:
             basepackage = os.path.join(self.tmpdir,distdir)
             shutil.copytree(os.path.abspath(distdir), basepackage)
-            
+            orignal_dir = os.getcwd()
             os.chdir(basepackage)
             sys.argv = ['', 'bdist_wheel']
             exec(compile(open('setup.py').read(), 'setup.py', 'exec'))
@@ -209,7 +214,7 @@ class BasePlatformTest(unittest.TestCase):
      
             wheel_file_and_path = os.path.join(os.path.abspath('./dist'), wheel_name)
         finally:
-            os.chdir(pwd)
+            os.chdir(orignal_dir)
             
         return wheel_file_and_path
     
@@ -226,7 +231,7 @@ class BasePlatformTest(unittest.TestCase):
     def direct_buid_install_agent(self, agent_dir, config_file):
         agent_wheel = self.direct_build_agentpackage(agent_dir)
         self.direct_configure_agentpackage(agent_wheel, config_file)
-        self.assertIsNotNone(agent_wheel,"Agent wheel was not built")
+        assert(agent_wheel is not None,"Agent wheel was not built")
         
         uuid = self.test_aip.install_agent(agent_wheel)
         #aip volttron_home, verify_agents
@@ -237,6 +242,11 @@ class BasePlatformTest(unittest.TestCase):
         uuid = self.test_aip.remove_agent(uuid)
 
     def direct_build_install_run_agent(self, agent_dir, config_file):
+        agent_uuid = self.direct_buid_install_agent(agent_dir, config_file)
+        self.direct_start_agent(agent_uuid)  
+        return agent_uuid
+    
+    def direct_build_send_agent(self, agent_dir, config_file, target):
         agent_uuid = self.direct_buid_install_agent(agent_dir, config_file)
         self.direct_start_agent(agent_uuid)  
         return agent_uuid
@@ -252,11 +262,11 @@ class BasePlatformTest(unittest.TestCase):
 #         status = self.conn.call.status_agents()
 #         self.assertEquals(len(status[0]), 4, 'Unexpected status message')
         status_uuid = status[0][0]
-        self.assertEquals(status_uuid, agent_uuid, "Agent status shows error")
+        assert status_uuid == agent_uuid
         
         self.assertEquals(len(status[0][2]), 2, 'Unexpected agent status message')
         status_agent_status = status[0][2][1]
-        self.assertNotIsInstance(status_agent_status, int, "Agent did not start successfully")
+        assert not isinstance(status_agent_status, int)
 #         self.assertIn("running",status_agent_status, "Agent status shows error")
         print status
         
@@ -265,10 +275,6 @@ class BasePlatformTest(unittest.TestCase):
         print result
 
             
-    def check_default_dir(self, dir_to_check):
-        default_dir = os.path.expanduser("~/.volttron/agents")
-        self.assertNotIn(default_dir, dir_to_check, "Platform is using defaults")
-
     def shutdown_platform(self):
         '''Stop platform here'''
         if self.p_process != None:
@@ -287,13 +293,13 @@ class BasePlatformTest(unittest.TestCase):
         if self.tmpdir != None:
             shutil.rmtree(self.tmpdir, True)
     
-    def tearDown(self):
+    def cleanup(self):
         try:
             self.shutdown_platform()
         except Exception as e:
             sys.stderr.write( str(e))
         finally:
-            os.chdir(self.originaldir)
+            pass
             
     def do_nothing(self):
         pass
