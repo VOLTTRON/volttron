@@ -103,6 +103,7 @@ class ControlConnector(jsonrpc.PyConnector):
             address = '\x00' + address[1:]
         self._sock = sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         sock.connect(address)
+        _log.debug("control socket created")
         stream = framing.Stream(sock.makefile('rb', -1), sock.makefile('rw', 0))
         self._requester = requester = jsonrpc.Requester(
                 lambda chunk: stream.write_chunk(json.dumps(chunk)))
@@ -197,10 +198,13 @@ def _handle_request(sock, handler):
 def control_loop(opts):
     handler = ControlHandler(opts)
     address = opts.control_socket
+    _log.debug("address from options: {}".format(address))
     if address[:1] == '@':
         address = '\00' + address[1:]
     sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM, 0)
-    sock.bind(address)
+    status = sock.bind(address)
+    _log.debug("Binding to address: {}".format(address))
+    _log.debug("Status of bind: {}".format(str(status)))
     sock.listen(5)
     while True:
         client, client_address = sock.accept()
