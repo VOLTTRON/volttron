@@ -58,6 +58,7 @@
 
 from setuptools import setup, find_packages
 
+#get environ for agent name/identifier
 packages = find_packages('.')
 package = packages[0]
 
