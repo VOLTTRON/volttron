@@ -11,12 +11,16 @@ from contextlib import closing
 from StringIO import StringIO
 
 from volttron.platform import aip
-from volttron.platform.control import server
+from volttron.platform.control import client, server
 from volttron.platform import packaging
+
+
+RESTRICTED = False
 
 try:
     from volttron.restricted import (auth, certs)
 except ImportError:
+    RESTRICTED = True
     auth = None
     certs = None
     
@@ -87,19 +91,31 @@ rel_path = './'
 
 VSTART = os.path.join(rel_path, "env/bin/volttron")
 VCTRL = os.path.join(rel_path, "env/bin/volttron-ctl")
-print VSTART
+SEND_AGENT = "send"
 
 class PlatformWrapper():
 
-    def __init__(self):
+    def __init__(self, volttron_home=None):
 #         os.chdir(rel_path) 
         self.tmpdir = tempfile.mkdtemp()
         self.wheelhouse = '/'.join((self.tmpdir, 'wheelhouse'))
         os.makedirs(self.wheelhouse)
+        
+        
+        if volttron_home is not None:
+            mergetree(volttron_home, self.tmpdir)
         os.environ['VOLTTRON_HOME'] = self.tmpdir
+        print (os.environ['VOLTTRON_HOME'])
+        
+        if RESTRICTED:
+            certsdir = os.path.join(os.path.expanduser(os.environ['VOLTTRON_HOME']),
+                                     'certificates')
+            
+            print ("certsdir", certsdir)
+            self.certsobj = certs.Certs(certsdir)
         
         
-    def startup_platform(self, platform_config, volttron_home=None, use_twistd = True, mode=UNRESTRICTED):
+    def startup_platform(self, platform_config, use_twistd = True, mode=UNRESTRICTED):
         
         
         
@@ -141,14 +157,12 @@ class PlatformWrapper():
 
         tconfig = os.path.join(self.tmpdir, TMP_SMAP_CONFIG_FILENAME)
 
-        lfile = os.path.join(self.tmpdir, "volttron.log")
-        if volttron_home is not None:
-            mergetree(volttron_home, self.tmpdir)
-        os.environ['VOLTTRON_HOME'] = self.tmpdir
-        print (os.environ['VOLTTRON_HOME'])
+        lfile = os.path.join(self.tmpdir, "volttron.log")       
+        
         pparams = [VSTART, "-c", pconfig, "-vv", "-l", lfile]
         print pparams
         self.p_process = subprocess.Popen(pparams)
+
         
         #Setup connector
         path = os.path.expandvars('$VOLTTRON_HOME/run/control')
@@ -218,10 +232,33 @@ class PlatformWrapper():
             
         return wheel_file_and_path
     
+    def direct_sign_agentpackage_creator(self, package):
+        assert (RESTRICTED), "Auth not available"
+        print ("wrapper.certsobj", self.certsobj.cert_dir)
+        assert(auth.sign_as_creator(package, 'creator', certsobj=self.certsobj)), "Signing as {} failed.".format('creator')
+            
+
+    def direct_sign_agentpackage_soi(self, package):
+        assert (RESTRICTED), "Auth not available"
+        assert(auth.sign_as_admin(package, 'soi', certsobj=self.certsobj)), "Signing as {} failed.".format('soi')
+            
+
+    def direct_sign_agentpackage_initiator(self, package, config_file, contract):
+        assert (RESTRICTED), "Auth not available"
+        files = {"config_file":config_file,"contract:":contract}
+        assert(auth.sign_as_initiator(package, 'initiator', certsobj=self.certsobj)), "Signing as {} failed.".format('initiator')
+            
+
+    
     def direct_build_agentpackage(self, agent_dir):
         wheel_path = packaging.create_package(os.path.join(rel_path, agent_dir), self.wheelhouse)
             
         return wheel_path
+    
+    def direct_send_agent(self, package, target):
+        pparams = [VSTART, SEND_AGENT, target, package]
+        print pparams
+        self.p_process = subprocess.Popen(pparams)
 
     def direct_configure_agentpackage(self, agent_wheel, config_file):
         packaging.add_files_to_package(agent_wheel, {'config_file':os.path.join(rel_path, config_file)})

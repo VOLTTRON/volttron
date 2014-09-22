@@ -11,25 +11,35 @@ from wheel.tool import unpack
 
 from volttron.platform.agent import PublishMixin
 
+RESTRICTED = False
+
+try:
+    from volttron.restricted import (auth, certs)
+    RESTRICTED = True
+except ImportError:
+    RESTRICTED = False
+    auth = None
+    certs = None
+
 """
 Test 
 """
 
 AGENT_DIR = 'Agents/PingPongAgent'
 CONFIG_FILE = 'Agents/PingPongAgent/config.json'
-execreqs_FILE = 'Agents/PingPongAgent/execreqs.json'
+EXECREQS_FILE = 'Agents/PingPongAgent/execreqs.json'
 
 
 class MobileTests(unittest.TestCase):
 
     def setUp(self):
         
-        self.platform1 = PlatformWrapper()
-        self.platform1.startup_platform("mobile-platform1-test.json",volttron_home='../volttron-testing/mobility-tests/.platform1',
+        self.platform1 = PlatformWrapper(volttron_home='../volttron-testing/mobility-tests/.platform1')
+        self.platform1.startup_platform("mobile-platform1-test.json",
                                         mode=base.RESTRICTED, use_twistd=False)
         
-        self.platform2 = PlatformWrapper()
-        self.platform2.startup_platform("mobile-platform2-test.json",volttron_home='../volttron-testing/mobility-tests/.platform2',
+        self.platform2 = PlatformWrapper(volttron_home='../volttron-testing/mobility-tests/.platform2')
+        self.platform2.startup_platform("mobile-platform2-test.json",
                                         mode=base.RESTRICTED, use_twistd=False)
         
         self.assertIsNone(self.platform1.p_process.poll(), "Platform1 did not start")
@@ -39,11 +49,25 @@ class MobileTests(unittest.TestCase):
 #         self.setup_connector()
         
     def tearDown(self):
+        print ("Tearing down mobility test")
         self.platform1.cleanup()
         self.platform2.cleanup()
         
-    def test_something(self):
-        pass
+    def test_build_and_sign(self):
+        print ("TESTING build and sign")
+        if not RESTRICTED:
+            print("NOT RESTRICTED")
+            return
+        package = self.platform1.direct_build_agentpackage(AGENT_DIR)
+        self.platform1.direct_sign_agentpackage_creator(package)
+        self.platform1.direct_sign_agentpackage_soi(package)
+        self.platform1.direct_sign_agentpackage_initiator(package, 
+                            config_file=CONFIG_FILE, contract=EXECREQS_FILE)
+        
+#         self.platform1.direct_send_agent(package, '127.0.1.1')
+        
+#         self.platform1.se
+        print("hello")
 #         self.platform2.direct_build_send_agent(AGENT_DIR, CONFIG_FILE)
     
 #     def test_build(self):
