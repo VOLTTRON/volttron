@@ -62,6 +62,7 @@ gevent.monkey.patch_all()
 
 import argparse
 import collections
+import logging
 import os
 import re
 import signal
@@ -86,6 +87,8 @@ else:
 _stdout = sys.stdout
 _stderr = sys.stderr
 
+logging.basicConfig(filename='volttron-client.log', level=logging.DEBUG)
+_log = logging
 
 Agent = collections.namedtuple('Agent', 'name tag uuid')
 
@@ -320,7 +323,9 @@ def create_cgroups(opts):
         return os.EX_NOUSER
 
 def send_agent(opts):
+    _log.debug("send_agent: "+ str(opts))
     ssh_dir = os.path.join(opts.volttron_home, 'ssh')
+    _log.debug('ssh_dir: ' + ssh_dir)
     try:
         host_key, client = comms.client(ssh_dir, opts.host, opts.port)
     except (OSError, IOError, PasswordRequiredException, SSHException) as exc:
