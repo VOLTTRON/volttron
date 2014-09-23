@@ -63,8 +63,34 @@ class MobileTests(unittest.TestCase):
         self.platform1.direct_sign_agentpackage_soi(package)
         self.platform1.direct_sign_agentpackage_initiator(package, 
                             config_file=CONFIG_FILE, contract=EXECREQS_FILE)
+ 
+    def test_build_sign_and_start(self):
+        print ("TESTING build, sign, and start")
+        if not RESTRICTED:
+            print("NOT RESTRICTED")
+            return
+        package = self.platform1.direct_build_agentpackage(AGENT_DIR)
+        self.platform1.direct_sign_agentpackage_creator(package)
+        self.platform1.direct_sign_agentpackage_soi(package)
+        self.platform1.direct_sign_agentpackage_initiator(package, 
+                            config_file=CONFIG_FILE, contract=EXECREQS_FILE)
+
         
-#         self.platform1.direct_send_agent(package, '127.0.1.1')
+        self.platform1.direct_send_agent(package, '127.0.1.1')
+        
+        #check the status on each platform until we see the agent a certain number
+        #of times both places
+        agent_is_running = self.platform2.confirm_agent_running('pingpongagent-0.1')
+        
+        print("sleeping")
+        time.sleep(60)
+        
+        self.assertTrue(agent_is_running, "Agent not running on 2")
+        
+        agent_is_running = self.platform1.confirm_agent_running('pingpongagent-0.1')
+                                    
+        self.assertTrue(agent_is_running, "Agent not running on 1")
+
         
 #         self.platform1.se
         print("hello")

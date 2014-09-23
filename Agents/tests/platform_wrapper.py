@@ -214,23 +214,23 @@ class PlatformWrapper():
     def create_certs(self):
         auth.create_root_ca(self.tmpdir, ca_name)
 
-    def build_agentpackage(self, distdir):
-        pwd = os.getcwd()
-        try:
-            basepackage = os.path.join(self.tmpdir,distdir)
-            shutil.copytree(os.path.abspath(distdir), basepackage)
-            orignal_dir = os.getcwd()
-            os.chdir(basepackage)
-            sys.argv = ['', 'bdist_wheel']
-            exec(compile(open('setup.py').read(), 'setup.py', 'exec'))
-     
-            wheel_name = os.listdir('./dist')[0]
-     
-            wheel_file_and_path = os.path.join(os.path.abspath('./dist'), wheel_name)
-        finally:
-            os.chdir(orignal_dir)
-            
-        return wheel_file_and_path
+#     def build_agentpackage(self, distdir):
+#         pwd = os.getcwd()
+#         try:
+#             basepackage = os.path.join(self.tmpdir,distdir)
+#             shutil.copytree(os.path.abspath(distdir), basepackage)
+#             orignal_dir = os.getcwd()
+#             os.chdir(basepackage)
+#             sys.argv = ['', 'bdist_wheel']
+#             exec(compile(open('setup.py').read(), 'setup.py', 'exec'))
+#      
+#             wheel_name = os.listdir('./dist')[0]
+#      
+#             wheel_file_and_path = os.path.join(os.path.abspath('./dist'), wheel_name)
+#         finally:
+#             os.chdir(orignal_dir)
+#             
+#         return wheel_file_and_path
     
     def direct_sign_agentpackage_creator(self, package):
         assert (RESTRICTED), "Auth not available"
@@ -256,9 +256,10 @@ class PlatformWrapper():
         return wheel_path
     
     def direct_send_agent(self, package, target):
-        pparams = [VSTART, SEND_AGENT, target, package]
-        print pparams
-        self.p_process = subprocess.Popen(pparams)
+        pparams = [VCTRL, SEND_AGENT, target, package]
+        print (pparams, "CWD", os.getcwd())
+        send_process = subprocess.call(pparams)
+        print ("Done sending to", target)
 
     def direct_configure_agentpackage(self, agent_wheel, config_file):
         packaging.add_files_to_package(agent_wheel, {'config_file':os.path.join(rel_path, config_file)})
@@ -307,6 +308,29 @@ class PlatformWrapper():
 #         self.assertIn("running",status_agent_status, "Agent status shows error")
         print status
         
+    def confirm_agent_running(self, agent_name, max_retries=5, timeout_seconds=2):
+        
+#         self.test_aip.status_agents()
+        
+#         status = self.conn.call.status_agents()
+#         self.assertEquals(len(status[0]), 4, 'Unexpected status message')
+        running = False
+        retries = 0
+        while (not running and retries < max_retries):
+            status = self.conn.call.status_agents()
+            print ("Status", status)
+            if len(status) > 0:
+                status_name = status[0][1]
+                assert status_name == agent_name
+                
+                self.assertEquals(len(status[0][2]), 2, 'Unexpected agent status message')
+                status_agent_status = status[0][2][1]
+                running = not isinstance(status_agent_status, int)
+            retries += 1
+            time.sleep(timeout_seconds)
+        return running
+
+        
     def direct_stop_agent(self, agent_uuid):
         result = self.conn.call.stop_agent(agent_uuid)
         print result
@@ -327,8 +351,8 @@ class PlatformWrapper():
             self.t_process.wait()
         elif self.use_twistd:
             print "twistd process was null"
-        if self.tmpdir != None:
-            shutil.rmtree(self.tmpdir, True)
+#         if self.tmpdir != None:
+#             shutil.rmtree(self.tmpdir, True)
     
     def cleanup(self):
         try:
