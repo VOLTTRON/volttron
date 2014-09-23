@@ -43,7 +43,7 @@ except ImportError:
 
 #Filenames for the config files which are created during setup and then
 #passed on the command line
-TMP_PLATFORM_CONFIG_FILENAME = "test-config.ini"
+TMP_PLATFORM_CONFIG_FILENAME = "config"
 TMP_SMAP_CONFIG_FILENAME = "test-smap.ini"
 
 #Used to fill in TWISTED_CONFIG template
@@ -104,11 +104,12 @@ class PlatformWrapper():
         
         if volttron_home is not None:
             mergetree(volttron_home, self.tmpdir)
-        os.environ['VOLTTRON_HOME'] = self.tmpdir
-        print (os.environ['VOLTTRON_HOME'])
+        self.env = os.environ.copy()
+        self.env['VOLTTRON_HOME'] = self.tmpdir
+        print (self.env['VOLTTRON_HOME'])
         
         if RESTRICTED:
-            certsdir = os.path.join(os.path.expanduser(os.environ['VOLTTRON_HOME']),
+            certsdir = os.path.join(os.path.expanduser(self.env['VOLTTRON_HOME']),
                                      'certificates')
             
             print ("certsdir", certsdir)
@@ -161,11 +162,12 @@ class PlatformWrapper():
         
         pparams = [VSTART, "-c", pconfig, "-vv", "-l", lfile]
         print pparams
-        self.p_process = subprocess.Popen(pparams)
+        
+        self.p_process = subprocess.Popen(pparams, env=self.env)
 
         
         #Setup connector
-        path = os.path.expandvars('$VOLTTRON_HOME/run/control')
+        path = '{}/run/control'.format(self.env['VOLTTRON_HOME'])
         
         time.sleep(5)
         tries = 0
@@ -245,8 +247,9 @@ class PlatformWrapper():
 
     def direct_sign_agentpackage_initiator(self, package, config_file, contract):
         assert (RESTRICTED), "Auth not available"
-        files = {"config_file":config_file,"contract:":contract}
-        assert(auth.sign_as_initiator(package, 'initiator', certsobj=self.certsobj)), "Signing as {} failed.".format('initiator')
+        files = {"config_file":config_file,"contract":contract}
+        assert(auth.sign_as_initiator(package, 'initiator', files=files, 
+                                      certsobj=self.certsobj)), "Signing as {} failed.".format('initiator')
             
 
     
@@ -258,7 +261,7 @@ class PlatformWrapper():
     def direct_send_agent(self, package, target):
         pparams = [VCTRL, SEND_AGENT, target, package]
         print (pparams, "CWD", os.getcwd())
-        send_process = subprocess.call(pparams)
+        send_process = subprocess.call(pparams, env=self.env)
         print ("Done sending to", target)
 
     def direct_configure_agentpackage(self, agent_wheel, config_file):
@@ -323,7 +326,7 @@ class PlatformWrapper():
                 status_name = status[0][1]
                 assert status_name == agent_name
                 
-                self.assertEquals(len(status[0][2]), 2, 'Unexpected agent status message')
+                assert len(status[0][2]) == 2, 'Unexpected agent status message'
                 status_agent_status = status[0][2][1]
                 running = not isinstance(status_agent_status, int)
             retries += 1
