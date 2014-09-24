@@ -104,6 +104,7 @@ def stage2(directory=_path):
     subprocess.check_call(args)
     # Install local packages and remaining dependencies
     args = [sys.executable, '-m', 'pip', 'install',
+            '--global-option', '-q',
             '-e', os.path.join(directory, 'lib', 'jsonrpc'),
             '-e', os.path.join(directory, 'lib', 'clock'),
             '-e', directory]

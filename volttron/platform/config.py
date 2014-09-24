@@ -384,7 +384,7 @@ class ArgumentParser(_argparse.ArgumentParser):
         if not args:
             prefix_chars = self.prefix_chars
             default_prefix = '-' if '-' in prefix_chars else prefix_chars[0]
-            args = [default_prefix*2 + 'help']
+            args = [default_prefix + 'h', default_prefix*2 + 'help']
         kwargs.setdefault('action', 'help')
         kwargs.setdefault('default', _argparse.SUPPRESS)
         kwargs.setdefault('help', _argparse._('show this help message and exit'))
