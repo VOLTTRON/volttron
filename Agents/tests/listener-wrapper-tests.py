@@ -43,6 +43,6 @@ class ListenerTests(unittest.TestCase):
     def test_direct_install_start_stop_start(self):
         uuid = self.platform.direct_build_install_run_agent(AGENT_DIR, CONFIG_FILE)
         time.sleep(5)
-        self.direct_stop_agent(uuid)
+        self.platform.direct_stop_agent(uuid)
         time.sleep(5)
-        self.direct_start_agent(uuid)
+        self.platform.direct_start_agent(uuid)
