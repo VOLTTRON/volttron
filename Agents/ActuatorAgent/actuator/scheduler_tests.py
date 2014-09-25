@@ -346,7 +346,7 @@ if __name__ == '__main__':
     success2, data2, info_string2 = result2
     assert success2
     assert data2 == set([('Agent1','Task1')])
-#     assert info_string2 == {'campus/building/rtu1': DeviceState('Agent1', 'Task1', 60.0)}
+    assert info_string2 == ''
     assert event_time2 == parse('2013-11-27 12:16:00')
     
     state = sch_man.get_schedule_state(now2 + timedelta(seconds=30))
@@ -394,7 +394,7 @@ if __name__ == '__main__':
     success2, data2, info_string2 = result2
     assert success2
     assert not data2
-#     assert info_string2 == {'campus/building/rtu2': DeviceState('Agent1', 'Task1', 2100.0)}
+    assert info_string2 == ''
     assert event_time2 == parse('2013-11-27 12:30:00')
     
     print_test_header('Test conflicting requests: Agent2 overrides running Agent1 which has more than one device', now)    
@@ -418,5 +418,5 @@ if __name__ == '__main__':
     success2, data2, info_string2 = result2
     assert success2
     assert data2 == set([('Agent1','Task1')])
-#     assert info_string2 == {'campus/building/rtu2': DeviceState('Agent1', 'Task1', 60.0)}
+    assert info_string2 == ''
     assert event_time2 == parse('2013-11-27 12:26:00')
