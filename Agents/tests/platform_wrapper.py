@@ -307,7 +307,7 @@ class PlatformWrapper():
         status_uuid = status[0][0]
         assert status_uuid == agent_uuid
         
-        self.assertEquals(len(status[0][2]), 2, 'Unexpected agent status message')
+        assert len(status[0][2]) == 2, 'Unexpected agent status message'
         status_agent_status = status[0][2][1]
         assert not isinstance(status_agent_status, int)
 #         self.assertIn("running",status_agent_status, "Agent status shows error")
