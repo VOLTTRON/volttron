@@ -19,8 +19,10 @@ RESTRICTED = False
 
 try:
     from volttron.restricted import (auth, certs)
-except ImportError:
     RESTRICTED = True
+
+except ImportError:
+    RESTRICTED = False
     auth = None
     certs = None
     
