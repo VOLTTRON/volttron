@@ -63,6 +63,7 @@ gevent.monkey.patch_all()
 import argparse
 import collections
 import logging
+from logging import handlers
 import os
 import re
 import signal
@@ -74,6 +75,7 @@ from flexjsonrpc.core import RemoteError
 from .. import aip
 from .. import config
 from .server import ControlConnector, get_peercred
+from volttron.platform.agent import utils
 
 try:
     import volttron.restricted
@@ -409,6 +411,7 @@ def main(argv=sys.argv):
 
     parser.add_help_argument()
     parser.set_defaults(
+        log_config=None,
         volttron_home=volttron_home,
         control_socket='@$VOLTTRON_HOME/run/control',
     )
