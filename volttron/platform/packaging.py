@@ -44,6 +44,18 @@ _log = logging.getLogger(os.path.basename(sys.argv[0])
 
 DEFAULT_CERTS_DIR = '~/.volttron/certificates'
 
+def log_to_file(file, level=logging.WARNING,
+                handler_class=logging.StreamHandler):
+    '''Direct log output to a file (or something like one).'''
+    handler = handler_class(file)
+    handler.setLevel(level)
+    handler.setFormatter(utils.AgentFormatter(
+            '%(asctime)s %(composite_name)s %(levelname)s: %(message)s'))
+    root = logging.getLogger()
+    root.setLevel(level)
+    root.addHandler(handler)
+
+
 class AgentPackageError(Exception):
     '''Raised for errors during packaging, extraction and signing.'''
     pass
@@ -342,6 +354,18 @@ def main(argv=sys.argv):
         prog=progname,
         description='VOLTTRON packaging and signing utility',
     )
+    parser.add_argument('-l', '--log', metavar='FILE', default=None,
+        help='send log output to FILE instead of stderr')
+    parser.add_argument('-L', '--log-config', metavar='FILE',
+        help='read logging configuration from FILE')
+    parser.add_argument('-q', '--quiet', action='add_const', const=10, dest='verboseness',
+        help='decrease logger verboseness; may be used multiple times')
+    parser.add_argument('-v', '--verbose', action='add_const', const=-10, dest='verboseness',
+        help='increase logger verboseness; may be used multiple times')
+    parser.add_argument('--verboseness', type=int, metavar='LEVEL',
+        default=logging.WARNING,
+        help='set logger verboseness')
+    
     subparsers = parser.add_subparsers(title = 'subcommands',
                                        description = 'valid subcommands',
                                        help = 'additional help',
@@ -435,7 +459,20 @@ def main(argv=sys.argv):
 #         source_key_parser = subparsers.add_parser('set-source-key',
 #             help='Set the key for the most recent host of this agent')
 
-    args = parser.parse_args(argv[1:])
+    opts = parser.parse_args(argv[1:])
+
+    # Configure logging
+    level = max(1, opts.verboseness)
+    if opts.log is None:
+        log_to_file(sys.stderr, level)
+    elif opts.log == '-':
+        log_to_file(sys.stdout, level)
+    elif opts.log:
+        log_to_file(opts.log, level, handler_class=handlers.WatchedFileHandler)
+    else:
+        log_to_file(None, 100, handler_class=lambda x: logging.NullHandler())
+    if opts.log_config:
+        logging.config.fileConfig(opts.log_config)
 
     # whl_path will be specified if there is a package or repackage command
     # is specified and it was successful.
@@ -444,49 +481,52 @@ def main(argv=sys.argv):
 
     try:
 
-        if args.subparser_name == 'package':
-            whl_path = create_package(args.agent_directory)
-        elif args.subparser_name == 'repackage':
-            whl_path = repackage(args.directory, dest=args.dest)
-        elif args.subparser_name == 'configure' :
-            add_files_to_package(args.package, {'config_file': args.config_file})
+        if opts.subparser_name == 'package':
+            whl_path = create_package(opts.agent_directory)
+        elif opts.subparser_name == 'repackage':
+            whl_path = repackage(opts.directory, dest=opts.dest)
+        elif opts.subparser_name == 'configure' :
+            add_files_to_package(opts.package, {'config_file': opts.config_file})
         else:
             if auth is not None:
                 try:
-                    if args.subparser_name == 'create_ca':
+                    if opts.subparser_name == 'create_ca':
                         _create_ca()
-                    elif args.subparser_name == 'verify':
-                        if not os.path.exists(args.package):
-                            print('Invalid package name {}'.format(args.package))
-                        verifier = auth.SignedZipPackageVerifier(args.package)
+                    elif opts.subparser_name == 'verify':
+                        if not os.path.exists(opts.package):
+                            print('Invalid package name {}'.format(opts.package))
+                        verifier = auth.SignedZipPackageVerifier(opts.package)
                         verifier.verify()
                         print "Package is verified"
                     else:
-                        user_type = {'soi': args.soi,
-                                  'creator': args.creator,
-                                  'initiator': args.initiator,
-                                  'platform': args.platform}
-                        if args.subparser_name == 'sign':
+                        user_type = {'soi': opts.soi,
+                                  'creator': opts.creator,
+                                  'initiator': opts.initiator,
+                                  'platform': opts.platform}
+                        if opts.subparser_name == 'sign':
                             in_args = {
-                                    'config_file': args.config_file,
+                                    'config_file': opts.config_file,
                                     'user_type': user_type,
-                                    'contract': args.contract,
-                                    'certs_dir': args.certs_dir
+                                    'contract': opts.contract,
+                                    'certs_dir': opts.certs_dir
                                 }
-                            _sign_agent_package(args.package, **in_args)
+                            _sign_agent_package(opts.package, **in_args)
 
-                        elif args.subparser_name == 'create_cert':
-                            _create_cert(name=args.name, **user_type)
+                        elif opts.subparser_name == 'create_cert':
+                            _create_cert(name=opts.name, **user_type)
                 except auth.AuthError as e:
-                    print(e.message)
+                    _log.error(e.message)
+                    #print(e.message)
 
 
-#         elif args.subparser_name == 'create_cert':
-#             _create_cert(name=args.name, **)
+#         elif opts.subparser_name == 'create_cert':
+#             _create_cert(name=opts.name, **)
     except AgentPackageError as e:
-        print(e.message)
+        _log.error(e.message)
+        #print(e.message)
     except Exception as e:
-        print e
+        _log.error(e.message)
+        #print e
 
 
     if whl_path:
