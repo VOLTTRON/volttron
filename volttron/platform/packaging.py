@@ -31,6 +31,7 @@ from wheel.util import (native,
                         urlsafe_b64decode)
 from .packages import *
 from . import config
+from .agent import utils
 
 try:
      from volttron.restricted import (auth, certs)
