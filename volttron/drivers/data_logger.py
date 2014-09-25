@@ -70,7 +70,6 @@ from volttron.platform.messaging import headers as headers_mod, topics
 
 import zmq
 
-_log = logging.getLogger(__name__)
 
 #Addresses agents use to setup the pub/sub
 CAN_PUBLISH = False
@@ -82,13 +81,13 @@ if 'AGENT_PUB_ADDR' in os.environ:
     publish_address = os.environ['AGENT_PUB_ADDR'] 
     CAN_PUBLISH = True
 else:
-    _log.error("NO PUBLISH ADDRESS IN ENVIRONMENT")
+    print("ERROR: NO PUBLISH ADDRESS IN ENVIRONMENT")
     CAN_PUBLISH = False
 if 'AGENT_SUB_ADDR' in os.environ:
     subscribe_address = os.environ['AGENT_SUB_ADDR'] 
     CAN_SUBSCRIBE = True
 else:
-    _log.error("NO SUBSCRIBE ADDRESS IN ENVIRONMENT")
+    print("ERROR: NO SUBSCRIBE ADDRESS IN ENVIRONMENT")
     CAN_SUBSCRIBE = False
 
 logging_topic = 'datalogger/log'
@@ -103,6 +102,8 @@ class DataLogger(driver.SmapDriver):
 
         # Subscribe to logging topic
         self.subscribe()
+        
+    
 
     def start(self):
         periodicSequentialCall(self.read).start(1)
