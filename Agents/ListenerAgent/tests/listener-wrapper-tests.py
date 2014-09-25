@@ -1,12 +1,12 @@
 import unittest
 import subprocess
 import time
-import base
 from wheel.install import WheelFile
 from wheel.tool import unpack
 
-from platform_wrapper import PlatformWrapper
 from volttron.platform.agent import PublishMixin
+from volttron.tests import base
+from volttron.tests.platform_wrapper import PlatformWrapper
 
 """
 Test 
@@ -25,21 +25,6 @@ class ListenerTests(unittest.TestCase):
     def tearDown(self):
         self.platform.cleanup()
         
-#     def test_build(self):
-#         agent_wheel = self.build_agentpackage(AGENT_DIR)
-#         self.assertIsNotNone(agent_wheel,"Agent wheel was not built")
-#         self.assertTrue(agent_wheel.endswith(WHEEL_NAME))
-#      
-#     def test_build_and_install(self):
-#         uuid = self.direct_install_agent(AGENT_DIR)
-
-#     def test_direct_build_and_install(self):
-#         uuid = self.direct_buid_install_agent(AGENT_DIR, CONFIG_FILE)
-#         
-# 
-#     def test_direct_install_and_start(self):
-#         self.direct_build_install_run_agent(AGENT_DIR, CONFIG_FILE)
-
     def test_direct_install_start_stop_start(self):
         uuid = self.platform.direct_build_install_run_agent(AGENT_DIR, CONFIG_FILE)
         time.sleep(5)

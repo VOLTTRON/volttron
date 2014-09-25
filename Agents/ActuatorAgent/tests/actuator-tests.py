@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import volttron.platform.messaging.topics
 from volttron.platform.agent import utils, matching
 from volttron.platform.agent import PublishMixin, BaseAgent
-import base
+from volttron.tests import base
  
 """
 Test 

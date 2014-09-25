@@ -1,11 +1,11 @@
 import unittest
 import subprocess
 import time
-import base
+
 from wheel.install import WheelFile
 from wheel.tool import unpack
 
-
+from volttron.tests import base
 from volttron.platform.agent import PublishMixin
 
 """
