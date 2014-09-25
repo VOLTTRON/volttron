@@ -15,12 +15,14 @@ from volttron.platform.control import client, server
 from volttron.platform import packaging
 
 
-RESTRICTED = False
+RESTRICTED_AVAILABLE = False
 
 try:
     from volttron.restricted import (auth, certs)
+    RESTRICTED_AVAILABLE = True
+
 except ImportError:
-    RESTRICTED = True
+    RESTRICTED_AVAILABLE = False
     auth = None
     certs = None
     
@@ -108,7 +110,7 @@ class PlatformWrapper():
         self.env['VOLTTRON_HOME'] = self.tmpdir
         print (self.env['VOLTTRON_HOME'])
         
-        if RESTRICTED:
+        if RESTRICTED_AVAILABLE:
             certsdir = os.path.join(os.path.expanduser(self.env['VOLTTRON_HOME']),
                                      'certificates')
             
@@ -117,8 +119,6 @@ class PlatformWrapper():
         
         
     def startup_platform(self, platform_config, use_twistd = True, mode=UNRESTRICTED):
-        
-        
         
         try:
             config = json.loads(open(platform_config, 'r').read())
@@ -142,6 +142,8 @@ class PlatformWrapper():
                 cfg.write(PLATFORM_CONFIG_UNRESTRICTED.format(**config))
             opts = type('Options', (), {'verify_agents': False,'volttron_home': self.tmpdir})()
         elif self.mode == RESTRICTED:
+            if not RESTRICTED_AVAILABLE:
+                raise ValueError("restricted is not available.")
             with closing(open(pconfig, 'w')) as cfg:
                 cfg.write(PLATFORM_CONFIG_RESTRICTED.format(**config))
             opts = type('Options', (), {'verify_agents': True, 'volttron_home': self.tmpdir})()
@@ -305,7 +307,7 @@ class PlatformWrapper():
         status_uuid = status[0][0]
         assert status_uuid == agent_uuid
         
-        self.assertEquals(len(status[0][2]), 2, 'Unexpected agent status message')
+        assert len(status[0][2]) == 2, 'Unexpected agent status message'
         status_agent_status = status[0][2][1]
         assert not isinstance(status_agent_status, int)
 #         self.assertIn("running",status_agent_status, "Agent status shows error")
