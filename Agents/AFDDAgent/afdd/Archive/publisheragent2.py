@@ -59,12 +59,12 @@ from datetime import datetime
 import os
 import sys
 
-from volttron.lite.agent import BaseAgent, PublishMixin, periodic
-from volttron.lite.agent import green, utils, matching
-from volttron.lite.agent.matching import match_all
-from volttron.lite.agent.utils import ArgumentParser, load_config
-from volttron.lite.messaging import topics
-from volttron.lite.messaging import headers as headers_mod
+from volttron.platform.agent import BaseAgent, PublishMixin, periodic
+from volttron.platform.agent import green, utils, matching
+from volttron.platform.agent.matching import match_all
+from volttron.platform.agent.utils import ArgumentParser, load_config
+from volttron.platform.messaging import topics
+from volttron.platform.messaging import headers as headers_mod
 
 MIME_PLAIN_TEXT = headers_mod.CONTENT_TYPE.PLAIN_TEXT
 HEADER_NAME_DATE = headers_mod.DATE
@@ -128,7 +128,7 @@ class PublisherAgent2(PublishMixin, BaseAgent):
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
     # Parse options
-    parser = ArgumentParser(prog=os.path.basename(argv[0]), description='Example VOLTTRON Lite agent')
+    parser = ArgumentParser(prog=os.path.basename(argv[0]), description='Example VOLTTRON platform agent')
     opts = parser.parse_args(argv[1:])
     agent = PublisherAgent2(subscribe_address=opts.sub,
               publish_address=opts.pub, config_path=opts.config)

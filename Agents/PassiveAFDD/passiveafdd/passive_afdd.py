@@ -29,9 +29,9 @@ import logging
 logging.captureWarnings(True)
 from zmq.utils import jsonapi
 from dateutil import parser
-from volttron.lite.agent import BaseAgent, PublishMixin, periodic
-from volttron.lite.agent import green, utils, matching, sched
-from volttron.lite.messaging import headers as headers_mod, topics
+from volttron.platform.agent import BaseAgent, PublishMixin, periodic
+from volttron.platform.agent import green, utils, matching, sched
+from volttron.platform.messaging import headers as headers_mod, topics
 
 from input_output import read_oae_csv, result_writer, open_file
 #logging.captureWarnings(True)
@@ -533,7 +533,7 @@ def passiveafdd(config_path, **kwargs):
                         energy_impact[points] = 0
             return energy_impact
         
-        @matching.match_exact(topics.RTU_VALUE(point='all', **rtu_path))
+        @matching.match_exact(topics.DEVICES_VALUE(point='all', **rtu_path))
         def datahandler(self, topic, header, message, match):
             """watching for new data"""
             data = jsonapi.loads(message[0])

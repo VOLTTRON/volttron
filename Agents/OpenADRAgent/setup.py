@@ -11,7 +11,7 @@ setup(
     author = 'EnerNOC Advanced Technology',
     author_email = 'tnichols@enernoc.com',
     url = 'http://open.enernoc.com',
-    install_requires = ['volttronlite','oadr2-ven'],
+    install_requires = ['volttron','oadr2-ven'],
     packages = packages,
     entry_points = {
         'setuptools.installation': [

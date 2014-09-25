@@ -58,53 +58,46 @@
 #from distutils.core import setup
 from setuptools import setup, find_packages
 
-setup(
-    name = 'volttronlite',
-    version = '0.2',
-    description = 'Agent Execution Platform',
-    author = 'Volttron Team',
-    author_email = 'bora@pnnl.gov',
-    url = 'http://www.pnnl.gov',
-    packages = find_packages('.', exclude=['*.tests']),
-    install_requires = ['avro', 'bacpypes', 'configobj', 'gevent',
-                        'flexible-jsonrpc', 'numpy', 'posix-clock',
-                        'pymodbus', 'pyopenssl', 'python-dateutil',
-                        'pyzmq', 'requests', 'setuptools', 'simplejson',
-                        'smap', 'twisted', 'zope.interface','xlrd'],
-    package_data = {'volttron.lite': ['configspec.ini']},
-    entry_points = '''
-    [console_scripts]
-    volttron-lite = volttron.lite.main:_main
-    volttron-ctrl = volttron.lite.control:_main
 
-    #[volttron.lite.control.handlers]
-    #run_agent = volttron.lite.commands:run_agent.handler
-    #shutdown = volttron.lite.commands:shutdown.handler
-
-    #[volttron.lite.control.commands]
-    #run-agent = volttron.lite.commands:run_agent.command
-    #shutdown = volttron.lite.commands:shutdown.command
-    
-    # Other useful commands that need implemented
-    #load-agent
-    #list-agents
-    #run-agent
-    #unload-agent
-    #debug-shell
-
-    [volttron.switchboard.directory]
-    #lite = volttron.core.directory.host:HostDirectory
-
-    [volttron.switchboard.resmon]
-    lite = volttron.lite.resmon:ResourceMonitor
-    
-    [volttron.switchboard.aip]
-    lite = volttron.lite.aip:AIPLite
+install_requires = [
+    'avro>=1.7,<1.8',
+    'BACpypes>=0.10,<0.11',
+    'flexible-jsonrpc',
+    'gevent>=0.13,<0.14',
+    'nose>=1.3.3,<1.3.4',
+    'numpy>=1.8,<1.9',
+    'posix-clock',
+    'pymodbus>=1.2,<1.3',
+    'pyOpenSSL>=0.13,<0.14',
+    'python-dateutil>=2,<3',
+    'pyzmq>=14.3,<14.4',
+    'requests>=2.2,<2.3',
+    'setuptools',
+    'simplejson>=3.3,<3.4',
+    'Smap==2.0.24c780d',
+    'Twisted>=13,<14',
+    'zope.interface>=4.0,<4.1',
+    'wheel>=0.24,<0.25'
+]
 
 
-    [volttron.switchboard.auth]
-    #lite = volttron.lite.auth:AuthManager
-    ''',
-    test_suite = 'nose.collector',
-    zip_safe = False,
-)
+if __name__ == '__main__':
+    setup(
+        name = 'volttron',
+        version = '0.2',
+        description = 'Agent Execution Platform',
+        author = 'Volttron Team',
+        author_email = 'bora@pnnl.gov',
+        url = 'http://www.pnnl.gov',
+        packages = find_packages('.'),
+        install_requires = install_requires,
+        entry_points = {
+            'console_scripts': [
+                'volttron = volttron.platform.main:_main',
+                'volttron-ctl = volttron.platform.control.client:_main',
+                'volttron-pkg = volttron.platform.packaging:_main',
+            ]
+        },
+        test_suite = 'nose.collector',
+        zip_safe = False,
+    )

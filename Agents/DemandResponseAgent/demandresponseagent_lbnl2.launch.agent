@@ -1,7 +1,4 @@
 {
-"agent": {
-        "exec": "DemandResponseagent-0.1-py2.7.egg --config \"%c\" --sub \"%s\" --pub \"%p\""
-    },
     
 "agentid": "LBNL_DRAgent2", 
 
@@ -13,7 +10,6 @@
 
 "smap_path": "datalogger/log/Transactional Network/LBNL/Building46/RTU2/DR Application",
 
-"file_name": "/home/rtu/workspace/rtunetwork/LBNL_Building46_DR2.txt",
 
 
 "cooling_stpt":  "CoolingTemperatureStPt",

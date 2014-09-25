@@ -63,16 +63,21 @@ from smap.util import periodicSequentialCall
 import zmq
 import datetime
 
-from volttron.lite.agent.base import PublishMixin
+from volttron.platform.agent.base import PublishMixin
 
-from volttron.lite.messaging import headers as headers_mod
+from volttron.platform.messaging import headers as headers_mod
+from volttron.platform.messaging.topics import DRIVER_TOPIC_BASE
 
 import abc
+import os
 
 from twisted.internet.defer import maybeDeferred
 
 #Addresses agents use to setup the pub/sub
-default_publish_address = 'ipc:///tmp/volttron-lite-agent-publish'
+default_publish_address = 'ipc://$VOLTTRON_HOME/run/no-publisher'
+if 'AGENT_PUB_ADDR' in os.environ:
+    default_publish_address = os.environ['AGENT_PUB_ADDR'] 
+# 'ipc://$VOLTTRON_HOME/run/publish'
 
 class BaseRegister(object):
     def __init__(self, register_type, read_only, pointName, units, description = ''):
@@ -294,6 +299,10 @@ class BaseSmapVolttron(driver.SmapDriver, PublishMixin):
         periodicSequentialCall(self.read).start(self.interval)
         
     def read_callback(self, results):
+        # XXX: Does a warning need to be printed?
+        if results is None:
+            return
+
         now = str(datetime.datetime.utcnow())
         
         headers = {
@@ -330,12 +339,12 @@ class BaseSmapVolttron(driver.SmapDriver, PublishMixin):
         
         
     def get_paths_for_point(self, point):
-        depth_first = 'RTU' + self._SmapDriver__join_id(point)
+        depth_first = DRIVER_TOPIC_BASE + self._SmapDriver__join_id(point)
          
         parts = depth_first.split('/')
         breadth_first_parts = parts[1:]
         breadth_first_parts.reverse()
-        breadth_first_parts = ['RTU'] + breadth_first_parts
+        breadth_first_parts = [DRIVER_TOPIC_BASE] + breadth_first_parts
         breadth_first = '/'.join(breadth_first_parts)
          
         return depth_first, breadth_first

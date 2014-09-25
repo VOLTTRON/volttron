@@ -61,10 +61,10 @@ import sys
 import settings
 import greenlet
 from zmq.utils import jsonapi
-from volttron.lite.agent import BaseAgent, PublishMixin
-from volttron.lite.agent import green, utils, matching, sched
-from volttron.lite.messaging import topics
-#from volttron.lite.messaging import headers as headers_mod
+from volttron.platform.agent import BaseAgent, PublishMixin
+from volttron.platform.agent import green, utils, matching, sched
+from volttron.platform.messaging import topics
+#from volttron.platform.messaging import headers as headers_mod
 import time
 import datetime
 global fan1_norm
@@ -145,7 +145,7 @@ def dragent(config_path, **kwargs):
             if self.lock_acquired and not holding_lock:
                 self.start()
 
-        @matching.match_exact(topics.RTU_VALUE(point='all', **rtu_path))
+        @matching.match_exact(topics.DEVICES_VALUE(point='all', **rtu_path))
         def __on_new_data(self, topic, headers, message, match):
             """watching for new data"""
             data = jsonapi.loads(message[0])
@@ -217,7 +217,7 @@ def dragent(config_path, **kwargs):
                     self.start() 
             
          
-        @matching.match_exact(topics.RTU_VALUE(point='Occupied', **rtu_path))
+        @matching.match_exact(topics.DEVICES_VALUE(point='Occupied', **rtu_path))
         def __overide(self, topic, headers, message, match):
             """watch for override from controller"""
             data = jsonapi.loads(message[0])
@@ -512,7 +512,7 @@ def dragent(config_path, **kwargs):
 def main(argv = sys.argv):
     '''Main method called by the eggsecutable.'''
     utils.default_main(dragent,
-                       description = 'VOLTTRON Lite™ DR agent',
+                       description = 'VOLTTRON platform™ DR agent',
                        argv=argv)
 if __name__ == "__main__":
     main()

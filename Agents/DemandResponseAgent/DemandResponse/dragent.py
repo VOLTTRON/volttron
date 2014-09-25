@@ -62,10 +62,10 @@ import math
 
 from zmq.utils import jsonapi
 from dateutil import parser
-from volttron.lite.agent import BaseAgent, PublishMixin
-from volttron.lite.agent import green, utils, matching, sched
-from volttron.lite.messaging import topics
-from volttron.lite.messaging import headers as headers_mod
+from volttron.platform.agent import BaseAgent, PublishMixin
+from volttron.platform.agent import green, utils, matching, sched
+from volttron.platform.messaging import topics
+from volttron.platform.messaging import headers as headers_mod
 
 def DemandResponseAgent(config_path, **kwargs):
     """DR application for time of use pricing"""
@@ -93,27 +93,11 @@ def DemandResponseAgent(config_path, **kwargs):
     occupied_status = config.get('occupied_status')
     space_temp = config.get('space_temp')
     volttron_flag = config.get('volttron_flag')
-    log_filename = config.get('file_name')
-    
-    debug_flag = False
-    if not debug_flag:
-        _log = logging.getLogger(__name__)
-        logging.basicConfig(level=logging.DEBUG, stream=sys.stderr,
-                            format='%(asctime)s   %(levelname)-8s %(message)s',
-                            datefmt='%Y-%m-%d %H:%M:%S')
-    else:
-        _log = logging.getLogger(__name__)
-        logging.basicConfig(level=logging.NOTSET, stream=sys.stderr,
+
+    _log = logging.getLogger(__name__)
+    logging.basicConfig(level=logging.DEBUG, stream=sys.stderr,
                         format='%(asctime)s   %(levelname)-8s %(message)s',
-                        datefmt='%Y-%m-%d %H:%M:%S',
-                        filename=log_filename,
-                        filemode='a+')
-        fmt_str = '%(asctime)s   %(levelname)-8s    %(message)s'
-        formatter = logging.Formatter(fmt_str, datefmt = '%Y-%m-%d %H:%M:%S')
-        console = logging.StreamHandler()
-        console.setLevel(logging.DEBUG)
-        console.setFormatter(formatter)
-        logging.getLogger("").addHandler(console)
+                        datefmt='%Y-%m-%d %H:%M:%S')
     
     class Agent(PublishMixin, BaseAgent):
         """Class agent"""
@@ -217,7 +201,7 @@ def DemandResponseAgent(config_path, **kwargs):
                 self.error_handler()
                 
 
-        @matching.match_exact(topics.RTU_VALUE(point='all', **rtu_path))
+        @matching.match_exact(topics.DEVICES_VALUE(point='all', **rtu_path))
         def _on_new_data(self, topic, headers, message, match):
             """watching for new data"""
             data = jsonapi.loads(message[0])
@@ -566,7 +550,7 @@ def DemandResponseAgent(config_path, **kwargs):
 def main(argv = sys.argv):
     '''Main method called by the eggsecutable.'''
     utils.default_main(DemandResponseAgent,
-                       description = 'VOLTTRON LITE DR agent',
+                       description = 'VOLTTRON platform DR agent',
                        argv=argv)
 
 

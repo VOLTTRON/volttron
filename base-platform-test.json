@@ -1,0 +1,7 @@
+{
+	"smap-uri": "http://<SMAP_URL>/backend/",
+	"smap-key": "<SMAP_KEY>",
+	"smap-uuid": "<SMAP_UUID>",
+	"smap-source": "<COLLECTION_SOURCE>"
+}
+	

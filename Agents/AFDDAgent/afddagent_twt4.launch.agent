@@ -1,17 +1,14 @@
 {
-    "agent": {
-        "exec": "afddagent-0.1-py2.7.egg --config \"%c\" --sub \"%s\" --pub \"%p\""
-    },
      "agentid": "PNNL_AFDDAgent4",
      "message": "PNNL_AFDD starts...",
 	 "campus": "PNNL",
 	 "building": "TWT",
 	 "unit": "RTU4",
 	 "smap_path": "datalogger/log/Transactional Network/PNNL/TWT/RTU4/AFDD Application" ,
+	 "zip_code": 98932,
 	 "day_run_interval": 1,  
-	 "start_hour": 17,
-	 "start_minute": 55,
-	 
+	 "start_hour": 18,
+	 "start_minute": 30,
 	 
 	 "volttron_flag": "VoltronFlag",
 	 "oat_point_name":  "OutsideAirTemperature",
@@ -31,7 +28,6 @@
 	 "oat_bias": "OutsideAirTemperatureBias",
 	 "fan_command_name": "SupplyFanSpeed",
 	 
-	 "file_name": "/home/rtu/workspace/rtunetwork/PNNL_TWT_AFDD4.txt",
 	 "mixed_air_sensor_missing": 0, 
      "economizertype": 0, 
      "high_limit": 70.0,
@@ -42,7 +38,7 @@
 	 "max_ra_temperature": 100,
 	 "min_ma_temperature": 50,
 	 "max_ma_temperature": 100,
-	
+	 
 	 "minutes_to_average": 5,
 	 "seconds_to_steady_state": 360,
 	 "cfm": 600 , 
@@ -53,6 +49,7 @@
 	 "afdd1_econ_temp_differential": 4, 
      "afdd1_damper_modulation_threshold": 3, 
     
+     "afdd2_tempsensorfault_threshold": 5,
      "afdd2_oat_mat_consistency_threshold": 4, 
      "afdd2_rat_mat_consistency_threshold": 4, 
     
@@ -63,17 +60,18 @@
    
     
      "afdd4_econ_temp_differential": 1,
-     "afdd4_minimum_damper_command": 20, 
+     "afdd4_damper_threshold": 10,
+     "minimum_damper_command": 15, 
     
      "afdd5_oat_rat_temperature_difference_threshold": 4, 
      "afdd5_econ_temp_differential": 1, 
      "afdd5_oaf_threshold": 0.25,
-     "afdd5_minimum_damper_command": 20,  
+     "afdd5_damper_threshold": 10,
      "afdd5_minimum_oa": 0.05, 
     
      "afdd6_oat_rat_temperature_difference_threshold": 4,
      "afdd6_oaf_threshold": 0,
      "afdd6_min_oa": 0.05,
-  	 "afdd6_minimum_damper_command": 20, 
+  	 "afdd6_damper_threshold": 10,
   	 "afdd6_econ_temp_differential": 1
 }

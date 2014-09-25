@@ -62,7 +62,8 @@ from smap import driver, actuate
 from smap.util import periodicSequentialCall
 
 from pymodbus.client.sync import ModbusTcpClient as SyncModbusClient  
-from pymodbus.exceptions import ConnectionException, ModbusIOException, ModbusException 
+from pymodbus.exceptions import ConnectionException, ModbusIOException, ModbusException
+from pymodbus.pdu import ExceptionResponse
 from twisted.internet import reactor, protocol
 from twisted.python import log
 from pymodbus.constants import Defaults
@@ -76,9 +77,9 @@ import os.path
 import zmq
 import datetime
 
-from volttron.lite.agent.base import PublishMixin
+from volttron.platform.agent.base import PublishMixin
 
-from volttron.lite.messaging import headers as headers_mod
+from volttron.platform.messaging import headers as headers_mod
 
 MODBUS_REGISTER_SIZE = 2
 MODBUS_READ_MAX = 100
@@ -87,8 +88,6 @@ PYMODBUS_REGISTER_STRUCT = struct.Struct('>H')
 path = os.path.dirname(os.path.abspath(__file__))
 configFile = os.path.join(path, "example.csv")
 
-#Addresses agents use to setup the pub/sub
-default_publish_address = 'ipc:///tmp/volttron-lite-agent-publish'
 
 class ModbusInterfaceException(ModbusException):
     pass
@@ -131,6 +130,8 @@ class ModbusBitRegister(ModbusRegisterBase):
     def set_state_callback(self, response):
         if response is None:
             raise ModbusInterfaceException("pymodbus returned None")
+        if isinstance(response, ExceptionResponse):
+            raise ModbusInterfaceException(str(response))
         return response.value
     
     def set_state_sync(self, client, value):
@@ -358,10 +359,10 @@ class ModbusInterface(BaseInterface):
             
             result_dict.update(self.scrape_bit_registers(client, True))
             result_dict.update(self.scrape_bit_registers(client, False))
-        except (ConnectionException, ModbusIOException, ModbusInterfaceException):
+        except (ConnectionException, ModbusIOException, ModbusInterfaceException) as e:
             print ("ERROR: Failed to scrape device at " + 
                    self.ip_address + ":" + str(self.port) + " " + 
-                   "ID: " + str(self.slave_id))
+                   "ID: " + str(self.slave_id) + str(e))
             return None
         finally:
             client.close()

@@ -55,7 +55,7 @@
 
 #}}}
 
-'''VOLTTRON Lite™ service for multi-building messaging.'''
+'''VOLTTRON platform™ service for multi-building messaging.'''
 
 import errno
 from errno import EAGAIN, EINTR
@@ -69,9 +69,9 @@ import zmq
 from zmq import NOBLOCK, ZMQError
 import zmq.utils
 
-from volttron.lite.agent import BaseAgent, PublishMixin, periodic
-from volttron.lite.agent import utils, matching
-from volttron.lite import messaging
+from volttron.platform.agent import BaseAgent, PublishMixin, periodic
+from volttron.platform.agent import utils, matching
+from volttron.platform import messaging
 
 
 _log = logging.getLogger(__name__)
@@ -438,7 +438,7 @@ def main(argv=sys.argv):
     utils.setup_logging()
     try:
         utils.default_main(MultiBuildingAgent,
-            description='VOLTTRON Lite™ multi-building message routing agent',
+            description='VOLTTRON platform™ multi-building message routing agent',
             argv=argv)
     except Exception:
         _log.exception('unhandled exception')

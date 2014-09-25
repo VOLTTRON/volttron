@@ -1,0 +1,3 @@
+greenlet>0.4,<0.5
+pyserial>=2.6,<3
+six>=1.7,<1.8

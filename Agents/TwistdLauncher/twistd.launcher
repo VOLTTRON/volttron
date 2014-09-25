@@ -1,0 +1,3 @@
+{
+    "exec": "/home/<username>/workspace/volttron/env/bin/twistd -n smap /home/<username>/workspace/volttron/<smap.ini>"
+}

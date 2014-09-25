@@ -65,9 +65,9 @@ import datetime
 from Tkinter import *
 from tkFileDialog import askopenfilename
 
-from volttron.lite.agent import  utils
-from volttron.lite.messaging import headers as headers_mod
-from volttron.lite.messaging import topics
+from volttron.platform.agent import  utils
+from volttron.platform.messaging import headers as headers_mod
+from volttron.platform.messaging import topics
 from read_csv import read_csv_descList, mdy_hm_to_datetime
 
 def read_oae_csv(mainFileFullName):

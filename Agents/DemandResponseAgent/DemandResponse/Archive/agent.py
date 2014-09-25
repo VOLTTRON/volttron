@@ -58,11 +58,11 @@
 import datetime
 import sys
 import time
-from volttron.lite.agent import BaseAgent, PublishMixin, periodic
-from volttron.lite.agent import utils, matching, sched
-from volttron.lite.agent.utils import jsonapi
-from volttron.lite.messaging import headers as headers_mod
-from volttron.lite.messaging import topics
+from volttron.platform.agent import BaseAgent, PublishMixin, periodic
+from volttron.platform.agent import utils, matching, sched
+from volttron.platform.agent.utils import jsonapi
+from volttron.platform.messaging import headers as headers_mod
+from volttron.platform.messaging import topics
 
 import settings
 
@@ -95,7 +95,7 @@ def DemandResponseAgent(config_path, **kwargs):
             #self.schedule(DT,sched.Event(self.check_signal,[signal]))
             self.start_timer=self.periodic_timer(10,self.get_signal)
             
-        @matching.match_exact(topics.RTU_VALUE(point='MixedAirTemperature', **rtu_path))
+        @matching.match_exact(topics.DEVICES_VALUE(point='MixedAirTemperature', **rtu_path))
         def on_new_data(self, topic, headers, message, match):
             data = jsonapi.loads(message[0])
             mixed_air_temperature=data
@@ -206,7 +206,7 @@ def DemandResponseAgent(config_path, **kwargs):
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
     utils.default_main(DemandResponseAgent,
-                       description = 'VOLTTRON Lite grid response agent',
+                       description = 'VOLTTRON platform grid response agent',
                        argv=argv)
   
 if __name__ == '__main__':

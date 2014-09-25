@@ -55,6 +55,8 @@
 # under Contract DE-AC05-76RL01830
 #}}}
 
+import logging
+import os
 try:
     import simplejson as json
 except ImportError:
@@ -64,14 +66,30 @@ from smap import driver
 from smap.core import SmapException
 from smap.util import periodicSequentialCall
 
-from volttron.lite.messaging import headers as headers_mod, topics
+from volttron.platform.messaging import headers as headers_mod, topics
 
 import zmq
 
 
 #Addresses agents use to setup the pub/sub
-publish_address = 'ipc:///tmp/volttron-lite-agent-publish'
-subscribe_address = 'ipc:///tmp/volttron-lite-agent-subscribe'
+CAN_PUBLISH = False
+CAN_SUBSCRIBE = False
+
+publish_address = 'ipc://$VOLTTRON_HOME/run/no-publisher'
+subscribe_address = 'ipc://$VOLTTRON_HOME/run/no-subscriber'
+if 'AGENT_PUB_ADDR' in os.environ:
+    publish_address = os.environ['AGENT_PUB_ADDR'] 
+    CAN_PUBLISH = True
+else:
+    print("ERROR: NO PUBLISH ADDRESS IN ENVIRONMENT")
+    CAN_PUBLISH = False
+if 'AGENT_SUB_ADDR' in os.environ:
+    subscribe_address = os.environ['AGENT_SUB_ADDR'] 
+    CAN_SUBSCRIBE = True
+else:
+    print("ERROR: NO SUBSCRIBE ADDRESS IN ENVIRONMENT")
+    CAN_SUBSCRIBE = False
+
 logging_topic = 'datalogger/log'
 
 
@@ -84,6 +102,8 @@ class DataLogger(driver.SmapDriver):
 
         # Subscribe to logging topic
         self.subscribe()
+        
+    
 
     def start(self):
         periodicSequentialCall(self.read).start(1)
@@ -97,7 +117,6 @@ class DataLogger(driver.SmapDriver):
             else:
                 #Examine the message we recieved
                 message = self._sub.recv_multipart()
-                print message
 
                 # Parse the topic to get the location to store the data in
                 path_elements = message[0][len(logging_topic):].split('/')[1:]
@@ -144,8 +163,6 @@ class DataLogger(driver.SmapDriver):
                                 dtype = data[ts_string]['data_type']
                             ts = self.add_timeseries(ts_path, units, data_type=dtype)
                             self.known_timeseries[ts_path] = ts
-
-                        print type(data[ts_string])
 
                         if type(data[ts_string]['Readings']) is list:
                             for item in data[ts_string]['Readings']:

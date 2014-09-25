@@ -73,11 +73,11 @@ import time
 import zmq
 from zmq.utils import jsonapi
 
-from volttron.lite.agent import BaseAgent, PublishMixin, periodic
-from volttron.lite.agent import multithreading, utils, matching
-from volttron.lite import messaging
-from volttron.lite.messaging import topics
-#from volttron.lite.messaging import headers as headers_mod
+from volttron.platform.agent import BaseAgent, PublishMixin, periodic
+from volttron.platform.agent import multithreading, utils, matching
+from volttron.platform import messaging
+from volttron.platform.messaging import topics
+#from volttron.platform.messaging import headers as headers_mod
 
 import settings
 
@@ -175,7 +175,7 @@ def AFDDAgent(config_path, **kwargs):
             if self.lock_acquired and not holding_lock:
                 self.start()
 
-        @matching.match_exact(topics.RTU_VALUE(point='all', **rtu_path))
+        @matching.match_exact(topics.DEVICES_VALUE(point='all', **rtu_path))
         def on_new_data(self, topic, headers, message, match):
             data = jsonapi.loads(message[0])
             self.data_queue.notify_all(data)
@@ -214,12 +214,12 @@ def AFDDAgent(config_path, **kwargs):
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
     utils.default_main(AFDDAgent,
-                       description='VOLTTRON Lite™ AFDD agent',
+                       description='VOLTTRON platform™ AFDD agent',
                        argv=argv)
 
 
 def test():
-    from volttron.lite.agent import periodic
+    from volttron.platform.agent import periodic
 
     def TestAgent(config_path, **kwargs):
         config = utils.load_config(config_path)
@@ -256,7 +256,7 @@ def test():
                     'MixedAirTemperature': 45,
                     'Damper': self.damper
                 }
-                self.publish_ex(topics.RTU_VALUE(point='all', **rtu_path),
+                self.publish_ex(topics.DEVICES_VALUE(point='all', **rtu_path),
                                 {}, ('application/json', jsonapi.dumps(data)))
 
         Agent.__name__ = 'TestAgent'

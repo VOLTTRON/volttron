@@ -54,14 +54,14 @@
 #}}}
 
 
-from datetime import datetime
+import datetime
 import logging
 import sys
 import uuid
 
-from volttron.lite.agent import BaseAgent, PublishMixin, periodic
-from volttron.lite.agent import utils, matching
-from volttron.lite.messaging import topics, headers as headers_mod
+from volttron.platform.agent import BaseAgent, PublishMixin, periodic
+from volttron.platform.agent import utils, matching
+from volttron.platform.messaging import topics, headers as headers_mod
 
 import settings
 
@@ -71,6 +71,8 @@ _log = logging.getLogger(__name__)
 
 
 def DatetimeFromValue(ts):
+    ''' Utility for dealing with time
+    '''
     if isinstance(ts, (int, long)):
         return datetime.utcfromtimestamp(ts)
     elif isinstance(ts, float):
@@ -79,73 +81,81 @@ def DatetimeFromValue(ts):
         raise ValueError('Unknown timestamp value')
     return ts
 
-class ScheduleExampleAgent(PublishMixin, BaseAgent):
-    '''Listens to everything and publishes a heartbeat according to the
-    heartbeat period specified in the settings module.
-    '''
+def ScheduleExampleAgent(config_path, **kwargs):
 
-    def __init__(self, config_path, **kwargs):
-        super(ScheduleExampleAgent, self).__init__(**kwargs)
-        self.config = utils.load_config(config_path)
+    config = utils.load_config(config_path)
+    agent_id = config['agentid']
 
-    def setup(self):
-        # Demonstrate accessing a value from the config file
-        _log.info(self.config['message'])
-        self._agent_id = self.config['agentid']
-        # Always call the base class setup()
-        super(ScheduleExampleAgent, self).setup()
-        
-        self.publish_schedule()
-
-    @matching.match_all
-    def on_match(self, topic, headers, message, match):
-        '''Use match_all to receive all messages and print them out.'''
-        _log.debug("Topic: {topic}, Headers: {headers}, "
-                         "Message: {message}".format(
-                         topic=topic, headers=headers, message=message))
-
-    # Demonstrate periodic decorator and settings access
-    @periodic(settings.HEARTBEAT_PERIOD)
-    def publish_heartbeat(self):
-        '''Send heartbeat message every HEARTBEAT_PERIOD seconds.
-
-        HEARTBEAT_PERIOD is set and can be adjusted in the settings module.
+    class Agent(PublishMixin, BaseAgent):
+        '''This agent can be used to demonstrate scheduling and 
+        acutation of devices. It reserves a non-existant device, then
+        acts when its time comes up. Since there is no device, this 
+        will cause an error.
         '''
-        now = datetime.utcnow().isoformat(' ') + 'Z'
-        headers = {
-            'AgentID': self._agent_id,
-            headers_mod.CONTENT_TYPE: headers_mod.CONTENT_TYPE.PLAIN_TEXT,
-            headers_mod.DATE: now,
-        }
-        self.publish('heartbeat/example_agent', headers, now)
-
     
-    def publish_schedule(self):
+        def __init__(self, **kwargs):
+            super(Agent, self).__init__(**kwargs)
     
-        headers = {
-                    'AgentID': self._agent_id,
-                    'type': 'NEW_SCHEDULE',
-                    'requesterID': self._agent_id, #The name of the requesting agent.
-                    'taskID': self._agent_id + "-TASK", #The desired task ID for this task. It must be unique among all other scheduled tasks.
-                    'priority': 'LOW', #The desired task priority, must be 'HIGH', 'LOW', or 'LOW_PREEMPT'
-                } 
-        
-        
-        msg = [
-                ["campus/building/device1", #First time slot.
-                 "2014-1-31 12:27:00",     #Start of time slot.
-                 "2014-1-31 12:29:00"],     #End of time slot.
-                ["campus/building/device1", #Second time slot.
-                 "2014-1-31 12:26:00",     #Start of time slot.
-                 "2014-1-31 12:30:00"],     #End of time slot.
-                ["campus/building/device2", #Third time slot.
-                 "2014-1-31 12:30:00",     #Start of time slot.
-                 "2014-1-31 12:32:00"],     #End of time slot.
-                #etc...
-            ]
-        self.publish_json(topics.ACTUATOR_SCHEDULE_REQUEST, headers, msg)
-
-
+        def setup(self):
+            # Demonstrate accessing a value from the config file
+            _log.info(config['message'])
+            
+            # Always call the base class setup()
+            super(Agent, self).setup()
+            
+            self.publish_schedule()
+    
+    
+        @matching.match_exact(topics.ACTUATOR_SCHEDULE_ANNOUNCE(campus='campus',
+                                             building='building',unit='unit'))
+        @matching.match_headers({headers_mod.REQUESTER_ID: agent_id})
+        def actuate(self, topic, headers, message, match):
+            '''Match the announce for our fake device with our ID
+            Then take an action. Note, this command will fail since there is no 
+            actual device'''
+            headers = {
+                        'requesterID': agent_id,
+                       }
+            self.publish_json(topics.ACTUATOR_SET(campus='campus',
+                                             building='building',unit='unit',
+                                             point='point'),
+                                     headers, str(0.0))
+    
+        @periodic(settings.SCHEDULE_PERIOD)
+        def publish_schedule(self):
+            '''Periodically publish a schedule request'''
+            headers = {
+                        'AgentID': agent_id,
+                        'type': 'NEW_SCHEDULE',
+                        'requesterID': agent_id, #The name of the requesting agent.
+                        'taskID': agent_id + "-ExampleTask", #The desired task ID for this task. It must be unique among all other scheduled tasks.
+                        'priority': 'LOW', #The desired task priority, must be 'HIGH', 'LOW', or 'LOW_PREEMPT'
+                    } 
+            
+            start = str(datetime.datetime.now())
+            end = str(datetime.datetime.now() + datetime.timedelta(minutes=1))
+    
+    
+            msg = [
+                   ['campus/building/unit',start,end]
+                   #Could add more devices
+    #                 ["campus/building/device1", #First time slot.
+    #                  "2014-1-31 12:27:00",     #Start of time slot.
+    #                  "2016-1-31 12:29:00"],     #End of time slot.
+    #                 ["campus/building/device2", #Second time slot.
+    #                  "2014-1-31 12:26:00",     #Start of time slot.
+    #                  "2016-1-31 12:30:00"],     #End of time slot.
+    #                 ["campus/building/device3", #Third time slot.
+    #                  "2014-1-31 12:30:00",     #Start of time slot.
+    #                  "2016-1-31 12:32:00"],     #End of time slot.
+                    #etc...
+                ]
+            self.publish_json(topics.ACTUATOR_SCHEDULE_REQUEST, headers, msg)
+    Agent.__name__ = 'ScheduleExampleAgent'
+    return Agent(**kwargs)
+            
+    
+    
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
     try:

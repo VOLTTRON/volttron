@@ -58,8 +58,8 @@
 import zmq
 import time
 
-publish_address = 'ipc:///tmp/volttron-lite-agent-publish'
-subscribe_address = 'ipc:///tmp/volttron-lite-agent-subscribe'
+publish_address = 'ipc:///tmp/volttron-platform-agent-publish'
+subscribe_address = 'ipc:///tmp/volttron-platform-agent-subscribe'
 
 
 ctx = zmq.Context()
@@ -67,8 +67,8 @@ ctx = zmq.Context()
 def broker():
     pub = zmq.Socket(ctx, zmq.PUB)
     pull = zmq.Socket(ctx, zmq.PULL)
-    pub.bind('ipc:///tmp/volttron-lite-agent-subscribe')
-    pull.bind('ipc:///tmp/volttron-lite-agent-publish')
+    pub.bind('ipc:///tmp/volttron-platform-agent-subscribe')
+    pull.bind('ipc:///tmp/volttron-platform-agent-publish')
     while True:
         message = pull.recv_multipart()
         print message
@@ -77,7 +77,7 @@ def broker():
 
 def publisher():
     push = zmq.Socket(ctx, zmq.PUSH)
-    push.connect('ipc:///tmp/volttron-lite-agent-publish')
+    push.connect('ipc:///tmp/volttron-platform-agent-publish')
     while True:
         sys.stdout.write('Topic: ')
         sys.stdout.flush()
@@ -90,7 +90,7 @@ def publisher():
 
 def subscriber():
     sub = zmq.Socket(ctx, zmq.SUB)
-    sub.connect('ipc:///tmp/volttron-lite-agent-subscribe')
+    sub.connect('ipc:///tmp/volttron-platform-agent-subscribe')
     sub.subscribe = ''
     while True:
         print sub.recv_multipart()
@@ -98,8 +98,8 @@ def subscriber():
 def broker_test():
     pub = zmq.Socket(ctx, zmq.PUB)
     pull = zmq.Socket(ctx, zmq.PULL)
-    pub.bind('ipc:///tmp/volttron-lite-agent-subscribe')
-    pull.bind('ipc:///tmp/volttron-lite-agent-publish')
+    pub.bind('ipc:///tmp/volttron-platform-agent-subscribe')
+    pull.bind('ipc:///tmp/volttron-platform-agent-publish')
     
     pub.send_multipart(['topic1', 'Hello world1'])
     time.sleep(2)

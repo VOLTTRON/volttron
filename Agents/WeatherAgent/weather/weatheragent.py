@@ -55,21 +55,17 @@
 
 
 import sys
-import signal
-import threading
-import urllib2
 import requests
 import json
 import datetime
-import zmq
-import time
 import logging
 
-from volttron.lite.agent import BaseAgent, PublishMixin, periodic
-from volttron.lite.agent import utils, matching
-from volttron.lite.messaging import headers as headers_mod
+from volttron.platform.agent import BaseAgent, PublishMixin, periodic
+from volttron.platform.agent.utils import jsonapi
+from volttron.platform.agent import utils
+from volttron.platform.agent.matching import match_start
+from volttron.platform.messaging import headers as headers_mod
 
-from pkg_resources import resource_string
 
 import settings
 
@@ -85,8 +81,6 @@ http://www.wunderground.com/weather/api/
 ********
 '''
 
-publish_address = 'ipc:///tmp/volttron-lite-agent-publish'
-subscribe_address = 'ipc:///tmp/volttron-lite-agent-subscribe'
 topic_delim = '/'
 
 
@@ -99,15 +93,18 @@ precipitation = ["dewpoint_string", "precip_today_string", "dewpoint_f", "dewpoi
 pressure_humidity = ["pressure_trend", "pressure_mb", "relative_humidity"]
 
 categories = {"temperature": temperature, "wind": wind, "location": location, "time": time_topics, "cloud_cover": cloud_cover, 'precipitation': precipitation, 'pressure_humidity': pressure_humidity}
+REQUESTS_EXHAUSTED = 'requests_exhausted'
 
 
 class RequestCounter:
-    def __init__(self, daily_threshold, minute_threshold):
+    def __init__(self, daily_threshold, minute_threshold, poll_time):
         self.daily = 0
         self.date = datetime.datetime.today().date()
         self.per_minute_requests = []
-        self.daily_threshold = daily_threshold
-        self.minute_threshold = minute_threshold
+        self.minute_reserve = 1
+        self.daily_reserve = self.minute_reserve * (3600 / poll_time) * 24
+        self.daily_threshold = daily_threshold - self.daily_reserve
+        self.minute_threshold = minute_threshold - self.minute_reserve
 
     def request_available(self):
         now = datetime.datetime.today()
@@ -139,7 +136,7 @@ def WeatherAgent(config_path, **kwargs):
 
     def get_config(name):
         try:
-            value = kwargs.pop(name)
+            return kwargs.pop(name)
         except KeyError:
             return config.get(name, '')
 
@@ -155,7 +152,6 @@ def WeatherAgent(config_path, **kwargs):
     city = city
     max_requests_per_day = get_config('daily_threshold')
     max_requests_per_minute = get_config('minute_threshold')
-    headers = {headers_mod.FROM: agent_id}
 
     class Agent(PublishMixin, BaseAgent):
         """Agent for querying WeatherUndergrounds API"""
@@ -169,12 +165,12 @@ def WeatherAgent(config_path, **kwargs):
 
             self._keep_alive = True
 
-            self.requestCounter = RequestCounter(max_requests_per_day, max_requests_per_minute)
+            self.requestCounter = RequestCounter(max_requests_per_day, max_requests_per_minute, poll_time)
             # TODO: get this information from configuration file instead
 
-            baseUrl = "http://api.wunderground.com/api/" + (key if not key == '' else settings.KEY) + "/conditions/q/"
+            self.baseUrl = "http://api.wunderground.com/api/" + (key if not key == '' else settings.KEY) + "/conditions/q/"
 
-            self.requestUrl = baseUrl
+            self.requestUrl = self.baseUrl
             if(zip_code != ""):
                 self.requestUrl += zip_code + ".json"
             elif self.region != "":
@@ -186,20 +182,26 @@ def WeatherAgent(config_path, **kwargs):
             #Do a one time push when we start up so we don't have to wait for the periodic
             self.timer(10, self.weather_push)
 
-        def build_dictionary(self):
+        def build_url_with_zipcode(self, zip_code):
+            return self.baseUrl + zip_code + ".json"
+
+        def build_url_with_city(self, region, city):
+            return self.baseUrl + region + "/" + city + ".json"
+
+        def build_dictionary(self, observation):
             weather_dict = {}
             for category in categories.keys():
                 weather_dict[category] = {}
                 weather_elements = categories[category]
                 for element in weather_elements:
-                    weather_dict[category][element] = self.observation[element]
+                    weather_dict[category][element] = observation[element]
 
             return weather_dict
 
-        def publish_all(self):
-            self.publish_subtopic(self.build_dictionary(), "weather")
+        def publish_all(self, observation, topic_prefix="weather", headers={}):
+            self.publish_subtopic(self.build_dictionary(observation), topic_prefix, headers)
 
-        def publish_subtopic(self, publish_item, topic_prefix):
+        def publish_subtopic(self, publish_item, topic_prefix, headers):
             #TODO: Update to use the new topic templates
             if type(publish_item) is dict:
                 # Publish an "all" property, converting item to json
@@ -209,7 +211,7 @@ def WeatherAgent(config_path, **kwargs):
 
                 # Loop over contents, call publish_subtopic on each
                 for topic in publish_item.keys():
-                    self.publish_subtopic(publish_item[topic], topic_prefix + topic_delim + topic)
+                    self.publish_subtopic(publish_item[topic], topic_prefix + topic_delim + topic, headers)
 
             else:
                 # Item is a scalar type, publish it as is
@@ -218,29 +220,67 @@ def WeatherAgent(config_path, **kwargs):
 
         @periodic(poll_time)
         def weather_push(self):
-            self.request_data()
-            if self.valid_data:
-                self.publish_all()
+            (valid_data, observation) = self.request_data(self.requestUrl)
+            if valid_data:
+                headers = {headers_mod.FROM: agent_id}
+                self.publish_all(observation, headers=headers)
             else:
                 _log.error("Invalid data, not publishing")
 
-        def request_data(self):
+        @match_start("weather/request")
+        def handle_request(self, topic, headers, message, matched):
+            msg = jsonapi.loads(message[0])
+            request_url = self.baseUrl
+
+            # Identify if a zipcode or region/city was sent
+            # Build request URL
+            if 'zipcode' in msg:
+                request_url += msg['zipcode'] + '.json'
+            elif ('region' in msg) and ('city' in msg):
+                self.requestUrl += msg['region'] + "/" + msg['city'] + ".json"
+            else:
+                _log.error('Invalid request, no zipcode or region/city in request')
+                # TODO: notify requester of error
+
+            # Request data
+            (valid_data, observation) = self.request_data(request_url)
+
+            # If data is valid, publish
+            if valid_data:
+                resp_headers = {}
+                resp_headers[headers_mod.TO] = headers[headers_mod.REQUESTER_ID]
+                resp_headers['agentID'] = agent_id
+                resp_headers[headers_mod.FROM] = agent_id
+                self.publish_all(observation, 'weather' + topic_delim + 'response', resp_headers)
+            else:
+                if observation == REQUESTS_EXHAUSTED:
+                    _log.error('No requests avaliable')
+                    # TODO: report error to client
+                # Else, log that the data was invalid and report an error to the requester
+                else:
+                    _log.error('Weather API response was invalid')
+                    #TODO: send invalid data error back to requester
+
+        def request_data(self, requestUrl):
             if self.requestCounter.request_available():
                 try:
                     r = requests.get(self.requestUrl)
                     r.raise_for_status()
                     parsed_json = r.json()
 
-                    self.observation = parsed_json['current_observation']
-                    self.observation = convert(self.observation)
-                    self.valid_data = True
+                    observation = parsed_json['current_observation']
+                    observation = convert(observation)
+                    valid_data = True
+                    return (valid_data, observation)
                 except Exception as e:
                     _log.error(e)
-                    self.valid_data = False
+                    valid_data = False
+                    return (valid_data, None)
                 #self.print_data()
 
             else:
                 _log.warning("No requests available")
+                return (False, REQUESTS_EXHAUSTED)
 
         def print_data(self):
             print "{0:*^40}".format(" ")

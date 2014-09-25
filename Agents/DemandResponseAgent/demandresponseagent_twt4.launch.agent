@@ -1,7 +1,4 @@
 {
-"agent": {
-        "exec": "DemandResponseagent-0.1-py2.7.egg --config \"%c\" --sub \"%s\" --pub \"%p\""
-    },
     
 "agentid": "PNNL_DRAgent4",  
 
@@ -12,8 +9,6 @@
 "unit": "RTU4",	
 
 "smap_path": "datalogger/log/Transactional Network/PNNL/TWT/RTU4/DR Application" ,  
-
-"file_name": "/home/rtu/workspace/rtunetwork/PNNL_TWT_DR4.txt",
 
 
 "cooling_stpt":  "CoolingTemperatureStPt", 

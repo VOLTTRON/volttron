@@ -16,10 +16,10 @@ import json
 import requests
 import datetime as dt
 
-from volttron.lite.agent import BaseAgent, PublishMixin
-from volttron.lite.agent import utils
-from volttron.lite.messaging import headers as headers_mod
-from volttron.lite.messaging import topics
+from volttron.platform.agent import BaseAgent, PublishMixin
+from volttron.platform.agent import utils
+from volttron.platform.messaging import headers as headers_mod
+from volttron.platform.messaging import topics
 
 from oadr2 import poll, event, schedule, database
 from lxml import etree
