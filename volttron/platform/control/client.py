@@ -87,9 +87,21 @@ else:
 _stdout = sys.stdout
 _stderr = sys.stderr
 
-logging.basicConfig(filename='volttron-client.log', level=logging.DEBUG)
-_log = logging
+_log = logging.getLogger(os.path.basename(sys.argv[0])
+                         if __name__ == '__main__' else __name__)
 
+
+def log_to_file(file, level=logging.WARNING,
+                handler_class=logging.StreamHandler):
+    '''Direct log output to a file (or something like one).'''
+    handler = handler_class(file)
+    handler.setLevel(level)
+    handler.setFormatter(utils.AgentFormatter(
+            '%(asctime)s %(composite_name)s %(levelname)s: %(message)s'))
+    root = logging.getLogger()
+    root.setLevel(level)
+    root.addHandler(handler)
+    
 Agent = collections.namedtuple('Agent', 'name tag uuid')
 
 def _list_agents(aip):
@@ -374,6 +386,17 @@ def main(argv=sys.argv):
         argument_default=argparse.SUPPRESS,
         parents=[global_args]
     )
+    parser.add_argument('-l', '--log', metavar='FILE', default=None,
+        help='send log output to FILE instead of stderr')
+    parser.add_argument('-L', '--log-config', metavar='FILE',
+        help='read logging configuration from FILE')
+    parser.add_argument('-q', '--quiet', action='add_const', const=10, dest='verboseness',
+        help='decrease logger verboseness; may be used multiple times')
+    parser.add_argument('-v', '--verbose', action='add_const', const=-10, dest='verboseness',
+        help='increase logger verboseness; may be used multiple times')
+    parser.add_argument('--verboseness', type=int, metavar='LEVEL',
+        default=logging.WARNING,
+        help='set logger verboseness')
 
     filterable = config.ArgumentParser(add_help=False)
     filterable.add_argument('--name', dest='by_name', action='store_true',
@@ -511,6 +534,19 @@ def main(argv=sys.argv):
     if os.path.exists(conf) and 'SKIP_VOLTTRON_CONFIG' not in os.environ:
         args = ['--config', conf] + args
     opts = parser.parse_args(args)
+    # Configure logging
+    level = max(1, opts.verboseness)
+    if opts.log is None:
+        log_to_file(sys.stderr, level)
+    elif opts.log == '-':
+        log_to_file(sys.stdout, level)
+    elif opts.log:
+        log_to_file(opts.log, level, handler_class=handlers.WatchedFileHandler)
+    else:
+        log_to_file(None, 100, handler_class=lambda x: logging.NullHandler())
+    if opts.log_config:
+        logging.config.fileConfig(opts.log_config)
+
     opts.control_socket = config.expandall(opts.control_socket)
     opts.aip = aip.AIPplatform(opts)
     opts.aip.setup()
