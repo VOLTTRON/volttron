@@ -274,7 +274,7 @@ def test_end(suffix):
 
 def match_end(suffix, prefix=''):
     '''Return a match decorator to match the end of a topic.'''
-    return match_test(prefix, test_endswith(suffix))
+    return match_test(prefix, test_end(suffix))
 
 
 def test_contains(substring):
