@@ -120,7 +120,7 @@ class BasePlatformTest(unittest.TestCase):
             config = json.loads(open(platform_config, 'r').read())
         except Exception as e:
             sys.stderr.write (str(e))
-            self.fail("Could not load configuration file for tests", e)
+            self.fail("Could not load configuration file for tests {}".format(e))
         
 #         self.tmpdir = tempfile.mkdtemp()
         config['tmpdir'] = self.tmpdir
