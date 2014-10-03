@@ -1,0 +1,8 @@
+{
+    "agent": {
+        "exec": "ahpagent-0.1-py2.7.egg --config \"%c\" --sub \"%s\" --pub \"%p\""
+    },
+    "excel_doc":"<user_home>/workspace/rtunetwork/Agents/AhpAgent/ahp/AHP_7_RTU.xls",
+    "agentid": "ahp1",
+    "device_list":  [["device_name",  {"ZoneTemperature": "", "HeatingSetpoint": "", "CoolingSetpoint": "", "FanCommand": "", "CompressorCommand": "", "Mode": ""}]]
+}

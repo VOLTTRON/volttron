@@ -123,8 +123,10 @@ class PlatformWrapper():
         try:
             config = json.loads(open(platform_config, 'r').read())
         except Exception as e:
+            config = None
             sys.stderr.write (str(e))
-            self.fail("Could not load configuration file for tests", e)
+        
+        assert config != None, 'Invalid configuration file passed {}'.format(platform_config)
         
 #         self.tmpdir = tempfile.mkdtemp()
         config['tmpdir'] = self.tmpdir
