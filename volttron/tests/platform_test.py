@@ -1,6 +1,5 @@
 import unittest
 from platform_wrapper import PlatformWrapper
-from base import BasePlatformTest
 
 class PlatformTests(unittest.TestCase):
     

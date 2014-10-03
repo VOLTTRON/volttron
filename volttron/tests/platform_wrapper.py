@@ -112,9 +112,11 @@ class PlatformWrapper():
         self.env = os.environ.copy()
         self.env['VOLTTRON_HOME'] = self.tmpdir
         print (self.env['VOLTTRON_HOME'])
+        self.p_process = None
+        self.t_process = None
+        self.use_twistd = False
         
-        
-    def startup_platform(self, platform_config, use_twistd = True, mode=UNRESTRICTED):
+    def startup_platform(self, platform_config, use_twistd = False, mode=UNRESTRICTED):
         
         try:
             config = json.loads(open(platform_config, 'r').read())
@@ -182,6 +184,7 @@ class PlatformWrapper():
 #             self.conn.call.create_cgroups()
         
         self.use_twistd = use_twistd
+        #TODO: Revise this to start twistd with platform.
         if self.use_twistd:
             with closing(open(tconfig, 'w')) as cfg:
                 cfg.write(TWISTED_CONFIG.format(**config))
