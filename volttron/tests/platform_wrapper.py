@@ -95,6 +95,9 @@ VSTART = os.path.join(rel_path, "env/bin/volttron")
 VCTRL = os.path.join(rel_path, "env/bin/volttron-ctl")
 SEND_AGENT = "send"
 
+class PlatformWrapperError(Exception):
+    pass
+
 class PlatformWrapper():
 
     def __init__(self, volttron_home=None):
@@ -145,8 +148,7 @@ class PlatformWrapper():
             
 #                 self.create_certs()
         else:
-            
-            self.fail("Platform mode not implemented: "+str(mode))
+            raise PlatformWrapperError("Invalid platform mode specified: {}".format(mode))
             
             
         self.test_aip = aip.AIPplatform(opts)
@@ -197,7 +199,7 @@ class PlatformWrapper():
             config = json.loads(open(config_file, 'r').read())
         except Exception as e:
             sys.stderr.write (str(e))
-            self.fail("Could not load configuration file for tests")
+            raise PlatformWrapperError("Could not load configuration file for tests")
         
 #         self.tmpdir = tempfile.mkdtemp()
         config['tmpdir'] = self.tmpdir
