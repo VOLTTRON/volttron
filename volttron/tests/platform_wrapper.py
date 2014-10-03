@@ -110,13 +110,6 @@ class PlatformWrapper():
         self.env['VOLTTRON_HOME'] = self.tmpdir
         print (self.env['VOLTTRON_HOME'])
         
-        if RESTRICTED_AVAILABLE:
-            certsdir = os.path.join(os.path.expanduser(self.env['VOLTTRON_HOME']),
-                                     'certificates')
-            
-            print ("certsdir", certsdir)
-            self.certsobj = certs.Certs(certsdir)
-        
         
     def startup_platform(self, platform_config, use_twistd = True, mode=UNRESTRICTED):
         
