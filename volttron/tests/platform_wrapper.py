@@ -95,6 +95,9 @@ VSTART = os.path.join(rel_path, "env/bin/volttron")
 VCTRL = os.path.join(rel_path, "env/bin/volttron-ctl")
 SEND_AGENT = "send"
 
+class PlatformWrapperError(Exception):
+    pass
+
 class PlatformWrapper():
 
     def __init__(self, volttron_home=None):
@@ -109,22 +112,19 @@ class PlatformWrapper():
         self.env = os.environ.copy()
         self.env['VOLTTRON_HOME'] = self.tmpdir
         print (self.env['VOLTTRON_HOME'])
+        self.p_process = None
+        self.t_process = None
+        self.use_twistd = False
         
-        if RESTRICTED_AVAILABLE:
-            certsdir = os.path.join(os.path.expanduser(self.env['VOLTTRON_HOME']),
-                                     'certificates')
-            
-            print ("certsdir", certsdir)
-            self.certsobj = certs.Certs(certsdir)
-        
-        
-    def startup_platform(self, platform_config, use_twistd = True, mode=UNRESTRICTED):
+    def startup_platform(self, platform_config, use_twistd = False, mode=UNRESTRICTED):
         
         try:
             config = json.loads(open(platform_config, 'r').read())
         except Exception as e:
+            config = None
             sys.stderr.write (str(e))
-            self.fail("Could not load configuration file for tests", e)
+        
+        assert config != None, 'Invalid configuration file passed {}'.format(platform_config)
         
 #         self.tmpdir = tempfile.mkdtemp()
         config['tmpdir'] = self.tmpdir
@@ -150,8 +150,7 @@ class PlatformWrapper():
             
 #                 self.create_certs()
         else:
-            
-            self.fail("Platform mode not implemented: "+str(mode))
+            raise PlatformWrapperError("Invalid platform mode specified: {}".format(mode))
             
             
         self.test_aip = aip.AIPplatform(opts)
@@ -185,6 +184,7 @@ class PlatformWrapper():
 #             self.conn.call.create_cgroups()
         
         self.use_twistd = use_twistd
+        #TODO: Revise this to start twistd with platform.
         if self.use_twistd:
             with closing(open(tconfig, 'w')) as cfg:
                 cfg.write(TWISTED_CONFIG.format(**config))
@@ -202,7 +202,7 @@ class PlatformWrapper():
             config = json.loads(open(config_file, 'r').read())
         except Exception as e:
             sys.stderr.write (str(e))
-            self.fail("Could not load configuration file for tests")
+            raise PlatformWrapperError("Could not load configuration file for tests")
         
 #         self.tmpdir = tempfile.mkdtemp()
         config['tmpdir'] = self.tmpdir

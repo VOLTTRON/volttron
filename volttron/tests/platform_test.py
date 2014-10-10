@@ -1,21 +1,19 @@
 import unittest
-from base import BasePlatformTest
+from platform_wrapper import PlatformWrapper
 
-class PlatformTests(BasePlatformTest):
+class PlatformTests(unittest.TestCase):
     
     def setUp(self):
-        #Config file is relative to root of project
-        super(PlatformTests, self).setUp()
-        self.startup_platform("base-platform-test.json")
-    
+        self.platform = PlatformWrapper()
+        
     def test_platform_startup(self):
-        self.assertIsNotNone(self.p_process, "Platform process is none")
-        self.assertIsNotNone(self.t_process, "Twistd process is none")
+        self.platform.startup_platform("base-platform-test.json")
+        self.assertIsNotNone(self.platform.p_process, "Platform process is none")
+        self.assertIsNotNone(self.platform.t_process, "Twistd process is none")
 
 
     def tearDown(self):
-        super(PlatformTests, self).tearDown()
- 
+        self.platform.shutdown_platform()
 
 if __name__ == "__main__":
     unittest.main()

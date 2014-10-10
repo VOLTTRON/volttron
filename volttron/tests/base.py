@@ -90,9 +90,7 @@ print VSTART
 
 class BasePlatformTest(unittest.TestCase):
 
-    def setUp(self):
-        self.originaldir = os.getcwd()
-#         os.chdir(rel_path) 
+    def setUp(self): 
         self.tmpdir = tempfile.mkdtemp()
         self.wheelhouse = '/'.join((self.tmpdir, 'wheelhouse'))
         os.makedirs(self.wheelhouse)
@@ -122,7 +120,7 @@ class BasePlatformTest(unittest.TestCase):
             config = json.loads(open(platform_config, 'r').read())
         except Exception as e:
             sys.stderr.write (str(e))
-            self.fail("Could not load configuration file for tests", e)
+            self.fail("Could not load configuration file for tests {}".format(e))
         
 #         self.tmpdir = tempfile.mkdtemp()
         config['tmpdir'] = self.tmpdir
@@ -258,7 +256,7 @@ class BasePlatformTest(unittest.TestCase):
         status_agent_status = status[0][2][1]
         self.assertNotIsInstance(status_agent_status, int, "Agent did not start successfully")
 #         self.assertIn("running",status_agent_status, "Agent status shows error")
-        print status
+        #print status
         
     def direct_stop_agent(self, agent_uuid):
         result = self.conn.call.stop_agent(agent_uuid)
@@ -293,11 +291,8 @@ class BasePlatformTest(unittest.TestCase):
         except Exception as e:
             sys.stderr.write( str(e))
         finally:
-            os.chdir(self.originaldir)
+            shutil.rmtree(self.tmpdir,True)
             
-    def do_nothing(self):
-        pass
-
 
 def mergetree(src, dst, symlinks=False, ignore=None):
     if not os.path.exists(dst):
