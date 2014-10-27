@@ -160,7 +160,7 @@ class Reactor(object):
 
     def unregister(self, socket):
         '''Unregister all callbacks for socket.'''
-        self.register(self, socket)
+        self.register(socket)
 
     def _poll(self, timeout=None):
         for sock, event in self._poller.poll(timeout * 1000):
