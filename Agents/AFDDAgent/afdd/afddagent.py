@@ -53,7 +53,7 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-#Authors Hung Ngo and Robert Lutes
+
 #}}}
 import clock
 import logging
@@ -92,6 +92,12 @@ def AFDDAgent(config_path, **kwargs):
     debug_flag = True
 
     zip_code = config.get('zip_code')
+    
+    utils.setup_logging()
+    _log = logging.getLogger(__name__)
+    logging.basicConfig(level=logging.debug,
+                        format='%(asctime)s   %(levelname)-8s %(message)s',
+                        datefmt='%m-%d-%y %H:%M:%S')
   
     class Agent(PublishMixin, BaseAgent):
         def __init__(self, **kwargs):
@@ -110,15 +116,13 @@ def AFDDAgent(config_path, **kwargs):
             self.retry_schedule = None
             self.start = None
             self.end = None
-            utils.setup_logging()
-            self._log = logging.getLogger(__name__)
             
         def setup(self):
             super(Agent, self).setup()
             self.scheduled_task()
 
         def startrun(self, algo=None):
-            self._log.info('start diagnostic')
+            _log.debug('start diagnostic')
             if algo is None:
                 algo = afdd.AFDD(self,config_path).run_all
             self.tasklet = greenlet.greenlet(algo)
@@ -130,7 +134,7 @@ def AFDDAgent(config_path, **kwargs):
             '''
             Schedule re-occuring diagnostics
             '''
-            self._log.info('Schedule Dx')
+            _log.debug('Schedule Dx')
             headers = {         
                                 'type':  'NEW_SCHEDULE',
                                'requesterID': agent_id,
@@ -171,7 +175,6 @@ def AFDDAgent(config_path, **kwargs):
         @matching.match_headers({headers_mod.REQUESTER_ID: agent_id})   
         @matching.match_exact(topics.ACTUATOR_SCHEDULE_ANNOUNCE(**rtu_path))
         def on_schedule(self, topic, headers, message, match):
-            self._log.info('Run announce received...')
             msg = jsonapi.loads(message[0])
             now = datetime.datetime.now()
             self.remaining_time = headers.get('window', 0)
@@ -188,7 +191,7 @@ def AFDDAgent(config_path, **kwargs):
         @matching.match_exact(topics.ACTUATOR_SCHEDULE_RESULT())
         def schedule_result(self, topic, headers, message, match):
             msg = jsonapi.loads(message[0])
-            self._log.info('Actuator response received')
+            _log.debug('Actuator response received')
             self.task_timer.cancel()
 
         @matching.match_exact(topics.DEVICES_VALUE(point='all', **rtu_path))
@@ -197,7 +200,7 @@ def AFDDAgent(config_path, **kwargs):
             #Check override status
             if int(data["VoltronPBStatus"]) == 1:
                 if self.is_running:
-                    self._log.info("User override initiated..")
+                    _log.debug("User override is initiated...")
                     headers = {
                                'Content-Type': 'text/plain',
                                'requesterID': agent_id,
@@ -228,15 +231,15 @@ def AFDDAgent(config_path, **kwargs):
             
             
         def sleep(self, timeout):
-            self._log.info('wait ({} seconds)'.format(timeout))
+            _log.debug('wait for steady state({})'.format(timeout))
             green.sleep(timeout, self.timer)
 
         def get_new_data(self, timeout=None):
-            self._log.info('get_new_data({})'.format(timeout))
+            _log.debug('get_new_data({})'.format(timeout))
             return self.data_queue.wait(timeout)
 
         def command_equip(self, point_name, value, timeout=None):
-            self._log.info('set_point({}, {}, {})'.format(point_name, value, timeout))
+            _log.debug('set_point({}, {}, {})'.format(point_name, value, timeout))
             headers = {
                     'Content-Type': 'text/plain',
                     'requesterID': agent_id,
@@ -249,7 +252,7 @@ def AFDDAgent(config_path, **kwargs):
                 return True
             
         def weather_request(self,timeout=None):
-            self._log.info('weather request for {}'.format(zip_code))
+            _log.debug('weather request for {}'.format(zip_code))
             headers = {
                        'Content-Type': 'text/plain',
                        'requesterID': agent_id
