@@ -139,35 +139,39 @@ class Reactor(object):
         self._poller = zmq.Poller()
         self._callbacks = {}
 
-    def modify(self, socket, incoming=None, outgoing=None):
+    def modify(self, sock, incoming=None, outgoing=None):
         '''Update callbacks for a registered socket.'''
-        self.register(socket, incoming, outgoing)
+        self.register(sock, incoming, outgoing)
 
-    def register(self, socket, incoming=None, outgoing=None):
+    def register(self, sock, incoming=None, outgoing=None):
         '''Register callbacks for socket events.
 
-        incoming is a callback for POLLIN events on socket and outgoing
+        incoming is a callback for POLLIN events on sock and outgoing
         for POLLOUT events. If both are None, the socket is completely
         unregistered.
         '''
+        try:
+            fd = sock.fileno()
+        except AttributeError:
+            fd = sock
         flags = ((POLLIN if incoming else 0) |
                  (POLLOUT if outgoing else 0))
-        self._poller.register(socket, flags)
+        self._poller.register(fd, flags)
         if flags:
-            self._callbacks[socket] = (incoming, outgoing)
+            self._callbacks[fd] = (sock, incoming, outgoing)
         else:
-            self._callbacks.pop(socket, None)
+            self._callbacks.pop(fd, None)
 
-    def unregister(self, socket):
-        '''Unregister all callbacks for socket.'''
-        self.register(self, socket)
+    def unregister(self, sock):
+        '''Unregister all callbacks for sock.'''
+        self.register(sock)
 
     def _poll(self, timeout=None):
-        for sock, event in self._poller.poll(timeout * 1000):
-            callbacks = self._callbacks.get(sock)
-            if not callbacks:
+        for fd, event in self._poller.poll(timeout * 1000):
+            try:
+                sock, incoming, outgoing = self._callbacks.get(fd)
+            except KeyError:
                 continue
-            incoming, outgoing = callbacks
             if event & POLLIN and incoming:
                 yield (sock, POLLIN, incoming)
             if event & POLLOUT and outgoing:

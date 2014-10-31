@@ -93,11 +93,6 @@ def DemandResponseAgent(config_path, **kwargs):
     occupied_status = config.get('occupied_status')
     space_temp = config.get('space_temp')
     volttron_flag = config.get('volttron_flag')
-
-    _log = logging.getLogger(__name__)
-    logging.basicConfig(level=logging.DEBUG, stream=sys.stderr,
-                        format='%(asctime)s   %(levelname)-8s %(message)s',
-                        datefmt='%Y-%m-%d %H:%M:%S')
     
     class Agent(PublishMixin, BaseAgent):
         """Class agent"""
@@ -132,12 +127,14 @@ def DemandResponseAgent(config_path, **kwargs):
             self.all_scheduled_events = {}
             self.currently_running_dr_event_handlers = []
             self.headers = {headers_mod.CONTENT_TYPE: headers_mod.CONTENT_TYPE.JSON, 'requesterID': agent_id}
+            utils.setup_logging()
+            self._log = logging.getLogger(__name__)
             
         @matching.match_headers({headers_mod.REQUESTER_ID: agent_id})                   
         @matching.match_exact(topics.ACTUATOR_SCHEDULE_RESULT())
         def schedule_result(self, topic, headers, message, match):
             msg = jsonapi.loads(message[0])
-            _log.debug('Schedule Request Acknowledged')
+            self._log.info('Schedule Request Acknowledged')
             self.task_timer.cancel()
             task_id = headers.get('taskID', 0)
             response_type = headers.get('type', 0)
@@ -184,7 +181,7 @@ def DemandResponseAgent(config_path, **kwargs):
                     task_id = key
                     break
                        
-            _log.debug('Error Results: '+ str(point) + '  '+ str(msg))
+            self._log.info('Error Results: '+ str(point) + '  '+ str(msg))
             if msg.get('type',0) == 'LockError':
                 headers = {         
                             'type':  'NEW_SCHEDULE',
@@ -197,7 +194,7 @@ def DemandResponseAgent(config_path, **kwargs):
                                       [["{campus}/{building}/{unit}".format(**rtu_path),str(schedule_start),str(schedule_end)]])
                 
             elif self.error_handler is not None:
-                _log.debug('Running error handler')
+                self._log.info('Running error handler')
                 self.error_handler()
                 
 
@@ -210,24 +207,24 @@ def DemandResponseAgent(config_path, **kwargs):
             occupied = bool(int(data[occupied_status]))
             
             if dr_override and self.state not in ('IDLE', 'CLEANUP', 'STARTUP'):
-                _log.debug('User Override Initiated')
+                self._log.info('User Override Initiated')
                 self.cancel_event(cancel_type='OVERRIDE')
             
             if not occupied and self.state in ('DR_EVENT', 'RESTORE'):
                 self.cancel_event()
  
             if self.state == 'STARTUP':
-                _log.debug('Finished Startup')
+                self._log.info('Finished Startup')
                 self.state = 'IDLE'
                 
         @matching.match_exact(topics.OPENADR_EVENT())
         def _on_dr_event(self, topic, headers, message, match):
             if self.state == 'STARTUP':
-                _log.debug('DR event ignored because of startup.')
+                self._log.info('DR event ignored because of startup.')
                 return
             """handle openADR events"""
             msg = jsonapi.loads(message[0])
-            _log.debug('EVENT Received:  ' + str(msg))
+            self._log.info('EVENT Received:  ' + str(msg))
             e_id = msg['id']
             e_status = msg['status']
             e_start = msg['start_at']
@@ -241,12 +238,12 @@ def DemandResponseAgent(config_path, **kwargs):
             current_datetime = datetime.datetime.now()
             
             if current_datetime > e_end:
-                _log.debug('Too Late Event is Over')
+                self._log.info('Too Late Event is Over')
                 return
             
             if e_status == 'cancelled':
                 if e_start in self.all_scheduled_events:
-                    _log.debug('Event Cancelled')
+                    self._log.info('Event Cancelled')
                     self.all_scheduled_events[e_start].cancel()
                     del self.all_scheduled_events[e_start]
                     
@@ -263,14 +260,14 @@ def DemandResponseAgent(config_path, **kwargs):
             for item in self.all_scheduled_events:
                 if e_start.date() == item.date():
                     if e_start.time() != item.time():
-                        _log.debug( 'Updating Event')
+                        self._log.info( 'Updating Event')
                         self.all_scheduled_events[item].cancel()
                         del self.all_scheduled_events[item]
                         if e_start.date() == today and (self.state == 'PRECOOL' or self.state == 'DR_EVENT'):
                             self.cancel_event(cancel_type='UPDATING')
                         break
                     elif e_start.time() == item.time():
-                        _log.debug("same event")
+                        self._log.info("same event")
                         return
             
             #Don't schedule an event if we are currently in OVERRIDE state.    
@@ -300,7 +297,7 @@ def DemandResponseAgent(config_path, **kwargs):
                 
         def pre_cool_setup(self, e_start, e_end):
             if self.state == 'OVERRIDE':
-                _log.debug("Override today")
+                self._log.info("Override today")
                 return
             
             if self.pre_cool_idle == False:
@@ -310,7 +307,7 @@ def DemandResponseAgent(config_path, **kwargs):
             day=now.weekday()
 
             if not schedule[day]:
-                _log.debug("Unoccupied today")
+                self._log.info("Unoccupied today")
                 return
             
             if self.state == 'PRECOOL' and self.pre_cool_idle == True:
@@ -376,7 +373,7 @@ def DemandResponseAgent(config_path, **kwargs):
             
         def start_restore_event(self, csp, hsp):
             self.state = 'RESTORE'
-            _log.debug('Restore:  Begin restoring normal operations')
+            self._log.info('Restore:  Begin restoring normal operations')
             self.publish(topics.ACTUATOR_SET(point=cooling_stpt, **rtu_path), self.headers, str(csp))
             self.publish(topics.ACTUATOR_SET(point=heating_stpt, **rtu_path), self.headers, str(hsp)) #heating
             self.publish(topics.ACTUATOR_SET(point=cooling_fan_sp1, **rtu_path), self.headers, str(self.normal_firststage_fanspeed))
@@ -446,7 +443,7 @@ def DemandResponseAgent(config_path, **kwargs):
                 if expected_value is not None:
                     diff = abs(expected_value-value)
                     if diff > EPSILON:
-                        _log.debug( "Did not get back expected value for:  " + str(point))
+                        self._log.info( "Did not get back expected value for:  " + str(point))
                         
                 if not expected_values:
                     self.actuator_handler = None
@@ -478,7 +475,7 @@ def DemandResponseAgent(config_path, **kwargs):
             if current_time > end_time:
                 return
 
-            _log.debug('Scheduling all DR actions')  
+            self._log.info('Scheduling all DR actions')  
             pre_hsp = self.csp_pre - 5.0
 
             ideal_cooling_window = int(((self.current_spacetemp - self.csp_pre)/self.building_thermal_constant) *3600)  
@@ -491,7 +488,7 @@ def DemandResponseAgent(config_path, **kwargs):
             precool_start_time = start_time - cooling_window
             pre_cool_step = 0
             if (max_cooling_window > 0):
-                _log.debug('Schedule Pre Cooling')
+                self._log.info('Schedule Pre Cooling')
                 num_cooling_timesteps = int(math.ceil(float(cooling_window) / float(self.timestep_length)))         
                 cooling_step_delta = (self.normal_coolingstpt - self.csp_pre) / num_cooling_timesteps
                 
@@ -507,24 +504,24 @@ def DemandResponseAgent(config_path, **kwargs):
                     event_time = start_time - pre_cool_step
                     csp = self.csp_pre + ((step_index-1) * cooling_step_delta)
                     
-                    _log.debug('Precool step:  '+ str(datetime.datetime.fromtimestamp(event_time)) + '   CSP:  ' + str(csp))
+                    self._log.info('Precool step:  '+ str(datetime.datetime.fromtimestamp(event_time)) + '   CSP:  ' + str(csp))
                     event = sched.Event(self.modify_temp_set_point, args = [csp, pre_hsp])
                     self.schedule(event_time, event)
                     self.currently_running_dr_event_handlers.append(event)
             
             else:
-                _log.debug('Too late to pre-cool!')
+                self._log.info('Too late to pre-cool!')
             
             restore_start_time = end_time
             num_restore_timesteps = int(math.ceil(float(self.restore_window) / float(self.timestep_length)))         
             restore_step_delta = (self.csp_pre - self.normal_coolingstpt) / num_restore_timesteps
                 
-            _log.debug('Schedule DR Event: ' + str(datetime.datetime.fromtimestamp(start_time)) +'   CSP:  ' + str(self.csp_cpp))
+            self._log.info('Schedule DR Event: ' + str(datetime.datetime.fromtimestamp(start_time)) +'   CSP:  ' + str(self.csp_cpp))
             event = sched.Event(self.start_dr_event)
             self.schedule(start_time, event)
             self.currently_running_dr_event_handlers.append(event)
             
-            _log.debug('Schedule Restore Event:  '+ str(datetime.datetime.fromtimestamp(end_time)) + '   CSP:  ' + str(self.csp_pre-restore_step_delta))
+            self._log.info('Schedule Restore Event:  '+ str(datetime.datetime.fromtimestamp(end_time)) + '   CSP:  ' + str(self.csp_pre-restore_step_delta))
             event = sched.Event(self.start_restore_event, args = [self.csp_pre-restore_step_delta, self.normal_heatingstpt])
             self.schedule(end_time, event)
             self.currently_running_dr_event_handlers.append(event)
@@ -533,13 +530,13 @@ def DemandResponseAgent(config_path, **kwargs):
                 event_time = end_time + (step_index * self.timestep_length)
                 csp = self.csp_pre - ((step_index + 1) * restore_step_delta)
                 
-                _log.debug('Restore step: ' + str(datetime.datetime.fromtimestamp(event_time)) +'   CSP:  ' + str(csp))
+                self._log.info('Restore step: ' + str(datetime.datetime.fromtimestamp(event_time)) +'   CSP:  ' + str(csp))
                 event = sched.Event(self.modify_temp_set_point, args = [csp, self.normal_heatingstpt])
                 self.schedule(event_time, event)
                 self.currently_running_dr_event_handlers.append(event)
             
             event_time = end_time + (num_restore_timesteps * self.timestep_length)
-            _log.debug('Schedule Cleanup Event:  ' + str(datetime.datetime.fromtimestamp(event_time)))
+            self._log.info('Schedule Cleanup Event:  ' + str(datetime.datetime.fromtimestamp(event_time)))
             event = sched.Event(self.cancel_event)
             self.schedule(event_time,event)
             self.currently_running_dr_event_handlers.append(event)
@@ -559,6 +556,4 @@ if __name__ == "__main__":
         main()
     except KeyboardInterrupt:
         pass
-   
-
-
+l

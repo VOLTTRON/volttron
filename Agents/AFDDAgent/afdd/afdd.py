@@ -67,9 +67,9 @@ from volttron.platform.messaging import headers as headers_mod, topics
 import time
 
 class AFDD:
-    """
+    '''
         Doc for AFDD
-    """
+    '''
     def __init__(self, agent, config_path):
         self._agent = agent
         self.init_algo_state()
@@ -167,15 +167,9 @@ class AFDD:
         self.afdd6_econ_differential = config.get('afdd6_econ_temp_differential')
         self.afdd6_temp_differential = config.get('afdd6_oat_rat_temperature_difference_threshold')
         self.afdd6_oaf_threshold = config.get('afdd6_oaf_threshold')
-
-
-        self._log = logging.getLogger(__name__)
-        logging.basicConfig(level=logging.INFO, stream=sys.stderr,
-                            format='%(asctime)s   %(levelname)-8s %(message)s',
-                            datefmt='%m-%d-%y %H:%M:%S')
     
     def clean_up(self):
-        self._log.debug("Cleaning up...")
+        self._agent._log.info("Cleaning up...")
         self._agent.command_equip(self.volttron_flag, 0.0)
         self._agent.is_running = False
         
@@ -184,7 +178,7 @@ class AFDD:
         Push diagnostic results and energy
         impact to sMAP historian
         '''
-        self._log.debug(''.join(['Push to sMAP - ', smap_identifier, str(afdd_msg),
+        self._agent._log.info(''.join(['Push to sMAP - ', smap_identifier, str(afdd_msg),
                                  ' Energy Impact: ', str(energy_impact)]))
         mytime = int(time.time())
         if smap_energyid is not None:
@@ -226,7 +220,7 @@ class AFDD:
         if 'ConnectionError' in status[0]:
             
             print 'enter'
-            self.command_error_hanlder(status[0][0])
+            self.command_error_handler(status[0][0])
         data = self._agent.get_new_data()
         data = data[self.mat_name]
         print 'Done'
@@ -260,7 +254,7 @@ class AFDD:
             ra_temp = float(data[self.rat_name]) 
 
             if not fan_status:
-                self._log.debug("Conditions not favorable for fault detection")
+                self._agent._log.info("Conditions not favorable for fault detection")
                 self._afdd_ret = 74.0
  
             if not self.mat_missing:
@@ -270,13 +264,13 @@ class AFDD:
             ma_temp = float(data[mat_name])    
 
             if (oa_temp <= self.oat_min or oa_temp >= self.oat_max):
-                self._log.debug("Conditions not favorable for fault detection")
+                self._agent._log.info("Conditions not favorable for fault detection")
                 self._afdd_ret = 71.0
             if(ra_temp <= self.rat_min or ra_temp >= self.rat_max):
-                self._log.debug("Conditions not favorable for fault detection")
+                self._agent._log.info("Conditions not favorable for fault detection")
                 self._afdd_ret = 72.0
             if ((ma_temp <= self.mat_min or ma_temp >= self.mat_max) and not self.mat_missing):
-                self._log.debug("Conditions not favorable for fault detection")
+                self._agent._log.info("Conditions not favorable for fault detection")
                 self._afdd_ret = 73.0
 
             self.publish_to_smap("AFDD Error ", self._afdd_ret, None, None)
@@ -459,12 +453,12 @@ class AFDD:
             return status
         return status
     
-    def command_error_hanlder(self, error_type):
+    def command_error_handler(self, error_type):
         '''
         Handle actuator error for attempted set of RTU
         actuation point
         '''
-        if error_type.lower() =='lockerror':
+        if error_type.lower() =='lockerror' or error_type.lower() == 'connectionerror':
             headers1 =  {         
                                     'type':  'CANCEL_SCHEDULE',
                                    'requesterID': self._agent.task_id,
@@ -476,7 +470,7 @@ class AFDD:
                                    'taskID': self._agent.task_id,
                                    'priority': 'LOW_PREEMPT'
                                    }
-            self._log.debug('Handling Actuator set/get error')
+            self._agent._log.info('Handling Actuator set/get error')
             self._agent.publish_json(topics.ACTUATOR_SCHEDULE_REQUEST(), headers1,[["{campus}/{building}/{unit}".format(**self._agent.rtu_path)]])
             self._agent.sleep(15)
             self._agent.publish_json(topics.ACTUATOR_SCHEDULE_REQUEST(), headers2,[["{campus}/{building}/{unit}".format(**self._agent.rtu_path),self._agent.start,self._agent.end]])
@@ -489,7 +483,7 @@ class AFDD:
         status = self._agent.command_equip(self.damper_command_name,command,60)
 
         while True not in status:
-            self.command_error_hanlder(status[0])
+            self.command_error_handler(status[0])
             status = self._agent.command_equip(self.damper_command_name,command, 60)
 
             if True in status:
@@ -585,7 +579,7 @@ class AFDD:
 
         while True not in status:
 
-            self.command_error_hanlder(status[0][0])
+            self.command_error_handler(status[0][0])
             status = self._agent.command_equip(self.oat_bias_name, value,60)
 
             if True in status:
@@ -609,7 +603,7 @@ class AFDD:
         status = self._agent.command_equip(self.volttron_flag, value, 60)
         while True not in status:
 
-            self.command_error_hanlder(status[0][0])
+            self.command_error_handler(status[0][0])
             status = self._agent.command_equip(self.volttron_flag, value, 60)
 
         if True in status:
@@ -638,7 +632,7 @@ class AFDD:
         if (n == self.minutes_to_average - 1 and status):
             ## compressor is still running...
             ## exit the function
-            self._log.debug("Compressor is running, can not complete diagnostic")
+            self._agent._log.info("Compressor is running, can not complete diagnostic")
             return 3.0
             #Continue with diagnostic.   
             #Need to open damper (OAD) all the way
@@ -649,20 +643,20 @@ class AFDD:
             # wait for steady-state conditions to be established
             self._agent.sleep(self.seconds_to_steady_state)
         else:
-            self._log.debug("Unsuccessful at commanding damper to fully open position, can not complete diagnostic")
+            self._agent._log.info("Unsuccessful at commanding damper to fully open position, can not complete diagnostic")
             return 4.0
        
         abs_diff1 = self.abs_diff_mat_dat(self.minutes_to_average,1.0) 
         
         if abs_diff1 == 'Lock Failure':
-            self._log.debug("Compressor or heat is running, can not complete diagnostic")
+            self._agent._log.info("Compressor or heat is running, can not complete diagnostic")
             return 3.0
         
         if abs_diff1 >= self.afdd0_threshold:
             if self.mat_missing:
-                self._log.debug('Temperature sensor inconsistency')
+                self._agent._log.info('Temperature sensor inconsistency')
                 return 5.0
-            self._log.debug("Mixed-air temperature and discharge-air temperature are not consistent when mechanical cooling and heating are off")
+            self._agent._log.info("Mixed-air temperature and discharge-air temperature are not consistent when mechanical cooling and heating are off")
             return 2.0
 
         if self.command_damper(0.0): # fully closed position
@@ -670,22 +664,22 @@ class AFDD:
             #wait for steady-state conditions to be established
             self._agent.sleep(self.seconds_to_steady_state)
         else:
-            self._log.debug("Unsuccessful at commanding damper to fully closed position, can not complete diagnostic")
+            self._agent._log.info("Unsuccessful at commanding damper to fully closed position, can not complete diagnostic")
             return 4.0
 
         abs_diff2 = self.abs_diff_mat_dat(self.minutes_to_average,2.0)
 
         if abs_diff2 == 'Lock Failure':
-            self._log.debug("Compressor or heat is running, can not complete diagnostic")
+            self._agent._log.info("Compressor or heat is running, can not complete diagnostic")
             return 3.0
         
         if(abs_diff2 >= self.afdd0_threshold):
             if self.mat_missing:
-                self._log.debug('Temperature sensor inconsistency')
+                self._agent._log.info('Temperature sensor inconsistency')
                 return 5.0
-            self._log.debug("Mixed-air temperature and discharge-air temperature are not consistent when mechanical cooling and heating are off")
+            self._agent._log.info("Mixed-air temperature and discharge-air temperature are not consistent when mechanical cooling and heating are off")
             return 2.0
-        self._log.debug("No Fault Detected during diagnostic 0")
+        self._agent._log.info("No Fault Detected during diagnostic 0")
         return 0.0
 
     def afdd1(self):
@@ -699,13 +693,13 @@ class AFDD:
         heat_cmd1 = int(volttron_data[self.heat_cmd1_name]) 
         
         if cool_cmd1 or heat_cmd1:
-            self._log.debug("Compressor or heating is running, can not complete diagnostic")
+            self._agent._log.info("Compressor or heating is running, can not complete diagnostic")
             return 13.0
 
         #Command outdoor air damper to fully closed position
         if oa_damper != 0: 
             if not self.command_damper(0.0):
-                self._log.debug("Unsuccessful at commanding outdoor-air damper to fully closed " \
+                self._agent._log.info("Unsuccessful at commanding outdoor-air damper to fully closed " \
                                 "position, can not complete diagnostic")
                 return 14.0 
 
@@ -719,7 +713,7 @@ class AFDD:
         diff_rat_mat, rat = self.oad_modulation_check(self.minutes_to_average,
                                                  self.rat_name , mat_name)
         if diff_rat_mat == 'Lock Failure':
-            self._log.debug("Compressor is running, can not complete diagnostic")
+            self._agent._log.info("Compressor is running, can not complete diagnostic")
             return 13.0
 
         if diff_rat_mat < self.afdd1_damper_threshold:
@@ -730,41 +724,41 @@ class AFDD:
         if not self.command_damper(100.0): # command damper to fully open position
             # wait for steady-state conditions to be established
             # Verify steady-state condition
-            self._log.debug("Unsuccessful at commanding damper to open position, can not complete diagnostic")
+            self._agent._log.info("Unsuccessful at commanding damper to open position, can not complete diagnostic")
             return 14.0
 
         self._agent.sleep(self.seconds_to_steady_state)
         diff_oat_mat, oat = self.oad_modulation_check(self.minutes_to_average, 
                                                      self.oat_name, mat_name)
         if diff_oat_mat == 'Lock Failure':
-            self._log.debug("Compressor is running, can not complete diagnostic")
+            self._agent._log.info("Compressor is running, can not complete diagnostic")
             return 13.0
 
         if diff_oat_mat < self.afdd1_damper_threshold:
             if rat_mat_error == False:
-                self._log.debug("Outdoor-air damper is modulating, no fault detected")
+                self._agent._log.info("Outdoor-air damper is modulating, no fault detected")
                 return 10.0
             if int(self._afdd0_ret) == 0:
-                self._log.debug('Diagnostic indicates probable leaking outdoor or return-air damper')
+                self._agent._log.info('Diagnostic indicates probable leaking outdoor or return-air damper')
                 return 16.0
             else:
-                self._log.debug('Cannot isolate fault possible temperature sensor or OAD problem')
+                self._agent._log.info('Cannot isolate fault possible temperature sensor or OAD problem')
                 return 15.0
 
         wu_oat = self._agent.weather_request(120)
 
         if wu_oat == 'INCONCLUSIVE':
-            self._log.debug('Cannot isolate fault possible temperature sensor or OAD problem')
+            self._agent._log.info('Cannot isolate fault possible temperature sensor or OAD problem')
             return 15.0
 
         if abs(wu_oat - oat) < self.afdd1_econ_threshold:
             if rat_mat_error:
-                self._log.debug('Outdoor-air damper is not modulating correctly.')
+                self._agent._log.info('Outdoor-air damper is not modulating correctly.')
                 return 12.0
-            self._log.debug('Diagnostic indicates probable leaking outdoor or return-air damper')
+            self._agent._log.info('Diagnostic indicates probable leaking outdoor or return-air damper')
             return 16.0
 
-        self._log.debug('Cannot isolate fault possible temperature sensor or OAD problem')
+        self._agent._log.info('Cannot isolate fault possible temperature sensor or OAD problem')
         return 15.0
              
     def afdd2(self):
@@ -790,7 +784,7 @@ class AFDD:
         if (status):
             if damper != 100: 
                 if not self.command_damper(100.0):
-                    self._log.debug("Unsuccessful at commanding damper to open position, can not complete diagnostic")
+                    self._agent._log.info("Unsuccessful at commanding damper to open position, can not complete diagnostic")
                     return 22.0 
                 self._agent.sleep(self.seconds_to_steady_state)
                 
@@ -807,12 +801,12 @@ class AFDD:
             #Check for return-air temperature fault
            
             if sensorcondition_1 < self.afdd2_oat_mat_threshold:
-                self._log.debug("Return-air temperature sensor problem")
+                self._agent._log.info("Return-air temperature sensor problem")
                 return 25.0
             #close damper and wait for steady state conditions
             #if damper did not close cannot complete diagnostic
             if not self.command_damper(0.0):
-                self._log.debug("Lock not Received from controller to open damper")
+                self._agent._log.info("Lock not Received from controller to open damper")
                 return 22.0
 
             self._agent.sleep(self.seconds_to_steady_state)
@@ -831,18 +825,18 @@ class AFDD:
             #check for outside-air temperature sensor fault
             
             if sensorcondition_2 < self.afdd2_rat_mat_threshold:
-                self._log.debug("Outside-air temperature sensor problem")
+                self._agent._log.info("Outside-air temperature sensor problem")
                 return 24.0
     
             #If it comes here => both tests fail
             if self.mat_missing:
-                self._log.debug("discharge-air temperature sensor problem")
+                self._agent._log.info("discharge-air temperature sensor problem")
                 return 27.0
            
-            self._log.debug("Mixed-air temperature sensor problem")
+            self._agent._log.info("Mixed-air temperature sensor problem")
             return 26.0
         
-        self._log.debug("No Temperature Sensor faults detected")
+        self._agent._log.info("No Temperature Sensor faults detected")
         return 20.0
 
     def afdd3(self):
@@ -869,11 +863,11 @@ class AFDD:
             
         # Main Algorithm
         if  heat_cmd1:
-            self._log.debug('Unit is no longer cooling, retry diagnostic')    
+            self._agent._log.info('Unit is no longer cooling, retry diagnostic')    
             return 34.0, -99.0
         
         if  not cool_call1:
-            self._log.debug('Unit is no longer cooling, retry diagnostic')
+            self._agent._log.info('Unit is no longer cooling, retry diagnostic')
             return 31.0, potential_cooling_savings  
 
         if not ((oa_temp + self.afdd3_econ_differential < ra_temp and 
@@ -884,7 +878,7 @@ class AFDD:
                       ra_temp - (oa_temp + self.afdd3_econ_differential * 5)) #Set OAT bias to simulate economizing
 
             if not (self.command_outdoor_air_temperature_bias(oa_bias)):
-                self._log.debug("Outside-air temperature bias was not set, controller lock error")    
+                self._agent._log.info("Outside-air temperature bias was not set, controller lock error")    
                 return 35.0, potential_cooling_savings
             
             self._agent.sleep(self.seconds_to_steady_state)
@@ -920,17 +914,17 @@ class AFDD:
                 oat = oat/(n+1)
 
                 if oaf < 0 or oaf > 1.25:
-                    self._log.debug("Unexpected value calculated for OAF")
+                    self._agent._log.info("Unexpected value calculated for OAF")
                     return 36.0, potential_cooling_savings
 
-                self._log.debug(''.join(['OAF: ', str(math.ceil(oaf*100)), '%']))
+                self._agent._log.info(''.join(['OAF: ', str(math.ceil(oaf*100)), '%']))
 
                 if 1.0 - oaf > self.afdd3_oaf_threshold:
                     if not self.mat_missing:
                         potential_cooling_savings = 1.08 * self.cfm *(avg_fanspeed/100) * (mat - oat) #sensible cooling load estimation in BTU/hr
                         potential_cooling_savings = potential_cooling_savings/(1000*self.EER)
 
-                    self._log.debug("Insufficient outdoor air when economizing")
+                    self._agent._log.info("Insufficient outdoor air when economizing")
                     return 32.0, potential_cooling_savings
         else:
             if not self.mat_missing:
@@ -940,12 +934,12 @@ class AFDD:
                 if potential_cooling_savings < 0:
                     potential_cooling_savings = -99
                 else:
-                    self._log.debug(''.join(['fault kWh impact: ', str(potential_cooling_savings)]))
+                    self._agent._log.info(''.join(['fault kWh impact: ', str(potential_cooling_savings)]))
 
-            self._log.debug("Outdoor-air damper is not fully open when outdoor conditions are favorable for economizing")
+            self._agent._log.info("Outdoor-air damper is not fully open when outdoor conditions are favorable for economizing")
             return 33.0, potential_cooling_savings
 
-        self._log.debug("Economizer functioning properly")
+        self._agent._log.info("Economizer functioning properly")
         return 30.0, 0.0
         
     def afdd4(self):
@@ -973,7 +967,7 @@ class AFDD:
     
         # Main Algorithm
         if heat_cmd1:
-            self._log.debug('Unit began heating, try diagnostic again later')
+            self._agent._log.info('Unit began heating, try diagnostic again later')
             return 42.0, potential_cooling_savings
             
         if (((oa_temp - self.afdd4_econ_differential) < ra_temp and self.economizertype == 0) or 
@@ -985,7 +979,7 @@ class AFDD:
             status = self.command_outdoor_air_temperature_bias(oa_bias)
 
             if not status:
-                self._log.debug("Outside-air temperature bias was not set, controller lock error")
+                self._agent._log.info("Outside-air temperature bias was not set, controller lock error")
                 return 43.0, potential_cooling_savings
 
             if cool_call1 or cool_cmd1:
@@ -1003,11 +997,11 @@ class AFDD:
         ra_temp = (ra_temp + float(volttron_data[self.rat_name]))/n
         
         if heat_cmd1:
-            self._log.debug('Unit began heating, try diagnostic again later')
+            self._agent._log.info('Unit began heating, try diagnostic again later')
             return 42.0, potential_cooling_savings
 
         if (oa_damper - self.minimum_damper) <= self.afdd4_damper_threshold:
-            self._log.debug("No Economizer problems detected during the diagnostic")
+            self._agent._log.info("No Economizer problems detected during the diagnostic")
             return 40.0, 0.0
 
         if not self.mat_missing:
@@ -1017,7 +1011,7 @@ class AFDD:
             if potential_cooling_savings < 0:
                 potential_cooling_savings = -99.0
 
-        self._log.debug("Damper should be at minimum but is commanded open, potentially wasting energy")
+        self._agent._log.info("Damper should be at minimum but is commanded open, potentially wasting energy")
         return 41.0, potential_cooling_savings
 
     def afdd5(self):
@@ -1051,7 +1045,7 @@ class AFDD:
             status = self.command_outdoor_air_temperature_bias(oa_bias)
 
             if not (status):
-                self._log.debug("Outside-air temperature bias was not set, controller lock error")    
+                self._agent._log.info("Outside-air temperature bias was not set, controller lock error")    
                 return 54.0, potential_cooling_savings
 
             if cool_call1 or cool_call2 or cool_cmd1:
@@ -1075,7 +1069,7 @@ class AFDD:
             rat = 0 
 
             if self.mat_missing and cool_cmd1:
-                self._log.debug("No fault detected during fault diagnostic")
+                self._agent._log.info("No fault detected during fault diagnostic")
                 return 50.0, 0.0 
 
             for n in xrange(self.minutes_to_average):
@@ -1086,7 +1080,7 @@ class AFDD:
                 if (self.mat_missing and cool_cmd1 and n >= 1):
                     break
                 elif (self.mat_missing and cool_cmd1 and n == 0):
-                    self._log.debug("No fault detected during fault diagnostic")
+                    self._agent._log.info("No fault detected during fault diagnostic")
                     return 50.0, 0.0 
 
                 ma_temp = float(volttron_data[mat_name])
@@ -1107,37 +1101,37 @@ class AFDD:
             mat = mat/(n+1)
 
             if oaf < 0 or oaf > 1.25:
-                self._log.debug("Unexpected value calculated for OAF")
+                self._agent._log.info("Unexpected value calculated for OAF")
                 return 56.0, potential_cooling_savings
 
-            self._log.debug(''.join(['OAF: ', str(oaf)]))
+            self._agent._log.info(''.join(['OAF: ', str(oaf)]))
 
             if (oaf - self.minimum_oa <= self.afdd5_oaf_threshold): # Check to see if excess air is being brought into RTU
-                self._log.debug("No fault detected during fault diagnostic")
+                self._agent._log.info("No fault detected during fault diagnostic")
                 return 50.0, 0.0 
   
             if not self.mat_missing:
 
                 potential_cooling_savings = 1.08 * self.cfm * (avg_fanspeed/100) * ((0.05 * oat + 0.95 * rat) - mat)
                 potential_cooling_savings = potential_cooling_savings/(1000*self.EER)
-                self._log.debug(''.join(['fault kWh impact: ', str(potential_cooling_savings)]))
+                self._agent._log.info(''.join(['fault kWh impact: ', str(potential_cooling_savings)]))
 
             if potential_cooling_savings < 0:
                 potential_cooling_savings = -99.0
 
-            self._log.debug("Excessive outdoor-air intake")
+            self._agent._log.info("Excessive outdoor-air intake")
             return 51.0, potential_cooling_savings
 
         if not self.mat_missing:
 
             potential_cooling_savings = 1.08 * self.cfm * (fan_speed/100) * ((0.05 * oa_temp + 0.95 * ra_temp) - ma_temp)
             potential_cooling_savings = potential_cooling_savings/(1000*self.EER)
-            self._log.debug(''.join(['fault kWh impact: ', str(potential_cooling_savings)]))
+            self._agent._log.info(''.join(['fault kWh impact: ', str(potential_cooling_savings)]))
 
             if potential_cooling_savings < 0:
                 potential_cooling_savings = -99.0
     
-        self._log.debug("Damper should be at minimum, possible control fault")
+        self._agent._log.info("Damper should be at minimum, possible control fault")
         return 53.0, potential_cooling_savings
 
     def afdd6(self):
@@ -1168,18 +1162,18 @@ class AFDD:
             status = self.command_outdoor_air_temperature_bias(oa_bias)
 
             if not (status):
-                self._log.debug("Outside-air temperature bias was not set, controller lock error")    
+                self._agent._log.info("Outside-air temperature bias was not set, controller lock error")    
                 return 63.0
 
             if cool_call1 or cool_cmd1:
                 self._agent.sleep(self.seconds_to_steady_state)
 
             if (self.minimum_damper - oa_damper) > self.afdd6_damper_threshold:
-                self._log.debug('Damper is significantly below the minimum damper position required for ventilation, possible control fault')
+                self._agent._log.info('Damper is significantly below the minimum damper position required for ventilation, possible control fault')
                 return 64.0 
 
             if self.mat_missing and cool_cmd1:
-                self._log.debug("No fault detected during fault diagnostic")
+                self._agent._log.info("No fault detected during fault diagnostic")
                 return 60.0, 0.0 
 
             oaf = 0
@@ -1192,7 +1186,7 @@ class AFDD:
                 if (self.mat_missing and cool_cmd1 and n >= 1):
                     break
                 elif (self.mat_missing and cool_cmd1 and n == 0):
-                    self._log.debug("No fault detected during fault diagnostic")
+                    self._agent._log.info("No fault detected during fault diagnostic")
                     return 60.0, 0.0 
 
                 ma_temp = float(volttron_data[mat_name])
@@ -1203,14 +1197,14 @@ class AFDD:
 
             oaf = oaf/(n + 1)       
             if oaf < 0 or oaf > 1.25:
-                self._log.debug("Unexpected value calculated for OAF")
+                self._agent._log.info("Unexpected value calculated for OAF")
                 return 66.0    
 
-            self._log.debug(''.join(['OAF: ', str(oaf)]))
+            self._agent._log.info(''.join(['OAF: ', str(oaf)]))
             
             if(self.afdd6_min_oa - oaf > self.afdd6_oaf_threshold):
-                self._log.debug("Insufficient outdoor air intake")
+                self._agent._log.info("Insufficient outdoor air intake")
                 return 61.0
 
-            self._log.debug("No fault detected during fault diagnostic")
+            self._agent._log.info("No fault detected during fault diagnostic")
             return 60.0
