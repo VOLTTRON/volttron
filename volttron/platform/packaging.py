@@ -59,36 +59,17 @@
 
 '''Agent packaging and signing support.
 '''
-import base64
-from collections import Iterable
-from contextlib import closing
-import csv
-import errno
-import hashlib
 import logging
 from logging import handlers
 import os
-import posixpath
-import re
 import shutil
-import StringIO
+import subprocess
 import sys
-import time
 import uuid
 import wheel
 import tempfile
-import zipfile
-
-try:
-    import simplejson as jsonapi
-except ImportError:
-    import json as jsonapi
 
 from wheel.install import WheelFile
-from wheel.tool import unpack
-from wheel.util import (native,
-                        open_for_csv,
-                        urlsafe_b64decode)
 from .packages import *
 from . import config
 from .agent import utils
@@ -218,45 +199,22 @@ def _create_initial_package(agent_dir_to_package, wheelhouse):
 
     Returns The path and file name of the packaged whl file.
     '''
-    pwd = os.path.abspath(os.curdir)
-    tmp_build_dir = '/tmp/whl_bld'
-
-    unique_str = str(uuid.uuid4())
-    tmp_dir = os.path.join(tmp_build_dir, os.path.basename(agent_dir_to_package))
-    tmp_dir_unique = tmp_dir + unique_str
-    tries = 0
-
-    while os.path.exists(tmp_dir_unique) and tries < 5:
-        tmp_dir_unique = tmp_dir + hashlib.sha224(str(time.gmtime())).hexdigest()
-        tries += 1
-        time.sleep(1)
-
-    shutil.copytree(agent_dir_to_package, tmp_dir_unique)
-
-    distdir = tmp_dir_unique
-    os.chdir(distdir)
-    wheel_name = None
+    tmpdir = tempfile.mkdtemp()
     try:
-        print(distdir)
-        sys.argv = ['', 'bdist_wheel']
-        exec(compile(open('setup.py').read(), 'setup.py', 'exec'))
-
-        wheel_name = os.listdir('./dist')[0]
-
-        wheel_file_and_path = os.path.join(os.path.abspath('./dist'), wheel_name)
+        builddir = os.path.join(tmpdir, 'pkg')
+        distdir = os.path.join(builddir, 'dist')
+        shutil.copytree(agent_dir_to_package, builddir)
+        subprocess.check_call([sys.executable, 'setup.py', '--no-user-cfg',
+                               '--quiet', 'bdist_wheel'], cwd=builddir)
+        wheel_name = os.listdir(distdir)[0]
+        wheel_path = os.path.join(distdir, wheel_name)
+        if not os.path.exists(wheelhouse):
+            os.makedirs(wheelhouse, 0750)
+        wheel_dest = os.path.join(wheelhouse, wheel_name)
+        shutil.move(wheel_path, wheel_dest)
+        return wheel_dest
     finally:
-        os.chdir(pwd)
-
-    if not os.path.exists(wheelhouse):
-        os.makedirs(wheelhouse)
-
-    final_dest = os.path.join(wheelhouse, wheel_name)
-#     print("moving {} to {}".format(wheel_file_and_path, final_dest))
-#     print("removing {}".format(tmp_dir_unique))
-    shutil.move(wheel_file_and_path, final_dest)
-    shutil.rmtree(tmp_dir_unique, False)
-
-    return final_dest
+        shutil.rmtree(tmpdir, True)
 
 def _files_from_kwargs(**kwargs):
     '''Grabs the contract and config file from the kwargs
@@ -588,7 +546,7 @@ def main(argv=sys.argv):
         _log.error(e.message)
         #print(e.message)
     except Exception as e:
-        _log.error(e.message)
+        _log.error(str(e))
         #print e
 
 
