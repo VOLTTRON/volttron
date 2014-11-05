@@ -68,6 +68,7 @@ import clock
 import zmq
 from zmq import NOBLOCK, ZMQError
 import zmq.utils
+from zmq.utils import z85
 
 from volttron.platform.agent import BaseAgent, PublishMixin, periodic
 from volttron.platform.agent import utils, matching
@@ -215,7 +216,7 @@ def MultiBuildingAgent(config_path=None, **kwargs):
             version, sequence, domain, address, identity, mechanism = auth[:6]
             assert version == '1.0'
             if mechanism == 'CURVE':
-                creds = zmq.utils.z85.encode(auth[6])
+                creds = z85.encode(auth[6])
                 if domain == 'building.outgoing':
                     allow = creds in self.allow_sub
                 elif domain == 'building.incoming':
