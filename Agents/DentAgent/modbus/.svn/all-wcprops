@@ -1,0 +1,83 @@
+K 25
+svn:wc:ra_dav:version-url
+V 48
+/svn/!svn/ver/166/trunk/python/smap/iface/modbus
+END
+TCPModbusClient.i
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/svn/!svn/ver/56/trunk/python/smap/iface/modbus/TCPModbusClient.i
+END
+__init__.py
+K 25
+svn:wc:ra_dav:version-url
+V 59
+/svn/!svn/ver/56/trunk/python/smap/iface/modbus/__init__.py
+END
+TCPModbusClient.py
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svn/!svn/ver/65/trunk/python/smap/iface/modbus/TCPModbusClient.py
+END
+TCPModbusServer.c
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/svn/!svn/ver/56/trunk/python/smap/iface/modbus/TCPModbusServer.c
+END
+DieWithError.c
+K 25
+svn:wc:ra_dav:version-url
+V 62
+/svn/!svn/ver/56/trunk/python/smap/iface/modbus/DieWithError.c
+END
+TCPModbusClient_wrap.c
+K 25
+svn:wc:ra_dav:version-url
+V 70
+/svn/!svn/ver/65/trunk/python/smap/iface/modbus/TCPModbusClient_wrap.c
+END
+HandleModbusTCPClient.c
+K 25
+svn:wc:ra_dav:version-url
+V 71
+/svn/!svn/ver/56/trunk/python/smap/iface/modbus/HandleModbusTCPClient.c
+END
+Makefile
+K 25
+svn:wc:ra_dav:version-url
+V 56
+/svn/!svn/ver/65/trunk/python/smap/iface/modbus/Makefile
+END
+E30ModbusMsg.h
+K 25
+svn:wc:ra_dav:version-url
+V 62
+/svn/!svn/ver/56/trunk/python/smap/iface/modbus/E30ModbusMsg.h
+END
+crc16.c
+K 25
+svn:wc:ra_dav:version-url
+V 55
+/svn/!svn/ver/56/trunk/python/smap/iface/modbus/crc16.c
+END
+TCPModbusClient.c
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svn/!svn/ver/166/trunk/python/smap/iface/modbus/TCPModbusClient.c
+END
+utility.c
+K 25
+svn:wc:ra_dav:version-url
+V 57
+/svn/!svn/ver/56/trunk/python/smap/iface/modbus/utility.c
+END
+TCPModbusClient.h
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/svn/!svn/ver/56/trunk/python/smap/iface/modbus/TCPModbusClient.h
+END
