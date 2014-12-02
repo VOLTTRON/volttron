@@ -25,7 +25,6 @@ except ImportError:
     RESTRICTED_AVAILABLE = False
     auth = None
     certs = None
-    
 
 # from volttron.platform.control import (CTL_STATUS,
 #                                        CTL_INSTALL,
@@ -101,12 +100,10 @@ class PlatformWrapperError(Exception):
 class PlatformWrapper():
 
     def __init__(self, volttron_home=None):
-#         os.chdir(rel_path) 
         self.tmpdir = tempfile.mkdtemp()
         self.wheelhouse = '/'.join((self.tmpdir, 'wheelhouse'))
         os.makedirs(self.wheelhouse)
-        
-        
+
         if volttron_home is not None:
             mergetree(volttron_home, self.tmpdir)
         self.env = os.environ.copy()
@@ -115,29 +112,29 @@ class PlatformWrapper():
         self.p_process = None
         self.t_process = None
         self.use_twistd = False
-        
+
     def startup_platform(self, platform_config, use_twistd = False, mode=UNRESTRICTED):
-        
         try:
             config = json.loads(open(platform_config, 'r').read())
         except Exception as e:
             config = None
             sys.stderr.write (str(e))
-        
+
         assert config != None, 'Invalid configuration file passed {}'.format(platform_config)
-        
+
 #         self.tmpdir = tempfile.mkdtemp()
         config['tmpdir'] = self.tmpdir
-        
         pconfig = os.path.join(self.tmpdir, TMP_PLATFORM_CONFIG_FILENAME)
-        
         self.mode = mode
-        
+
         assert(self.mode in MODES, 'Invalid platform mode set: '+str(mode))
-        
         opts = None
-        
+
         if self.mode == UNRESTRICTED:
+            if RESTRICTED_AVAILABLE:
+                config['mobility'] = False
+                config['resource-monitor'] = False
+                config['verify'] = False
             with closing(open(pconfig, 'w')) as cfg:
                 cfg.write(PLATFORM_CONFIG_UNRESTRICTED.format(**config))
             opts = type('Options', (), {'verify_agents': False,'volttron_home': self.tmpdir})()
@@ -147,45 +144,43 @@ class PlatformWrapper():
             with closing(open(pconfig, 'w')) as cfg:
                 cfg.write(PLATFORM_CONFIG_RESTRICTED.format(**config))
             opts = type('Options', (), {'verify_agents': True, 'volttron_home': self.tmpdir})()
-            
+
 #                 self.create_certs()
         else:
             raise PlatformWrapperError("Invalid platform mode specified: {}".format(mode))
-            
-            
+
         self.test_aip = aip.AIPplatform(opts)
         self.test_aip.setup()
-            
 
-        tconfig = os.path.join(self.tmpdir, TMP_SMAP_CONFIG_FILENAME)
+        lfile = os.path.join(self.tmpdir, "volttron.log")
 
-        lfile = os.path.join(self.tmpdir, "volttron.log")       
-        
         pparams = [VSTART, "-c", pconfig, "-vv", "-l", lfile]
         print pparams
-        
+
         self.p_process = subprocess.Popen(pparams, env=self.env)
 
-        
+
         #Setup connector
         path = '{}/run/control'.format(self.env['VOLTTRON_HOME'])
-        
+
         time.sleep(5)
         tries = 0
         max_tries = 5
         while(not os.path.exists(path) and tries < max_tries):
             time.sleep(5)
             tries += 1
-             
+
         self.conn= server.ControlConnector(path)
- 
- 
+
+
 #         if self.mode == RESTRICTED:
 #             self.conn.call.create_cgroups()
-        
+
         self.use_twistd = use_twistd
         #TODO: Revise this to start twistd with platform.
         if self.use_twistd:
+            tconfig = os.path.join(self.tmpdir, TMP_SMAP_CONFIG_FILENAME)
+
             with closing(open(tconfig, 'w')) as cfg:
                 cfg.write(TWISTED_CONFIG.format(**config))
 
@@ -194,23 +189,23 @@ class PlatformWrapper():
             time.sleep(5)
         #self.t_process = subprocess.Popen(["twistd", "-n", "smap", "test-smap.ini"])
 
-        
+
 
     def fillout_file(self, filename, template, config_file):
-        
+
         try:
             config = json.loads(open(config_file, 'r').read())
         except Exception as e:
             sys.stderr.write (str(e))
             raise PlatformWrapperError("Could not load configuration file for tests")
-        
+
 #         self.tmpdir = tempfile.mkdtemp()
         config['tmpdir'] = self.tmpdir
-        
+
         outfile = os.path.join(self.tmpdir, filename)
         with closing(open(outfile, 'w')) as cfg:
             cfg.write(template.format(**config))
-            
+
         return outfile
 
 
@@ -227,39 +222,39 @@ class PlatformWrapper():
 #             os.chdir(basepackage)
 #             sys.argv = ['', 'bdist_wheel']
 #             exec(compile(open('setup.py').read(), 'setup.py', 'exec'))
-#      
+#
 #             wheel_name = os.listdir('./dist')[0]
-#      
+#
 #             wheel_file_and_path = os.path.join(os.path.abspath('./dist'), wheel_name)
 #         finally:
 #             os.chdir(orignal_dir)
-#             
+#
 #         return wheel_file_and_path
-    
+
     def direct_sign_agentpackage_creator(self, package):
         assert (RESTRICTED), "Auth not available"
         print ("wrapper.certsobj", self.certsobj.cert_dir)
         assert(auth.sign_as_creator(package, 'creator', certsobj=self.certsobj)), "Signing as {} failed.".format('creator')
-            
+
 
     def direct_sign_agentpackage_soi(self, package):
         assert (RESTRICTED), "Auth not available"
         assert(auth.sign_as_admin(package, 'soi', certsobj=self.certsobj)), "Signing as {} failed.".format('soi')
-            
+
 
     def direct_sign_agentpackage_initiator(self, package, config_file, contract):
         assert (RESTRICTED), "Auth not available"
         files = {"config_file":config_file,"contract":contract}
-        assert(auth.sign_as_initiator(package, 'initiator', files=files, 
+        assert(auth.sign_as_initiator(package, 'initiator', files=files,
                                       certsobj=self.certsobj)), "Signing as {} failed.".format('initiator')
-            
 
-    
+
+
     def direct_build_agentpackage(self, agent_dir):
         wheel_path = packaging.create_package(os.path.join(rel_path, agent_dir), self.wheelhouse)
-            
+
         return wheel_path
-    
+
     def direct_send_agent(self, package, target):
         pparams = [VCTRL, SEND_AGENT, target, package]
         print (pparams, "CWD", os.getcwd())
@@ -268,14 +263,14 @@ class PlatformWrapper():
 
     def direct_configure_agentpackage(self, agent_wheel, config_file):
         packaging.add_files_to_package(agent_wheel, {'config_file':os.path.join(rel_path, config_file)})
-            
+
 
 
     def direct_buid_install_agent(self, agent_dir, config_file):
         agent_wheel = self.direct_build_agentpackage(agent_dir)
         self.direct_configure_agentpackage(agent_wheel, config_file)
         assert(agent_wheel is not None,"Agent wheel was not built")
-        
+
         uuid = self.test_aip.install_agent(agent_wheel)
         #aip volttron_home, verify_agents
         return uuid
@@ -286,37 +281,37 @@ class PlatformWrapper():
 
     def direct_build_install_run_agent(self, agent_dir, config_file):
         agent_uuid = self.direct_buid_install_agent(agent_dir, config_file)
-        self.direct_start_agent(agent_uuid)  
+        self.direct_start_agent(agent_uuid)
         return agent_uuid
-    
+
     def direct_build_send_agent(self, agent_dir, config_file, target):
         agent_uuid = self.direct_buid_install_agent(agent_dir, config_file)
-        self.direct_start_agent(agent_uuid)  
+        self.direct_start_agent(agent_uuid)
         return agent_uuid
-            
+
     def direct_start_agent(self, agent_uuid):
-        
+
         self.conn.call.start_agent(agent_uuid)
         time.sleep(3)
-        
+
         status = self.conn.call.status_agents()
 #         self.test_aip.status_agents()
-        
+
 #         status = self.conn.call.status_agents()
 #         self.assertEquals(len(status[0]), 4, 'Unexpected status message')
         status_uuid = status[0][0]
         assert status_uuid == agent_uuid
-        
+
         assert len(status[0][2]) == 2, 'Unexpected agent status message'
         status_agent_status = status[0][2][1]
         assert not isinstance(status_agent_status, int)
 #         self.assertIn("running",status_agent_status, "Agent status shows error")
         print status
-        
+
     def confirm_agent_running(self, agent_name, max_retries=5, timeout_seconds=2):
-        
+
 #         self.test_aip.status_agents()
-        
+
 #         status = self.conn.call.status_agents()
 #         self.assertEquals(len(status[0]), 4, 'Unexpected status message')
         running = False
@@ -327,7 +322,7 @@ class PlatformWrapper():
             if len(status) > 0:
                 status_name = status[0][1]
                 assert status_name == agent_name
-                
+
                 assert len(status[0][2]) == 2, 'Unexpected agent status message'
                 status_agent_status = status[0][2][1]
                 running = not isinstance(status_agent_status, int)
@@ -335,12 +330,12 @@ class PlatformWrapper():
             time.sleep(timeout_seconds)
         return running
 
-        
+
     def direct_stop_agent(self, agent_uuid):
         result = self.conn.call.stop_agent(agent_uuid)
         print result
 
-            
+
     def shutdown_platform(self):
         '''Stop platform here'''
         if self.p_process != None:
@@ -358,7 +353,7 @@ class PlatformWrapper():
             print "twistd process was null"
 #         if self.tmpdir != None:
 #             shutil.rmtree(self.tmpdir, True)
-    
+
     def cleanup(self):
         try:
             self.shutdown_platform()
@@ -366,7 +361,7 @@ class PlatformWrapper():
             sys.stderr.write( str(e))
         finally:
             pass
-            
+
     def do_nothing(self):
         pass
 
@@ -390,14 +385,14 @@ def mergetree(src, dst, symlinks=False, ignore=None):
 #         results = subprocess.check_output([VCTRL,CTL_STATUS])
 #         print results
 #         self.assertIn('running', results, "Agent was not started")
-#         
+#
 
 #     def build_and_install_agent(self, agent_dir):
 #         agent_wheel = self.build_agentpackage(agent_dir)
 #         self.assertIsNotNone(agent_wheel,"Agent wheel was not built")
-#         
+#
 #         sys.stderr = std_err = StringIO()
-#         
+#
 #         results = subprocess.check_output([VCTRL,CTL_INSTALL,agent_wheel])
 #         print ("results: "+results)
 #         if self.mode == UNRESTRICTED or self.mode == RESOURCE_CHECK_ONLY:
@@ -405,5 +400,5 @@ def mergetree(src, dst, symlinks=False, ignore=None):
 #             proc_out = std_err.getvalue().split(':')
 #             print (proc_out)
 #             self.check_default_dir(proc_out[1].strip())
-#         elif self.mode == RESTRICTED or self.mode == VERIFY_ONLY:    
+#         elif self.mode == RESTRICTED or self.mode == VERIFY_ONLY:
 #             self.assertTrue(results.startswith('Unpacking to: '))
