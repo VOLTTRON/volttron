@@ -184,8 +184,16 @@ class PlatformWrapper():
             with closing(open(tconfig, 'w')) as cfg:
                 cfg.write(TWISTED_CONFIG.format(**config))
 
+            self.env['AGENT_PUB_ADDR'] = os.path.join("ipc:///",
+                                            self.env['VOLTTRON_HOME'],
+                                            'run/publish')
+            self.env['AGENT_SUB_ADDR'] = os.path.join("ipc:///",
+                                            self.env['VOLTTRON_HOME'],
+                                            'run/subscribe')
+            print("AGENT PUB", self.env['AGENT_PUB_ADDR'])
+            print("AGENT SUB", self.env['AGENT_SUB_ADDR'])
             tparams = ["env/bin/twistd", "-n", "smap", tconfig]
-            self.t_process = subprocess.Popen(tparams)
+            self.t_process = subprocess.Popen(tparams, env=self.env)
             time.sleep(5)
         #self.t_process = subprocess.Popen(["twistd", "-n", "smap", "test-smap.ini"])
 
