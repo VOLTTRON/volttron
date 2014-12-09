@@ -1,0 +1,3 @@
+'modbus' package must be copied to the following path to be compiled with the Volttron platform:
+
+~/volttron/volttron/platform/modbus
