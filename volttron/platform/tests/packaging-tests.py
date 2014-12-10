@@ -5,6 +5,7 @@ import sys
 import tempfile
 import uuid
 import subprocess
+import zipfile
 
 from collections import namedtuple
 from wheel.install import (WheelFile, VerifyingZipFile)
@@ -47,6 +48,10 @@ class TestPackaging(unittest.TestCase):
             os.makedirs(self.certs_dir)
             os.makedirs(self.private_dir)
 
+            assert(os.path.isdir(self.certificate_dir))
+            assert(os.path.isdir(self.certs_dir))
+            assert(os.path.isdir(self.private_dir))
+
             self.admin_cert_name = 'admin'
             self.creator_cert_name = 'creator'
             self.initiator_cert_name = 'initiator'
@@ -60,6 +65,22 @@ class TestPackaging(unittest.TestCase):
             self.certsobj.create_ca_signed_cert(self.admin_cert_name, **admin)
             self.certsobj.create_ca_signed_cert(self.creator_cert_name, **creator)
             self.certsobj.create_ca_signed_cert(self.initiator_cert_name, **initiator)
+
+            from os.path import join
+            assert(os.path.isfile(join(self.certs_dir,
+                                       self.admin_cert_name+".crt")))
+            assert(os.path.isfile(join(self.private_dir,
+                                       self.admin_cert_name+".pem")))
+
+            assert(os.path.isfile(join(self.certs_dir,
+                                       self.creator_cert_name+".crt")))
+            assert(os.path.isfile(join(self.private_dir,
+                                       self.creator_cert_name+".pem")))
+
+            assert(os.path.isfile(join(self.certs_dir,
+                                       self.initiator_cert_name+".crt")))
+            assert(os.path.isfile(join(self.private_dir,
+                                       self.initiator_cert_name+".pem")))
 
 
         os.mkdir('packagetest')
@@ -94,9 +115,36 @@ zip_safe = False,
             print('leaving tempdir: {}'.format(self.tmpdir))
 
     if auth != None:
-        def test_can_sign_as_creator(self):
+        def test_signing(self):
 
+            with self.assertRaises(auth.AuthError) as e:
+                auth.sign_as_admin(self.wheel, self.admin_cert_name, certsobj=self.certsobj)
 
+            #TODO: Create a wheel that is signed by creator but not by admin
+
+            with self.assertRaises(auth.AuthError) as e:
+                auth.sign_as_initiator(self.wheel, self.initiator_cert_name, certsobj=self.certsobj)
+
+            z = zipfile.ZipFile(self.wheel)
+            self.assertTrue(auth.sign_as_creator(self.wheel, self.creator_cert_name, certsobj=self.certsobj))
+            with self.assertRaises(auth.AuthError) as e:
+                auth.sign_as_creator(self.wheel, self.creator_cert_name, certsobj=self.certsobj)
+                print('---------------------------------',str(e))
+                self.assertEqual("package must be signed by creator and adminstrator first",
+                                 str(e))
+
+            with self.assertRaises(auth.AuthError) as e:
+                auth.sign_as_initiator(self.wheel, self.initiator_cert_name, certsobj=self.certsobj)
+
+            self.assertTrue(auth.sign_as_admin(self.wheel, self.admin_cert_name, certsobj=self.certsobj))
+            with self.assertRaises(auth.AuthError) as e:
+                auth.sign_as_admin(self.wheel, self.admin_cert_name, certsobj=self.certsobj)
+
+            self.assertTrue(auth.sign_as_initiator(self.wheel, self.initiator_cert_name, certsobj=self.certsobj))
+            with self.assertRaises(auth.AuthError) as e:
+                auth.sign_as_initiator(self.wheel, self.initiator_cert_name, certsobj=self.certsobj)
+
+            #self.assertFalse(True)
 
             print('successful!')
 
