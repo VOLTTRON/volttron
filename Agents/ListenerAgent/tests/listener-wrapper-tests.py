@@ -1,15 +1,10 @@
-import unittest
-import subprocess
 import time
-from wheel.install import WheelFile
-from wheel.tool import unpack
+import unittest
 
-from volttron.platform.agent import PublishMixin
-from volttron.tests import base
 from volttron.tests.platform_wrapper import PlatformWrapper
 
 """
-Test 
+Test
 """
 AGENT_DIR = "Agents/ListenerAgent"
 CONFIG_FILE = "Agents/ListenerAgent/config"
@@ -21,10 +16,10 @@ class ListenerTests(unittest.TestCase):
     def setUp(self):
         self.platform = PlatformWrapper()
         self.platform.startup_platform("base-platform-test.json", use_twistd=False)
-        
+
     def tearDown(self):
         self.platform.cleanup()
-        
+
     def test_direct_install_start_stop_start(self):
         uuid = self.platform.direct_build_install_run_agent(AGENT_DIR, CONFIG_FILE)
         time.sleep(5)
