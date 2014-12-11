@@ -1,0 +1,3 @@
+
+def monotonic():
+    return None
