@@ -1,0 +1,5 @@
+{
+    "agentid": "drivenlogger1",
+    "application": "drivenlogger.logdevice.LogDevice",
+    "device": "pnnl/isb1/oat"
+}
