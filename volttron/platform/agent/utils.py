@@ -71,7 +71,7 @@ import traceback
 from zmq.utils import jsonapi
 
 
-__all__ = ['load_config', 'run_agent', 'start_agent_thread', 'ArgumentParser']
+__all__ = ['load_config', 'run_agent', 'start_agent_thread']
 
 __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2013, Battelle Memorial Institute'
