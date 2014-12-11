@@ -145,7 +145,7 @@ class BACnet_application(BIPSimpleApplication):
 
             # see if we've checked for them all
             if initialID == self.nextInvokeID:
-                raise RuntimeError, "no available invoke ID"
+                raise RuntimeError("no available invoke ID")
 
             # see if this one is used
             if (addr, invokeID) not in self.iocb:
