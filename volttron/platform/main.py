@@ -3,18 +3,18 @@
 
 # Copyright (c) 2013, Battelle Memorial Institute
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
-# are met: 
-# 
+# are met:
+#
 # 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer. 
+#    notice, this list of conditions and the following disclaimer.
 # 2. Redistributions in binary form must reproduce the above copyright
 #    notice, this list of conditions and the following disclaimer in
 #    the documentation and/or other materials provided with the
-#    distribution. 
-# 
+#    distribution.
+#
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
 # "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
 # LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -26,7 +26,7 @@
 # THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-# 
+#
 # The views and conclusions contained in the software and documentation
 # are those of the authors and should not be interpreted as representing
 # official policies, either expressed or implied, of the FreeBSD
@@ -41,7 +41,7 @@
 # responsibility for the accuracy, completeness, or usefulness or any
 # information, apparatus, product, software, or process disclosed, or
 # represents that its use would not infringe privately owned rights.
-# 
+#
 # Reference herein to any specific commercial product, process, or
 # service by trade name, trademark, manufacturer, or otherwise does not
 # necessarily constitute or imply its endorsement, recommendation, or
@@ -49,13 +49,15 @@
 # Battelle Memorial Institute. The views and opinions of authors
 # expressed herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
-# 
+#
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 
-# pylint: disable=W0142,W0403
+# pylint: xdisable=W0142,W0403
 #}}}
+
+from __future__ import print_function
 
 import gevent.monkey
 gevent.monkey.patch_all()
@@ -85,25 +87,25 @@ from .agent import utils
 try:
     import volttron.restricted
 except ImportError:
-    have_restricted = False
+    HAVE_RESTRICTED = False
 else:
     from volttron.restricted import comms, comms_server, resmon
     from volttron.restricted.mobility import MobilityAgent
     from paramiko import RSAKey, PasswordRequiredException, SSHException
-    have_restricted = True
+    HAVE_RESTRICTED = True
 
 
 _log = logging.getLogger(os.path.basename(sys.argv[0])
                          if __name__ == '__main__' else __name__)
 
 
-def log_to_file(file, level=logging.WARNING,
+def log_to_file(file_, level=logging.WARNING,
                 handler_class=logging.StreamHandler):
     '''Direct log output to a file (or something like one).'''
-    handler = handler_class(file)
+    handler = handler_class(file_)
     handler.setLevel(level)
     handler.setFormatter(utils.AgentFormatter(
-            '%(asctime)s %(composite_name)s %(levelname)s: %(message)s'))
+        '%(asctime)s %(composite_name)s %(levelname)s: %(message)s'))
     root = logging.getLogger()
     root.setLevel(level)
     root.addHandler(handler)
@@ -132,6 +134,7 @@ def configure_logging(conf_path):
 
     YAML formatted configuration files require the PyYAML package.
     '''
+    # pylint: disable=too-many-return-statements
 
     conf_format = 'ini'
     if conf_path.startswith('ini:'):
@@ -239,36 +242,15 @@ def agent_exchange(in_addr, out_addr, logger_name=None):
                         else:
                             subscriptions.discard(topic)
                         log.debug('incoming subscription: {} {!r}'.format(
-                                ('add' if add else 'remove'), topic))
+                            ('add' if add else 'remove'), topic))
                         out_sock.send('subscriptions/{}{}{}'.format(
-                                ('add' if add else 'remove'),
-                                ('' if topic[:1] == '/' else '/'), topic))
-
-
-def get_volttron_parser(*args, **kwargs):
-    '''Return standard parser for VOLTTRON tools.'''
-    kwargs.setdefault('add_help', False)
-    parser = ArgumentParser(*args, **kwargs)
-    parser.add_argument('-c', '--config', metavar='FILE',
-        action='parse_config', ignore_unknown=True,
-        help='read configuration from FILE')
-    parser.add_argument('-l', '--log', metavar='FILE', default=None,
-        help='send log output to FILE instead of stderr')
-    parser.add_argument('-L', '--log-config', metavar='FILE',
-        help='read logging configuration from FILE')
-    parser.add_argument('-q', '--quiet', action='add_const', const=10, dest='verboseness',
-        help='decrease logger verboseness; may be used multiple times')
-    parser.add_argument('-v', '--verbose', action='add_const', const=-10, dest='verboseness',
-        help='increase logger verboseness; may be used multiple times')
-    parser.add_argument('--verboseness', type=int, metavar='LEVEL',
-        default=logging.WARNING,
-        help='set logger verboseness')
-    return parser
+                            ('add' if add else 'remove'),
+                            ('' if topic[:1] == '/' else '/'), topic))
 
 
 def main(argv=sys.argv):
     volttron_home = config.expandall(
-            os.environ.get('VOLTTRON_HOME', '~/.volttron'))
+        os.environ.get('VOLTTRON_HOME', '~/.volttron'))
     os.environ['VOLTTRON_HOME'] = volttron_home
 
     # Setup option parser
@@ -281,101 +263,126 @@ def main(argv=sys.argv):
                'prefixing the option with no- (e.g. --autostart may be '
                'inversed using --no-autostart).'
     )
-    parser.add_argument('-c', '--config', metavar='FILE',
-        action='parse_config', ignore_unknown=True, sections=[None, 'volttron'],
+    parser.add_argument(
+        '-c', '--config', metavar='FILE', action='parse_config',
+        ignore_unknown=True, sections=[None, 'volttron'],
         help='read configuration from FILE')
-    parser.add_argument('-l', '--log', metavar='FILE', default=None,
+    parser.add_argument(
+        '-l', '--log', metavar='FILE', default=None,
         help='send log output to FILE instead of stderr')
-    parser.add_argument('-L', '--log-config', metavar='FILE',
+    parser.add_argument(
+        '-L', '--log-config', metavar='FILE',
         help='read logging configuration from FILE')
-    parser.add_argument('-q', '--quiet', action='add_const', const=10, dest='verboseness',
+    parser.add_argument(
+        '-q', '--quiet', action='add_const', const=10, dest='verboseness',
         help='decrease logger verboseness; may be used multiple times')
-    parser.add_argument('-v', '--verbose', action='add_const', const=-10, dest='verboseness',
+    parser.add_argument(
+        '-v', '--verbose', action='add_const', const=-10, dest='verboseness',
         help='increase logger verboseness; may be used multiple times')
-    parser.add_argument('--verboseness', type=int, metavar='LEVEL',
-        default=logging.WARNING,
+    parser.add_argument(
+        '--verboseness', type=int, metavar='LEVEL', default=logging.WARNING,
         help='set logger verboseness')
-    #parser.add_argument('--volttron-home', env_var='VOLTTRON_HOME', metavar='PATH',
+    #parser.add_argument(
+    #    '--volttron-home', env_var='VOLTTRON_HOME', metavar='PATH',
     #    help='VOLTTRON configuration directory')
-    parser.add_argument('--show-config', action='store_true',
+    parser.add_argument(
+        '--show-config', action='store_true',
         help=argparse.SUPPRESS)
     parser.add_help_argument()
     parser.add_version_argument(version='%(prog)s ' + __version__)
 
     agents = parser.add_argument_group('agent options')
-    agents.add_argument('--autostart', action='store_true', inverse='--no-autostart',
+    agents.add_argument(
+        '--autostart', action='store_true', inverse='--no-autostart',
         help='automatically start enabled agents and services')
-    agents.add_argument('--no-autostart', action='store_false', dest='autostart',
+    agents.add_argument(
+        '--no-autostart', action='store_false', dest='autostart',
         help=argparse.SUPPRESS)
-    agents.add_argument('--publish-address', metavar='ZMQADDR',
+    agents.add_argument(
+        '--publish-address', metavar='ZMQADDR',
         help='ZeroMQ URL for used for agent publishing')
-    agents.add_argument('--subscribe-address', metavar='ZMQADDR',
+    agents.add_argument(
+        '--subscribe-address', metavar='ZMQADDR',
         help='ZeroMQ URL for used for agent subscriptions')
 
     control = parser.add_argument_group('control options')
-    control.add_argument('--control-socket', metavar='FILE',
+    control.add_argument(
+        '--control-socket', metavar='FILE',
         help='path to socket used for control messages')
-    control.add_argument('--allow-root', action='store_true', inverse='--no-allow-root',
+    control.add_argument(
+        '--allow-root', action='store_true', inverse='--no-allow-root',
         help='allow root to connect to control socket')
-    control.add_argument('--no-allow-root', action='store_false', dest='allow_root',
+    control.add_argument(
+        '--no-allow-root', action='store_false', dest='allow_root',
         help=argparse.SUPPRESS)
-    control.add_argument('--allow-users', action='store_list', metavar='LIST',
+    control.add_argument(
+        '--allow-users', action='store_list', metavar='LIST',
         help='users allowed to connect to control socket')
-    control.add_argument('--allow-groups', action='store_list', metavar='LIST',
+    control.add_argument(
+        '--allow-groups', action='store_list', metavar='LIST',
         help='user groups allowed to connect to control socket')
 
-    if have_restricted:
+    if HAVE_RESTRICTED:
         class RestrictedAction(argparse.Action):
-            def __init__(self, option_strings, dest, const=True, help=None, **kwargs):
-                super(RestrictedAction, self).__init__(option_strings,
-                    dest=argparse.SUPPRESS, nargs=0, const=const, help=help)
+            def __init__(self, option_strings, dest,
+                         const=True, help=None, **kwargs):
+                super(RestrictedAction, self).__init__(
+                    option_strings, dest=argparse.SUPPRESS, nargs=0,
+                    const=const, help=help)
             def __call__(self, parser, namespace, values, option_string=None):
                 namespace.verify_agents = self.const
                 namespace.resource_monitor = self.const
                 namespace.mobility = self.const
         restrict = parser.add_argument_group('restricted options')
-        restrict.add_argument('--restricted', action=RestrictedAction,
-            inverse='--no-restricted',
+        restrict.add_argument(
+            '--restricted', action=RestrictedAction, inverse='--no-restricted',
             help='shortcut to enable all restricted features')
-        restrict.add_argument('--no-restricted', action=RestrictedAction,
-            const=False, help=argparse.SUPPRESS)
-        restrict.add_argument('--verify', action='store_true',
-            inverse='--no-verify',
+        restrict.add_argument(
+            '--no-restricted', action=RestrictedAction, const=False,
+            help=argparse.SUPPRESS)
+        restrict.add_argument(
+            '--verify', action='store_true', inverse='--no-verify',
             help='verify agent integrity before execution')
-        restrict.add_argument('--no-verify', action='store_false',
-            dest='verify_agents', help=argparse.SUPPRESS)
-        restrict.add_argument('--resource-monitor', action='store_true',
+        restrict.add_argument(
+            '--no-verify', action='store_false', dest='verify_agents',
+            help=argparse.SUPPRESS)
+        restrict.add_argument(
+            '--resource-monitor', action='store_true',
             inverse='--no-resource-monitor',
             help='enable agent resource management')
-        restrict.add_argument('--no-resource-monitor', action='store_false',
+        restrict.add_argument(
+            '--no-resource-monitor', action='store_false',
             dest='resource_monitor', help=argparse.SUPPRESS)
-        restrict.add_argument('--mobility', action='store_true',
-            inverse='--no-mobility',
+        restrict.add_argument(
+            '--mobility', action='store_true', inverse='--no-mobility',
             help='enable agent mobility')
-        restrict.add_argument('--no-mobility', action='store_false',
-            dest='mobility', help=argparse.SUPPRESS)
-        restrict.add_argument('--mobility-address', metavar='ADDRESS',
+        restrict.add_argument(
+            '--no-mobility', action='store_false', dest='mobility',
+            help=argparse.SUPPRESS)
+        restrict.add_argument(
+            '--mobility-address', metavar='ADDRESS',
             help='specify the address on which to listen')
-        restrict.add_argument('--mobility-port', type=int, metavar='NUMBER',
+        restrict.add_argument(
+            '--mobility-port', type=int, metavar='NUMBER',
             help='specify the port on which to listen')
 
     parser.set_defaults(
-        log = None,
-        log_config = None,
-        verboseness = logging.WARNING,
-        volttron_home = volttron_home,
-        autostart = True,
-        publish_address = 'ipc://$VOLTTRON_HOME/run/publish',
-        subscribe_address = 'ipc://$VOLTTRON_HOME/run/subscribe',
-        control_socket = '@$VOLTTRON_HOME/run/control',
-        allow_root = False,
-        allow_users = None,
-        allow_groups = None,
-        verify_agents = True,
-        resource_monitor = True,
-        mobility = True,
-        mobility_address = None,
-        mobility_port = 2522
+        log=None,
+        log_config=None,
+        verboseness=logging.WARNING,
+        volttron_home=volttron_home,
+        autostart=True,
+        publish_address='ipc://$VOLTTRON_HOME/run/publish',
+        subscribe_address='ipc://$VOLTTRON_HOME/run/subscribe',
+        control_socket='@$VOLTTRON_HOME/run/control',
+        allow_root=False,
+        allow_users=None,
+        allow_groups=None,
+        verify_agents=True,
+        resource_monitor=True,
+        mobility=True,
+        mobility_address=None,
+        mobility_port=2522
     )
 
     # Parse and expand options
@@ -387,7 +394,7 @@ def main(argv=sys.argv):
     opts.control_socket = config.expandall(opts.control_socket)
     opts.publish_address = config.expandall(opts.publish_address)
     opts.subscribe_address = config.expandall(opts.subscribe_address)
-    if have_restricted:
+    if HAVE_RESTRICTED:
         # Set mobility defaults
         if opts.mobility_address is None:
             info = socket.getaddrinfo(
@@ -396,7 +403,7 @@ def main(argv=sys.argv):
             opts.mobility_address = '::' if family == socket.AF_INET6 else ''
     if getattr(opts, 'show_config', False):
         for name, value in sorted(vars(opts).iteritems()):
-            print name, repr(value)
+            print(name, repr(value))
         return
 
     # Configure logging
@@ -415,16 +422,18 @@ def main(argv=sys.argv):
             parser.error('{}: {}'.format(*error))
 
     # Setup mobility server
-    if have_restricted and opts.mobility:
+    if HAVE_RESTRICTED and opts.mobility:
         ssh_dir = os.path.join(opts.volttron_home, 'ssh')
         try:
             priv_key = RSAKey(filename=os.path.join(ssh_dir, 'id_rsa'))
-            authorized_keys = comms.load_authorized_keys(os.path.join(ssh_dir, 'authorized_keys'))
-        except (OSError, IOError, PasswordRequiredException, SSHException) as exc:
+            authorized_keys = comms.load_authorized_keys(
+                os.path.join(ssh_dir, 'authorized_keys'))
+        except (OSError, IOError,
+                PasswordRequiredException, SSHException) as exc:
             parser.error(exc)
 
     # Set configuration
-    if have_restricted:
+    if HAVE_RESTRICTED:
         if opts.verify_agents:
             _log.info('Agent integrity verification enabled')
         if opts.resource_monitor:
@@ -440,12 +449,13 @@ def main(argv=sys.argv):
     try:
         exchange = gevent.spawn(
             agent_exchange, opts.publish_address, opts.subscribe_address)
-        if have_restricted and opts.mobility:
+        if HAVE_RESTRICTED and opts.mobility:
             address = (opts.mobility_address, opts.mobility_port)
             mobility_in = comms_server.ThreadedServer(
                 address, priv_key, authorized_keys, opts.aip)
             mobility_in.start()
-            mobility_out = MobilityAgent(opts.aip,
+            mobility_out = MobilityAgent(
+                opts.aip,
                 subscribe_address=opts.subscribe_address,
                 publish_address=opts.publish_address)
             gevent.spawn(mobility_out.run)
