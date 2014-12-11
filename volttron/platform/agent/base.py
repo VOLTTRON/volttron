@@ -59,6 +59,9 @@
 
 '''VOLTTRON platform™ base agent and helper classes/functions.'''
 
+from abc import ABCMeta, abstractmethod
+from collections import defaultdict
+import logging
 import random
 import string
 import time as time_mod
@@ -76,7 +79,8 @@ from .. import messaging
 from ..messaging import topics
 
 
-__all__ = ['periodic', 'BaseAgent', 'PublishMixin']
+__all__ = ['periodic', 'BaseAgent', 'PublishMixin', 'AbstractDrivenAgent',
+           'Results']
 
 __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2013, Battelle Memorial Institute'
@@ -512,4 +516,72 @@ class PublishMixin(AgentBase):
         '''Publish messages given as (content-type, message) tuples.'''
         self._pub.send_message_ex(topic, headers, *msg_tuples, **kwargs)
 
+class AbstractDrivenAgent:
+    __metaclass__ = ABCMeta
+
+    def __init__(self, out=None,**kwargs):
+        """
+        When applications extend this base class, they need to make
+        use of any kwargs that were setup in config_param
+        """
+        super().__init__(**kwargs)
+        self.out = out
+        self.data = {}
+
+    @classmethod
+    @abstractmethod
+    def output_format(cls, input_object):
+        """
+        The output object takes the resulting input object as a argument
+        so that it may give correct topics to it's outputs if needed.
+
+        output schema description
+            {TableName1: {name1:OutputDescriptor1, name2:OutputDescriptor2,...},....}
+
+            eg: {'OAT': {'Timestamp':OutputDescriptor('timestamp', 'foo/bar/timestamp'),'OAT':OutputDescriptor('OutdoorAirTemperature', 'foo/bar/oat')},
+                'Sensor': {'SomeValue':OutputDescriptor('integer', 'some_output/value'),
+                'SomeOtherValue':OutputDescriptor('boolean', 'some_output/value),
+                'SomeString':OutputDescriptor('string', 'some_output/string)}}
+
+        Should always call the parent class output_format and update the dictionary returned from
+        the parent.
+
+        result = super().output_format(input_object)
+        my_output = {...}
+        result.update(my_output)
+        return result
+        """
+        return {}
+
+    @abstractmethod
+    def run(self, time, inputs):
+        '''Do work for each batch of timestamped inputs
+           time- current time
+           inputs - dict of point name -> value
+
+           Must return a results object.'''
+        pass
+
+    def shutdown(self):
+        '''Override this to add shutdown routines.'''
+        return Results()
+
+class Results:
+    def __init__(self, terminate=False):
+        self.commands = {}
+        self.log_messages = []
+        self._terminate = terminate
+        self.table_output = defaultdict(list)
+
+    def command(self, point, value):
+        self.commands[point]=value
+
+    def log(self, message, level=logging.DEBUG):
+        self.log_messages.append((level, message))
+
+    def terminate(self, terminate):
+        self._terminate = bool(terminate)
+
+    def insert_table_row(self, table, row):
+        self.table_output[table].append(row)
 
