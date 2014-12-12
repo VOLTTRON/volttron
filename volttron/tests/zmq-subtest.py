@@ -55,8 +55,10 @@
 # under Contract DE-AC05-76RL01830
 #}}}
 
-import zmq
+import sys
 import time
+
+import zmq
 
 publish_address = 'ipc:///tmp/volttron-platform-agent-publish'
 subscribe_address = 'ipc:///tmp/volttron-platform-agent-subscribe'

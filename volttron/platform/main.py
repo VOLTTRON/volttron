@@ -55,7 +55,7 @@
 # under Contract DE-AC05-76RL01830
 #}}}
 
-from __future__ import print_function
+from __future__ import print_function, absolute_import
 
 import gevent.monkey
 gevent.monkey.patch_all()
@@ -70,7 +70,6 @@ import socket
 import sys
 
 import gevent
-from pkg_resources import load_entry_point
 from zmq import green as zmq
 # Override zmq to use greenlets with mobility agent
 zmq.green = zmq
@@ -132,7 +131,6 @@ def configure_logging(conf_path):
 
     YAML formatted configuration files require the PyYAML package.
     '''
-    # pylint: disable=too-many-return-statements
 
     conf_format = 'ini'
     if conf_path.startswith('ini:'):

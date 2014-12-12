@@ -51,9 +51,11 @@ operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 under Contract DE-AC05-76RL01830
 '''
 
+import sys
+import time
 
 import zmq
-import time
+
 
 publish_address = 'ipc:///tmp/volttron-platform-agent-publish'
 subscribe_address = 'ipc:///tmp/volttron-platform-agent-subscribe'
