@@ -1,7 +1,7 @@
 
 import logging
 
-from volttron.platform.agent.base import (AbstractDrivenAgent, Results)
+from volttron.platform.agent import (AbstractDrivenAgent, Results)
 
 
 class LogDevice(AbstractDrivenAgent):
