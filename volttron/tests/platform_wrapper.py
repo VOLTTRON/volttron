@@ -62,6 +62,7 @@ control-socket = {tmpdir}/run/control
 PLATFORM_CONFIG_RESTRICTED = """
 mobility-address = {mobility-address}
 control-socket = {tmpdir}/run/control
+resource-monitor = {resource-monitor}
 """
 
 
@@ -114,6 +115,7 @@ class PlatformWrapper():
         self.use_twistd = False
 
     def startup_platform(self, platform_config, use_twistd = False, mode=UNRESTRICTED):
+        print "platform_config: " + platform_config
         try:
             config = json.loads(open(platform_config, 'r').read())
         except Exception as e:
@@ -139,11 +141,12 @@ class PlatformWrapper():
                 cfg.write(PLATFORM_CONFIG_UNRESTRICTED.format(**config))
             opts = type('Options', (), {'verify_agents': False,'volttron_home': self.tmpdir})()
         elif self.mode == RESTRICTED:
+            config['resource-monitor'] = False
             if not RESTRICTED_AVAILABLE:
                 raise ValueError("restricted is not available.")
             with closing(open(pconfig, 'w')) as cfg:
                 cfg.write(PLATFORM_CONFIG_RESTRICTED.format(**config))
-            opts = type('Options', (), {'verify_agents': True, 'volttron_home': self.tmpdir})()
+            opts = type('Options', (), {'resource-monitor':False,'verify_agents': True, 'volttron_home': self.tmpdir})()
 
 #                 self.create_certs()
         else:
