@@ -162,7 +162,9 @@ class PlatformWrapper():
                 raise ValueError("restricted is not available.")
             with closing(open(pconfig, 'w')) as cfg:
                 cfg.write(PLATFORM_CONFIG_RESTRICTED.format(**config))
-			opts = type('Options', (), {'resource-monitor':False,'verify_agents': True, 'volttron_home': self.tmpdir})()
+            opts = type('Options', (), {'resource-monitor':False,
+                                        'verify_agents': True,
+                                        'volttron_home': self.tmpdir})()
 
 #                 self.create_certs()
         else:
@@ -203,14 +205,6 @@ class PlatformWrapper():
             with closing(open(tconfig, 'w')) as cfg:
                 cfg.write(TWISTED_CONFIG.format(**config))
 
-            self.env['AGENT_PUB_ADDR'] = os.path.join("ipc:///",
-                                            self.env['VOLTTRON_HOME'],
-                                            'run/publish')
-            self.env['AGENT_SUB_ADDR'] = os.path.join("ipc:///",
-                                            self.env['VOLTTRON_HOME'],
-                                            'run/subscribe')
-            print("AGENT PUB", self.env['AGENT_PUB_ADDR'])
-            print("AGENT SUB", self.env['AGENT_SUB_ADDR'])
             tparams = ["env/bin/twistd", "-n", "smap", tconfig]
             self.t_process = subprocess.Popen(tparams, env=self.env)
             time.sleep(5)
