@@ -62,6 +62,7 @@ control-socket = {tmpdir}/run/control
 PLATFORM_CONFIG_RESTRICTED = """
 mobility-address = {mobility-address}
 control-socket = {tmpdir}/run/control
+resource-monitor = {resource-monitor}
 """
 
 
@@ -161,8 +162,7 @@ class PlatformWrapper():
                 raise ValueError("restricted is not available.")
             with closing(open(pconfig, 'w')) as cfg:
                 cfg.write(PLATFORM_CONFIG_RESTRICTED.format(**config))
-            opts = type('Options', (), {'verify_agents': True,
-                                        'volttron_home': self.tmpdir})()
+			opts = type('Options', (), {'resource-monitor':False,'verify_agents': True, 'volttron_home': self.tmpdir})()
 
 #                 self.create_certs()
         else:
