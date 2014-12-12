@@ -165,7 +165,12 @@ class BasePlatformTest(unittest.TestCase):
         if self.use_twistd:
             with closing(open(tconfig, 'w')) as cfg:
                 cfg.write(TWISTED_CONFIG.format(**config))
-
+            self.env['AGENT_PUB_ADDR'] = os.path.join("ipc:///",
+                                            self.env['VOLTTRON_HOME'],
+                                            'run/publish')
+            self.env['AGENT_SUB_ADDR'] = os.path.join("ipc:///",
+                                            self.env['VOLTTRON_HOME'],
+                                            'run/subscribe')
             tparams = ["env/bin/twistd", "-n", "smap", tconfig]
             self.t_process = subprocess.Popen(tparams)
             time.sleep(5)
