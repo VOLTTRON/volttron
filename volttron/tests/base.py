@@ -15,6 +15,7 @@ import zmq
 from volttron.platform import aip
 from volttron.platform.control import server
 from volttron.platform import packaging
+from volttron.tests.platform_wrapper import PlatformWrapper
 
 try:
     from volttron.restricted import (auth, certs)
@@ -80,18 +81,11 @@ class BasePlatformTest(unittest.TestCase):
 
     cleanup_tempdir = True
 
+    def env(self):
+        return self.platform_wrapper.env
+
     def setUp(self):
         self.platform_wrapper = PlatformWrapper()
-#         self.tmpdir = tempfile.mkdtemp()
-#         self.wheelhouse = '/'.join((self.tmpdir, 'wheelhouse'))
-#         os.makedirs(self.wheelhouse)
-#         os.environ['VOLTTRON_HOME'] = self.tmpdir
-#         self.platform_wrapper = PlatformWrapper(self.tmpdir)
-#
-#         opts = type('Options', (), {'verify_agents': False, 'volttron_home': self.tmpdir})()
-#         self.test_aip = aip.AIPplatform(opts)
-#         self.test_aip.setup()
-
 
     def setup_connector(self):
         path = os.path.expandvars('$VOLTTRON_HOME/run/control')
@@ -104,69 +98,14 @@ class BasePlatformTest(unittest.TestCase):
 
         self.conn= server.ControlConnector(path)
 
-    def startup_platform(self, platform_config, volttron_home=None, use_twistd = True, mode=UNRESTRICTED):
+    def startup_platform(self, platform_config, volttron_home=None,
+                         use_twistd=True, mode=UNRESTRICTED):
 
-
-
-        try:
-            config = json.loads(open(platform_config, 'r').read())
-        except Exception as e:
-            sys.stderr.write (str(e))
-            self.fail("Could not load configuration file for tests {}".format(e))
-
-#         self.tmpdir = tempfile.mkdtemp()
-        config['tmpdir'] = self.tmpdir
-
-        pconfig = os.path.join(self.tmpdir, TMP_PLATFORM_CONFIG_FILENAME)
-
-        self.mode = mode
-
-        self.assertIn(self.mode, MODES, 'Invalid platform mode set: '+str(mode))
-
-        if self.mode == UNRESTRICTED:
-            with closing(open(pconfig, 'w')) as cfg:
-                cfg.write(PLATFORM_CONFIG_UNRESTRICTED.format(**config))
-        elif self.mode == RESTRICTED:
-            with closing(open(pconfig, 'w')) as cfg:
-                cfg.write(PLATFORM_CONFIG_RESTRICTED.format(**config))
-
-
-#                 self.create_certs()
-        else:
-
-            self.fail("Platform mode not implemented: "+str(mode))
-
-        tconfig = os.path.join(self.tmpdir, TMP_SMAP_CONFIG_FILENAME)
-
-        lfile = os.path.join(self.tmpdir, "volttron.log")
-        if volttron_home is not None:
-            mergetree(volttron_home, self.tmpdir)
-        os.environ['VOLTTRON_HOME'] = self.tmpdir
-        print (os.environ['VOLTTRON_HOME'])
-        pparams = [VSTART, "-c", pconfig, "-vv", "-l", lfile]
-        print pparams
-        self.p_process = subprocess.Popen(pparams)
-
-        self.setup_connector()
-        if self.mode == RESTRICTED:
-            self.conn.call.create_cgroups()
-
-        self.use_twistd = use_twistd
-        if self.use_twistd:
-            with closing(open(tconfig, 'w')) as cfg:
-                cfg.write(TWISTED_CONFIG.format(**config))
-            self.env['AGENT_PUB_ADDR'] = os.path.join("ipc:///",
-                                            self.env['VOLTTRON_HOME'],
-                                            'run/publish')
-            self.env['AGENT_SUB_ADDR'] = os.path.join("ipc:///",
-                                            self.env['VOLTTRON_HOME'],
-                                            'run/subscribe')
-            tparams = ["env/bin/twistd", "-n", "smap", tconfig]
-            self.t_process = subprocess.Popen(tparams)
-            time.sleep(5)
-        #self.t_process = subprocess.Popen(["twistd", "-n", "smap", "test-smap.ini"])
-
-
+        if volttron_home != None:
+            self.platform_wrapper.initialize_volttron_home(volttron_home)
+        self.platform_wrapper.startup_platform(platform_config,
+                                               use_twistd=use_twistd,
+                                               mode=mode)
 
     def fillout_file(self, filename, template, config_file):
 
@@ -209,125 +148,43 @@ class BasePlatformTest(unittest.TestCase):
         return wheel_file_and_path
 
     def direct_build_agentpackage(self, agent_dir):
-        wheel_path = packaging.create_package(os.path.join(rel_path, agent_dir), self.wheelhouse)
-
-        return wheel_path
+        uuid = self.platform_wrapper.direct_build_agentpackage(agent_dir)
+        self.assertTrue(uuid, "Invalid uuid returned")
+        return uuid
 
     def direct_configure_agentpackage(self, agent_wheel, config_file):
         packaging.add_files_to_package(agent_wheel, {'config_file':os.path.join(rel_path, config_file)})
 
-
-
     def direct_buid_install_agent(self, agent_dir, config_file):
-        agent_wheel = self.direct_build_agentpackage(agent_dir)
-        self.direct_configure_agentpackage(agent_wheel, config_file)
-        self.assertIsNotNone(agent_wheel,"Agent wheel was not built")
-
-        uuid = self.test_aip.install_agent(agent_wheel)
-        #aip volttron_home, verify_agents
+        uuid = self.platform_wrapper.direct_build_agentpackage(agent_dir,
+                                                               config_file)
+        self.assertTrue(uuid, "Invalid uuid returned")
         return uuid
-#         conn.call.start_agent()
+
 
     def direct_remove_agent(self, uuid):
-        uuid = self.test_aip.remove_agent(uuid)
+        uuid = self.direct_remove_agent(uuid)
+        self.assertTrue(uuid, "Invalid uuid returned")
+        return uuid
 
     def direct_build_install_run_agent(self, agent_dir, config_file):
-        agent_uuid = self.direct_buid_install_agent(agent_dir, config_file)
-        self.direct_start_agent(agent_uuid)
-        return agent_uuid
+        uuid = self.platform_wrapper.direct_build_install_run_agent(agent_dir,
+                                                                    config_file)
+        self.assertTrue(uuid, "Invalid uuid returned")
+        return uuid
 
     def direct_start_agent(self, agent_uuid):
-
-        self.conn.call.start_agent(agent_uuid)
-        time.sleep(3)
-
-        status = self.conn.call.status_agents()
-#         self.test_aip.status_agents()
-
-#         status = self.conn.call.status_agents()
-#         self.assertEquals(len(status[0]), 4, 'Unexpected status message')
-        status_uuid = status[0][0]
-        self.assertEquals(status_uuid, agent_uuid, "Agent status shows error")
-
-        self.assertEquals(len(status[0][2]), 2, 'Unexpected agent status message')
-        status_agent_status = status[0][2][1]
-        print("AGENT STATUS: ", isinstance(status_agent_status, int))
-        print("AGENT STATUS: ", isinstance(status_agent_status, str))
-        self.assertNotIsInstance(status_agent_status, int, "Agent did not start successfully")
-#         self.assertIn("running",status_agent_status, "Agent status shows error")
-        #print status
+        self.platform_wrapper.direct_start_agent(agent_uuid)
 
     def direct_stop_agent(self, agent_uuid):
-        result = self.conn.call.stop_agent(agent_uuid)
-        print result
-
+        self.platform_wrapper.direct_stop_agent(agent_uuid)
 
     def check_default_dir(self, dir_to_check):
-        default_dir = os.path.expanduser("~/.volttron/agents")
-        self.assertNotIn(default_dir, dir_to_check, "Platform is using defaults")
+        self.platform_wrapper.check_default_dir(dir_to_check)
 
     def shutdown_platform(self):
         '''Stop platform here'''
-        if self.p_process != None:
-            if self.conn is not None:
-                self.conn.call.shutdown()
-            time.sleep(3)
-            self.p_process.kill()
-        else:
-            print "platform process was null"
-
-        if self.use_twistd and self.t_process != None:
-            self.t_process.kill()
-            self.t_process.wait()
-        elif self.use_twistd:
-            print "twistd process was null"
-        if  self.cleanup_tempdir:
-            if self.tmpdir != None:
-                shutil.rmtree(self.tmpdir, True)
+        self.platform_wrapper.shutdown_platform(self.cleanup_tempdir)
 
     def tearDown(self):
-        try:
-            self.shutdown_platform()
-        except Exception as e:
-            sys.stderr.write( str(e))
-        finally:
-            if self.cleanup_tempdir:
-                shutil.rmtree(self.tmpdir,True)
-
-
-def mergetree(src, dst, symlinks=False, ignore=None):
-    if not os.path.exists(dst):
-        os.makedirs(dst)
-    for item in os.listdir(src):
-        s = os.path.join(src, item)
-        d = os.path.join(dst, item)
-        if os.path.isdir(s):
-            mergetree(s, d, symlinks, ignore)
-        else:
-            if not os.path.exists(d) or os.stat(src).st_mtime - os.stat(dst).st_mtime > 1:
-                shutil.copy2(s, d)
-
-#     def build_install_run_agent(self, agent_dir, agent_name):
-#         self.build_and_install_agent(agent_dir)
-#         results = subprocess.check_output([VCTRL,CTL_START,agent_name])
-#         self.assertTrue(len(results) == 0)
-#         results = subprocess.check_output([VCTRL,CTL_STATUS])
-#         print results
-#         self.assertIn('running', results, "Agent was not started")
-#
-
-#     def build_and_install_agent(self, agent_dir):
-#         agent_wheel = self.build_agentpackage(agent_dir)
-#         self.assertIsNotNone(agent_wheel,"Agent wheel was not built")
-#
-#         sys.stderr = std_err = StringIO()
-#
-#         results = subprocess.check_output([VCTRL,CTL_INSTALL,agent_wheel])
-#         print ("results: "+results)
-#         if self.mode == UNRESTRICTED or self.mode == RESOURCE_CHECK_ONLY:
-#             self.assertTrue(len(results) == 0)
-#             proc_out = std_err.getvalue().split(':')
-#             print (proc_out)
-#             self.check_default_dir(proc_out[1].strip())
-#         elif self.mode == RESTRICTED or self.mode == VERIFY_ONLY:
-#             self.assertTrue(results.startswith('Unpacking to: '))
+        self.platform_wrapper.shutdown_platform(self.cleanup_tempdir)

@@ -10,6 +10,8 @@ import unittest
 from contextlib import closing
 from StringIO import StringIO
 
+import zmq
+
 from volttron.platform import aip
 from volttron.platform.control import client, server
 from volttron.platform import packaging
@@ -93,17 +95,14 @@ class PlatformWrapper():
         self.wheelhouse = '/'.join((self.tmpdir, 'wheelhouse'))
         os.makedirs(self.wheelhouse)
 
-        if volttron_home is not None:
-            mergetree(volttron_home, self.tmpdir)
-
-        os.makedirs(os.join(self.tmpdir, RUN_DIR))
+        os.makedirs(os.path.join(self.tmpdir, RUN_DIR))
 
         self.env = os.environ.copy()
         self.env['VOLTTRON_HOME'] = self.tmpdir
-        self.env['AGENT_PUB_ADDR'] = os.path.join("ipc:///",
+        self.env['AGENT_PUB_ADDR'] = "ipc://{}/{}".format(
                                             self.env['VOLTTRON_HOME'],
                                             PUBLISH_TO)
-        self.env['AGENT_SUB_ADDR'] = os.path.join("ipc:///",
+        self.env['AGENT_SUB_ADDR'] = "ipc://{}/{}".format(
                                             self.env['VOLTTRON_HOME'],
                                             SUBSCRIBE_TO)
         print ("Agent Home", self.env['VOLTTRON_HOME'])
@@ -111,7 +110,30 @@ class PlatformWrapper():
         print ("Agent Sub Addr", self.env['AGENT_SUB_ADDR'])
         self.p_process = None
         self.t_process = None
+        self.zmq_context = None
         self.use_twistd = False
+
+        if volttron_home is not None:
+            self.initialize_volttron_home(volttron_home)
+
+
+    def initialize_volttron_home(self, volttron_home):
+        '''Copies the configuration of the passed "volttron_home".
+
+        The platform is actually being run in a temporary space that is
+        dynamically created.  This function will copy the directory tree
+        recursively from volttron_home to the platforms true VOLTTRON_HOME.
+
+        raises ValueError if volttron_home does not exist
+
+        volttron_home is the directory where the configurations will be copied
+                      from
+        '''
+        if not os.path.isdir(volttron_home):
+            raise ValueError('Invalid directory specified\n{}'.format(
+                                                                volttron_home))
+        mergetree(volttron_home, self.tmpdir)
+
 
     def startup_platform(self, platform_config, use_twistd = False,
                          mode=UNRESTRICTED):
@@ -195,6 +217,18 @@ class PlatformWrapper():
         #self.t_process = subprocess.Popen(["twistd", "-n", "smap", "test-smap.ini"])
 
 
+    def publish(self, topic, data):
+        '''Publish data to a zmq context.
+
+        The publisher is goint to use the platform that is contained within
+        this wrapper to write data to.
+        '''
+        if not self.zmq_context:
+            self.zmq_context = zmq.Context()
+        print("binding publisher to: ", self.env['AGENT_PUB_ADDR'])
+        pub = zmq.Socket(zmq_context, zmq.PUB)
+        pub.bind(self.env['AGENT_PUB_ADDR'])
+        pub.send_multipart([topic, data])
 
     def fillout_file(self, filename, template, config_file):
 
@@ -341,7 +375,7 @@ class PlatformWrapper():
         print result
 
 
-    def shutdown_platform(self):
+    def shutdown_platform(self, cleanup_temp=True):
         '''Stop platform here'''
         if self.p_process != None:
             if self.conn is not None:
@@ -356,12 +390,15 @@ class PlatformWrapper():
             self.t_process.wait()
         elif self.use_twistd:
             print "twistd process was null"
-#         if self.tmpdir != None:
-#             shutil.rmtree(self.tmpdir, True)
+        if cleanup_temp:
+            if self.tmpdir:
+                shutil.rmtree(self.tmpdir, ignore_errors=True)
 
-    def cleanup(self):
+    def cleanup(self, cleanup_temp=True):
+        '''Shuts the platform down and cleans up based upon cleanup_temp
+        '''
         try:
-            self.shutdown_platform()
+            self.shutdown_platform(cleanup_temp=cleanup_temp)
         except Exception as e:
             sys.stderr.write( str(e))
         finally:
