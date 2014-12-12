@@ -9,8 +9,7 @@ Test
 """
 AGENT_DIR = "Agents/DrivenLoggerAgent"
 CONFIG_FILE = "Agents/DrivenLoggerAgent/config"
-# AGENT_NAME = "listeneragent-0.1"
-# WHEEL_NAME = "listeneragent-0.1-py2-none-any.whl"
+SLEEP_TIME = 2
 
 class DrivenLoggerTests(base.BasePlatformTest):
 
@@ -24,9 +23,9 @@ class DrivenLoggerTests(base.BasePlatformTest):
 
     def test_direct_install_start_stop_start(self):
         uuid = self.direct_build_install_run_agent(AGENT_DIR, CONFIG_FILE)
-        time.sleep(5)
+        time.sleep(SLEEP_TIME)
         self.direct_stop_agent(uuid)
-        time.sleep(5)
+        time.sleep(SLEEP_TIME)
         self.direct_start_agent(uuid)
 
 
@@ -35,11 +34,10 @@ class DrivenLoggerTests(base.BasePlatformTest):
                                                     os.environ['VOLTTRON_HOME'],
                                             'run/publish')
         uuid = self.direct_build_install_run_agent(AGENT_DIR, CONFIG_FILE)
-        time.sleep(5)
+        time.sleep(SLEEP_TIME)
         self.assertIsNotNone(os.environ['AGENT_PUB_ADDR'])
-        msg = {"1": "50", "2":"20.5"}
+        msg = {"oat1": "50", "oat2":"20.5"}
         pub = PublishMixin("ipc://"+os.environ['AGENT_PUB_ADDR'])
         pub.publish_json('pnnl/isb1/oat',{}, msg)
-        time.sleep(5)
-        #pub.publish_json('pnnl/isb1/oat/all',{}, msg)
+        time.sleep(SLEEP_TIME)
 
