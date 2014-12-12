@@ -166,6 +166,14 @@ class PlatformWrapper():
         elif self.mode == RESTRICTED:
             if not RESTRICTED_AVAILABLE:
                 raise ValueError("restricted is not available.")
+            
+            certsdir = os.path.join(os.path.expanduser(self.env['VOLTTRON_HOME']),
+                                     'certificates')
+            
+            print ("certsdir", certsdir)
+            self.certsobj = certs.Certs(certsdir)
+
+            
             with closing(open(pconfig, 'w')) as cfg:
                 cfg.write(PLATFORM_CONFIG_RESTRICTED.format(**config))
             opts = type('Options', (), {'resource-monitor':False,
