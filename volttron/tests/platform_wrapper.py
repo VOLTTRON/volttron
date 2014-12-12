@@ -94,6 +94,10 @@ VSTART = os.path.join(rel_path, "env/bin/volttron")
 VCTRL = os.path.join(rel_path, "env/bin/volttron-ctl")
 SEND_AGENT = "send"
 
+RUN_DIR = 'run'
+PUBLISH_TO = RUN_DIR+'/publish'
+SUBSCRIBE_TO = RUN_DIR+'/subscribe'
+
 class PlatformWrapperError(Exception):
     pass
 
@@ -106,21 +110,34 @@ class PlatformWrapper():
 
         if volttron_home is not None:
             mergetree(volttron_home, self.tmpdir)
+
+        os.makedirs(os.join(self.tmpdir, RUN_DIR))
+
         self.env = os.environ.copy()
         self.env['VOLTTRON_HOME'] = self.tmpdir
-        print (self.env['VOLTTRON_HOME'])
+        self.env['AGENT_PUB_ADDR'] = os.path.join("ipc:///",
+                                            self.env['VOLTTRON_HOME'],
+                                            PUBLISH_TO)
+        self.env['AGENT_SUB_ADDR'] = os.path.join("ipc:///",
+                                            self.env['VOLTTRON_HOME'],
+                                            SUBSCRIBE_TO)
+        print ("Agent Home", self.env['VOLTTRON_HOME'])
+        print ("Agent Pub Addr", self.env['AGENT_PUB_ADDR'])
+        print ("Agent Sub Addr", self.env['AGENT_SUB_ADDR'])
         self.p_process = None
         self.t_process = None
         self.use_twistd = False
 
-    def startup_platform(self, platform_config, use_twistd = False, mode=UNRESTRICTED):
+    def startup_platform(self, platform_config, use_twistd = False,
+                         mode=UNRESTRICTED):
         try:
             config = json.loads(open(platform_config, 'r').read())
         except Exception as e:
             config = None
             sys.stderr.write (str(e))
 
-        assert config != None, 'Invalid configuration file passed {}'.format(platform_config)
+        assert config != None, 'Invalid configuration file passed {}'.format(
+                                                                platform_config)
 
 #         self.tmpdir = tempfile.mkdtemp()
         config['tmpdir'] = self.tmpdir
@@ -137,13 +154,15 @@ class PlatformWrapper():
                 config['verify'] = False
             with closing(open(pconfig, 'w')) as cfg:
                 cfg.write(PLATFORM_CONFIG_UNRESTRICTED.format(**config))
-            opts = type('Options', (), {'verify_agents': False,'volttron_home': self.tmpdir})()
+            opts = type('Options', (), {'verify_agents': False,
+                                        'volttron_home': self.tmpdir})()
         elif self.mode == RESTRICTED:
             if not RESTRICTED_AVAILABLE:
                 raise ValueError("restricted is not available.")
             with closing(open(pconfig, 'w')) as cfg:
                 cfg.write(PLATFORM_CONFIG_RESTRICTED.format(**config))
-            opts = type('Options', (), {'verify_agents': True, 'volttron_home': self.tmpdir})()
+            opts = type('Options', (), {'verify_agents': True,
+                                        'volttron_home': self.tmpdir})()
 
 #                 self.create_certs()
         else:

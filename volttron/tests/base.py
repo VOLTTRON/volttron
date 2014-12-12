@@ -10,6 +10,8 @@ import unittest
 from contextlib import closing
 from StringIO import StringIO
 
+import zmq
+
 from volttron.platform import aip
 from volttron.platform.control import server
 from volttron.platform import packaging
@@ -19,23 +21,6 @@ try:
 except ImportError:
     auth = None
     certs = None
-
-
-# from volttron.platform.control import (CTL_STATUS,
-#                                        CTL_INSTALL,
-#                                        CTL_STATUS,
-#                                        CTL_START,
-#                                        CTL_STOP)
-
-#All paths relative to proj-dir/volttron
-# INST_EXEC = "install"
-# REM_EXEC = "remove-executable"
-# LOAD_AGENT = "load-agent"
-# UNLOAD_AGENT = "unload-agent"
-# LIST_AGENTS = "list-agents"
-# STOP_AGENT = "stop-agent"
-# START_AGENT = "start-agent"
-# BUILD_AGENT = "volttron/scripts/build-agent.sh"
 
 #Filenames for the config files which are created during setup and then
 #passed on the command line
@@ -86,21 +71,26 @@ rel_path = './'
 
 VSTART = os.path.join(rel_path, "env/bin/volttron")
 VCTRL = os.path.join(rel_path, "env/bin/volttron-ctl")
-print VSTART
+
+PUBLISH_ADDRESS = 'ipc:///tmp/volttron-platform-agent-publish'
+SUBSCRIBE_ADDRESS = 'ipc:///tmp/volttron-platform-agent-subscribe'
+
 
 class BasePlatformTest(unittest.TestCase):
 
     cleanup_tempdir = True
 
     def setUp(self):
-        self.tmpdir = tempfile.mkdtemp()
-        self.wheelhouse = '/'.join((self.tmpdir, 'wheelhouse'))
-        os.makedirs(self.wheelhouse)
-        os.environ['VOLTTRON_HOME'] = self.tmpdir
-
-        opts = type('Options', (), {'verify_agents': False, 'volttron_home': self.tmpdir})()
-        self.test_aip = aip.AIPplatform(opts)
-        self.test_aip.setup()
+        self.platform_wrapper = PlatformWrapper()
+#         self.tmpdir = tempfile.mkdtemp()
+#         self.wheelhouse = '/'.join((self.tmpdir, 'wheelhouse'))
+#         os.makedirs(self.wheelhouse)
+#         os.environ['VOLTTRON_HOME'] = self.tmpdir
+#         self.platform_wrapper = PlatformWrapper(self.tmpdir)
+#
+#         opts = type('Options', (), {'verify_agents': False, 'volttron_home': self.tmpdir})()
+#         self.test_aip = aip.AIPplatform(opts)
+#         self.test_aip.setup()
 
 
     def setup_connector(self):
