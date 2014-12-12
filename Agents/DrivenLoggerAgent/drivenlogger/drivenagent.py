@@ -57,8 +57,6 @@
 #}}}
 
 
-
-from collections import defaultdict
 from datetime import datetime
 import logging
 import posixpath
@@ -83,6 +81,9 @@ def DrivenAgent(config_path, **kwargs):
     device_topic = config.get('device')
     if not device_topic:
         validation_error += "Invalid device specified in config\n"
+    else:
+        if not device_topic[-4:] == '/all':
+            device_topic += '/all'
 
     application = config.get('application')
     if not application:
@@ -96,12 +97,14 @@ def DrivenAgent(config_path, **kwargs):
     if validation_error:
         _log.error(validation_error)
         raise ValueError(validation_error)
-
     klass = _get_class(application)
+    # This instances is used to call the applications run method when
+    # data comes in on the message bus.  It is constructed here so that
+    # each time run is called the application can keep it state.
+    app_instance = klass(**kwargs)
 
     class Agent(PublishMixin, BaseAgent):
-        '''
-        Agent listens to the passed point and runs the agent when data comes in.
+        '''Agent listens to message bus device and runs when data is published.
         '''
 
         def __init__(self, **kwargs):
@@ -118,10 +121,9 @@ def DrivenAgent(config_path, **kwargs):
             _log.debug("Message received")
             _log.debug("MESSAGE: "+ jsonapi.dumps(message[0]))
             _log.debug("TOPIC: "+ topic)
+            data = jsonapi.loads(message[0])
 
-            instance = klass(**self._kwargs)
-            data = {"p": "53", "a": "125"}
-            results = instance.run(datetime.now(), data)
+            results = app_instance.run(datetime.now(),data)
             self._process_results(results)
 
 
@@ -133,6 +135,7 @@ def DrivenAgent(config_path, **kwargs):
                 _log.debug("LOG: {}".format(value))
             for key, value in results.table_output.iteritems():
                 _log.debug("TABLE: {}->{}".format(key, value))
+
 
 
     Agent.__name__ = 'DrivenLoggerAgent'
