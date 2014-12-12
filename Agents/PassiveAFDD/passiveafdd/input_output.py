@@ -53,101 +53,87 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-
 #}}}
-import inspect
 import os
+import pandas
 import csv
 import itertools
-import logging
 from zmq.utils import jsonapi
-import datetime
-from Tkinter import *
-from tkFileDialog import askopenfilename
-
+import dateutil
+import imp
+try:
+    imp.find_module('Tkinter')
+    from Tkinter import *
+    from tkFileDialog import askopenfilename
+    found = True
+except ImportError:
+    found = False
 from volttron.platform.agent import  utils
 from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.messaging import topics
-from read_csv import read_csv_descList, mdy_hm_to_datetime
-
-def read_oae_csv(mainFileFullName):
-    if(not os.path.isfile(mainFileFullName)):
-        return (False, 'Missing CSV file "' +mainFileFullName +'"')
-    print 'Reading data file...'
-
-    with open(mainFileFullName) as f:
-        reader = csv.reader(f, delimiter=',', skipinitialspace=True)
-        first_row = next(reader)
-        num_cols = len(first_row)
-        f.close()
-
-    descList = [
-        # Column 1, date, formatted like "5/13/2013 01:00".
-        ('Timestamp', mdy_hm_to_datetime, None),
-        # Column 2, outside air temperature [F], formatted as floating-point number.
-        ('OutsideAirTemp',None,None),
-        # # Column 3, return air temperature [F], formatted as floating-point number.
-        ('ReturnAirTemp',None,None),
-        # # Column 4, mixed air temperature [F], formatted as floating-point number
-        ('MixedAirTemp',None,None),
-        # Column 5, compressor status formatted as an integer.
-        ('CompressorStatus',None,None),
-        # Column 6, heating status formatted as an integer.
-        ('HeatingStatus',None,None),
-        # Column 7, fan status formatted as an integer.
-        ('FanStatus',None,None),
-        # Column 8, damper command/signal
-        ('Damper',None,None)
-    ]
-    if len(descList) > num_cols:
-        print 'Warning data input has fewer columns than required!'
-    if len(descList) < num_cols:
-        print 'Warning data input has more columns than required'
-        
-    bldgData = read_csv_descList(mainFileFullName, descList, 1)
+  
+def read_oae_pandas(mainFileFullName, data_tags):
+    '''Parse metered data for RTU or AHU and provide to diagnostic algorithms.
     
-    return bldgData
+    Uses panda library to efficiently parse the csv data and returns a
+    panda time-serires.
+    '''
+    if(not os.path.isfile(mainFileFullName)):
+        return (False, 'Missing CSV file "' + mainFileFullName +'"')
+    data = pandas.read_csv(mainFileFullName, error_bad_lines=False, sep=',')
+    data = data.dropna()
+    return data
 
 def result_writer(contents):
+    '''Data is aggregated into hourly or smaller intervals based on compressor
+    status, heating status, and supply fan status for analysis.  
+    
+    result_writer receives the diagnostic results and associated energy impact
+    and writes the values to csv.
+    '''
     try:
-        home = os.path.expanduser("~")
-        dir1 = "workspace/volttron/Agents/PassiveAFDD/passiveafdd/Results"
-        dir = os.path.join(home,dir1)
+        file_dir = os.path.dirname(__file__)
+        dir1 = "Results"
+        dir = os.path.join(file_dir, dir1)
         if not os.path.isdir(dir):
             os.makedirs(dir)
         now = datetime.date.today()
         file_path = os.path.join(dir,"AFDD_Results({ts}).csv".format(ts=now))
-        
         ofile = open(file_path, 'w')
-        #x = [self.timestamp, self.afdd2_result, self.afdd3_result, self.afdd4_result, self.afdd5_result, self.afdd6_result, self.afdd7_result, self.energy_impact, self.oaf]
         outs = csv.writer(ofile, dialect='excel')
-        writer = csv.DictWriter(ofile, fieldnames = ["Timestamp", "OAE1", "OAE2", "OAE3", "OAE4", "OAE5", "OAE6", "Energy_Impact", "OAF"], delimiter = ',')
+        writer = csv.DictWriter(ofile, fieldnames = ["Timestamp", "OAE1",
+                                                     "OAE2","OAE3", "OAE4",
+                                                     "OAE5", "OAE6",
+                                                     "Energy_Impact", "OAF"],
+                                delimiter = ',')
         writer.writeheader()
-       
         for row in itertools.izip_longest(*contents):
             outs.writerow(row)
-            #Create monthly plot
         ofile.close()
         print 'Processing Done!'
     except IOError:
-        print('Output error please close results file and rerun')
+        print('Output error please close results file and rerun.')
         return
     
 def open_file():
+    '''Create file input window for user.'''
     file_path = None
-    tk = Tk()
-    tk.withdraw() 
-    file_path = askopenfilename(defaultextension='.csv', title='choose csv file for AFDD',
-                                initialfile='', parent=tk, initialdir = os.path.expanduser('~/workspace'))
-    filename, filextension = os.path.splitext(file_path)
-    if filextension != '.csv' and filextension !='':
-        file_path = 'File Selected is not a csv'
-        return file_path
-    if file_path != '' and os.path.exists(file_path) and os.path.isfile(file_path):
-        file_path = file_path
-    tk.destroy()
+    if found:
+        tk = Tk()
+        tk.withdraw() 
+        file_path = askopenfilename(defaultextension='.csv',
+                                    title='choose csv file for AFDD',
+                                    initialfile='',
+                                    parent=tk,
+                                    initialdir = os.path.realpath(__file__))
+        filename, filextension = os.path.splitext(file_path)
+        if filextension != '.csv' and filextension !='':
+            file_path = 'File Selected is not a csv'
+            return file_path
+        if (file_path != '' and os.path.exists(file_path) and 
+                os.path.isfile(file_path)):
+            file_path = file_path
+        tk.destroy()
     return file_path
-   
-                
-    
+
         
