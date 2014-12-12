@@ -53,8 +53,6 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-
-# pylint: disable=W0142
 #}}}
 
 
@@ -215,7 +213,7 @@ class AIPplatform(object):
     def setup(self):
         for path in [self.run_dir, self.config_dir, self.install_dir]:
             if not os.path.exists(path):
-                os.makedirs(path, 0775)
+                os.makedirs(path, 0o775)
 
     def finish(self):
         for exeenv in self.agents.itervalues():
@@ -543,6 +541,7 @@ class AIPplatform(object):
         except KeyError:
             return
         if execenv.process.poll() is None:
+            # pylint: disable=catching-non-exception
             execenv.process.send_signal(signal.SIGINT)
             try:
                 return gevent.with_timeout(3, process_wait, execenv.process)

@@ -55,63 +55,78 @@
 # under Contract DE-AC05-76RL01830
 #}}}
 
-import sys
-import time
+NOBLOCK = 1
+SNDMORE = 2
 
-import zmq
+POLLIN = 1
+POLLOUT = 2
 
-publish_address = 'ipc:///tmp/volttron-platform-agent-publish'
-subscribe_address = 'ipc:///tmp/volttron-platform-agent-subscribe'
-
-
-ctx = zmq.Context()
-
-def broker():
-    pub = zmq.Socket(ctx, zmq.PUB)
-    pull = zmq.Socket(ctx, zmq.PULL)
-    pub.bind('ipc:///tmp/volttron-platform-agent-subscribe')
-    pull.bind('ipc:///tmp/volttron-platform-agent-publish')
-    while True:
-        message = pull.recv_multipart()
-        print message
-        pub.send_multipart(message)
+PUB = 1
+SUB = 2
+PULL = 7
+PUSH = 8
+XPUB = 9
 
 
-def publisher():
-    push = zmq.Socket(ctx, zmq.PUSH)
-    push.connect('ipc:///tmp/volttron-platform-agent-publish')
-    while True:
-        sys.stdout.write('Topic: ')
-        sys.stdout.flush()
-        topic = sys.stdin.readline()
-        sys.stdout.write('Message: ')
-        sys.stdout.flush()
-        message = sys.stdin.readline()
-        push.send_multipart([topic, message])
+class Context(object):
+    def instance(self):
+        return None
 
 
-def subscriber():
-    sub = zmq.Socket(ctx, zmq.SUB)
-    sub.connect('ipc:///tmp/volttron-platform-agent-subscribe')
-    sub.subscribe = ''
-    while True:
-        print sub.recv_multipart()
-        
-def broker_test():
-    pub = zmq.Socket(ctx, zmq.PUB)
-    pull = zmq.Socket(ctx, zmq.PULL)
-    pub.bind('ipc:///tmp/volttron-platform-agent-subscribe')
-    pull.bind('ipc:///tmp/volttron-platform-agent-publish')
+class Poller(object):
+    def register(self, socket, flags=POLLIN|POLLOUT):
+        pass
+
+    def poll(self, timeout=None):
+        return None
+
+
+class Socket(object):
+    def __new__(cls, socket_type, context=None):
+        return None
+
+    def bind(self, addr):
+        pass
+
+    def connect(self, addr):
+        pass
+
+    def disconnect(self, addr):
+        pass
+
+    def close(self, linger=None):
+        pass
+
+    @property
+    def closed(self):
+        return True
+
+    @property
+    def rcvmore(self):
+        return 0
+
+    @property
+    def context(self):
+        return None
+
+    @context.setter
+    def context(self, value):
+        pass
     
-    pub.send_multipart(['topic1', 'Hello world1'])
-    time.sleep(2)
-    pub.send_multipart(['foo', 'bar'])
-    time.sleep(2)
-    pub.send_multipart(['topic2', 'Goodbye'])
-    time.sleep(2)
-    pub.send_multipart(['platform', 'Hello from platform'])
-    time.sleep(2)
-    pub.send_multipart(['platform.shutdown', 'Goodbye'])
+    def send_string(self, u, flags=0, copy=True, encoding='utf-8'):
+        pass
 
-if __name__ == '__main__':
-    subscriber()
+    def recv_string(self, flags=0, encoding='utf-8'):
+        return u''
+
+    def send_multipart(self, msg_parts, flags=0, copy=True, track=False):
+        pass
+
+    def recv_multipart(self, flags=0, copy=True, track=False):
+        return []
+
+    def send_json(self, obj, flags=0, **kwargs):
+        pass
+
+    def recv_json(self, flags=0, **kwargs):
+        return {}

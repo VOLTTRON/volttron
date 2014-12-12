@@ -55,63 +55,23 @@
 # under Contract DE-AC05-76RL01830
 #}}}
 
-import sys
-import time
-
-import zmq
-
-publish_address = 'ipc:///tmp/volttron-platform-agent-publish'
-subscribe_address = 'ipc:///tmp/volttron-platform-agent-subscribe'
+AF_UNIX = 1
+SOCK_STREAM = 1
+SOL_SOCKET = 1
 
 
-ctx = zmq.Context()
+class socket(object):
+    def accept(self):
+        return (None, ('', 0))
 
-def broker():
-    pub = zmq.Socket(ctx, zmq.PUB)
-    pull = zmq.Socket(ctx, zmq.PULL)
-    pub.bind('ipc:///tmp/volttron-platform-agent-subscribe')
-    pull.bind('ipc:///tmp/volttron-platform-agent-publish')
-    while True:
-        message = pull.recv_multipart()
-        print message
-        pub.send_multipart(message)
+    def bind(self, address):
+        pass
 
+    def connect(self, address):
+        pass
 
-def publisher():
-    push = zmq.Socket(ctx, zmq.PUSH)
-    push.connect('ipc:///tmp/volttron-platform-agent-publish')
-    while True:
-        sys.stdout.write('Topic: ')
-        sys.stdout.flush()
-        topic = sys.stdin.readline()
-        sys.stdout.write('Message: ')
-        sys.stdout.flush()
-        message = sys.stdin.readline()
-        push.send_multipart([topic, message])
+    def listen(self, backlog):
+        pass
 
-
-def subscriber():
-    sub = zmq.Socket(ctx, zmq.SUB)
-    sub.connect('ipc:///tmp/volttron-platform-agent-subscribe')
-    sub.subscribe = ''
-    while True:
-        print sub.recv_multipart()
-        
-def broker_test():
-    pub = zmq.Socket(ctx, zmq.PUB)
-    pull = zmq.Socket(ctx, zmq.PULL)
-    pub.bind('ipc:///tmp/volttron-platform-agent-subscribe')
-    pull.bind('ipc:///tmp/volttron-platform-agent-publish')
-    
-    pub.send_multipart(['topic1', 'Hello world1'])
-    time.sleep(2)
-    pub.send_multipart(['foo', 'bar'])
-    time.sleep(2)
-    pub.send_multipart(['topic2', 'Goodbye'])
-    time.sleep(2)
-    pub.send_multipart(['platform', 'Hello from platform'])
-    time.sleep(2)
-    pub.send_multipart(['platform.shutdown', 'Goodbye'])
-
-if __name__ == '__main__':
-    subscriber()
+    def makefile(self, mode='r', bufsize=-1):
+        return None

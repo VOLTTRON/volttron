@@ -55,63 +55,42 @@
 # under Contract DE-AC05-76RL01830
 #}}}
 
-import sys
-import time
+'''
+volttron.lint -- a pylint plugin to mask spurious dynamic attribute errors.
 
-import zmq
+volttron.lint is a pylint plugin to mask spurious errors produced by pylint
+when objects with dynamic attributes are used. Dynamic attributes are those not
+defined directly on the object but are instead added by a metaclass or through
+calls to __getattribute__(). This module allows adding fake modules/classes
+which are added to the lookup mechanism to allow pylint to properly check
+dynamic attributes.
 
-publish_address = 'ipc:///tmp/volttron-platform-agent-publish'
-subscribe_address = 'ipc:///tmp/volttron-platform-agent-subscribe'
+Each fake module should be contained in a file in this directory named the same
+as the module it fakes plus a '.py' extension. Upon loading the plugin, a
+module transform function will be registered which will read the module file,
+if it exists, and create and add the appropriate objects and attributes to the
+namespace for that class. See the existing files for details.
+'''
 
+import os
 
-ctx = zmq.Context()
-
-def broker():
-    pub = zmq.Socket(ctx, zmq.PUB)
-    pull = zmq.Socket(ctx, zmq.PULL)
-    pub.bind('ipc:///tmp/volttron-platform-agent-subscribe')
-    pull.bind('ipc:///tmp/volttron-platform-agent-publish')
-    while True:
-        message = pull.recv_multipart()
-        print message
-        pub.send_multipart(message)
-
-
-def publisher():
-    push = zmq.Socket(ctx, zmq.PUSH)
-    push.connect('ipc:///tmp/volttron-platform-agent-publish')
-    while True:
-        sys.stdout.write('Topic: ')
-        sys.stdout.flush()
-        topic = sys.stdin.readline()
-        sys.stdout.write('Message: ')
-        sys.stdout.flush()
-        message = sys.stdin.readline()
-        push.send_multipart([topic, message])
+from astroid import MANAGER, nodes
+from astroid.builder import AstroidBuilder
 
 
-def subscriber():
-    sub = zmq.Socket(ctx, zmq.SUB)
-    sub.connect('ipc:///tmp/volttron-platform-agent-subscribe')
-    sub.subscribe = ''
-    while True:
-        print sub.recv_multipart()
-        
-def broker_test():
-    pub = zmq.Socket(ctx, zmq.PUB)
-    pull = zmq.Socket(ctx, zmq.PULL)
-    pub.bind('ipc:///tmp/volttron-platform-agent-subscribe')
-    pull.bind('ipc:///tmp/volttron-platform-agent-publish')
-    
-    pub.send_multipart(['topic1', 'Hello world1'])
-    time.sleep(2)
-    pub.send_multipart(['foo', 'bar'])
-    time.sleep(2)
-    pub.send_multipart(['topic2', 'Goodbye'])
-    time.sleep(2)
-    pub.send_multipart(['platform', 'Hello from platform'])
-    time.sleep(2)
-    pub.send_multipart(['platform.shutdown', 'Goodbye'])
+def transform(module):
+    '''Add fake locals to a module's namespace.'''
+    # Generate the path to the fake module
+    dirname = os.path.dirname(__file__)
+    path = os.path.join(dirname, module.name + '.py')
+    if not os.path.exists(path):
+        return
+    # If the file exists, add fakes to the module's namespace
+    fake = AstroidBuilder(MANAGER).file_build(path)
+    for name, obj in fake.locals.iteritems():
+        module.locals.setdefault(name, []).extend(obj)
 
-if __name__ == '__main__':
-    subscriber()
+
+def register(linter):
+    '''Register the transform function during plugin registration.'''
+    MANAGER.register_transform(nodes.Module, transform)

@@ -209,7 +209,7 @@ def _create_initial_package(agent_dir_to_package, wheelhouse):
         wheel_name = os.listdir(distdir)[0]
         wheel_path = os.path.join(distdir, wheel_name)
         if not os.path.exists(wheelhouse):
-            os.makedirs(wheelhouse, 0750)
+            os.makedirs(wheelhouse, 0o750)
         wheel_dest = os.path.join(wheelhouse, wheel_name)
         shutil.move(wheel_path, wheel_dest)
         return wheel_dest

@@ -106,7 +106,7 @@ def read_prop(app, address, obj_type, obj_inst, prop_id):
     result = this_application.make_request(request)
     if not isinstance(result, ReadPropertyACK):
         result.debug_contents(file=sys.stderr)
-        raise TypeError, "Error reading property"
+        raise TypeError("Error reading property")
     
     # find the datatype
     datatype = get_datatype(obj_type, prop_id)
@@ -156,12 +156,12 @@ try:
     
     if not isinstance(result, IAmRequest):
         result.debug_contents()
-        raise TypeError, "Error making WhoIs request"
+        raise TypeError("Error making WhoIs request")
         
     
     device_type, device_instance = result.iAmDeviceIdentifier
     if device_type != 'device':
-        raise DecodingError, "invalid object type"
+        raise DecodingError("invalid object type")
     
     _log.debug('pduSource = ' + repr(result.pduSource))
     _log.debug('iAmDeviceIdentifier = ' + str(result.iAmDeviceIdentifier))
