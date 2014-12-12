@@ -78,13 +78,13 @@ CAN_SUBSCRIBE = False
 publish_address = 'ipc://$VOLTTRON_HOME/run/no-publisher'
 subscribe_address = 'ipc://$VOLTTRON_HOME/run/no-subscriber'
 if 'AGENT_PUB_ADDR' in os.environ:
-    publish_address = os.environ['AGENT_PUB_ADDR'] 
+    publish_address = os.environ['AGENT_PUB_ADDR']
     CAN_PUBLISH = True
 else:
     print("ERROR: NO PUBLISH ADDRESS IN ENVIRONMENT")
     CAN_PUBLISH = False
 if 'AGENT_SUB_ADDR' in os.environ:
-    subscribe_address = os.environ['AGENT_SUB_ADDR'] 
+    subscribe_address = os.environ['AGENT_SUB_ADDR']
     CAN_SUBSCRIBE = True
 else:
     print("ERROR: NO SUBSCRIBE ADDRESS IN ENVIRONMENT")
@@ -102,8 +102,8 @@ class DataLogger(driver.SmapDriver):
 
         # Subscribe to logging topic
         self.subscribe()
-        
-    
+
+
 
     def start(self):
         periodicSequentialCall(self.read).start(1)
