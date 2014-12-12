@@ -80,11 +80,11 @@ from volttron.platform.agent import utils
 try:
     import volttron.restricted
 except ImportError:
-    have_restricted = False
+    HAVE_RESTRICTED = False
 else:
     from paramiko import PasswordRequiredException, SSHException
-    from volttron.restricted import comms, resmon
-    have_restricted = True
+    from volttron.restricted import comms, resmon, cgroups
+    HAVE_RESTRICTED = True
 
 _stdout = sys.stdout
 _stderr = sys.stderr
@@ -331,7 +331,7 @@ def shutdown_agents(opts):
 
 def create_cgroups(opts):
     try:
-        resmon.create_cgroups(user=opts.user, group=opts.group)
+        cgroups.setup(user=opts.user, group=opts.group)
     except ValueError as exc:
         _stderr.write('{}: error: {}\n'.format(opts.command, exc))
         return os.EX_NOUSER
@@ -428,7 +428,7 @@ def main(argv=sys.argv):
                'agent during install without requiring a separate call to '
                'the tag command.')
     install.add_argument('wheel', nargs='+', help='path to agent wheel')
-    if have_restricted:
+    if HAVE_RESTRICTED:
         install.add_argument('--verify', action='store_true', dest='verify_agents',
             help='verify agent integrity during install')
         install.add_argument('--no-verify', action='store_false', dest='verify_agents',
@@ -486,7 +486,7 @@ def main(argv=sys.argv):
     start = add_parser('start', parents=[filterable],
         help='start installed agent')
     start.add_argument('pattern', nargs='+', help='UUID or name of agent')
-    if have_restricted:
+    if HAVE_RESTRICTED:
         start.add_argument('--verify', action='store_true', dest='verify_agents',
             help='verify agent integrity during start')
         start.add_argument('--no-verify', action='store_false', dest='verify_agents',
@@ -501,7 +501,7 @@ def main(argv=sys.argv):
     run = add_parser('run',
         help='start any agent by path')
     run.add_argument('directory', nargs='+', help='path to agent directory')
-    if have_restricted:
+    if HAVE_RESTRICTED:
         run.add_argument('--verify', action='store_true', dest='verify_agents',
             help='verify agent integrity during run')
         run.add_argument('--no-verify', action='store_false', dest='verify_agents',
@@ -514,7 +514,7 @@ def main(argv=sys.argv):
         help='also stop the platform process')
     shutdown.set_defaults(func=shutdown_agents, platform=False)
 
-    if have_restricted:
+    if HAVE_RESTRICTED:
         send = add_parser('send',
             help='send mobile agent to and start on a remote platform')
         send.add_argument('-p', '--port', type=int, metavar='NUMBER',
