@@ -60,7 +60,7 @@
 '''VOLTTRON platform™ base agent and helper classes/functions.'''
 
 from abc import ABCMeta, abstractmethod
-from collections import defaultdict
+from collections import (OrderedDict, defaultdict)
 import logging
 import random
 import string
@@ -568,7 +568,7 @@ class AbstractDrivenAgent:
 
 class Results:
     def __init__(self, terminate=False):
-        self.commands = {}
+        self.commands = OrderedDict()
         self.log_messages = []
         self._terminate = terminate
         self.table_output = defaultdict(list)
