@@ -26,22 +26,6 @@ except ImportError:
     auth = None
     certs = None
 
-# from volttron.platform.control import (CTL_STATUS,
-#                                        CTL_INSTALL,
-#                                        CTL_STATUS,
-#                                        CTL_START,
-#                                        CTL_STOP)
-
-#All paths relative to proj-dir/volttron
-# INST_EXEC = "install"
-# REM_EXEC = "remove-executable"
-# LOAD_AGENT = "load-agent"
-# UNLOAD_AGENT = "unload-agent"
-# LIST_AGENTS = "list-agents"
-# STOP_AGENT = "stop-agent"
-# START_AGENT = "start-agent"
-# BUILD_AGENT = "volttron/scripts/build-agent.sh"
-
 #Filenames for the config files which are created during setup and then
 #passed on the command line
 TMP_PLATFORM_CONFIG_FILENAME = "config"
