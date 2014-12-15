@@ -21,6 +21,8 @@ class DrivenLoggerTests(base.BasePlatformTest):
     def tearDown(self):
         super(DrivenLoggerTests, self).tearDown()
 
+
+
     def test_direct_install_start_stop_start(self):
         uuid = self.direct_build_install_run_agent(AGENT_DIR, CONFIG_FILE)
         time.sleep(SLEEP_TIME)
@@ -30,14 +32,14 @@ class DrivenLoggerTests(base.BasePlatformTest):
 
 
     def test_logger_agent_started(self):
-        os.environ['AGENT_PUB_ADDR'] = os.path.join("ipc:///",
-                                                    os.environ['VOLTTRON_HOME'],
-                                            'run/publish')
+
         uuid = self.direct_build_install_run_agent(AGENT_DIR, CONFIG_FILE)
         time.sleep(SLEEP_TIME)
-        self.assertIsNotNone(os.environ['AGENT_PUB_ADDR'])
+        publish_addr = self.env()['AGENT_PUB_ADDR']
+        self.assertIsNotNone(publish_addr)
         msg = {"oat1": "50", "oat2":"20.5"}
-        pub = PublishMixin("ipc://"+os.environ['AGENT_PUB_ADDR'])
-        pub.publish_json('pnnl/isb1/oat',{}, msg)
+        print('ENVIRONMENT: ', publish_addr)
+        pub = PublishMixin(publish_addr)
+        pub.publish_json('pnnl/isb1/oat/all',{}, msg)
         time.sleep(SLEEP_TIME)
 
