@@ -103,11 +103,13 @@ class PlatformWrapper():
         self.wheelhouse = '/'.join((self.tmpdir, 'wheelhouse'))
         os.makedirs(self.wheelhouse)
         
-        
+        self.static_home = False
         if volttron_home is not None:
             mergetree(volttron_home, self.tmpdir)
+            self.static_home = True
         self.env = os.environ.copy()
         self.env['VOLTTRON_HOME'] = self.tmpdir
+         
         print (self.env['VOLTTRON_HOME'])
         
         if RESTRICTED_AVAILABLE:
@@ -118,17 +120,18 @@ class PlatformWrapper():
             self.certsobj = certs.Certs(certsdir)
         
         
-    def startup_platform(self, platform_config, use_twistd = True, mode=UNRESTRICTED):
+    def startup_platform(self, platform_config=None, use_twistd = True, mode=UNRESTRICTED):
         
         try:
-            config = json.loads(open(platform_config, 'r').read())
+            if platform_config:
+                config = json.loads(open(platform_config, 'r').read())
+                config['tmpdir'] = self.tmpdir
+            else:
+                config = {}
         except Exception as e:
             sys.stderr.write (str(e))
-            self.fail("Could not load configuration file for tests", e)
         
 #         self.tmpdir = tempfile.mkdtemp()
-        config['tmpdir'] = self.tmpdir
-        
         pconfig = os.path.join(self.tmpdir, TMP_PLATFORM_CONFIG_FILENAME)
         
         self.mode = mode
@@ -138,14 +141,16 @@ class PlatformWrapper():
         opts = None
         
         if self.mode == UNRESTRICTED:
-            with closing(open(pconfig, 'w')) as cfg:
-                cfg.write(PLATFORM_CONFIG_UNRESTRICTED.format(**config))
+            if config:
+                with closing(open(pconfig, 'w')) as cfg:
+                    cfg.write(PLATFORM_CONFIG_UNRESTRICTED.format(**config))
             opts = type('Options', (), {'verify_agents': False,'volttron_home': self.tmpdir})()
         elif self.mode == RESTRICTED:
             if not RESTRICTED_AVAILABLE:
                 raise ValueError("restricted is not available.")
-            with closing(open(pconfig, 'w')) as cfg:
-                cfg.write(PLATFORM_CONFIG_RESTRICTED.format(**config))
+            if config:
+                with closing(open(pconfig, 'w')) as cfg:
+                    cfg.write(PLATFORM_CONFIG_RESTRICTED.format(**config))
             opts = type('Options', (), {'verify_agents': True, 'volttron_home': self.tmpdir})()
             
 #                 self.create_certs()
@@ -164,7 +169,7 @@ class PlatformWrapper():
         
         pparams = [VSTART, "-c", pconfig, "-vv", "-l", lfile]
         print pparams
-        
+        print os.getcwd()
         self.p_process = subprocess.Popen(pparams, env=self.env)
 
         
@@ -242,9 +247,9 @@ class PlatformWrapper():
         assert(auth.sign_as_creator(package, 'creator', certsobj=self.certsobj)), "Signing as {} failed.".format('creator')
             
 
-    def direct_sign_agentpackage_soi(self, package):
+    def direct_sign_agentpackage_admin(self, package):
         assert (RESTRICTED), "Auth not available"
-        assert(auth.sign_as_admin(package, 'soi', certsobj=self.certsobj)), "Signing as {} failed.".format('soi')
+        assert(auth.sign_as_admin(package, 'admin', certsobj=self.certsobj)), "Signing as {} failed.".format('admin')
             
 
     def direct_sign_agentpackage_initiator(self, package, config_file, contract):

@@ -248,10 +248,10 @@ def _sign_agent_package(agent_package, **kwargs):
     if certs_dir is not None:
         certsobj = certs.Certs(certs_dir)
 
-    if cert_type == 'soi':
+    if cert_type == 'admin':
         if files:
             raise AgentPackageError("soi's aren't allowed to add files.")
-        verified = auth.sign_as_admin(agent_package, 'soi', certsobj = certsobj)
+        verified = auth.sign_as_admin(agent_package, 'admin', certsobj = certsobj)
     elif cert_type == 'creator':
         verified = auth.sign_as_creator(agent_package, 'creator', files, certsobj = certsobj)
     elif cert_type == 'initiator':
@@ -271,7 +271,7 @@ def _sign_agent_package(agent_package, **kwargs):
 def _cert_type_from_kwargs(**kwargs):
     '''Return cert type string from kwargs values'''
 
-    for k in ('soi', 'creator', 'initiator', 'platform'):
+    for k in ('admin', 'creator', 'initiator', 'platform'):
         try:
             if k in kwargs['user_type'] and kwargs['user_type'][k]:
                 return k
@@ -520,7 +520,7 @@ def main(argv=sys.argv):
                         verifier.verify()
                         print "Package is verified"
                     else:
-                        user_type = {'soi': opts.soi,
+                        user_type = {'admin': opts.soi,
                                   'creator': opts.creator,
                                   'initiator': opts.initiator,
                                   'platform': opts.platform}
