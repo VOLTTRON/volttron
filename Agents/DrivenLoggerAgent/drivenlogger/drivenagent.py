@@ -97,11 +97,14 @@ def DrivenAgent(config_path, **kwargs):
     if validation_error:
         _log.error(validation_error)
         raise ValueError(validation_error)
+    config.update(kwargs)
+
     klass = _get_class(application)
     # This instances is used to call the applications run method when
     # data comes in on the message bus.  It is constructed here so that
     # each time run is called the application can keep it state.
-    app_instance = klass(**kwargs)
+    app_instance = klass(**config)
+
 
     class Agent(PublishMixin, BaseAgent):
         '''Agent listens to message bus device and runs when data is published.
@@ -125,6 +128,7 @@ def DrivenAgent(config_path, **kwargs):
 
             results = app_instance.run(datetime.now(),data)
             self._process_results(results)
+
 
 
         def _process_results(self, results):
