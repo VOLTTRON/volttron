@@ -1,5 +1,7 @@
 {
     "agentid": "drivenlogger1",
     "application": "drivenlogger.logdevice.LogDevice",
-    "device": "pnnl/isb1/oat"
+    "device": "pnnl/isb1/oat",
+    "sample_size": "100%",
+    "big_top": "doah!"
 }
