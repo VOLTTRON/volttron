@@ -112,7 +112,6 @@ def DrivenAgent(config_path, **kwargs):
     # each time run is called the application can keep it state.
     app_instance = klass(**config)
 
-
     class Agent(PublishMixin, BaseAgent):
         '''Agent listens to message bus device and runs when data is published.
         '''
@@ -128,6 +127,7 @@ def DrivenAgent(config_path, **kwargs):
                 with open(output_file, 'w') as writer:
                     writer.close()
             _log.debug("device_topic is set to: "+device_topic)
+            self._header_written = False
 
         @matching.match_exact(device_topic)
         def on_received_message(self, topic, headers, message, matched):
@@ -158,12 +158,22 @@ def DrivenAgent(config_path, **kwargs):
             for key, value in results.table_output.iteritems():
                 _log.debug("TABLE: {}->{}".format(key, value))
 
+
             if output_file != None:
                 if len(results.table_output.keys()) > 0:
-                    with open(output_file, 'a') as f:
-                        fout = csv.DictWriter(f, results.table_output.keys())
-                        fout.writerow(results.table_output)
-                        f.close()
+                    for k, v in results.table_output.items():
+                        fname = output_file #+"-"+k+".csv"
+                        for r in v:
+                            with open(fname, 'a+') as f:
+                                keys = r.keys()
+                                fout = csv.DictWriter(f, keys)
+                                if not self._header_written:
+                                    fout.writeheader()
+                                    self._header_written = True
+#                                 if not header_written:
+#                                     fout.writerow(keys)
+                                fout.writerow(r)
+                                f.close()
 
 
     Agent.__name__ = 'DrivenLoggerAgent'
