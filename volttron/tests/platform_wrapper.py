@@ -166,14 +166,14 @@ class PlatformWrapper():
         elif self.mode == RESTRICTED:
             if not RESTRICTED_AVAILABLE:
                 raise ValueError("restricted is not available.")
-            
+
             certsdir = os.path.join(os.path.expanduser(self.env['VOLTTRON_HOME']),
                                      'certificates')
-            
+
             print ("certsdir", certsdir)
             self.certsobj = certs.Certs(certsdir)
 
-            
+
             with closing(open(pconfig, 'w')) as cfg:
                 cfg.write(PLATFORM_CONFIG_RESTRICTED.format(**config))
             opts = type('Options', (), {'resource-monitor':False,
@@ -246,7 +246,6 @@ class PlatformWrapper():
             sys.stderr.write (str(e))
             raise PlatformWrapperError("Could not load configuration file for tests")
 
-#         self.tmpdir = tempfile.mkdtemp()
         config['tmpdir'] = self.tmpdir
 
         outfile = os.path.join(self.tmpdir, filename)
@@ -259,24 +258,6 @@ class PlatformWrapper():
 
     def create_certs(self):
         auth.create_root_ca(self.tmpdir, ca_name)
-
-#     def build_agentpackage(self, distdir):
-#         pwd = os.getcwd()
-#         try:
-#             basepackage = os.path.join(self.tmpdir,distdir)
-#             shutil.copytree(os.path.abspath(distdir), basepackage)
-#             orignal_dir = os.getcwd()
-#             os.chdir(basepackage)
-#             sys.argv = ['', 'bdist_wheel']
-#             exec(compile(open('setup.py').read(), 'setup.py', 'exec'))
-#
-#             wheel_name = os.listdir('./dist')[0]
-#
-#             wheel_file_and_path = os.path.join(os.path.abspath('./dist'), wheel_name)
-#         finally:
-#             os.chdir(orignal_dir)
-#
-#         return wheel_file_and_path
 
     def direct_sign_agentpackage_creator(self, package):
         assert (RESTRICTED), "Auth not available"

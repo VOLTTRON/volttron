@@ -87,17 +87,6 @@ class BasePlatformTest(unittest.TestCase):
     def setUp(self):
         self.platform_wrapper = PlatformWrapper()
 
-    def setup_connector(self):
-        path = os.path.expandvars('$VOLTTRON_HOME/run/control')
-
-        tries = 0
-        max_tries = 5
-        while(not os.path.exists(path) and tries < max_tries):
-            time.sleep(5)
-            tries += 1
-
-        self.conn= server.ControlConnector(path)
-
     def startup_platform(self, platform_config, volttron_home=None,
                          use_twistd=True, mode=UNRESTRICTED):
 
@@ -108,23 +97,7 @@ class BasePlatformTest(unittest.TestCase):
                                                mode=mode)
 
     def fillout_file(self, filename, template, config_file):
-
-        try:
-            config = json.loads(open(config_file, 'r').read())
-        except Exception as e:
-            sys.stderr.write (str(e))
-            self.fail("Could not load configuration file for tests")
-
-#         self.tmpdir = tempfile.mkdtemp()
-        config['tmpdir'] = self.tmpdir
-
-        outfile = os.path.join(self.tmpdir, filename)
-        with closing(open(outfile, 'w')) as cfg:
-            cfg.write(template.format(**config))
-
-        return outfile
-
-
+        return self.platform_wrapper.fillout_file(filename, template, config_file)
 
     def create_certs(self):
         auth.create_root_ca(self.tmpdir, ca_name)
