@@ -80,7 +80,7 @@ from ..messaging import topics
 
 
 __all__ = ['periodic', 'BaseAgent', 'PublishMixin', 'AbstractDrivenAgent',
-           'Results']
+           'Results', 'ConversionMapper']
 
 __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2013, Battelle Memorial Institute'
@@ -584,4 +584,62 @@ class Results:
 
     def insert_table_row(self, table, row):
         self.table_output[table].append(row)
+
+import re
+from collections import defaultdict
+from . import utils
+class ConversionMapper:
+
+    def __init__(self, **kwargs):
+        self.initialized = False
+        utils.setup_logging()
+        self._log = logging.getLogger(__name__)
+        self.conversion_map = {}
+
+    def setup_conversion_map(self, conversion_map_config, field_names):
+        #time_format = conversion_map_config.pop(TIME_STAMP_COLUMN)
+        re_exp_list = conversion_map_config.keys()
+        re_exp_list.sort(cmp=lambda x,y: cmp(len(x), len(y)))
+        re_exp_list.reverse()
+        re_list = [re.compile(x) for x in re_exp_list]
+
+        def default_handler():
+            return lambda x:x
+        self.conversion_map = defaultdict(default_handler)
+        def handle_time(item):
+            return datetime.datetime.strptime(item, time_format)
+        #self.conversion_map[TIME_STAMP_COLUMN] = handle_time
+
+        def handle_bool(item):
+            item_lower = item.lower()
+            if (item_lower == 'true' or
+                item_lower == 't' or
+                item_lower == '1'):
+                return True
+            return False
+        type_map = {'int':int,
+                    'float':float,
+                    'bool':handle_bool}
+
+
+        for name in field_names:
+            for field_re in re_list:
+                if field_re.match(name):
+                    pattern = field_re.pattern
+                    self._log.debug('Pattern {pattern} used to process {name}.' \
+                                    .format(pattern=pattern, name=name))
+                    type_string = conversion_map_config[pattern]
+                    self.conversion_map[name] = type_map[type_string]
+                    break
+                #else:
+                #    if name != TIME_STAMP_COLUMN:
+                #        self.log_message(logging.ERROR, 'FILE CONTROLLER', 'No matching map for column {name}. Will return raw string.'.format(name=name))
+        self.initialized = True
+
+    def process_row(self, row_dict):
+        null_values = {'NAN', 'NA', '#NA', 'NULL', 'NONE',
+                       'nan', 'na', '#na', 'null', 'none',
+                       '', None}
+        return dict((c,self.conversion_map[c](v)) if v not in null_values else (c,None) for c,v in row_dict.iteritems())
+
 
