@@ -1,0 +1,24 @@
+{
+    "agentid": "economizerrcx",
+    "application": "economizer_rcx.Application",
+    "device": "pnnl/isb1/oat",
+    "output_file": "./junk.csv",
+
+    "arguments": {
+        "fan_status": "supplyfanstatus",
+        "oa_temp": "outdoorairtemperature",
+        "ra_temp": "returnairtemperature",
+        "ma_temp": "mixedairtemperature",
+        "damper_signal": "outdoordampersignal",
+        "cool_call": "coolingcall",
+        "fan_speedcmd": "supplyfanspeed"
+    },
+
+    "conversion_map": {
+        ".*Temperature": "float",
+        "OutdoorDamperSignal": "float",
+        "SupplyFanStatus": "int",
+        "CoolingCall": "float",
+        "SupplyFanSpeed": "int"
+    }
+}
