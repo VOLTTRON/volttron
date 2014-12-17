@@ -56,4 +56,4 @@
 #}}}
 
 def monotonic():
-    return None
+    return 0.0
