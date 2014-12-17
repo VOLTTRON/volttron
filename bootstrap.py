@@ -1,3 +1,18 @@
+'''bootstrap - Prepare a VOLTTRON virtual environment.
+
+Bootstrapping is broken into two stages. The first stage should only
+execute once. It downloads virtualenv and creates a virtual Python
+environment in the env directory. It then executes stage two using the
+newly installed virtual environment. Stage two uses the new virtual
+Python environment to install VOLTTRON and its dependencies.
+
+If a new dependency is added, this script may be run again using the
+Python executable in the virtual environment to re-run stage two:
+
+  env/bin/python bootstrap.py
+'''
+
+
 from __future__ import print_function
 
 import os
