@@ -57,14 +57,12 @@
 
 '''VOLTTRON platform™ base agent and helper classes/functions.'''
 
-from abc import ABCMeta, abstractmethod
-from collections import (OrderedDict, defaultdict)
-import logging
+from __future__ import absolute_import
+
 import random
 import string
 import time as time_mod
 
-# XXX find a way to quiet pylint errors about dynamic attributes
 import zmq
 from zmq import POLLIN, POLLOUT
 from zmq.utils import jsonapi
@@ -77,8 +75,7 @@ from .. import messaging
 from ..messaging import topics
 
 
-__all__ = ['periodic', 'BaseAgent', 'PublishMixin', 'AbstractDrivenAgent',
-           'Results', 'ConversionMapper']
+__all__ = ['periodic', 'BaseAgent', 'PublishMixin']
 
 __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2013, Battelle Memorial Institute'
@@ -112,7 +109,6 @@ def periodic(period, *args, **kwargs):
     period seconds while the agent is executing its run loop.
     '''
     def decorator(func):
-        # pylint: disable=C0111
         try:
             periodics = func._periodics
         except AttributeError:
@@ -207,7 +203,6 @@ class BaseAgent(AgentBase):
     LOOP_INTERVAL = 60
 
     def __init__(self, subscribe_address, **kwargs):
-        # pylint: disable=W0613
         super(BaseAgent, self).__init__(**kwargs)
         self._subscriptions = {}
         self._mono = sched.Queue()
@@ -334,7 +329,7 @@ class BaseAgent(AgentBase):
         '''
         try:
             topic, headers, message = self._sub.recv_message(
-                    0 if block else zmq.NOBLOCK)
+                0 if block else zmq.NOBLOCK)
         except zmq.error.Again:
             return
         try:
@@ -392,7 +387,6 @@ class BaseAgent(AgentBase):
         topic prefix are removed, the topic is also unsubscribed.
         '''
         def remove_handler(key, handlers):
-            # pylint: disable=C0111
             remove_matching(lambda item: id(item) == handler_id, handlers)
             if not handlers:
                 del self._subscriptions[key]
@@ -513,131 +507,3 @@ class PublishMixin(AgentBase):
     def publish_ex(self, topic, headers, *msg_tuples, **kwargs):
         '''Publish messages given as (content-type, message) tuples.'''
         self._pub.send_message_ex(topic, headers, *msg_tuples, **kwargs)
-
-class AbstractDrivenAgent:
-    __metaclass__ = ABCMeta
-
-    def __init__(self, out=None,**kwargs):
-        """
-        When applications extend this base class, they need to make
-        use of any kwargs that were setup in config_param
-        """
-        super().__init__(**kwargs)
-        self.out = out
-        self.data = {}
-
-    @classmethod
-    @abstractmethod
-    def output_format(cls, input_object):
-        """
-        The output object takes the resulting input object as a argument
-        so that it may give correct topics to it's outputs if needed.
-
-        output schema description
-            {TableName1: {name1:OutputDescriptor1, name2:OutputDescriptor2,...},....}
-
-            eg: {'OAT': {'Timestamp':OutputDescriptor('timestamp', 'foo/bar/timestamp'),'OAT':OutputDescriptor('OutdoorAirTemperature', 'foo/bar/oat')},
-                'Sensor': {'SomeValue':OutputDescriptor('integer', 'some_output/value'),
-                'SomeOtherValue':OutputDescriptor('boolean', 'some_output/value),
-                'SomeString':OutputDescriptor('string', 'some_output/string)}}
-
-        Should always call the parent class output_format and update the dictionary returned from
-        the parent.
-
-        result = super().output_format(input_object)
-        my_output = {...}
-        result.update(my_output)
-        return result
-        """
-        return {}
-
-    @abstractmethod
-    def run(self, time, inputs):
-        '''Do work for each batch of timestamped inputs
-           time- current time
-           inputs - dict of point name -> value
-
-           Must return a results object.'''
-        pass
-
-    def shutdown(self):
-        '''Override this to add shutdown routines.'''
-        return Results()
-
-class Results:
-    def __init__(self, terminate=False):
-        self.commands = OrderedDict()
-        self.log_messages = []
-        self._terminate = terminate
-        self.table_output = defaultdict(list)
-
-    def command(self, point, value):
-        self.commands[point]=value
-
-    def log(self, message, level=logging.DEBUG):
-        self.log_messages.append((level, message))
-
-    def terminate(self, terminate):
-        self._terminate = bool(terminate)
-
-    def insert_table_row(self, table, row):
-        self.table_output[table].append(row)
-
-import re
-from collections import defaultdict
-from . import utils
-class ConversionMapper:
-
-    def __init__(self, **kwargs):
-        self.initialized = False
-        utils.setup_logging()
-        self._log = logging.getLogger(__name__)
-        self.conversion_map = {}
-
-    def setup_conversion_map(self, conversion_map_config, field_names):
-        #time_format = conversion_map_config.pop(TIME_STAMP_COLUMN)
-        re_exp_list = conversion_map_config.keys()
-        re_exp_list.sort(cmp=lambda x,y: cmp(len(x), len(y)))
-        re_exp_list.reverse()
-        re_list = [re.compile(x) for x in re_exp_list]
-
-        def default_handler():
-            return lambda x:x
-        self.conversion_map = defaultdict(default_handler)
-        def handle_time(item):
-            return datetime.datetime.strptime(item, time_format)
-        #self.conversion_map[TIME_STAMP_COLUMN] = handle_time
-
-        def handle_bool(item):
-            item_lower = item.lower()
-            if (item_lower == 'true' or
-                item_lower == 't' or
-                item_lower == '1'):
-                return True
-            return False
-        type_map = {'int':int,
-                    'float':float,
-                    'bool':handle_bool}
-
-
-        for name in field_names:
-            for field_re in re_list:
-                if field_re.match(name):
-                    pattern = field_re.pattern
-                    self._log.debug('Pattern {pattern} used to process {name}.' \
-                                    .format(pattern=pattern, name=name))
-                    type_string = conversion_map_config[pattern]
-                    self.conversion_map[name] = type_map[type_string]
-                    break
-                #else:
-                #    if name != TIME_STAMP_COLUMN:
-                #        self.log_message(logging.ERROR, 'FILE CONTROLLER', 'No matching map for column {name}. Will return raw string.'.format(name=name))
-        self.initialized = True
-
-    def process_row(self, row_dict):
-        null_values = {'NAN', 'NA', '#NA', 'NULL', 'NONE',
-                       'nan', 'na', '#na', 'null', 'none',
-                       '', None}
-        return dict((c,self.conversion_map[c](v)) if v not in null_values else (c,None) for c,v in row_dict.iteritems())
-
-
