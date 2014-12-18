@@ -63,7 +63,8 @@ import posixpath
 import sys
 
 from volttron.platform.agent import (AbstractDrivenAgent, BaseAgent,
-                                     PublishMixin, matching, utils)
+                                     PublishMixin, ConversionMapper,
+                                     matching, utils)
 from volttron.platform.agent.utils import jsonapi
 from volttron.platform.messaging import topics
 
@@ -76,6 +77,7 @@ __license__ = 'FreeBSD'
 def DrivenAgent(config_path, **kwargs):
     config = utils.load_config(config_path)
     agent_id = config.get('agentid')
+    conversions = config.get('conversion_map')
 
     validation_error = ""
     device_topic = config.get('device')
