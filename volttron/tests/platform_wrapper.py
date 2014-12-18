@@ -138,6 +138,7 @@ class PlatformWrapper():
     def startup_platform(self, platform_config, use_twistd = False,
                          mode=UNRESTRICTED):
         try:
+            print("PLATFORM CONFIG: ", platform_config)
             config = json.loads(open(platform_config, 'r').read())
         except Exception as e:
             config = None

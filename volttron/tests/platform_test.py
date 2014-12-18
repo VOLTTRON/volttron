@@ -6,7 +6,7 @@ from os.path import dirname
 
 from platform_wrapper import PlatformWrapper
 
-_VOLTRON = dirname(os.path.join(os.path.abspath(dirname(__file__))))
+_VOLTRON = dirname(dirname(os.path.join(os.path.abspath(dirname(__file__)))))
 
 class PlatformTests(unittest.TestCase):
 
