@@ -102,7 +102,7 @@ class BasePlatformTest(unittest.TestCase):
     def build_agentpackage(self, distdir):
         pwd = os.getcwd()
         try:
-            basepackage = os.path.join(self.tmpdir,distdir)
+            basepackage = os.path.join(self.platform_wrapper.tmpdir,distdir)
             shutil.copytree(os.path.abspath(distdir), basepackage)
 
             os.chdir(basepackage)
@@ -126,7 +126,7 @@ class BasePlatformTest(unittest.TestCase):
         packaging.add_files_to_package(agent_wheel, {'config_file':os.path.join(rel_path, config_file)})
 
     def direct_buid_install_agent(self, agent_dir, config_file):
-        uuid = self.platform_wrapper.direct_build_agentpackage(agent_dir,
+        uuid = self.platform_wrapper.direct_buid_install_agent(agent_dir,
                                                                config_file)
         self.assertTrue(uuid, "Invalid uuid returned")
         return uuid
@@ -148,9 +148,6 @@ class BasePlatformTest(unittest.TestCase):
 
     def direct_stop_agent(self, agent_uuid):
         self.platform_wrapper.direct_stop_agent(agent_uuid)
-
-    def check_default_dir(self, dir_to_check):
-        self.platform_wrapper.check_default_dir(dir_to_check)
 
     def shutdown_platform(self):
         '''Stop platform here'''

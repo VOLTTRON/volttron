@@ -449,6 +449,5 @@ def mergetree(src, dst, symlinks=False, ignore=None):
 #             self.assertTrue(len(results) == 0)
 #             proc_out = std_err.getvalue().split(':')
 #             print (proc_out)
-#             self.check_default_dir(proc_out[1].strip())
 #         elif self.mode == RESTRICTED or self.mode == VERIFY_ONLY:
 #             self.assertTrue(results.startswith('Unpacking to: '))
