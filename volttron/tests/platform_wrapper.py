@@ -7,6 +7,7 @@ import time
 import tempfile
 import unittest
 
+from os.path import dirname
 from contextlib import closing
 from StringIO import StringIO
 
@@ -75,15 +76,17 @@ RESTRICTED = 3
 
 MODES = (UNRESTRICTED, VERIFY_ONLY, RESOURCE_CHECK_ONLY, RESTRICTED)
 
-rel_path = './'
+_VOLTTRON_ROOT = dirname(dirname(dirname(os.path.realpath(__file__))))
 
-VSTART = os.path.join(rel_path, "env/bin/volttron")
-VCTRL = os.path.join(rel_path, "env/bin/volttron-ctl")
+VSTART = os.path.join(_VOLTTRON_ROOT, "env/bin/volttron")
+VCTRL = os.path.join(_VOLTTRON_ROOT, "env/bin/volttron-ctl")
 SEND_AGENT = "send"
 
 RUN_DIR = 'run'
 PUBLISH_TO = RUN_DIR+'/publish'
 SUBSCRIBE_TO = RUN_DIR+'/subscribe'
+
+
 
 class PlatformWrapperError(Exception):
     pass
@@ -189,9 +192,10 @@ class PlatformWrapper():
         self.test_aip.setup()
 
         lfile = os.path.join(self.tmpdir, "volttron.log")
+        print("VOLTTRON_ROOT: ", _VOLTTRON_ROOT)
 
         pparams = [VSTART, "-c", pconfig, "-vv", "-l", lfile]
-        print pparams
+        print("PARAMS: ", pparams)
 
         self.p_process = subprocess.Popen(pparams, env=self.env)
 
