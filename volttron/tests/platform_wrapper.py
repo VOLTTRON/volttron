@@ -173,7 +173,7 @@ class PlatformWrapper():
         pconfig = os.path.join(self.tmpdir, TMP_PLATFORM_CONFIG_FILENAME)
         self.mode = mode
 
-        assert(self.mode in MODES, 'Invalid platform mode set: '+str(mode))
+        assert self.mode in MODES, 'Invalid platform mode set: '+str(mode)
         opts = None
 
         if self.mode == UNRESTRICTED:
@@ -201,8 +201,6 @@ class PlatformWrapper():
             opts = type('Options', (), {'resource-monitor':False,
                                         'verify_agents': True,
                                         'volttron_home': self.tmpdir})()
-
-#                 self.create_certs()
         else:
             raise PlatformWrapperError("Invalid platform mode specified: {}".format(mode))
 
@@ -257,7 +255,7 @@ class PlatformWrapper():
         if not self.zmq_context:
             self.zmq_context = zmq.Context()
         print("binding publisher to: ", self.env['AGENT_PUB_ADDR'])
-        pub = zmq.Socket(zmq_context, zmq.PUB)
+        pub = zmq.Socket(self.zmq_context, zmq.PUB)
         pub.bind(self.env['AGENT_PUB_ADDR'])
         pub.send_multipart([topic, data])
 
@@ -276,11 +274,6 @@ class PlatformWrapper():
             cfg.write(template.format(**config))
 
         return outfile
-
-
-
-    def create_certs(self):
-        auth.create_root_ca(self.tmpdir, ca_name)
 
     def direct_sign_agentpackage_creator(self, package):
         assert (RESTRICTED), "Auth not available"

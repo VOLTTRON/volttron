@@ -99,9 +99,6 @@ class BasePlatformTest(unittest.TestCase):
     def fillout_file(self, filename, template, config_file):
         return self.platform_wrapper.fillout_file(filename, template, config_file)
 
-    def create_certs(self):
-        auth.create_root_ca(self.tmpdir, ca_name)
-
     def build_agentpackage(self, distdir):
         pwd = os.getcwd()
         try:
