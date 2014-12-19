@@ -1,3 +1,4 @@
+
 '''
 Copyright (c) 2014, Battelle Memorial Institute
 All rights reserved.
@@ -80,8 +81,8 @@ class Application(AbstractDrivenAgent):
 
     def __init__(self, economizer_type='DDB', econ_hl_temp=65.0,
                  device_type='AHU', temp_deadband=1.0,
-                 data_window=1, no_required_data=1,
-                 open_damper_time=0,
+                 data_window=30, no_required_data=20,
+                 open_damper_time=5,
                  low_supply_fan_threshold=20.0,
                  mat_low_threshold=50.0, mat_high_threshold=90.0,
                  oat_low_threshold=30.0, oat_high_threshold=100.0,
@@ -105,6 +106,11 @@ class Application(AbstractDrivenAgent):
         self.damper_signal_name = kwargs['damper_signal']
         self.cool_call_name = kwargs['cool_call']
         self.fan_speedcmd_name = kwargs['fan_speedcmd']
+        data_window = int(data_window)
+        no_required_data = int(no_required_data)
+
+        open_damper_time = int(open_damper_time)
+
         self.device_type = device_type.lower()
         self.economizer_type = economizer_type.lower()
         if self.economizer_type == 'hl':
@@ -184,7 +190,8 @@ class Application(AbstractDrivenAgent):
     @classmethod
     def get_config_parameters(cls):
         '''Generate required configuration parameters with description
-        for user'''
+        for user.
+        '''
         dgr_sym = u'\N{DEGREE SIGN}'
         return {
             'data_window':
@@ -363,7 +370,7 @@ class Application(AbstractDrivenAgent):
     def reports(self):
         '''Called by UI to create Viz.
 
-        Describe how to present output to user
+       Describe how to present output to user
         '''
         report = reports.Report('Retuning Report')
 
@@ -419,7 +426,6 @@ class Application(AbstractDrivenAgent):
         '''
         device_dict = {}
         diagnostic_result = Results()
-        diagnostic_result.log('ECONOMIZER RCx RUNNING!')
 #         topics = self.inp.get_topics()
 #         diagnostic_topic = topics[self.fan_status_name][0]
 #         current_time = self.inp.localize_sensor_time(diagnostic_topic,
@@ -433,7 +439,7 @@ class Application(AbstractDrivenAgent):
                 if value is not None and not int(value):
                     Application.pre_requiste_messages.append(self.pre_msg1)
                     diagnostic_result = self.pre_message(diagnostic_result,
-                                                         current_time)
+                                                        current_time)
                     return diagnostic_result
                 elif value is not None:
                     fan_stat_check = True
@@ -887,7 +893,7 @@ class econ_correctly_on(object):
                     if len(self.timestamp) > 1 else 1)
         avg_oaf = sum(oaf) / len(oaf) * 100.0
         avg_damper_signal = sum(
-            self.damper_signal_values) / len(self.damper_signal_values)
+            self.damper_signal_values)/len(self.damper_signal_values)
         energy_impact = None
 
         if avg_damper_signal < self.open_damper_threshold:
@@ -912,7 +918,7 @@ class econ_correctly_on(object):
             dx_time = (len(energy_calc) - 1) * \
                 avg_step if len(energy_calc) > 1 else 1.0
             energy_impact = (sum(energy_calc) * 60.0) / \
-                (len(energy_calc) * dx_time)
+               (len(energy_calc) * dx_time)
             energy_impact = '%s' % float('%.2g' % energy_impact)
             energy_impact = str(energy_impact)
             energy_impact = ''.join([energy_impact, ' kWh/h'])

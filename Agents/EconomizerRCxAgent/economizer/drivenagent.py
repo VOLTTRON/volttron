@@ -54,43 +54,39 @@
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 
-#}}}
-
-
-from datetime import datetime
-import logging
-import posixpath
-import sys
+# }}}
 import csv
+from datetime import datetime, timedelta as td
+import logging
+import sys
 
 from volttron.platform.agent import (AbstractDrivenAgent, BaseAgent,
-                                     PublishMixin, ConversionMapper,
+                                     ConversionMapper, PublishMixin,
                                      matching, utils)
 from volttron.platform.agent.utils import jsonapi
-from volttron.platform.messaging import topics
+from volttron.platform.messaging import (headers as headers_mod, topics)
 
-
-__author__ = 'Craig Allwardt <craig.allwardt@pnnl.gov>'
+__author1__ = 'Craig Allwardt <craig.allwardt@pnnl.gov>'
+__author2__ = 'Robert Lutes <robert.lutes@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2013, Battelle Memorial Institute'
 __license__ = 'FreeBSD'
 
-
 def DrivenAgent(config_path, **kwargs):
+    '''Driven harness for deployment of OpenEIS applications in VOLTTRON.'''
     config = utils.load_config(config_path)
+    mode = True if config.get('mode', 'PASSIVE') == 'ACTIVE' else False
+    validation_error = ''
+    device = dict((key, config['device'][key])
+                  for key in ['campus', 'building', 'unit'])
     agent_id = config.get('agentid')
-
-    validation_error = ""
-    device_topic = config.get('device')
-    if not device_topic:
-        validation_error += "Invalid device specified in config\n"
-    else:
-        if not device_topic[-4:] == '/all':
-            device_topic += '/all'
-
+    if not device:
+        validation_error += 'Invalid agent_id specified in config\n'
+    if not device:
+        validation_error += 'Invalid device path specified in config\n'
+    actuator_id = agent_id + '_' +"{campus}/{building}/{unit}".format(**device)
     application = config.get('application')
     if not application:
-        validation_error += "Invalid application specified in config\n"
-
+        validation_error += 'Invalid application specified in config\n'
     utils.setup_logging()
     _log = logging.getLogger(__name__)
     logging.basicConfig(level=logging.debug,
@@ -100,12 +96,8 @@ def DrivenAgent(config_path, **kwargs):
         _log.error(validation_error)
         raise ValueError(validation_error)
     config.update(config.get('arguments'))
-
     converter = ConversionMapper()
-
-
     output_file = config.get('output_file')
-
     klass = _get_class(application)
     # This instances is used to call the applications run method when
     # data comes in on the message bus.  It is constructed here so that
@@ -115,54 +107,54 @@ def DrivenAgent(config_path, **kwargs):
     class Agent(PublishMixin, BaseAgent):
         '''Agent listens to message bus device and runs when data is published.
         '''
-
         def __init__(self, **kwargs):
             super(Agent, self).__init__(**kwargs)
-
             self._update_event = None
             self._update_event_time = None
+            self.keys = None
             self._device_states = {}
             self._kwargs = kwargs
+            self.commands = {}
+            self.current_point = None
+            self.current_key = None
             if output_file != None:
                 with open(output_file, 'w') as writer:
                     writer.close()
-            _log.debug("device_topic is set to: "+device_topic)
             self._header_written = False
 
-        @matching.match_exact(device_topic)
+        @matching.match_exact(topics.DEVICES_VALUE(point='all', **device))
         def on_received_message(self, topic, headers, message, matched):
+            '''Subscribe to device data and convert data to correct type for
+            the driven application.
+            '''
             _log.debug("Message received")
-            _log.debug("MESSAGE: "+ jsonapi.dumps(message[0]))
-            _log.debug("TOPIC: "+ topic)
+            _log.debug("MESSAGE: " + jsonapi.dumps(message[0]))
+            _log.debug("TOPIC: " + topic)
             data = jsonapi.loads(message[0])
             if not converter.initialized and \
                 config.get('conversion_map') is not None:
                 converter.setup_conversion_map(config.get('conversion_map'),
                                                data.keys())
-
             data = converter.process_row(data)
 
-            results = app_instance.run(datetime.now(),data)
+            results = app_instance.run(datetime.now(), data)
             self._process_results(results)
 
-
-
         def _process_results(self, results):
+            '''Run driven application with converted data and write the app
+            results to a file or database.
+            '''
             _log.debug('Processing Results!')
-
-
             for key, value in results.commands.iteritems():
                 _log.debug("COMMAND: {}->{}".format(key, value))
             for value in results.log_messages:
                 _log.debug("LOG: {}".format(value))
             for key, value in results.table_output.iteritems():
                 _log.debug("TABLE: {}->{}".format(key, value))
-
-
             if output_file != None:
                 if len(results.table_output.keys()) > 0:
-                    for k, v in results.table_output.items():
-                        fname = output_file #+"-"+k+".csv"
+                    for _, v in results.table_output.items():
+                        fname = output_file  # +"-"+k+".csv"
                         for r in v:
                             with open(fname, 'a+') as f:
                                 keys = r.keys()
@@ -170,27 +162,122 @@ def DrivenAgent(config_path, **kwargs):
                                 if not self._header_written:
                                     fout.writeheader()
                                     self._header_written = True
-#                                 if not header_written:
-#                                     fout.writerow(keys)
+                                # if not header_written:
+                                    # fout.writerow(keys)
                                 fout.writerow(r)
                                 f.close()
+            if results.commands and mode:
+                self.commands = results.commands
+                if self.keys is None:
+                    self.keys = self.commands.keys()
+                self.schedule_task()
 
+        def schedule_task(self):
+            '''Schedule access to modify device controls.'''
+            _log.debug('Schedule Device Access')
+            headers = {
+                'type':  'NEW_SCHEDULE',
+                'requesterID': agent_id,
+                'taskID': actuator_id,
+                'priority': 'LOW'
+                }
+            start = datetime.now()
+            end = start + td(seconds=30)
+            start = str(start)
+            end = str(end)
+            self.publish_json(topics.ACTUATOR_SCHEDULE_REQUEST(), headers,
+                              [["{campus}/{building}/{unit}".format(**device),
+                                start, end]])
+
+        def command_equip(self):
+            '''Execute commands on configured device.'''
+            self.current_key = self.keys[0]
+            value = self.commands[self.current_key]
+            headers = {
+                'Content-Type': 'text/plain',
+                'requesterID': agent_id,
+                }
+            self.publish(topics.ACTUATOR_SET(point=self.current_key, **device),
+                         headers, str(value))
+
+        @matching.match_headers({headers_mod.REQUESTER_ID: agent_id})
+        @matching.match_exact(topics.ACTUATOR_SCHEDULE_RESULT())
+        def schedule_result(self, topic, headers, message, match):
+            '''Actuator response (FAILURE, SUCESS).'''
+            print 'Actuator Response'
+            msg = jsonapi.loads(message[0])
+            msg = msg['result']
+            _log.debug('Schedule Device ACCESS')
+            if self.keys:
+                if msg == "SUCCESS":
+                    self.command_equip()
+                elif msg == "FAILURE":
+                    print 'auto correction failed'
+                    _log.debug('Auto-correction of device failed.')
+
+        @matching.match_headers({headers_mod.REQUESTER_ID: agent_id})
+        @matching.match_glob(topics.ACTUATOR_VALUE(point='*', **device))
+        def on_set_result(self, topic, headers, message, match):
+            '''Setting of point on device was successful.'''
+            print ('Set Success:  {point} - {value}'
+                   .format(point=self.current_key,
+                           value=str(self.commands[self.current_key])))
+            _log.debug('set_point({}, {})'.
+                       format(self.current_key,
+                              self.commands[self.current_key]))
+            self.keys.remove(self.current_key)
+            if self.keys:
+                self.command_equip()
+            else:
+                print 'Done with Commands - Release device lock.'
+                headers = {
+                    'type': 'CANCEL_SCHEDULE',
+                    'requesterID': agent_id,
+                    'taskID': actuator_id
+                    }
+                self.publish_json(topics.ACTUATOR_SCHEDULE_REQUEST(),
+                                  headers, {})
+                self.keys = None
+
+        @matching.match_headers({headers_mod.REQUESTER_ID: agent_id})
+        @matching.match_glob(topics.ACTUATOR_ERROR(point='*', **device))
+        def on_set_error(self, topic, headers, message, match):
+            '''Setting of point on device failed, log failure message.'''
+            print 'Set ERROR'
+            msg = jsonapi.loads(message[0])
+            msg = msg['type']
+            _log.debug('Actuator Error: ({}, {}, {})'.
+                       format(msg,
+                              self.current_key,
+                              self.commands[self.current_key]))
+            self.keys.remove(self.current_key)
+            if self.keys:
+                self.command_equip()
+            else:
+                headers = {
+                    'type':  'CANCEL_SCHEDULE',
+                    'requesterID': agent_id,
+                    'taskID': actuator_id
+                    }
+                self.publish_json(topics.ACTUATOR_SCHEDULE_REQUEST(),
+                                  headers, {})
+                self.keys = None
 
     Agent.__name__ = 'DrivenLoggerAgent'
     return Agent(**kwargs)
 
-def _get_class( kls ):
+
+def _get_class(kls):
+    '''Get driven application information.'''
     parts = kls.split('.')
     module = ".".join(parts[:-1])
-    m = __import__( module )
+    main_mod = __import__(module)
     for comp in parts[1:]:
-        m = getattr(m, comp)
-    return m
+        main_mod = getattr(main_mod, comp)
+    return main_mod
 
 def main(argv=sys.argv):
-    '''
-    Main method called by the eggsecutable.
-    '''
+    ''' Main method.'''
     utils.default_main(DrivenAgent,
                        description='Example VOLTTRON platform™ driven agent',
                        argv=argv)
