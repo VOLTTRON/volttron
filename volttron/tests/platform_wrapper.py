@@ -76,11 +76,11 @@ RESTRICTED = 3
 
 MODES = (UNRESTRICTED, VERIFY_ONLY, RESOURCE_CHECK_ONLY, RESTRICTED)
 
-_VOLTTRON_ROOT = dirname(dirname(dirname(os.path.realpath(__file__))))
+VOLTTRON_ROOT = dirname(dirname(dirname(os.path.realpath(__file__))))
 
-VSTART = os.path.join(_VOLTTRON_ROOT, "env/bin/volttron")
-VCTRL = os.path.join(_VOLTTRON_ROOT, "env/bin/volttron-ctl")
-TWISTED_START = os.path.join(_VOLTTRON_ROOT, "env/bin/twistd")
+VSTART = os.path.join(VOLTTRON_ROOT, "env/bin/volttron")
+VCTRL = os.path.join(VOLTTRON_ROOT, "env/bin/volttron-ctl")
+TWISTED_START = os.path.join(VOLTTRON_ROOT, "env/bin/twistd")
 SEND_AGENT = "send"
 
 RUN_DIR = 'run'
@@ -95,6 +95,19 @@ class PlatformWrapperError(Exception):
 class PlatformWrapper():
 
     def __init__(self, volttron_home=None):
+        """Initializes the platform in a new temp directory.
+
+        The function will setup a new temp directory for containing the files
+        for the platform.  It will create a wheelhouse directory for
+        installation of agents.  It will setup an environment where
+        VOLTTRON_HOME, AGENT_PUB_ADDR and AGENT_SUB_ADDR are set.  If
+        volttron_home is set then all the files in that directory will be
+        copied into VOLTTRON_HOME.
+
+        volttron_home - Files that should be copied into VOLTTRON_HOME before
+                        the agent can be started. Ex. configuration files.
+        """
+
         self.tmpdir = tempfile.mkdtemp()
         self.wheelhouse = '/'.join((self.tmpdir, 'wheelhouse'))
         os.makedirs(self.wheelhouse)
@@ -131,7 +144,7 @@ class PlatformWrapper():
         raises ValueError if volttron_home does not exist
 
         volttron_home is the directory where the configurations will be copied
-                      from
+                      from into the VOLTTRON_HOME.
         '''
         if not os.path.isdir(volttron_home):
             raise ValueError('Invalid directory specified\n{}'.format(
@@ -141,6 +154,10 @@ class PlatformWrapper():
 
     def startup_platform(self, platform_config, use_twistd = False,
                          mode=UNRESTRICTED):
+        """Start volttron in VOLTTRON_HOME.
+
+        platform_config is a json file like
+        """
         try:
             print("PLATFORM CONFIG: ", platform_config)
             config = json.loads(open(platform_config, 'r').read())
@@ -193,7 +210,7 @@ class PlatformWrapper():
         self.test_aip.setup()
 
         lfile = os.path.join(self.tmpdir, "volttron.log")
-        print("VOLTTRON_ROOT: ", _VOLTTRON_ROOT)
+        print("VOLTTRON_ROOT: ", VOLTTRON_ROOT)
 
         pparams = [VSTART, "-c", pconfig, "-vv", "-l", lfile]
         print("PARAMS: ", pparams)

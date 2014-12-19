@@ -4,26 +4,26 @@ import unittest
 
 from os.path import dirname
 
-from platform_wrapper import PlatformWrapper
+from platform_wrapper import (PlatformWrapper,
+                              VOLTTRON_ROOT)
 
-_VOLTRON = dirname(dirname(dirname(os.path.join(os.path.realpath(__file__)))))
 
 class PlatformTests(unittest.TestCase):
 
     def setUp(self):
-        print("V: ",_VOLTRON)
+        print("V: ", VOLTTRON_ROOT)
         self.platform = PlatformWrapper()
 
     def test_platform_startup(self):
         self.platform.startup_platform(
-                    os.path.join(_VOLTRON, "base-platform-test.json"),
+                    os.path.join(VOLTTRON_ROOT, "base-platform-test.json"),
                     use_twistd=True)
         self.assertIsNotNone(self.platform.p_process, "Platform process is none")
         self.assertIsNotNone(self.platform.t_process, "Twistd process is none")
 
     def test_platform_startup_no_twistd(self):
         self.platform.startup_platform(
-                    os.path.join(_VOLTRON, "base-platform-test.json"))
+                    os.path.join(VOLTTRON_ROOT, "base-platform-test.json"))
         self.assertIsNotNone(self.platform.p_process, "Platform process is none")
 
 
