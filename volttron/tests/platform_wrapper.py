@@ -80,6 +80,7 @@ _VOLTTRON_ROOT = dirname(dirname(dirname(os.path.realpath(__file__))))
 
 VSTART = os.path.join(_VOLTTRON_ROOT, "env/bin/volttron")
 VCTRL = os.path.join(_VOLTTRON_ROOT, "env/bin/volttron-ctl")
+TWISTED_START = os.path.join(_VOLTTRON_ROOT, "env/bin/twistd")
 SEND_AGENT = "send"
 
 RUN_DIR = 'run'
@@ -224,7 +225,7 @@ class PlatformWrapper():
             with closing(open(tconfig, 'w')) as cfg:
                 cfg.write(TWISTED_CONFIG.format(**config))
 
-            tparams = ["env/bin/twistd", "-n", "smap", tconfig]
+            tparams = [TWISTED_START, "-n", "smap", tconfig]
             self.t_process = subprocess.Popen(tparams, env=self.env)
             time.sleep(5)
         #self.t_process = subprocess.Popen(["twistd", "-n", "smap", "test-smap.ini"])

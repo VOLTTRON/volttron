@@ -6,11 +6,12 @@ from os.path import dirname
 
 from platform_wrapper import PlatformWrapper
 
-_VOLTRON = dirname(dirname(os.path.join(os.path.abspath(dirname(__file__)))))
+_VOLTRON = dirname(dirname(os.path.join(os.path.realpath(__file__))))
 
 class PlatformTests(unittest.TestCase):
 
     def setUp(self):
+        print("V: ",_VOLTRON)
         self.platform = PlatformWrapper()
 
     def test_platform_startup(self):
