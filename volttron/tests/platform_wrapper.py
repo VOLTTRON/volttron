@@ -302,7 +302,8 @@ class PlatformWrapper():
 
 
     def direct_build_agentpackage(self, agent_dir):
-        wheel_path = packaging.create_package(os.path.join(rel_path, agent_dir), self.wheelhouse)
+        wheel_path = packaging.create_package(os.path.join('./', agent_dir),
+                                              self.wheelhouse)
 
         return wheel_path
 
@@ -313,7 +314,9 @@ class PlatformWrapper():
         print ("Done sending to", target)
 
     def direct_configure_agentpackage(self, agent_wheel, config_file):
-        packaging.add_files_to_package(agent_wheel, {'config_file':os.path.join(rel_path, config_file)})
+        packaging.add_files_to_package(agent_wheel, {
+                                'config_file':os.path.join('./', config_file)
+                            })
 
 
 
