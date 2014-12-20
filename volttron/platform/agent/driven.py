@@ -144,39 +144,7 @@ class Results(object):
     def insert_table_row(self, table, row):
         self.table_output[table].append(row)
 
-    def publish_to_smap(self, smap_identifier, value, smap_identifier2,
-                        value2, time_value):
-        '''
-        Push diagnostic results and energy
-        impact to sMAP historian.
-        '''
-        self._log.debug(''.join(['Push to sMAP - ', smap_identifier, str(dx_msg),
-                                 ' Energy Impact: ', str(energy_impact)]))
-        if time_value is None:
-            mytime = int(time.time())
-        else:
-            mytime = time.mktime(time_value.timetuple())
-        if value2 is not None:
-            content = {
-                smap_identifier: {
-                     "Readings": [[mytime, value]],
-                     "Units": "TU",
-                     "data_type": "double"
-                 },
-                  smap_identifier2: {
-                     "Readings": [[mytime, value2]],
-                     "Units": "kWh/h",
-                     "data_type": "double"}
-             }
-        else:
-            content = {
-                smap_identifier: {
-                     "Readings": [[mytime, value]],
-                     "Units": "TU",
-                     "data_type": "double"
-                 }
-            }
-        self._agent.publish(self.smap_path, self.headers, jsonapi.dumps(content))
+
 class ConversionMapper(object):
 
     def __init__(self, **kwargs):
