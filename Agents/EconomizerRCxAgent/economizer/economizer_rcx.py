@@ -50,9 +50,16 @@ operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 under Contract DE-AC05-76RL01830
 '''
 import datetime
+import time
 import logging
-from volttron.platform.agent import (Results, AbstractDrivenAgent)
-
+from volttron.platform.agent import (Results, AbstractDrivenAgent, PublishMixin,
+                                     BaseAgent)
+#from volttron.platform.agent.utils import jsonapi
+from zmq.utils import jsonapi
+# _log = logging.getLogger(__name__)
+# logging.basicConfig(level=logging.DEBUG, stream=sys.stderr)
+from volttron.platform.agent import  utils
+from volttron.platform.messaging import headers as headers_mod, topics
 # from openeis.applications import (DrivenApplicationBaseClass,
 #                                   OutputDescriptor,
 #                                   ConfigDescriptor,
@@ -66,7 +73,6 @@ ECON2 = 'Economizing When Unit Should Dx'
 ECON3 = 'Economizing When Unit Should Not Dx'
 ECON4 = 'Excess Outdoor-air Intake Dx'
 ECON5 = 'Insufficient Outdoor-air Intake Dx'
-
 
 class Application(AbstractDrivenAgent):
     '''Application to detect and correct operational problems for AHUs/RTUs.
@@ -99,6 +105,7 @@ class Application(AbstractDrivenAgent):
                  **kwargs):
         # initialize user configurable parameters.
         #super(Application, self).__init__(**kwargs)
+        Application.analysis = kwargs['device']['analysis']
         self.fan_status_name = kwargs['fan_status']
         self.oa_temp_name = kwargs['oa_temp']
         self.ra_temp_name = kwargs['ra_temp']
@@ -107,8 +114,6 @@ class Application(AbstractDrivenAgent):
         self.cool_call_name = kwargs['cool_call']
         self.fan_speedcmd_name = kwargs['fan_speedcmd']
         data_window = int(data_window)
-        no_required_data = int(no_required_data)
-
         open_damper_time = int(open_damper_time)
 
         self.device_type = device_type.lower()
@@ -381,14 +386,14 @@ class Application(AbstractDrivenAgent):
         return [report]
 
     @classmethod
-    def output_format(cls, input_object):
+    def output_format(cls, input_Application):
         '''Called when application is staged.
 
         Output will have the date-time and  error-message.
         '''
-        result = super().output_format(input_object)
+        result = super().output_format(input_Application)
 
-        topics = input_object.get_topics()
+        topics = input_Application.get_topics()
         diagnostic_topic = topics[cls.fan_status_name][0]
         diagnostic_topic_parts = diagnostic_topic.split('/')
         output_topic_base = diagnostic_topic_parts[:-1]
@@ -706,20 +711,21 @@ class temperature_sensor_dx(object):
 
             if open_damper_check > self.oat_mat_check:
                 temperature_sensor_dx.temp_sensor_problem = True
-                diagnostic_message = ('The OAT and MAT and sensor '
+                diagnostic_message = ('The OAT and MAT sensor '
                                       'readings are not consistent '
                                       'when the outdoor-air damper '
                                       'is fully open.')
                 color_code = 'RED'
                 dx_table = {
-                    'datetime': str(current_time),
-                    'diagnostic_name': ECON1,
-                    'diagnostic_message': diagnostic_message,
-                    'energy_impact': None,
-                    'color_code': color_code
+                    'datetime': time.mktime(current_time.timetuple()),
+                    #'diagnostic_name': ECON1,
+                    'diagnostic_message': dx_msg,
+                    'energy_impact': 0.0
+                    #'color_code': color_code
                 }
+                dx_msg = 0.1
                 result.log(diagnostic_message, logging.INFO)
-                result.insert_table_row('Economizer_RCx', dx_table)
+                result.insert_table_row(Application.analysis, dx_table)
             self.open_damper_oat = []
             self.open_damper_mat = []
 
@@ -732,14 +738,14 @@ class temperature_sensor_dx(object):
 
             color_code = 'RED'
             dx_table = {
-                'datetime': str(current_time),
-                'diagnostic_name': ECON1,
-                'diagnostic_message': diagnostic_message,
-                'energy_impact': None,
-                'color_code': color_code
+                'datetime': time.mktime(current_time.timetuple()),
+                #'diagnostic_name': ECON1,
+                'diagnostic_message': dx_msg,
+                'energy_impact': 0.0
+                #'color_code': color_code
             }
             temperature_sensor_dx.temp_sensor_problem = True
-
+            dx_msg = 1.1
         elif((avg_ma_oa) > self.temp_difference_threshold and
              (avg_ma_ra) > self.temp_difference_threshold):
             diagnostic_message = ('Temperature sensor problem '
@@ -749,37 +755,39 @@ class temperature_sensor_dx(object):
             temperature_sensor_dx.temp_sensor_problem = True
             color_code = 'RED'
             dx_table = {
-                'datetime': str(current_time),
-                'diagnostic_name': ECON1,
-                'diagnostic_message': diagnostic_message,
-                'energy_impact': None,
-                'color_code': color_code
+                'datetime': time.mktime(current_time.timetuple()),
+                #'diagnostic_name': ECON1,
+                'diagnostic_message': dx_msg,
+                'energy_impact': 0.0
+                #'color_code': color_code
             }
-
+            dx_msg = 2.1
         elif (temperature_sensor_dx.temp_sensor_problem is None
               or not temperature_sensor_dx.temp_sensor_problem):
             diagnostic_message = 'No problems were detected.'
             temperature_sensor_dx.temp_sensor_problem = False
             color_code = 'GREEN'
+            dx_msg=0.0
             dx_table = {
-                'datetime': str(current_time),
-                'diagnostic_name': ECON1,
-                'diagnostic_message': diagnostic_message,
-                'energy_impact': None,
-                'color_code': color_code
+                'datetime': time.mktime(current_time.timetuple()),
+                #'diagnostic_name': ECON1,
+                'diagnostic_message': dx_msg,
+                'energy_impact': 0.0
+                #'color_code': color_code
             }
+            dx_msg = 0
         else:
             diagnostic_message = 'Diagnostic was inconclusive'
             temperature_sensor_dx.temp_sensor_problem = False
             color_code = 'GREEN'
             dx_table = {
-                'datetime': str(current_time),
-                'diagnostic_name': ECON1,
-                'diagnostic_message': diagnostic_message,
-                'energy_impact': None,
-                'color_code': color_code
+                'datetime': time.mktime(current_time.timetuple()),
+                #'diagnostic_name': ECON1,
+                'diagnostic_message': dx_msg,
+                'energy_impact': 0.0
+                #'color_code': color_code
             }
-        result.insert_table_row('Economizer_RCx', dx_table)
+        result.insert_table_row(Application.analysis, dx_table)
         result.log(diagnostic_message, logging.INFO)
         result = self.clear_data(result)
         return result
@@ -894,19 +902,22 @@ class econ_correctly_on(object):
         avg_oaf = sum(oaf) / len(oaf) * 100.0
         avg_damper_signal = sum(
             self.damper_signal_values)/len(self.damper_signal_values)
-        energy_impact = None
+        energy_impact = 0.0
 
         if avg_damper_signal < self.open_damper_threshold:
             diagnostic_message = (self.alg_result_messages[0])
             color_code = 'RED'
+            dx_msg = 11.1
         else:
             if (100.0 - avg_oaf) <= self.oaf_economizing_threshold:
                 diagnostic_message = (self.alg_result_messages[1])
                 color_code = 'GREEN'
-                energy_impact = None
+                energy_impact = 0.0
+                dx_msg = 10.0
             else:
                 diagnostic_message = (self.alg_result_messages[2])
                 color_code = 'RED'
+                dx_msg = 12.1
 
         energy_calc = [1.08 * spd * self.cfm * (ma - oa) / (1000.0 * self.eer)
                        for ma, oa, spd in zip(self.ma_temp_values,
@@ -920,16 +931,17 @@ class econ_correctly_on(object):
             energy_impact = (sum(energy_calc) * 60.0) / \
                (len(energy_calc) * dx_time)
             energy_impact = '%s' % float('%.2g' % energy_impact)
-            energy_impact = str(energy_impact)
-            energy_impact = ''.join([energy_impact, ' kWh/h'])
+            #energy_impact = str(energy_impact)
+            #energy_impact = ''.join([energy_impact, ' kWh/h'])
 
         dx_table = {
-            'datetime': str(current_time),
-            'diagnostic_name': ECON2, 'diagnostic_message': diagnostic_message,
-            'energy_impact': energy_impact,
-            'color_code': color_code
+            'datetime': time.mktime(current_time.timetuple()),
+            #'diagnostic_name': ECON2,
+            'diagnostic_message': dx_msg,
+            'energy_impact': energy_impact
+            #'color_code': color_code
             }
-        result.insert_table_row('Economizer_RCx', dx_table)
+        result.insert_table_row(Application.analysis, dx_table)
         result.log(diagnostic_message, logging.INFO)
         result = self.clear_data(result)
         return result
@@ -1025,7 +1037,7 @@ class econ_correctly_off(object):
         avg_step = ((self.timestamp[-1] - self.timestamp[0]).total_seconds()/60
                     if len(self.timestamp) > 1 else 1)
         desired_oaf = self.desired_oaf / 100.0
-        energy_impact = None
+        energy_impact = 0.0
         energy_calc = [
             (1.08 * spd * self.cfm * (ma - (oa * desired_oaf +
                                             (ra * (1.0 - desired_oaf))))) /
@@ -1043,29 +1055,29 @@ class econ_correctly_off(object):
                 > self.excess_damper_threshold):
             diagnostic_message = self.alg_result_messages[0]
             color_code = 'RED'
+            dx_msg = 21.1
         else:
             diagnostic_message = 'No problems detected.'
             color_code = 'GREEN'
-            energy_impact = None
-
+            energy_impact = 0.0
+            dx_msg = 20.0
         if energy_calc and color_code == 'RED':
             dx_time = (len(energy_calc) - 1) * \
                 avg_step if len(energy_calc) > 1 else 1.0
             energy_impact = (sum(energy_calc) * 60.0) / \
                 (len(energy_calc) * dx_time)
             energy_impact = '%s' % float('%.2g' % energy_impact)
-            energy_impact = str(energy_impact)
-            energy_impact = ''.join([energy_impact, ' kWh/h'])
+            #energy_impact = str(energy_impact)
+            #energy_impact = ''.join([energy_impact, ' kWh/h'])
 
         dx_table = {
-            'datetime': str(current_time),
-            'diagnostic_name': ECON3,
-            'diagnostic_message': diagnostic_message,
-            'energy_impact': energy_impact,
-            'color_code': color_code
+            'datetime': time.mktime(current_time.timetuple()),
+            #'diagnostic_name': ECON3,
+            'diagnostic_message': dx_msg,
+            'energy_impact': energy_impact
+            #'color_code': color_code
             }
-
-        result.insert_table_row('Economizer_RCx', dx_table)
+        result.insert_table_row(Application.analysis, dx_table)
         result.log(diagnostic_message, logging.INFO)
         result = self.clear_data(result)
         return result
@@ -1108,6 +1120,7 @@ class excess_oa_intake(object):
         self.minimum_damper_setpoint = float(minimum_damper_setpoint)
         self.desired_oaf = float(desired_oaf)
         self.excess_damper_threshold = float(excess_damper_threshold)
+
 
     def econ_alg4(self, diagnostic_result, oatemp, ratemp, matemp,
                   damper_signal, economizer_conditon, current_time,
@@ -1164,7 +1177,7 @@ class excess_oa_intake(object):
                                        self.fan_speed_values)
             if (ma - (oa * desired_oaf + (ra * (1.0 - desired_oaf)))) > 0]
         color_code = 'GREY'
-        energy_impact = None
+        energy_impact = 0.0
         diagnostic_message = ''
         if avg_oaf < 0 or avg_oaf > 125.0:
             diagnostic_message = ('Inconclusive result, the OAF '
@@ -1174,13 +1187,14 @@ class excess_oa_intake(object):
             color_code = 'GREY'
             result.log(diagnostic_message, logging.INFO)
             dx_table = {
-                'datetime': str(current_time),
-                'diagnostic_name': ECON4,
-                'diagnostic_message': diagnostic_message,
-                'energy_impact': None,
-                'color_code': color_code
+                'datetime': time.mktime(current_time.timetuple()),
+                #'diagnostic_name': ECON4,
+                'diagnostic_message': dx_msg,
+                'energy_impact': 0.0
+                #'color_code': color_code
             }
-            result.insert_table_row('Economizer_RCx', dx_table)
+            dx_msg = 31.2
+            result.insert_table_row(Application.analysis, dx_table)
             result = self.clear_data(result)
             return result
 
@@ -1190,6 +1204,7 @@ class excess_oa_intake(object):
                                   'minimum position for ventilation but '
                                   'is significantly higher than this value.')
             color_code = 'RED'
+            dx_msg = 32.1
 
             if energy_calc:
                 dx_time = (len(energy_calc) - 1) * \
@@ -1202,12 +1217,14 @@ class excess_oa_intake(object):
                                        'provided, this could increase '
                                        'heating and cooling energy '
                                        'consumption.')
+                dx_msg = 34.1
             else:
-                diagnostic_message = ('Excess outdoor-air is being '
+                diagnostic_message = ('Excess outdoor air is being '
                                       'provided, this could increase '
                                       'heating and cooling energy '
                                       'consumption.')
             color_code = 'RED'
+            dx_msg = 33.1
 
             if energy_calc:
                 dx_time = (len(energy_calc) - 1) * \
@@ -1215,23 +1232,25 @@ class excess_oa_intake(object):
                 energy_impact = (sum(energy_calc) * 60.0) / \
                     (len(energy_calc) * dx_time)
                 energy_impact = '%s' % float('%.2g' % energy_impact)
-                energy_impact = str(energy_impact)
-                energy_impact = ''.join([energy_impact, ' kWh/h'])
+                #energy_impact = str(energy_impact)
+                #energy_impact = ''.join([energy_impact, ' kWh/h'])
 
         elif not diagnostic_message:
             diagnostic_message = ('The calculated outdoor-air '
                                   'fraction is within configured '
                                   'limits')
             color_code = 'GREEN'
+            energy_impact = 0.0
+            dx_msg = 30.0
 
         dx_table = {
-            'datetime': str(current_time),
-            'diagnostic_name': ECON4,
-            'diagnostic_message': diagnostic_message,
-            'energy_impact': energy_impact,
-            'color_code': color_code
+            'datetime': time.mktime(current_time.timetuple()),
+            #'diagnostic_name': ECON4,
+            'diagnostic_message': dx_msg,
+            'energy_impact': energy_impact
+            #'color_code': color_code
         }
-        result.insert_table_row('Economizer_RCx', dx_table)
+        result.insert_table_row(Application.analysis, dx_table)
         result.log(diagnostic_message, logging.INFO)
 
         result = self.clear_data(result)
@@ -1322,13 +1341,14 @@ class insufficient_oa_intake(object):
             color_code = 'GREY'
             result.log(diagnostic_message, logging.INFO)
             dx_table = {
-                'datetime': str(current_time),
-                'diagnostic_name': ECON5,
+                'datetime': time.mktime(current_time.timetuple()),
+                #'diagnostic_name': ECON5,
                 'diagnostic_message': diagnostic_message,
-                'energy_impact': None,
-                'color_code': color_code
+                'energy_impact': 0.0,
+                #'color_code': color_code
             }
-            result.insert_table_row('Economizer_RCx', dx_table)
+            dx_msg = 41.2
+            result.insert_table_row(Application.analysis, dx_table)
             result = self.clear_data(result)
             return result
 
@@ -1341,15 +1361,16 @@ class insufficient_oa_intake(object):
                                   'configured damper position.')
 
             color_code = 'RED'
+            dx_msg = 42.1
             dx_table = {
-                'datetime': str(current_time),
-                'diagnostic_name': ECON5,
-                'diagnostic_message': diagnostic_message,
-                'energy_impact': None,
-                'color_code': color_code
+                'datetime': time.mktime(current_time.timetuple()),
+                #'diagnostic_name': ECON5,
+                'diagnostic_message': dx_msg,
+                'energy_impact': 0.0
+                #'color_code': color_code
             }
             result.log(diagnostic_message, logging.INFO)
-            result.insert_table_row('Economizer_RCx', dx_table)
+            result.insert_table_row(Application.analysis, dx_table)
             result = self.clear_data(result)
             return result
 
@@ -1358,27 +1379,28 @@ class insufficient_oa_intake(object):
                                   'is being provided for '
                                   'ventilation.')
             color_code = 'RED'
+            dx_msg = 43.1
             dx_table = {
-                'datetime': str(current_time),
-                'diagnostic_name': ECON5,
-                'diagnostic_message': diagnostic_message,
-                'energy_impact': None,
-                'color_code': color_code
+                'datetime': time.mktime(current_time.timetuple()),
+                #'diagnostic_name': ECON5,
+                'diagnostic_message': dx_msg,
+                'energy_impact': 0.0
+                #'color_code': color_code
             }
         else:
             diagnostic_message = ('The calculated outdoor-air'
                                   'fraction was within acceptable '
                                   'limits.')
             color_code = 'GREEN'
+            dx_msg = 40.0
             dx_table = {
-                'datetime': str(current_time),
-                'diagnostic_name': ECON5,
-                'diagnostic_message': diagnostic_message,
-                'energy_impact': None,
-                'color_code': color_code
+                'datetime': time.mktime(current_time.timetuple()),
+                #'diagnostic_name': ECON5,
+                'diagnostic_message': dx_msg,
+                'energy_impact': 0.0
+                #'color_code': color_code
             }
-
-        result.insert_table_row('Economizer_RCx', dx_table)
+        result.insert_table_row(Application.analysis, dx_table)
         result.log(diagnostic_message, logging.INFO)
         Application.pre_msg_time = []
         Application.pre_requiste_messages = []
