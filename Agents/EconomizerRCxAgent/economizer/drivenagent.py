@@ -99,6 +99,7 @@ def DrivenAgent(config_path, **kwargs):
     converter = ConversionMapper()
     output_file = config.get('output_file')
     klass = _get_class(application)
+
     # This instances is used to call the applications run method when
     # data comes in on the message bus.  It is constructed here so that
     # each time run is called the application can keep it state.
@@ -117,6 +118,7 @@ def DrivenAgent(config_path, **kwargs):
             self.commands = {}
             self.current_point = None
             self.current_key = None
+            self.received_input_datetime = None
             if output_file != None:
                 with open(output_file, 'w') as writer:
                     writer.close()
@@ -137,7 +139,8 @@ def DrivenAgent(config_path, **kwargs):
                                                data.keys())
             data = converter.process_row(data)
 
-            results = app_instance.run(datetime.now(), data)
+            self.received_input_datetime = datetime.utcnow()
+            results = app_instance.run(self.received_input_datetime, data)
             self._process_results(results)
 
         def _process_results(self, results):
@@ -151,6 +154,7 @@ def DrivenAgent(config_path, **kwargs):
                 _log.debug("LOG: {}".format(value))
             for key, value in results.table_output.iteritems():
                 _log.debug("TABLE: {}->{}".format(key, value))
+            # publish to output file if available.
             if output_file != None:
                 if len(results.table_output.keys()) > 0:
                     for _, v in results.table_output.items():
@@ -166,6 +170,21 @@ def DrivenAgent(config_path, **kwargs):
                                     # fout.writerow(keys)
                                 fout.writerow(r)
                                 f.close()
+            # publish to message bus.
+            if len(results.table_output.keys()) > 0:
+                headers = {
+                    headers_mod.CONTENT_TYPE: headers_mod.CONTENT_TYPE.JSON,
+                    headers_mod.DATE: str(self.received_input_datetime),
+                }
+
+                for _, v in results.table_output.items():
+                    for r in v:
+                        for key, value in r.iteritems():
+                            if isinstance(value, bool):
+                                value = int(value)
+                            topic = topics.ANALYSIS_VALUE(point=key, **config['device']) #.replace('{analysis}', key)
+                            #print "publishing {}->{}".format(topic, value)
+                            self.publish_json(topic, headers, value)
             if results.commands and mode:
                 self.commands = results.commands
                 if self.keys is None:
