@@ -717,7 +717,7 @@ class temperature_sensor_dx(object):
                                       'is fully open.')
                 color_code = 'RED'
                 dx_table = {
-                    'datetime': time.mktime(current_time.timetuple()),
+                    ##'datetime': current_time,
                     #'diagnostic_name': ECON1,
                     'diagnostic_message': dx_msg,
                     'energy_impact': 0.0
@@ -738,7 +738,7 @@ class temperature_sensor_dx(object):
 
             color_code = 'RED'
             dx_table = {
-                'datetime': time.mktime(current_time.timetuple()),
+                #'datetime': current_time,
                 #'diagnostic_name': ECON1,
                 'diagnostic_message': dx_msg,
                 'energy_impact': 0.0
@@ -755,7 +755,7 @@ class temperature_sensor_dx(object):
             temperature_sensor_dx.temp_sensor_problem = True
             color_code = 'RED'
             dx_table = {
-                'datetime': time.mktime(current_time.timetuple()),
+                #'datetime': current_time,
                 #'diagnostic_name': ECON1,
                 'diagnostic_message': dx_msg,
                 'energy_impact': 0.0
@@ -769,7 +769,7 @@ class temperature_sensor_dx(object):
             color_code = 'GREEN'
             dx_msg=0.0
             dx_table = {
-                'datetime': time.mktime(current_time.timetuple()),
+                #'datetime': current_time,
                 #'diagnostic_name': ECON1,
                 'diagnostic_message': dx_msg,
                 'energy_impact': 0.0
@@ -781,7 +781,7 @@ class temperature_sensor_dx(object):
             temperature_sensor_dx.temp_sensor_problem = False
             color_code = 'GREEN'
             dx_table = {
-                'datetime': time.mktime(current_time.timetuple()),
+                #'datetime': current_time,
                 #'diagnostic_name': ECON1,
                 'diagnostic_message': dx_msg,
                 'energy_impact': 0.0
@@ -935,7 +935,7 @@ class econ_correctly_on(object):
             #energy_impact = ''.join([energy_impact, ' kWh/h'])
 
         dx_table = {
-            'datetime': time.mktime(current_time.timetuple()),
+            #'datetime': current_time,
             #'diagnostic_name': ECON2,
             'diagnostic_message': dx_msg,
             'energy_impact': energy_impact
@@ -1071,7 +1071,7 @@ class econ_correctly_off(object):
             #energy_impact = ''.join([energy_impact, ' kWh/h'])
 
         dx_table = {
-            'datetime': time.mktime(current_time.timetuple()),
+            #'datetime': current_time,
             #'diagnostic_name': ECON3,
             'diagnostic_message': dx_msg,
             'energy_impact': energy_impact
@@ -1187,7 +1187,7 @@ class excess_oa_intake(object):
             color_code = 'GREY'
             result.log(diagnostic_message, logging.INFO)
             dx_table = {
-                'datetime': time.mktime(current_time.timetuple()),
+                #'datetime': current_time,
                 #'diagnostic_name': ECON4,
                 'diagnostic_message': dx_msg,
                 'energy_impact': 0.0
@@ -1244,7 +1244,7 @@ class excess_oa_intake(object):
             dx_msg = 30.0
 
         dx_table = {
-            'datetime': time.mktime(current_time.timetuple()),
+            #'datetime': current_time,
             #'diagnostic_name': ECON4,
             'diagnostic_message': dx_msg,
             'energy_impact': energy_impact
@@ -1341,7 +1341,7 @@ class insufficient_oa_intake(object):
             color_code = 'GREY'
             result.log(diagnostic_message, logging.INFO)
             dx_table = {
-                'datetime': time.mktime(current_time.timetuple()),
+                #'datetime': current_time,
                 #'diagnostic_name': ECON5,
                 'diagnostic_message': diagnostic_message,
                 'energy_impact': 0.0,
@@ -1363,7 +1363,7 @@ class insufficient_oa_intake(object):
             color_code = 'RED'
             dx_msg = 42.1
             dx_table = {
-                'datetime': time.mktime(current_time.timetuple()),
+                #'datetime': current_time,
                 #'diagnostic_name': ECON5,
                 'diagnostic_message': dx_msg,
                 'energy_impact': 0.0
@@ -1381,7 +1381,7 @@ class insufficient_oa_intake(object):
             color_code = 'RED'
             dx_msg = 43.1
             dx_table = {
-                'datetime': time.mktime(current_time.timetuple()),
+                #'datetime': current_time,
                 #'diagnostic_name': ECON5,
                 'diagnostic_message': dx_msg,
                 'energy_impact': 0.0
@@ -1394,7 +1394,7 @@ class insufficient_oa_intake(object):
             color_code = 'GREEN'
             dx_msg = 40.0
             dx_table = {
-                'datetime': time.mktime(current_time.timetuple()),
+                #'datetime': current_time,
                 #'diagnostic_name': ECON5,
                 'diagnostic_message': dx_msg,
                 'energy_impact': 0.0

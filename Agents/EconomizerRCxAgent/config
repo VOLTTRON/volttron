@@ -18,7 +18,7 @@
         "oa_temp": "outdoorairtemperature",
         "ra_temp": "returnairtemperature",
         "ma_temp": "mixedairtemperature",
-        "damper_signal": "outdoordampersignal",
+        "damper_signal": "outsidedampercommand",
         "cool_call": "coolingvalveposition",
         "fan_speedcmd": "supplyfanspeed",
         "data_window": 1,
