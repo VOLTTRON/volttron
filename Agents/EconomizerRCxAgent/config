@@ -15,7 +15,7 @@
 
     "arguments": {
         "fan_status": "supplyfanstatus",
-        "oa_temp": "outdoorairtemperature",
+        "oa_temp": "outsideairtemperature",
         "ra_temp": "returnairtemperature",
         "ma_temp": "mixedairtemperature",
         "damper_signal": "outsidedampercommand",
