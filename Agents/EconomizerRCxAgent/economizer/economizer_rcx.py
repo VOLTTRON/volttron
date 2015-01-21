@@ -1,4 +1,3 @@
-
 '''
 Copyright (c) 2014, Battelle Memorial Institute
 All rights reserved.
@@ -438,7 +437,6 @@ class Application(AbstractDrivenAgent):
         for key, value in points.items():
             device_dict[key.lower()] = value
         fan_stat_check = False
-
         for key, value in device_dict.items():
             if key.startswith(self.fan_status_name):
                 if value is not None and not int(value):
@@ -469,7 +467,6 @@ class Application(AbstractDrivenAgent):
         ratemp_data = []
         cooling_data = []
         fan_speedcmd_data = []
-
         for key, value in device_dict.items():
             if (key.startswith(self.damper_signal_name)
                     and value is not None):
@@ -505,7 +502,6 @@ class Application(AbstractDrivenAgent):
             diagnostic_result = self.pre_message(diagnostic_result,
                                                  current_time)
             return diagnostic_result
-
         oatemp = (sum(oatemp_data) / len(oatemp_data))
         ratemp = (sum(ratemp_data) / len(ratemp_data))
         matemp = (sum(matemp_data) / len(matemp_data))
@@ -716,6 +712,7 @@ class temperature_sensor_dx(object):
                                       'when the outdoor-air damper '
                                       'is fully open.')
                 color_code = 'RED'
+                dx_msg = 0.1
                 dx_table = {
                     ##'datetime': current_time,
                     #'diagnostic_name': ECON1,
@@ -723,7 +720,6 @@ class temperature_sensor_dx(object):
                     'energy_impact': 0.0
                     #'color_code': color_code
                 }
-                dx_msg = 0.1
                 result.log(diagnostic_message, logging.INFO)
                 result.insert_table_row(Application.analysis, dx_table)
             self.open_damper_oat = []
@@ -737,6 +733,7 @@ class temperature_sensor_dx(object):
                                   'temperature.')
 
             color_code = 'RED'
+            dx_msg = 1.1
             dx_table = {
                 #'datetime': current_time,
                 #'diagnostic_name': ECON1,
@@ -745,7 +742,6 @@ class temperature_sensor_dx(object):
                 #'color_code': color_code
             }
             temperature_sensor_dx.temp_sensor_problem = True
-            dx_msg = 1.1
         elif((avg_ma_oa) > self.temp_difference_threshold and
              (avg_ma_ra) > self.temp_difference_threshold):
             diagnostic_message = ('Temperature sensor problem '
@@ -754,6 +750,7 @@ class temperature_sensor_dx(object):
                                   'temperature.')
             temperature_sensor_dx.temp_sensor_problem = True
             color_code = 'RED'
+            dx_msg = 2.1
             dx_table = {
                 #'datetime': current_time,
                 #'diagnostic_name': ECON1,
@@ -761,13 +758,12 @@ class temperature_sensor_dx(object):
                 'energy_impact': 0.0
                 #'color_code': color_code
             }
-            dx_msg = 2.1
         elif (temperature_sensor_dx.temp_sensor_problem is None
               or not temperature_sensor_dx.temp_sensor_problem):
             diagnostic_message = 'No problems were detected.'
             temperature_sensor_dx.temp_sensor_problem = False
             color_code = 'GREEN'
-            dx_msg=0.0
+            dx_msg = 0.0
             dx_table = {
                 #'datetime': current_time,
                 #'diagnostic_name': ECON1,
@@ -775,11 +771,11 @@ class temperature_sensor_dx(object):
                 'energy_impact': 0.0
                 #'color_code': color_code
             }
-            dx_msg = 0
         else:
             diagnostic_message = 'Diagnostic was inconclusive'
             temperature_sensor_dx.temp_sensor_problem = False
-            color_code = 'GREEN'
+            color_code = 'GREY'
+            dx_msg = 3.2
             dx_table = {
                 #'datetime': current_time,
                 #'diagnostic_name': ECON1,
@@ -1185,6 +1181,7 @@ class excess_oa_intake(object):
                                   'unexpected value: {oaf}'.
                                   format(oaf=avg_oaf))
             color_code = 'GREY'
+            dx_msg = 31.2
             result.log(diagnostic_message, logging.INFO)
             dx_table = {
                 #'datetime': current_time,
@@ -1193,7 +1190,6 @@ class excess_oa_intake(object):
                 'energy_impact': 0.0
                 #'color_code': color_code
             }
-            dx_msg = 31.2
             result.insert_table_row(Application.analysis, dx_table)
             result = self.clear_data(result)
             return result
@@ -1225,7 +1221,6 @@ class excess_oa_intake(object):
                                       'consumption.')
             color_code = 'RED'
             dx_msg = 33.1
-
             if energy_calc:
                 dx_time = (len(energy_calc) - 1) * \
                     avg_step if len(energy_calc) > 1 else 1.0
@@ -1234,7 +1229,6 @@ class excess_oa_intake(object):
                 energy_impact = '%s' % float('%.2g' % energy_impact)
                 #energy_impact = str(energy_impact)
                 #energy_impact = ''.join([energy_impact, ' kWh/h'])
-
         elif not diagnostic_message:
             diagnostic_message = ('The calculated outdoor-air '
                                   'fraction is within configured '
@@ -1242,7 +1236,6 @@ class excess_oa_intake(object):
             color_code = 'GREEN'
             energy_impact = 0.0
             dx_msg = 30.0
-
         dx_table = {
             #'datetime': current_time,
             #'diagnostic_name': ECON4,
@@ -1340,14 +1333,14 @@ class insufficient_oa_intake(object):
                                   format(oaf=avg_oaf))
             color_code = 'GREY'
             result.log(diagnostic_message, logging.INFO)
+            dx_msg = 41.2
             dx_table = {
                 #'datetime': current_time,
                 #'diagnostic_name': ECON5,
-                'diagnostic_message': diagnostic_message,
+                'diagnostic_message': dx_msg,
                 'energy_impact': 0.0,
                 #'color_code': color_code
             }
-            dx_msg = 41.2
             result.insert_table_row(Application.analysis, dx_table)
             result = self.clear_data(result)
             return result
