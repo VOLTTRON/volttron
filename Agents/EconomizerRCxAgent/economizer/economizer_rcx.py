@@ -308,7 +308,7 @@ class Application(AbstractDrivenAgent):
             'oaf_temperature_threshold':
             ConfigDescriptor(float,
                              'Required difference between OAT and '
-                             'RAT for accurate diagnostic (F)',
+                             'RAT for accurate diagnostic ({drg}F)',
                              value_default=5.0),
             'device_type':
             ConfigDescriptor(str,
@@ -317,7 +317,7 @@ class Application(AbstractDrivenAgent):
             'temp_difference_threshold':
             ConfigDescriptor(float,
                              'Threshold for detecting temperature sensor '
-                             'problems (F)', value_default=4.0),
+                             'problems ({drg}F)', value_default=4.0),
             'oat_mat_check':
             ConfigDescriptor(float,
                              'Temperature threshold for OAT and MAT '
@@ -1219,8 +1219,8 @@ class excess_oa_intake(object):
                                       'provided, this could increase '
                                       'heating and cooling energy '
                                       'consumption.')
+                dx_msg = 33.1
             color_code = 'RED'
-            dx_msg = 33.1
             if energy_calc:
                 dx_time = (len(energy_calc) - 1) * \
                     avg_step if len(energy_calc) > 1 else 1.0
@@ -1291,14 +1291,6 @@ class insufficient_oa_intake(object):
     def econ_alg5(self, diagnostic_result, oatemp, ratemp, matemp,
                   damper_signal, economizer_conditon, current_time):
         '''Check app. pre-quisites and assemble data set for analysis.'''
-        if economizer_conditon:
-            diagnostic_result.log('{name}: The unit may be economizing, '
-                                  'data corresponding to {timestamp}'
-                                  ' will not be used for the diagnostic.'
-                                  .format(timestamp=str(current_time),
-                                          name=ECON5), logging.DEBUG)
-            return diagnostic_result
-
         self.oa_temp_values.append(oatemp)
         self.ra_temp_values.append(ratemp)
         self.ma_temp_values.append(matemp)
