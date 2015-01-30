@@ -53,10 +53,7 @@ import time
 import logging
 from volttron.platform.agent import (Results, AbstractDrivenAgent, PublishMixin,
                                      BaseAgent)
-#from volttron.platform.agent.utils import jsonapi
 from zmq.utils import jsonapi
-# _log = logging.getLogger(__name__)
-# logging.basicConfig(level=logging.DEBUG, stream=sys.stderr)
 from volttron.platform.agent import  utils
 from volttron.platform.messaging import headers as headers_mod, topics
 # from openeis.applications import (DrivenApplicationBaseClass,
@@ -66,12 +63,13 @@ from volttron.platform.messaging import headers as headers_mod, topics
 #                                   Results,
 #                                   Descriptor,
 #                                   reports)
-
 ECON1 = 'Temperature Sensor Dx'
 ECON2 = 'Economizing When Unit Should Dx'
 ECON3 = 'Economizing When Unit Should Not Dx'
 ECON4 = 'Excess Outdoor-air Intake Dx'
 ECON5 = 'Insufficient Outdoor-air Intake Dx'
+dx = '/diagnostic message'
+ei = '/energy impact'
 
 class Application(AbstractDrivenAgent):
     '''Application to detect and correct operational problems for AHUs/RTUs.
@@ -391,7 +389,6 @@ class Application(AbstractDrivenAgent):
         Output will have the date-time and  error-message.
         '''
         result = super().output_format(input_Application)
-
         topics = input_Application.get_topics()
         diagnostic_topic = topics[cls.fan_status_name][0]
         diagnostic_topic_parts = diagnostic_topic.split('/')
@@ -406,7 +403,6 @@ class Application(AbstractDrivenAgent):
                                  ['Economizer_RCx', 'energy_impact'])
         color_code = '/'.join(output_topic_base +
                               ['Economizer_RCx', 'color_code'])
-
         output_needs = {
             'Economizer_RCx': {
                 'datetime': OutputDescriptor('string', datetime_topic),
@@ -716,8 +712,8 @@ class temperature_sensor_dx(object):
                 dx_table = {
                     ##'datetime': current_time,
                     #'diagnostic_name': ECON1,
-                    'diagnostic_message': dx_msg,
-                    'energy_impact': 0.0
+                    ECON1 + dx: dx_msg,
+                    ECON1 + ei: 0.0
                     #'color_code': color_code
                 }
                 result.log(diagnostic_message, logging.INFO)
@@ -737,8 +733,8 @@ class temperature_sensor_dx(object):
             dx_table = {
                 #'datetime': current_time,
                 #'diagnostic_name': ECON1,
-                'diagnostic_message': dx_msg,
-                'energy_impact': 0.0
+                ECON1 + dx: dx_msg,
+                ECON1 + ei: 0.0
                 #'color_code': color_code
             }
             temperature_sensor_dx.temp_sensor_problem = True
@@ -754,8 +750,8 @@ class temperature_sensor_dx(object):
             dx_table = {
                 #'datetime': current_time,
                 #'diagnostic_name': ECON1,
-                'diagnostic_message': dx_msg,
-                'energy_impact': 0.0
+                ECON1 + dx: dx_msg,
+                ECON1 + ei: 0.0
                 #'color_code': color_code
             }
         elif (temperature_sensor_dx.temp_sensor_problem is None
@@ -767,8 +763,8 @@ class temperature_sensor_dx(object):
             dx_table = {
                 #'datetime': current_time,
                 #'diagnostic_name': ECON1,
-                'diagnostic_message': dx_msg,
-                'energy_impact': 0.0
+                ECON1 + dx: dx_msg,
+                ECON1 + ei: 0.0
                 #'color_code': color_code
             }
         else:
@@ -779,8 +775,8 @@ class temperature_sensor_dx(object):
             dx_table = {
                 #'datetime': current_time,
                 #'diagnostic_name': ECON1,
-                'diagnostic_message': dx_msg,
-                'energy_impact': 0.0
+                ECON1 + dx: dx_msg,
+                ECON1 + ei: 0.0
                 #'color_code': color_code
             }
         result.insert_table_row(Application.analysis, dx_table)
@@ -933,8 +929,8 @@ class econ_correctly_on(object):
         dx_table = {
             #'datetime': current_time,
             #'diagnostic_name': ECON2,
-            'diagnostic_message': dx_msg,
-            'energy_impact': energy_impact
+            ECON2 + dx: dx_msg,
+            ECON2 + ei: energy_impact
             #'color_code': color_code
             }
         result.insert_table_row(Application.analysis, dx_table)
@@ -1069,8 +1065,8 @@ class econ_correctly_off(object):
         dx_table = {
             #'datetime': current_time,
             #'diagnostic_name': ECON3,
-            'diagnostic_message': dx_msg,
-            'energy_impact': energy_impact
+            ECON3 + dx: dx_msg,
+            ECON3 + ei: energy_impact
             #'color_code': color_code
             }
         result.insert_table_row(Application.analysis, dx_table)
@@ -1186,8 +1182,8 @@ class excess_oa_intake(object):
             dx_table = {
                 #'datetime': current_time,
                 #'diagnostic_name': ECON4,
-                'diagnostic_message': dx_msg,
-                'energy_impact': 0.0
+                ECON4 + dx: dx_msg,
+                ECON4 + ei: 0.0
                 #'color_code': color_code
             }
             result.insert_table_row(Application.analysis, dx_table)
@@ -1239,8 +1235,8 @@ class excess_oa_intake(object):
         dx_table = {
             #'datetime': current_time,
             #'diagnostic_name': ECON4,
-            'diagnostic_message': dx_msg,
-            'energy_impact': energy_impact
+            ECON4 + dx: dx_msg,
+            ECON4 + ei: energy_impact
             #'color_code': color_code
         }
         result.insert_table_row(Application.analysis, dx_table)
@@ -1329,8 +1325,8 @@ class insufficient_oa_intake(object):
             dx_table = {
                 #'datetime': current_time,
                 #'diagnostic_name': ECON5,
-                'diagnostic_message': dx_msg,
-                'energy_impact': 0.0,
+                ECON5 + dx: dx_msg,
+                ECON5 + ei: 0.0
                 #'color_code': color_code
             }
             result.insert_table_row(Application.analysis, dx_table)
@@ -1350,8 +1346,8 @@ class insufficient_oa_intake(object):
             dx_table = {
                 #'datetime': current_time,
                 #'diagnostic_name': ECON5,
-                'diagnostic_message': dx_msg,
-                'energy_impact': 0.0
+                ECON5 + dx: dx_msg,
+                ECON5 + ei: 0.0
                 #'color_code': color_code
             }
             result.log(diagnostic_message, logging.INFO)
@@ -1368,8 +1364,8 @@ class insufficient_oa_intake(object):
             dx_table = {
                 #'datetime': current_time,
                 #'diagnostic_name': ECON5,
-                'diagnostic_message': dx_msg,
-                'energy_impact': 0.0
+                ECON5 + dx: dx_msg,
+                ECON5 + ei: 0.0
                 #'color_code': color_code
             }
         else:
@@ -1381,8 +1377,8 @@ class insufficient_oa_intake(object):
             dx_table = {
                 #'datetime': current_time,
                 #'diagnostic_name': ECON5,
-                'diagnostic_message': dx_msg,
-                'energy_impact': 0.0
+                ECON5 + dx: dx_msg,
+                ECON5 + ei: 0.0
                 #'color_code': color_code
             }
         result.insert_table_row(Application.analysis, dx_table)
