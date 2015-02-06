@@ -2,6 +2,7 @@
 *.py[co]
 *.egg-info
 *~
+.svn
 
 /env/
 /Agents/*/{build,dist}/

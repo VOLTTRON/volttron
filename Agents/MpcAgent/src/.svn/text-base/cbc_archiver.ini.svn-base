@@ -1,6 +1,0 @@
-[/]
-uuid = c43ab0fa-962c-49f6-a3c4-8e6ed6f2543b 
-Metadata/SourceName = CBC, Gym HVAC Units
-
-[/zone]
-type = cbc_archiver.cbc_archiver
