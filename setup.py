@@ -60,25 +60,17 @@ from setuptools import setup, find_packages
 
 
 install_requires = [
-    'avro>=1.7,<1.8',
     'BACpypes>=0.10,<0.11',
     'flexible-jsonrpc',
-    'gevent>=0.13,<0.14',
-    'nose>=1.3.3,<1.3.4',
-    'numpy>=1.8,<1.9',
+    'gevent>=0.13,<2',
+    'paramiko>=1.14,<2',
     'posix-clock',
-    'pymodbus>=1.2,<1.3',
-    'pyOpenSSL>=0.13,<0.14',
-    'python-dateutil>=2,<3',
-    'pyzmq>=14.3,<14.4',
-    'requests>=2.2,<2.3',
+    'pymodbus>=1.2,<2',
+    'pyzmq>=14.3,<15',
     'setuptools',
-    'simplejson>=3.3,<3.4',
+    'simplejson>=3.3,<4',
     'Smap==2.0.24c780d',
-    'Twisted>=13,<14',
-    'zope.interface>=4.0,<4.1',
-    'wheel>=0.24,<0.25',
-    'pandas'
+    'wheel>=0.24,<2',
 ]
 
 
