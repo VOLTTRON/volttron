@@ -85,7 +85,7 @@ install_requires = [
 if __name__ == '__main__':
     setup(
         name = 'volttron',
-        version = '0.2',
+        version = '2.0',
         description = 'Agent Execution Platform',
         author = 'Volttron Team',
         author_email = 'bora@pnnl.gov',
