@@ -80,8 +80,8 @@ if __name__ == '__main__':
         version = '2.0',
         description = 'Agent Execution Platform',
         author = 'Volttron Team',
-        author_email = 'bora@pnnl.gov',
-        url = 'http://www.pnnl.gov',
+        author_email = 'volttron@pnnl.gov',
+        url = 'https://github.com/VOLTTRON/volttron',
         packages = find_packages('.'),
         install_requires = install_requires,
         entry_points = {
