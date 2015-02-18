@@ -69,7 +69,6 @@ import socket
 import sys
 
 import gevent
-from pkg_resources import load_entry_point
 from zmq import green as zmq
 # Override zmq to use greenlets with mobility agent
 zmq.green = zmq
