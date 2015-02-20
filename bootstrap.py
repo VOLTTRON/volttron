@@ -57,16 +57,33 @@
 
 '''bootstrap - Prepare a VOLTTRON virtual environment.
 
-Bootstrapping is broken into two stages. The first stage should only
-execute once. It downloads virtualenv and creates a virtual Python
-environment in the env directory. It then executes stage two using the
-newly installed virtual environment. Stage two uses the new virtual
-Python environment to install VOLTTRON and its dependencies.
+Bootstrapping is broken into two stages. The first stage should only be
+invoked once per virtual environment. It downloads virtualenv and
+creates a virtual Python environment in the virtual environment
+directory (defaults to a subdirectory named env in the same directory as
+this script). It then executes stage two using the newly installed
+virtual environment. Stage two uses the new virtual Python environment
+to install VOLTTRON and its dependencies.
 
 If a new dependency is added, this script may be run again using the
 Python executable in the virtual environment to re-run stage two:
 
   env/bin/python bootstrap.py
+
+To speed up bootstrapping in a test environment, use the --wheel
+feature, which might look something like this:
+
+  $ export PIP_WHEEL_DIR=/path/to/cache/wheelhouse
+  $ export PIP_FIND_LINKS=$PIP_WHEEL_DIR
+  $ python2.7 bootstrap.py -o
+  $ env/bin/python bootstrap.py --wheel
+  $ env/bin/python bootstrap.py
+
+Instead of setting the environment variables, a pip configuration file
+may be used. Look here for more information on configuring pip:
+
+  https://pip.pypa.io/en/latest/user_guide.html#configuration
+
 '''
 
 
@@ -85,9 +102,9 @@ _log = logging.getLogger(__name__)
 _WINDOWS = sys.platform.startswith('win')
 
 
-def check_call(args):
+def check_call(args, **kwargs):
     '''Run a subprocess exiting if an error occurs.'''
-    result = subprocess.call(args)
+    result = subprocess.call(args, **kwargs)
     if result:
         sys.exit(result)
 
@@ -98,8 +115,7 @@ def shescape(args):
                     '"' if ' ' in arg else '') for arg in args)
 
 
-def bootstrap_virtenv(dest, prompt='(volttron)',
-                      version=None, verbose=None):
+def bootstrap(dest, prompt='(volttron)', version=None, verbose=None):
     '''Download latest virtualenv and create a virtual environment.
 
     The virtual environment will be created in the given directory. The
@@ -198,46 +214,23 @@ def bootstrap_virtenv(dest, prompt='(volttron)',
     return builder.env_exe
 
 
-def split_requirement(req):
-    '''Return package name (without version) and requirement tuple.'''
-    for i, c in enumerate(req):
-        if not c.isalnum() and c not in '.-_':
-            return req[:i].lower(), req
-    return req.lower(), req
-
-
-def get_requirements(requirements_path=None):
-    '''Get a list for requirements from setup.py.
-
-    Optional requirements file may also be parsed.
-
-    Returns a dictionary with package names as key.
-    '''
-    from setup import install_requires
-    class ReqDict(dict):
-        def __missing__(self, key):
-            return self.get(key.lower(), key)
-    results = ReqDict(split_requirement(req) for req in install_requires)
-    if requirements_path and os.path.exists(requirements_path):
-        with open(requirements_path) as file:
-            results.update(dict(split_requirement(req) for req in
-                                (line.strip() for line in file)
-                                if req and not req.startswith('#')))
-    return results
-
-
-def call_module(args):
+def call_module(args, env=None):
     '''Call a python module with the given args in a separate process.
 
     Exit if the return code is non-zero.
     '''
     _log.info('+ %s', shescape(args))
-    check_call([sys.executable, '-m'] + args)
+    if env:
+        environ = os.environ.copy()
+        environ.update(env)
+    else:
+        environ = None
+    check_call([sys.executable, '-m'] + args, env=environ)
 
 
-def pip_install(args, verbose=None, upgrade=False):
-    '''Call virtual environment `pip install`.'''
-    cmd = ['pip', 'install']
+def pip(operation, args, verbose=None, upgrade=False, env=None):
+    '''Call pip in the virtual environment to perform operation.'''
+    cmd = ['pip', operation]
     if verbose:
         cmd.extend(['--verbose', '--global-option', '--verbose'])
     elif verbose is None:
@@ -247,7 +240,7 @@ def pip_install(args, verbose=None, upgrade=False):
     if upgrade:
         cmd.append('--upgrade')
     cmd.extend(args)
-    call_module(cmd)
+    call_module(cmd, env=env)
 
 
 def easy_install(args, verbose=None, upgrade=False):
@@ -263,74 +256,42 @@ def easy_install(args, verbose=None, upgrade=False):
     call_module(cmd)
 
 
-def install(verbose=False):
+def join(args):
+    '''Join a list of tuples or lists into one list.'''
+    result = []
+    for arg in args:
+        result.extend(arg)
+    return result
+
+
+def update(operation, verbose=None, upgrade=False):
     '''Install dependencies in setup.py and requirements.txt.'''
+    from setup import egg_requirements, option_requirements, local_requirements
+    assert operation in ['install', 'wheel']
+    wheeling = operation == 'wheel'
     path = os.path.dirname(__file__) or '.'
     _log.info('Installing required packages')
-    requirements_txt = os.path.join(path, 'requirements.txt')
-    requirements = get_requirements(requirements_txt)
-    # Upgrade pip to avoid warning upgrade messages
-    pip_install(['pip'], verbose, True)
-    # Get bacpypes with easy_install, because it is only provided as an egg
-    easy_install([requirements['BACpypes']], verbose)
-    # Build pyzmq separately to pass install options
-    pip_install(
-        ['--install-option', '--zmq=bundled', requirements['pyzmq']], verbose)
-    # Install local packages and remaining dependencies
-    args = ['--editable', os.path.join(path, 'lib', 'jsonrpc'),
-            '--editable', os.path.join(path, 'lib', 'clock'),
-            '--editable', path]
-    if os.path.exists(requirements_txt):
-        args.extend(['--requirement', requirements_txt])
-    pip_install(args, verbose)
-
-
-def upgrade(packages, verbose=False):
-    '''Upgrade installed packages.
-
-    packages should be a list of packages to be upgraded or evaluate to
-    False to upgrade all packages. If the first element in packages is
-    '!', all packages except those in packages[1:] will be upgraded.
-    '''
-    from pip.utils import get_installed_distributions
-    path = os.path.dirname(__file__) or '.'
-    requirements = get_requirements(os.path.join(path, 'requirements.txt'))
-    if packages and packages[0] != '!':
-        packages = {name.lower(): requirements[name] for name in packages}
+    if wheeling:
+        try:
+            import wheel
+        except ImportError:
+            pip('install', ['wheel'], verbose)
     else:
-        exclude = packages[1:] if packages else []
-        exclude.extend(['volttron', 'flexible-jsonrpc', 'posix-clock'])
-        packages = {dist.project_name.lower(): requirements[dist.project_name]
-                    for dist in
-                        get_installed_distributions(include_editables=False)}
-        for name in exclude:
-            packages.pop(name.lower(), None)
-
-    _log.info('Updating packages')
-    # Update bacpypes with easy_install, because it is only provided as an egg
-    requirement = packages.pop('bacpypes', None)
-    if requirement:
-        easy_install([requirement], verbose, True)
-    # Update pip before others to limit upgrade warning message
-    requirement = packages.pop('pip', None)
-    if requirement:
-        pip_install([requirement], verbose, True)
-    # Update pyzmq separately to pass install options
-    requirement = packages.pop('pyzmq', None)
-    if requirement:
-        pip_install(['--install-option', '--zmq=bundled', requirement],
-                    verbose, True)
-    # Update remaining packages
-    if packages:
-        pip_install(packages.values(), verbose, True)
-
-
-class HelpFormatter(argparse.HelpFormatter):
-    '''Custom formatter to improve -u/--upgrade help.'''
-    def _format_action_invocation(self, action):
-        if action.dest == 'upgrade':
-            return '-u, --upgrade [[!] PKG...]'
-        return super(HelpFormatter, self)._format_action_invocation(action)
+        # Use easy_install because these are only provided as eggs
+        easy_install(egg_requirements, verbose, upgrade)
+    # Build pyzmq separately to pass install options
+    build_option = '--build-option' if wheeling else '--install-option'
+    for requirement, options in option_requirements:
+        args = join((build_option, opt) for opt in options)
+        args.extend(['--no-deps', requirement])
+        pip(operation, args, verbose, upgrade)
+    # Install local packages and remaining dependencies
+    args = join(('--editable', os.path.join(path, loc))
+                for name, loc in local_requirements)
+    args.extend(['--editable', path,
+                 '--requirement', os.path.join(path, 'requirements.txt')])
+    pip(operation, args, verbose, upgrade,
+        env={'BOOTSTRAP_IGNORE_EGGS': '1'} if upgrade or wheeling else None)
 
 
 def main(argv=sys.argv):
@@ -348,22 +309,16 @@ def main(argv=sys.argv):
     parser = argparse.ArgumentParser(
         description='Bootstrap and update a virtual Python environment '
                     'for VOLTTRON development.',
-        usage='\n  bootstrap: python2.7 %(prog)s [OPTIONS]...'
-              '\n  update:    {} %(prog)s [OPTIONS]...'.format(python),
+        usage='\n  bootstrap: python2.7 %(prog)s [options]'
+              '\n  update:    {} %(prog)s [options]'.format(python),
         prog=os.path.basename(argv[0]),
-        formatter_class=HelpFormatter,
         epilog='''
             The first invocation of this script, which should be made
-            using the system, Python, will create a virtual Python
-            environment in a subdirectory named 'env' in the same directory
-            as this script or in the directory given by the --envdir option.
+            using the system Python, will create a virtual Python
+            environment in the 'env' subdirectory in the same directory as
+            this script or in the directory given by the --envdir option.
             Subsequent invocations of this script should use the Python
-            executable installed in the virtual environment. If no arguments
-            are given with the -u/--upgrade option, all installed packages
-            will be upgraded. Packages may be limited, by listing the
-            packages that should be updated, or excluded, by including a
-            bang (!) as the first item in the list. Some shells may require
-            escaping the bang.'''
+            executable installed in the virtual environment.'''
 
     )
     verbose = parser.add_mutually_exclusive_group()
@@ -388,11 +343,15 @@ def main(argv=sys.argv):
         'in activated environment (default: %(default)s)')
     bs.add_argument('--force-version', help=argparse.SUPPRESS)
     up = parser.add_argument_group('update options')
-    up.add_argument(
-        '-u', '--upgrade', nargs='*', metavar='PKG',
+    ex = up.add_mutually_exclusive_group()
+    ex.add_argument(
+        '-u', '--upgrade', action='store_true',
         help='upgrade installed packages')
+    ex.add_argument(
+        '-w', '--wheel', action='store_const', const='wheel', dest='operation',
+        help='build wheels in the pip wheelhouse')
     path = os.path.dirname(__file__) or os.getcwd()
-    parser.set_defaults(envdir=os.path.join(path, 'env'))
+    parser.set_defaults(envdir=os.path.join(path, 'env'), operation='install')
     options = parser.parse_args(argv[1:])
 
     # Route errors to stderr, info and debug to stdout
@@ -410,10 +369,7 @@ def main(argv=sys.argv):
     # Main script logic to perform bootstrapping or updating
     if hasattr(sys, 'real_prefix'):
         # The script was called from a virtual environment Python, so update
-        if options.upgrade is not None:
-            upgrade(options.upgrade, options.verbose)
-        else:
-            install(options.verbose)
+        update(options.operation, options.verbose, options.upgrade)
     else:
         # The script was called from the system Python, so bootstrap
         try:
@@ -432,8 +388,8 @@ def main(argv=sys.argv):
         except OSError as exc:
             if exc.errno != errno.ENOENT:
                 raise
-        env_exe = bootstrap_virtenv(options.envdir, options.prompt,
-                                    options.force_version, options.verbose)
+        env_exe = bootstrap(options.envdir, options.prompt,
+                            options.force_version, options.verbose)
         if options.only_virtenv:
             return
         # Run this script within the virtual environment for stage2

@@ -55,23 +55,49 @@
 # under Contract DE-AC05-76RL01830
 #}}}
 
+from os import environ
+
 #from distutils.core import setup
 from setuptools import setup, find_packages
 
-
-install_requires = [
+# Requirements that are only available as eggs and, therefore, requires
+# installation via easy_install rather than pip.
+egg_requirements = [
     'BACpypes>=0.10,<0.11',
-    'flexible-jsonrpc',
+]
+
+# Requirements which must be built separately with the provided options.
+option_requirements = [
+    ('pyzmq>=14.3,<15', ['--zmq=bundled']),
+]
+
+# Requirements in the repository which should be installed as editable.
+local_requirements = [
+    ('flexible-jsonrpc', 'lib/jsonrpc'),
+    ('posix-clock', 'lib/clock'),
+]
+
+# Standard requirements 
+requirements = [
     'gevent>=0.13,<2',
     'paramiko>=1.14,<2',
-    'posix-clock',
     'pymodbus>=1.2,<2',
-    'pyzmq>=14.3,<15',
     'setuptools',
     'simplejson>=3.3,<4',
     'Smap==2.0.24c780d',
     'wheel>=0.24,<2',
 ]
+
+install_requires = (
+    [req for req, opt in option_requirements] +
+    [req for req, loc in local_requirements] +
+    requirements
+)
+
+# These egg-only packages cause problems with pip upgrades, so provide
+# a way to exclude them from operations in bootstrap.py.
+if not environ.get('BOOTSTRAP_IGNORE_EGGS'):
+    install_requires[0:0] = egg_requirements
 
 
 if __name__ == '__main__':
@@ -91,6 +117,5 @@ if __name__ == '__main__':
                 'volttron-pkg = volttron.platform.packaging:_main',
             ]
         },
-        test_suite = 'nose.collector',
         zip_safe = False,
     )
