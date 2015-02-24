@@ -117,6 +117,7 @@ def ArchiverAgent(config_path, **kwargs):
 
             done = False
             retries = 0
+            uuid_list = []
             while not done and retries <= 5:
                 # TODO: Need to do some error handling here!
                 try:
@@ -144,8 +145,6 @@ def ArchiverAgent(config_path, **kwargs):
                 # TODO: log this error
                 return
             payload_template = "select data in {} where {{}}".format(range_str)
-            if len(uuid_list) == 0:
-                return
 
             uuid_clause = "uuid='{}'".format(uuid_list[0]['uuid'])
             for stream in uuid_list[1:]:

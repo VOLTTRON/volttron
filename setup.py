@@ -55,42 +55,59 @@
 # under Contract DE-AC05-76RL01830
 #}}}
 
+from os import environ
+
 #from distutils.core import setup
 from setuptools import setup, find_packages
 
-
-install_requires = [
-    'avro>=1.7,<1.8',
+# Requirements that are only available as eggs and, therefore, requires
+# installation via easy_install rather than pip.
+egg_requirements = [
     'BACpypes>=0.10,<0.11',
-    'cherrypy',
-    'flexible-jsonrpc',
-    'gevent>=0.13,<0.14',
-    'nose>=1.3.3,<1.3.4',
-    'numpy>=1.8,<1.9',
-    'posix-clock',
-    'pymodbus>=1.2,<1.3',
-    'pyOpenSSL>=0.13,<0.14',
-    'python-dateutil>=2,<3',
-    'pyzmq>=14.3,<14.4',
-    'requests>=2.2,<2.3',
-    'setuptools',
-    'simplejson>=3.3,<3.4',
-    'Smap==2.0.24c780d',
-    'Twisted>=13,<14',
-    'zope.interface>=4.0,<4.1',
-    'wheel>=0.24,<0.25',
-    'pandas'
 ]
+
+# Requirements which must be built separately with the provided options.
+option_requirements = [
+    ('pyzmq>=14.3,<15', ['--zmq=bundled']),
+]
+
+# Requirements in the repository which should be installed as editable.
+local_requirements = [
+    ('flexible-jsonrpc', 'lib/jsonrpc'),
+]
+
+# Standard requirements 
+requirements = [
+    'gevent>=0.13,<2',
+    'monotonic',
+    'paramiko>=1.14,<2',
+    'pymodbus>=1.2,<2',
+    'setuptools',
+    'simplejson>=3.3,<4',
+    'Smap==2.0.24c780d',
+    'wheel>=0.24,<2',
+]
+
+install_requires = (
+    [req for req, opt in option_requirements] +
+    [req for req, loc in local_requirements] +
+    requirements
+)
+
+# These egg-only packages cause problems with pip upgrades, so provide
+# a way to exclude them from operations in bootstrap.py.
+if not environ.get('BOOTSTRAP_IGNORE_EGGS'):
+    install_requires[0:0] = egg_requirements
 
 
 if __name__ == '__main__':
     setup(
         name = 'volttron',
-        version = '0.2',
+        version = '2.0',
         description = 'Agent Execution Platform',
         author = 'Volttron Team',
-        author_email = 'bora@pnnl.gov',
-        url = 'http://www.pnnl.gov',
+        author_email = 'volttron@pnnl.gov',
+        url = 'https://github.com/VOLTTRON/volttron',
         packages = find_packages('.'),
         install_requires = install_requires,
         entry_points = {
@@ -100,6 +117,5 @@ if __name__ == '__main__':
                 'volttron-pkg = volttron.platform.packaging:_main',
             ]
         },
-        test_suite = 'nose.collector',
         zip_safe = False,
     )
