@@ -76,7 +76,11 @@ local_requirements = [
     ('flexible-jsonrpc', 'lib/jsonrpc'),
 ]
 
-# Standard requirements 
+extra_requires = {
+    'MANAGER': ['cherrypy']
+}
+
+# Standard requirements
 requirements = [
     'gevent>=0.13,<2',
     'monotonic',
