@@ -76,10 +76,6 @@ local_requirements = [
     ('flexible-jsonrpc', 'lib/jsonrpc'),
 ]
 
-extra_requires = {
-    'WEB': ['cherrypy']
-}
-
 # Standard requirements
 requirements = [
     'gevent>=0.13,<2',
@@ -114,6 +110,9 @@ if __name__ == '__main__':
         url = 'https://github.com/VOLTTRON/volttron',
         packages = find_packages('.'),
         install_requires = install_requires,
+        extras_require = {
+            'webserver': ['cherrypy']
+        },
         entry_points = {
             'console_scripts': [
                 'volttron = volttron.platform.main:_main',
