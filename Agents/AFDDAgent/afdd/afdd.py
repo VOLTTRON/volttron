@@ -335,7 +335,7 @@ class AFDD:
                 try:
                     heat_cmd1 = float(data[self.heat_cmd1_name])
                     heat_cmd2=float(data[self.heat_cmd2_name])
-                except:
+                except (TypeError, ValueError):
                     heat_cmd1 = 0
                     heat_cmd2 = 0
                 oa_temp = float(data[self.oat_name])

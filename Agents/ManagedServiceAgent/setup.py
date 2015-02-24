@@ -53,72 +53,34 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
+
 #}}}
 
-from os import environ
-
-#from distutils.core import setup
 from setuptools import setup, find_packages
 
-# Requirements that are only available as eggs and, therefore, requires
-# installation via easy_install rather than pip.
-egg_requirements = [
-    'BACpypes>=0.10,<0.11',
-]
+#get environ for agent name/identifier
+packages = find_packages('.')
+package = packages[0]
 
-# Requirements which must be built separately with the provided options.
-option_requirements = [
-    ('pyzmq>=14.3,<15', ['--zmq=bundled']),
-]
-
-# Requirements in the repository which should be installed as editable.
-local_requirements = [
-    ('flexible-jsonrpc', 'lib/jsonrpc'),
-]
-
-# Standard requirements
-requirements = [
-    'gevent>=0.13,<2',
-    'monotonic',
-    'paramiko>=1.14,<2',
-    'pymodbus>=1.2,<2',
-    'setuptools',
-    'simplejson>=3.3,<4',
-    'Smap==2.0.24c780d',
-    'wheel>=0.24,<2',
-]
-
-install_requires = (
-    [req for req, opt in option_requirements] +
-    [req for req, loc in local_requirements] +
-    requirements
+setup(
+    name = package + 'agent',
+    version = "0.1",
+    install_requires = ['volttron'],
+    packages = packages,
+    # trying to add files...
+    include_package_data = True,
+    package_data = {
+        '': ['*.*']
+    },
+#     package_data = {
+#         '': ['*.*'],
+#         '': ['static/*.txt'],
+#         'static': ['*.txt'],
+#     },
+    entry_points = {
+        'setuptools.installation': [
+            'eggsecutable = ' + package + '.agent:main',
+        ]
+    }
 )
 
-# These egg-only packages cause problems with pip upgrades, so provide
-# a way to exclude them from operations in bootstrap.py.
-if not environ.get('BOOTSTRAP_IGNORE_EGGS'):
-    install_requires[0:0] = egg_requirements
-
-
-if __name__ == '__main__':
-    setup(
-        name = 'volttron',
-        version = '2.0',
-        description = 'Agent Execution Platform',
-        author = 'Volttron Team',
-        author_email = 'volttron@pnnl.gov',
-        url = 'https://github.com/VOLTTRON/volttron',
-        packages = find_packages('.'),
-        install_requires = install_requires,
-        extras_require = {
-            'webserver': ['cherrypy']
-        },
-        entry_points = {
-            'console_scripts': [
-                'volttron = volttron.platform.main:_main',
-                'volttron-ctl = volttron.platform.control.client:_main',
-                'volttron-pkg = volttron.platform.packaging:_main',
-            ]
-        },
-        zip_safe = False,
-    )

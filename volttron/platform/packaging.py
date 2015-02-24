@@ -273,7 +273,7 @@ def _cert_type_from_kwargs(**kwargs):
         try:
             if k in kwargs['user_type'] and kwargs['user_type'][k]:
                 return k
-        except:
+        except LookupError:
             if k in kwargs and kwargs[k]:
                 return k
 

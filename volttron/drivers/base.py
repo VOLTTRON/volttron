@@ -201,7 +201,7 @@ class InterfaceFloatActuator(actuate.IntegerActuator):
         try:
             float(state)
             return True
-        except:
+        except (TypeError, ValueError):
             return False
 
     def parse_state(self, state):

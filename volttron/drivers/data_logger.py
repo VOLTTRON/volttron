@@ -173,6 +173,8 @@ class DataLogger(driver.SmapDriver):
                     self._push.send_multipart(['datalogger/status', '{"' + headers_mod.TO + '" : "'+sender+'"}', "Error loading data in smap\n%s"%e])
                     break
                 except:
+                    # TODO: Either catch more specific exception(s) OR
+                    # fully log exception (including stack trace).
                     self._push.send_multipart(['datalogger/status', '{"to" : "'+sender+'"}', "Error loading data in smap"])
                     break
 
