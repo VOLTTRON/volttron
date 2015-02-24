@@ -74,12 +74,12 @@ option_requirements = [
 # Requirements in the repository which should be installed as editable.
 local_requirements = [
     ('flexible-jsonrpc', 'lib/jsonrpc'),
-    ('posix-clock', 'lib/clock'),
 ]
 
 # Standard requirements 
 requirements = [
     'gevent>=0.13,<2',
+    'monotonic',
     'paramiko>=1.14,<2',
     'pymodbus>=1.2,<2',
     'setuptools',

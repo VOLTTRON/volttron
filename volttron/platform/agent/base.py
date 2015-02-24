@@ -67,7 +67,7 @@ import zmq
 from zmq import POLLIN, POLLOUT
 from zmq.utils import jsonapi
 
-import clock
+import monotonic as clock
 
 from . import sched
 from .matching import iter_match_tests
