@@ -118,6 +118,8 @@ def passiveafdd(config_path, **kwargs):
             self.heat_cmd_name = config_data.get('heat_cmd_name')
             self.damper_name = config_data.get('damper_point_name')
             self.mat_missing = config_data.get('mixed_air_sensor_missing')
+            self.temp_deadband = config_data.get('temp_deadband')
+            self.damper_deadband = config.get('damper_deadband')
             sunday = config_data.get('Sunday')
             monday = config_data.get('Monday')
             tuesday = config_data.get('Tuesday')
@@ -436,11 +438,11 @@ def passiveafdd(config_path, **kwargs):
                            self.oatemp[points] != -99 and
                            self.compressor[points] != -99 and
                            self.damper[points] != -99):
-                            if (self.compressor[points] and
-                                ((self.oatemp[points] < self.ratemp[points]
-                                 and self.economizer_type == 0.0) or
-                                (self.oatemp[points] < self.high_limit
-                                 and self.economizer_type == 1.0))):
+                            if((self.ratemp[points] - self.oatemp[points] > self.temp_deadband and
+                                self.economizer_type == 0.0)
+                                   or
+                                (self.high_limit - self.oatemp[points] > self.temp_deadband and
+                                 self.economizer_type == 1.0)):
                                 if ((100.0 - self.damper[points]) <
                                    self.oae2_damper_threshold):
                                     if math.fabs(self.oatemp[points] - self.ratemp[points]) > 5.0 and not self.matemp_missing:
@@ -499,11 +501,13 @@ def passiveafdd(config_path, **kwargs):
                            self.ratemp[points] != -99 and
                            self.oatemp[points] != -99 and
                            self.damper[points] != -99):
-                            if((self.oatemp[points] > self.ratemp[points]
-                                    and self.economizer_type == 0.0)
+                            if((self.oatemp[points] - self.ratemp[points] >
+                                self.temp_deadband and
+                                self.economizer_type == 0.0)
                                    or
-                                    (self.oatemp[points] > self.high_limit
-                                     and self.economizer_type == 1.0)):
+                                (self.oatemp[points] - self.high_limit >
+                                 self.temp_deadband and
+                                 self.economizer_type == 1.0)):
                                 if (self.compressor[points]):
                                     if self.damper[points] <= self.damper_minimum:
                                         # No fault detected.
@@ -540,14 +544,13 @@ def passiveafdd(config_path, **kwargs):
                            self.oatemp[points] != -99 and
                            self.ratemp[points] != -99 and
                            self.damper[points] != -99):
-                            if ((self.compressor[points] and
-                               ((self.oatemp[points] > self.ratemp[points] and
+                            if((self.oatemp[points] - self.ratemp[points] >
+                                self.temp_deadband and
                                 self.economizer_type == 0.0)
                                    or
-                                (self.oatemp[points] > self.high_limit and
-                                 self.economizer_type == 1.0)))
-                                or
-                               not self.compressor[points]):
+                                (self.oatemp[points] - self.high_limit >
+                                 self.temp_deadband and
+                                 self.economizer_type == 1.0)):
                                 if self.damper[points] <= self.damper_minimum:
                                     if (not self.matemp_missing and
                                        math.fabs(self.oatemp[points] -
@@ -595,7 +598,7 @@ def passiveafdd(config_path, **kwargs):
                                     # Damper is not at minimum (Fault).
                                     oae4_result.append(53)
                             else:
-                                # Unit should be economizing (No fault).
+                                # Unit may be economizing (No fault).
                                 oae4_result.append(56)
                         else:
                             # Missing data (No fault).
@@ -612,57 +615,53 @@ def passiveafdd(config_path, **kwargs):
             oae5_result = []
             for points in xrange(0, self.newdata):
                 if self.fan_status[points] != -99:
-                    if int(self.fan_status[points]) == 1:
+                    if int(self.fan_status[points]):
                         if (self.compressor[points] != -99 and
                            self.oatemp[points] != -99 and
                            self.ratemp[points] != -99 and
                            self.damper[points] != -99):
-                            if ((int(self.compressor[points] and
-                                (self.oatemp[points] > self.ratemp[points])
-                                and self.economizer_type == 0.0)) or
-                                (self.oatemp[points] > self.high_limit and
-                               self.economizer_type == 1.0) or not
-                               int(self.compressor[points])):
-                                if self.damper[points] <= self.damper_minimum:
-                                    if (math.fabs(self.oatemp[points]-self.ratemp[points]) > 5.0
-                                       and not self.matemp_missing):
-                                        if ((self.minimum_oa - self.oaf[points]) > self.oae5_oaf_threshold and
-                                           self.oaf[points] > 0 and
-                                           self.oaf[points] < 1.25):
-                                            # Unit is bringing in insufficient OA (Fault).
-                                            oae5_result.append(61)
-                                        elif ((self.minimum_oa - self.oaf[points]) < self.oae5_oaf_threshold and
-                                              self.oaf[points] > 0 and
-                                              self.oaf[points] < 1.25):
-                                            # No problem detected.
-                                            oae5_result.append(60)
-                                        else:
-                                            oae5_result.append(68)
-                                    elif (math.fabs(self.oatemp[points]-self.ratemp[points]) > 5.0 and
-                                          self.matemp_missing and not int(self.compressor[points]) and
-                                          int(self.heating[points])):
-                                        if ((self.minimum_oa - self.oaf[points]) > self.oae5_oaf_threshold  and
-                                           self.oaf[points] > 0 and
-                                           self.oaf[points] < 1.25):
-                                            oae5_result.append(61)  # Insufficient OA (Fault)
-                                        elif ((self.minimum_oa - self.oaf[points]) < self.oae5_oaf_threshold and
-                                              self.oaf[points] > 0 and
-                                              self.oaf[points] < 1.25):
-                                            oae5_result.append(60)  # No Fault
-                                        else:
-                                            # OAF calculation resulted in unexpected value (No Fault).
-                                            oae5_result.append(68)
+                            if (self.damper_minimum - self.damper[points]
+                                <= self.damper_deadband):
+                                if (math.fabs(self.oatemp[points]-self.ratemp[points] > 5.0)
+                                   and not self.matemp_missing):
+                                    if ((self.minimum_oa - self.oaf[points])> self.oae5_oaf_threshold and
+                                       self.oaf[points] > 0 and
+                                       self.oaf[points] < 1.25):
+                                        # Unit is bringing in insufficient OA (Fault)
+                                        oae5_result.append(61)
+                                    elif ((self.minimum_oa - self.oaf[points]) < self.oae5_oaf_threshold and
+                                          self.oaf[points] > 0 and
+                                          self.oaf[points] < 1.25):
+                                        # No problem detected.
+                                        oae5_result.append(60)
                                     else:
-                                         # Conditions are not favorable for OAF calculation (No Fault).
-                                        oae5_result.append(62)
+                                        # Unexpected result for OAF calculation
+                                        # (No Fault)
+                                        oae5_result.append(68)
+                                elif (math.fabs(self.oatemp[points]-self.ratemp[points]) > 5.0 and
+                                      self.matemp_missing and not int(self.compressor[points]) and
+                                      int(self.heating[points])):
+                                    if ((self.minimum_oa - self.oaf[points]) > self.oae5_oaf_threshold  and
+                                       self.oaf[points] > 0 and
+                                       self.oaf[points] < 1.25):
+                                        oae5_result.append(61)  # Insufficient OA (Fault)
+                                    elif ((self.minimum_oa - self.oaf[points]) < self.oae5_oaf_threshold and
+                                          self.oaf[points] > 0 and
+                                          self.oaf[points] < 1.25):
+                                        oae5_result.append(60)  # No Fault
+                                    else:
+                                        # Unexpected result for OAF calculation
+                                        # (No Fault).
+                                        oae5_result.append(68)
                                 else:
-                                    # Damper is not at minimum (Fault).
-                                    oae5_result.append(63)
+                                     # Conditions are not favorable for OAF calculation (No Fault).
+                                    oae5_result.append(62)
                             else:
-                                # Unit should be economizing (No Fault)
-                                oae5_result.append(66)
+                                # Damper is significantly below the minimum
+                                # damper set point (Fault)
+                                oae5_result.append(63)
                         else:
-                            # Missing required data (No fault).
+                            # Missing required data (No fault)
                             oae5_result.append(67)
                     else:
                         # Unit is off (No fault).
