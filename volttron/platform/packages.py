@@ -130,7 +130,7 @@ class VolttronPackageWheelFileNoSign(WheelFile):
                 if 'config_file' in files_to_add.keys():
                     try:
                         data = open(files_to_add['config_file']).read()
-                    except Exception as e:
+                    except OSError as e:
                         _log.error("couldn't access {}" % files_to_add['config_file'])
                         raise
     
@@ -151,7 +151,7 @@ class VolttronPackageWheelFileNoSign(WheelFile):
                 if 'contract' in files_to_add.keys() and files_to_add['contract'] is not None:
                     try:
                         data = open(files_to_add['contract']).read()
-                    except Exception as e:
+                    except OSError as e:
                         _log.error("couldn't access {}" % files_to_add['contract'])
                         raise
     
