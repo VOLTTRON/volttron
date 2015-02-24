@@ -67,8 +67,6 @@ from volttron.platform.agent import BaseAgent
 from volttron.platform.agent.utils import jsonapi
 from volttron.platform.agent import utils
 
-import settings
-
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 WEB_ROOT = p.abspath(p.join(p.dirname(__file__), 'webroot'))
