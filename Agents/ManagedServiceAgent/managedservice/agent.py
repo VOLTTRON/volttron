@@ -112,11 +112,17 @@ class WebApi:
     @cherrypy.tools.json_in()
     def index(self):
         '''
+        Example curl post
         curl -X POST -H "Content-Type: application/json" \
-      -d '{"jsonrpc": "2.0","method": "getAuthorization", \
-            "params": {"username": "dorothy", "password": "toto123" }, \
-    "id": "someid?" \
-}' http://127.0.0.1:8080/api/
+-d '{"jsonrpc": "2.0","method": "getAuthorization","params": {"username": "dorothy","password": "toto123"},"id": "someid?"}' \
+ http://127.0.0.1:8080/api/
+
+        Successful response
+             {"jsonrpc": "2.0",
+              "result": "071b5022-4c35-4395-a4f0-8c32905919d8",
+              "id": "Not sure what goes here"}
+        Failed
+            401 Unauthorized
 '''
         print cherrypy.request.json
         if cherrypy.request.json.get('jsonrpc') != '2.0':
@@ -143,6 +149,8 @@ class WebApi:
                         "result": str(token),
                         "id": "Not sure what goes here"
                 }
+            else:
+                raise cherrypy.HTTPError("401 Unauthorized")
         return {"jsonrpc": "2.0", "result": "Unknown"}
 
     @cherrypy.expose
