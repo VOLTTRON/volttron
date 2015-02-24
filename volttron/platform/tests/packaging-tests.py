@@ -17,7 +17,7 @@ from volttron.platform.packaging import AgentPackageError
 
 try:
     from volttron.restricted import (auth, certs)
-except:
+except ImportError:
     auth = None
     certs = None
 
