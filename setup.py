@@ -77,7 +77,7 @@ local_requirements = [
 ]
 
 extra_requires = {
-    'MANAGER': ['cherrypy']
+    'WEB': ['cherrypy']
 }
 
 # Standard requirements
