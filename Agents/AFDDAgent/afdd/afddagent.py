@@ -55,7 +55,6 @@
 # under Contract DE-AC05-76RL01830
 
 #}}}
-import clock
 import logging
 import sys
 import math

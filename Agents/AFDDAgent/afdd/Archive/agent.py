@@ -56,7 +56,6 @@
 
 #}}}
 
-import clock
 import logging
 import sys
 
