@@ -270,7 +270,7 @@ def update(operation, verbose=None, upgrade=False):
     assert operation in ['install', 'wheel']
     wheeling = operation == 'wheel'
     path = os.path.dirname(__file__) or '.'
-    _log.info('Installing required packages')
+    _log.info('%sing required packages', 'Build' if wheeling else 'Install')
     if wheeling:
         try:
             import wheel
