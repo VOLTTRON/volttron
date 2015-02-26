@@ -74,7 +74,8 @@ To speed up bootstrapping in a test environment, use the --wheel
 feature, which might look something like this:
 
   $ export PIP_WHEEL_DIR=/path/to/cache/wheelhouse
-  $ export PIP_FIND_LINKS=$PIP_WHEEL_DIR
+  $ export PIP_FIND_LINKS=file://$PIP_WHEEL_DIR
+  $ mkdir -p $PIP_WHEEL_DIR
   $ python2.7 bootstrap.py -o
   $ env/bin/python bootstrap.py --wheel
   $ env/bin/python bootstrap.py
@@ -100,13 +101,6 @@ import sys
 _log = logging.getLogger(__name__)
 
 _WINDOWS = sys.platform.startswith('win')
-
-
-def check_call(args, **kwargs):
-    '''Run a subprocess exiting if an error occurs.'''
-    result = subprocess.call(args, **kwargs)
-    if result:
-        sys.exit(result)
 
 
 def shescape(args):
@@ -198,7 +192,7 @@ def bootstrap(dest, prompt='(volttron)', version=None, verbose=None):
                     args.extend(['--prompt', prompt])
                 args.append(directory)
                 _log.debug('+ %s', shescape(args))
-                check_call(args)
+                subprocess.check_call(args)
                 if _WINDOWS:
                     self.env_exe = os.path.join(
                         directory, 'Scripts', 'python.exe')
@@ -214,21 +208,7 @@ def bootstrap(dest, prompt='(volttron)', version=None, verbose=None):
     return builder.env_exe
 
 
-def call_module(args, env=None):
-    '''Call a python module with the given args in a separate process.
-
-    Exit if the return code is non-zero.
-    '''
-    _log.info('+ %s', shescape(args))
-    if env:
-        environ = os.environ.copy()
-        environ.update(env)
-    else:
-        environ = None
-    check_call([sys.executable, '-m'] + args, env=environ)
-
-
-def pip(operation, args, verbose=None, upgrade=False, env=None):
+def pip(operation, args, verbose=None, upgrade=False):
     '''Call pip in the virtual environment to perform operation.'''
     cmd = ['pip', operation]
     if verbose:
@@ -240,33 +220,14 @@ def pip(operation, args, verbose=None, upgrade=False, env=None):
     if upgrade:
         cmd.append('--upgrade')
     cmd.extend(args)
-    call_module(cmd, env=env)
-
-
-def easy_install(args, verbose=None, upgrade=False):
-    '''Call virtual environment easy_install.'''
-    cmd = ['easy_install']
-    if verbose:
-        cmd.append('--verbose')
-    elif verbose is not None:
-        cmd.append('--quiet')
-    if upgrade:
-        cmd.append('--upgrade')
-    cmd.extend(args)
-    call_module(cmd)
-
-
-def join(args):
-    '''Join a list of tuples or lists into one list.'''
-    result = []
-    for arg in args:
-        result.extend(arg)
-    return result
+    _log.info('+ %s', shescape(cmd))
+    cmd[:0] = [sys.executable, '-m']
+    subprocess.check_call(cmd)
 
 
 def update(operation, verbose=None, upgrade=False):
     '''Install dependencies in setup.py and requirements.txt.'''
-    from setup import egg_requirements, option_requirements, local_requirements
+    from setup import option_requirements, local_requirements
     assert operation in ['install', 'wheel']
     wheeling = operation == 'wheel'
     path = os.path.dirname(__file__) or '.'
@@ -276,22 +237,21 @@ def update(operation, verbose=None, upgrade=False):
             import wheel
         except ImportError:
             pip('install', ['wheel'], verbose)
-    else:
-        # Use easy_install because these are only provided as eggs
-        easy_install(egg_requirements, verbose, upgrade)
-    # Build pyzmq separately to pass install options
+    # Build option_requirements separately to pass install options
     build_option = '--build-option' if wheeling else '--install-option'
     for requirement, options in option_requirements:
-        args = join((build_option, opt) for opt in options)
+        args = []
+        for opt in options:
+            args.extend([build_option, opt])
         args.extend(['--no-deps', requirement])
         pip(operation, args, verbose, upgrade)
     # Install local packages and remaining dependencies
-    args = join(('--editable', os.path.join(path, loc))
-                for name, loc in local_requirements)
+    args = []
+    for _, location in local_requirements:
+        args.extend(['--editable', os.path.join(path, location)])
     args.extend(['--editable', path,
                  '--requirement', os.path.join(path, 'requirements.txt')])
-    pip(operation, args, verbose, upgrade,
-        env={'BOOTSTRAP_IGNORE_EGGS': '1'} if upgrade or wheeling else None)
+    pip(operation, args, verbose, upgrade)
 
 
 def main(argv=sys.argv):
@@ -396,7 +356,7 @@ def main(argv=sys.argv):
         args = [env_exe, __file__]
         if options.verbose is not None:
             args.append('--verbose' if options.verbose else '--quiet')
-        check_call(args)
+        subprocess.check_call(args)
 
 
 if __name__ == "__main__":
@@ -404,3 +364,5 @@ if __name__ == "__main__":
         main()
     except KeyboardInterrupt:
         pass
+    except subprocess.CalledProcessError as exc:
+        sys.exit(exc.returncode)
