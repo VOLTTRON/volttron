@@ -114,7 +114,7 @@ class ControlConnector(jsonrpc.PyConnector):
 
 
 def get_peercred(sock):
-    '''Return (pid, gid, uid) of peer socket.'''
+    '''Return (pid, uid, gid) of peer socket.'''
     data = sock.getsockopt(socket.SOL_SOCKET, SO_PEERCRED, 12)
     return struct.unpack('3I', data)
 
