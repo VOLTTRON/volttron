@@ -63,9 +63,19 @@ POLLOUT = 2
 
 PUB = 1
 SUB = 2
+DEALER = 5
+ROUTER = 6
 PULL = 7
 PUSH = 8
 XPUB = 9
+
+EAGAIN = 11
+EINVAL = 22
+EHOSTUNREACH = 113
+
+
+class ZMQError(Exception):
+    pass
 
 
 class Context(object):
