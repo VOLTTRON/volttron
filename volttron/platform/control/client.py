@@ -408,10 +408,14 @@ def main(argv=sys.argv):
     filterable.set_defaults(by_name=False, by_tag=False, by_uuid=False)
 
     parser.add_help_argument()
+
+    default_control = '$VOLTTRON_HOME/run/control'
+    if sys.platform.startswith('linux'):
+        default_control = '@' + default_control
     parser.set_defaults(
         log_config=None,
         volttron_home=volttron_home,
-        control_socket='@$VOLTTRON_HOME/run/control',
+        control_socket=default_control,
     )
 
     subparsers = parser.add_subparsers(title='commands', metavar='', dest='command')

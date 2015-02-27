@@ -362,6 +362,9 @@ def main(argv=sys.argv):
             '--mobility-port', type=int, metavar='NUMBER',
             help='specify the port on which to listen')
 
+    default_control = '$VOLTTRON_HOME/run/control'
+    if sys.platform.startswith('linux'):
+        default_control = '@' + default_control
     parser.set_defaults(
         log=None,
         log_config=None,
@@ -370,7 +373,7 @@ def main(argv=sys.argv):
         autostart=True,
         publish_address='ipc://$VOLTTRON_HOME/run/publish',
         subscribe_address='ipc://$VOLTTRON_HOME/run/subscribe',
-        control_socket='@$VOLTTRON_HOME/run/control',
+        control_socket=default_control,
         allow_root=False,
         allow_users=None,
         allow_groups=None,
