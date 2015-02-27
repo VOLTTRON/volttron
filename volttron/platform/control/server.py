@@ -64,6 +64,7 @@ import logging
 import os
 import pwd
 import struct
+import sys
 
 import gevent
 from gevent import socket
