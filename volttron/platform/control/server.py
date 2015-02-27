@@ -83,9 +83,6 @@ __all__ = ['control_loop', 'ControlConnector']
 _log = logging.getLogger(__name__)
 
 
-SO_PEERCRED = 17
-
-
 def dispatch_loop(stream, dispatcher):
     for chunk in stream:
         try:
@@ -113,10 +110,26 @@ class ControlConnector(jsonrpc.PyConnector):
         self._task = gevent.spawn(dispatch_loop, stream, dispatcher)
 
 
-def get_peercred(sock):
-    '''Return (pid, uid, gid) of peer socket.'''
-    data = sock.getsockopt(socket.SOL_SOCKET, SO_PEERCRED, 12)
-    return struct.unpack('3I', data)
+if sys.platform.startswith('linux'):
+    def get_peercred(sock):
+        '''Return (pid, uid, gid) of peer socket.'''
+        fmt = '3I'
+        # sock.getsockopt(SOL_SOCKET, SO_PEERCRED, 12)
+        data = sock.getsockopt(socket.SOL_SOCKET, 17, struct.calcsize(fmt))
+        return struct.unpack(fmt, data)
+elif sys.platform == 'darwin' or sys.platform.endswith('bsd'):
+    def get_peercred(sock):
+        fmt = 'iIh16I'
+        # sock.getsockopt(0, LOCAL_PEERCRED, 76)
+        data = sock.getsockopt(0, 1, struct.calcsize(fmt))
+        xucred = struct.unpack(fmt, data)
+        version, uid, ngroups = xucred[:3]
+        assert not version
+        gid = xucred[3] if ngroups else None
+        return None, uid, gid
+else:
+    def get_peercred(sock):
+        return None, None, None
 
 
 def authorize_user(uid, gid, users=None, groups=None, allow_root=True):
