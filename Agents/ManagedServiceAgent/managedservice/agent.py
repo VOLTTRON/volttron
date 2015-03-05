@@ -112,13 +112,13 @@ class WebApi:
         '''
         Example curl post
         curl -X POST -H "Content-Type: application/json" \
--d '{"jsonrpc": "2.0","method": "getAuthorization","params": {"username": "dorothy","password": "toto123"},"id": "someid?"}' \
+-d '{"jsonrpc": "2.0","method": "getAuthorization","params": {"username": "dorothy","password": "toto123"},"id": "someid"}' \
  http://127.0.0.1:8080/api/
 
         Successful response
              {"jsonrpc": "2.0",
               "result": "071b5022-4c35-4395-a4f0-8c32905919d8",
-              "id": "Not sure what goes here"}
+              "id": "someid"}
         Failed
             401 Unauthorized
 '''
@@ -145,7 +145,7 @@ class WebApi:
                 return {
                         "jsonrpc": "2.0",
                         "result": str(token),
-                        "id": "Not sure what goes here"
+                        "id": cherrypy.request.json.get('id')
                 }
             else:
                 raise cherrypy.HTTPError("401 Unauthorized")
