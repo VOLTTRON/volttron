@@ -127,15 +127,15 @@ class WebApi:
             raise ValidationException('Invalid jsnrpc version')
         if not cherrypy.request.json.get('method'):
             raise ValidationException('Invalid method')
-        if not cherrypy.request.json.get('params'):
-            raise ValidationException('Invalid params')
-        params = cherrypy.request.json.get('params')
-        if not params.get('username'):
-            raise ValidationException('Specify username')
-        if not params.get('password'):
-            raise ValidationException('Specify password')
-
         if cherrypy.request.json.get('method') == 'getAuthorization':
+            if not cherrypy.request.json.get('params'):
+                raise ValidationException('Invalid params')
+            params = cherrypy.request.json.get('params')
+            if not params.get('username'):
+                raise ValidationException('Specify username')
+            if not params.get('password'):
+                raise ValidationException('Specify password')
+
             token = self.sessions.authenticate(params.get('username'),
                                    params.get('password'),
                                    cherrypy.request.remote.ip)
