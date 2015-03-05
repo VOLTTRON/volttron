@@ -183,8 +183,8 @@ def ManagedServiceAgent(config_path, **kwargs):
     print server_conf
     static_conf = {
         "/": {
-            "tools.sessions.on": True,
-            "tools.staticdir.root": WEB_ROOT
+            "tools.staticdir.on": True,
+            "tools.staticdir.dir": WEB_ROOT
         }
     }
     #poll_time = get_config('poll_time')
@@ -203,7 +203,7 @@ def ManagedServiceAgent(config_path, **kwargs):
             super(Agent, self).setup()
             #cherrypy.tree.mount(self.webserver, "/", config=static_conf)
             cherrypy.tree.mount(self.webserver, "/api")
-            cherrypy.tree.mount(Root(), "/")
+            cherrypy.tree.mount(Root(), "/", config=static_conf)
             #cherrypy.config.update(server_conf)
             #cherrypy.config.update(static_conf)
             cherrypy.engine.start()
