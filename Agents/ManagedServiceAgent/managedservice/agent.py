@@ -142,14 +142,17 @@ class WebApi:
 
 
             if token:
-                return {
-                        "jsonrpc": "2.0",
-                        "result": str(token),
-                        "id": cherrypy.request.json.get('id')
-                }
-            else:
-                raise cherrypy.HTTPError("401 Unauthorized")
-        return {"jsonrpc": "2.0", "result": "Unknown"}
+                return {'jsonrpc': '2.0',
+                        'result': str(token),
+                        'id': cherrypy.request.json.get('id')}
+
+            return {'jsonrpc': '2.0',
+                    'error': {'code': 401, 'message': 'Unauthorized'},
+                    'id': cherrypy.request.json.get('id')}
+
+        return {'jsonrpc': '2.0',
+                'error': {'code': 404, 'message': 'Unknown method'},
+                'id': cherrypy.request.json.get('id')}
 
     @cherrypy.expose
     @cherrypy.tools.json_in()
