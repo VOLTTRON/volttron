@@ -112,13 +112,13 @@ class WebApi:
         '''
         Example curl post
         curl -X POST -H "Content-Type: application/json" \
--d '{"jsonrpc": "2.0","method": "getAuthorization","params": {"username": "dorothy","password": "toto123"},"id": "someid?"}' \
+-d '{"jsonrpc": "2.0","method": "getAuthorization","params": {"username": "dorothy","password": "toto123"},"id": "someid"}' \
  http://127.0.0.1:8080/api/
 
         Successful response
              {"jsonrpc": "2.0",
               "result": "071b5022-4c35-4395-a4f0-8c32905919d8",
-              "id": "Not sure what goes here"}
+              "id": "someid"}
         Failed
             401 Unauthorized
 '''
@@ -127,29 +127,32 @@ class WebApi:
             raise ValidationException('Invalid jsnrpc version')
         if not cherrypy.request.json.get('method'):
             raise ValidationException('Invalid method')
-        if not cherrypy.request.json.get('params'):
-            raise ValidationException('Invalid params')
-        params = cherrypy.request.json.get('params')
-        if not params.get('username'):
-            raise ValidationException('Specify username')
-        if not params.get('password'):
-            raise ValidationException('Specify password')
-
         if cherrypy.request.json.get('method') == 'getAuthorization':
+            if not cherrypy.request.json.get('params'):
+                raise ValidationException('Invalid params')
+            params = cherrypy.request.json.get('params')
+            if not params.get('username'):
+                raise ValidationException('Specify username')
+            if not params.get('password'):
+                raise ValidationException('Specify password')
+
             token = self.sessions.authenticate(params.get('username'),
                                    params.get('password'),
                                    cherrypy.request.remote.ip)
 
 
             if token:
-                return {
-                        "jsonrpc": "2.0",
-                        "result": str(token),
-                        "id": "Not sure what goes here"
-                }
-            else:
-                raise cherrypy.HTTPError("401 Unauthorized")
-        return {"jsonrpc": "2.0", "result": "Unknown"}
+                return {'jsonrpc': '2.0',
+                        'result': str(token),
+                        'id': cherrypy.request.json.get('id')}
+
+            return {'jsonrpc': '2.0',
+                    'error': {'code': 401, 'message': 'Unauthorized'},
+                    'id': cherrypy.request.json.get('id')}
+
+        return {'jsonrpc': '2.0',
+                'error': {'code': 404, 'message': 'Unknown method'},
+                'id': cherrypy.request.json.get('id')}
 
     @cherrypy.expose
     @cherrypy.tools.json_in()
@@ -183,8 +186,8 @@ def ManagedServiceAgent(config_path, **kwargs):
     print server_conf
     static_conf = {
         "/": {
-            "tools.sessions.on": True,
-            "tools.staticdir.root": WEB_ROOT
+            "tools.staticdir.on": True,
+            "tools.staticdir.dir": WEB_ROOT
         }
     }
     #poll_time = get_config('poll_time')
@@ -203,7 +206,7 @@ def ManagedServiceAgent(config_path, **kwargs):
             super(Agent, self).setup()
             #cherrypy.tree.mount(self.webserver, "/", config=static_conf)
             cherrypy.tree.mount(self.webserver, "/api")
-            cherrypy.tree.mount(Root(), "/")
+            cherrypy.tree.mount(Root(), "/", config=static_conf)
             #cherrypy.config.update(server_conf)
             #cherrypy.config.update(static_conf)
             cherrypy.engine.start()
