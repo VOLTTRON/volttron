@@ -1,0 +1,5 @@
+Host host1:
+	Hostname 127.0.1.1
+
+Host host2:
+	Hostname 127.0.2.1
