@@ -172,7 +172,7 @@ class Root:
     def index(self):
         return open(os.path.join(WEB_ROOT, u'index.html'))
 
-def ManagedServiceAgent(config_path, **kwargs):
+def PlatformManagerAgent(config_path, **kwargs):
     config = utils.load_config(config_path)
 
     def get_config(name):
@@ -222,7 +222,7 @@ def ManagedServiceAgent(config_path, **kwargs):
 
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
-    utils.default_main(ManagedServiceAgent,
+    utils.default_main(PlatformManagerAgent,
                        description='The managed server agent',
                        argv=argv)
 
