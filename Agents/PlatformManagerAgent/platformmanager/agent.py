@@ -63,9 +63,12 @@ import os
 import os.path as p
 import uuid
 
+from authenticate import Authenticate
+
 from volttron.platform.agent import BaseAgent
 from volttron.platform.agent.utils import jsonapi
 from volttron.platform.agent import utils
+
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -75,19 +78,21 @@ class ValidationException(Exception):
     pass
 
 class LoggedIn:
-    def __init__(self):
+    def __init__(self, authenticator):
         self.sessions = {}
         self.session_token = {}
+        self.authenticator = authenticator
 
     def authenticate(self, username, password, ip):
-        if (username == 'dorothy' and password=='toto123'):
+        groups = self.authenticator.authenticate(username, password)
+        if groups:
             token = uuid.uuid4()
-            self._add_session(username, token, ip)
+            self._add_session(username, token, ip, ",".join(groups))
             return token
         return None
 
-    def _add_session(self, user, token, ip):
-        self.sessions[user] = {user: user, token: token, ip: ip}
+    def _add_session(self, user, token, ip, groups):
+        self.sessions[user] = {user: user, token: token, ip: ip, groups: groups}
         self.session_token[token] = self.sessions[user]
 
     def check_session(self, token, ip):
@@ -101,8 +106,8 @@ class LoggedIn:
 
 class WebApi:
 
-    def __init__(self):
-        self.sessions = LoggedIn()
+    def __init__(self, authenticator):
+        self.sessions = LoggedIn(authenticator)
 
     @cherrypy.expose
     @cherrypy.tools.allow(methods=['POST'])
@@ -183,13 +188,15 @@ def PlatformManagerAgent(config_path, **kwargs):
 
     agent_id = get_config('agentid')
     server_conf = {'global': get_config('server')}
-    print server_conf
+    user_map = get_config('users')
+
     static_conf = {
         "/": {
             "tools.staticdir.on": True,
             "tools.staticdir.dir": WEB_ROOT
         }
     }
+
     #poll_time = get_config('poll_time')
     #zip_code = get_config("zip")
     #key = get_config('key')
@@ -200,7 +207,7 @@ def PlatformManagerAgent(config_path, **kwargs):
         def __init__(self, **kwargs):
             super(Agent, self).__init__(**kwargs)
             self.valid_data = False
-            self.webserver = WebApi()
+            self.webserver = WebApi(Authenticate(user_map))
 
         def setup(self):
             super(Agent, self).setup()
