@@ -161,7 +161,8 @@ def repackage(directory, dest=None):
     return pkg.repack(dest)
 
 
-def create_package(agent_package_dir, wheelhouse='/tmp/volttron_wheels'):
+#default_wheel_dir = os.environ['VOLTTRON_HOME']+'/packaged'
+def create_package(agent_package_dir, wheelhouse):
     '''Creates a packaged whl file from the passed agent_package_dir.
 
     If the passed directory doesn't exist or there isn't a setup.py file
@@ -240,9 +241,9 @@ def _sign_agent_package(agent_package, **kwargs):
     cert_type = _cert_type_from_kwargs(**kwargs)
     files = _files_from_kwargs(**kwargs)
     certs_dir = kwargs.get('certs_dir', None)
-    
+
     certsobj = None
-    
+
     if certs_dir is not None:
         certsobj = certs.Certs(certs_dir)
 
@@ -363,7 +364,9 @@ def main(argv=sys.argv):
 
     expandall = lambda string: os.path.expanduser(os.path.expandvars(string))
     home = expandall(os.environ.get('VOLTTRON_HOME', '~/.volttron'))
+
     os.environ['VOLTTRON_HOME'] = home
+    default_wheelhouse = os.environ['VOLTTRON_HOME']+'/packaged'
 
     # Setup option parser
     progname = os.path.basename(argv[0])
@@ -372,7 +375,7 @@ def main(argv=sys.argv):
         description='VOLTTRON packaging and signing utility',
     )
     parser.set_defaults(log_config=None)
-    
+
     parser.add_argument('-l', '--log', metavar='FILE', default=None,
         help='send log output to FILE instead of stderr')
     parser.add_argument('-L', '--log-config', metavar='FILE',
@@ -384,7 +387,7 @@ def main(argv=sys.argv):
     parser.add_argument('--verboseness', type=int, metavar='LEVEL',
         default=logging.WARNING,
         help='set logger verboseness')
-    
+
     subparsers = parser.add_subparsers(title = 'subcommands',
                                        description = 'valid subcommands',
                                        help = 'additional help',
@@ -394,6 +397,9 @@ def main(argv=sys.argv):
 
     package_parser.add_argument('agent_directory',
         help='Directory for packaging an agent for the first time (requires setup.py file).')
+    package_parser.add_argument('--dest',
+        help='Directory to place the wheel file')
+    package_parser.set_defaults(dest=default_wheelhouse)
 
     repackage_parser = subparsers.add_parser('repackage',
                                            help="Creates agent package from a currently installed agent.")
@@ -401,16 +407,16 @@ def main(argv=sys.argv):
         help='Directory where agent is installed')
     repackage_parser.add_argument('--dest',
         help='Directory to place the wheel file')
-    repackage_parser.set_defaults(dest=None)
-    
+    repackage_parser.set_defaults(dest=default_wheelhouse)
+
     config_parser = subparsers.add_parser('configure',
         help='add a configuration file to an agent package')
     config_parser.add_argument('package', metavar='PACKAGE',
             help='agent package to configure')
     config_parser.add_argument('config_file', metavar='CONFIG',
         help='configuration file to add to wheel.')
-    
-    
+
+
 
     if auth is not None:
         cert_dir = os.path.expanduser(DEFAULT_CERTS_DIR)
@@ -501,7 +507,7 @@ def main(argv=sys.argv):
     try:
 
         if opts.subparser_name == 'package':
-            whl_path = create_package(opts.agent_directory)
+            whl_path = create_package(opts.agent_directory, wheelhouse=opts.dest)
         elif opts.subparser_name == 'repackage':
             whl_path = repackage(opts.directory, dest=opts.dest)
         elif opts.subparser_name == 'configure' :
