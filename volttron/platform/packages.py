@@ -116,71 +116,75 @@ class VolttronPackageWheelFileNoSign(WheelFile):
 #         new_record_name = "RECORD.{}".format(len(records))
 # 
         tmp_dir = tempfile.mkdtemp()
-        record_path = '/'.join((self.distinfo_name, last_record_name))
-        tmp_new_record_file = '/'.join((tmp_dir, self.distinfo_name, 
-                                        last_record_name))
-        self.zipfile.extract('/'.join((self.distinfo_name, last_record_name)), 
-                             path = tmp_dir)
-        
-        self.remove_files('/'.join((self.distinfo_name, 'config')))
-        
-        with closing(open_for_csv(tmp_new_record_file,"a+")) as record_file:
-            writer = csv.writer(record_file)
+        try:
+            record_path = '/'.join((self.distinfo_name, last_record_name))
+            tmp_new_record_file = '/'.join((tmp_dir, self.distinfo_name, 
+                                            last_record_name))
+            self.zipfile.extract('/'.join((self.distinfo_name, last_record_name)), 
+                                 path = tmp_dir)
+
+            self.remove_files('/'.join((self.distinfo_name, 'config')))
+
+            with closing(open_for_csv(tmp_new_record_file,"a+")) as record_file:
+                writer = csv.writer(record_file)
 
 
-            if files_to_add:
-                if 'config_file' in files_to_add.keys():
-                    try:
-                        data = open(files_to_add['config_file']).read()
-                    except Exception as e:
-                        _log.error("couldn't access {}" % files_to_add['config_file'])
-                        raise
-    
-                    if files_to_add['config_file'] != 'config':
-                        msg = 'WARNING: renaming passed config file: {}'.format(
-                                                    files_to_add['config_file'])
-                        msg += ' to config'
-                        sys.stderr.write(msg)
-                        _log.warn(msg)
-    
-                    self.zipfile.writestr("%s/%s" % (self.distinfo_name, 'config'),
-                                          data)
-                    
-                    (hash_data, size, digest) = self._record_digest(data)
-                    record_path = '/'.join((self.distinfo_name, 'config'))
-                    writer.writerow((record_path, hash_data, size))
-                    
-                if 'contract' in files_to_add.keys() and files_to_add['contract'] is not None:
-                    try:
-                        data = open(files_to_add['contract']).read()
-                    except Exception as e:
-                        _log.error("couldn't access {}" % files_to_add['contract'])
-                        raise
-    
-                    if files_to_add['contract'] != 'execreqs.json':
-                        msg = 'WARNING: renaming passed contract file: {}'.format(
-                                                    files_to_add['contract'])
-                        msg += ' to execreqs.json'
-                        sys.stderr.write(msg)
-                        _log.warn(msg)
-    
-                    self.zipfile.writestr("%s/%s" % (self.distinfo_name, 'execreqs.json'),
-                                          data)
-                    (hash_data, size, digest) = self._record_digest(data)
-                    record_path = '/'.join((self.distinfo_name, 'execreqs.json'))
-                    writer.writerow((record_path, hash_data, size))
-                    
-                        
-                self.__setupzipfile__()
-                
-        self.pop_records_file()
-            
-        new_record_content = open(tmp_new_record_file, 'r').read()
-        self.zipfile.writestr(self.distinfo_name+"/"+last_record_name,
-                new_record_content)
-        
-        self.zipfile.close()
-        self.__setupzipfile__()
+                if files_to_add:
+                    if 'config_file' in files_to_add.keys():
+                        try:
+                            data = open(files_to_add['config_file']).read()
+                        except Exception as e:
+                            _log.error("couldn't access {}" % files_to_add['config_file'])
+                            raise
+
+                        if files_to_add['config_file'] != 'config':
+                            msg = 'WARNING: renaming passed config file: {}'.format(
+                                                        files_to_add['config_file'])
+                            msg += ' to config'
+                            sys.stderr.write(msg)
+                            _log.warn(msg)
+
+                        self.zipfile.writestr("%s/%s" % (self.distinfo_name, 'config'),
+                                              data)
+
+                        (hash_data, size, digest) = self._record_digest(data)
+                        record_path = '/'.join((self.distinfo_name, 'config'))
+                        writer.writerow((record_path, hash_data, size))
+
+                    if 'contract' in files_to_add.keys() and files_to_add['contract'] is not None:
+                        try:
+                            data = open(files_to_add['contract']).read()
+                        except Exception as e:
+                            _log.error("couldn't access {}" % files_to_add['contract'])
+                            raise
+
+                        if files_to_add['contract'] != 'execreqs.json':
+                            msg = 'WARNING: renaming passed contract file: {}'.format(
+                                                        files_to_add['contract'])
+                            msg += ' to execreqs.json'
+                            sys.stderr.write(msg)
+                            _log.warn(msg)
+
+                        self.zipfile.writestr("%s/%s" % (self.distinfo_name, 'execreqs.json'),
+                                              data)
+                        (hash_data, size, digest) = self._record_digest(data)
+                        record_path = '/'.join((self.distinfo_name, 'execreqs.json'))
+                        writer.writerow((record_path, hash_data, size))
+
+
+                    self.__setupzipfile__()
+
+            self.pop_records_file()
+
+            new_record_content = open(tmp_new_record_file, 'r').read()
+            self.zipfile.writestr(self.distinfo_name+"/"+last_record_name,
+                    new_record_content)
+
+            self.zipfile.close()
+            self.__setupzipfile__()
+        finally:
+            shutil.rmtree(tmp_dir, True)
+
 
     def pop_records_file(self):
         '''Pop off the last records file that was added'''
