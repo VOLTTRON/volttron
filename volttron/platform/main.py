@@ -463,6 +463,7 @@ def main(argv=sys.argv):
             exchange.link(lambda *a: control.kill())
             control.join()
         finally:
+            control.kill()
             exchange.kill()
     finally:
         opts.aip.finish()
