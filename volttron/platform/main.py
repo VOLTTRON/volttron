@@ -78,6 +78,7 @@ sys.modules['zmq'] = zmq
 from . import aip
 from . import __version__
 from . import config
+from . import vip
 from .control.server import control_loop
 from .agent import utils
 
@@ -182,6 +183,24 @@ def configure_logging(conf_path):
         logging.config.dictConfig(conf_dict)
     except (ValueError, TypeError, AttributeError, ImportError) as exc:
         return conf_path, exc
+
+
+class Router(vip.BaseRouter):
+    '''Concrete VIP router.'''
+    def __init__(self, address, context=None):
+        super(Router, self).__init__(context=context)
+        self.address = address
+    def setup(self):
+        self.socket.bind(self.address)
+    def log(self, level, message, frames):
+        _log.log(level, '%s: %s', message, frames and [bytes(f) for f in frames])
+    def run(self):
+        self.start()
+        try:
+            while self.poll():
+                self.route()
+        finally:
+            self.stop()
 
 
 def agent_exchange(in_addr, out_addr, logger_name=None):
@@ -445,7 +464,9 @@ def main(argv=sys.argv):
             _log.error('error starting {!r}: {}\n'.format(name, error))
 
     # Main loops
+    router = Router('ipc://{}/run/vip.socket'.format(opts.volttron_home))
     try:
+        viploop = gevent.spawn(router.run)
         exchange = gevent.spawn(
             agent_exchange, opts.publish_address, opts.subscribe_address)
         if HAVE_RESTRICTED and opts.mobility:
@@ -461,10 +482,12 @@ def main(argv=sys.argv):
         try:
             control = gevent.spawn(control_loop, opts)
             exchange.link(lambda *a: control.kill())
+            exchange.link(lambda *a: viploop.kill())
             control.join()
         finally:
             control.kill()
             exchange.kill()
+            viploop.kill()
     finally:
         opts.aip.finish()
 

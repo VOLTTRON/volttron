@@ -65,10 +65,17 @@ specification.
 from __future__ import absolute_import, print_function
 
 from logging import CRITICAL, DEBUG, ERROR, WARNING
+import sys
 
-import zmq
+# If a parent module imported zmq.green, use it to avoid deadlock
+try:
+    import _vip_zmq as zmq
+except ImportError:
+    import zmq
 from zmq import NOBLOCK, SNDMORE, ZMQError, EINVAL
 
+
+#_GREEN = zmq.__name__.endswith('green')
 
 PROTO = b'VIP1'
 
