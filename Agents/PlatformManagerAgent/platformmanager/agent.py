@@ -101,14 +101,33 @@ class LoggedIn:
 
 class WebApi:
 
+    @cherrypy.expose
+    @cherrypy.tools.json_in()
+    @cherrypy.tools.json_out()
+    @cherrypy.tools.allow(methods=['POST'])
+    def twoway(self):
+        '''You can call it like:
+        curl -X POST -H "Content-Type: application/json" \
+          -d '{"foo":123,"bar":"baz"}' http://127.0.0.1:8080/api/twoway
+        '''
+
+        data = cherrypy.request.json
+        return data.items()
+
+class Root:
+
     def __init__(self):
         self.sessions = LoggedIn()
+
+    @cherrypy.expose
+    def index(self):
+        return open(os.path.join(WEB_ROOT, u'index.html'))
 
     @cherrypy.expose
     @cherrypy.tools.allow(methods=['POST'])
     @cherrypy.tools.json_out()
     @cherrypy.tools.json_in()
-    def index(self):
+    def jsonrpc(self):
         '''
         Example curl post
         curl -X POST -H "Content-Type: application/json" \
@@ -154,23 +173,6 @@ class WebApi:
                 'error': {'code': 404, 'message': 'Unknown method'},
                 'id': cherrypy.request.json.get('id')}
 
-    @cherrypy.expose
-    @cherrypy.tools.json_in()
-    @cherrypy.tools.json_out()
-    @cherrypy.tools.allow(methods=['POST'])
-    def twoway(self):
-        '''You can call it like:
-        curl -X POST -H "Content-Type: application/json" \
-          -d '{"foo":123,"bar":"baz"}' http://127.0.0.1:8080/api/twoway
-        '''
-
-        data = cherrypy.request.json
-        return data.items()
-
-class Root:
-    @cherrypy.expose
-    def index(self):
-        return open(os.path.join(WEB_ROOT, u'index.html'))
 
 def ManagedServiceAgent(config_path, **kwargs):
     config = utils.load_config(config_path)
@@ -186,8 +188,15 @@ def ManagedServiceAgent(config_path, **kwargs):
     print server_conf
     static_conf = {
         "/": {
+            "tools.staticdir.root": WEB_ROOT
+        },
+        "/css": {
             "tools.staticdir.on": True,
-            "tools.staticdir.dir": WEB_ROOT
+            "tools.staticdir.dir": "css"
+        },
+        "/js": {
+            "tools.staticdir.on": True,
+            "tools.staticdir.dir": "js"
         }
     }
     #poll_time = get_config('poll_time')
@@ -205,7 +214,7 @@ def ManagedServiceAgent(config_path, **kwargs):
         def setup(self):
             super(Agent, self).setup()
             #cherrypy.tree.mount(self.webserver, "/", config=static_conf)
-            cherrypy.tree.mount(self.webserver, "/api")
+            #cherrypy.tree.mount(self.webserver, "/api")
             cherrypy.tree.mount(Root(), "/", config=static_conf)
             #cherrypy.config.update(server_conf)
             #cherrypy.config.update(static_conf)

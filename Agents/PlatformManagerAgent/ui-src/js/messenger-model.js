@@ -36,7 +36,7 @@ MessengerModel.prototype.sendRequest = function (request) {
 
     $.ajax({
         method: 'POST',
-        url: '/api/',
+        url: '/jsonrpc',
         data: JSON.stringify(request),
         contentType: 'application/json',
         timeout: 60000,
