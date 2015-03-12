@@ -50,4 +50,5 @@ and installs volttron as an editable (or developer mode) package using pip.
 ADDING PYTHON DEPENDENCIES
 
 To add project dependencies, add the dependent package to the
-install_requires list in setup.py and run `env/bin/python bootstrap.py`
+install_requires list in setup.py and run `env/bin/python bootstrap.py`.
+Add agent or other external dependencies to requirements.txt.

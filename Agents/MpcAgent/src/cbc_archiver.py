@@ -36,11 +36,11 @@ def select_most_recent_file():
 	mB = None
 	try:
 		mA = os.path.getmtime(fileA)
-	except:
+	except OSError:
 		pass
 	try:
 		mB = os.path.getmtime(fileB)
-	except:
+	except OSError:
 		pass
 	if mA == None and mB == None:
 		return None

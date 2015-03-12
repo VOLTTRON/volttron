@@ -64,6 +64,7 @@ import logging
 import os
 import pwd
 import struct
+import sys
 
 import gevent
 from gevent import socket
@@ -81,9 +82,6 @@ __all__ = ['control_loop', 'ControlConnector']
 
 
 _log = logging.getLogger(__name__)
-
-
-SO_PEERCRED = 17
 
 
 def dispatch_loop(stream, dispatcher):
@@ -113,10 +111,26 @@ class ControlConnector(jsonrpc.PyConnector):
         self._task = gevent.spawn(dispatch_loop, stream, dispatcher)
 
 
-def get_peercred(sock):
-    '''Return (pid, gid, uid) of peer socket.'''
-    data = sock.getsockopt(socket.SOL_SOCKET, SO_PEERCRED, 12)
-    return struct.unpack('3I', data)
+if sys.platform.startswith('linux'):
+    def get_peercred(sock):
+        '''Return (pid, uid, gid) of peer socket.'''
+        fmt = '3I'
+        # sock.getsockopt(SOL_SOCKET, SO_PEERCRED, 12)
+        data = sock.getsockopt(socket.SOL_SOCKET, 17, struct.calcsize(fmt))
+        return struct.unpack(fmt, data)
+elif sys.platform == 'darwin' or sys.platform.endswith('bsd'):
+    def get_peercred(sock):
+        fmt = 'iIh16I'
+        # sock.getsockopt(0, LOCAL_PEERCRED, 76)
+        data = sock.getsockopt(0, 1, struct.calcsize(fmt))
+        xucred = struct.unpack(fmt, data)
+        version, uid, ngroups = xucred[:3]
+        assert not version
+        gid = xucred[3] if ngroups else None
+        return None, uid, gid
+else:
+    def get_peercred(sock):
+        return None, None, None
 
 
 def authorize_user(uid, gid, users=None, groups=None, allow_root=True):
@@ -198,17 +212,25 @@ def _handle_request(sock, handler):
 def control_loop(opts):
     handler = ControlHandler(opts)
     address = opts.control_socket
-    _log.debug("address from options: {}".format(address))
-    if address[:1] == '@':
-        address = '\00' + address[1:]
+    _log.debug("Control address from options: %r", address)
+    if address.startswith('@'):
+        address = '\x00' + address[1:]
     sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM, 0)
-    status = sock.bind(address)
-    _log.debug("Binding to address: {}".format(address))
-    _log.debug("Status of bind: {}".format(str(status)))
+    sock.bind(address)
+    _log.debug("Control socket bound to %r", address)
     sock.listen(5)
-    while True:
-        client, client_address = sock.accept()
-        if _verify_request(opts, client, client_address):
-            gevent.spawn(_handle_request, client, handler)
-        else:
-            client.close()
+    try:
+        while True:
+            client, client_address = sock.accept()
+            if _verify_request(opts, client, client_address):
+                gevent.spawn(_handle_request, client, handler)
+            else:
+                client.close()
+    finally:
+        # Clean up control socket if using filesystem namespace
+        if not address.startswith('\x00'):
+            _log.debug("Unlinking control socket: %r", address)
+            try:
+                os.unlink(address)
+            except OSError as exc:
+                _log.error('control socket unlink failed: %s', exc)

@@ -239,7 +239,7 @@ def read_csv_descList(fileName, descList,
                 # Convert column entry.
                 try:
                     colEntry = colReadFcn(colEntryStr)
-                except:
+                except Exception:
                     raise Exception('Cannot convert CSV file entry "' +colEntryStr +
                         '" in column ' +str(colIdx+1) +
                         ' of row ' +str(csvReader.line_num))

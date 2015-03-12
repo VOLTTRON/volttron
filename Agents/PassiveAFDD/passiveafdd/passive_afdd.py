@@ -1,16 +1,16 @@
 '''
 Copyright (c) 2014, Battelle Memorial Institute
 All rights reserved.
-   
+
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
-   
+
 1. Redistributions of source code must retain the above copyright notice, this
    list of conditions and the following disclaimer.
 2. Redistributions in binary form must reproduce the above copyright notice,
    this list of conditions and the following disclaimer in the documentation
    and/or other materials provided with the distribution.
-   
+
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -21,7 +21,7 @@ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-   
+
 The views and conclusions contained in the software and documentation are those
 of the authors and should not be interpreted as representing official policies,
 either expressed or implied, of the FreeBSD Project.
@@ -36,7 +36,7 @@ any warranty, express or implied, or assumes any legal liability
 or responsibility for the accuracy, completeness, or usefulness or
 any information, apparatus, product, software, or process disclosed
 or represents that its use would not infringe privately owned rights.
-   
+
 Reference herein to any specific commercial product, process, or
 service by trade name, trademark, manufacturer, or otherwise does
 not necessarily constitute or imply its endorsement, recommendation,
@@ -44,12 +44,12 @@ r favoring by the United States Government or any agency thereof,
 or Battelle Memorial Institute. The views and opinions of authors
 expressed herein do not necessarily state or reflect those of the
 United States Government or any agency thereof.
-   
+
 PACIFIC NORTHWEST NATIONAL LABORATORY
 operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 under Contract DE-AC05-76RL01830
 '''
-   
+
 import numpy
 import math
 import calendar
@@ -60,16 +60,16 @@ import logging
 import itertools
 import inspect
 import csv
-   
+
 logging.captureWarnings(True)
 from zmq.utils import jsonapi
 import dateutil.parser
 from volttron.platform.agent import BaseAgent, PublishMixin, periodic
 from volttron.platform.agent import green, utils, matching, sched
 from volttron.platform.messaging import headers as headers_mod, topics
-   
+
 from input_output import result_writer, open_file, read_oae_pandas
-   
+
 def passiveafdd(config_path, **kwargs):
     '''Passive fault detection application for AHU/RTU economizer systems'''
     config_data = utils.load_config(config_path)
@@ -80,7 +80,7 @@ def passiveafdd(config_path, **kwargs):
     logging.basicConfig(level=logging.debug,
                         format='%(asctime)s   %(levelname)-8s %(message)s',
                         datefmt='%m-%d-%y %H:%M:%S')
-    
+
 
     class Agent(PublishMixin, BaseAgent):
         def __init__(self, **kwargs):
@@ -118,6 +118,8 @@ def passiveafdd(config_path, **kwargs):
             self.heat_cmd_name = config_data.get('heat_cmd_name')
             self.damper_name = config_data.get('damper_point_name')
             self.mat_missing = config_data.get('mixed_air_sensor_missing')
+            self.temp_deadband = config_data.get('temp_deadband')
+            self.damper_deadband = config.get('damper_deadband')
             sunday = config_data.get('Sunday')
             monday = config_data.get('Monday')
             tuesday = config_data.get('Tuesday')
@@ -125,7 +127,7 @@ def passiveafdd(config_path, **kwargs):
             thursday = config_data.get('Thursday')
             friday = config_data.get('Friday')
             saturday = config_data.get('Saturday')
-   
+
             self.schedule_dict = dict({0:sunday, 1:monday, 2:tuesday, 3:wednesday,
                                        4:thursday, 5:friday,
                                        6:saturday})
@@ -157,13 +159,13 @@ def passiveafdd(config_path, **kwargs):
                           config_data.get('fan_status_point_name'),
                           config_data.get('heat_cmd_name')]
             self.file = config_data.get('input_file')
-   
+
         def setup(self):
             '''Enter location for the data file if using text csv.
-            
-            Entry can be through file entry window using TKinter or 
+
+            Entry can be through file entry window using TKinter or
             through configuration file as input_file.
-            ''' 
+            '''
             try:
                 super(Agent, self).setup()
                 _log.info('Running')
@@ -184,12 +186,12 @@ def passiveafdd(config_path, **kwargs):
                         self.file_path = self.file
                     self.bldg_data = read_oae_pandas(self.file_path, self.names)
                 self.process_data()
-            except:
-                _log.error('Error on data input, could not data file...')
-   
+            except Exception:
+                _log.exception('Error on data input, could not data file...')
+
         def process_data(self):
             '''Aggregate the data based on compressor status, heating status,
-            and supply-fan status where one hour is the largest aggregated 
+            and supply-fan status where one hour is the largest aggregated
             interval.
             '''
             _log.info('Processing data')
@@ -206,9 +208,9 @@ def passiveafdd(config_path, **kwargs):
             else:
                 timestamp_ = self.timestamp_raw
                 matemp = self.matemp_raw
-                oatemp = self.oatemp_raw 
+                oatemp = self.oatemp_raw
                 ratemp = self.ratemp_raw
-                compressor = self.compressor_raw 
+                compressor = self.compressor_raw
                 heating = self.heating_raw
                 damper = self.damper_raw
                 fan_status = self.fan_status_raw
@@ -246,7 +248,7 @@ def passiveafdd(config_path, **kwargs):
                         temp_mat = []
                         temp_oat = []
                         temp_rat = []
-   
+
                     elif (compressor[points+1] != compressor[points] or
                           heating[points+1] != heating[points] or
                           ((timestamp[points+1] - timestamp[points]
@@ -294,10 +296,10 @@ def passiveafdd(config_path, **kwargs):
                         temp_rat = []
             else:
                 self.matemp = matemp
-                self.oatemp = oatemp 
-                self.ratemp = ratemp 
+                self.oatemp = oatemp
+                self.ratemp = ratemp
                 self.compressor = compressor
-                self.heating = heating 
+                self.heating = heating
                 self.damper = damper
                 self.fan_status = fan_status
             self.oaf_raw = []
@@ -310,7 +312,7 @@ def passiveafdd(config_path, **kwargs):
             self.damper_raw = []
             self.fan_status_raw = []
             self.newdata = len(self.timestamp)
-   
+
             def check_nan(data):
                 '''check for any nan values in data.'''
                 length = len(data)
@@ -338,7 +340,7 @@ def passiveafdd(config_path, **kwargs):
             contents = [self.timestamp, oae_1, oae_2, oae_3, oae_4, oae_5,
                         oae_6, energy_impact, self.oaf]
             result_writer(contents)
-   
+
         def output_aggregate(self):
             '''output_aggregate writes the results of the data
             aggregation to file for inspection.
@@ -348,7 +350,7 @@ def passiveafdd(config_path, **kwargs):
             now = datetime.date.today()
             file_path = os.path.join(out_dir, "Aggregate_Data({ts}).csv".
                                      format(ts=now))
-   
+
             ofile = open(file_path, 'wb')
             x = [self.timestamp, self.oatemp, self.matemp, self.ratemp,
                  self.damper, self.compressor, self.heating, self.fan_status]
@@ -366,7 +368,7 @@ def passiveafdd(config_path, **kwargs):
             for row in itertools.izip_longest(*x):
                     outs.writerow(row)
             ofile.close()
-   
+
         def calculate_oaf(self):
             '''Create OAF vector for data set.'''
             for points in xrange(0, self.newdata):
@@ -380,7 +382,7 @@ def passiveafdd(config_path, **kwargs):
                 else:
                     self.oaf.append(int(-99))
             return self.oaf
-   
+
         def sensor_diagnostic(self):
             oae1_result = []
             for points in xrange(0, self.newdata):
@@ -415,7 +417,7 @@ def passiveafdd(config_path, **kwargs):
                                 oae1_result.append(21)
                             else:
                                 # No faults detected.
-                                oae1_result.append(20)   
+                                oae1_result.append(20)
                         else:
                             # Missing required data for diagnostic (No fault).
                             oae1_result.append(27)
@@ -426,7 +428,7 @@ def passiveafdd(config_path, **kwargs):
                     # Missing required data for diagnostic (No fault).
                     oae1_result.append(27)
             return oae1_result
-   
+
         def economizer_diagnostic1(self):
             oae2_result = []
             for points in xrange(0, self.newdata):
@@ -436,11 +438,11 @@ def passiveafdd(config_path, **kwargs):
                            self.oatemp[points] != -99 and
                            self.compressor[points] != -99 and
                            self.damper[points] != -99):
-                            if (self.compressor[points] and
-                                ((self.oatemp[points] < self.ratemp[points]
-                                 and self.economizer_type == 0.0) or
-                                (self.oatemp[points] < self.high_limit
-                                 and self.economizer_type == 1.0))):
+                            if((self.ratemp[points] - self.oatemp[points] > self.temp_deadband and
+                                self.economizer_type == 0.0)
+                                   or
+                                (self.high_limit - self.oatemp[points] > self.temp_deadband and
+                                 self.economizer_type == 1.0)):
                                 if ((100.0 - self.damper[points]) <
                                    self.oae2_damper_threshold):
                                     if math.fabs(self.oatemp[points] - self.ratemp[points]) > 5.0 and not self.matemp_missing:
@@ -489,7 +491,7 @@ def passiveafdd(config_path, **kwargs):
                 else:
                     oae2_result.append(37)
             return oae2_result
-   
+
         def economizer_diagnostic2(self):
             oae3_result = []
             for points in xrange(0, self.newdata):
@@ -499,39 +501,40 @@ def passiveafdd(config_path, **kwargs):
                            self.ratemp[points] != -99 and
                            self.oatemp[points] != -99 and
                            self.damper[points] != -99):
-                            if (self.compressor[points]):
-                                if((self.oatemp[points] > self.ratemp[points]
-                                    and self.economizer_type == 0.0)
+                            if((self.oatemp[points] - self.ratemp[points] >
+                                self.temp_deadband and
+                                self.economizer_type == 0.0)
                                    or
-                                    (self.oatemp[points] > self.high_limit
-                                     and self.economizer_type == 1.0)):
+                                (self.oatemp[points] - self.high_limit >
+                                 self.temp_deadband and
+                                 self.economizer_type == 1.0)):
+                                if (self.compressor[points]):
                                     if self.damper[points] <= self.damper_minimum:
                                         # No fault detected.
                                         oae3_result.append(40)
                                     else:
-                                        # Damper should be at minimum (Fault).
+                                        # Damper should be at minimum
+                                        # for ventilation(Fault).
                                         oae3_result.append(41)
                                 else:
-                                    # Conditions favorable for economizing (No fault).
-                                    oae3_result.append(43)
+                                     # Conditions are favorable for economizing
+                                     oae3_result.append(43)
                             else:
                                 if self.damper[points] <= self.damper_minimum:
-                                    # Damper is at minimum for ventilation(No fault).
-                                    oae3_result.append(42)
-                                else:
-                                    # Damper should be at minimum(Fault).
+                                    # Damper should be at minimum
+                                    # for ventilation(Fault).
                                     oae3_result.append(41)
                         else:
                              # Missing Data (No fault).
                             oae3_result.append(47)
                     else:
                         # Supply fan is off (No fault).
-                        oae3_result.append(49)   
+                        oae3_result.append(49)
                 else:
                     # Missing data (No fault).
-                    oae3_result.append(47)  
+                    oae3_result.append(47)
             return oae3_result
-   
+
         def excess_oa_intake(self):
             oae4_result = []
             for points in xrange(0, self.newdata):
@@ -541,14 +544,13 @@ def passiveafdd(config_path, **kwargs):
                            self.oatemp[points] != -99 and
                            self.ratemp[points] != -99 and
                            self.damper[points] != -99):
-                            if ((self.compressor[points] and
-                               ((self.oatemp[points] > self.ratemp[points] and
+                            if((self.oatemp[points] - self.ratemp[points] >
+                                self.temp_deadband and
                                 self.economizer_type == 0.0)
                                    or
-                                (self.oatemp[points] > self.high_limit and
-                                 self.economizer_type == 1.0)))
-                                or
-                               not self.compressor[points]):
+                                (self.oatemp[points] - self.high_limit >
+                                 self.temp_deadband and
+                                 self.economizer_type == 1.0)):
                                 if self.damper[points] <= self.damper_minimum:
                                     if (not self.matemp_missing and
                                        math.fabs(self.oatemp[points] -
@@ -565,7 +567,7 @@ def passiveafdd(config_path, **kwargs):
                                               self.oaf[points] > 0 and
                                               self.oaf[points] < 1.25):
                                              # Excess OA intake (Fault).
-                                            oae4_result.append(51) 
+                                            oae4_result.append(51)
                                         else:
                                             # OAF calculation resulted in unexpected value (No fault).
                                             oae4_result.append(58)
@@ -594,9 +596,9 @@ def passiveafdd(config_path, **kwargs):
                                         oae4_result.append(52)
                                 else:
                                     # Damper is not at minimum (Fault).
-                                    oae4_result.append(53)  
+                                    oae4_result.append(53)
                             else:
-                                # Unit should be economizing (No fault).
+                                # Unit may be economizing (No fault).
                                 oae4_result.append(56)
                         else:
                             # Missing data (No fault).
@@ -608,70 +610,66 @@ def passiveafdd(config_path, **kwargs):
                     # Missing data (No fault).
                     oae4_result.append(57)
             return oae4_result
-   
+
         def insufficient_ventilation(self):
             oae5_result = []
             for points in xrange(0, self.newdata):
                 if self.fan_status[points] != -99:
-                    if int(self.fan_status[points]) == 1:
+                    if int(self.fan_status[points]):
                         if (self.compressor[points] != -99 and
                            self.oatemp[points] != -99 and
                            self.ratemp[points] != -99 and
                            self.damper[points] != -99):
-                            if ((int(self.compressor[points] and
-                                (self.oatemp[points] > self.ratemp[points])
-                                and self.economizer_type == 0.0)) or
-                                (self.oatemp[points] > self.high_limit and
-                               self.economizer_type == 1.0) or not
-                               int(self.compressor[points])):
-                                if self.damper[points] <= self.damper_minimum:
-                                    if (math.fabs(self.oatemp[points]-self.ratemp[points]) > 5.0
-                                       and not self.matemp_missing):
-                                        if ((self.minimum_oa - self.oaf[points]) > self.oae5_oaf_threshold and
-                                           self.oaf[points] > 0 and
-                                           self.oaf[points] < 1.25):
-                                            # Unit is bringing in insufficient OA (Fault).
-                                            oae5_result.append(61)
-                                        elif ((self.minimum_oa - self.oaf[points]) < self.oae5_oaf_threshold and
-                                              self.oaf[points] > 0 and
-                                              self.oaf[points] < 1.25):
-                                            # No problem detected.
-                                            oae5_result.append(60)
-                                        else:
-                                            oae5_result.append(68)
-                                    elif (math.fabs(self.oatemp[points]-self.ratemp[points]) > 5.0 and
-                                          self.matemp_missing and not int(self.compressor[points]) and
-                                          int(self.heating[points])):
-                                        if ((self.minimum_oa - self.oaf[points]) > self.oae5_oaf_threshold  and
-                                           self.oaf[points] > 0 and
-                                           self.oaf[points] < 1.25):
-                                            oae5_result.append(61)  # Insufficient OA (Fault)
-                                        elif ((self.minimum_oa - self.oaf[points]) < self.oae5_oaf_threshold and
-                                              self.oaf[points] > 0 and
-                                              self.oaf[points] < 1.25):
-                                            oae5_result.append(60)  # No Fault
-                                        else:
-                                            # OAF calculation resulted in unexpected value (No Fault).
-                                            oae5_result.append(68)
+                            if (self.damper_minimum - self.damper[points]
+                                <= self.damper_deadband):
+                                if (math.fabs(self.oatemp[points]-self.ratemp[points] > 5.0)
+                                   and not self.matemp_missing):
+                                    if ((self.minimum_oa - self.oaf[points])> self.oae5_oaf_threshold and
+                                       self.oaf[points] > 0 and
+                                       self.oaf[points] < 1.25):
+                                        # Unit is bringing in insufficient OA (Fault)
+                                        oae5_result.append(61)
+                                    elif ((self.minimum_oa - self.oaf[points]) < self.oae5_oaf_threshold and
+                                          self.oaf[points] > 0 and
+                                          self.oaf[points] < 1.25):
+                                        # No problem detected.
+                                        oae5_result.append(60)
                                     else:
-                                         # Conditions are not favorable for OAF calculation (No Fault).
-                                        oae5_result.append(62)
+                                        # Unexpected result for OAF calculation
+                                        # (No Fault)
+                                        oae5_result.append(68)
+                                elif (math.fabs(self.oatemp[points]-self.ratemp[points]) > 5.0 and
+                                      self.matemp_missing and not int(self.compressor[points]) and
+                                      int(self.heating[points])):
+                                    if ((self.minimum_oa - self.oaf[points]) > self.oae5_oaf_threshold  and
+                                       self.oaf[points] > 0 and
+                                       self.oaf[points] < 1.25):
+                                        oae5_result.append(61)  # Insufficient OA (Fault)
+                                    elif ((self.minimum_oa - self.oaf[points]) < self.oae5_oaf_threshold and
+                                          self.oaf[points] > 0 and
+                                          self.oaf[points] < 1.25):
+                                        oae5_result.append(60)  # No Fault
+                                    else:
+                                        # Unexpected result for OAF calculation
+                                        # (No Fault).
+                                        oae5_result.append(68)
                                 else:
-                                    # Damper is not at minimum (Fault).
-                                    oae5_result.append(63)
+                                     # Conditions are not favorable for OAF calculation (No Fault).
+                                    oae5_result.append(62)
                             else:
-                                # Unit should be economizing (No Fault)
-                                oae5_result.append(66)
+                                # Damper is significantly below the minimum
+                                # damper set point (Fault)
+                                oae5_result.append(63)
                         else:
-                            # Missing required data (No fault).
+                            # Missing required data (No fault)
                             oae5_result.append(67)
                     else:
                         # Unit is off (No fault).
-                        oae5_result.append(69)  
+                        oae5_result.append(69)
                 else:
                     oae5_result.append(67)  # Missing data (No Fault)
             return oae5_result
-   
+
         def schedule_diagnostic(self):
             oae6_result = []
             for points in xrange(0, self.newdata):
@@ -693,7 +691,7 @@ def passiveafdd(config_path, **kwargs):
                 else:
                     oae6_result.append(77)
             return oae6_result
-   
+
         def calculate_energy_impact(self,oae_2, oae_3, oae_4):
             energy_impact = []
             month_abbr = {k: v for k, v in enumerate(calendar.month_abbr)}
@@ -716,7 +714,7 @@ def passiveafdd(config_path, **kwargs):
                           oae_4[points] == 53 and
                           self. oatemp[points] > self.matemp[points]):
                         ei = (1.08*(
-                            self.oatemp[points]*self.minimum_oa + 
+                            self.oatemp[points]*self.minimum_oa +
                             self.ratemp[points]*(1 - self.minimum_oa)) -
                             self.cfm*(self.matemp[points])/(1000*self.eer))
                         energy_impact.append(ei)
@@ -725,12 +723,12 @@ def passiveafdd(config_path, **kwargs):
                     if energy_impact[points] < 0:
                         energy_impact[points] = 0
             return energy_impact
-        
+
         @matching.match_exact(topics.DEVICES_VALUE(point='all', **rtu_path))
         def datahandler(self, topic, header, message, match):
             '''Subscribes to data and assembles raw data arrays.
-            
-            data_handler subscribes to a device or simulated device on the 
+
+            data_handler subscribes to a device or simulated device on the
             message bus and assembles the array (lists) of data to be aggregated
             for analysis.
             '''
@@ -795,11 +793,11 @@ def passiveafdd(config_path, **kwargs):
                 self.oatemp_raw.append(data[self.oat_name])
                 self.ratemp_raw.append(data[self.rat_name])
                 self.matemp_raw.append(data[self.mat_name])
-   
+
     Agent.__name__ = 'passiveafdd'
     return Agent(**kwargs)
-   
-   
+
+
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
     utils.default_main(passiveafdd,
