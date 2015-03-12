@@ -142,7 +142,7 @@ class Message(object):
             frames = args[0]
             (self.peer, self.proto,
              self.user, self.id, self.subsystem) = frames[:5]
-            args = frames[6:]
+            args = frames[5:]
             if not isinstance(args, list):
                 args = list(args)
             self.args = args
