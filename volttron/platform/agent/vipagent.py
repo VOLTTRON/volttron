@@ -59,12 +59,15 @@
 
 from __future__ import absolute_import, print_function
 
+import functools
 import logging
 import sys
+import weakref
 
 #import monotonic
 
 import gevent
+from gevent.event import AsyncResult
 import zmq.green as zmq
 from zmq import EAGAIN, NOBLOCK, POLLIN, POLLOUT, ZMQError
 from zmq.utils import jsonapi
@@ -72,6 +75,7 @@ from zmq.utils import jsonapi
 # Override the zmq module imported by ..vip
 sys.modules['_vip_zmq'] = zmq
 from .. import vip
+from .. import jsonrpc
 
 
 _log = logging.getLogger(__name__)
@@ -144,11 +148,25 @@ def subsystem(name):
     return decorate
 
 
+def onevent(event):
+    assert event in ['setup', 'connect', 'start', 'stop', 'disconnect', 'finish']
+    def decorate(method):
+        try:
+            events = method._event_callbacks
+        except AttributeError:
+            method._event_callbacks = events = []
+        events.append((event, method))
+        return method
+    return decorate
+
+
 class AgentMeta(type):
     class Meta(object):
         def __init__(self):
+            self.rpc_exports = {}
             self.subsystems = {}
             self.periodics = []
+            self.event_callbacks = []
 
     def __new__(mcs, cls, bases, attrs):
         #import pdb; pdb.set_trace()
@@ -159,16 +177,26 @@ class AgentMeta(type):
                     continue
             except AttributeError:
                 continue
+            meta.rpc_exports.update(base._meta.rpc_exports)
             meta.subsystems.update(base._meta.subsystems)
             meta.periodics = list(
                 set(meta.periodics) | set(base._meta.periodics))
+            meta.event_callbacks = list(
+                set(meta.event_callbacks) | set(base._meta.event_callbacks))
         for name, attr in attrs.iteritems():
+            name = getattr(attr, '_export', None)
+            if name:
+                meta.rpc_exports[name] = attr
             subsystem = getattr(attr, '_vip_subsystem', None)
             if subsystem:
                 meta.subsystems[subsystem] = attr
             periodics = getattr(attr, '_periodic_definitions', None)
             if periodics:
                 meta.periodics = list(set(meta.periodics) | set(periodics))
+            events = getattr(attr, '_event_callbacks', None)
+            if events:
+                meta.event_callbacks = list(
+                    set(meta.event_callbacks) | set(events))
         return super(AgentMeta, mcs).__new__(mcs, cls, bases, attrs)
 
 
@@ -196,45 +224,31 @@ class VIPAgent(object):
         Subclasses should not override this method. Instead, the setup
         and finish methods should be overridden to customize behavior.
         '''
+        def _trigger_event(trigger):
+            for event, callback in self._meta.event_callbacks:
+                if event == trigger:
+                    callback(self)
         for definition in self._meta.periodics:
             callback = definition.callback(self)
             self._periodics.append(callback)
-        self.setup()
+        _trigger_event('setup')
+        self.vip_socket.connect(self.vip_address)
+        _trigger_event('connect')
         # Start periodic callbacks
         for periodic in self._periodics:
             periodic.start()
-        self.connect()
+        _trigger_event('start')
         try:
-            self._loop()
+            self._vip_loop()
         finally:
+            _trigger_event('stop')
             for periodic in self._periodics:
                 periodic.kill()
-            self.disconnect()
-            self.finish()
+            _trigger_event('disconnect')
+            self.vip_socket.disconnect(self.vip_address)
+            _trigger_event('finish')
 
-    def setup(self):
-        '''Setup for the agent execution loop.
-
-        Implement this method with code that must run once before the
-        main loop.
-        '''
-        pass
-
-    def finish(self):
-        '''Finish for the agent execution loop.
-
-        Implement this method with code that must run once after the
-        main loop.
-        '''
-        pass
-
-    def connect(self):
-        self.vip_socket.connect(self.vip_address)
-
-    def disconnect(self):
-        self.vip_socket.disconnect(self.vip_address)
-
-    def _loop(self):
+    def _vip_loop(self):
         socket = self.vip_socket
         while True:
             try:
@@ -271,13 +285,103 @@ class VIPAgent(object):
         print('VIP error', message)
 
 
+class Dispatcher(jsonrpc.Dispatcher):
+    def __init__(self, call, traceback_limit=0):
+        super(Dispatcher, self).__init__(traceback_limit=traceback_limit)
+        self._call = call
+        self._results = weakref.WeakValueDictionary()
+
+    def add_result(self):
+        result = AsyncResult()
+        ident = id(result)
+        self._results[ident] = result
+        return ident, result
+
+    def serialize(self, msg):
+        return jsonapi.dumps(msg)
+
+    def deserialize(self, json_string):
+        return jsonapi.loads(json_string)
+
+    def handle_method(self, msg, ident, method, args, kwargs):
+        return self._call(method, args, kwargs)
+        #raise NotImplementedError()
+
+    def handle_result(self, msg, ident, value):
+        try:
+            result = self._results.pop(ident)
+        except KeyError:
+            return
+        result.set(value)
+
+    def handle_error(self, msg, ident, code, message, data=None):
+        try:
+            result = self._results.pop(ident)
+        except KeyError:
+            return
+        result.set_exception(jsonrpc.make_exception(code, message, data))
+
+    def handle_exception(self, msg, ident, message):
+        exc_type, exc, exc_tb = sys.exc_info()
+        try:
+            result = self._results.pop(ident)
+        except KeyError:
+            return
+        result.set_exception(exc)
+
+
+def spawn(method):
+    @functools.wraps(method)
+    def wrapper(*args, **kwargs):
+        gevent.spawn(method, *args, **kwargs)
+    return wrapper
+
+
+def export(name=None):
+    def decorate(method):
+        method._export = name or method.__name__
+        return method
+    return decorate
+
+
 class RPCMixin(object):
     __metaclass__ = AgentMeta
 
-    @subsystem('RPC')
-    def handle_rpc_message(self, message):
-        print(message)
+    @onevent('setup')
+    def setup_rpc_subsystem(self):
+        self._rpc_dispatcher = Dispatcher(self._call_rpc_method)
 
+    @subsystem('RPC')
+    @spawn
+    def handle_rpc_message(self, message):
+        dispatch = self._rpc_dispatcher.dispatch
+        responses = filter(None, (dispatch(arg) for arg in message.args))
+        if responses:
+            message.user = ''
+            message.args = responses
+            vip.send_message(self.vip_socket, message)
+
+    def rpc_call(self, peer, method, args=None, kwargs=None):
+        rpc = self._rpc_dispatcher
+        ident, result = rpc.add_result()
+        args = [rpc.serialize(jsonrpc._method(ident, method, args, kwargs))]
+        msg = vip.Message(peer=peer, id=str(ident), subsystem='RPC', args=args)
+        vip.send_message(self.vip_socket, msg)
+        return result
+
+    def rpc_notify(self, peer, method, args, kwargs):
+        rpc = self._rpc_dispatcher
+        args = [rpc.serialize(jsonrpc._method(None, method, args, kwargs))]
+        msg = vip.Message(peer=peer, id='', subsystem='RPC', args=args)
+        vip.send_message(self.vip_socket, msg)
+
+    def _call_rpc_method(self, method_name, args, kwargs):
+        try:
+            method = self._meta.rpc_exports[method_name]
+        except KeyError:
+            raise NotImplementedError(method_name)
+        return method(self, *args, **kwargs)
+    
 
 class RPCAgent(VIPAgent, RPCMixin):
     pass
