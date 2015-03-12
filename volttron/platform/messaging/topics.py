@@ -105,7 +105,12 @@ PLATFORM_SHUTDOWN = PLATFORM(subtopic='shutdown')
 AGENT_SHUTDOWN = _('agent/{agent}/shutdown')
 AGENT_PING = _('agent/ping/{}/{}/{{cookie}}'.format(os.uname()[1], os.getpid()))
 
+LOGGER = _('datalogger/{subtopic}')
+LOGGER_LOG = LOGGER(subtopic='log')
+LOGGER_STATUS = LOGGER(subtopic='status')
+
 DRIVER_TOPIC_BASE = 'devices'
+DRIVER_TOPIC_ALL = 'all'
 DEVICES_PATH = _('{base}//{node}//{campus}//{building}//{unit}//{point}')
 _DEVICES_VALUE = _(DEVICES_PATH.replace('{base}',DRIVER_TOPIC_BASE))
 DEVICES_VALUE = _(_DEVICES_VALUE.replace('{node}/', ''))
