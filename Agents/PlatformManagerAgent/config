@@ -1,29 +1,9 @@
 {
 
-    "agentid": "platform_manager",
+    "agentid": "managed_service",
     "server" : {
         "server.socket_host": "127.0.0.1",
         "server.socket_port": 8080,
         "server.thread_pool": 8
-    },
-    "users" : {
-        "dorothy" : {
-            "password": "cf1b67402d648f51ef6ff8805736d588ca07cbf018a5fba404d28532d839a1c046bfcd31558dff658678b3112502f4da9494f7a655c3bdc0e4b0db3a5577b298",
-            "groups": ["read", "modify"]
-        },
-        "reader": {
-            "password": "2d7349c51a3914cd6f5dc28e23c417ace074400d7c3e176bcf5da72fdbeb6ce7ed767ca00c6c1fb754b8df5114fc0b903960e7f3befe3a338d4a640c05dfaf2d",
-            "groups": ["read"]
-        },
-        "modifier": {
-            "password" : "c95243ce4c4a60fda8dcfd6db377b5f1ffc7fb9ab75258651ad956c97ce891259728e6c7d9b06f7442f16944e1336805ecc8ae98b021dddace52f3ddfc99a336",
-            "groups": ["read", "modify"]
-        },
-        "admin": {
-            "password" : "c7ad44cbad762a5da0a452f9e854fdc1e0e7a52a38015f23f3eab1d80b931dd472634dfac71cd34ebc35d16ab7fb8a90c81f975113d6c7538dc69dd8de9077ec",
-            "groups" : ["read", "modify", "admin"]
-        }
-
     }
-
 }

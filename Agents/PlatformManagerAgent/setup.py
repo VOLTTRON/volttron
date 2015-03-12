@@ -67,20 +67,12 @@ setup(
     version = "0.1",
     install_requires = ['volttron'],
     packages = packages,
-    # trying to add files...
-    include_package_data = True,
     package_data = {
-        '': ['*.*']
+        package: ['webroot/*.*', 'webroot/vendor/*.*']
     },
-#     package_data = {
-#         '': ['*.*'],
-#         '': ['static/*.txt'],
-#         'static': ['*.txt'],
-#     },
     entry_points = {
         'setuptools.installation': [
             'eggsecutable = ' + package + '.agent:main',
         ]
     }
 )
-

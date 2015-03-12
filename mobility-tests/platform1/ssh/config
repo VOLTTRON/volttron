@@ -1,5 +1,0 @@
-Host platform1:
-	Hostname 127.0.0.1
-
-Host platform2:
-	Hostname 127.0.1.1
