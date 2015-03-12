@@ -68,6 +68,7 @@ from bacpypes.errors import DecodingError
 from bacpypes.task import TaskManager
 from bacpypes.object import get_datatype, get_object_class, DeviceObject
 from bacpypes.primitivedata import Enumerated, Unsigned, Boolean, Integer, Real, Double
+from bacpypes.constructeddata import Array
 
 """
 Simple utility to scrape device registers and write them to a configuration file.
@@ -83,24 +84,28 @@ class SynchronousApplication(BIPSimpleApplication):
     def __init__(self, *args):
         SynchronousApplication._debug("__init__ %r", args)
         BIPSimpleApplication.__init__(self, *args)
+        self.expect_confirmation = True
 
     def confirmation(self, apdu):
         self.apdu = apdu
         stop()
         
     def indication(self, apdu):
-        self.apdu = apdu
-        stop()
+        if not self.expect_confirmation:
+            self.apdu = apdu
+            stop()
 
-    def make_request(self, request):
+    def make_request(self, request, expect_confirmation=True):
+        self.expect_confirmation = expect_confirmation
         self.request(request)
         run()
         return self.apdu
 
-def read_prop(app, address, obj_type, obj_inst, prop_id):
+def read_prop(app, address, obj_type, obj_inst, prop_id, index=None):
     request = ReadPropertyRequest(
                 objectIdentifier=(obj_type, obj_inst),
-                propertyIdentifier=prop_id)
+                propertyIdentifier=prop_id,
+                propertyArrayIndex=index)
     request.pduDestination = address
     
     result = this_application.make_request(request)
@@ -110,8 +115,15 @@ def read_prop(app, address, obj_type, obj_inst, prop_id):
     
     # find the datatype
     datatype = get_datatype(obj_type, prop_id)
-    
-    return result.propertyValue.cast_out(datatype)
+    if issubclass(datatype, Array) and (result.propertyArrayIndex is not None):
+        if result.propertyArrayIndex == 0:
+            value = result.propertyValue.cast_out(Unsigned)
+        else:
+            value = result.propertyValue.cast_out(datatype.subtype)
+    else:
+        value = result.propertyValue.cast_out(datatype)    
+
+    return value
 
 try:
     # parse the command line arguments
@@ -152,7 +164,7 @@ try:
     
     request = WhoIsRequest()
     request.pduDestination = target_address
-    result = this_application.make_request(request)
+    result = this_application.make_request(request, expect_confirmation = False)
     
     if not isinstance(result, IAmRequest):
         result.debug_contents()
@@ -176,9 +188,8 @@ try:
     device_description = read_prop(this_application, target_address, "device", device_id, "description")
     _log.debug('description = ' + str(device_description))
     
-    object_list = read_prop(this_application, target_address, "device", device_id, "objectList")
+    objectCount = read_prop(this_application, target_address, "device", device_id, "objectList", index=0)
     
-    objectCount = object_list[0]
     _log.debug('objectCount = ' + str(objectCount))
     
     config_writer = DictWriter(args.out_file, 
@@ -194,7 +205,16 @@ try:
     
     config_writer.writeheader()
     
-    for obj_type, index in object_list.value[1:]:
+    for object_index in xrange(1,objectCount+1):
+        
+        bac_object = read_prop(this_application, 
+                                    target_address, 
+                                    "device", 
+                                    device_id, 
+                                    "objectList",
+                                    index=object_index)
+        
+        obj_type, index = bac_object
         
         writable = 'FALSE'
         
