@@ -222,13 +222,14 @@ class AgentFormatter(logging.Formatter):
 
 
 def setup_logging(level=logging.DEBUG):
-    handler = logging.StreamHandler()
-    if isapipe(sys.stderr):
-        handler.setFormatter(JsonFormatter())
-    else:
-        handler.setFormatter(logging.Formatter(
-                '%(asctime)s %(name)s %(levelname)s: %(message)s'))
     root = logging.getLogger()
-    root.addHandler(handler)
+    if not root.handlers:
+        handler = logging.StreamHandler()
+        if isapipe(sys.stderr):
+            handler.setFormatter(JsonFormatter())
+        else:
+            handler.setFormatter(logging.Formatter(
+                    '%(asctime)s %(name)s %(levelname)s: %(message)s'))
+        root.addHandler(handler)
     root.setLevel(level)
 
