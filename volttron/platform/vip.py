@@ -75,7 +75,8 @@ except ImportError:
 from zmq import NOBLOCK, SNDMORE, ZMQError, EINVAL
 
 
-#_GREEN = zmq.__name__.endswith('green')
+_GREEN = zmq.__name__.endswith('.green')
+
 
 PROTO = b'VIP1'
 
@@ -283,7 +284,9 @@ class BaseRouter(object):
         '''
         self.socket = self.context.socket(zmq.ROUTER)
         self.socket.router_mandatory = True
-        self.socket.sndtimeo = 0
+        if not _GREEN:
+            # Only set if not using zmq.green to avoid user warning
+            self.socket.sndtimeo = 0
         self.setup()
 
     def stop(self, linger=1):
