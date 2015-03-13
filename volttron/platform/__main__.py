@@ -55,46 +55,34 @@
 # under Contract DE-AC05-76RL01830
 #}}}
 
+
+'''Main VOLTTRON™ script.
+
+Becomes the volttron executable used to start the supervisory platform.
+'''
+
+
 from __future__ import print_function, absolute_import
 
-import gevent.monkey
-gevent.monkey.patch_all()
-
 import argparse
-from contextlib import closing
 import logging
-from logging import handlers
+import logging.handlers
 import logging.config
 import os
-import socket
 import sys
 
-import gevent
-from zmq import green as zmq
-# Override zmq to use greenlets with mobility agent
-zmq.green = zmq
-sys.modules['zmq'] = zmq
-
-from . import aip
+#from . import aip
 from . import __version__
 from . import config
 from . import vip
-from .control.server import control_loop
 from .agent import utils
 
-try:
-    import volttron.restricted
-except ImportError:
-    HAVE_RESTRICTED = False
-else:
-    from volttron.restricted import comms, comms_server, resmon
-    from volttron.restricted.mobility import MobilityAgent
-    from paramiko import RSAKey, PasswordRequiredException, SSHException
-    HAVE_RESTRICTED = True
+#HAVE_RESTRICTED = False
 
 
 _log = logging.getLogger(os.path.basename(sys.argv[0])
                          if __name__ == '__main__' else __name__)
+_vip_log = logging.getLogger('volttron.vip.router')
 
 
 def log_to_file(file_, level=logging.WARNING,
@@ -193,77 +181,21 @@ class Router(vip.BaseRouter):
     def setup(self):
         self.socket.bind(self.address)
     def log(self, level, message, frames):
-        _log.log(level, '%s: %s', message, frames and [bytes(f) for f in frames])
+        _vip_log.log(level, '%s: %s', message,
+                     frames and [bytes(f) for f in frames])
     def run(self):
         self.start()
+        _vip_log.info('VIP router started')
         try:
             while self.poll():
                 self.route()
         finally:
+            _vip_log.info('VIP router stopped')
             self.stop()
 
 
-def agent_exchange(in_addr, out_addr, logger_name=None):
-    '''Agent message publish/subscribe exchange loop
-
-    Accept multi-part messages from sockets connected to in_addr, which
-    is a PULL socket, and forward them to sockets connected to out_addr,
-    which is a XPUB socket. When subscriptions are added or removed, a
-    message of the form 'subscriptions/<OP>/<TOPIC>' is broadcast to the
-    PUB socket where <OP> is either 'add' or 'remove' and <TOPIC> is the
-    topic being subscribed or unsubscribed. When a message is received
-    of the form 'subscriptions/list/<PREFIX>', a multipart message will
-    be broadcast with the first two received frames (topic and headers)
-    sent unchanged and with the remainder of the message containing
-    currently subscribed topics which start with <PREFIX>, each frame
-    containing exactly one topic.
-
-    If logger_name is given, a new logger will be created with the given
-    name. Otherwise, the module logger will be used.
-    '''
-    log = _log if logger_name is None else logging.getLogger(logger_name)
-    ctx = zmq.Context.instance()
-    with closing(ctx.socket(zmq.PULL)) as in_sock, \
-            closing(ctx.socket(zmq.XPUB)) as out_sock:
-        in_sock.bind(in_addr)
-        out_sock.bind(out_addr)
-        poller = zmq.Poller()
-        poller.register(in_sock, zmq.POLLIN)
-        poller.register(out_sock, zmq.POLLIN)
-        subscriptions = set()
-        while True:
-            for sock, event in poller.poll():
-                if sock is in_sock:
-                    message = in_sock.recv_multipart()
-                    log.debug('incoming message: {!r}'.format(message))
-                    topic = message[0]
-                    if (topic.startswith('subscriptions/list') and
-                            topic[18:19] in ['/', '']):
-                        if len(message) > 2:
-                            del message[2:]
-                        elif len(message) == 1:
-                            message.append('')
-                        prefix = topic[19:]
-                        message.extend([t for t in subscriptions
-                                        if t.startswith(prefix)])
-                    out_sock.send_multipart(message)
-                elif sock is out_sock:
-                    message = out_sock.recv()
-                    if message:
-                        add = bool(ord(message[0]))
-                        topic = message[1:]
-                        if add:
-                            subscriptions.add(topic)
-                        else:
-                            subscriptions.discard(topic)
-                        log.debug('incoming subscription: {} {!r}'.format(
-                            ('add' if add else 'remove'), topic))
-                        out_sock.send('subscriptions/{}{}{}'.format(
-                            ('add' if add else 'remove'),
-                            ('' if topic[:1] == '/' else '/'), topic))
-
-
 def main(argv=sys.argv):
+    '''Parse the command-line given in argv and run volttron.'''
     volttron_home = config.expandall(
         os.environ.get('VOLTTRON_HOME', '~/.volttron'))
     os.environ['VOLTTRON_HOME'] = volttron_home
@@ -271,9 +203,9 @@ def main(argv=sys.argv):
     # Setup option parser
     parser = config.ArgumentParser(
         prog=os.path.basename(argv[0]), add_help=False,
+        argument_default=argparse.SUPPRESS,
         description='VOLTTRON platform service',
         usage='%(prog)s [OPTION]...',
-        argument_default=argparse.SUPPRESS,
         epilog='Boolean options, which take no argument, may be inversed by '
                'prefixing the option with no- (e.g. --autostart may be '
                'inversed using --no-autostart).'
@@ -297,9 +229,6 @@ def main(argv=sys.argv):
     parser.add_argument(
         '--verboseness', type=int, metavar='LEVEL', default=logging.WARNING,
         help='set logger verboseness')
-    #parser.add_argument(
-    #    '--volttron-home', env_var='VOLTTRON_HOME', metavar='PATH',
-    #    help='VOLTTRON configuration directory')
     parser.add_argument(
         '--show-config', action='store_true',
         help=argparse.SUPPRESS)
@@ -313,17 +242,8 @@ def main(argv=sys.argv):
     agents.add_argument(
         '--no-autostart', action='store_false', dest='autostart',
         help=argparse.SUPPRESS)
-    agents.add_argument(
-        '--publish-address', metavar='ZMQADDR',
-        help='ZeroMQ URL for used for agent publishing')
-    agents.add_argument(
-        '--subscribe-address', metavar='ZMQADDR',
-        help='ZeroMQ URL for used for agent subscriptions')
 
     control = parser.add_argument_group('control options')
-    control.add_argument(
-        '--control-socket', metavar='FILE',
-        help='path to socket used for control messages')
     control.add_argument(
         '--allow-root', action='store_true', inverse='--no-allow-root',
         help='allow root to connect to control socket')
@@ -337,88 +257,81 @@ def main(argv=sys.argv):
         '--allow-groups', action='store_list', metavar='LIST',
         help='user groups allowed to connect to control socket')
 
-    if HAVE_RESTRICTED:
-        class RestrictedAction(argparse.Action):
-            def __init__(self, option_strings, dest,
-                         const=True, help=None, **kwargs):
-                super(RestrictedAction, self).__init__(
-                    option_strings, dest=argparse.SUPPRESS, nargs=0,
-                    const=const, help=help)
-            def __call__(self, parser, namespace, values, option_string=None):
-                namespace.verify_agents = self.const
-                namespace.resource_monitor = self.const
-                namespace.mobility = self.const
-        restrict = parser.add_argument_group('restricted options')
-        restrict.add_argument(
-            '--restricted', action=RestrictedAction, inverse='--no-restricted',
-            help='shortcut to enable all restricted features')
-        restrict.add_argument(
-            '--no-restricted', action=RestrictedAction, const=False,
-            help=argparse.SUPPRESS)
-        restrict.add_argument(
-            '--verify', action='store_true', inverse='--no-verify',
-            help='verify agent integrity before execution')
-        restrict.add_argument(
-            '--no-verify', action='store_false', dest='verify_agents',
-            help=argparse.SUPPRESS)
-        restrict.add_argument(
-            '--resource-monitor', action='store_true',
-            inverse='--no-resource-monitor',
-            help='enable agent resource management')
-        restrict.add_argument(
-            '--no-resource-monitor', action='store_false',
-            dest='resource_monitor', help=argparse.SUPPRESS)
-        restrict.add_argument(
-            '--mobility', action='store_true', inverse='--no-mobility',
-            help='enable agent mobility')
-        restrict.add_argument(
-            '--no-mobility', action='store_false', dest='mobility',
-            help=argparse.SUPPRESS)
-        restrict.add_argument(
-            '--mobility-address', metavar='ADDRESS',
-            help='specify the address on which to listen')
-        restrict.add_argument(
-            '--mobility-port', type=int, metavar='NUMBER',
-            help='specify the port on which to listen')
+#    if HAVE_RESTRICTED:
+#        class RestrictedAction(argparse.Action):
+#            def __init__(self, option_strings, dest,
+#                         const=True, help=None, **kwargs):
+#                super(RestrictedAction, self).__init__(
+#                    option_strings, dest=argparse.SUPPRESS, nargs=0,
+#                    const=const, help=help)
+#            def __call__(self, parser, namespace, values, option_string=None):
+#                namespace.verify_agents = self.const
+#                namespace.resource_monitor = self.const
+#                namespace.mobility = self.const
+#        restrict = parser.add_argument_group('restricted options')
+#        restrict.add_argument(
+#            '--restricted', action=RestrictedAction, inverse='--no-restricted',
+#            help='shortcut to enable all restricted features')
+#        restrict.add_argument(
+#            '--no-restricted', action=RestrictedAction, const=False,
+#            help=argparse.SUPPRESS)
+#        restrict.add_argument(
+#            '--verify', action='store_true', inverse='--no-verify',
+#            help='verify agent integrity before execution')
+#        restrict.add_argument(
+#            '--no-verify', action='store_false', dest='verify_agents',
+#            help=argparse.SUPPRESS)
+#        restrict.add_argument(
+#            '--resource-monitor', action='store_true',
+#            inverse='--no-resource-monitor',
+#            help='enable agent resource management')
+#        restrict.add_argument(
+#            '--no-resource-monitor', action='store_false',
+#            dest='resource_monitor', help=argparse.SUPPRESS)
+#        restrict.add_argument(
+#            '--mobility', action='store_true', inverse='--no-mobility',
+#            help='enable agent mobility')
+#        restrict.add_argument(
+#            '--no-mobility', action='store_false', dest='mobility',
+#            help=argparse.SUPPRESS)
+#        restrict.add_argument(
+#            '--mobility-address', metavar='ADDRESS',
+#            help='specify the address on which to listen')
+#        restrict.add_argument(
+#            '--mobility-port', type=int, metavar='NUMBER',
+#            help='specify the port on which to listen')
 
-    default_control = '$VOLTTRON_HOME/run/control'
-    if sys.platform.startswith('linux'):
-        default_control = '@' + default_control
     parser.set_defaults(
         log=None,
         log_config=None,
         verboseness=logging.WARNING,
         volttron_home=volttron_home,
+        vip_address='ipc://{}{}/run/vip.socket'.format(
+            '@' if sys.platform.startswith('linux') else '', volttron_home),
         autostart=True,
-        publish_address='ipc://$VOLTTRON_HOME/run/publish',
-        subscribe_address='ipc://$VOLTTRON_HOME/run/subscribe',
-        control_socket=default_control,
         allow_root=False,
         allow_users=None,
         allow_groups=None,
-        verify_agents=True,
-        resource_monitor=True,
-        mobility=True,
-        mobility_address=None,
-        mobility_port=2522
+#        verify_agents=True,
+#        resource_monitor=True,
+#        mobility=True,
+#        mobility_address=None,
+#        mobility_port=2522
     )
 
     # Parse and expand options
-    args = argv[1:]
+    argv = argv[1:]
     conf = os.path.join(volttron_home, 'config')
-    if os.path.exists(conf) and 'SKIP_VOLTTRON_CONFIG' not in os.environ:
-        args = ['--config', conf] + args
-    opts = parser.parse_args(args)
-    opts.control_socket = config.expandall(opts.control_socket)
-    opts.publish_address = config.expandall(opts.publish_address)
-    opts.subscribe_address = config.expandall(opts.subscribe_address)
-    if HAVE_RESTRICTED:
-        # Set mobility defaults
-        if opts.mobility_address is None:
-            info = socket.getaddrinfo(
-                None, 0, 0, socket.SOCK_STREAM, 0, socket.AI_NUMERICHOST)
-            family = info[0][0] if info else ''
-            opts.mobility_address = '::' if family == socket.AF_INET6 else ''
+    if os.path.exists(conf) and 'VOLTTRON_NO_CONFIG' not in os.environ:
+        argv[:0] = ['--config', conf]
+    opts = parser.parse_args(argv)
+#    if HAVE_RESTRICTED:
+#        # Set mobility defaults
+#        if opts.mobility_address is None:
+#            info = socket.getaddrinfo(
+#                None, 0, 0, socket.SOCK_STREAM, 0, socket.AI_NUMERICHOST)
+#            family = info[0][0] if info else ''
+#            opts.mobility_address = '::' if family == socket.AF_INET6 else ''
     if getattr(opts, 'show_config', False):
         for name, value in sorted(vars(opts).iteritems()):
             print(name, repr(value))
@@ -431,7 +344,8 @@ def main(argv=sys.argv):
     elif opts.log == '-':
         log_to_file(sys.stdout, level)
     elif opts.log:
-        log_to_file(opts.log, level, handler_class=handlers.WatchedFileHandler)
+        log_to_file(
+            opts.log, level, handler_class=logging.handlers.WatchedFileHandler)
     else:
         log_to_file(None, 100, handler_class=lambda x: logging.NullHandler())
     if opts.log_config:
@@ -439,57 +353,53 @@ def main(argv=sys.argv):
         if error:
             parser.error('{}: {}'.format(*error))
 
-    # Setup mobility server
-    if HAVE_RESTRICTED and opts.mobility:
-        ssh_dir = os.path.join(opts.volttron_home, 'ssh')
-        try:
-            priv_key = RSAKey(filename=os.path.join(ssh_dir, 'id_rsa'))
-            authorized_keys = comms.load_authorized_keys(
-                os.path.join(ssh_dir, 'authorized_keys'))
-        except (OSError, IOError,
-                PasswordRequiredException, SSHException) as exc:
-            parser.error(exc)
+    # Log configuration
+    _log.debug('Configuration:')
+    for name, value in sorted(vars(opts).iteritems()):
+        _log.debug('  %s = %s', name, repr(value))
 
-    # Set configuration
-    if HAVE_RESTRICTED:
-        if opts.verify_agents:
-            _log.info('Agent integrity verification enabled')
-        if opts.resource_monitor:
-            _log.info('Resource monitor enabled')
-            opts.resmon = resmon.ResourceMonitor()
-    opts.aip = aip.AIPplatform(opts)
-    opts.aip.setup()
-    if opts.autostart:
-        for name, error in opts.aip.autostart():
-            _log.error('error starting {!r}: {}\n'.format(name, error))
+#    # Setup mobility server
+#    if HAVE_RESTRICTED and opts.mobility:
+#        ssh_dir = os.path.join(opts.volttron_home, 'ssh')
+#        try:
+#            priv_key = RSAKey(filename=os.path.join(ssh_dir, 'id_rsa'))
+#            authorized_keys = comms.load_authorized_keys(
+#                os.path.join(ssh_dir, 'authorized_keys'))
+#        except (OSError, IOError,
+#                PasswordRequiredException, SSHException) as exc:
+#            parser.error(exc)
+#
+#    # Set configuration
+#    if HAVE_RESTRICTED:
+#        if opts.verify_agents:
+#            _log.info('Agent integrity verification enabled')
+#        if opts.resource_monitor:
+#            _log.info('Resource monitor enabled')
+#            opts.resmon = resmon.ResourceMonitor()
+#    opts.aip = aip.AIPplatform(opts)
+#    opts.aip.setup()
+#    if opts.autostart:
+#        for name, error in opts.aip.autostart():
+#            _log.error('error starting {!r}: {}\n'.format(name, error))
 
-    # Main loops
-    router = Router('ipc://{}/run/vip.socket'.format(opts.volttron_home))
-    try:
-        viploop = gevent.spawn(router.run)
-        exchange = gevent.spawn(
-            agent_exchange, opts.publish_address, opts.subscribe_address)
-        if HAVE_RESTRICTED and opts.mobility:
-            address = (opts.mobility_address, opts.mobility_port)
-            mobility_in = comms_server.ThreadedServer(
-                address, priv_key, authorized_keys, opts.aip)
-            mobility_in.start()
-            mobility_out = MobilityAgent(
-                opts.aip,
-                subscribe_address=opts.subscribe_address,
-                publish_address=opts.publish_address)
-            gevent.spawn(mobility_out.run)
-        try:
-            control = gevent.spawn(control_loop, opts)
-            exchange.link(lambda *a: control.kill())
-            exchange.link(lambda *a: viploop.kill())
-            control.join()
-        finally:
-            control.kill()
-            exchange.kill()
-            viploop.kill()
-    finally:
-        opts.aip.finish()
+    # Main loop
+    router = Router(opts.vip_address)
+    router.run()
+
+#    try:
+#        if HAVE_RESTRICTED and opts.mobility:
+#            address = (opts.mobility_address, opts.mobility_port)
+#            mobility_in = comms_server.ThreadedServer(
+#                address, priv_key, authorized_keys, opts.aip)
+#            mobility_in.start()
+#            mobility_out = MobilityAgent(
+#                opts.aip,
+#                subscribe_address=opts.subscribe_address,
+#                publish_address=opts.publish_address)
+#            gevent.spawn(mobility_out.run)
+#        router.run()
+#    finally:
+#        opts.aip.finish()
 
 
 def _main():

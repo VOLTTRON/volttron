@@ -67,18 +67,14 @@ option_requirements = [
 
 # Requirements in the repository which should be installed as editable.
 local_requirements = [
-    ('flexible-jsonrpc', 'lib/jsonrpc'),
 ]
 
 # Standard requirements
 requirements = [
     'BACpypes>=0.10,<2',
     'gevent>=0.13,<2',
-    'monotonic',
-    'paramiko>=1.14,<2',
     'pymodbus>=1.2,<2',
     'setuptools',
-    'simplejson>=3.3,<4',
     'Smap==2.0.24c780d',
     'wheel>=0.24,<2',
 ]
