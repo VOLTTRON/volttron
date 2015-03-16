@@ -152,7 +152,7 @@ class Root:
         Failed
             401 Unauthorized
 '''
-        print cherrypy.request.json
+
         if cherrypy.request.json.get('jsonrpc') != '2.0':
             raise ValidationException('Invalid jsnrpc version')
         if not cherrypy.request.json.get('method'):
@@ -179,6 +179,16 @@ class Root:
             return {'jsonrpc': '2.0',
                     'error': {'code': 401, 'message': 'Unauthorized'},
                     'id': cherrypy.request.json.get('id')}
+        else:
+            # trap for trying to use a method withoud a session token.
+            if not cherrypy.request.json.get('method'):
+                return {'jsonrpc': '2.0',
+                    'error': {'code': 401, 'message': 'Unauthorized'},
+                    'id': cherrypy.request.json.get('id')}
+
+            return self.manager.dispatch(cherrypy.request.json.get('method'),
+                                  cherrypy.request.json.get('params'),
+                                  cherrypy.request.json.get('id'))
 
         return {'jsonrpc': '2.0',
                 'error': {'code': 404, 'message': 'Unknown method'},

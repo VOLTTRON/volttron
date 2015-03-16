@@ -12,10 +12,34 @@ class Manager:
         Platform = namedtuple('Platform', "name uuid")
 
         platform1 = Platform(name='platform1', uuid="0bcb45b2-cae9-4629-93fc-ce5d4b6d4fae")
+        platform2 = Platform(name='platform2', uuid="dbcb45b2-cae9-4629-93fc-ce5d4b6d4fae")
 
-        self.available_platforms = {
-            platform1.uuid: platform1
-        }
+        self.available_platforms = [platform1, platform2]
+
+#         self.available_platforms = {
+#             platform1.uuid: platform1,
+#             platform2.uuid: platform2
+#         }
+
+    def list_platforms(self):
+        result = []
+        for x in self.available_platforms:
+            result.append({"platform": x.name, "uuid": x.uuid})
+
+        return result
+
+
+
+    def dispatch (self, method, params, id):
+        retvalue = {"jsonrpc": "2.0", "id":id}
+        if method == 'listPlatforms':
+            retvalue["result"] = self.list_platforms()
+
+        else:
+            retvalue['error'] = {'code': 404, 'message': 'Unknown method'}
+
+        return retvalue
+
 #
 #             {
 #                 uuid: "0bcb45b2-cae9-4629-93fc-ce5d4b6d4fae",
