@@ -19,10 +19,10 @@ class Manager:
                                     uuid = "85cb45b2-cae9-4629-93fc-ce5d4b6d4fae",
                                     methods=[
                                         Method(
-                                            name="say",
-                                            arguments="str",
+                                            name="sayHello",
+                                            arguments={"name": "string"},
                                             docstring="A simple hello agent example",
-                                            invoke = lambda x: "hello: "+x
+                                            invoke = lambda x: "hello: "+ x['name']
                                         )
                                     ]
                                 ),
@@ -102,6 +102,16 @@ class Manager:
         platform = self._find_platform(platform_uuid)
         if agent_uuid:
             agent = self._find_agent(platform, agent_uuid)
+            # handle the listing of agents here rather than in the agent itself.
+            # this is different than the platform listing of agents.
+            if method == 'listAgents':
+                result = []
+                for x in agent.methods:
+                    result.append({"method": x.name, "params": x.arguments})
+                return result
+            else:
+                method = self._find_method(agent, method)
+
         else:
             method = self._find_method(platform, method)
 
@@ -122,7 +132,7 @@ class Manager:
             method = fields[3]
         # we know we are looking at an agent method
         if len(fields) > 4:
-            agent = fields[6]
+            agent = fields[5]
             method = fields[7]
 
         return (platform, agent, method)
