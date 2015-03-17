@@ -239,7 +239,9 @@ class Socket(zmq.Socket):
         self.send_multipart([peer, user, msg_id, subsystem],
                             flags=flags|more, copy=copy, track=track)
         if args:
-            self.send_multipart(args, flags=flags, copy=copy, track=track)
+            send = (self.send if isinstance(args, basestring)
+                    else self.send_multipart)
+            send(args, flags=flags, copy=copy, track=track)
 
     def send_vip_dict(self, dct, flags=0, copy=True, track=False):
         '''Send VIP message from a dictionary.'''
@@ -256,7 +258,7 @@ class Socket(zmq.Socket):
             'msg_id': getattr(msg, 'id', b''),
             'args': getattr(msg, 'args', None),
         }
-        self.send_vip(flags=flags, copy=copy, track=track, *dct)
+        self.send_vip(flags=flags, copy=copy, track=track, **dct)
 
     def recv(self, flags=0, copy=True, track=False):
         '''Receive and return a single frame while enforcing VIP protocol.
