@@ -72,9 +72,8 @@ import zmq.green as zmq
 from zmq import EAGAIN, ZMQError
 from zmq.utils import jsonapi
 
-# Override the zmq module imported by ..vip
-sys.modules['_vip_zmq'] = zmq
-from .. import vip
+# Import gevent-friendly version of vip
+from ..vip import green as vip
 from .. import jsonrpc
 
 

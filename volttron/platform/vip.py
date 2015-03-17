@@ -66,10 +66,15 @@ from __future__ import absolute_import, print_function
 
 from logging import CRITICAL, DEBUG, ERROR, WARNING
 
-# If a parent module imported zmq.green, use it to avoid deadlock
-try:
-    import _vip_zmq as zmq
-except ImportError:
+# Import gevent-friendly version as vip.green
+if __name__.endswith('.green'):
+    import zmq.green as zmq
+else:
+    if __file__.endswith('.pyc') or __file__.endswith('.pyo'):
+        from imp import load_compiled as load
+    else:
+        from imp import load_source as load
+    green = load('.'.join([__name__, 'green']), __file__)
     import zmq
 from zmq import NOBLOCK, SNDMORE, ZMQError, EINVAL, DEALER, ROUTER, RCVMORE
 
