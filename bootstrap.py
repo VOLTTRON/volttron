@@ -208,7 +208,7 @@ def bootstrap(dest, prompt='(volttron)', version=None, verbose=None):
     return builder.env_exe
 
 
-def pip(operation, args, verbose=None, upgrade=False):
+def pip(operation, args, verbose=None, upgrade=False, offline=False):
     '''Call pip in the virtual environment to perform operation.'''
     cmd = ['pip', operation]
     if verbose:
@@ -219,13 +219,15 @@ def pip(operation, args, verbose=None, upgrade=False):
         cmd.extend(['--quiet', '--global-option', '--quiet'])
     if upgrade:
         cmd.append('--upgrade')
+    if offline:
+        cmd.extend(['--retries', '0', '--timeout', '1'])
     cmd.extend(args)
     _log.info('+ %s', shescape(cmd))
     cmd[:0] = [sys.executable, '-m']
     subprocess.check_call(cmd)
 
 
-def update(operation, verbose=None, upgrade=False):
+def update(operation, verbose=None, upgrade=False, offline=False):
     '''Install dependencies in setup.py and requirements.txt.'''
     from setup import option_requirements, local_requirements
     assert operation in ['install', 'wheel']
@@ -236,7 +238,7 @@ def update(operation, verbose=None, upgrade=False):
         try:
             import wheel
         except ImportError:
-            pip('install', ['wheel'], verbose)
+            pip('install', ['wheel'], verbose, offline=offline)
     # Build option_requirements separately to pass install options
     build_option = '--build-option' if wheeling else '--install-option'
     for requirement, options in option_requirements:
@@ -244,14 +246,14 @@ def update(operation, verbose=None, upgrade=False):
         for opt in options:
             args.extend([build_option, opt])
         args.extend(['--no-deps', requirement])
-        pip(operation, args, verbose, upgrade)
+        pip(operation, args, verbose, upgrade, offline)
     # Install local packages and remaining dependencies
     args = []
     for _, location in local_requirements:
         args.extend(['--editable', os.path.join(path, location)])
     args.extend(['--editable', path,
                  '--requirement', os.path.join(path, 'requirements.txt')])
-    pip(operation, args, verbose, upgrade)
+    pip(operation, args, verbose, upgrade, offline)
 
 
 def main(argv=sys.argv):
@@ -293,19 +295,22 @@ def main(argv=sys.argv):
         '--envdir', default=None, metavar='VIRTUAL_ENV',
         help='alternate location for virtual environment')
     bs.add_argument(
-        '--force', action='store_true',
+        '--force', action='store_true', default=False,
         help='force installing in non-empty directory')
     bs.add_argument(
-        '-o', '--only-virtenv', action='store_true',
+        '-o', '--only-virtenv', action='store_true', default=False,
         help='create virtual environment and exit (skip install)')
     bs.add_argument(
         '--prompt', default='(volttron)', help='provide alternate prompt '
         'in activated environment (default: %(default)s)')
     bs.add_argument('--force-version', help=argparse.SUPPRESS)
     up = parser.add_argument_group('update options')
+    up.add_argument(
+        '--offline', action='store_true', default=False,
+        help='install from cache without downloading')
     ex = up.add_mutually_exclusive_group()
     ex.add_argument(
-        '-u', '--upgrade', action='store_true',
+        '-u', '--upgrade', action='store_true', default=False,
         help='upgrade installed packages')
     ex.add_argument(
         '-w', '--wheel', action='store_const', const='wheel', dest='operation',
@@ -329,7 +334,8 @@ def main(argv=sys.argv):
     # Main script logic to perform bootstrapping or updating
     if hasattr(sys, 'real_prefix'):
         # The script was called from a virtual environment Python, so update
-        update(options.operation, options.verbose, options.upgrade)
+        update(options.operation, options.verbose,
+               options.upgrade, options.offline)
     else:
         # The script was called from the system Python, so bootstrap
         try:
