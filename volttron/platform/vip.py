@@ -115,7 +115,7 @@ class ProtocolError(Exception):
 
 
 class Message(object):
-    '''Message object returned form Socket.recv_vip_obj().'''
+    '''Message object returned form Socket.recv_vip_object().'''
     def __init__(self, **kwargs):
         self.__dict__ = kwargs
     def __repr__(self):
@@ -246,7 +246,7 @@ class Socket(zmq.Socket):
         msg_id = dct.pop('id', b'')
         self.send_vip(flags=flags, copy=copy, track=track, msg_id=msg_id, **dct)
 
-    def send_vip_obj(self, msg, flags=0, copy=True, track=False):
+    def send_vip_object(self, msg, flags=0, copy=True, track=False):
         '''Send VIP message from an object.'''
         dct = {
             'via': getattr(msg, 'via', None),
@@ -332,7 +332,7 @@ class Socket(zmq.Socket):
             dct['via'] = via
         return dct
 
-    def recv_vip_obj(self, flags=0, copy=True, track=False):
+    def recv_vip_object(self, flags=0, copy=True, track=False):
         '''Recieve a complete VIP message and return as an object.'''
         msg = Message()
         msg.__dict__ = self.recv_vip_dict(flags=flags, copy=copy, track=track)
