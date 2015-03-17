@@ -63,9 +63,13 @@ import os
 import os.path as p
 import uuid
 
+from authenticate import Authenticate
+from manager import Manager
+
 from volttron.platform.agent import BaseAgent
 from volttron.platform.agent.utils import jsonapi
 from volttron.platform.agent import utils
+
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -75,19 +79,21 @@ class ValidationException(Exception):
     pass
 
 class LoggedIn:
-    def __init__(self):
+    def __init__(self, authenticator):
         self.sessions = {}
         self.session_token = {}
+        self.authenticator = authenticator
 
     def authenticate(self, username, password, ip):
-        if (username == 'dorothy' and password=='toto123'):
+        groups = self.authenticator.authenticate(username, password)
+        if groups:
             token = uuid.uuid4()
-            self._add_session(username, token, ip)
+            self._add_session(username, token, ip, ",".join(groups))
             return token
         return None
 
-    def _add_session(self, user, token, ip):
-        self.sessions[user] = {user: user, token: token, ip: ip}
+    def _add_session(self, user, token, ip, groups):
+        self.sessions[user] = {user: user, token: token, ip: ip, groups: groups}
         self.session_token[token] = self.sessions[user]
 
     def check_session(self, token, ip):
@@ -101,19 +107,43 @@ class LoggedIn:
 
 class WebApi:
 
-    def __init__(self):
-        self.sessions = LoggedIn()
+    def __init__(self, authenticator):
+        self.sessions = LoggedIn(authenticator)
+        self.manager = Manager()
+
+    @cherrypy.expose
+    @cherrypy.tools.json_in()
+    @cherrypy.tools.json_out()
+    @cherrypy.tools.allow(methods=['POST'])
+    def twoway(self):
+        '''You can call it like:
+        curl -X POST -H "Content-Type: application/json" \
+          -d '{"foo":123,"bar":"baz"}' http://127.0.0.1:8080/api/twoway
+        '''
+
+        data = cherrypy.request.json
+        return data.items()
+
+class Root:
+
+    def __init__(self, authenticator):
+        self.sessions = LoggedIn(authenticator)
+        self.manager = Manager()
+
+    @cherrypy.expose
+    def index(self):
+        return open(os.path.join(WEB_ROOT, u'index.html'))
 
     @cherrypy.expose
     @cherrypy.tools.allow(methods=['POST'])
     @cherrypy.tools.json_out()
     @cherrypy.tools.json_in()
-    def index(self):
+    def jsonrpc(self):
         '''
         Example curl post
         curl -X POST -H "Content-Type: application/json" \
 -d '{"jsonrpc": "2.0","method": "getAuthorization","params": {"username": "dorothy","password": "toto123"},"id": "someid"}' \
- http://127.0.0.1:8080/api/
+ http://127.0.0.1:8080/jsonrpc/
 
         Successful response
              {"jsonrpc": "2.0",
@@ -122,7 +152,7 @@ class WebApi:
         Failed
             401 Unauthorized
 '''
-        print cherrypy.request.json
+
         if cherrypy.request.json.get('jsonrpc') != '2.0':
             raise ValidationException('Invalid jsnrpc version')
         if not cherrypy.request.json.get('method'):
@@ -149,6 +179,16 @@ class WebApi:
             return {'jsonrpc': '2.0',
                     'error': {'code': 401, 'message': 'Unauthorized'},
                     'id': cherrypy.request.json.get('id')}
+        else:
+            # trap for trying to use a method withoud a session token.
+            if not cherrypy.request.json.get('method'):
+                return {'jsonrpc': '2.0',
+                    'error': {'code': 401, 'message': 'Unauthorized'},
+                    'id': cherrypy.request.json.get('id')}
+
+            return self.manager.dispatch(cherrypy.request.json.get('method'),
+                                  cherrypy.request.json.get('params'),
+                                  cherrypy.request.json.get('id'))
 
         return {'jsonrpc': '2.0',
                 'error': {'code': 404, 'message': 'Unknown method'},
@@ -167,12 +207,19 @@ class WebApi:
         data = cherrypy.request.json
         return data.items()
 
-class Root:
     @cherrypy.expose
-    def index(self):
-        return open(os.path.join(WEB_ROOT, u'index.html'))
+    @cherrypy.tools.json_in()
+    @cherrypy.tools.json_out()
+    @cherrypy.tools.allow(methods=['POST'])
+    def listPlatforms(self):
+        return manager.current_platforms()
 
-def ManagedServiceAgent(config_path, **kwargs):
+# class Root:
+#     @cherrypy.expose
+#     def index(self):
+#         return open(os.path.join(WEB_ROOT, u'index.html'))
+
+def PlatformManagerAgent(config_path, **kwargs):
     config = utils.load_config(config_path)
 
     def get_config(name):
@@ -183,13 +230,22 @@ def ManagedServiceAgent(config_path, **kwargs):
 
     agent_id = get_config('agentid')
     server_conf = {'global': get_config('server')}
-    print server_conf
+    user_map = get_config('users')
+
     static_conf = {
         "/": {
+            "tools.staticdir.root": WEB_ROOT
+        },
+        "/css": {
             "tools.staticdir.on": True,
-            "tools.staticdir.dir": WEB_ROOT
+            "tools.staticdir.dir": "css"
+        },
+        "/js": {
+            "tools.staticdir.on": True,
+            "tools.staticdir.dir": "js"
         }
     }
+
     #poll_time = get_config('poll_time')
     #zip_code = get_config("zip")
     #key = get_config('key')
@@ -200,15 +256,11 @@ def ManagedServiceAgent(config_path, **kwargs):
         def __init__(self, **kwargs):
             super(Agent, self).__init__(**kwargs)
             self.valid_data = False
-            self.webserver = WebApi()
+            self.webserver = Root(Authenticate(user_map))
 
         def setup(self):
             super(Agent, self).setup()
-            #cherrypy.tree.mount(self.webserver, "/", config=static_conf)
-            cherrypy.tree.mount(self.webserver, "/api")
-            cherrypy.tree.mount(Root(), "/", config=static_conf)
-            #cherrypy.config.update(server_conf)
-            #cherrypy.config.update(static_conf)
+            cherrypy.tree.mount(self.webserver, "/", config=static_conf)
             cherrypy.engine.start()
 
         def finish(self):
@@ -222,7 +274,7 @@ def ManagedServiceAgent(config_path, **kwargs):
 
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
-    utils.default_main(ManagedServiceAgent,
+    utils.default_main(PlatformManagerAgent,
                        description='The managed server agent',
                        argv=argv)
 

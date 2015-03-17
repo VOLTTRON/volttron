@@ -9,6 +9,8 @@ var rev = require('gulp-rev');
 var source = require('vinyl-source-stream');
 
 var BUILD_DIR = 'platformmanager/webroot/';
+var APP_GLOB = '{css,js}/messenger-*';
+var VENDOR_GLOB = '{css,js}/{normalize,vendor}-*';
 
 gulp.task('default', ['watch']);
 gulp.task('clean', clean);
@@ -21,22 +23,22 @@ gulp.task('watch', ['build'], watch);
 gulp.task('vendor', ['clean-vendor'], vendor);
 
 function clean (callback) {
-    del(BUILD_DIR + 'messenger*', callback);
+    del(BUILD_DIR + APP_GLOB, callback);
 }
 
 function cleanVendor(callback) {
-    del(BUILD_DIR + 'vendor', callback);
+    del(BUILD_DIR + VENDOR_GLOB, callback);
 }
 
 function css() {
     return gulp.src('ui-src/css/messenger.css')
         .pipe(rev())
-        .pipe(gulp.dest(BUILD_DIR));
+        .pipe(gulp.dest(BUILD_DIR + 'css'));
 }
 
 function htmlInject() {
     return gulp.src('ui-src/index.html')
-        .pipe(inject(gulp.src(['vendor/*', '*'], { cwd: BUILD_DIR}), { addRootSlash: false }))
+        .pipe(inject(gulp.src([VENDOR_GLOB, APP_GLOB], { cwd: BUILD_DIR}), { addRootSlash: false }))
         .pipe(gulp.dest(BUILD_DIR));
 }
 
@@ -51,13 +53,13 @@ function js() {
         .pipe(source('messenger.js'))
         .pipe(buffer())
         .pipe(rev())
-        .pipe(gulp.dest(BUILD_DIR));
+        .pipe(gulp.dest(BUILD_DIR + 'js'));
 }
 
 function vendor() {
     gulp.src('node_modules/normalize.css/normalize.css')
         .pipe(rev())
-        .pipe(gulp.dest(BUILD_DIR + 'vendor'));
+        .pipe(gulp.dest(BUILD_DIR + 'css'));
 
     return browserify({
         noParse: [
@@ -75,7 +77,7 @@ function vendor() {
         .pipe(source('vendor.js'))
         .pipe(buffer())
         .pipe(rev())
-        .pipe(gulp.dest(BUILD_DIR + 'vendor'));
+        .pipe(gulp.dest(BUILD_DIR + 'js'));
 }
 
 function watch() {

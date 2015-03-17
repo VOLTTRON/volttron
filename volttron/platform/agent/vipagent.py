@@ -69,12 +69,11 @@ import weakref
 import gevent
 from gevent.event import AsyncResult
 import zmq.green as zmq
-from zmq import EAGAIN, NOBLOCK, POLLIN, POLLOUT, ZMQError
+from zmq import EAGAIN, ZMQError
 from zmq.utils import jsonapi
 
-# Override the zmq module imported by ..vip
-sys.modules['_vip_zmq'] = zmq
-from .. import vip
+# Import gevent-friendly version of vip
+from ..vip import green as vip
 from .. import jsonrpc
 
 
@@ -213,7 +212,7 @@ class VIPAgent(object):
     def __init__(self, vip_address, vip_identity=None, **kwargs):
         super(VIPAgent, self).__init__(**kwargs)
         self.vip_address = vip_address
-        self.vip_socket = zmq.Context.instance().socket(zmq.DEALER)
+        self.vip_socket = vip.Socket()
         if vip_identity:
             self.vip_socket.identity = vip_identity
         self._periodics = []
@@ -228,31 +227,50 @@ class VIPAgent(object):
             for event, callback in self._meta.event_callbacks:
                 if event == trigger:
                     callback(self)
+        _log.debug('generating periodic callbacks')
         for definition in self._meta.periodics:
             callback = definition.callback(self)
             self._periodics.append(callback)
+        _log.debug('trigging setup events')
         _trigger_event('setup')
+        _log.debug('setup events complete')
+        _log.debug('connecting')
         self.vip_socket.connect(self.vip_address)
+        _log.debug('triggering connect events')
         _trigger_event('connect')
+        _log.debug('connect events complete')
+        _log.debug('starting periodics')
         # Start periodic callbacks
         for periodic in self._periodics:
             periodic.start()
+        _log.debug('triggering start events')
         _trigger_event('start')
+        _log.debug('start events complete')
+        _log.debug('entering main loop')
         try:
             self._vip_loop()
         finally:
+            _log.debug('main loop complete')
+            _log.debug('triggering stop events')
             _trigger_event('stop')
+            _log.debug('stop events complete')
+            _log.debug('stopping periodics')
             for periodic in self._periodics:
                 periodic.kill()
+            _log.debug('triggering disconnect events')
             _trigger_event('disconnect')
+            _log.debug('disconnect events complete')
+            _log.debug('disconnecting')
             self.vip_socket.disconnect(self.vip_address)
+            _log.debug('triggering finish events')
             _trigger_event('finish')
+            _log.debug('finish events complete')
 
     def _vip_loop(self):
         socket = self.vip_socket
         while True:
             try:
-                message = vip.recv_message(socket)
+                message = socket.recv_vip_object()
             except ZMQError as exc:
                 if exc.errno == EAGAIN:
                     continue
@@ -265,8 +283,8 @@ class VIPAgent(object):
                            bytes(message.peer), bytes(message.subsystem))
                 message.user = b''
                 message.args = [b'51', b'unknown subsystem', message.subsystem]
-                message.subsystem = vip.F_ERROR
-                vip.send_message(socket, message)
+                message.subsystem = b'error'
+                socket.send_vip_object(message)
             else:
                 method(self, message)
 
@@ -276,9 +294,9 @@ class VIPAgent(object):
 
     @subsystem('ping')
     def handle_ping_subsystem(self, message):
-        message.subsystem = vip.F_PONG
+        message.subsystem = b'pong'
         message.user = b''
-        vip.send_message(self.vip_socket, message)
+        self.vip_socket.send_vip_object(message)
 
     @subsystem('error')
     def handle_error_subsystem(self, message):
@@ -359,21 +377,19 @@ class RPCMixin(object):
         if responses:
             message.user = ''
             message.args = responses
-            vip.send_message(self.vip_socket, message)
+            self.vip_socket.send_vip_object(message)
 
     def rpc_call(self, peer, method, args=None, kwargs=None):
         rpc = self._rpc_dispatcher
         ident, result = rpc.add_result()
         args = [rpc.serialize(jsonrpc._method(ident, method, args, kwargs))]
-        msg = vip.Message(peer=peer, id=str(ident), subsystem='RPC', args=args)
-        vip.send_message(self.vip_socket, msg)
+        self.vip_socket.send_vip(peer, 'RPC', args, msg_id=str(ident))
         return result
 
     def rpc_notify(self, peer, method, args, kwargs):
         rpc = self._rpc_dispatcher
         args = [rpc.serialize(jsonrpc._method(None, method, args, kwargs))]
-        msg = vip.Message(peer=peer, id='', subsystem='RPC', args=args)
-        vip.send_message(self.vip_socket, msg)
+        self.vip_socket.send_vip(peer, 'RPC', args)
 
     def _call_rpc_method(self, method_name, args, kwargs):
         try:

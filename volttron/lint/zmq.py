@@ -57,6 +57,7 @@
 
 NOBLOCK = 1
 SNDMORE = 2
+RCVMORE = 13
 
 POLLIN = 1
 POLLOUT = 2
@@ -119,10 +120,14 @@ class Socket(object):
     def context(self):
         return None
 
+    @property
+    def type(self):
+        return 0
+
     @context.setter
     def context(self, value):
         pass
-    
+
     def send_string(self, u, flags=0, copy=True, encoding='utf-8'):
         pass
 
@@ -140,3 +145,6 @@ class Socket(object):
 
     def recv_json(self, flags=0, **kwargs):
         return {}
+
+    def getsockopt(self, option):
+        return 0
