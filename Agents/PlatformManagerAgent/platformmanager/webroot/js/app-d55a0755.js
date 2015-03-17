@@ -3,36 +3,15 @@
 
 var React = require('react');
 
-var Composer = require('./composer');
-var Conversation = require('./conversation');
-var MessengerModel = require('./messenger-model');
+var Messenger = require('./components/messenger');
 
-var model = new MessengerModel();
-
-var App = React.createClass({displayName: "App",
-    render: function () {
-        return (
-            React.createElement("div", {className: "messenger"}, 
-                React.createElement(Conversation, {exchanges: this.props.model.exchanges}), 
-                React.createElement(Composer, {sendRequestFn: this.props.model.sendRequest.bind(this.props.model)})
-            )
-        );
-    }
-});
-
-model.addSubscriber(render);
-
-function render() {
-    React.render(
-        React.createElement(App, {model: model}),
-        document.getElementById('messenger')
-    );
-}
-
-render();
+React.render(
+    React.createElement(Messenger, null),
+    document.getElementById('app')
+);
 
 
-},{"./composer":2,"./conversation":3,"./messenger-model":5,"react":undefined}],2:[function(require,module,exports){
+},{"./components/messenger":5,"react":undefined}],2:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -221,6 +200,34 @@ module.exports = Exchange;
 
 
 },{"react":undefined}],5:[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+
+var Composer = require('./composer');
+var Conversation = require('./conversation');
+var MessengerModel = require('../models/messenger-model');
+
+var model = new MessengerModel();
+
+var Messenger = React.createClass({displayName: "Messenger",
+    componentDidMount: function () {
+        model.addSubscriber(this.forceUpdate.bind(this));
+    },
+    render: function () {
+        return (
+            React.createElement("div", {className: "messenger"}, 
+                React.createElement(Conversation, {exchanges: model.exchanges}), 
+                React.createElement(Composer, {sendRequestFn: model.sendRequest.bind(model)})
+            )
+        );
+    }
+});
+
+module.exports = Messenger;
+
+
+},{"../models/messenger-model":6,"./composer":2,"./conversation":3,"react":undefined}],6:[function(require,module,exports){
 'use strict';
 
 var $ = require('jquery');
