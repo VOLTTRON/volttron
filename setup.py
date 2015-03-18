@@ -105,7 +105,7 @@ if __name__ == '__main__':
         },
         entry_points = {
             'console_scripts': [
-                'volttron = volttron.platform.__main__:_main',
+                'volttron = volttron.platform.main:_main',
                 'volttron-ctl = volttron.platform.control.client:_main',
                 'volttron-pkg = volttron.platform.packaging:_main',
             ]
