@@ -2,9 +2,9 @@
 
 var React = require('react');
 
-var Messenger = require('./components/messenger');
+var PlatformManager = require('./components/platform-manager');
 
 React.render(
-    <Messenger />,
+    <PlatformManager />,
     document.getElementById('app')
 );

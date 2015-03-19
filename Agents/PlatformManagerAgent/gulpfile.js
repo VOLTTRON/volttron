@@ -63,15 +63,22 @@ function vendor() {
 
     return browserify({
         noParse: [
+            'bluebird/js/browser/bluebird.min.js',
+            'events',
             'jquery/dist/jquery.min',
             'node-uuid',
             'react/dist/react.min'
         ],
     })
         .require([
+            { file: 'bluebird/js/browser/bluebird.min.js', expose: 'bluebird' },
+            'events',
+            'flux',
             { file: 'jquery/dist/jquery.min', expose: 'jquery' },
             'node-uuid',
             { file: 'react/dist/react.min', expose: 'react' },
+            'react/lib/keyMirror',
+            'react/lib/Object.assign',
         ])
         .bundle()
         .pipe(source('vendor.js'))

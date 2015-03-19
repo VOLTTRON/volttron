@@ -1,6 +1,8 @@
 'use strict';
 var React = require('react');
 
+var rpc = require('../lib/rpc');
+
 var Exchange = React.createClass({
     _formatTime: function (time) {
         var d = new Date();
@@ -10,51 +12,32 @@ var Exchange = React.createClass({
         return d.toLocaleString();
     },
     _formatMessage: function (message) {
-        var ordered = {};
+        message = message.toJSON ? message.toJSON() : message;
 
-        ['jsonrpc', 'method', 'params', 'authorization', 'error', 'result', 'id'].forEach(function (key) {
-            if (key in message) {
-                if (key === 'error') {
-                    ordered.error = {};
+        if (typeof message === 'string') {
+            return message;
+        }
 
-                    ['code', 'message', 'data'].forEach(function (errorKey) {
-                        if (errorKey in message.error) {
-                            ordered.error[errorKey] = message.error[errorKey];
-                        }
-                    });
-                } else {
-                    ordered[key] = message[key];
-                }
-            }
-        });
-
-        return JSON.stringify(ordered, null, '    ');
+        return JSON.stringify(message, null, '    ');
     },
     render: function () {
         var exchange = this.props.exchange;
         var responseClass = 'response';
         var responseTime, responseText;
 
-        switch (typeof exchange.response) {
-        case 'object':
-            if ('error' in exchange.response) {
+        if (!exchange.response) {
+            responseClass += ' response--pending';
+            responseText = 'Waiting for response...';
+        } else {
+            if (exchange.response.constructor === rpc.RequestError || exchange.response.constructor == rpc.ResponseError) {
                 responseClass += ' response--error';
             }
 
-            responseTime = <div className="time">{this._formatTime(exchange.responseReceived)}</div>;
+            if (exchange.responseReceived) {
+                responseTime = <div className="time">{this._formatTime(exchange.responseReceived)}</div>;
+            }
+
             responseText = this._formatMessage(exchange.response);
-            break;
-        case 'string':
-            responseClass += ' response--error';
-            responseText = exchange.response;
-            break;
-        case 'undefined':
-            responseClass += ' response--pending';
-            responseText = 'Waiting for response...';
-            break;
-        default:
-            responseClass += ' response--error';
-            responseText = 'Unrecognized response type: ' + typeof exchange.response;
         }
 
         return (

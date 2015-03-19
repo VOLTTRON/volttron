@@ -1,51 +1,43 @@
 'use strict';
 
 var React = require('react');
-var uuid = require('node-uuid');
+
+var composerStore = require('../stores/composer-store.js');
+var messengerActionCreators = require('../action-creators/messenger-action-creators');
+var Request = require('../lib/rpc').Request;
 
 var Composer = React.createClass({
-    getInitialState: function () {
-        return Composer.getDefaultState();
+    getInitialState: getStateFromStores,
+    componentDidMount: function () {
+        composerStore.addChangeListener(this._onChange);
+    },
+    componentWillUnmount: function () {
+        composerStore.removeChangeListener(this._onChange);
+    },
+    _onChange: function () {
+        this.setState(getStateFromStores());
     },
     shouldComponentUpdate: function (newProps, newState) {
         return (this.state.id !== newState.id || this.state.valid !== newState.valid);
     },
-    statics: {
-        getDefaultState: function () {
-            var id = uuid.v1();
-
-            return {
-                id: id,
-                request: {
-                    jsonrpc: '2.0',
-                    method: 'getAuthorization',
-                    params: { username: 'dorothy', password: 'toto123' },
-                    id: id,
-                },
-                valid: true,
-            };
-        },
-    },
     _handleSendClick: function () {
-        this.props.sendRequestFn(this.state.request);
-
-        this.setState(Composer.getDefaultState());
+        messengerActionCreators.makeRequest(this.state.request);
     },
     _handleTextareaChange: function (e) {
-        var request;
+        var parsed;
 
         try {
-            request = JSON.parse(e.target.value);
+            parsed = JSON.parse(e.target.value);
         } catch (ex) {
             if (ex instanceof SyntaxError) {
-                this.setState({ request: null, valid: false });
+                this.setState({ valid: false });
                 return;
             } else {
                 throw ex;
             }
         }
 
-        this.setState({ request: request, valid: true });
+        this.setState({ request: new Request(parsed), valid: true });
     },
     render: function () {
         return (
@@ -56,6 +48,7 @@ var Composer = React.createClass({
                     defaultValue={JSON.stringify(this.state.request, null, '    ')}
                 />
                 <input
+                    className="button"
                     ref="send"
                     type="button"
                     value="Send"
@@ -66,5 +59,15 @@ var Composer = React.createClass({
         );
     },
 });
+
+function getStateFromStores() {
+    var request = composerStore.getRequest();
+
+    return {
+        id: request.toJSON().id,
+        request: request,
+        valid: true,
+    };
+}
 
 module.exports = Composer;
