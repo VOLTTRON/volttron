@@ -73,6 +73,7 @@ from base import BaseSmapVolttron, BaseRegister, BaseInterface
 
 from bacpypes.debugging import class_debugging, ModuleLogger
 from bacpypes.task import RecurringTask
+from bacpypes.apdu import ConfirmedRequestSequence, WhoIsRequest
 
 import bacpypes.core
 
@@ -172,15 +173,16 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
 
     def request(self, iocb):
         apdu = iocb.ioRequest
-
-        # assign an invoke identifier
-        apdu.apduInvokeID = self.get_next_invoke_id(apdu.pduDestination)
-
-        # build a key to reference the IOCB when the response comes back
-        invoke_key = (apdu.pduDestination, apdu.apduInvokeID)
-
-        # keep track of the request
-        self.iocb[invoke_key] = iocb
+        
+        if isinstance(apdu, ConfirmedRequestSequence):
+            # assign an invoke identifier
+            apdu.apduInvokeID = self.get_next_invoke_id(apdu.pduDestination)
+    
+            # build a key to reference the IOCB when the response comes back
+            invoke_key = (apdu.pduDestination, apdu.apduInvokeID)
+    
+            # keep track of the request
+            self.iocb[invoke_key] = iocb
         
         BIPSimpleApplication.request(self, apdu)
 
@@ -190,7 +192,7 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
 
         # find the request
         iocb = self.iocb.get(invoke_key, None)
-        if not iocb:
+        if iocb is None:
             iocb.ioDefered.errback(RuntimeError("no matching request"))
             return
         del self.iocb[invoke_key]
@@ -387,6 +389,7 @@ class BACnetInterface(BaseInterface):
                           ven_id=ven_id)
         self.parse_config(config_file)         
         self.target_address = Address(target_address)
+        self.ping_target(self.target_address)
         
         
         
@@ -398,6 +401,16 @@ class BACnetInterface(BaseInterface):
                                
         self.object_property_map[register.object_type, 
                                  register.instance_number].append(register.property)
+                                 
+    def ping_target(self, address):    
+        #Some devices (mostly RemoteStation addresses behind routers) will not be reachable without 
+        # first establishing the route to the device. Sending a directed WhoIsRequest is will
+        # settle that for us when the response comes back. 
+        request = WhoIsRequest()
+        request.pduDestination = address
+        
+        iocb = IOCB(request)
+        this_application.submit_request(iocb)
         
     def setup_device(self, address, 
                      max_apdu_len=1024, seg_supported='segmentedBoth', 
