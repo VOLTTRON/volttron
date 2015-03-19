@@ -52,7 +52,7 @@ class Manager:
                                     name = "listAgents",
                                     arguments = [],
                                     docstring = "Lists the agents available.",
-                                    invoke = lambda x: [[y.name, y.uuid] for y in platform1_agents]
+                                    invoke = lambda x: [{"agent": y.name, "uuid": y.uuid} for y in platform1_agents]
                                 )
 
                             ],
