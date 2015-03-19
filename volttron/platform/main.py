@@ -79,6 +79,7 @@ from . import aip
 from . import __version__
 from . import config
 from . import vip
+from .vipcontrol import ControlService
 from .control.server import control_loop
 from .agent import utils
 
@@ -192,6 +193,7 @@ class Router(vip.BaseRouter):
         self.address = address
     def setup(self):
         self.socket.bind(self.address)
+        self.socket.bind('inproc://vip')
     def log(self, level, message, frames):
         _log.log(level, '%s: %s', message, frames and [bytes(f) for f in frames])
     def run(self):
@@ -464,7 +466,7 @@ def main(argv=sys.argv):
             _log.error('error starting {!r}: {}\n'.format(name, error))
 
     # Main loops
-    router = Router('ipc://{}/run/vip.socket'.format(opts.volttron_home))
+    router = Router('ipc://{}{}/run/vip.socket'.format(opts.volttron_home))
     try:
         viploop = gevent.spawn(router.run)
         exchange = gevent.spawn(
@@ -481,11 +483,14 @@ def main(argv=sys.argv):
             gevent.spawn(mobility_out.run)
         try:
             control = gevent.spawn(control_loop, opts)
+            vipcontrol = gevent.spawn(ControlService(
+                opts.aip, vip_address='inproc://vip', vip_identity='control').run)
             exchange.link(lambda *a: control.kill())
             exchange.link(lambda *a: viploop.kill())
             control.join()
         finally:
             control.kill()
+            vipcontrol.kill()
             exchange.kill()
             viploop.kill()
     finally:
