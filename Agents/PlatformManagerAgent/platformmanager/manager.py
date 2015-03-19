@@ -60,7 +60,15 @@ class Manager:
         platform2 = Platform(name='platform2',
                              uuid="dbcb45b2-cae9-4629-93fc-ce5d4b6d4fae",
                              agents=[],
-                             methods = lambda x: [],)
+                             methods = [
+                                Method(
+                                    name = "listAgents",
+                                    arguments = [],
+                                    docstring = "Lists the agents available.",
+                                    invoke = lambda x: []
+                                )
+
+                            ],)
 
         self.available_platforms = [platform1, platform2]
 
@@ -148,6 +156,8 @@ class Manager:
 
     def dispatch (self, method, params, id):
         retvalue = {"jsonrpc": "2.0", "id":id}
+
+
         if method == 'listPlatforms':
             retvalue["result"] = self.get_platform_list()
 
