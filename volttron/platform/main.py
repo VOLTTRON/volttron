@@ -79,8 +79,7 @@ from . import aip
 from . import __version__
 from . import config
 from . import vip
-from .vipcontrol import ControlService
-from .control.server import control_loop
+from .control import ControlService
 from .agent import utils
 
 try:
@@ -90,7 +89,6 @@ except ImportError:
 else:
     from volttron.restricted import comms, comms_server, resmon
     from volttron.restricted.mobility import MobilityAgent
-    from paramiko import RSAKey, PasswordRequiredException, SSHException
     HAVE_RESTRICTED = True
 
 
@@ -326,22 +324,20 @@ def main(argv=sys.argv):
         '--vip-address', metavar='ZMQADDR', action='append', default=[],
         help='ZeroMQ URL to bind for VIP connections')
 
-    control = parser.add_argument_group('control options')
-    control.add_argument(
-        '--control-socket', metavar='FILE',
-        help='path to socket used for control messages')
-    control.add_argument(
-        '--allow-root', action='store_true', inverse='--no-allow-root',
-        help='allow root to connect to control socket')
-    control.add_argument(
-        '--no-allow-root', action='store_false', dest='allow_root',
-        help=argparse.SUPPRESS)
-    control.add_argument(
-        '--allow-users', action='store_list', metavar='LIST',
-        help='users allowed to connect to control socket')
-    control.add_argument(
-        '--allow-groups', action='store_list', metavar='LIST',
-        help='user groups allowed to connect to control socket')
+    # XXX: re-implement control options
+    #control = parser.add_argument_group('control options')
+    #control.add_argument(
+    #    '--allow-root', action='store_true', inverse='--no-allow-root',
+    #    help='allow root to connect to control socket')
+    #control.add_argument(
+    #    '--no-allow-root', action='store_false', dest='allow_root',
+    #    help=argparse.SUPPRESS)
+    #control.add_argument(
+    #    '--allow-users', action='store_list', metavar='LIST',
+    #    help='users allowed to connect to control socket')
+    #control.add_argument(
+    #    '--allow-groups', action='store_list', metavar='LIST',
+    #    help='user groups allowed to connect to control socket')
 
     if HAVE_RESTRICTED:
         class RestrictedAction(argparse.Action):
@@ -387,10 +383,8 @@ def main(argv=sys.argv):
             '--mobility-port', type=int, metavar='NUMBER',
             help='specify the port on which to listen')
 
-    default_control = '$VOLTTRON_HOME/run/control'
     vip_path = '$VOLTTRON_HOME/run/vip.socket'
     if sys.platform.startswith('linux'):
-        default_control = '@' + default_control
         vip_path = '@' + vip_path
     parser.set_defaults(
         log=None,
@@ -401,10 +395,9 @@ def main(argv=sys.argv):
         publish_address='ipc://$VOLTTRON_HOME/run/publish',
         subscribe_address='ipc://$VOLTTRON_HOME/run/subscribe',
         vip_address=['ipc://' + vip_path],
-        control_socket=default_control,
-        allow_root=False,
-        allow_users=None,
-        allow_groups=None,
+        #allow_root=False,
+        #allow_users=None,
+        #allow_groups=None,
         verify_agents=True,
         resource_monitor=True,
         mobility=True,
@@ -418,7 +411,6 @@ def main(argv=sys.argv):
     if os.path.exists(conf) and 'SKIP_VOLTTRON_CONFIG' not in os.environ:
         args = ['--config', conf] + args
     opts = parser.parse_args(args)
-    opts.control_socket = config.expandall(opts.control_socket)
     opts.publish_address = config.expandall(opts.publish_address)
     opts.subscribe_address = config.expandall(opts.subscribe_address)
     opts.vip_address = [config.expandall(addr) for addr in opts.vip_address]
@@ -476,7 +468,6 @@ def main(argv=sys.argv):
     # Main loops
     router = Router(opts.vip_address)
     try:
-        viploop = gevent.spawn(router.run)
         exchange = gevent.spawn(
             agent_exchange, opts.publish_address, opts.subscribe_address)
         if HAVE_RESTRICTED and opts.mobility:
@@ -490,17 +481,12 @@ def main(argv=sys.argv):
                 publish_address=opts.publish_address)
             gevent.spawn(mobility_out.run)
         try:
-            control = gevent.spawn(control_loop, opts)
-            vipcontrol = gevent.spawn(ControlService(
+            control = gevent.spawn(ControlService(
                 opts.aip, vip_address='inproc://vip', vip_identity='control').run)
-            exchange.link(lambda *a: control.kill())
-            exchange.link(lambda *a: viploop.kill())
-            control.join()
+            router.run()
         finally:
             control.kill()
-            vipcontrol.kill()
             exchange.kill()
-            viploop.kill()
     finally:
         opts.aip.finish()
 

@@ -67,7 +67,6 @@ option_requirements = [
 
 # Requirements in the repository which should be installed as editable.
 local_requirements = [
-    ('flexible-jsonrpc', 'lib/jsonrpc'),
 ]
 
 # Standard requirements
@@ -75,7 +74,6 @@ requirements = [
     'BACpypes>=0.10,<2',
     'gevent>=0.13,<2',
     'monotonic',
-    'paramiko>=1.14,<2',
     'pymodbus>=1.2,<2',
     'setuptools',
     'simplejson>=3.3,<4',
@@ -106,7 +104,7 @@ if __name__ == '__main__':
         entry_points = {
             'console_scripts': [
                 'volttron = volttron.platform.main:_main',
-                'volttron-ctl = volttron.platform.control.client:_main',
+                'volttron-ctl = volttron.platform.control:_main',
                 'volttron-pkg = volttron.platform.packaging:_main',
             ]
         },
