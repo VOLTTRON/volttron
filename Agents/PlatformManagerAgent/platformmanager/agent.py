@@ -93,12 +93,12 @@ class LoggedIn:
         return None
 
     def _add_session(self, user, token, ip, groups):
-        self.sessions[user] = {user: user, token: token, ip: ip, groups: groups}
+        self.sessions[user] = {'user': user, 'token': token, 'ip': ip, 'groups': groups}
         self.session_token[token] = self.sessions[user]
 
     def check_session(self, token, ip):
-        session = self.session_token.get(token)
-        if not session:
+        session = self.session_token.get(uuid.UUID(token))
+        if session:
             return session['ip'] == ip
 
         return False
@@ -185,6 +185,13 @@ class Root:
                 return {'jsonrpc': '2.0',
                     'error': {'code': 401, 'message': 'Unauthorized'},
                     'id': cherrypy.request.json.get('id')}
+
+            token = cherrypy.request.json.get('authorization')
+            if not self.sessions.check_session(token, cherrypy.request.remote.ip):
+                return {'jsonrpc': '2.0',
+                    'error': {'code': 401, 'message': 'Unauthorized'},
+                    'id': cherrypy.request.json.get('id')}
+
 
             return self.manager.dispatch(cherrypy.request.json.get('method'),
                                   cherrypy.request.json.get('params'),
