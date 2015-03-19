@@ -494,25 +494,27 @@ class BaseRouter(object):
 
         if not recipient.bytes:
             # Handle requests directed at the router
-            subsystem = frames[4]
+            subsystem = frames[5]
             name = subsystem.bytes
             if name == b'hello':
                 frames = [sender, recipient, proto, user_id, msg_id,
                           _WELCOME, _VERSION, socket.identity, sender]
             elif name == b'ping':
-                frames[:5] = [
+                frames[:6] = [
                     sender, recipient, proto, user_id, msg_id, _PONG]
             else:
-                frames = self.handle_subsystem(frames, user_id)
-                if frames is None:
+                response = self.handle_subsystem(frames, user_id)
+                if response is None:
                     # Handler does not know of the subsystem
                     log(ERROR, 'unknown subsystem', frames)
                     errnum, errmsg = _INVALID_SUBSYSTEM
                     frames = [sender, recipient, proto, b'', msg_id,
                               _ERROR, errnum, errmsg, subsystem]
-                elif not frames:
+                elif not response:
                     # Subsystem does not require a response
                     return
+                else:
+                    frames = response
         else:
             # Route all other requests to the recipient
             frames[:4] = [recipient, sender, proto, user_id]
