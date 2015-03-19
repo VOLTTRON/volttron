@@ -21,8 +21,8 @@ class Authenticate:
 
     def authenticate(self, username, password):
         '''
-        Authenticate that the user is known to the system.   Return true if the
-        user is known to the system.
+        Authenticate that the user is known to the system.   Return groups of
+        the user if the user is known otherwise returns None.
         '''
         if username in self.users.keys():
             # Do a naive hash of the user supplied password and if success return
@@ -30,4 +30,4 @@ class Authenticate:
             if self.users[username]['password'] == hashlib.sha512(password).hexdigest():
                 return self.users[username]['groups']
 
-        return False
+        return None
