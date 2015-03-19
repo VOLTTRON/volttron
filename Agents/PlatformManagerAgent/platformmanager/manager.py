@@ -109,6 +109,11 @@ class Manager:
                 for x in agent.methods:
                     result.append({"method": x.name, "params": x.arguments})
                 return result
+            elif method == 'listMethods':
+                result = []
+                for x in agent.methods:
+                    result.append({"method": x.name, "params": x.arguments})
+                return result
             else:
                 method = self._find_method(agent, method)
 
@@ -133,7 +138,10 @@ class Manager:
         # we know we are looking at an agent method
         if len(fields) > 4:
             agent = fields[5]
-            method = fields[7]
+            if (fields[6] == 'listMethods'):
+                method = 'listMethods'
+            else:
+                method = fields[7]
 
         return (platform, agent, method)
 
