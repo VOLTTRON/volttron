@@ -165,9 +165,9 @@ def make_exception(code, message, data=None):
         exc_info = data.get('exception.py')
         if exc_info:
             return RemoteError(
-                data.get('detail', message), exc_type=data.get('type'),
-                exc_args=data.get('args'), exc_tb=data.get('traceback'),
-                tb_limit=data.get('tb_limit'))
+                data.get('detail', message), exc_type=exc_info.get('type'),
+                exc_args=exc_info.get('args'), exc_tb=exc_info.get('traceback'),
+                tb_limit=exc_info.get('tb_limit'))
     elif code == METHOD_NOT_FOUND:
         return UnimplementedError(code, message, data)
     return Error(code, message, data)
@@ -313,18 +313,18 @@ class Dispatcher(object):
                     return _error(
                         None, INVALID_PARAMS, 'invalid object type',
                         detail='expected a list for *args; '
-                               'got a {!r} instead'.format(type(msg).__name__))
+                               'got a {!r} instead'.format(type(args).__name__))
                 if not isinstance(kwargs, dict):
                     return _error(
                         None, INVALID_PARAMS, 'invalid object type',
                         detail='expected a dictionary (object) for **kwargs; '
-                               'got a {!r} instead'.format(type(msg).__name__))
+                               'got a {!r} instead'.format(type(kwargs).__name__))
         elif isinstance(params, list):
             args, kwargs = params, {}
         else:
             return _error(None, INVALID_PARAMS, 'invalid object type',
                           detail='expected a list or dictionary (object); '
-                                 'got a {!r} instead'.format(type(msg).__name__))
+                                 'got a {!r} instead'.format(type(params).__name__))
         try:
             result = self.handle_method(msg, ident, method, args, kwargs)
         except NotImplementedError:
