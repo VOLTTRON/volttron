@@ -212,9 +212,7 @@ class VIPAgent(object):
     def __init__(self, vip_address, vip_identity=None, **kwargs):
         super(VIPAgent, self).__init__(**kwargs)
         self.vip_address = vip_address
-        self.vip_socket = vip.Socket()
-        if vip_identity:
-            self.vip_socket.identity = vip_identity
+        self.vip_identity = vip_identity
         self._periodics = []
 
     def run(self):
@@ -230,6 +228,9 @@ class VIPAgent(object):
         for definition in self._meta.periodics:
             callback = definition.callback(self)
             self._periodics.append(callback)
+        self.vip_socket = vip.Socket()
+        if self.vip_identity:
+            self.vip_socket.identity = self.vip_identity
         _trigger_event('setup')
         self.vip_socket.connect(self.vip_address)
         _trigger_event('connect')
