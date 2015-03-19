@@ -1,15 +1,11 @@
 'use strict';
 
-var assign = require('react/lib/Object.assign');
-var EventEmitter = require('events').EventEmitter;
-
 var ACTION_TYPES = require('../constants/action-types');
 var dispatcher = require('../dispatcher');
 var messengerStore = require('./messenger-store');
 var platformManagerStore = require('../stores/platform-manager-store');
 var Request = require('../lib/rpc/request');
-
-var CHANGE_EVENT = 'change';
+var Store = require('../lib/store');
 
 var _request;
 
@@ -23,20 +19,11 @@ function _initRequest(method, params) {
 
 _initRequest();
 
-var composerStore = assign({}, EventEmitter.prototype, {
-    emitChange: function() {
-        this.emit(CHANGE_EVENT);
-    },
-    addChangeListener: function (callback) {
-        this.on(CHANGE_EVENT, callback);
-    },
-    removeChangeListener: function (callback) {
-        this.removeListener(CHANGE_EVENT, callback);
-    },
-    getRequest: function () {
-        return _request;
-    },
-});
+var composerStore = new Store();
+
+composerStore.getRequest = function () {
+    return _request;
+};
 
 composerStore.dispatchToken = dispatcher.register(function (action) {
     dispatcher.waitFor([messengerStore.dispatchToken]);

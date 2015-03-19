@@ -179,7 +179,7 @@ function getStateFromStores() {
 module.exports = Composer;
 
 
-},{"../action-creators/messenger-action-creators":2,"../lib/rpc":14,"../stores/composer-store.js":18,"react":undefined}],5:[function(require,module,exports){
+},{"../action-creators/messenger-action-creators":2,"../lib/rpc":14,"../stores/composer-store.js":19,"react":undefined}],5:[function(require,module,exports){
 'use strict';
 
 var $ = require('jquery');
@@ -230,7 +230,7 @@ function getStateFromStores() {
 module.exports = Conversation;
 
 
-},{"../stores/messenger-store":20,"./exchange":6,"jquery":undefined,"react":undefined}],6:[function(require,module,exports){
+},{"../stores/messenger-store":21,"./exchange":6,"jquery":undefined,"react":undefined}],6:[function(require,module,exports){
 'use strict';
 var React = require('react');
 
@@ -362,7 +362,7 @@ function getStateFromStores() {
 module.exports = LoginForm;
 
 
-},{"../action-creators/platform-manager-action-creators":3,"../stores/login-form-store":19,"react":undefined}],9:[function(require,module,exports){
+},{"../action-creators/platform-manager-action-creators":3,"../stores/login-form-store":20,"react":undefined}],9:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -450,7 +450,7 @@ function getStateFromStores() {
 module.exports = PlatformManager;
 
 
-},{"../stores/platform-manager-store":21,"./login-form":8,"./messenger":9,"./navigation":10,"react":undefined}],12:[function(require,module,exports){
+},{"../stores/platform-manager-store":22,"./login-form":8,"./messenger":9,"./navigation":10,"react":undefined}],12:[function(require,module,exports){
 'use strict';
 
 var keyMirror = require('react/lib/keyMirror');
@@ -657,16 +657,39 @@ module.exports = ResponseError;
 },{}],18:[function(require,module,exports){
 'use strict';
 
-var assign = require('react/lib/Object.assign');
 var EventEmitter = require('events').EventEmitter;
+
+var CHANGE_EVENT = 'change';
+
+function Store() {
+    EventEmitter.call(this);
+}
+Store.prototype = EventEmitter.prototype;
+
+Store.prototype.emitChange = function() {
+    this.emit(CHANGE_EVENT);
+};
+
+Store.prototype.addChangeListener = function (callback) {
+    this.on(CHANGE_EVENT, callback);
+};
+
+Store.prototype.removeChangeListener = function (callback) {
+    this.removeListener(CHANGE_EVENT, callback);
+};
+
+module.exports = Store;
+
+
+},{"events":undefined}],19:[function(require,module,exports){
+'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
 var dispatcher = require('../dispatcher');
 var messengerStore = require('./messenger-store');
 var platformManagerStore = require('../stores/platform-manager-store');
 var Request = require('../lib/rpc/request');
-
-var CHANGE_EVENT = 'change';
+var Store = require('../lib/store');
 
 var _request;
 
@@ -680,20 +703,11 @@ function _initRequest(method, params) {
 
 _initRequest();
 
-var composerStore = assign({}, EventEmitter.prototype, {
-    emitChange: function() {
-        this.emit(CHANGE_EVENT);
-    },
-    addChangeListener: function (callback) {
-        this.on(CHANGE_EVENT, callback);
-    },
-    removeChangeListener: function (callback) {
-        this.removeListener(CHANGE_EVENT, callback);
-    },
-    getRequest: function () {
-        return _request;
-    },
-});
+var composerStore = new Store();
+
+composerStore.getRequest = function () {
+    return _request;
+};
 
 composerStore.dispatchToken = dispatcher.register(function (action) {
     dispatcher.waitFor([messengerStore.dispatchToken]);
@@ -714,34 +728,21 @@ composerStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = composerStore;
 
 
-},{"../constants/action-types":12,"../dispatcher":13,"../lib/rpc/request":16,"../stores/platform-manager-store":21,"./messenger-store":20,"events":undefined,"react/lib/Object.assign":undefined}],19:[function(require,module,exports){
+},{"../constants/action-types":12,"../dispatcher":13,"../lib/rpc/request":16,"../lib/store":18,"../stores/platform-manager-store":22,"./messenger-store":21}],20:[function(require,module,exports){
 'use strict';
-
-var assign = require('react/lib/Object.assign');
-var EventEmitter = require('events').EventEmitter;
 
 var ACTION_TYPES = require('../constants/action-types');
 var dispatcher = require('../dispatcher');
 var platformManagerStore = require('./platform-manager-store');
-
-var CHANGE_EVENT = 'change';
+var Store = require('../lib/store');
 
 var _lastError = null;
 
-var loginFormStore = assign({}, EventEmitter.prototype, {
-    emitChange: function() {
-        this.emit(CHANGE_EVENT);
-    },
-    addChangeListener: function (callback) {
-        this.on(CHANGE_EVENT, callback);
-    },
-    removeChangeListener: function (callback) {
-        this.removeListener(CHANGE_EVENT, callback);
-    },
-    getLastError: function () {
-        return _lastError;
-    },
-});
+var loginFormStore = new Store();
+
+loginFormStore.getLastError = function () {
+    return _lastError;
+};
 
 loginFormStore.dispatchToken = dispatcher.register(function (action) {
     dispatcher.waitFor([platformManagerStore.dispatchToken]);
@@ -762,34 +763,21 @@ loginFormStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = loginFormStore;
 
 
-},{"../constants/action-types":12,"../dispatcher":13,"./platform-manager-store":21,"events":undefined,"react/lib/Object.assign":undefined}],20:[function(require,module,exports){
+},{"../constants/action-types":12,"../dispatcher":13,"../lib/store":18,"./platform-manager-store":22}],21:[function(require,module,exports){
 'use strict';
-
-var assign = require('react/lib/Object.assign');
-var EventEmitter = require('events').EventEmitter;
 
 var ACTION_TYPES = require('../constants/action-types');
 var dispatcher = require('../dispatcher');
 var platformManagerStore = require('./platform-manager-store');
-
-var CHANGE_EVENT = 'change';
+var Store = require('../lib/store');
 
 var _exchanges = [];
 
-var messengerStore = assign({}, EventEmitter.prototype, {
-    emitChange: function() {
-        this.emit(CHANGE_EVENT);
-    },
-    addChangeListener: function (callback) {
-        this.on(CHANGE_EVENT, callback);
-    },
-    removeChangeListener: function (callback) {
-        this.removeListener(CHANGE_EVENT, callback);
-    },
-    getExchanges: function () {
-        return _exchanges;
-    },
-});
+var messengerStore = new Store();
+
+messengerStore.getExchanges = function () {
+    return _exchanges;
+};
 
 messengerStore.dispatchToken = dispatcher.register(function (action) {
     dispatcher.waitFor([platformManagerStore.dispatchToken]);
@@ -814,33 +802,20 @@ messengerStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = messengerStore;
 
 
-},{"../constants/action-types":12,"../dispatcher":13,"./platform-manager-store":21,"events":undefined,"react/lib/Object.assign":undefined}],21:[function(require,module,exports){
+},{"../constants/action-types":12,"../dispatcher":13,"../lib/store":18,"./platform-manager-store":22}],22:[function(require,module,exports){
 'use strict';
-
-var assign = require('react/lib/Object.assign');
-var EventEmitter = require('events').EventEmitter;
 
 var ACTION_TYPES = require('../constants/action-types');
 var dispatcher = require('../dispatcher');
-
-var CHANGE_EVENT = 'change';
+var Store = require('../lib/store');
 
 var _authorization = sessionStorage.getItem('authorization');
 
-var platformManagerStore = assign({}, EventEmitter.prototype, {
-    emitChange: function() {
-        this.emit(CHANGE_EVENT);
-    },
-    addChangeListener: function (callback) {
-        this.on(CHANGE_EVENT, callback);
-    },
-    removeChangeListener: function (callback) {
-        this.removeListener(CHANGE_EVENT, callback);
-    },
-    getAuthorization: function () {
-        return _authorization;
-    },
-});
+var platformManagerStore = new Store();
+
+platformManagerStore.getAuthorization = function () {
+    return _authorization;
+};
 
 platformManagerStore.dispatchToken = dispatcher.register(function (action) {
     switch (action.type) {
@@ -861,4 +836,4 @@ platformManagerStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = platformManagerStore;
 
 
-},{"../constants/action-types":12,"../dispatcher":13,"events":undefined,"react/lib/Object.assign":undefined}]},{},[1]);
+},{"../constants/action-types":12,"../dispatcher":13,"../lib/store":18}]},{},[1]);

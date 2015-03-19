@@ -78,7 +78,6 @@ function vendor() {
             'node-uuid',
             { file: 'react/dist/react.min', expose: 'react' },
             'react/lib/keyMirror',
-            'react/lib/Object.assign',
         ])
         .bundle()
         .pipe(source('vendor.js'))
