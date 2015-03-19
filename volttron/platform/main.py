@@ -188,12 +188,13 @@ def configure_logging(conf_path):
 
 class Router(vip.BaseRouter):
     '''Concrete VIP router.'''
-    def __init__(self, address, context=None):
+    def __init__(self, addresses, context=None):
         super(Router, self).__init__(context=context)
-        self.address = address
+        self.addresses = addresses
     def setup(self):
-        self.socket.bind(self.address)
         self.socket.bind('inproc://vip')
+        for address in self.addresses:
+            self.socket.bind(address)
     def log(self, level, message, frames):
         _log.log(level, '%s: %s', message, frames and [bytes(f) for f in frames])
     def run(self):
@@ -317,10 +318,13 @@ def main(argv=sys.argv):
         help=argparse.SUPPRESS)
     agents.add_argument(
         '--publish-address', metavar='ZMQADDR',
-        help='ZeroMQ URL for used for agent publishing')
+        help='ZeroMQ URL used for agent publishing')
     agents.add_argument(
         '--subscribe-address', metavar='ZMQADDR',
-        help='ZeroMQ URL for used for agent subscriptions')
+        help='ZeroMQ URL used for agent subscriptions')
+    agents.add_argument(
+        '--vip-address', metavar='ZMQADDR', action='append', default=[],
+        help='ZeroMQ URL to bind for VIP connections')
 
     control = parser.add_argument_group('control options')
     control.add_argument(
@@ -384,8 +388,10 @@ def main(argv=sys.argv):
             help='specify the port on which to listen')
 
     default_control = '$VOLTTRON_HOME/run/control'
+    vip_path = '$VOLTTRON_HOME/run/vip.socket'
     if sys.platform.startswith('linux'):
         default_control = '@' + default_control
+        vip_path = '@' + vip_path
     parser.set_defaults(
         log=None,
         log_config=None,
@@ -394,6 +400,7 @@ def main(argv=sys.argv):
         autostart=True,
         publish_address='ipc://$VOLTTRON_HOME/run/publish',
         subscribe_address='ipc://$VOLTTRON_HOME/run/subscribe',
+        vip_address=['ipc://' + vip_path],
         control_socket=default_control,
         allow_root=False,
         allow_users=None,
@@ -414,6 +421,7 @@ def main(argv=sys.argv):
     opts.control_socket = config.expandall(opts.control_socket)
     opts.publish_address = config.expandall(opts.publish_address)
     opts.subscribe_address = config.expandall(opts.subscribe_address)
+    opts.vip_address = [config.expandall(addr) for addr in opts.vip_address]
     if HAVE_RESTRICTED:
         # Set mobility defaults
         if opts.mobility_address is None:
@@ -466,7 +474,7 @@ def main(argv=sys.argv):
             _log.error('error starting {!r}: {}\n'.format(name, error))
 
     # Main loops
-    router = Router('ipc://{}{}/run/vip.socket'.format(opts.volttron_home))
+    router = Router(opts.vip_address)
     try:
         viploop = gevent.spawn(router.run)
         exchange = gevent.spawn(
