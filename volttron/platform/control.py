@@ -461,6 +461,13 @@ class Connection(object):
             self._greenlet.kill(*args, **kwargs)
 
 
+def priority(value):
+    n = int(value)
+    if not 0 <= n < 100:
+        raise ValueError('invalid priority (0 <= n < 100): {}'.format(n))
+    return '{:02}'.format(n)
+
+
 def main(argv=sys.argv):
     volttron_home = config.expandall(
             os.environ.get('VOLTTRON_HOME', '~/.volttron'))
