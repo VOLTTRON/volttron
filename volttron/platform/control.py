@@ -71,7 +71,7 @@ import traceback
 
 import gevent
 
-from .agent.vipagent import RPCAgent, export, gevent, onevent, subsystem
+from .agent.vipagent import RPCAgent, export
 from . import aip as aipmod
 from . import config
 from .jsonrpc import RemoteError
@@ -88,6 +88,9 @@ else:
 _stdout = sys.stdout
 _stderr = sys.stderr
 
+_log = logging.getLogger(os.path.basename(sys.argv[0])
+                         if __name__ == '__main__' else __name__)
+
 
 class ControlService(RPCAgent):
     def __init__(self, aip, *args, **kwargs):
@@ -99,36 +102,68 @@ class ControlService(RPCAgent):
         self._aip.clear_status(clear_all)
 
     @export()
-    def agent_status(self, agent_name):
-        return self._aip.agent_status(agent_name)
+    def agent_status(self, uuid):
+        if not isinstance(uuid, basestring):
+            raise TypeError("expected a string for 'uuid'; got {!r}".format(
+                type(uuid).__name__))
+        return self._aip.agent_status(uuid)
 
     @export()
     def status_agents(self):
         return self._aip.status_agents()
 
     @export()
-    def start_agent(self, agent_name):
-        self._aip.start_agent(agent_name)
+    def start_agent(self, uuid):
+        if not isinstance(uuid, basestring):
+            raise TypeError("expected a string for 'uuid'; got {!r}".format(
+                type(uuid).__name__))
+        self._aip.start_agent(uuid)
 
     @export()
-    def run_agent(self, agent_path):
-        self._aip.launch_agent(agent_path)
-
-    @export()
-    def stop_agent(self, agent_name):
-        self._aip.stop_agent(agent_name)
+    def stop_agent(self, uuid):
+        if not isinstance(uuid, basestring):
+            raise TypeError("expected a string for 'uuid'; got {!r}".format(
+                type(uuid).__name__))
+        self._aip.stop_agent(uuid)
 
     @export()
     def shutdown(self):
         self._aip.shutdown()
 
     @export()
-    def hello(self):
-        return 'Hi There!'
+    def list_agents(self):
+        tag = self._aip.agent_tag
+        priority = self._aip.agent_priority
+        return [{'name': name, 'uuid': uuid,
+                'tag': tag(uuid), 'priority': priority(uuid)}
+                for uuid, name in self._aip.list_agents().iteritems()]
 
+    @export()
+    def tag_agent(self, uuid, tag):
+        if not isinstance(uuid, basestring):
+            raise TypeError("expected a string for 'uuid'; got {!r}".format(
+                type(uuid).__name__))
+        if not isinstance(tag, (type(None), basestring)):
+            raise TypeError("expected a string or null for 'tag'; "
+                            'got {!r}'.format(type(tag).__name__))
+        return self._aip.tag_agent(uuid, tag)
 
-_log = logging.getLogger(os.path.basename(sys.argv[0])
-                         if __name__ == '__main__' else __name__)
+    @export()
+    def remove_agent(self, uuid):
+        if not isinstance(uuid, basestring):
+            raise TypeError("expected a string for 'uuid'; got {!r}".format(
+                type(uuid).__name__))
+        self._aip.remove_agent(uuid)
+
+    @export()
+    def prioritize_agent(self, uuid, priority='50'):
+        if not isinstance(uuid, basestring):
+            raise TypeError("expected a string for 'uuid'; got {!r}".format(
+                type(uuid).__name__))
+        if not isinstance(priority, (type(None), basestring)):
+            raise TypeError("expected a string or null for 'priority'; "
+                            'got {!r}'.format(type(priority).__name__))
+        self._aip.prioritize_agent(uuid, priority)
 
 
 def log_to_file(file, level=logging.WARNING,
