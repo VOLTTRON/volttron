@@ -59,11 +59,13 @@
 
 from __future__ import absolute_import, print_function
 
+import bisect
 import logging
+import random
 import re
-import weakref
 
 import gevent
+from gevent import core
 import zmq.green as zmq
 
 from .agent.vipagent import RPCAgent, export, onevent, subsystem
@@ -107,15 +109,19 @@ class AuthService(RPCAgent):
             self._zap_greenlet.kill()
 
     @onevent('disconnect')
-    def stop_zap(self):
-        if self._zap_socket is not None:
+    def unbind_zap(self):
+        if self.zap_socket is not None:
             self.zap_socket.unbind('inproc://zeromq.zap.01')
 
     def zap_loop(self):
         sock = self.zap_socket
-        blocked = weakref.WeakValueDictionary()
+        blocked = {}
+        wait_list = []
+        timeout = None
         while True:
-            if sock.poll():
+            events = sock.poll(timeout)
+            now = core.time()
+            if events:
                 zap = sock.recv_multipart()
                 version = zap[2]
                 if version != b'1.0':
@@ -125,27 +131,38 @@ class AuthService(RPCAgent):
                     continue
                 credentials = zap[8:]
                 response = zap[:4]
-                try:
-                    greenlet = blocked[address]
-                except KeyError:
-                    greenlet = None
-                if ((greenlet is None or greelet.dead) and
-                        self.authenticate(domain, address, kind, credentials)):
+                if self.authenticate(domain, address, kind, credentials):
                     user = dump_user(domain, address, kind, *credentials[:1])
                     response.extend([b'200', b'SUCCESS', user, b''])
                     sock.send_multipart(response)
                 else:
-                    if greenlet is None:
-                        delay = random.random() * 2
+                    try:
+                        expire, delay = blocked[address]
+                    except KeyError:
+                        delay = random.random()
                     else:
-                        delay = greenlet.delay * 2
-                        if delay > 100:
-                            delay = 100
-                    response.extend([b'400', b'FAIL', b'', b''])
-                    greenlet = gevent.spawn_later(
-                        delay, sock.send_multipart, response)
-                    greenlet.delay = delay
-                    blocked[address] = greenlet
+                        if now >= expire:
+                            delay = random.random()
+                        else:
+                            delay *= 2
+                            if delay > 100:
+                                delay = 100
+                    expire = now + delay
+                    bisect.bisect(wait_list, (expire, address, response))
+                    blocked[address] = expire, delay
+            while wait_list:
+                expire, address, response = wait_list[0]
+                if now < expire:
+                    break
+                wait_list.pop(0)
+                response.extend([b'400', b'FAIL', b'', b''])
+                sock.send_multipart(response)
+                try:
+                    if now >= blocked[address][0]:
+                        blocked.pop(address)
+                except KeyError:
+                    pass
+            timeout = (wait_list[0][0] - now) if wait_list else None
 
     def authenticate(self, domain, address, mechanism, credentials):
         pass
