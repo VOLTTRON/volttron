@@ -189,12 +189,15 @@ class Router(vip.BaseRouter):
     def __init__(self, addresses, context=None):
         super(Router, self).__init__(context=context)
         self.addresses = addresses
+
     def setup(self):
         self.socket.bind('inproc://vip')
         for address in self.addresses:
             self.socket.bind(address)
+
     def log(self, level, message, frames):
         _log.log(level, '%s: %s', message, frames and [bytes(f) for f in frames])
+
     def run(self):
         self.start()
         try:
@@ -202,6 +205,13 @@ class Router(vip.BaseRouter):
                 self.route()
         finally:
             self.stop()
+
+    def handle_subsystem(self, frames, user_id):
+        subsystem = bytes(frames[5])
+        if subsystem == b'quit':
+            sender = bytes(frames[0])
+            if sender == b'control' and not user_id:
+                raise KeyboardInterrupt()
 
 
 def agent_exchange(in_addr, out_addr, logger_name=None):
