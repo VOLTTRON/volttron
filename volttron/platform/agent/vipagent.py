@@ -60,7 +60,9 @@
 from __future__ import absolute_import, print_function
 
 import functools
+import inspect
 import logging
+import os
 import sys
 import weakref
 
@@ -76,127 +78,69 @@ from zmq.utils import jsonapi
 from ..vip import green as vip
 from .. import jsonrpc
 
+import volttron
+
+_VOLTTRON_PATH = os.path.dirname(volttron.__path__[-1]) + os.sep
+del volttron
+
 
 _log = logging.getLogger(__name__)
 
 
-class PeriodicCallback(gevent.Greenlet):
-    def __init__(self, definition, instance):
-        super(PeriodicCallback, self).__init__()
-        self.definition = definition
-        self.instance = instance
+class periodic(object):
+    def __init__(self, period, args=None, kwargs=None, wait=False):
+        '''Decorator to set a method up as a periodic callback.
 
-    def __repr__(self):
-        return '{0.__class__.__name__}({0.definition!r}, {0.instance!r})'.format(self)
+        The decorated method will be called with the given arguments every
+        period seconds while the agent is executing its run loop.
+        '''
 
-    def _run(self):
-        calldef, instance = self.definition, self.instance
-        period = calldef.period
-        method, args, kwargs = calldef.method, calldef.args, calldef.kwargs
-        if calldef.wait:
-            gevent.sleep(period)
-        while True:
-            method(instance, *args, **kwargs)
-            gevent.sleep(period)
-
-
-class PeriodicDefinition(object):
-    def __init__(self, period, method, args, kwargs, wait=False):
         self.period = period
-        self.method = method
-        self.args = args
-        self.kwargs = kwargs
+        self.args = args or ()
+        self.kwargs = kwargs or {}
         self.wait = wait
 
-    def __repr__(self):
-        return ('{0.__class__.__name__}({0.period!r}, {0.method!r}, '
-                '{0.args!r}, {0.kwargs!r}, wait={0.wait!r})'.format(self))
-
-    def callback(self, instance):
-        return PeriodicCallback(self, instance)
-
-
-def periodic(period, args=None, kwargs=None, wait=False):
-    '''Decorator to set a method up as a periodic callback.
-
-    The decorated method will be called with the given arguments every
-    period seconds while the agent is executing its run loop.
-    '''
-
-    if args is None:
-        args = ()
-    if kwargs is None:
-        kwargs = {}
-
-    def decorate(method):
+    def __call__(self, method):
         try:
-            periodics = method._periodic_definitions
+            periodics = method._periodics
         except AttributeError:
-            method._periodic_definitions = periodics = []
-        periodics.append(
-            PeriodicDefinition(period, method, args, kwargs, wait=wait))
+            method._periodics = periodics = []
+        periodics.append(self)
         return method
-    return decorate
+
+    def _loop(self, method):
+        if self.wait:
+            gevent.sleep(self.period)
+        while True:
+            method(*self.args, **self.kwargs)
+            gevent.sleep(self.period)
+
+    def get(self, method):
+        return gevent.Greenlet(self._loop, method)
 
 
 def subsystem(name):
     '''Decorator to set a method as a subsystem callback.'''
     def decorate(method):
-        method._vip_subsystem = name
+        try:
+            subsystems = method._vip_subsystems
+        except AttributeError:
+            method._vip_subsystems = subsystems = []
+        subsystems.append(name)
         return method
     return decorate
 
 
-def onevent(event):
+def onevent(event, args=None, kwargs=None):
     assert event in ['setup', 'connect', 'start', 'stop', 'disconnect', 'finish']
     def decorate(method):
         try:
             events = method._event_callbacks
         except AttributeError:
             method._event_callbacks = events = []
-        events.append((event, method))
+        events.append((event, args or (), kwargs or {}))
         return method
     return decorate
-
-
-class AgentMeta(type):
-    class Meta(object):
-        def __init__(self):
-            self.rpc_exports = {}
-            self.subsystems = {}
-            self.periodics = []
-            self.event_callbacks = []
-
-    def __new__(mcs, cls, bases, attrs):
-        #import pdb; pdb.set_trace()
-        attrs['_meta'] = meta = AgentMeta.Meta()
-        for base in reversed(bases):
-            try:
-                if base.__metaclass__ is not mcs:
-                    continue
-            except AttributeError:
-                continue
-            meta.rpc_exports.update(base._meta.rpc_exports)
-            meta.subsystems.update(base._meta.subsystems)
-            meta.periodics = list(
-                set(meta.periodics) | set(base._meta.periodics))
-            meta.event_callbacks = list(
-                set(meta.event_callbacks) | set(base._meta.event_callbacks))
-        for name, attr in attrs.iteritems():
-            name = getattr(attr, '_export', None)
-            if name:
-                meta.rpc_exports[name] = attr
-            subsystem = getattr(attr, '_vip_subsystem', None)
-            if subsystem:
-                meta.subsystems[subsystem] = attr
-            periodics = getattr(attr, '_periodic_definitions', None)
-            if periodics:
-                meta.periodics = list(set(meta.periodics) | set(periodics))
-            events = getattr(attr, '_event_callbacks', None)
-            if events:
-                meta.event_callbacks = list(
-                    set(meta.event_callbacks) | set(events))
-        return super(AgentMeta, mcs).__new__(mcs, cls, bases, attrs)
 
 
 class VIPAgent(object):
@@ -207,13 +151,25 @@ class VIPAgent(object):
     shutdown message is received.  That is it.
     '''
 
-    __metaclass__ = AgentMeta
-
     def __init__(self, vip_address, vip_identity=None, **kwargs):
         super(VIPAgent, self).__init__(**kwargs)
         self.vip_address = vip_address
         self.vip_identity = vip_identity
         self._periodics = []
+        self._event_callbacks = {}
+        self._vip_subsystems = {}
+        def setup(member):
+            for periodic in getattr(member, '_periodics', ()):
+                self._periodics.append(periodic.get(member))
+            for event, args, kwargs in getattr(member, '_event_callbacks', ()):
+                try:
+                    evlist = self._event_callbacks[event]
+                except KeyError:
+                    self._event_callbacks[event] = evlist = []
+                evlist.append((member, args, kwargs))
+            for name in getattr(member, '_vip_subsystems', ()):
+                self._vip_subsystems[name] = member
+        inspect.getmembers(self, setup)
 
     def run(self):
         '''Entry point for running agent.
@@ -221,13 +177,9 @@ class VIPAgent(object):
         Subclasses should not override this method. Instead, the setup
         and finish methods should be overridden to customize behavior.
         '''
-        def _trigger_event(trigger):
-            for event, callback in self._meta.event_callbacks:
-                if event == trigger:
-                    callback(self)
-        for definition in self._meta.periodics:
-            callback = definition.callback(self)
-            self._periodics.append(callback)
+        def _trigger_event(event):
+            for callback, args, kwargs in self._event_callbacks.get(event, ()):
+                callback(*args, **kwargs)
         self.vip_socket = vip.Socket()
         if self.vip_identity:
             self.vip_socket.identity = self.vip_identity
@@ -242,8 +194,7 @@ class VIPAgent(object):
             self._vip_loop()
         finally:
             _trigger_event('stop')
-            for periodic in self._periodics:
-                periodic.kill()
+            gevent.killall(self._periodics)
             _trigger_event('disconnect')
             try:
                 self.vip_socket.disconnect(self.vip_address)
@@ -262,7 +213,7 @@ class VIPAgent(object):
                 raise
 
             try:
-                method = self._meta.subsystems[message.subsystem]
+                method = self._vip_subsystems[message.subsystem]
             except KeyError:
                 _log.error('peer %r requested unknown subsystem %r',
                            bytes(message.peer), bytes(message.subsystem))
@@ -271,7 +222,7 @@ class VIPAgent(object):
                 message.subsystem = b'error'
                 socket.send_vip_object(message)
             else:
-                method(self, message)
+                method(message)
 
     @subsystem('pong')
     def handle_pong_subsystem(self, message):
@@ -342,16 +293,23 @@ def spawn(method):
 
 def export(name=None):
     def decorate(method):
-        method._export = name or method.__name__
+        try:
+            exports = method._rpc_exports
+        except AttributeError:
+            method._rpc_exports = exports = []
+        exports.append(name or method.__name__)
         return method
     return decorate
 
 
 class RPCMixin(object):
-    __metaclass__ = AgentMeta
-
     @onevent('setup')
     def setup_rpc_subsystem(self):
+        self._rpc_exports = {}
+        def setup(member):
+            for name in getattr(member, '_rpc_exports', ()):
+                self._rpc_exports[name] = member
+        inspect.getmembers(self, setup)
         self._rpc_dispatcher = Dispatcher(self._call_rpc_method)
 
     @subsystem('RPC')
@@ -376,13 +334,47 @@ class RPCMixin(object):
         args = [rpc.serialize(jsonrpc._method(None, method, args, kwargs))]
         self.vip_socket.send_vip(peer, 'RPC', args)
 
+    def _introspect(self, method):
+        #import pdb; pdb.set_trace()
+        params = inspect.getargspec(method)
+        if hasattr(method, 'im_self'):
+            params.args.pop(0)
+        response = {'params': params}
+        doc = inspect.getdoc(method)
+        if doc:
+            response['doc'] = doc
+        try:
+            source = inspect.getsourcefile(method)
+            cut = len(os.path.commonprefix([_VOLTTRON_PATH, source]))
+            source = source[cut:]
+            lineno = inspect.getsourcelines(method)[1]
+        except IOError:
+            pass
+        else:
+            response['source'] = source, lineno
+        try:
+            response['return'] = method._returns
+        except AttributeError:
+            pass
+        return response
+
     def _call_rpc_method(self, method_name, args, kwargs):
         try:
-            method = self._meta.rpc_exports[method_name]
+            method = self._rpc_exports[method_name]
         except KeyError:
+            if method_name == 'introspect':
+                return {'methods': self._rpc_exports.keys()}
+            elif method_name.endswith('.introspect'):
+                base_name = method_name[:-11]
+                try:
+                    method = self._rpc_exports[base_name]
+                except KeyError:
+                    pass
+                else:
+                    return self._introspect(method)
             raise NotImplementedError(method_name)
-        return method(self, *args, **kwargs)
-    
+        return method(*args, **kwargs)
+
 
 class RPCAgent(VIPAgent, RPCMixin):
     pass
