@@ -65,7 +65,6 @@ import logging
 import logging.handlers
 import os
 import re
-import signal
 import sys
 import traceback
 
@@ -131,6 +130,11 @@ class ControlService(RPCAgent):
         self._aip.shutdown()
 
     @export()
+    def stop_platform(self):
+        # XXX: Restrict call as it kills the process
+        self.vip_socket.send_vip(b'', b'quit')
+
+    @export()
     def list_agents(self):
         tag = self._aip.agent_tag
         priority = self._aip.agent_priority
@@ -176,7 +180,7 @@ def log_to_file(file, level=logging.WARNING,
     root = logging.getLogger()
     root.setLevel(level)
     root.addHandler(handler)
-    
+
 Agent = collections.namedtuple('Agent', 'name tag uuid')
 
 def _list_agents(aip):
@@ -194,7 +198,7 @@ def escape(pattern):
 def filter_agents(agents, patterns, opts):
     by_name, by_tag, by_uuid = opts.by_name, opts.by_tag, opts.by_uuid
     for pattern in patterns:
-        regex, wildcard = escape(pattern)
+        regex, _ = escape(pattern)
         result = set()
         if not (by_uuid or by_name or by_tag):
             reobj = re.compile(regex)
@@ -395,12 +399,9 @@ def run_agent(opts):
         call('run_agent', directory)
 
 def shutdown_agents(opts):
-    call = opts.connection.call
-    call('shutdown')
-    # XXX: Reimplement platform shutdown
-    #if opts.platform:
-    #    pid, uid, gid = get_peercred(conn._sock)
-    #    os.kill(pid, signal.SIGINT)
+    opts.connection.call('shutdown')
+    if opts.platform:
+        opts.connection.notify('stop_platform')
 
 def create_cgroups(opts):
     try:
@@ -409,27 +410,28 @@ def create_cgroups(opts):
         _stderr.write('{}: error: {}\n'.format(opts.command, exc))
         return os.EX_NOUSER
 
-def send_agent(opts):
-    _log.debug("send_agent: "+ str(opts))
-    ssh_dir = os.path.join(opts.volttron_home, 'ssh')
-    _log.debug('ssh_dir: ' + ssh_dir)
-    try:
-        host_key, client = comms.client(ssh_dir, opts.host, opts.port)
-    except (OSError, IOError, PasswordRequiredException, SSHException) as exc:
-        if opts.debug:
-            traceback.print_exc()
-        _stderr.write('{}: error: {}\n'.format(opts.command, exc))
-        if isinstance(exc, OSError):
-            return os.EX_OSERR
-        if isinstance(exc, IOError):
-            return os.EX_IOERR
-        return os.EX_SOFTWARE
-    if host_key is None:
-        _stderr.write('warning: no public key found for remote host\n')
-    with client:
-        for wheel in opts.wheel:
-            with open(wheel) as file:
-                client.send_and_start_agent(file)
+# XXX: reimplement over VIP
+#def send_agent(opts):
+#    _log.debug("send_agent: "+ str(opts))
+#    ssh_dir = os.path.join(opts.volttron_home, 'ssh')
+#    _log.debug('ssh_dir: ' + ssh_dir)
+#    try:
+#        host_key, client = comms.client(ssh_dir, opts.host, opts.port)
+#    except (OSError, IOError, PasswordRequiredException, SSHException) as exc:
+#        if opts.debug:
+#            traceback.print_exc()
+#        _stderr.write('{}: error: {}\n'.format(opts.command, exc))
+#        if isinstance(exc, OSError):
+#            return os.EX_OSERR
+#        if isinstance(exc, IOError):
+#            return os.EX_IOERR
+#        return os.EX_SOFTWARE
+#    if host_key is None:
+#        _stderr.write('warning: no public key found for remote host\n')
+#    with client:
+#        for wheel in opts.wheel:
+#            with open(wheel) as file:
+#                client.send_and_start_agent(file)
 
 
 class Connection(object):
@@ -440,23 +442,23 @@ class Connection(object):
         self.server = RPCAgent(vip_address=self.address)
         self._greenlet = None
 
-    def call(self, method, *args, **kwargs):
+    def _connect(self):
         if self._greenlet is None:
             self._greenlet = gevent.spawn(self.server.run)
             gevent.sleep(0)
+
+    def call(self, method, *args, **kwargs):
+        self._connect()
         return self.server.rpc_call(
             self.peer, method, args, kwargs).get(timeout=self.timeout)
+
+    def notify(self, method, *args, **kwargs):
+        self._connect()
+        return self.server.rpc_notify(self.peer, method, args, kwargs)
 
     def kill(self, *args, **kwargs):
         if self._greenlet is not None:
             self._greenlet.kill(*args, **kwargs)
-
-
-def priority(value):
-    n = int(value)
-    if not 0 <= n < 100:
-        raise ValueError('invalid priority (0 <= n < 100): {}'.format(n))
-    return '{:02}'.format(n)
 
 
 def main(argv=sys.argv):
@@ -616,14 +618,15 @@ def main(argv=sys.argv):
     shutdown.set_defaults(func=shutdown_agents, platform=False)
 
     if HAVE_RESTRICTED:
-        send = add_parser('send',
-            help='send mobile agent to and start on a remote platform')
-        send.add_argument('-p', '--port', type=int, metavar='NUMBER',
-            help='alternate port number to connect to')
-        send.add_argument('host', help='DNS name or IP address of host')
-        send.add_argument('wheel', nargs='+',
-            help='agent package to send')
-        send.set_defaults(func=send_agent, port=2522)
+        # XXX: Re-enable after send_agent is fixed
+        #send = add_parser('send',
+        #    help='send mobile agent to and start on a remote platform')
+        #send.add_argument('-p', '--port', type=int, metavar='NUMBER',
+        #    help='alternate port number to connect to')
+        #send.add_argument('host', help='DNS name or IP address of host')
+        #send.add_argument('wheel', nargs='+',
+        #    help='agent package to send')
+        #send.set_defaults(func=send_agent, port=2522)
 
         cgroup = add_parser('create-cgroups',
             help='setup VOLTTRON control group for restricted execution')
