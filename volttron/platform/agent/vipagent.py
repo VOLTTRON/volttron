@@ -245,7 +245,10 @@ class VIPAgent(object):
             for periodic in self._periodics:
                 periodic.kill()
             _trigger_event('disconnect')
-            self.vip_socket.disconnect(self.vip_address)
+            try:
+                self.vip_socket.disconnect(self.vip_address)
+            except ZMQError:
+                pass
             _trigger_event('finish')
 
     def _vip_loop(self):
