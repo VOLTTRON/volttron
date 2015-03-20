@@ -476,10 +476,12 @@ def main(argv=sys.argv):
             _log.error('error starting {!r}: {}\n'.format(name, error))
 
     # Main loops
-    router = Router(opts.vip_address)
     try:
+        router = Router(opts.vip_address)
         exchange = gevent.spawn(
             agent_exchange, opts.publish_address, opts.subscribe_address)
+        control = gevent.spawn(ControlService(
+            opts.aip, vip_address='inproc://vip', vip_identity='control').run)
         if HAVE_RESTRICTED and opts.mobility:
             address = (opts.mobility_address, opts.mobility_port)
             mobility_in = comms_server.ThreadedServer(
@@ -491,8 +493,6 @@ def main(argv=sys.argv):
                 publish_address=opts.publish_address)
             gevent.spawn(mobility_out.run)
         try:
-            control = gevent.spawn(ControlService(
-                opts.aip, vip_address='inproc://vip', vip_identity='control').run)
             router.run()
         finally:
             control.kill()
