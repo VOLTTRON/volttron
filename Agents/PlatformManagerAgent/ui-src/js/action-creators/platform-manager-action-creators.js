@@ -6,25 +6,24 @@ var rpc = require('../lib/rpc');
 
 var platformManagerActionCreators = {
     requestAuthorization: function (username, password) {
-        var request = new rpc.Request({
+        new rpc.Request({
             method: 'getAuthorization',
             params: {
                 username: username,
                 password: password,
             },
-        });
-
-        request.call()
-            .then(function (response) {
+        })
+            .call()
+            .then(function (result) {
                 dispatcher.dispatch({
                     type: ACTION_TYPES.REQUEST_AUTHORIZATION_SUCCESS,
-                    authorization: response.result,
+                    authorization: result,
                 });
             })
-            .catch(rpc.ResponseError, function (error) {
+            .catch(rpc.Error, function (error) {
                 dispatcher.dispatch({
                     type: ACTION_TYPES.REQUEST_AUTHORIZATION_FAIL,
-                    error: error.response.error,
+                    error: error,
                 });
             });
     },

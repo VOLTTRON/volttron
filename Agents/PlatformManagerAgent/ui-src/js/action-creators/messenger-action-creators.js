@@ -3,6 +3,7 @@
 var ACTION_TYPES = require('../constants/action-types');
 var dispatcher = require('../dispatcher');
 var rpc = require('../lib/rpc');
+var xhr = require('../lib/xhr');
 
 var messengerActionCreators = {
     makeRequest: function (request) {
@@ -26,7 +27,7 @@ var messengerActionCreators = {
                     exchange: exchange,
                 });
             })
-            .catch(rpc.ResponseError, function (error) {
+            .catch(rpc.Error, function (error) {
                 exchange.response = error;
 
                 dispatcher.dispatch({
@@ -34,7 +35,7 @@ var messengerActionCreators = {
                     exchange: exchange,
                 });
             })
-            .catch(rpc.RequestError, function (error) {
+            .catch(xhr.RequestError, function (error) {
                 exchange.response = error;
 
                 dispatcher.dispatch({

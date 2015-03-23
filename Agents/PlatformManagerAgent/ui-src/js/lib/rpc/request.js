@@ -1,15 +1,13 @@
 'use strict';
 
-var jQuery = require('jquery');
-var Promise = require('bluebird');
 var uuid = require('node-uuid');
 
-var RequestError = require ('./request-error');
-var ResponseError = require ('./response-error');
+var RpcError = require('./error');
+var XhrRequest = require('../xhr/request');
 
-function Request(opts) {
-    if (!this instanceof Request) {
-        return new Request(opts);
+function RpcRequest(opts) {
+    if (!this instanceof RpcRequest) {
+        return new RpcRequest(opts);
     }
 
     opts = opts || {};
@@ -23,7 +21,7 @@ function Request(opts) {
     };
 }
 
-Request.prototype.method = function (method) {
+RpcRequest.prototype.method = function (method) {
     if (method === undefined) {
         return this._request.method;
     }
@@ -31,15 +29,15 @@ Request.prototype.method = function (method) {
     this._request.method = method;
 };
 
-Request.prototype.params = function (params) {
+RpcRequest.prototype.params = function (params) {
     if (params === undefined) {
-        return clone(this._request.params);
+        return cloneObject(this._request.params);
     }
 
     this._request.params = params;
 };
 
-Request.prototype.authorization = function (authorization) {
+RpcRequest.prototype.authorization = function (authorization) {
     if (authorization === undefined) {
         return this._request.authorization;
     }
@@ -47,8 +45,8 @@ Request.prototype.authorization = function (authorization) {
     this._request.authorization = authorization;
 };
 
-Request.prototype.toJSON = function () {
-    var obj = clone(this._request);
+RpcRequest.prototype.toJSON = function () {
+    var obj = cloneObject(this._request);
 
     if (obj.params === null) {
         delete obj.params;
@@ -61,45 +59,27 @@ Request.prototype.toJSON = function () {
     return obj;
 };
 
-Request.prototype.call = function () {
-    var self = this;
+RpcRequest.prototype.call = function () {
+    var request = this.toJSON();
 
-    return new Promise(function (resolve, reject) {
-        var request = self.toJSON();
+    return new XhrRequest({
+        method: 'POST',
+        url: '/jsonrpc',
+        contentType: 'application/json',
+        data: JSON.stringify(request),
+        timeout: 60000
+    }).then(function (response) {
+        response = ordered(response);
 
-        jQuery.ajax({
-            method: 'POST',
-            url: '/jsonrpc',
-            contentType: 'application/json',
-            data: JSON.stringify(request),
-            timeout: 60000,
-            success: function (response) {
-                response = ordered(response);
+        if (response.error) {
+            throw new RpcError(response.error);
+        }
 
-                if (response.error) {
-                    reject(new ResponseError(response));
-                }
-
-                resolve(response);
-            },
-            error: function (response, type) {
-                switch (type) {
-                case 'error':
-                    reject(new RequestError('Server returned ' + response.status + ' status'));
-                    break;
-                case 'timeout':
-                    reject(new RequestError('Request timed out'));
-                    break;
-                default:
-                    reject(new RequestError('Request failed: ' + type));
-                }
-            }
-        });
+        return response.result;
     });
 };
 
-function clone(obj) {
-    // stringify + parse for deep clone
+function cloneObject(obj) {
     return JSON.parse(JSON.stringify(obj));
 }
 
@@ -124,4 +104,4 @@ function ordered(response) {
     return orderedResponse;
 }
 
-module.exports = Request;
+module.exports = RpcRequest;
