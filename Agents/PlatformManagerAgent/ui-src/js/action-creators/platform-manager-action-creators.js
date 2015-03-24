@@ -13,7 +13,6 @@ var platformManagerActionCreators = {
                 password: password,
             },
         })
-            .call()
             .then(function (result) {
                 dispatcher.dispatch({
                     type: ACTION_TYPES.RECEIVE_AUTHORIZATION,
