@@ -29,7 +29,7 @@ composerStore.dispatchToken = dispatcher.register(function (action) {
     dispatcher.waitFor([messengerStore.dispatchToken]);
 
     switch (action.type) {
-        case ACTION_TYPES.REQUEST_AUTHORIZATION_SUCCESS:
+        case ACTION_TYPES.RECEIVE_AUTHORIZATION:
             _initRequest();
             composerStore.emitChange();
             break;

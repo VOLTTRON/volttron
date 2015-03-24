@@ -16,13 +16,13 @@ var platformManagerActionCreators = {
             .call()
             .then(function (result) {
                 dispatcher.dispatch({
-                    type: ACTION_TYPES.REQUEST_AUTHORIZATION_SUCCESS,
+                    type: ACTION_TYPES.RECEIVE_AUTHORIZATION,
                     authorization: result,
                 });
             })
             .catch(rpc.Error, function (error) {
                 dispatcher.dispatch({
-                    type: ACTION_TYPES.REQUEST_AUTHORIZATION_FAIL,
+                    type: ACTION_TYPES.RECEIVE_UNAUTHORIZED,
                     error: error,
                 });
             });

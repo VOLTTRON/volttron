@@ -14,7 +14,7 @@ platformManagerStore.getAuthorization = function () {
 
 platformManagerStore.dispatchToken = dispatcher.register(function (action) {
     switch (action.type) {
-        case ACTION_TYPES.REQUEST_AUTHORIZATION_SUCCESS:
+        case ACTION_TYPES.RECEIVE_AUTHORIZATION:
             _authorization = action.authorization;
             sessionStorage.setItem('authorization', _authorization);
             platformManagerStore.emitChange();

@@ -17,7 +17,7 @@ messengerStore.dispatchToken = dispatcher.register(function (action) {
     dispatcher.waitFor([platformManagerStore.dispatchToken]);
 
     switch (action.type) {
-        case ACTION_TYPES.REQUEST_AUTHORIZATION_SUCCESS:
+        case ACTION_TYPES.RECIEVE_AUTHORIZATION:
             _exchanges = [];
             messengerStore.emitChange();
             break;

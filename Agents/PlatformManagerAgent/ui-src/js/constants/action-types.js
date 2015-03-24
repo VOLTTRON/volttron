@@ -3,10 +3,8 @@
 var keyMirror = require('react/lib/keyMirror');
 
 module.exports = keyMirror({
-    REQUEST_AUTHORIZATION: null,
-    REQUEST_AUTHORIZATION_SUCCESS: null,
-    REQUEST_AUTHORIZATION_FAIL: null,
-
+    RECEIVE_AUTHORIZATION: null,
+    RECEIVE_UNAUTHORIZED: null,
     CLEAR_AUTHORIZATION: null,
 
     CREATE_EXCHANGE: null,
