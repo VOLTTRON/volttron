@@ -403,7 +403,7 @@ class Modbus(BaseSmapVolttron):
     def get_interface(self, opts):
         ip_address = opts['ip_address']
         slave_id = int(opts.get('slave_id',0))
-        port = int(opts.get('port',502))
+        port = int(opts.get('port', opts['port'] if 'port' in opts else 502))
         catalyst_config = opts.get('register_config', configFile)
         
         return ModbusInterface(ip_address, slave_id=slave_id, port=port, config_file=catalyst_config)
