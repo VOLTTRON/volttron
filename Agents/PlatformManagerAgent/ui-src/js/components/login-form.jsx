@@ -26,7 +26,7 @@ var LoginForm = React.createClass({
     render: function () {
         return (
             <form className="login-form" onSubmit={this._onSubmit}>
-                <h1>PlatformManager</h1>
+                <h1>VOLTTRON(TM) Platform Manager</h1>
                 <input ref="username" placeholder="Username" type="text" />
                 <input ref="password" placeholder="Password" type="password" />
                 <input className="button" type="submit" value="Log in" />

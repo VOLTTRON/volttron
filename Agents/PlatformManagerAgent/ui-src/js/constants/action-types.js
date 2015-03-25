@@ -7,6 +7,10 @@ module.exports = keyMirror({
     RECEIVE_UNAUTHORIZED: null,
     CLEAR_AUTHORIZATION: null,
 
+    CHANGE_PAGE: null,
+
+    RECEIVE_PLATFORMS: null,
+
     CREATE_EXCHANGE: null,
     UPDATE_EXCHANGE: null,
 });

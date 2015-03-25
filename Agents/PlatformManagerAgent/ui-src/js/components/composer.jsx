@@ -3,14 +3,14 @@
 var React = require('react');
 
 var messengerActionCreators = require('../action-creators/messenger-action-creators');
+var platformManagerStore = require('../stores/platform-manager-store');
 
 var Composer = React.createClass({
     getInitialState: function () {
         return {
             id: Date.now(),
             request: {
-                method: null,
-                params: null,
+                method: platformManagerStore.getPage(),
             },
             valid: true,
         };
