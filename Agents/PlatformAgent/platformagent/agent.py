@@ -63,9 +63,6 @@ import os
 import os.path as p
 import uuid
 
-from authenticate import Authenticate
-from manager import Manager
-
 from volttron.platform import vip, jsonrpc
 from volttron.platform.control import Connection
 from volttron.platform.agent.vipagent import RPCAgent, periodic, onevent, jsonapi, export
@@ -74,21 +71,6 @@ from volttron.platform.agent import utils
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-
-class PlatformAgentService(RPCAgent):
-    def __init__(self, platform_agent,
-                 manager_vip_address, vip_identity, manager_vip_identity):
-        super(PlatformAgentService, self).__init__(manager_vip_address, vip_identity=vip_identity)
-        self.peer = manager_vip_identity
-        # The parent of this service.
-        self.platform_agent = platform_agent
-
-    def send_register(self):
-        print (self.rpc_call(self.peer, "register", [self.vip_identity]).get(timeout=5))
-
-    @export
-    def list_agents(self):
-        return self.platform_agent.list_agents()
 
 def PlatformAgent(config_path, **kwargs):
 
@@ -118,8 +100,8 @@ def PlatformAgent(config_path, **kwargs):
 
 #         @periodic(10)
 #         def request_status(self):
-#             print(self.ctl.call())
-#             print(self.rpc_call("control", "list_agents").get(timeout=10))
+#             print(self.list_agents())
+            #print(self.rpc_call("control", "list_agents").get(timeout=10))
 #         @periodic(10)
 #         def register_platform(self):
 #             print("Registering platform")
@@ -127,14 +109,23 @@ def PlatformAgent(config_path, **kwargs):
 
         @export()
         def list_agents(self):
+            print("Getting agents from control!")
+            print("self.vip_addr", self.vip_address)
             return self.rpc_call("control", "list_agents").get()
+
+        @export()
+        def list_agent_methods(self, method, params, id, agent_uuid):
+            print("Got!", method, params, id)
 
         @onevent("start")
         def start(self):
             print("starting service")
             self.ctl.call("register_platform", vip_identity, agentid)
 
-            #print(self.rpc_call("control", "list_agents").get(timeout=5))
+        @onevent("finish")
+        def stop(self):
+            print("Stopping service")
+            self.ctl.call("unregister_platform", vip_identity, agentid)
 
     Agent.__name__ = 'PlatformAgent'
     return Agent(**kwargs)
