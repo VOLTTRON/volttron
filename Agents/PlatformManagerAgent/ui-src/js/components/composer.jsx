@@ -2,28 +2,31 @@
 
 var React = require('react');
 
-var composerStore = require('../stores/composer-store.js');
 var messengerActionCreators = require('../action-creators/messenger-action-creators');
-var Request = require('../lib/rpc').Request;
+var platformManagerStore = require('../stores/platform-manager-store');
 
 var Composer = React.createClass({
-    getInitialState: getStateFromStores,
-    componentDidMount: function () {
-        composerStore.addChangeListener(this._onChange);
-    },
-    componentWillUnmount: function () {
-        composerStore.removeChangeListener(this._onChange);
-    },
-    _onChange: function () {
-        this.setState(getStateFromStores());
+    getInitialState: function () {
+        return {
+            id: Date.now(),
+            request: {
+                method: platformManagerStore.getPage(),
+            },
+            valid: true,
+        };
     },
     shouldComponentUpdate: function (newProps, newState) {
         return (this.state.id !== newState.id || this.state.valid !== newState.valid);
     },
-    _handleSendClick: function () {
-        messengerActionCreators.makeRequest(this.state.request);
+    _onSendClick: function () {
+        messengerActionCreators.makeRequest(this.state.request.method, this.state.request.params);
+
+        this.setState({
+            id: Date.now(),
+            request: this.state.request,
+        });
     },
-    _handleTextareaChange: function (e) {
+    _onTextareaChange: function (e) {
         var parsed;
 
         try {
@@ -37,14 +40,20 @@ var Composer = React.createClass({
             }
         }
 
-        this.setState({ request: new Request(parsed), valid: true });
+        this.setState({
+            request: {
+                method: parsed.method,
+                params: parsed.params,
+            },
+            valid: true,
+        });
     },
     render: function () {
         return (
             <div className="composer">
                 <textarea
                     key={this.state.id}
-                    onChange={this._handleTextareaChange}
+                    onChange={this._onTextareaChange}
                     defaultValue={JSON.stringify(this.state.request, null, '    ')}
                 />
                 <input
@@ -53,21 +62,11 @@ var Composer = React.createClass({
                     type="button"
                     value="Send"
                     disabled={!this.state.valid}
-                    onClick={this._handleSendClick}
+                    onClick={this._onSendClick}
                 />
             </div>
         );
     },
 });
-
-function getStateFromStores() {
-    var request = composerStore.getRequest();
-
-    return {
-        id: request.toJSON().id,
-        request: request,
-        valid: true,
-    };
-}
 
 module.exports = Composer;

@@ -17,12 +17,12 @@ loginFormStore.dispatchToken = dispatcher.register(function (action) {
     dispatcher.waitFor([platformManagerStore.dispatchToken]);
 
     switch (action.type) {
-        case ACTION_TYPES.REQUEST_AUTHORIZATION_SUCCESS:
+        case ACTION_TYPES.RECEIVE_AUTHORIZATION:
             _lastError = null;
             loginFormStore.emitChange();
             break;
 
-        case ACTION_TYPES.REQUEST_AUTHORIZATION_FAIL:
+        case ACTION_TYPES.RECEIVE_UNAUTHORIZED:
             _lastError = action.error;
             loginFormStore.emitChange();
             break;

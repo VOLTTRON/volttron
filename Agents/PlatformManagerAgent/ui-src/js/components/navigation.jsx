@@ -8,7 +8,7 @@ var Navigation = React.createClass({
     render: function () {
         return (
             <div className="navigation">
-                <h1>PlatformManager</h1>
+                <h1><a href="#home">VOLTTRON(TM) Platform Manager</a></h1>
                 <LogOutButton />
             </div>
         );

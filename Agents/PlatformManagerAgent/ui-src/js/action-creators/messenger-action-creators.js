@@ -2,13 +2,18 @@
 
 var ACTION_TYPES = require('../constants/action-types');
 var dispatcher = require('../dispatcher');
+var platformManagerStore = require('../stores/platform-manager-store');
 var rpc = require('../lib/rpc');
+var xhr = require('../lib/xhr');
 
 var messengerActionCreators = {
-    makeRequest: function (request) {
+    makeRequest: function (method, params) {
         var exchange = {
             requestSent: Date.now(),
-            request: request,
+            request: {
+                method: method,
+                params: params,
+            },
         };
 
         dispatcher.dispatch({
@@ -16,7 +21,11 @@ var messengerActionCreators = {
             exchange: exchange,
         });
 
-        request.call()
+        new rpc.Request({
+            method: method,
+            params: params,
+            authorization: platformManagerStore.getAuthorization(),
+        })
             .then(function (response) {
                 exchange.responseReceived = Date.now();
                 exchange.response = response;
@@ -26,7 +35,7 @@ var messengerActionCreators = {
                     exchange: exchange,
                 });
             })
-            .catch(rpc.ResponseError, function (error) {
+            .catch(rpc.Error, function (error) {
                 exchange.response = error;
 
                 dispatcher.dispatch({
@@ -34,7 +43,7 @@ var messengerActionCreators = {
                     exchange: exchange,
                 });
             })
-            .catch(rpc.RequestError, function (error) {
+            .catch(xhr.Error, function (error) {
                 exchange.response = error;
 
                 dispatcher.dispatch({
