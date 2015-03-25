@@ -66,8 +66,11 @@ import uuid
 from authenticate import Authenticate
 from manager import Manager
 
-from volttron.platform.agent import BaseAgent
-from volttron.platform.agent.utils import jsonapi
+from volttron.platform.agent.utils import jsonapi, isapipe
+from volttron.platform.agent import utils
+
+from volttron.platform import vip, jsonrpc
+from volttron.platform.agent.vipagent import RPCAgent, periodic, onevent, jsonapi, export
 from volttron.platform.agent import utils
 
 
@@ -124,11 +127,23 @@ class WebApi:
         data = cherrypy.request.json
         return data.items()
 
+JSON_PARSE_ERR = -32700
+JSON_INVALID_REQ = -32600
+JSON_METHOD_NOT_FOUND = -32601
+JSON_METHOD_INVALID_PARAMS = -32602
+JSON_INTERNAL_ERR = -32603
+
+def get_error_response(id, code, message, data):
+    return {'jsonrpc': '2.0',
+            'error': { 'code': code, 'message': message, 'data' : data},
+            'id': id
+            }
+
 class Root:
 
-    def __init__(self, authenticator):
+    def __init__(self, authenticator, manager):
         self.sessions = LoggedIn(authenticator)
-        self.manager = Manager()
+        self.manager = manager
 
     @cherrypy.expose
     def index(self):
@@ -154,9 +169,11 @@ class Root:
 '''
 
         if cherrypy.request.json.get('jsonrpc') != '2.0':
-            raise ValidationException('Invalid jsnrpc version')
+            return get_error_response(cherrypy.request.json.get('id'), JSON_PARSE_ERR,
+                    'Invalid jsonrpc version', None)
         if not cherrypy.request.json.get('method'):
-            raise ValidationException('Invalid method')
+            return get_error_response(cherrypy.request.json.get('id'), JSON_METHOD_NOT_FOUND,
+                    'Method not found', {'method':  cherrypy.request.json.get('method')})
         if cherrypy.request.json.get('method') == 'getAuthorization':
             if not cherrypy.request.json.get('params'):
                 raise ValidationException('Invalid params')
@@ -192,10 +209,11 @@ class Root:
                     'error': {'code': 401, 'message': 'Unauthorized'},
                     'id': cherrypy.request.json.get('id')}
 
+            method = cherrypy.request.json.get('method')
+            params = cherrypy.request.json.get('params')
+            id = cherrypy.request.json.get('id')
 
-            return self.manager.dispatch(cherrypy.request.json.get('method'),
-                                  cherrypy.request.json.get('params'),
-                                  cherrypy.request.json.get('id'))
+            return self.manager.dispatch(method, params, id)
 
         return {'jsonrpc': '2.0',
                 'error': {'code': 404, 'message': 'Unknown method'},
@@ -234,6 +252,11 @@ def PlatformManagerAgent(config_path, **kwargs):
             return kwargs.pop(name)
         except KeyError:
             return config.get(name, '')
+    home = os.path.expanduser(os.path.expandvars(
+        os.environ.get('VOLTTRON_HOME', '~/.volttron')))
+    vip_address = 'ipc://@{}/run/vip.socket'.format(home)
+    vip_identity = 'platform_manager'
+    #s1 = SenderAgent('sender', vip_address=path, vip_identity='replier')
 
     agent_id = get_config('agentid')
     server_conf = {'global': get_config('server')}
@@ -257,22 +280,112 @@ def PlatformManagerAgent(config_path, **kwargs):
     #zip_code = get_config("zip")
     #key = get_config('key')
 
-    class Agent(BaseAgent):
+    class Agent(RPCAgent):
         """Agent for querying WeatherUndergrounds API"""
 
         def __init__(self, **kwargs):
-            super(Agent, self).__init__(**kwargs)
+            super(Agent, self).__init__(vip_address, vip_identity, **kwargs)
+            print("Registering (vip_address, vip_identity)\n\t", vip_address, vip_identity)
+            # a list of peers that have checked in with this agent.
+            self.platform_list = {}
             self.valid_data = False
-            self.webserver = Root(Authenticate(user_map))
+            self.webserver = Root(Authenticate(user_map), self)
 
-        def setup(self):
-            super(Agent, self).setup()
+        def list_platforms(self):
+            results=[]
+            for x in self.platform_list.values():
+                results.append(x)
+            return results
+
+        def list_agents(self, platform):
+            if platform in self.platform_list.keys():
+                return self.rpc_call(platform, "list_agents").get()
+            return "PLATFORM NOT FOUND"
+
+        @export()
+        def register_platform(self, peer_identity, name):
+            print "registering ", peer_identity
+            self.platform_list[peer_identity] = {'platform': name,
+                                             'uuid': peer_identity}
+            return True
+
+
+        @export()
+        def unregister_platform(self, peer_identity):
+            print "unregistering ", peer_identity
+            del self.platform_list[peer_identity]
+            return 'Removed'
+
+        @onevent("start")
+        def start(self):
+            #super(Agent, self).setup()
             cherrypy.tree.mount(self.webserver, "/", config=static_conf)
             cherrypy.engine.start()
 
+        @onevent("finish")
         def finish(self):
             cherrypy.engine.stop()
-            super(Agent, self).finish()
+
+
+
+        def dispatch (self, method, params, id):
+            retvalue = {"jsonrpc": "2.0", "id":id}
+
+
+            if method == 'listPlatforms':
+                retvalue["result"] = self.list_platforms()
+
+            else:
+
+                # The expectation is that we are going to have a string that
+                # looks like
+                #    platforms.uuid.239492.listAgents or
+                #    platforms.uuid.2394595.agents.****
+                # We strip off the first part (platfrom.uuid.239494 and transfer
+                # the rest to the called platform manager.
+
+                fields = method.split('.')
+
+                # must have platform.uuid.<uuid>.<somemethod> to pass through
+                # here.
+                if len(fields) < 3:
+                    return get_error_response(id, JSON_METHOD_NOT_FOUND,
+                                              'Unknown Method',
+                                              'method was: ' + method)
+
+                platform_uuid = fields[2]
+
+                if platform_uuid not in self.platform_list:
+                    return get_error_response(id, JSON_METHOD_NOT_FOUND,
+                                              'Unknown Method',
+                                              'Unknown platform method was: ' + method)
+
+                platform_method = '.'.join(fields[3:])
+                # Translate external interface to internal interface.
+                platform_method = platform_method.replace("listAgents", "list_agents")
+                platform_method = platform_method.replace("listMethods", "list_agent_methods")
+                print("calling platform: ", platform_uuid,
+                      "method ", platform_method,
+                      " params", params)
+
+                #if not params:
+                #    params = {}
+
+                #params['method_signature'] = str(platform_method)
+                platform_method = str(platform_method)
+
+                result = self.rpc_call(str(platform_uuid), 'dispatch', [platform_method, params])
+
+                #result = self.rpc_call(str(platform_uuid), "dispatch", str(platform_method), params)
+
+                # Wait for response to come back
+                import time
+                while not result.ready():
+                    time.sleep(1)
+
+
+                retvalue['result'] = result.get()
+            return retvalue
 
 
     Agent.__name__ = 'ManagedServiceAgent'
@@ -280,11 +393,22 @@ def PlatformManagerAgent(config_path, **kwargs):
 
 
 def main(argv=sys.argv):
-    '''Main method called by the eggsecutable.'''
-    utils.default_main(PlatformManagerAgent,
-                       description='The managed server agent',
-                       argv=argv)
-
+    try:
+        # If stdout is a pipe, re-open it line buffered
+        if isapipe(sys.stdout):
+            # Hold a reference to the previous file object so it doesn't
+            # get garbage collected and close the underlying descriptor.
+            stdout = sys.stdout
+            sys.stdout = os.fdopen(stdout.fileno(), 'w', 1)
+        '''Main method called by the eggsecutable.'''
+#         utils.default_main(PlatformManagerAgent,
+#                            description='The managed server agent',
+#                            argv=argv)
+        config = os.environ.get('AGENT_CONFIG')
+        agent = PlatformManagerAgent(config_path=config)
+        agent.run()
+    except KeyboardInterrupt:
+        pass
 
 if __name__ == '__main__':
     # Entry point for script
