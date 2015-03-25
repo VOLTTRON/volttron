@@ -8,28 +8,50 @@ var loginFormStore = require('../stores/login-form-store');
 var LoginForm = React.createClass({
     getInitialState: getStateFromStores,
     componentDidMount: function () {
-        loginFormStore.addChangeListener(this._onChange);
+        loginFormStore.addChangeListener(this._onStoresChange);
     },
     componentWillUnmount: function () {
-        loginFormStore.removeChangeListener(this._onChange);
+        loginFormStore.removeChangeListener(this._onStoresChange);
     },
-    _onChange: function () {
+    _onStoresChange: function () {
         this.setState(getStateFromStores());
+    },
+    _onInputChange: function () {
+        this.setState({
+            username: this.refs.username.getDOMNode().value,
+            password: this.refs.password.getDOMNode().value,
+            error: null,
+        });
     },
     _onSubmit: function (e) {
         e.preventDefault();
         platformManagerActionCreators.requestAuthorization(
-            this.refs.username.getDOMNode().value,
-            this.refs.password.getDOMNode().value
+            this.state.username,
+            this.state.password
         );
     },
     render: function () {
         return (
             <form className="login-form" onSubmit={this._onSubmit}>
                 <h1>VOLTTRON(TM) Platform Manager</h1>
-                <input ref="username" placeholder="Username" type="text" />
-                <input ref="password" placeholder="Password" type="password" />
-                <input className="button" type="submit" value="Log in" />
+                <input
+                    ref="username"
+                    type="text"
+                    placeholder="Username"
+                    onChange={this._onInputChange}
+                />
+                <input
+                    ref="password"
+                    type="password"
+                    placeholder="Password"
+                    onChange={this._onInputChange}
+                />
+                <input
+                    className="button"
+                    type="submit"
+                    value="Log in"
+                    disabled={!this.state.username || !this.state.password}
+                />
                 {this.state.error ? (
                     <div className="error">
                         {this.state.error.message} ({this.state.error.code})
