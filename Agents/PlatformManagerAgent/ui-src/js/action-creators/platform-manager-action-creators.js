@@ -76,6 +76,19 @@ var platformManagerActionCreators = {
                     type: ACTION_TYPES.RECEIVE_PLATFORMS,
                     platforms: platforms,
                 });
+            })
+            .catch(rpc.Error, function (error) {
+                switch (error.code) {
+                case 401:
+                    dispatcher.dispatch({
+                        type: ACTION_TYPES.RECEIVE_UNAUTHORIZED,
+                        error: error,
+                    });
+                    break;
+
+                default:
+                    console.log('RpcError: ', error);
+                }
             });
     },
 };

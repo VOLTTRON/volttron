@@ -39,6 +39,7 @@ platformManagerStore.dispatchToken = dispatcher.register(function (action) {
             platformManagerStore.emitChange();
             break;
 
+        case ACTION_TYPES.RECEIVE_UNAUTHORIZED:
         case ACTION_TYPES.CLEAR_AUTHORIZATION:
             _authorization = null;
             sessionStorage.removeItem('authorization');
