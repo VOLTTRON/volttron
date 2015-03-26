@@ -309,8 +309,8 @@ def PlatformManagerAgent(config_path, **kwargs):
                                              'uuid': peer_identity},
                     'peer_address': peer_address,
                 }
-            if peer_address != vip_address:
-                self.platform_list[peer_identity]['external'] = True
+
+            self.platform_list[peer_identity]['external'] = peer_address != vip_address
 
             return True
 
@@ -342,13 +342,6 @@ def PlatformManagerAgent(config_path, **kwargs):
 
             else:
 
-                # The expectation is that we are going to have a string that
-                # looks like
-                #    platforms.uuid.239492.listAgents or
-                #    platforms.uuid.2394595.agents.****
-                # We strip off the first part (platfrom.uuid.239494 and transfer
-                # the rest to the called platform manager.
-
                 fields = method.split('.')
 
                 # must have platform.uuid.<uuid>.<somemethod> to pass through
@@ -368,9 +361,15 @@ def PlatformManagerAgent(config_path, **kwargs):
                 platform = self.platform_list[platform_uuid]
 
                 platform_method = '.'.join(fields[3:])
+
                 # Translate external interface to internal interface.
                 platform_method = platform_method.replace("listAgents", "list_agents")
                 platform_method = platform_method.replace("listMethods", "list_agent_methods")
+                platform_method = platform_method.replace("startAgent", "start_agent")
+                platform_method = platform_method.replace("stopAgent", "stop_agent")
+                platform_method = platform_method.replace("statusAgents", "status_agents")
+                platform_method = platform_method.replace("statusAgent", "agent_status")
+
                 print("calling platform: ", platform_uuid,
                       "method ", platform_method,
                       " params", params)
