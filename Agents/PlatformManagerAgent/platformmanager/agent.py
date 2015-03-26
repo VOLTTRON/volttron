@@ -70,9 +70,13 @@ from volttron.platform.agent.utils import jsonapi, isapipe
 from volttron.platform.agent import utils
 
 from volttron.platform import vip, jsonrpc
+from volttron.platform.control import Connection
 from volttron.platform.agent.vipagent import RPCAgent, periodic, onevent, jsonapi, export
 from volttron.platform.agent import utils
 
+from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
+                                       INVALID_REQUEST, METHOD_NOT_FOUND, PARSE_ERROR,
+                                       UNHANDLED_EXCEPTION)
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -127,12 +131,6 @@ class WebApi:
         data = cherrypy.request.json
         return data.items()
 
-JSON_PARSE_ERR = -32700
-JSON_INVALID_REQ = -32600
-JSON_METHOD_NOT_FOUND = -32601
-JSON_METHOD_INVALID_PARAMS = -32602
-JSON_INTERNAL_ERR = -32603
-
 def get_error_response(id, code, message, data):
     return {'jsonrpc': '2.0',
             'error': { 'code': code, 'message': message, 'data' : data},
@@ -169,10 +167,10 @@ class Root:
 '''
 
         if cherrypy.request.json.get('jsonrpc') != '2.0':
-            return get_error_response(cherrypy.request.json.get('id'), JSON_PARSE_ERR,
+            return get_error_response(cherrypy.request.json.get('id'), PARSE_ERROR,
                     'Invalid jsonrpc version', None)
         if not cherrypy.request.json.get('method'):
-            return get_error_response(cherrypy.request.json.get('id'), JSON_METHOD_NOT_FOUND,
+            return get_error_response(cherrypy.request.json.get('id'), METHOD_NOT_FOUND,
                     'Method not found', {'method':  cherrypy.request.json.get('method')})
         if cherrypy.request.json.get('method') == 'getAuthorization':
             if not cherrypy.request.json.get('params'):
@@ -298,22 +296,29 @@ def PlatformManagerAgent(config_path, **kwargs):
             return results
 
         def list_agents(self, platform):
+
             if platform in self.platform_list.keys():
                 return self.rpc_call(platform, "list_agents").get()
             return "PLATFORM NOT FOUND"
 
         @export()
-        def register_platform(self, peer_identity, name):
+        def register_platform(self, peer_identity, name, peer_address):
             print "registering ", peer_identity
-            self.platform_list[peer_identity] = {'platform': name,
-                                             'uuid': peer_identity}
+            self.platform_list[peer_identity] = {
+                    'identity_params':  {'platform': name,
+                                             'uuid': peer_identity},
+                    'peer_address': peer_address,
+                }
+            if peer_address != vip_address:
+                self.platform_list[peer_identity]['external'] = True
+
             return True
 
 
         @export()
         def unregister_platform(self, peer_identity):
             print "unregistering ", peer_identity
-            del self.platform_list[peer_identity]
+            del self.platform_list[peer_identity]['identity_params']
             return 'Removed'
 
         @onevent("start")
@@ -349,16 +354,18 @@ def PlatformManagerAgent(config_path, **kwargs):
                 # must have platform.uuid.<uuid>.<somemethod> to pass through
                 # here.
                 if len(fields) < 3:
-                    return get_error_response(id, JSON_METHOD_NOT_FOUND,
+                    return get_error_response(id, METHOD_NOT_FOUND,
                                               'Unknown Method',
                                               'method was: ' + method)
 
                 platform_uuid = fields[2]
 
                 if platform_uuid not in self.platform_list:
-                    return get_error_response(id, JSON_METHOD_NOT_FOUND,
+                    return get_error_response(id, METHOD_NOT_FOUND,
                                               'Unknown Method',
                                               'Unknown platform method was: ' + method)
+
+                platform = self.platform_list[platform_uuid]
 
                 platform_method = '.'.join(fields[3:])
                 # Translate external interface to internal interface.
@@ -368,15 +375,17 @@ def PlatformManagerAgent(config_path, **kwargs):
                       "method ", platform_method,
                       " params", params)
 
-                #if not params:
-                #    params = {}
-
-                #params['method_signature'] = str(platform_method)
                 platform_method = str(platform_method)
 
-                result = self.rpc_call(str(platform_uuid), 'dispatch', [platform_method, params])
+                if platform['peer_address'] == vip_address:
+                    result = self.rpc_call(str(platform_uuid), 'dispatch', [platform_method, params])
+                else:
+                    if 'ctl' not in platform:
+                        print "Connecting to ", platform['peer_address'], 'for peer', platform_uuid
+                        platform['ctl'] = Connection(platform['peer_address'],
+                                                 peer=platform_uuid)
 
-                #result = self.rpc_call(str(platform_uuid), "dispatch", str(platform_method), params)
+                    result = platform['ctl'].call("dispatch", [platform_method, params])
 
                 # Wait for response to come back
                 import time
