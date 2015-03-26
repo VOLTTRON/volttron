@@ -68,6 +68,15 @@ from volttron.platform.control import Connection
 from volttron.platform.agent.vipagent import RPCAgent, periodic, onevent, jsonapi, export
 from volttron.platform.agent import utils
 
+from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
+                                       INVALID_REQUEST, METHOD_NOT_FOUND, PARSE_ERROR,
+                                       UNHANDLED_EXCEPTION)
+
+def get_error_response(code, message, data=None):
+    return {'jsonrpc': '2.0',
+            'error': { 'code': code, 'message': message, 'data' : data}
+            }
+
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -98,15 +107,6 @@ def PlatformAgent(config_path, **kwargs):
             super(Agent, self).__init__(vip_address, vip_identity=vip_identity, **kwargs)
             self.ctl = Connection(manager_vip_address, peer=manager_vip_identity)
 
-#         @periodic(10)
-#         def request_status(self):
-#             print(self.list_agents())
-            #print(self.rpc_call("control", "list_agents").get(timeout=10))
-#         @periodic(10)
-#         def register_platform(self):
-#             print("Registering platform")
-#             print(self.ctl.call("register_platform", vip_identity))
-
         @export()
         def list_agents(self):
             print("Getting agents from control!")
@@ -114,13 +114,41 @@ def PlatformAgent(config_path, **kwargs):
             return self.rpc_call("control", "list_agents").get()
 
         @export()
+        def dispatch(self, method, params):
+
+            agents = self.list_agents()
+
+            ctl_methods = ('list_agents', 'status_agents', 'agent_status',
+                           'start_agent', 'stop_agent')
+            no_params = ('list_agents', 'status_agents')
+
+            # First handle the platform control functionality before dispatching
+            # to the individual agents.
+            if method in ctl_methods:
+                if method in no_params:
+                    return self.rpc_call("control", method).get()
+                else:
+                    return self.rpc_call("control", method, params).get()
+
+            fields = method.split('.')
+
+            if len(fields) < 3:
+                return get_error_response(METHOD_NOT_FOUND,
+                                          "Unknown Method",
+                                          "Can't find "+ method)
+
+            return get_error_response(id, INTERNAL_ERROR, 'Not implemented')
+
+
+        @export()
         def list_agent_methods(self, method, params, id, agent_uuid):
             print("Got!", method, params, id)
+            return get_error_response(id, INTERNAL_ERROR, 'Not implemented')
 
         @onevent("start")
         def start(self):
             print("starting service")
-            self.ctl.call("register_platform", vip_identity, agentid)
+            self.ctl.call("register_platform", vip_identity, agentid, vip_address)
 
         @onevent("finish")
         def stop(self):
@@ -142,9 +170,7 @@ def main(argv=sys.argv):
             stdout = sys.stdout
             sys.stdout = os.fdopen(stdout.fileno(), 'w', 1)
         '''Main method called by the eggsecutable.'''
-#         utils.default_main(PlatformManagerAgent,
-#                            description='The managed server agent',
-#                            argv=argv)
+
         config = os.environ.get('AGENT_CONFIG')
         agent = PlatformAgent(config_path=config)
         agent.run()
