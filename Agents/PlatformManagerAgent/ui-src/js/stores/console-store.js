@@ -7,6 +7,7 @@ var Store = require('../lib/store');
 
 var _composerId = Date.now();
 var _composerValue = _resetValue();
+var _consoleShown = false;
 var _exchanges = [];
 
 var consoleStore = new Store();
@@ -17,6 +18,10 @@ consoleStore.getComposerId = function () {
 
 consoleStore.getComposerValue = function () {
     return _composerValue;
+};
+
+consoleStore.getConsoleShown = function () {
+    return _consoleShown;
 };
 
 consoleStore.getExchanges = function () {
@@ -46,6 +51,11 @@ consoleStore.dispatchToken = dispatcher.register(function (action) {
     dispatcher.waitFor([platformManagerStore.dispatchToken]);
 
     switch (action.type) {
+        case ACTION_TYPES.TOGGLE_CONSOLE:
+            _consoleShown = !_consoleShown;
+            consoleStore.emitChange();
+            break;
+
         case ACTION_TYPES.UPDATE_COMPOSER_VALUE:
             _composerValue = action.value;
             consoleStore.emitChange();

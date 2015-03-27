@@ -5,6 +5,11 @@ var dispatcher = require('../dispatcher');
 var RpcExchange = require('../lib/rpc/exchange');
 
 var consoleActionCreators = {
+    toggleConsole: function () {
+        dispatcher.dispatch({
+            type: ACTION_TYPES.TOGGLE_CONSOLE,
+        });
+    },
     updateComposerValue: function (value) {
         dispatcher.dispatch({
             type: ACTION_TYPES.UPDATE_COMPOSER_VALUE,

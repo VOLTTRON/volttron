@@ -3,6 +3,8 @@
 var keyMirror = require('react/lib/keyMirror');
 
 module.exports = keyMirror({
+    TOGGLE_CONSOLE: null,
+
     UPDATE_COMPOSER_VALUE: null,
 
     MAKE_REQUEST: null,
