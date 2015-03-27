@@ -4,10 +4,6 @@ var ACTION_TYPES = require('../constants/action-types');
 var dispatcher = require('../dispatcher');
 var Store = require('../lib/store');
 
-if (!location.hash) {
-    history.replaceState(null, null, '#home');
-}
-
 var _authorization = sessionStorage.getItem('authorization');
 var _page = location.hash.substr(1);
 var _platforms = [];
@@ -24,11 +20,6 @@ platformManagerStore.getPage = function () {
 
 platformManagerStore.getPlatforms = function () {
     return _platforms;
-};
-
-window.onhashchange = function () {
-    _page = location.hash.substr(1);
-    platformManagerStore.emitChange();
 };
 
 platformManagerStore.dispatchToken = dispatcher.register(function (action) {

@@ -94,4 +94,8 @@ var platformManagerActionCreators = {
     },
 };
 
+window.onhashchange = function () {
+    platformManagerActionCreators.goToPage(location.hash.substr(1));
+};
+
 module.exports = platformManagerActionCreators;

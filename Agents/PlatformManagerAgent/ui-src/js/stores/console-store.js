@@ -6,7 +6,7 @@ var platformManagerStore = require('./platform-manager-store');
 var Store = require('../lib/store');
 
 var _composerId = Date.now();
-var _composerValue = _resetValue();
+var _composerValue = '';
 var _consoleShown = false;
 var _exchanges = [];
 
@@ -28,14 +28,18 @@ consoleStore.getExchanges = function () {
     return _exchanges;
 };
 
-function _resetValue() {
+function _resetComposerValue(updateMethod) {
     var authorization = platformManagerStore.getAuthorization();
     var parsed;
 
     try {
         parsed = JSON.parse(_composerValue);
+
+        if (updateMethod) {
+            parsed.method = platformManagerStore.getPage();
+        }
     } catch (e) {
-        parsed = { method: '' };
+        parsed = { method: platformManagerStore.getPage() };
     }
 
     if (authorization) {
@@ -44,8 +48,10 @@ function _resetValue() {
         delete parsed.authorization;
     }
 
-    return JSON.stringify(parsed, null, '    ');
+    _composerValue = JSON.stringify(parsed, null, '    ');
 }
+
+_resetComposerValue();
 
 consoleStore.dispatchToken = dispatcher.register(function (action) {
     dispatcher.waitFor([platformManagerStore.dispatchToken]);
@@ -62,14 +68,15 @@ consoleStore.dispatchToken = dispatcher.register(function (action) {
             break;
 
         case ACTION_TYPES.RECEIVE_AUTHORIZATION:
+        case ACTION_TYPES.CLEAR_AUTHORIZATION:
             _composerId = Date.now();
-            _composerValue = _resetValue();
+            _resetComposerValue();
             consoleStore.emitChange();
             break;
 
-        case ACTION_TYPES.CLEAR_AUTHORIZATION:
+        case ACTION_TYPES.CHANGE_PAGE:
             _composerId = Date.now();
-            _composerValue = _resetValue();
+            _resetComposerValue(true);
             consoleStore.emitChange();
             break;
 
