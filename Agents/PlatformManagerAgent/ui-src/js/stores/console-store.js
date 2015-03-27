@@ -5,20 +5,61 @@ var dispatcher = require('../dispatcher');
 var platformManagerStore = require('./platform-manager-store');
 var Store = require('../lib/store');
 
+var _composerId = Date.now();
+var _composerValue = _resetValue();
 var _exchanges = [];
 
 var consoleStore = new Store();
+
+consoleStore.getComposerId = function () {
+    return _composerId;
+};
+
+consoleStore.getComposerValue = function () {
+    return _composerValue;
+};
 
 consoleStore.getExchanges = function () {
     return _exchanges;
 };
 
+function _resetValue() {
+    var authorization = platformManagerStore.getAuthorization();
+    var parsed;
+
+    try {
+        parsed = JSON.parse(_composerValue);
+    } catch (e) {
+        parsed = { method: '' };
+    }
+
+    if (authorization) {
+        parsed.authorization = authorization;
+    } else {
+        delete parsed.authorization;
+    }
+
+    return JSON.stringify(parsed, null, '    ');
+}
+
 consoleStore.dispatchToken = dispatcher.register(function (action) {
     dispatcher.waitFor([platformManagerStore.dispatchToken]);
 
     switch (action.type) {
-        case ACTION_TYPES.RECIEVE_AUTHORIZATION:
-            _exchanges = [];
+        case ACTION_TYPES.UPDATE_COMPOSER_VALUE:
+            _composerValue = action.value;
+            consoleStore.emitChange();
+            break;
+
+        case ACTION_TYPES.RECEIVE_AUTHORIZATION:
+            _composerId = Date.now();
+            _composerValue = _resetValue();
+            consoleStore.emitChange();
+            break;
+
+        case ACTION_TYPES.CLEAR_AUTHORIZATION:
+            _composerId = Date.now();
+            _composerValue = _resetValue();
             consoleStore.emitChange();
             break;
 
