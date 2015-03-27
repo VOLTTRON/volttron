@@ -18,13 +18,30 @@ pre {
     outline: none;
 }
 
+.button:active {
+    box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
 .button:disabled {
     background-color: rgba(0,0,0,0.1);
     box-shadow: none;
 }
 
-.button:active {
-    box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+.platform-manager {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+}
+
+.main {
+    position: relative;
+    height: 50%;
+}
+
+.platform-manager--console-hidden .main {
+    height: 100%;
 }
 
 .login-form {
@@ -74,24 +91,54 @@ pre {
 }
 
 .home {
-    position: relative;
-    top: 40px;
-}
-
-.messenger {
     position: absolute;
     top: 40px;
     bottom: 0;
     left: 0;
     right: 0;
-    z-index: 1;
+    padding: 0 20px;
+}
+
+.toggle {
+    position: absolute;
+    z-index: 2;
+    top: 50%;
+    left: 50%;
+    width: 140px;
+    margin-left: -70px;
+    border-radius: 0 0 4px 4px;
+}
+
+.platform-manager--console-hidden .toggle {
+    top: auto;
+    bottom: 0;
+    border-radius: 4px 4px 0 0;
+}
+
+.console {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 50%;
     overflow: hidden;
+}
+
+.console:after {
+    content: "";
+    display: block;
+    position: absolute;
+    top: -8px;
+    left: 0;
+    right: 0;
+    height: 8px;
+    box-shadow: 0 0 8px rgba(0,0,0,0.2);
 }
 
 .conversation {
     position: absolute;
     top: 0;
-    bottom: 25%;
+    bottom: 90px;
     left: 0;
     right: 0;
     overflow: auto;
@@ -138,10 +185,10 @@ pre {
 
 .composer {
     position: absolute;
-    top: 75%;
     bottom: 0;
     left: 0;
     right: 0;
+    height: 90px;
     box-shadow: 0 0 8px rgba(0,0,0,0.2);
 }
 
