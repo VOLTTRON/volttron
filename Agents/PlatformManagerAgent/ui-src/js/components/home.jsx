@@ -9,7 +9,7 @@ var Home = React.createClass({
     getInitialState: getStateFromStores,
     componentDidMount: function () {
         platformManagerStore.addChangeListener(this._onChange);
-        platformManagerActionCreators.loadPlatforms();
+        setTimeout(platformManagerActionCreators.loadPlatforms);
     },
     componentWillUnmount: function () {
         platformManagerStore.removeChangeListener(this._onChange);
@@ -20,6 +20,7 @@ var Home = React.createClass({
     render: function () {
         return (
             <div className="home">
+                {this.state.platforms.length ?
                 <ul>
                     {this.state.platforms.map(function (platform) {
                         return (
@@ -59,6 +60,9 @@ var Home = React.createClass({
                         );
                     })}
                 </ul>
+                :
+                <p>No platforms found.</p>
+                }
             </div>
         );
     },

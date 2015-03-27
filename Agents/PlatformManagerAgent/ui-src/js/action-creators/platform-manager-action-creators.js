@@ -9,13 +9,13 @@ var rpc = require('../lib/rpc');
 
 var platformManagerActionCreators = {
     requestAuthorization: function (username, password) {
-        new rpc.Request({
+        new rpc.Exchange({
             method: 'getAuthorization',
             params: {
                 username: username,
                 password: password,
             },
-        })
+        }).promise
             .then(function (result) {
                 dispatcher.dispatch({
                     type: ACTION_TYPES.RECEIVE_AUTHORIZATION,
@@ -23,10 +23,14 @@ var platformManagerActionCreators = {
                 });
             })
             .catch(rpc.Error, function (error) {
-                dispatcher.dispatch({
-                    type: ACTION_TYPES.RECEIVE_UNAUTHORIZED,
-                    error: error,
-                });
+                if (error.code && error.code === 401) {
+                    dispatcher.dispatch({
+                        type: ACTION_TYPES.RECEIVE_UNAUTHORIZED,
+                        error: error,
+                    });
+                } else {
+                    throw error;
+                }
             });
     },
     clearAuthorization: function () {
@@ -43,19 +47,19 @@ var platformManagerActionCreators = {
     loadPlatforms: function () {
         var authorization = platformManagerStore.getAuthorization();
 
-        new rpc.Request({
+        new rpc.Exchange({
             method: 'listPlatforms',
             authorization: authorization,
-        })
+        }).promise
             .then(function (platforms) {
                 return Promise.all(platforms.map(function (platform) {
-                    return new rpc.Request({
+                    return new rpc.Exchange({
                         method: 'platforms.uuid.' + platform.uuid + '.listAgents',
                         authorization: authorization,
                     })
                         .then(function (agents) {
                             return Promise.all(agents.map(function (agent) {
-                                return new rpc.Request({
+                                return new rpc.Exchange({
                                     method: 'platforms.uuid.' + platform.uuid + '.agents.uuid.' + agent.uuid + '.listMethods',
                                     authorization: authorization,
                                 })
@@ -77,17 +81,14 @@ var platformManagerActionCreators = {
                     platforms: platforms,
                 });
             })
-            .catch(rpc.Error, function (error) {
-                switch (error.code) {
-                case 401:
+            .catch(function (error) {
+                if (error.code && error.code === 401) {
                     dispatcher.dispatch({
                         type: ACTION_TYPES.RECEIVE_UNAUTHORIZED,
                         error: error,
                     });
-                    break;
-
-                default:
-                    console.log('RpcError: ', error);
+                } else {
+                    throw error;
                 }
             });
     },

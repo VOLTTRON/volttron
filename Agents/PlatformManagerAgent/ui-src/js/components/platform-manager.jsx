@@ -2,11 +2,10 @@
 
 var React = require('react');
 
+var Console = require('./console');
 var Home = require('./home');
 var LoginForm = require('./login-form');
 var Navigation = require('./navigation');
-var Messenger = require('./messenger');
-
 var platformManagerStore = require('../stores/platform-manager-store');
 
 var PlatformManager = React.createClass({
@@ -30,7 +29,7 @@ var PlatformManager = React.createClass({
         return (
             <div>
                 <Navigation />
-                {this.state.page === 'home' ? <Home /> : <Messenger />}
+                {this.state.page === 'home' ? <Home /> : <Console />}
             </div>
         );
     }

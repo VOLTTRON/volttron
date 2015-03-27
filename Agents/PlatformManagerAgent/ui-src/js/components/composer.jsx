@@ -2,7 +2,7 @@
 
 var React = require('react');
 
-var messengerActionCreators = require('../action-creators/messenger-action-creators');
+var consoleActionCreators = require('../action-creators/console-action-creators');
 var platformManagerStore = require('../stores/platform-manager-store');
 
 var Composer = React.createClass({
@@ -11,6 +11,7 @@ var Composer = React.createClass({
             id: Date.now(),
             request: {
                 method: platformManagerStore.getPage(),
+                authorization: platformManagerStore.getAuthorization(),
             },
             valid: true,
         };
@@ -19,7 +20,7 @@ var Composer = React.createClass({
         return (this.state.id !== newState.id || this.state.valid !== newState.valid);
     },
     _onSendClick: function () {
-        messengerActionCreators.makeRequest(this.state.request.method, this.state.request.params);
+        consoleActionCreators.makeRequest(this.state.request);
 
         this.setState({
             id: Date.now(),
@@ -44,6 +45,7 @@ var Composer = React.createClass({
             request: {
                 method: parsed.method,
                 params: parsed.params,
+                authorization: parsed.authorization,
             },
             valid: true,
         });

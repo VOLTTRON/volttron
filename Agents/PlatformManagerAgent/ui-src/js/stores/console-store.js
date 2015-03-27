@@ -7,30 +7,31 @@ var Store = require('../lib/store');
 
 var _exchanges = [];
 
-var messengerStore = new Store();
+var consoleStore = new Store();
 
-messengerStore.getExchanges = function () {
+consoleStore.getExchanges = function () {
     return _exchanges;
 };
 
-messengerStore.dispatchToken = dispatcher.register(function (action) {
+consoleStore.dispatchToken = dispatcher.register(function (action) {
     dispatcher.waitFor([platformManagerStore.dispatchToken]);
 
     switch (action.type) {
         case ACTION_TYPES.RECIEVE_AUTHORIZATION:
             _exchanges = [];
-            messengerStore.emitChange();
+            consoleStore.emitChange();
             break;
 
-        case ACTION_TYPES.CREATE_EXCHANGE:
+        case ACTION_TYPES.MAKE_REQUEST:
             _exchanges.push(action.exchange);
-            messengerStore.emitChange();
+            consoleStore.emitChange();
             break;
 
-        case ACTION_TYPES.UPDATE_EXCHANGE:
-            messengerStore.emitChange();
+        case ACTION_TYPES.FAIL_REQUEST:
+        case ACTION_TYPES.RECEIVE_RESPONSE:
+            consoleStore.emitChange();
             break;
     }
 });
 
-module.exports = messengerStore;
+module.exports = consoleStore;

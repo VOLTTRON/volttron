@@ -76,9 +76,10 @@ pre {
 .home {
     position: relative;
     top: 40px;
+    padding: 0 20px;
 }
 
-.messenger {
+.console {
     position: absolute;
     top: 40px;
     bottom: 0;

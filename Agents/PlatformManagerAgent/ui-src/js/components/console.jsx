@@ -5,10 +5,10 @@ var React = require('react');
 var Composer = require('./composer');
 var Conversation = require('./conversation');
 
-var Messenger = React.createClass({
+var Console = React.createClass({
     render: function () {
         return (
-            <div className="messenger">
+            <div className="console">
                 <Conversation />
                 <Composer />
             </div>
@@ -16,4 +16,4 @@ var Messenger = React.createClass({
     }
 });
 
-module.exports = Messenger;
+module.exports = Console;
