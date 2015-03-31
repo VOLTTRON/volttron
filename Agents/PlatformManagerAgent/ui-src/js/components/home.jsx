@@ -29,30 +29,7 @@ var Home = React.createClass({
                                 <ul>
                                     {platform.agents.map(function (agent) {
                                         return (
-                                            <li>
-                                                {agent.agent} ({agent.uuid})
-                                                <ul>
-                                                    {agent.methods.map(function (method) {
-                                                        var href = [
-                                                            '#platforms',
-                                                            'uuid',
-                                                            platform.uuid,
-                                                            'agents.uuid',
-                                                            agent.uuid,
-                                                            'methods',
-                                                            method.method,
-                                                        ].join('.');
-
-                                                        return (
-                                                            <li>
-                                                                <a href={href}>
-                                                                    {method.method}
-                                                                </a>
-                                                            </li>
-                                                        );
-                                                    })}
-                                                </ul>
-                                            </li>
+                                            <li>{agent.agent} ({agent.uuid})</li>
                                         );
                                     })}
                                 </ul>
