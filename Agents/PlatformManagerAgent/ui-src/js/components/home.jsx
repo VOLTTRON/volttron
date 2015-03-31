@@ -18,9 +18,18 @@ var Home = React.createClass({
         this.setState(getStateFromStores());
     },
     render: function () {
-        return (
-            <div className="home">
-                {this.state.platforms.length ?
+        var platforms;
+
+        if (!this.state.platforms) {
+            platforms = (
+                <p>Loading platforms...</p>
+            );
+        } else if (!this.state.platforms.length) {
+            platforms = (
+                <p>No platforms found.</p>
+            );
+        } else {
+            platforms = (
                 <ul>
                     {this.state.platforms.map(function (platform) {
                         return (
@@ -37,9 +46,12 @@ var Home = React.createClass({
                         );
                     })}
                 </ul>
-                :
-                <p>No platforms found.</p>
-                }
+            );
+        }
+
+        return (
+            <div className="home">
+                {platforms}
             </div>
         );
     },
