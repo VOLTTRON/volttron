@@ -287,32 +287,26 @@ def PlatformManagerAgent(config_path, **kwargs):
             super(Agent, self).__init__(vip_address, vip_identity, **kwargs)
             print("Registering (vip_address, vip_identity)\n\t", vip_address, vip_identity)
             # a list of peers that have checked in with this agent.
-            self.platform_list = {}
+            self.platform_dict = {}
             self.valid_data = False
             self.webserver = Root(Authenticate(user_map), self)
 
-        def list_platforms(self):
-            results=[]
-            for x in self.platform_list.values():
-                results.append(x)
-            return results
-
         def list_agents(self, platform):
 
-            if platform in self.platform_list.keys():
+            if platform in self.platform_dict.keys():
                 return self.rpc_call(platform, "list_agents").get()
             return "PLATFORM NOT FOUND"
 
         @export()
         def register_platform(self, peer_identity, name, peer_address):
             print "registering ", peer_identity
-            self.platform_list[peer_identity] = {
+            self.platform_dict[peer_identity] = {
                     'identity_params':  {'platform': name,
                                              'uuid': peer_identity},
                     'peer_address': peer_address,
                 }
 
-            self.platform_list[peer_identity]['external'] = peer_address != vip_address
+            self.platform_dict[peer_identity]['external'] = peer_address != vip_address
 
             return True
 
@@ -320,7 +314,7 @@ def PlatformManagerAgent(config_path, **kwargs):
         @export()
         def unregister_platform(self, peer_identity):
             print "unregistering ", peer_identity
-            del self.platform_list[peer_identity]['identity_params']
+            del self.platform_dict[peer_identity]['identity_params']
             return 'Removed'
 
         @onevent("start")
@@ -340,7 +334,7 @@ def PlatformManagerAgent(config_path, **kwargs):
 
 
             if method == 'listPlatforms':
-                retvalue["result"] = self.list_platforms()
+                retvalue["result"] = [x['identity_params'] for x in self.platform_dict.values()]
 
             else:
 
@@ -355,12 +349,12 @@ def PlatformManagerAgent(config_path, **kwargs):
 
                 platform_uuid = fields[2]
 
-                if platform_uuid not in self.platform_list:
+                if platform_uuid not in self.platform_dict:
                     return get_error_response(id, METHOD_NOT_FOUND,
                                               'Unknown Method',
                                               'Unknown platform method was: ' + method)
 
-                platform = self.platform_list[platform_uuid]
+                platform = self.platform_dict[platform_uuid]
 
                 platform_method = '.'.join(fields[3:])
 
