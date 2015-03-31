@@ -155,16 +155,16 @@ class Root:
         '''
         Example curl post
         curl -X POST -H "Content-Type: application/json" \
--d '{"jsonrpc": "2.0","method": "getAuthorization","params": {"username": "dorothy","password": "toto123"},"id": "someid"}' \
- http://127.0.0.1:8080/jsonrpc/
+            -d '{"jsonrpc": "2.0","method": "getAuthorization","params": {"username": "dorothy","password": "toto123"},"id": "someid"}' \
+            http://127.0.0.1:8080/jsonrpc/
 
         Successful response
-             {"jsonrpc": "2.0",
-              "result": "071b5022-4c35-4395-a4f0-8c32905919d8",
-              "id": "someid"}
+            {"jsonrpc": "2.0",
+             "result": "071b5022-4c35-4395-a4f0-8c32905919d8",
+             "id": "someid"}
         Failed
-            401 Unauthorized
-'''
+            401 Invalid username or password
+        '''
 
         if cherrypy.request.json.get('jsonrpc') != '2.0':
             return get_error_response(cherrypy.request.json.get('id'), PARSE_ERROR,
@@ -185,27 +185,29 @@ class Root:
                                    params.get('password'),
                                    cherrypy.request.remote.ip)
 
-
             if token:
                 return {'jsonrpc': '2.0',
                         'result': str(token),
                         'id': cherrypy.request.json.get('id')}
 
             return {'jsonrpc': '2.0',
-                    'error': {'code': 401, 'message': 'Unauthorized'},
+                    'error': {'code': 401,
+                              'message': 'Invalid username or password'},
                     'id': cherrypy.request.json.get('id')}
         else:
-            # trap for trying to use a method withoud a session token.
-            if not cherrypy.request.json.get('method'):
-                return {'jsonrpc': '2.0',
-                    'error': {'code': 401, 'message': 'Unauthorized'},
-                    'id': cherrypy.request.json.get('id')}
-
             token = cherrypy.request.json.get('authorization')
+
+            if not token:
+                return {'jsonrpc': '2.0',
+                        'error': {'code': 401,
+                                  'message': 'Authorization required'},
+                        'id': cherrypy.request.json.get('id')}
+
             if not self.sessions.check_session(token, cherrypy.request.remote.ip):
                 return {'jsonrpc': '2.0',
-                    'error': {'code': 401, 'message': 'Unauthorized'},
-                    'id': cherrypy.request.json.get('id')}
+                        'error': {'code': 401,
+                                  'message': 'Invalid or expired authorization'},
+                        'id': cherrypy.request.json.get('id')}
 
             method = cherrypy.request.json.get('method')
             params = cherrypy.request.json.get('params')
