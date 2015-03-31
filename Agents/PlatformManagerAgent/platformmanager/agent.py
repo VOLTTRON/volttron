@@ -301,8 +301,7 @@ def PlatformManagerAgent(config_path, **kwargs):
         def register_platform(self, peer_identity, name, peer_address):
             print "registering ", peer_identity
             self.platform_dict[peer_identity] = {
-                    'identity_params':  {'platform': name,
-                                             'uuid': peer_identity},
+                    'identity_params':  {'name': name, 'uuid': peer_identity},
                     'peer_address': peer_address,
                 }
 

@@ -25,11 +25,11 @@ var Home = React.createClass({
                     {this.state.platforms.map(function (platform) {
                         return (
                             <li>
-                                {platform.platform} ({platform.uuid})
+                                {platform.name} ({platform.uuid})
                                 <ul>
                                     {platform.agents.map(function (agent) {
                                         return (
-                                            <li>{agent.agent} ({agent.uuid})</li>
+                                            <li>{agent.name} ({agent.uuid})</li>
                                         );
                                     })}
                                 </ul>
