@@ -97,7 +97,7 @@ _log = logging.getLogger(os.path.basename(sys.argv[0])
 
 
 def log_to_file(file_, level=logging.WARNING,
-                handler_class=logging.StreamHandler):
+                handler_class=logging.StreamHandler, **kwargs):
     '''Direct log output to a file (or something like one).'''
     handler = handler_class(file_)
     handler.setLevel(level)
@@ -105,7 +105,7 @@ def log_to_file(file_, level=logging.WARNING,
         '%(asctime)s %(composite_name)s %(levelname)s: %(message)s'))
     root = logging.getLogger()
     root.setLevel(level)
-    root.addHandler(handler)
+    root.addHandler(handler, **kwargs)
 
 
 def configure_logging(conf_path):
@@ -299,6 +299,8 @@ def main(argv=sys.argv):
     parser.add_argument(
         '-L', '--log-config', metavar='FILE',
         help='read logging configuration from FILE')
+    parser.add_argument('--log-backupcount', metavar='COUNT', default=7, type=int, 
+        help='set number of backup log files')
     parser.add_argument(
         '-q', '--quiet', action='add_const', const=10, dest='verboseness',
         help='decrease logger verboseness; may be used multiple times')
@@ -399,6 +401,7 @@ def main(argv=sys.argv):
     parser.set_defaults(
         log=None,
         log_config=None,
+        log_backupcount = 7,
         verboseness=logging.WARNING,
         volttron_home=volttron_home,
         autostart=True,
@@ -443,7 +446,9 @@ def main(argv=sys.argv):
     elif opts.log == '-':
         log_to_file(sys.stdout, level)
     elif opts.log:
-        log_to_file(opts.log, level, handler_class=handlers.WatchedFileHandler)
+        log_to_file(opts.log, level, handler_class=
+                    handlers.TimedRotatingFileHandler, when='midnight', 
+                    backupCount=opts.log_backupcount)
     else:
         log_to_file(None, 100, handler_class=lambda x: logging.NullHandler())
     if opts.log_config:
