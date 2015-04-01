@@ -281,9 +281,9 @@ class PlatformWrapper():
         assert(auth.sign_as_creator(package, 'creator', certsobj=self.certsobj)), "Signing as {} failed.".format('creator')
 
 
-    def direct_sign_agentpackage_soi(self, package):
+    def direct_sign_agentpackage_admin(self, package):
         assert (RESTRICTED), "Auth not available"
-        assert(auth.sign_as_admin(package, 'soi', certsobj=self.certsobj)), "Signing as {} failed.".format('soi')
+        assert(auth.sign_as_admin(package, 'admin', certsobj=self.certsobj)), "Signing as {} failed.".format('admin')
 
 
     def direct_sign_agentpackage_initiator(self, package, config_file, contract):
