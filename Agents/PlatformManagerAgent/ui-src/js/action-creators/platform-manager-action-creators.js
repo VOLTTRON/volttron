@@ -56,19 +56,7 @@ var platformManagerActionCreators = {
                     return new rpc.Exchange({
                         method: 'platforms.uuid.' + platform.uuid + '.listAgents',
                         authorization: authorization,
-                    })
-                        .then(function (agents) {
-                            return Promise.all(agents.map(function (agent) {
-                                return new rpc.Exchange({
-                                    method: 'platforms.uuid.' + platform.uuid + '.agents.uuid.' + agent.uuid + '.listMethods',
-                                    authorization: authorization,
-                                })
-                                    .then(function (methods) {
-                                        agent.methods = methods;
-                                        return agent;
-                                    });
-                                }));
-                        })
+                    }).promise
                         .then(function (agents) {
                             platform.agents = agents;
                             return platform;

@@ -170,7 +170,7 @@ class Manager:
             if not platform_uuid or not method:
                 retvalue['error'] = {'code': 404, 'message': 'Unknown method'}
 
-            retvalue['result'] = self.call_method(platform_uuid, agent_uuid, method, params)
+            retvalue['result'] = self.rpc_call(platform_uuid, method).get() #.call_method(platform_uuid, agent_uuid, method, params)
             print "Attempting to return: "
             print retvalue['result']
             #retvalue['error'] = {'code': 404, 'message': 'Unknown method'}

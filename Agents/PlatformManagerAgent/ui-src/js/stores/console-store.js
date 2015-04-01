@@ -68,6 +68,7 @@ consoleStore.dispatchToken = dispatcher.register(function (action) {
             break;
 
         case ACTION_TYPES.RECEIVE_AUTHORIZATION:
+        case ACTION_TYPES.RECEIVE_UNAUTHORIZED:
         case ACTION_TYPES.CLEAR_AUTHORIZATION:
             _composerId = Date.now();
             _resetComposerValue();
