@@ -120,15 +120,17 @@ def PlatformAgent(config_path, **kwargs):
 
             ctl_methods = ('list_agents', 'status_agents', 'agent_status',
                            'start_agent', 'stop_agent')
-            no_params = ('list_agents', 'status_agents')
 
             # First handle the platform control functionality before dispatching
             # to the individual agents.
+            if method == 'list_agents':
+                return self.rpc_call('control', method).get()
+            if method == 'status_agents':
+                return [{'name':a[1], 'uuid': a[0], 'process_id': a[2][0],
+                         'return_code': a[2][1]}
+                        for a in self.rpc_call('control', method).get()]
             if method in ctl_methods:
-                if method in no_params:
-                    return self.rpc_call("control", method).get()
-                else:
-                    return self.rpc_call("control", method, params).get()
+                return self.rpc_call('control', method, params).get()
 
             fields = method.split('.')
 
