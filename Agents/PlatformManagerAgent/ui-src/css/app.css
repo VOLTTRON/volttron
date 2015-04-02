@@ -6,6 +6,21 @@ pre {
     font-family: "Menlo", "Monaco", "Consolas", monospace;
 }
 
+th {
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+th, td {
+    padding: 0 8px;
+    line-height: 2.5em;
+}
+
+th:not(:first-child),
+td:not(:first-child) {
+    border-left: 1px solid #ddd;
+}
+
 .button {
     background-color: #69b;
     color: #fff;
@@ -97,6 +112,7 @@ pre {
     left: 0;
     right: 0;
     padding: 0 20px;
+    overflow: auto;
 }
 
 .toggle {

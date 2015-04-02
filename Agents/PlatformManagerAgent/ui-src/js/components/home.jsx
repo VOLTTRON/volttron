@@ -29,24 +29,49 @@ var Home = React.createClass({
                 <p>No platforms found.</p>
             );
         } else {
-            platforms = (
-                <ul>
-                    {this.state.platforms.map(function (platform) {
-                        return (
-                            <li>
-                                {platform.name} ({platform.uuid})
-                                <ul>
-                                    {platform.agents.map(function (agent) {
-                                        return (
-                                            <li>{agent.name} ({agent.uuid})</li>
-                                        );
-                                    })}
-                                </ul>
-                            </li>
-                        );
-                    })}
-                </ul>
-            );
+            platforms = this.state.platforms.map(function (platform) {
+                var agents;
+
+                if (!platform.agents) {
+                    agents = (
+                        <p>Loading agents...</p>
+                    );
+                } else if (!platform.agents.length) {
+                    agents = (
+                        <p>No agents installed.</p>
+                    );
+                } else {
+                    agents = (
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Agent</th>
+                                    <th>UUID</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {platform.agents.map(function (agent) {
+                                    return (
+                                        <tr key={agent.uuid}>
+                                            <td>{agent.name}</td>
+                                            <td>{agent.uuid}</td>
+                                            <td>{agent.lastStatus || 'Retrieving status...'}</td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    );
+                }
+
+                return (
+                    <div className="platform" key={platform.uuid}>
+                        <h2>{platform.name} ({platform.uuid})</h2>
+                        {agents}
+                    </div>
+                );
+            });
         }
 
         return (
