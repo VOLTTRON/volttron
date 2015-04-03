@@ -1,7 +1,5 @@
 'use strict';
 
-var Promise = require('bluebird');
-
 var ACTION_TYPES = require('../constants/action-types');
 var dispatcher = require('../dispatcher');
 var platformManagerStore = require('../stores/platform-manager-store');
@@ -52,21 +50,52 @@ var platformManagerActionCreators = {
             authorization: authorization,
         }).promise
             .then(function (platforms) {
-                return Promise.all(platforms.map(function (platform) {
-                    return new rpc.Exchange({
-                        method: 'platforms.uuid.' + platform.uuid + '.listAgents',
-                        authorization: authorization,
-                    }).promise
-                        .then(function (agents) {
-                            platform.agents = agents;
-                            return platform;
-                        });
-                }));
-            })
-            .then(function (platforms) {
                 dispatcher.dispatch({
                     type: ACTION_TYPES.RECEIVE_PLATFORMS,
                     platforms: platforms,
+                });
+
+                platforms.forEach(function (platform) {
+                    new rpc.Exchange({
+                        method: 'platforms.uuid.' + platform.uuid + '.listAgents',
+                        authorization: authorization,
+                    }).promise
+                        .then(function (agentsList) {
+                            platform.agents = agentsList;
+
+                            dispatcher.dispatch({
+                                type: ACTION_TYPES.RECEIVE_PLATFORM,
+                                platform: platform,
+                            });
+
+                            new rpc.Exchange({
+                                method: 'platforms.uuid.' + platform.uuid + '.statusAgents',
+                                authorization: authorization,
+                            }).promise
+                                .then(function (agentStatuses) {
+                                    platform.agents.forEach(function (agent) {
+                                        if (!agentStatuses.some(function (status) {
+                                            if (agent.uuid === status.uuid) {
+                                                agent.actionPending = false;
+                                                agent.process_id = status.process_id;
+                                                agent.return_code = status.return_code;
+
+                                                return true;
+                                            }
+                                        })) {
+                                            agent.actionPending = false;
+                                            agent.process_id = null;
+                                            agent.return_code = null;
+                                        }
+
+                                    });
+
+                                    dispatcher.dispatch({
+                                        type: ACTION_TYPES.RECEIVE_PLATFORM,
+                                        platform: platform,
+                                    });
+                                });
+                        });
                 });
             })
             .catch(function (error) {
@@ -78,6 +107,58 @@ var platformManagerActionCreators = {
                 } else {
                     throw error;
                 }
+            });
+    },
+    startAgent: function (platform, agent) {
+        var authorization = platformManagerStore.getAuthorization();
+
+        agent.actionPending = true;
+
+        dispatcher.dispatch({
+            type: ACTION_TYPES.RECEIVE_PLATFORM,
+            platform: platform,
+        });
+
+        new rpc.Exchange({
+            method: 'platforms.uuid.' + platform.uuid + '.startAgent',
+            params: [agent.uuid],
+            authorization: authorization,
+        }).promise
+            .then(function (status) {
+                agent.actionPending = false;
+                agent.process_id = status.process_id;
+                agent.return_code = status.return_code;
+
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.RECEIVE_PLATFORM,
+                    platform: platform,
+                });
+            });
+    },
+    stopAgent: function (platform, agent) {
+        var authorization = platformManagerStore.getAuthorization();
+
+        agent.actionPending = true;
+
+        dispatcher.dispatch({
+            type: ACTION_TYPES.RECEIVE_PLATFORM,
+            platform: platform,
+        });
+
+        new rpc.Exchange({
+            method: 'platforms.uuid.' + platform.uuid + '.stopAgent',
+            params: [agent.uuid],
+            authorization: authorization,
+        }).promise
+            .then(function (status) {
+                agent.actionPending = false;
+                agent.process_id = status.process_id;
+                agent.return_code = status.return_code;
+
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.RECEIVE_PLATFORM,
+                    platform: platform,
+                });
             });
     },
 };

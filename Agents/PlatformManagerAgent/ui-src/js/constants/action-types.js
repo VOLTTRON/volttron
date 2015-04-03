@@ -18,4 +18,5 @@ module.exports = keyMirror({
     CHANGE_PAGE: null,
 
     RECEIVE_PLATFORMS: null,
+    RECEIVE_PLATFORM: null,
 });
