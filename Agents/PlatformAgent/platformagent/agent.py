@@ -115,22 +115,24 @@ def PlatformAgent(config_path, **kwargs):
 
         @export()
         def dispatch(self, method, params):
-
-            agents = self.list_agents()
-
-            ctl_methods = ('list_agents', 'status_agents', 'agent_status',
-                           'start_agent', 'stop_agent')
-
             # First handle the platform control functionality before dispatching
             # to the individual agents.
             if method == 'list_agents':
                 return self.rpc_call('control', method).get()
+
             if method == 'status_agents':
                 return [{'name':a[1], 'uuid': a[0], 'process_id': a[2][0],
                          'return_code': a[2][1]}
                         for a in self.rpc_call('control', method).get()]
-            if method in ctl_methods:
-                return self.rpc_call('control', method, params).get()
+
+            if method == 'agent_status':
+                status = self.rpc_call('control', method, params).get()
+                return {'process_id': status[0], 'return_code': status[1]}
+
+            if method in ['start_agent', 'stop_agent']:
+                self.rpc_call('control', method, params).get()
+                status = self.rpc_call('control', 'agent_status', params).get()
+                return {'process_id': status[0], 'return_code': status[1]}
 
             fields = method.split('.')
 
