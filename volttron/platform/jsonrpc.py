@@ -62,7 +62,6 @@ See http://www.jsonrpc.org/specification for the complete specification.
 
 
 from contextlib import contextmanager
-import sys
 
 
 __all__ = ['Error', 'MethodNotFound', 'RemoteError', 'Dispatcher']
@@ -133,37 +132,17 @@ class RemoteError(Exception):
     stringified versions of the tuple returned from sys.exc_info().
     """
 
-    def __init__(self, message, exc_type=None, exc_args=None, exc_tb=None):
-        args = (message,)
-        super(RemoteError, self).__init__(*args)   # pylint: disable=star-args
+    def __init__(self, message, exc_info):
+        super(RemoteError, self).__init__(message)
         self.message = message
-        self.exc_type = exc_type
-        self.exc_args = tuple(exc_args) if exc_args else ()
-        self.exc_tb = exc_tb
-
-    def __str__(self):
-        return '{}({})'.format(self.exc_type or '<unknown>',
-                               ', '.join(repr(arg) for arg in self.exc_args))
-
-    def print_tb(self, file=sys.stderr):
-        '''Pretty print the traceback in the standard format.'''
-        # pylint: disable=redefined-builtin
-        lines = ['Remote Traceback (most recent call last):\n']
-        if self.exc_tb:
-            lines.append(self.exc_tb)
-        lines.append(
-            '{}: {}\n'.format(self.exc_type or '<unknown>', self.message))
-        file.writelines(lines)
+        self.exc_info = exc_info
 
 
-def make_exception(code, message, data=None):
+def exception_from_json(code, message, data=None):
     '''Return an exception suitable for raising in a caller.'''
     if code == UNHANDLED_EXCEPTION:
-        exc_info = data.get('exception.py')
-        if exc_info:
-            return RemoteError(
-                data.get('detail', message), exc_type=exc_info.get('type'),
-                exc_args=exc_info.get('args'), exc_tb=exc_info.get('traceback'))
+        return RemoteError(data.get('detail', message),
+                           data.get('exception.py', {}))
     elif code == METHOD_NOT_FOUND:
         return MethodNotFound(code, message, data)
     return Error(code, message, data)
@@ -239,13 +218,12 @@ class Dispatcher(object):
         context manager.
 
         This method should raise NotImplementedError() if the method is
-        unimplemented. Otherwise, it should return a 2-tuple: error,
-        result.  If an exception was caught, error must be a dictionary,
-        containing the data portion of a JSON error, and result will be
-        ignored. The error dictionary should at least contain a 'detail'
-        key with the error details. If no errors occurred, error should
-        be None and result will be returned in a JSON result, which must
-        be serializable.
+        unimplemented. Otherwise, it should return the result of the
+        method call or raise an exception. If the raised exception has a
+        traceback attribute, which should be a string (if set), it will
+        be sent back in the returned error. An exc_info attribute may
+        also be set which must be a dictionary and will be used as the
+        basis for the exception.py member of the returned error.
         '''
         raise NotImplementedError()
 
@@ -340,14 +318,32 @@ class Dispatcher(object):
                     detail='expected a list or dictionary (object); '
                            'got a {!r} instead'.format(type(params).__name__))
             try:
-                error, result = self.method(msg, ident, name, args, kwargs,
-                                            batch=batch, context=context)
+                result = self.method(msg, ident, name, args, kwargs,
+                                     batch=batch, context=context)
             except NotImplementedError:
+                if ident is None:
+                    return
                 return json_error(
                     ident, METHOD_NOT_FOUND, 'unimplemented method',
                     detail='method {!r} is not implemented'.format(name))
+            except Exception as exc:   # pylint: disable=broad-except
+                if ident is None:
+                    return
+                exc_info = getattr(exc, 'exc_info', {})
+                if 'exc_type' not in exc_info:
+                    exc_type = type(exc)
+                    if exc_type.__module__ == 'exceptions':
+                        exc_info['exc_type'] = exc_type.__name__
+                    else:
+                        exc_info['exc_type'] = '.'.join(
+                            [exc_type.__module__, exc_type.__name__])
+                if 'exc_args' not in exc_info:
+                    try:
+                        exc_info['exc_args'] = exc.args
+                    except AttributeError:
+                        pass
+                error = {'detail': str(exc), 'exception.py': exc_info}
+                return json_error(ident, UNHANDLED_EXCEPTION,   # pylint: disable=star-args
+                                  'unhandled exception', **error)
             if ident is not None:
-                if error:
-                    return json_error(ident, UNHANDLED_EXCEPTION,   # pylint: disable=star-args
-                                      'unhandled exception', **error)
                 return json_result(ident, result)
