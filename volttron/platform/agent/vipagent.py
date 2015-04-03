@@ -67,8 +67,6 @@ import sys
 import traceback
 import weakref
 
-#import monotonic
-
 import gevent
 from gevent.event import AsyncResult
 from zmq import EAGAIN, ZMQError
@@ -308,7 +306,7 @@ class RPCDispatcher(jsonrpc.Dispatcher):
             result = self._results.pop(ident)
         except KeyError:
             return
-        result.set_exception(jsonrpc.make_exception(code, message, data))
+        result.set_exception(jsonrpc.exception_from_json(code, message, data))
 
     def exception(self, response, ident, message, context=None):
         # XXX: Should probably wrap exception in RPC specific error
@@ -331,43 +329,24 @@ class RPCDispatcher(jsonrpc.Dispatcher):
             method = self.methods[name]
         except KeyError:
             if name == 'inspect':
-                return None, {'methods': self.methods.keys()}
+                return {'methods': self.methods.keys()}
             elif name.endswith('.inspect'):
                 try:
                     method = self.methods[name[:-8]]
                 except KeyError:
                     pass
                 else:
-                    return None, self._inspect(method)
+                    return self._inspect(method)
             raise NotImplementedError(name)
         try:
-            return None, method(*args, **kwargs)   # pylint: disable=star-args
-        except Exception:   # pylint: disable=broad-except
+            return method(*args, **kwargs)   # pylint: disable=star-args
+        except Exception as exc:   # pylint: disable=broad-except
+            exc_tb = traceback.format_exc()
             _log.error('unhandled exception in JSON-RPC method %r: \n%s',
-                       name, traceback.format_exc())
-            if ident is None:
-                return None, None
-            exc_type, exc, exc_tb = sys.exc_info()
-            exc_class = '{0.__module__}.{0.__name__}'.format(exc_type)
-            exc_info = {'type': exc_class, 'args': exc.args}
-            error = {'detail': str(exc), 'exception.py': exc_info}
-            tb_limit = getattr(method, 'tb_limit', None)
-            if tb_limit != 0:
-                tb_max, tb_next = 1, exc_tb.tb_next
-                while tb_next:
-                    tb_max, tb_next = tb_max + 1, tb_next.tb_next
-                if tb_limit is None or abs(tb_limit) >= tb_max:
-                    trace = traceback.format_tb(exc_tb)
-                elif tb_limit < 0:
-                    trace = traceback.format_tb(exc_tb)[tb_limit:]
-                    trace.insert(0, '  [... traceback limited to last '
-                                 '{} frames]'.format(-tb_limit))
-                else:
-                    trace = traceback.format_tb(exc_tb, tb_limit)
-                    trace.append('  [... traceback limited to first '
-                                 '{} frames]'.format(tb_limit))
-                exc_info['traceback'] = trace
-            return error, None
+                       name, exc_tb)
+            if getattr(method, 'traceback', True):
+                exc.exc_info = {'exc_tb': exc_tb}
+            raise
 
     def _inspect(self, method):
         params = inspect.getargspec(method)
@@ -445,4 +424,3 @@ class RPCMixin(object):
 
 class RPCAgent(VIPAgent, RPCMixin):
     pass
-
