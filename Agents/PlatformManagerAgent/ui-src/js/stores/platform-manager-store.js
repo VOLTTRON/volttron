@@ -47,6 +47,10 @@ platformManagerStore.dispatchToken = dispatcher.register(function (action) {
             _platforms = action.platforms;
             platformManagerStore.emitChange();
             break;
+
+        case ACTION_TYPES.RECEIVE_PLATFORM:
+            platformManagerStore.emitChange();
+            break;
     }
 });
 

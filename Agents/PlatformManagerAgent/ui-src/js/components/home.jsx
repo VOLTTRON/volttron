@@ -2,6 +2,7 @@
 
 var React = require('react');
 
+var AgentRow = require('./agent-row');
 var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
 var platformManagerStore = require('../stores/platform-manager-store');
 
@@ -48,16 +49,16 @@ var Home = React.createClass({
                                     <th>Agent</th>
                                     <th>UUID</th>
                                     <th>Status</th>
+                                    <th>Action</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {platform.agents.map(function (agent) {
                                     return (
-                                        <tr key={agent.uuid}>
-                                            <td>{agent.name}</td>
-                                            <td>{agent.uuid}</td>
-                                            <td>{agent.lastStatus || 'Retrieving status...'}</td>
-                                        </tr>
+                                        <AgentRow
+                                            key={agent.uuid}
+                                            platform={platform}
+                                            agent={agent} />
                                     );
                                 })}
                             </tbody>

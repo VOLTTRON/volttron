@@ -64,8 +64,8 @@ var platformManagerActionCreators = {
                             platform.agents = agentsList;
 
                             dispatcher.dispatch({
-                                type: ACTION_TYPES.RECEIVE_PLATFORMS,
-                                platforms: platforms,
+                                type: ACTION_TYPES.RECEIVE_PLATFORM,
+                                platform: platform,
                             });
 
                             new rpc.Exchange({
@@ -76,22 +76,23 @@ var platformManagerActionCreators = {
                                     platform.agents.forEach(function (agent) {
                                         if (!agentStatuses.some(function (status) {
                                             if (agent.uuid === status.uuid) {
-                                                if (status.return_code !== null) {
-                                                    agent.lastStatus = 'Stopped (returned ' + status.return_code + ')';
-                                                } else if (status.process_id !== null) {
-                                                    agent.lastStatus = 'Running (PID ' + status.process_id + ')';
-                                                }
+                                                agent.actionPending = false;
+                                                agent.process_id = status.process_id;
+                                                agent.return_code = status.return_code;
 
                                                 return true;
                                             }
                                         })) {
-                                            agent.lastStatus = 'Never started';
+                                            agent.actionPending = false;
+                                            agent.process_id = null;
+                                            agent.return_code = null;
                                         }
+
                                     });
 
                                     dispatcher.dispatch({
-                                        type: ACTION_TYPES.RECEIVE_PLATFORMS,
-                                        platforms: platforms,
+                                        type: ACTION_TYPES.RECEIVE_PLATFORM,
+                                        platform: platform,
                                     });
                                 });
                         });
@@ -106,6 +107,58 @@ var platformManagerActionCreators = {
                 } else {
                     throw error;
                 }
+            });
+    },
+    startAgent: function (platform, agent) {
+        var authorization = platformManagerStore.getAuthorization();
+
+        agent.actionPending = true;
+
+        dispatcher.dispatch({
+            type: ACTION_TYPES.RECEIVE_PLATFORM,
+            platform: platform,
+        });
+
+        new rpc.Exchange({
+            method: 'platforms.uuid.' + platform.uuid + '.startAgent',
+            params: [agent.uuid],
+            authorization: authorization,
+        }).promise
+            .then(function (status) {
+                agent.actionPending = false;
+                agent.process_id = status.process_id;
+                agent.return_code = status.return_code;
+
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.RECEIVE_PLATFORM,
+                    platform: platform,
+                });
+            });
+    },
+    stopAgent: function (platform, agent) {
+        var authorization = platformManagerStore.getAuthorization();
+
+        agent.actionPending = true;
+
+        dispatcher.dispatch({
+            type: ACTION_TYPES.RECEIVE_PLATFORM,
+            platform: platform,
+        });
+
+        new rpc.Exchange({
+            method: 'platforms.uuid.' + platform.uuid + '.stopAgent',
+            params: [agent.uuid],
+            authorization: authorization,
+        }).promise
+            .then(function (status) {
+                agent.actionPending = false;
+                agent.process_id = status.process_id;
+                agent.return_code = status.return_code;
+
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.RECEIVE_PLATFORM,
+                    platform: platform,
+                });
             });
     },
 };
