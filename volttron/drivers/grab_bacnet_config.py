@@ -267,6 +267,8 @@ try:
                     #writable = 'TRUE'
                 except TypeError:
                     pass
+                except ValueError:
+                    pass
         
             if not object_notes:
                 enum_strings=[]
@@ -307,6 +309,8 @@ try:
                         object_units_details = object_units_details.strip()
                         #writable = 'TRUE'
                     except TypeError:
+                        pass
+                    except ValueError:
                         pass
                     
             elif obj_type == 'loop':
@@ -358,6 +362,8 @@ try:
                         object_units_details = object_units_details.strip()
                         #writable = 'TRUE'
                     except TypeError:
+                        pass
+                    except ValueError:
                         pass
        
         _log.debug('  object units = ' + str(object_units))
