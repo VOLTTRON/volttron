@@ -64,13 +64,11 @@ import inspect
 import logging
 import os
 import sys
+import traceback
 import weakref
-
-#import monotonic
 
 import gevent
 from gevent.event import AsyncResult
-import zmq.green as zmq
 from zmq import EAGAIN, ZMQError
 from zmq.utils import jsonapi
 
@@ -84,23 +82,26 @@ _VOLTTRON_PATH = os.path.dirname(volttron.__path__[-1]) + os.sep
 del volttron
 
 
-_log = logging.getLogger(__name__)
+_log = logging.getLogger(__name__)   # pylint: disable=invalid-name
 
 
-class periodic(object):
+class periodic(object):   # pylint: disable=invalid-name
+    '''Decorator to set a method up as a periodic callback.
+
+    The decorated method will be called with the given arguments every
+    period seconds while the agent is executing its run loop.
+    '''
+
     def __init__(self, period, args=None, kwargs=None, wait=False):
-        '''Decorator to set a method up as a periodic callback.
-
-        The decorated method will be called with the given arguments every
-        period seconds while the agent is executing its run loop.
-        '''
-
+        '''Store period and arguments to call method with.'''
         self.period = period
         self.args = args or ()
         self.kwargs = kwargs or {}
         self.wait = wait
 
     def __call__(self, method):
+        '''Attach this object instance to the given method.'''
+        # pylint: disable=protected-access
         try:
             periodics = method._periodics
         except AttributeError:
@@ -109,6 +110,7 @@ class periodic(object):
         return method
 
     def _loop(self, method):
+        # pylint: disable=missing-docstring
         if self.wait:
             gevent.sleep(self.period)
         while True:
@@ -116,12 +118,14 @@ class periodic(object):
             gevent.sleep(self.period)
 
     def get(self, method):
+        '''Return a Greenlet for the given method.'''
         return gevent.Greenlet(self._loop, method)
 
 
 def subsystem(name):
     '''Decorator to set a method as a subsystem callback.'''
     def decorate(method):
+        # pylint: disable=protected-access,missing-docstring
         try:
             subsystems = method._vip_subsystems
         except AttributeError:
@@ -132,8 +136,16 @@ def subsystem(name):
 
 
 def onevent(event, args=None, kwargs=None):
-    assert event in ['setup', 'connect', 'start', 'stop', 'disconnect', 'finish']
+    '''Decorator to call method on given event trigger during agent run.
+
+    Decorated method will be called with args and kwargs (if given) in
+    the same greenlet as the communications loop, meaning that no
+    communications can occur while while the method is running.
+    '''
+    assert event in ['setup', 'connect', 'start',
+                     'finish', 'disconnect', 'stop']
     def decorate(method):
+        # pylint: disable=protected-access,missing-docstring
         try:
             events = method._event_callbacks
         except AttributeError:
@@ -143,12 +155,19 @@ def onevent(event, args=None, kwargs=None):
     return decorate
 
 
-class VIPAgent(object):
-    '''Base class for creating VOLTTRON platform™ agents.
+def spawn(method):
+    '''Run a decorated method in its own greenlet, which is returned.'''
+    @functools.wraps(method)
+    def wrapper(*args, **kwargs):
+        return gevent.spawn(method, *args, **kwargs)
+    return wrapper
 
-    This class can be used as is, but it won't do much.  It will sit and
-    do nothing but listen for messages and exit when the platform
-    shutdown message is received.  That is it.
+
+class VIPAgent(object):
+    '''Base class for creating VOLTTRON platform agents.
+
+    This class can be used as is, but it won't do much. It will sit and
+    do nothing but listen for messages and exit when told to. That is it.
     '''
 
     def __init__(self, vip_address, vip_identity=None, **kwargs):
@@ -179,8 +198,8 @@ class VIPAgent(object):
         '''
         def _trigger_event(event):
             for callback, args, kwargs in self._event_callbacks.get(event, ()):
-                callback(*args, **kwargs)
-        self.vip_socket = vip.Socket()
+                callback(*args, **kwargs)   # pylint: disable=star-args
+        self.vip_socket = vip.Socket()   # pylint: disable=attribute-defined-outside-init
         if self.vip_identity:
             self.vip_socket.identity = self.vip_identity
         _trigger_event('setup')
@@ -239,103 +258,97 @@ class VIPAgent(object):
         print('VIP error', message)
 
 
-class Dispatcher(jsonrpc.Dispatcher):
-    def __init__(self, call, traceback_limit=0):
-        super(Dispatcher, self).__init__(traceback_limit=traceback_limit)
-        self._call = call
+class RPCDispatcher(jsonrpc.Dispatcher):
+    def __init__(self, methods):
+        super(RPCDispatcher, self).__init__()
+        self.methods = methods
         self._results = weakref.WeakValueDictionary()
 
-    def add_result(self):
+    def _add_result(self):
         result = AsyncResult()
         ident = id(result)
         self._results[ident] = result
         return ident, result
 
-    def serialize(self, msg):
-        return jsonapi.dumps(msg)
+    def serialize(self, json_obj):
+        return jsonapi.dumps(json_obj)
 
     def deserialize(self, json_string):
         return jsonapi.loads(json_string)
 
-    def handle_method(self, msg, ident, method, args, kwargs):
-        return self._call(method, args, kwargs)
-        #raise NotImplementedError()
+    def batch_call(self, requests):
+        methods = []
+        results = []
+        for notify, method, args, kwargs in requests:
+            if notify:
+                ident = None
+            else:
+                ident, result = self._add_result()
+                results.append(result)
+            methods.append((ident, method, args, kwargs))
+        return super(RPCDispatcher, self).batch_call(methods), results
 
-    def handle_result(self, msg, ident, value):
+    def call(self, method, args=None, kwargs=None):
+        # pylint: disable=arguments-differ
+        ident, result = self._add_result()
+        return super(RPCDispatcher, self).call(
+            ident, method, args, kwargs), result
+
+    def result(self, response, ident, value, context=None):
         try:
             result = self._results.pop(ident)
         except KeyError:
             return
         result.set(value)
 
-    def handle_error(self, msg, ident, code, message, data=None):
+    def error(self, response, ident, code, message, data=None, context=None):
         try:
             result = self._results.pop(ident)
         except KeyError:
             return
-        result.set_exception(jsonrpc.make_exception(code, message, data))
+        result.set_exception(jsonrpc.exception_from_json(code, message, data))
 
-    def handle_exception(self, msg, ident, message):
-        exc_type, exc, exc_tb = sys.exc_info()
+    def exception(self, response, ident, message, context=None):
+        # XXX: Should probably wrap exception in RPC specific error
+        #      rather than re-raising.
+        exc_type, exc, exc_tb = sys.exc_info()   # pylint: disable=unused-variable
         try:
             result = self._results.pop(ident)
         except KeyError:
             return
         result.set_exception(exc)
 
-
-def spawn(method):
-    @functools.wraps(method)
-    def wrapper(*args, **kwargs):
-        gevent.spawn(method, *args, **kwargs)
-    return wrapper
-
-
-def export(name=None):
-    def decorate(method):
+    def method(self, request, ident, name, args, kwargs,
+               batch=None, context=None):
+        if kwargs:
+            try:
+                args, kwargs = kwargs['*args'], kwargs['**kwargs']
+            except KeyError:
+                pass
         try:
-            exports = method._rpc_exports
-        except AttributeError:
-            method._rpc_exports = exports = []
-        exports.append(name or method.__name__)
-        return method
-    return decorate
+            method = self.methods[name]
+        except KeyError:
+            if name == 'inspect':
+                return {'methods': self.methods.keys()}
+            elif name.endswith('.inspect'):
+                try:
+                    method = self.methods[name[:-8]]
+                except KeyError:
+                    pass
+                else:
+                    return self._inspect(method)
+            raise NotImplementedError(name)
+        try:
+            return method(*args, **kwargs)   # pylint: disable=star-args
+        except Exception as exc:   # pylint: disable=broad-except
+            exc_tb = traceback.format_exc()
+            _log.error('unhandled exception in JSON-RPC method %r: \n%s',
+                       name, exc_tb)
+            if getattr(method, 'traceback', True):
+                exc.exc_info = {'exc_tb': exc_tb}
+            raise
 
-
-class RPCMixin(object):
-    @onevent('setup')
-    def setup_rpc_subsystem(self):
-        self._rpc_exports = {}
-        def setup(member):
-            for name in getattr(member, '_rpc_exports', ()):
-                self._rpc_exports[name] = member
-        inspect.getmembers(self, setup)
-        self._rpc_dispatcher = Dispatcher(self._call_rpc_method)
-
-    @subsystem('RPC')
-    @spawn
-    def handle_rpc_message(self, message):
-        dispatch = self._rpc_dispatcher.dispatch
-        responses = filter(None, (dispatch(arg) for arg in message.args))
-        if responses:
-            message.user = ''
-            message.args = responses
-            self.vip_socket.send_vip_object(message)
-
-    def rpc_call(self, peer, method, args=None, kwargs=None):
-        rpc = self._rpc_dispatcher
-        ident, result = rpc.add_result()
-        args = [rpc.serialize(jsonrpc._method(ident, method, args, kwargs))]
-        self.vip_socket.send_vip(peer, 'RPC', args, msg_id=str(ident))
-        return result
-
-    def rpc_notify(self, peer, method, args, kwargs):
-        rpc = self._rpc_dispatcher
-        args = [rpc.serialize(jsonrpc._method(None, method, args, kwargs))]
-        self.vip_socket.send_vip(peer, 'RPC', args)
-
-    def _introspect(self, method):
-        #import pdb; pdb.set_trace()
+    def _inspect(self, method):
         params = inspect.getargspec(method)
         if hasattr(method, 'im_self'):
             params.args.pop(0)
@@ -353,29 +366,61 @@ class RPCMixin(object):
         else:
             response['source'] = source, lineno
         try:
+            # pylint: disable=protected-access
             response['return'] = method._returns
         except AttributeError:
             pass
         return response
 
-    def _call_rpc_method(self, method_name, args, kwargs):
+
+def export(name=None):
+    def decorate(method):
+        # pylint: disable=protected-access,attribute-defined-outside-init
         try:
-            method = self._rpc_exports[method_name]
-        except KeyError:
-            if method_name == 'introspect':
-                return {'methods': self._rpc_exports.keys()}
-            elif method_name.endswith('.introspect'):
-                base_name = method_name[:-11]
-                try:
-                    method = self._rpc_exports[base_name]
-                except KeyError:
-                    pass
-                else:
-                    return self._introspect(method)
-            raise NotImplementedError(method_name)
-        return method(*args, **kwargs)
+            exports = method._rpc_exports
+        except AttributeError:
+            method._rpc_exports = exports = []
+        exports.append(name or method.__name__)
+        return method
+    return decorate
+
+
+class RPCMixin(object):
+    @onevent('setup')
+    def setup_rpc_subsystem(self):
+        # pylint: disable=attribute-defined-outside-init
+        self._rpc_exports = {}
+        def setup(member):
+            for name in getattr(member, '_rpc_exports', ()):
+                self._rpc_exports[name] = member
+        inspect.getmembers(self, setup)
+        self._rpc_dispatcher = RPCDispatcher(self._rpc_exports)
+
+    @subsystem('RPC')
+    @spawn
+    def handle_rpc_message(self, message):
+        dispatch = self._rpc_dispatcher.dispatch
+        responses = [response for response in (
+            dispatch(msg, message) for msg in message.args) if response]
+        if responses:
+            message.user = ''
+            message.args = responses
+            self.vip_socket.send_vip_object(message)
+
+    def rpc_batch(self, peer, requests):
+        request, results = self._rpc_dispatcher.batch_call(requests)
+        self.vip_socket.send_vip(peer, 'RPC', [request])
+        return results or None
+
+    def rpc_call(self, peer, method, args=None, kwargs=None):
+        request, result = self._rpc_dispatcher.call(method, args, kwargs)
+        self.vip_socket.send_vip(peer, 'RPC', [request], msg_id=str(id(result)))
+        return result
+
+    def rpc_notify(self, peer, method, args, kwargs):
+        request = self._rpc_dispatcher.notify(method, args, kwargs)
+        self.vip_socket.send_vip(peer, 'RPC', [request])
 
 
 class RPCAgent(VIPAgent, RPCMixin):
     pass
-
