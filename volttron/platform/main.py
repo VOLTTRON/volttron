@@ -104,7 +104,8 @@ def log_to_file(file_, level=logging.WARNING,
     handler.setFormatter(utils.AgentFormatter(
         '%(asctime)s %(composite_name)s %(levelname)s: %(message)s'))
     root = logging.getLogger()
-    root.setLevel(level)
+    if root.level < level:
+        root.setLevel(level)
     root.addHandler(handler, **kwargs)
 
 
@@ -184,11 +185,39 @@ def configure_logging(conf_path):
         return conf_path, exc
 
 
+class LogLevelAction(argparse.Action):
+    '''Action to set the log level of individual modules.'''
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        for pair in values.split(','):
+            if not pair.strip():
+                continue
+            try:
+                logger_name, level_name = pair.rsplit(':', 1)
+            except (ValueError, TypeError):
+                raise argparse.ArgumentError(
+                    self, 'invalid log level pair: {}'.format(values))
+            try:
+                level = int(level_name)
+            except (ValueError, TypeError):
+                try:
+                    level = getattr(logging, level_name)
+                except AttributeError:
+                    raise argparse.ArgumentError(
+                        self, 'invalid log level {!r}'.format(level_name))
+            logger = logging.getLogger(logger_name)
+            logger.setLevel(level)
+
+
+
 class Router(vip.BaseRouter):
     '''Concrete VIP router.'''
     def __init__(self, addresses, context=None):
         super(Router, self).__init__(context=context)
         self.addresses = addresses
+        self.logger = logging.getLogger('vip.router')
+        if self.logger.level == logging.NOTSET:
+            self.logger.setLevel(logging.INFO)
 
     def setup(self):
         self.socket.bind('inproc://vip')
@@ -196,7 +225,8 @@ class Router(vip.BaseRouter):
             self.socket.bind(address)
 
     def log(self, level, message, frames):
-        _log.log(level, '%s: %s', message, frames and [bytes(f) for f in frames])
+        self.logger.log(level, '%s: %s', message,
+                        frames and [bytes(f) for f in frames])
 
     def run(self):
         self.start()
@@ -301,6 +331,9 @@ def main(argv=sys.argv):
         help='read logging configuration from FILE')
     parser.add_argument('--log-backupcount', metavar='COUNT', default=7, type=int, 
         help='set number of backup log files')
+    parser.add_argument(
+        '--log-level', metavar='LOGGER:LEVEL', action=LogLevelAction,
+        help='override default logger logging level')
     parser.add_argument(
         '-q', '--quiet', action='add_const', const=10, dest='verboseness',
         help='decrease logger verboseness; may be used multiple times')
@@ -423,7 +456,12 @@ def main(argv=sys.argv):
     conf = os.path.join(volttron_home, 'config')
     if os.path.exists(conf) and 'SKIP_VOLTTRON_CONFIG' not in os.environ:
         args = ['--config', conf] + args
+    logging.getLogger().setLevel(logging.NOTSET)
     opts = parser.parse_args(args)
+    if opts.log:
+        opts.log = config.expandall(opts.log)
+    if opts.log_config:
+        opts.log_config = config.expandall(opts.log_config)
     opts.publish_address = config.expandall(opts.publish_address)
     opts.subscribe_address = config.expandall(opts.subscribe_address)
     opts.vip_address = [config.expandall(addr) for addr in opts.vip_address]

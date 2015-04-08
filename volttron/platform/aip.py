@@ -146,6 +146,12 @@ def _log_stream(name, agent, pid, level, stream):
             except Exception:
                 pass
             else:
+                if record.name in log.manager.loggerDict:
+                    if not logging.getLogger(
+                            record.name).isEnabledFor(record.levelno):
+                        continue
+                elif not log.isEnabledFor(record.levelno):
+                    continue
                 record.remote_name, record.name = record.name, name
                 record.__dict__.update(extra)
                 log.handle(record)
@@ -160,10 +166,11 @@ def log_stream(name, agent, pid, path, stream):
     extra = {'processName': agent, 'process': pid}
     unset = {'thread': None, 'threadName': None, 'module': None}
     for level, line in stream:
-        record = logging.LogRecord(name, level, path, 0, line, [], None)
-        record.__dict__.update(extra)
-        record.__dict__.update(unset)
-        log.handle(record)
+        if log.isEnabledFor(level):
+            record = logging.LogRecord(name, level, path, 0, line, [], None)
+            record.__dict__.update(extra)
+            record.__dict__.update(unset)
+            log.handle(record)
 
 
 class IgnoreErrno(object):
