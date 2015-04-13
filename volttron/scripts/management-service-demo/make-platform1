@@ -2,8 +2,8 @@ VOLTTRON_HOME=$HOME/v1home
 
 WHEEL=$VOLTTRON_HOME/packaged/platformagentagent-0.1-py2-none-any.whl
 
-volttron-pkg package Agents/PlatformAgent/
-volttron-pkg configure $WHEEL Agents/PlatformAgent/config1
+volttron-pkg package ../../../Agents/PlatformAgent/
+volttron-pkg configure $WHEEL ./platform-config1
 
 volttron-ctl stop --tag platformagent
 volttron-ctl remove --tag platformagent

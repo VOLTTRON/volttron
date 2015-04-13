@@ -1,7 +1,7 @@
 WHEEL=$VOLTTRON_HOME/packaged/helloagent-0.1-py2-none-any.whl
 
-volttron-pkg package Agents/HelloAgent/
-volttron-pkg configure $WHEEL Agents/HelloAgent/config1
+volttron-pkg package ../../../Agents/HelloAgent/
+volttron-pkg configure $WHEEL ./hello-config1
 
 volttron-ctl stop --tag helloagent
 volttron-ctl remove --tag helloagent
