@@ -69,6 +69,7 @@ import weakref
 
 import gevent
 from gevent.event import AsyncResult
+import zmq
 from zmq import EAGAIN, ZMQError
 from zmq.utils import jsonapi
 
@@ -420,6 +421,76 @@ class RPCMixin(object):
     def rpc_notify(self, peer, method, args, kwargs):
         request = self._rpc_dispatcher.notify(method, args, kwargs)
         self.vip_socket.send_vip(peer, 'RPC', [request])
+
+
+class ChannelMixin(object):
+    @onevent('setup')
+    def setup_channel_subsystem(self):
+        # pylint: disable=attribute-defined-outside-init
+        self._channel_map = weakref.WeakValueDictionary()
+        self._channel_socket = zmq.Context.instance().socket(zmq.ROUTER)
+
+    @onevent('connect')
+    def connect_channel_subsystem(self):
+        self._channel_socket.bind('inproc://subsystem/channel')
+
+    @onevent('disconnect')
+    def disconnect_channel_subsystem(self):
+        self._channel_socket.unbind('inproc://subsystem/channel')
+
+    @onevent('start')
+    def start_channel_subsystem(self):
+        socket = self._channel_socket
+        def loop():
+            while True:
+                message = socket.recv_multipart(copy=False)
+                ident = message[0]
+                try:
+                    channel = self._channel_map[ident]
+                except KeyError:
+                    continue
+                try:
+                    peer = object.__getattribute__(channel, '_ch_peer')
+                    name = object.__getattribute__(channel, '_ch_name')
+                except AttributeError:
+                    continue
+                more = len(message) > 1
+                self.vip_socket.send_vip(peer, 'channel', [name],
+                                         flags=zmq.SNDMORE if more else 0)
+                if more:
+                    self.vip_socket.send_multipart(message[1:], copy=False)
+        self._channel_subsystem = gevent.spawn(loop)   # pylint: disable=attribute-defined-outside-init
+
+    @onevent('stop')
+    def stop_channel_subsystem(self):
+        greenlet = getattr(self, '_channel_subsystem', None)
+        if greenlet is not None:
+            greenlet.kill()
+
+    @subsystem('channel')
+    def handle_channel_message(self, message):
+        try:
+            name = message.args[0]
+        except IndexError:
+            return
+        ident = hex(hash((message.peer, name)))
+        more = len(message.args) > 1
+        socket = self._channel_socket
+        socket.send(ident, flags=zmq.SNDMORE if more else 0)
+        if more:
+            socket.send_multipart(message.args[1:])
+
+    def channel_create(self, peer, name):
+        ident = hex(hash((peer, name)))
+        if ident in self._channel_map:
+            raise KeyError('channel %r exists for peer %r' % (name, peer))
+        socket = zmq.Context.instance().socket(zmq.DEALER)
+        object.__setattr__(socket, '_ch_peer', peer)
+        object.__setattr__(socket, '_ch_name', name)
+        socket.identity = ident
+        socket.connect('inproc://subsystem/channel')
+        self._channel_map[ident] = socket
+        return socket
 
 
 class RPCAgent(VIPAgent, RPCMixin):
