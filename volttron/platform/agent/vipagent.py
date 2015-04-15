@@ -69,7 +69,7 @@ import weakref
 
 import gevent
 from gevent.event import AsyncResult
-import zmq
+from zmq import green as zmq
 from zmq import EAGAIN, ZMQError
 from zmq.utils import jsonapi
 
@@ -171,8 +171,9 @@ class VIPAgent(object):
     do nothing but listen for messages and exit when told to. That is it.
     '''
 
-    def __init__(self, vip_address, vip_identity=None, **kwargs):
+    def __init__(self, vip_address, vip_identity=None, context=None, **kwargs):
         super(VIPAgent, self).__init__(**kwargs)
+        self.context = context or zmq.Context.instance()
         self.vip_address = vip_address
         self.vip_identity = vip_identity
         self._periodics = []
@@ -200,7 +201,7 @@ class VIPAgent(object):
         def _trigger_event(event):
             for callback, args, kwargs in self._event_callbacks.get(event, ()):
                 callback(*args, **kwargs)   # pylint: disable=star-args
-        self.vip_socket = vip.Socket()   # pylint: disable=attribute-defined-outside-init
+        self.vip_socket = vip.Socket(self.context)   # pylint: disable=attribute-defined-outside-init
         if self.vip_identity:
             self.vip_socket.identity = self.vip_identity
         _trigger_event('setup')
@@ -226,21 +227,21 @@ class VIPAgent(object):
         socket = self.vip_socket
         while True:
             try:
-                message = socket.recv_vip_object()
+                message = socket.recv_vip_object(copy=False)
             except ZMQError as exc:
                 if exc.errno == EAGAIN:
                     continue
                 raise
 
             try:
-                method = self._vip_subsystems[message.subsystem]
+                method = self._vip_subsystems[bytes(message.subsystem)]
             except KeyError:
                 _log.error('peer %r requested unknown subsystem %r',
                            bytes(message.peer), bytes(message.subsystem))
                 message.user = b''
                 message.args = [b'51', b'unknown subsystem', message.subsystem]
                 message.subsystem = b'error'
-                socket.send_vip_object(message)
+                socket.send_vip_object(message, copy=False)
             else:
                 method(message)
 
@@ -252,7 +253,7 @@ class VIPAgent(object):
     def handle_ping_subsystem(self, message):
         message.subsystem = b'pong'
         message.user = b''
-        self.vip_socket.send_vip_object(message)
+        self.vip_socket.send_vip_object(message, copy=False)
 
     @subsystem('error')
     def handle_error_subsystem(self, message):
@@ -402,11 +403,11 @@ class RPCMixin(object):
     def handle_rpc_message(self, message):
         dispatch = self._rpc_dispatcher.dispatch
         responses = [response for response in (
-            dispatch(msg, message) for msg in message.args) if response]
+            dispatch(bytes(msg), message) for msg in message.args) if response]
         if responses:
             message.user = ''
             message.args = responses
-            self.vip_socket.send_vip_object(message)
+            self.vip_socket.send_vip_object(message, copy=False)
 
     def rpc_batch(self, peer, requests):
         request, results = self._rpc_dispatcher.batch_call(requests)
@@ -428,7 +429,7 @@ class ChannelMixin(object):
     def setup_channel_subsystem(self):
         # pylint: disable=attribute-defined-outside-init
         self._channel_map = weakref.WeakValueDictionary()
-        self._channel_socket = zmq.Context.instance().socket(zmq.ROUTER)
+        self._channel_socket = self.context.socket(zmq.ROUTER)
 
     @onevent('connect')
     def connect_channel_subsystem(self):
@@ -436,7 +437,10 @@ class ChannelMixin(object):
 
     @onevent('disconnect')
     def disconnect_channel_subsystem(self):
-        self._channel_socket.unbind('inproc://subsystem/channel')
+        try:
+            self._channel_socket.unbind('inproc://subsystem/channel')
+        except ZMQError:
+            pass
 
     @onevent('start')
     def start_channel_subsystem(self):
@@ -444,7 +448,7 @@ class ChannelMixin(object):
         def loop():
             while True:
                 message = socket.recv_multipart(copy=False)
-                ident = message[0]
+                ident = bytes(message[0])
                 try:
                     channel = self._channel_map[ident]
                 except KeyError:
@@ -473,18 +477,18 @@ class ChannelMixin(object):
             name = message.args[0]
         except IndexError:
             return
-        ident = hex(hash((message.peer, name)))
+        ident = hex(hash((bytes(message.peer), bytes(name))))
         more = len(message.args) > 1
         socket = self._channel_socket
         socket.send(ident, flags=zmq.SNDMORE if more else 0)
         if more:
-            socket.send_multipart(message.args[1:])
+            socket.send_multipart(message.args[1:], copy=False)
 
     def channel_create(self, peer, name):
         ident = hex(hash((peer, name)))
         if ident in self._channel_map:
             raise KeyError('channel %r exists for peer %r' % (name, peer))
-        socket = zmq.Context.instance().socket(zmq.DEALER)
+        socket = self.context.socket(zmq.DEALER)
         object.__setattr__(socket, '_ch_peer', peer)
         object.__setattr__(socket, '_ch_name', name)
         socket.identity = ident
@@ -494,4 +498,8 @@ class ChannelMixin(object):
 
 
 class RPCAgent(VIPAgent, RPCMixin):
+    pass
+
+
+class BaseAgent(VIPAgent, RPCMixin, ChannelMixin):
     pass
