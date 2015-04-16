@@ -293,27 +293,6 @@ class ManagerRequestHandler(tornado.web.RequestHandler):
         self.write(result.get_response())
         self.finish()
 
-class ValidationException(Exception):
-    pass
-
-class WebApi:
-
-    def __init__(self, authenticator):
-        self.sessions = LoggedIn(authenticator)
-        self.manager = Manager()
-
-    @cherrypy.expose
-    @cherrypy.tools.json_in()
-    @cherrypy.tools.json_out()
-    @cherrypy.tools.allow(methods=['POST'])
-    def twoway(self):
-        '''You can call it like:
-        curl -X POST -H "Content-Type: application/json" \
-          -d '{"foo":123,"bar":"baz"}' http://127.0.0.1:8080/api/twoway
-        '''
-
-        data = cherrypy.request.json
-        return data.items()
 
 def get_error_response(id, code, message, data):
     return {'jsonrpc': '2.0',
@@ -331,46 +310,80 @@ class Root:
     def index(self):
         return open(os.path.join(WEB_ROOT, u'index.html'))
 
-    @cherrypy.expose
-    @cherrypy.tools.allow(methods=['POST'])
-    @cherrypy.tools.json_out()
-    @cherrypy.tools.json_in()
-    def jsonrpc(self):
-        '''
-        Example curl post
-        curl -X POST -H "Content-Type: application/json" \
-            -d '{"jsonrpc": "2.0","method": "getAuthorization","params": {"username": "dorothy","password": "toto123"},"id": "someid"}' \
-            http://127.0.0.1:8080/jsonrpc/
-
-        Successful response
-            {"jsonrpc": "2.0",
-             "result": "071b5022-4c35-4395-a4f0-8c32905919d8",
-             "id": "someid"}
-        Failed
-            401 Invalid username or password
-        '''
-
-        if cherrypy.request.json.get('jsonrpc') != '2.0':
-            return get_error_response(cherrypy.request.json.get('id'), PARSE_ERROR,
-                    'Invalid jsonrpc version', None)
-        if not cherrypy.request.json.get('method'):
-            return get_error_response(cherrypy.request.json.get('id'), METHOD_NOT_FOUND,
-                    'Method not found', {'method':  cherrypy.request.json.get('method')})
-        if cherrypy.request.json.get('method') == 'getAuthorization':
-            if not cherrypy.request.json.get('params'):
-                raise ValidationException('Invalid params')
-            params = cherrypy.request.json.get('params')
-            if not params.get('username'):
-                raise ValidationException('Specify username')
-            if not params.get('password'):
-                raise ValidationException('Specify password')
-
-            token = self.sessions.authenticate(params.get('username'),
-                                   params.get('password'),
-                                   cherrypy.request.remote.ip)
-
-            if token:
-                return {'jsonrpc': '2.0',
+#     @cherrypy.expose
+#     @cherrypy.tools.allow(methods=['POST'])
+#     @cherrypy.tools.json_out()
+#     @cherrypy.tools.json_in()
+#     def jsonrpc(self):
+#         '''
+#         Example curl post
+#         curl -X POST -H "Content-Type: application/json" \
+#             -d '{"jsonrpc": "2.0","method": "getAuthorization","params": {"username": "dorothy","password": "toto123"},"id": "someid"}' \
+#             http://127.0.0.1:8080/jsonrpc/
+#
+#         Successful response
+#             {"jsonrpc": "2.0",
+#              "result": "071b5022-4c35-4395-a4f0-8c32905919d8",
+#              "id": "someid"}
+#         Failed
+#             401 Invalid username or password
+#         '''
+#
+#         if cherrypy.request.json.get('jsonrpc') != '2.0':
+#             return get_error_response(cherrypy.request.json.get('id'), PARSE_ERROR,
+#                     'Invalid jsonrpc version', None)
+#         if not cherrypy.request.json.get('method'):
+#             return get_error_response(cherrypy.request.json.get('id'), METHOD_NOT_FOUND,
+#                     'Method not found', {'method':  cherrypy.request.json.get('method')})
+#         if cherrypy.request.json.get('method') == 'getAuthorization':
+#             if not cherrypy.request.json.get('params'):
+#                 raise ValidationException('Invalid params')
+#             params = cherrypy.request.json.get('params')
+#             if not params.get('username'):
+#                 raise ValidationException('Specify username')
+#             if not params.get('password'):
+#                 raise ValidationException('Specify password')
+#
+#             token = self.sessions.authenticate(params.get('username'),
+#                                    params.get('password'),
+#                                    cherrypy.request.remote.ip)
+#
+#             if token:
+#                 return {'jsonrpc': '2.0',
+#
+# #     @tornado.web.asynchronous
+# #     @tornado.gen.coroutine
+# #     def get(self):
+# #
+# #         request_body = self.request.body
+# #         result = yield tornado.gen.Task(self._parse_validate_rpc, request_body)
+# #         if result.was_error():
+# #             self.write(result.get_err_response())
+# #         else:
+# #             result = yield tornado.gen.Task(self._route, result)
+# #             self.write(result)
+# #         self.finish()
+#           'result': str(token),
+#                         'id': cherrypy.request.json.get('id')}
+#
+#             return {'jsonrpc': '2.0',
+#                     'error': {'code': 401,
+#                               'message': 'Invalid username or password'},
+#                     'id': cherrypy.request.json.get('id')}
+#         else:
+#             token = cherrypy.request.json.get('authorization')
+#
+#             if not token:
+#                 return {'jsonrpc': '2.0',
+#                         'error': {'code': 401,
+#                                   'message': 'Authorization required'},
+#                         'id': cherrypy.request.json.get('id')}
+#
+#             if not self.sessions.check_session(token, cherrypy.request.remote.ip):
+#                 return {'jsonrpc': '2.0',
+#                         'error': {'code': 401,
+#                                   'message': 'Invalid or expired authorization'},
+#                         'id': cherrypy.request.json.get('id')}
 
 #     @tornado.web.asynchronous
 #     @tornado.gen.coroutine
@@ -384,50 +397,16 @@ class Root:
 #             result = yield tornado.gen.Task(self._route, result)
 #             self.write(result)
 #         self.finish()
-          'result': str(token),
-                        'id': cherrypy.request.json.get('id')}
 
-            return {'jsonrpc': '2.0',
-                    'error': {'code': 401,
-                              'message': 'Invalid username or password'},
-                    'id': cherrypy.request.json.get('id')}
-        else:
-            token = cherrypy.request.json.get('authorization')
-
-            if not token:
-                return {'jsonrpc': '2.0',
-                        'error': {'code': 401,
-                                  'message': 'Authorization required'},
-                        'id': cherrypy.request.json.get('id')}
-
-            if not self.sessions.check_session(token, cherrypy.request.remote.ip):
-                return {'jsonrpc': '2.0',
-                        'error': {'code': 401,
-                                  'message': 'Invalid or expired authorization'},
-                        'id': cherrypy.request.json.get('id')}
-
-#     @tornado.web.asynchronous
-#     @tornado.gen.coroutine
-#     def get(self):
+#             method = cherrypy.request.json.get('method')
+#             params = cherrypy.request.json.get('params')
+#             id = cherrypy.request.json.get('id')
 #
-#         request_body = self.request.body
-#         result = yield tornado.gen.Task(self._parse_validate_rpc, request_body)
-#         if result.was_error():
-#             self.write(result.get_err_response())
-#         else:
-#             result = yield tornado.gen.Task(self._route, result)
-#             self.write(result)
-#         self.finish()
+#             return self.manager.dispatch(method, params, id)
 
-            method = cherrypy.request.json.get('method')
-            params = cherrypy.request.json.get('params')
-            id = cherrypy.request.json.get('id')
-
-            return self.manager.dispatch(method, params, id)
-
-        return {'jsonrpc': '2.0',
-                'error': {'code': 404, 'message': 'Unknown method'},
-                'id': cherrypy.request.json.get('id')}
+#         return {'jsonrpc': '2.0',
+#                 'error': {'code': 404, 'message': 'Unknown method'},
+#                 'id': cherrypy.request.json.get('id')}
 
     @cherrypy.expose
     @cherrypy.tools.json_in()
