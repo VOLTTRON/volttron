@@ -95,12 +95,28 @@ class PlatformRegistry:
         pass
 
 class SessionHandler:
+    '''A handler for dealing with authentication of sessions
+
+    The SessionHandler requires an authenticator to be handed in to this
+    object in order to authenticate user.  The authenticator must implement
+    an interface that expects a method called authenticate with parameters
+    username and password.  The return value must be either a list of groups
+    the user belongs two or None.
+
+    If successful then the a session token is generated and added to a cache
+    of validated users to be able to be checked against.  The user's ip address
+    is stored with the token for further checking of authentication.
+    '''
     def __init__(self, authenticator):
         self._sessions = {}
         self._session_tokens = {}
         self._authenticator = authenticator
 
     def authenticate(self, username, password, ip):
+        '''Authenticates a user with the authenticator.
+
+        This is the main login function for the system.
+        '''
         groups = self.authenticator.authenticate(username, password)
         if groups:
             token = uuid.uuid4()
@@ -109,10 +125,12 @@ class SessionHandler:
         return None
 
     def _add_session(self, user, token, ip, groups):
+        '''Add a user session to the session cache'''
         self.sessions[user] = {'user': user, 'token': token, 'ip': ip, 'groups': groups}
         self.session_token[token] = self.sessions[user]
 
     def check_session(self, token, ip):
+        '''Check if a user token has been authenticated.'''
         session = self.session_token.get(uuid.UUID(token))
         if session:
             return session['ip'] == ip
@@ -120,6 +138,16 @@ class SessionHandler:
         return False
 
 class ManagerWebApplication(tornado.web.Application):
+    '''A tornado web application wrapper class.
+
+    This classes responsibility is to hold sessions and the agent manager
+    class so that the request handler has access to these resources.
+
+    Request handlers have access to this function through
+        self.application.manager_agent and
+        self.application.sessions
+    respectively.
+    '''
     def __init__(self, session_handler, manager_agent, handlers=None,
                  default_host="", transforms=None, **settings):
         super(ManagerWebApplication, self).__init__(handlers, default_host,
@@ -292,7 +320,8 @@ def PlatformManagerAgent(config_path, **kwargs):
     user_map = get_config('users')
 
     hander_config = [
-        (r'/jsonrpc/(.*)', ManagerRequestHandler),
+        (r'/jsonrpc', ManagerRequestHandler),
+        (r'/jsonrpc/', ManagerRequestHandler),
         (r"/(.*)", tornado.web.StaticFileHandler,\
             {"path": WEB_ROOT, "default_filename": "index.html"})
     ]
