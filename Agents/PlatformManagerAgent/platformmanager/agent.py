@@ -424,14 +424,13 @@ def PlatformManagerAgent(config_path, **kwargs):
                 newRpc = Rpc(id=rpc.get_id(), method=platform_method,
                              params=rpc.get_params())
 
-                result = self.rpc_call(str(platform_uuid), 'dispatch', newRpc)
+                result = self.rpc_call(str(platform_uuid), 'dispatch',
+                                       [newRpc.__dict__]).get()
 
-                if newRpc.was_error():
-                    code = newRpc.get_err()['code']
-                    message = newRpc.get_err()['message']
-                    rpc.set_err(code, message)
+                if 'result' in result:
+                    rpc.set_result(result['result'])
                 else:
-                    rpc.set_result(newRpc.get_result())
+                    rpc.set_err(result['error_code'], result['error_code'])
 
 #
 #                 if platform['peer_address'] == vip_address:
