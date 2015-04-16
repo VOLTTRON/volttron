@@ -362,6 +362,8 @@ def PlatformManagerAgent(config_path, **kwargs):
 
         @export()
         def register_platform(self, peer_identity, name, peer_address):
+            '''Agents will call this to register with the platform.
+            '''
             print "registering ", peer_identity
             self.platform_dict[peer_identity] = {
                     'identity_params':  {'name': name, 'uuid': peer_identity},
@@ -381,20 +383,14 @@ def PlatformManagerAgent(config_path, **kwargs):
 
         @onevent("start")
         def start(self):
+            '''This event is triggered when the platform is ready for the agent
+            '''
+            # Start tornado in its own thread
             threading.Thread(target=startWebServer, args=(self,)).start()
-            #threading.Thread(target=startWebServer, args=(self,)).start()
-            print("Web server started!")
-            #startWebServer()
-            #print("Web server started")
-            #super(Agent, self).setup()
-            #cherrypy.tree.mount(self.webserver, "/", config=static_conf)
-            #cherrypy.engine.start()
 
         @onevent("finish")
         def finish(self):
             stopWebServer()
-            print("Web server stopped")
-            #cherrypy.engine.stop()
 
 
         def dispatch (self, rpc):
