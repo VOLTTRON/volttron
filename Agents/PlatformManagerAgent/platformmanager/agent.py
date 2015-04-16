@@ -117,7 +117,7 @@ class SessionHandler:
 
         This is the main login function for the system.
         '''
-        groups = self.authenticator.authenticate(username, password)
+        groups = self._authenticator.authenticate(username, password)
         if groups:
             token = uuid.uuid4()
             self._add_session(username, token, ip, ",".join(groups))
@@ -126,8 +126,8 @@ class SessionHandler:
 
     def _add_session(self, user, token, ip, groups):
         '''Add a user session to the session cache'''
-        self.sessions[user] = {'user': user, 'token': token, 'ip': ip, 'groups': groups}
-        self.session_token[token] = self.sessions[user]
+        self._sessions[user] = {'user': user, 'token': token, 'ip': ip, 'groups': groups}
+        self._session_tokens[token] = self._sessions[user]
 
     def check_session(self, token, ip):
         '''Check if a user token has been authenticated.'''
@@ -155,16 +155,134 @@ class ManagerWebApplication(tornado.web.Application):
         self.sessions = session_handler
         self.manager_agent = manager_agent
 
+class Rpc:
+    PARSE_ERR = {'code': -32700, 'message': 'Parse error'}
+
+    def was_error(self):
+        '''Returns true if there is an error that was set on this object.
+
+        The error could be set either through a parse error or through
+        set_error.
+        '''
+        return not (self._error == None)
+
+    def get_response(self):
+        ret = {'jsonrpc': '2.0', 'id': self._id}
+        if self.was_error():
+            ret['error'] = self._error
+        else:
+            ret['result'] = self._result
+        return ret
+
+    def set_result(self, result):
+        self.clear_err()
+        self._result = result
+
+    def clear_err(self): self._error = None
+    def set_err(self, code, message):
+        self._error = {'code': code, 'message': message}
+    def get_method(self): return self._method
+    def get_authorization(self):  return self._authorization
+    def get_params(self): return self._params
+    def get_id(self): return self._id
+
+    def __init__(self, request_body):
+        try:
+            self._id = None # default for json rpc with parse error
+            self._error = None
+
+            data = json.loads(request_body)
+
+            if data == []:
+                self.set_err(INVALID_REQUEST, "Invalid Request")
+                return
+
+            if not 'method' in data:
+                self.set_err(METHOD_NOT_FOUND, "Method not found")
+                return
+
+            if not 'jsonrpc' in data or data['jsonrpc'] != '2.0':
+                self.set_err(PARSE_ERROR, "Invalid jsonrpc version")
+                return
+
+            if not 'id' in data:
+                self.set_err(PARSE_ERROR, 'Invalid id specified')
+                return
+
+            self._method = data['method']
+            self._jsonrpc = data['jsonrpc']
+            self._id = data['id']
+            if 'params' in data:
+                self._params = data['params']
+            else:
+                self._params = []
+
+            if not "authorization" in data:
+                if data['method'] != 'getAuthorization':
+                    self.set_err(401, 'Invalid or expired authorization')
+                    return
+
+        except:
+            self.set_err(PARSE_ERROR, 'Invalid json')
+
+
 
 class ManagerRequestHandler(tornado.web.RequestHandler):
+    '''The main ReequestHanlder for the platform manager.
 
-    def get(self):
-        print("Get")
-        self.write("Woot")
+    The manager only accepts posted rpc methods.  The manager will parse
+    the request body for valid json rpc.  The first call to this request
+    handler must be a getAuthorization request.  The call will return an
+    authorization token that will be valid for the current session.  The token
+    must be passed to any other calls to the handler or a 401 Unauhthorized
+    code will be returned.
+    '''
 
+    def _route(self, rpc, callback):
+        # this is the only method that the handler truly deals with, the
+        # rest will be dispatched to the manager agent itself.
+        if rpc.get_method() == 'getAuthorization':
+            try:
+                token = self.application.sessions.authenticate(
+                            rpc.get_params()['username'],
+                            rpc.get_params()['password'],
+                            self.request.remote_ip)
+                if token:
+                    rpc.set_result(str(token))
+                else:
+                    rpc.set_err(401, "Invalid username or password")
+            except:
+                rpc.set_err(INVALID_PARAMS,
+                            'Invalid parameters to {}'.format(rpc.get_method()))
+
+        else:
+            # verify the user session
+            if not self.application.session.check_session(
+                            rpc.get_params()['authorization'],
+                            self.request.remote_ip):
+                rpc.set_err(401, 'Unauthorized access')
+            else:
+                self.application.manager_agent.dispatch(
+                            rpc.get_method(),
+                            rpc.get_params(),
+                            rpc.get_id())
+        callback(rpc)
+
+    def _parse_validate_rpc(self, request_body, callback):
+        callback(Rpc(request_body))
+
+    @tornado.web.asynchronous
+    @tornado.gen.coroutine
     def post(self):
-        print("Post")
-        self.write("Post woot")
+        request_body = self.request.body
+        # result will be an Rpc object  when completed
+        result = yield tornado.gen.Task(self._parse_validate_rpc, request_body)
+        # if no error then go along and route the task
+        if not result.was_error():
+            result = yield tornado.gen.Task(self._route, result)
+
+        self.write(result.get_response())
+        self.finish()
 
 class ValidationException(Exception):
     pass
@@ -244,7 +362,20 @@ class Root:
 
             if token:
                 return {'jsonrpc': '2.0',
-                        'result': str(token),
+
+#     @tornado.web.asynchronous
+#     @tornado.gen.coroutine
+#     def get(self):
+#
+#         request_body = self.request.body
+#         result = yield tornado.gen.Task(self._parse_validate_rpc, request_body)
+#         if result.was_error():
+#             self.write(result.get_err_response())
+#         else:
+#             result = yield tornado.gen.Task(self._route, result)
+#             self.write(result)
+#         self.finish()
+          'result': str(token),
                         'id': cherrypy.request.json.get('id')}
 
             return {'jsonrpc': '2.0',
@@ -265,6 +396,19 @@ class Root:
                         'error': {'code': 401,
                                   'message': 'Invalid or expired authorization'},
                         'id': cherrypy.request.json.get('id')}
+
+#     @tornado.web.asynchronous
+#     @tornado.gen.coroutine
+#     def get(self):
+#
+#         request_body = self.request.body
+#         result = yield tornado.gen.Task(self._parse_validate_rpc, request_body)
+#         if result.was_error():
+#             self.write(result.get_err_response())
+#         else:
+#             result = yield tornado.gen.Task(self._route, result)
+#             self.write(result)
+#         self.finish()
 
             method = cherrypy.request.json.get('method')
             params = cherrypy.request.json.get('params')
