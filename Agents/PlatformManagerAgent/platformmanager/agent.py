@@ -179,6 +179,7 @@ class Rpc:
         self._result = result
 
     def clear_err(self): self._error = None
+    def get_err(self): return self._error
     def set_err(self, code, message):
         self._error = {'code': code, 'message': message}
     def get_method(self): return self._method
@@ -403,7 +404,44 @@ def PlatformManagerAgent(config_path, **kwargs):
             if (rpc.get_method() == 'listPlatforms'):
                 rpc.set_result([x['identity_params'] for x in self.platform_dict.values()])
             else:
-                rpc.set_result("Still dispatching")
+                fields = rpc.get_method().split('.')
+
+                if len(fields) < 3:
+                    rpc.set_err(METHOD_NOT_FOUND, 'Unknown methd: {}'
+                                .format(rpc.get_method()))
+                    return
+
+                platform_uuid = fields[2]
+
+                if not platform_uuid in self.platform_dict:
+                    rpc.set_err(METHOD_NOT_FOUND, 'Unknown Platform: {}'
+                                .format(platform_uuid))
+                    return
+
+                # The method to route to the platform.
+                platform_method = '.'.join(fields[3:])
+
+                newRpc = Rpc(id=rpc.get_id(), method=platform_method,
+                             params=rpc.get_params())
+
+                result = self.rpc_call(str(platform_uuid), 'dispatch', newRpc)
+
+                if newRpc.was_error():
+                    code = newRpc.get_err()['code']
+                    message = newRpc.get_err()['message']
+                    rpc.set_err(code, message)
+                else:
+                    rpc.set_result(newRpc.get_result())
+
+#
+#                 if platform['peer_address'] == vip_address:
+#                     result = self.rpc_call(str(platform_uuid), 'dispatch', [platform_method, params])
+#                 else:
+#                     if 'ctl' not in platform:
+#                         print "Connecting to ", platform['peer_address'], 'for peer', platform_uuid
+#                         platform['ctl'] = Connection(platform['peer_address'],
+#                                                  peer=platform_uuid)
+
 #             retvalue = {"jsonrpc": "2.0", "id":id}
 #
 #
