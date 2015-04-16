@@ -114,7 +114,7 @@ def PlatformAgent(config_path, **kwargs):
             return self.rpc_call("control", "list_agents").get(10)
 
         @export()
-        def dispatch(self, rpc):
+        def dispatch(self, id, method, params):
             return {'result': self.list_agents()}
             #return {'result': 'Got it'}
             #rpc['result'] =

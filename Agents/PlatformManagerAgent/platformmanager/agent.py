@@ -425,7 +425,7 @@ def PlatformManagerAgent(config_path, **kwargs):
                              params=rpc.get_params())
 
                 result = self.rpc_call(str(platform_uuid), 'dispatch',
-                                       [newRpc.__dict__]).get()
+                            [rpc.get_id(), platform_method, rpc.get_params()]).get(10)
 
                 if 'result' in result:
                     rpc.set_result(result['result'])
