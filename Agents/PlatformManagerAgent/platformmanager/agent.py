@@ -59,9 +59,16 @@ import json
 import logging
 import sys
 import requests
+import threading
 import os
 import os.path as p
 import uuid
+
+import tornado
+import tornado.ioloop
+import tornado.web
+from tornado.web import url
+
 
 from authenticate import Authenticate
 from manager import Manager
@@ -82,14 +89,16 @@ utils.setup_logging()
 _log = logging.getLogger(__name__)
 WEB_ROOT = p.abspath(p.join(p.dirname(__file__), 'webroot'))
 
-class ValidationException(Exception):
-    pass
+class PlatformRegistry:
 
-class LoggedIn:
+    def __init__(self, stale=5*60):
+        pass
+
+class SessionHandler:
     def __init__(self, authenticator):
-        self.sessions = {}
-        self.session_token = {}
-        self.authenticator = authenticator
+        self._sessions = {}
+        self._session_tokens = {}
+        self._authenticator = authenticator
 
     def authenticate(self, username, password, ip):
         groups = self.authenticator.authenticate(username, password)
@@ -110,7 +119,27 @@ class LoggedIn:
 
         return False
 
+class ManagerWebApplication(tornado.web.Application):
+    def __init__(self, session_handler, manager_agent, handlers=None,
+                 default_host="", transforms=None, **settings):
+        super(ManagerWebApplication, self).__init__(handlers, default_host,
+                                                    transforms, **settings)
+        self.sessions = session_handler
+        self.manager_agent = manager_agent
 
+
+class ManagerRequestHandler(tornado.web.RequestHandler):
+
+    def get(self):
+        print("Get")
+        self.write("Woot")
+
+    def post(self):
+        print("Post")
+        self.write("Post woot")
+
+class ValidationException(Exception):
+    pass
 
 class WebApi:
 
@@ -276,6 +305,38 @@ def PlatformManagerAgent(config_path, **kwargs):
         }
     }
 
+    hander_config = [
+        (r'/jsonrpc/(.*)', ManagerRequestHandler),
+        (r"/(.*)", tornado.web.StaticFileHandler,\
+            {"path": WEB_ROOT, "default_filename": "index.html"})
+]
+#         ,
+#         (r'/css/(.*)', tornado.web.StaticFileHandler,
+#                         {"path": p.join(WEB_ROOT, 'css')}),
+#         (r'/js/(.*)', tornado.web.StaticFileHandler,
+#                         {'path': p.join(WEB_ROOT, 'js')}),
+#         (r'/', tornado.web.StaticFileHandler,
+#                         {'path': p.join(WEB_ROOT, 'index.html')})
+
+
+
+
+    def startWebServer(manager_agent):
+#         app = tornado.web.Application(handlers=hander_config, debug=True)
+#         app.listen(8080) #, address)
+#         tornado.ioloop.IOLoop.instance().start()
+
+        webserver = ManagerWebApplication(
+                        SessionHandler(Authenticate(user_map)),
+                        manager_agent,
+                        hander_config, debug=True, static_path=WEB_ROOT)
+        webserver.listen(8080)
+        tornado.ioloop.IOLoop.instance().start()
+
+
+    def stopWebServer():
+        tornado.ioloop.IOLoop.stop()
+
     #poll_time = get_config('poll_time')
     #zip_code = get_config("zip")
     #key = get_config('key')
@@ -289,7 +350,7 @@ def PlatformManagerAgent(config_path, **kwargs):
             # a list of peers that have checked in with this agent.
             self.platform_dict = {}
             self.valid_data = False
-            self.webserver = Root(Authenticate(user_map), self)
+            #self.webserver = Root(Authenticate(user_map), self)
 
         def list_agents(self, platform):
 
@@ -318,14 +379,20 @@ def PlatformManagerAgent(config_path, **kwargs):
 
         @onevent("start")
         def start(self):
+            threading.Thread(target=startWebServer, args=(self,)).start()
+            #threading.Thread(target=startWebServer, args=(self,)).start()
+            print("Web server started!")
+            #startWebServer()
+            #print("Web server started")
             #super(Agent, self).setup()
-            cherrypy.tree.mount(self.webserver, "/", config=static_conf)
-            cherrypy.engine.start()
+            #cherrypy.tree.mount(self.webserver, "/", config=static_conf)
+            #cherrypy.engine.start()
 
         @onevent("finish")
         def finish(self):
-            cherrypy.engine.stop()
-
+            stopWebServer()
+            print("Web server stopped")
+            #cherrypy.engine.stop()
 
 
         def dispatch (self, method, params, id):
