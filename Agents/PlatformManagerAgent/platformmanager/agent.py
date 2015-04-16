@@ -186,28 +186,40 @@ class Rpc:
     def get_params(self): return self._params
     def get_id(self): return self._id
 
-    def __init__(self, request_body):
+    def __init__(self, request_body=None,
+                 id=None, method=None, params = None):
+
         try:
             self._id = None # default for json rpc with parse error
             self._error = None
 
-            data = json.loads(request_body)
+            if request_body:
+                data = json.loads(request_body)
 
-            if data == []:
-                self.set_err(INVALID_REQUEST, "Invalid Request")
-                return
+                if data == []:
+                    self.set_err(INVALID_REQUEST, "Invalid Request")
+                    return
 
-            if not 'method' in data:
-                self.set_err(METHOD_NOT_FOUND, "Method not found")
-                return
+                if not 'method' in data:
+                    self.set_err(METHOD_NOT_FOUND, "Method not found")
+                    return
 
-            if not 'jsonrpc' in data or data['jsonrpc'] != '2.0':
-                self.set_err(PARSE_ERROR, "Invalid jsonrpc version")
-                return
+                if not 'jsonrpc' in data or data['jsonrpc'] != '2.0':
+                    self.set_err(PARSE_ERROR, "Invalid jsonrpc version")
+                    return
 
-            if not 'id' in data:
-                self.set_err(PARSE_ERROR, 'Invalid id specified')
-                return
+                if not 'id' in data:
+                    self.set_err(PARSE_ERROR, 'Invalid id specified')
+                    return
+
+                # This is only necessary at the top level of the rpc stack.
+                if not "authorization" in data:
+                    if data['method'] != 'getAuthorization':
+                        self.set_err(401, 'Invalid or expired authorization')
+                        return
+            else:
+                data = {'method':method, 'id': id, 'jsonrpc': '2.0',
+                        'params':params}
 
             self._method = data['method']
             self._jsonrpc = data['jsonrpc']
@@ -217,10 +229,7 @@ class Rpc:
             else:
                 self._params = []
 
-            if not "authorization" in data:
-                if data['method'] != 'getAuthorization':
-                    self.set_err(401, 'Invalid or expired authorization')
-                    return
+
 
         except:
             self.set_err(PARSE_ERROR, 'Invalid json')
