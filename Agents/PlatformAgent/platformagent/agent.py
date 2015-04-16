@@ -111,37 +111,41 @@ def PlatformAgent(config_path, **kwargs):
         def list_agents(self):
             print("Getting agents from control!")
             print("self.vip_addr", self.vip_address)
-            return self.rpc_call("control", "list_agents").get()
+            return self.rpc_call("control", "list_agents").get(10)
 
         @export()
-        def dispatch(self, method, params):
-            # First handle the platform control functionality before dispatching
-            # to the individual agents.
-            if method == 'list_agents':
-                return self.rpc_call('control', method).get()
+        def dispatch(self, rpc):
+            return {'result': self.list_agents()}
+            #return {'result': 'Got it'}
+            #rpc['result'] =
 
-            if method == 'status_agents':
-                return [{'name':a[1], 'uuid': a[0], 'process_id': a[2][0],
-                         'return_code': a[2][1]}
-                        for a in self.rpc_call('control', method).get()]
-
-            if method == 'agent_status':
-                status = self.rpc_call('control', method, params).get()
-                return {'process_id': status[0], 'return_code': status[1]}
-
-            if method in ['start_agent', 'stop_agent']:
-                self.rpc_call('control', method, params).get()
-                status = self.rpc_call('control', 'agent_status', params).get()
-                return {'process_id': status[0], 'return_code': status[1]}
-
-            fields = method.split('.')
-
-            if len(fields) < 3:
-                return get_error_response(METHOD_NOT_FOUND,
-                                          "Unknown Method",
-                                          "Can't find "+ method)
-
-            return get_error_response(id, INTERNAL_ERROR, 'Not implemented')
+#             # First handle the platform control functionality before dispatching
+#             # to the individual agents.
+#             if method == 'list_agents':
+#                 return self.rpc_call('control', method).get()
+#
+#             if method == 'status_agents':
+#                 return [{'name':a[1], 'uuid': a[0], 'process_id': a[2][0],
+#                          'return_code': a[2][1]}
+#                         for a in self.rpc_call('control', method).get()]
+#
+#             if method == 'agent_status':
+#                 status = self.rpc_call('control', method, params).get()
+#                 return {'process_id': status[0], 'return_code': status[1]}
+#
+#             if method in ['start_agent', 'stop_agent']:
+#                 self.rpc_call('control', method, params).get()
+#                 status = self.rpc_call('control', 'agent_status', params).get()
+#                 return {'process_id': status[0], 'return_code': status[1]}
+#
+#             fields = method.split('.')
+#
+#             if len(fields) < 3:
+#                 return get_error_response(METHOD_NOT_FOUND,
+#                                           "Unknown Method",
+#                                           "Can't find "+ method)
+#
+#             return get_error_response(id, INTERNAL_ERROR, 'Not implemented')
 
 
         @export()
