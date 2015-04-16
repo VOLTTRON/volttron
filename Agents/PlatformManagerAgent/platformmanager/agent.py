@@ -291,55 +291,37 @@ def PlatformManagerAgent(config_path, **kwargs):
     server_conf = {'global': get_config('server')}
     user_map = get_config('users')
 
-    static_conf = {
-        "/": {
-            "tools.staticdir.root": WEB_ROOT
-        },
-        "/css": {
-            "tools.staticdir.on": True,
-            "tools.staticdir.dir": "css"
-        },
-        "/js": {
-            "tools.staticdir.on": True,
-            "tools.staticdir.dir": "js"
-        }
-    }
-
     hander_config = [
         (r'/jsonrpc/(.*)', ManagerRequestHandler),
         (r"/(.*)", tornado.web.StaticFileHandler,\
             {"path": WEB_ROOT, "default_filename": "index.html"})
-]
-#         ,
-#         (r'/css/(.*)', tornado.web.StaticFileHandler,
-#                         {"path": p.join(WEB_ROOT, 'css')}),
-#         (r'/js/(.*)', tornado.web.StaticFileHandler,
-#                         {'path': p.join(WEB_ROOT, 'js')}),
-#         (r'/', tornado.web.StaticFileHandler,
-#                         {'path': p.join(WEB_ROOT, 'index.html')})
-
+    ]
 
 
 
     def startWebServer(manager_agent):
-#         app = tornado.web.Application(handlers=hander_config, debug=True)
-#         app.listen(8080) #, address)
-#         tornado.ioloop.IOLoop.instance().start()
+        '''Starts the webserver to allow http/rpc calls.
 
+        This is where the tornado IOLoop instance is officially started.  It
+        does block here so one should call this within a thread or process if
+        one doesn't want it to block.
+
+        One can stop the server by calling stopWebServer or by issuing an
+        IOLoop.stop() call.
+        '''
         webserver = ManagerWebApplication(
                         SessionHandler(Authenticate(user_map)),
                         manager_agent,
-                        hander_config, debug=True, static_path=WEB_ROOT)
+                        hander_config, debug=True)
         webserver.listen(8080)
+        webserverStarted = True
         tornado.ioloop.IOLoop.instance().start()
 
 
     def stopWebServer():
+        '''Stops the webserver by calling IOLoop.stop
+        '''
         tornado.ioloop.IOLoop.stop()
-
-    #poll_time = get_config('poll_time')
-    #zip_code = get_config("zip")
-    #key = get_config('key')
 
     class Agent(RPCAgent):
         """Agent for querying WeatherUndergrounds API"""
