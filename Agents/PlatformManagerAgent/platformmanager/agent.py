@@ -131,7 +131,7 @@ class SessionHandler:
 
     def check_session(self, token, ip):
         '''Check if a user token has been authenticated.'''
-        session = self.session_token.get(uuid.UUID(token))
+        session = self._session_tokens.get(uuid.UUID(token))
         if session:
             return session['ip'] == ip
 
@@ -217,6 +217,8 @@ class Rpc:
                     if data['method'] != 'getAuthorization':
                         self.set_err(401, 'Invalid or expired authorization')
                         return
+                if "authorization" in data:
+                    self._authorization = data['authorization']
             else:
                 data = {'method':method, 'id': id, 'jsonrpc': '2.0',
                         'params':params}
@@ -228,8 +230,6 @@ class Rpc:
                 self._params = data['params']
             else:
                 self._params = []
-
-
 
         except:
             self.set_err(PARSE_ERROR, 'Invalid json')
@@ -266,15 +266,13 @@ class ManagerRequestHandler(tornado.web.RequestHandler):
 
         else:
             # verify the user session
-            if not self.application.session.check_session(
-                            rpc.get_params()['authorization'],
+            if not self.application.sessions.check_session(
+                            rpc.get_authorization(),
                             self.request.remote_ip):
                 rpc.set_err(401, 'Unauthorized access')
             else:
-                self.application.manager_agent.dispatch(
-                            rpc.get_method(),
-                            rpc.get_params(),
-                            rpc.get_id())
+                self.application.manager_agent.dispatch(rpc)
+
         callback(rpc)
 
     def _parse_validate_rpc(self, request_body, callback):
@@ -538,67 +536,77 @@ def PlatformManagerAgent(config_path, **kwargs):
             #cherrypy.engine.stop()
 
 
-        def dispatch (self, method, params, id):
-            retvalue = {"jsonrpc": "2.0", "id":id}
+        def dispatch (self, rpc):
+            '''Dispatch request to either a registered platform or handle here.
 
+            rpc - An Rpc object where calling set_result will allow a response
+                  to be set on the object.
+            '''
 
-            if method == 'listPlatforms':
-                retvalue["result"] = [x['identity_params'] for x in self.platform_dict.values()]
-
+            if (rpc.get_method() == 'listPlatforms'):
+                rpc.set_result([x['identity_params'] for x in self.platform_dict.values()])
             else:
-
-                fields = method.split('.')
-
-                # must have platform.uuid.<uuid>.<somemethod> to pass through
-                # here.
-                if len(fields) < 3:
-                    return get_error_response(id, METHOD_NOT_FOUND,
-                                              'Unknown Method',
-                                              'method was: ' + method)
-
-                platform_uuid = fields[2]
-
-                if platform_uuid not in self.platform_dict:
-                    return get_error_response(id, METHOD_NOT_FOUND,
-                                              'Unknown Method',
-                                              'Unknown platform method was: ' + method)
-
-                platform = self.platform_dict[platform_uuid]
-
-                platform_method = '.'.join(fields[3:])
-
-                # Translate external interface to internal interface.
-                platform_method = platform_method.replace("listAgents", "list_agents")
-                platform_method = platform_method.replace("listMethods", "list_agent_methods")
-                platform_method = platform_method.replace("startAgent", "start_agent")
-                platform_method = platform_method.replace("stopAgent", "stop_agent")
-                platform_method = platform_method.replace("statusAgents", "status_agents")
-                platform_method = platform_method.replace("statusAgent", "agent_status")
-
-                print("calling platform: ", platform_uuid,
-                      "method ", platform_method,
-                      " params", params)
-
-                platform_method = str(platform_method)
-
-                if platform['peer_address'] == vip_address:
-                    result = self.rpc_call(str(platform_uuid), 'dispatch', [platform_method, params])
-                else:
-                    if 'ctl' not in platform:
-                        print "Connecting to ", platform['peer_address'], 'for peer', platform_uuid
-                        platform['ctl'] = Connection(platform['peer_address'],
-                                                 peer=platform_uuid)
-
-                    result = platform['ctl'].call("dispatch", [platform_method, params])
-
-                # Wait for response to come back
-                import time
-                while not result.ready():
-                    time.sleep(1)
-
-
-                retvalue['result'] = result.get()
-            return retvalue
+                rpc.set_result("Still dispatching")
+#             retvalue = {"jsonrpc": "2.0", "id":id}
+#
+#
+#             if method == 'listPlatforms':
+#                 retvalue["result"] = [x['identity_params'] for x in self.platform_dict.values()]
+#
+#             else:
+#
+#                 fields = method.split('.')
+#
+#                 # must have platform.uuid.<uuid>.<somemethod> to pass through
+#                 # here.
+#                 if len(fields) < 3:
+#                     return get_error_response(id, METHOD_NOT_FOUND,
+#                                               'Unknown Method',
+#                                               'method was: ' + method)
+#
+#                 platform_uuid = fields[2]
+#
+#                 if platform_uuid not in self.platform_dict:
+#                     return get_error_response(id, METHOD_NOT_FOUND,
+#                                               'Unknown Method',
+#                                               'Unknown platform method was: ' + method)
+#
+#                 platform = self.platform_dict[platform_uuid]
+#
+#                 platform_method = '.'.join(fields[3:])
+#
+#                 # Translate external interface to internal interface.
+#                 platform_method = platform_method.replace("listAgents", "list_agents")
+#                 platform_method = platform_method.replace("listMethods", "list_agent_methods")
+#                 platform_method = platform_method.replace("startAgent", "start_agent")
+#                 platform_method = platform_method.replace("stopAgent", "stop_agent")
+#                 platform_method = platform_method.replace("statusAgents", "status_agents")
+#                 platform_method = platform_method.replace("statusAgent", "agent_status")
+#
+#                 print("calling platform: ", platform_uuid,
+#                       "method ", platform_method,
+#                       " params", params)
+#
+#                 platform_method = str(platform_method)
+#
+#                 if platform['peer_address'] == vip_address:
+#                     result = self.rpc_call(str(platform_uuid), 'dispatch', [platform_method, params])
+#                 else:
+#                     if 'ctl' not in platform:
+#                         print "Connecting to ", platform['peer_address'], 'for peer', platform_uuid
+#                         platform['ctl'] = Connection(platform['peer_address'],
+#                                                  peer=platform_uuid)
+#
+#                     result = platform['ctl'].call("dispatch", [platform_method, params])
+#
+#                 # Wait for response to come back
+#                 import time
+#                 while not result.ready():
+#                     time.sleep(1)
+#
+#
+#                 retvalue['result'] = result.get()
+#             return retvalue
 
 
     Agent.__name__ = 'ManagedServiceAgent'
