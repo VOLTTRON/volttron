@@ -68,6 +68,7 @@ import traceback
 import weakref
 
 import gevent
+import gevent.local
 from gevent.event import AsyncResult
 from zmq import green as zmq
 from zmq import EAGAIN, ZMQError
@@ -176,6 +177,7 @@ class VIPAgent(object):
         self.context = context or zmq.Context.instance()
         self.vip_address = vip_address
         self.vip_identity = vip_identity
+        self.local = gevent.local.local()
         self._periodics = []
         self._event_callbacks = {}
         self._vip_subsystems = {}
@@ -261,9 +263,10 @@ class VIPAgent(object):
 
 
 class RPCDispatcher(jsonrpc.Dispatcher):
-    def __init__(self, methods):
+    def __init__(self, methods, local):
         super(RPCDispatcher, self).__init__()
         self.methods = methods
+        self.local = local
         self._results = weakref.WeakValueDictionary()
 
     def _add_result(self):
@@ -340,6 +343,10 @@ class RPCDispatcher(jsonrpc.Dispatcher):
                 else:
                     return self._inspect(method)
             raise NotImplementedError(name)
+        local = self.local
+        local.vip_message = context
+        local.rpc_request = request
+        local.rpc_batch = batch
         try:
             return method(*args, **kwargs)   # pylint: disable=star-args
         except Exception as exc:   # pylint: disable=broad-except
@@ -349,6 +356,10 @@ class RPCDispatcher(jsonrpc.Dispatcher):
             if getattr(method, 'traceback', True):
                 exc.exc_info = {'exc_tb': exc_tb}
             raise
+        finally:
+            del local.vip_message
+            del local.rpc_request
+            del local.rpc_batch
 
     def _inspect(self, method):
         params = inspect.getargspec(method)
@@ -396,7 +407,7 @@ class RPCMixin(object):
             for name in getattr(member, '_rpc_exports', ()):
                 self._rpc_exports[name] = member
         inspect.getmembers(self, setup)
-        self._rpc_dispatcher = RPCDispatcher(self._rpc_exports)
+        self._rpc_dispatcher = RPCDispatcher(self._rpc_exports, self.local)
 
     @subsystem('RPC')
     @spawn
@@ -428,7 +439,6 @@ class ChannelMixin(object):
     @onevent('setup')
     def setup_channel_subsystem(self):
         # pylint: disable=attribute-defined-outside-init
-        self._channel_map = weakref.WeakValueDictionary()
         self._channel_socket = self.context.socket(zmq.ROUTER)
 
     @onevent('connect')
@@ -444,25 +454,19 @@ class ChannelMixin(object):
 
     @onevent('start')
     def start_channel_subsystem(self):
+        vip = self.vip_socket
         socket = self._channel_socket
         def loop():
             while True:
                 message = socket.recv_multipart(copy=False)
+                if not message:
+                    continue
                 ident = bytes(message[0])
-                try:
-                    channel = self._channel_map[ident]
-                except KeyError:
-                    continue
-                try:
-                    peer = object.__getattribute__(channel, '_ch_peer')
-                    name = object.__getattribute__(channel, '_ch_name')
-                except AttributeError:
-                    continue
-                more = len(message) > 1
-                self.vip_socket.send_vip(peer, 'channel', [name],
-                                         flags=zmq.SNDMORE if more else 0)
-                if more:
-                    self.vip_socket.send_multipart(message[1:], copy=False)
+                length, ident = ident.split(':', 1)
+                peer = ident[:int(length)]
+                name = ident[len(peer)+1:]
+                message[0] = name
+                vip.send_vip(peer, 'channel', message, copy=False)
         self._channel_subsystem = gevent.spawn(loop)   # pylint: disable=attribute-defined-outside-init
 
     @onevent('stop')
@@ -473,27 +477,23 @@ class ChannelMixin(object):
 
     @subsystem('channel')
     def handle_channel_message(self, message):
+        frames = message.args
         try:
-            name = message.args[0]
+            name = frames[0]
         except IndexError:
             return
-        ident = hex(hash((bytes(message.peer), bytes(name))))
-        more = len(message.args) > 1
-        socket = self._channel_socket
-        socket.send(ident, flags=zmq.SNDMORE if more else 0)
-        if more:
-            socket.send_multipart(message.args[1:], copy=False)
+        peer, name = bytes(message.peer), bytes(name)
+        frames[0] = ':'.join([str(len(peer)), peer, name])
+        self._channel_socket.send_multipart(frames, copy=False)
 
     def channel_create(self, peer, name):
-        ident = hex(hash((peer, name)))
-        if ident in self._channel_map:
-            raise KeyError('channel %r exists for peer %r' % (name, peer))
         socket = self.context.socket(zmq.DEALER)
-        object.__setattr__(socket, '_ch_peer', peer)
-        object.__setattr__(socket, '_ch_name', name)
+        # XXX: Creating the identity this way is potentially problematic
+        # because the peer name and identity can both be no longer than
+        # 255 characters. Explore alternate solutions or limit names.
+        ident = ':'.join([str(len(peer)), peer, name])
         socket.identity = ident
         socket.connect('inproc://subsystem/channel')
-        self._channel_map[ident] = socket
         return socket
 
 
