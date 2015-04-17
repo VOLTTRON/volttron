@@ -4,7 +4,7 @@ var $ = require('jquery');
 var React = require('react');
 
 var Exchange = require('./exchange');
-var messengerStore = require('../stores/messenger-store');
+var consoleStore = require('../stores/console-store');
 
 var Conversation = React.createClass({
     getInitialState: getStateFromStores,
@@ -15,7 +15,7 @@ var Conversation = React.createClass({
             $conversation.scrollTop($conversation.prop('scrollHeight'));
         }
 
-        messengerStore.addChangeListener(this._onChange);
+        consoleStore.addChangeListener(this._onChange);
     },
     componentDidUpdate: function () {
         var $conversation = $(this.refs.conversation.getDOMNode());
@@ -23,7 +23,7 @@ var Conversation = React.createClass({
         $conversation.stop().animate({ scrollTop: $conversation.prop('scrollHeight') }, 500);
     },
     componentWillUnmount: function () {
-        messengerStore.removeChangeListener(this._onChange);
+        consoleStore.removeChangeListener(this._onChange);
     },
     _onChange: function () {
         this.setState(getStateFromStores());
@@ -42,7 +42,7 @@ var Conversation = React.createClass({
 });
 
 function getStateFromStores() {
-    return { exchanges: messengerStore.getExchanges() };
+    return { exchanges: consoleStore.getExchanges() };
 }
 
 module.exports = Conversation;

@@ -247,10 +247,10 @@ def _sign_agent_package(agent_package, **kwargs):
     if certs_dir is not None:
         certsobj = certs.Certs(certs_dir)
 
-    if cert_type == 'soi':
+    if cert_type == 'admin':
         if files:
-            raise AgentPackageError("soi's aren't allowed to add files.")
-        verified = auth.sign_as_admin(agent_package, 'soi', certsobj = certsobj)
+            raise AgentPackageError("admin's aren't allowed to add files.")
+        verified = auth.sign_as_admin(agent_package, 'admin', certsobj = certsobj)
     elif cert_type == 'creator':
         verified = auth.sign_as_creator(agent_package, 'creator', files, certsobj = certsobj)
     elif cert_type == 'initiator':
@@ -270,7 +270,7 @@ def _sign_agent_package(agent_package, **kwargs):
 def _cert_type_from_kwargs(**kwargs):
     '''Return cert type string from kwargs values'''
 
-    for k in ('soi', 'creator', 'initiator', 'platform'):
+    for k in ('admin', 'creator', 'initiator', 'platform'):
         try:
             if k in kwargs['user_type'] and kwargs['user_type'][k]:
                 return k
@@ -428,8 +428,8 @@ def main(argv=sys.argv):
         create_cert_opts = create_cert_cmd.add_mutually_exclusive_group(required=True)
         create_cert_opts.add_argument('--creator', action='store_true',
             help='create a creator cert')
-        create_cert_opts.add_argument('--soi', action='store_true',
-            help='create an soi administrator cert')
+        create_cert_opts.add_argument('--admin', action='store_true',
+            help='create an admin administrator cert')
         create_cert_opts.add_argument('--initiator', action='store_true',
             help='create an initiator cert')
         create_cert_opts.add_argument('--platform', action='store_true',
@@ -443,7 +443,7 @@ def main(argv=sys.argv):
         sign_opts = sign_cmd.add_mutually_exclusive_group(required=True)
         sign_opts.add_argument('--creator', action='store_true',
             help='sign as the creator of the package')
-        sign_opts.add_argument('--soi', action='store_true',
+        sign_opts.add_argument('--admin', action='store_true',
             help='sign as the soi administrator')
         sign_opts.add_argument('--initiator', action='store_true',
             help='sign as the initiator of the package')
@@ -524,7 +524,7 @@ def main(argv=sys.argv):
                         verifier.verify()
                         print "Package is verified"
                     else:
-                        user_type = {'soi': opts.soi,
+                        user_type = {'admin': opts.admin,
                                   'creator': opts.creator,
                                   'initiator': opts.initiator,
                                   'platform': opts.platform}

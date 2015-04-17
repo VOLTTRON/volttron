@@ -68,7 +68,7 @@ setup(
     install_requires = ['volttron'],
     packages = packages,
     package_data = {
-        package: ['webroot/*.*', 'webroot/vendor/*.*']
+        package: ['webroot/*.*', 'webroot/css/*.css', 'webroot/js/*.js']
     },
     entry_points = {
         'setuptools.installation': [

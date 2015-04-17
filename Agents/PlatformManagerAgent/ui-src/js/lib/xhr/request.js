@@ -11,13 +11,13 @@ function XhrRequest(opts) {
         opts.error = function (response, type) {
             switch (type) {
             case 'error':
-                reject(new XhrError('Server returned ' + response.status + ' status'));
+                reject(new XhrError('Server returned ' + response.status + ' status', response));
                 break;
             case 'timeout':
-                reject(new XhrError('Request timed out'));
+                reject(new XhrError('Request timed out', response));
                 break;
             default:
-                reject(new XhrError('Request failed: ' + type));
+                reject(new XhrError('Request failed: ' + type, response));
             }
         };
 

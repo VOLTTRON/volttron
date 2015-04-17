@@ -4,13 +4,9 @@ var ACTION_TYPES = require('../constants/action-types');
 var dispatcher = require('../dispatcher');
 var Store = require('../lib/store');
 
-if (!location.hash) {
-    history.replaceState(null, null, '#home');
-}
-
 var _authorization = sessionStorage.getItem('authorization');
 var _page = location.hash.substr(1);
-var _platforms = [];
+var _platforms = null;
 
 var platformManagerStore = new Store();
 
@@ -26,11 +22,6 @@ platformManagerStore.getPlatforms = function () {
     return _platforms;
 };
 
-window.onhashchange = function () {
-    _page = location.hash.substr(1);
-    platformManagerStore.emitChange();
-};
-
 platformManagerStore.dispatchToken = dispatcher.register(function (action) {
     switch (action.type) {
         case ACTION_TYPES.RECEIVE_AUTHORIZATION:
@@ -39,6 +30,7 @@ platformManagerStore.dispatchToken = dispatcher.register(function (action) {
             platformManagerStore.emitChange();
             break;
 
+        case ACTION_TYPES.RECEIVE_UNAUTHORIZED:
         case ACTION_TYPES.CLEAR_AUTHORIZATION:
             _authorization = null;
             sessionStorage.removeItem('authorization');
@@ -53,6 +45,10 @@ platformManagerStore.dispatchToken = dispatcher.register(function (action) {
 
         case ACTION_TYPES.RECEIVE_PLATFORMS:
             _platforms = action.platforms;
+            platformManagerStore.emitChange();
+            break;
+
+        case ACTION_TYPES.RECEIVE_PLATFORM:
             platformManagerStore.emitChange();
             break;
     }

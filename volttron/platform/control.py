@@ -65,12 +65,14 @@ import logging
 import logging.handlers
 import os
 import re
+import shutil
 import sys
+import tempfile
 import traceback
 
 import gevent
 
-from .agent.vipagent import RPCAgent, export
+from .agent.vipagent import BaseAgent, export
 from . import aip as aipmod
 from . import config
 from .jsonrpc import RemoteError
@@ -91,7 +93,7 @@ _log = logging.getLogger(os.path.basename(sys.argv[0])
                          if __name__ == '__main__' else __name__)
 
 
-class ControlService(RPCAgent):
+class ControlService(BaseAgent):
     def __init__(self, aip, *args, **kwargs):
         super(ControlService, self).__init__(*args, **kwargs)
         self._aip = aip
@@ -169,6 +171,30 @@ class ControlService(RPCAgent):
                             'got {!r}'.format(type(priority).__name__))
         self._aip.prioritize_agent(uuid, priority)
 
+    @export()
+    def install_agent(self, name, channel_name):
+        peer = bytes(self.local.vip_message.peer)
+        channel = self.channel_create(peer, channel_name)
+        channel.send('')
+        tmpdir = tempfile.mkdtemp()
+        try:
+            path = os.path.join(tmpdir, os.path.basename(name))
+            store = open(path, 'wb')
+            try:
+                while True:
+                    data = channel.recv()
+                    if not data:
+                        break
+                    store.write(data)
+            finally:
+                store.close()
+                channel.close(linger=0)
+                del channel
+            return self._aip.install_agent(path)
+        finally:
+            shutil.rmtree(tmpdir, ignore_errors=True)
+
+
 
 def log_to_file(file, level=logging.WARNING,
                 handler_class=logging.StreamHandler):
@@ -217,7 +243,6 @@ def filter_agents(agents, patterns, opts):
 
 def filter_agent(agents, pattern, opts):
     return next(filter_agents(agents, [pattern], opts))[1]
-
 
 def install_agent(opts):
     aip = opts.aip
@@ -410,6 +435,36 @@ def create_cgroups(opts):
         _stderr.write('{}: error: {}\n'.format(opts.command, exc))
         return os.EX_NOUSER
 
+def _send_agent(connection, peer, path):
+    file = open(path, 'rb')
+    try:
+        name = str(id(file))
+        channel = connection.channel_create(peer, name)
+        try:
+            result = connection.rpc_call(
+                peer, 'install_agent', [os.path.basename(path), name])
+            channel.recv()
+            while True:
+                data = file.read(16384)
+                channel.send(data)
+                if not data:
+                    break
+        finally:
+            channel.close()
+            del channel
+    finally:
+        file.close()
+    return result
+
+def send_agent(opts):
+    connection = opts.connection
+    connection._connect()
+    for wheel in opts.wheel:
+        uuid = _send_agent(connection.server, connection.peer, wheel).get(
+            timeout=connection.timeout)
+        connection.call('start_agent', uuid)
+        _stdout.write('Agent {} started as {}'.format(wheel, uuid))
+
 # XXX: reimplement over VIP
 #def send_agent(opts):
 #    _log.debug("send_agent: "+ str(opts))
@@ -439,7 +494,7 @@ class Connection(object):
         self.address = address
         self.timeout = timeout
         self.peer = peer
-        self.server = RPCAgent(vip_address=self.address)
+        self.server = BaseAgent(vip_address=self.address)
         self._greenlet = None
 
     def _connect(self):
@@ -624,17 +679,12 @@ def main(argv=sys.argv):
         help='also stop the platform process')
     shutdown.set_defaults(func=shutdown_agents, platform=False)
 
-    if HAVE_RESTRICTED:
-        # XXX: Re-enable after send_agent is fixed
-        #send = add_parser('send',
-        #    help='send mobile agent to and start on a remote platform')
-        #send.add_argument('-p', '--port', type=int, metavar='NUMBER',
-        #    help='alternate port number to connect to')
-        #send.add_argument('host', help='DNS name or IP address of host')
-        #send.add_argument('wheel', nargs='+',
-        #    help='agent package to send')
-        #send.set_defaults(func=send_agent, port=2522)
+    send = add_parser('send',
+        help='send agent and start on a remote platform')
+    send.add_argument('wheel', nargs='+', help='agent package to send')
+    send.set_defaults(func=send_agent)
 
+    if HAVE_RESTRICTED:
         cgroup = add_parser('create-cgroups',
             help='setup VOLTTRON control group for restricted execution')
         cgroup.add_argument('-u', '--user', metavar='USER',
