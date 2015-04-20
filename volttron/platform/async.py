@@ -169,13 +169,13 @@ class AsyncCall(object):
         '''
         if hub is None:
             hub = gevent.get_hub()
-        self.hub = hub
         self.calls = calls = []
         self.async = hub.loop.async()
-        self.async.start(functools.partial(self._run_calls, hub, calls))
+        self.async.start(functools.partial(self._run_calls, calls))
 
     def __del__(self):
         '''Stop the async handler on deletion.'''
+        print('deleted')
         self.async.stop()
 
     def send(self, receiver, func, *args, **kwargs):
@@ -200,18 +200,24 @@ class AsyncCall(object):
         self.calls.append((receiver, func, args, kwargs))
         self.async.send()
 
+    @staticmethod
+    def _run_call(receiver, func, args, kwargs):
+        '''Run a pending call in its own greenlet.'''
+        try:
+            exc_info, result = None, func(*args, **kwargs)   # pylint: disable=star-args
+        except Exception:   # pylint: disable=broad-except
+            exc_info, result = sys.exc_info(), None
+        if receiver is not None:
+            receiver((exc_info, result))
+        elif exc_info:
+            hub = gevent.get_hub()
+            hub.handle_error(func, *exc_info)   # pylint: disable=star-args
+
     # This method is static to prevent a reference loop so the object
     # can be garbage collected without stopping the async handler.
-    @staticmethod
-    def _run_calls(hub, calls):
+    @classmethod
+    def _run_calls(cls, calls):
         '''Execute pending calls.'''
         while calls:
-            receiver, func, args, kwargs = calls.pop()
-            try:
-                exc_info, result = None, func(*args, **kwargs)   # pylint: disable=star-args
-            except Exception:   # pylint: disable=broad-except
-                exc_info, result = sys.exc_info(), None
-            if receiver is not None:
-                receiver((exc_info, result))
-            elif exc_info:
-                hub.handle_error(func, exc_info)
+            args = calls.pop()
+            gevent.spawn(cls._run_call, *args)   # pylint: disable=star-args
