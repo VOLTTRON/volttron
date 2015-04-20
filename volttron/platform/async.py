@@ -70,52 +70,19 @@ import gevent
 from gevent import GreenletExit
 
 
-__all__ = ['Threadlet', 'GreenletExit']
+__all__ = ['AsyncCall', 'Threadlet', 'GreenletExit']
 
 __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
 
 
-class IgnoreGreenletExitMeta(type):
-    '''Metaclass to ignore GreenletExit exceptins raised in thread.'''
-
-    def __new__(mcs, cls, bases, attrs):
-        '''Wrap run method defined on class or base classes.'''
-        try:
-            run = attrs['run']
-        except KeyError:
-            for base in bases:
-                try:
-                    run = base.run
-                except AttributeError:
-                    continue
-                break
-            else:
-                raise AttributeError(
-                    "'{}' object has no method 'run'".format(cls))
-        @functools.wraps(run)
-        def wrapper(self):
-            # pylint: disable=missing-docstring
-            try:
-                run(self)
-            except GreenletExit:
-                # Only raise if self.ignore_exit is False
-                if not getattr(self, 'ignore_exit', True):
-                    raise
-        attrs['run'] = wrapper
-        return super(IgnoreGreenletExitMeta, mcs).__new__(
-            mcs, cls, bases, attrs)
-
-
 class Threadlet(threading.Thread):
-    '''A subclass of threading.Thread supporting gevent.
+    '''A subclass of threading.Thread supporting gevent Greenlets.
 
     The run method is executed in the thread's main greenlet and the
     thread will exit when that method returns. Other threads may run
     callbacks within this thread using the send() method. Unlike the
     base class, threading.Thread, *daemon* is set by default.
     '''
-
-    __metaclass__ = IgnoreGreenletExitMeta
 
     def __init__(self, *args, **kwargs):
         '''This subclass adds three additional keyword arguents:
@@ -170,12 +137,81 @@ class Threadlet(threading.Thread):
 
     @functools.wraps(threading.Thread._Thread__bootstrap_inner)
     def _Thread__bootstrap_inner(self):
+        run_func = self.run
+        def run():
+            self.run = run_func
+            try:
+                run_func()
+            except GreenletExit:
+                # Only raise if self.ignore_exit is False
+                if not getattr(self, 'ignore_exit', True):
+                    raise
+        self.run = functools.wraps(run_func)(run)
+
         # Override inner bootstrap to get thread-specific attributes
         self.__greenlet = gevent.getcurrent()
         self.__hub = gevent.get_hub()
         self.__async = self.__hub.loop.async()
         self.__async.start(self.__run_callbacks)
-        threading.Thread._Thread__bootstrap_inner(self)
+        try:
+            threading.Thread._Thread__bootstrap_inner(self)
+        finally:
+            self.__async.stop()
 
-    # pylint: enable=no-member,invalid-name,missing-docstring
-    # pylint: enable=assignment-from-none,attribute-defined-outside-init
+
+class AsyncCall(object):
+    '''Send functions to another thread's gevent hub for execution.'''
+
+    def __init__(self, hub=None):
+        '''Install this async handler in a hub.
+
+        If hub is None, the current thread's hub is used.
+        '''
+        if hub is None:
+            hub = gevent.get_hub()
+        self.hub = hub
+        self.calls = calls = []
+        self.async = hub.loop.async()
+        self.async.start(functools.partial(self._run_calls, hub, calls))
+
+    def __del__(self):
+        '''Stop the async handler on deletion.'''
+        self.async.stop()
+
+    def send(self, receiver, func, *args, **kwargs):
+        '''Send a function to the hub to be called there.
+
+        All the arguments to this method are placed in a queue and the
+        hub is signaled that a function is ready. When the hub switches
+        to this handler, the functions are iterated over, each being
+        called with its results sent to the receiver.
+
+        func is called with args and kwargs in the thread of the
+        associated hub. If receiver is None, results are ignored and
+        errors are printed when exceptions occur. Otherwise, receiver is
+        called with the 2-tuple (exc_info, result). If an unhandled
+        exception occurred, exc_info is the 3-tuple returned by
+        sys.exc_info() and result is None. Otherwise exc_info is None
+        and the result is func's return value.
+
+        Note that receiver is called from the hub's thread and may
+        need to be injected into the thread of the receiver.
+        '''
+        self.calls.append((receiver, func, args, kwargs))
+        self.async.send()
+
+    # This method is static to prevent a reference loop so the object
+    # can be garbage collected without stopping the async handler.
+    @staticmethod
+    def _run_calls(hub, calls):
+        '''Execute pending calls.'''
+        while calls:
+            receiver, func, args, kwargs = calls.pop()
+            try:
+                exc_info, result = None, func(*args, **kwargs)   # pylint: disable=star-args
+            except Exception:   # pylint: disable=broad-except
+                exc_info, result = sys.exc_info(), None
+            if receiver is not None:
+                receiver((exc_info, result))
+            elif exc_info:
+                hub.handle_error(func, exc_info)
