@@ -1,0 +1,5 @@
+{
+    "agentid": "smap_historian",
+    "source": "MyTest",
+    "archiver_url": "http://smap-test.cloudapp.net"
+}

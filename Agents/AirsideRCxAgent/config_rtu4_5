@@ -1,35 +1,38 @@
 {
     "agentid": "airside_rcx",
     "application": "airside_retuning_rcx.Application",
-
     "device": {
         "campus": "campus",
         "building": "building",
         "unit": {
             "rtu4": {
-                "subdevices": [],
+                "subdevices": []
             },
             "rtu5": {
-                "subdevices": [FCU11041, FCU11042, FCU11043, FCU11044, FCU11045,
-                               FCU11046, VAV11111, VAV11112, VAV11113, VAV11114,
-                               VAV11115, VAV11116, VAV11117, VAV11118, VAV11119,
-                               VAV11120, VAV11121, VAV11122, VAV11123, VAV11126,
-                               VAV11127, VAV11128, FPT11131, FPT11132, FPT11133,
-                               FPT11134, FPT11135, FPT11136, FPT11137, FPT11138,
-                               FPT11139, FPT11140, FCU11143, FCU11144, FCU11145,
-                               FCU11146, FCU11147, FCU11148, FCU11149, FCU11150,
-                               FCU11151, VAV11211, VAV11212, VAV11213, VAV11214,
-                               VAV11215, VAV11216, VAV11217, VAV11218, VAV11219,
-                               VAV11220, VAV11226, VAV11227, VAV11228, FPT11231,
-                               FPT11232, FPT11233, FPT11234, FPT11235, FPT11236,
-                               FPT11237, FPT11238, FPT11239, FPT11240, FPT11241,
-                               FPT11242, FCU11245, FCU11246, FCU11247, FCU11248,
-                               FCU11249]
+                "subdevices": [
+                    "FCU11041", "FCU11042", "FCU11043", "FCU11044",
+                    "FCU11045", "FCU11046", "VAV11111", "VAV11112",
+                    "VAV11113", "VAV11114", "VAV11115", "VAV11116",
+                    "VAV11117", "VAV11118", "VAV11119", "VAV11120",
+                    "VAV11121", "VAV11122", "VAV11123", "VAV11126",
+                    "VAV11127", "VAV11128", "FPT11131", "FPT11132",
+                    "FPT11133", "FPT11134", "FPT11135", "FPT11136",
+                    "FPT11137", "FPT11138", "FPT11139", "FPT11140",
+                    "FCU11143", "FCU11144", "FCU11145", "FCU11146",
+                    "FCU11147", "FCU11148", "FCU11149", "FCU11150",
+                    "FCU11151", "VAV11211", "VAV11212", "VAV11213",
+                    "VAV11214", "VAV11215", "VAV11216", "VAV11217",
+                    "VAV11218", "VAV11219", "VAV11220", "VAV11226",
+                    "VAV11227", "VAV11228", "FPT11231", "FPT11232",
+                    "FPT11233", "FPT11234", "FPT11235", "FPT11236",
+                    "FPT11237", "FPT11238", "FPT11239", "FPT11240",
+                    "FPT11241", "FPT11242", "FCU11245", "FCU11246",
+                    "FCU11247", "FCU11248", "FCU11249"
+                ]
             }
         },
-        "analysis": "Airside_RCx",
+        "analysis": "Airside_RCx"
     },
-
 
     "output_file": "./junk.csv",
 
@@ -75,7 +78,7 @@
          "friday_sch": "6:30;18:30",
          "saturday_sch": "0:00;0:00",
          "sunday_sch": "0:00;0:00"
-
+    },
     "conversion_map": {
         ".*Temperature": "float",
         ".*SetPoint": "float",
