@@ -127,12 +127,11 @@ def PlatformAgent(config_path, **kwargs):
 
             elif method in ('agent_status', 'start_agent', 'stop_agent'):
                 status = self.rpc_call('control', method, params).get()
-                result = {'process_id': status[0], 'return_code': status[1]}
-
-            elif method == 'start_agent':
-                self.rpc_call('control', method, params).get()
-                status = self.rpc_call('control', 'agent_status', params).get()
-                return {'process_id': status[0], 'return_code': status[1]}
+                if method == 'stop_agent' or status == None:
+                    # Note we recurse here to get the agent status.
+                    result = self.dispatch(id, 'agent_status', params)
+                else:
+                    result = {'process_id': status[0], 'return_code': status[1]}
 
             try:
                 if len(result):
