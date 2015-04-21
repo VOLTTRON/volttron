@@ -372,11 +372,11 @@ class ManagerRequestHandler(tornado.web.RequestHandler):
 def PlatformManagerAgent(config_path, **kwargs):
     config = utils.load_config(config_path)
 
-    def get_config(name):
+    def get_config(name, fallback=''):
         try:
             return kwargs.pop(name)
         except KeyError:
-            return config.get(name, '')
+            return config.get(name, fallback)
     home = os.path.expanduser(os.path.expandvars(
         os.environ.get('VOLTTRON_HOME', '~/.volttron')))
     vip_address = 'ipc://@{}/run/vip.socket'.format(home)
@@ -384,7 +384,7 @@ def PlatformManagerAgent(config_path, **kwargs):
     #s1 = SenderAgent('sender', vip_address=path, vip_identity='replier')
 
     agent_id = get_config('agentid')
-    server_conf = {'global': get_config('server')}
+    server_conf = get_config('server', {})
     user_map = get_config('users')
 
     hander_config = [
@@ -410,7 +410,7 @@ def PlatformManagerAgent(config_path, **kwargs):
                         SessionHandler(Authenticate(user_map)),
                         manager,
                         hander_config, debug=True)
-        webserver.listen(8080)
+        webserver.listen(server_conf.get('port', 8080), server_conf.get('host', ''))
         webserverStarted = True
         tornado.ioloop.IOLoop.instance().start()
 
