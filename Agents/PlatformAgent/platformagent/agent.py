@@ -120,7 +120,7 @@ def PlatformAgent(config_path, **kwargs):
         def route_request(self, id, method, params):
 
             if method == 'list_agents':
-                result = self.rpc_call('control', method).get()
+                result = self.list_agents()
             elif method == 'status_agents':
                 print self.rpc_call('control', method).get()
 
@@ -136,12 +136,21 @@ def PlatformAgent(config_path, **kwargs):
                 else:
                     result = {'process_id': status[0], 'return_code': status[1]}
 
-            try:
-                if len(result):
+
+            if isinstance(result, dict):
+                if 'result' in result or 'code' in result:
                     return result
-            except:
-                return {'code': METHOD_NOT_FOUND,
-                        'message': 'Method on agent manager: {}'.format(method)}
+
+
+            return {'result': result}
+#             else:
+#
+#             try:
+#                 if len(result):
+#                     return result
+#             except:
+#                 return {'code': METHOD_NOT_FOUND,
+#                         'message': 'Method on agent manager: {}'.format(method)}
 
 #             fields = method.split('.')
 #
