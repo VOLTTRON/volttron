@@ -216,8 +216,8 @@ class RpcResponse:
         d = {'jsonrpc': '2.0', 'id': self.id}
 
         if self.code != None:
-            d['code'] = self.code
-            d['message'] = self.message
+            d['error'] = {'code': self.code,
+                          'message': self.message}
         else:
             d['result'] = self.result
 
@@ -338,6 +338,7 @@ class ManagerRequestHandler(tornado.web.RequestHandler):
                 rpcResponse = RpcResponse(rpcRequest.id,
                                   code=401,
                                   message="Unauthorized Access")
+                self._response_complete((None, rpcResponse))
             else:
                 # hack until js is updated in the code to produce _ separated
                 # data.
@@ -498,7 +499,7 @@ def PlatformManagerAgent(config_path, **kwargs):
 
 
         def route_request (self, id, method, params):
-            '''Dispatch request to either a registered platform or handle here.
+            '''Route request to either a registered platform or handle here.
 
             RpcParser - An RpcParser object where calling set_result will allow a response
                   to be set on the object.
@@ -525,7 +526,7 @@ def PlatformManagerAgent(config_path, **kwargs):
                 platform_method = '.'.join(fields[3:])
 
 
-                return self.rpc_call(str(platform_uuid), 'dispatch',
+                return self.rpc_call(str(platform_uuid), 'route_request',
                                         [id, platform_method, params]).get()
 #
 #
