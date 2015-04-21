@@ -105,6 +105,9 @@ def PlatformAgent(config_path, **kwargs):
         def __init__(self, **kwargs):
             #vip_identity,
             super(Agent, self).__init__(vip_address, vip_identity=vip_identity, **kwargs)
+            self.vip_address = manager_vip_address
+            self.vip_manager = manager_vip_identity
+            print('manager vip address: {}'.format(manager_vip_address))
             self.ctl = Connection(manager_vip_address, peer=manager_vip_identity)
 
         @export()
@@ -114,7 +117,7 @@ def PlatformAgent(config_path, **kwargs):
             return self.rpc_call("control", "list_agents").get()
 
         @export()
-        def dispatch(self, id, method, params):
+        def route_request(self, id, method, params):
 
             if method == 'list_agents':
                 result = self.rpc_call('control', method).get()
@@ -129,7 +132,7 @@ def PlatformAgent(config_path, **kwargs):
                 status = self.rpc_call('control', method, params).get()
                 if method == 'stop_agent' or status == None:
                     # Note we recurse here to get the agent status.
-                    result = self.dispatch(id, 'agent_status', params)
+                    result = self.route_request(id, 'agent_status', params)
                 else:
                     result = {'process_id': status[0], 'return_code': status[1]}
 
@@ -158,6 +161,7 @@ def PlatformAgent(config_path, **kwargs):
         @onevent("start")
         def start(self):
             print("starting service")
+            print("controL call", "register_platform", vip_identity, agentid, vip_address)
             self.ctl.call("register_platform", vip_identity, agentid, vip_address)
 
         @onevent("finish")
