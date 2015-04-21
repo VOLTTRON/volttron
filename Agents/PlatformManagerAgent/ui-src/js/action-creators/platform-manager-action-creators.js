@@ -8,7 +8,7 @@ var rpc = require('../lib/rpc');
 var platformManagerActionCreators = {
     requestAuthorization: function (username, password) {
         new rpc.Exchange({
-            method: 'getAuthorization',
+            method: 'get_authorization',
             params: {
                 username: username,
                 password: password,
@@ -46,7 +46,7 @@ var platformManagerActionCreators = {
         var authorization = platformManagerStore.getAuthorization();
 
         new rpc.Exchange({
-            method: 'listPlatforms',
+            method: 'list_platforms',
             authorization: authorization,
         }).promise
             .then(function (platforms) {
@@ -69,7 +69,7 @@ var platformManagerActionCreators = {
                             });
 
                             new rpc.Exchange({
-                                method: 'platforms.uuid.' + platform.uuid + '.status_agent',
+                                method: 'platforms.uuid.' + platform.uuid + '.status_agents',
                                 authorization: authorization,
                             }).promise
                                 .then(function (agentStatuses) {
