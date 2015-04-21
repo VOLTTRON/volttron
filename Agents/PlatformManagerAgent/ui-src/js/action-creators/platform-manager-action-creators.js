@@ -57,7 +57,7 @@ var platformManagerActionCreators = {
 
                 platforms.forEach(function (platform) {
                     new rpc.Exchange({
-                        method: 'platforms.uuid.' + platform.uuid + '.listAgents',
+                        method: 'platforms.uuid.' + platform.uuid + '.list_agents',
                         authorization: authorization,
                     }).promise
                         .then(function (agentsList) {
@@ -69,7 +69,7 @@ var platformManagerActionCreators = {
                             });
 
                             new rpc.Exchange({
-                                method: 'platforms.uuid.' + platform.uuid + '.statusAgents',
+                                method: 'platforms.uuid.' + platform.uuid + '.status_agent',
                                 authorization: authorization,
                             }).promise
                                 .then(function (agentStatuses) {
@@ -120,7 +120,7 @@ var platformManagerActionCreators = {
         });
 
         new rpc.Exchange({
-            method: 'platforms.uuid.' + platform.uuid + '.startAgent',
+            method: 'platforms.uuid.' + platform.uuid + '.start_agent',
             params: [agent.uuid],
             authorization: authorization,
         }).promise
@@ -146,7 +146,7 @@ var platformManagerActionCreators = {
         });
 
         new rpc.Exchange({
-            method: 'platforms.uuid.' + platform.uuid + '.stopAgent',
+            method: 'platforms.uuid.' + platform.uuid + '.stop_agent',
             params: [agent.uuid],
             authorization: authorization,
         }).promise
