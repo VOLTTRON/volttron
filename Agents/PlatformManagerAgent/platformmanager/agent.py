@@ -55,6 +55,7 @@
 
 import cherrypy
 import datetime
+from functools import wraps, partial
 import json
 import logging
 import sys
@@ -64,26 +65,27 @@ import os
 import os.path as p
 import uuid
 
+import gevent
+import greenlet
 import tornado
 import tornado.ioloop
 import tornado.web
 from tornado.web import url
 
-
 from authenticate import Authenticate
 from manager import Manager
-
-from volttron.platform.agent.utils import jsonapi, isapipe
-from volttron.platform.agent import utils
 
 from volttron.platform import vip, jsonrpc
 from volttron.platform.control import Connection
 from volttron.platform.agent.vipagent import RPCAgent, periodic, onevent, jsonapi, export
 from volttron.platform.agent import utils
+from volttron.platform.async import AsyncCall
 
 from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
                                        INVALID_REQUEST, METHOD_NOT_FOUND, PARSE_ERROR,
                                        UNHANDLED_EXCEPTION)
+
+
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -144,18 +146,84 @@ class ManagerWebApplication(tornado.web.Application):
     class so that the request handler has access to these resources.
 
     Request handlers have access to this function through
-        self.application.manager_agent and
+        self.application.manager and
         self.application.sessions
     respectively.
     '''
-    def __init__(self, session_handler, manager_agent, handlers=None,
+    def __init__(self, session_handler, manager, handlers=None,
                  default_host="", transforms=None, **settings):
         super(ManagerWebApplication, self).__init__(handlers, default_host,
                                                     transforms, **settings)
         self.sessions = session_handler
-        self.manager_agent = manager_agent
+        self.manager = manager
 
-class Rpc:
+class RpcResponse:
+    '''Wraps a response from rpc call in a json wrapper.'''
+
+    def __init__(self, id, **kwargs):
+        '''Initialize the response object with id and parameters.
+
+        This method requires that either a code and message be set or a result
+        be set via the kwargs.
+
+        If code is a standard specification error then message will be set
+        automatically. If message is set it will override the default message
+        from the specs.
+
+        Ex.
+            RpcResponse('xwrww', code=401, message='Authorization error')
+            RpcResponse('xw223', code=INVALID_PARAMS)
+
+        '''
+        self.id = id
+        self.result = kwargs.get('result', None)
+        self.message = kwargs.get('message', None)
+        self.code = kwargs.get('code', None)
+
+        if self.message == None and \
+            self.code in (INTERNAL_ERROR, INVALID_PARAMS,
+                           INVALID_REQUEST, METHOD_NOT_FOUND, PARSE_ERROR,
+                           UNHANDLED_EXCEPTION):
+            self.message = self.get_standard_error(self.code)
+
+        # Require a code and a message to be set if an eror result.
+        if self.result == None and (self.message == None or self.code == None):
+            raise Exception('both error and result cannot be None')
+
+        # There is probably a better way to move the result up a level, however
+        # this was the fastest I could think of.
+        if isinstance(self.result, dict) and 'result' in self.result:
+            self.result = self.result['result']
+
+    def get_standard_error(self, code):
+
+        if code == INTERNAL_ERROR:
+            error = 'Internal JSON-RPC error'
+        elif code == INVALID_PARAMS:
+            error = 'Invalid method parameter(s).'
+        elif code == INVALID_REQUEST:
+            error = 'The JSON sent is not a valid Request object.'
+        elif code == METHOD_NOT_FOUND:
+            error = 'The method does not exist / is not available.'
+        elif code == PARSE_ERROR:
+            error = 'Invalid JSON was received by the server. '\
+                    'An error occurred on the server while parsing the JSON text.'
+        else:
+            #UNHANDLED_EXCEPTION
+            error = 'Unhandled exception happened!'
+
+    def get_response(self):
+        d = {'jsonrpc': '2.0', 'id': self.id}
+
+        if self.code != None:
+            d['code'] = self.code
+            d['message'] = self.message
+        else:
+            d['result'] = self.result
+
+        return d
+
+class RpcRequest:
     PARSE_ERR = {'code': -32700, 'message': 'Parse error'}
 
     def was_error(self):
@@ -167,7 +235,7 @@ class Rpc:
         return not (self._error == None)
 
     def get_response(self):
-        ret = {'jsonrpc': '2.0', 'id': self._id}
+        ret = {'jsonRpcParser': '2.0', 'id': self.id}
         if self.was_error():
             ret['error'] = self._error
         else:
@@ -178,21 +246,12 @@ class Rpc:
         self.clear_err()
         self._result = result
 
-    def clear_err(self): self._error = None
-    def get_err(self): return self._error
-    def set_err(self, code, message):
-        self._error = {'code': code, 'message': message}
-    def get_method(self): return self._method
-    def get_authorization(self):  return self._authorization
-    def get_params(self): return self._params
-    def get_id(self): return self._id
-
     def __init__(self, request_body=None,
                  id=None, method=None, params = None):
 
         try:
-            self._id = None # default for json rpc with parse error
-            self._error = None
+            self.id = None # default for json RpcParser with parse error
+            self.error = None
 
             if request_body:
                 data = json.loads(request_body)
@@ -213,84 +272,118 @@ class Rpc:
                     self.set_err(PARSE_ERROR, 'Invalid id specified')
                     return
 
-                # This is only necessary at the top level of the rpc stack.
+                # This is only necessary at the top level of the RpcParser stack.
                 if not "authorization" in data:
                     if data['method'] != 'getAuthorization':
                         self.set_err(401, 'Invalid or expired authorization')
                         return
                 if "authorization" in data:
-                    self._authorization = data['authorization']
+                    self.authorization = data['authorization']
             else:
-                data = {'method':method, 'id': id, 'jsonrpc': '2.0',
+                data = {'method':method, 'id': id, 'jsonRpcParser': '2.0',
                         'params':params}
 
-            self._method = data['method']
-            self._jsonrpc = data['jsonrpc']
-            self._id = data['id']
+            self.method = data['method']
+            self.jsonrpc = data['jsonrpc']
+            self.id = data['id']
             if 'params' in data:
-                self._params = data['params']
+                self.params = data['params']
             else:
-                self._params = []
+                self.params = []
 
         except:
             self.set_err(PARSE_ERROR, 'Invalid json')
 
 
-
 class ManagerRequestHandler(tornado.web.RequestHandler):
-    '''The main ReequestHanlder for the platform manager.
+    '''The main RequestHanlder for the platform manager.
 
-    The manager only accepts posted rpc methods.  The manager will parse
-    the request body for valid json rpc.  The first call to this request
+    The manager only accepts posted RpcParser methods.  The manager will parse
+    the request body for valid json RpcParser.  The first call to this request
     handler must be a getAuthorization request.  The call will return an
     authorization token that will be valid for the current session.  The token
     must be passed to any other calls to the handler or a 401 Unauhthorized
     code will be returned.
     '''
 
-    def _route(self, rpc, callback):
+
+    def _route(self, rpcRequest):
         # this is the only method that the handler truly deals with, the
         # rest will be dispatched to the manager agent itself.
-        if rpc.get_method() == 'getAuthorization':
+        if rpcRequest.method == 'getAuthorization':
             try:
                 token = self.application.sessions.authenticate(
-                            rpc.get_params()['username'],
-                            rpc.get_params()['password'],
+                            rpcRequest.params['username'],
+                            rpcRequest.params['password'],
                             self.request.remote_ip)
                 if token:
-                    rpc.set_result(str(token))
+                    rpcResponse = RpcResponse(rpcRequest.id, result=str(token))
+                    #rpcRequest.set_result(str(token))
                 else:
-                    rpc.set_err(401, "Invalid username or password")
+                    rpcResponse = RpcResponse(rpcRequest.id,
+                                  code=401,
+                                  message="invalid username or password")
             except:
-                rpc.set_err(INVALID_PARAMS,
-                            'Invalid parameters to {}'.format(rpc.get_method()))
+                rpcResponse = RpcResponse(rpcRequest.id,
+                              code=INVALID_PARAMS,
+                              message='Invalid parameters to {}'.format(rpcRequest.method))
 
+
+            self._response_complete((None, rpcResponse))
         else:
             # verify the user session
             if not self.application.sessions.check_session(
-                            rpc.get_authorization(),
+                            rpcRequest.authorization,
                             self.request.remote_ip):
-                rpc.set_err(401, 'Unauthorized access')
+                rpcResponse = RpcResponse(rpcRequest.id,
+                                  code=401,
+                                  message="Unauthorized Access")
             else:
-                self.application.manager_agent.dispatch(rpc)
+                # hack until js is updated in the code to produce _ separated
+                # data.
+                rpcRequest.method = rpcRequest.method.replace('listAgents', 'list_agents')
+                rpcRequest.method = rpcRequest.method.replace('startAgent', 'start_agent')
+                rpcRequest.method = rpcRequest.method.replace('stopAgent', 'stop_agent')
+                rpcRequest.method = rpcRequest.method.replace('statusAgents', 'status_agents')
+                rpcRequest.method = rpcRequest.method.replace('agent_status', 'agent_status')
 
-        callback(rpc)
+                print("Calling: {}".format(rpcRequest.method))
+                async_caller = self.application.manager.async_caller
+                async_caller.send(self._response_complete,
+                                     self.application.manager.route_request,
+                                     rpcRequest.id,
+                                     rpcRequest.method,
+                                     rpcRequest.params)
 
-    def _parse_validate_rpc(self, request_body, callback):
-        callback(Rpc(request_body))
+    def _response_complete(self, data):
+
+        if (data[0] != None):
+            if isinstance(data[0], RpcResponse):
+                self.write(data[0].get_response())
+            else:
+                self.write("Error: "+data[0])
+        else:
+            if isinstance(data[1], RpcResponse):
+                if data[1].code == 401:
+                    self.set_status(data[1].code)
+                self.write(data[1].get_response())
+            else:
+                rpcresponse = RpcResponse(self.rpcrequest.id, result=data[1])
+                self.write(rpcresponse.get_response())
+        try:
+            print("rpcresponse: {}".format(rpcresponse.get_response()))
+        except:
+            pass
+        print('handling request done')
+        self.finish()
 
     @tornado.web.asynchronous
-    @tornado.gen.coroutine
     def post(self):
+        print('handling request')
         request_body = self.request.body
-        # result will be an Rpc object  when completed
-        result = yield tornado.gen.Task(self._parse_validate_rpc, request_body)
-        # if no error then go along and route the task
-        if not result.was_error():
-            result = yield tornado.gen.Task(self._route, result)
-
-        self.write(result.get_response())
-        self.finish()
+        # result will be an RpcParser object  when completed
+        self.rpcrequest = RpcRequest(request_body)
+        self._route(self.rpcrequest)
 
 
 def PlatformManagerAgent(config_path, **kwargs):
@@ -320,8 +413,8 @@ def PlatformManagerAgent(config_path, **kwargs):
 
 
 
-    def startWebServer(manager_agent):
-        '''Starts the webserver to allow http/rpc calls.
+    def startWebServer(manager):
+        '''Starts the webserver to allow http/RpcParser calls.
 
         This is where the tornado IOLoop instance is officially started.  It
         does block here so one should call this within a thread or process if
@@ -332,7 +425,7 @@ def PlatformManagerAgent(config_path, **kwargs):
         '''
         webserver = ManagerWebApplication(
                         SessionHandler(Authenticate(user_map)),
-                        manager_agent,
+                        manager,
                         hander_config, debug=True)
         webserver.listen(8080)
         webserverStarted = True
@@ -343,6 +436,11 @@ def PlatformManagerAgent(config_path, **kwargs):
         '''Stops the webserver by calling IOLoop.stop
         '''
         tornado.ioloop.IOLoop.stop()
+
+    def makeVipAgentRequest(agent_uuid, **args):
+        platform['ctl'] = Connection('platform_manager')
+
+#                                                  peer=platform_uuid)
 
     class Agent(RPCAgent):
         """Agent for querying WeatherUndergrounds API"""
@@ -382,6 +480,11 @@ def PlatformManagerAgent(config_path, **kwargs):
             del self.platform_dict[peer_identity]['identity_params']
             return 'Removed'
 
+        @onevent('setup')
+        def setup(self):
+            print "Setting up"
+            self.async_caller = AsyncCall()
+
         @onevent("start")
         def start(self):
             '''This event is triggered when the platform is ready for the agent
@@ -394,54 +497,54 @@ def PlatformManagerAgent(config_path, **kwargs):
             stopWebServer()
 
 
-        def dispatch (self, rpc):
+        def route_request (self, id, method, params):
             '''Dispatch request to either a registered platform or handle here.
 
-            rpc - An Rpc object where calling set_result will allow a response
+            RpcParser - An RpcParser object where calling set_result will allow a response
                   to be set on the object.
             '''
 
-            if (rpc.get_method() == 'listPlatforms'):
-                rpc.set_result([x['identity_params'] for x in self.platform_dict.values()])
+            if (method == 'listPlatforms'):
+                return [x['identity_params'] for x in self.platform_dict.values()]
             else:
-                fields = rpc.get_method().split('.')
+                fields = method.split('.')
 
                 if len(fields) < 3:
-                    rpc.set_err(METHOD_NOT_FOUND, 'Unknown methd: {}'
-                                .format(rpc.get_method()))
+#                     RpcParser.set_err(METHOD_NOT_FOUND, 'Unknown methd: {}'
+#                                 .format(RpcParser.get_method()))
                     return
 
                 platform_uuid = fields[2]
 
                 if not platform_uuid in self.platform_dict:
-                    rpc.set_err(METHOD_NOT_FOUND, 'Unknown Platform: {}'
-                                .format(platform_uuid))
+#                     RpcParser.set_err(METHOD_NOT_FOUND, 'Unknown Platform: {}'
+#                                 .format(platform_uuid))
                     return
 
                 # The method to route to the platform.
                 platform_method = '.'.join(fields[3:])
 
-                newRpc = Rpc(id=rpc.get_id(), method=platform_method,
-                             params=rpc.get_params())
 
-                result = self.rpc_call(str(platform_uuid), 'dispatch',
-                            [rpc.get_id(), platform_method, rpc.get_params()]).get(10)
-
-                if 'result' in result:
-                    rpc.set_result(result['result'])
-                else:
-                    rpc.set_err(result['error_code'], result['error_code'])
+                return self.rpc_call(str(platform_uuid), 'dispatch',
+                                        [id, platform_method, params]).get()
+#
+#
+                #return result
+#                 if 'result' in result:
+#                     RpcParser.set_result(result['result'])
+#                 else:
+#                     RpcParser.set_err(result['error_code'], result['error_code'])
 
 #
 #                 if platform['peer_address'] == vip_address:
-#                     result = self.rpc_call(str(platform_uuid), 'dispatch', [platform_method, params])
+#                     result = self.RpcParser_call(str(platform_uuid), 'dispatch', [platform_method, params])
 #                 else:
 #                     if 'ctl' not in platform:
 #                         print "Connecting to ", platform['peer_address'], 'for peer', platform_uuid
 #                         platform['ctl'] = Connection(platform['peer_address'],
 #                                                  peer=platform_uuid)
 
-#             retvalue = {"jsonrpc": "2.0", "id":id}
+#             retvalue = {"jsonRpcParser": "2.0", "id":id}
 #
 #
 #             if method == 'listPlatforms':
@@ -484,7 +587,7 @@ def PlatformManagerAgent(config_path, **kwargs):
 #                 platform_method = str(platform_method)
 #
 #                 if platform['peer_address'] == vip_address:
-#                     result = self.rpc_call(str(platform_uuid), 'dispatch', [platform_method, params])
+#                     result = self.RpcParser_call(str(platform_uuid), 'dispatch', [platform_method, params])
 #                 else:
 #                     if 'ctl' not in platform:
 #                         print "Connecting to ", platform['peer_address'], 'for peer', platform_uuid
