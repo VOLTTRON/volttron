@@ -111,33 +111,36 @@ def PlatformAgent(config_path, **kwargs):
         def list_agents(self):
             print("Getting agents from control!")
             print("self.vip_addr", self.vip_address)
-            return self.rpc_call("control", "list_agents").get(10)
+            return self.rpc_call("control", "list_agents").get()
 
         @export()
         def dispatch(self, id, method, params):
-            return {'result': self.list_agents()}
-            #return {'result': 'Got it'}
-            #rpc['result'] =
 
-#             # First handle the platform control functionality before dispatching
-#             # to the individual agents.
-#             if method == 'list_agents':
-#                 return self.rpc_call('control', method).get()
-#
-#             if method == 'status_agents':
-#                 return [{'name':a[1], 'uuid': a[0], 'process_id': a[2][0],
-#                          'return_code': a[2][1]}
-#                         for a in self.rpc_call('control', method).get()]
-#
-#             if method == 'agent_status':
-#                 status = self.rpc_call('control', method, params).get()
-#                 return {'process_id': status[0], 'return_code': status[1]}
-#
-#             if method in ['start_agent', 'stop_agent']:
-#                 self.rpc_call('control', method, params).get()
-#                 status = self.rpc_call('control', 'agent_status', params).get()
-#                 return {'process_id': status[0], 'return_code': status[1]}
-#
+            if method == 'list_agents':
+                result = self.rpc_call('control', method).get()
+            elif method == 'status_agents':
+                print self.rpc_call('control', method).get()
+
+                result = {'result': [{'name':a[1], 'uuid': a[0], 'process_id': a[2][0],
+                          'return_code': a[2][1]}
+                         for a in self.rpc_call('control', method).get()]}
+
+            elif method in ('agent_status', 'start_agent', 'stop_agent'):
+                status = self.rpc_call('control', method, params).get()
+                result = {'process_id': status[0], 'return_code': status[1]}
+
+            elif method == 'start_agent':
+                self.rpc_call('control', method, params).get()
+                status = self.rpc_call('control', 'agent_status', params).get()
+                return {'process_id': status[0], 'return_code': status[1]}
+
+            try:
+                if len(result):
+                    return result
+            except:
+                return {'code': METHOD_NOT_FOUND,
+                        'message': 'Method on agent manager: {}'.format(method)}
+
 #             fields = method.split('.')
 #
 #             if len(fields) < 3:
