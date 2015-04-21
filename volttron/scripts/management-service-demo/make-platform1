@@ -9,6 +9,7 @@ export VOLTTRON_HOME=$VOLTTRON_HOME
 
 WHEEL=$VOLTTRON_HOME/packaged/platformagentagent-0.1-py2-none-any.whl
 
+echo "making platform agent 1 wheel"
 volttron-pkg package ../../../Agents/PlatformAgent/
 volttron-pkg configure $WHEEL ./platform-config1
 
