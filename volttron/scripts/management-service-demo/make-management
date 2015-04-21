@@ -1,7 +1,7 @@
 . demo-vars.sh
 
-if [ -z "$VOLTTRON_HOME" ]; then 
-  echo "VOLTTRON_HOME UNSET setting to v1_home: $V1_HOME"; 
+if [ -z "$VOLTTRON_HOME" ]; then
+  echo "VOLTTRON_HOME UNSET setting to v1_home: $V1_HOME";
   VOLTTRON_HOME=$V1_HOME
 fi
 
@@ -9,7 +9,7 @@ export VOLTTRON_HOME=$VOLTTRON_HOME
 
 WHEEL=$VOLTTRON_HOME/packaged/platformmanageragent-0.1-py2-none-any.whl
 
-echo "building managent wheel"
+echo "building platform manager agent wheel"
 volttron-pkg package ../../../Agents/PlatformManagerAgent/
 volttron-pkg configure $WHEEL ./manager-config
 

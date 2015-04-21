@@ -105,10 +105,12 @@ def PlatformAgent(config_path, **kwargs):
         def __init__(self, **kwargs):
             #vip_identity,
             super(Agent, self).__init__(vip_address, vip_identity=vip_identity, **kwargs)
-            self.vip_address = manager_vip_address
-            self.vip_manager = manager_vip_identity
-            print('manager vip address: {}'.format(manager_vip_address))
-            self.ctl = Connection(manager_vip_address, peer=manager_vip_identity)
+            self.vip_address = vip_address
+            self.vip_identity = vip_identity
+            self.manager_vip_identity = manager_vip_identity
+            self.manager_vip_address = manager_vip_address
+
+
 
         @export()
         def list_agents(self):
@@ -169,14 +171,21 @@ def PlatformAgent(config_path, **kwargs):
 
         @onevent("start")
         def start(self):
-            print("starting service")
-            print("controL call", "register_platform", vip_identity, agentid, vip_address)
-            self.ctl.call("register_platform", vip_identity, agentid, vip_address)
+            _log.debug('Starting service vip info: {}'.format(
+                                                        str(self.__dict__)))
+            _log.debug('Connecting to peer: ({}, {})'.format(
+                                                    self.manager_vip_address,
+                                                    self.manager_vip_identity))
+            self._ctl = Connection(self.manager_vip_address,
+                                   peer=self.manager_vip_identity)
+            _log.debug('sending call register_platform {}'.format(
+                                    str((vip_identity, agentid, vip_address))))
+            self._ctl.call("register_platform", vip_identity, agentid, vip_address)
 
         @onevent("finish")
         def stop(self):
             print("Stopping service")
-            self.ctl.call("unregister_platform", vip_identity, agentid)
+            self._ctl.call("unregister_platform", vip_identity)
 
     Agent.__name__ = 'PlatformAgent'
     return Agent(**kwargs)

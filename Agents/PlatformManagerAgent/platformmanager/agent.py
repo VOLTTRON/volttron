@@ -228,15 +228,8 @@ class RpcRequest:
         The error could be set either through a parse error or through
         set_error.
         '''
-        return not (self._error == None)
+        return not (self.error == None)
 
-    def get_response(self):
-        ret = {'jsonRpcParser': '2.0', 'id': self.id}
-        if self.was_error():
-            ret['error'] = self._error
-        else:
-            ret['result'] = self._result
-        return ret
 
     def set_result(self, result):
         self.clear_err()
@@ -253,25 +246,25 @@ class RpcRequest:
                 data = json.loads(request_body)
 
                 if data == []:
-                    self.set_err(INVALID_REQUEST, "Invalid Request")
+                    self.error = INVALID_REQUEST
                     return
 
                 if not 'method' in data:
-                    self.set_err(METHOD_NOT_FOUND, "Method not found")
+                    self.error = METHOD_NOT_FOUND
                     return
 
                 if not 'jsonrpc' in data or data['jsonrpc'] != '2.0':
-                    self.set_err(PARSE_ERROR, "Invalid jsonrpc version")
+                    self.error = PARSE_ERROR
                     return
 
                 if not 'id' in data:
-                    self.set_err(PARSE_ERROR, 'Invalid id specified')
+                    self.error = PARSE_ERROR
                     return
 
                 # This is only necessary at the top level of the RpcParser stack.
                 if not "authorization" in data:
                     if data['method'] != 'get_authorization':
-                        self.set_err(401, 'Invalid or expired authorization')
+                        self.error = 401
                         return
                 if "authorization" in data:
                     self.authorization = data['authorization']
@@ -288,7 +281,7 @@ class RpcRequest:
                 self.params = []
 
         except:
-            self.set_err(PARSE_ERROR, 'Invalid json')
+            self.error = PARSE_ERROR
 
 
 class ManagerRequestHandler(tornado.web.RequestHandler):
@@ -371,6 +364,8 @@ class ManagerRequestHandler(tornado.web.RequestHandler):
         request_body = self.request.body
         # result will be an RpcParser object  when completed
         self.rpcrequest = RpcRequest(request_body)
+        print('Request_Body: {}'.format(request_body))
+        print("Request is: " + str(self.rpcrequest.__dict__))
         self._route(self.rpcrequest)
 
 
@@ -439,7 +434,7 @@ def PlatformManagerAgent(config_path, **kwargs):
             # a list of peers that have checked in with this agent.
             self.platform_dict = {}
             self.valid_data = False
-            #self.webserver = Root(Authenticate(user_map), self)
+
 
         def list_agents(self, platform):
 
@@ -451,7 +446,7 @@ def PlatformManagerAgent(config_path, **kwargs):
         def register_platform(self, peer_identity, name, peer_address):
             '''Agents will call this to register with the platform.
             '''
-            print "registering ", peer_identity
+
             self.platform_dict[peer_identity] = {
                     'identity_params':  {'name': name, 'uuid': peer_identity},
                     'peer_address': peer_address,
@@ -459,6 +454,7 @@ def PlatformManagerAgent(config_path, **kwargs):
 
             self.platform_dict[peer_identity]['external'] = peer_address != vip_address
 
+            print("Registered: ", self.platform_dict[peer_identity])
             return True
 
 
@@ -514,12 +510,17 @@ def PlatformManagerAgent(config_path, **kwargs):
                 result = self.rpc_call(str(platform_uuid), 'route_request',
                                        [id, platform_method, params]).get()
             else:
+                ctl = Connection(platform['peer_address'],
+                                             peer=platform_uuid)
+                result = ctl.call("route_request", id, platform_method, params).get()
+
                 if 'ctl' not in platform:
                     print "Connecting to ", platform['peer_address'], 'for peer', platform_uuid
                     platform['ctl'] = Connection(platform['peer_address'],
                                              peer=platform_uuid)
 
-                result = platform['ctl'].call("route_request", [id, platform_method, params])
+                print "Calling: {Connecting to ", platform['peer_address'], 'for peer', platform_uuid
+                result = platform['ctl'].call("route_request", id, platform_method, params).get()
 
 
             return result
