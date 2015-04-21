@@ -361,7 +361,7 @@ class ManagerRequestHandler(tornado.web.RequestHandler):
             if isinstance(data[0], RpcResponse):
                 self.write(data[0].get_response())
             else:
-                self.write("Error: "+data[0])
+                self.write("Error: "+data[0][0]+" message: "+data[0][1])
         else:
             if isinstance(data[1], RpcResponse):
                 if data[1].code == 401:
@@ -613,7 +613,7 @@ def PlatformManagerAgent(config_path, **kwargs):
 def main(argv=sys.argv):
     try:
         # If stdout is a pipe, re-open it line buffered
-        if isapipe(sys.stdout):
+        if utils.isapipe(sys.stdout):
             # Hold a reference to the previous file object so it doesn't
             # get garbage collected and close the underlying descriptor.
             stdout = sys.stdout
