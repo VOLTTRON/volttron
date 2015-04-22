@@ -126,19 +126,19 @@ class Application(AbstractDrivenAgent):
                          'SAT set point.')
         # Point names (Configurable)
         Application.analysis = kwargs['device']['analysis']
-        self.fan_status_name = kwargs['fan_status_name']
-        self.duct_stp_stpt_name = kwargs['duct_stp_stpt_name']
-        self.duct_stp_name = kwargs['duct_stp_name']
-        self.sa_temp_name = kwargs['sa_temp_name']
-        self.sat_stpt_name = kwargs['sat_stpt_name']
+        self.fan_status_name = kwargs['fan_status']
+        self.duct_stp_stpt_name = kwargs['duct_stp_stpt']
+        self.duct_stp_name = kwargs['duct_stp']
+        self.sa_temp_name = kwargs['sa_temp']
+        self.sat_stpt_name = kwargs['sat_stpt']
+        self.fan_speedcmd_name = kwargs.get('fan_speedcmd_name', None)
+        if self.fan_speedcmd_name:
+            self.fan_speedcmd_name = self.fan_speedcmd_name.lower()
         Application.sat_stpt_cname = self.sat_stpt_name
         Application.duct_stp_stpt_cname = self.duct_stp_stpt_name
         # Optional points
         self.override_state = 'AUTO'
-        if Application.fan_speedcmd_name is not None:
-            self.fan_speedcmd_name = Application.fan_speedcmd_name.lower()
-        else:
-            self.fan_speedcmd_name = None
+
         self.fan_speedcmd_priority = Application.fan_speedcmd_priority.lower()
         self.duct_stp_stpt_priority = Application.duct_stp_stpt_priority.lower()
         self.ahu_ccoil_priority = Application.ahu_ccoil_priority.lower()
@@ -460,7 +460,7 @@ class Application(AbstractDrivenAgent):
         message_topic = '/'.join(output_topic_base + ['Airside_RCx',
                                                       'message'])
         diagnostic_name = '/'.join(output_topic_base + ['Airside_RCx',
-                                                        ' diagnostic_name'])
+                                                        ' diagnostic'])
         energy_impact = '/'.join(output_topic_base + ['Airside_RCx',
                                                       'energy_impact'])
         color_code = '/'.join(output_topic_base + ['Airside_RCx',
