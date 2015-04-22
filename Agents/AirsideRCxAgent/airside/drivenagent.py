@@ -110,6 +110,9 @@ def DrivenAgent(config_path, **kwargs):
     # each time run is called the application can keep it state.
     app_instance = klass(**config)
 
+    print("TOPIC VALUE: {}".format(topics.ANALYSIS_VALUE))
+    print("TOPIC VALUE: {}".format(topics.DEVICES_VALUE))
+
     class Agent(PublishMixin, BaseAgent):
         '''Agent listens to message bus device and runs when data is published.
         '''
@@ -150,9 +153,7 @@ def DrivenAgent(config_path, **kwargs):
 
             return True
 
-
         @matching.match_exact(topics.DEVICES_VALUE(point='all', **device))
-        @matching.match_exact(topics.ANALYSIS_VALUE(point='all', **device))
         def on_received_message(self, topic, headers, message, matched):
             '''Subscribe to device data and convert data to correct type for
             the driven application.
@@ -175,6 +176,10 @@ def DrivenAgent(config_path, **kwargs):
                 if self.should_run_now():
                     results = app_instance.run(datetime.now(), self._subdevice_values)
                     self._process_results(results)
+
+        @matching.match_exact(topics.ANALYSIS_VALUE(point='all', **device))
+        def on_rec_analysis_message(self, topic, headers, message, matched):
+            print('here!')
 
 
         def _process_results(self, results):

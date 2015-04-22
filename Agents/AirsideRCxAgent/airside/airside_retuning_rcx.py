@@ -131,21 +131,29 @@ class Application(AbstractDrivenAgent):
         self.duct_stp_name = kwargs['duct_stp']
         self.sa_temp_name = kwargs['sa_temp']
         self.sat_stpt_name = kwargs['sat_stpt']
-        self.fan_speedcmd_name = kwargs.get('fan_speedcmd_name', None)
-        if self.fan_speedcmd_name:
-            self.fan_speedcmd_name = self.fan_speedcmd_name.lower()
+
+        def get_or_none(name):
+            value = kwargs.get(name, None)
+            if value:
+                value = value.lower()
+            return value
+
+        self.fan_speedcmd_name = get_or_none('fan_speedcmd')
+
         Application.sat_stpt_cname = self.sat_stpt_name
         Application.duct_stp_stpt_cname = self.duct_stp_stpt_name
         # Optional points
         self.override_state = 'AUTO'
 
-        self.fan_speedcmd_priority = Application.fan_speedcmd_priority.lower()
-        self.duct_stp_stpt_priority = Application.duct_stp_stpt_priority.lower()
-        self.ahu_ccoil_priority = Application.ahu_ccoil_priority.lower()
-        self.sat_stpt_priority = Application.sat_stpt_priority.lower()
+        self.fan_speedcmd_priority = get_or_none('fan_speedcmd_priority')
+        self.duct_stp_stpt_priority = get_or_none('duct_stp_stpt_priority')
+        self.ahu_ccoil_priority = get_or_none('ahu_ccoil_priority')
+        self.sat_stpt_priority = get_or_none('sat_stpt_priority')
+
         # Zone Parameters
-        self.zone_damper_name = Application.zone_damper_name.lower()
-        self.zone_reheat_name = Application.zone_reheat_name.lower()
+        self.zone_damper_name = get_or_none('zone_damper')
+        self.zone_reheat_name = get_or_none('zone_reheat')
+
         # Application thresholds (Configurable)
         self.data_window = float(data_window)
         self.low_supply_fan_threshold = float(low_supply_fan_threshold)
