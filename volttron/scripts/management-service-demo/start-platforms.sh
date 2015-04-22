@@ -2,11 +2,11 @@
 . demo-vars.sh
 
 ./demo-setup.sh
-echo "START start-platforms"
+echo "Starting platform 1: $V1_HOME"
 VOLTTRON_HOME=$V1_HOME volttron -vv&
-echo "Starting platform 2"
+echo "Starting platform 2: $V2_HOME"
 VOLTTRON_HOME=$V2_HOME volttron -vv&
-echo "Starting platform 3"
+echo "Starting platform 3: $V3_HOME"
 VOLTTRON_HOME=$V3_HOME volttron -vv&
 echo "START make-management"
 VOLTTRON_HOME=$V1_HOME ./make-management
