@@ -114,6 +114,7 @@ def PlatformAgent(config_path, **kwargs):
         @export()
         def list_agents(self):
             result = self.rpc_call("control", "list_agents").get()
+            return result
 
         @export()
         def route_request(self, id, method, params):
