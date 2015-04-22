@@ -126,26 +126,34 @@ class Application(AbstractDrivenAgent):
                          'SAT set point.')
         # Point names (Configurable)
         Application.analysis = kwargs['device']['analysis']
-        self.fan_status_name = kwargs['fan_status_name']
-        self.duct_stp_stpt_name = kwargs['duct_stp_stpt_name']
-        self.duct_stp_name = kwargs['duct_stp_name']
-        self.sa_temp_name = kwargs['sa_temp_name']
-        self.sat_stpt_name = kwargs['sat_stpt_name']
+        self.fan_status_name = kwargs['fan_status']
+        self.duct_stp_stpt_name = kwargs['duct_stp_stpt']
+        self.duct_stp_name = kwargs['duct_stp']
+        self.sa_temp_name = kwargs['sa_temp']
+        self.sat_stpt_name = kwargs['sat_stpt']
+
+        def get_or_none(name):
+            value = kwargs.get(name, None)
+            if value:
+                value = value.lower()
+            return value
+
+        self.fan_speedcmd_name = get_or_none('fan_speedcmd')
+
         Application.sat_stpt_cname = self.sat_stpt_name
         Application.duct_stp_stpt_cname = self.duct_stp_stpt_name
         # Optional points
         self.override_state = 'AUTO'
-        if Application.fan_speedcmd_name is not None:
-            self.fan_speedcmd_name = Application.fan_speedcmd_name.lower()
-        else:
-            self.fan_speedcmd_name = None
-        self.fan_speedcmd_priority = Application.fan_speedcmd_priority.lower()
-        self.duct_stp_stpt_priority = Application.duct_stp_stpt_priority.lower()
-        self.ahu_ccoil_priority = Application.ahu_ccoil_priority.lower()
-        self.sat_stpt_priority = Application.sat_stpt_priority.lower()
+
+        self.fan_speedcmd_priority = get_or_none('fan_speedcmd_priority')
+        self.duct_stp_stpt_priority = get_or_none('duct_stp_stpt_priority')
+        self.ahu_ccoil_priority = get_or_none('ahu_ccoil_priority')
+        self.sat_stpt_priority = get_or_none('sat_stpt_priority')
+
         # Zone Parameters
-        self.zone_damper_name = Application.zone_damper_name.lower()
-        self.zone_reheat_name = Application.zone_reheat_name.lower()
+        self.zone_damper_name = get_or_none('zone_damper')
+        self.zone_reheat_name = get_or_none('zone_reheat')
+
         # Application thresholds (Configurable)
         self.data_window = float(data_window)
         self.low_supply_fan_threshold = float(low_supply_fan_threshold)
@@ -460,7 +468,7 @@ class Application(AbstractDrivenAgent):
         message_topic = '/'.join(output_topic_base + ['Airside_RCx',
                                                       'message'])
         diagnostic_name = '/'.join(output_topic_base + ['Airside_RCx',
-                                                        ' diagnostic_name'])
+                                                        ' diagnostic'])
         energy_impact = '/'.join(output_topic_base + ['Airside_RCx',
                                                       'energy_impact'])
         color_code = '/'.join(output_topic_base + ['Airside_RCx',

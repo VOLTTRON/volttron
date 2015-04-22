@@ -99,7 +99,7 @@ _log = logging.getLogger(os.path.basename(sys.argv[0])
 def log_to_file(file_, level=logging.WARNING,
                 handler_class=logging.StreamHandler):
     '''Direct log output to a file (or something like one).'''
-    handler = handler_class(file_)
+    handler = handler_class(file_, **kwargs)
     handler.setLevel(level)
     handler.setFormatter(utils.AgentFormatter())
     root = logging.getLogger()
@@ -472,7 +472,6 @@ def main(argv=sys.argv):
         for name, value in sorted(vars(opts).iteritems()):
             print(name, repr(value))
         return
-
     # Configure logging
     level = max(1, opts.verboseness)
     if opts.log is None:

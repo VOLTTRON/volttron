@@ -78,6 +78,11 @@ def DrivenAgent(config_path, **kwargs):
     validation_error = ''
     device = dict((key, config['device'][key])
                   for key in ['campus', 'building', 'unit'])
+    subdevices = {}
+    for unit in device['unit']:
+        if 'subdevices' in device['unit'][unit]:
+            subdevices[unit] = device['unit'][unit]['subdevices']
+
     agent_id = config.get('agentid')
     smap_path = config.get('smap_path')
     if not device:
@@ -105,6 +110,9 @@ def DrivenAgent(config_path, **kwargs):
     # each time run is called the application can keep it state.
     app_instance = klass(**config)
 
+    print("TOPIC VALUE: {}".format(topics.ANALYSIS_VALUE))
+    print("TOPIC VALUE: {}".format(topics.DEVICES_VALUE))
+
     class Agent(PublishMixin, BaseAgent):
         '''Agent listens to message bus device and runs when data is published.
         '''
@@ -114,6 +122,8 @@ def DrivenAgent(config_path, **kwargs):
             self._update_event_time = None
             self.keys = None
             self._device_states = {}
+            self._required_subdevice_values = subdevices
+            self._subdevice_values = {}
             self._kwargs = kwargs
             self.commands = {}
             self.current_point = None
@@ -122,6 +132,26 @@ def DrivenAgent(config_path, **kwargs):
                 with open(output_file, 'w') as writer:
                     writer.close()
             self._header_written = False
+
+        def initialize_subdevices(self):
+            self._subdevice_values = {}
+            for r in self._required_subdevice_values:
+                for s in r:
+                    self._subdevice_values[r][s] = None
+
+        def should_run_now(self):
+            if len(self._required_subdevice_values) < 1:
+                return True
+
+            def has_subdevice_value(unit, subdevice):
+                return self.subdevice_value[unit][subdevice] != None
+
+            for r in self._required_subdevice_values:
+                for s in r:
+                    if not has_subdevice_value(r, s):
+                        return False
+
+            return True
 
         @matching.match_exact(topics.DEVICES_VALUE(point='all', **device))
         def on_received_message(self, topic, headers, message, matched):
@@ -138,8 +168,19 @@ def DrivenAgent(config_path, **kwargs):
                                                data.keys())
             data = converter.process_row(data)
 
-            results = app_instance.run(datetime.now(), data)
-            self._process_results(results)
+            if len(self._required_subdevice_values) < 1:
+                results = app_instance.run(datetime.now(), data)
+                self._process_results(results)
+            else:
+                # apply data to subdevice values.
+                if self.should_run_now():
+                    results = app_instance.run(datetime.now(), self._subdevice_values)
+                    self._process_results(results)
+
+        @matching.match_exact(topics.ANALYSIS_VALUE(point='all', **device))
+        def on_rec_analysis_message(self, topic, headers, message, matched):
+            print('here!')
+
 
         def _process_results(self, results):
             '''Run driven application with converted data and write the app

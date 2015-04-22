@@ -19,10 +19,10 @@ VOLTTRON_HOME=$V3_HOME ./make-platform3
 echo "START make-hello1"
 VOLTTRON_HOME=$V1_HOME ./make-hello1
 echo "START make-hello2"
+VOLTTRON_HOME=$V2_HOME ./make-hello2
 
 echo "starting platform manager"
 VOLTTRON_HOME=$V1_HOME volttron-ctl start --tag manageragent
-
 echo "starting platform agent 1"
 VOLTTRON_HOME=$V1_HOME volttron-ctl start --tag platformagent
 echo "starting platform agent 2"
@@ -32,5 +32,5 @@ VOLTTRON_HOME=$V3_HOME volttron-ctl start --tag platformagent
 
 
 echo "Launching browser"
-x-www-browser http://localhost:8080
+x-www-browser http://localhost:8080 &
 
