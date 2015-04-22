@@ -3,15 +3,15 @@
 echo "(Re)creating Platform Directories:"
 echo "$V1_HOME, $V2_HOME, $V3_HOME"
 if [ -d "$V1_HOME" ]; then
-  rm $V1_HOME -rf
+  rm -rf $V1_HOME
 fi
 
 if [ -d "$V2_HOME" ]; then
-  rm $V2_HOME -rf
+  rm -rf $V2_HOME
 fi
 
 if [ -d "$V3_HOME" ]; then
-  rm $V3_HOME -rf
+  rm -rf $V3_HOME
 fi
 
 mkdir $V1_HOME
