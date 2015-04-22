@@ -99,7 +99,7 @@ _log = logging.getLogger(os.path.basename(sys.argv[0])
 def log_to_file(file_, level=logging.WARNING,
                 handler_class=logging.StreamHandler):
     '''Direct log output to a file (or something like one).'''
-    handler = handler_class(file_, **kwargs)
+    handler = handler_class(file_)
     handler.setLevel(level)
     handler.setFormatter(utils.AgentFormatter())
     root = logging.getLogger()
