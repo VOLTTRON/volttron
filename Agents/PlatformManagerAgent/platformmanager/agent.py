@@ -53,9 +53,7 @@
 
 #}}}
 
-import cherrypy
 import datetime
-from functools import wraps, partial
 import logging
 import sys
 import requests
