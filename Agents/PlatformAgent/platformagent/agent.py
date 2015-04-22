@@ -53,7 +53,6 @@
 
 #}}}
 
-import cherrypy
 import datetime
 import logging
 import sys
@@ -66,7 +65,6 @@ from volttron.platform import vip, jsonrpc
 from volttron.platform.control import Connection
 from volttron.platform.agent.vipagent import RPCAgent, periodic, onevent, jsonapi, export
 from volttron.platform.agent import utils
-from volttron.platform.agent.utils import jsonapi
 
 from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
                                        INVALID_REQUEST, METHOD_NOT_FOUND, PARSE_ERROR,
