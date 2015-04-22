@@ -476,9 +476,6 @@ def main(argv=sys.argv):
         for name, value in sorted(vars(opts).iteritems()):
             print(name, repr(value))
         return
-    print(opts)
-    print(opts.log)
-    print(opts.log_backupcount)
     # Configure logging
     level = max(1, opts.verboseness)
     if opts.log is None:
