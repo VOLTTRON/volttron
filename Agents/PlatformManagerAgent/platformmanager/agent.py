@@ -65,7 +65,6 @@ import os.path as p
 import uuid
 
 import gevent
-import greenlet
 import tornado
 import tornado.ioloop
 import tornado.web
@@ -75,11 +74,10 @@ from authenticate import Authenticate
 from manager import Manager
 
 from volttron.platform import vip, jsonrpc
-from volttron.platform.control import Connection
-from volttron.platform.agent.vipagent import RPCAgent, periodic, onevent, jsonapi, export
+#from volttron.platform.control import Connection
+from volttron.platform.agent.vipagent import BaseAgent, RPCAgent, periodic, onevent, jsonapi, export
 from volttron.platform.agent import utils
 from volttron.platform.async import AsyncCall
-from volttron.platform.agent.utils import jsonapi
 
 from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
                                        INVALID_REQUEST, METHOD_NOT_FOUND, PARSE_ERROR,
@@ -423,11 +421,6 @@ def PlatformManagerAgent(config_path, **kwargs):
         '''
         tornado.ioloop.IOLoop.stop()
 
-    def makeVipAgentRequest(agent_uuid, **args):
-        platform['ctl'] = Connection('platform_manager')
-
-#                                                  peer=platform_uuid)
-
     class Agent(RPCAgent):
         """Agent for querying WeatherUndergrounds API"""
 
@@ -437,6 +430,7 @@ def PlatformManagerAgent(config_path, **kwargs):
             # a list of peers that have checked in with this agent.
             self.platform_dict = {}
             self.valid_data = False
+            self.vip_channels = {}
 
 
         def list_agents(self, platform):
@@ -514,15 +508,14 @@ def PlatformManagerAgent(config_path, **kwargs):
                                        [id, platform_method, params]).get()
             else:
 
-                if platform['ctl'] == None:
-                    print("Connecting to {} -> {}".format(platform['peer_address'],
-                                                          platform_uuid))
-                    platform['ctl'] = Connection(platform['peer_address'],
-                                             peer=platform_uuid)
-                print("manager routing request for: {},{},{}".format(id,
-                                                             platform_method,
-                                                             params))
-                result = platform['ctl'].call("route_request", id, platform_method, params)
+                if not platform['peer_address'] in self.vip_channels:
+                    rpc = RPCAgent(platform['peer_address'])
+                    gevent.spawn(rpc.run).join(0)
+                    self.vip_channels[platform['peer_address']] = rpc
+                else:
+                    rpc = self.vip_channels[platform['peer_address']]
+
+                result = rpc.rpc_call(platform_uuid, "route_request", [id, platform_method, params]).get(timeout=10)
 
             return result
 
