@@ -1,3 +1,4 @@
+# bring in the vars that are to be available for this script
 . demo-vars.sh
 
 ./demo-setup.sh

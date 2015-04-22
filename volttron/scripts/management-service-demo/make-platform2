@@ -1,7 +1,7 @@
 . demo-vars.sh
 
-if [ -z "$VOLTTRON_HOME" ]; then 
-  echo "VOLTTRON_HOME UNSET setting to v2_home: $V2_HOME"; 
+if [ -z "$VOLTTRON_HOME" ]; then
+  echo "VOLTTRON_HOME UNSET setting to v2_home: $V2_HOME";
   VOLTTRON_HOME=$V2_HOME
 fi
 

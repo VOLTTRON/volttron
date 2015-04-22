@@ -122,7 +122,6 @@ def PlatformAgent(config_path, **kwargs):
 
         @export()
         def route_request(self, id, method, params):
-
             print("platform agent: id: {}, method: {}, params: {}".format(
                                                         id, method, params))
 
@@ -142,15 +141,13 @@ def PlatformAgent(config_path, **kwargs):
                     result = self.route_request(id, 'agent_status', params)
                 else:
                     result = {'process_id': status[0], 'return_code': status[1]}
-            else:
-                print("AAAAACCCCCKKKKKKKK")
 
             if isinstance(result, dict):
                 if 'result' in result or 'code' in result:
                     return result
 
+            return {'result': result}
 
-            return {'result': result} # {'jsonapi': '2.0', 'result': result, 'id': id}
 #             else:
 #
 #             try:
@@ -186,10 +183,10 @@ def PlatformAgent(config_path, **kwargs):
         def start(self):
             _log.debug('Starting service vip info: {}'.format(
                                                         str(self.__dict__)))
-            _log.debug('registering {} with platformmanager {}'.format(
-                            self.vip_identity, self.manager_vip_identity))
-            self._ctl.notify("register_platform", self.vip_identity,
-                             self.agentid, self.vip_address)
+            _log.debug('sending call register_platform {}'.format(
+                                    str((vip_identity, agentid, vip_address))))
+            self._ctl.call("register_platform", vip_identity, agentid, vip_address)
+
 
         @onevent("finish")
         def stop(self):
