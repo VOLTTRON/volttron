@@ -86,7 +86,7 @@ def SQLiteHistorianAgent(config_path, **kwargs):
             #self.report_all_published()
             c = self.conn.cursor()
             print 'Publish info'
-            for x in to_publish_list[:10]:
+            for x in to_publish_list:
                 ts = x['timestamp']
                 topic = x['topic']
                 value = x['value']
@@ -103,12 +103,13 @@ def SQLiteHistorianAgent(config_path, **kwargs):
                 c.execute('''INSERT OR REPLACE INTO data values(?, ?, ?)''', 
                           (ts,topic_id,jsonapi.dumps(value)))
                 
-                self.report_published(x)
                 pprint(x)
             print 'count:', len(to_publish_list)
             
             self.conn.commit()
-            c.close()            
+            c.close()     
+            
+            self.report_all_published()       
         
         def historian_setup(self):
             self.topics={}

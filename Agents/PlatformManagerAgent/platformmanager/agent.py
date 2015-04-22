@@ -55,44 +55,71 @@
 
 import cherrypy
 import datetime
-import json
+from functools import wraps, partial
 import logging
 import sys
 import requests
+import threading
 import os
 import os.path as p
 import uuid
 
+import gevent
+import greenlet
+import tornado
+import tornado.ioloop
+import tornado.web
+from tornado.web import url
+
 from authenticate import Authenticate
 from manager import Manager
-
-from volttron.platform.agent.utils import jsonapi, isapipe
-from volttron.platform.agent import utils
 
 from volttron.platform import vip, jsonrpc
 from volttron.platform.control import Connection
 from volttron.platform.agent.vipagent import RPCAgent, periodic, onevent, jsonapi, export
 from volttron.platform.agent import utils
+from volttron.platform.async import AsyncCall
+from volttron.platform.agent.utils import jsonapi
 
 from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
                                        INVALID_REQUEST, METHOD_NOT_FOUND, PARSE_ERROR,
                                        UNHANDLED_EXCEPTION)
 
+
+
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 WEB_ROOT = p.abspath(p.join(p.dirname(__file__), 'webroot'))
 
-class ValidationException(Exception):
-    pass
+class PlatformRegistry:
 
-class LoggedIn:
+    def __init__(self, stale=5*60):
+        pass
+
+class SessionHandler:
+    '''A handler for dealing with authentication of sessions
+
+    The SessionHandler requires an authenticator to be handed in to this
+    object in order to authenticate user.  The authenticator must implement
+    an interface that expects a method called authenticate with parameters
+    username and password.  The return value must be either a list of groups
+    the user belongs two or None.
+
+    If successful then the a session token is generated and added to a cache
+    of validated users to be able to be checked against.  The user's ip address
+    is stored with the token for further checking of authentication.
+    '''
     def __init__(self, authenticator):
-        self.sessions = {}
-        self.session_token = {}
-        self.authenticator = authenticator
+        self._sessions = {}
+        self._session_tokens = {}
+        self._authenticator = authenticator
 
     def authenticate(self, username, password, ip):
-        groups = self.authenticator.authenticate(username, password)
+        '''Authenticates a user with the authenticator.
+
+        This is the main login function for the system.
+        '''
+        groups = self._authenticator.authenticate(username, password)
         if groups:
             token = uuid.uuid4()
             self._add_session(username, token, ip, ",".join(groups))
@@ -100,149 +127,250 @@ class LoggedIn:
         return None
 
     def _add_session(self, user, token, ip, groups):
-        self.sessions[user] = {'user': user, 'token': token, 'ip': ip, 'groups': groups}
-        self.session_token[token] = self.sessions[user]
+        '''Add a user session to the session cache'''
+        self._sessions[user] = {'user': user, 'token': token, 'ip': ip, 'groups': groups}
+        self._session_tokens[token] = self._sessions[user]
 
     def check_session(self, token, ip):
-        session = self.session_token.get(uuid.UUID(token))
+        '''Check if a user token has been authenticated.'''
+        session = self._session_tokens.get(uuid.UUID(token))
         if session:
             return session['ip'] == ip
 
         return False
 
+class ManagerWebApplication(tornado.web.Application):
+    '''A tornado web application wrapper class.
 
+    This classes responsibility is to hold sessions and the agent manager
+    class so that the request handler has access to these resources.
 
-class WebApi:
-
-    def __init__(self, authenticator):
-        self.sessions = LoggedIn(authenticator)
-        self.manager = Manager()
-
-    @cherrypy.expose
-    @cherrypy.tools.json_in()
-    @cherrypy.tools.json_out()
-    @cherrypy.tools.allow(methods=['POST'])
-    def twoway(self):
-        '''You can call it like:
-        curl -X POST -H "Content-Type: application/json" \
-          -d '{"foo":123,"bar":"baz"}' http://127.0.0.1:8080/api/twoway
-        '''
-
-        data = cherrypy.request.json
-        return data.items()
-
-def get_error_response(id, code, message, data):
-    return {'jsonrpc': '2.0',
-            'error': { 'code': code, 'message': message, 'data' : data},
-            'id': id
-            }
-
-class Root:
-
-    def __init__(self, authenticator, manager):
-        self.sessions = LoggedIn(authenticator)
+    Request handlers have access to this function through
+        self.application.manager and
+        self.application.sessions
+    respectively.
+    '''
+    def __init__(self, session_handler, manager, handlers=None,
+                 default_host="", transforms=None, **settings):
+        super(ManagerWebApplication, self).__init__(handlers, default_host,
+                                                    transforms, **settings)
+        self.sessions = session_handler
         self.manager = manager
 
-    @cherrypy.expose
-    def index(self):
-        return open(os.path.join(WEB_ROOT, u'index.html'))
+class RpcResponse:
+    '''Wraps a response from rpc call in a json wrapper.'''
 
-    @cherrypy.expose
-    @cherrypy.tools.allow(methods=['POST'])
-    @cherrypy.tools.json_out()
-    @cherrypy.tools.json_in()
-    def jsonrpc(self):
+    def __init__(self, id, **kwargs):
+        '''Initialize the response object with id and parameters.
+
+        This method requires that either a code and message be set or a result
+        be set via the kwargs.
+
+        If code is a standard specification error then message will be set
+        automatically. If message is set it will override the default message
+        from the specs.
+
+        Ex.
+            RpcResponse('xwrww', code=401, message='Authorization error')
+            RpcResponse('xw223', code=INVALID_PARAMS)
+
         '''
-        Example curl post
-        curl -X POST -H "Content-Type: application/json" \
-            -d '{"jsonrpc": "2.0","method": "getAuthorization","params": {"username": "dorothy","password": "toto123"},"id": "someid"}' \
-            http://127.0.0.1:8080/jsonrpc/
+        self.id = id
+        self.result = kwargs.get('result', None)
+        self.message = kwargs.get('message', None)
+        self.code = kwargs.get('code', None)
 
-        Successful response
-            {"jsonrpc": "2.0",
-             "result": "071b5022-4c35-4395-a4f0-8c32905919d8",
-             "id": "someid"}
-        Failed
-            401 Invalid username or password
-        '''
+        if self.message == None and \
+            self.code in (INTERNAL_ERROR, INVALID_PARAMS,
+                           INVALID_REQUEST, METHOD_NOT_FOUND, PARSE_ERROR,
+                           UNHANDLED_EXCEPTION):
+            self.message = self.get_standard_error(self.code)
 
-        if cherrypy.request.json.get('jsonrpc') != '2.0':
-            return get_error_response(cherrypy.request.json.get('id'), PARSE_ERROR,
-                    'Invalid jsonrpc version', None)
-        if not cherrypy.request.json.get('method'):
-            return get_error_response(cherrypy.request.json.get('id'), METHOD_NOT_FOUND,
-                    'Method not found', {'method':  cherrypy.request.json.get('method')})
-        if cherrypy.request.json.get('method') == 'getAuthorization':
-            if not cherrypy.request.json.get('params'):
-                raise ValidationException('Invalid params')
-            params = cherrypy.request.json.get('params')
-            if not params.get('username'):
-                raise ValidationException('Specify username')
-            if not params.get('password'):
-                raise ValidationException('Specify password')
+        # There is probably a better way to move the result up a level, however
+        # this was the fastest I could think of.
+        if isinstance(self.result, dict) and 'result' in self.result:
+            self.result = self.result['result']
 
-            token = self.sessions.authenticate(params.get('username'),
-                                   params.get('password'),
-                                   cherrypy.request.remote.ip)
+    def get_standard_error(self, code):
 
-            if token:
-                return {'jsonrpc': '2.0',
-                        'result': str(token),
-                        'id': cherrypy.request.json.get('id')}
-
-            return {'jsonrpc': '2.0',
-                    'error': {'code': 401,
-                              'message': 'Invalid username or password'},
-                    'id': cherrypy.request.json.get('id')}
+        if code == INTERNAL_ERROR:
+            error = 'Internal JSON-RPC error'
+        elif code == INVALID_PARAMS:
+            error = 'Invalid method parameter(s).'
+        elif code == INVALID_REQUEST:
+            error = 'The JSON sent is not a valid Request object.'
+        elif code == METHOD_NOT_FOUND:
+            error = 'The method does not exist / is not available.'
+        elif code == PARSE_ERROR:
+            error = 'Invalid JSON was received by the server. '\
+                    'An error occurred on the server while parsing the JSON text.'
         else:
-            token = cherrypy.request.json.get('authorization')
+            #UNHANDLED_EXCEPTION
+            error = 'Unhandled exception happened!'
 
-            if not token:
-                return {'jsonrpc': '2.0',
-                        'error': {'code': 401,
-                                  'message': 'Authorization required'},
-                        'id': cherrypy.request.json.get('id')}
+    def get_response(self):
+        d = {'jsonrpc': '2.0', 'id': self.id}
 
-            if not self.sessions.check_session(token, cherrypy.request.remote.ip):
-                return {'jsonrpc': '2.0',
-                        'error': {'code': 401,
-                                  'message': 'Invalid or expired authorization'},
-                        'id': cherrypy.request.json.get('id')}
+        if self.code != None:
+            d['error'] = {'code': self.code,
+                          'message': self.message}
+        else:
+            d['result'] = self.result
 
-            method = cherrypy.request.json.get('method')
-            params = cherrypy.request.json.get('params')
-            id = cherrypy.request.json.get('id')
+        return d
 
-            return self.manager.dispatch(method, params, id)
+class RpcRequest:
+    PARSE_ERR = {'code': -32700, 'message': 'Parse error'}
 
-        return {'jsonrpc': '2.0',
-                'error': {'code': 404, 'message': 'Unknown method'},
-                'id': cherrypy.request.json.get('id')}
+    def was_error(self):
+        '''Returns true if there is an error that was set on this object.
 
-    @cherrypy.expose
-    @cherrypy.tools.json_in()
-    @cherrypy.tools.json_out()
-    @cherrypy.tools.allow(methods=['POST'])
-    def twoway(self):
-        '''You can call it like:
-        curl -X POST -H "Content-Type: application/json" \
-          -d '{"foo":123,"bar":"baz"}' http://127.0.0.1:8080/api/twoway
+        The error could be set either through a parse error or through
+        set_error.
         '''
+        return not (self.error == None)
 
-        data = cherrypy.request.json
-        return data.items()
 
-    @cherrypy.expose
-    @cherrypy.tools.json_in()
-    @cherrypy.tools.json_out()
-    @cherrypy.tools.allow(methods=['POST'])
-    def listPlatforms(self):
-        return manager.current_platforms()
+    def set_result(self, result):
+        self.clear_err()
+        self._result = result
 
-# class Root:
-#     @cherrypy.expose
-#     def index(self):
-#         return open(os.path.join(WEB_ROOT, u'index.html'))
+    def __init__(self, request_body=None,
+                 id=None, method=None, params = None):
+
+        try:
+            self.id = None # default for json RpcParser with parse error
+            self.error = None
+
+            if request_body:
+                data = jsonapi.loads(request_body)
+
+                if data == []:
+                    self.error = INVALID_REQUEST
+                    return
+
+                if not 'method' in data:
+                    self.error = METHOD_NOT_FOUND
+                    return
+
+                if not 'jsonrpc' in data or data['jsonrpc'] != '2.0':
+                    self.error = PARSE_ERROR
+                    return
+
+                if not 'id' in data:
+                    self.error = PARSE_ERROR
+                    return
+
+                # This is only necessary at the top level of the RpcParser stack.
+                if not "authorization" in data:
+                    if data['method'] != 'get_authorization':
+                        self.error = 401
+                        return
+                if "authorization" in data:
+                    self.authorization = data['authorization']
+            else:
+                data = {'method':method, 'id': id, 'jsonrpc': '2.0',
+                        'params':params}
+
+            self.method = data['method']
+            self.jsonrpc = data['jsonrpc']
+            self.id = data['id']
+            if 'params' in data:
+                self.params = data['params']
+            else:
+                self.params = []
+
+        except:
+            self.error = PARSE_ERROR
+
+
+class ManagerRequestHandler(tornado.web.RequestHandler):
+    '''The main RequestHanlder for the platform manager.
+
+    The manager only accepts posted RpcParser methods.  The manager will parse
+    the request body for valid json RpcParser.  The first call to this request
+    handler must be a getAuthorization request.  The call will return an
+    authorization token that will be valid for the current session.  The token
+    must be passed to any other calls to the handler or a 401 Unauhthorized
+    code will be returned.
+    '''
+
+
+    def _route(self, rpcRequest):
+        # this is the only method that the handler truly deals with, the
+        # rest will be dispatched to the manager agent itself.
+        if rpcRequest.method == 'get_authorization':
+            try:
+                token = self.application.sessions.authenticate(
+                            rpcRequest.params['username'],
+                            rpcRequest.params['password'],
+                            self.request.remote_ip)
+                if token:
+                    rpcResponse = RpcResponse(rpcRequest.id, result=str(token))
+                    #rpcRequest.set_result(str(token))
+                else:
+                    rpcResponse = RpcResponse(rpcRequest.id,
+                                  code=401,
+                                  message="invalid username or password")
+            except:
+                rpcResponse = RpcResponse(rpcRequest.id,
+                              code=INVALID_PARAMS,
+                              message='Invalid parameters to {}'.format(rpcRequest.method))
+
+
+            self._response_complete((None, rpcResponse))
+        else:
+            # verify the user session
+            if not self.application.sessions.check_session(
+                            rpcRequest.authorization,
+                            self.request.remote_ip):
+                rpcResponse = RpcResponse(rpcRequest.id,
+                                  code=401,
+                                  message="Unauthorized Access")
+                self._response_complete((None, rpcResponse))
+            else:
+
+                print("Calling: id: {}, method: {}, params: {}".format(
+                                    rpcRequest.id,
+                                    rpcRequest.method,
+                                    rpcRequest.params))
+                async_caller = self.application.manager.async_caller
+                async_caller.send(self._response_complete,
+                                     self.application.manager.route_request,
+                                     rpcRequest.id,
+                                     rpcRequest.method,
+                                     rpcRequest.params)
+
+    def _response_complete(self, data):
+        print("RESPONSE COMPLETE:{}".format(data))
+        if (data[0] != None):
+            if isinstance(data[0], RpcResponse):
+                self.write(data[0].get_response())
+            else:
+                self.write("Error: "+str(data[0][0])+" message: "+str(data[0][1]))
+        else:
+            if isinstance(data[1], RpcResponse):
+                self.write(data[1].get_response())
+            else:
+                rpcresponse = RpcResponse(self.rpcrequest.id, result=data[1])
+                self.write(rpcresponse.get_response())
+#         try:
+#             print("rpcresponse: {}".format(rpcresponse.get_response()))
+#         except:
+#             pass
+        print('handling request done')
+        self.finish()
+
+    @tornado.web.asynchronous
+    def post(self):
+        print('handling request')
+        request_body = self.request.body
+        # result will be an RpcParser object  when completed
+        self.rpcrequest = RpcRequest(request_body)
+        print('Request_Body: {}'.format(request_body))
+        print("Request is: " + str(self.rpcrequest.__dict__))
+        self._route(self.rpcrequest)
+
 
 def PlatformManagerAgent(config_path, **kwargs):
     config = utils.load_config(config_path)
@@ -262,23 +390,43 @@ def PlatformManagerAgent(config_path, **kwargs):
     server_conf = {'global': get_config('server')}
     user_map = get_config('users')
 
-    static_conf = {
-        "/": {
-            "tools.staticdir.root": WEB_ROOT
-        },
-        "/css": {
-            "tools.staticdir.on": True,
-            "tools.staticdir.dir": "css"
-        },
-        "/js": {
-            "tools.staticdir.on": True,
-            "tools.staticdir.dir": "js"
-        }
-    }
+    hander_config = [
+        (r'/jsonrpc', ManagerRequestHandler),
+        (r'/jsonrpc/', ManagerRequestHandler),
+        (r"/(.*)", tornado.web.StaticFileHandler,\
+        {"path": WEB_ROOT, "default_filename": "index.html"})
+    ]
 
-    #poll_time = get_config('poll_time')
-    #zip_code = get_config("zip")
-    #key = get_config('key')
+
+
+    def startWebServer(manager):
+        '''Starts the webserver to allow http/RpcParser calls.
+
+        This is where the tornado IOLoop instance is officially started.  It
+        does block here so one should call this within a thread or process if
+        one doesn't want it to block.
+
+        One can stop the server by calling stopWebServer or by issuing an
+        IOLoop.stop() call.
+        '''
+        webserver = ManagerWebApplication(
+                        SessionHandler(Authenticate(user_map)),
+                        manager,
+                        hander_config, debug=True)
+        webserver.listen(8080)
+        webserverStarted = True
+        tornado.ioloop.IOLoop.instance().start()
+
+
+    def stopWebServer():
+        '''Stops the webserver by calling IOLoop.stop
+        '''
+        tornado.ioloop.IOLoop.stop()
+
+    def makeVipAgentRequest(agent_uuid, **args):
+        platform['ctl'] = Connection('platform_manager')
+
+#                                                  peer=platform_uuid)
 
     class Agent(RPCAgent):
         """Agent for querying WeatherUndergrounds API"""
@@ -289,7 +437,7 @@ def PlatformManagerAgent(config_path, **kwargs):
             # a list of peers that have checked in with this agent.
             self.platform_dict = {}
             self.valid_data = False
-            self.webserver = Root(Authenticate(user_map), self)
+
 
         def list_agents(self, platform):
 
@@ -299,14 +447,18 @@ def PlatformManagerAgent(config_path, **kwargs):
 
         @export()
         def register_platform(self, peer_identity, name, peer_address):
-            print "registering ", peer_identity
+            '''Agents will call this to register with the platform.
+            '''
+
             self.platform_dict[peer_identity] = {
                     'identity_params':  {'name': name, 'uuid': peer_identity},
                     'peer_address': peer_address,
+                    'ctl': None
                 }
 
             self.platform_dict[peer_identity]['external'] = peer_address != vip_address
 
+            print("Registered: ", self.platform_dict[peer_identity])
             return True
 
 
@@ -316,80 +468,63 @@ def PlatformManagerAgent(config_path, **kwargs):
             del self.platform_dict[peer_identity]['identity_params']
             return 'Removed'
 
+        @onevent('setup')
+        def setup(self):
+            print "Setting up"
+            self.async_caller = AsyncCall()
+
         @onevent("start")
         def start(self):
-            #super(Agent, self).setup()
-            cherrypy.tree.mount(self.webserver, "/", config=static_conf)
-            cherrypy.engine.start()
+            '''This event is triggered when the platform is ready for the agent
+            '''
+            # Start tornado in its own thread
+            threading.Thread(target=startWebServer, args=(self,)).start()
 
         @onevent("finish")
         def finish(self):
-            cherrypy.engine.stop()
+            stopWebServer()
 
 
+        def route_request (self, id, method, params):
+            '''Route request to either a registered platform or handle here.'''
 
-        def dispatch (self, method, params, id):
-            retvalue = {"jsonrpc": "2.0", "id":id}
+            if (method == 'list_platforms'):
+                return [x['identity_params'] for x in self.platform_dict.values()]
+
+            fields = method.split('.')
+
+            if len(fields) < 3:
+                return RpcResponse(id=id, code=METHOD_NOT_FOUND)
 
 
-            if method == 'listPlatforms':
-                retvalue["result"] = [x['identity_params'] for x in self.platform_dict.values()]
+            platform_uuid = fields[2]
 
+            if not platform_uuid in self.platform_dict:
+                return RpcResponse(id=id, code=METHOD_NOT_FOUND,
+                                   message="Unknown platform {}".format(platform_uuid))
+
+            # this is the platform we need to talk with.
+            platform = self.platform_dict[platform_uuid]
+            # The method to route to the platform.
+            platform_method = '.'.join(fields[3:])
+
+            # Are we talking to our own vip address?
+            if platform['peer_address'] == vip_address:
+                result = self.rpc_call(str(platform_uuid), 'route_request',
+                                       [id, platform_method, params]).get()
             else:
 
-                fields = method.split('.')
+                if platform['ctl'] == None:
+                    print("Connecting to {} -> {}".format(platform['peer_address'],
+                                                          platform_uuid))
+                    platform['ctl'] = Connection(platform['peer_address'],
+                                             peer=platform_uuid)
+                print("manager routing request for: {},{},{}".format(id,
+                                                             platform_method,
+                                                             params))
+                result = platform['ctl'].call("route_request", id, platform_method, params)
 
-                # must have platform.uuid.<uuid>.<somemethod> to pass through
-                # here.
-                if len(fields) < 3:
-                    return get_error_response(id, METHOD_NOT_FOUND,
-                                              'Unknown Method',
-                                              'method was: ' + method)
-
-                platform_uuid = fields[2]
-
-                if platform_uuid not in self.platform_dict:
-                    return get_error_response(id, METHOD_NOT_FOUND,
-                                              'Unknown Method',
-                                              'Unknown platform method was: ' + method)
-
-                platform = self.platform_dict[platform_uuid]
-
-                platform_method = '.'.join(fields[3:])
-
-                # Translate external interface to internal interface.
-                platform_method = platform_method.replace("listAgents", "list_agents")
-                platform_method = platform_method.replace("listMethods", "list_agent_methods")
-                platform_method = platform_method.replace("startAgent", "start_agent")
-                platform_method = platform_method.replace("stopAgent", "stop_agent")
-                platform_method = platform_method.replace("statusAgents", "status_agents")
-                platform_method = platform_method.replace("statusAgent", "agent_status")
-
-                print("calling platform: ", platform_uuid,
-                      "method ", platform_method,
-                      " params", params)
-
-                platform_method = str(platform_method)
-
-                if platform['peer_address'] == vip_address:
-                    result = self.rpc_call(str(platform_uuid), 'dispatch', [platform_method, params])
-                else:
-                    if 'ctl' not in platform:
-                        print "Connecting to ", platform['peer_address'], 'for peer', platform_uuid
-                        platform['ctl'] = Connection(platform['peer_address'],
-                                                 peer=platform_uuid)
-
-                    result = platform['ctl'].call("dispatch", [platform_method, params])
-
-                # Wait for response to come back
-                import time
-                while not result.ready():
-                    time.sleep(1)
-
-
-                retvalue['result'] = result.get()
-            return retvalue
-
+            return result
 
     Agent.__name__ = 'ManagedServiceAgent'
     return Agent(**kwargs)
@@ -398,7 +533,7 @@ def PlatformManagerAgent(config_path, **kwargs):
 def main(argv=sys.argv):
     try:
         # If stdout is a pipe, re-open it line buffered
-        if isapipe(sys.stdout):
+        if utils.isapipe(sys.stdout):
             # Hold a reference to the previous file object so it doesn't
             # get garbage collected and close the underlying descriptor.
             stdout = sys.stdout

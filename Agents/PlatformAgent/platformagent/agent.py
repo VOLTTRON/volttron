@@ -55,7 +55,6 @@
 
 import cherrypy
 import datetime
-import json
 import logging
 import sys
 import requests
@@ -67,6 +66,7 @@ from volttron.platform import vip, jsonrpc
 from volttron.platform.control import Connection
 from volttron.platform.agent.vipagent import RPCAgent, periodic, onevent, jsonapi, export
 from volttron.platform.agent import utils
+from volttron.platform.agent.utils import jsonapi
 
 from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
                                        INVALID_REQUEST, METHOD_NOT_FOUND, PARSE_ERROR,
@@ -105,43 +105,69 @@ def PlatformAgent(config_path, **kwargs):
         def __init__(self, **kwargs):
             #vip_identity,
             super(Agent, self).__init__(vip_address, vip_identity=vip_identity, **kwargs)
-            self.ctl = Connection(manager_vip_address, peer=manager_vip_identity)
+            self.vip_address = vip_address
+            self.vip_identity = vip_identity
+            self.manager_vip_identity = manager_vip_identity
+            self.manager_vip_address = manager_vip_address
+            self.agentid = agentid
+
+
 
         @export()
         def list_agents(self):
             print("Getting agents from control!")
             print("self.vip_addr", self.vip_address)
-            return self.rpc_call("control", "list_agents").get()
+            result = self.rpc_call("control", "list_agents").get()
+            return result
 
         @export()
-        def dispatch(self, method, params):
-            # First handle the platform control functionality before dispatching
-            # to the individual agents.
+        def route_request(self, id, method, params):
+
+            print("platform agent: id: {}, method: {}, params: {}".format(
+                                                        id, method, params))
+
             if method == 'list_agents':
-                return self.rpc_call('control', method).get()
+                result = self.list_agents()
+            elif method == 'status_agents':
+                print self.rpc_call('control', method).get()
 
-            if method == 'status_agents':
-                return [{'name':a[1], 'uuid': a[0], 'process_id': a[2][0],
-                         'return_code': a[2][1]}
-                        for a in self.rpc_call('control', method).get()]
+                result = {'result': [{'name':a[1], 'uuid': a[0], 'process_id': a[2][0],
+                          'return_code': a[2][1]}
+                         for a in self.rpc_call('control', method).get()]}
 
-            if method == 'agent_status':
+            elif method in ('agent_status', 'start_agent', 'stop_agent'):
                 status = self.rpc_call('control', method, params).get()
-                return {'process_id': status[0], 'return_code': status[1]}
+                if method == 'stop_agent' or status == None:
+                    # Note we recurse here to get the agent status.
+                    result = self.route_request(id, 'agent_status', params)
+                else:
+                    result = {'process_id': status[0], 'return_code': status[1]}
+            else:
+                print("AAAAACCCCCKKKKKKKK")
 
-            if method in ['start_agent', 'stop_agent']:
-                self.rpc_call('control', method, params).get()
-                status = self.rpc_call('control', 'agent_status', params).get()
-                return {'process_id': status[0], 'return_code': status[1]}
+            if isinstance(result, dict):
+                if 'result' in result or 'code' in result:
+                    return result
 
-            fields = method.split('.')
 
-            if len(fields) < 3:
-                return get_error_response(METHOD_NOT_FOUND,
-                                          "Unknown Method",
-                                          "Can't find "+ method)
+            return {'result': result} # {'jsonapi': '2.0', 'result': result, 'id': id}
+#             else:
+#
+#             try:
+#                 if len(result):
+#                     return result
+#             except:
+#                 return {'code': METHOD_NOT_FOUND,
+#                         'message': 'Method on agent manager: {}'.format(method)}
 
-            return get_error_response(id, INTERNAL_ERROR, 'Not implemented')
+#             fields = method.split('.')
+#
+#             if len(fields) < 3:
+#                 return get_error_response(METHOD_NOT_FOUND,
+#                                           "Unknown Method",
+#                                           "Can't find "+ method)
+#
+#             return get_error_response(id, INTERNAL_ERROR, 'Not implemented')
 
 
         @export()
@@ -149,15 +175,26 @@ def PlatformAgent(config_path, **kwargs):
             print("Got!", method, params, id)
             return get_error_response(id, INTERNAL_ERROR, 'Not implemented')
 
+        @onevent('setup')
+        def setup(self):
+            _log.debug('platform agent setup.  Connection to {} -> {}'.format(
+                            self.manager_vip_address, self.manager_vip_identity))
+            self._ctl = Connection(self.manager_vip_address,
+                                   peer=self.manager_vip_identity)
+
         @onevent("start")
         def start(self):
-            print("starting service")
-            self.ctl.call("register_platform", vip_identity, agentid, vip_address)
+            _log.debug('Starting service vip info: {}'.format(
+                                                        str(self.__dict__)))
+            _log.debug('registering {} with platformmanager {}'.format(
+                            self.vip_identity, self.manager_vip_identity))
+            self._ctl.notify("register_platform", self.vip_identity,
+                             self.agentid, self.vip_address)
 
         @onevent("finish")
         def stop(self):
             print("Stopping service")
-            self.ctl.call("unregister_platform", vip_identity, agentid)
+            self._ctl.call("unregister_platform", vip_identity)
 
     Agent.__name__ = 'PlatformAgent'
     return Agent(**kwargs)
