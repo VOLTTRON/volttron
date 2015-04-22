@@ -101,8 +101,7 @@ def log_to_file(file_, level=logging.WARNING,
     '''Direct log output to a file (or something like one).'''
     handler = handler_class(file_)
     handler.setLevel(level)
-    handler.setFormatter(utils.AgentFormatter(
-        '%(asctime)s %(composite_name)s %(levelname)s: %(message)s'))
+    handler.setFormatter(utils.AgentFormatter())
     root = logging.getLogger()
     if root.level < level:
         root.setLevel(level)

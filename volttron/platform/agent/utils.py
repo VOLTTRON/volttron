@@ -203,6 +203,11 @@ class JsonFormatter(logging.Formatter):
 
 
 class AgentFormatter(logging.Formatter):
+    def __init__(self, fmt=None, datefmt=None):
+        if fmt is None:
+            fmt = '%(asctime)s %(composite_name)s %(levelname)s: %(message)s'
+        super(AgentFormatter, self).__init__(fmt=fmt, datefmt=datefmt)
+
     def composite_name(self, record):
         if record.name == 'agents.log':
             cname = '(%(processName)s %(process)d) %(remote_name)s'
