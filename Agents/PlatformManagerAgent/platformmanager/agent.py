@@ -378,7 +378,7 @@ def PlatformManagerAgent(config_path, **kwargs):
             return config.get(name, default_value)
     home = os.path.expanduser(os.path.expandvars(
         os.environ.get('VOLTTRON_HOME', '~/.volttron')))
-    vip_address = 'ipc://{}/run/vip.socket'.format(home)
+    vip_address = 'ipc://@{}/run/vip.socket'.format(home)
     vip_identity = 'platform_manager'
     #s1 = SenderAgent('sender', vip_address=path, vip_identity='replier')
 
