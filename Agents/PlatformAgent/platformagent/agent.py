@@ -111,25 +111,16 @@ def PlatformAgent(config_path, **kwargs):
             self.manager_vip_address = manager_vip_address
             self.agentid = agentid
 
-
-
         @export()
         def list_agents(self):
-            print("Getting agents from control!")
-            print("self.vip_addr", self.vip_address)
             result = self.rpc_call("control", "list_agents").get()
-            return result
 
         @export()
         def route_request(self, id, method, params):
-            print("platform agent: id: {}, method: {}, params: {}".format(
-                                                        id, method, params))
-
+            _log.debug('platform agent routing request: {}, {}, {}'.format(id, method, params))
             if method == 'list_agents':
                 result = self.list_agents()
             elif method == 'status_agents':
-                print self.rpc_call('control', method).get()
-
                 result = {'result': [{'name':a[1], 'uuid': a[0], 'process_id': a[2][0],
                           'return_code': a[2][1]}
                          for a in self.rpc_call('control', method).get()]}
@@ -146,30 +137,10 @@ def PlatformAgent(config_path, **kwargs):
                 if 'result' in result or 'code' in result:
                     return result
 
-            return {'result': result}
-
-#             else:
-#
-#             try:
-#                 if len(result):
-#                     return result
-#             except:
-#                 return {'code': METHOD_NOT_FOUND,
-#                         'message': 'Method on agent manager: {}'.format(method)}
-
-#             fields = method.split('.')
-#
-#             if len(fields) < 3:
-#                 return get_error_response(METHOD_NOT_FOUND,
-#                                           "Unknown Method",
-#                                           "Can't find "+ method)
-#
-#             return get_error_response(id, INTERNAL_ERROR, 'Not implemented')
-
+            return result
 
         @export()
         def list_agent_methods(self, method, params, id, agent_uuid):
-            print("Got!", method, params, id)
             return get_error_response(id, INTERNAL_ERROR, 'Not implemented')
 
         @onevent('setup')
@@ -190,7 +161,6 @@ def PlatformAgent(config_path, **kwargs):
 
         @onevent("finish")
         def stop(self):
-            print("Stopping service")
             self._ctl.call("unregister_platform", vip_identity)
 
     Agent.__name__ = 'PlatformAgent'
