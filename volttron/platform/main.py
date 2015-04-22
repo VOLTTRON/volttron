@@ -99,14 +99,14 @@ _log = logging.getLogger(os.path.basename(sys.argv[0])
 def log_to_file(file_, level=logging.WARNING,
                 handler_class=logging.StreamHandler, **kwargs):
     '''Direct log output to a file (or something like one).'''
-    handler = handler_class(file_)
+    handler = handler_class(file_, **kwargs)
     handler.setLevel(level)
     handler.setFormatter(utils.AgentFormatter(
         '%(asctime)s %(composite_name)s %(levelname)s: %(message)s'))
     root = logging.getLogger()
     if root.level < level:
         root.setLevel(level)
-    root.addHandler(handler, **kwargs)
+    root.addHandler(handler)
 
 
 def configure_logging(conf_path):
@@ -476,7 +476,9 @@ def main(argv=sys.argv):
         for name, value in sorted(vars(opts).iteritems()):
             print(name, repr(value))
         return
-
+    print(opts)
+    print(opts.log)
+    print(opts.log_backupcount)
     # Configure logging
     level = max(1, opts.verboseness)
     if opts.log is None:
