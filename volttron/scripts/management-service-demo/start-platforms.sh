@@ -16,6 +16,8 @@ echo "START make-platform2"
 VOLTTRON_HOME=$V2_HOME ./make-platform2
 echo "START make-platform3"
 VOLTTRON_HOME=$V3_HOME ./make-platform3
+echo "START make hello2"
+VOLTTRON_HOME=$V2_HOME ./make-hello2
 echo "START platform manager"
 VOLTTRON_HOME=$V1_HOME volttron-ctl start --tag manageragent
 echo "START platform agent 2"
