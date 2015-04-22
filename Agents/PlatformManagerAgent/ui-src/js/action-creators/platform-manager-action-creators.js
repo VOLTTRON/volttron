@@ -68,6 +68,8 @@ var platformManagerActionCreators = {
                                 platform: platform,
                             });
 
+                            if (!agentsList.length) { return; }
+
                             new rpc.Exchange({
                                 method: 'platforms.uuid.' + platform.uuid + '.status_agents',
                                 authorization: authorization,
