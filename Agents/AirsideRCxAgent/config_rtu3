@@ -3,10 +3,10 @@
     "application": "airside_retuning_rcx.Application",
 
     "device": {
-        "campus": "campus",
-        "building": "building",
+        "campus": "campus1",
+        "building": "building1",
         "unit": {
-            "rtu3": {
+            "rtu1": {
                 "subdevices": [
                     "VAV13111", "VAV13112", "VAV13113", "VAV13114", "VAV13115",
                     "VAV13116", "VAV13117", "VAV13118", "VAV13119", "VAV13120",
