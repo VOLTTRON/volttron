@@ -45,7 +45,6 @@ function htmlInject() {
 function js() {
     return browserify({
         bundleExternal: false,
-        debug: true,
         entries: './ui-src/js/app',
         extensions: ['.jsx'],
     })
@@ -63,7 +62,6 @@ function vendor() {
         .pipe(gulp.dest(BUILD_DIR + 'css'));
 
     return browserify({
-        debug: true,
         noParse: [
             'bluebird/js/browser/bluebird.min',
             'events',
