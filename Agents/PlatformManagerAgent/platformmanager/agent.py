@@ -100,9 +100,9 @@ def PlatformManagerAgent(config_path, **kwargs):
             return kwargs.pop(name)
         except KeyError:
             return config.get(name, default_value)
-    home = os.path.expanduser(os.path.expandvars(
-        os.environ.get('VOLTTRON_HOME', '~/.volttron')))
-    vip_address = 'ipc://@{}/run/vip.socket'.format(home)
+#     home = os.path.expanduser(os.path.expandvars(
+#         os.environ.get('VOLTTRON_HOME', '~/.volttron')))
+#     vip_address = 'ipc://@{}/run/vip.socket'.format(home)
     vip_identity = 'platform_manager'
     #s1 = SenderAgent('sender', vip_address=path, vip_identity='replier')
 
@@ -147,8 +147,8 @@ def PlatformManagerAgent(config_path, **kwargs):
         """Agent for querying WeatherUndergrounds API"""
 
         def __init__(self, **kwargs):
-            super(Agent, self).__init__(vip_address, vip_identity, **kwargs)
-            print("Registering (vip_address, vip_identity)\n\t", vip_address, vip_identity)
+            super(Agent, self).__init__(vip_identity=vip_identity, **kwargs)
+            print("Registering (vip_address, vip_identity)\n\t", self.vip_address, vip_identity)
             # a list of peers that have checked in with this agent.
             self.platform_dict = {}
             self.valid_data = False
@@ -172,7 +172,7 @@ def PlatformManagerAgent(config_path, **kwargs):
                     'ctl': None
                 }
 
-            self.platform_dict[peer_identity]['external'] = peer_address != vip_address
+            self.platform_dict[peer_identity]['external'] = peer_address != self.vip_address
 
             print("Registered: ", self.platform_dict[peer_identity])
             return True
@@ -225,7 +225,7 @@ def PlatformManagerAgent(config_path, **kwargs):
             platform_method = '.'.join(fields[3:])
 
             # Are we talking to our own vip address?
-            if platform['peer_address'] == vip_address:
+            if platform['peer_address'] == self.vip_address:
                 result = self.rpc_call(str(platform_uuid), 'route_request',
                                        [id, platform_method, params]).get()
             else:

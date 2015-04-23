@@ -81,9 +81,10 @@ _log = logging.getLogger(__name__)
 
 def PlatformAgent(config_path, **kwargs):
 
-    home = os.path.expanduser(os.path.expandvars(
-                 os.environ.get('VOLTTRON_HOME', '~/.volttron')))
-    vip_address = 'ipc://@{}/run/vip.socket'.format(home)
+
+#     home = os.path.expanduser(os.path.expandvars(
+#                  os.environ.get('VOLTTRON_HOME', '~/.volttron')))
+#     vip_address = 'ipc://@{}/run/vip.socket'.format(home)
 
     config = utils.load_config(config_path)
 
@@ -102,8 +103,8 @@ def PlatformAgent(config_path, **kwargs):
 
         def __init__(self, **kwargs):
             #vip_identity,
-            super(Agent, self).__init__(vip_address, vip_identity=vip_identity, **kwargs)
-            self.vip_address = vip_address
+            super(Agent, self).__init__(vip_identity=vip_identity, **kwargs)
+            print("vip_addr is: {}".format(self.vip_address))
             self.vip_identity = vip_identity
             self.manager_vip_identity = manager_vip_identity
             self.manager_vip_address = manager_vip_address
@@ -154,8 +155,8 @@ def PlatformAgent(config_path, **kwargs):
             _log.debug('Starting service vip info: {}'.format(
                                                         str(self.__dict__)))
             _log.debug('sending call register_platform {}'.format(
-                                    str((vip_identity, agentid, vip_address))))
-            self._ctl.call("register_platform", vip_identity, agentid, vip_address)
+                                    str((vip_identity, agentid, self.vip_address))))
+            self._ctl.call("register_platform", vip_identity, agentid, self.vip_address)
 
 
         @onevent("finish")
