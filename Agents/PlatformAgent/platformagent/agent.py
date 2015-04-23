@@ -116,7 +116,7 @@ def PlatformAgent(config_path, **kwargs):
 
         @export()
         def route_request(self, id, method, params):
-            _log.debug('platform agent routing request: {}, {}, {}'.format(id, method, params))
+            _log.debug('platform agent routing request: {}, {}'.format(id, method))
             if method == 'list_agents':
                 result = self.list_agents()
             elif method == 'status_agents':
