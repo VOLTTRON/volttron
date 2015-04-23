@@ -83,6 +83,14 @@ import volttron
 _VOLTTRON_PATH = os.path.dirname(volttron.__path__[-1]) + os.sep
 del volttron
 
+voltron_home = os.environ.get('VOLTTRON_HOME')
+_vip_address = os.environ.get('VIP_ADDR', None)
+if not _vip_address:
+    vip_path = '{}/run/vip.socket'.format(voltron_home)
+    if sys.platform.startswith('linux'):
+        vip_path = '@' + vip_path
+    _vip_address = 'ipc://{}'.format(vip_path)
+
 
 _log = logging.getLogger(__name__)   # pylint: disable=invalid-name
 
@@ -172,7 +180,7 @@ class VIPAgent(object):
     do nothing but listen for messages and exit when told to. That is it.
     '''
 
-    def __init__(self, vip_address, vip_identity=None, context=None, **kwargs):
+    def __init__(self, vip_address=_vip_address, vip_identity=None, context=None, **kwargs):
         super(VIPAgent, self).__init__(**kwargs)
         self.context = context or zmq.Context.instance()
         self.vip_address = vip_address
