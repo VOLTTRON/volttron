@@ -53,7 +53,6 @@
 
 #}}}
 
-import cherrypy
 import datetime
 import json
 import logging
