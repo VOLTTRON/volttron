@@ -670,7 +670,7 @@ def passiveafdd(config_path, **kwargs):
                     oae5_result.append(67)  # Missing data (No Fault)
             return oae5_result
 
-        def schedule_diagnostic(self):
+        def schedule_diagnostic(self):u
             oae6_result = []
             for points in xrange(0, self.newdata):
                 if (self.fan_status[points] != -99 and
