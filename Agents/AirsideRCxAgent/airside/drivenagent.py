@@ -84,7 +84,6 @@ def DrivenAgent(config_path, **kwargs):
             subdevices[unit] = device['unit'][unit]['subdevices']
 
     agent_id = config.get('agentid')
-    smap_path = config.get('smap_path')
     if not device:
         validation_error += 'Invalid agent_id specified in config\n'
     if not device:
@@ -208,6 +207,21 @@ def DrivenAgent(config_path, **kwargs):
                                     # fout.writerow(keys)
                                 fout.writerow(r)
                                 f.close()
+            # publish to message bus.
+            if len(results.table_output.keys()) > 0:
+                headers = {
+                    headers_mod.CONTENT_TYPE: headers_mod.CONTENT_TYPE.JSON,
+                    headers_mod.DATE: str(self.received_input_datetime),
+                }
+
+                for _, v in results.table_output.items():
+                    for r in v:
+                        for key, value in r.iteritems():
+                            if isinstance(value, bool):
+                                value = int(value)
+                            topic = topics.ANALYSIS_VALUE(point=key, **config['device']) #.replace('{analysis}', key)
+                            #print "plublishing {}->{}".format(topic, value)
+                            self.publish_json(topic, headers, value)
             if results.commands and mode:
                 self.commands = results.commands
                 if self.keys is None:
@@ -304,40 +318,6 @@ def DrivenAgent(config_path, **kwargs):
                 self.publish_json(topics.ACTUATOR_SCHEDULE_REQUEST(),
                                   headers, {})
                 self.keys = None
-
-        def publish_to_smap(self, smap_identifier, value, smap_identifier2,
-                        value2, time_value):
-            '''
-            Push diagnostic results and energy
-            impact to sMAP historian.
-            '''
-            self._log.debug(''.join(['Push to sMAP - ', smap_identifier, str(dx_msg),
-                                     ' Energy Impact: ', str(energy_impact)]))
-            if time_value is None:
-                mytime = int(time.time())
-            else:
-                mytime = time.mktime(time_value.timetuple())
-            if value2 is not None:
-                content = {
-                    smap_identifier: {
-                         "Readings": [[mytime, value]],
-                         "Units": "TU",
-                         "data_type": "double"
-                     },
-                      smap_identifier2: {
-                         "Readings": [[mytime, value2]],
-                         "Units": "kWh/h",
-                         "data_type": "double"}
-                 }
-            else:
-                content = {
-                    smap_identifier: {
-                         "Readings": [[mytime, value]],
-                         "Units": "TU",
-                         "data_type": "double"
-                     }
-                }
-            self._agent.publish(self.smap_path, self.headers, jsonapi.dumps(content))
 
     Agent.__name__ = 'DrivenLoggerAgent'
     return Agent(**kwargs)
