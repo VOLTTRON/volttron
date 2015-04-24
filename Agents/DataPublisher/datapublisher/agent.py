@@ -125,7 +125,7 @@ def DataPub(config_path, **kwargs):
                 level=logging.debug,
                 format='%(asctime)s   %(levelname)-8s %(message)s',
                 datefmt='%m-%d-%y %H:%M:%S')
-            self._log.INFO('DATA PUBLISHER ID is PUBLISHER')
+            self._log.info('DATA PUBLISHER ID is PUBLISHER')
 
         def setup(self):
             '''This function is called immediately after initialization'''
@@ -157,14 +157,14 @@ def DataPub(config_path, **kwargs):
                             device_dict.update({key: value})
                     # Pushing out the data
                     device_dict = jsonapi.dumps(device_dict)
-                    self.publish(BASETOPIC + device_path + '/all',
+                    self.publish(BASETOPIC + '/' + device_path + '/all',
                                  {HEADER_NAME_CONTENT_TYPE: MIME_PLAIN_TEXT,
                                   HEADER_NAME_DATE: now}, device_dict)
                     device_dict = {}
                     for item in subdev_list:
                         for key, value in published_data.iteritems():
                             if key.startswith(item):
-                                device_dict.update({key.split(_)[1]: value})
+                                device_dict.update({key.split('_')[1]: value})
                         device_dict = jsonapi.dumps(device_dict)
                         topic = (
                             BASETOPIC + '/' + device_path + '/' + item + '/all'
@@ -186,7 +186,7 @@ def DataPub(config_path, **kwargs):
         @matching.match_regex(topics.ACTUATOR_SET() + '/(.+)')
         def handle_set(self, topic, headers, message, match):
             '''Respond to ACTUATOR_SET topic.'''
-            self._log.INFO('set actuator')
+            self._log.info('set actuator')
             point = match.group(1)
             _, _, _, point_name = point.rsplit('/', 4)
             requester = headers.get('requesterID')
@@ -198,7 +198,7 @@ def DataPub(config_path, **kwargs):
         @matching.match_exact(topics.ACTUATOR_SCHEDULE_REQUEST())
         def handle_schedule_request(self, topic, headers, message, match):
             '''Handle device schedule request.'''
-            self._log.INFO('request received')
+            self._log.info('request received')
             request_type = headers.get('type')
             now = datetime.datetime.now()
 
@@ -215,7 +215,7 @@ def DataPub(config_path, **kwargs):
 
         def handle_new(self, headers, message):
             '''Send schedule request response.'''
-            self._log.INFO('handle new schedule request')
+            self._log.info('handle new schedule request')
             requester = headers.get('requesterID')
             self.task_id = headers.get('taskID')
             # priority = headers.get('priority')
@@ -224,7 +224,7 @@ def DataPub(config_path, **kwargs):
                 requests = jsonapi.loads(message[0])
                 requests = requests[0]
             except (ValueError, IndexError) as ex:
-                self._log.INFO('error, message not in expected format (json)')
+                self._log.info('error, message not in expected format (json)')
                 self._log.error('bad request: {request}, {error}'
                                 .format(request=requests, error=str(ex)))
                 requests = []
@@ -277,7 +277,7 @@ def DataPub(config_path, **kwargs):
 
         def announce(self, device_path, requester):
             '''Emulate Actuator agent schedule announce.'''
-            self._log.INFO('announce')
+            self._log.info('announce')
             now = datetime.datetime.now()
             header = self.get_headers(requester,
                                       time=str(now), task_id=self.task_id)
