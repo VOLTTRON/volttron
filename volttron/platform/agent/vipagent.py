@@ -83,10 +83,12 @@ import volttron
 _VOLTTRON_PATH = os.path.dirname(volttron.__path__[-1]) + os.sep
 del volttron
 
-voltron_home = os.environ.get('VOLTTRON_HOME')
+# default home is ~/.volttron
+volttron_home = os.path.expanduser(
+                                os.environ.get('VOLTTRON_HOME', '~/.volttron'))
 _vip_address = os.environ.get('VIP_ADDR', None)
 if not _vip_address:
-    vip_path = '{}/run/vip.socket'.format(voltron_home)
+    vip_path = '{}/run/vip.socket'.format(volttron_home)
     if sys.platform.startswith('linux'):
         vip_path = '@' + vip_path
     _vip_address = 'ipc://{}'.format(vip_path)
