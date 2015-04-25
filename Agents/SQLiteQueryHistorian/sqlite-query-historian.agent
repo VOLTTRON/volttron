@@ -1,0 +1,5 @@
+{
+    "vip_identity": "58adf06d-20e1-4945-9222-6e094c0ff6b1",
+    "agentid": "sqlite_query_historian",
+    "db": "~/.volttron/data/historian.sqlite"
+}
