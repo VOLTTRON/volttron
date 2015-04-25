@@ -65,6 +65,8 @@ from volttron.platform.agent import utils, matching
 from volttron.platform.messaging import topics, headers as headers_mod
 from zmq.utils import jsonapi
 import settings
+import os, os.path
+import errno
 
 
 utils.setup_logging()
@@ -113,32 +115,37 @@ def SQLiteHistorianAgent(config_path, **kwargs):
         
         def historian_setup(self):
             self.topics={}
-            self.conn = sqlite3.connect('data.sqlite', 
+            db_path = os.path.expanduser(config.db)
+            db_dir  = os.path.dirname(db_path)
+            
+            try:
+                os.makedirs(db_dir)
+            except OSError as exc:
+                if exc.errno != errno.EEXIST or not os.path.isdir(db_dir):
+                    raise
+
+            self.conn = sqlite3.connect(db_path, 
                                          detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
         
+            
+            self.conn.execute('''CREATE TABLE IF NOT EXISTS data 
+                                (ts timestamp NOT NULL,
+                                 topic_id INTEGER NOT NULL, 
+                                 value_string TEXT NOT NULL, 
+                                 UNIQUE(ts, topic_id))''')
+            
+            self.conn.execute('''CREATE INDEX IF NOT EXISTS data_idx
+                                ON data (ts ASC)''')
+
+            self.conn.execute('''CREATE TABLE IF NOT EXISTS topics 
+                                (topic_id INTEGER PRIMARY KEY, 
+                                 topic_name TEXT NOT NULL,
+                                 UNIQUE(topic_name))''')
+            
             c = self.conn.cursor()
-            c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='data';")
-            
-            if c.fetchone() is None:
-                self.conn.execute('''CREATE TABLE data 
-                                    (ts timestamp NOT NULL,
-                                     topic_id INTEGER NOT NULL, 
-                                     value_string TEXT NOT NULL, 
-                                     UNIQUE(ts, topic_id))''')
-            
-            
-            c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='topics';")
-        
-            if c.fetchone() is None:   
-                self.conn.execute('''CREATE TABLE topics 
-                                            (topic_id INTEGER PRIMARY KEY, 
-                                             topic_name TEXT NOT NULL,
-                                             UNIQUE(topic_name))''')
-                
-            else:
-                c.execute("SELECT * FROM topics")
-                for row in c:
-                    self.topics[row[1]] = row[0]
+            c.execute("SELECT * FROM topics")
+            for row in c:
+                self.topics[row[1]] = row[0]
         
             c.close()
             self.conn.commit()
