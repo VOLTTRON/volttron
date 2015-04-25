@@ -148,7 +148,8 @@ def PlatformManagerAgent(config_path, **kwargs):
 
         def __init__(self, **kwargs):
             super(Agent, self).__init__(vip_identity=vip_identity, **kwargs)
-            print("Registering (vip_address, vip_identity)\n\t", self.vip_address, vip_identity)
+            _log.debug("Registering (vip_address, vip_identity) ({}, {})"
+                .format(self.vip_address, vip_identity))
             # a list of peers that have checked in with this agent.
             self.platform_dict = {}
             self.valid_data = False
@@ -174,15 +175,17 @@ def PlatformManagerAgent(config_path, **kwargs):
 
             self.platform_dict[peer_identity]['external'] = peer_address != self.vip_address
 
-            print("Registered: ", self.platform_dict[peer_identity])
+            _log.debug("Platform {} registered successfully"
+                       .format(peer_identity))
             return True
 
 
         @export()
         def unregister_platform(self, peer_identity):
-            print "unregistering ", peer_identity
             del self.platform_dict[peer_identity]['identity_params']
-            return 'Removed'
+            _log.debug("Platform {} unregistered successfully"
+                       .format(peer_identity))
+            return True
 
         @onevent('setup')
         def setup(self):
