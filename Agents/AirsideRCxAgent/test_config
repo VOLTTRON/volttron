@@ -19,8 +19,8 @@
     "mode": "ACTIVE",
     "arguments": {
         "fan_status": "supplyfanstatus",
-        "zone_reheat": "terminalboxreheatvalveposition",
-        "zone_damper": "terminalboxdampercommand",
+        "zone_reheat": "heatingsignal",
+        "zone_damper": "damperposition",
         "duct_stp": "ductstaticpressure",
         "duct_stp_stpt": "ductstaticpressuresetpoint",
         "sa_temp": "dischargeairtemperature",
