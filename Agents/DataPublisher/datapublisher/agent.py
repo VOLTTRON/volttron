@@ -136,6 +136,7 @@ def DataPub(config_path, **kwargs):
             '''Publish data from file to message bus.'''
             published_data = {}
             now = datetime.datetime.now().isoformat(' ')
+            print subdev_list
             if not self._src_file_handle.closed:
                 line = self._src_file_handle.readline()
                 line = line.strip()
@@ -152,19 +153,31 @@ def DataPub(config_path, **kwargs):
                              HEADER_NAME_DATE: now}, data_dict)
                         return
                     device_dict = {}
+                    ukey = ''
+                    kval = None
                     for key, value in published_data.iteritems():
-                        if key not in subdev_list:
-                            device_dict.update({key: value})
+                        for item in subdev_list:
+                            ukey = key
+                            kval = value
+                            if item in key:
+                                print item, key
+                                ukey = ''
+                                kval = None
+                                break
+                        if ukey:
+                            device_dict.update({ukey: kval})
                     # Pushing out the data
                     device_dict = jsonapi.dumps(device_dict)
                     self.publish(BASETOPIC + '/' + device_path + '/all',
                                  {HEADER_NAME_CONTENT_TYPE: MIME_PLAIN_TEXT,
                                   HEADER_NAME_DATE: now}, device_dict)
                     device_dict = {}
+                    print published_data
                     for item in subdev_list:
                         for key, value in published_data.iteritems():
                             if key.startswith(item):
-                                device_dict.update({key.split('_')[1]: value})
+                                pub_key = key[len(item):]
+                                device_dict.update({pub_key.split('_')[1]: value})
                         device_dict = jsonapi.dumps(device_dict)
                         topic = (
                             BASETOPIC + '/' + device_path + '/' + item + '/all'
