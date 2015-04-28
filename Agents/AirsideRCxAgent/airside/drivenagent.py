@@ -65,6 +65,7 @@ from volttron.platform.agent import (AbstractDrivenAgent, BaseAgent,
                                      matching, utils)
 from volttron.platform.agent.utils import jsonapi
 from volttron.platform.messaging import (headers as headers_mod, topics)
+from copy import deepcopy
 
 __author1__ = 'Craig Allwardt <craig.allwardt@pnnl.gov>'
 __author2__ = 'Robert Lutes <robert.lutes@pnnl.gov>'
@@ -80,8 +81,9 @@ def DrivenAgent(config_path, **kwargs):
                   for key in ['campus', 'building', 'unit'])
     subdevices = {}
     for unit in device['unit']:
-        if 'subdevices' in device['unit'][unit]:
-            subdevices[unit] = device['unit'][unit]['subdevices']
+        if isinstance(device['unit'], dict):
+            if 'subdevices' in device['unit'][unit]:
+                subdevices[unit] = device['unit'][unit]['subdevices']
 
     agent_id = config.get('agentid')
     if not device:
@@ -121,8 +123,13 @@ def DrivenAgent(config_path, **kwargs):
             self._update_event_time = None
             self.keys = None
             self._device_states = {}
-            self._required_subdevice_values = subdevices
+            # master is where we copy from to get a poppable list of
+            # subdevices that should be present before we run the analysis.
+            self._master_subdevices = subdevices
+            self._needed_subdevices = {}
             self._subdevice_values = {}
+            self._initialize_subdevices()
+
             self._kwargs = kwargs
             self.commands = {}
             self.current_point = None
@@ -132,25 +139,63 @@ def DrivenAgent(config_path, **kwargs):
                     writer.close()
             self._header_written = False
 
-        def initialize_subdevices(self):
+        def _initialize_subdevices(self):
+            self._needed_subdevices = deepcopy(self._master_subdevices)
             self._subdevice_values = {}
-            for r in self._required_subdevice_values:
-                for s in r:
-                    self._subdevice_values[r][s] = None
+            for x, y in self._needed_subdevices.items():
+                print("Needed ({}, {})".format(x, y))
 
-        def should_run_now(self):
-            if len(self._required_subdevice_values) < 1:
-                return True
 
-            def has_subdevice_value(unit, subdevice):
-                return self.subdevice_value[unit][subdevice] != None
 
-            for r in self._required_subdevice_values:
-                for s in r:
-                    if not has_subdevice_value(r, s):
-                        return False
+        def _should_run_now(self):
+
+            for k, v in self._needed_subdevices:
+                if len(v) > 0:
+                    return False
 
             return True
+
+        @matching.match_glob('analysis/campus1/building1/*')
+        def on_rec_analysis_message(self, topic, headers, message, matched):
+
+            obj = jsonapi.loads(message[0])
+            for k, v in obj.items():
+                if '_' in k:
+                    (subdevice, point) = k.split('_')
+
+                    if k in self._subdevice_values:
+                        _log.error("Sub device out of schedule found")
+                        # Already have published this so reinitialize and
+                        # add error string
+                        self._initialize_subdevices()
+
+                    removeFrom = None
+                    for k, subdevices in self._needed_subdevices.items():
+                        if subdevice in subdevice:
+                            removeFrom = k
+                            break
+
+                    if removeFrom:
+                        # build unit_subdevice_point
+                        self._subdevice_values[removeFrom+'_'+k] = v
+                        print('removing {} from unit {}'.format(subdevice, removeFrom))
+                        self._needed_subdevices[removeFrom].remove(subdevice)
+                    else:
+                        _log.error('Unknown subdevice: {}'.format(subdevice))
+
+#                     try:
+#                         # Verify with robert whether we are going to change to
+#                         #using the point under subdevice or just the subdevice.
+#                         self._needed_subdevices.pop(subdevice)
+#                         self._subdevice_values[k] = v
+#                     except KeyError as e:
+#                         _log.error("Unexpected device found: {}".format(subdevice))
+
+            if self._should_run_now():
+                self._process_results(self._subdevice_values)
+            else:
+                _log.debug("Still need {} before running.".format(
+                                                self._needed_subdevices.keys()))
 
         @matching.match_exact(topics.DEVICES_VALUE(point='all', **device))
         def on_received_message(self, topic, headers, message, matched):
@@ -176,9 +221,8 @@ def DrivenAgent(config_path, **kwargs):
                     results = app_instance.run(datetime.now(), self._subdevice_values)
                     self._process_results(results)
 
-        @matching.match_exact(topics.ANALYSIS_VALUE(point='all', **device))
-        def on_rec_analysis_message(self, topic, headers, message, matched):
-            print('here!')
+
+
 
 
         def _process_results(self, results):
