@@ -77,24 +77,22 @@ from zmq.utils import jsonapi
 # Import gevent-friendly version of vip
 from ..vip import green as vip
 from .. import jsonrpc
+from ... import platform
 
 import volttron
 
 _VOLTTRON_PATH = os.path.dirname(volttron.__path__[-1]) + os.sep
 del volttron
 
-# default home is ~/.volttron
-volttron_home = os.path.expanduser(
-                                os.environ.get('VOLTTRON_HOME', '~/.volttron'))
-_vip_address = os.environ.get('VIP_ADDR', None)
-if not _vip_address:
-    vip_path = '{}/run/vip.socket'.format(volttron_home)
-    if sys.platform.startswith('linux'):
-        vip_path = '@' + vip_path
-    _vip_address = 'ipc://{}'.format(vip_path)
-
 
 _log = logging.getLogger(__name__)   # pylint: disable=invalid-name
+
+
+def default_vip_address():
+    '''Return the default VIP ZMQ address.'''
+    home = os.path.abspath(platform.get_home())
+    abstract = '@' if sys.platform.startswith('linux') else ''
+    return 'ipc://%s%s/run/vip.socket' % (abstract, home)
 
 
 class periodic(object):   # pylint: disable=invalid-name
@@ -182,8 +180,12 @@ class VIPAgent(object):
     do nothing but listen for messages and exit when told to. That is it.
     '''
 
-    def __init__(self, vip_address=_vip_address, vip_identity=None, context=None, **kwargs):
+    def __init__(self, vip_address=None, vip_identity=None,
+                 context=None, **kwargs):
         super(VIPAgent, self).__init__(**kwargs)
+        if not vip_address:
+            vip_address = os.environ.get(
+                'VOLTTRON_VIP_ADDR', default_vip_address())
         self.context = context or zmq.Context.instance()
         self.vip_address = vip_address
         self.vip_identity = vip_identity
