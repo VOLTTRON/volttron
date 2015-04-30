@@ -130,15 +130,20 @@ def SMAPHistorianAgent(config_path, **kwargs):
                 if 'uuid' not in item.keys():
                     #TODO if the topic does not exist in smap, add to smap here
                     # create a uuid
+                    payload = {'uuid': str(uuid.uuid4()), 'topic': item['topic']}
+                    response = requests.post("{url}/backend/add/LEq1cEGc04RtcKX6riiX7eaML8Z82xEgQrp7".format(url=_config.get('archiver_url')), data=jsonapi.dumps(payload))
+                    
                     _log.debug('Adding topic to smap: {}'.format(item['topic']))
                     self.topic_list.append(item['topic'])
                     self.uuid_list.append('a uuid here') #item['uuid'])
+                    continue
             
             
             # check for empty list
             if (len(self.topic_list) == 0) or (len(self.uuid_list) == 0):
                 raise ValueError('missing topic list or uuid list')
                 return
+            
             
             # format json string for request
             # Uuid string format:
