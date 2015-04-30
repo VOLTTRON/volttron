@@ -35,7 +35,7 @@
 # This material was prepared as an account of work sponsored by an
 # agency of the United States Government.  Neither the United States
 # Government nor the United States Department of Energy, nor Battelle,
-# nor any of their employees, nor any jurisdiction or organization that
+# nor any of their employees, nor{base}//{node}//{campus}//{building}//{unit}//{point} any jurisdiction or organization that
 # has cooperated in the development of these materials, makes any
 # warranty, express or implied, or assumes any legal liability or
 # responsibility for the accuracy, completeness, or usefulness or any
@@ -58,6 +58,7 @@
 import csv
 from datetime import datetime, timedelta as td
 import logging
+import pprint
 import sys
 
 from volttron.platform.agent import (AbstractDrivenAgent, BaseAgent,
@@ -79,11 +80,17 @@ def DrivenAgent(config_path, **kwargs):
     validation_error = ''
     device = dict((key, config['device'][key])
                   for key in ['campus', 'building', 'unit'])
-    subdevices = {}
-    for unit in device['unit']:
-        if isinstance(device['unit'], dict):
-            if 'subdevices' in device['unit'][unit]:
-                subdevices[unit] = device['unit'][unit]['subdevices']
+    subdevices = None
+    # this implies a subdevice listing
+    if isinstance(device['unit'], dict):
+        # Assumption that there will be only one entry in the dictionary.
+        unit_name = device['unit'].keys()[0]
+        if 'subdevices' not in device['unit'][unit_name]:
+            raise ValueError('subdevices required in config file')
+
+        subdevices = device['unit'][unit_name]['subdevices']
+        # modify the device dict so that unit is now pointing to unit_name
+        device['unit'] = unit_name
 
     agent_id = config.get('agentid')
     if not device:
@@ -111,9 +118,6 @@ def DrivenAgent(config_path, **kwargs):
     # each time run is called the application can keep it state.
     app_instance = klass(**config)
 
-    print("TOPIC VALUE: {}".format(topics.ANALYSIS_VALUE))
-    print("TOPIC VALUE: {}".format(topics.DEVICES_VALUE))
-
     class Agent(PublishMixin, BaseAgent):
         '''Agent listens to message bus device and runs when data is published.
         '''
@@ -126,9 +130,10 @@ def DrivenAgent(config_path, **kwargs):
             # master is where we copy from to get a poppable list of
             # subdevices that should be present before we run the analysis.
             self._master_subdevices = subdevices
-            self._needed_subdevices = {}
+            self._needed_subdevices = []
             self._subdevice_values = {}
-            self._initialize_subdevices()
+            self._device_values = {}
+            self._initialize_devices()
 
             self._kwargs = kwargs
             self.commands = {}
@@ -139,68 +144,70 @@ def DrivenAgent(config_path, **kwargs):
                     writer.close()
             self._header_written = False
 
-        def _initialize_subdevices(self):
+        def _initialize_devices(self):
             self._needed_subdevices = deepcopy(self._master_subdevices)
             self._subdevice_values = {}
-            for x, y in self._needed_subdevices.items():
-                print("Needed ({}, {})".format(x, y))
-
-
+            self._device_values = {}
 
         def _should_run_now(self):
+            # Assumes the unit/all values will have values.
+            if not len(self._device_values.keys()) > 0:
+                return False
 
-            for k, v in self._needed_subdevices:
-                if len(v) > 0:
-                    return False
+            return not len(self._needed_subdevices) > 0
 
-            return True
-
-        @matching.match_glob('analysis/campus1/building1/*')
+        @matching.match_regex("devices/{campus}/{building}/{unit}/.*all".format(**device))
         def on_rec_analysis_message(self, topic, headers, message, matched):
 
+            # Do the analysis based upon the data passed (the old code).
+            if not subdevices:
+                self.on_received_message(self, topic, headers, message, matched)
+                return
+
             obj = jsonapi.loads(message[0])
-            for k, v in obj.items():
-                if '_' in k:
-                    (subdevice, point) = k.split('_')
+            device_or_subdevice = topic.split('/')[-2]
 
-                    if k in self._subdevice_values:
-                        _log.error("Sub device out of schedule found")
-                        # Already have published this so reinitialize and
-                        # add error string
-                        self._initialize_subdevices()
+            # The below if statement is used to distinguish between unit/all
+            # and unit/subdevice/all
+            if device_or_subdevice == device['unit']:
+                if self._device_values != {}:
+                    _log.error("Warning device values already present, " +
+                              "reinitializing")
+                    self._initialize_devices()
 
-                    removeFrom = None
-                    for k, subdevices in self._needed_subdevices.items():
-                        if subdevice in subdevice:
-                            removeFrom = k
-                            break
+                self._device_values = obj
+            else:
+                if not device_or_subdevice in self._needed_subdevices:
+                    _log.error('Device: {} not in the needed list'\
+                              .format(device_or_subdevice))
+                    if device_or_subdevice in self._master_subdevices:
+                        log.error('Device: {} found in master but not need, '\
+                                  're-initializingbut was not in the needed list'\
+                              .format(device_or_subdevice))
+                        self._initialize_devices()
+                        self._subdevice_values[device_or_subdevice] = obj
+                        self._needed_subdevices.remove(device_or_subdevice)
+                else:
+                    self._subdevice_values[device_or_subdevice] = obj
+                    self._needed_subdevices.remove(device_or_subdevice)
 
-                    if removeFrom:
-                        # build unit_subdevice_point
-                        self._subdevice_values[removeFrom+'_'+k] = v
-                        print('removing {} from unit {}'.format(subdevice, removeFrom))
-                        self._needed_subdevices[removeFrom].remove(subdevice)
-                    else:
-                        _log.error('Unknown subdevice: {}'.format(subdevice))
-
-#                     try:
-#                         # Verify with robert whether we are going to change to
-#                         #using the point under subdevice or just the subdevice.
-#                         self._needed_subdevices.pop(subdevice)
-#                         self._subdevice_values[k] = v
-#                     except KeyError as e:
-#                         _log.error("Unexpected device found: {}".format(subdevice))
 
             if self._should_run_now():
-                self._process_results(self._subdevice_values)
+                self._subdevice_values[device['unit']] = deepcopy(self._device_values)
+                results = app_instance.run(datetime.now(), self._subdevice_values)
+                self._process_results(results)
+                self._initialize_devices()
             else:
                 _log.debug("Still need {} before running.".format(
-                                                self._needed_subdevices.keys()))
+                                                self._needed_subdevices))
 
-        @matching.match_exact(topics.DEVICES_VALUE(point='all', **device))
+
         def on_received_message(self, topic, headers, message, matched):
             '''Subscribe to device data and convert data to correct type for
             the driven application.
+
+            This is now called from the on_rec_analysis_message function to
+            keep backward compatibility.
             '''
             _log.debug("Message received")
             _log.debug("MESSAGE: " + jsonapi.dumps(message[0]))
