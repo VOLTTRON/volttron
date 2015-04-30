@@ -177,13 +177,13 @@ def DrivenAgent(config_path, **kwargs):
 
                 self._device_values = obj
             else:
-                if not device_or_subdevice in self._needed_subdevices:
-                    _log.error('Device: {} not in the needed list'\
-                              .format(device_or_subdevice))
+                if device_or_subdevice not in self._needed_subdevices:
+                    _log.error('Device: {} not in the needed list'
+                               .format(device_or_subdevice))
                     if device_or_subdevice in self._master_subdevices:
-                        log.error('Device: {} found in master but not need, '\
-                                  're-initializingbut was not in the needed list'\
-                              .format(device_or_subdevice))
+                        _log.error('Device: {} found in master but not need, '
+                                   're-initializingbut was not in the needed list'
+                                   .format(device_or_subdevice))
                         self._initialize_devices()
                         self._subdevice_values[device_or_subdevice] = obj
                         self._needed_subdevices.remove(device_or_subdevice)
@@ -191,16 +191,14 @@ def DrivenAgent(config_path, **kwargs):
                     self._subdevice_values[device_or_subdevice] = obj
                     self._needed_subdevices.remove(device_or_subdevice)
 
-
             if self._should_run_now():
                 self._subdevice_values[device['unit']] = deepcopy(self._device_values)
                 results = app_instance.run(datetime.now(), self._subdevice_values)
                 self._process_results(results)
                 self._initialize_devices()
             else:
-                _log.debug("Still need {} before running.".format(
-                                                self._needed_subdevices))
-
+                _log.debug("Still need {} before running."
+                           .format(self._needed_subdevices))
 
         def on_received_message(self, topic, headers, message, matched):
             '''Subscribe to device data and convert data to correct type for
@@ -214,7 +212,7 @@ def DrivenAgent(config_path, **kwargs):
             _log.debug("TOPIC: " + topic)
             data = jsonapi.loads(message[0])
             if not converter.initialized and \
-                config.get('conversion_map') is not None:
+                    config.get('conversion_map') is not None:
                 converter.setup_conversion_map(config.get('conversion_map'),
                                                data.keys())
             data = converter.process_row(data)
@@ -228,10 +226,6 @@ def DrivenAgent(config_path, **kwargs):
                     results = app_instance.run(datetime.now(), self._subdevice_values)
                     self._process_results(results)
 
-
-
-
-
         def _process_results(self, results):
             '''Run driven application with converted data and write the app
             results to a file or database.
@@ -243,7 +237,7 @@ def DrivenAgent(config_path, **kwargs):
                 _log.debug("LOG: {}".format(value))
             for key, value in results.table_output.iteritems():
                 _log.debug("TABLE: {}->{}".format(key, value))
-            if output_file != None:
+            if output_file is not None:
                 if len(results.table_output.keys()) > 0:
                     for _, v in results.table_output.items():
                         fname = output_file  # +"-"+k+".csv"
@@ -270,8 +264,8 @@ def DrivenAgent(config_path, **kwargs):
                         for key, value in r.iteritems():
                             if isinstance(value, bool):
                                 value = int(value)
-                            topic = topics.ANALYSIS_VALUE(point=key, **config['device']) #.replace('{analysis}', key)
-                            #print "plublishing {}->{}".format(topic, value)
+                            topic = topics.ANALYSIS_VALUE(point=key,
+                                                          **config['device'])
                             self.publish_json(topic, headers, value)
             if results.commands and mode:
                 self.commands = results.commands
@@ -382,6 +376,7 @@ def _get_class(kls):
     for comp in parts[1:]:
         main_mod = getattr(main_mod, comp)
     return main_mod
+
 
 def main(argv=sys.argv):
     ''' Main method.'''
