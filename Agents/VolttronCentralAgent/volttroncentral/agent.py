@@ -98,10 +98,8 @@ def PlatformManagerAgent(config_path, **kwargs):
             return kwargs.pop(name)
         except KeyError:
             return config.get(name, default_value)
-#     home = os.path.expanduser(os.path.expandvars(
-#         os.environ.get('VOLTTRON_HOME', '~/.volttron')))
-#     vip_address = 'ipc://@{}/run/vip.socket'.format(home)
-    vip_identity = 'platform_manager'
+
+    vip_identity = get_config('vip_identity', 'platform.manager')
 
     agent_id = get_config('agentid')
     server_conf = get_config('server', {})
