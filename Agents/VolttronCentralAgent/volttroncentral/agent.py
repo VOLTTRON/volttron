@@ -86,9 +86,48 @@ WEB_ROOT = p.abspath(p.join(p.dirname(__file__), 'webroot'))
 
 
 class PlatformRegistry:
+    '''Container class holding registered vip platforms and services.
+    '''
 
     def __init__(self, stale=5*60):
-        pass
+        self._vips = {}
+        self._uuids = {}
+
+    def register(self, vip_address, vip_identity, agentid, agenttype=None,
+                 **kwargs):
+        '''Registers a platform agent with the registry.
+
+        If an agent is already registered with the vip_address and vip_identity
+        then a ValueError is raised.
+
+        An agentid must be non-None or a ValueError is raised
+
+        Keyword arguments:
+        vip_address -- the registering agent's address.
+        agentid     -- a human readable agent description.
+        agenttype   -- the type of agent (used for grouping of agents by type).
+        kwargs      -- additional arguments that should be stored in a
+                       platform agent's record.
+        '''
+        if vip_address not in self._vips.keys():
+            self._vips[vip_address] = {}
+        node = self._vips[vip_address]
+        if vip_identity in node:
+            raise ValueError('Duplicate vip_address vip_identity for {}-{}'
+                             .format(vip_address, vip_identity))
+        if agentid is None:
+            raise ValueError('Invalid agentid specified')
+
+        platform_uuid = uuid.uuid4()
+        node[vip_identity] = {'agentid': agentid,
+                              'vip_identity': vip_identity,
+                              'uuid': platform_uuid,
+                              'agent_type': agenttype,
+                              'other': kwargs
+                              }
+        self._uuids = node[vip_identity]
+
+
 
 
 def VolttronCentralAgent(config_path, **kwargs):
