@@ -24,9 +24,9 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# The views and conclusions contained in the software and documentation are those
-# of the authors and should not be interpreted as representing official policies,
-# either expressed or implied, of the FreeBSD Project.
+# The views and conclusions contained in the software and documentation are
+# those of the authors and should not be interpreted as representing official
+# policies, either expressed or implied, of the FreeBSD Project.
 #
 
 # This material was prepared as an account of work sponsored by an
@@ -70,9 +70,10 @@ from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
                                        INVALID_REQUEST, METHOD_NOT_FOUND, PARSE_ERROR,
                                        UNHANDLED_EXCEPTION)
 
+
 def get_error_response(code, message, data=None):
     return {'jsonrpc': '2.0',
-            'error': { 'code': code, 'message': message, 'data' : data}
+            'error': {'code': code, 'message': message, 'data': data}
             }
 
 
