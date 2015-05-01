@@ -12,6 +12,7 @@ from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
+
 def get_standard_error_message(self, code):
 
     if code == INTERNAL_ERROR:
@@ -26,8 +27,11 @@ def get_standard_error_message(self, code):
         error = 'Invalid JSON was received by the server. '\
                 'An error occurred on the server while parsing the JSON text.'
     else:
-        #UNHANDLED_EXCEPTION
+        # UNHANDLED_EXCEPTION
         error = 'Unhandled exception happened!'
+
+    return error
+
 
 class SessionHandler:
     '''A handler for dealing with authentication of sessions
@@ -61,7 +65,8 @@ class SessionHandler:
 
     def _add_session(self, user, token, ip, groups):
         '''Add a user session to the session cache'''
-        self._sessions[user] = {'user': user, 'token': token, 'ip': ip, 'groups': groups}
+        self._sessions[user] = {'user': user, 'token': token, 'ip': ip,
+                                'groups': groups}
         self._session_tokens[token] = self._sessions[user]
 
     def check_session(self, token, ip):
@@ -71,6 +76,7 @@ class SessionHandler:
             return session['ip'] == ip
 
         return False
+
 
 class ManagerWebApplication(tornado.web.Application):
     '''A tornado web application wrapper class.
@@ -89,6 +95,7 @@ class ManagerWebApplication(tornado.web.Application):
                                                     transforms, **settings)
         self.sessions = session_handler
         self.manager = manager
+
 
 class RpcResponse:
     '''Wraps a response from rpc call in a json wrapper.'''
@@ -113,10 +120,10 @@ class RpcResponse:
         self.message = kwargs.get('message', None)
         self.code = kwargs.get('code', None)
 
-        if self.message == None and \
+        if self.message is None and \
             self.code in (INTERNAL_ERROR, INVALID_PARAMS,
-                           INVALID_REQUEST, METHOD_NOT_FOUND, PARSE_ERROR,
-                           UNHANDLED_EXCEPTION):
+                          INVALID_REQUEST, METHOD_NOT_FOUND, PARSE_ERROR,
+                          UNHANDLED_EXCEPTION):
             self.message = self.get_standard_error_message(self.code)
 
         # There is probably a better way to move the result up a level, however
@@ -124,12 +131,10 @@ class RpcResponse:
         if isinstance(self.result, dict) and 'result' in self.result:
             self.result = self.result['result']
 
-
-
     def get_response(self):
         d = {'jsonrpc': '2.0', 'id': self.id}
 
-        if self.code != None:
+        if self.code is not None:
             d['error'] = {'code': self.code,
                           'message': self.message}
         else:
@@ -137,17 +142,17 @@ class RpcResponse:
 
         return d
 
+
 class RpcRequest:
     PARSE_ERR = {'code': -32700, 'message': 'Parse error'}
 
     def has_error(self):
-        return not (self.error == None)
+        return self.error is not None
 
-    def __init__(self, request_body=None,
-                 id=None, method=None, params = None):
+    def __init__(self, request_body=None, id=None, method=None, params=None):
 
         try:
-            self.id = None # default for json RpcParser with parse error
+            self.id = None        # default for json RpcParser with parse error
             self.error = None
 
             if request_body:
@@ -157,28 +162,28 @@ class RpcRequest:
                     self.error = INVALID_REQUEST
                     return
 
-                if not 'method' in data:
+                if 'method' not in data:
                     self.error = METHOD_NOT_FOUND
                     return
 
-                if not 'jsonrpc' in data or data['jsonrpc'] != '2.0':
+                if 'jsonrpc' not in data or data['jsonrpc'] != '2.0':
                     self.error = PARSE_ERROR
                     return
 
-                if not 'id' in data:
+                if 'id' not in data:
                     self.error = PARSE_ERROR
                     return
 
                 # This is only necessary at the top level of the RpcParser stack.
-                if not "authorization" in data:
+                if "authorization" not in data:
                     if data['method'] != 'get_authorization':
                         self.error = 401
                         return
                 if "authorization" in data:
                     self.authorization = data['authorization']
             else:
-                data = {'method':method, 'id': id, 'jsonrpc': '2.0',
-                        'params':params}
+                data = {'method': method, 'id': id, 'jsonrpc': '2.0',
+                        'params': params}
 
             self.method = data['method']
             self.jsonrpc = data['jsonrpc']
@@ -203,69 +208,62 @@ class ManagerRequestHandler(tornado.web.RequestHandler):
     code will be returned.
     '''
 
-
     def _route(self, rpcRequest):
         # this is the only method that the handler truly deals with, the
         # rest will be dispatched to the manager agent itself.
+        sessions = self.application.sessions
+
         if rpcRequest.method == 'get_authorization':
             try:
-                token = self.application.sessions.authenticate(
-                            rpcRequest.params['username'],
-                            rpcRequest.params['password'],
-                            self.request.remote_ip)
+                token = sessions.authenticate(rpcRequest.params['username'],
+                                              rpcRequest.params['password'],
+                                              self.request.remote_ip)
                 if token:
                     rpcResponse = RpcResponse(rpcRequest.id, result=str(token))
-                    #rpcRequest.set_result(str(token))
                 else:
                     rpcResponse = RpcResponse(rpcRequest.id,
-                                  code=401,
-                                  message="invalid username or password")
+                                              code=401,
+                                              message="invalid credentials")
             except:
                 rpcResponse = RpcResponse(rpcRequest.id,
-                              code=INVALID_PARAMS,
-                              message='Invalid parameters to {}'.format(rpcRequest.method))
-
+                                          code=INVALID_PARAMS,
+                                          message='Invalid parameters to {}'
+                                          .format(rpcRequest.method))
 
             self._response_complete((None, rpcResponse))
         else:
             # verify the user session
-            if not self.application.sessions.check_session(
-                            rpcRequest.authorization,
-                            self.request.remote_ip):
+            if not sessions.check_session(rpcRequest.authorization,
+                                          self.request.remote_ip):
                 rpcResponse = RpcResponse(rpcRequest.id,
-                                  code=401,
-                                  message="Unauthorized Access")
+                                          code=401,
+                                          message="Unauthorized Access")
                 self._response_complete((None, rpcResponse))
             else:
-
-                print("Calling: id: {}, method: {}, params: {}".format(
-                                    rpcRequest.id,
-                                    rpcRequest.method,
-                                    rpcRequest.params))
+                _log.debug("Calling: id: {}, method: {}, params: {}"
+                           .format(rpcRequest.id, rpcRequest.method,
+                                   rpcRequest.params))
                 async_caller = self.application.manager.async_caller
                 async_caller.send(self._response_complete,
-                                     self.application.manager.route_request,
-                                     rpcRequest.id,
-                                     rpcRequest.method,
-                                     rpcRequest.params)
+                                  self.application.manager.route_request,
+                                  rpcRequest.id, rpcRequest.method,
+                                  rpcRequest.params)
 
     def _response_complete(self, data):
         print("RESPONSE COMPLETE:{}".format(data))
-        if (data[0] != None):
+        if (data[0] is not None):
             if isinstance(data[0], RpcResponse):
                 self.write(data[0].get_response())
             else:
-                self.write("Error: "+str(data[0][0])+" message: "+str(data[0][1]))
+                self.write("Error: "+str(data[0][0])
+                           + " message: "+str(data[0][1]))
         else:
             if isinstance(data[1], RpcResponse):
                 self.write(data[1].get_response())
             else:
                 rpcresponse = RpcResponse(self.rpcrequest.id, result=data[1])
                 self.write(rpcresponse.get_response())
-#         try:
-#             print("rpcresponse: {}".format(rpcresponse.get_response()))
-#         except:
-#             pass
+
         print('handling request done')
         self.finish()
 

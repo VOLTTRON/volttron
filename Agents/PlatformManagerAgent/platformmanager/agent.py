@@ -72,7 +72,6 @@ from authenticate import Authenticate
 
 from volttron.platform.async import AsyncCall
 from volttron.platform import vip, jsonrpc
-#from volttron.platform.control import Connection
 from volttron.platform.agent.vipagent import (BaseAgent, RPCAgent, periodic,
                                               onevent, jsonapi, export)
 from volttron.platform.agent import utils
@@ -84,12 +83,11 @@ utils.setup_logging()
 _log = logging.getLogger(__name__)
 WEB_ROOT = p.abspath(p.join(p.dirname(__file__), 'webroot'))
 
+
 class PlatformRegistry:
 
     def __init__(self, stale=5*60):
         pass
-
-
 
 
 def PlatformManagerAgent(config_path, **kwargs):
@@ -104,7 +102,6 @@ def PlatformManagerAgent(config_path, **kwargs):
 #         os.environ.get('VOLTTRON_HOME', '~/.volttron')))
 #     vip_address = 'ipc://@{}/run/vip.socket'.format(home)
     vip_identity = 'platform_manager'
-    #s1 = SenderAgent('sender', vip_address=path, vip_identity='replier')
 
     agent_id = get_config('agentid')
     server_conf = get_config('server', {})
@@ -113,11 +110,9 @@ def PlatformManagerAgent(config_path, **kwargs):
     hander_config = [
         (r'/jsonrpc', ManagerRequestHandler),
         (r'/jsonrpc/', ManagerRequestHandler),
-        (r"/(.*)", tornado.web.StaticFileHandler,\
-        {"path": WEB_ROOT, "default_filename": "index.html"})
+        (r"/(.*)", tornado.web.StaticFileHandler,
+         {"path": WEB_ROOT, "default_filename": "index.html"})
     ]
-
-
 
     def startWebServer(manager):
         '''Starts the webserver to allow http/RpcParser calls.
@@ -137,7 +132,6 @@ def PlatformManagerAgent(config_path, **kwargs):
         webserverStarted = True
         tornado.ioloop.IOLoop.instance().start()
 
-
     def stopWebServer():
         '''Stops the webserver by calling IOLoop.stop
         '''
@@ -149,12 +143,11 @@ def PlatformManagerAgent(config_path, **kwargs):
         def __init__(self, **kwargs):
             super(Agent, self).__init__(vip_identity=vip_identity, **kwargs)
             _log.debug("Registering (vip_address, vip_identity) ({}, {})"
-                .format(self.vip_address, vip_identity))
+                       .format(self.vip_address, vip_identity))
             # a list of peers that have checked in with this agent.
             self.platform_dict = {}
             self.valid_data = False
             self.vip_channels = {}
-
 
         def list_agents(self, platform):
 
@@ -202,7 +195,6 @@ def PlatformManagerAgent(config_path, **kwargs):
         @onevent("finish")
         def finish(self):
             stopWebServer()
-
 
         def route_request (self, id, method, params):
             '''Route request to either a registered platform or handle here.'''
