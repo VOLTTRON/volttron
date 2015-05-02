@@ -15,11 +15,16 @@ JSON configuration options are as follows:
     Optional Configuration
     -----------------------
 
+    The volttron_central_vip_identity allows the customization of the volttron
+    central identity from within the volttron central vip address.
+
+    "volttron_central_vip_identity": "volttron.central";
+
     The agentid does not have to be unique.  It is what will be used
     as a human readable name on volttron central.  If it is not set the
     default 'platform' will be used.
 
-    "agentid": "First Platform",
+    "agentid": "platform",
 
     The agent type in the future will allow the aggregation of agents of a
     specific type across all of the platforms within volttron central.
