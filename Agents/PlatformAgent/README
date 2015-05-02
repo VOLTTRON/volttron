@@ -1,6 +1,8 @@
 The platform agent exposes the volttron platform to a volttron central
 instance.  The volttron central instances can then start, stop, install, and
-run methods on agents on this volttron platform.
+run methods on agents on this volttron platform.  The current design of the
+platform agent allows it only to be controlled by a single volttron central
+agent.
 
 JSON configuration options are as follows:
 
