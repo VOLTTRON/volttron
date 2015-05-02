@@ -5,10 +5,10 @@ if [ -z "$VOLTTRON_HOME" ]; then
   VOLTTRON_HOME=$V1_HOME
 fi
 
-WHEEL=$VOLTTRON_HOME/packaged/platformmanageragent-0.1-py2-none-any.whl
+WHEEL=$VOLTTRON_HOME/packaged/volttroncentralagent-0.1-py2-none-any.whl
 
 echo "building platform manager agent wheel"
-VOLTTRON_HOME=$VOLTTRON_HOME volttron-pkg package ../../../Agents/PlatformManagerAgent/
+VOLTTRON_HOME=$VOLTTRON_HOME volttron-pkg package ../../../Agents/VolttronCentralAgent/
 VOLTTRON_HOME=$VOLTTRON_HOME volttron-pkg configure $WHEEL ./manager-config
 
 echo "installing wheel"

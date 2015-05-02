@@ -8,8 +8,8 @@ echo "Starting platform 2"
 VOLTTRON_HOME=$V2_HOME volttron -vv&
 echo "Starting platform 3"
 VOLTTRON_HOME=$V3_HOME volttron -vv&
-echo "START make-management"
-VOLTTRON_HOME=$V1_HOME ./make-management
+echo "START make-volttroncentral"
+VOLTTRON_HOME=$V1_HOME ./make-volttroncentral
 echo "START make-platform1"
 VOLTTRON_HOME=$V1_HOME ./make-platform1
 echo "START make-platform2"

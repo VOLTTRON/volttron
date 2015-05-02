@@ -1,7 +1,7 @@
 {
-
-    "agentid": "platform",
-    "vip_identity": "third_platform",
-    "manager_vip_address": "ipc://@/tmp/v1home/run/vip.socket",
-    "manager_vip_identity": "platform_manager"
+    "agentid": "third platform",
+    "agent_type": "platform node",
+    "vip_identity": "platform.agent",
+    "volttron_central_vip_address": "ipc://@/tmp/v1home/run/vip.socket",
+    #"volttron_central_vip_identity": "volttron.central"
 }
