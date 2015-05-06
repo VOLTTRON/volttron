@@ -148,6 +148,10 @@ def platform_agent(config_path, **kwargs):
                                                         str(self.__dict__)))
             _log.debug('sending call register_platform {}'.format(
                                     str((vip_identity, agentid, self.vip_address))))
+
+        @periodic(period=60)
+        def _register(self):
+            _log.debug('register')
             self._ctl.call("register_platform", vip_identity, agentid, self.vip_address)
 
 
