@@ -497,7 +497,7 @@ class Application(AbstractDrivenAgent):
 #         topics = self.inp.get_topics()
 #         diagnostic_topic = topics[self.fan_status_name][0]
 #         current_time = self.inp.localize_sensor_time(diagnostic_topic,
-#                                                      current_time)
+#                                                          current_time)
         for key, value in points.items():
             device_dict[key.lower()] = value
         supply_fan_off = False
@@ -545,16 +545,18 @@ class Application(AbstractDrivenAgent):
                 elif (value is not None and
                       value < self.low_supply_fan_threshold):
                     high_dx_condition = True
-            if self.fan_speedcmd_priority in key:
+            if (self.fan_speedcmd_priority and
+                    self.fan_speedcmd_priority in key):
                 if value == self.override_state:
                     static_override_check = True
-            if self.duct_stp_stpt_priority in key:
+            if (self.duct_stp_stpt_priority and
+                    self.duct_stp_stpt_priority in key):
                 if value == self.override_state:
                     static_override_check = True
-            if self.ahu_ccoil_priority in key:
+            if self.ahu_ccoil_priority and self.ahu_ccoil_priority in key:
                 if value == self.override_state:
                     sat_override_check = True
-            if self.sat_stpt_priority in key:
+            if self.sat_stpt_priority and self.sat_stpt_priority in key:
                 if value == self.override_state:
                     sat_override_check = True
         stc_pr_data = []
@@ -603,17 +605,14 @@ class Application(AbstractDrivenAgent):
         diagnostic_result = self.sched_occ_dx.sched_rcx_alg(
             current_time, stc_pr_data, stc_pr_sp_data,
             sat_stpt_data, fan_stat_data, diagnostic_result)
-
         if supply_fan_off:
             return diagnostic_result
-
         if self.warm_up_flag:
             self.warm_up_flag = False
             self.warm_up_start = current_time
             diagnostic_result = self.pre_message(diagnostic_result,
                                                  current_time)
             return diagnostic_result
-
         time_check = datetime.timedelta(minutes=self.warm_up_time)
         if (self.warm_up_start is not None and
                 (current_time - self.warm_up_start) < time_check):
@@ -848,7 +847,7 @@ class DuctStaticRcx(object):
                                   'pressure diagnostic.')
             color_code = 'GREEN'
             dx_msg = 10.0
-
+        
         dx_table = {
 #             'datetime': str(self.timestamp[-1]),
 #             'diagnostic_name': DUCT_STC_RCx1,

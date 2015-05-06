@@ -61,9 +61,9 @@
         ".*Temperature": "float",
         ".*SetPoint": "float",
         "OutdoorDamperSignal": "float",
-        "SupplyFanStatus": "int",
+        ".*Status": "int",
         "CoolingCall": "float",
-        "SupplyFanSpeed": "int",
+        ".*Speed": "float",
         "Damper*.": "float",
         "Heating*.": "float",
         "DuctStatic*.": "float"

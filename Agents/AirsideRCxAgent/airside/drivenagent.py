@@ -73,6 +73,7 @@ __author2__ = 'Robert Lutes <robert.lutes@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2013, Battelle Memorial Institute'
 __license__ = 'FreeBSD'
 
+
 def DrivenAgent(config_path, **kwargs):
     '''Driven harness for deployment of OpenEIS applications in VOLTTRON.'''
     config = utils.load_config(config_path)
@@ -139,7 +140,7 @@ def DrivenAgent(config_path, **kwargs):
             self.commands = {}
             self.current_point = None
             self.current_key = None
-            if output_file != None:
+            if output_file is not None:
                 with open(output_file, 'w') as writer:
                     writer.close()
             self._header_written = False
@@ -158,42 +159,57 @@ def DrivenAgent(config_path, **kwargs):
 
         @matching.match_regex("devices/{campus}/{building}/{unit}/.*all".format(**device))
         def on_rec_analysis_message(self, topic, headers, message, matched):
-
             # Do the analysis based upon the data passed (the old code).
             if not subdevices:
-                self.on_received_message(self, topic, headers, message, matched)
+                self.on_received_message(self, topic, headers,
+                                         message, matched)
                 return
-
             obj = jsonapi.loads(message[0])
             device_or_subdevice = topic.split('/')[-2]
 
+            def agg_subdevice():
+                sub_obj = {}
+                for key, value in obj.items():
+                    sub_key = ''.join([key, '_', device_or_subdevice])
+                    sub_obj[sub_key] = value
+                self._subdevice_values.update(sub_obj)
+                self._needed_subdevices.remove(device_or_subdevice)
+                return
+
             # The below if statement is used to distinguish between unit/all
-            # and unit/subdevice/all
+            # and unit/sub-device/all
             if device_or_subdevice == device['unit']:
                 if self._device_values != {}:
-                    _log.error("Warning device values already present, " +
-                              "reinitializing")
+                    _log.error("Warning device values already present, "
+                               "reinitializing")
                     self._initialize_devices()
-
-                self._device_values = obj
+                self._device_values.update(obj)
             else:
                 if device_or_subdevice not in self._needed_subdevices:
                     _log.error('Device: {} not in the needed list'
                                .format(device_or_subdevice))
                     if device_or_subdevice in self._master_subdevices:
                         _log.error('Device: {} found in master but not need, '
-                                   're-initializingbut was not in the needed list'
+                                   're-initializing but was not in the '
+                                   'needed list'
                                    .format(device_or_subdevice))
                         self._initialize_devices()
-                        self._subdevice_values[device_or_subdevice] = obj
-                        self._needed_subdevices.remove(device_or_subdevice)
+                        agg_subdevice()
                 else:
-                    self._subdevice_values[device_or_subdevice] = obj
-                    self._needed_subdevices.remove(device_or_subdevice)
+                    agg_subdevice()
 
             if self._should_run_now():
-                self._subdevice_values[device['unit']] = deepcopy(self._device_values)
-                results = app_instance.run(datetime.now(), self._subdevice_values)
+                self._subdevice_values.update(deepcopy(self._device_values))
+                if not converter.initialized and \
+                        config.get('conversion_map') is not None:
+                    converter.setup_conversion_map(
+                        config.get('conversion_map'),
+                        self._subdevice_values.keys()
+                    )
+                self._subdevice_values = converter.process_row(
+                    self._subdevice_values)
+                results = app_instance.run(datetime.now(),
+                                           self._subdevice_values)
                 self._process_results(results)
                 self._initialize_devices()
             else:
@@ -216,7 +232,6 @@ def DrivenAgent(config_path, **kwargs):
                 converter.setup_conversion_map(config.get('conversion_map'),
                                                data.keys())
             data = converter.process_row(data)
-
             if len(self._required_subdevice_values) < 1:
                 results = app_instance.run(datetime.now(), data)
                 self._process_results(results)
