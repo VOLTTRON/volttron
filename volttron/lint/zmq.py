@@ -148,3 +148,5 @@ class Socket(object):
 
     def getsockopt(self, option):
         return 0
+
+green = __import__('sys').modules[__name__]
