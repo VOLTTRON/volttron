@@ -214,7 +214,7 @@ class VIPAgent(object):
         '''
         def _trigger_event(event):
             for callback, args, kwargs in self._event_callbacks.get(event, ()):
-                callback(*args, **kwargs)   # pylint: disable=star-args
+                callback(*args, **kwargs)
         self.vip_socket = vip.Socket(self.context)   # pylint: disable=attribute-defined-outside-init
         if self.vip_identity:
             self.vip_socket.identity = self.vip_identity
@@ -360,7 +360,7 @@ class RPCDispatcher(jsonrpc.Dispatcher):
         local.rpc_request = request
         local.rpc_batch = batch
         try:
-            return method(*args, **kwargs)   # pylint: disable=star-args
+            return method(*args, **kwargs)
         except Exception as exc:   # pylint: disable=broad-except
             exc_tb = traceback.format_exc()
             _log.error('unhandled exception in JSON-RPC method %r: \n%s',
@@ -466,7 +466,7 @@ class ChannelMixin(object):
 
     @onevent('start')
     def start_channel_subsystem(self):
-        vip = self.vip_socket
+        vip_socket = self.vip_socket
         socket = self._channel_socket
         def loop():
             while True:
@@ -478,7 +478,7 @@ class ChannelMixin(object):
                 peer = ident[:int(length)]
                 name = ident[len(peer)+1:]
                 message[0] = name
-                vip.send_vip(peer, 'channel', message, copy=False)
+                vip_socket.send_vip(peer, 'channel', message, copy=False)
         self._channel_subsystem = gevent.spawn(loop)   # pylint: disable=attribute-defined-outside-init
 
     @onevent('stop')
