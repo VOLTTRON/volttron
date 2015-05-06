@@ -708,7 +708,6 @@ class DuctStaticRcx(object):
         elapsed_time = ((self.timestamp[-1] - self.timestamp[0])
                         .total_seconds()/60)
         elapsed_time = elapsed_time if elapsed_time > 0.0 else 1.0
-
         if (elapsed_time >= self.data_window and
                 len(self.timestamp) >= self.no_required_data):
             avg_duct_stpr_stpt = (sum(

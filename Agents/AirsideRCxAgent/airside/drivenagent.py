@@ -60,6 +60,7 @@ from datetime import datetime, timedelta as td
 import logging
 import pprint
 import sys
+import dateutil.parser
 
 from volttron.platform.agent import (AbstractDrivenAgent, BaseAgent,
                                      ConversionMapper, PublishMixin,
@@ -92,7 +93,7 @@ def DrivenAgent(config_path, **kwargs):
         subdevices = device['unit'][unit_name]['subdevices']
         # modify the device dict so that unit is now pointing to unit_name
         device['unit'] = unit_name
-
+    print device
     agent_id = config.get('agentid')
     if not device:
         validation_error += 'Invalid agent_id specified in config\n'
@@ -115,7 +116,7 @@ def DrivenAgent(config_path, **kwargs):
     output_file = config.get('output_file')
     klass = _get_class(application)
     # This instances is used to call the applications run method when
-    # data comes in on the message bus.  It is constructed here so that
+    # data comes in on the message bus.  It is constructed here so that_process_results
     # each time run is called the application can keep it state.
     app_instance = klass(**config)
 
@@ -135,7 +136,7 @@ def DrivenAgent(config_path, **kwargs):
             self._subdevice_values = {}
             self._device_values = {}
             self._initialize_devices()
-
+            self.received_input_datetime = None
             self._kwargs = kwargs
             self.commands = {}
             self.current_point = None
@@ -208,7 +209,10 @@ def DrivenAgent(config_path, **kwargs):
                     )
                 self._subdevice_values = converter.process_row(
                     self._subdevice_values)
-                results = app_instance.run(datetime.now(),
+#                 results = app_instance.run(datetime.now(),
+#                                            self._subdevice_values)
+                self.received_input_datetime = datetime.utcnow()
+                results = app_instance.run(dateutil.parser.parse(self._subdevice_values['Timestamp'], fuzzy=True),
                                            self._subdevice_values)
                 self._process_results(results)
                 self._initialize_devices()
@@ -233,11 +237,13 @@ def DrivenAgent(config_path, **kwargs):
                                                data.keys())
             data = converter.process_row(data)
             if len(self._required_subdevice_values) < 1:
+                self.received_input_datetime = datetime.utcnow()
                 results = app_instance.run(datetime.now(), data)
                 self._process_results(results)
             else:
                 # apply data to subdevice values.
                 if self.should_run_now():
+                    self.received_input_datetime = datetime.utcnow()
                     results = app_instance.run(datetime.now(), self._subdevice_values)
                     self._process_results(results)
 
@@ -280,7 +286,7 @@ def DrivenAgent(config_path, **kwargs):
                             if isinstance(value, bool):
                                 value = int(value)
                             topic = topics.ANALYSIS_VALUE(point=key,
-                                                          **config['device'])
+                                                          **device)
                             self.publish_json(topic, headers, value)
             if results.commands and mode:
                 self.commands = results.commands
