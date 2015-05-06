@@ -79,7 +79,8 @@ def get_error_response(code, message, data=None):
             }
 
 
-def platform_agent(config, **kwargs):
+def platform_agent(config_path, **kwargs):
+    config = utils.load_config(config_path)
 
     agentid = config.get('agentid', 'platform')
     agent_type = config.get('agent_type', 'platform')
@@ -163,6 +164,7 @@ def main(argv=sys.argv):
     utils.default_main(platform_agent,
                        description='Agent available to manage from a remote '
                                     + 'system.',
+                       no_pub_sub_socket=True,
                        argv=argv)
 
 
