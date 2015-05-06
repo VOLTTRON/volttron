@@ -78,8 +78,11 @@ from volttron.platform.agent.vipagent import (BaseAgent, RPCAgent, periodic,
 from volttron.platform.agent import utils
 
 from webserver import (ManagerWebApplication, ManagerRequestHandler,
-                       SessionHandler)
+                       SessionHandler, RpcResponse)
 from volttron.platform.control import list_agents
+from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
+                                       INVALID_REQUEST, METHOD_NOT_FOUND, PARSE_ERROR,
+                                       UNHANDLED_EXCEPTION)
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
