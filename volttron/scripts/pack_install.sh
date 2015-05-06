@@ -2,7 +2,7 @@
 
 if [ $1 == "-h" ]
 then
-  echo "./install_agent.sh <path to agent directory>"
+  echo "./install_agent.sh <path to agent directory> <config path>"
   echo ""
   echo "install an agent on a volttron platform depending on VOLTTRON."
   echo "If VOLTTRON_HOME is not set then uses \$HOME/.volttron as VOLTTRON_HOME"
@@ -12,6 +12,12 @@ fi
 if [ ! -e "$1/setup.py" ]
 then
   echo "Agent directory must have a setup.py in it."
+  exit 0
+fi
+
+if [ ! -e "$2" ]
+then
+  echo "Invalid configuration file."
   exit 0
 fi
 
@@ -27,6 +33,8 @@ then
   echo "$WHEEL doesn't exist"
   exit 0
 fi
+
+volttron-pkg configure "$WHEEL" "$2"
 
 volttron-ctl install $WHEEL
 
