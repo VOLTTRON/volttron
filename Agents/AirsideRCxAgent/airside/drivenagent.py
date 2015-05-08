@@ -58,7 +58,6 @@
 import csv
 from datetime import datetime, timedelta as td
 import logging
-import pprint
 import sys
 import dateutil.parser
 
@@ -82,24 +81,28 @@ def DrivenAgent(config_path, **kwargs):
     validation_error = ''
     device = dict((key, config['device'][key])
                   for key in ['campus', 'building', 'unit'])
-    subdevices = None
-    # this implies a subdevice listing
+    subdevices = []
+    # this implies a sub-device listing
     if isinstance(device['unit'], dict):
         # Assumption that there will be only one entry in the dictionary.
-        unit_name = device['unit'].keys()[0]
-        if 'subdevices' not in device['unit'][unit_name]:
-            raise ValueError('subdevices required in config file')
-
-        subdevices = device['unit'][unit_name]['subdevices']
+        units = device['unit'].keys()
+        dev_unit = ''
+        for item in units:
+            dev_unit = item + '|'
+            if 'subdevices' not in device['unit'][item]:
+                raise ValueError('subdevices required in config file')
+            subdevices.extend(device['unit'][item]['subdevices'])
+        dev_unit = dev_unit[:-1] if dev_unit[-1] == '|' else dev_unit
+        device['unit'] = units[0]
         # modify the device dict so that unit is now pointing to unit_name
-        device['unit'] = unit_name
-    print device
     agent_id = config.get('agentid')
     if not device:
         validation_error += 'Invalid agent_id specified in config\n'
     if not device:
         validation_error += 'Invalid device path specified in config\n'
-    actuator_id = agent_id + '_' +"{campus}/{building}/{unit}".format(**device)
+    actuator_id = (
+        agent_id + '_' + "{campus}/{building}/{unit}".format(**device)
+    )
     application = config.get('application')
     if not application:
         validation_error += 'Invalid application specified in config\n'
@@ -116,8 +119,9 @@ def DrivenAgent(config_path, **kwargs):
     output_file = config.get('output_file')
     klass = _get_class(application)
     # This instances is used to call the applications run method when
-    # data comes in on the message bus.  It is constructed here so that_process_results
-    # each time run is called the application can keep it state.
+    # data comes in on the message bus.  It is constructed here
+    # so that_process_results each time run is called the application
+    # can keep it state.
     app_instance = klass(**config)
 
     class Agent(PublishMixin, BaseAgent):
@@ -158,7 +162,7 @@ def DrivenAgent(config_path, **kwargs):
 
             return not len(self._needed_subdevices) > 0
 
-        @matching.match_regex("devices/{campus}/{building}/{unit}/.*all".format(**device))
+        @matching.match_regex(("devices/{campus}/{building}/" + dev_unit + "/.*all").format(**device))
         def on_rec_analysis_message(self, topic, headers, message, matched):
             # Do the analysis based upon the data passed (the old code).
             if not subdevices:
@@ -209,11 +213,11 @@ def DrivenAgent(config_path, **kwargs):
                     )
                 self._subdevice_values = converter.process_row(
                     self._subdevice_values)
-#                 results = app_instance.run(datetime.now(),
-#                                            self._subdevice_values)
-                self.received_input_datetime = datetime.utcnow()
-                results = app_instance.run(dateutil.parser.parse(self._subdevice_values['Timestamp'], fuzzy=True),
+                results = app_instance.run(datetime.now(),
                                            self._subdevice_values)
+                self.received_input_datetime = datetime.utcnow()
+#                 results = app_instance.run(dateutil.parser.parse(self._subdevice_values['Timestamp'], fuzzy=True),
+#                                            self._subdevice_values)
                 self._process_results(results)
                 self._initialize_devices()
             else:
@@ -244,7 +248,8 @@ def DrivenAgent(config_path, **kwargs):
                 # apply data to subdevice values.
                 if self.should_run_now():
                     self.received_input_datetime = datetime.utcnow()
-                    results = app_instance.run(datetime.now(), self._subdevice_values)
+                    results = app_instance.run(datetime.now(),
+                                               self._subdevice_values)
                     self._process_results(results)
 
         def _process_results(self, results):

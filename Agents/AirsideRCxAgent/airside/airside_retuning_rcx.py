@@ -76,6 +76,7 @@ CORRECT_SAT = 'Suggested SAT setpoint'
 
 dx = '/diagnostic message'
 
+
 class Application(AbstractDrivenAgent):
     '''
     Air-side HVAC Auto-Retuning Diagnostics
@@ -104,7 +105,7 @@ class Application(AbstractDrivenAgent):
                  wednesday_sch='6:30;18:30', thursday_sch='6:30;18:30',
                  friday_sch='6:30;18:30', saturday_sch='0:00;0:00',
                  sunday_sch='0:00;0:00', **kwargs):
-        #super().__init__(*args, **kwargs)
+        # super().__init__(*args, **kwargs)
         Application.pre_requiste_messages = []
         Application.pre_msg_time = []
         no_required_data = int(no_required_data)
@@ -191,301 +192,303 @@ class Application(AbstractDrivenAgent):
                                           stpr_reset_threshold,
                                           sat_reset_threshold)
 
-    @classmethod
-    def get_config_parameters(cls):
-        '''
-        Generate required configuration
-        parameters with description for user
-        '''
-        dgr_sym = u'\N{DEGREE SIGN}'
-        return {
-            'data_window':
-            ConfigDescriptor(int,
-                             'Minimum Elapsed time for '
-                             'analysis (minutes)',
-                             value_default=15),
-            'no_required_data':
-            ConfigDescriptor(int,
-                             'Number of required data measurements to '
-                             'perform diagnostic',
-                             value_default=10),
-            'warm_up_time':
-            ConfigDescriptor(int,
-                             'When the system starts this much '
-                             'time will be allowed to elapse before adding '
-                             'using data for analysis (minutes)',
-                             value_default=30),
-            'zone_high_damper_threshold':
-            ConfigDescriptor(float,
-                             ('Zone high damper threshold '
-                              'used for detection of duct static '
-                              'pressure problems (%)'),
-                             value_default=90.0),
-            'zone_low_damper_threshold':
-            ConfigDescriptor(float,
-                             ('Zone low damper threshold '
-                              'used for detection of duct static '
-                              'pressure problems (%)'),
-                             value_default=10.0),
-            'max_duct_stp_stpt':
-            ConfigDescriptor(float,
-                             'Maximum duct static pressure set point '
-                             'allowed, when auto-correction is '
-                             'enabled, i.e., the set point chosen by the '
-                             'diagnostic will never exceed this value '
-                             '(inch w.g.)', value_default=2.5),
-            'duct_stc_retuning':
-            ConfigDescriptor(float,
-                             ('Increment/decrement of static pressure '
-                              'set point during auto-correction '
-                              '(inch w.g.)'),
-                             value_default=0.15),
-            'min_duct_stp_stpt':
-            ConfigDescriptor(float,
-                             'Minimum duct static pressure set point '
-                             'allowed, when auto-correction is '
-                             'enabled, i.e., the set point chosen by the '
-                             'diagnostic will never exceed this value '
-                             '(inch w.g.)', value_default=0.25),
-            'hdzone_damper_threshold':
-            ConfigDescriptor(float,
-                             'Threshold for zone damper. If the '
-                             'average value of the zone dampers is less '
-                             'than this threshold the fan is '
-                             'supplying too much air (%)',
-                             value_default=30.0),
-            'low_supply_fan_threshold':
-            ConfigDescriptor(float,
-                             'Value above which the supply fan will be '
-                             'considered at its minimum speed (%)',
-                             value_default=20.0),
-            'high_supply_fan_threshold':
-            ConfigDescriptor(float,
-                             ('Value above which the supply fan will '
-                              'be considered running at its maximum speed. '
-                              'If fan is running at its '
-                              'maximum speed (%)'),
-                             value_default=95.0),
-            'setpoint_allowable_deviation':
-            ConfigDescriptor(float,
-                             'Allowable deviation from set points '
-                             'before a fault message is generated '
-                             '(%)', value_default=10.0),
-            'stpr_reset_threshold':
-            ConfigDescriptor(float,
-                             ('Required difference between minimum and '
-                              'maximum duct static pressure set point '
-                              'detecting a duct static pressure '
-                              'set point reset (inch w.g.)'),
-                             value_default=0.25),
-            'reheat_valve_threshold':
-            ConfigDescriptor(float,
-                             'Zone re-heat valve threshold for SAT '
-                             'RCx, compared to average zone '
-                             're-heat valve (%)',
-                             value_default=50.0),
-            'percent_reheat_threshold':
-            ConfigDescriptor(float,
-                             ('Threshold for average percent of zones '
-                              'where terminal box re-heat is ON (%)'),
-                             value_default=25.0),
-            'maximum_sat_stpt':
-            ConfigDescriptor(float,
-                             'Maximum SAT set point allowed when '
-                             'auto-correction  is enabled, '
-                             'i.e., the set point chosen by the '
-                             'diagnostic will never exceed '
-                             'this value ({drg}F)'
-                             .format(drg=dgr_sym),
-                             value_default=75.0),
-            'rht_on_threshold':
-            ConfigDescriptor(float,
-                             'Value above which zone re-heat is '
-                             'considered ON (%)',
-                             value_default=10.0),
-            'sat_retuning':
-            ConfigDescriptor(float,
-                             'Decrement of supply-air temperature set '
-                             'point during auto-correction ({drg}F)'
-                             .format(drg=dgr_sym),
-                             value_default=1.0),
-            'sat_high_damper_threshold':
-            ConfigDescriptor(float,
-                             'High zone damper threshold for '
-                             'high supply-air temperature '
-                             'auto-correct RCx (%)',
-                             value_default=30),
-            'percent_damper_threshold':
-            ConfigDescriptor(float,
-                             'Threshold for the average % of zone '
-                             'dampers above high damper threshold '
-                             '(%)',
-                             value_default=50.0),
-            'minimum_sat_stpt':
-            ConfigDescriptor(float,
-                             'Maximum supply-air temperature '
-                             'set point allowed, when auto-correction '
-                             'is enabled, i.e., '
-                             'the set point chosen by the '
-                             'diagnostic will never exceed this value '
-                             '({drg}F)'.format(drg=dgr_sym),
-                             value_default=50.0),
-            'sat_reset_threshold':
-            ConfigDescriptor(float,
-                             'Threshold difference required '
-                             'to detect a supply-air temperature '
-                             'set point reset ({drg}F)'.format(drg=dgr_sym),
-                             value_default=3.0),
-
-            'unocc_time_threshold':
-            ConfigDescriptor(float,
-                             'Time threshold used for AHU schedule Dx. '
-                             '(%)', value_default=30.0),
-            'unocc_stp_threshold':
-            ConfigDescriptor(float,
-                             'AHU off static pressure dead-band '
-                             'Detects whether the duct static '
-                             'pressure exceeds this '
-                             'value during non-working scheduled '
-                             'hours (inch w.g.)',
-                             value_default=0.2),
-            'monday_sch':
-            ConfigDescriptor(str,
-                             'Thursday AHU occupied schedule, '
-                             'Used to detect the '
-                             'time when the supply fan should '
-                             'be operational)',
-                             value_default='6:30;18:30'),
-            'tuesday_sch':
-            ConfigDescriptor(str,
-                             'Tuesday AHU occupied schedule, '
-                             'Used to detect the '
-                             'time when the supply fan should '
-                             'be operational',
-                             value_default='6:30;18:30'),
-            'wednesday_sch':
-            ConfigDescriptor(str,
-                             'Wednesday AHU occupied schedule, '
-                             'Used to detect the '
-                             'time when the supply fan should '
-                             'be operational',
-                             value_default='6:30;18:30'),
-            'thursday_sch':
-            ConfigDescriptor(str,
-                             'Thursday AHU occupied schedule, '
-                             'Used to detect the '
-                             'time when the supply fan should '
-                             'be operational',
-                             value_default='6:30;18:30'),
-            'friday_sch':
-            ConfigDescriptor(str,
-                             'Friday AHU occupied schedule, '
-                             'Used to detect the '
-                             'time when the supply fan should '
-                             'be operational',
-                             value_default='6:30;18:30'),
-            'saturday_sch':
-            ConfigDescriptor(str,
-                             'Saturday AHU occupied schedule, '
-                             'Used to detect the '
-                             'time when the supply fan should '
-                             'be operational (unoccupied)',
-                             value_default='0:00;0:00'),
-            'sunday_sch':
-            ConfigDescriptor(str,
-                             'Sunday AHU occupied schedule, '
-                             'Used to detect the '
-                             'time when the supply fan should '
-                             'be operational (unoccupied)',
-                             value_default='0:00;0:00')
-            }
-
-    @classmethod
-    def get_self_descriptor(cls):
-        name = 'Auto-RCx for Air Handling HVAC Systems'
-        desc = 'Automated Retro-commisioning for AHUs'
-        return Descriptor(name=name, description=desc)
-
-    @classmethod
-    def required_input(cls):
-        '''
-        Generate required inputs with description for
-        user.
-        '''
-        return {
-            cls.fan_status_name:
-            InputDescriptor('SupplyFanStatus',
-                            'AHU Supply fan status', count_min=1),
-            cls.fan_speedcmd_name:
-            InputDescriptor('SupplyFanSpeed',
-                            'AHU supply fan speed', count_min=0),
-            cls.zone_reheat_name:
-            InputDescriptor('TerminalBoxReheatValvePosition',
-                            'All terminal-box re-heat valve commands',
-                            count_min=1),
-            cls.zone_damper_name:
-            InputDescriptor('TerminalBoxDamperCommand',
-                            'All terminal-box damper commands', count_min=1),
-            cls.duct_stp_name:
-            InputDescriptor('DuctStaticPressure', 'AHU duct static pressure',
-                            count_min=1),
-            cls.duct_stp_stpt_name:
-            InputDescriptor('DuctStaticPressureSetPoint',
-                            'Duct static pressure set point',
-                            count_min=1),
-            cls.sa_temp_name:
-            InputDescriptor('DischargeAirTemperature', 'AHU supply-air '
-                            '(discharge-air) temperature', count_min=1),
-            cls.sat_stpt_name:
-            InputDescriptor('DischargeAirTemperatureSetPoint',
-                            'Supply-air temperature set-point', count_min=1)
-            }
-
-    def reports(self):
-        '''Called by UI to assemble information for creation of the diagnostic
-        visualization.
-        '''
-        report = reports.Report('Retuning Report')
-        report.add_element(reports.RetroCommissioningOAED(
-            table_name='Airside_RCx'))
-        report.add_element(reports.RetroCommissioningAFDD(
-            table_name='Airside_RCx'))
-        return [report]
-
-    @classmethod
-    def output_format(cls, input_object):
-        '''Describes how the output or results will be formatted
-        Output will have the date-time, error-message, color-code,
-        and energy impact.
-        '''
-        result = super().output_format(input_object)
-        topics = input_object.get_topics()
-        diagnostic_topic = topics[cls.fan_status_name][0]
-        diagnostic_topic_parts = diagnostic_topic.split('/')
-        output_topic_base = diagnostic_topic_parts[:-1]
-        datetime_topic = '/'.join(output_topic_base + ['Airside_RCx',
-                                                       'date'])
-        message_topic = '/'.join(output_topic_base + ['Airside_RCx',
-                                                      'message'])
-        diagnostic_name = '/'.join(output_topic_base + ['Airside_RCx',
-                                                        ' diagnostic'])
-        energy_impact = '/'.join(output_topic_base + ['Airside_RCx',
-                                                      'energy_impact'])
-        color_code = '/'.join(output_topic_base + ['Airside_RCx',
-                                                   'color_code'])
-
-        output_needs = {
-            'Airside_RCx': {
-                'datetime': OutputDescriptor('string', datetime_topic),
-                'diagnostic_name': OutputDescriptor('string', diagnostic_name),
-                'diagnostic_message': OutputDescriptor('string',
-                                                       message_topic),
-                'energy_impact': OutputDescriptor('float', energy_impact),
-                'color_code': OutputDescriptor('string', color_code)
-                }
-            }
-        result.update(output_needs)
-        return result
+#     OpenEIS METHODS
+#     @classmethod
+#     def get_config_parameters(cls):
+#         '''
+#         Generate required configuration
+#         parameters with description for user
+#         '''
+#         dgr_sym = u'\N{DEGREE SIGN}'
+#         return {
+#             'data_window':
+#             ConfigDescriptor(int,
+#                              'Minimum Elapsed time for '
+#                              'analysis (minutes)',
+#                              value_default=15),
+#             'no_required_data':
+#             ConfigDescriptor(int,
+#                              'Number of required data measurements to '
+#                              'perform diagnostic',
+#                              value_default=10),
+#             'warm_up_time':
+#             ConfigDescriptor(int,
+#                              'When the system starts this much '
+#                              'time will be allowed to elapse before adding '
+#                              'using data for analysis (minutes)',
+#                              value_default=30),
+#             'zone_high_damper_threshold':
+#             ConfigDescriptor(float,
+#                              ('Zone high damper threshold '
+#                               'used for detection of duct static '
+#                               'pressure problems (%)'),
+#                              value_default=90.0),
+#             'zone_low_damper_threshold':
+#             ConfigDescriptor(float,
+#                              ('Zone low damper threshold '
+#                               'used for detection of duct static '
+#                               'pressure problems (%)'),
+#                              value_default=10.0),
+#             'max_duct_stp_stpt':
+#             ConfigDescriptor(float,
+#                              'Maximum duct static pressure set point '
+#                              'allowed, when auto-correction is '
+#                              'enabled, i.e., the set point chosen by the '
+#                              'diagnostic will never exceed this value '
+#                              '(inch w.g.)', value_default=2.5),
+#             'duct_stc_retuning':
+#             ConfigDescriptor(float,
+#                              ('Increment/decrement of static pressure '
+#                               'set point during auto-correction '
+#                               '(inch w.g.)'),
+#                              value_default=0.15),
+#             'min_duct_stp_stpt':
+#             ConfigDescriptor(float,
+#                              'Minimum duct static pressure set point '
+#                              'allowed, when auto-correction is '
+#                              'enabled, i.e., the set point chosen by the '
+#                              'diagnostic will never exceed this value '
+#                              '(inch w.g.)', value_default=0.25),
+#             'hdzone_damper_threshold':
+#             ConfigDescriptor(float,
+#                              'Threshold for zone damper. If the '
+#                              'average value of the zone dampers is less '
+#                              'than this threshold the fan is '
+#                              'supplying too much air (%)',
+#                              value_default=30.0),
+#             'low_supply_fan_threshold':
+#             ConfigDescriptor(float,
+#                              'Value above which the supply fan will be '
+#                              'considered at its minimum speed (%)',
+#                              value_default=20.0),
+#             'high_supply_fan_threshold':
+#             ConfigDescriptor(float,
+#                              ('Value above which the supply fan will '
+#                               'be considered running at its maximum speed. '
+#                               'If fan is running at its '
+#                               'maximum speed (%)'),
+#                              value_default=95.0),
+#             'setpoint_allowable_deviation':
+#             ConfigDescriptor(float,
+#                              'Allowable deviation from set points '
+#                              'before a fault message is generated '
+#                              '(%)', value_default=10.0),
+#             'stpr_reset_threshold':
+#             ConfigDescriptor(float,
+#                              ('Required difference between minimum and '
+#                               'maximum duct static pressure set point '
+#                               'detecting a duct static pressure '
+#                               'set point reset (inch w.g.)'),
+#                              value_default=0.25),
+#             'reheat_valve_threshold':
+#             ConfigDescriptor(float,
+#                              'Zone re-heat valve threshold for SAT '
+#                              'RCx, compared to average zone '
+#                              're-heat valve (%)',
+#                              value_default=50.0),
+#             'percent_reheat_threshold':
+#             ConfigDescriptor(float,
+#                              ('Threshold for average percent of zones '
+#                               'where terminal box re-heat is ON (%)'),
+#                              value_default=25.0),
+#             'maximum_sat_stpt':
+#             ConfigDescriptor(float,
+#                              'Maximum SAT set point allowed when '
+#                              'auto-correction  is enabled, '
+#                              'i.e., the set point chosen by the '
+#                              'diagnostic will never exceed '
+#                              'this value ({drg}F)'
+#                              .format(drg=dgr_sym),
+#                              value_default=75.0),
+#             'rht_on_threshold':
+#             ConfigDescriptor(float,
+#                              'Value above which zone re-heat is '
+#                              'considered ON (%)',
+#                              value_default=10.0),
+#             'sat_retuning':
+#             ConfigDescriptor(float,
+#                              'Decrement of supply-air temperature set '
+#                              'point during auto-correction ({drg}F)'
+#                              .format(drg=dgr_sym),
+#                              value_default=1.0),
+#             'sat_high_damper_threshold':
+#             ConfigDescriptor(float,
+#                              'High zone damper threshold for '
+#                              'high supply-air temperature '
+#                              'auto-correct RCx (%)',
+#                              value_default=30),
+#             'percent_damper_threshold':
+#             ConfigDescriptor(float,
+#                              'Threshold for the average % of zone '
+#                              'dampers above high damper threshold '
+#                              '(%)',
+#                              value_default=50.0),
+#             'minimum_sat_stpt':
+#             ConfigDescriptor(float,
+#                              'Maximum supply-air temperature '
+#                              'set point allowed, when auto-correction '
+#                              'is enabled, i.e., '
+#                              'the set point chosen by the '
+#                              'diagnostic will never exceed this value '
+#                              '({drg}F)'.format(drg=dgr_sym),
+#                              value_default=50.0),
+#             'sat_reset_threshold':
+#             ConfigDescriptor(float,
+#                              'Threshold difference required '
+#                              'to detect a supply-air temperature '
+#                              'set point reset ({drg}F)'.format(drg=dgr_sym),
+#                              value_default=3.0),
+#
+#             'unocc_time_threshold':
+#             ConfigDescriptor(float,
+#                              'Time threshold used for AHU schedule Dx. '
+#                              '(%)', value_default=30.0),
+#             'unocc_stp_threshold':
+#             ConfigDescriptor(float,
+#                              'AHU off static pressure dead-band '
+#                              'Detects whether the duct static '
+#                              'pressure exceeds this '
+#                              'value during non-working scheduled '
+#                              'hours (inch w.g.)',
+#                              value_default=0.2),
+#             'monday_sch':
+#             ConfigDescriptor(str,
+#                              'Thursday AHU occupied schedule, '
+#                              'Used to detect the '
+#                              'time when the supply fan should '
+#                              'be operational)',
+#                              value_default='6:30;18:30'),
+#             'tuesday_sch':
+#             ConfigDescriptor(str,
+#                              'Tuesday AHU occupied schedule, '
+#                              'Used to detect the '
+#                              'time when the supply fan should '
+#                              'be operational',
+#                              value_default='6:30;18:30'),
+#             'wednesday_sch':
+#             ConfigDescriptor(str,
+#                              'Wednesday AHU occupied schedule, '
+#                              'Used to detect the '
+#                              'time when the supply fan should '
+#                              'be operational',
+#                              value_default='6:30;18:30'),
+#             'thursday_sch':
+#             ConfigDescriptor(str,
+#                              'Thursday AHU occupied schedule, '
+#                              'Used to detect the '
+#                              'time when the supply fan should '
+#                              'be operational',
+#                              value_default='6:30;18:30'),
+#             'friday_sch':
+#             ConfigDescriptor(str,
+#                              'Friday AHU occupied schedule, '
+#                              'Used to detect the '
+#                              'time when the supply fan should '
+#                              'be operational',
+#                              value_default='6:30;18:30'),
+#             'saturday_sch':
+#             ConfigDescriptor(str,
+#                              'Saturday AHU occupied schedule, '
+#                              'Used to detect the '
+#                              'time when the supply fan should '
+#                              'be operational (unoccupied)',
+#                              value_default='0:00;0:00'),
+#             'sunday_sch':
+#             ConfigDescriptor(str,
+#                              'Sunday AHU occupied schedule, '
+#                              'Used to detect the '
+#                              'time when the supply fan should '
+#                              'be operational (unoccupied)',
+#                              value_default='0:00;0:00')
+#             }
+#
+#     @classmethod
+#     def get_self_descriptor(cls):
+#         name = 'Auto-RCx for Air Handling HVAC Systems'
+#         desc = 'Automated Retro-commisioning for AHUs'
+#         return Descriptor(name=name, description=desc)
+#
+#     @classmethod
+#     def required_input(cls):
+#         '''
+#         Generate required inputs with description for
+#         user.
+#         '''
+#         return {
+#             cls.fan_status_name:
+#             InputDescriptor('SupplyFanStatus',
+#                             'AHU Supply fan status', count_min=1),
+#             cls.fan_speedcmd_name:
+#             InputDescriptor('SupplyFanSpeed',
+#                             'AHU supply fan speed', count_min=0),
+#             cls.zone_reheat_name:
+#             InputDescriptor('TerminalBoxReheatValvePosition',
+#                             'All terminal-box re-heat valve commands',
+#                             count_min=1),
+#             cls.zone_damper_name:
+#             InputDescriptor('TerminalBoxDamperCommand',
+#                             'All terminal-box damper commands', count_min=1),
+#             cls.duct_stp_name:
+#             InputDescriptor('DuctStaticPressure', 'AHU duct static pressure',
+#                             count_min=1),
+#             cls.duct_stp_stpt_name:
+#             InputDescriptor('DuctStaticPressureSetPoint',
+#                             'Duct static pressure set point',
+#                             count_min=1),
+#             cls.sa_temp_name:
+#             InputDescriptor('DischargeAirTemperature', 'AHU supply-air '
+#                             '(discharge-air) temperature', count_min=1),
+#             cls.sat_stpt_name:
+#             InputDescriptor('DischargeAirTemperatureSetPoint',
+#                             'Supply-air temperature set-point', count_min=1)
+#             }
+#
+#     def reports(self):
+#         '''Called by UI to assemble information for creation of the
+#         diagnostic visualization.
+#         '''
+#         report = reports.Report('Retuning Report')
+#         report.add_element(reports.RetroCommissioningOAED(
+#             table_name='Airside_RCx'))
+#         report.add_element(reports.RetroCommissioningAFDD(
+#             table_name='Airside_RCx'))
+#         return [report]
+#
+#     @classmethod
+#     def output_format(cls, input_object):
+#         '''Describes how the output or results will be formatted
+#         Output will have the date-time, error-message, color-code,
+#         and energy impact.
+#         '''
+#         result = super().output_format(input_object)
+#         topics = input_object.get_topics()
+#         diagnostic_topic = topics[cls.fan_status_name][0]
+#         diagnostic_topic_parts = diagnostic_topic.split('/')
+#         output_topic_base = diagnostic_topic_parts[:-1]
+#         datetime_topic = '/'.join(output_topic_base + ['Airside_RCx',
+#                                                        'date'])
+#         message_topic = '/'.join(output_topic_base + ['Airside_RCx',
+#                                                       'message'])
+#         diagnostic_name = '/'.join(output_topic_base + ['Airside_RCx',
+#                                                         ' diagnostic'])
+#         energy_impact = '/'.join(output_topic_base + ['Airside_RCx',
+#                                                       'energy_impact'])
+#         color_code = '/'.join(output_topic_base + ['Airside_RCx',
+#                                                    'color_code'])
+#
+#         output_needs = {
+#             'Airside_RCx': {
+#                 'datetime': OutputDescriptor('string', datetime_topic),
+#                 'diagnostic_name': OutputDescriptor('string',
+#                                                       diagnostic_name),
+#                 'diagnostic_message': OutputDescriptor('string',
+#                                                        message_topic),
+#                 'energy_impact': OutputDescriptor('float', energy_impact),
+#                 'color_code': OutputDescriptor('string', color_code)
+#                 }
+#             }
+#         result.update(output_needs)
+#         return result
 
     def run(self, current_time, points):
         '''Check application pre-quisites and assemble analysis data set.
@@ -719,35 +722,35 @@ class DuctStaticRcx(object):
                                                   self.duct_stp_stpt_values)]
 
                 set_point_tracking = (sum(set_point_tracking) /
-                                      (len(set_point_tracking)
-                                       * avg_duct_stpr_stpt)*100)
+                                      (len(set_point_tracking) *
+                                       avg_duct_stpr_stpt)*100)
                 if set_point_tracking > self.setpoint_allowable_deviation:
                     diagnostic_message = ('The duct static '
                                           'pressure is deviating from its '
                                           'set point significantly.')
-                    color_code = 'RED'
+                    # color_code = 'RED'
+                    # energy_impact = None
                     dx_msg = 1.1
-                    energy_impact = None
                     dx_table = {
-#                         'datetime': str(self.timestamp[-1]),
-#                         'diagnostic_name': DUCT_STC_RCx,
-#                         'diagnostic_message': diagnostic_message,
-#                         'energy_impact': energy_impact,
-#                         'color_code': color_code
+                        # 'datetime': str(self.timestamp[-1]),
+                        # 'diagnostic_name': DUCT_STC_RCx,
+                        # 'diagnostic_message': diagnostic_message,
+                        # 'energy_impact': energy_impact,
+                        # 'color_code': color_code
                         DUCT_STC_RCx + dx: dx_msg
                     }
 
                 else:
                     diagnostic_message = ('No problem detected.')
-                    color_code = 'GREEN'
+                    # color_code = 'GREEN'
+                    # energy_impact = None
                     dx_msg = 0.0
-                    energy_impact = None
                     dx_table = {
-#                         'datetime': str(self.timestamp[-1]),
-#                         'diagnostic_name': DUCT_STC_RCx,
-#                         'diagnostic_message': diagnostic_message,
-#                         'energy_impact': energy_impact,
-#                         'color_code': color_code
+                        # 'datetime': str(self.timestamp[-1]),
+                        # 'diagnostic_name': DUCT_STC_RCx,
+                        # 'diagnostic_message': diagnostic_message,
+                        # 'energy_impact': energy_impact,
+                        # 'color_code': color_code
                         DUCT_STC_RCx + dx: dx_msg
                     }
                 diagnostic_result.insert_table_row(Application.analysis,
@@ -778,15 +781,15 @@ class DuctStaticRcx(object):
 
         zone_damper_highavg = (
             sum(zone_damper_hightemp) / len(zone_damper_hightemp))
-        energy_impact = None
+        # energy_impact = None
         avg_duct_stpr_stpt = None
         if self.duct_stp_stpt_values:
             avg_duct_stpr_stpt = (sum(self.duct_stp_stpt_values) /
                                   len(self.duct_stp_stpt_values))
 
-        if (zone_damper_highavg > self.zone_high_damper_threshold
-                and zone_damper_lowavg > self.zone_low_damper_threshold):
-            color_code = 'RED'
+        if (zone_damper_highavg > self.zone_high_damper_threshold and
+                zone_damper_lowavg > self.zone_low_damper_threshold):
+            # color_code = 'RED'
             if (avg_duct_stpr_stpt is not None and
                     not static_override_check):
                 if self.auto_correctflag:
@@ -844,15 +847,14 @@ class DuctStaticRcx(object):
             diagnostic_message = ('No re-tuning opportunity was '
                                   'detected during the low duct static '
                                   'pressure diagnostic.')
-            color_code = 'GREEN'
+            # color_code = 'GREEN'
             dx_msg = 10.0
-        
         dx_table = {
-#             'datetime': str(self.timestamp[-1]),
-#             'diagnostic_name': DUCT_STC_RCx1,
-#             'diagnostic_message': diagnostic_message,
-#             'energy_impact': energy_impact,
-#             'color_code': color_code
+            # 'datetime': str(self.timestamp[-1]),
+            # 'diagnostic_name': DUCT_STC_RCx1,
+            # 'diagnostic_message': diagnostic_message,
+            # 'energy_impact': energy_impact,
+            # 'color_code': color_code
             DUCT_STC_RCx1 + dx: dx_msg
         }
         result.insert_table_row(Application.analysis, dx_table)
@@ -869,13 +871,13 @@ class DuctStaticRcx(object):
             :int(math.ceil(len(self.zone_damper_values)*0.5))
             if len(self.zone_damper_values) != 1 else 1]
         avg_zone_damper = sum(zone_damper_temp) / len(zone_damper_temp)
-        energy_impact = None
+        # energy_impact = None
         avg_duct_stpr_stpt = None
         if self.duct_stp_stpt_values:
             avg_duct_stpr_stpt = sum(
                 self.duct_stp_stpt_values) / len(self.duct_stp_stpt_values)
         if avg_zone_damper <= self.hdzone_damper_threshold:
-            color_code = 'RED'
+            # color_code = 'RED'
             if avg_duct_stpr_stpt is not None and not static_override_check:
                 if self.auto_correctflag:
                     duct_stpr_stpt = (avg_duct_stpr_stpt -
@@ -933,14 +935,14 @@ class DuctStaticRcx(object):
                                   'detected during the low duct static '
                                   'pressure diagnostic.')
             dx_msg = 20.0
-            color_code = 'GREEN'
+            # color_code = 'GREEN'
 
         dx_table = {
-#             'datetime': str(self.timestamp[-1]),
-#             'diagnostic_name': DUCT_STC_RCx2,
-#             'diagnostic_message': diagnostic_message,
-#             'energy_impact': energy_impact,
-#             'color_code': color_code
+            # 'datetime': str(self.timestamp[-1]),
+            # 'diagnostic_name': DUCT_STC_RCx2,
+            # 'diagnostic_message': diagnostic_message,
+            # 'energy_impact': energy_impact,
+            # 'color_code': color_code
             DUCT_STC_RCx2 + dx: dx_msg
         }
         result.insert_table_row(Application.analysis, dx_table)
@@ -1025,36 +1027,36 @@ class SupplyTempRcx(object):
                                       self.sa_temp_values)]
 
             set_point_tracking = (sum(set_point_tracking) /
-                                  len(set_point_tracking)
-                                  * avg_sat_stpt) * 100
+                                  len(set_point_tracking) *
+                                  avg_sat_stpt) * 100
 
             if set_point_tracking > self.setpoint_allowable_deviation:
                 diagnostic_message = ('Supply-air temperature is '
                                       'deviating significantly '
                                       'from the supply-air temperature '
                                       'set point.')
-                color_code = 'RED'
+                # color_code = 'RED'
+                # energy_impact = None
                 dx_msg = 31.1
-                energy_impact = None
                 dx_table = {
-#                     'datetime': str(self.timestamp[-1]),
-#                     'diagnostic_name': SA_TEMP_RCx,
-#                     'diagnostic_message': diagnostic_message,
-#                     'energy_impact': energy_impact,
-#                     'color_code': color_code
+                    # 'datetime': str(self.timestamp[-1]),
+                    # 'diagnostic_name': SA_TEMP_RCx,
+                    # 'diagnostic_message': diagnostic_message,
+                    # 'energy_impact': energy_impact,
+                    # 'color_code': color_code
                     SA_TEMP_RCx + dx: dx_msg
                 }
             else:
                 diagnostic_message = ('No problem detected.')
-                color_code = 'GREEN'
+                # color_code = 'GREEN'
+                # energy_impact = None
                 dx_msg = 30.0
-                energy_impact = None
                 dx_table = {
-#                     'datetime': str(self.timestamp[-1]),
-#                     'diagnostic_name': SA_TEMP_RCx,
-#                     'diagnostic_message': diagnostic_message,
-#                     'energy_impact': energy_impact,
-#                     'color_code': color_code
+                    # 'datetime': str(self.timestamp[-1]),
+                    # 'diagnostic_name': SA_TEMP_RCx,
+                    # 'diagnostic_message': diagnostic_message,
+                    # 'energy_impact': energy_impact,
+                    # 'color_code': color_code
                     SA_TEMP_RCx + dx: dx_msg
                 }
             diagnostic_result.insert_table_row(Application.analysis, dx_table)
@@ -1078,10 +1080,10 @@ class SupplyTempRcx(object):
                             len(self.percent_in_reheat) * 100)
 
         reheat_coil_average = (sum(self.rht_values)) / (len(self.rht_values))
-        energy_impact = None
+        # energy_impact = None
         if (reheat_coil_average > self.reheat_valve_threshold and
                 avg_zones_reheat > self.percent_reheat_threshold):
-            color_code = 'RED'
+            # color_code = 'RED'
             if (avg_sat_stpt is not None and
                     not sat_override_check):
                 if self.auto_correctflag:
@@ -1136,17 +1138,17 @@ class SupplyTempRcx(object):
                 dx_msg = 45.1
         else:
             diagnostic_message = ('No problem detected')
-            color_code = 'GREEN'
+            # color_code = 'GREEN'
             dx_msg = 40.0
 
         dx_table = {
-#             'datetime': str(self.timestamp[-1]),
-#             'diagnostic_name': SA_TEMP_RCx1,
-#             'diagnostic_message': diagnostic_message,
-#             'energy_impact': energy_impact,
-#             'color_code': color_code
-                SA_TEMP_RCx1 + dx: dx_msg
-            }
+            # 'datetime': str(self.timestamp[-1]),
+            # 'diagnostic_name': SA_TEMP_RCx1,
+            # 'diagnostic_message': diagnostic_message,
+            # 'energy_impact': energy_impact,
+            # 'color_code': color_code
+            SA_TEMP_RCx1 + dx: dx_msg
+        }
         result.insert_table_row(Application.analysis, dx_table)
         result.log(diagnostic_message, logging.INFO)
         return result
@@ -1159,10 +1161,10 @@ class SupplyTempRcx(object):
                             len(self.percent_in_reheat) * 100)
         avg_zone_damper = (sum(self.percent_damper) /
                            len(self.percent_damper) * 100)
-        energy_impact = None
+        # energy_impact = None
         if (avg_zone_damper > self.percent_damper_threshold and
                 avg_zones_reheat < self.percent_reheat_threshold):
-            color_code = 'RED'
+            # color_code = 'RED'
             if (avg_sat_stpt is not None and
                     not sat_override_check):
                 if self.auto_correctflag:
@@ -1215,14 +1217,14 @@ class SupplyTempRcx(object):
         else:
             diagnostic_message = ('No problem detected.'
                                   .format(name=SA_TEMP_RCx2))
-            color_code = 'GREEN'
+            # color_code = 'GREEN'
             dx_msg = 50.0
         dx_table = {
-#             'datetime': str(self.timestamp[-1]),
-#             'diagnostic_name': SA_TEMP_RCx2,
-#             'diagnostic_message': diagnostic_message,
-#             'energy_impact': energy_impact,
-#             'color_code': color_code
+            # 'datetime': str(self.timestamp[-1]),
+            # 'diagnostic_name': SA_TEMP_RCx2,
+            # 'diagnostic_message': diagnostic_message,
+            # 'energy_impact': energy_impact,
+            # 'color_code': color_code
             SA_TEMP_RCx2 + dx: dx_msg
         }
         result.insert_table_row(Application.analysis, dx_table)
@@ -1327,8 +1329,7 @@ class SchedResetRcx(object):
         active_sch = self.schedule[current_time.weekday()]
         if((current_time.hour < active_sch[0] or
                 (current_time.hour == active_sch[0] and
-                 current_time.minute < active_sch[1]))
-           or
+                 current_time.minute < active_sch[1])) or
            (current_time.hour > active_sch[2] or
             (current_time.hour == active_sch[2] and
              current_time.minute < active_sch[3]))):
@@ -1356,17 +1357,17 @@ class SchedResetRcx(object):
             diagnostic_result = self.no_sat_sp_reset(diagnostic_result)
             clear_old()
         elif run:
-            diagnostic_message = ('Inconclusive diagnostic, '
-                                  'insufficient data to perform RCx.')
-            color_code = 'GREY'
-            energy_impact = None
+            # diagnostic_message = ('Inconclusive diagnostic, '
+                                    # 'insufficient data to perform RCx.')
+            # color_code = 'GREY'
+            # energy_impact = None
             dx_msg = 61.2
             dx_table = {
-#                 'datetime': self.dx_time,
-#                 'diagnostic_name': SCHED_RCx,
-#                 'diagnostic_message': diagnostic_message,
-#                 'energy_impact': energy_impact,
-#                 'color_code': color_code
+                # 'datetime': self.dx_time,
+                # 'diagnostic_name': SCHED_RCx,
+                # 'diagnostic_message': diagnostic_message,
+                # 'energy_impact': energy_impact,
+                # 'color_code': color_code
                 SCHED_RCx + dx:  dx_msg
             }
             diagnostic_result.insert_table_row(Application.analysis, dx_table)
@@ -1389,31 +1390,31 @@ class SchedResetRcx(object):
                              len(self.duct_stp_values))
         else:
             avg_duct_stpr = 0
-        energy_impact = None
+        # energy_impact = None
         if per_times_fan_status_on > self.unocc_time_threshold:
             diagnostic_message = ('Supply fan is on during unoccupied '
                                   'times.')
-            color_code = 'RED'
+            # color_code = 'RED'
             dx_msg = 63.1
         else:
             if avg_duct_stpr < self.unocc_stp_threshold:
                 diagnostic_message = 'No problems detected.'
-                color_code = 'GREEN'
+                # color_code = 'GREEN'
                 dx_msg = 60.0
             else:
                 diagnostic_message = ('Fan status show the fan is off '
                                       'but the duct static pressure is high, '
                                       'check the functionality of the '
                                       'pressure sensor.')
-                color_code = 'GREY'
+                # color_code = 'GREY'
                 dx_msg = 64.2
         for item in self.sched_time:
             dx_table = {
-#                 'datetime': str(item),
-#                 'diagnostic_name': SCHED_RCx,
-#                 'diagnostic_message': diagnostic_message,
-#                 'energy_impact': energy_impact,
-#                 'color_code': color_code
+                # 'datetime': str(item),
+                # 'diagnostic_name': SCHED_RCx,
+                # 'diagnostic_message': diagnostic_message,
+                # 'energy_impact': energy_impact,
+                # 'color_code': color_code
                 SCHED_RCx + dx:  dx_msg
             }
             result.insert_table_row(Application.analysis, dx_table)
@@ -1428,25 +1429,25 @@ class SchedResetRcx(object):
             return result
         stp_diff = (max(self.duct_stp_stpt_values) -
                     min(self.duct_stp_stpt_values))
-        energy_impact = None
+        # energy_impact = None
 
         if stp_diff < self.stpr_reset_threshold:
             diagnostic_message = ('No duct static pressure '
                                   'reset detected. A duct static '
                                   'pressure set point reset can save '
                                   'significant amounts of energy.')
-            color_code = 'RED'
+            # color_code = 'RED'
             dx_msg = 71.1
         else:
             diagnostic_message = 'No problem detected.'
-            color_code = 'GREEN'
+            # color_code = 'GREEN'
             dx_msg = 70.0
         dx_table = {
-#             'datetime': str(self.dx_time),
-#             'diagnostic_name': DUCT_STC_RCx3,
-#             'diagnostic_message': diagnostic_message,
-#             'energy_impact': energy_impact,
-#             'color_code': color_code
+            # 'datetime': str(self.dx_time),
+            # 'diagnostic_name': DUCT_STC_RCx3,
+            # 'diagnostic_message': diagnostic_message,
+            # 'energy_impact': energy_impact,
+            # 'color_code': color_code
             DUCT_STC_RCx3 + dx:  dx_msg
         }
         result.insert_table_row(Application.analysis, dx_table)
@@ -1460,25 +1461,25 @@ class SchedResetRcx(object):
         if not self.sat_stpt_values:
             return result
         satemp_diff = max(self.sat_stpt_values) - min(self.sat_stpt_values)
-        energy_impact = None
+        # energy_impact = None
         if satemp_diff <= self.sat_reset_threshold:
             diagnostic_message = ('A supply-air temperature '
                                   'reset was not detected. This can '
                                   'result in excess energy '
                                   'consumption.')
-            color_code = 'RED'
+            # color_code = 'RED'
             dx_msg = 81.1
         else:
             diagnostic_message = ('No problems detected for this '
                                   'diagnostic.')
-            color_code = 'GREEN'
+            # color_code = 'GREEN'
             dx_msg = 80.0
         dx_table = {
-#             'datetime': str(self.dx_time),
-#             'diagnostic_name': SA_TEMP_RCx3,
-#             'diagnostic_message': diagnostic_message,
-#             'energy_impact': energy_impact,
-#             'color_code': color_code
+            # 'datetime': str(self.dx_time),
+            # 'diagnostic_name': SA_TEMP_RCx3,
+            # 'diagnostic_message': diagnostic_message,
+            # 'energy_impact': energy_impact,
+            # 'color_code': color_code
             SA_TEMP_RCx3 + dx:  dx_msg
         }
         result.insert_table_row(Application.analysis, dx_table)
