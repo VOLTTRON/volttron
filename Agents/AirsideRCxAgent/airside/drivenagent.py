@@ -94,6 +94,8 @@ def DrivenAgent(config_path, **kwargs):
             subdevices.extend(device['unit'][item]['subdevices'])
         dev_unit = dev_unit[:-1] if dev_unit[-1] == '|' else dev_unit
         device['unit'] = units[0]
+    else:
+        dev_unit = device['unit']
         # modify the device dict so that unit is now pointing to unit_name
     agent_id = config.get('agentid')
     if not device:
@@ -165,6 +167,7 @@ def DrivenAgent(config_path, **kwargs):
         @matching.match_regex(("devices/{campus}/{building}/" + dev_unit + "/.*all").format(**device))
         def on_rec_analysis_message(self, topic, headers, message, matched):
             # Do the analysis based upon the data passed (the old code).
+            print device
             if not subdevices:
                 self.on_received_message(self, topic, headers,
                                          message, matched)
@@ -183,8 +186,8 @@ def DrivenAgent(config_path, **kwargs):
 
             # The below if statement is used to distinguish between unit/all
             # and unit/sub-device/all
-            if device_or_subdevice == device['unit']:
-                if self._device_values != {}:
+            if device_or_subdevice in units:
+                if device_or_subdevice in self._device_values.keys():
                     _log.error("Warning device values already present, "
                                "reinitializing")
                     self._initialize_devices()
