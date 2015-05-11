@@ -42,5 +42,8 @@ fi
 
 volttron-pkg configure "$WHEEL" "$2"
 
-volttron-ctl install $WHEEL
+volttron-ctl install "$3=$WHEEL"
+
+
+
 
