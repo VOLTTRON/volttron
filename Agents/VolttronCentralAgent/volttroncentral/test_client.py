@@ -70,58 +70,5 @@ def main():
         else:
             print "RESPONSE: ", response['result']
 
-    print "Status agents"
-    response = send('platforms.uuid.first_platform.status_agents')
-    if 'error' in response:
-        print "ERROR: ", response['error']
-    else:
-        print "RESPONSE: ", response['result']
-
-    print "Start agent"
-    response = send('platforms.uuid.first_platform.start_agent', ['e335586e-a301-41ba-94a6-3f6887cae6e0'])
-    if 'error' in response:
-        print "ERROR: ", response['error']
-    else:
-        print "RESPONSE: ", response['result']
-    print "Status agents"
-    response = send('platforms.uuid.first_platform.status_agents')
-    if 'error' in response:
-        print "ERROR: ", response['error']
-    else:
-        print "RESPONSE: ", response['result']
-
-    print "Stop agent"
-    response = send('platforms.uuid.first_platform.stop_agent', ['e335586e-a301-41ba-94a6-3f6887cae6e0'])
-    if 'error' in response:
-        print "ERROR: ", response['error']
-    else:
-        print "RESPONSE: ", response['result']
-
-    print "Status agents"
-    response = send('platforms.uuid.first_platform.status_agents')
-    if 'error' in response:
-        print "ERROR: ", response['error']
-    else:
-        print "RESPONSE: ", response['result']
-
-
-
-
-
-
-#     print "list Methods on agent"
-#     response = send('platforms.uuid.first_platform.agents.uuid.5bcd7eb4-4475-4237-bcfb-81a650b6e069.listMethods')
-#     if 'error' in response:
-#         print "ERROR: ", response['error']
-#     else:
-#         print "RESPONSE: ", response['result']
-#
-#     print "list Methods on agent"
-#     response = send('platforms.uuid.first_platform.agents.uuid.e335586e-a301-41ba-94a6-3f6887cae6e0.listMethods')
-#     if 'error' in response:
-#         print "ERROR: ", response['error']
-#     else:
-#         print "RESPONSE: ", response['result']
-
 if __name__ == "__main__":
     main()
