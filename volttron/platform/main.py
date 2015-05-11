@@ -89,6 +89,7 @@ except ImportError:
 else:
     from volttron.restricted import comms, comms_server, resmon
     from volttron.restricted.mobility import MobilityAgent
+    from paramiko import PasswordRequiredException, SSHException, RSAKey
     HAVE_RESTRICTED = True
 
 
