@@ -154,7 +154,6 @@ def platform_agent(config_path, **kwargs):
                                     str((vip_identity, agentid, self.vip_address))))
             self._ctl.call("register_platform", vip_identity, agentid, self.vip_address)
 
-
         @onevent("finish")
         def stop(self):
             self._ctl.call("unregister_platform", vip_identity)
