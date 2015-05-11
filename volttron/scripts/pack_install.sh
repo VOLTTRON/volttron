@@ -21,6 +21,12 @@ then
   exit 0
 fi
 
+if [ -z "$3" ]
+then
+  echo "Invalid tag name."
+  exit 0
+fi
+
 if [ -z "$VOLTTRON_HOME" ]; then 
   VOLTTRON_HOME=$HOME/.volttron
   echo "VOLTTRON_HOME UNSET setting to v1_home: $VOLTTRON_HOME"; 
