@@ -1,7 +1,4 @@
 {
-
-    "agentid": "platform",
-    "vip_identity": "second_platform",
-    "manager_vip_address": "ipc://@/tmp/v1home/run/vip.socket",
-    "manager_vip_identity": "platform_manager"
+    "agentid": "Platform 2",
+    "volttron_central_vip_address": "ipc://@/tmp/v1home/run/vip.socket",
 }

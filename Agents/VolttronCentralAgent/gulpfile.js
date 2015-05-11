@@ -8,7 +8,7 @@ var inject = require('gulp-inject');
 var rev = require('gulp-rev');
 var source = require('vinyl-source-stream');
 
-var BUILD_DIR = 'platformmanager/webroot/';
+var BUILD_DIR = 'volttroncentral/webroot/';
 var APP_GLOB = '{css,js}/app-*';
 var VENDOR_GLOB = '{css,js}/{normalize,vendor}-*';
 

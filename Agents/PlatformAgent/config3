@@ -1,7 +1,0 @@
-{
-
-    "agentid": "platform",
-    "vip_identity": "third_platform",
-    "manager_vip_address": "ipc://@/home/craig8/.volttron/run/vip.socket",
-    "manager_vip_identity": "platform_manager"
-}
