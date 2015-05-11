@@ -293,8 +293,8 @@ def volttron_central_agent(config_path, **kwargs):
                 return RpcResponse(id=id, code=METHOD_NOT_FOUND,
                                    message="Unknown platform {}".format(platform_uuid))
 
-            if fields[3] == 'list_agents':
-                return platform.agent_list
+#             if fields[3] == 'list_agents':
+#                 return platform['agent_list']
 
             # The method to route to the platform.
             platform_method = '.'.join(fields[3:])
@@ -303,7 +303,7 @@ def volttron_central_agent(config_path, **kwargs):
 
             # Are we talking to our own vip address?
             if platform['vip_address'] == self.vip_address:
-                result = self.rpc_call(str(platform_uuid), 'route_request',
+                result = self.rpc_call(str(platform['vip_identity']), 'route_request',
                                        [id, platform_method, params]).get()
             else:
 
