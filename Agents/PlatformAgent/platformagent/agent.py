@@ -146,12 +146,12 @@ def platform_agent(config_path, **kwargs):
         def start(self):
             _log.debug('Starting service vip info: {}'.format(
                                                         str(self.__dict__)))
-            _log.debug('sending call register_platform {}'.format(
-                                    str((vip_identity, agentid, self.vip_address))))
+            self._register()
 
         @periodic(period=60)
         def _register(self):
-            _log.debug('register')
+            _log.debug('platformagent sending call register {}'.format(
+                                    str((vip_identity, agentid, self.vip_address))))
             self._ctl.call("register_platform", vip_identity, agentid, self.vip_address)
 
 
