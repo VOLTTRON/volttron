@@ -1,12 +1,12 @@
 {
     "agentid": "airside_rcx",
-    "application": "airside_retuning_rcx.Application",
+    "application": "airside.airside_retuning_rcx.Application",
 
     "device": {
-        "campus": "campus1",
-        "building": "building1",
+        "campus": "campus",
+        "building": "building",
         "unit": {
-            "rtu1": {
+            "rtu3": {
                 "subdevices": [
                     "VAV13111", "VAV13112", "VAV13113", "VAV13114", "VAV13115",
                     "VAV13116", "VAV13117", "VAV13118", "VAV13119", "VAV13120",
@@ -31,11 +31,11 @@
         "analysis": "Airside_RCx"
     },
     "output_file": "./junk.csv",
-    "mode": "ACTIVE",
+    "mode": "PASSIVE",
     "arguments": {
         "fan_status": "supplyfanstatus",
-        "zone_reheat": "terminalboxreheatvalveposition",
-        "zone_damper": "terminalboxdampercommand",
+        "zone_reheat": "heatingsignal",
+        "zone_damper": "damperposition",
         "duct_stp": "ductstaticpressure",
         "duct_stp_stpt": "ductstaticpressuresetpoint",
         "sa_temp": "dischargeairtemperature",
@@ -75,12 +75,11 @@
     "conversion_map": {
         ".*Temperature": "float",
         ".*SetPoint": "float",
-        "OutdoorDamperSignal": "float",
         "SupplyFanStatus": "int",
         "CoolingCall": "float",
         "SupplyFanSpeed": "int",
-        "ZoneDamper*.": "float",
-        "ZoneReheat*.": "float",
+        "Damper*.": "float",
+        "Heating*.": "float",
         "DuctStatic*.": "float"
 
     }

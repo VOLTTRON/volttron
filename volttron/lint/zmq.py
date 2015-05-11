@@ -73,6 +73,7 @@ XPUB = 9
 EAGAIN = 11
 EINVAL = 22
 EHOSTUNREACH = 113
+EPROTONOSUPPORT = 93
 
 
 class ZMQError(Exception):
@@ -81,7 +82,7 @@ class ZMQError(Exception):
 
 class Context(object):
     def instance(self):
-        return None
+        return Context()
 
 
 class Poller(object):
@@ -89,12 +90,12 @@ class Poller(object):
         pass
 
     def poll(self, timeout=None):
-        return None
+        return []
 
 
 class Socket(object):
     def __new__(cls, socket_type, context=None):
-        return None
+        return object.__new__(cls, socket_type, context=context)
 
     def bind(self, addr):
         pass
@@ -118,7 +119,7 @@ class Socket(object):
 
     @property
     def context(self):
-        return None
+        return Context()
 
     @property
     def type(self):
@@ -148,3 +149,5 @@ class Socket(object):
 
     def getsockopt(self, option):
         return 0
+
+green = __import__('sys').modules[__name__]

@@ -183,7 +183,7 @@ def DrivenAgent(config_path, **kwargs):
                             if isinstance(value, bool):
                                 value = int(value)
                             topic = topics.ANALYSIS_VALUE(point=key, **config['device']) #.replace('{analysis}', key)
-                            #print "publishing {}->{}".format(topic, value)
+                            #print "plublishing {}->{}".format(topic, value)
                             self.publish_json(topic, headers, value)
             if results.commands and mode:
                 self.commands = results.commands
