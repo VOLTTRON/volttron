@@ -115,7 +115,7 @@ class PlatformRegistry:
     def update_agent_list(self, platform_uuid, agent_list):
         '''Update the agent list node for the platform uuid that is passed.
         '''
-        self._uuids[platform_uuid].agent_list = agent_list.get()
+        self._uuids[platform_uuid]['agent_list'] = agent_list.get()
 
     def register(self, vip_address, vip_identity, agentid, **kwargs):
         '''Registers a platform agent with the registry.
@@ -157,7 +157,7 @@ class PlatformRegistry:
 def volttron_central_agent(config_path, **kwargs):
     config = utils.load_config(config_path)
 
-    vip_identity = config.get('vip_identity', 'platform.manager')
+    vip_identity = config.get('vip_identity', 'volttron.central')
 
     agent_id = config.get('agentid', 'Volttron Central')
     server_conf = config.get('server', {})
@@ -208,14 +208,14 @@ def volttron_central_agent(config_path, **kwargs):
             self.valid_data = False
             self._vip_channels = {}
 
-        @periodic(period=30)
-        def _update_agent_list(self):
-            jobs = []
-            print "updating agent list"
-            for p in self.registry.get_platforms():
-                jobs.append(gevent.spawn(self.list_agents, uuid=p['uuid']))
-            gevent.joinall(jobs, timeout=20)
-            return [j.value for j in jobs]
+#         #@periodic(period=10)
+#         def _update_agent_list(self):
+#             jobs = {}
+#             print "updating agent list"
+#             for p in self.registry.get_platforms():
+#                 jobs[p['uuid']] = gevent.spawn(self.list_agents, uuid=p['uuid'])
+#             gevent.joinall(jobs.values(), timeout=20)
+#             return [self.registry.update_agent_list(j, jobs[j]) for j in jobs]
 
         def list_agents(self, uuid):
             platform = self.registry.get_platform(uuid)
