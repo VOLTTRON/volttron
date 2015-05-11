@@ -1,7 +1,6 @@
 {
     "agentid": "third platform",
     "agent_type": "platform node",
-    "vip_identity": "platform.agent",
-    "volttron_central_vip_address": "ipc://@/tmp/v1home/run/vip.socket",
+    "volttron_central_vip_address": "ipc://@/tmp/v1home/run/vip.socket"
     #"volttron_central_vip_identity": "volttron.central"
 }
