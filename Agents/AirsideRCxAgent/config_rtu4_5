@@ -1,6 +1,6 @@
 {
     "agentid": "airside_rcx",
-    "application": "airside_retuning_rcx.Application",
+    "application": "airside.airside_retuning_rcx.Application",
     "device": {
         "campus": "campus",
         "building": "building",
@@ -36,7 +36,7 @@
 
     "output_file": "./junk.csv",
 
-    "mode": "ACTIVE",
+    "mode": "PASSIVE",
 
     "arguments": {
         "fan_status": "supplyfanstatus",
@@ -86,8 +86,8 @@
         "SupplyFanStatus": "int",
         "CoolingCall": "float",
         "SupplyFanSpeed": "int",
-        "ZoneDamper*.": "float",
-        "ZoneReheat*.": "float",
+        "Damper*.": "float",
+        "Heating*.": "float",
         "DuctStatic*.": "float"
 
     }

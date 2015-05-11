@@ -119,7 +119,7 @@ def passiveafdd(config_path, **kwargs):
             self.damper_name = config_data.get('damper_point_name')
             self.mat_missing = config_data.get('mixed_air_sensor_missing')
             self.temp_deadband = config_data.get('temp_deadband')
-            self.damper_deadband = config.get('damper_deadband')
+            self.damper_deadband = config_data.get('damper_deadband')
             sunday = config_data.get('Sunday')
             monday = config_data.get('Monday')
             tuesday = config_data.get('Tuesday')
@@ -621,7 +621,7 @@ def passiveafdd(config_path, **kwargs):
                            self.ratemp[points] != -99 and
                            self.damper[points] != -99):
                             if (self.damper_minimum - self.damper[points]
-                                <= self.damper_deadband):
+                                  <= self.damper_deadband):
                                 if (math.fabs(self.oatemp[points]-self.ratemp[points] > 5.0)
                                    and not self.matemp_missing):
                                     if ((self.minimum_oa - self.oaf[points])> self.oae5_oaf_threshold and
@@ -692,7 +692,7 @@ def passiveafdd(config_path, **kwargs):
                     oae6_result.append(77)
             return oae6_result
 
-        def calculate_energy_impact(self,oae_2, oae_3, oae_4):
+        def calculate_energy_impact(self, oae_2, oae_3, oae_4):
             energy_impact = []
             month_abbr = {k: v for k, v in enumerate(calendar.month_abbr)}
             if not self.matemp_missing:
@@ -705,9 +705,9 @@ def passiveafdd(config_path, **kwargs):
                           oae_4[points] == 53 and
                           self. oatemp[points] > self.matemp[points]):
                         ei = 1.08*self.cfm/(1000*self.eer)
-                        ei = ei*(self.matemp[points] - (self.oatemp[points]*
+                        ei = ei*(self.matemp[points] - (self.oatemp[points] *
                                                         self.minimum_oa +
-                                                        self.ratemp[points]*
+                                                        self.ratemp[points] *
                                                         (1 - self.minimum_oa)))
                         energy_impact.append(ei)
                     elif (oae_3[points] == 41 or oae_4[points] == 51 or
@@ -758,12 +758,13 @@ def passiveafdd(config_path, **kwargs):
                 _log.info('Simulated device data.')
                 if self.run_aggregate is None:
                     self.prev_time = dateutil.parser.parse(
-                                            data[self.timestamp_name])
+                        data[self.timestamp_name]
+                    )
                 self.run_aggregate = True
-                time = dateutil.parser.parse(data[self.timestamp_name ],
+                time = dateutil.parser.parse(data[self.timestamp_name],
                                              fuzzy=True)
                 time_delta = time - self.prev_time
-                time_check = time + time_delt
+                time_check = time + time_delta
                 self.timestamp_raw.append(time)
                 self.fan_status_raw.append(data[self.fan_status_name])
                 self.compressor_raw.append(data[self.coolcmd1_name])

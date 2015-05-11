@@ -74,7 +74,7 @@ else:
         from imp import load_compiled as load
     else:
         from imp import load_source as load
-    green = load('.'.join([__name__, 'green']), __file__)
+    green = load('.'.join([__name__, 'green']), __file__)   # pylint: disable=invalid-name
     import zmq
 from zmq import NOBLOCK, SNDMORE, ZMQError, EINVAL, DEALER, ROUTER, RCVMORE
 

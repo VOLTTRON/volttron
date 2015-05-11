@@ -62,7 +62,7 @@ SOL_SOCKET = 1
 
 class socket(object):
     def accept(self):
-        return (None, ('', 0))
+        return (socket(), ('', 0))
 
     def bind(self, address):
         pass
@@ -74,4 +74,4 @@ class socket(object):
         pass
 
     def makefile(self, mode='r', bufsize=-1):
-        return None
+        return file()

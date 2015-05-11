@@ -96,15 +96,88 @@ def SMAPHistorianAgent(config_path, **kwargs):
         of the BaseHistorianAgent.
         '''
         
+        topic_list = []
+        uuid_list = []
+        
         def publish_to_historian(self, to_publish_list):
-            print(to_publish_list)
+            '''
+            to_publish_list is a list of dictionaries that have the following
+            keys:
+            
+                'timestamp' - a datetime of the timestamp
+                'value' - a decimal or integer. ex: -39.9900016784668
+                'topic' - a unicode string representing the topic
+                'source' - a unicode string representing the source, typically 
+                            'scrape'
+                'id' - an integer
+                'meta' - a dictionary of metadata
+                   meta dictionary keys are (unicode strings):
+                       'units' - ex: 'F'
+                       'type' - ex: 'float'
+                       'tz' - ex: 'America/Los_Angeles'
+            '''
+            
+
+            print(len(to_publish_list))
+            print(to_publish_list[0])
+            #print(to_publish_list)
+            
+            # add items to global topic and uuid lists if they don't exist
+            for item in to_publish_list:
+                if 'topic' not in item.keys():
+                    _log.error('topic or uuid not found in {}'.format(item))
+                    continue
+                if 'uuid' not in item.keys():
+                    #TODO if the topic does not exist in smap, add to smap here
+                    # create a uuid
+                    payload = {'uuid': str(uuid.uuid4()), 'topic': item['topic']}
+                    response = requests.post("{url}/backend/add/LEq1cEGc04RtcKX6riiX7eaML8Z82xEgQrp7".format(url=_config.get('archiver_url')), data=jsonapi.dumps(payload))
+                    
+                    _log.debug('Adding topic to smap: {}'.format(item['topic']))
+                    self.topic_list.append(item['topic'])
+                    self.uuid_list.append('a uuid here') #item['uuid'])
+                    continue
+            
+            
+            # check for empty list
+            if (len(self.topic_list) == 0) or (len(self.uuid_list) == 0):
+                raise ValueError('missing topic list or uuid list')
+                return
+            
+            
+            # format json string for request
+            # Uuid string format:
+            # uuid_data = 'uuid: "{}"'.format()
+            
+            testdata = {
+  "/thing/stuff" : {
+    "Metadata" : {
+      "SourceName" : "MyTest",
+      "Location" : { "City" : "Berkeley" }
+    },
+    "Properties": {
+      "Timezone": "America/Los_Angeles",
+      "UnitofMeasure": "Watt",
+      "ReadingType": "double"
+    },
+    "Readings" : [[1351043674000, 0], [1351043675000, 1]],
+    "uuid" : "f785849c-e3bf-11e4-afe2-080027b06a49"
+  }
+}
+            
+            
+            
             #self.report_all_published()
 #             c = self.conn.cursor()
 #             print 'Publish info'
-#             for x in to_publish_list[:10]:
-#                 ts = x['timestamp']
-#                 topic = x['topic']
-#                 value = x['value']
+            for x in to_publish_list[:10]:
+                 ts = x['timestamp']
+                 topic = x['topic']
+                 value = x['value']
+                 
+            # if topic does not exist
+                # create that topic
+            # else, push to that topic
 #                 
 #                 topic_id = self.topics.get(topic)
 #                 
@@ -127,7 +200,7 @@ def SMAPHistorianAgent(config_path, **kwargs):
         
         def historian_setup(self):
             #reset paths in case we ever use this to dynamically switch Archivers
-            _path_uuids = {}
+            self._path_uuids = {}
             # Fetch existing paths
             source = _config["source"]
             archiver_url = _config["archiver_url"]
@@ -137,9 +210,16 @@ def SMAPHistorianAgent(config_path, **kwargs):
             print(r)
             print(r.text)
             
+            # get dictionary of response
             response = jsonapi.loads(r.text)
             for path in response:
-                 _path_uuids[path["Path"]] = path["uuid"]
+                 self._path_uuids[path["Path"]] = path["uuid"]
+                 
+                 
+            # get list of topics
+            # if topic elements to be pushed are in the topics list, we're good
+            # else, we need to create the missing path elements and assign uuids
+             
             
 
 #[{"Path": "/thing/stuff", "uuid": "f785849c-e3bf-11e4-afe2-080027b06a49"}, {"Path": "/sensor0", "uuid": "a9e2aec8-e3be-11e4-afe2-080027b06a49"}]
