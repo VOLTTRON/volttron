@@ -50,9 +50,11 @@ def main():
 
     print "Listing Agents on platforms"
     for x in platforms:
-        print ('platform: '+x['uuid'])
-        cmd = 'platforms.uuid.{}.list_agents'.format(x['uuid'])
-        response = send('platforms.uuid.first_platform.list_agents')
+        platform_uuid = x['uuid']
+        print ('platform: '+platform_uuid)
+        cmd = 'platforms.uuid.{}.list_agents'.format(platform_uuid)
+        print('executing: {}'.format(cmd))
+        response = send(cmd)
         if 'error' in response:
             print "ERROR: ", response['error']
             sys.exit(0)
@@ -60,12 +62,13 @@ def main():
             print "RESPONSE: ", response['result']
         agents = response['result']
 
-        for a in agents:
-            print('agent: '+ a)
-
-
-
-
+        print "Status agents"
+        cmd = 'platforms.uuid.{}.status_agents'.format(platform_uuid)
+        response = send(cmd)
+        if 'error' in response:
+            print "ERROR: ", response['error']
+        else:
+            print "RESPONSE: ", response['result']
 
     print "Status agents"
     response = send('platforms.uuid.first_platform.status_agents')
