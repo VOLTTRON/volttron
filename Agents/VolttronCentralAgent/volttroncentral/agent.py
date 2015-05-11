@@ -307,18 +307,18 @@ def volttron_central_agent(config_path, **kwargs):
                                        [id, platform_method, params]).get()
             else:
 
-                if not platform['vip_address'] in self.vip_channels:
+                if not platform['vip_address'] in self._vip_channels:
                     rpc = RPCAgent(platform['vip_address'])
                     gevent.spawn(rpc.run).join(0)
-                    self.vip_channels[platform['vip_address']] = rpc
+                    self._vip_channels[platform['vip_address']] = rpc
                 else:
-                    rpc = self.vip_channels[platform['vip_address']]
+                    rpc = self._vip_channels[platform['vip_address']]
 
-                result = rpc.rpc_call(platform_uuid, "route_request", [id, platform_method, params]).get(timeout=10)
+                result = rpc.rpc_call(platform['vip_identity'], "route_request", [id, platform_method, params]).get(timeout=10)
 
             return result
 
-    Agent.__name__ = 'ManagedServiceAgent'
+    Agent.__name__ = 'VolttronCentralAgent'
     return Agent(**kwargs)
 
 
