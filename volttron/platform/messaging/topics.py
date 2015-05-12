@@ -115,7 +115,7 @@ DEVICES_PATH = _('{base}//{node}//{campus}//{building}//{unit}//{point}')
 _DEVICES_VALUE = _(DEVICES_PATH.replace('{base}',DRIVER_TOPIC_BASE))
 DEVICES_VALUE = _(_DEVICES_VALUE.replace('{node}/', ''))
 
-ANALYSIS_PATH = _('{base}//{campus}//{building}//{unit}//{point}')
+ANALYSIS_PATH = _('{base}//{analysis_name}//{campus}//{building}//{unit}//{point}')
 ANALYSIS_TOPIC_BASE = 'analysis'
 ANALYSIS_VALUE = _(ANALYSIS_PATH.replace('{base}', ANALYSIS_TOPIC_BASE))
 
