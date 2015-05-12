@@ -53,80 +53,100 @@
 
 #}}}
 
-
-import datetime
 import logging
 import sys
-import uuid
 import sqlite3
 
-from volttron.platform.agent.base_historian import BaseHistorianAgent
-from volttron.platform.agent import utils, matching
-from volttron.platform.messaging import topics, headers as headers_mod
-from zmq.utils import jsonapi
-import settings
-import os, os.path
+from volttron.platform.agent.base_query_historian import BaseQueryHistorianAgent
+from volttron.platform.agent import utils
+import os.path
 import errno
+from zmq.utils import jsonapi
 
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-from pprint import pprint
 
 
-def SQLiteHistorianAgent(config_path, **kwargs):
-
+def SQLiteQueryHistorianAgent(config_path, **kwargs):
     config = utils.load_config(config_path)
 
-    class Agent(BaseHistorianAgent):
+    class Agent(BaseQueryHistorianAgent):
         '''This is a simple example of a historian agent that writes stuff 
         to a SQLite database. It is designed to test some of the functionality
         of the BaseHistorianAgent.
         '''
+        def __init__(self, **kwargs):
+            super(Agent, self).__init__(vip_identity=config["vip_identity"], **kwargs)
         
-        def publish_to_historian(self, to_publish_list):
-            #self.report_all_published()
+        def query_historian(self, topic, start=None, end=None, skip=0, count=None):
+            """This function should return the results of a query in the form:
+            {"values": [(timestamp1, value1), (timestamp2, value2), ...],
+             "metadata": {"key1": value1, "key2": value2, ...}}
+             
+             metadata is not required (The caller will normalize this to {} for you)
+            """            
+            query = '''SELECT data.ts, data.value_string 
+                       FROM data, topics 
+                       {where}
+                       ORDER BY data.ts
+                       {limit}
+                       {offset}'''
+            
+            where_clauses = ["WHERE topics.topic_name = ?", "topics.topic_id = data.topic_id"]
+            args = [topic]
+            
+            if start is not None:
+                where_clauses.append("data.ts > ?")
+                args.append(start)
+                
+            if end is not None:
+                where_clauses.append("data.ts < ?")
+                args.append(end)
+                
+            where_statement = ' AND '.join(where_clauses)
+            
+            #can't have an offset without a limit
+            # -1 = no limit and allows the user to
+            # provied just an offset
+            if count is None:
+                count = -1
+                
+            limit_statement = 'LIMIT ?'
+            args.append(count)
+            
+            offset_statement = ''
+            if skip > 0:
+                offset_statement = 'OFFSET ?'
+                args.append(skip)
+            
+            real_query = query.format(where=where_statement,
+                                      limit=limit_statement,
+                                      offset=offset_statement)
+            
+            print real_query
+            print args
+            
             c = self.conn.cursor()
-            print 'Publish info'
-            for x in to_publish_list:
-                ts = x['timestamp']
-                topic = x['topic']
-                value = x['value']
-                
-                topic_id = self.topics.get(topic)
-                
-                if topic_id is None:
-                    c.execute('''INSERT INTO topics values (?,?)''', (None, topic))
-                    c.execute('''SELECT last_insert_rowid()''')
-                    row = c.fetchone()
-                    topic_id = row[0]
-                    self.topics[topic] = topic_id
-                
-                c.execute('''INSERT OR REPLACE INTO data values(?, ?, ?)''', 
-                          (ts,topic_id,jsonapi.dumps(value)))
-                
-                pprint(x)
-            print 'count:', len(to_publish_list)
+            c.execute(real_query,args)
+            values = [(ts.isoformat(), jsonapi.loads(value)) for ts, value in c]
             
-            self.conn.commit()
-            c.close()     
-            
-            self.report_all_published()       
+            return {'values':values}
         
         def historian_setup(self):
-            self.topics={}
-            db_path = os.path.expanduser(config.db)
+            db_path = os.path.expanduser(config['db'])
             db_dir  = os.path.dirname(db_path)
             
+            #If the db does not exist create it
+            # in case we are started before the historian.
             try:
                 os.makedirs(db_dir)
             except OSError as exc:
                 if exc.errno != errno.EEXIST or not os.path.isdir(db_dir):
                     raise
-
+                            
             self.conn = sqlite3.connect(db_path, 
                                          detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
-        
             
             self.conn.execute('''CREATE TABLE IF NOT EXISTS data 
                                 (ts timestamp NOT NULL,
@@ -141,16 +161,9 @@ def SQLiteHistorianAgent(config_path, **kwargs):
                                 (topic_id INTEGER PRIMARY KEY, 
                                  topic_name TEXT NOT NULL,
                                  UNIQUE(topic_name))''')
-            
-            c = self.conn.cursor()
-            c.execute("SELECT * FROM topics")
-            for row in c:
-                self.topics[row[1]] = row[0]
         
-            c.close()
-            self.conn.commit()
-        
-    Agent.__name__ = 'SQLiteHistorianAgent'
+                    
+    Agent.__name__ = 'SQLiteQueryHistorianAgent'
     return Agent(**kwargs)
             
     
@@ -158,12 +171,22 @@ def SQLiteHistorianAgent(config_path, **kwargs):
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
     try:
-        utils.default_main(SQLiteHistorianAgent,
-                           description='Historian agent that saves a history to a sqlite db.',
-                           argv=argv)
-    except Exception as e:
-        print e
-        _log.exception('unhandled exception')
+        # If stdout is a pipe, re-open it line buffered
+        if utils.isapipe(sys.stdout):
+            # Hold a reference to the previous file object so it doesn't
+            # get garbage collected and close the underlying descriptor.
+            stdout = sys.stdout
+            sys.stdout = os.fdopen(stdout.fileno(), 'w', 1)
+        '''Main method called by the eggsecutable.'''
+
+        config = os.environ.get('AGENT_CONFIG')
+        agent = SQLiteQueryHistorianAgent(config_path=config)
+        agent.run()
+    except KeyboardInterrupt:
+        pass
+#     except Exception as e:
+#         print e
+#         _log.exception('unhandled exception')
 
 
 if __name__ == '__main__':

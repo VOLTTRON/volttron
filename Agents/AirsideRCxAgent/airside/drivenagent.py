@@ -58,8 +58,8 @@
 import csv
 from datetime import datetime, timedelta as td
 import logging
-import pprint
 import sys
+import dateutil.parser
 
 from volttron.platform.agent import (AbstractDrivenAgent, BaseAgent,
                                      ConversionMapper, PublishMixin,
@@ -73,6 +73,7 @@ __author2__ = 'Robert Lutes <robert.lutes@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2013, Battelle Memorial Institute'
 __license__ = 'FreeBSD'
 
+
 def DrivenAgent(config_path, **kwargs):
     '''Driven harness for deployment of OpenEIS applications in VOLTTRON.'''
     config = utils.load_config(config_path)
@@ -80,24 +81,28 @@ def DrivenAgent(config_path, **kwargs):
     validation_error = ''
     device = dict((key, config['device'][key])
                   for key in ['campus', 'building', 'unit'])
-    subdevices = None
-    # this implies a subdevice listing
+    subdevices = []
+    # this implies a sub-device listing
     if isinstance(device['unit'], dict):
         # Assumption that there will be only one entry in the dictionary.
-        unit_name = device['unit'].keys()[0]
-        if 'subdevices' not in device['unit'][unit_name]:
-            raise ValueError('subdevices required in config file')
-
-        subdevices = device['unit'][unit_name]['subdevices']
+        units = device['unit'].keys()
+        dev_unit = ''
+        for item in units:
+            dev_unit = item + '|'
+            if 'subdevices' not in device['unit'][item]:
+                raise ValueError('subdevices required in config file')
+            subdevices.extend(device['unit'][item]['subdevices'])
+        dev_unit = dev_unit[:-1] if dev_unit[-1] == '|' else dev_unit
+        device['unit'] = units[0]
         # modify the device dict so that unit is now pointing to unit_name
-        device['unit'] = unit_name
-
     agent_id = config.get('agentid')
     if not device:
         validation_error += 'Invalid agent_id specified in config\n'
     if not device:
         validation_error += 'Invalid device path specified in config\n'
-    actuator_id = agent_id + '_' +"{campus}/{building}/{unit}".format(**device)
+    actuator_id = (
+        agent_id + '_' + "{campus}/{building}/{unit}".format(**device)
+    )
     application = config.get('application')
     if not application:
         validation_error += 'Invalid application specified in config\n'
@@ -114,8 +119,9 @@ def DrivenAgent(config_path, **kwargs):
     output_file = config.get('output_file')
     klass = _get_class(application)
     # This instances is used to call the applications run method when
-    # data comes in on the message bus.  It is constructed here so that
-    # each time run is called the application can keep it state.
+    # data comes in on the message bus.  It is constructed here
+    # so that_process_results each time run is called the application
+    # can keep it state.
     app_instance = klass(**config)
 
     class Agent(PublishMixin, BaseAgent):
@@ -134,12 +140,12 @@ def DrivenAgent(config_path, **kwargs):
             self._subdevice_values = {}
             self._device_values = {}
             self._initialize_devices()
-
+            self.received_input_datetime = None
             self._kwargs = kwargs
             self.commands = {}
             self.current_point = None
             self.current_key = None
-            if output_file != None:
+            if output_file is not None:
                 with open(output_file, 'w') as writer:
                     writer.close()
             self._header_written = False
@@ -156,44 +162,62 @@ def DrivenAgent(config_path, **kwargs):
 
             return not len(self._needed_subdevices) > 0
 
-        @matching.match_regex("devices/{campus}/{building}/{unit}/.*all".format(**device))
+        @matching.match_regex(("devices/{campus}/{building}/" + dev_unit + "/.*all").format(**device))
         def on_rec_analysis_message(self, topic, headers, message, matched):
-
             # Do the analysis based upon the data passed (the old code).
             if not subdevices:
-                self.on_received_message(self, topic, headers, message, matched)
+                self.on_received_message(self, topic, headers,
+                                         message, matched)
                 return
-
             obj = jsonapi.loads(message[0])
             device_or_subdevice = topic.split('/')[-2]
 
+            def agg_subdevice():
+                sub_obj = {}
+                for key, value in obj.items():
+                    sub_key = ''.join([key, '_', device_or_subdevice])
+                    sub_obj[sub_key] = value
+                self._subdevice_values.update(sub_obj)
+                self._needed_subdevices.remove(device_or_subdevice)
+                return
+
             # The below if statement is used to distinguish between unit/all
-            # and unit/subdevice/all
+            # and unit/sub-device/all
             if device_or_subdevice == device['unit']:
                 if self._device_values != {}:
-                    _log.error("Warning device values already present, " +
-                              "reinitializing")
+                    _log.error("Warning device values already present, "
+                               "reinitializing")
                     self._initialize_devices()
-
-                self._device_values = obj
+                self._device_values.update(obj)
             else:
                 if device_or_subdevice not in self._needed_subdevices:
                     _log.error('Device: {} not in the needed list'
                                .format(device_or_subdevice))
                     if device_or_subdevice in self._master_subdevices:
                         _log.error('Device: {} found in master but not need, '
-                                   're-initializingbut was not in the needed list'
+                                   're-initializing but was not in the '
+                                   'needed list'
                                    .format(device_or_subdevice))
                         self._initialize_devices()
-                        self._subdevice_values[device_or_subdevice] = obj
-                        self._needed_subdevices.remove(device_or_subdevice)
+                        agg_subdevice()
                 else:
-                    self._subdevice_values[device_or_subdevice] = obj
-                    self._needed_subdevices.remove(device_or_subdevice)
+                    agg_subdevice()
 
             if self._should_run_now():
-                self._subdevice_values[device['unit']] = deepcopy(self._device_values)
-                results = app_instance.run(datetime.now(), self._subdevice_values)
+                self._subdevice_values.update(deepcopy(self._device_values))
+                if not converter.initialized and \
+                        config.get('conversion_map') is not None:
+                    converter.setup_conversion_map(
+                        config.get('conversion_map'),
+                        self._subdevice_values.keys()
+                    )
+                self._subdevice_values = converter.process_row(
+                    self._subdevice_values)
+                results = app_instance.run(datetime.now(),
+                                           self._subdevice_values)
+                self.received_input_datetime = datetime.utcnow()
+#                 results = app_instance.run(dateutil.parser.parse(self._subdevice_values['Timestamp'], fuzzy=True),
+#                                            self._subdevice_values)
                 self._process_results(results)
                 self._initialize_devices()
             else:
@@ -216,14 +240,16 @@ def DrivenAgent(config_path, **kwargs):
                 converter.setup_conversion_map(config.get('conversion_map'),
                                                data.keys())
             data = converter.process_row(data)
-
             if len(self._required_subdevice_values) < 1:
+                self.received_input_datetime = datetime.utcnow()
                 results = app_instance.run(datetime.now(), data)
                 self._process_results(results)
             else:
                 # apply data to subdevice values.
                 if self.should_run_now():
-                    results = app_instance.run(datetime.now(), self._subdevice_values)
+                    self.received_input_datetime = datetime.utcnow()
+                    results = app_instance.run(datetime.now(),
+                                               self._subdevice_values)
                     self._process_results(results)
 
         def _process_results(self, results):
@@ -265,7 +291,7 @@ def DrivenAgent(config_path, **kwargs):
                             if isinstance(value, bool):
                                 value = int(value)
                             topic = topics.ANALYSIS_VALUE(point=key,
-                                                          **config['device'])
+                                                          **device)
                             self.publish_json(topic, headers, value)
             if results.commands and mode:
                 self.commands = results.commands

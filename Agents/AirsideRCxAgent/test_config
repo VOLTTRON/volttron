@@ -6,7 +6,7 @@
         "campus": "campus1",
         "building": "building1",
         "unit": {
-            "rtu1": {
+            "rtu5": {
                 "subdevices": [
                     "VAV13111", "VAV13112",
                     "FCU13258", "FCU13259"
@@ -16,7 +16,7 @@
         "analysis": "Airside_RCx"
     },
     "output_file": "./junk.csv",
-    "mode": "ACTIVE",
+    "mode": "PASSIVE",
     "arguments": {
         "fan_status": "supplyfanstatus",
         "zone_reheat": "heatingsignal",
@@ -61,9 +61,9 @@
         ".*Temperature": "float",
         ".*SetPoint": "float",
         "OutdoorDamperSignal": "float",
-        "SupplyFanStatus": "int",
+        ".*Status": "int",
         "CoolingCall": "float",
-        "SupplyFanSpeed": "int",
+        ".*Speed": "float",
         "Damper*.": "float",
         "Heating*.": "float",
         "DuctStatic*.": "float"

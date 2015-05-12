@@ -36,7 +36,7 @@
 
     "output_file": "./junk.csv",
 
-    "mode": "ACTIVE",
+    "mode": "PASSIVE",
 
     "arguments": {
         "fan_status": "supplyfanstatus",

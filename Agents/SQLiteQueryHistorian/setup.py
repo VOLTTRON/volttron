@@ -53,9 +53,23 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
+
 #}}}
 
-import gevent as _gevent
+from setuptools import setup, find_packages
 
-def getcurrent():
-    return _gevent.Greenlet()
+packages = find_packages('.')
+package = packages[0]
+
+setup(
+    name = package + 'agent',
+    version = "0.1",
+    install_requires = ['volttron'],
+    packages = packages,
+    entry_points = {
+        'setuptools.installation': [
+            'eggsecutable = ' + package + '.agent:main',
+        ]
+    }
+)
+

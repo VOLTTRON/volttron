@@ -53,7 +53,6 @@
 
 #}}}
 
-import cherrypy
 import datetime
 import json
 import logging
@@ -73,9 +72,9 @@ _log = logging.getLogger(__name__)
 
 def HelloAgent(config_path, **kwargs):
 
-    home = os.path.expanduser(os.path.expandvars(
-                 os.environ.get('VOLTTRON_HOME', '~/.volttron')))
-    vip_address = 'ipc://@{}/run/vip.socket'.format(home)
+#     home = os.path.expanduser(os.path.expandvars(
+#                  os.environ.get('VOLTTRON_HOME', '~/.volttron')))
+#     vip_address = 'ipc://@{}/run/vip.socket'.format(home)
 
     config = utils.load_config(config_path)
 
@@ -91,7 +90,7 @@ def HelloAgent(config_path, **kwargs):
     class Agent(RPCAgent):
 
         def __init__(self, **kwargs):
-            super(Agent, self).__init__(vip_address, vip_identity, **kwargs)
+            super(Agent, self).__init__(vip_identity=vip_identity, **kwargs)
 
         @export()
         def sayHello(self, name):
