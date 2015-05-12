@@ -103,7 +103,7 @@ class periodic(object):   # pylint: disable=invalid-name
     '''
 
     def __init__(self, period, args=None, kwargs=None, wait=False):
-        '''Store period and arguments to call method with.'''
+        '''Store period (seconds) and arguments to call method with.'''
         self.period = period
         self.args = args or ()
         self.kwargs = kwargs or {}

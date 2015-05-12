@@ -58,7 +58,7 @@ class SessionHandler:
         '''
         groups = self._authenticator.authenticate(username, password)
         if groups:
-            token = uuid.uuid4()
+            token = str(uuid.uuid4())
             self._add_session(username, token, ip, ",".join(groups))
             return token
         return None
@@ -71,7 +71,7 @@ class SessionHandler:
 
     def check_session(self, token, ip):
         '''Check if a user token has been authenticated.'''
-        session = self._session_tokens.get(uuid.UUID(token))
+        session = self._session_tokens.get(str(token))
         if session:
             return session['ip'] == ip
 

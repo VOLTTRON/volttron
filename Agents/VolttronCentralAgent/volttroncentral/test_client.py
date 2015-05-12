@@ -1,7 +1,9 @@
 import requests
-import json
+import uuid
+from volttron.platform.agent.vipagent import jsonapi as json
 
 auth_token = None
+
 
 def send(method, params=None):
     global auth_token
@@ -11,7 +13,7 @@ def send(method, params=None):
         "method": method,
         "jsonrpc": "2.0",
         #"params": params,
-        "id": 0,
+        "id": str(uuid.uuid4()),
     }
     if params:
         payload["params"] = params
@@ -25,54 +27,75 @@ def send(method, params=None):
 
 def main():
     global auth_token
+    import sys
+    platforms = []
     print "Getting Auth"
-    response = send("getAuthorization",
+    response = send("get_authorization",
                         {'username': 'admin', 'password': 'admin'})
     auth_token = response['result']
+    print "Token is: " +auth_token
 
     print "Listing Platforms"
-    response = send('listPlatforms')
+    response = send('list_platforms')
     if 'error' in response:
         print "ERROR: ", response['error']
+        sys.exit(0)
     else:
         print "RESPONSE: ", response['result']
+        platforms = response['result']
 
-    print "Listing Agents on first_platform"
-    response = send('platforms.uuid.first_platform.listAgents')
-    if 'error' in response:
-        print "ERROR: ", response['error']
-    else:
-        print "RESPONSE: ", response['result']
+    if len(platforms) < 1:
+        print "No platforms registered!"
+        sys.exit(0)
+
+    print "Listing Agents on platforms"
+    for x in platforms:
+        print ('platform: '+x['uuid'])
+        cmd = 'platforms.uuid.{}.list_agents'.format(x['uuid'])
+        response = send('platforms.uuid.first_platform.list_agents')
+        if 'error' in response:
+            print "ERROR: ", response['error']
+            sys.exit(0)
+        else:
+            print "RESPONSE: ", response['result']
+        agents = response['result']
+
+        for a in agents:
+            print('agent: '+ a)
+
+
+
+
 
     print "Status agents"
-    response = send('platforms.uuid.first_platform.statusAgents')
+    response = send('platforms.uuid.first_platform.status_agents')
     if 'error' in response:
         print "ERROR: ", response['error']
     else:
         print "RESPONSE: ", response['result']
 
     print "Start agent"
-    response = send('platforms.uuid.first_platform.startAgent', ['e335586e-a301-41ba-94a6-3f6887cae6e0'])
+    response = send('platforms.uuid.first_platform.start_agent', ['e335586e-a301-41ba-94a6-3f6887cae6e0'])
     if 'error' in response:
         print "ERROR: ", response['error']
     else:
         print "RESPONSE: ", response['result']
     print "Status agents"
-    response = send('platforms.uuid.first_platform.statusAgents')
+    response = send('platforms.uuid.first_platform.status_agents')
     if 'error' in response:
         print "ERROR: ", response['error']
     else:
         print "RESPONSE: ", response['result']
 
     print "Stop agent"
-    response = send('platforms.uuid.first_platform.stopAgent', ['e335586e-a301-41ba-94a6-3f6887cae6e0'])
+    response = send('platforms.uuid.first_platform.stop_agent', ['e335586e-a301-41ba-94a6-3f6887cae6e0'])
     if 'error' in response:
         print "ERROR: ", response['error']
     else:
         print "RESPONSE: ", response['result']
 
     print "Status agents"
-    response = send('platforms.uuid.first_platform.statusAgents')
+    response = send('platforms.uuid.first_platform.status_agents')
     if 'error' in response:
         print "ERROR: ", response['error']
     else:
