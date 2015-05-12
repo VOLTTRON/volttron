@@ -61,6 +61,9 @@ import sys
 import uuid
 import time
 
+import pytz
+from pytz import timezone
+
 from volttron.platform.agent.base_historian import BaseHistorianAgent
 from volttron.platform.agent import utils, matching
 from volttron.platform.messaging import topics, headers as headers_mod
@@ -124,6 +127,8 @@ def SMAPHistorianAgent(config_path, **kwargs):
             success = []
             failure = []
 
+            publish = {}
+
             # add items to global topic and uuid lists if they don't exist
             for item in to_publish_list:
                 if 'topic' not in item.keys():
@@ -136,6 +141,17 @@ def SMAPHistorianAgent(config_path, **kwargs):
                 if topic[0] != '/':
                     topic = '/'+topic
 
+                meta = item['meta']
+
+                if meta['type'] not in ('float', 'double', 'bool', 'int'):
+                    _log.warn('Ignoring point due to invalid type: {}'
+                               .format(item))
+
+                    # Clear the bad point from the publish list so it doesn't
+                    # stay around.
+                    self.report_published(item)
+                    continue
+
                 item_uuid = self._topic_to_uuid.get(topic, None)
                 if item_uuid is None:
                     item_uuid = str(uuid.uuid4())
@@ -143,47 +159,44 @@ def SMAPHistorianAgent(config_path, **kwargs):
                     while item_uuid in self._topic_to_uuid.values():
                         item_uuid = str(uuid.uuid4())
 
-                meta = item['meta']
+
                 # protect data if SourceName already present
                 if 'SourceName' in meta.keys():
                     meta['OldSourceName'] = meta['SourceName']
 
                 meta['SourceName'] = _config['source']
 
-                print(item['timestamp'].strftime('%s'))
-                timeis = int(item['timestamp'].strftime("%s"))
-                print("The time is1431482582: {}".format(timeis))
-                print("from timezone: {}".format(datetime.datetime.fromtimestamp(timeis)))
-                print("original date: {}".format(item['timestamp']))
-                print("another dt layer: {}".format(dtt2timestamp(item['timestamp'])))
-                print("from ts: {}".format(datetime.datetime.fromtimestamp(dtt2timestamp(item['timestamp']))))
+                utc = item['timestamp']
+                tz = timezone(meta['tz'])
+                dt = utc.astimezone(tz)
 
-                pub = {
-                    topic: {
-                        'Metadata': meta,
-                        'Properties': {
-                            'Timezone': meta['tz'],
-                            'UnitofMeasure': meta['units'],
-                            'ReadingType': meta['type']
-                        },
-                        'Readings': [
-                            [int(item['timestamp'].strftime("%s")), item['value']]
-                        ],
-                        'uuid': item_uuid
-                    }
-                }
+                publish[topic] = {
+                                  'Metadata': meta,
+                                  'Properties': {
+                                    'Timezone': meta['tz'],
+                                    'UnitofMeasure': meta['units'],
+                                    'ReadingType': meta['type']
+                                  },
+                                  'Readings': [
+                                    [int(dt.strftime("%s000")),
+                                     item['value']]
+                                  ],
+                                'uuid': item_uuid
+                            }
 
-                response = requests.post(_add_url, data=jsonapi.dumps(pub))
 
-                if response.ok:
+            response = requests.post(_add_url, data=jsonapi.dumps(publish))
+
+            if response.ok:
+                for topic in publish.keys():
                     if topic not in self._topic_to_uuid.keys():
                         print('Adding new topic: {}'.format(topic))
-                        self._topic_to_uuid[topic] = item_uuid
+                        self._topic_to_uuid[topic] = publish[topic]['uuid']
 
-                    self.report_published(item)
-                else:
-                    _log.error('Invalid response from server for {}'
-                               .format(jsonapi.dumps(pub)))
+                self.report_all_published()
+            else:
+                _log.error('Invalid response from server for {}'
+                           .format(jsonapi.dumps(pub)))
 
         def historian_setup(self):
             #reset paths in case we ever use this to dynamically switch Archivers
