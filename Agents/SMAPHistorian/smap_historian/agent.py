@@ -122,6 +122,8 @@ def SMAPHistorianAgent(config_path, **kwargs):
             print(to_publish_list[0])
             #print(to_publish_list)
             
+            
+            
             # add items to global topic and uuid lists if they don't exist
             for item in to_publish_list:
                 if 'topic' not in item.keys():
@@ -131,7 +133,7 @@ def SMAPHistorianAgent(config_path, **kwargs):
                     #TODO if the topic does not exist in smap, add to smap here
                     # create a uuid
                     payload = {'uuid': str(uuid.uuid4()), 'topic': item['topic']}
-                    response = requests.post("{url}/backend/add/LEq1cEGc04RtcKX6riiX7eaML8Z82xEgQrp7".format(url=_config.get('archiver_url')), data=jsonapi.dumps(payload))
+                    response = requests.post("{url}/backend/add/{key}".format(url=_config.get('archiver_url'), key=_config.get('key')), data=jsonapi.dumps(payload))
                     
                     _log.debug('Adding topic to smap: {}'.format(item['topic']))
                     self.topic_list.append(item['topic'])
@@ -162,8 +164,11 @@ def SMAPHistorianAgent(config_path, **kwargs):
     },
     "Readings" : [[1351043674000, 0], [1351043675000, 1]],
     "uuid" : "f785849c-e3bf-11e4-afe2-080027b06a49"
+  }, 
+  "/thing/otherstuff" : {
   }
 }
+            
             
             
             
