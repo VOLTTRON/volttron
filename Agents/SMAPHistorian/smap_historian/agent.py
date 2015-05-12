@@ -142,8 +142,8 @@ def SMAPHistorianAgent(config_path, **kwargs):
                     topic = '/'+topic
 
                 meta = item['meta']
-
-                if meta['type'] not in ('float', 'double', 'bool', 'int'):
+                print (meta['type'])
+                if meta['type'] not in ('float', 'double', 'bool', 'integer'):
                     _log.warn('Ignoring point due to invalid type: {}'
                                .format(item))
 
@@ -151,6 +151,10 @@ def SMAPHistorianAgent(config_path, **kwargs):
                     # stay around.
                     self.report_published(item)
                     continue
+
+                if meta['type'] == 'bool':
+                    item['value'] = int(item['value'])
+                    meta['type'] = 'integer'
 
                 item_uuid = self._topic_to_uuid.get(topic, None)
                 if item_uuid is None:
