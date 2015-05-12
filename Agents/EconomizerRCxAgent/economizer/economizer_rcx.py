@@ -102,7 +102,7 @@ class Application(AbstractDrivenAgent):
                  **kwargs):
         # initialize user configurable parameters.
         #super(Application, self).__init__(**kwargs)
-        Application.analysis = kwargs['device']['analysis']
+        Application.analysis = kwargs['device']['analysis_name']
         self.fan_status_name = kwargs['fan_status']
         self.oa_temp_name = kwargs['oa_temp']
         self.ra_temp_name = kwargs['ra_temp']
