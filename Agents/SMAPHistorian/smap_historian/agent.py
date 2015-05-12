@@ -92,6 +92,12 @@ def SMAPHistorianAgent(config_path, **kwargs):
     _add_url = '{backend_url}/add/{key}'.format(backend_url=_backend_url,
                                                    key=_config.get('key'))
 
+    def dtt2timestamp(dtt):
+        ts = (dtt.hour * 60 + dtt.minute) * 60 + dtt.second
+        #if you want microseconds as well
+        ts += dtt.microsecond * 10**(-6)
+        return ts
+
     class Agent(BaseHistorianAgent):
         '''This is a simple example of a historian agent that writes data
         to an sMAP historian. It is designed to test some of the functionality
@@ -137,7 +143,6 @@ def SMAPHistorianAgent(config_path, **kwargs):
                     while item_uuid in self._topic_to_uuid.values():
                         item_uuid = str(uuid.uuid4())
 
-                pprint(item)
                 meta = item['meta']
                 # protect data if SourceName already present
                 if 'SourceName' in meta.keys():
@@ -145,11 +150,21 @@ def SMAPHistorianAgent(config_path, **kwargs):
 
                 meta['SourceName'] = _config['source']
 
+                print(item['timestamp'].strftime('%s'))
+                timeis = int(item['timestamp'].strftime("%s"))
+                print("The time is1431482582: {}".format(timeis))
+                print("from timezone: {}".format(datetime.datetime.fromtimestamp(timeis)))
+                print("original date: {}".format(item['timestamp']))
+                print("another dt layer: {}".format(dtt2timestamp(item['timestamp'])))
+                print("from ts: {}".format(datetime.datetime.fromtimestamp(dtt2timestamp(item['timestamp']))))
+
                 pub = {
                     topic: {
                         'Metadata': meta,
                         'Properties': {
-                            #'id': item['id']
+                            'Timezone': meta['tz'],
+                            'UnitofMeasure': meta['units'],
+                            'ReadingType': meta['type']
                         },
                         'Readings': [
                             [int(item['timestamp'].strftime("%s")), item['value']]
