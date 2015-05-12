@@ -88,7 +88,6 @@ def SMAPHistorianAgent(config_path, **kwargs):
     uuid.
     '''
     _config = utils.load_config(config_path)
-    _topic_to_uuid = {}
     _backend_url = '{}/backend'.format(_config['archiver_url'])
     _add_url = '{backend_url}/add/{key}'.format(backend_url=_backend_url,
                                                    key=_config.get('key'))
@@ -98,9 +97,6 @@ def SMAPHistorianAgent(config_path, **kwargs):
         to an sMAP historian. It is designed to test some of the functionality
         of the BaseHistorianAgent.
         '''
-
-        topic_list = []
-        uuid_list = []
 
         def publish_to_historian(self, to_publish_list):
             '''
@@ -119,9 +115,6 @@ def SMAPHistorianAgent(config_path, **kwargs):
                        'type' - ex: 'float'
                        'tz' - ex: 'America/Los_Angeles'
             '''
-
-            pprint(to_publish_list)
-
             success = []
             failure = []
 
@@ -132,13 +125,19 @@ def SMAPHistorianAgent(config_path, **kwargs):
                     continue
 
                 topic = item['topic']
-                item_uuid = _topic_to_uuid.get(topic, None)
+                # in order for things to show up in smap they need to have
+                # a rooted topic.
+                if topic[0] != '/':
+                    topic = '/'+topic
+
+                item_uuid = self._topic_to_uuid.get(topic, None)
                 if item_uuid is None:
                     item_uuid = str(uuid.uuid4())
                     # just in case of duplicate
-                    while item_uuid in _topic_to_uuid.values():
+                    while item_uuid in self._topic_to_uuid.values():
                         item_uuid = str(uuid.uuid4())
 
+                pprint(item)
                 meta = item['meta']
                 # protect data if SourceName already present
                 if 'SourceName' in meta.keys():
@@ -147,7 +146,7 @@ def SMAPHistorianAgent(config_path, **kwargs):
                 meta['SourceName'] = _config['source']
 
                 pub = {
-                    "/"+topic: {
+                    topic: {
                         'Metadata': meta,
                         'Properties': {
                             #'id': item['id']
@@ -162,8 +161,9 @@ def SMAPHistorianAgent(config_path, **kwargs):
                 response = requests.post(_add_url, data=jsonapi.dumps(pub))
 
                 if response.ok:
-                    if topic not in _topic_to_uuid.keys():
-                        _topic_to_uuid[item_uuid] = topic
+                    if topic not in self._topic_to_uuid.keys():
+                        print('Adding new topic: {}'.format(topic))
+                        self._topic_to_uuid[topic] = item_uuid
 
                     self.report_published(item)
                 else:
@@ -187,7 +187,7 @@ def SMAPHistorianAgent(config_path, **kwargs):
             for path in response:
                  self._topic_to_uuid[path["Path"]] = path["uuid"]
 
-
+            pprint(self._topic_to_uuid)
             # get list of topics
             # if topic elements to be pushed are in the topics list, we're good
             # else, we need to create the missing path elements and assign uuids
