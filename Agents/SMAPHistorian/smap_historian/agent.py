@@ -59,6 +59,7 @@ import logging
 import requests
 import sys
 import uuid
+import time
 
 from volttron.platform.agent.base_historian import BaseHistorianAgent
 from volttron.platform.agent import utils, matching
@@ -66,11 +67,10 @@ from volttron.platform.messaging import topics, headers as headers_mod
 from zmq.utils import jsonapi
 import settings
 
-
 from smap import driver
 from smap.core import SmapException
 from smap.util import periodicSequentialCall
-
+from volttron.lint.zmq import PUB
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -80,34 +80,37 @@ from pprint import pprint
 def SMAPHistorianAgent(config_path, **kwargs):
     '''
     There is a potential for conflict if multiple historians are writing to
-    the same sMAP Archiver. If historians create paths in the same parent 
-    they could create duplicates. This agent maintains a local understanding of 
+    the same sMAP Archiver. If historians create paths in the same parent
+    they could create duplicates. This agent maintains a local understanding of
     topic in sMAP and will not know that another historian added a topic.
-    If another historian creates: "campus/building/device/point1" that point 
-    will not be in the local dictionary and this agent will create it with another 
+    If another historian creates: "campus/building/device/point1" that point
+    will not be in the local dictionary and this agent will create it with another
     uuid.
     '''
     _config = utils.load_config(config_path)
-    _path_uuids = {}
+    _topic_to_uuid = {}
+    _backend_url = '{}/backend'.format(_config['archiver_url'])
+    _add_url = '{backend_url}/add/{key}'.format(backend_url=_backend_url,
+                                                   key=_config.get('key'))
 
     class Agent(BaseHistorianAgent):
         '''This is a simple example of a historian agent that writes data
         to an sMAP historian. It is designed to test some of the functionality
         of the BaseHistorianAgent.
         '''
-        
+
         topic_list = []
         uuid_list = []
-        
+
         def publish_to_historian(self, to_publish_list):
             '''
             to_publish_list is a list of dictionaries that have the following
             keys:
-            
+
                 'timestamp' - a datetime of the timestamp
                 'value' - a decimal or integer. ex: -39.9900016784668
                 'topic' - a unicode string representing the topic
-                'source' - a unicode string representing the source, typically 
+                'source' - a unicode string representing the source, typically
                             'scrape'
                 'id' - an integer
                 'meta' - a dictionary of metadata
@@ -116,156 +119,120 @@ def SMAPHistorianAgent(config_path, **kwargs):
                        'type' - ex: 'float'
                        'tz' - ex: 'America/Los_Angeles'
             '''
-            
 
-            print(len(to_publish_list))
-            print(to_publish_list[0])
-            #print(to_publish_list)
-            
-            
-            
+            pprint(to_publish_list)
+
+            success = []
+            failure = []
+
             # add items to global topic and uuid lists if they don't exist
             for item in to_publish_list:
                 if 'topic' not in item.keys():
                     _log.error('topic or uuid not found in {}'.format(item))
                     continue
-                if 'uuid' not in item.keys():
-                    #TODO if the topic does not exist in smap, add to smap here
-                    # create a uuid
-                    payload = {'uuid': str(uuid.uuid4()), 'topic': item['topic']}
-                    response = requests.post("{url}/backend/add/{key}".format(url=_config.get('archiver_url'), key=_config.get('key')), data=jsonapi.dumps(payload))
-                    
-                    _log.debug('Adding topic to smap: {}'.format(item['topic']))
-                    self.topic_list.append(item['topic'])
-                    self.uuid_list.append('a uuid here') #item['uuid'])
-                    continue
-            
-            
-            # check for empty list
-            if (len(self.topic_list) == 0) or (len(self.uuid_list) == 0):
-                raise ValueError('missing topic list or uuid list')
-                return
-            
-            
-            # format json string for request
-            # Uuid string format:
-            # uuid_data = 'uuid: "{}"'.format()
-            
-            testdata = {
-  "/thing/stuff" : {
-    "Metadata" : {
-      "SourceName" : "MyTest",
-      "Location" : { "City" : "Berkeley" }
-    },
-    "Properties": {
-      "Timezone": "America/Los_Angeles",
-      "UnitofMeasure": "Watt",
-      "ReadingType": "double"
-    },
-    "Readings" : [[1351043674000, 0], [1351043675000, 1]],
-    "uuid" : "f785849c-e3bf-11e4-afe2-080027b06a49"
-  }, 
-  "/thing/otherstuff" : {
-  }
-}
-            
-            
-            
-            
-            #self.report_all_published()
-#             c = self.conn.cursor()
-#             print 'Publish info'
-            for x in to_publish_list[:10]:
-                 ts = x['timestamp']
-                 topic = x['topic']
-                 value = x['value']
-                 
-            # if topic does not exist
-                # create that topic
-            # else, push to that topic
-#                 
-#                 topic_id = self.topics.get(topic)
-#                 
-#                 if topic_id is None:
-#                     c.execute('''INSERT INTO topics values (?,?)''', (None, topic))
-#                     c.execute('''SELECT last_insert_rowid()''')
-#                     row = c.fetchone()
-#                     topic_id = row[0]
-#                     self.topics[topic] = topic_id
-#                 
-#                 c.execute('''INSERT OR REPLACE INTO data values(?, ?, ?)''', 
-#                           (ts,topic_id,jsonapi.dumps(value)))
-#                 
-#                 self.report_published(x)
-#                 pprint(x)
-#             print 'count:', len(to_publish_list)
-#             
-#             self.conn.commit()
-#             c.close()            
-        
+
+                topic = item['topic']
+                item_uuid = _topic_to_uuid.get(topic, None)
+                if item_uuid is None:
+                    item_uuid = str(uuid.uuid4())
+                    # just in case of duplicate
+                    while item_uuid in _topic_to_uuid.values():
+                        item_uuid = str(uuid.uuid4())
+
+                meta = item['meta']
+                # protect data if SourceName already present
+                if 'SourceName' in meta.keys():
+                    meta['OldSourceName'] = meta['SourceName']
+
+                meta['SourceName'] = _config['source']
+
+                pub = {
+                    "/"+topic: {
+                        'Metadata': meta,
+                        'Properties': {
+                            #'id': item['id']
+                        },
+                        'Readings': [
+                            [int(item['timestamp'].strftime("%s")), item['value']]
+                        ],
+                        'uuid': item_uuid
+                    }
+                }
+
+                response = requests.post(_add_url, data=jsonapi.dumps(pub))
+
+                if response.ok:
+                    if topic not in _topic_to_uuid.keys():
+                        _topic_to_uuid[item_uuid] = topic
+
+                    self.report_published(item)
+                else:
+                    _log.error('Invalid response from server for {}'
+                               .format(jsonapi.dumps(pub)))
+
         def historian_setup(self):
             #reset paths in case we ever use this to dynamically switch Archivers
-            self._path_uuids = {}
+            self._topic_to_uuid = {}
             # Fetch existing paths
             source = _config["source"]
             archiver_url = _config["archiver_url"]
             payload = ('select uuid where Metadata/SourceName="{source}"'.format(source=source))
-            
+
             r = requests.post("{url}/backend/api/query".format(url=archiver_url), data=payload)
             print(r)
             print(r.text)
-            
+
             # get dictionary of response
             response = jsonapi.loads(r.text)
             for path in response:
-                 self._path_uuids[path["Path"]] = path["uuid"]
-                 
-                 
+                 self._topic_to_uuid[path["Path"]] = path["uuid"]
+
+
             # get list of topics
             # if topic elements to be pushed are in the topics list, we're good
             # else, we need to create the missing path elements and assign uuids
-             
-            
+
+
 
 #[{"Path": "/thing/stuff", "uuid": "f785849c-e3bf-11e4-afe2-080027b06a49"}, {"Path": "/sensor0", "uuid": "a9e2aec8-e3be-11e4-afe2-080027b06a49"}]
 
 
 #             self.topics={}
-#             self.conn = sqlite3.connect('data.sqlite', 
+#             self.conn = sqlite3.connect('data.sqlite',
 #                                          detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
-#         
+#
 #             c = self.conn.cursor()
 #             c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='data';")
-#             
+#
 #             if c.fetchone() is None:
-#                 self.conn.execute('''CREATE TABLE data 
+#                 self.conn.execute('''CREATE TABLE data
 #                                     (ts timestamp NOT NULL,
-#                                      topic_id INTEGER NOT NULL, 
-#                                      value_string TEXT NOT NULL, 
+#                                      topic_id INTEGER NOT NULL,
+#                                      value_string TEXT NOT NULL,
 #                                      UNIQUE(ts, topic_id))''')
-#             
-#             
+#
+#
 #             c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='topics';")
-#         
-#             if c.fetchone() is None:   
-#                 self.conn.execute('''CREATE TABLE topics 
-#                                             (topic_id INTEGER PRIMARY KEY, 
+#
+#             if c.fetchone() is None:
+#                 self.conn.execute('''CREATE TABLE topics
+#                                             (topic_id INTEGER PRIMARY KEY,
 #                                              topic_name TEXT NOT NULL,
 #                                              UNIQUE(topic_name))''')
-#                 
+#
 #             else:
 #                 c.execute("SELECT * FROM topics")
 #                 for row in c:
 #                     self.topics[row[1]] = row[0]
-#         
+#
 #             c.close()
 #             self.conn.commit()
-        
+
     Agent.__name__ = 'SMAPHistorianAgent'
     return Agent(**kwargs)
-            
-    
-    
+
+
+
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
     try:
