@@ -89,7 +89,7 @@ class Application(AbstractDrivenAgent):
     sat_stpt_priority = ''
 
     def __init__(self, no_required_data=1, data_window=1,
-                 warm_up_time=0, duct_stc_retuning=0.15,
+                 warm_up_time=30, duct_stc_retuning=0.15,
                  max_duct_stp_stpt=2.5, high_supply_fan_threshold=100.0,
                  zone_high_damper_threshold=90.0,
                  zone_low_damper_threshold=10.0, min_duct_stp_stpt=0.5,
@@ -126,7 +126,7 @@ class Application(AbstractDrivenAgent):
         self.pre_msg7 = ('Missing required data for diagnostic: '
                          'SAT set point.')
         # Point names (Configurable)
-        Application.analysis = kwargs['device']['analysis']
+        Application.analysis = kwargs['device']['analysis_name']
         self.fan_status_name = kwargs['fan_status']
         self.duct_stp_stpt_name = kwargs['duct_stp_stpt']
         self.duct_stp_name = kwargs['duct_stp']
@@ -756,6 +756,13 @@ class DuctStaticRcx(object):
                 diagnostic_result.insert_table_row(Application.analysis,
                                                    dx_table)
                 diagnostic_result.log(diagnostic_message, logging.INFO)
+            if (self.timestamp[-1] - self.timestamp[0] >
+                    datetime.timedelta(minutes=480)):
+                diagnostic_result.insert_table_row(Application.analysis,
+                                                   {DUCT_STC_RCx1 + dx: 16.2})
+                diagnostic_result.insert_table_row(Application.analysis,
+                                                   {DUCT_STC_RCx2 + dx: 26.2})
+                return diagnostic_result
             diagnostic_result = self.low_ductstatic_pr(diagnostic_result,
                                                        static_override_check)
             diagnostic_result = self.high_ductstatic_pr(diagnostic_result,
@@ -1061,6 +1068,13 @@ class SupplyTempRcx(object):
                 }
             diagnostic_result.insert_table_row(Application.analysis, dx_table)
             diagnostic_result.log(diagnostic_message, logging.INFO)
+            if (self.timestamp[-1] - self.timestamp[0] >
+                    datetime.timedelta(minutes=480)):
+                diagnostic_result.insert_table_row(Application.analysis,
+                                                   {SA_TEMP_RCx1 + dx: 46.2})
+                diagnostic_result.insert_table_row(Application.analysis,
+                                                   {SA_TEMP_RCx2 + dx: 56.2})
+                return diagnostic_result
             diagnostic_result = self.low_sat(diagnostic_result,
                                              avg_sat_stpt,
                                              sat_override_check)
