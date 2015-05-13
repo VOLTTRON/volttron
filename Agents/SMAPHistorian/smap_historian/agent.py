@@ -87,8 +87,8 @@ def SMAPHistorianAgent(config_path, **kwargs):
     they could create duplicates. This agent maintains a local understanding of
     topic in sMAP and will not know that another historian added a topic.
     If another historian creates: "campus/building/device/point1" that point
-    will not be in the local dictionary and this agent will create it with another
-    uuid.
+    will not be in the local dictionary and this agent will create it with
+    another uuid.
     '''
     _config = utils.load_config(config_path)
     _backend_url = '{}/backend'.format(_config['archiver_url'])
@@ -211,14 +211,17 @@ def SMAPHistorianAgent(config_path, **kwargs):
                            .format(jsonapi.dumps(publish)))
 
         def historian_setup(self):
-            #reset paths in case we ever use this to dynamically switch Archivers
+            # reset paths in case we ever use this to dynamically switch
+            # Archivers
             self._topic_to_uuid = {}
             # Fetch existing paths
             source = _config["source"]
             archiver_url = _config["archiver_url"]
-            payload = ('select uuid where Metadata/SourceName="{source}"'.format(source=source))
+            payload = ('select uuid where Metadata/SourceName="{source}"'
+                       .format(source=source))
 
-            r = requests.post("{url}/backend/api/query".format(url=archiver_url), data=payload)
+            r = requests.post("{url}/backend/api/query"
+                              .format(url=archiver_url), data=payload)
 
             # get dictionary of response
             response = jsonapi.loads(r.text)
@@ -233,7 +236,8 @@ def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
     try:
         utils.default_main(SMAPHistorianAgent,
-                           description='Historian agent that saves a history to an SMAP Archiver.',
+                           description='Historian agent that saves a history '\
+                                        'to an SMAP Archiver.',
                            argv=argv)
     except Exception as e:
         _log.error(e)
