@@ -242,9 +242,6 @@ class Router(vip.BaseRouter):
             if sender == b'control' and not user_id:
                 raise KeyboardInterrupt()
 
-        control = gevent.spawn(ControlService(
-            opts.aip, vip_address='inproc://vip', vip_identity='control').run)
-
 
 class PubSubService(vipagent.VIPAgent, vipagent.RPCMixin, vipagent.PubSubMixin):
     @vipagent.onevent('start')
