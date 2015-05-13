@@ -187,6 +187,7 @@ class VIPAgent(object):
             vip_address = os.environ.get(
                 'VOLTTRON_VIP_ADDR', default_vip_address())
         self.context = context or zmq.Context.instance()
+        self.my_context = zmq.Context()
         self.vip_address = vip_address
         self.vip_identity = vip_identity
         self.local = gevent.local.local()
@@ -451,7 +452,7 @@ class ChannelMixin(object):
     @onevent('setup')
     def setup_channel_subsystem(self):
         # pylint: disable=attribute-defined-outside-init
-        self._channel_socket = self.context.socket(zmq.ROUTER)
+        self._channel_socket = self.my_context.socket(zmq.ROUTER)
 
     @onevent('connect')
     def connect_channel_subsystem(self):
@@ -499,7 +500,7 @@ class ChannelMixin(object):
         self._channel_socket.send_multipart(frames, copy=False)
 
     def channel_create(self, peer, name):
-        socket = self.context.socket(zmq.DEALER)
+        socket = self.my_context.socket(zmq.DEALER)
         # XXX: Creating the identity this way is potentially problematic
         # because the peer name and identity can both be no longer than
         # 255 characters. Explore alternate solutions or limit names.
