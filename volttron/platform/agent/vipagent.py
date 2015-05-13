@@ -519,6 +519,13 @@ class PubSubMixin(object):
         self._pubsub_subscriptions = {}
         self._pubsub_synchronizing = 0
 
+    def pubsub_add_bus(self, name):
+        self._pubsub_peer_subscriptions.setdefault(name, {})
+
+    def pubsub_remove_bus(self, name):
+        subscriptions = self._pubsub_peer_subscriptions.pop(name, {})
+        # XXX: notify subscribers of removed bus
+
     @export('pubsub.subscribe')
     def pubsub_peer_subscribe(self, prefix, bus=''):
         peer = bytes(self.local.vip_message.peer)
@@ -554,7 +561,7 @@ class PubSubMixin(object):
                         subscriptions.pop(prefix, None)
 
     @export('pubsub.list')
-    def pubsub_peer_list(self, prefix='', bus=None,
+    def pubsub_peer_list(self, prefix='', bus='',
                          subscribed=True, reverse=False):
         peer = bytes(self.local.vip_message.peer)
         if bus is None:
@@ -567,7 +574,7 @@ class PubSubMixin(object):
             test = lambda t: t.startswith(prefix)
         results = []
         for _, subscriptions in buses:
-            for topic, subscribers in subscriptions:
+            for topic, subscribers in subscriptions.iteritems():
                 if test(topic):
                     member = peer in subscribers
                     if not subscribed or member:
@@ -596,19 +603,20 @@ class PubSubMixin(object):
         return len(subscribers)
 
     @export('pubsub.push')
-    def pubsub_peer_push(self, peer, bus, topic, headers, message):
+    def pubsub_peer_push(self, sender, bus, topic, headers, message):
         '''Handle incoming subscriptions from peers.'''
-        handled = False
+        peer = bytes(self.local.vip_message.peer)
+        handled = 0
         try:
             subscriptions = self._pubsub_subscriptions[(peer, bus)]
         except KeyError:
             pass
         else:
-            for prefix, callbacks in self.subscriptions.iteritems():
+            for prefix, callbacks in subscriptions.iteritems():
                 if topic.startswith(prefix):
-                    handled = True
+                    handled += 1
                     for callback in callbacks:
-                        callback(peer, bus, topic, headers, message)
+                        callback(peer, sender, bus, topic, headers, message)
         if not handled:
             self.pubsub_synchronize(peer)
 
@@ -647,11 +655,11 @@ class PubSubMixin(object):
                             del unsubscribe[bus]
             if unsubscribe:
                 self.rpc_batch(
-                    peer, ((True, 'pubsub.unsubscribe', (topics, bus), None)
+                    peer, ((True, 'pubsub.unsubscribe', (list(topics), bus), None)
                            for bus, topics in unsubscribe.iteritems()))
             if subscribe:
                 self.rpc_batch(
-                    peer, ((True, 'pubsub.subscribe', (topics, bus), None)
+                    peer, ((True, 'pubsub.subscribe', (list(topics), bus), None)
                            for bus, topics in subscribe.iteritems()))
         finally:
             self._pubsub_synchronizing -= 1
@@ -696,6 +704,7 @@ class PubSubMixin(object):
             else:
                 subscriptions = self._pubsub_subscriptions[(peer, bus)]
                 topics = []
+                remove = []
                 for topic, callbacks in subscriptions.iteritems():
                     try:
                         callbacks.remove(callback)
@@ -703,6 +712,10 @@ class PubSubMixin(object):
                         pass
                     else:
                         topics.append(topic)
+                    if not callbacks:
+                        remove.append(topic)
+                for topic in remove:
+                    del subscriptions[topic]
         else:
             subscriptions = self._pubsub_subscriptions[(peer, bus)]
             if callback is None:
@@ -712,14 +725,28 @@ class PubSubMixin(object):
                 callbacks.discard(callback)
                 if callbacks:
                     return
+                del subscriptions[prefix]
             topics = [prefix]
         self.rpc_call(peer, 'pubsub.unsubscribe',
                       topics, bus).get(timeout=timeout)
+
+
+    def pubsub_publish(self, topic, headers={},
+                       message=None, peer='pubsub', bus='', timeout=15):
+        '''Publish a message to a given topic via a peer.
+
+        Publish headers and message to all subscribers of topic on bus
+        at peer.
+        '''
+        return self.rpc_call(
+            peer, 'pubsub.publish',
+            {'topic': topic, 'headers': headers,
+             'message': message, 'bus': bus}).get(timeout=timeout)
 
 
 class RPCAgent(VIPAgent, RPCMixin):
     pass
 
 
-class BaseAgent(VIPAgent, RPCMixin, ChannelMixin):
+class BaseAgent(VIPAgent, RPCMixin, ChannelMixin, PubSubMixin):
     pass
