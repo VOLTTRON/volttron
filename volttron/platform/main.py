@@ -80,7 +80,7 @@ from . import __version__
 from . import config
 from . import vip
 from .control import ControlService
-from .agent import utils
+from .agent import utils, vipagent
 
 try:
     import volttron.restricted
@@ -242,6 +242,15 @@ class Router(vip.BaseRouter):
             if sender == b'control' and not user_id:
                 raise KeyboardInterrupt()
 
+        control = gevent.spawn(ControlService(
+            opts.aip, vip_address='inproc://vip', vip_identity='control').run)
+
+
+class PubSubService(vipagent.VIPAgent, vipagent.RPCMixin, vipagent.PubSubMixin):
+    @vipagent.onevent('start')
+    def setup_agent(self):
+        self.pubsub_add_bus('')
+
 
 def agent_exchange(in_addr, out_addr, logger_name=None):
     '''Agent message publish/subscribe exchange loop
@@ -367,7 +376,7 @@ def main(argv=sys.argv):
         help='ZeroMQ URL to bind for VIP connections')
 
     # XXX: re-implement control options
-    #control = parser.add_argument_group('control options')
+    #on
     #control.add_argument(
     #    '--allow-root', action='store_true', inverse='--no-allow-root',
     #    help='allow root to connect to control socket')
@@ -518,6 +527,8 @@ def main(argv=sys.argv):
             agent_exchange, opts.publish_address, opts.subscribe_address)
         control = gevent.spawn(ControlService(
             opts.aip, vip_address='inproc://vip', vip_identity='control').run)
+        pubsub = gevent.spawn(PubSubService(
+            vip_address='inproc://vip', vip_identity='pubsub').run)
         if HAVE_RESTRICTED and opts.mobility:
             address = (opts.mobility_address, opts.mobility_port)
             mobility_in = comms_server.ThreadedServer(
@@ -532,6 +543,7 @@ def main(argv=sys.argv):
             router.run()
         finally:
             control.kill()
+            pubsub.kill()
             exchange.kill()
     finally:
         opts.aip.finish()
