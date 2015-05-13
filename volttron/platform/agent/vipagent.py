@@ -443,7 +443,7 @@ class RPCMixin(object):
         self.vip_socket.send_vip(peer, 'RPC', [request], msg_id=str(id(result)))
         return result
 
-    def rpc_notify(self, peer, method, args, kwargs):
+    def rpc_notify(self, peer, method, args=None, kwargs=None):
         request = self._rpc_dispatcher.notify(method, args, kwargs)
         self.vip_socket.send_vip(peer, 'RPC', [request])
 
