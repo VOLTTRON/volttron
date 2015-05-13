@@ -1,6 +1,6 @@
 {
     "agentid": "airside_rcx",
-    "application": "airside_retuning_rcx.Application",
+    "application": "airside.airside_retuning_rcx.Application",
     "device": {
         "campus": "campus",
         "building": "building",

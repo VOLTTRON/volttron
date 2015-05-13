@@ -1,6 +1,6 @@
 {
-
-    "agentid": "platform_manager",
+    "agentid": "volttron central",
+    "vip_identity": "volttron.central",
     "server" : {
         "host": "127.0.0.1",
         "port": 8080

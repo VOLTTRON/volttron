@@ -157,6 +157,20 @@ def default_main(agent_class, description=None, argv=sys.argv,
             # get garbage collected and close the underlying descriptor.
             stdout = sys.stdout
             sys.stdout = os.fdopen(stdout.fileno(), 'w', 1)
+        # new vip agents do not need the pub sub socket to be defined in order
+        # them to operate.  Passing the kwarg of no_pub_sub_socket=True to the
+        # function will disable the setting up of a pub sub socket for this
+        # agent.
+        pub_sub_socket_enabled = True
+        if 'no_pub_sub_socket' in kwargs:
+            pub_sub_socket_enabled = not kwargs.pop('no_pub_sub_socket')
+
+        if not pub_sub_socket_enabled:
+            config = os.environ.get('AGENT_CONFIG')
+            agent = agent_class(config_path=config, **kwargs)
+            agent.run()
+            return
+
         try:
             sub_addr = os.environ['AGENT_SUB_ADDR']
             pub_addr = os.environ['AGENT_PUB_ADDR']

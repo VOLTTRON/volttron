@@ -58,7 +58,7 @@ class SessionHandler:
         '''
         groups = self._authenticator.authenticate(username, password)
         if groups:
-            token = uuid.uuid4()
+            token = str(uuid.uuid4())
             self._add_session(username, token, ip, ",".join(groups))
             return token
         return None
@@ -71,7 +71,7 @@ class SessionHandler:
 
     def check_session(self, token, ip):
         '''Check if a user token has been authenticated.'''
-        session = self._session_tokens.get(uuid.UUID(token))
+        session = self._session_tokens.get(str(token))
         if session:
             return session['ip'] == ip
 
@@ -244,6 +244,8 @@ class ManagerRequestHandler(tornado.web.RequestHandler):
                            .format(rpcRequest.id, rpcRequest.method,
                                    rpcRequest.params))
                 async_caller = self.application.manager.async_caller
+                # call to the agent route request to send to the correct
+                # platform
                 async_caller.send(self._response_complete,
                                   self.application.manager.route_request,
                                   rpcRequest.id, rpcRequest.method,
@@ -255,8 +257,26 @@ class ManagerRequestHandler(tornado.web.RequestHandler):
             if isinstance(data[0], RpcResponse):
                 self.write(data[0].get_response())
             else:
-                self.write("Error: "+str(data[0][0])
-                           + " message: "+str(data[0][1]))
+                resp = None
+                if isinstance(data[0], Exception):
+                    if isinstance(data[0], NameError):
+                        resp = RpcResponse(id=self.rpcrequest.id,
+                                           code=METHOD_NOT_FOUND,
+                                           message=data[0].msg)
+                if not resp:
+                    resp = RpcResponse(id=self.rpcrequest.id,
+                                       code=UNHANDLED_EXCEPTION,
+                                       message=str(data[0][1]))
+                print("Writing: "+str(resp.get_response()))
+                self.write(resp.get_response())
+
+#                 else:
+# #                 resp = RpcResponse(code=UNHANDLED_EXCEPTION,
+# #                                    message=str(data[0][1]))
+#                     print(self.write("Error: "+str(data[0][0])
+#                                + " message: "+str(data[0][1])))
+#                     self.write("Error: "+str(data[0][0])
+#                                + " message: "+str(data[0][1]))
         else:
             if isinstance(data[1], RpcResponse):
                 self.write(data[1].get_response())

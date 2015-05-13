@@ -1,10 +1,10 @@
 {
     "agentid": "airside_rcx",
-    "application": "airside_retuning_rcx.Application",
+    "application": "airside.airside_retuning_rcx.Application",
 
     "device": {
-        "campus": "campus1",
-        "building": "building1",
+        "campus": "campus",
+        "building": "building",
         "unit": {
             "rtu3": {
                 "subdevices": [
@@ -75,7 +75,6 @@
     "conversion_map": {
         ".*Temperature": "float",
         ".*SetPoint": "float",
-        "OutdoorDamperSignal": "float",
         "SupplyFanStatus": "int",
         "CoolingCall": "float",
         "SupplyFanSpeed": "int",
