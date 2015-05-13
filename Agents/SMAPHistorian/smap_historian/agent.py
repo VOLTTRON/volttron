@@ -69,7 +69,6 @@ from volttron.platform.agent.base_historian import BaseHistorianAgent
 from volttron.platform.agent import utils, matching
 from volttron.platform.messaging import topics, headers as headers_mod
 from zmq.utils import jsonapi
-import settings
 
 from smap import driver
 from smap.core import SmapException
@@ -93,13 +92,7 @@ def SMAPHistorianAgent(config_path, **kwargs):
     _config = utils.load_config(config_path)
     _backend_url = '{}/backend'.format(_config['archiver_url'])
     _add_url = '{backend_url}/add/{key}'.format(backend_url=_backend_url,
-                                                   key=_config.get('key'))
-
-    def dtt2timestamp(dtt):
-        ts = (dtt.hour * 60 + dtt.minute) * 60 + dtt.second
-        #if you want microseconds as well
-        ts += dtt.microsecond * 10**(-6)
-        return ts
+                                                key=_config.get('key'))
 
     class Agent(BaseHistorianAgent):
         '''This is a simple example of a historian agent that writes data
@@ -145,7 +138,7 @@ def SMAPHistorianAgent(config_path, **kwargs):
 
                 if meta['type'] not in ('float', 'double', 'bool', 'integer'):
                     _log.warn('Ignoring point due to invalid type: {}'
-                               .format(item))
+                              .format(item))
 
                     # Clear the bad point from the publish list so it doesn't
                     # stay around.
@@ -179,23 +172,18 @@ def SMAPHistorianAgent(config_path, **kwargs):
 
 
                 utc = item['timestamp']
-                tz = timezone(meta['tz'])
-                dt = utc.astimezone(tz)
+                mytz = timezone(meta['tz'])
+                mydt = utc.astimezone(mytz)
 
-                publish[topic] = {
-                                  'Metadata': meta,
-                                  'Properties': {
-                                    'Timezone': meta['tz'],
-                                    'UnitofMeasure': meta['units'],
-                                    'ReadingType': meta['type']
-                                  },
-                                  'Readings': [
-                                    [int(dt.strftime("%s000")),
-                                     item['value']]
-                                  ],
-                                'uuid': item_uuid
-                            }
-
+                publish[topic] = \
+                {'Metadata': meta,
+                 'Properties': {'Timezone': meta['tz'],
+                                'UnitofMeasure': meta['units'],
+                                'ReadingType': meta['type']
+                               },
+                 'Readings': [[int(mydt.strftime("%s000")), item['value']]],
+                 'uuid': item_uuid
+                }
 
             response = requests.post(_add_url, data=jsonapi.dumps(publish))
 
@@ -220,13 +208,13 @@ def SMAPHistorianAgent(config_path, **kwargs):
             payload = ('select uuid where Metadata/SourceName="{source}"'
                        .format(source=source))
 
-            r = requests.post("{url}/backend/api/query"
-                              .format(url=archiver_url), data=payload)
+            resp = requests.post("{url}/backend/api/query"
+                                 .format(url=archiver_url), data=payload)
 
             # get dictionary of response
-            response = jsonapi.loads(r.text)
+            response = jsonapi.loads(resp.text)
             for path in response:
-                 self._topic_to_uuid[path["Path"]] = path["uuid"]
+                self._topic_to_uuid[path["Path"]] = path["uuid"]
 
     Agent.__name__ = 'SMAPHistorianAgent'
     return Agent(**kwargs)
