@@ -78,7 +78,6 @@ from volttron.lint.zmq import PUB
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-from pprint import pprint
 
 
 def SMAPHistorianAgent(config_path, **kwargs):
@@ -143,7 +142,7 @@ def SMAPHistorianAgent(config_path, **kwargs):
                     topic = '/'+topic
 
                 meta = item['meta']
-                print (meta['type'])
+
                 if meta['type'] not in ('float', 'double', 'bool', 'integer'):
                     _log.warn('Ignoring point due to invalid type: {}'
                                .format(item))
@@ -153,6 +152,7 @@ def SMAPHistorianAgent(config_path, **kwargs):
                     self.report_published(item)
                     continue
 
+                # Auto convert bools to ints for smap.
                 if meta['type'] == 'bool':
                     item['value'] = int(item['value'])
                     meta['type'] = 'integer'
@@ -170,6 +170,13 @@ def SMAPHistorianAgent(config_path, **kwargs):
                     meta['OldSourceName'] = meta['SourceName']
 
                 meta['SourceName'] = _config['source']
+
+                if 'timestamp' not in item or 'tz' not in item:
+                    _log.error('Invalid timestamp specified for item: {}'
+                               .format(item))
+                    self.report_published(item)
+                    continue
+
 
                 utc = item['timestamp']
                 tz = timezone(meta['tz'])
@@ -195,13 +202,13 @@ def SMAPHistorianAgent(config_path, **kwargs):
             if response.ok:
                 for topic in publish.keys():
                     if topic not in self._topic_to_uuid.keys():
-                        print('Adding new topic: {}'.format(topic))
+                        _log.info('Adding new topic: {}'.format(topic))
                         self._topic_to_uuid[topic] = publish[topic]['uuid']
 
                 self.report_all_published()
             else:
                 _log.error('Invalid response from server for {}'
-                           .format(jsonapi.dumps(pub)))
+                           .format(jsonapi.dumps(publish)))
 
         def historian_setup(self):
             #reset paths in case we ever use this to dynamically switch Archivers
@@ -212,58 +219,14 @@ def SMAPHistorianAgent(config_path, **kwargs):
             payload = ('select uuid where Metadata/SourceName="{source}"'.format(source=source))
 
             r = requests.post("{url}/backend/api/query".format(url=archiver_url), data=payload)
-            print(r)
-            print(r.text)
 
             # get dictionary of response
             response = jsonapi.loads(r.text)
             for path in response:
                  self._topic_to_uuid[path["Path"]] = path["uuid"]
 
-            pprint(self._topic_to_uuid)
-            # get list of topics
-            # if topic elements to be pushed are in the topics list, we're good
-            # else, we need to create the missing path elements and assign uuids
-
-
-
-#[{"Path": "/thing/stuff", "uuid": "f785849c-e3bf-11e4-afe2-080027b06a49"}, {"Path": "/sensor0", "uuid": "a9e2aec8-e3be-11e4-afe2-080027b06a49"}]
-
-
-#             self.topics={}
-#             self.conn = sqlite3.connect('data.sqlite',
-#                                          detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
-#
-#             c = self.conn.cursor()
-#             c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='data';")
-#
-#             if c.fetchone() is None:
-#                 self.conn.execute('''CREATE TABLE data
-#                                     (ts timestamp NOT NULL,
-#                                      topic_id INTEGER NOT NULL,
-#                                      value_string TEXT NOT NULL,
-#                                      UNIQUE(ts, topic_id))''')
-#
-#
-#             c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='topics';")
-#
-#             if c.fetchone() is None:
-#                 self.conn.execute('''CREATE TABLE topics
-#                                             (topic_id INTEGER PRIMARY KEY,
-#                                              topic_name TEXT NOT NULL,
-#                                              UNIQUE(topic_name))''')
-#
-#             else:
-#                 c.execute("SELECT * FROM topics")
-#                 for row in c:
-#                     self.topics[row[1]] = row[0]
-#
-#             c.close()
-#             self.conn.commit()
-
     Agent.__name__ = 'SMAPHistorianAgent'
     return Agent(**kwargs)
-
 
 
 def main(argv=sys.argv):
@@ -273,7 +236,7 @@ def main(argv=sys.argv):
                            description='Historian agent that saves a history to an SMAP Archiver.',
                            argv=argv)
     except Exception as e:
-        print e
+        _log.error(e)
         _log.exception('unhandled exception')
 
 
