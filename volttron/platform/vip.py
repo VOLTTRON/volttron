@@ -117,7 +117,9 @@ class Message(object):
     def __init__(self, **kwargs):
         self.__dict__ = kwargs
     def __repr__(self):
-        return '{0.__class__.__name__}(**{0.__dict__!r})'.format(self)
+        attrs = ', '.join('%r: %r' % (name, bytes(value)) for name, value in
+                          self.__dict__.iteritems())
+        return '%s(**{%s})' % (self.__class__.__name__, attrs)
 
 
 class Socket(zmq.Socket):
