@@ -9,16 +9,15 @@ platform agent can be configured with a hard coded value of the volttron
 central, or the volttron central platform can request to manage a specific
 platform agent.
 
-Required Configuration
+All configuration options for the platform agent are optional
+Optional Configuration
 -----------------------
 
 A volttron_central_vip_address should contain the vip_address location that
-the volttron central agent is running.
+the volttron central agent is running.  If specified the management of the
+platform will be static.
 
 "volttron_central_vip_address": "ipc://@/tmp/v1home/run/vip.socket"
-
-Optional Configuration
------------------------
 
 The volttron_central_vip_identity allows the customization of the volttron
 central identity from within the volttron central vip address.
