@@ -15,7 +15,7 @@
                     "FPT13135", "FPT13136", "FPT13137", "FPT13138", "FPT13139",
                     "FPT13140", "FPT13141", "FCU13146", "FCU13147", "FCU13148",
                     "FCU13149", "FCU13150", "FCU13151", "FCU13155", "FCU13156",
-                    "FCU13157", "FCU13158", "FCU13159", "VAV13211", "VAV13212",
+                    "FCU13157", "FCU13159", "VAV13211", "VAV13212",
                     "VAV13213", "VAV13214", "VAV13215", "VAV13216", "VAV13217",
                     "VAV13218", "VAV13219", "VAV13220", "VAV13221", "VAV13222",
                     "VAV13223", "VAV13224", "FPT13226", "FPT13227", "FPT13228",
@@ -28,7 +28,8 @@
                 ]
             }
         },
-        "analysis": "Airside_RCx"
+        "analysis_name": "Airside_RCx",
+        "pub_device": "rtu3"
     },
     "output_file": "./junk.csv",
     "mode": "PASSIVE",

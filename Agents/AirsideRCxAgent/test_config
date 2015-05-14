@@ -6,14 +6,18 @@
         "campus": "campus1",
         "building": "building1",
         "unit": {
-            "rtu1": {
+            "rtu4": {
+                "subdevices": []
+            },
+            "rtu5": {
                 "subdevices": [
                     "VAV13111", "VAV13112",
                     "FCU13258", "FCU13259"
                 ]
             }
         },
-        "analysis": "Airside_RCx"
+        "analysis_name": "Airside_RCx",
+        "pub_device": "rtu3"
     },
     "output_file": "./junk.csv",
     "mode": "PASSIVE",
@@ -27,8 +31,8 @@
         "fan_speedcmd": "supplyfanspeed",
         "sat_stpt": "dischargeairtemperaturesetpoint",
 
-        "data_window": 20,
-        "no_required_data": 15,
+        "data_window": 1,
+        "no_required_data": 1,
         "max_duct_stp_stpt": 2.5,
         "high_supply_fan_threshold": 100.0,
         "zone_high_damper_threshold": 90.0,

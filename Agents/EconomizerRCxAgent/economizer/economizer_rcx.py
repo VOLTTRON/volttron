@@ -102,7 +102,7 @@ class Application(AbstractDrivenAgent):
                  **kwargs):
         # initialize user configurable parameters.
         #super(Application, self).__init__(**kwargs)
-        Application.analysis = kwargs['device']['analysis']
+        Application.analysis = kwargs['device']['analysis_name']
         self.fan_status_name = kwargs['fan_status']
         self.oa_temp_name = kwargs['oa_temp']
         self.ra_temp_name = kwargs['ra_temp']
@@ -432,6 +432,7 @@ class Application(AbstractDrivenAgent):
 #                                                      current_time)
         for key, value in points.items():
             device_dict[key.lower()] = value
+        print device_dict
         fan_stat_check = False
         for key, value in device_dict.items():
             if key.startswith(self.fan_status_name):
@@ -482,7 +483,6 @@ class Application(AbstractDrivenAgent):
             elif (key.startswith(self.fan_speedcmd_name)
                   and value is not None):
                 fan_speedcmd_data.append(value)
-
         if not oatemp_data:
             Application.pre_requiste_messages.append(self.pre_msg3)
         if not ratemp_data:
