@@ -59,6 +59,7 @@ import csv
 from datetime import datetime, timedelta as td
 import logging
 import sys
+import time
 # import dateutil.parser
 
 from volttron.platform.agent import (AbstractDrivenAgent, BaseAgent,
@@ -82,6 +83,10 @@ def DrivenAgent(config_path, **kwargs):
     device = dict((key, config['device'][key])
                   for key in ['campus', 'building', 'unit'])
     subdevices = []
+    conv_map = config.get('conversion_map')
+    map_names = {}
+    for key, value in conv_map.items():
+        map_names[key.lower() if isinstance(key, str) else key] = value
     # this implies a sub-device listing
     if isinstance(device['unit'], dict):
         # Assumption that there will be only one entry in the dictionary.
@@ -176,6 +181,10 @@ def DrivenAgent(config_path, **kwargs):
                 return
             obj = jsonapi.loads(message[0])
             device_or_subdevice = topic.split('/')[-2]
+            if isinstance(device_or_subdevice, unicode):
+                device_or_subdevice = (
+                    device_or_subdevice.decode('utf-8').encode('ascii')
+                )
 
             def agg_subdevice():
                 sub_obj = {}
@@ -207,17 +216,19 @@ def DrivenAgent(config_path, **kwargs):
                         agg_subdevice()
                 else:
                     agg_subdevice()
-
             if self._should_run_now():
                 self._subdevice_values.update(deepcopy(self._device_values))
+                field_names = {}
+                for key, value in self._subdevice_values.items():
+                    field_names[key.lower() if isinstance(key, str) else key] = value
                 if not converter.initialized and \
                         config.get('conversion_map') is not None:
                     converter.setup_conversion_map(
-                        config.get('conversion_map'),
-                        self._subdevice_values.keys()
+                        map_names,
+                        field_names
                     )
-                self._subdevice_values = converter.process_row(
-                    self._subdevice_values)
+
+                self._subdevice_values = converter.process_row(field_names)
                 results = app_instance.run(datetime.now(),
                                            self._subdevice_values)
                 self.received_input_datetime = datetime.utcnow()
@@ -241,11 +252,14 @@ def DrivenAgent(config_path, **kwargs):
             _log.debug("MESSAGE: " + jsonapi.dumps(message[0]))
             _log.debug("TOPIC: " + topic)
             data = jsonapi.loads(message[0])
+            field_names = {}
+            for key, value in self.data.items():
+                field_names[key.lower() if isinstance(key, str) else key] = value
             if not converter.initialized and \
                     config.get('conversion_map') is not None:
-                converter.setup_conversion_map(config.get('conversion_map'),
-                                               data.keys())
-            data = converter.process_row(data)
+                converter.setup_conversion_map(map_names,
+                                               field_names)
+            data = converter.process_row(field_names)
             if len(self._required_subdevice_values) < 1:
                 self.received_input_datetime = datetime.utcnow()
                 results = app_instance.run(datetime.now(), data)
@@ -296,9 +310,18 @@ def DrivenAgent(config_path, **kwargs):
                         for key, value in r.iteritems():
                             if isinstance(value, bool):
                                 value = int(value)
-                            topic = topics.ANALYSIS_VALUE(point=key,
-                                                          **_analysis)
-                            self.publish_json(topic, headers, value)
+                            analysis_topic = topics.ANALYSIS_VALUE(point=key,
+                                                                   **_analysis)
+                            mytime = int(time.time())
+                            content = {
+                                analysis_topic: {
+                                    "Readings": [[mytime, value]],
+                                    "Units": "TU",
+                                    "data_type": "double"
+                                }
+                            }
+                            self.publish_json(topics.LOGGER_LOG, headers,
+                                              content)
             if results.commands and mode:
                 self.commands = results.commands
                 if self.keys is None:

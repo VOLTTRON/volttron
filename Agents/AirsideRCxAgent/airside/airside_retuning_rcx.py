@@ -88,27 +88,29 @@ class Application(AbstractDrivenAgent):
     ahu_ccoil_priority = ''
     sat_stpt_priority = ''
 
-    def __init__(self, no_required_data=1, data_window=1,
-                 warm_up_time=30, duct_stc_retuning=0.15,
-                 max_duct_stp_stpt=2.5, high_supply_fan_threshold=100.0,
-                 zone_high_damper_threshold=90.0,
-                 zone_low_damper_threshold=10.0, min_duct_stp_stpt=0.5,
-                 hdzone_damper_threshold=30.0, low_supply_fan_threshold=20.0,
-                 setpoint_allowable_deviation=10.0, stpr_reset_threshold=0.25,
-                 percent_reheat_threshold=25.0, rht_on_threshold=10.0,
-                 sat_reset_threshold=5.0, sat_high_damper_threshold=80.0,
-                 percent_damper_threshold=50.0,
-                 minimum_sat_stpt=50.0, sat_retuning=1.0,
-                 reheat_valve_threshold=50.0, maximum_sat_stpt=75.0,
-                 unocc_time_threshold=30.0, unocc_stp_threshold=0.2,
-                 monday_sch='6:30;18:30', tuesday_sch='6:30;18:30',
-                 wednesday_sch='6:30;18:30', thursday_sch='6:30;18:30',
-                 friday_sch='6:30;18:30', saturday_sch='0:00;0:00',
-                 sunday_sch='0:00;0:00', **kwargs):
+    def __init__(
+            self, no_required_data=20, data_window=30, warm_up_time=30,
+            duct_stc_retuning=0.15, max_duct_stp_stpt=2.5,
+            high_supply_fan_threshold=100.0, zone_high_damper_threshold=90.0,
+            zone_low_damper_threshold=10.0, min_duct_stp_stpt=0.5,
+            hdzone_damper_threshold=30.0, low_supply_fan_threshold=20.0,
+            setpoint_allowable_deviation=10.0, stpr_reset_threshold=0.25,
+
+            percent_reheat_threshold=25.0, rht_on_threshold=10.0,
+            sat_reset_threshold=5.0, sat_high_damper_threshold=80.0,
+            percent_damper_threshold=50.0, minimum_sat_stpt=50.0,
+            sat_retuning=1.0, reheat_valve_threshold=50.0,
+            maximum_sat_stpt=75.0,
+
+            unocc_time_threshold=30.0, unocc_stp_threshold=0.2,
+            monday_sch='6:30;18:30', tuesday_sch='6:30;18:30',
+            wednesday_sch='6:30;18:30', thursday_sch='6:30;18:30',
+            friday_sch='6:30;18:30', saturday_sch='0:00;0:00',
+            sunday_sch='0:00;0:00', **kwargs):
         # super().__init__(*args, **kwargs)
         Application.pre_requiste_messages = []
         Application.pre_msg_time = []
-        no_required_data = int(no_required_data)
+
         # Pre-requisite messages
         self.pre_msg0 = ('Fan Status is not available, '
                          'could not verify system is ON.')
@@ -125,27 +127,26 @@ class Application(AbstractDrivenAgent):
                          'terminal-box reheat-valve-positions (all zones).')
         self.pre_msg7 = ('Missing required data for diagnostic: '
                          'SAT set point.')
-        # Point names (Configurable)
-        Application.analysis = kwargs['device']['analysis_name']
-        self.fan_status_name = kwargs['fan_status']
-        self.duct_stp_stpt_name = kwargs['duct_stp_stpt']
-        self.duct_stp_name = kwargs['duct_stp']
-        self.sa_temp_name = kwargs['sa_temp']
-        self.sat_stpt_name = kwargs['sat_stpt']
 
+        # Point names (Configurable)
         def get_or_none(name):
             value = kwargs.get(name, None)
             if value:
                 value = value.lower()
             return value
 
+        Application.analysis = kwargs['device']['analysis_name']
+        self.fan_status_name = kwargs['fan_status']
+        self.duct_stp_stpt_name = kwargs['duct_stp_stpt']
+        self.duct_stp_name = kwargs['duct_stp']
+        self.sa_temp_name = kwargs['sa_temp']
+        self.sat_stpt_name = kwargs['sat_stpt']
         self.fan_speedcmd_name = get_or_none('fan_speedcmd')
-
         Application.sat_stpt_cname = self.sat_stpt_name
         Application.duct_stp_stpt_cname = self.duct_stp_stpt_name
+
         # Optional points
         self.override_state = 'AUTO'
-
         self.fan_speedcmd_priority = get_or_none('fan_speedcmd_priority')
         self.duct_stp_stpt_priority = get_or_none('duct_stp_stpt_priority')
         self.ahu_ccoil_priority = get_or_none('ahu_ccoil_priority')
@@ -157,6 +158,7 @@ class Application(AbstractDrivenAgent):
 
         # Application thresholds (Configurable)
         self.data_window = float(data_window)
+        no_required_data = int(no_required_data)
         self.low_supply_fan_threshold = float(low_supply_fan_threshold)
         self.high_supply_fan_threshold = float(high_supply_fan_threshold)
         self.warm_up_flag = None
@@ -492,7 +494,7 @@ class Application(AbstractDrivenAgent):
 
     def run(self, current_time, points):
         '''Check application pre-quisites and assemble analysis data set.
-        Receives mapped data from the DrivenBaseClass.  Filters non-relevent
+        Receives mapped data from the DrivenBaseClass. Filters non-relevent
         data and assembles analysis data set for diagnostics.
         '''
         device_dict = {}
@@ -664,10 +666,12 @@ class DuctStaticRcx(object):
                  zone_high_damper_threshold,
                  zone_low_damper_threshold,
                  hdzone_damper_threshold, min_duct_stp_stpt):
+        # Initialize data lists
         self.zone_damper_values = []
         self.duct_stp_stpt_values = []
         self.duct_stp_values = []
         self.timestamp = []
+        # Initialize configurable thresholds
         self.data_window = float(data_window)
         self.no_required_data = no_required_data
         self.setpoint_allowable_deviation = float(setpoint_allowable_deviation)
