@@ -10,8 +10,9 @@ central, or the volttron central platform can request to manage a specific
 platform agent.
 
 All configuration options for the platform agent are optional
-Optional Configuration
------------------------
+
+Configuration
+-------------
 
 A volttron_central_vip_address should contain the vip_address location that
 the volttron central agent is running.  If specified the management of the
