@@ -73,7 +73,6 @@ from zmq.utils import jsonapi
 from smap import driver
 from smap.core import SmapException
 from smap.util import periodicSequentialCall
-from volttron.lint.zmq import PUB
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
