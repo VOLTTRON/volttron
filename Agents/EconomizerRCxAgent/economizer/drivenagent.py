@@ -59,6 +59,8 @@ import csv
 from datetime import datetime, timedelta as td
 import logging
 import sys
+import time
+from copy import deepcopy
 
 from volttron.platform.agent import (AbstractDrivenAgent, BaseAgent,
                                      ConversionMapper, PublishMixin,
@@ -78,6 +80,9 @@ def DrivenAgent(config_path, **kwargs):
     validation_error = ''
     device = dict((key, config['device'][key])
                   for key in ['campus', 'building', 'unit'])
+    _analysis = deepcopy(device)
+    _analysis.update(
+        {'analysis_name': config.get('analysis_name', 'analysis_name')})
     agent_id = config.get('agentid')
     if not device:
         validation_error += 'Invalid agent_id specified in config\n'
@@ -182,9 +187,19 @@ def DrivenAgent(config_path, **kwargs):
                         for key, value in r.iteritems():
                             if isinstance(value, bool):
                                 value = int(value)
-                            topic = topics.ANALYSIS_VALUE(point=key, **config['device']) #.replace('{analysis}', key)
-                            #print "publishing {}->{}".format(topic, value)
-                            self.publish_json(topic, headers, value)
+                            print _analysis
+                            analysis_topic = topics.ANALYSIS_VALUE(point=key,
+                                                                   **_analysis)
+                            mytime = int(time.time())
+                            content = {
+                                analysis_topic: {
+                                    "Readings": [[mytime, value]],
+                                    "Units": "TU",
+                                    "data_type": "double"
+                                }
+                            }
+                            self.publish_json(topics.LOGGER_LOG, headers,
+                                              content)
             if results.commands and mode:
                 self.commands = results.commands
                 if self.keys is None:

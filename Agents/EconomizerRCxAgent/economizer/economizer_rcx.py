@@ -483,7 +483,6 @@ class Application(AbstractDrivenAgent):
             elif (key.startswith(self.fan_speedcmd_name)
                   and value is not None):
                 fan_speedcmd_data.append(value)
-        
         if not oatemp_data:
             Application.pre_requiste_messages.append(self.pre_msg3)
         if not ratemp_data:
