@@ -31,7 +31,7 @@
                 ]
             }
         },
-        "analysis_name": "Airside_RCx"
+        "analysis_name": "Airside_RCx",
         "pub_device": "rtu5"
     },
 
