@@ -6,7 +6,7 @@
         "campus": "campus",
         "building": "building",
         "unit": "rtu5",
-        "analysis": "Economizer_RCx"
+        "analysis_name": "Economizer_RCx"
     },
 
     "output_file": "./junk.csv",
