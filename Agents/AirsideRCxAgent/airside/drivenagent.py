@@ -172,7 +172,7 @@ def DrivenAgent(config_path, **kwargs):
 
             return not len(self._needed_subdevices) > 0
 
-        @matching.match_regex(("devices/{campus}/{building}/" + dev_unit + "/.*all").format(**device))
+        @matching.match_regex(("devices/{campus}/{building}/" + dev_unit + "/*/all").format(**device))
         def on_rec_analysis_message(self, topic, headers, message, matched):
             # Do the analysis based upon the data passed (the old code).
             if not subdevices:
