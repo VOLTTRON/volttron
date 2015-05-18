@@ -60,6 +60,7 @@ from datetime import datetime, timedelta as td
 import logging
 import sys
 import time
+import re
 # import dateutil.parser
 
 from volttron.platform.agent import (AbstractDrivenAgent, BaseAgent,
@@ -81,28 +82,23 @@ def DrivenAgent(config_path, **kwargs):
     mode = True if config.get('mode', 'PASSIVE') == 'ACTIVE' else False
     validation_error = ''
     device = dict((key, config['device'][key])
-                  for key in ['campus', 'building', 'unit'])
+                  for key in ['campus', 'building'])
+    print device
     subdevices = []
     conv_map = config.get('conversion_map')
     map_names = {}
     for key, value in conv_map.items():
         map_names[key.lower() if isinstance(key, str) else key] = value
     # this implies a sub-device listing
-    if isinstance(device['unit'], dict):
+    multiple_dev = isinstance(config['device']['unit'], dict)
+    if multiple_dev:
         # Assumption that there will be only one entry in the dictionary.
-        units = device['unit'].keys()
-        dev_unit = ''
-        for item in units:
-            dev_unit = dev_unit + item + '|'
-            if 'subdevices' not in device['unit'][item]:
-                raise ValueError('subdevices required in config file')
-            subdevices.extend(device['unit'][item]['subdevices'])
-        dev_unit = dev_unit[:-1] if dev_unit[-1] == '|' else dev_unit
-    else:
-        dev_unit = device['unit']
+        units = config['device']['unit'].keys()
+    for item in units:
+        subdevices.extend(config['device']['unit'][item]['subdevices'])
         # modify the device dict so that unit is now pointing to unit_name
     agent_id = config.get('agentid')
-    device['unit'] = config.get('pub_device', units[0])
+    device.update({'unit': units})
     _analysis = deepcopy(device)
     _analysis_name = config.get('device').get('analysis_name', 'analysis_name')
     _analysis.update({'analysis_name': _analysis_name})
@@ -127,6 +123,10 @@ def DrivenAgent(config_path, **kwargs):
     config.update(config.get('arguments'))
     converter = ConversionMapper()
     output_file = config.get('output_file')
+    base_dev = "devices/{campus}/{building}/".format(**device)
+    devices_topic = (
+        base_dev + '({})(/.*)?/all$'
+        .format('|'.join(re.escape(p) for p in units)))
     klass = _get_class(application)
     # This instances is used to call the applications run method when
     # data comes in on the message bus.  It is constructed here
@@ -142,7 +142,6 @@ def DrivenAgent(config_path, **kwargs):
             self._update_event = None
             self._update_event_time = None
             self.keys = None
-            self._device_states = {}
             # master is where we copy from to get a poppable list of
             # subdevices that should be present before we run the analysis.
             self._master_subdevices = subdevices
@@ -172,11 +171,11 @@ def DrivenAgent(config_path, **kwargs):
 
             return not len(self._needed_subdevices) > 0
 
-        @matching.match_regex(("devices/{campus}/{building}/" + dev_unit + "/*/all").format(**device))
+        @matching.match_regex(devices_topic)
         def on_rec_analysis_message(self, topic, headers, message, matched):
             # Do the analysis based upon the data passed (the old code).
             if not subdevices:
-                self.on_received_message(self, topic, headers,
+                self.on_received_message(topic, headers,
                                          message, matched)
                 return
             obj = jsonapi.loads(message[0])
@@ -194,7 +193,6 @@ def DrivenAgent(config_path, **kwargs):
                 self._subdevice_values.update(sub_obj)
                 self._needed_subdevices.remove(device_or_subdevice)
                 return
-
             # The below if statement is used to distinguish between unit/all
             # and unit/sub-device/all
             if device_or_subdevice in units:
@@ -219,15 +217,14 @@ def DrivenAgent(config_path, **kwargs):
             if self._should_run_now():
                 self._subdevice_values.update(deepcopy(self._device_values))
                 field_names = {}
-                for key, value in self._subdevice_values.items():
-                    field_names[key.lower() if isinstance(key, str) else key] = value
+                for k, v in self._subdevice_values.items():
+                    field_names[k.lower() if isinstance(k, str) else k] = v
                 if not converter.initialized and \
                         config.get('conversion_map') is not None:
                     converter.setup_conversion_map(
                         map_names,
                         field_names
                     )
-
                 self._subdevice_values = converter.process_row(field_names)
                 results = app_instance.run(datetime.now(),
                                            self._subdevice_values)
@@ -253,14 +250,14 @@ def DrivenAgent(config_path, **kwargs):
             _log.debug("TOPIC: " + topic)
             data = jsonapi.loads(message[0])
             field_names = {}
-            for key, value in self.data.items():
-                field_names[key.lower() if isinstance(key, str) else key] = value
+            for k, v in data.items():
+                field_names[k.lower() if isinstance(k, str) else k] = v
             if not converter.initialized and \
                     config.get('conversion_map') is not None:
                 converter.setup_conversion_map(map_names,
                                                field_names)
             data = converter.process_row(field_names)
-            if len(self._required_subdevice_values) < 1:
+            if len(self._needed_subdevices) < 1:
                 self.received_input_datetime = datetime.utcnow()
                 results = app_instance.run(datetime.now(), data)
                 self._process_results(results)
@@ -310,18 +307,21 @@ def DrivenAgent(config_path, **kwargs):
                         for key, value in r.iteritems():
                             if isinstance(value, bool):
                                 value = int(value)
-                            analysis_topic = topics.ANALYSIS_VALUE(point=key,
-                                                                   **_analysis)
-                            mytime = int(time.time())
-                            content = {
-                                analysis_topic: {
-                                    "Readings": [[mytime, value]],
-                                    "Units": "TU",
-                                    "data_type": "double"
+                            for item in units:
+                                _analysis['unit'] = item
+                                print item
+                                analysis_topic = topics.ANALYSIS_VALUE(
+                                    point=key, **_analysis)
+                                mytime = int(time.time())
+                                content = {
+                                    analysis_topic: {
+                                        "Readings": [[mytime, value]],
+                                        "Units": "TU",
+                                        "data_type": "double"
+                                    }
                                 }
-                            }
-                            self.publish_json(topics.LOGGER_LOG, headers,
-                                              content)
+                                self.publish_json(topics.LOGGER_LOG, headers,
+                                                  content)
             if results.commands and mode:
                 self.commands = results.commands
                 if self.keys is None:
