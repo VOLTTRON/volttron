@@ -5,7 +5,11 @@
     "device": {
         "campus": "campus",
         "building": "building",
-        "unit": "rtu4",
+        "unit": {
+            "rtu4": {
+                "subdevices": []
+             }
+        },
         "analysis_name": "Economizer_RCx"
     },
 
