@@ -70,7 +70,7 @@ from volttron.platform.agent import utils
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
-def HelloAgent(config_path, **kwargs):
+def hello_agent(config_path, **kwargs):
 
 #     home = os.path.expanduser(os.path.expandvars(
 #                  os.environ.get('VOLTTRON_HOME', '~/.volttron')))
@@ -103,22 +103,14 @@ def HelloAgent(config_path, **kwargs):
 
 
 def main(argv=sys.argv):
+    '''Main method called to start the agent.'''
+    utils.setup_logging()
     try:
-        # If stdout is a pipe, re-open it line buffered
-        if utils.isapipe(sys.stdout):
-            # Hold a reference to the previous file object so it doesn't
-            # get garbage collected and close the underlying descriptor.
-            stdout = sys.stdout
-            sys.stdout = os.fdopen(stdout.fileno(), 'w', 1)
-        '''Main method called by the eggsecutable.'''
-#         utils.default_main(PlatformManagerAgent,
-#                            description='The managed server agent',
-#                            argv=argv)
-        config = os.environ.get('AGENT_CONFIG')
-        agent = HelloAgent(config_path=config)
-        agent.run()
-    except KeyboardInterrupt:
-        pass
+        utils.default_main(hello_agent,
+            description='Example hello agent for testing with Volttron Central',
+            argv=argv)
+    except Exception:
+        _log.exception('unhandled exception')
 
 
 if __name__ == '__main__':

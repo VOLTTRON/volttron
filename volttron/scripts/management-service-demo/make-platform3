@@ -5,12 +5,16 @@ if [ -z "$VOLTTRON_HOME" ]; then
   VOLTTRON_HOME=$V3_HOME
 fi
 
-WHEEL=$VOLTTRON_HOME/packaged/platformagentagent-0.1-py2-none-any.whl
+echo 'Making platform3'
+VOLTTRON_HOME=$VOLTTRON_HOME ../pack_install.sh ../../../Agents/PlatformAgent/ \
+./platform-config3 platformagent
 
-echo "making platform agent 3 wheel $WHEEL"
-VOLTTRON_HOME=$VOLTTRON_HOME volttron-pkg package ../../../Agents/PlatformAgent/
-VOLTTRON_HOME=$VOLTTRON_HOME volttron-pkg configure $WHEEL ./platform-config3
+#WHEEL=$VOLTTRON_HOME/packaged/platformagentagent-0.1-py2-none-any.whl
 
-VOLTTRON_HOME=$VOLTTRON_HOME volttron-ctl stop --tag platformagent
-VOLTTRON_HOME=$VOLTTRON_HOME volttron-ctl remove --tag platformagent
-VOLTTRON_HOME=$VOLTTRON_HOME volttron-ctl install platformagent=$WHEEL
+#echo "making platform agent 3 wheel $WHEEL"
+#VOLTTRON_HOME=$VOLTTRON_HOME volttron-pkg package ../../../Agents/PlatformAgent/
+#VOLTTRON_HOME=$VOLTTRON_HOME volttron-pkg configure $WHEEL ./platform-config3
+
+#VOLTTRON_HOME=$VOLTTRON_HOME volttron-ctl stop --tag platformagent
+#VOLTTRON_HOME=$VOLTTRON_HOME volttron-ctl remove --tag platformagent
+#VOLTTRON_HOME=$VOLTTRON_HOME volttron-ctl install platformagent=$WHEEL

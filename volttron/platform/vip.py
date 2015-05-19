@@ -65,6 +65,7 @@ specification.
 from __future__ import absolute_import, print_function
 
 from logging import CRITICAL, DEBUG, ERROR, WARNING
+import os
 
 # Import gevent-friendly version as vip.green
 if __name__.endswith('.green'):
@@ -94,24 +95,16 @@ _PONG = zmq.Frame(b'pong')
 _VERSION = zmq.Frame(b'1.0')
 _WELCOME = zmq.Frame(b'welcome')
 
-# Error code to message mapping
-ERRORS = {
-    30: 'Peer unknown',
-    31: 'Peer temporarily unavailable',
-    40: 'Bad request',
-    41: 'Unauthorized',
-    50: 'Internal error',
-    51: 'Not implemented',
-}
-
 # Again, optimizing by pre-creating frames
 _ROUTE_ERRORS = {
-    errnum: (zmq.Frame(str(code).encode('ascii')),
-             zmq.Frame(ERRORS[code].encode('ascii')))
-    for errnum, code in [(zmq.EHOSTUNREACH, 30), (zmq.EAGAIN, 31)]
+    errnum: (zmq.Frame(str(errnum).encode('ascii')),
+             zmq.Frame(os.strerror(errnum).encode('ascii')))
+    for errnum in [zmq.EHOSTUNREACH, zmq.EAGAIN]
 }
-_INVALID_SUBSYSTEM = (zmq.Frame(b'51'),
-                      zmq.Frame(ERRORS[51].encode('ascii')))
+_INVALID_SUBSYSTEM = (
+    zmq.Frame(str(zmq.EPROTONOSUPPORT).encode('ascii')),
+    zmq.Frame(os.strerror(zmq.EPROTONOSUPPORT).encode('ascii'))
+)
 
 
 class ProtocolError(Exception):
@@ -124,7 +117,9 @@ class Message(object):
     def __init__(self, **kwargs):
         self.__dict__ = kwargs
     def __repr__(self):
-        return '{0.__class__.__name__}(**{0.__dict__!r})'.format(self)
+        attrs = ', '.join('%r: %r' % (name, bytes(value)) for name, value in
+                          self.__dict__.iteritems())
+        return '%s(**{%s})' % (self.__class__.__name__, attrs)
 
 
 class Socket(zmq.Socket):
@@ -492,9 +487,9 @@ class BaseRouter(object):
             log(WARNING, 'missing user ID', frames)
             user_id = b''
 
+        subsystem = frames[5]
         if not recipient.bytes:
             # Handle requests directed at the router
-            subsystem = frames[5]
             name = subsystem.bytes
             if name == b'hello':
                 frames = [sender, recipient, proto, user_id, msg_id,
@@ -535,7 +530,7 @@ class BaseRouter(object):
             if sender is not frames[0]:
                 # Only send errors if the sender and recipient differ
                 frames = [sender, b'', proto, user_id, msg_id,
-                          _ERROR, errnum, errmsg, recipient]
+                          _ERROR, errnum, errmsg, recipient, subsystem]
                 try:
                     socket.send_multipart(frames, flags=NOBLOCK, copy=False)
                     log(DEBUG, 'outgoing error', frames)

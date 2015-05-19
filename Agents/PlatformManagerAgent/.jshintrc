@@ -1,5 +1,0 @@
-{
-    "browserify": true,
-    "latedef": "nofunc",
-    "unused": true
-}

@@ -1,6 +1,6 @@
 {
     "agentid": "economizerrcx",
-    "application": "economizer_rcx.Application",
+    "application": "economizer.economizer_rcx.Application",
 
     "device": {
         "campus": "campus",

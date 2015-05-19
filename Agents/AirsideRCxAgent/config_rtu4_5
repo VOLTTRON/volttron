@@ -1,6 +1,6 @@
 {
     "agentid": "airside_rcx",
-    "application": "airside_retuning_rcx.Application",
+    "application": "airside.airside_retuning_rcx.Application",
     "device": {
         "campus": "campus",
         "building": "building",
@@ -31,12 +31,13 @@
                 ]
             }
         },
-        "analysis": "Airside_RCx"
+        "analysis_name": "Airside_RCx",
+        "pub_device": "rtu5"
     },
 
     "output_file": "./junk.csv",
 
-    "mode": "ACTIVE",
+    "mode": "PASSIVE",
 
     "arguments": {
         "fan_status": "supplyfanstatus",
@@ -86,8 +87,8 @@
         "SupplyFanStatus": "int",
         "CoolingCall": "float",
         "SupplyFanSpeed": "int",
-        "ZoneDamper*.": "float",
-        "ZoneReheat*.": "float",
+        "Damper*.": "float",
+        "Heating*.": "float",
         "DuctStatic*.": "float"
 
     }

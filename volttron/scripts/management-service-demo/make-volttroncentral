@@ -1,0 +1,21 @@
+. demo-vars.sh
+
+if [ -z "$VOLTTRON_HOME" ]; then
+  echo "VOLTTRON_HOME UNSET setting to v1_home: $V1_HOME";
+  VOLTTRON_HOME=$V1_HOME
+fi
+
+echo 'Installing volttron central'
+VOLTTRON_HOME=$VOLTTRON_HOME ../pack_install.sh ../../../Agents/VolttronCentralAgent/ \
+./volttron-central-config volttroncentral
+
+#WHEEL=$VOLTTRON_HOME/packaged/volttroncentralagent-0.1-py2-none-any.whl
+
+#echo "building platform manager agent wheel"
+#VOLTTRON_HOME=$VOLTTRON_HOME volttron-pkg package ../../../Agents/VolttronCentralAgent/
+#VOLTTRON_HOME=$VOLTTRON_HOME volttron-pkg configure $WHEEL ./volttron-central-config
+
+#echo "installing wheel"
+#VOLTTRON_HOME=$VOLTTRON_HOME volttron-ctl stop --tag volttroncentral
+#VOLTTRON_HOME=$VOLTTRON_HOME volttron-ctl remove --tag volttroncentral
+#VOLTTRON_HOME=$VOLTTRON_HOME volttron-ctl install volttroncentral=$WHEEL

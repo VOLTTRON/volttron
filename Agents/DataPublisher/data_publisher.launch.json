@@ -1,0 +1,20 @@
+{    # basetopic can be devices, analysis, or custom base topic
+    "basetopic": "devices",
+    "publisherid": "PUBLISHER",
+
+    # Declare standard topic format that identifies campus, building,
+    # device (unit), and subdevices (subdevices are optional)
+    "campus": "campus1",
+    "building": "building1",
+    "unit": {
+            "rtu4": {
+                "subdevices": []
+            }
+        },
+    # If a custom topic is desired the entire topic must be configured.
+    # e.g., "custom_topic": 'custom/topic/configuration'
+    # "custom_topic":
+    "input_file": "./Agents/EconomizerRCxAgent/econ_test.csv",
+    # Publish interval in seconds
+    "publish_interval": 1
+}
