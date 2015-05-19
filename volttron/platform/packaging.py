@@ -53,8 +53,6 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-
-# pylint: disable=W0142,W0403
 #}}}
 
 '''Agent packaging and signing support.
@@ -163,7 +161,8 @@ def repackage(directory, dest=None):
     return pkg.repack(dest)
 
 
-def create_package(agent_package_dir, wheelhouse='/tmp/volttron_wheels'):
+#default_wheel_dir = os.environ['VOLTTRON_HOME']+'/packaged'
+def create_package(agent_package_dir, wheelhouse):
     '''Creates a packaged whl file from the passed agent_package_dir.
 
     If the passed directory doesn't exist or there isn't a setup.py file
@@ -209,7 +208,7 @@ def _create_initial_package(agent_dir_to_package, wheelhouse):
         wheel_name = os.listdir(distdir)[0]
         wheel_path = os.path.join(distdir, wheel_name)
         if not os.path.exists(wheelhouse):
-            os.makedirs(wheelhouse, 0750)
+            os.makedirs(wheelhouse, 0o750)
         wheel_dest = os.path.join(wheelhouse, wheel_name)
         shutil.move(wheel_path, wheel_dest)
         return wheel_dest
@@ -242,16 +241,16 @@ def _sign_agent_package(agent_package, **kwargs):
     cert_type = _cert_type_from_kwargs(**kwargs)
     files = _files_from_kwargs(**kwargs)
     certs_dir = kwargs.get('certs_dir', None)
-    
+
     certsobj = None
-    
+
     if certs_dir is not None:
         certsobj = certs.Certs(certs_dir)
 
-    if cert_type == 'soi':
+    if cert_type == 'admin':
         if files:
-            raise AgentPackageError("soi's aren't allowed to add files.")
-        verified = auth.sign_as_admin(agent_package, 'soi', certsobj = certsobj)
+            raise AgentPackageError("admin's aren't allowed to add files.")
+        verified = auth.sign_as_admin(agent_package, 'admin', certsobj = certsobj)
     elif cert_type == 'creator':
         verified = auth.sign_as_creator(agent_package, 'creator', files, certsobj = certsobj)
     elif cert_type == 'initiator':
@@ -271,11 +270,11 @@ def _sign_agent_package(agent_package, **kwargs):
 def _cert_type_from_kwargs(**kwargs):
     '''Return cert type string from kwargs values'''
 
-    for k in ('soi', 'creator', 'initiator', 'platform'):
+    for k in ('admin', 'creator', 'initiator', 'platform'):
         try:
             if k in kwargs['user_type'] and kwargs['user_type'][k]:
                 return k
-        except:
+        except LookupError:
             if k in kwargs and kwargs[k]:
                 return k
 
@@ -365,7 +364,9 @@ def main(argv=sys.argv):
 
     expandall = lambda string: os.path.expanduser(os.path.expandvars(string))
     home = expandall(os.environ.get('VOLTTRON_HOME', '~/.volttron'))
+
     os.environ['VOLTTRON_HOME'] = home
+    default_wheelhouse = os.environ['VOLTTRON_HOME']+'/packaged'
 
     # Setup option parser
     progname = os.path.basename(argv[0])
@@ -374,7 +375,7 @@ def main(argv=sys.argv):
         description='VOLTTRON packaging and signing utility',
     )
     parser.set_defaults(log_config=None)
-    
+
     parser.add_argument('-l', '--log', metavar='FILE', default=None,
         help='send log output to FILE instead of stderr')
     parser.add_argument('-L', '--log-config', metavar='FILE',
@@ -386,7 +387,7 @@ def main(argv=sys.argv):
     parser.add_argument('--verboseness', type=int, metavar='LEVEL',
         default=logging.WARNING,
         help='set logger verboseness')
-    
+
     subparsers = parser.add_subparsers(title = 'subcommands',
                                        description = 'valid subcommands',
                                        help = 'additional help',
@@ -396,6 +397,9 @@ def main(argv=sys.argv):
 
     package_parser.add_argument('agent_directory',
         help='Directory for packaging an agent for the first time (requires setup.py file).')
+    package_parser.add_argument('--dest',
+        help='Directory to place the wheel file')
+    package_parser.set_defaults(dest=default_wheelhouse)
 
     repackage_parser = subparsers.add_parser('repackage',
                                            help="Creates agent package from a currently installed agent.")
@@ -403,16 +407,16 @@ def main(argv=sys.argv):
         help='Directory where agent is installed')
     repackage_parser.add_argument('--dest',
         help='Directory to place the wheel file')
-    repackage_parser.set_defaults(dest=None)
-    
+    repackage_parser.set_defaults(dest=default_wheelhouse)
+
     config_parser = subparsers.add_parser('configure',
         help='add a configuration file to an agent package')
     config_parser.add_argument('package', metavar='PACKAGE',
             help='agent package to configure')
     config_parser.add_argument('config_file', metavar='CONFIG',
         help='configuration file to add to wheel.')
-    
-    
+
+
 
     if auth is not None:
         cert_dir = os.path.expanduser(DEFAULT_CERTS_DIR)
@@ -424,8 +428,8 @@ def main(argv=sys.argv):
         create_cert_opts = create_cert_cmd.add_mutually_exclusive_group(required=True)
         create_cert_opts.add_argument('--creator', action='store_true',
             help='create a creator cert')
-        create_cert_opts.add_argument('--soi', action='store_true',
-            help='create an soi administrator cert')
+        create_cert_opts.add_argument('--admin', action='store_true',
+            help='create an admin administrator cert')
         create_cert_opts.add_argument('--initiator', action='store_true',
             help='create an initiator cert')
         create_cert_opts.add_argument('--platform', action='store_true',
@@ -439,7 +443,7 @@ def main(argv=sys.argv):
         sign_opts = sign_cmd.add_mutually_exclusive_group(required=True)
         sign_opts.add_argument('--creator', action='store_true',
             help='sign as the creator of the package')
-        sign_opts.add_argument('--soi', action='store_true',
+        sign_opts.add_argument('--admin', action='store_true',
             help='sign as the soi administrator')
         sign_opts.add_argument('--initiator', action='store_true',
             help='sign as the initiator of the package')
@@ -503,7 +507,7 @@ def main(argv=sys.argv):
     try:
 
         if opts.subparser_name == 'package':
-            whl_path = create_package(opts.agent_directory)
+            whl_path = create_package(opts.agent_directory, wheelhouse=opts.dest)
         elif opts.subparser_name == 'repackage':
             whl_path = repackage(opts.directory, dest=opts.dest)
         elif opts.subparser_name == 'configure' :
@@ -520,7 +524,7 @@ def main(argv=sys.argv):
                         verifier.verify()
                         print "Package is verified"
                     else:
-                        user_type = {'soi': opts.soi,
+                        user_type = {'admin': opts.admin,
                                   'creator': opts.creator,
                                   'initiator': opts.initiator,
                                   'platform': opts.platform}

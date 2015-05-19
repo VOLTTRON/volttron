@@ -3,18 +3,18 @@
 
 # Copyright (c) 2013, Battelle Memorial Institute
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
-# are met: 
-# 
+# are met:
+#
 # 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer. 
+#    notice, this list of conditions and the following disclaimer.
 # 2. Redistributions in binary form must reproduce the above copyright
 #    notice, this list of conditions and the following disclaimer in
 #    the documentation and/or other materials provided with the
-#    distribution. 
-# 
+#    distribution.
+#
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
 # "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
 # LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -26,7 +26,7 @@
 # THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-# 
+#
 # The views and conclusions contained in the software and documentation
 # are those of the authors and should not be interpreted as representing
 # official policies, either expressed or implied, of the FreeBSD
@@ -41,7 +41,7 @@
 # responsibility for the accuracy, completeness, or usefulness or any
 # information, apparatus, product, software, or process disclosed, or
 # represents that its use would not infringe privately owned rights.
-# 
+#
 # Reference herein to any specific commercial product, process, or
 # service by trade name, trademark, manufacturer, or otherwise does not
 # necessarily constitute or imply its endorsement, recommendation, or
@@ -49,12 +49,10 @@
 # Battelle Memorial Institute. The views and opinions of authors
 # expressed herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
-# 
+#
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-
-# pylint: disable=W0142,W0403
 #}}}
 
 '''VOLTTRON platform™ agent helper classes/functions.'''
@@ -71,7 +69,7 @@ import traceback
 from zmq.utils import jsonapi
 
 
-__all__ = ['load_config', 'run_agent', 'start_agent_thread', 'ArgumentParser']
+__all__ = ['load_config', 'run_agent', 'start_agent_thread']
 
 __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2013, Battelle Memorial Institute'
@@ -149,7 +147,7 @@ def isapipe(fd):
 def default_main(agent_class, description=None, argv=sys.argv,
                  parser_class=argparse.ArgumentParser, **kwargs):
     '''Default main entry point implementation.
-    
+
     description and parser_class are depricated. Please avoid using them.
     '''
     try:
@@ -159,6 +157,20 @@ def default_main(agent_class, description=None, argv=sys.argv,
             # get garbage collected and close the underlying descriptor.
             stdout = sys.stdout
             sys.stdout = os.fdopen(stdout.fileno(), 'w', 1)
+        # new vip agents do not need the pub sub socket to be defined in order
+        # them to operate.  Passing the kwarg of no_pub_sub_socket=True to the
+        # function will disable the setting up of a pub sub socket for this
+        # agent.
+        pub_sub_socket_enabled = True
+        if 'no_pub_sub_socket' in kwargs:
+            pub_sub_socket_enabled = not kwargs.pop('no_pub_sub_socket')
+
+        if not pub_sub_socket_enabled:
+            config = os.environ.get('AGENT_CONFIG')
+            agent = agent_class(config_path=config, **kwargs)
+            agent.run()
+            return
+
         try:
             sub_addr = os.environ['AGENT_SUB_ADDR']
             pub_addr = os.environ['AGENT_PUB_ADDR']
@@ -205,6 +217,11 @@ class JsonFormatter(logging.Formatter):
 
 
 class AgentFormatter(logging.Formatter):
+    def __init__(self, fmt=None, datefmt=None):
+        if fmt is None:
+            fmt = '%(asctime)s %(composite_name)s %(levelname)s: %(message)s'
+        super(AgentFormatter, self).__init__(fmt=fmt, datefmt=datefmt)
+
     def composite_name(self, record):
         if record.name == 'agents.log':
             cname = '(%(processName)s %(process)d) %(remote_name)s'
@@ -218,17 +235,23 @@ class AgentFormatter(logging.Formatter):
     def format(self, record):
         if 'composite_name' not in record.__dict__:
             record.__dict__['composite_name'] = self.composite_name(record)
+        if len(record.args) > 0 \
+            and 'tornado.access' in record.__dict__['composite_name']:
+            record.__dict__['msg'] = ','.join([str(b) for b in record.args])
+            record.__dict__['args'] = []
+        #print('RECORD: {}'.format(record))
         return super(AgentFormatter, self).format(record)
 
 
 def setup_logging(level=logging.DEBUG):
-    handler = logging.StreamHandler()
-    if isapipe(sys.stderr):
-        handler.setFormatter(JsonFormatter())
-    else:
-        handler.setFormatter(logging.Formatter(
-                '%(asctime)s %(name)s %(levelname)s: %(message)s'))
     root = logging.getLogger()
-    root.addHandler(handler)
+    if not root.handlers:
+        handler = logging.StreamHandler()
+        if isapipe(sys.stderr):
+            handler.setFormatter(JsonFormatter())
+        else:
+            handler.setFormatter(logging.Formatter(
+                    '%(asctime)s %(name)s %(levelname)s: %(message)s'))
+        root.addHandler(handler)
     root.setLevel(level)
 

@@ -63,7 +63,6 @@ but it works.  However, more care is needed to ensure the agent's publish
 and subscribe sockets are not used in any of the secondary threads.
 '''
 
-import clock
 import contextlib
 import logging
 import sys

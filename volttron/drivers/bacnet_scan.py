@@ -119,7 +119,7 @@ class WhoIsIAmApplication(BIPSimpleApplication):
         if (isinstance(self._request, WhoIsRequest)) and (isinstance(apdu, IAmRequest)):
             device_type, device_instance = apdu.iAmDeviceIdentifier
             if device_type != 'device':
-                raise DecodingError, "invalid object type"
+                raise DecodingError("invalid object type")
 
             if (self._request.deviceInstanceRangeLowLimit is not None) and \
                 (device_instance < self._request.deviceInstanceRangeLowLimit):

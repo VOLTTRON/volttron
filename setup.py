@@ -55,49 +55,58 @@
 # under Contract DE-AC05-76RL01830
 #}}}
 
+from os import environ
+
 #from distutils.core import setup
 from setuptools import setup, find_packages
 
-
-install_requires = [
-    'avro>=1.7,<1.8',
-    'BACpypes>=0.10,<0.11',
-    'flexible-jsonrpc',
-    'gevent>=0.13,<0.14',
-    'nose>=1.3.3,<1.3.4',
-    'numpy>=1.8,<1.9',
-    'posix-clock',
-    'pymodbus>=1.2,<1.3',
-    'pyOpenSSL>=0.13,<0.14',
-    'python-dateutil>=2,<3',
-    'pyzmq>=14.3,<14.4',
-    'requests>=2.2,<2.3',
-    'setuptools',
-    'simplejson>=3.3,<3.4',
-    'Smap==2.0.24c780d',
-    'Twisted>=13,<14',
-    'zope.interface>=4.0,<4.1',
-    'wheel>=0.24,<0.25'
+# Requirements which must be built separately with the provided options.
+option_requirements = [
+    ('pyzmq>=14.3,<15', ['--zmq=bundled']),
 ]
+
+# Requirements in the repository which should be installed as editable.
+local_requirements = [
+]
+
+# Standard requirements
+requirements = [
+    'BACpypes>=0.10,<2',
+    'gevent>=0.13,<2',
+    'monotonic',
+    'pymodbus>=1.2,<2',
+    'setuptools',
+    'simplejson>=3.3,<4',
+    'Smap==2.0.24c780d',
+    'wheel>=0.24,<2',
+]
+
+install_requires = (
+    [req for req, _ in option_requirements] +
+    [req for req, _ in local_requirements] +
+    requirements
+)
 
 
 if __name__ == '__main__':
     setup(
         name = 'volttron',
-        version = '0.2',
+        version = '2.0',
         description = 'Agent Execution Platform',
         author = 'Volttron Team',
-        author_email = 'bora@pnnl.gov',
-        url = 'http://www.pnnl.gov',
+        author_email = 'volttron@pnnl.gov',
+        url = 'https://github.com/VOLTTRON/volttron',
         packages = find_packages('.'),
         install_requires = install_requires,
+        extras_require = {
+            'webserver': ['cherrypy']
+        },
         entry_points = {
             'console_scripts': [
                 'volttron = volttron.platform.main:_main',
-                'volttron-ctl = volttron.platform.control.client:_main',
+                'volttron-ctl = volttron.platform.control:_main',
                 'volttron-pkg = volttron.platform.packaging:_main',
             ]
         },
-        test_suite = 'nose.collector',
         zip_safe = False,
     )

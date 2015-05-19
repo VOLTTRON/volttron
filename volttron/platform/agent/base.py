@@ -53,22 +53,21 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-
-# pylint: disable=W0142,W0403
 #}}}
 
 '''VOLTTRON platform™ base agent and helper classes/functions.'''
+
+from __future__ import absolute_import
 
 import random
 import string
 import time as time_mod
 
-# XXX find a way to quiet pylint errors about dynamic attributes
 import zmq
 from zmq import POLLIN, POLLOUT
 from zmq.utils import jsonapi
 
-import clock
+import monotonic as clock
 
 from . import sched
 from .matching import iter_match_tests
@@ -110,7 +109,6 @@ def periodic(period, *args, **kwargs):
     period seconds while the agent is executing its run loop.
     '''
     def decorator(func):
-        # pylint: disable=C0111
         try:
             periodics = func._periodics
         except AttributeError:
@@ -205,7 +203,6 @@ class BaseAgent(AgentBase):
     LOOP_INTERVAL = 60
 
     def __init__(self, subscribe_address, **kwargs):
-        # pylint: disable=W0613
         super(BaseAgent, self).__init__(**kwargs)
         self._subscriptions = {}
         self._mono = sched.Queue()
@@ -332,7 +329,7 @@ class BaseAgent(AgentBase):
         '''
         try:
             topic, headers, message = self._sub.recv_message(
-                    0 if block else zmq.NOBLOCK)
+                0 if block else zmq.NOBLOCK)
         except zmq.error.Again:
             return
         try:
@@ -390,7 +387,6 @@ class BaseAgent(AgentBase):
         topic prefix are removed, the topic is also unsubscribed.
         '''
         def remove_handler(key, handlers):
-            # pylint: disable=C0111
             remove_matching(lambda item: id(item) == handler_id, handlers)
             if not handlers:
                 del self._subscriptions[key]
@@ -511,5 +507,3 @@ class PublishMixin(AgentBase):
     def publish_ex(self, topic, headers, *msg_tuples, **kwargs):
         '''Publish messages given as (content-type, message) tuples.'''
         self._pub.send_message_ex(topic, headers, *msg_tuples, **kwargs)
-
-

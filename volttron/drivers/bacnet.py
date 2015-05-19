@@ -61,6 +61,7 @@ import os
 
 from csv import DictReader
 from collections import defaultdict
+from ConfigParser import ConfigParser
 
 from Queue import Queue, Empty
 
@@ -71,6 +72,8 @@ from twisted.internet import reactor
 from base import BaseSmapVolttron, BaseRegister, BaseInterface
 
 from bacpypes.debugging import class_debugging, ModuleLogger
+from bacpypes.task import RecurringTask
+from bacpypes.apdu import ConfirmedRequestSequence, WhoIsRequest
 
 import bacpypes.core
 
@@ -100,8 +103,6 @@ from bacpypes.constructeddata import Array, Any
 from bacpypes.basetypes import ServicesSupported
 from bacpypes.task import TaskManager
 
-import time
-
 path = os.path.dirname(os.path.abspath(__file__))
 configFile = os.path.join(path, "bacnet_example_config.csv")
 
@@ -124,16 +125,33 @@ class IOCB:
         self.ioDefered = Deferred()
 
 @class_debugging
-class BACnet_application(BIPSimpleApplication):
+class BACnet_application(BIPSimpleApplication, RecurringTask):
 
     def __init__(self, *args):
         BIPSimpleApplication.__init__(self, *args)
+        RecurringTask.__init__(self, 250)
+        
+        self.request_queue = Queue()
 
         # assigning invoke identifiers
         self.nextInvokeID = 1
 
         # keep track of requests to line up responses
         self.iocb = {}
+        
+        self.install_task()
+        
+    def process_task(self):
+        while True:
+            try: 
+                iocb = self.request_queue.get(False)
+            except Empty:
+                break
+            
+            self.request(iocb)
+            
+    def submit_request(self, iocb):
+        self.request_queue.put(iocb)
 
     def get_next_invoke_id(self, addr):
         """Called to get an unused invoke ID."""
@@ -145,7 +163,7 @@ class BACnet_application(BIPSimpleApplication):
 
             # see if we've checked for them all
             if initialID == self.nextInvokeID:
-                raise RuntimeError, "no available invoke ID"
+                raise RuntimeError("no available invoke ID")
 
             # see if this one is used
             if (addr, invokeID) not in self.iocb:
@@ -155,15 +173,16 @@ class BACnet_application(BIPSimpleApplication):
 
     def request(self, iocb):
         apdu = iocb.ioRequest
-
-        # assign an invoke identifier
-        apdu.apduInvokeID = self.get_next_invoke_id(apdu.pduDestination)
-
-        # build a key to reference the IOCB when the response comes back
-        invoke_key = (apdu.pduDestination, apdu.apduInvokeID)
-
-        # keep track of the request
-        self.iocb[invoke_key] = iocb
+        
+        if isinstance(apdu, ConfirmedRequestSequence):
+            # assign an invoke identifier
+            apdu.apduInvokeID = self.get_next_invoke_id(apdu.pduDestination)
+    
+            # build a key to reference the IOCB when the response comes back
+            invoke_key = (apdu.pduDestination, apdu.apduInvokeID)
+    
+            # keep track of the request
+            self.iocb[invoke_key] = iocb
         
         BIPSimpleApplication.request(self, apdu)
 
@@ -173,7 +192,7 @@ class BACnet_application(BIPSimpleApplication):
 
         # find the request
         iocb = self.iocb.get(invoke_key, None)
-        if not iocb:
+        if iocb is None:
             iocb.ioDefered.errback(RuntimeError("no matching request"))
             return
         del self.iocb[invoke_key]
@@ -309,11 +328,16 @@ class BACnetRegister(BaseRegister):
                 propertyIdentifier=self.property)        
         request.pduDestination = address
         iocb = IOCB(request)
-        bac_app.request(iocb)
+        bac_app.submit_request(iocb)
         return iocb.ioDefered
     
     def get_state_sync(self, bac_app, address):
-        return block_for_sync(self.get_state_async(bac_app, address), 5) 
+        value = None
+        try:
+            value = block_for_sync(self.get_state_async(bac_app, address), 5)
+        except IOError as e:
+            print "Error with device communication:", e
+        return value 
     
     def set_state_async_callback(self, result, set_value):
         if isinstance(result, SimpleAckPDU):
@@ -336,14 +360,18 @@ class BACnetRegister(BaseRegister):
                 
             request.pduDestination = address
             iocb = IOCB(request)
-            bac_app.request(iocb)
+            bac_app.submit_request(iocb)
             iocb.ioDefered.addCallback(self.set_state_async_callback, value)
             return iocb.ioDefered
         raise TypeError('This register is read only.')
     
     def set_state_sync(self, bac_app, address, value):
-        r = block_for_sync(self.set_state_async(bac_app, address, value), 5)
-        return r
+        value = None
+        try:
+            value = block_for_sync(self.set_state_async(bac_app, address, value), 5)
+        except IOError as e:
+            print "Error with device communication:", e
+        return value
 
         
 class BACnetInterface(BaseInterface):
@@ -361,6 +389,7 @@ class BACnetInterface(BaseInterface):
                           ven_id=ven_id)
         self.parse_config(config_file)         
         self.target_address = Address(target_address)
+        self.ping_target(self.target_address)
         
         
         
@@ -372,11 +401,27 @@ class BACnetInterface(BaseInterface):
                                
         self.object_property_map[register.object_type, 
                                  register.instance_number].append(register.property)
+                                 
+    def ping_target(self, address):    
+        #Some devices (mostly RemoteStation addresses behind routers) will not be reachable without 
+        # first establishing the route to the device. Sending a directed WhoIsRequest is will
+        # settle that for us when the response comes back. 
+        request = WhoIsRequest()
+        request.pduDestination = address
+        
+        iocb = IOCB(request)
+        this_application.submit_request(iocb)
         
     def setup_device(self, address, 
                      max_apdu_len=1024, seg_supported='segmentedBoth', 
                      obj_id=599, obj_name='sMap BACnet driver', 
-                     ven_id=15):  
+                     ven_id=15): 
+        
+        global this_application 
+        
+        #We use a singleton device
+        if this_application is not None:
+            return
         
         print 'seg_supported', seg_supported
         print 'max_apdu_len', max_apdu_len
@@ -402,7 +447,7 @@ class BACnetInterface(BaseInterface):
         # set the property value to be just the bits
         this_device.protocolServicesSupported = pss.value
         
-        self.this_application = BACnet_application(this_device, address)
+        this_application = BACnet_application(this_device, address)
         
         #We must use traditional python threads, otherwise the driver will
         # hang during startup while trying to scrape actuator values.
@@ -420,22 +465,22 @@ class BACnetInterface(BaseInterface):
     #Mostly for testing by hand and initializing actuators.
     def get_point_sync(self, point_name):    
         register = self.point_map[point_name]
-        return register.get_state_sync(self.this_application, self.target_address)
+        return register.get_state_sync(this_application, self.target_address)
     
     #Mostly for testing by hand.
     def set_point_sync(self, point_name, value):    
         register = self.point_map[point_name]
-        return register.set_state_sync(self.this_application, self.target_address, value)
+        return register.set_state_sync(this_application, self.target_address, value)
     
     #Getting data in a async manner
     def get_point_async(self, point_name):    
         register = self.point_map[point_name]
-        return register.get_state_async(self.this_application, self.target_address)
+        return register.get_state_async(this_application, self.target_address)
     
     #setting data in a async manner
     def set_point_async(self, point_name, value):    
         register = self.point_map[point_name]
-        return register.set_state_async(self.this_application, self.target_address, value)
+        return register.set_state_async(this_application, self.target_address, value)
     
     def scrape_all_callback(self, result):
         result_dict={}
@@ -462,7 +507,7 @@ class BACnetInterface(BaseInterface):
         
         request.pduDestination = self.target_address
         iocb = IOCB(request)
-        self.this_application.request(iocb)
+        this_application.submit_request(iocb)
         
         iocb.ioDefered.addCallback(self.scrape_all_callback)
         return iocb.ioDefered
@@ -500,20 +545,33 @@ class BACnetInterface(BaseInterface):
     
 class BACnet(BaseSmapVolttron):
     def setup(self, opts):
-        super(BACnet, self).setup(opts)
         self.set_metadata('/', {'Extra/Driver' : 'volttron.drivers.bacnet.BACnet'})
+        super(BACnet, self).setup(opts)
+        
              
     def get_interface(self, opts):
-        target_ip_address = opts['target_address']
-        self_ip_address = opts['self_address']
+        target_ip_address = opts['ip_address']
+        bacnet_config_file = opts['bacnet_device_config']
         config = opts.get('register_config', configFile)
         
-        max_apdu_len = int(opts.get('max_apdu_length', 1024))
+        bacnet_config = ConfigParser()
+        bacnet_config.read(bacnet_config_file)
+
+        # check for BACpypes section
+        if not bacnet_config.has_section('BACpypes'):
+            raise RuntimeError("INI file with BACpypes section required")
         
-        seg_supported  = opts.get('segmented_supported', 'segmentedBoth')
-        obj_id  = int(opts.get('object_id', 599))
-        obj_name  = opts.get('object_name', 'sMap BACnet driver')
-        ven_id  = int(opts.get('vendor_id', 15))
+        ini_obj = dict(bacnet_config.items('BACpypes'))
+        
+        self_ip_address = ini_obj['address']
+        
+        
+        max_apdu_len = int(ini_obj.get('max_apdu_length', 1024))
+        
+        seg_supported  = ini_obj.get('segmented_supported', 'segmentedBoth')
+        obj_id  = int(ini_obj.get('object_id', 599))
+        obj_name  = ini_obj.get('object_name', 'sMap BACnet driver')
+        ven_id  = int(ini_obj.get('vendor_id', 15))
         
         return BACnetInterface(self_ip_address, target_ip_address, 
                                max_apdu_len=max_apdu_len, seg_supported=seg_supported, 

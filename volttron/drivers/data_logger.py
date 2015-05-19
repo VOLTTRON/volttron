@@ -78,13 +78,13 @@ CAN_SUBSCRIBE = False
 publish_address = 'ipc://$VOLTTRON_HOME/run/no-publisher'
 subscribe_address = 'ipc://$VOLTTRON_HOME/run/no-subscriber'
 if 'AGENT_PUB_ADDR' in os.environ:
-    publish_address = os.environ['AGENT_PUB_ADDR'] 
+    publish_address = os.environ['AGENT_PUB_ADDR']
     CAN_PUBLISH = True
 else:
     print("ERROR: NO PUBLISH ADDRESS IN ENVIRONMENT")
     CAN_PUBLISH = False
 if 'AGENT_SUB_ADDR' in os.environ:
-    subscribe_address = os.environ['AGENT_SUB_ADDR'] 
+    subscribe_address = os.environ['AGENT_SUB_ADDR']
     CAN_SUBSCRIBE = True
 else:
     print("ERROR: NO SUBSCRIBE ADDRESS IN ENVIRONMENT")
@@ -102,8 +102,8 @@ class DataLogger(driver.SmapDriver):
 
         # Subscribe to logging topic
         self.subscribe()
-        
-    
+
+
 
     def start(self):
         periodicSequentialCall(self.read).start(1)
@@ -121,7 +121,7 @@ class DataLogger(driver.SmapDriver):
                 # Parse the topic to get the location to store the data in
                 path_elements = message[0][len(logging_topic):].split('/')[1:]
                 headers = json.loads(message[1])
-                sender = headers[headers_mod.FROM] if headers_mod.FROM in headers.keys() else ''
+                sender = headers.get(headers_mod.FROM, '')
                 data = message[2]
 
                 # Parse out the data message
@@ -134,7 +134,7 @@ class DataLogger(driver.SmapDriver):
                     break
 
                 # Parse out the SourceName
-                source_name = headers['SourceName'] if 'SourceName' in headers.keys() else ''
+                source_name = headers.get('SourceName', '')
 
                 path = ""
                 for path_element in path_elements:
@@ -148,7 +148,7 @@ class DataLogger(driver.SmapDriver):
 
                 try:
                     # Create timeseries entries
-                    for ts_string in data.keys():
+                    for ts_string in data:
                         if 'Readings' not in data[ts_string].keys() or 'Units' not in data[ts_string].keys():
                             self._push.send_multipart(['datalogger/status', '{"' + headers_mod.TO + '" : "'+sender+'"}', "Message missing required elements."])
                             break
@@ -164,7 +164,7 @@ class DataLogger(driver.SmapDriver):
                             ts = self.add_timeseries(ts_path, units, data_type=dtype)
                             self.known_timeseries[ts_path] = ts
 
-                        if type(data[ts_string]['Readings']) is list:
+                        if isinstance(data[ts_string]['Readings'], list):
                             for item in data[ts_string]['Readings']:
                                 ts.add(item[0], item[1])
                         else:
@@ -173,6 +173,8 @@ class DataLogger(driver.SmapDriver):
                     self._push.send_multipart(['datalogger/status', '{"' + headers_mod.TO + '" : "'+sender+'"}', "Error loading data in smap\n%s"%e])
                     break
                 except:
+                    # TODO: Either catch more specific exception(s) OR
+                    # fully log exception (including stack trace).
                     self._push.send_multipart(['datalogger/status', '{"to" : "'+sender+'"}', "Error loading data in smap"])
                     break
 

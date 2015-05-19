@@ -397,8 +397,9 @@ class ModbusInterface(BaseInterface):
     
 class Modbus(BaseSmapVolttron):
     def setup(self, opts):
-        super(Modbus, self).setup(opts)
         self.set_metadata('/', {'Extra/Driver' : 'volttron.drivers.modbus.Modbus'})
+        super(Modbus, self).setup(opts)
+        
              
     def get_interface(self, opts):
         ip_address = opts['ip_address']

@@ -3,18 +3,18 @@
 
 # Copyright (c) 2013, Battelle Memorial Institute
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
-# are met: 
-# 
+# are met:
+#
 # 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer. 
+#    notice, this list of conditions and the following disclaimer.
 # 2. Redistributions in binary form must reproduce the above copyright
 #    notice, this list of conditions and the following disclaimer in
 #    the documentation and/or other materials provided with the
-#    distribution. 
-# 
+#    distribution.
+#
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
 # "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
 # LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -26,7 +26,7 @@
 # THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-# 
+#
 # The views and conclusions contained in the software and documentation
 # are those of the authors and should not be interpreted as representing
 # official policies, either expressed or implied, of the FreeBSD
@@ -41,7 +41,7 @@
 # responsibility for the accuracy, completeness, or usefulness or any
 # information, apparatus, product, software, or process disclosed, or
 # represents that its use would not infringe privately owned rights.
-# 
+#
 # Reference herein to any specific commercial product, process, or
 # service by trade name, trademark, manufacturer, or otherwise does not
 # necessarily constitute or imply its endorsement, recommendation, or
@@ -49,12 +49,10 @@
 # Battelle Memorial Institute. The views and opinions of authors
 # expressed herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
-# 
+#
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-
-# pylint: disable=W0142,W0403
 #}}}
 
 '''VOLTTRON platform™ topic templates.
@@ -107,10 +105,20 @@ PLATFORM_SHUTDOWN = PLATFORM(subtopic='shutdown')
 AGENT_SHUTDOWN = _('agent/{agent}/shutdown')
 AGENT_PING = _('agent/ping/{}/{}/{{cookie}}'.format(os.uname()[1], os.getpid()))
 
+LOGGER = _('datalogger/{subtopic}')
+LOGGER_LOG = LOGGER(subtopic='log')
+LOGGER_STATUS = LOGGER(subtopic='status')
+
 DRIVER_TOPIC_BASE = 'devices'
+DRIVER_TOPIC_ALL = 'all'
 DEVICES_PATH = _('{base}//{node}//{campus}//{building}//{unit}//{point}')
 _DEVICES_VALUE = _(DEVICES_PATH.replace('{base}',DRIVER_TOPIC_BASE))
 DEVICES_VALUE = _(_DEVICES_VALUE.replace('{node}/', ''))
+
+ANALYSIS_PATH = _('{base}//{analysis_name}//{campus}//{building}//{unit}//{point}')
+ANALYSIS_TOPIC_BASE = 'analysis'
+ANALYSIS_VALUE = _(ANALYSIS_PATH.replace('{base}', ANALYSIS_TOPIC_BASE))
+
 
 ACTUATOR_GET = _(_DEVICES_VALUE.replace('{node}', 'actuators/get'))
 ACTUATOR_SET = _(_DEVICES_VALUE.replace('{node}', 'actuators/set'))
@@ -138,8 +146,8 @@ ARCHIVER_RESPONSE = _(_ARCHIVER.replace('{base}', BASE_ARCHIVER_RESPONSE))
 
 ARCHIVER_FULL_UNIT_REQUEST = _(_ARCHIVER_UNIT.replace('{base}', BASE_ARCHIVER_FULL_REQUEST))
 
-OPENADR_STATUS = _('openadr/status') 
-OPENADR_EVENT = _('openadr/event') 
+OPENADR_STATUS = _('openadr/status')
+OPENADR_EVENT = _('openadr/event')
 
 _SUBSCRIPTIONS = _('subscriptions/{op}/{{topic}}')
 SUBSCRIPTIONS_LIST = _(_SUBSCRIPTIONS.format(op='list'))

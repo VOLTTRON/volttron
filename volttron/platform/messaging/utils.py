@@ -53,8 +53,6 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-
-# pylint: disable=W0142,W0403
 #}}}
 
 '''VOLTTRON platform™ messaging utilities.'''

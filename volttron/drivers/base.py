@@ -58,7 +58,7 @@ except ImportError:
     
 from smap import driver, actuate, core
 #from smap.drivers.file import _Actuator, BinaryActuator, ContinuousActuator, DiscreteActuator
-from smap.util import periodicSequentialCall
+from smap.util import periodicSequentialCall, buildkv
 
 import zmq
 import datetime
@@ -66,7 +66,7 @@ import datetime
 from volttron.platform.agent.base import PublishMixin
 
 from volttron.platform.messaging import headers as headers_mod
-from volttron.platform.messaging.topics import DRIVER_TOPIC_BASE
+from volttron.platform.messaging.topics import DRIVER_TOPIC_BASE, DRIVER_TOPIC_ALL
 
 import abc
 import os
@@ -160,7 +160,7 @@ class BaseInterface(object):
 
 class InterfaceBitActuator(actuate.BinaryActuator):
     """
-    Actuator that uses the Modbus interface to touch points 
+    SMAP bit actuator that uses the abstract driver interface to touch points 
     """
     def setup(self, opts):
         super(InterfaceBitActuator, self).setup(opts)
@@ -177,7 +177,7 @@ class InterfaceBitActuator(actuate.BinaryActuator):
         
 class InterfaceIntActuator(actuate.IntegerActuator):
     """
-    Actuator that uses the Modbus interface to touch points 
+    SMAP integer actuator that uses the abstract driver interface to touch points  
     """
     def setup(self, opts):
         super(InterfaceIntActuator, self).setup(opts)
@@ -194,14 +194,14 @@ class InterfaceIntActuator(actuate.IntegerActuator):
         
 class InterfaceFloatActuator(actuate.IntegerActuator):
     """
-    Actuator that uses the Modbus interface to touch points 
+    SMAP float actuator that uses the abstract driver interface to touch points 
     """
     ACTUATE_MODEL = 'continuous'
     def valid_state(self, state):
         try:
             float(state)
             return True
-        except:
+        except (TypeError, ValueError):
             return False
 
     def parse_state(self, state):
@@ -234,7 +234,14 @@ class BaseSmapVolttron(driver.SmapDriver, PublishMixin):
         
         self.interface = self.get_interface(opts)
          
-        self.all_path_depth, self.all_path_breadth = self.get_paths_for_point('/all')
+        self.all_path_depth, self.all_path_breadth = self.get_paths_for_point('/'+DRIVER_TOPIC_ALL)
+
+        self.meta_data = {}
+        
+        c = self.get_collection('/')
+        #Flatten the meta data dict
+        kv = buildkv('', c['Metadata'])
+        self.meta_data[c.path] = dict(kv)
         
         for point in self.interface.get_register_names():
             register = self.interface.get_register_by_name(point)
@@ -247,7 +254,18 @@ class BaseSmapVolttron(driver.SmapDriver, PublishMixin):
                     data_type = 'double'
                 else:
                     raise ValueError('sMAP currently only supports int and float based data types.')
-            self.add_timeseries('/'+point, register.units, data_type=data_type, description=register.description)
+            ts = self.add_timeseries('/'+point, register.units, data_type=data_type, description=register.description)
+            
+            pd = ts['Properties']
+            ts_type = pd['ReadingType']
+            if ts_type == 'double':
+                ts_type = 'float'
+            elif ts_type == 'long':
+                ts_type = 'integer'
+            
+            self.meta_data[point] = {'units': pd['UnitofMeasure'],
+                                       'type': ts_type,
+                                       'tz': pd['Timezone']}
              
         for register in self.interface.get_registers_by_type('bit',False):
             point = register.point_name
@@ -303,7 +321,7 @@ class BaseSmapVolttron(driver.SmapDriver, PublishMixin):
         if results is None:
             return
 
-        now = str(datetime.datetime.utcnow())
+        now = datetime.datetime.utcnow().isoformat(' ') + 'Z'
         
         headers = {
             headers_mod.CONTENT_TYPE: headers_mod.CONTENT_TYPE.JSON,
@@ -320,11 +338,11 @@ class BaseSmapVolttron(driver.SmapDriver, PublishMixin):
                 if isinstance(value, bool):
                     value = int(value)
                 depth, breadth = self.get_paths_for_point('/'+point)
-                self.publish_json(depth, headers, value, flags=zmq.NOBLOCK)
-                self.publish_json(breadth, headers, value, flags=zmq.NOBLOCK)
+                self.publish_json(depth, headers, value, self.meta_data[point], flags=zmq.NOBLOCK)
+                self.publish_json(breadth, headers, value, self.meta_data[point], flags=zmq.NOBLOCK)
                 
-            self.publish_json(self.all_path_depth, headers, results, flags=zmq.NOBLOCK)
-            self.publish_json(self.all_path_breadth, headers, results, flags=zmq.NOBLOCK)
+            self.publish_json(self.all_path_depth, headers, results, self.meta_data, flags=zmq.NOBLOCK)
+            self.publish_json(self.all_path_breadth, headers, results, self.meta_data, flags=zmq.NOBLOCK)
         except zmq.error.Again:
             print ("Warning: platform not running, topics not published. (Data to smap historian is unaffected by this warning)")
 

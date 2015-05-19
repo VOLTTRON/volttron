@@ -53,8 +53,6 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-
-# pylint: disable=W0142
 #}}}
 
 
@@ -148,6 +146,12 @@ def _log_stream(name, agent, pid, level, stream):
             except Exception:
                 pass
             else:
+                if record.name in log.manager.loggerDict:
+                    if not logging.getLogger(
+                            record.name).isEnabledFor(record.levelno):
+                        continue
+                elif not log.isEnabledFor(record.levelno):
+                    continue
                 record.remote_name, record.name = record.name, name
                 record.__dict__.update(extra)
                 log.handle(record)
@@ -162,10 +166,11 @@ def log_stream(name, agent, pid, path, stream):
     extra = {'processName': agent, 'process': pid}
     unset = {'thread': None, 'threadName': None, 'module': None}
     for level, line in stream:
-        record = logging.LogRecord(name, level, path, 0, line, [], None)
-        record.__dict__.update(extra)
-        record.__dict__.update(unset)
-        log.handle(record)
+        if log.isEnabledFor(level):
+            record = logging.LogRecord(name, level, path, 0, line, [], None)
+            record.__dict__.update(extra)
+            record.__dict__.update(unset)
+            log.handle(record)
 
 
 class IgnoreErrno(object):
@@ -215,7 +220,7 @@ class AIPplatform(object):
     def setup(self):
         for path in [self.run_dir, self.config_dir, self.install_dir]:
             if not os.path.exists(path):
-                os.makedirs(path, 0775)
+                os.makedirs(path, 0o775)
 
     def finish(self):
         for exeenv in self.agents.itervalues():
@@ -543,6 +548,7 @@ class AIPplatform(object):
         except KeyError:
             return
         if execenv.process.poll() is None:
+            # pylint: disable=catching-non-exception
             execenv.process.send_signal(signal.SIGINT)
             try:
                 return gevent.with_timeout(3, process_wait, execenv.process)

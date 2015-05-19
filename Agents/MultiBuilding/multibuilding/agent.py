@@ -63,8 +63,6 @@ import logging
 import sys
 import uuid
 
-import clock
-
 import zmq
 from zmq import NOBLOCK, ZMQError
 import zmq.utils
