@@ -13,6 +13,7 @@ class Agent(object):
         self.rpc = subsystems.RPC(self.core, self)
         self.hello = subsystems.Hello(self.core)
         self.pubsub = subsystems.PubSub(self.core, self.rpc)
+        self.channel = subsystems.Channel(self.core)
 
     @subsystems.RPC.export
     def hello(self, name):

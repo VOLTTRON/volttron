@@ -7,6 +7,7 @@ import inspect
 import logging
 import os
 import random
+import string
 import sys
 import traceback
 from types import MethodType
@@ -712,45 +713,94 @@ class PubSub(Subsystem):
                 message=message, bus=bus)
 
 
-'''
-class Channel(object):
+class Channel(Subsystem):
+
+    class Tracker(object):
+        def __init__(self):
+            self._channels = {}
+            self._handles = {}
+            self._sockets = {}
+
+        def add(self, channel, handle, socket):
+            sockref = weakref.ref(socket, self.remove)
+            self._channels[channel] = (handle, sockref)
+            self._handles[handle] = (channel, sockref)
+            self._sockets[sockref] = (channel, handle)
+            return sockref
+
+        def remove(self, key):
+            if isinstance(key, weakref.ref):
+                channel, handle = self._sockets.pop(key)
+                sockref = None
+            elif isinstance(key, basestring):
+                channel, sockref = self._handles.pop(key)
+                handle = None
+            else:
+                handle, sockref = self._channels.pop(key)
+                channel = None
+            if handle:
+                self._handles.pop(handle)
+            if sockref:
+                self._sockets.pop(sockref)
+            if channel:
+                self._channels.pop(channel)
+
+        def handle_from_channel(self, channel):
+            handle, sockref = self._channels[channel]
+            socket = sockref()
+            if socket is None:
+                self.remove(sockref)
+                raise KeyError(channel)
+            return handle
+
+        def channel_from_handle(self, handle):
+            channel, sockref = self._handles[handle]
+            socket = sockref()
+            if socket is None:
+                self.remove(sockref)
+                raise KeyError(handle)
+            return channel
+
     def __init__(self, core):
         super(Channel, self).__init__()
+        self.core = weakref.ref(core)
         self.context = zmq.Context()
         self.socket = None
         self.greenlet = None
+        self._tracker = Channel.Tracker()
+        core.register('channel', self.handle_subsystem, None)
 
-        @core.onsetup.receiver
-        def setup(self):
-            # pylint: disable=attribute-defined-outside-init
+        def setup(sender, **kwargs):
             self.socket = self.context.socket(zmq.ROUTER)
+        core.onsetup.connect(setup, self)
 
-        @core.onstart.receiver
-        def start(self):
+        def start(sender, **kwargs):
             self.greenlet = gevent.getcurrent()
-            vip_socket = self.core().socket
-            socket = self.socket
-            socket.bind('inproc://subsystem/channel')
+            socket = self.core().socket
+            server = self.socket
+            server.bind('inproc://subsystem/channel')
             while True:
-                message = socket.recv_multipart(copy=False)
+                message = server.recv_multipart(copy=False)
                 if not message:
                     continue
                 ident = bytes(message[0])
-                length, ident = ident.split(':', 1)
-                peer = ident[:int(length)]
-                name = ident[len(peer)+1:]
+                try:
+                    peer, name = self._tracker.channel_from_handle(ident)
+                except KeyError:
+                    # XXX: Handle channel not found
+                    continue
                 message[0] = name
-                vip_socket.send_vip(peer, 'channel', message, copy=False)
+                socket.send_vip(peer, 'channel', message, copy=False)
+        core.onstart.connect(start, self)
 
-
-        @core.onstop.receiver
-        def stop(self):
+        def stop(sender, **kwargs):
             if self.greenlet is not None:
                 self.greenlet.kill(block=False)
             try:
                 self.socket.unbind('inproc://subsystem/channel')
             except ZMQError:
                 pass
+        core.onstop.connect(stop, self)
 
     def handle_subsystem(self, message):
         frames = message.args
@@ -758,17 +808,42 @@ class Channel(object):
             name = frames[0]
         except IndexError:
             return
-        peer, name = bytes(message.peer), bytes(name)
-        frames[0] = ':'.join([str(len(peer)), peer, name])
-        self._channel_socket.send_multipart(frames, copy=False)
+        channel = (bytes(message.peer), bytes(name))
+        try:
+            ident = self._tracker.handle_from_channel(channel)
+        except KeyError:
+            # XXX: Handle channel not found
+            return
+        frames[0] = ident
+        self.socket.send_multipart(frames, copy=False)
 
-    def channel_create(self, peer, name):
-        socket = self.my_context.socket(zmq.DEALER)
-        # XXX: Creating the identity this way is potentially problematic
-        # because the peer name and identity can both be no longer than
-        # 255 characters. Explore alternate solutions or limit names.
-        ident = ':'.join([str(len(peer)), peer, name])
-        socket.identity = ident
+    def create(self, peer, name=None):
+        if name is None:
+            while True:
+                name = ''.join(random.choice(string.printable[:-5])
+                               for i in range(30))
+                channel = (peer, name)
+                try:
+                    self._tracker.handle_from_channel(channel)
+                except KeyError:
+                    break
+        else:
+            channel = (peer, name)
+            try:
+                self._tracker.handle_from_channel(channel)
+            except KeyError:
+                pass
+            else:
+                raise ValueError('channel %r is unavailable' % (name,))
+        socket = self.context.socket(zmq.DEALER)
+        socket.identity = '%08x.%08x' % (hash(channel), hash(socket))
+        object.__setattr__(socket, 'channel', channel)
+        sockref = self._tracker.add(channel, socket.identity, socket)
+        close_socket = socket.close
+        @functools.wraps(close_socket)
+        def close(linger=None):
+            self._tracker.remove(sockref)
+            return close_socket(linger=linger)
+        socket.close = close
         socket.connect('inproc://subsystem/channel')
         return socket
-'''
