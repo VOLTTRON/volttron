@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-
 # Copyright (c) 2013, Battelle Memorial Institute
 # All rights reserved.
 #
@@ -272,7 +271,9 @@ class VIPAgent(object):
 
     @subsystem('error')
     def handle_error_subsystem(self, message):
-        print('VIP error', message)
+        message.args = [bytes(arg) for arg in message.args]
+        #pretty = ', '.join('%s: %r' % (key, bytes(value)) for key, value in message.__dict__.iteritems())
+        print('VIP error:', message)
 
 
 class RPCDispatcher(jsonrpc.Dispatcher):
@@ -742,6 +743,32 @@ class PubSubMixin(object):
             peer, 'pubsub.publish',
             {'topic': topic, 'headers': headers,
              'message': message, 'bus': bus}).get(timeout=timeout)
+
+
+class QueryAddressesMixin(object):
+    @onevent('setup')
+    def setup_query_addresses_subsystem(self):
+        # pylint: disable=attribute-defined-outside-init
+        self._query_address_results = weakref.WeakValueDictionary()
+
+    @subsystem('query.addresses.result')
+    def handle_query_addresses_message(self, message):
+        ident = bytes(message.id)
+        try:
+            result = self._query_address_results[ident]
+        except KeyError:
+            return
+        
+        result.set([bytes(x) for x in message.args])
+            
+        
+    def query_addresses(self):
+        result = gevent.event.AsyncResult()
+        ident = str(hash(result))
+        self._query_address_results[ident] = result
+        self.vip_socket.send_vip('', 'query.addresses', msg_id=ident)
+#         print ("***MIXIN.QUERY_ADDRESSES: {}".format(result))
+        return result
 
 
 class RPCAgent(VIPAgent, RPCMixin):

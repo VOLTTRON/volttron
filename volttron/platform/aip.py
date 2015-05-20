@@ -251,7 +251,6 @@ class AIPplatform(object):
 
     subscribe_address = property(lambda me: me.env.subscribe_address)
     publish_address = property(lambda me: me.env.publish_address)
-    vip_address = property(lambda me: me.env.vip_address)
 
     config_dir = property(lambda me: os.path.abspath(me.env.volttron_home))
     install_dir = property(lambda me: os.path.join(me.config_dir, 'agents'))
@@ -489,20 +488,6 @@ class AIPplatform(object):
         environ['AGENT_SUB_ADDR'] = self.subscribe_address
         environ['AGENT_PUB_ADDR'] = self.publish_address
         environ['AGENT_UUID'] = agent_uuid
-
-        if self.vip_address and isinstance(self.vip_address, basestring):
-            environ['VOLTTRON_VIP_ADDR'] = self.vip_address 
-        elif self.vip_address and isinstance(self.vip_address, (list, tuple)):
-            result = self.vip_address[0]
-            for vip in self.vip_address:
-                if vip.startswith("tcp"):
-                    result = vip
-            environ['VOLTTRON_VIP_ADDR'] = vip
-
-        
-        
-        print ("***AIP.vip_addr: {}".format(self.vip_address))
-        print ("***AIP sending: {}".format(environ['VOLTTRON_VIP_ADDR']))
 
         module, _, func = module.partition(':')
         if func:

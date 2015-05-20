@@ -54,6 +54,7 @@
 #}}}
 
 import datetime
+import gevent
 import logging
 import sys
 import requests
@@ -63,12 +64,13 @@ import uuid
 
 from volttron.platform import vip, jsonrpc
 from volttron.platform.control import Connection
-from volttron.platform.agent.vipagent import RPCAgent, periodic, onevent, jsonapi, export
+from volttron.platform.agent.vipagent import RPCAgent, periodic, onevent, jsonapi, export, QueryAddressesMixin, spawn
 from volttron.platform.agent import utils
 
 from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
                                        INVALID_REQUEST, METHOD_NOT_FOUND, PARSE_ERROR,
                                        UNHANDLED_EXCEPTION)
+# from  import spawn
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -92,7 +94,7 @@ def platform_agent(config_path, **kwargs):
     if not vc_vip_address:
         raise ValueError('Invalid volttron_central_vip_address')
 
-    class Agent(RPCAgent):
+    class Agent(RPCAgent, QueryAddressesMixin):
 
         def __init__(self, **kwargs):
 
@@ -142,17 +144,43 @@ def platform_agent(config_path, **kwargs):
             self._ctl = Connection(self.vc_vip_address,
                                    peer=self.vc_vip_identity)
 
+       
         @onevent("start")
+        @spawn
         def start(self):
             _log.debug('Starting service vip info: {}'.format(
                                                         str(self.__dict__)))
+            vip_addresses = self.query_addresses().get(timeout=10)
+#             import time
+#             time.sleep(3)
+            print("***QUERY RESULTS: {}".format(vip_addresses))
+            if vip_addresses and isinstance(vip_addresses, basestring):
+                self._external_vip = vip_addresses 
+                print("** result: {}".format(vip_addresses))
+            elif vip_addresses and isinstance(vip_addresses, (list, tuple)):
+                result = vip_addresses[0]
+                for vip in vip_addresses:
+                    if vip.startswith("tcp"):
+                        result = vip
+                self._external_vip = result
+                print ("**** RESULT: {}".format(result))
             self._register()
+            
+            
 
         #@periodic(period=60)
         def _register(self):
             _log.debug('platformagent sending call register {}'.format(
                                     str((vip_identity, agentid, self.vip_address))))
-            self._ctl.call("register_platform", vip_identity, agentid, self.vip_address)
+            
+            self._external_vip = self.vip_address
+            
+            
+            
+#             print ("***VIPADDRESSES: {}, result{}".format(vip_addresses, self._external_vip))
+
+            
+            self._ctl.call("register_platform", vip_identity, agentid, self._external_vip)
 
         @onevent("finish")
         def stop(self):
