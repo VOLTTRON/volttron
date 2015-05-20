@@ -171,9 +171,9 @@ def platform_agent(config_path, **kwargs):
         #@periodic(period=60)
         def _register(self):
             _log.debug('platformagent sending call register {}'.format(
-                                    str((vip_identity, agentid, self.vip_address))))
+                                    str((vip_identity, agentid, self._external_vip))))
             
-            self._external_vip = self.vip_address
+            self._external_vip = self._external_vip
             
             
             
