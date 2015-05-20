@@ -69,7 +69,6 @@ from volttron.platform.agent import (AbstractDrivenAgent, BaseAgent,
 from volttron.platform.agent.utils import jsonapi
 from volttron.platform.messaging import (headers as headers_mod, topics)
 from copy import deepcopy
-from messaging.utils import Topic
 
 __author1__ = 'Craig Allwardt <craig.allwardt@pnnl.gov>'
 __author2__ = 'Robert Lutes <robert.lutes@pnnl.gov>'
