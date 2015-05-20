@@ -60,6 +60,7 @@ import sys
 import requests
 import os
 import os.path as p
+import re
 import uuid
 
 from volttron.platform import vip, jsonrpc
@@ -151,22 +152,9 @@ def platform_agent(config_path, **kwargs):
             _log.debug('Starting service vip info: {}'.format(
                                                         str(self.__dict__)))
             vip_addresses = self.query_addresses().get(timeout=10)
-#             import time
-#             time.sleep(3)
-            print("***QUERY RESULTS: {}".format(vip_addresses))
-            if vip_addresses and isinstance(vip_addresses, basestring):
-                self._external_vip = vip_addresses 
-                print("** result: {}".format(vip_addresses))
-            elif vip_addresses and isinstance(vip_addresses, (list, tuple)):
-                result = vip_addresses[0]
-                for vip in vip_addresses:
-                    if vip.startswith("tcp"):
-                        result = vip
-                self._external_vip = result
-                print ("**** RESULT: {}".format(result))
+            self._external_vip = find_registration_address(vip_addresses)
+           
             self._register()
-            
-            
 
         #@periodic(period=60)
         def _register(self):
@@ -174,11 +162,6 @@ def platform_agent(config_path, **kwargs):
                                     str((vip_identity, agentid, self._external_vip))))
             
             self._external_vip = self._external_vip
-            
-            
-            
-#             print ("***VIPADDRESSES: {}, result{}".format(vip_addresses, self._external_vip))
-
             
             self._ctl.call("register_platform", vip_identity, agentid, self._external_vip)
 
@@ -190,7 +173,41 @@ def platform_agent(config_path, **kwargs):
     return Agent(**kwargs)
 
 
-def main(argv=sys.argv):
+def is_ip_private(vip_address):
+    ip = vip_address.strip().lower().split("tcp://")[1]
+
+    # https://en.wikipedia.org/wiki/Private_network
+
+    priv_lo = re.compile("^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
+    priv_24 = re.compile("^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
+    priv_20 = re.compile("^192\.168\.\d{1,3}.\d{1,3}$")
+    priv_16 = re.compile("^172.(1[6-9]|2[0-9]|3[0-1]).[0-9]{1,3}.[0-9]{1,3}$")
+
+    return priv_lo.match(ip) != None or priv_24.match(ip) != None or priv_20.match(ip) != None or priv_16.match(ip) != None
+
+
+def find_registration_address(vip_addresses):
+    # Find the address to send back to the VCentral in order of preference
+    # Non-private IP (first one wins)
+    # TCP address (last one wins)
+    # IPC if first element is IPC it wins
+     #Pull out the tcp address
+     
+    # If this is a string we have only one choice
+    if vip_addresses and isinstance(vip_addresses, basestring):
+        return vip_addresses 
+    elif vip_addresses and isinstance(vip_addresses, (list, tuple)):
+        result = None
+        for vip in vip_addresses:
+            if result is None:
+                result = vip
+            if vip.startswith("tcp") and is_ip_private(vip):
+                result = vip
+            elif vip.startswith("tcp") and not is_ip_private(vip):
+                return vip
+            
+        return result
+
     '''Main method called by the eggsecutable.'''
     utils.default_main(platform_agent,
                        description='Agent available to manage from a remote '
