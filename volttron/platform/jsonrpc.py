@@ -133,7 +133,16 @@ class RemoteError(Exception):
     """
 
     def __init__(self, message, exc_info):
-        super(RemoteError, self).__init__(message)
+        if exc_info:
+            try:
+                exc_type = exc_info['exc_type']
+                exc_args = exc_info['exc_args']
+            except KeyError:
+                msg = message
+            else:
+                args = ', '.join(repr(arg) for arg in exc_args)
+                msg = '%s(%s)' % (exc_type, args)
+        super(RemoteError, self).__init__(msg)
         self.message = message
         self.exc_info = exc_info
 
