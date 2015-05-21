@@ -55,5 +55,7 @@
 # under Contract DE-AC05-76RL01830
 #}}}
 
+import gevent as _gevent
+
 def getcurrent():
-    return None
+    return _gevent.Greenlet()

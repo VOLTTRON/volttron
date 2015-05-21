@@ -24,9 +24,9 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# The views and conclusions contained in the software and documentation are those
-# of the authors and should not be interpreted as representing official policies,
-# either expressed or implied, of the FreeBSD Project.
+# The views and conclusions contained in the software and documentation are
+# those of the authors and should not be interpreted as representing official
+# policies, either expressed or implied, of the FreeBSD Project.
 #
 
 # This material was prepared as an account of work sponsored by an
@@ -70,44 +70,36 @@ from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
                                        INVALID_REQUEST, METHOD_NOT_FOUND, PARSE_ERROR,
                                        UNHANDLED_EXCEPTION)
 
-def get_error_response(code, message, data=None):
-    return {'jsonrpc': '2.0',
-            'error': { 'code': code, 'message': message, 'data' : data}
-            }
-
-
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
-def PlatformAgent(config_path, **kwargs):
+def get_error_response(code, message, data=None):
+    return {'jsonrpc': '2.0',
+            'error': {'code': code, 'message': message, 'data': data}
+            }
 
 
-#     home = os.path.expanduser(os.path.expandvars(
-#                  os.environ.get('VOLTTRON_HOME', '~/.volttron')))
-#     vip_address = 'ipc://@{}/run/vip.socket'.format(home)
-
+def platform_agent(config_path, **kwargs):
     config = utils.load_config(config_path)
 
-    def get_config(name):
-        try:
-            return kwargs.pop(name)
-        except KeyError:
-            return config.get(name, '')
+    agentid = config.get('agentid', 'platform')
+    agent_type = config.get('agent_type', 'platform')
+    vc_vip_address = config.get('volttron_central_vip_address', None)
+    vc_vip_identity = config.get('volttron_central_vip_identity',
+                                 "volttron.central")
+    vip_identity = config.get('vip_identity', 'platform.agent')
 
-    agentid = get_config('agentid')
-    manager_vip_address = get_config('manager_vip_address')
-    manager_vip_identity = get_config('manager_vip_identity')
-    vip_identity = get_config('vip_identity')
+    if not vc_vip_address:
+        raise ValueError('Invalid volttron_central_vip_address')
 
     class Agent(RPCAgent):
 
         def __init__(self, **kwargs):
-            #vip_identity,
+
             super(Agent, self).__init__(vip_identity=vip_identity, **kwargs)
-            print("vip_addr is: {}".format(self.vip_address))
             self.vip_identity = vip_identity
-            self.manager_vip_identity = manager_vip_identity
-            self.manager_vip_address = manager_vip_address
+            self.vc_vip_identity = vc_vip_identity
+            self.vc_vip_address = vc_vip_address
             self.agentid = agentid
 
         @export()
@@ -146,18 +138,21 @@ def PlatformAgent(config_path, **kwargs):
         @onevent('setup')
         def setup(self):
             _log.debug('platform agent setup.  Connection to {} -> {}'.format(
-                            self.manager_vip_address, self.manager_vip_identity))
-            self._ctl = Connection(self.manager_vip_address,
-                                   peer=self.manager_vip_identity)
+                            self.vc_vip_address, self.vc_vip_identity))
+            self._ctl = Connection(self.vc_vip_address,
+                                   peer=self.vc_vip_identity)
 
         @onevent("start")
         def start(self):
             _log.debug('Starting service vip info: {}'.format(
                                                         str(self.__dict__)))
-            _log.debug('sending call register_platform {}'.format(
+            self._register()
+
+        #@periodic(period=60)
+        def _register(self):
+            _log.debug('platformagent sending call register {}'.format(
                                     str((vip_identity, agentid, self.vip_address))))
             self._ctl.call("register_platform", vip_identity, agentid, self.vip_address)
-
 
         @onevent("finish")
         def stop(self):
@@ -167,23 +162,13 @@ def PlatformAgent(config_path, **kwargs):
     return Agent(**kwargs)
 
 
-
-
 def main(argv=sys.argv):
-    try:
-        # If stdout is a pipe, re-open it line buffered
-        if utils.isapipe(sys.stdout):
-            # Hold a reference to the previous file object so it doesn't
-            # get garbage collected and close the underlying descriptor.
-            stdout = sys.stdout
-            sys.stdout = os.fdopen(stdout.fileno(), 'w', 1)
-        '''Main method called by the eggsecutable.'''
-
-        config = os.environ.get('AGENT_CONFIG')
-        agent = PlatformAgent(config_path=config)
-        agent.run()
-    except KeyboardInterrupt:
-        pass
+    '''Main method called by the eggsecutable.'''
+    utils.default_main(platform_agent,
+                       description='Agent available to manage from a remote '
+                                    + 'system.',
+                       no_pub_sub_socket=True,
+                       argv=argv)
 
 
 if __name__ == '__main__':

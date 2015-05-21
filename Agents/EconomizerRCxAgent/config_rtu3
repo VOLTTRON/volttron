@@ -1,12 +1,16 @@
 {
     "agentid": "economizerrcx",
-    "application": "economizer_rcx.Application",
+    "application": "economizer.economizer_rcx.Application",
 
     "device": {
         "campus": "campus",
         "building": "building",
-        "unit": "rtu3",
-        "analysis": "Economizer_RCx"
+        "unit": {
+            "rtu3": {
+                "subdevices": []
+            }
+        },
+        "analysis_name": "Economizer_RCx"
     },
 
     "output_file": "./junk.csv",

@@ -82,7 +82,7 @@ class BaseQueryHistorianAgent(RPCAgent):
 
     @export()
     def query(self, topic=None, start=None, end=None, skip=0, count=None):
-        """Actual RPC hanlder"""
+        """Actual RPC handler"""
         
         if topic is None:
             raise TypeError('"Topic" required')

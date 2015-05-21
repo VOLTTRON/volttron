@@ -71,30 +71,28 @@ import gevent
 import gevent.local
 from gevent.event import AsyncResult
 from zmq import green as zmq
-from zmq import EAGAIN, ZMQError
+from zmq import EAGAIN, ZMQError, SNDMORE
 from zmq.utils import jsonapi
 
 # Import gevent-friendly version of vip
 from ..vip import green as vip
 from .. import jsonrpc
+from ... import platform
 
 import volttron
 
 _VOLTTRON_PATH = os.path.dirname(volttron.__path__[-1]) + os.sep
 del volttron
 
-# default home is ~/.volttron
-volttron_home = os.path.expanduser(
-                                os.environ.get('VOLTTRON_HOME', '~/.volttron'))
-_vip_address = os.environ.get('VIP_ADDR', None)
-if not _vip_address:
-    vip_path = '{}/run/vip.socket'.format(volttron_home)
-    if sys.platform.startswith('linux'):
-        vip_path = '@' + vip_path
-    _vip_address = 'ipc://{}'.format(vip_path)
-
 
 _log = logging.getLogger(__name__)   # pylint: disable=invalid-name
+
+
+def default_vip_address():
+    '''Return the default VIP ZMQ address.'''
+    home = os.path.abspath(platform.get_home())
+    abstract = '@' if sys.platform.startswith('linux') else ''
+    return 'ipc://%s%s/run/vip.socket' % (abstract, home)
 
 
 class periodic(object):   # pylint: disable=invalid-name
@@ -105,7 +103,7 @@ class periodic(object):   # pylint: disable=invalid-name
     '''
 
     def __init__(self, period, args=None, kwargs=None, wait=False):
-        '''Store period and arguments to call method with.'''
+        '''Store period (seconds) and arguments to call method with.'''
         self.period = period
         self.args = args or ()
         self.kwargs = kwargs or {}
@@ -182,9 +180,14 @@ class VIPAgent(object):
     do nothing but listen for messages and exit when told to. That is it.
     '''
 
-    def __init__(self, vip_address=_vip_address, vip_identity=None, context=None, **kwargs):
+    def __init__(self, vip_address=None, vip_identity=None,
+                 context=None, **kwargs):
         super(VIPAgent, self).__init__(**kwargs)
+        if not vip_address:
+            vip_address = os.environ.get(
+                'VOLTTRON_VIP_ADDR', default_vip_address())
         self.context = context or zmq.Context.instance()
+        self.my_context = zmq.Context()
         self.vip_address = vip_address
         self.vip_identity = vip_identity
         self.local = gevent.local.local()
@@ -212,7 +215,7 @@ class VIPAgent(object):
         '''
         def _trigger_event(event):
             for callback, args, kwargs in self._event_callbacks.get(event, ()):
-                callback(*args, **kwargs)   # pylint: disable=star-args
+                callback(*args, **kwargs)
         self.vip_socket = vip.Socket(self.context)   # pylint: disable=attribute-defined-outside-init
         if self.vip_identity:
             self.vip_socket.identity = self.vip_identity
@@ -358,7 +361,7 @@ class RPCDispatcher(jsonrpc.Dispatcher):
         local.rpc_request = request
         local.rpc_batch = batch
         try:
-            return method(*args, **kwargs)   # pylint: disable=star-args
+            return method(*args, **kwargs)
         except Exception as exc:   # pylint: disable=broad-except
             exc_tb = traceback.format_exc()
             _log.error('unhandled exception in JSON-RPC method %r: \n%s',
@@ -440,7 +443,7 @@ class RPCMixin(object):
         self.vip_socket.send_vip(peer, 'RPC', [request], msg_id=str(id(result)))
         return result
 
-    def rpc_notify(self, peer, method, args, kwargs):
+    def rpc_notify(self, peer, method, args=None, kwargs=None):
         request = self._rpc_dispatcher.notify(method, args, kwargs)
         self.vip_socket.send_vip(peer, 'RPC', [request])
 
@@ -449,7 +452,7 @@ class ChannelMixin(object):
     @onevent('setup')
     def setup_channel_subsystem(self):
         # pylint: disable=attribute-defined-outside-init
-        self._channel_socket = self.context.socket(zmq.ROUTER)
+        self._channel_socket = self.my_context.socket(zmq.ROUTER)
 
     @onevent('connect')
     def connect_channel_subsystem(self):
@@ -464,7 +467,7 @@ class ChannelMixin(object):
 
     @onevent('start')
     def start_channel_subsystem(self):
-        vip = self.vip_socket
+        vip_socket = self.vip_socket
         socket = self._channel_socket
         def loop():
             while True:
@@ -476,7 +479,7 @@ class ChannelMixin(object):
                 peer = ident[:int(length)]
                 name = ident[len(peer)+1:]
                 message[0] = name
-                vip.send_vip(peer, 'channel', message, copy=False)
+                vip_socket.send_vip(peer, 'channel', message, copy=False)
         self._channel_subsystem = gevent.spawn(loop)   # pylint: disable=attribute-defined-outside-init
 
     @onevent('stop')
@@ -497,7 +500,7 @@ class ChannelMixin(object):
         self._channel_socket.send_multipart(frames, copy=False)
 
     def channel_create(self, peer, name):
-        socket = self.context.socket(zmq.DEALER)
+        socket = self.my_context.socket(zmq.DEALER)
         # XXX: Creating the identity this way is potentially problematic
         # because the peer name and identity can both be no longer than
         # 255 characters. Explore alternate solutions or limit names.
@@ -507,9 +510,243 @@ class ChannelMixin(object):
         return socket
 
 
+class PubSubMixin(object):
+    @onevent('setup')
+    def setup_pubsub_subsystem(self):
+        assert isinstance(self, RPCMixin)
+        # pylint: disable=attribute-defined-outside-init
+        self._pubsub_peer_subscriptions = {}
+        self._pubsub_subscriptions = {}
+        self._pubsub_synchronizing = 0
+
+    def pubsub_add_bus(self, name):
+        self._pubsub_peer_subscriptions.setdefault(name, {})
+
+    def pubsub_remove_bus(self, name):
+        subscriptions = self._pubsub_peer_subscriptions.pop(name, {})
+        # XXX: notify subscribers of removed bus
+
+    @export('pubsub.subscribe')
+    def pubsub_peer_subscribe(self, prefix, bus=''):
+        peer = bytes(self.local.vip_message.peer)
+        subscriptions = self._pubsub_peer_subscriptions[bus]
+        for prefix in prefix if isinstance(prefix, list) else [prefix]:
+            try:
+                subscribers = subscriptions[prefix]
+            except KeyError:
+                subscriptions[prefix] = subscribers = set()
+            subscribers.add(peer)
+
+    @export('pubsub.unsubscribe')
+    def pubsub_peer_unsubscribe(self, prefix, bus=''):
+        peer = bytes(self.local.vip_message.peer)
+        subscriptions = self._pubsub_peer_subscriptions[bus]
+        if prefix is None:
+            empty = []
+            for topic, subscribers in subscriptions.iteritems():
+                subscribers.discard(peer)
+                if not subscribers:
+                    empty.append(topic)
+            for topic in empty:
+                subscriptions.pop(topic, None)
+        else:
+            for prefix in prefix if isinstance(prefix, list) else [prefix]:
+                try:
+                    subscribers = subscriptions[prefix]
+                except KeyError:
+                    pass
+                else:
+                    subscribers.discard(peer)
+                    if not subscribers:
+                        subscriptions.pop(prefix, None)
+
+    @export('pubsub.list')
+    def pubsub_peer_list(self, prefix='', bus='',
+                         subscribed=True, reverse=False):
+        peer = bytes(self.local.vip_message.peer)
+        if bus is None:
+            buses = [(bus, self._pubsub_peer_subscriptions[bus])]
+        else:
+            buses = self._pubsub_peer_subscriptions.iteritems()
+        if reverse:
+            test = lambda t: prefix.startswith(t)
+        else:
+            test = lambda t: t.startswith(prefix)
+        results = []
+        for _, subscriptions in buses:
+            for topic, subscribers in subscriptions.iteritems():
+                if test(topic):
+                    member = peer in subscribers
+                    if not subscribed or member:
+                        results.append((bus, topic, member))
+        return results
+
+    @export('pubsub.publish')
+    def pubsub_peer_publish(self, topic, headers, message=None, bus=''):
+        peer = bytes(self.local.vip_message.peer)
+        try:
+            subscriptions = self._pubsub_peer_subscriptions[bus]
+        except KeyError:
+            return 0
+        subscribers = set()
+        for prefix, subscription in subscriptions.iteritems():
+            if subscription and topic.startswith(prefix):
+                subscribers |= subscription
+        if subscribers:
+            json_msg = jsonapi.dumps(jsonrpc.json_method(
+                None, 'pubsub.push', [peer, bus, topic, headers, message], None))
+            frames = [zmq.Frame(b'RPC'), zmq.Frame(json_msg)]
+            socket = self.vip_socket
+            for subscriber in subscribers:
+                socket.send_vip(subscriber, 'RPC', flags=SNDMORE)
+                socket.send_multipart(frames, copy=False)
+        return len(subscribers)
+
+    @export('pubsub.push')
+    def pubsub_peer_push(self, sender, bus, topic, headers, message):
+        '''Handle incoming subscriptions from peers.'''
+        peer = bytes(self.local.vip_message.peer)
+        handled = 0
+        try:
+            subscriptions = self._pubsub_subscriptions[(peer, bus)]
+        except KeyError:
+            pass
+        else:
+            for prefix, callbacks in subscriptions.iteritems():
+                if topic.startswith(prefix):
+                    handled += 1
+                    for callback in callbacks:
+                        callback(peer, sender, bus, topic, headers, message)
+        if not handled:
+            self.pubsub_synchronize(peer)
+
+    def pubsub_synchronize(self, peer, timeout=15, force=False):
+        '''Unsubscribe from stale/forgotten/unsolicited subscriptions.'''
+        # Limit to one cleanup operation at a time unless force is True.
+        # There is no race condition setting _pubsub_synchronizing
+        # because the method is running in the context of gevent.
+        if self._pubsub_synchronizing and not force:
+            return False
+        self._pubsub_synchronizing += 1
+        try:
+            topics = self.rpc_call(peer, 'pubsub.list').get(timeout=timeout)
+            unsubscribe = {}
+            for bus, prefix, _ in topics:
+                try:
+                    unsubscribe[bus].add(prefix)
+                except KeyError:
+                    unsubscribe[bus] = set([prefix])
+            subscribe = {}
+            for (ident, bus), subscriptions \
+                    in self._pubsub_subscriptions.iteritems():
+                if peer != ident:
+                    continue
+                for prefix in subscriptions:
+                    try:
+                        topics = unsubscribe[bus]
+                        topics.remove(prefix)
+                    except KeyError:
+                        try:
+                            subscribe[bus].add(prefix)
+                        except KeyError:
+                            subscribe[bus] = set([prefix])
+                    else:
+                        if not topics:
+                            del unsubscribe[bus]
+            if unsubscribe:
+                self.rpc_batch(
+                    peer, ((True, 'pubsub.unsubscribe', (list(topics), bus), None)
+                           for bus, topics in unsubscribe.iteritems()))
+            if subscribe:
+                self.rpc_batch(
+                    peer, ((True, 'pubsub.subscribe', (list(topics), bus), None)
+                           for bus, topics in subscribe.iteritems()))
+        finally:
+            self._pubsub_synchronizing -= 1
+        return True
+
+    def pubsub_subscribe(self, peer, prefix, callback, bus='', timeout=15):
+        '''Subscribe to topic and register callback.
+
+        Subscribes to topics beginning with prefix. If callback is
+        supplied, it should be a function taking four arguments,
+        callback(peer, bus, topic, headers, message), where peer is the
+        ZMQ identity of the sender, topic is the full message topic,
+        headers is a case-insensitive dictionary (mapping) of message
+        headers, and message is a possibly empty list of message parts.
+
+        Returns an ID number which can be used later to unsubscribe.
+        '''
+        if not callable(callback):
+            raise ValueError('callback %r is not callable' % (callback,))
+        self.rpc_call(peer, 'pubsub.subscribe',
+                      [prefix], {'bus': bus}).get(timeout=timeout)
+        try:
+            subscriptions = self._pubsub_subscriptions[(peer, bus)]
+        except KeyError:
+            self._pubsub_subscriptions[(peer, bus)] = subscriptions = {}
+        try:
+            callbacks = subscriptions[prefix]
+        except KeyError:
+            subscriptions[prefix] = callbacks = set()
+        callbacks.add(callback)
+
+    def pubsub_unsubscribe(self, peer, prefix, callback, bus='', timeout=15):
+        '''Unsubscribe and remove callback(s).
+
+        Remove all handlers matching the given handler ID, which is the
+        ID returned by the subscribe method. If all handlers for a
+        topic prefix are removed, the topic is also unsubscribed.
+        '''
+        if prefix is None:
+            if callback is None:
+                topics = self._pubsub_subscriptions.pop((peer, bus)).keys()
+            else:
+                subscriptions = self._pubsub_subscriptions[(peer, bus)]
+                topics = []
+                remove = []
+                for topic, callbacks in subscriptions.iteritems():
+                    try:
+                        callbacks.remove(callback)
+                    except KeyError:
+                        pass
+                    else:
+                        topics.append(topic)
+                    if not callbacks:
+                        remove.append(topic)
+                for topic in remove:
+                    del subscriptions[topic]
+        else:
+            subscriptions = self._pubsub_subscriptions[(peer, bus)]
+            if callback is None:
+                subscriptions.pop(prefix)
+            else:
+                callbacks = subscriptions[prefix]
+                callbacks.discard(callback)
+                if callbacks:
+                    return
+                del subscriptions[prefix]
+            topics = [prefix]
+        self.rpc_call(peer, 'pubsub.unsubscribe',
+                      topics, bus).get(timeout=timeout)
+
+
+    def pubsub_publish(self, topic, headers={},
+                       message=None, peer='pubsub', bus='', timeout=15):
+        '''Publish a message to a given topic via a peer.
+
+        Publish headers and message to all subscribers of topic on bus
+        at peer.
+        '''
+        return self.rpc_call(
+            peer, 'pubsub.publish',
+            {'topic': topic, 'headers': headers,
+             'message': message, 'bus': bus}).get(timeout=timeout)
+
+
 class RPCAgent(VIPAgent, RPCMixin):
     pass
 
 
-class BaseAgent(VIPAgent, RPCMixin, ChannelMixin):
+class BaseAgent(VIPAgent, RPCMixin, ChannelMixin, PubSubMixin):
     pass
