@@ -94,8 +94,8 @@ from bacpypes.apdu import (ReadPropertyRequest,
                            PropertyReference,
                            ReadAccessSpecification,
                            encode_max_apdu_response)
-from bacpypes.primitivedata import Enumerated, Unsigned
-from bacpypes.constructeddata import Array
+from bacpypes.primitivedata import Null, Atomic, Enumerated, Integer, Unsigned, Real
+from bacpypes.constructeddata import Array, Any
 from bacpypes.basetypes import ServicesSupported
 from bacpypes.task import TaskManager
 from gevent.event import AsyncResult
@@ -180,8 +180,11 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
     
             # keep track of the request
             self.iocb[invoke_key] = iocb
-            
-        BIPSimpleApplication.request(self, apdu)
+        
+        try:    
+            BIPSimpleApplication.request(self, apdu)
+        except StandardError as e:
+            iocb.set_exception(e)
 
     def confirmation(self, apdu):
         # build a key to look for the IOCB
@@ -354,9 +357,49 @@ def BACnetProxyAgent(config_path, **kwargs):
             iocb = IOCB(request, self.async_call)
             self.this_application.submit_request(iocb)
             
+        @export()
+        def write_property(self, target_address, value, object_type, instance_number, property_name, priority=None, index=None):
+            """Write to a property."""
+            request = WritePropertyRequest(
+                objectIdentifier=(object_type, instance_number),
+                propertyIdentifier=property_name)
+            
+            datatype = get_datatype(object_type, property_name)
+            if (value == 'null'):
+                bac_value = Null()
+            elif issubclass(datatype, Atomic):
+                if datatype is Integer:
+                    value = int(value)
+                elif datatype is Real:
+                    value = float(value)
+                elif datatype is Unsigned:
+                    value = int(value)
+                bac_value = datatype(value)
+            elif issubclass(datatype, Array) and (index is not None):
+                if index == 0:
+                    bac_value = Integer(value)
+                elif issubclass(datatype.subtype, Atomic):
+                    bac_value = datatype.subtype(value)
+                elif not isinstance(value, datatype.subtype):
+                    raise TypeError("invalid result datatype, expecting %s" % (datatype.subtype.__name__,))
+            elif not isinstance(value, datatype):
+                raise TypeError("invalid result datatype, expecting %s" % (datatype.__name__,))
+                
+            request.propertyValue = Any()
+            request.propertyValue.cast_in(bac_value)
+                
+            request.pduDestination = Address(target_address)
+            
+            iocb = IOCB(request, self.async_call)
+            self.this_application.submit_request(iocb)
+            result = iocb.ioResult.wait()
+            if isinstance(result, SimpleAckPDU):
+                return value
+            raise RuntimeError("Failed to set value: " + str(result))
+            
         
         @export()
-        def read_points(self, target_address, point_map, max_per_request=None):
+        def read_properties(self, target_address, point_map, max_per_request=None):
             """Read a set of points and return the results"""
             #This will be used to get the results mapped
             # back on the the names
