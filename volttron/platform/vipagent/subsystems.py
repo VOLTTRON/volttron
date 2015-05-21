@@ -16,7 +16,7 @@ import weakref
 import gevent.local
 from gevent.event import AsyncResult
 from zmq import green as zmq
-from zmq import SNDMORE
+from zmq import SNDMORE, ZMQError
 from zmq.utils import jsonapi
 
 from .. import jsonrpc, vip
@@ -180,51 +180,66 @@ class UnknownSubsystem(VIPError):
     pass
 
 
-class Subsystem(object):
+def counter(start=None, minimum=0, maximum=2**64-1):
+    count = random.randint(minimum, maximum) if start is None else start
+    while True:
+        yield count
+        count += 1
+        if count >= maximum:
+            count = minimum
+
+
+class ResultsDictionary(weakref.WeakValueDictionary):
     def __init__(self):
-        self._id_counter = random.randint(0, 4095)
+        weakref.WeakValueDictionary.__init__(self)
+        self._counter = counter()
 
-    def next_id(self):
-        ident = bytes(self._id_counter)
-        self._id_counter += 1
-        if self._id_counter > 0xffffffff:
-            self._id_counter = 0
-        return ident
+    def next(self):
+        result = gevent.event.AsyncResult()
+        result.ident = ident = '%s.%s' % (next(self._counter), hash(result))
+        self[ident] = result
+        return result
 
 
-class Ping(Subsystem):
+class SubsystemBase(object):
+    pass
+
+
+class Ping(SubsystemBase):
     def __init__(self, core):
-        super(Ping, self).__init__()
-        self._results = weakref.WeakValueDictionary()
-        core.register('ping', self.handle_ping, self.handle_error)
-        core.register('pong', self.handle_pong, self.handle_error)
         self.core = weakref.ref(core)
+        self._results = ResultsDictionary()
+        core.register('ping', self._handle_ping, self._handle_error)
+        core.register('pong', self._handle_pong, self._handle_error)
 
     def ping(self, peer, *args):
         socket = self.core().socket
-        result = AsyncResult()
-        ident = '%s.%s' % (self.next_id(), id(result) % 0xffffffff)
-        self._results[ident] = result
-        socket.send_vip(peer, b'ping', args, ident)
+        result = next(self._results)
+        socket.send_vip(peer, b'ping', args, result.ident)
         return result
 
-    def handle_ping(self, message):
+    __call__ = ping
+
+    def _handle_ping(self, message):
         socket = self.core().socket
         message.subsystem = vip._PONG
         message.user = b''
         socket.send_vip_object(message, copy=False)
 
-    def handle_pong(self, message):
-        result = self._results.pop(bytes(message.id), None)
-        if result:
-            result.set([bytes(arg) for arg in message.args])
+    def _handle_pong(self, message):
+        try:
+            result = self._results.pop(bytes(message.id))
+        except KeyError:
+            return
+        result.set([bytes(arg) for arg in message.args])
 
-    def handle_error(self, message):
-        result = self._results.pop(bytes(message.id), None)
-        if result:
-            result.set_exception(
-                VIPError.from_errno(*[bytes(arg) for arg in message.args]))
-
+    def _handle_error(self, message):
+        try:
+            result = self._results.pop(bytes(message.id))
+        except KeyError:
+            return
+        result.set_exception(
+            VIPError.from_errno(*[bytes(arg) for arg in message.args]))
 
 
 class Dispatcher(jsonrpc.Dispatcher):
@@ -232,17 +247,7 @@ class Dispatcher(jsonrpc.Dispatcher):
         super(Dispatcher, self).__init__()
         self.methods = methods
         self.local = local
-        self._results = weakref.WeakValueDictionary()
-        self._counter = random.randint(0, 4095)
-
-    def _add_result(self):
-        result = AsyncResult()
-        ident = '%d.%s' % (self._counter, id(result) % 0xffffffff)
-        self._counter += 1
-        if self._counter > 0xffffffff:
-            self._counter = 0
-        self._results[ident] = result
-        return ident, result
+        self._results = ResultsDictionary()
 
     def serialize(self, json_obj):
         return jsonapi.dumps(json_obj)
@@ -257,16 +262,17 @@ class Dispatcher(jsonrpc.Dispatcher):
             if notify:
                 ident = None
             else:
-                ident, result = self._add_result()
+                result = next(self._results)
+                ident = result.ident
                 results.append(result)
             methods.append((ident, method, args, kwargs))
         return super(Dispatcher, self).batch_call(methods), results
 
     def call(self, method, args=None, kwargs=None):
         # pylint: disable=arguments-differ
-        ident, result = self._add_result()
+        result = next(self._results)
         return super(Dispatcher, self).call(
-            ident, method, args, kwargs), result
+            result.ident, method, args, kwargs), result
 
     def result(self, response, ident, value, context=None):
         try:
@@ -355,28 +361,29 @@ class Dispatcher(jsonrpc.Dispatcher):
         return response
 
 
-class RPC(Subsystem):
+class RPC(SubsystemBase):
     def __init__(self, core, owner):
-        super(RPC, self).__init__()
-        self._exports = {}
-        self._dispatcher = None
-        core.register('RPC', self.handle_subsystem, self.handle_error)
         self.core = weakref.ref(core)
         self.context = None
+        self._exports = {}
         self._dispatcher = None
+        self._counter = counter()
         self._outstanding = weakref.WeakValueDictionary()
+        core.register('RPC', self._handle_subsystem, self._handle_error)
+
         def export(member):   # pylint: disable=redefined-outer-name
             for name in get_annotations(member, set, 'rpc.exports'):
                 self._exports[name] = member
         inspect.getmembers(owner, export)
-        core.onsetup.connect(self._setup)
 
-    def _setup(self, sender, **kwargs):
-        self.context = gevent.local.local()
-        self._dispatcher = Dispatcher(self._exports, self.context)
+        def setup(sender, **kwargs):
+            # pylint: disable=unused-argument
+            self.context = gevent.local.local()
+            self._dispatcher = Dispatcher(self._exports, self.context)
+        core.onsetup.connect(setup, self)
 
     @spawn
-    def handle_subsystem(self, message):
+    def _handle_subsystem(self, message):
         dispatch = self._dispatcher.dispatch
         responses = [response for response in (
             dispatch(bytes(msg), message) for msg in message.args) if response]
@@ -385,7 +392,7 @@ class RPC(Subsystem):
             message.args = responses
             self.core().socket.send_vip_object(message, copy=False)
 
-    def handle_error(self, message):
+    def _handle_error(self, message):
         result = self._outstanding.pop(bytes(message.id), None)
         if isinstance(result, AsyncResult):
             result.set_exception(
@@ -409,7 +416,7 @@ class RPC(Subsystem):
         request, results = self._dispatcher.batch_call(requests)
         if results:
             items = weakref.WeakSet(results)
-            ident = '%s.%s' % (self.next_id(), id(items) % 0xffffffff)
+            ident = '%s.%s' % (next(self._counter), id(items))
             for result in results:
                 result._weak_set = items   # pylint: disable=protected-access
             self._outstanding[ident] = items
@@ -420,65 +427,66 @@ class RPC(Subsystem):
 
     def call(self, peer, method, *args, **kwargs):
         request, result = self._dispatcher.call(method, args, kwargs)
-        ident = '%s.%s' % (self.next_id(), id(request) % 0xffffffff)
+        ident = '%s.%s' % (next(self._counter), hash(result))
         self._outstanding[ident] = result
         self.core().socket.send_vip(peer, 'RPC', [request], msg_id=ident)
         return result
+
+    __call__ = call
 
     def notify(self, peer, method, *args, **kwargs):
         request = self._dispatcher.notify(method, args, kwargs)
         self.core().socket.send_vip(peer, 'RPC', [request])
 
 
-#                frames = [sender, recipient, proto, user_id, msg_id,
-#                          _WELCOME, _VERSION, socket.identity, sender]
-
-
-class Hello(Subsystem):
+class Hello(SubsystemBase):
     def __init__(self, core):
-        super(Hello, self).__init__()
-        self._results = weakref.WeakValueDictionary()
-        core.register('hello', self.handle_hello, self.handle_error)
-        core.register('welcome', self.handle_welcome, self.handle_error)
         self.core = weakref.ref(core)
+        self._results = ResultsDictionary()
+        core.register('hello', self._handle_hello, self._handle_error)
+        core.register('welcome', self._handle_welcome, self._handle_error)
 
     def hello(self, peer=b''):
         socket = self.core().socket
-        result = AsyncResult()
-        ident = '%s.%s' % (self.next_id(), id(result) % 0xffffffff)
-        self._results[ident] = result
-        socket.send_vip(peer, b'hello', msg_id=ident)
+        result = next(self._results)
+        socket.send_vip(peer, b'hello', msg_id=result.ident)
         return result
 
-    def handle_hello(self, message):
+    __call__ = hello
+
+    def _handle_hello(self, message):
         socket = self.core().socket
         message.subsystem = vip._WELCOME
         message.user = b''
         message.args = [vip._VERSION, socket.identity, message.peer]
         socket.send_vip_object(message, copy=False)
 
-    def handle_welcome(self, message):
-        result = self._results.pop(bytes(message.id), None)
-        if result:
-            result.set([bytes(arg) for arg in message.args])
+    def _handle_welcome(self, message):
+        try:
+            result = self._results.pop(bytes(message.id))
+        except KeyError:
+            return
+        result.set([bytes(arg) for arg in message.args])
 
-    def handle_error(self, message):
-        result = self._results.pop(bytes(message.id), None)
-        if result:
-            result.set_exception(
-                VIPError.from_errno(*[bytes(arg) for arg in message.args]))
+    def _handle_error(self, message):
+        try:
+            result = self._results.pop(bytes(message.id))
+        except KeyError:
+            return
+        result.set_exception(
+            VIPError.from_errno(*[bytes(arg) for arg in message.args]))
 
 
-class PubSub(Subsystem):
+class PubSub(SubsystemBase):
     def __init__(self, core, rpc):
-        super(PubSub, self).__init__()
+        self.core = weakref.ref(core)
+        self.rpc = weakref.ref(rpc)
         self._peer_subscriptions = {}
         self._my_subscriptions = {}
         self._synchronizing = 0
-        self.core = weakref.ref(core)
-        self.rpc = weakref.ref(rpc)
 
         def setup(sender, **kwargs):
+            # pylint: disable=unused-argument
             rpc.export(self.peer_subscribe, 'pubsub.subscribe')
             rpc.export(self.peer_unsubscribe, 'pubsub.unsubscribe')
             rpc.export(self.peer_list, 'pubsub.list')
@@ -713,7 +721,7 @@ class PubSub(Subsystem):
                 message=message, bus=bus)
 
 
-class Channel(Subsystem):
+class Channel(SubsystemBase):
 
     class Tracker(object):
         def __init__(self):
@@ -762,19 +770,20 @@ class Channel(Subsystem):
             return channel
 
     def __init__(self, core):
-        super(Channel, self).__init__()
         self.core = weakref.ref(core)
         self.context = zmq.Context()
         self.socket = None
         self.greenlet = None
         self._tracker = Channel.Tracker()
-        core.register('channel', self.handle_subsystem, None)
+        core.register('channel', self._handle_subsystem, None)
 
         def setup(sender, **kwargs):
+            # pylint: disable=unused-argument
             self.socket = self.context.socket(zmq.ROUTER)
         core.onsetup.connect(setup, self)
 
         def start(sender, **kwargs):
+            # pylint: disable=unused-argument
             self.greenlet = gevent.getcurrent()
             socket = self.core().socket
             server = self.socket
@@ -794,6 +803,7 @@ class Channel(Subsystem):
         core.onstart.connect(start, self)
 
         def stop(sender, **kwargs):
+            # pylint: disable=unused-argument
             if self.greenlet is not None:
                 self.greenlet.kill(block=False)
             try:
@@ -802,7 +812,7 @@ class Channel(Subsystem):
                 pass
         core.onstop.connect(stop, self)
 
-    def handle_subsystem(self, message):
+    def _handle_subsystem(self, message):
         frames = message.args
         try:
             name = frames[0]
@@ -836,7 +846,7 @@ class Channel(Subsystem):
             else:
                 raise ValueError('channel %r is unavailable' % (name,))
         socket = self.context.socket(zmq.DEALER)
-        socket.identity = '%08x.%08x' % (hash(channel), hash(socket))
+        socket.identity = '%s.%s' % (hash(channel), hash(socket))
         object.__setattr__(socket, 'channel', channel)
         sockref = self._tracker.add(channel, socket.identity, socket)
         close_socket = socket.close
@@ -847,3 +857,5 @@ class Channel(Subsystem):
         socket.close = close
         socket.connect('inproc://subsystem/channel')
         return socket
+
+    __call__ = create

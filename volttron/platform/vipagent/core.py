@@ -19,8 +19,7 @@ _log = logging.getLogger(__name__)
 
 
 class Core(object):
-    def __init__(self, address=None, identity=None, context=None, **kwargs):
-        super(Core, self).__init__(**kwargs)
+    def __init__(self, address=None, identity=None, context=None):
         if not address:
             address = os.environ.get('VOLTTRON_VIP_ADDR')
             if not address:

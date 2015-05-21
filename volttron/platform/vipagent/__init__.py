@@ -1,20 +1,18 @@
 
 from __future__ import absolute_import, print_function
 
-from . import core, subsystems
+from . import core as _core, subsystems
 
 
 class Agent(object):
-    def __init__(self, identity=None, address=None, context=None, **kwargs):
-        super(Agent, self).__init__(**kwargs)
-        self.core = core.Core(
-            identity=identity, address=address, context=context)
-        self.ping = subsystems.Ping(self.core)
-        self.rpc = subsystems.RPC(self.core, self)
-        self.hello = subsystems.Hello(self.core)
-        self.pubsub = subsystems.PubSub(self.core, self.rpc)
-        self.channel = subsystems.Channel(self.core)
+    class Subsystems(object):
+        def __init__(self, owner, core):
+            self.ping = subsystems.Ping(core)
+            self.rpc = subsystems.RPC(core, owner)
+            self.hello = subsystems.Hello(core)
+            self.pubsub = subsystems.PubSub(core, self.rpc)
+            self.channel = subsystems.Channel(core)
 
-    @subsystems.RPC.export
-    def hello(self, name):
-        return 'hi, ' + name
+    def __init__(self, identity=None, address=None, context=None):
+        self.core = _core.Core(identity=identity, address=address, context=context)
+        self.vip = Agent.Subsystems(self, self.core)
