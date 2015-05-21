@@ -3,10 +3,14 @@
     "application": "economizer.economizer_rcx.Application",
 
     "device": {
-        "campus": "pnnl",
-        "building": "isb1",
-        "unit": "device",
-        "analysis": "Economizer_RCx"
+        "campus": "campus1",
+        "building": "building1",
+        "unit": {
+            "rtu4": {
+                "subdevices": []
+             }
+        },
+        "analysis_name": "Economizer_RCx"
     },
 
     "output_file": "./junk.csv",
@@ -15,15 +19,15 @@
 
     "arguments": {
         "fan_status": "supplyfanstatus",
-        "oa_temp": "outsideairtemperature",
+        "oa_temp": "outdoorairtemperature",
         "ra_temp": "returnairtemperature",
         "ma_temp": "mixedairtemperature",
-        "damper_signal": "outsidedampercommand",
+        "damper_signal": "outdoordampersignal",
         "cool_call": "coolingvalveposition",
         "fan_speedcmd": "supplyfanspeed",
-        "data_window": 30,
-        "no_required_data": 20,
-        "open_damper_time": 5,
+        "data_window": 1,
+        "no_required_data": 1,
+        "open_damper_time": 0,
         "low_supply_fan_threshold": 20.0,
         "mat_low_threshold": 50.0,
         "mat_high_threshold": 90.0,
