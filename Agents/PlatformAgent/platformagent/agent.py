@@ -53,6 +53,7 @@
 
 #}}}
 
+import base64
 import datetime
 import gevent
 import logging
@@ -61,17 +62,19 @@ import requests
 import os
 import os.path as p
 import re
+import shutil
+import tempfile
 import uuid
 
-from volttron.platform import vip, jsonrpc
+from volttron.platform import vip, jsonrpc, control
 from volttron.platform.control import Connection
-from volttron.platform.agent.vipagent import RPCAgent, periodic, onevent, jsonapi, export, QueryAddressesMixin, spawn
-from volttron.platform.agent import utils
+from volttron.platform.agent.vipagent import (RPCAgent, periodic, onevent, 
+                                              jsonapi, export, 
+                                              QueryAddressesMixin, spawn)
 
 from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
-                                       INVALID_REQUEST, METHOD_NOT_FOUND, PARSE_ERROR,
-                                       UNHANDLED_EXCEPTION)
-# from  import spawn
+                                       INVALID_REQUEST, METHOD_NOT_FOUND,
+                                       PARSE_ERROR, UNHANDLED_EXCEPTION)
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -95,8 +98,7 @@ def platform_agent(config_path, **kwargs):
     if not vc_vip_address:
         raise ValueError('Invalid volttron_central_vip_address')
 
-    class Agent(RPCAgent, QueryAddressesMixin):
-
+    class Agent(RPCAgent, QueryAddressesMixin, ChannelMixin):
         def __init__(self, **kwargs):
 
             super(Agent, self).__init__(vip_identity=vip_identity, **kwargs)
@@ -109,6 +111,30 @@ def platform_agent(config_path, **kwargs):
         def list_agents(self):
             result = self.rpc_call("control", "list_agents").get()
             return result
+
+        def _install_agents(self, agent_files):
+            tmpdir = tempfile.mkdtemp()
+            results = []
+            try:
+                for f in agent_files:
+                    path = os.path.join(tmpdir, f['file_name'])
+                    with open(path, 'wb') as fout:
+                        fout.write(base64.decodestring(f['file'].split('base64,')[1]))
+
+                    agent_uuid = control._send_agent(self, 'control', path).get(timeout=15)
+                    results.append({'uuid': agent_uuid})
+#                     if 'tag' in f:
+#                         result = self.rpc_call('control', 'tag_agent',
+#                                                [str(agent_uuid), f['tag']]).get(timeout=5)
+#                         results.append({'uuid': str(agent_uuid), 'tag': f['tag']})
+#                     else:
+#                         results.append({'uuid': str(agent_uuid), 'tag': None})
+            except Exception as e:
+                print("EXCEPTION: "+e.message)
+
+            finally:
+                shutil.rmtree(tmpdir)
+            return results
 
         @export()
         def route_request(self, id, method, params):
@@ -127,10 +153,21 @@ def platform_agent(config_path, **kwargs):
                     result = self.route_request(id, 'agent_status', params)
                 else:
                     result = {'process_id': status[0], 'return_code': status[1]}
+            elif method in ('install'):
+
+                if not 'files' in params:
+                    result = {'code': INVALID_PARAMS}
+                else:
+                    result = self._install_agents(params['files'])
+
+            else:
+                result = {'code': METHOD_NOT_FOUND}
 
             if isinstance(result, dict):
-                if 'result' in result or 'code' in result:
-                    return result
+                if 'result' in result:
+                    return result['result']
+                elif 'code' in result:
+                    return result['code']
 
             return result
 
