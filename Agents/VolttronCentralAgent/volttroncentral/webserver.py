@@ -210,10 +210,8 @@ class ManagerRequestHandler(tornado.web.RequestHandler):
     '''
     def prepare(self):
         self.tmp = TemporaryFile()
-        self.request_length = 0
 
     def data_received(self, chunk):
-        self.request_length += len(chunk)
         self.tmp.write(chunk)
 
     def _route(self, rpcRequest):
