@@ -243,7 +243,6 @@ class Router(vip.BaseRouter):
             if sender == b'control' and not user_id:
                 raise KeyboardInterrupt()
         elif subsystem == 'query.addresses':
-            print("***IN MAIN, self.addresses= {}".format(self.addresses))
             frames[6:] = self.addresses
             frames[3] = ''
             frames[5] = 'query.addresses.result'
@@ -525,7 +524,6 @@ def main(argv=sys.argv):
 
     # Main loops
     try:
-        print ("****OPTS: {}".format(opts.vip_address))
         router = Router(opts.vip_address)
         exchange = gevent.spawn(
             agent_exchange, opts.publish_address, opts.subscribe_address)
