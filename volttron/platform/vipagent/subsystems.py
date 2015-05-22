@@ -516,10 +516,11 @@ class PubSub(SubsystemBase):
         if subscribers:
             json_msg = jsonapi.dumps(jsonrpc.json_method(
                 None, 'pubsub.push', [peer, bus, topic, headers, message], None))
-            frames = [zmq.Frame(b'RPC'), zmq.Frame(json_msg)]
+            frames = [zmq.Frame(b''), zmq.Frame(b''),
+                      zmq.Frame(b'RPC'), zmq.Frame(json_msg)]
             socket = self.core().socket
             for subscriber in subscribers:
-                socket.send_vip(subscriber, 'RPC', flags=SNDMORE)
+                socket.send(subscriber, flags=SNDMORE)
                 socket.send_multipart(frames, copy=False)
         return len(subscribers)
 
@@ -591,10 +592,11 @@ class PubSub(SubsystemBase):
 
         Subscribes to topics beginning with prefix. If callback is
         supplied, it should be a function taking four arguments,
-        callback(peer, bus, topic, headers, message), where peer is the
-        ZMQ identity of the sender, topic is the full message topic,
-        headers is a case-insensitive dictionary (mapping) of message
-        headers, and message is a possibly empty list of message parts.
+        callback(peer, sender, bus, topic, headers, message), where peer
+        is the ZMQ identity of the bus owner sender is identity of the
+        publishing peer, topic is the full message topic, headers is a
+        case-insensitive dictionary (mapping) of message headers, and
+        message is a possibly empty list of message parts.
 
         Returns an ID number which can be used later to unsubscribe.
         '''
