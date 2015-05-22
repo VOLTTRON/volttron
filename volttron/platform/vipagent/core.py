@@ -115,7 +115,7 @@ class Core(object):
 
         def start_periodics(sender, **kwargs):
             for periodic in periodics:
-                sender.greenlet.link(lambda glt: periodic.kill)
+                sender.greenlet.link(lambda glt: periodic.kill())
                 periodic.start()
             del periodics[:]
         self.onstart.connect(start_periodics)
@@ -146,7 +146,7 @@ class Core(object):
             while calls:
                 func, args, kwargs = calls.pop()
                 greenlet = gevent.spawn(func, *args, **kwargs)
-                current.link(lambda glt: greenlet.kill)
+                current.link(lambda glt: greenlet.kill())
 
         def vip_loop():
             socket = self.socket
@@ -174,7 +174,7 @@ class Core(object):
 
         def link_receiver(receiver, sender, **kwargs):
             greenlet = gevent.spawn(receiver, sender, **kwargs)
-            current.link(lambda glt: greenlet.kill)
+            current.link(lambda glt: greenlet.kill())
             return greenlet
 
         self._stop_event = stop = gevent.event.Event()
@@ -189,7 +189,7 @@ class Core(object):
         self.socket.connect(self.address)
 
         loop = gevent.spawn(vip_loop)
-        current.link(lambda glt: loop.kill)
+        current.link(lambda glt: loop.kill())
         self.onstart.sendby(link_receiver, self)
         if loop in gevent.wait([loop, stop], count=1):
             raise RuntimeError('VIP loop ended prematurely')
@@ -253,7 +253,7 @@ class Core(object):
             kwargs = {}
         greenlet = decorators.periodic(
             period, *args, **kwargs).wait(wait).get(func)
-        self.greenlet.link(lambda glt: greenlet.kill)
+        self.greenlet.link(lambda glt: greenlet.kill())
         greenlet.start()
         return greenlet
 
