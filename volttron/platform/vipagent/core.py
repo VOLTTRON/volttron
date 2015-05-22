@@ -166,11 +166,11 @@ class Core(object):
 
         loop = gevent.spawn(vip_loop)
         current.link(lambda glt: loop.kill)
-        self.onstart.send_via(link_receiver, self)
+        self.onstart.sendby(link_receiver, self)
         if loop in gevent.wait([loop, stop], count=1):
             raise RuntimeError('VIP loop ended prematurely')
         stop.wait()
-        receivers = self.onstop.send_via(link_receiver, self)
+        receivers = self.onstop.sendby(link_receiver, self)
         gevent.wait(receivers)
         self.socket.disconnect(self.address)
         self.onfinish.send(self)

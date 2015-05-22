@@ -81,7 +81,7 @@ class Signal(object):
         return [receiver(sender, **kwargs)
                 for receiver in self._receivers]
 
-    def send_via(self, executor, sender, **kwargs):
+    def sendby(self, executor, sender, **kwargs):
         return [executor(receiver, sender, **kwargs)
                 for receiver in self._receivers]
         
