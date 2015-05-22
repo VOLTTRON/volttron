@@ -102,15 +102,22 @@ class Core(object):
         self.onstop = Signal()
         self.onfinish = Signal()
 
+        periodics = []
+        def setup(member):   # pylint: disable=redefined-outer-name
+            periodics.extend(
+                periodic.get(member) for periodic in decorators.annotations(
+                    member, list, 'core.periodics'))
+            for name in decorators.annotations(member, set, 'core.signals'):
+                signal = getattr(self, name)
+                assert isinstance(signal, Signal)
+                signal.connect(member, owner)
+        inspect.getmembers(owner, setup)
+
         def start_periodics(sender, **kwargs):
-            def export(member):   # pylint: disable=redefined-outer-name
-                for periodic in decorators.annotations(
-                        member, list, 'core.periodics'):
-                    print('starting', member.__name__)
-                    greenlet = periodic.get(member)
-                    sender.greenlet.link(lambda glt: greenlet.kill())
-                    greenlet.start()
-            inspect.getmembers(owner, export)
+            for periodic in periodics:
+                sender.greenlet.link(lambda glt: periodic.kill)
+                periodic.start()
+            del periodics[:]
         self.onstart.connect(start_periodics)
 
     def register(self, name, handler, error_handler):
@@ -253,3 +260,10 @@ class Core(object):
     @periodic.classmethod
     def periodic(cls, period, *args, **kwargs):   # pylint: disable=no-self-argument
         return decorators.periodic(period, *args, **kwargs)
+
+    @classmethod
+    def receiver(cls, signal):
+        def decorate(method):
+            decorators.annotate(method, set, 'core.signals', signal)
+            return method
+        return decorate
