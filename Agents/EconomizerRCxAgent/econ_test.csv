@@ -1,4 +1,4 @@
-TIME_STAMP,CoolingValvePosition,MixedAirTemperature,OutdoorAirTemperature,OutdoorDamperSignal,ReturnAirTemperature,SupplyFanStatus,SupplyFanSpeed
+TIME_STAMP,rtu4_CoolingValvePosition,rtu4_MixedAirTemperature,rtu4_OutdoorAirTemperature,rtu4_OutdoorDamperSignal,rtu4_ReturnAirTemperature,rtu4_SupplyFanStatus,rtu4_SupplyFanSpeed
 10/17/2014 16:01,55.05,67.94,61.4,50,71.85,1,100
 10/17/2014 16:02,55.05,67.94,61.4,50,71.85,0,100
 10/17/2014 16:03,55.05,67.94,61.4,50,71.85,,100

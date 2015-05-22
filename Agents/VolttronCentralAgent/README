@@ -1,16 +1,14 @@
 The volttron central agent allows the control of different volttron platforms
-through the  platform agent that are registered.  Operations that are allowed
-are start, stop, install, and run methods on the registered platform's agents.
+through the  platform agent that are registered.  The registration of
+platforms can be initiated either from the platform agent side or from volttron
+central requesting to manage a specified platform agent.  Once a platform
+agent is registered the allowed operations are start, stop, install, and run
+methods on the registered platform's agents.
 
-JSON configuration options are as follows:
+Configuration
+-----------------------
+The agentid does not have to be unique.  It is what will be used
+as a human readable name on volttron central.  If it is not set the
+default 'volttron central' will be used.
 
-    Required Configuration
-    -----------------------
-    
-    Optional Configuration
-    -----------------------
-    The agentid does not have to be unique.  It is what will be used
-    as a human readable name on volttron central.  If it is not set the
-    default 'volttron central' will be used.
-
-    "agentid": "volttron central",
+"agentid": "volttron central",

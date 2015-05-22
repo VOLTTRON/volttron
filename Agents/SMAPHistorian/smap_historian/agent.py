@@ -65,7 +65,8 @@ import time
 import pytz
 from pytz import timezone
 
-from volttron.platform.agent.base_historian import BaseHistorianAgent
+from volttron.platform.agent.base_historian import (BaseHistorianAgent,
+                                                    BaseQueryHistorianAgent)
 from volttron.platform.agent import utils, matching
 from volttron.platform.messaging import topics, headers as headers_mod
 from zmq.utils import jsonapi
@@ -93,7 +94,7 @@ def SMAPHistorianAgent(config_path, **kwargs):
     _add_url = '{backend_url}/add/{key}'.format(backend_url=_backend_url,
                                                 key=_config.get('key'))
 
-    class Agent(BaseHistorianAgent):
+    class Agent(BaseHistorianAgent, BaseQueryHistorianAgent):
         '''This is a simple example of a historian agent that writes data
         to an sMAP historian. It is designed to test some of the functionality
         of the BaseHistorianAgent.

@@ -28,8 +28,7 @@
                 ]
             }
         },
-        "analysis_name": "Airside_RCx",
-        "pub_device": "rtu3"
+        "analysis_name": "Airside_RCx"
     },
     "output_file": "./junk.csv",
     "mode": "PASSIVE",

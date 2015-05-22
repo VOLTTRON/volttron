@@ -126,13 +126,17 @@ class MethodNotFound(Error):
 class RemoteError(Exception):
     """Report the details of an error which occurred remotely.
 
-    message is the JSON-RPC error message. The remaining arguments are
-    set from the data element associated with an error code of -32000
-    (UNHANDLED_EXCEPTION). exc_type, exc_args, and exc_tb are
+    Instances of this exception are usually created by
+    exception_from_json(), which uses the 'detail' element of the
+    JSON-RPC error for message, if it is set, otherwise the JSON-RPC
+    error message.  The exc_info argument is set from the 'exception.py'
+    element associated with an error code of -32000
+    (UNHANDLED_EXCEPTION). Typical keys in exc_info are exc_type,
+    exc_args, and exc_tb (if tracebacks are allowed) which are
     stringified versions of the tuple returned from sys.exc_info().
     """
 
-    def __init__(self, message, exc_info):
+    def __init__(self, message, **exc_info):
         if exc_info:
             try:
                 exc_type = exc_info['exc_type']
@@ -146,12 +150,34 @@ class RemoteError(Exception):
         self.message = message
         self.exc_info = exc_info
 
+    def __repr__(self):
+        exc_type = self.exc_info.get('exc_type', '<unknown>')
+        try:
+            exc_args = ', '.join(repr(arg) for arg in
+                                 self.exc_info['exc_args'])
+        except KeyError:
+            exc_args = '...'
+        return '%s(%s)' % (exc_type, exc_args)
+
+    def print_tb(self, file=sys.stderr):
+        '''Pretty print the traceback in the standard format.'''
+        exc_type = self.exc_info.get('exc_type', '<unknown>')
+        file.write('Remote Traceback (most recent call last):\n')
+        try:
+            exc_tb = self.exc_info['exc_tb']
+        except KeyError:
+            file.write('  (traceback omitted)\n')
+        else:
+            file.write(''.join(exc_tb))
+        file.write('%s: %s\n' % (exc_type, self.message))
+
+
 
 def exception_from_json(code, message, data=None):
     '''Return an exception suitable for raising in a caller.'''
     if code == UNHANDLED_EXCEPTION:
         return RemoteError(data.get('detail', message),
-                           data.get('exception.py', {}))
+                           **data.get('exception.py', {}))
     elif code == METHOD_NOT_FOUND:
         return MethodNotFound(code, message, data)
     return Error(code, message, data)

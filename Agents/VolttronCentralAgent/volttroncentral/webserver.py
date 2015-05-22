@@ -1,4 +1,5 @@
 import logging
+from tempfile import TemporaryFile
 import tornado
 import uuid
 
@@ -196,7 +197,7 @@ class RpcRequest:
         except:
             self.error = PARSE_ERROR
 
-
+@tornado.web.stream_request_body
 class ManagerRequestHandler(tornado.web.RequestHandler):
     '''The main RequestHanlder for the platform manager.
 
@@ -207,6 +208,11 @@ class ManagerRequestHandler(tornado.web.RequestHandler):
     must be passed to any other calls to the handler or a 401 Unauhthorized
     code will be returned.
     '''
+    def prepare(self):
+        self.tmp = TemporaryFile()
+
+    def data_received(self, chunk):
+        self.tmp.write(chunk)
 
     def _route(self, rpcRequest):
         # this is the only method that the handler truly deals with, the
@@ -290,9 +296,12 @@ class ManagerRequestHandler(tornado.web.RequestHandler):
     @tornado.web.asynchronous
     def post(self):
         _log.debug('handling request')
-        request_body = self.request.body
+        self.tmp.seek(0)
+        self.rpcrequest = RpcRequest(self.tmp.read())
+        self.tmp.close()
+        #request_body = self.request.body
         # result will be an RpcParser object  when completed
-        self.rpcrequest = RpcRequest(request_body)
+        #self.rpcrequest = RpcRequest(request_body)
         if self.rpcrequest.has_error():
             self._response_complete(
                 jsonrpc.json_error(self.rpcrequest.id,
