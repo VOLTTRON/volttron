@@ -57,25 +57,31 @@
 
 from __future__ import absolute_import, print_function
 
+import inspect
 import logging
 import os
 import sys
 import threading
+import weakref
 
 import gevent.event
 from zmq import green as zmq
 from zmq.green import ZMQError, EAGAIN
 
+from . import decorators
 from .dispatch import Signal
 from ..vip import green as vip
 from ... import platform
+
+
+__all__ = ['Core']
 
 
 _log = logging.getLogger(__name__)
 
 
 class Core(object):
-    def __init__(self, address=None, identity=None, context=None):
+    def __init__(self, owner, address=None, identity=None, context=None):
         if not address:
             address = os.environ.get('VOLTTRON_VIP_ADDR')
             if not address:
@@ -95,6 +101,17 @@ class Core(object):
         self.onstart = Signal()
         self.onstop = Signal()
         self.onfinish = Signal()
+
+        def start_periodics(sender, **kwargs):
+            def export(member):   # pylint: disable=redefined-outer-name
+                for periodic in decorators.annotations(
+                        member, list, 'core.periodics'):
+                    print('starting', member.__name__)
+                    greenlet = periodic.get(member)
+                    sender.greenlet.link(lambda glt: greenlet.kill())
+                    greenlet.start()
+            inspect.getmembers(owner, export)
+        self.onstart.connect(start_periodics)
 
     def register(self, name, handler, error_handler):
         self.subsystems[name] = (handler, error_handler)
@@ -220,3 +237,19 @@ class Core(object):
         thread.daemon = True
         thread.start()
         return result
+
+    @decorators.dualmethod
+    def periodic(self, period, func, args=None, kwargs=None, wait=0):
+        if args is None:
+            args = ()
+        if kwargs is None:
+            kwargs = {}
+        greenlet = decorators.periodic(
+            period, *args, **kwargs).wait(wait).get(func)
+        self.greenlet.link(lambda glt: greenlet.kill)
+        greenlet.start()
+        return greenlet
+
+    @periodic.classmethod
+    def periodic(cls, period, *args, **kwargs):   # pylint: disable=no-self-argument
+        return decorators.periodic(period, *args, **kwargs)

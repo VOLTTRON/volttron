@@ -57,18 +57,21 @@
 
 from __future__ import absolute_import, print_function
 
-from . import core as _core, subsystems
+from .core import *
+from .decorators import *
+from .subsystems import *
 
 
 class Agent(object):
     class Subsystems(object):
         def __init__(self, owner, core):
-            self.ping = subsystems.Ping(core)
-            self.rpc = subsystems.RPC(core, owner)
-            self.hello = subsystems.Hello(core)
-            self.pubsub = subsystems.PubSub(core, self.rpc)
-            self.channel = subsystems.Channel(core)
+            self.ping = Ping(core)
+            self.rpc = RPC(core, owner)
+            self.hello = Hello(core)
+            self.pubsub = PubSub(core, self.rpc)
+            self.channel = Channel(core)
 
     def __init__(self, identity=None, address=None, context=None):
-        self.core = _core.Core(identity=identity, address=address, context=context)
+        self.core = Core(
+            self, identity=identity, address=address, context=context)
         self.vip = Agent.Subsystems(self, self.core)

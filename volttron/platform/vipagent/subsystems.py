@@ -66,7 +66,6 @@ import random
 import string
 import sys
 import traceback
-from types import MethodType
 import weakref
 
 import gevent.local
@@ -75,133 +74,19 @@ from zmq import green as zmq
 from zmq import SNDMORE, ZMQError
 from zmq.utils import jsonapi
 
+from .decorators import annotate, annotations, dualmethod, spawn
 from .. import jsonrpc, vip
 
 import volttron
+
+__all__ = ['VIPError', 'Unreachable', 'Again', 'UnknownSubsystem', 'Ping',
+           'RPC', 'Hello', 'PubSub', 'Channel']
 
 _VOLTTRON_PATH = os.path.dirname(volttron.__path__[-1]) + os.sep
 del volttron
 
 
 _log = logging.getLogger(__name__)
-
-
-def annotate(obj, kind, name, value):
-    # pylint: disable=protected-access
-    try:
-        annotations = obj._annotations
-    except AttributeError:
-        obj._annotations = annotations = {}
-    try:
-        items = annotations[name]
-    except KeyError:
-        annotations[name] = items = kind()
-    assert isinstance(items, kind)
-    try:
-        add = items.add
-    except AttributeError:
-        try:
-            add = items.append
-        except AttributeError:
-            try:
-                add = items.update
-            except AttributeError:
-                items += value
-                return
-    add(value)
-
-
-def get_annotations(obj, kind, name):
-    # pylint: disable=protected-access
-    try:
-        annotations = obj._annotations
-    except AttributeError:
-        annotations = {}
-    try:
-        items = annotations[name]
-    except KeyError:
-        items = kind()
-    assert isinstance(items, kind)
-    return items
-
-
-def spawn(method):
-    '''Run a decorated method in its own greenlet, which is returned.'''
-    @functools.wraps(method)
-    def wrapper(*args, **kwargs):
-        return gevent.spawn(method, *args, **kwargs)
-    return wrapper
-
-
-class dualmethod(object):
-    '''Descriptor to allow class and instance methods of the same name.
-
-    This class implements a descriptor that works similar to the
-    classmethod() built-ins and can be used as a decorator, like the
-    property() built-in. Instead of a method being only a class or
-    instance method, two methods can share the same name and be accessed
-    as an instance method or a class method based on the context.
-
-    Example:
-
-    >>> class Foo(object):
-    ...     @dualmethod
-    ...     def bar(self):
-    ...         print 'instance method for', self
-    ...     @bar.classmethod
-    ...     def bar(cls):
-    ...         print 'class method for', cls
-    ...
-    >>> Foo.bar()
-    class method for <class '__main__.Foo'>
-    >>> Foo().bar()
-    instance method for <__main__.Foo object at 0x7fcd744f6610>
-    >>>
-    '''
-
-    def __init__(self, finstance=None, fclass=None, doc=None):
-        '''Instantiate the descriptor with the given parameters.
-
-        If finstance is set, it must be a method implementing instance
-        access. If fclass is set, it must be a method implementing class
-        access similar to a classmethod. If doc is set, it will be used
-        for the __doc__ attribute.  Otherwise, the __doc__ attribute
-        from the instance or class method will be used, in that order.
-        '''
-        self.finstance = finstance
-        self.fclass = fclass
-        if doc is not None:
-            self.__doc__ = doc
-        elif finstance is not None:
-            self.__doc__ = finstance.__doc__
-        elif fclass is not None:
-            self.__doc__ = fclass.__doc__
-
-    def __get__(self, instance, owner):
-        '''Descriptor getter method.
-
-        See Python descriptor documentation.'''
-        if instance is None:
-            if self.fclass is None:
-                if self.finstance is None:
-                    raise AttributeError('no instance or class method is set')
-                return MethodType(self.finstance, instance, owner)
-            return MethodType(self.fclass, owner, owner)
-        if self.finstance is None:
-            if self.fclass is None:
-                raise AttributeError('no instance or class method is set')
-            return MethodType(self.fclass, owner, owner)
-        return MethodType(self.finstance, instance, owner)
-
-    def instancemethod(self, finstance):
-        '''Descriptor to set the instance method.'''
-        self.finstance = finstance
-        return self
-
-    def classmethod(self, fclass):
-        '''Descriptor to set the class method.'''
-        self.fclass = fclass
-        return self
 
 
 class VIPError(Exception):
@@ -428,7 +313,7 @@ class RPC(SubsystemBase):
         core.register('RPC', self._handle_subsystem, self._handle_error)
 
         def export(member):   # pylint: disable=redefined-outer-name
-            for name in get_annotations(member, set, 'rpc.exports'):
+            for name in annotations(member, set, 'rpc.exports'):
                 self._exports[name] = member
         inspect.getmembers(owner, export)
 
@@ -464,9 +349,15 @@ class RPC(SubsystemBase):
         return method
 
     @export.classmethod
-    def export(cls, method, name=None):   # pylint: disable=no-self-argument
-        annotate(method, set, 'rpc.exports', name or method.__name__)
-        return method
+    def export(cls, name=None):   # pylint: disable=no-self-argument
+        if not isinstance(name, basestring):
+            method, name = name, name.__name__
+            annotate(method, set, 'rpc.exports', name)
+            return method
+        def decorate(method):
+            annotate(method, set, 'rpc.exports', name)
+            return method
+        return decorate
 
     def batch(self, peer, requests):
         request, results = self._dispatcher.batch_call(requests)
