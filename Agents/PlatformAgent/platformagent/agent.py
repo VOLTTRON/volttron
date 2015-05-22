@@ -207,7 +207,8 @@ def find_registration_address(vip_addresses):
                 return vip
             
         return result
-
+    
+def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
     utils.default_main(platform_agent,
                        description='Agent available to manage from a remote '
