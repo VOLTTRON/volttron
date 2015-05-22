@@ -68,8 +68,9 @@ import uuid
 
 from volttron.platform import vip, jsonrpc, control
 from volttron.platform.control import Connection
+from volttron.platform.agent import utils
 from volttron.platform.agent.vipagent import (RPCAgent, periodic, onevent, 
-                                              jsonapi, export, 
+                                              jsonapi, export, ChannelMixin,
                                               QueryAddressesMixin, spawn)
 
 from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
