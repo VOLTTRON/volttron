@@ -55,20 +55,23 @@
 
 import base64
 import datetime
+import gevent
 import logging
 import sys
 import requests
 import os
 import os.path as p
+import re
 import shutil
 import tempfile
 import uuid
 
 from volttron.platform import vip, jsonrpc, control
 from volttron.platform.control import Connection
-from volttron.platform.agent.vipagent import (RPCAgent, ChannelMixin, periodic,
-                                              onevent, jsonapi, export)
 from volttron.platform.agent import utils
+from volttron.platform.agent.vipagent import (RPCAgent, periodic, onevent, 
+                                              jsonapi, export, ChannelMixin,
+                                              QueryAddressesMixin, spawn)
 
 from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
                                        INVALID_REQUEST, METHOD_NOT_FOUND,
@@ -96,8 +99,7 @@ def platform_agent(config_path, **kwargs):
     if not vc_vip_address:
         raise ValueError('Invalid volttron_central_vip_address')
 
-    class Agent(RPCAgent, ChannelMixin):
-
+    class Agent(RPCAgent, QueryAddressesMixin, ChannelMixin):
         def __init__(self, **kwargs):
 
             super(Agent, self).__init__(vip_identity=vip_identity, **kwargs)
@@ -181,17 +183,25 @@ def platform_agent(config_path, **kwargs):
             self._ctl = Connection(self.vc_vip_address,
                                    peer=self.vc_vip_identity)
 
+       
         @onevent("start")
+        @spawn
         def start(self):
             _log.debug('Starting service vip info: {}'.format(
                                                         str(self.__dict__)))
+            vip_addresses = self.query_addresses().get(timeout=10)
+            self._external_vip = find_registration_address(vip_addresses)
+           
             self._register()
 
         #@periodic(period=60)
         def _register(self):
             _log.debug('platformagent sending call register {}'.format(
-                                    str((vip_identity, agentid, self.vip_address))))
-            self._ctl.call("register_platform", vip_identity, agentid, self.vip_address)
+                                    str((vip_identity, agentid, self._external_vip))))
+            
+            self._external_vip = self._external_vip
+            
+            self._ctl.call("register_platform", vip_identity, agentid, self._external_vip)
 
         @onevent("finish")
         def stop(self):
@@ -201,6 +211,41 @@ def platform_agent(config_path, **kwargs):
     return Agent(**kwargs)
 
 
+def is_ip_private(vip_address):
+    ip = vip_address.strip().lower().split("tcp://")[1]
+
+    # https://en.wikipedia.org/wiki/Private_network
+
+    priv_lo = re.compile("^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
+    priv_24 = re.compile("^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
+    priv_20 = re.compile("^192\.168\.\d{1,3}.\d{1,3}$")
+    priv_16 = re.compile("^172.(1[6-9]|2[0-9]|3[0-1]).[0-9]{1,3}.[0-9]{1,3}$")
+
+    return priv_lo.match(ip) != None or priv_24.match(ip) != None or priv_20.match(ip) != None or priv_16.match(ip) != None
+
+
+def find_registration_address(vip_addresses):
+    # Find the address to send back to the VCentral in order of preference
+    # Non-private IP (first one wins)
+    # TCP address (last one wins)
+    # IPC if first element is IPC it wins
+     #Pull out the tcp address
+     
+    # If this is a string we have only one choice
+    if vip_addresses and isinstance(vip_addresses, basestring):
+        return vip_addresses 
+    elif vip_addresses and isinstance(vip_addresses, (list, tuple)):
+        result = None
+        for vip in vip_addresses:
+            if result is None:
+                result = vip
+            if vip.startswith("tcp") and is_ip_private(vip):
+                result = vip
+            elif vip.startswith("tcp") and not is_ip_private(vip):
+                return vip
+            
+        return result
+    
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
     utils.default_main(platform_agent,

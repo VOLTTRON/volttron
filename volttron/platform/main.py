@@ -89,6 +89,7 @@ except ImportError:
 else:
     from volttron.restricted import comms, comms_server, resmon
     from volttron.restricted.mobility import MobilityAgent
+    from paramiko import PasswordRequiredException, SSHException, RSAKey
     HAVE_RESTRICTED = True
 
 
@@ -241,7 +242,11 @@ class Router(vip.BaseRouter):
             sender = bytes(frames[0])
             if sender == b'control' and not user_id:
                 raise KeyboardInterrupt()
-
+        elif subsystem == 'query.addresses':
+            frames[6:] = self.addresses
+            frames[3] = ''
+            frames[5] = 'query.addresses.result'
+            return frames
 
 class PubSubService(vipagent.VIPAgent, vipagent.RPCMixin, vipagent.PubSubMixin):
     @vipagent.onevent('start')
