@@ -80,26 +80,19 @@ __authors__ = ['Robert Lutes <robert.lutes@pnnl.gov>',
 __copyright__ = 'Copyright (c) 2015, Battelle Memorial Institute'
 __license__ = 'FreeBSD'
 
+
 def DataPub(config_path, **kwargs):
     '''Emulate device driver to publish data and Actuator
     agent for agent testing.
     '''
     conf = utils.load_config(config_path)
-    subdev_list = []
     custom_topic = conf.get('custom_topic', 0)
     pub_interval = float(conf.get('publish_interval'))
     if not custom_topic:
-        if isinstance(conf.get('unit'), str):
-            device_path = (
-                ''.join([conf.get('campus'), '/', conf.get('building'), '/',
-                         conf.get('unit')]))
-        else:
-            device_path = (
-                ''.join([conf.get('campus'), '/', conf.get('building'), '/',
-                         conf['unit'].keys()[0]]))
-            subdev_list = (
-                conf['unit'][conf.get('unit').keys()[0]]['subdevices'])
+        device_path = (
+            ''.join([conf.get('campus'), '/', conf.get('building'), '/']))
         BASETOPIC = conf.get('basetopic')
+        dev_list = conf['unit']
     path = conf.get('input_file')
 
     class Agent(PublishMixin, BaseAgent):
@@ -134,7 +127,7 @@ def DataPub(config_path, **kwargs):
         @periodic(pub_interval)
         def publish_data_or_heartbeat(self):
             '''Publish data from file to message bus.'''
-            published_data = {}
+            _data = {}
             now = datetime.datetime.now().isoformat(' ')
             if not self._src_file_handle.closed:
                 line = self._src_file_handle.readline()
@@ -143,58 +136,70 @@ def DataPub(config_path, **kwargs):
                 if line:
                     # Create 'all' message
                     for i in xrange(0, len(self._headers)):
-                        published_data[self._headers[i]] = data[i]
+                        _data[self._headers[i]] = data[i]
                     if custom_topic:
-                        data_dict = jsonapi.dumps(published_data)
-                        self.publish(
+                        # data_dict = jsonapi.dumps(_data)
+                        self.publish_json(
                             custom_topic,
                             {HEADER_NAME_CONTENT_TYPE: MIME_PLAIN_TEXT,
-                             HEADER_NAME_DATE: now}, data_dict)
+                             HEADER_NAME_DATE: now}, _data)
                         return
+                    sub_dev = {}
                     device_dict = {}
-                    ukey = ''
-                    kval = None
-                    for key, value in published_data.iteritems():
-                        for item in subdev_list:
-                            ukey = key
-                            kval = value
-                            if item in key:
-                                ukey = ''
-                                kval = None
-                                break
-                        if ukey:
-                            device_dict.update({ukey: kval})
-                    # Pushing out the data
-                    if not device_dict and not subdev_list:
-                        device_dict = published_data
-                    device_dict = jsonapi.dumps(device_dict)
-                    if device_dict:
-                        self.publish(BASETOPIC + '/' + device_path + '/all',
-                                 {HEADER_NAME_CONTENT_TYPE: MIME_PLAIN_TEXT,
-                                  HEADER_NAME_DATE: now}, device_dict)
-                    device_dict = {}
-                    for item in subdev_list:
-                        for key, value in published_data.iteritems():
-                            if key.startswith(item):
-                                pub_key = key[len(item):]
-                                device_dict.update({pub_key.split('_')[1]: value})
-                        device_dict = jsonapi.dumps(device_dict)
-                        topic = (
-                            BASETOPIC + '/' + device_path + '/' + item + '/all'
-                        )
-                        self.publish(
-                            topic, {HEADER_NAME_CONTENT_TYPE: MIME_PLAIN_TEXT,
-                                    HEADER_NAME_DATE: now}, device_dict)
+                    for _k, _v in dev_list.items():
+                        for k, val in _data.items():
+                            if k.startswith(_k):
+                                pub_k = k[len(_k):]
+                                device_dict.update({pub_k.split('_')[1]: val})
+                                cur_top = (''.join([BASETOPIC, '/',
+                                                    device_path,
+                                                    _k, '/',
+                                                    pub_k.split('_')[1]]))
+                                self.publish_json(
+                                    cur_top,
+                                    {HEADER_NAME_CONTENT_TYPE: MIME_PLAIN_TEXT,
+                                     HEADER_NAME_DATE: now}, val)
+                    # device_dict = jsonapi.dumps(device_dict)
+                        if device_dict:
+                            self.publish_json(
+                                BASETOPIC + '/' + device_path + _k + '/all',
+                                {HEADER_NAME_CONTENT_TYPE: MIME_PLAIN_TEXT,
+                                 HEADER_NAME_DATE: now}, device_dict)
+                        for sub in dev_list[_k][dev_list[_k].keys()[0]]:
+                            for k, val in _data.items():
+                                if k.startswith(sub):
+                                    pub_k = k[len(sub):]
+                                    sub_dev.update({pub_k.split('_')[1]: val})
+                                    cur_top = (''.join([BASETOPIC, '/',
+                                                        device_path,
+                                                        _k, '/', sub, '/',
+                                                        pub_k.split('_')[1]]))
+                                    self.publish_json(
+                                        cur_top,
+                                        {HEADER_NAME_CONTENT_TYPE:
+                                            MIME_PLAIN_TEXT,
+                                         HEADER_NAME_DATE: now}, val)
+                                    # device_dict = jsonapi.dumps(device_dict)
+                            if sub_dev:
+                                topic = (''.join([BASETOPIC, '/', device_path,
+                                                  _k, '/', sub, '/all']))
+                                self.publish_json(
+                                    topic,
+                                    {HEADER_NAME_CONTENT_TYPE: MIME_PLAIN_TEXT,
+                                     HEADER_NAME_DATE: now}, sub_dev)
+                                sub_dev = {}
                         device_dict = {}
                 else:
                     self._src_file_handle.close()
             else:
-                self.publish('heartbeat/DataPublisher',
-                             {
-                                 'AgentID': self._agent_id,
-                                 HEADER_NAME_CONTENT_TYPE: MIME_PLAIN_TEXT,
-                                 HEADER_NAME_DATE: now,
-                             }, now)
+                self.publish_json(
+                    'heartbeat/DataPublisher',
+                    {
+                        'AgentID': self._agent_id,
+                        HEADER_NAME_CONTENT_TYPE: MIME_PLAIN_TEXT,
+                        HEADER_NAME_DATE: now,
+                    },
+                    now)
 
         @matching.match_regex(topics.ACTUATOR_SET() + '/(.+)')
         def handle_set(self, topic, headers, message, match):
