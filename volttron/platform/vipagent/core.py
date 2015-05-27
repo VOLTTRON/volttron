@@ -57,12 +57,13 @@
 
 from __future__ import absolute_import, print_function
 
+import heapq
 import inspect
 import logging
 import os
 import sys
 import threading
-import weakref
+import time
 
 import gevent.event
 from zmq import green as zmq
@@ -97,6 +98,8 @@ class Core(object):
         self._async = None
         self._async_calls = []
         self._stop_event = None
+        self._schedule_event = None
+        self._schedule = []
         self.onsetup = Signal()
         self.onstart = Signal()
         self.onstop = Signal()
@@ -107,13 +110,17 @@ class Core(object):
             periodics.extend(
                 periodic.get(member) for periodic in decorators.annotations(
                     member, list, 'core.periodics'))
+            self._schedule.extend(
+                (deadline, member, args, kwargs) for deadline, args, kwargs in
+                decorators.annotations(member, list, 'core.schedule'))
             for name in decorators.annotations(member, set, 'core.signals'):
                 signal = getattr(self, name)
                 assert isinstance(signal, Signal)
                 signal.connect(member, owner)
         inspect.getmembers(owner, setup)
+        heapq.heapify(self._schedule)
 
-        def start_periodics(sender, **kwargs):
+        def start_periodics(sender, **kwargs):   # pylint: disable=unused-argument
             for periodic in periodics:
                 sender.greenlet.link(lambda glt: periodic.kill())
                 periodic.start()
@@ -172,12 +179,32 @@ class Core(object):
                 else:
                     handle(message)
 
+        def schedule_loop():
+            heap = self._schedule
+            event = self._schedule_event
+            cur = gevent.getcurrent()
+            now = time.time()
+            while True:
+                if heap:
+                    deadline = heap[0][0]
+                    timeout = min(60.0, max(0.0, deadline - now))
+                else:
+                    timeout = None
+                if event.wait(timeout):
+                    event.clear()
+                now = time.time()
+                while heap and now >= heap[0][0]:
+                    _, func, args, kwargs = heapq.heappop(heap)
+                    greenlet = gevent.spawn(func, *args, **kwargs)
+                    cur.link(lambda glt: greenlet.kill())
+
         def link_receiver(receiver, sender, **kwargs):
             greenlet = gevent.spawn(receiver, sender, **kwargs)
             current.link(lambda glt: greenlet.kill())
             return greenlet
 
         self._stop_event = stop = gevent.event.Event()
+        self._schedule_event = gevent.event.Event()
         self._async = gevent.get_hub().loop.async()
         self._async.start(handle_async)
         current.link(lambda glt: self._async.stop)
@@ -190,10 +217,13 @@ class Core(object):
 
         loop = gevent.spawn(vip_loop)
         current.link(lambda glt: loop.kill())
+        scheduler = gevent.spawn(schedule_loop)
+        loop.link(lambda glt: scheduler.kill())
         self.onstart.sendby(link_receiver, self)
         if loop in gevent.wait([loop, stop], count=1):
             raise RuntimeError('VIP loop ended prematurely')
         stop.wait()
+        scheduler.kill()
         receivers = self.onstop.sendby(link_receiver, self)
         gevent.wait(receivers)
         self.socket.disconnect(self.address)
@@ -227,7 +257,7 @@ class Core(object):
         def worker():
             try:
                 results[:] = [None, func(*args, **kwargs)]
-            except Exception as exc:
+            except Exception as exc:   # pylint: disable=broad-except
                 results[:] = [exc, None]
             async.send()
         self.send(worker)
@@ -238,7 +268,7 @@ class Core(object):
         def wrapper():
             try:
                 self.send(result.set, func(*args, **kwargs))
-            except Exception as exc:
+            except Exception as exc:   # pylint: disable=broad-except
                 self.send(result.set_exception, exc)
         result.thread = thread = threading.Thread(target=wrapper)
         thread.daemon = True
@@ -265,5 +295,20 @@ class Core(object):
     def receiver(cls, signal):
         def decorate(method):
             decorators.annotate(method, set, 'core.signals', signal)
+            return method
+        return decorate
+
+    @decorators.dualmethod
+    def schedule(self, deadline, func, *args, **kwargs):
+        if hasattr(deadline, 'timetuple'):
+            deadline = time.mktime(deadline.timetuple())
+        heapq.heappush(self._schedule, (deadline, func, args, kwargs))
+        self._schedule_event.set()
+
+    @schedule.classmethod
+    def schedule(cls, deadline, *args, **kwargs):   # pylint: disable=no-self-argument
+        def decorate(method):
+            decorators.annotate(method, list, 'core.schedule',
+                                (deadline, args, kwargs))
             return method
         return decorate
