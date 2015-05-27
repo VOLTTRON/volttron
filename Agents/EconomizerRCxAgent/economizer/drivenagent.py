@@ -193,16 +193,6 @@ def DrivenAgent(config_path, **kwargs):
 
             def agg_subdevice(obj):
                 sub_obj = {}
-                field_names = {}
-                for k, v in obj.items():
-                    field_names[k.lower() if isinstance(k, str) else k] = v
-                if not converter.initialized and \
-                        conv_map is not None:
-                    converter.setup_conversion_map(
-                        map_names,
-                        field_names
-                    )
-                obj = converter.process_row(field_names)
                 for key, value in obj.items():
                     sub_key = ''.join([key, '_', device_or_subdevice])
                     sub_obj[sub_key] = value
@@ -222,9 +212,19 @@ def DrivenAgent(config_path, **kwargs):
                 self._initialize_devices()
             agg_subdevice(obj)
             if self._should_run_now():
+                field_names = {}
                 self._device_values.update(self._subdevice_values)
+                for k, v in self._device_values.items():
+                    field_names[k.lower() if isinstance(k, str) else k] = v
+                if not converter.initialized and \
+                        conv_map is not None:
+                    converter.setup_conversion_map(
+                        map_names,
+                        field_names
+                    )
+                obj = converter.process_row(field_names)
                 results = app_instance.run(datetime.now(),
-                                           self._device_values)
+                                           obj)
                 self.received_input_datetime = datetime.utcnow()
                 # results = app_instance.run(
                 # dateutil.parser.parse(self._subdevice_values['Timestamp'],
@@ -234,7 +234,6 @@ def DrivenAgent(config_path, **kwargs):
             else:
                 needed = deepcopy(self._needed_devices)
                 needed.extend(self._needed_subdevices)
-                print needed
                 _log.info("Still need {} before running."
                           .format(needed))
 
