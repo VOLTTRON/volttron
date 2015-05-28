@@ -78,11 +78,11 @@ from volttron.platform.agent.vipagent import (BaseAgent, RPCAgent, periodic,
 from volttron.platform.agent import utils
 
 from webserver import (ManagerWebApplication, ManagerRequestHandler,
-                       SessionHandler, RpcResponse)
+                       StatusHandler, SessionHandler, RpcResponse)
 from volttron.platform.control import list_agents
 from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
-                                       INVALID_REQUEST, METHOD_NOT_FOUND, PARSE_ERROR,
-                                       UNHANDLED_EXCEPTION)
+                                       INVALID_REQUEST, METHOD_NOT_FOUND,
+                                       PARSE_ERROR, UNHANDLED_EXCEPTION)
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -170,6 +170,8 @@ def volttron_central_agent(config_path, **kwargs):
     hander_config = [
         (r'/jsonrpc', ManagerRequestHandler),
         (r'/jsonrpc/', ManagerRequestHandler),
+        (r'/websocket', StatusHandler),
+        (r'/websocket/', StatusHandler),
         (r"/(.*)", tornado.web.StaticFileHandler,
          {"path": WEB_ROOT, "default_filename": "index.html"})
     ]

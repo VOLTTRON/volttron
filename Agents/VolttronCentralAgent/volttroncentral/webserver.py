@@ -1,6 +1,7 @@
 import logging
 from tempfile import TemporaryFile
 import tornado
+import tornado.websocket
 import uuid
 
 from volttron.platform.agent import utils
@@ -196,6 +197,21 @@ class RpcRequest:
 
         except:
             self.error = PARSE_ERROR
+
+class StatusHandler(tornado.websocket.WebSocketHandler):
+    def open(self):
+        print("Opened!")
+        #self.application.shoppingCart.register(self.callback)
+
+    def on_close(self):
+        print("Closed")
+        #self.application.shoppingCart.unregister(self.callback)
+
+    def on_message(self, message):
+        self.write_message("write from server: "+message)
+
+#     def callback(self, count):
+#         self.write_message('{"inventoryCount":"%d"}' % count)
 
 @tornado.web.stream_request_body
 class ManagerRequestHandler(tornado.web.RequestHandler):
