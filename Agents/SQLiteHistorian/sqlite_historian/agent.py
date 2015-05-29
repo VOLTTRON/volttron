@@ -79,11 +79,11 @@ def SQLiteHistorianAgent(config_path, **kwargs):
     config = utils.load_config(config_path)
 
     class Agent(BaseHistorianAgent):
-        '''This is a simple example of a historian agent that writes stuff 
+        '''This is a simple example of a historian agent that writes stuff
         to a SQLite database. It is designed to test some of the functionality
         of the BaseHistorianAgent.
         '''
-        
+
         def publish_to_historian(self, to_publish_list):
             #self.report_all_published()
             c = self.conn.cursor()
@@ -92,69 +92,69 @@ def SQLiteHistorianAgent(config_path, **kwargs):
                 ts = x['timestamp']
                 topic = x['topic']
                 value = x['value']
-                
+
                 topic_id = self.topics.get(topic)
-                
+
                 if topic_id is None:
                     c.execute('''INSERT INTO topics values (?,?)''', (None, topic))
                     c.execute('''SELECT last_insert_rowid()''')
                     row = c.fetchone()
                     topic_id = row[0]
                     self.topics[topic] = topic_id
-                
-                c.execute('''INSERT OR REPLACE INTO data values(?, ?, ?)''', 
+
+                c.execute('''INSERT OR REPLACE INTO data values(?, ?, ?)''',
                           (ts,topic_id,jsonapi.dumps(value)))
-                
+
                 pprint(x)
             print 'count:', len(to_publish_list)
-            
+
             self.conn.commit()
-            c.close()     
-            
-            self.report_all_published()       
-        
+            c.close()
+
+            self.report_all_published()
+
         def historian_setup(self):
             self.topics={}
-            db_path = os.path.expanduser(config.db)
+            db_path = os.path.expanduser(config['db'])
             db_dir  = os.path.dirname(db_path)
-            
+
             try:
                 os.makedirs(db_dir)
             except OSError as exc:
                 if exc.errno != errno.EEXIST or not os.path.isdir(db_dir):
                     raise
 
-            self.conn = sqlite3.connect(db_path, 
+            self.conn = sqlite3.connect(db_path,
                                          detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
-        
-            
-            self.conn.execute('''CREATE TABLE IF NOT EXISTS data 
+
+
+            self.conn.execute('''CREATE TABLE IF NOT EXISTS data
                                 (ts timestamp NOT NULL,
-                                 topic_id INTEGER NOT NULL, 
-                                 value_string TEXT NOT NULL, 
+                                 topic_id INTEGER NOT NULL,
+                                 value_string TEXT NOT NULL,
                                  UNIQUE(ts, topic_id))''')
-            
+
             self.conn.execute('''CREATE INDEX IF NOT EXISTS data_idx
                                 ON data (ts ASC)''')
 
-            self.conn.execute('''CREATE TABLE IF NOT EXISTS topics 
-                                (topic_id INTEGER PRIMARY KEY, 
+            self.conn.execute('''CREATE TABLE IF NOT EXISTS topics
+                                (topic_id INTEGER PRIMARY KEY,
                                  topic_name TEXT NOT NULL,
                                  UNIQUE(topic_name))''')
-            
+
             c = self.conn.cursor()
             c.execute("SELECT * FROM topics")
             for row in c:
                 self.topics[row[1]] = row[0]
-        
+
             c.close()
             self.conn.commit()
-        
+
     Agent.__name__ = 'SQLiteHistorianAgent'
     return Agent(**kwargs)
-            
-    
-    
+
+
+
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
     try:
