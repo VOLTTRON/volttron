@@ -6,11 +6,13 @@ var AgentRow = require('./agent-row');
 var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
 var platformManagerStore = require('../stores/platform-manager-store');
 
-var Home = React.createClass({
+var Platforms = React.createClass({
     getInitialState: getStateFromStores,
+    componentWillMount: function () {
+        platformManagerActionCreators.initialize();
+    },
     componentDidMount: function () {
         platformManagerStore.addChangeListener(this._onChange);
-        setTimeout(platformManagerActionCreators.loadPlatforms);
     },
     componentWillUnmount: function () {
         platformManagerStore.removeChangeListener(this._onChange);
@@ -68,7 +70,7 @@ var Home = React.createClass({
 
                 return (
                     <div className="platform" key={platform.uuid}>
-                        <h2>{platform.name} ({platform.uuid})</h2>
+                        <h3>{platform.name} ({platform.uuid})</h3>
                         {agents}
                     </div>
                 );
@@ -76,7 +78,8 @@ var Home = React.createClass({
         }
 
         return (
-            <div className="home">
+            <div className="view">
+                <h2>Platforms</h2>
                 {platforms}
             </div>
         );
@@ -89,4 +92,4 @@ function getStateFromStores() {
     };
 }
 
-module.exports = Home;
+module.exports = Platforms;

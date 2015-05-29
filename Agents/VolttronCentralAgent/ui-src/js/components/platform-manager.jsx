@@ -1,26 +1,26 @@
 'use strict';
 
 var React = require('react');
+var Router = require('react-router');
 
 var Console = require('./console');
 var consoleActionCreators = require('../action-creators/console-action-creators');
 var consoleStore = require('../stores/console-store');
-var Home = require('./home');
-var LoginForm = require('./login-form');
 var Navigation = require('./navigation');
 var platformManagerStore = require('../stores/platform-manager-store');
 
 var PlatformManager = React.createClass({
+    mixins: [Router.Navigation, Router.State],
     getInitialState: getStateFromStores,
     componentDidMount: function () {
-        platformManagerStore.addChangeListener(this._onChange);
-        consoleStore.addChangeListener(this._onChange);
+        platformManagerStore.addChangeListener(this._onStoreChange);
+        consoleStore.addChangeListener(this._onStoreChange);
     },
     componentWillUnmount: function () {
-        platformManagerStore.removeChangeListener(this._onChange);
-        consoleStore.removeChangeListener(this._onChange);
+        platformManagerStore.removeChangeListener(this._onStoreChange);
+        consoleStore.removeChangeListener(this._onStoreChange);
     },
-    _onChange: function () {
+    _onStoreChange: function () {
         this.setState(getStateFromStores());
     },
     _onButtonClick: function () {
@@ -33,15 +33,20 @@ var PlatformManager = React.createClass({
             classes.push('platform-manager--console-hidden');
         }
 
+        if (this.state.loggedIn) {
+            classes.push('platform-manager--logged-in');
+        } else {
+            classes.push('platform-manager--not-logged-in');
+        }
+
         return (
             <div className={classes.join(' ')}>
                 <div className="main">
-                    {!this.state.loggedIn && <LoginForm />}
-                    {this.state.loggedIn && <Navigation />}
-                    {this.state.loggedIn && <Home />}
+                    <Navigation />
+                    <Router.RouteHandler />
                 </div>
                 <input
-                    className="toggle button"
+                    className="toggle"
                     type="button"
                     value={'Console ' + (this.state.consoleShown ? '\u25bc' : '\u25b2')}
                     onClick={this._onButtonClick}
@@ -49,7 +54,7 @@ var PlatformManager = React.createClass({
                 {this.state.consoleShown && <Console className="console" />}
             </div>
         );
-    }
+    },
 });
 
 function getStateFromStores() {

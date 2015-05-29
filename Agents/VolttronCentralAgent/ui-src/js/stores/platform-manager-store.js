@@ -31,15 +31,17 @@ platformManagerStore.dispatchToken = dispatcher.register(function (action) {
             break;
 
         case ACTION_TYPES.RECEIVE_UNAUTHORIZED:
+            platformManagerStore.emitChange();
+            break;
+
         case ACTION_TYPES.CLEAR_AUTHORIZATION:
             _authorization = null;
+            _platforms = null;
             sessionStorage.removeItem('authorization');
             platformManagerStore.emitChange();
             break;
 
         case ACTION_TYPES.CHANGE_PAGE:
-            _page = action.page;
-            location.hash = '#' + action.page;
             platformManagerStore.emitChange();
             break;
 

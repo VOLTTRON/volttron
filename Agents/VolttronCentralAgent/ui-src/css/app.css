@@ -1,5 +1,13 @@
-body {
-    font: 12px/18px "Menlo", "Monaco", "Consolas", monospace;
+html {
+    font: 75%/1.5 "Open Sans", sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    margin: 0;
+}
+
+input {
+    line-height: 1.5;
 }
 
 pre {
@@ -12,7 +20,7 @@ th {
 }
 
 th, td {
-    padding: 0 8px;
+    padding: 0 0.6666em;
     line-height: 2.5em;
 }
 
@@ -23,23 +31,26 @@ td:not(:first-child) {
 
 .button {
     background-color: #69b;
+    box-shadow: 0 0.3333em #479;
     color: #fff;
-    box-shadow: 0 3px 6px rgba(0,0,0,0.3);
-    transition: all 0.05s linear;
+    transition: opacity 150ms ease-out,
+                transform 20ms ease-out,
+                box-shadow 20ms ease-out;
     border: none;
-    border-radius: 4px;
-    height: 24px;
-    padding: 0 8px;
+    border-radius: 0.3333em;
+    padding: 0.25em 1em;
     outline: none;
 }
 
-.button:active {
-    box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+.button:active:not(:disabled) {
+    transform: translateY(0.3333em);
+    box-shadow: 0 0 #479;
 }
 
 .button:disabled {
-    background-color: rgba(0,0,0,0.1);
-    box-shadow: none;
+    background-color: #9ab;
+    opacity: 0.5;
+    box-shadow: 0 0 #479;
 }
 
 .platform-manager {
@@ -48,71 +59,130 @@ td:not(:first-child) {
     bottom: 0;
     left: 0;
     right: 0;
+    background-color: #eee;
 }
 
 .main {
     position: relative;
     height: 50%;
+    z-index: 3;
+    box-sizing: border-box;
+    overflow: auto;
+    background-color: #f8f8f8;
 }
 
 .platform-manager--console-hidden .main {
     height: 100%;
+    z-index: 1;
+}
+
+.navigation {
+    padding: 1.5rem 2rem;
+    text-align: right;
+    background-color: #eee;
+    border-bottom: 1px solid #ddd;
+}
+
+.platform-manager--not-logged-in .navigation {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 0;
+}
+
+.logo {
+    float: left;
+    line-height: 1;
+    margin: 0;
+}
+
+.logo__name {
+    font-family: "Montserrat";
+    font-weight: bold;
+    letter-spacing: 0.1em;
+    margin-right: -0.1em;
+    color: #456;
+}
+
+.logo__tm {
+    font-family: "Helvetica Neue", "Helvetica", "Arial", sans-serif;
+    font-size: 0.5em;
+    font-weight: normal;
+    margin: 0.3em 0 0 0.15em;
+    color: #999;
+    position: absolute;
+}
+
+.navigation__item {
+    text-decoration: none;
+    display: inline-block;
+    margin-left: 1.5rem;
+    color: #45b;
+    border-bottom: 0.25em solid #ddd;
+    padding-bottom: 0.25em;
+    transition: border-color 150ms linear;
+}
+
+.navigation__item--active {
+    cursor: default;
+    border-color: #9ac;
+}
+
+.navigation__item:not(.navigation__item--active):hover {
+    cursor: pointer;
+    border-color: #45b;
+}
+
+.platform-manager--not-logged-in .logo {
+    width: 100%;
+    text-align: center;
+    position: absolute;
+    top: 50%;
+    font-size: 2.5rem;
+    margin-top: -6.5rem;
 }
 
 .login-form {
     position: absolute;
     top: 50%;
     left: 50%;
-    height: 150px;
-    width: 600px;
-    margin: -75px 0 0 -300px;
+    height: 16rem;
+    width: 20rem;
+    margin: -4rem 0 0 -10rem;
     text-align: center;
 }
 
-.login-form input {
-    display: block;
-    box-sizing: border-box;
-    width: 200px;
-    margin: 6px auto;
-    line-height: 24px;
+.login-form__field {
+    border: none;
+    background-color: #f8f8f8;
     text-align: center;
+    border-radius: 0.25em;
+}
+
+.login-form__field,
+.login-form__submit {
+    display: block;
+    margin: 0.5em auto;
+    padding: 0.5em 1em;
+    width: 16em;
+    box-sizing: border-box;
 }
 
 .login-form .error {
+    margin-top: 1em;
     text-align: center;
     color: #e11;
 }
 
-.navigation {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 40px;
-    z-index: 2;
-    box-shadow: 0 0 8px rgba(0,0,0,0.2);
-    clear: both;
+.view {
+    padding: 1.5rem 1rem;
 }
 
-.navigation h1 {
-    float: left;
-    margin: 0 0 0 20px;
-    line-height: 40px;
-}
-
-.navigation button {
-    float: right;
-    margin: 8px 20px 8px 0;
-}
-
-.home {
-    position: absolute;
-    top: 40px;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    padding: 0 20px;
-    overflow: auto;
+.view h2,
+.view p {
+    margin: 0 1rem 1rem;
 }
 
 .toggle {
@@ -120,15 +190,23 @@ td:not(:first-child) {
     z-index: 2;
     top: 50%;
     left: 50%;
-    width: 140px;
-    margin-left: -70px;
-    border-radius: 0 0 4px 4px;
+    width: 8em;
+    margin-left: -4em;
+    background-color: #69b;
+    border-radius: 0 0 0.3333em 0.3333em;
+    border: none;
+    color: #fff;
+    padding: 0.25em 1em;
+    outline: none;
+    box-shadow: 0 0 0.5em rgba(0,0,0,0.3);
+    padding: 0.25em 0.75em 0.25em;
 }
 
 .platform-manager--console-hidden .toggle {
     top: auto;
     bottom: 0;
-    border-radius: 4px 4px 0 0;
+    border-radius: 0.3333em 0.3333em 0 0;
+    box-shadow: none;
 }
 
 .console {
@@ -144,17 +222,17 @@ td:not(:first-child) {
     content: "";
     display: block;
     position: absolute;
-    top: -8px;
+    top: -0.75rem;
     left: 0;
     right: 0;
-    height: 8px;
-    box-shadow: 0 0 8px rgba(0,0,0,0.2);
+    height: 0.75rem;
+    box-shadow: 0 0 0.75rem rgba(0,0,0,0.2);
 }
 
 .conversation {
     position: absolute;
     top: 0;
-    bottom: 90px;
+    bottom: 6rem;
     left: 0;
     right: 0;
     overflow: auto;
@@ -162,9 +240,9 @@ td:not(:first-child) {
 }
 
 .exchange {
-    margin: 12px;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.3);
-    border-radius: 4px;
+    margin: 0.75rem;
+    box-shadow: 0 0.1rem 0.2rem rgba(0,0,0,0.3);
+    border-radius: 0.333rem;
 }
 
 .exchange pre {
@@ -178,16 +256,16 @@ td:not(:first-child) {
 
 .request,
 .response {
-    padding: 8px;
+    padding: 0.75rem;
 }
 
 .request {
-    border-radius: 4px 4px 0 0;
+    border-radius: 0.333rem 0.333rem 0 0;
     background-color: #fff;
 }
 
 .response {
-    border-radius: 0 0 4px 4px;
+    border-radius: 0 0 0.333rem 0.333rem;
     background-color: #cef;
 }
 
@@ -204,14 +282,15 @@ td:not(:first-child) {
     bottom: 0;
     left: 0;
     right: 0;
-    height: 90px;
-    box-shadow: 0 0 8px rgba(0,0,0,0.2);
+    height: 6rem;
+    box-shadow: 0 0 0.75rem rgba(0,0,0,0.2);
 }
 
 .composer textarea {
+    font-family: "Menlo", "Monaco", "Consolas", monospace;
     height: 100%;
     width: 100%;
-    padding: 8px 20px;
+    padding: 0.75rem 1.5rem;
     box-sizing: border-box;
     border: none;
     outline: none;
@@ -220,10 +299,6 @@ td:not(:first-child) {
 
 .composer .button {
     position: absolute;
-    bottom: 20px;
-    right: 20px;
-    border-radius: 50%;
-    height: 40px;
-    width: 40px;
-    padding: 0;
+    bottom: 1.5rem;
+    right: 1.5rem;
 }
