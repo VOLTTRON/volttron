@@ -180,9 +180,19 @@ td:not(:first-child) {
     padding: 1.5rem 1rem;
 }
 
-.view h2,
-.view p {
+.view > * {
     margin: 0 1rem 1rem;
+}
+
+.widget {
+    margin: 0 0 1rem 1rem;
+    width: calc((100% - 3rem) / 2);
+    float: left;
+    height: 150px;
+    padding: 1rem;
+    box-sizing: border-box;
+    background-color: #eee;
+    border-radius: 0.333rem;
 }
 
 .toggle {

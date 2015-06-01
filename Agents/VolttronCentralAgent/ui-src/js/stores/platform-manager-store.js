@@ -18,6 +18,21 @@ platformManagerStore.getPage = function () {
     return _page;
 };
 
+platformManagerStore.getPlatform = function (uuid) {
+    var foundPlatform = null;
+
+    if (_platforms) {
+        _platforms.some(function (platform) {
+            if (platform.uuid === uuid) {
+                foundPlatform = platform;
+                return true;
+            }
+        });
+    }
+
+    return foundPlatform;
+};
+
 platformManagerStore.getPlatforms = function () {
     return _platforms;
 };

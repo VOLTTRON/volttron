@@ -1,8 +1,8 @@
 'use strict';
 
 var React = require('react');
+var Router = require('react-router');
 
-var AgentRow = require('./agent-row');
 var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
 var platformManagerStore = require('../stores/platform-manager-store');
 
@@ -12,12 +12,12 @@ var Platforms = React.createClass({
         platformManagerActionCreators.initialize();
     },
     componentDidMount: function () {
-        platformManagerStore.addChangeListener(this._onChange);
+        platformManagerStore.addChangeListener(this._onStoresChange);
     },
     componentWillUnmount: function () {
-        platformManagerStore.removeChangeListener(this._onChange);
+        platformManagerStore.removeChangeListener(this._onStoresChange);
     },
-    _onChange: function () {
+    _onStoresChange: function () {
         this.setState(getStateFromStores());
     },
     render: function () {
@@ -33,45 +33,12 @@ var Platforms = React.createClass({
             );
         } else {
             platforms = this.state.platforms.map(function (platform) {
-                var agents;
-
-                if (!platform.agents) {
-                    agents = (
-                        <p>Loading agents...</p>
-                    );
-                } else if (!platform.agents.length) {
-                    agents = (
-                        <p>No agents installed.</p>
-                    );
-                } else {
-                    agents = (
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Agent</th>
-                                    <th>UUID</th>
-                                    <th>Status</th>
-                                    <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {platform.agents.map(function (agent) {
-                                    return (
-                                        <AgentRow
-                                            key={agent.uuid}
-                                            platform={platform}
-                                            agent={agent} />
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    );
-                }
-
                 return (
                     <div className="platform" key={platform.uuid}>
-                        <h3>{platform.name} ({platform.uuid})</h3>
-                        {agents}
+                        <Router.Link to="platform" params={{uuid: platform.uuid}}>
+                            {platform.name}
+                        </Router.Link>
+                        &nbsp;({platform.uuid})
                     </div>
                 );
             });
