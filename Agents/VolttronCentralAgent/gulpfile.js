@@ -67,7 +67,7 @@ function vendor() {
             'events',
             'jquery/dist/jquery.min',
             'node-uuid',
-            'react/dist/react.min'
+            'react/dist/react.min',
             'react-router/umd/ReactRouter.min',
         ],
     })
