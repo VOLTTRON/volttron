@@ -154,6 +154,25 @@ var platformManagerActionCreators = {
             })
             .catch(handleRpcError);
     },
+    installAgent: function (platform, file) {
+        var authorization = platformManagerStore.getAuthorization();
+
+        new rpc.Exchange({
+            method: 'platforms.uuid.' + platform.uuid + '.install',
+            params: {
+                files: [
+                    {
+                        file_name: file.name,
+                        file: file.data,
+                    },
+                ],
+            },
+            authorization: authorization,
+        }).promise
+            .then(function () {
+                platformManagerActionCreators.loadPlatform(platform);
+            });
+    },
 };
 
 function handleRpcError(error) {

@@ -22,6 +22,27 @@ var Platform = React.createClass({
     _onStoresChange: function () {
         this.setState(getStateFromStores.call(this));
     },
+    _onFileChange: function (e) {
+        var file = e.target.files[0];
+
+        if (file) {
+            var reader = new FileReader();
+            var platform = this.state.platform;
+
+            reader.onload = function () {
+                platformManagerActionCreators.installAgent(
+                    platform,
+                    {
+                        name: file.name,
+                        data: reader.result,
+                    }
+                );
+            };
+
+            reader.readAsDataURL(file);
+        }
+
+    },
     render: function () {
         if (!this.state.platform) {
             return (
@@ -68,7 +89,10 @@ var Platform = React.createClass({
         return (
             <div className="view" key={platform.uuid}>
                 <h2>{platform.name} ({platform.uuid})</h2>
+                <h3>Agents</h3>
                 {agents}
+                <h3>Install agent</h3>
+                <input type="file" onChange={this._onFileChange} />
             </div>
         );
     },
