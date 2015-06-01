@@ -63,7 +63,8 @@ import os.path as p
 import uuid
 
 from volttron.platform import vip, jsonrpc
-from volttron.platform.agent.vipagent import RPCAgent, periodic, onevent, jsonapi, export
+from volttron.platform.agent.vipagent import (BaseAgent, periodic, onevent,
+                                              jsonapi, export)
 from volttron.platform.agent import utils
 
 
@@ -78,16 +79,16 @@ def hello_agent(config_path, **kwargs):
 
     config = utils.load_config(config_path)
 
-    def get_config(name):
+    def get_config(name, default=None):
         try:
             return kwargs.pop(name)
         except KeyError:
-            return config.get(name, '')
+            return config.get(name, default)
 
     agentid = get_config('agentid')
     vip_identity = get_config('vip_identity')
 
-    class Agent(RPCAgent):
+    class Agent(BaseAgent):
 
         def __init__(self, **kwargs):
             super(Agent, self).__init__(vip_identity=vip_identity, **kwargs)
@@ -108,6 +109,7 @@ def main(argv=sys.argv):
     try:
         utils.default_main(hello_agent,
             description='Example hello agent for testing with Volttron Central',
+            no_pub_sub_socket=True,
             argv=argv)
     except Exception:
         _log.exception('unhandled exception')
