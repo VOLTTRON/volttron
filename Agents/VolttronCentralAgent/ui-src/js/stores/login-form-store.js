@@ -1,8 +1,8 @@
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
+var authorizationStore = require('./authorization-store');
 var dispatcher = require('../dispatcher');
-var platformManagerStore = require('./platform-manager-store');
 var Store = require('../lib/store');
 
 var _lastError = null;
@@ -14,7 +14,7 @@ loginFormStore.getLastError = function () {
 };
 
 loginFormStore.dispatchToken = dispatcher.register(function (action) {
-    dispatcher.waitFor([platformManagerStore.dispatchToken]);
+    dispatcher.waitFor([authorizationStore.dispatchToken]);
 
     switch (action.type) {
         case ACTION_TYPES.RECEIVE_AUTHORIZATION:

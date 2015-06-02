@@ -2,7 +2,7 @@
 
 var ACTION_TYPES = require('../constants/action-types');
 var dispatcher = require('../dispatcher');
-var platformManagerStore = require('./platform-manager-store');
+var authorizationStore = require('../stores/authorization-store');
 var Store = require('../lib/store');
 
 var _composerId = Date.now();
@@ -29,7 +29,7 @@ consoleStore.getExchanges = function () {
 };
 
 function _resetComposerValue() {
-    var authorization = platformManagerStore.getAuthorization();
+    var authorization = authorizationStore.getAuthorization();
     var parsed;
 
     try {
@@ -50,7 +50,7 @@ function _resetComposerValue() {
 _resetComposerValue();
 
 consoleStore.dispatchToken = dispatcher.register(function (action) {
-    dispatcher.waitFor([platformManagerStore.dispatchToken]);
+    dispatcher.waitFor([authorizationStore.dispatchToken]);
 
     switch (action.type) {
         case ACTION_TYPES.TOGGLE_CONSOLE:

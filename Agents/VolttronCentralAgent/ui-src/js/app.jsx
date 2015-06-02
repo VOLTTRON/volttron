@@ -3,11 +3,11 @@
 var React = require('react');
 var Router = require('react-router');
 
-var PageNotFound = require('./components/page-not-found');
+var authorizationStore = require('./stores/authorization-store');
 var LoginForm = require('./components/login-form');
+var PageNotFound = require('./components/page-not-found');
 var Platform = require('./components/platform');
 var PlatformManager = require('./components/platform-manager');
-var platformManagerStore = require('./stores/platform-manager-store');
 var Platforms = require('./components/platforms');
 
 var _afterLoginRoute = 'platforms';
@@ -19,10 +19,10 @@ function checkAuth(Component) {
 				if (transition.path !== '/login') {
 					_afterLoginRoute = transition.path;
 
-					if (!platformManagerStore.getAuthorization()) {
+					if (!authorizationStore.getAuthorization()) {
 				    	transition.redirect('login');
 				    }
-				} else if (transition.path === '/login' && platformManagerStore.getAuthorization()) {
+				} else if (transition.path === '/login' && authorizationStore.getAuthorization()) {
 				    transition.redirect(_afterLoginRoute);
 				}
 			},
@@ -63,8 +63,8 @@ router.run(function (Handler) {
 	);
 });
 
-platformManagerStore.addChangeListener(function () {
-	if (!platformManagerStore.getAuthorization() && !router.isActive('login')) {
+authorizationStore.addChangeListener(function () {
+	if (!authorizationStore.getAuthorization() && !router.isActive('login')) {
 		router.replaceWith('login');
 	}
 });

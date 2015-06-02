@@ -4,15 +4,15 @@ var React = require('react');
 var Router = require('react-router');
 
 var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
-var platformManagerStore = require('../stores/platform-manager-store');
+var authorizationStore = require('../stores/authorization-store');
 
 var Navigation = React.createClass({
     getInitialState: getStateFromStores,
     componentDidMount: function () {
-        platformManagerStore.addChangeListener(this._onStoreChange);
+        authorizationStore.addChangeListener(this._onStoreChange);
     },
     componentWillUnmount: function () {
-        platformManagerStore.removeChangeListener(this._onStoreChange);
+        authorizationStore.removeChangeListener(this._onStoreChange);
     },
     _onStoreChange: function () {
         this.setState(getStateFromStores());
@@ -61,7 +61,7 @@ var Navigation = React.createClass({
 
 function getStateFromStores() {
     return {
-        loggedIn: !!platformManagerStore.getAuthorization(),
+        loggedIn: !!authorizationStore.getAuthorization(),
     };
 }
 

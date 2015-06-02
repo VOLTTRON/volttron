@@ -4,7 +4,7 @@ var React = require('react');
 var Router = require('react-router');
 
 var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
-var platformManagerStore = require('../stores/platform-manager-store');
+var platformsStore = require('../stores/platforms-store');
 
 var Platforms = React.createClass({
     getInitialState: getStateFromStores,
@@ -12,10 +12,10 @@ var Platforms = React.createClass({
         platformManagerActionCreators.initialize();
     },
     componentDidMount: function () {
-        platformManagerStore.addChangeListener(this._onStoresChange);
+        platformsStore.addChangeListener(this._onStoresChange);
     },
     componentWillUnmount: function () {
-        platformManagerStore.removeChangeListener(this._onStoresChange);
+        platformsStore.removeChangeListener(this._onStoresChange);
     },
     _onStoresChange: function () {
         this.setState(getStateFromStores());
@@ -55,7 +55,7 @@ var Platforms = React.createClass({
 
 function getStateFromStores() {
     return {
-        platforms: platformManagerStore.getPlatforms(),
+        platforms: platformsStore.getPlatforms(),
     };
 }
 

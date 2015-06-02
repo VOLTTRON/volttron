@@ -1,13 +1,14 @@
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
+var authorizationStore = require('../stores/authorization-store');
 var dispatcher = require('../dispatcher');
-var platformManagerStore = require('../stores/platform-manager-store');
+var platformsStore = require('../stores/platforms-store');
 var rpc = require('../lib/rpc');
 
 var platformManagerActionCreators = {
     initialize: function () {
-        if (platformManagerStore.getAuthorization() && !platformManagerStore.getPlatforms()) {
+        if (authorizationStore.getAuthorization() && !platformsStore.getPlatforms()) {
             platformManagerActionCreators.loadPlatforms();
         }
     },
@@ -35,7 +36,7 @@ var platformManagerActionCreators = {
         });
     },
     loadPlatforms: function () {
-        var authorization = platformManagerStore.getAuthorization();
+        var authorization = authorizationStore.getAuthorization();
 
         new rpc.Exchange({
             method: 'list_platforms',
@@ -54,7 +55,7 @@ var platformManagerActionCreators = {
             .catch(handleRpcError);
     },
     loadPlatform: function (platform) {
-        var authorization = platformManagerStore.getAuthorization();
+        var authorization = authorizationStore.getAuthorization();
 
         new rpc.Exchange({
             method: 'platforms.uuid.' + platform.uuid + '.list_agents',
@@ -101,7 +102,7 @@ var platformManagerActionCreators = {
             .catch(handleRpcError);
     },
     startAgent: function (platform, agent) {
-        var authorization = platformManagerStore.getAuthorization();
+        var authorization = authorizationStore.getAuthorization();
 
         agent.actionPending = true;
 
@@ -128,7 +129,7 @@ var platformManagerActionCreators = {
             .catch(handleRpcError);
     },
     stopAgent: function (platform, agent) {
-        var authorization = platformManagerStore.getAuthorization();
+        var authorization = authorizationStore.getAuthorization();
 
         agent.actionPending = true;
 
@@ -155,7 +156,7 @@ var platformManagerActionCreators = {
             .catch(handleRpcError);
     },
     installAgents: function (platform, files) {
-        var authorization = platformManagerStore.getAuthorization();
+        var authorization = authorizationStore.getAuthorization();
 
         new rpc.Exchange({
             method: 'platforms.uuid.' + platform.uuid + '.install',
