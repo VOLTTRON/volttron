@@ -23,25 +23,31 @@ var Platform = React.createClass({
         this.setState(getStateFromStores.call(this));
     },
     _onFileChange: function (e) {
-        var file = e.target.files[0];
+        if (!e.target.files.length) { return; }
 
-        if (file) {
-            var reader = new FileReader();
-            var platform = this.state.platform;
+        var reader = new FileReader();
+        var platform = this.state.platform;
+        var files = e.target.files;
+        var parsedFiles = [];
+
+        function doFile(index) {
+            if (index === files.length) {
+                platformManagerActionCreators.installAgents(platform, parsedFiles);
+                return;
+            }
 
             reader.onload = function () {
-                platformManagerActionCreators.installAgent(
-                    platform,
-                    {
-                        name: file.name,
-                        data: reader.result,
-                    }
-                );
+                parsedFiles.push({
+                    file_name: files[index].name,
+                    file: reader.result,
+                });
+                doFile(index + 1);
             };
 
-            reader.readAsDataURL(file);
+            reader.readAsDataURL(files[index]);
         }
 
+        doFile(0);
     },
     render: function () {
         if (!this.state.platform) {
@@ -88,11 +94,15 @@ var Platform = React.createClass({
 
         return (
             <div className="view" key={platform.uuid}>
-                <h2>{platform.name} ({platform.uuid})</h2>
+                <h2>
+                    <Router.Link to="platforms">Platforms</Router.Link>
+                    &nbsp;/&nbsp;
+                    {platform.name} ({platform.uuid})
+                </h2>
                 <h3>Agents</h3>
                 {agents}
-                <h3>Install agent</h3>
-                <input type="file" onChange={this._onFileChange} />
+                <h3>Install agents</h3>
+                <input type="file" multiple onChange={this._onFileChange} />
             </div>
         );
     },

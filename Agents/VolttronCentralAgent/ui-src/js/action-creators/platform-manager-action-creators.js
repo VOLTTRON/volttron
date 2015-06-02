@@ -154,19 +154,12 @@ var platformManagerActionCreators = {
             })
             .catch(handleRpcError);
     },
-    installAgent: function (platform, file) {
+    installAgents: function (platform, files) {
         var authorization = platformManagerStore.getAuthorization();
 
         new rpc.Exchange({
             method: 'platforms.uuid.' + platform.uuid + '.install',
-            params: {
-                files: [
-                    {
-                        file_name: file.name,
-                        file: file.data,
-                    },
-                ],
-            },
+            params: { files: files },
             authorization: authorization,
         }).promise
             .then(function () {
