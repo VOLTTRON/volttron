@@ -196,17 +196,6 @@ td:not(:first-child) {
     white-space: pre;
 }
 
-.widget {
-    margin: 0 0 1rem 1rem;
-    width: calc((100% - 3rem) / 2);
-    float: left;
-    height: 150px;
-    padding: 1rem;
-    box-sizing: border-box;
-    background-color: #eee;
-    border-radius: 0.3333rem;
-}
-
 .toggle {
     position: absolute;
     z-index: 2;
