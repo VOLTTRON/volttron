@@ -32,20 +32,48 @@ var Platforms = React.createClass({
                 <p>No platforms found.</p>
             );
         } else {
-            platforms = this.state.platforms.map(function (platform) {
-                return (
-                    <div className="platform" key={platform.uuid}>
-                        <Router.Link to="platform" params={{uuid: platform.uuid}}>
-                            {platform.name}
+            platforms = this.state.platforms
+                .sort(function (a, b) {
+                    if (a.name.toLowerCase() > b.name.toLowerCase()) { return 1; }
+                    if (a.name.toLowerCase() < b.name.toLowerCase()) { return -1; }
+                    return 0;
+                })
+                .map(function (platform) {
+                    var status = [platform.uuid];
+
+                    if (platform.agents) {
+                        var running = 0;
+                        var stopped = 0;
+
+                        platform.agents.forEach(function (agent) {
+                            if (agent.process_id !== null) {
+                                if (agent.return_code === null) {
+                                    running++;
+                                } else {
+                                    stopped++;
+                                }
+                            }
+                        });
+
+                        status.push('Agents: ' + running + ' running, ' + stopped + ' stopped, ' + platform.agents.length + ' installed');
+                    }
+
+                    return (
+                        <Router.Link
+                            key={platform.uuid}
+                            to="platform"
+                            params={{uuid: platform.uuid}}
+                            className="view__item"
+                        >
+                            <h3>{platform.name}</h3>
+                            <code>{status.join(' | ')}</code>
                         </Router.Link>
-                        &nbsp;({platform.uuid})
-                    </div>
-                );
-            });
+                    );
+                });
         }
 
         return (
-            <div className="view">
+            <div className="view view--list">
                 <h2>Platforms</h2>
                 {platforms}
             </div>

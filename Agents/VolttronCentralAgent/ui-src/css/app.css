@@ -2,6 +2,10 @@ html {
     font: 75%/1.5 "Open Sans", sans-serif;
 }
 
+body {
+    background-color: #eee;
+}
+
 h1, h2, h3, h4, h5, h6 {
     margin: 0;
 }
@@ -10,7 +14,7 @@ input {
     line-height: 1.5;
 }
 
-pre {
+pre, code {
     font-family: "Menlo", "Monaco", "Consolas", monospace;
 }
 
@@ -59,25 +63,24 @@ td:not(:first-child) {
     bottom: 0;
     left: 0;
     right: 0;
-    background-color: #eee;
 }
 
 .main {
     position: relative;
-    height: 50%;
-    z-index: 3;
+    height: 100%;
+    z-index: 1;
     box-sizing: border-box;
     overflow: auto;
     background-color: #f8f8f8;
 }
 
-.platform-manager--console-hidden .main {
-    height: 100%;
-    z-index: 1;
+.platform-manager--console-open .main {
+    height: 50%;
+    z-index: 3;
 }
 
 .navigation {
-    padding: 1.5rem 2rem;
+    padding: 1.5rem 2.5rem;
     text-align: right;
     background-color: #eee;
     border-bottom: 1px solid #ddd;
@@ -185,39 +188,60 @@ td:not(:first-child) {
 }
 
 .view {
-    padding: 1.5rem 1rem;
+    padding: 1.5em 1em;
 }
 
 .view > * {
-    margin: 0 1rem 1rem;
+    margin: 0 1.5rem 1.5rem;
 }
 
-.platform__error {
+.view__error {
     white-space: pre;
+}
+
+.view--list .view__item {
+    display: block;
+    margin-bottom: 0;
+    padding: 1.5em;
+    background-color: #fff;
+}
+
+a.view__item {
+    color: inherit;
+    text-decoration: inherit;
+}
+
+a.view__item:hover {
+    background-color: #f8f8ff;
+}
+
+.view--list .view__item + .view__item {
+    margin-top: 0.5em;
 }
 
 .toggle {
     position: absolute;
     z-index: 2;
-    top: 50%;
+    top: auto;
+    bottom: 0;
     left: 50%;
     width: 8em;
     margin-left: -4em;
     background-color: #69b;
-    border-radius: 0 0 0.3333em 0.3333em;
+    border-radius: 0.3333em 0.3333em 0 0;
     border: none;
     color: #fff;
     padding: 0.25em 1em;
     outline: none;
-    box-shadow: 0 0 0.5em rgba(0,0,0,0.3);
+    box-shadow: none;
     padding: 0.25em 0.75em 0.25em;
 }
 
-.platform-manager--console-hidden .toggle {
-    top: auto;
-    bottom: 0;
-    border-radius: 0.3333em 0.3333em 0 0;
-    box-shadow: none;
+.platform-manager--console-open .toggle {
+    top: 50%;
+    bottom: auto;
+    border-radius: 0 0 0.3333em 0.3333em;
+    box-shadow: 0 0 0.5em rgba(0,0,0,0.3);
 }
 
 .console {
@@ -226,10 +250,10 @@ td:not(:first-child) {
     left: 0;
     right: 0;
     height: 50%;
-    overflow: hidden;
+    overflow: open;
 }
 
-.console:after {
+.console::after {
     content: "";
     display: block;
     position: absolute;

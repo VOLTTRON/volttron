@@ -89,23 +89,30 @@ var Platform = React.createClass({
                         </tr>
                     </thead>
                     <tbody>
-                        {platform.agents.map(function (agent) {
-                            return (
-                                <AgentRow
-                                    key={agent.uuid}
-                                    platform={platform}
-                                    agent={agent} />
-                            );
-                        })}
+                        {platform.agents
+                            .sort(function (a, b) {
+                                if (a.name.toLowerCase() > b.name.toLowerCase()) { return 1; }
+                                if (a.name.toLowerCase() < b.name.toLowerCase()) { return -1; }
+                                return 0;
+                            })
+                            .map(function (agent) {
+                                return (
+                                    <AgentRow
+                                        key={agent.uuid}
+                                        platform={platform}
+                                        agent={agent} />
+                                );
+                            })
+                        }
                     </tbody>
                 </table>
             );
         }
 
         return (
-            <div className="view platform">
+            <div className="view">
                 {this.state.error && (
-                    <div className="platform__error error">{this.state.error}</div>
+                    <div className="view__error error">{this.state.error}</div>
                 )}
                 <h2>
                     <Router.Link to="platforms">Platforms</Router.Link>

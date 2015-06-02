@@ -29,8 +29,8 @@ var PlatformManager = React.createClass({
     render: function () {
         var classes = ['platform-manager'];
 
-        if (!this.state.consoleShown) {
-            classes.push('platform-manager--console-hidden');
+        if (this.state.consoleShown) {
+            classes.push('platform-manager--console-open');
         }
 
         if (this.state.loggedIn) {
