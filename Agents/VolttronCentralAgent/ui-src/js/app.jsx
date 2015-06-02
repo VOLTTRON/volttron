@@ -5,7 +5,6 @@ var Router = require('react-router');
 
 var PageNotFound = require('./components/page-not-found');
 var LoginForm = require('./components/login-form');
-var Logout = require('./components/logout');
 var Platform = require('./components/platform');
 var PlatformManager = require('./components/platform-manager');
 var platformManagerStore = require('./stores/platform-manager-store');
@@ -48,7 +47,6 @@ var AfterLogin = React.createClass({
 var routes = (
 	<Router.Route path="/" handler={PlatformManager}>
 		<Router.Route name="login" path="login" handler={checkAuth(LoginForm)} />
-		<Router.Route name="logout" path="logout" handler={Logout} />
 		<Router.Route name="platforms" path="platforms" handler={checkAuth(Platforms)} />
 		<Router.Route name="platform" path="platforms/:uuid" handler={checkAuth(Platform)} />
 		<Router.NotFoundRoute handler={checkAuth(PageNotFound)} />
@@ -66,7 +64,7 @@ router.run(function (Handler) {
 });
 
 platformManagerStore.addChangeListener(function () {
-	if (!router.isActive('login') && !platformManagerStore.getAuthorization()) {
-		router.transitionTo('login');
+	if (!platformManagerStore.getAuthorization() && !router.isActive('login')) {
+		router.replaceWith('login');
 	}
 });

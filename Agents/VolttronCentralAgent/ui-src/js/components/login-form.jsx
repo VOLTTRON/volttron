@@ -31,7 +31,7 @@ var LoginForm = React.createClass({
             this.state.username,
             this.state.password
         );
-        this.transitionTo('/');
+        this.replaceWith('/');
     },
     render: function () {
         return (

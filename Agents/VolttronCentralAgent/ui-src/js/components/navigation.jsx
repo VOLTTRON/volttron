@@ -3,10 +3,10 @@
 var React = require('react');
 var Router = require('react-router');
 
+var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
 var platformManagerStore = require('../stores/platform-manager-store');
 
 var Navigation = React.createClass({
-    mixins: [Router.State],
     getInitialState: getStateFromStores,
     componentDidMount: function () {
         platformManagerStore.addChangeListener(this._onStoreChange);
@@ -17,33 +17,33 @@ var Navigation = React.createClass({
     _onStoreChange: function () {
         this.setState(getStateFromStores());
     },
+    _onLogOutClick: function () {
+        platformManagerActionCreators.clearAuthorization();
+        this.replaceWith('/');
+    },
     render: function () {
-        var component = this;
         var navItems;
 
         if (this.state.loggedIn) {
             navItems = ['Platforms'].map(function (navItem) {
-                var page = navItem.toLowerCase();
-
-                if (component.isActive(page)) {
-                    return (
-                        <span key={page} className="navigation__item navigation__item--active">
-                            {navItem}
-                        </span>
-                    );
-                }
+                var route = navItem.toLowerCase();
 
                 return (
-                    <Router.Link key={page} to={page} className="navigation__item">
+                    <Router.Link
+                        key={route}
+                        to={route}
+                        className="navigation__item"
+                        activeClassName="navigation__item--active"
+                    >
                         {navItem}
                     </Router.Link>
                 );
             });
 
             navItems.push(
-                <Router.Link key="logout" to="logout" className="navigation__item">
+                <a key="logout" className="navigation__item" onClick={this._onLogOutClick}>
                     Log out
-                </Router.Link>
+                </a>
             );
         }
 
