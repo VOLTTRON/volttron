@@ -425,7 +425,7 @@ class Hello(SubsystemBase):
 
 
 class PubSub(SubsystemBase):
-    def __init__(self, core, rpc):
+    def __init__(self, core, rpc, owner):
         self.core = weakref.ref(core)
         self.rpc = weakref.ref(rpc)
         self._peer_subscriptions = {}
@@ -440,6 +440,14 @@ class PubSub(SubsystemBase):
             rpc.export(self.peer_publish, 'pubsub.publish')
             rpc.export(self.peer_push, 'pubsub.push')
         core.onsetup.connect(setup, self)
+
+        def start(sender, **kwargs):
+            def subscribe(member):   # pylint: disable=redefined-outer-name
+                for peer, bus, prefix in
+                        annotations(member, set, 'pubsub.subscriptions'):
+                    self.subscribe(peer, prefix, member, bus)
+            inspect.getmembers(owner, subscribe)
+        core.onstart.connect(start, self)
 
     def add_bus(self, name):
         self._peer_subscriptions.setdefault(name, {})
@@ -595,6 +603,7 @@ class PubSub(SubsystemBase):
         return self.rpc().call(peer, 'pubsub.list', prefix,
                                bus, subscribed, reverse)
 
+    @dualmethod
     def subscribe(self, peer, prefix, callback, bus=''):
         '''Subscribe to topic and register callback.
 
@@ -624,6 +633,13 @@ class PubSub(SubsystemBase):
             peer, 'pubsub.subscribe', prefix, bus=bus)
         result.link(finish)
         return result
+    
+    @subscribe.classmethod
+    def subscribe(self, peer, prefix, bus=''):
+        def decorate(method):
+            annotate(method, set, 'pubsub.subscriptions', (peer, bus, prefix))
+            return method
+        return decorate
 
     def unsubscribe(self, peer, prefix, callback, bus=''):
         '''Unsubscribe and remove callback(s).

@@ -68,7 +68,7 @@ class Agent(object):
             self.ping = Ping(core)
             self.rpc = RPC(core, owner)
             self.hello = Hello(core)
-            self.pubsub = PubSub(core, self.rpc)
+            self.pubsub = PubSub(core, self.rpc, owner)
             self.channel = Channel(core)
 
     def __init__(self, identity=None, address=None, context=None):
