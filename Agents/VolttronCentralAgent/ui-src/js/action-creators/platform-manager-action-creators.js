@@ -19,7 +19,7 @@ var platformManagerActionCreators = {
                 username: username,
                 password: password,
             },
-        }).promise
+        }, ['password']).promise
             .then(function (result) {
                 dispatcher.dispatch({
                     type: ACTION_TYPES.RECEIVE_AUTHORIZATION,

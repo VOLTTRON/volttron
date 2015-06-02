@@ -7,19 +7,36 @@ var dispatcher = require('../../dispatcher');
 var RpcError = require('./error');
 var xhr = require('../xhr');
 
-function RpcExchange(opts) {
+function RpcExchange(request, redactedParams) {
     if (!(this instanceof RpcExchange)) {
-        return new RpcExchange(opts);
+        return new RpcExchange(request);
     }
 
     var exchange = this;
 
-    // TODO: validate opts
-    opts.jsonrpc = '2.0';
-    opts.id = uuid.v1();
+    // TODO: validate request
+    request.jsonrpc = '2.0';
+    request.id = uuid.v1();
+
+    // stringify before redacting params
+    var data = JSON.stringify(request);
+
+    if (redactedParams && redactedParams.length) {
+        redactedParams.forEach(function (paramPath) {
+            paramPath = paramPath.split('.');
+
+            var paramParent = request.params;
+
+            while (paramPath.length > 1) {
+                paramParent = paramParent[paramPath.shift()];
+            }
+
+            paramParent[paramPath[0]] = '[REDACTED]';
+        });
+    }
 
     exchange.initiated = Date.now();
-    exchange.request = opts;
+    exchange.request = request;
 
     dispatcher.dispatch({
         type: ACTION_TYPES.MAKE_REQUEST,
@@ -31,7 +48,7 @@ function RpcExchange(opts) {
         method: 'POST',
         url: '/jsonrpc',
         contentType: 'application/json',
-        data: JSON.stringify(exchange.request),
+        data: data,
         timeout: 60000,
     })
         .finally(function () {
