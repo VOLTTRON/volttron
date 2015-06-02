@@ -15,8 +15,6 @@ module.exports = keyMirror({
     RECEIVE_UNAUTHORIZED: null,
     CLEAR_AUTHORIZATION: null,
 
-    CHANGE_PAGE: null,
-
     RECEIVE_PLATFORMS: null,
     RECEIVE_PLATFORM: null,
 });

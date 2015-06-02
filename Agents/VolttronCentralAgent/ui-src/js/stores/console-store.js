@@ -28,18 +28,14 @@ consoleStore.getExchanges = function () {
     return _exchanges;
 };
 
-function _resetComposerValue(updateMethod) {
+function _resetComposerValue() {
     var authorization = platformManagerStore.getAuthorization();
     var parsed;
 
     try {
         parsed = JSON.parse(_composerValue);
-
-        if (updateMethod) {
-            parsed.method = platformManagerStore.getPage();
-        }
     } catch (e) {
-        parsed = { method: platformManagerStore.getPage() };
+        parsed = { method: '' };
     }
 
     if (authorization) {
@@ -72,12 +68,6 @@ consoleStore.dispatchToken = dispatcher.register(function (action) {
         case ACTION_TYPES.CLEAR_AUTHORIZATION:
             _composerId = Date.now();
             _resetComposerValue();
-            consoleStore.emitChange();
-            break;
-
-        case ACTION_TYPES.CHANGE_PAGE:
-            _composerId = Date.now();
-            _resetComposerValue(true);
             consoleStore.emitChange();
             break;
 

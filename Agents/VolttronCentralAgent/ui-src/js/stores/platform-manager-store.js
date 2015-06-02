@@ -5,17 +5,12 @@ var dispatcher = require('../dispatcher');
 var Store = require('../lib/store');
 
 var _authorization = sessionStorage.getItem('authorization');
-var _page = location.hash.substr(1);
 var _platforms = null;
 
 var platformManagerStore = new Store();
 
 platformManagerStore.getAuthorization = function () {
     return _authorization;
-};
-
-platformManagerStore.getPage = function () {
-    return _page;
 };
 
 platformManagerStore.getPlatform = function (uuid) {
