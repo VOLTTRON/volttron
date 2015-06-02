@@ -63,8 +63,8 @@ import os.path as p
 import uuid
 
 from volttron.platform import vip, jsonrpc
-from volttron.platform.agent.vipagent import (BaseAgent, periodic, onevent,
-                                              jsonapi, export)
+from volttron.platform.agent.vipagent import (BaseAgent, ChannelMixin,
+                                              jsonapi, export, onevent)
 from volttron.platform.agent import utils
 
 
@@ -87,6 +87,8 @@ def hello_agent(config_path, **kwargs):
 
     agentid = get_config('agentid')
     vip_identity = get_config('vip_identity')
+    if not vip_identity:
+        vip_identity = os.environ.get('AGENT_UUID')
 
     class Agent(BaseAgent):
 
@@ -94,7 +96,7 @@ def hello_agent(config_path, **kwargs):
             super(Agent, self).__init__(vip_identity=vip_identity, **kwargs)
 
         @export()
-        def sayHello(self, name):
+        def sayHello(self, name="juniper"):
             return "Hello, "+name+ " from " + agentid
 
     Agent.__name__ = 'HelloAgent'
