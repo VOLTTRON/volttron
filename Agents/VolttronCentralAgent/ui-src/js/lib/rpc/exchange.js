@@ -8,7 +8,7 @@ var RpcError = require('./error');
 var xhr = require('../xhr');
 
 function RpcExchange(opts) {
-    if (!this instanceof RpcExchange) {
+    if (!(this instanceof RpcExchange)) {
         return new RpcExchange(opts);
     }
 

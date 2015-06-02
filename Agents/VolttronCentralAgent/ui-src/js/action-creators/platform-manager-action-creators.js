@@ -6,6 +6,11 @@ var platformManagerStore = require('../stores/platform-manager-store');
 var rpc = require('../lib/rpc');
 
 var platformManagerActionCreators = {
+    initialize: function () {
+        if (platformManagerStore.getAuthorization() && !platformManagerStore.getPlatforms()) {
+            platformManagerActionCreators.loadPlatforms();
+        }
+    },
     requestAuthorization: function (username, password) {
         new rpc.Exchange({
             method: 'get_authorization',
@@ -19,27 +24,14 @@ var platformManagerActionCreators = {
                     type: ACTION_TYPES.RECEIVE_AUTHORIZATION,
                     authorization: result,
                 });
+
+                platformManagerActionCreators.loadPlatforms();
             })
-            .catch(rpc.Error, function (error) {
-                if (error.code && error.code === 401) {
-                    dispatcher.dispatch({
-                        type: ACTION_TYPES.RECEIVE_UNAUTHORIZED,
-                        error: error,
-                    });
-                } else {
-                    throw error;
-                }
-            });
+            .catch(handleRpcError);
     },
     clearAuthorization: function () {
         dispatcher.dispatch({
             type: ACTION_TYPES.CLEAR_AUTHORIZATION,
-        });
-    },
-    goToPage: function (page) {
-        dispatcher.dispatch({
-            type: ACTION_TYPES.CHANGE_PAGE,
-            page: page,
         });
     },
     loadPlatforms: function () {
@@ -56,60 +48,57 @@ var platformManagerActionCreators = {
                 });
 
                 platforms.forEach(function (platform) {
-                    new rpc.Exchange({
-                        method: 'platforms.uuid.' + platform.uuid + '.list_agents',
-                        authorization: authorization,
-                    }).promise
-                        .then(function (agentsList) {
-                            platform.agents = agentsList;
-
-                            dispatcher.dispatch({
-                                type: ACTION_TYPES.RECEIVE_PLATFORM,
-                                platform: platform,
-                            });
-
-                            if (!agentsList.length) { return; }
-
-                            new rpc.Exchange({
-                                method: 'platforms.uuid.' + platform.uuid + '.status_agents',
-                                authorization: authorization,
-                            }).promise
-                                .then(function (agentStatuses) {
-                                    platform.agents.forEach(function (agent) {
-                                        if (!agentStatuses.some(function (status) {
-                                            if (agent.uuid === status.uuid) {
-                                                agent.actionPending = false;
-                                                agent.process_id = status.process_id;
-                                                agent.return_code = status.return_code;
-
-                                                return true;
-                                            }
-                                        })) {
-                                            agent.actionPending = false;
-                                            agent.process_id = null;
-                                            agent.return_code = null;
-                                        }
-
-                                    });
-
-                                    dispatcher.dispatch({
-                                        type: ACTION_TYPES.RECEIVE_PLATFORM,
-                                        platform: platform,
-                                    });
-                                });
-                        });
+                    platformManagerActionCreators.loadPlatform(platform);
                 });
             })
-            .catch(function (error) {
-                if (error.code && error.code === 401) {
-                    dispatcher.dispatch({
-                        type: ACTION_TYPES.RECEIVE_UNAUTHORIZED,
-                        error: error,
+            .catch(handleRpcError);
+    },
+    loadPlatform: function (platform) {
+        var authorization = platformManagerStore.getAuthorization();
+
+        new rpc.Exchange({
+            method: 'platforms.uuid.' + platform.uuid + '.list_agents',
+            authorization: authorization,
+        }).promise
+            .then(function (agentsList) {
+                platform.agents = agentsList;
+
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.RECEIVE_PLATFORM,
+                    platform: platform,
+                });
+
+                if (!agentsList.length) { return; }
+
+                new rpc.Exchange({
+                    method: 'platforms.uuid.' + platform.uuid + '.status_agents',
+                    authorization: authorization,
+                }).promise
+                    .then(function (agentStatuses) {
+                        platform.agents.forEach(function (agent) {
+                            if (!agentStatuses.some(function (status) {
+                                if (agent.uuid === status.uuid) {
+                                    agent.actionPending = false;
+                                    agent.process_id = status.process_id;
+                                    agent.return_code = status.return_code;
+
+                                    return true;
+                                }
+                            })) {
+                                agent.actionPending = false;
+                                agent.process_id = null;
+                                agent.return_code = null;
+                            }
+
+                        });
+
+                        dispatcher.dispatch({
+                            type: ACTION_TYPES.RECEIVE_PLATFORM,
+                            platform: platform,
+                        });
                     });
-                } else {
-                    throw error;
-                }
-            });
+            })
+            .catch(handleRpcError);
     },
     startAgent: function (platform, agent) {
         var authorization = platformManagerStore.getAuthorization();
@@ -135,7 +124,8 @@ var platformManagerActionCreators = {
                     type: ACTION_TYPES.RECEIVE_PLATFORM,
                     platform: platform,
                 });
-            });
+            })
+            .catch(handleRpcError);
     },
     stopAgent: function (platform, agent) {
         var authorization = platformManagerStore.getAuthorization();
@@ -161,12 +151,41 @@ var platformManagerActionCreators = {
                     type: ACTION_TYPES.RECEIVE_PLATFORM,
                     platform: platform,
                 });
+            })
+            .catch(handleRpcError);
+    },
+    installAgent: function (platform, file) {
+        var authorization = platformManagerStore.getAuthorization();
+
+        new rpc.Exchange({
+            method: 'platforms.uuid.' + platform.uuid + '.install',
+            params: {
+                files: [
+                    {
+                        file_name: file.name,
+                        file: file.data,
+                    },
+                ],
+            },
+            authorization: authorization,
+        }).promise
+            .then(function () {
+                platformManagerActionCreators.loadPlatform(platform);
             });
     },
 };
 
-window.onhashchange = function () {
-    platformManagerActionCreators.goToPage(location.hash.substr(1));
-};
+function handleRpcError(error) {
+    if (error.code && error.code === 401) {
+        dispatcher.dispatch({
+            type: ACTION_TYPES.RECEIVE_UNAUTHORIZED,
+            error: error,
+        });
+
+        platformManagerActionCreators.clearAuthorization();
+    } else {
+        throw error;
+    }
+}
 
 module.exports = platformManagerActionCreators;

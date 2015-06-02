@@ -1,11 +1,13 @@
 'use strict';
 
 var React = require('react');
+var Router = require('react-router');
 
-var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
 var loginFormStore = require('../stores/login-form-store');
+var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
 
 var LoginForm = React.createClass({
+    mixins: [Router.Navigation],
     getInitialState: getStateFromStores,
     componentDidMount: function () {
         loginFormStore.addChangeListener(this._onStoresChange);
@@ -29,25 +31,28 @@ var LoginForm = React.createClass({
             this.state.username,
             this.state.password
         );
+        this.transitionTo('/');
     },
     render: function () {
         return (
             <form className="login-form" onSubmit={this._onSubmit}>
-                <h1>VOLTTRON(TM) Platform Manager</h1>
                 <input
+                    className="login-form__field"
                     ref="username"
                     type="text"
                     placeholder="Username"
+                    autoFocus
                     onChange={this._onInputChange}
                 />
                 <input
+                    className="login-form__field"
                     ref="password"
                     type="password"
                     placeholder="Password"
                     onChange={this._onInputChange}
                 />
                 <input
-                    className="button"
+                    className="button login-form__submit"
                     type="submit"
                     value="Log in"
                     disabled={!this.state.username || !this.state.password}

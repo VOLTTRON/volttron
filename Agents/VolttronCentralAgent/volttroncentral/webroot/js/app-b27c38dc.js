@@ -2,16 +2,78 @@
 'use strict';
 
 var React = require('react');
+var Router = require('react-router');
 
+var PageNotFound = require('./components/page-not-found');
+var LoginForm = require('./components/login-form');
+var Logout = require('./components/logout');
+var Platform = require('./components/platform');
 var PlatformManager = require('./components/platform-manager');
+var platformManagerStore = require('./stores/platform-manager-store');
+var Platforms = require('./components/platforms');
 
-React.render(
-    React.createElement(PlatformManager, null),
-    document.getElementById('app')
+var _afterLoginRoute = 'platforms';
+
+function checkAuth(Component) {
+	return React.createClass({
+		statics: {
+			willTransitionTo: function (transition) {
+				if (transition.path !== '/login') {
+					_afterLoginRoute = transition.path;
+
+					if (!platformManagerStore.getAuthorization()) {
+				    	transition.redirect('login');
+				    }
+				} else if (transition.path === '/login' && platformManagerStore.getAuthorization()) {
+				    transition.redirect(_afterLoginRoute);
+				}
+			},
+		},
+		render: function () {
+			return (
+				React.createElement(Component, React.__spread({},  this.props))
+			);
+		},
+	});
+}
+
+var AfterLogin = React.createClass({displayName: "AfterLogin",
+	statics: {
+		willTransitionTo: function (transition) {
+			transition.redirect(_afterLoginRoute);
+		},
+	},
+	render: function () {},
+});
+
+var routes = (
+	React.createElement(Router.Route, {path: "/", handler: PlatformManager}, 
+		React.createElement(Router.Route, {name: "login", path: "login", handler: checkAuth(LoginForm)}), 
+		React.createElement(Router.Route, {name: "logout", path: "logout", handler: Logout}), 
+		React.createElement(Router.Route, {name: "platforms", path: "platforms", handler: checkAuth(Platforms)}), 
+		React.createElement(Router.Route, {name: "platform", path: "platforms/:uuid", handler: checkAuth(Platform)}), 
+		React.createElement(Router.NotFoundRoute, {handler: checkAuth(PageNotFound)}), 
+		React.createElement(Router.DefaultRoute, {handler: AfterLogin})
+	)
 );
 
+var router = Router.create(routes);
 
-},{"./components/platform-manager":13,"react":undefined}],2:[function(require,module,exports){
+router.run(function (Handler) {
+	React.render(
+	    React.createElement(Handler, null),
+	    document.getElementById('app')
+	);
+});
+
+platformManagerStore.addChangeListener(function () {
+	if (!router.isActive('login') && !platformManagerStore.getAuthorization()) {
+		router.transitionTo('login');
+	}
+});
+
+
+},{"./components/login-form":9,"./components/logout":10,"./components/page-not-found":12,"./components/platform":14,"./components/platform-manager":13,"./components/platforms":15,"./stores/platform-manager-store":27,"react":undefined,"react-router":undefined}],2:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -38,7 +100,7 @@ var consoleActionCreators = {
 module.exports = consoleActionCreators;
 
 
-},{"../constants/action-types":14,"../dispatcher":15,"../lib/rpc/exchange":17}],3:[function(require,module,exports){
+},{"../constants/action-types":16,"../dispatcher":17,"../lib/rpc/exchange":19}],3:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -47,6 +109,11 @@ var platformManagerStore = require('../stores/platform-manager-store');
 var rpc = require('../lib/rpc');
 
 var platformManagerActionCreators = {
+    initialize: function () {
+        if (platformManagerStore.getAuthorization() && !platformManagerStore.getPlatforms()) {
+            platformManagerActionCreators.loadPlatforms();
+        }
+    },
     requestAuthorization: function (username, password) {
         new rpc.Exchange({
             method: 'get_authorization',
@@ -60,27 +127,14 @@ var platformManagerActionCreators = {
                     type: ACTION_TYPES.RECEIVE_AUTHORIZATION,
                     authorization: result,
                 });
+
+                platformManagerActionCreators.loadPlatforms();
             })
-            .catch(rpc.Error, function (error) {
-                if (error.code && error.code === 401) {
-                    dispatcher.dispatch({
-                        type: ACTION_TYPES.RECEIVE_UNAUTHORIZED,
-                        error: error,
-                    });
-                } else {
-                    throw error;
-                }
-            });
+            .catch(handleRpcError);
     },
     clearAuthorization: function () {
         dispatcher.dispatch({
             type: ACTION_TYPES.CLEAR_AUTHORIZATION,
-        });
-    },
-    goToPage: function (page) {
-        dispatcher.dispatch({
-            type: ACTION_TYPES.CHANGE_PAGE,
-            page: page,
         });
     },
     loadPlatforms: function () {
@@ -97,60 +151,57 @@ var platformManagerActionCreators = {
                 });
 
                 platforms.forEach(function (platform) {
-                    new rpc.Exchange({
-                        method: 'platforms.uuid.' + platform.uuid + '.list_agents',
-                        authorization: authorization,
-                    }).promise
-                        .then(function (agentsList) {
-                            platform.agents = agentsList;
-
-                            dispatcher.dispatch({
-                                type: ACTION_TYPES.RECEIVE_PLATFORM,
-                                platform: platform,
-                            });
-
-                            if (!agentsList.length) { return; }
-
-                            new rpc.Exchange({
-                                method: 'platforms.uuid.' + platform.uuid + '.status_agents',
-                                authorization: authorization,
-                            }).promise
-                                .then(function (agentStatuses) {
-                                    platform.agents.forEach(function (agent) {
-                                        if (!agentStatuses.some(function (status) {
-                                            if (agent.uuid === status.uuid) {
-                                                agent.actionPending = false;
-                                                agent.process_id = status.process_id;
-                                                agent.return_code = status.return_code;
-
-                                                return true;
-                                            }
-                                        })) {
-                                            agent.actionPending = false;
-                                            agent.process_id = null;
-                                            agent.return_code = null;
-                                        }
-
-                                    });
-
-                                    dispatcher.dispatch({
-                                        type: ACTION_TYPES.RECEIVE_PLATFORM,
-                                        platform: platform,
-                                    });
-                                });
-                        });
+                    platformManagerActionCreators.loadPlatform(platform);
                 });
             })
-            .catch(function (error) {
-                if (error.code && error.code === 401) {
-                    dispatcher.dispatch({
-                        type: ACTION_TYPES.RECEIVE_UNAUTHORIZED,
-                        error: error,
+            .catch(handleRpcError);
+    },
+    loadPlatform: function (platform) {
+        var authorization = platformManagerStore.getAuthorization();
+
+        new rpc.Exchange({
+            method: 'platforms.uuid.' + platform.uuid + '.list_agents',
+            authorization: authorization,
+        }).promise
+            .then(function (agentsList) {
+                platform.agents = agentsList;
+
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.RECEIVE_PLATFORM,
+                    platform: platform,
+                });
+
+                if (!agentsList.length) { return; }
+
+                new rpc.Exchange({
+                    method: 'platforms.uuid.' + platform.uuid + '.status_agents',
+                    authorization: authorization,
+                }).promise
+                    .then(function (agentStatuses) {
+                        platform.agents.forEach(function (agent) {
+                            if (!agentStatuses.some(function (status) {
+                                if (agent.uuid === status.uuid) {
+                                    agent.actionPending = false;
+                                    agent.process_id = status.process_id;
+                                    agent.return_code = status.return_code;
+
+                                    return true;
+                                }
+                            })) {
+                                agent.actionPending = false;
+                                agent.process_id = null;
+                                agent.return_code = null;
+                            }
+
+                        });
+
+                        dispatcher.dispatch({
+                            type: ACTION_TYPES.RECEIVE_PLATFORM,
+                            platform: platform,
+                        });
                     });
-                } else {
-                    throw error;
-                }
-            });
+            })
+            .catch(handleRpcError);
     },
     startAgent: function (platform, agent) {
         var authorization = platformManagerStore.getAuthorization();
@@ -176,7 +227,8 @@ var platformManagerActionCreators = {
                     type: ACTION_TYPES.RECEIVE_PLATFORM,
                     platform: platform,
                 });
-            });
+            })
+            .catch(handleRpcError);
     },
     stopAgent: function (platform, agent) {
         var authorization = platformManagerStore.getAuthorization();
@@ -202,18 +254,47 @@ var platformManagerActionCreators = {
                     type: ACTION_TYPES.RECEIVE_PLATFORM,
                     platform: platform,
                 });
+            })
+            .catch(handleRpcError);
+    },
+    installAgent: function (platform, file) {
+        var authorization = platformManagerStore.getAuthorization();
+
+        new rpc.Exchange({
+            method: 'platforms.uuid.' + platform.uuid + '.install',
+            params: {
+                files: [
+                    {
+                        file_name: file.name,
+                        file: file.data,
+                    },
+                ],
+            },
+            authorization: authorization,
+        }).promise
+            .then(function () {
+                platformManagerActionCreators.loadPlatform(platform);
             });
     },
 };
 
-window.onhashchange = function () {
-    platformManagerActionCreators.goToPage(location.hash.substr(1));
-};
+function handleRpcError(error) {
+    if (error.code && error.code === 401) {
+        dispatcher.dispatch({
+            type: ACTION_TYPES.RECEIVE_UNAUTHORIZED,
+            error: error,
+        });
+
+        platformManagerActionCreators.clearAuthorization();
+    } else {
+        throw error;
+    }
+}
 
 module.exports = platformManagerActionCreators;
 
 
-},{"../constants/action-types":14,"../dispatcher":15,"../lib/rpc":18,"../stores/platform-manager-store":25}],4:[function(require,module,exports){
+},{"../constants/action-types":16,"../dispatcher":17,"../lib/rpc":20,"../stores/platform-manager-store":27}],4:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -347,7 +428,7 @@ function getStateFromStores() {
 module.exports = Composer;
 
 
-},{"../action-creators/console-action-creators":2,"../stores/console-store":23,"react":undefined}],6:[function(require,module,exports){
+},{"../action-creators/console-action-creators":2,"../stores/console-store":25,"react":undefined}],6:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -420,7 +501,7 @@ function getStateFromStores() {
 module.exports = Conversation;
 
 
-},{"../stores/console-store":23,"./exchange":8,"jquery":undefined,"react":undefined}],8:[function(require,module,exports){
+},{"../stores/console-store":25,"./exchange":8,"jquery":undefined,"react":undefined}],8:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -477,127 +558,13 @@ module.exports = Exchange;
 'use strict';
 
 var React = require('react');
+var Router = require('react-router');
 
-var AgentRow = require('./agent-row');
-var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
-var platformManagerStore = require('../stores/platform-manager-store');
-
-var Home = React.createClass({displayName: "Home",
-    getInitialState: getStateFromStores,
-    componentDidMount: function () {
-        platformManagerStore.addChangeListener(this._onChange);
-        setTimeout(platformManagerActionCreators.loadPlatforms);
-    },
-    componentWillUnmount: function () {
-        platformManagerStore.removeChangeListener(this._onChange);
-    },
-    _onChange: function () {
-        this.setState(getStateFromStores());
-    },
-    render: function () {
-        var platforms;
-
-        if (!this.state.platforms) {
-            platforms = (
-                React.createElement("p", null, "Loading platforms...")
-            );
-        } else if (!this.state.platforms.length) {
-            platforms = (
-                React.createElement("p", null, "No platforms found.")
-            );
-        } else {
-            platforms = this.state.platforms.map(function (platform) {
-                var agents;
-
-                if (!platform.agents) {
-                    agents = (
-                        React.createElement("p", null, "Loading agents...")
-                    );
-                } else if (!platform.agents.length) {
-                    agents = (
-                        React.createElement("p", null, "No agents installed.")
-                    );
-                } else {
-                    agents = (
-                        React.createElement("table", null, 
-                            React.createElement("thead", null, 
-                                React.createElement("tr", null, 
-                                    React.createElement("th", null, "Agent"), 
-                                    React.createElement("th", null, "UUID"), 
-                                    React.createElement("th", null, "Status"), 
-                                    React.createElement("th", null, "Action")
-                                )
-                            ), 
-                            React.createElement("tbody", null, 
-                                platform.agents.map(function (agent) {
-                                    return (
-                                        React.createElement(AgentRow, {
-                                            key: agent.uuid, 
-                                            platform: platform, 
-                                            agent: agent})
-                                    );
-                                })
-                            )
-                        )
-                    );
-                }
-
-                return (
-                    React.createElement("div", {className: "platform", key: platform.uuid}, 
-                        React.createElement("h2", null, platform.name, " (", platform.uuid, ")"), 
-                        agents
-                    )
-                );
-            });
-        }
-
-        return (
-            React.createElement("div", {className: "home"}, 
-                platforms
-            )
-        );
-    },
-});
-
-function getStateFromStores() {
-    return {
-        platforms: platformManagerStore.getPlatforms(),
-    };
-}
-
-module.exports = Home;
-
-
-},{"../action-creators/platform-manager-action-creators":3,"../stores/platform-manager-store":25,"./agent-row":4,"react":undefined}],10:[function(require,module,exports){
-'use strict';
-
-var React = require('react');
-
-var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
-
-var LogOutButton = React.createClass({displayName: "LogOutButton",
-    _onClick: function () {
-        platformManagerActionCreators.clearAuthorization();
-    },
-    render: function () {
-        return (
-            React.createElement("button", {className: "button", onClick: this._onClick}, "Log out")
-        );
-    }
-});
-
-module.exports = LogOutButton;
-
-
-},{"../action-creators/platform-manager-action-creators":3,"react":undefined}],11:[function(require,module,exports){
-'use strict';
-
-var React = require('react');
-
-var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
 var loginFormStore = require('../stores/login-form-store');
+var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
 
 var LoginForm = React.createClass({displayName: "LoginForm",
+    mixins: [Router.Navigation],
     getInitialState: getStateFromStores,
     componentDidMount: function () {
         loginFormStore.addChangeListener(this._onStoresChange);
@@ -621,25 +588,28 @@ var LoginForm = React.createClass({displayName: "LoginForm",
             this.state.username,
             this.state.password
         );
+        this.transitionTo('/');
     },
     render: function () {
         return (
             React.createElement("form", {className: "login-form", onSubmit: this._onSubmit}, 
-                React.createElement("h1", null, "VOLTTRON(TM) Platform Manager"), 
                 React.createElement("input", {
+                    className: "login-form__field", 
                     ref: "username", 
                     type: "text", 
                     placeholder: "Username", 
+                    autoFocus: true, 
                     onChange: this._onInputChange}
                 ), 
                 React.createElement("input", {
+                    className: "login-form__field", 
                     ref: "password", 
                     type: "password", 
                     placeholder: "Password", 
                     onChange: this._onInputChange}
                 ), 
                 React.createElement("input", {
-                    className: "button", 
+                    className: "button login-form__submit", 
                     type: "submit", 
                     value: "Log in", 
                     disabled: !this.state.username || !this.state.password}
@@ -661,51 +631,143 @@ function getStateFromStores() {
 module.exports = LoginForm;
 
 
-},{"../action-creators/platform-manager-action-creators":3,"../stores/login-form-store":24,"react":undefined}],12:[function(require,module,exports){
+},{"../action-creators/platform-manager-action-creators":3,"../stores/login-form-store":26,"react":undefined,"react-router":undefined}],10:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
+var Router = require('react-router');
 
-var LogOutButton = require('./log-out-button');
+var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
+
+var Logout = React.createClass({displayName: "Logout",
+	mixins: [Router.Navigation],
+	componentDidMount: function () {
+		platformManagerActionCreators.clearAuthorization();
+        this.transitionTo('/');
+	},
+	render: function () {
+		return (
+			React.createElement("div", null, "Logging out...")
+		);
+	},
+});
+
+module.exports = Logout;
+
+
+},{"../action-creators/platform-manager-action-creators":3,"react":undefined,"react-router":undefined}],11:[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+var Router = require('react-router');
+
+var platformManagerStore = require('../stores/platform-manager-store');
 
 var Navigation = React.createClass({displayName: "Navigation",
+    mixins: [Router.State],
+    getInitialState: getStateFromStores,
+    componentDidMount: function () {
+        platformManagerStore.addChangeListener(this._onStoreChange);
+    },
+    componentWillUnmount: function () {
+        platformManagerStore.removeChangeListener(this._onStoreChange);
+    },
+    _onStoreChange: function () {
+        this.setState(getStateFromStores());
+    },
     render: function () {
+        var component = this;
+        var navItems;
+
+        if (this.state.loggedIn) {
+            navItems = ['Platforms'].map(function (navItem) {
+                var page = navItem.toLowerCase();
+
+                if (component.isActive(page)) {
+                    return (
+                        React.createElement("span", {key: page, className: "navigation__item navigation__item--active"}, 
+                            navItem
+                        )
+                    );
+                }
+
+                return (
+                    React.createElement(Router.Link, {key: page, to: page, className: "navigation__item"}, 
+                        navItem
+                    )
+                );
+            });
+
+            navItems.push(
+                React.createElement(Router.Link, {key: "logout", to: "logout", className: "navigation__item"}, 
+                    "Log out"
+                )
+            );
+        }
+
         return (
-            React.createElement("div", {className: "navigation"}, 
-                React.createElement("h1", null, React.createElement("a", {href: "#home"}, "VOLTTRON(TM) Platform Manager")), 
-                React.createElement(LogOutButton, null)
+            React.createElement("nav", {className: "navigation"}, 
+                React.createElement("h1", {className: "logo"}, 
+                    React.createElement("span", {className: "logo__name"}, "VOLTTRON"), 
+                    React.createElement("span", {className: "logo__tm"}, "™")
+                ), 
+                navItems
             )
         );
     }
 });
 
+function getStateFromStores() {
+    return {
+        loggedIn: !!platformManagerStore.getAuthorization(),
+    };
+}
+
 module.exports = Navigation;
 
 
-},{"./log-out-button":10,"react":undefined}],13:[function(require,module,exports){
+},{"../stores/platform-manager-store":27,"react":undefined,"react-router":undefined}],12:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
 
+var PageNotFound = React.createClass({displayName: "PageNotFound",
+	render: function () {
+		return (
+			React.createElement("div", {className: "view"}, 
+				React.createElement("h2", null, "Page not found")
+			)
+		);
+	},
+});
+
+module.exports = PageNotFound;
+
+
+},{"react":undefined}],13:[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+var Router = require('react-router');
+
 var Console = require('./console');
 var consoleActionCreators = require('../action-creators/console-action-creators');
 var consoleStore = require('../stores/console-store');
-var Home = require('./home');
-var LoginForm = require('./login-form');
 var Navigation = require('./navigation');
 var platformManagerStore = require('../stores/platform-manager-store');
 
 var PlatformManager = React.createClass({displayName: "PlatformManager",
+    mixins: [Router.Navigation, Router.State],
     getInitialState: getStateFromStores,
     componentDidMount: function () {
-        platformManagerStore.addChangeListener(this._onChange);
-        consoleStore.addChangeListener(this._onChange);
+        platformManagerStore.addChangeListener(this._onStoreChange);
+        consoleStore.addChangeListener(this._onStoreChange);
     },
     componentWillUnmount: function () {
-        platformManagerStore.removeChangeListener(this._onChange);
-        consoleStore.removeChangeListener(this._onChange);
+        platformManagerStore.removeChangeListener(this._onStoreChange);
+        consoleStore.removeChangeListener(this._onStoreChange);
     },
-    _onChange: function () {
+    _onStoreChange: function () {
         this.setState(getStateFromStores());
     },
     _onButtonClick: function () {
@@ -718,15 +780,20 @@ var PlatformManager = React.createClass({displayName: "PlatformManager",
             classes.push('platform-manager--console-hidden');
         }
 
+        if (this.state.loggedIn) {
+            classes.push('platform-manager--logged-in');
+        } else {
+            classes.push('platform-manager--not-logged-in');
+        }
+
         return (
             React.createElement("div", {className: classes.join(' ')}, 
                 React.createElement("div", {className: "main"}, 
-                    !this.state.loggedIn && React.createElement(LoginForm, null), 
-                    this.state.loggedIn && React.createElement(Navigation, null), 
-                    this.state.loggedIn && React.createElement(Home, null)
+                    React.createElement(Navigation, null), 
+                    React.createElement(Router.RouteHandler, null)
                 ), 
                 React.createElement("input", {
-                    className: "toggle button", 
+                    className: "toggle", 
                     type: "button", 
                     value: 'Console ' + (this.state.consoleShown ? '\u25bc' : '\u25b2'), 
                     onClick: this._onButtonClick}
@@ -734,7 +801,7 @@ var PlatformManager = React.createClass({displayName: "PlatformManager",
                 this.state.consoleShown && React.createElement(Console, {className: "console"})
             )
         );
-    }
+    },
 });
 
 function getStateFromStores() {
@@ -747,7 +814,182 @@ function getStateFromStores() {
 module.exports = PlatformManager;
 
 
-},{"../action-creators/console-action-creators":2,"../stores/console-store":23,"../stores/platform-manager-store":25,"./console":6,"./home":9,"./login-form":11,"./navigation":12,"react":undefined}],14:[function(require,module,exports){
+},{"../action-creators/console-action-creators":2,"../stores/console-store":25,"../stores/platform-manager-store":27,"./console":6,"./navigation":11,"react":undefined,"react-router":undefined}],14:[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+var Router = require('react-router');
+
+var AgentRow = require('./agent-row');
+var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
+var platformManagerStore = require('../stores/platform-manager-store');
+
+var Platform = React.createClass({displayName: "Platform",
+    mixins: [Router.State],
+    getInitialState: getStateFromStores,
+    componentWillMount: function () {
+        platformManagerActionCreators.initialize();
+    },
+    componentDidMount: function () {
+        platformManagerStore.addChangeListener(this._onStoresChange);
+    },
+    componentWillUnmount: function () {
+        platformManagerStore.removeChangeListener(this._onStoresChange);
+    },
+    _onStoresChange: function () {
+        this.setState(getStateFromStores.call(this));
+    },
+    _onFileChange: function (e) {
+        var file = e.target.files[0];
+
+        if (file) {
+            var reader = new FileReader();
+            var platform = this.state.platform;
+
+            reader.onload = function () {
+                platformManagerActionCreators.installAgent(
+                    platform,
+                    {
+                        name: file.name,
+                        data: reader.result,
+                    }
+                );
+            };
+
+            reader.readAsDataURL(file);
+        }
+
+    },
+    render: function () {
+        if (!this.state.platform) {
+            return (
+                React.createElement("p", null, "Platform not found.")
+            );
+        }
+
+        var platform = this.state.platform;
+        var agents;
+
+        if (!platform.agents) {
+            agents = (
+                React.createElement("p", null, "Loading agents...")
+            );
+        } else if (!platform.agents.length) {
+            agents = (
+                React.createElement("p", null, "No agents installed.")
+            );
+        } else {
+            agents = (
+                React.createElement("table", null, 
+                    React.createElement("thead", null, 
+                        React.createElement("tr", null, 
+                            React.createElement("th", null, "Agent"), 
+                            React.createElement("th", null, "UUID"), 
+                            React.createElement("th", null, "Status"), 
+                            React.createElement("th", null, "Action")
+                        )
+                    ), 
+                    React.createElement("tbody", null, 
+                        platform.agents.map(function (agent) {
+                            return (
+                                React.createElement(AgentRow, {
+                                    key: agent.uuid, 
+                                    platform: platform, 
+                                    agent: agent})
+                            );
+                        })
+                    )
+                )
+            );
+        }
+
+        return (
+            React.createElement("div", {className: "view", key: platform.uuid}, 
+                React.createElement("h2", null, platform.name, " (", platform.uuid, ")"), 
+                React.createElement("h3", null, "Agents"), 
+                agents, 
+                React.createElement("h3", null, "Install agent"), 
+                React.createElement("input", {type: "file", onChange: this._onFileChange})
+            )
+        );
+    },
+});
+
+function getStateFromStores() {
+    return {
+        platform: platformManagerStore.getPlatform(this.getParams().uuid),
+    };
+}
+
+module.exports = Platform;
+
+
+},{"../action-creators/platform-manager-action-creators":3,"../stores/platform-manager-store":27,"./agent-row":4,"react":undefined,"react-router":undefined}],15:[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+var Router = require('react-router');
+
+var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
+var platformManagerStore = require('../stores/platform-manager-store');
+
+var Platforms = React.createClass({displayName: "Platforms",
+    getInitialState: getStateFromStores,
+    componentWillMount: function () {
+        platformManagerActionCreators.initialize();
+    },
+    componentDidMount: function () {
+        platformManagerStore.addChangeListener(this._onStoresChange);
+    },
+    componentWillUnmount: function () {
+        platformManagerStore.removeChangeListener(this._onStoresChange);
+    },
+    _onStoresChange: function () {
+        this.setState(getStateFromStores());
+    },
+    render: function () {
+        var platforms;
+
+        if (!this.state.platforms) {
+            platforms = (
+                React.createElement("p", null, "Loading platforms...")
+            );
+        } else if (!this.state.platforms.length) {
+            platforms = (
+                React.createElement("p", null, "No platforms found.")
+            );
+        } else {
+            platforms = this.state.platforms.map(function (platform) {
+                return (
+                    React.createElement("div", {className: "platform", key: platform.uuid}, 
+                        React.createElement(Router.Link, {to: "platform", params: {uuid: platform.uuid}}, 
+                            platform.name
+                        ), 
+                        " (", platform.uuid, ")"
+                    )
+                );
+            });
+        }
+
+        return (
+            React.createElement("div", {className: "view"}, 
+                React.createElement("h2", null, "Platforms"), 
+                platforms
+            )
+        );
+    },
+});
+
+function getStateFromStores() {
+    return {
+        platforms: platformManagerStore.getPlatforms(),
+    };
+}
+
+module.exports = Platforms;
+
+
+},{"../action-creators/platform-manager-action-creators":3,"../stores/platform-manager-store":27,"react":undefined,"react-router":undefined}],16:[function(require,module,exports){
 'use strict';
 
 var keyMirror = require('react/lib/keyMirror');
@@ -772,7 +1014,7 @@ module.exports = keyMirror({
 });
 
 
-},{"react/lib/keyMirror":undefined}],15:[function(require,module,exports){
+},{"react/lib/keyMirror":undefined}],17:[function(require,module,exports){
 'use strict';
 
 var Dispatcher = require('flux').Dispatcher;
@@ -792,7 +1034,7 @@ dispatcher.dispatch = function (action) {
 module.exports = dispatcher;
 
 
-},{"../constants/action-types":14,"flux":undefined}],16:[function(require,module,exports){
+},{"../constants/action-types":16,"flux":undefined}],18:[function(require,module,exports){
 'use strict';
 
 function RpcError(error) {
@@ -807,7 +1049,7 @@ RpcError.prototype.constructor = RpcError;
 module.exports = RpcError;
 
 
-},{}],17:[function(require,module,exports){
+},{}],19:[function(require,module,exports){
 'use strict';
 
 var uuid = require('node-uuid');
@@ -818,7 +1060,7 @@ var RpcError = require('./error');
 var xhr = require('../xhr');
 
 function RpcExchange(opts) {
-    if (!this instanceof RpcExchange) {
+    if (!(this instanceof RpcExchange)) {
         return new RpcExchange(opts);
     }
 
@@ -878,7 +1120,7 @@ function RpcExchange(opts) {
 module.exports = RpcExchange;
 
 
-},{"../../constants/action-types":14,"../../dispatcher":15,"../xhr":21,"./error":16,"node-uuid":undefined}],18:[function(require,module,exports){
+},{"../../constants/action-types":16,"../../dispatcher":17,"../xhr":23,"./error":18,"node-uuid":undefined}],20:[function(require,module,exports){
 'use strict';
 
 module.exports = {
@@ -887,7 +1129,7 @@ module.exports = {
 };
 
 
-},{"./error":16,"./exchange":17}],19:[function(require,module,exports){
+},{"./error":18,"./exchange":19}],21:[function(require,module,exports){
 'use strict';
 
 var EventEmitter = require('events').EventEmitter;
@@ -914,7 +1156,7 @@ Store.prototype.removeChangeListener = function (callback) {
 module.exports = Store;
 
 
-},{"events":undefined}],20:[function(require,module,exports){
+},{"events":undefined}],22:[function(require,module,exports){
 'use strict';
 
 function XhrError(message, response) {
@@ -928,7 +1170,7 @@ XhrError.prototype.constructor = XhrError;
 module.exports = XhrError;
 
 
-},{}],21:[function(require,module,exports){
+},{}],23:[function(require,module,exports){
 'use strict';
 
 module.exports = {
@@ -937,7 +1179,7 @@ module.exports = {
 };
 
 
-},{"./error":20,"./request":22}],22:[function(require,module,exports){
+},{"./error":22,"./request":24}],24:[function(require,module,exports){
 'use strict';
 
 var jQuery = require('jquery');
@@ -968,7 +1210,7 @@ function XhrRequest(opts) {
 module.exports = XhrRequest;
 
 
-},{"./error":20,"bluebird":undefined,"jquery":undefined}],23:[function(require,module,exports){
+},{"./error":22,"bluebird":undefined,"jquery":undefined}],25:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -1067,7 +1309,7 @@ consoleStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = consoleStore;
 
 
-},{"../constants/action-types":14,"../dispatcher":15,"../lib/store":19,"./platform-manager-store":25}],24:[function(require,module,exports){
+},{"../constants/action-types":16,"../dispatcher":17,"../lib/store":21,"./platform-manager-store":27}],26:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -1102,7 +1344,7 @@ loginFormStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = loginFormStore;
 
 
-},{"../constants/action-types":14,"../dispatcher":15,"../lib/store":19,"./platform-manager-store":25}],25:[function(require,module,exports){
+},{"../constants/action-types":16,"../dispatcher":17,"../lib/store":21,"./platform-manager-store":27}],27:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -1123,6 +1365,21 @@ platformManagerStore.getPage = function () {
     return _page;
 };
 
+platformManagerStore.getPlatform = function (uuid) {
+    var foundPlatform = null;
+
+    if (_platforms) {
+        _platforms.some(function (platform) {
+            if (platform.uuid === uuid) {
+                foundPlatform = platform;
+                return true;
+            }
+        });
+    }
+
+    return foundPlatform;
+};
+
 platformManagerStore.getPlatforms = function () {
     return _platforms;
 };
@@ -1136,15 +1393,17 @@ platformManagerStore.dispatchToken = dispatcher.register(function (action) {
             break;
 
         case ACTION_TYPES.RECEIVE_UNAUTHORIZED:
+            platformManagerStore.emitChange();
+            break;
+
         case ACTION_TYPES.CLEAR_AUTHORIZATION:
             _authorization = null;
+            _platforms = null;
             sessionStorage.removeItem('authorization');
             platformManagerStore.emitChange();
             break;
 
         case ACTION_TYPES.CHANGE_PAGE:
-            _page = action.page;
-            location.hash = '#' + action.page;
             platformManagerStore.emitChange();
             break;
 
@@ -1162,4 +1421,4 @@ platformManagerStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = platformManagerStore;
 
 
-},{"../constants/action-types":14,"../dispatcher":15,"../lib/store":19}]},{},[1]);
+},{"../constants/action-types":16,"../dispatcher":17,"../lib/store":21}]},{},[1]);

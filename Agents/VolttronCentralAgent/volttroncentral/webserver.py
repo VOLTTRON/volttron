@@ -247,7 +247,7 @@ class ManagerRequestHandler(tornado.web.RequestHandler):
                 else:
                     rpcResponse = RpcResponse(rpcRequest.id,
                                               code=401,
-                                              message="invalid credentials")
+                                              message="Invalid username or password")
             except:
                 rpcResponse = RpcResponse(rpcRequest.id,
                                           code=INVALID_PARAMS,

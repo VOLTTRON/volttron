@@ -18,6 +18,21 @@ platformManagerStore.getPage = function () {
     return _page;
 };
 
+platformManagerStore.getPlatform = function (uuid) {
+    var foundPlatform = null;
+
+    if (_platforms) {
+        _platforms.some(function (platform) {
+            if (platform.uuid === uuid) {
+                foundPlatform = platform;
+                return true;
+            }
+        });
+    }
+
+    return foundPlatform;
+};
+
 platformManagerStore.getPlatforms = function () {
     return _platforms;
 };
@@ -31,15 +46,17 @@ platformManagerStore.dispatchToken = dispatcher.register(function (action) {
             break;
 
         case ACTION_TYPES.RECEIVE_UNAUTHORIZED:
+            platformManagerStore.emitChange();
+            break;
+
         case ACTION_TYPES.CLEAR_AUTHORIZATION:
             _authorization = null;
+            _platforms = null;
             sessionStorage.removeItem('authorization');
             platformManagerStore.emitChange();
             break;
 
         case ACTION_TYPES.CHANGE_PAGE:
-            _page = action.page;
-            location.hash = '#' + action.page;
             platformManagerStore.emitChange();
             break;
 

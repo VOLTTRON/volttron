@@ -67,7 +67,8 @@ function vendor() {
             'events',
             'jquery/dist/jquery.min',
             'node-uuid',
-            'react/dist/react.min'
+            'react/dist/react.min',
+            'react-router/umd/ReactRouter.min',
         ],
     })
         .require([
@@ -78,6 +79,7 @@ function vendor() {
             'node-uuid',
             { file: 'react/dist/react.min', expose: 'react' },
             'react/lib/keyMirror',
+            { file: 'react-router/umd/ReactRouter.min', expose: 'react-router' },
         ])
         .bundle()
         .pipe(source('vendor.js'))
