@@ -7,7 +7,6 @@ var loginFormStore = require('../stores/login-form-store');
 var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
 
 var LoginForm = React.createClass({
-    mixins: [Router.Navigation],
     getInitialState: getStateFromStores,
     componentDidMount: function () {
         loginFormStore.addChangeListener(this._onStoresChange);
@@ -31,7 +30,6 @@ var LoginForm = React.createClass({
             this.state.username,
             this.state.password
         );
-        this.replaceWith('/');
     },
     render: function () {
         return (

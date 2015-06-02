@@ -19,7 +19,6 @@ var Navigation = React.createClass({
     },
     _onLogOutClick: function () {
         platformManagerActionCreators.clearAuthorization();
-        this.replaceWith('/');
     },
     render: function () {
         var navItems;

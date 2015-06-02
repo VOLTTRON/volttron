@@ -10,20 +10,20 @@ var Platform = require('./components/platform');
 var PlatformManager = require('./components/platform-manager');
 var Platforms = require('./components/platforms');
 
-var _afterLoginRoute = 'platforms';
+var _afterLoginPath = '/platforms';
 
 function checkAuth(Component) {
 	return React.createClass({
 		statics: {
 			willTransitionTo: function (transition) {
 				if (transition.path !== '/login') {
-					_afterLoginRoute = transition.path;
+					_afterLoginPath = transition.path;
 
 					if (!authorizationStore.getAuthorization()) {
-				    	transition.redirect('login');
+				    	transition.redirect('/login');
 				    }
 				} else if (transition.path === '/login' && authorizationStore.getAuthorization()) {
-				    transition.redirect(_afterLoginRoute);
+				    transition.redirect(_afterLoginPath);
 				}
 			},
 		},
@@ -38,7 +38,7 @@ function checkAuth(Component) {
 var AfterLogin = React.createClass({
 	statics: {
 		willTransitionTo: function (transition) {
-			transition.redirect(_afterLoginRoute);
+			transition.redirect(_afterLoginPath);
 		},
 	},
 	render: function () {},
@@ -64,7 +64,9 @@ router.run(function (Handler) {
 });
 
 authorizationStore.addChangeListener(function () {
-	if (!authorizationStore.getAuthorization() && !router.isActive('login')) {
-		router.replaceWith('login');
+	if (authorizationStore.getAuthorization() && router.isActive('/login')) {
+		router.replaceWith(_afterLoginPath);
+	} else if (!authorizationStore.getAuthorization() && !router.isActive('/login')) {
+		router.replaceWith('/login');
 	}
 });
