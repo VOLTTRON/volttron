@@ -136,7 +136,7 @@ class ResultsDictionary(weakref.WeakValueDictionary):
         self._counter = counter()
 
     def next(self):
-        result = gevent.event.AsyncResult()
+        result = AsyncResult()
         result.ident = ident = '%s.%s' % (next(self._counter), hash(result))
         self[ident] = result
         return result
@@ -539,55 +539,63 @@ class PubSub(SubsystemBase):
                     for callback in callbacks:
                         callback(peer, sender, bus, topic, headers, message)
         if not handled:
-            self.synchronize(peer)
+            self.synchronize(peer).get(timeout=15)
 
-    def synchronize(self, peer, timeout=15, force=False):
+    def synchronize(self, peer, force=False):
         '''Unsubscribe from stale/forgotten/unsolicited subscriptions.'''
         # Limit to one cleanup operation at a time unless force is True.
         # There is no race condition setting _synchronizing
         # because the method is running in the context of gevent.
-        if self._synchronizing and not force:
-            return False
-        self._synchronizing += 1
-        try:
-            rpc = self.rpc()
-            topics = rpc.call(peer, 'pubsub.list').get(timeout=timeout)
-            unsubscribe = {}
-            for bus, prefix, _ in topics:
-                try:
-                    unsubscribe[bus].add(prefix)
-                except KeyError:
-                    unsubscribe[bus] = set([prefix])
-            subscribe = {}
-            for (ident, bus), subscriptions \
-                    in self._my_subscriptions.iteritems():
-                if peer != ident:
-                    continue
-                for prefix in subscriptions:
+        result = AsyncResult()
+        def task():
+            if self._synchronizing and not force:
+                result.set(False)
+                return
+            self._synchronizing += 1
+            try:
+                rpc = self.rpc()
+                topics = self.list(peer).get(timeout=timeout)
+                unsubscribe = {}
+                for bus, prefix, _ in topics:
                     try:
-                        topics = unsubscribe[bus]
-                        topics.remove(prefix)
+                        unsubscribe[bus].add(prefix)
                     except KeyError:
+                        unsubscribe[bus] = set([prefix])
+                subscribe = {}
+                for (ident, bus), subscriptions \
+                        in self._my_subscriptions.iteritems():
+                    if peer != ident:
+                        continue
+                    for prefix in subscriptions:
                         try:
-                            subscribe[bus].add(prefix)
+                            topics = unsubscribe[bus]
+                            topics.remove(prefix)
                         except KeyError:
-                            subscribe[bus] = set([prefix])
-                    else:
-                        if not topics:
-                            del unsubscribe[bus]
-            if unsubscribe:
-                rpc.batch(
-                    peer, ((True, 'pubsub.unsubscribe', (list(topics), bus), None)
-                           for bus, topics in unsubscribe.iteritems()))
-            if subscribe:
-                rpc.batch(
-                    peer, ((True, 'pubsub.subscribe', (list(topics), bus), None)
-                           for bus, topics in subscribe.iteritems()))
-        finally:
-            self._synchronizing -= 1
-        return True
+                            try:
+                                subscribe[bus].add(prefix)
+                            except KeyError:
+                                subscribe[bus] = set([prefix])
+                        else:
+                            if not topics:
+                                del unsubscribe[bus]
+                if unsubscribe:
+                    rpc.batch(
+                        peer, ((True, 'pubsub.unsubscribe', (list(topics), bus), None)
+                               for bus, topics in unsubscribe.iteritems()))
+                if subscribe:
+                    rpc.batch(
+                        peer, ((True, 'pubsub.subscribe', (list(topics), bus), None)
+                               for bus, topics in subscribe.iteritems()))
+            finally:
+                self._synchronizing -= 1
+            result.set(True)
+        return result
 
-    def subscribe(self, peer, prefix, callback, bus='', timeout=15):
+    def list(self, peer, prefix='', bus='', subscribed=True, reverse=False):
+        return self.rpc().call(peer, 'pubsub.list', prefix,
+                               bus, subscribed, reverse)
+
+    def subscribe(self, peer, prefix, callback, bus=''):
         '''Subscribe to topic and register callback.
 
         Subscribes to topics beginning with prefix. If callback is
@@ -597,22 +605,25 @@ class PubSub(SubsystemBase):
         publishing peer, topic is the full message topic, headers is a
         case-insensitive dictionary (mapping) of message headers, and
         message is a possibly empty list of message parts.
-
-        Returns an ID number which can be used later to unsubscribe.
         '''
         if not callable(callback):
             raise ValueError('callback %r is not callable' % (callback,))
-        self.rpc().call(peer, 'pubsub.subscribe',
-                        prefix, bus=bus).get(timeout=timeout)
-        try:
-            subscriptions = self._my_subscriptions[(peer, bus)]
-        except KeyError:
-            self._my_subscriptions[(peer, bus)] = subscriptions = {}
-        try:
-            callbacks = subscriptions[prefix]
-        except KeyError:
-            subscriptions[prefix] = callbacks = set()
-        callbacks.add(callback)
+        def finish(result):
+            if not result.successful():
+                return
+            try:
+                subscriptions = self._my_subscriptions[(peer, bus)]
+            except KeyError:
+                self._my_subscriptions[(peer, bus)] = subscriptions = {}
+            try:
+                callbacks = subscriptions[prefix]
+            except KeyError:
+                subscriptions[prefix] = callbacks = set()
+            callbacks.add(callback)
+        result = self.rpc().call(
+            peer, 'pubsub.subscribe', prefix, bus=bus)
+        result.link(finish)
+        return result
 
     def unsubscribe(self, peer, prefix, callback, bus=''):
         '''Unsubscribe and remove callback(s).
