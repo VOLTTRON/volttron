@@ -1,7 +1,9 @@
 import logging
+import sys
 from tempfile import TemporaryFile
 import tornado
 import tornado.websocket
+import traceback
 import uuid
 
 from volttron.platform.agent import utils
@@ -307,7 +309,12 @@ class ManagerRequestHandler(tornado.web.RequestHandler):
                 self.write(rpcresponse.get_response())
 
         print('handling request done')
-        self.finish()
+        try:
+            self.finish()
+        except:
+            print("EXCEPTION IN FINISH")
+#            traceback.print_exc(file=sys.stderr)
+
 
     @tornado.web.asynchronous
     def post(self):

@@ -54,7 +54,7 @@
 #}}}
 
 import base64
-import datetime
+from datetime import datetime
 import gevent
 import logging
 import sys
@@ -69,7 +69,7 @@ import uuid
 from volttron.platform import vip, jsonrpc, control
 from volttron.platform.control import Connection
 from volttron.platform.agent import utils
-from volttron.platform.agent.vipagent import (RPCAgent, periodic, onevent, 
+from volttron.platform.agent.vipagent import (BaseAgent, periodic, onevent,
                                               jsonapi, export, ChannelMixin,
                                               QueryAddressesMixin, spawn)
 
@@ -116,8 +116,9 @@ def platform_agent(config_path, **kwargs):
         def _install_agents(self, agent_files):
             tmpdir = tempfile.mkdtemp()
             results = []
-            try:
-                for f in agent_files:
+            for f in agent_files:
+                try:
+
                     path = os.path.join(tmpdir, f['file_name'])
                     with open(path, 'wb') as fout:
                         fout.write(base64.decodestring(f['file'].split('base64,')[1]))
@@ -130,22 +131,28 @@ def platform_agent(config_path, **kwargs):
 #                         results.append({'uuid': str(agent_uuid), 'tag': f['tag']})
 #                     else:
 #                         results.append({'uuid': str(agent_uuid), 'tag': None})
-            except Exception as e:
-                print("EXCEPTION: "+e.message)
+                except Exception as e:
+                    results.append({'error': e.message})
+                    print("EXCEPTION: "+e.message)
 
-            finally:
+            try:
                 shutil.rmtree(tmpdir)
+            except:
+                pass
             return results
 
         @export()
         def route_request(self, id, method, params):
             _log.debug('platform agent routing request: {}, {}'.format(id, method))
+
+            # First handle the elements that are going to this platform
             if method == 'list_agents':
                 result = self.list_agents()
             elif method == 'status_agents':
-                result = {'result': [{'name':a[1], 'uuid': a[0], 'process_id': a[2][0],
-                          'return_code': a[2][1]}
-                         for a in self.rpc_call('control', method).get()]}
+                result = {'result': [{'name':a[1], 'uuid': a[0],
+                                      'process_id': a[2][0],
+                                      'return_code': a[2][1]}
+                            for a in self.rpc_call('control', method).get()]}
 
             elif method in ('agent_status', 'start_agent', 'stop_agent'):
                 status = self.rpc_call('control', method, params).get()
@@ -163,6 +170,18 @@ def platform_agent(config_path, **kwargs):
 
             else:
                 result = {'code': METHOD_NOT_FOUND}
+
+                # Break up the method string and call the correct agent.
+                fields = method.split('.')
+
+                if len(fields) < 3:
+                    result = result = {'code': METHOD_NOT_FOUND}
+                else:
+                    agent_uuid = fields[2]
+                    agent_method = '.'.join(fields[3:])
+                    _log.debug("Calling method {} on agent {}".format(agent_method, ageint_uuid))
+
+                    result = self.rpc_call(agent_uuid, agent_method, params).get()
 
             if isinstance(result, dict):
                 if 'result' in result:
@@ -183,7 +202,6 @@ def platform_agent(config_path, **kwargs):
             self._ctl = Connection(self.vc_vip_address,
                                    peer=self.vc_vip_identity)
 
-       
         @onevent("start")
         @spawn
         def start(self):
@@ -191,16 +209,13 @@ def platform_agent(config_path, **kwargs):
                                                         str(self.__dict__)))
             vip_addresses = self.query_addresses().get(timeout=10)
             self._external_vip = find_registration_address(vip_addresses)
-           
             self._register()
 
         #@periodic(period=60)
         def _register(self):
             _log.debug('platformagent sending call register {}'.format(
                                     str((vip_identity, agentid, self._external_vip))))
-            
             self._external_vip = self._external_vip
-            
             self._ctl.call("register_platform", vip_identity, agentid, self._external_vip)
 
         @onevent("finish")
@@ -230,10 +245,10 @@ def find_registration_address(vip_addresses):
     # TCP address (last one wins)
     # IPC if first element is IPC it wins
      #Pull out the tcp address
-     
+
     # If this is a string we have only one choice
     if vip_addresses and isinstance(vip_addresses, basestring):
-        return vip_addresses 
+        return vip_addresses
     elif vip_addresses and isinstance(vip_addresses, (list, tuple)):
         result = None
         for vip in vip_addresses:
@@ -243,9 +258,9 @@ def find_registration_address(vip_addresses):
                 result = vip
             elif vip.startswith("tcp") and not is_ip_private(vip):
                 return vip
-            
+
         return result
-    
+
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
     utils.default_main(platform_agent,
