@@ -179,9 +179,11 @@ def platform_agent(config_path, **kwargs):
                 else:
                     agent_uuid = fields[2]
                     agent_method = '.'.join(fields[3:])
-                    _log.debug("Calling method {} on agent {}".format(agent_method, ageint_uuid))
+                    _log.debug("Calling method {} on agent {}"
+                               .format(agent_method, agent_uuid))
 
-                    result = self.rpc_call(agent_uuid, agent_method, params).get()
+                    result = self.rpc_call(agent_uuid, agent_method,
+                                           params).get()
 
             if isinstance(result, dict):
                 if 'result' in result:
