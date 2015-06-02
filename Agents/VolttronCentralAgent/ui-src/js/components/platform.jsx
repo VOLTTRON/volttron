@@ -20,7 +20,9 @@ var Platform = React.createClass({
     },
     componentWillUnmount: function () {
         platformsStore.removeChangeListener(this._onStoresChange);
-        platformManagerActionCreators.clearPlatformError(this.state.platform);
+        if (this.state.error) {
+            platformManagerActionCreators.clearPlatformError(this.state.platform);
+        }
     },
     _onStoresChange: function () {
         this.setState(getStateFromStores(this));
