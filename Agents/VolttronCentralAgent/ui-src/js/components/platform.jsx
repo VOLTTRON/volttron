@@ -9,7 +9,9 @@ var platformManagerStore = require('../stores/platform-manager-store');
 
 var Platform = React.createClass({
     mixins: [Router.State],
-    getInitialState: getStateFromStores,
+    getInitialState: function () {
+        return getStateFromStores(this);
+    },
     componentWillMount: function () {
         platformManagerActionCreators.initialize();
     },
@@ -20,7 +22,7 @@ var Platform = React.createClass({
         platformManagerStore.removeChangeListener(this._onStoresChange);
     },
     _onStoresChange: function () {
-        this.setState(getStateFromStores.call(this));
+        this.setState(getStateFromStores(this));
     },
     _onFileChange: function (e) {
         if (!e.target.files.length) { return; }
@@ -52,7 +54,14 @@ var Platform = React.createClass({
     render: function () {
         if (!this.state.platform) {
             return (
-                <p>Platform not found.</p>
+                <div className="view">
+                    <h2>
+                        <Router.Link to="platforms">Platforms</Router.Link>
+                        &nbsp;/&nbsp;
+                        {this.getParams().uuid}
+                    </h2>
+                    <p>Platform not found.</p>
+                </div>
             );
         }
 
@@ -93,7 +102,7 @@ var Platform = React.createClass({
         }
 
         return (
-            <div className="view" key={platform.uuid}>
+            <div className="view">
                 <h2>
                     <Router.Link to="platforms">Platforms</Router.Link>
                     &nbsp;/&nbsp;
@@ -108,9 +117,9 @@ var Platform = React.createClass({
     },
 });
 
-function getStateFromStores() {
+function getStateFromStores(component) {
     return {
-        platform: platformManagerStore.getPlatform(this.getParams().uuid),
+        platform: platformManagerStore.getPlatform(component.getParams().uuid),
     };
 }
 
