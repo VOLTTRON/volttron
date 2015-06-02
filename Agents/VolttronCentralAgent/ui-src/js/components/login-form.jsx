@@ -56,9 +56,9 @@ var LoginForm = React.createClass({
                     disabled={!this.state.username || !this.state.password}
                 />
                 {this.state.error ? (
-                    <div className="error">
+                    <span className="login-form__error error">
                         {this.state.error.message} ({this.state.error.code})
-                    </div>
+                    </span>
                 ) : null }
             </form>
         );

@@ -144,13 +144,21 @@ td:not(:first-child) {
     margin-top: -6.5rem;
 }
 
+.error {
+    border: 1px solid #faa;
+    background-color: #fee;
+    border-radius: 0.3333rem;
+    padding: 1em;
+    color: #a00;
+}
+
 .login-form {
     position: absolute;
     top: 50%;
-    left: 50%;
+    left: 0;
+    right: 0;
     height: 16rem;
-    width: 20rem;
-    margin: -4rem 0 0 -10rem;
+    margin-top: -4rem;
     text-align: center;
 }
 
@@ -170,10 +178,10 @@ td:not(:first-child) {
     box-sizing: border-box;
 }
 
-.login-form .error {
+.login-form__error {
+    display: inline-block;
     margin-top: 1em;
     text-align: center;
-    color: #e11;
 }
 
 .view {
@@ -184,6 +192,10 @@ td:not(:first-child) {
     margin: 0 1rem 1rem;
 }
 
+.platform__error {
+    white-space: pre;
+}
+
 .widget {
     margin: 0 0 1rem 1rem;
     width: calc((100% - 3rem) / 2);
@@ -192,7 +204,7 @@ td:not(:first-child) {
     padding: 1rem;
     box-sizing: border-box;
     background-color: #eee;
-    border-radius: 0.333rem;
+    border-radius: 0.3333rem;
 }
 
 .toggle {
@@ -252,7 +264,7 @@ td:not(:first-child) {
 .exchange {
     margin: 0.75rem;
     box-shadow: 0 0.1rem 0.2rem rgba(0,0,0,0.3);
-    border-radius: 0.333rem;
+    border-radius: 0.3333rem;
 }
 
 .exchange pre {
@@ -270,12 +282,12 @@ td:not(:first-child) {
 }
 
 .request {
-    border-radius: 0.333rem 0.333rem 0 0;
+    border-radius: 0.3333rem 0.3333rem 0 0;
     background-color: #fff;
 }
 
 .response {
-    border-radius: 0 0 0.333rem 0.333rem;
+    border-radius: 0 0 0.3333rem 0.3333rem;
     background-color: #cef;
 }
 

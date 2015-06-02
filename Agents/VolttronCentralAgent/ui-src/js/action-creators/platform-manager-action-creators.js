@@ -101,6 +101,12 @@ var platformManagerActionCreators = {
             })
             .catch(handleRpcError);
     },
+    clearPlatformError: function (platform) {
+        dispatcher.dispatch({
+            type: ACTION_TYPES.CLEAR_PLATFORM_ERROR,
+            platform: platform,
+        });
+    },
     startAgent: function (platform, agent) {
         var authorization = authorizationStore.getAuthorization();
 
@@ -156,6 +162,8 @@ var platformManagerActionCreators = {
             .catch(handleRpcError);
     },
     installAgents: function (platform, files) {
+        platformManagerActionCreators.clearPlatformError(platform);
+
         var authorization = authorizationStore.getAuthorization();
 
         new rpc.Exchange({
@@ -163,8 +171,26 @@ var platformManagerActionCreators = {
             params: { files: files },
             authorization: authorization,
         }).promise
-            .then(function () {
-                platformManagerActionCreators.loadPlatform(platform);
+            .then(function (results) {
+                var errors = [];
+
+                results.forEach(function (result) {
+                    if (result.error) {
+                        errors.push(result.error);
+                    }
+                });
+
+                if (errors.length) {
+                    dispatcher.dispatch({
+                        type: ACTION_TYPES.RECEIVE_PLATFORM_ERROR,
+                        platform: platform,
+                        error: errors.join('\n'),
+                    });
+                }
+
+                if (errors.length !== files.length) {
+                    platformManagerActionCreators.loadPlatform(platform);
+                }
             });
     },
 };

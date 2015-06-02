@@ -20,6 +20,7 @@ var Platform = React.createClass({
     },
     componentWillUnmount: function () {
         platformsStore.removeChangeListener(this._onStoresChange);
+        platformManagerActionCreators.clearPlatformError(this.state.platform);
     },
     _onStoresChange: function () {
         this.setState(getStateFromStores(this));
@@ -102,7 +103,10 @@ var Platform = React.createClass({
         }
 
         return (
-            <div className="view">
+            <div className="view platform">
+                {this.state.error && (
+                    <div className="platform__error error">{this.state.error}</div>
+                )}
                 <h2>
                     <Router.Link to="platforms">Platforms</Router.Link>
                     &nbsp;/&nbsp;
@@ -120,6 +124,7 @@ var Platform = React.createClass({
 function getStateFromStores(component) {
     return {
         platform: platformsStore.getPlatform(component.getParams().uuid),
+        error: platformsStore.getLastError(component.getParams().uuid),
     };
 }
 

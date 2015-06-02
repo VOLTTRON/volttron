@@ -17,4 +17,6 @@ module.exports = keyMirror({
 
     RECEIVE_PLATFORMS: null,
     RECEIVE_PLATFORM: null,
+    RECEIVE_PLATFORM_ERROR: null,
+    CLEAR_PLATFORM_ERROR: null,
 });

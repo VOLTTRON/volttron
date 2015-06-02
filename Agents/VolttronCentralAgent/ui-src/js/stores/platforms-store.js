@@ -6,6 +6,7 @@ var dispatcher = require('../dispatcher');
 var Store = require('../lib/store');
 
 var _platforms = null;
+var _lastErrors = {};
 
 var platformsStore = new Store();
 
@@ -28,6 +29,10 @@ platformsStore.getPlatforms = function () {
     return _platforms;
 };
 
+platformsStore.getLastError = function (uuid) {
+    return _lastErrors[uuid] || null;
+};
+
 platformsStore.dispatchToken = dispatcher.register(function (action) {
     dispatcher.waitFor([authorizationStore.dispatchToken]);
 
@@ -43,6 +48,16 @@ platformsStore.dispatchToken = dispatcher.register(function (action) {
             break;
 
         case ACTION_TYPES.RECEIVE_PLATFORM:
+            platformsStore.emitChange();
+            break;
+
+        case ACTION_TYPES.RECEIVE_PLATFORM_ERROR:
+            _lastErrors[action.platform.uuid] = action.error;
+            platformsStore.emitChange();
+            break;
+
+        case ACTION_TYPES.CLEAR_PLATFORM_ERROR:
+            delete _lastErrors[action.platform.uuid];
             platformsStore.emitChange();
             break;
     }
