@@ -99,7 +99,7 @@ def platform_agent(config_path, **kwargs):
     if not vc_vip_address:
         raise ValueError('Invalid volttron_central_vip_address')
 
-    class Agent(RPCAgent, QueryAddressesMixin, ChannelMixin):
+    class Agent(BaseAgent, QueryAddressesMixin, ChannelMixin):
         def __init__(self, **kwargs):
 
             super(Agent, self).__init__(vip_identity=vip_identity, **kwargs)
