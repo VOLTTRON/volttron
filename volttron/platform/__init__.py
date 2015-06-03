@@ -61,6 +61,8 @@
 
 import os
 
+__import__('warnings').filterwarnings(
+    'default', 'the vipagent module', DeprecationWarning)
 
 __version__ = '2.0'
 

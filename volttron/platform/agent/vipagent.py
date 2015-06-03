@@ -84,6 +84,11 @@ _VOLTTRON_PATH = os.path.dirname(volttron.__path__[-1]) + os.sep
 del volttron
 
 
+__import__('warnings').warn(
+    'the vipagent module (%s) is deprecated in favor of the vipagent package '
+    '(%s.vipagent)' % (__name__, platform.__name__), DeprecationWarning, 2)
+
+
 _log = logging.getLogger(__name__)   # pylint: disable=invalid-name
 
 
