@@ -434,11 +434,11 @@ class PubSub(SubsystemBase):
 
         def setup(sender, **kwargs):
             # pylint: disable=unused-argument
-            rpc.export(self.peer_subscribe, 'pubsub.subscribe')
-            rpc.export(self.peer_unsubscribe, 'pubsub.unsubscribe')
-            rpc.export(self.peer_list, 'pubsub.list')
-            rpc.export(self.peer_publish, 'pubsub.publish')
-            rpc.export(self.peer_push, 'pubsub.push')
+            rpc.export(self._peer_subscribe, 'pubsub.subscribe')
+            rpc.export(self._peer_unsubscribe, 'pubsub.unsubscribe')
+            rpc.export(self._peer_list, 'pubsub.list')
+            rpc.export(self._peer_publish, 'pubsub.publish')
+            rpc.export(self._peer_push, 'pubsub.push')
         core.onsetup.connect(setup, self)
 
         def start(sender, **kwargs):
@@ -456,7 +456,7 @@ class PubSub(SubsystemBase):
         subscriptions = self._peer_subscriptions.pop(name, {})
         # XXX: notify subscribers of removed bus
 
-    def peer_subscribe(self, prefix, bus=''):
+    def _peer_subscribe(self, prefix, bus=''):
         peer = bytes(self.rpc().context.vip_message.peer)
         subscriptions = self._peer_subscriptions[bus]
         for prefix in prefix if isinstance(prefix, list) else [prefix]:
@@ -466,7 +466,7 @@ class PubSub(SubsystemBase):
                 subscriptions[prefix] = subscribers = set()
             subscribers.add(peer)
 
-    def peer_unsubscribe(self, prefix, bus=''):
+    def _peer_unsubscribe(self, prefix, bus=''):
         peer = bytes(self.rpc().context.vip_message.peer)
         subscriptions = self._peer_subscriptions[bus]
         if prefix is None:
@@ -488,7 +488,7 @@ class PubSub(SubsystemBase):
                     if not subscribers:
                         subscriptions.pop(prefix, None)
 
-    def peer_list(self, prefix='', bus='',
+    def _peer_list(self, prefix='', bus='',
                          subscribed=True, reverse=False):
         peer = bytes(self.rpc().context.vip_message.peer)
         if bus is None:
@@ -508,7 +508,7 @@ class PubSub(SubsystemBase):
                         results.append((bus, topic, member))
         return results
 
-    def peer_publish(self, topic, headers, message=None, bus=''):
+    def _peer_publish(self, topic, headers, message=None, bus=''):
         peer = bytes(self.rpc().context.vip_message.peer)
         self._distribute(peer, topic, headers, message, bus)
 
@@ -532,7 +532,7 @@ class PubSub(SubsystemBase):
                 socket.send_multipart(frames, copy=False)
         return len(subscribers)
 
-    def peer_push(self, sender, bus, topic, headers, message):
+    def _peer_push(self, sender, bus, topic, headers, message):
         '''Handle incoming subscriptions from peers.'''
         peer = bytes(self.rpc().context.vip_message.peer)
         handled = 0
