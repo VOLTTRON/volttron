@@ -69,7 +69,7 @@ import gevent.event
 from zmq import green as zmq
 from zmq.green import ZMQError, EAGAIN
 
-from . import decorators
+from ..decorators import annotate, annotations, dualmethod
 from .dispatch import Signal
 from ..vip import green as vip
 from ... import platform
@@ -79,6 +79,49 @@ __all__ = ['Core']
 
 
 _log = logging.getLogger(__name__)
+
+
+class Periodic(object):   # pylint: disable=invalid-name
+    '''Decorator to set a method up as a periodic callback.
+
+    The decorated method will be called with the given arguments every
+    period seconds while the agent is executing its run loop.
+    '''
+
+    def __init__(self, period, *args, **kwargs):
+        '''Store period (seconds) and arguments to call method with.'''
+        assert period > 0
+        self.period = period
+        self.args = args
+        self.kwargs = kwargs
+        self.timeout = 0
+
+    def wait(self, seconds=None):
+        '''Wait before calling for the first time.
+
+        Wait period seconds, if seconds is None. Returns the decorator
+        instance.
+        '''
+        assert seconds is None or seconds >= 0
+        self.timeout = seconds
+        return self
+
+    def __call__(self, method):
+        '''Attach this object instance to the given method.'''
+        annotate(method, list, 'core.periodics', self)
+        return method
+
+    def _loop(self, method):
+        # pylint: disable=missing-docstring
+        if self.timeout != 0:
+            gevent.sleep(self.timeout or self.period)
+        while True:
+            method(*self.args, **self.kwargs)
+            gevent.sleep(self.period)
+
+    def get(self, method):
+        '''Return a Greenlet for the given method.'''
+        return gevent.Greenlet(self._loop, method)
 
 
 class Core(object):
@@ -108,12 +151,12 @@ class Core(object):
         periodics = []
         def setup(member):   # pylint: disable=redefined-outer-name
             periodics.extend(
-                periodic.get(member) for periodic in decorators.annotations(
+                periodic.get(member) for periodic in annotations(
                     member, list, 'core.periodics'))
             self._schedule.extend(
                 (deadline, member, args, kwargs) for deadline, args, kwargs in
-                decorators.annotations(member, list, 'core.schedule'))
-            for name in decorators.annotations(member, set, 'core.signals'):
+                annotations(member, list, 'core.schedule'))
+            for name in annotations(member, set, 'core.signals'):
                 signal = getattr(self, name)
                 assert isinstance(signal, Signal)
                 signal.connect(member, owner)
@@ -263,6 +306,11 @@ class Core(object):
         self.send(worker)
         return result
 
+    def spawn(self, func, *args, **kwargs):
+        assert self.greenlet is not None
+        greenlet = gevent.spawn(func, *args, **kwargs)
+        self.greenlet.link(lambda glt: greenlet.kill())
+
     def spawn_in_thread(self, func, *args, **kwargs):
         result = gevent.event.AsyncResult()
         def wrapper():
@@ -275,30 +323,29 @@ class Core(object):
         thread.start()
         return result
 
-    @decorators.dualmethod
+    @dualmethod
     def periodic(self, period, func, args=None, kwargs=None, wait=0):
         if args is None:
             args = ()
         if kwargs is None:
             kwargs = {}
-        greenlet = decorators.periodic(
-            period, *args, **kwargs).wait(wait).get(func)
+        greenlet = Periodic(period, *args, **kwargs).wait(wait).get(func)
         self.greenlet.link(lambda glt: greenlet.kill())
         greenlet.start()
         return greenlet
 
     @periodic.classmethod
     def periodic(cls, period, *args, **kwargs):   # pylint: disable=no-self-argument
-        return decorators.periodic(period, *args, **kwargs)
+        return Periodic(period, *args, **kwargs)
 
     @classmethod
     def receiver(cls, signal):
         def decorate(method):
-            decorators.annotate(method, set, 'core.signals', signal)
+            annotate(method, set, 'core.signals', signal)
             return method
         return decorate
 
-    @decorators.dualmethod
+    @dualmethod
     def schedule(self, deadline, func, *args, **kwargs):
         if hasattr(deadline, 'timetuple'):
             deadline = time.mktime(deadline.timetuple())
@@ -308,7 +355,6 @@ class Core(object):
     @schedule.classmethod
     def schedule(cls, deadline, *args, **kwargs):   # pylint: disable=no-self-argument
         def decorate(method):
-            decorators.annotate(method, list, 'core.schedule',
-                                (deadline, args, kwargs))
+            annotate(method, list, 'core.schedule', (deadline, args, kwargs))
             return method
         return decorate

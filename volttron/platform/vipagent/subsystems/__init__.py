@@ -57,22 +57,11 @@
 
 from __future__ import absolute_import
 
-from .core import *
-from .errors import *
-from .decorators import *
-from .subsystems import *
+from .channel import Channel
+from .hello import Hello
+from .ping import Ping
+from .pubsub import PubSub
+from .rpc import RPC
 
 
-class Agent(object):
-    class Subsystems(object):
-        def __init__(self, owner, core):
-            self.ping = Ping(core)
-            self.rpc = RPC(core, owner)
-            self.hello = Hello(core)
-            self.pubsub = PubSub(core, self.rpc, owner)
-            self.channel = Channel(core)
-
-    def __init__(self, identity=None, address=None, context=None):
-        self.core = Core(
-            self, identity=identity, address=address, context=context)
-        self.vip = Agent.Subsystems(self, self.core)
+__all__ = ['Ping', 'RPC', 'Hello', 'PubSub', 'Channel']

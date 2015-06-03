@@ -63,7 +63,7 @@ from types import MethodType
 import gevent
 
 
-__all__ = ['spawn', 'periodic']
+__all__ = ['annotate', 'annotations', 'dualmethod', 'spawn']
 
 
 def annotate(obj, kind, name, value):
@@ -182,46 +182,3 @@ class dualmethod(object):
         '''Descriptor to set the class method.'''
         self.fclass = fclass
         return self
-
-
-class periodic(object):   # pylint: disable=invalid-name
-    '''Decorator to set a method up as a periodic callback.
-
-    The decorated method will be called with the given arguments every
-    period seconds while the agent is executing its run loop.
-    '''
-
-    def __init__(self, period, *args, **kwargs):
-        '''Store period (seconds) and arguments to call method with.'''
-        assert period > 0
-        self.period = period
-        self.args = args
-        self.kwargs = kwargs
-        self.timeout = 0
-
-    def wait(self, seconds=None):
-        '''Wait before calling for the first time.
-
-        Wait period seconds, if seconds is None. Returns the decorator
-        instance.
-        '''
-        assert seconds is None or seconds >= 0
-        self.timeout = seconds
-        return self
-
-    def __call__(self, method):
-        '''Attach this object instance to the given method.'''
-        annotate(method, list, 'core.periodics', self)
-        return method
-
-    def _loop(self, method):
-        # pylint: disable=missing-docstring
-        if self.timeout != 0:
-            gevent.sleep(self.timeout or self.period)
-        while True:
-            method(*self.args, **self.kwargs)
-            gevent.sleep(self.period)
-
-    def get(self, method):
-        '''Return a Greenlet for the given method.'''
-        return gevent.Greenlet(self._loop, method)

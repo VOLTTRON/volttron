@@ -57,22 +57,31 @@
 
 from __future__ import absolute_import
 
-from .core import *
-from .errors import *
-from .decorators import *
-from .subsystems import *
+import random
+import weakref
+
+from gevent.event import AsyncResult
 
 
-class Agent(object):
-    class Subsystems(object):
-        def __init__(self, owner, core):
-            self.ping = Ping(core)
-            self.rpc = RPC(core, owner)
-            self.hello = Hello(core)
-            self.pubsub = PubSub(core, self.rpc, owner)
-            self.channel = Channel(core)
+__all__ = ['counter', 'ResultsDictionary']
 
-    def __init__(self, identity=None, address=None, context=None):
-        self.core = Core(
-            self, identity=identity, address=address, context=context)
-        self.vip = Agent.Subsystems(self, self.core)
+
+def counter(start=None, minimum=0, maximum=2**64-1):
+    count = random.randint(minimum, maximum) if start is None else start
+    while True:
+        yield count
+        count += 1
+        if count >= maximum:
+            count = minimum
+
+
+class ResultsDictionary(weakref.WeakValueDictionary):
+    def __init__(self):
+        weakref.WeakValueDictionary.__init__(self)
+        self._counter = counter()
+
+    def next(self):
+        result = AsyncResult()
+        result.ident = ident = '%s.%s' % (next(self._counter), hash(result))
+        self[ident] = result
+        return result

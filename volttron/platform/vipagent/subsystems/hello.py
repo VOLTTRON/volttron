@@ -57,22 +57,50 @@
 
 from __future__ import absolute_import
 
-from .core import *
-from .errors import *
-from .decorators import *
-from .subsystems import *
+import weakref
+
+from .base import SubsystemBase
+from ..errors import VIPError
+from ..results import ResultsDictionary
+from ... import vip
 
 
-class Agent(object):
-    class Subsystems(object):
-        def __init__(self, owner, core):
-            self.ping = Ping(core)
-            self.rpc = RPC(core, owner)
-            self.hello = Hello(core)
-            self.pubsub = PubSub(core, self.rpc, owner)
-            self.channel = Channel(core)
+__all__ = ['Hello']
 
-    def __init__(self, identity=None, address=None, context=None):
-        self.core = Core(
-            self, identity=identity, address=address, context=context)
-        self.vip = Agent.Subsystems(self, self.core)
+
+class Hello(SubsystemBase):
+    def __init__(self, core):
+        self.core = weakref.ref(core)
+        self._results = ResultsDictionary()
+        core.register('hello', self._handle_hello, self._handle_error)
+        core.register('welcome', self._handle_welcome, self._handle_error)
+
+    def hello(self, peer=b''):
+        socket = self.core().socket
+        result = next(self._results)
+        socket.send_vip(peer, b'hello', msg_id=result.ident)
+        return result
+
+    __call__ = hello
+
+    def _handle_hello(self, message):
+        socket = self.core().socket
+        message.subsystem = vip._WELCOME
+        message.user = b''
+        message.args = [vip._VERSION, socket.identity, message.peer]
+        socket.send_vip_object(message, copy=False)
+
+    def _handle_welcome(self, message):
+        try:
+            result = self._results.pop(bytes(message.id))
+        except KeyError:
+            return
+        result.set([bytes(arg) for arg in message.args])
+
+    def _handle_error(self, message):
+        try:
+            result = self._results.pop(bytes(message.id))
+        except KeyError:
+            return
+        result.set_exception(
+            VIPError.from_errno(*[bytes(arg) for arg in message.args]))

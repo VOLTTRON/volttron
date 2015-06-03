@@ -57,22 +57,38 @@
 
 from __future__ import absolute_import
 
-from .core import *
-from .errors import *
-from .decorators import *
-from .subsystems import *
+import errno
 
 
-class Agent(object):
-    class Subsystems(object):
-        def __init__(self, owner, core):
-            self.ping = Ping(core)
-            self.rpc = RPC(core, owner)
-            self.hello = Hello(core)
-            self.pubsub = PubSub(core, self.rpc, owner)
-            self.channel = Channel(core)
+__all__ = ['VIPError', 'Unreachable', 'Again', 'UnknownSubsystem']
 
-    def __init__(self, identity=None, address=None, context=None):
-        self.core = Core(
-            self, identity=identity, address=address, context=context)
-        self.vip = Agent.Subsystems(self, self.core)
+
+class VIPError(Exception):
+    def __init__(self, errnum, msg, *args):
+        super(VIPError, self).__init__(errnum, msg, *args)
+        self.errno = errnum
+        self.msg = msg
+
+    def __string__(self):
+        return 'VIP Error (%d): %s' % (self.errno, self.msg)
+
+    def __repr__(self):
+        return '%s%r' % (type(self).__name__, self.args)
+
+    @classmethod
+    def from_errno(cls, errnum, msg, *args):
+        errnum = int(errnum)
+        return {
+            errno.EHOSTUNREACH: Unreachable,
+            errno.EAGAIN: Again,
+            errno.EPROTONOSUPPORT: UnknownSubsystem,
+        }.get(errnum, cls)(errnum, msg, *args)
+
+class Unreachable(VIPError):
+    pass
+
+class Again(VIPError):
+    pass
+
+class UnknownSubsystem(VIPError):
+    pass

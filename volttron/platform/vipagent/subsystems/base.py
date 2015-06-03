@@ -55,24 +55,5 @@
 # under Contract DE-AC05-76RL01830
 #}}}
 
-from __future__ import absolute_import
-
-from .core import *
-from .errors import *
-from .decorators import *
-from .subsystems import *
-
-
-class Agent(object):
-    class Subsystems(object):
-        def __init__(self, owner, core):
-            self.ping = Ping(core)
-            self.rpc = RPC(core, owner)
-            self.hello = Hello(core)
-            self.pubsub = PubSub(core, self.rpc, owner)
-            self.channel = Channel(core)
-
-    def __init__(self, identity=None, address=None, context=None):
-        self.core = Core(
-            self, identity=identity, address=address, context=context)
-        self.vip = Agent.Subsystems(self, self.core)
+class SubsystemBase(object):
+    pass
