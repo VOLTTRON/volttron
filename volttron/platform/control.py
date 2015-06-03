@@ -463,7 +463,7 @@ def send_agent(opts):
         uuid = _send_agent(connection.server, connection.peer, wheel).get(
             timeout=connection.timeout)
         connection.call('start_agent', uuid)
-        _stdout.write('Agent {} started as {}'.format(wheel, uuid))
+        _stdout.write('Agent {} started as {}\n'.format(wheel, uuid))
 
 # XXX: reimplement over VIP
 #def send_agent(opts):
