@@ -443,8 +443,8 @@ class PubSub(SubsystemBase):
 
         def start(sender, **kwargs):
             def subscribe(member):   # pylint: disable=redefined-outer-name
-                for peer, bus, prefix in
-                        annotations(member, set, 'pubsub.subscriptions'):
+                for peer, bus, prefix in annotations(
+                        member, set, 'pubsub.subscriptions'):
                     self.subscribe(peer, prefix, member, bus)
             inspect.getmembers(owner, subscribe)
         core.onstart.connect(start, self)
@@ -562,7 +562,7 @@ class PubSub(SubsystemBase):
             self._synchronizing += 1
             try:
                 rpc = self.rpc()
-                topics = self.list(peer).get(timeout=timeout)
+                topics = self.list(peer).get()
                 unsubscribe = {}
                 for bus, prefix, _ in topics:
                     try:
