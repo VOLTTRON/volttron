@@ -59,7 +59,7 @@ import csv
 from datetime import datetime, timedelta as td
 import logging
 import sys
-import time
+# import time
 import re
 # import dateutil.parser
 
@@ -279,16 +279,17 @@ def DrivenAgent(config_path, **kwargs):
                                 _analysis['unit'] = item
                                 analysis_topic = topics.ANALYSIS_VALUE(
                                     point=key, **_analysis)
-                                mytime = int(time.time())
-                                content = {
-                                    analysis_topic: {
-                                        "Readings": [[mytime, value]],
-                                        "Units": "TU",
-                                        "data_type": "double"
-                                    }
-                                }
-                                self.publish_json(topics.LOGGER_LOG, headers,
-                                                  content)
+                                self.publish_json(analysis_topic, headers, value)
+#                                 mytime = int(time.time())
+#                                 content = {
+#                                     analysis_topic: {
+#                                         "Readings": [[mytime, value]],
+#                                         "Units": "TU",
+#                                         "data_type": "double"
+#                                     }
+#                                 }
+#                                 self.publish_json(topics.LOGGER_LOG, headers,
+#                                                   content)
             if results.commands and mode:
                 self.commands = results.commands
                 if self.keys is None:
