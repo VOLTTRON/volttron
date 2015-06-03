@@ -69,7 +69,7 @@ import gevent.event
 from zmq import green as zmq
 from zmq.green import ZMQError, EAGAIN
 
-from ..decorators import annotate, annotations, dualmethod
+from .decorators import annotate, annotations, dualmethod
 from .dispatch import Signal
 from ..vip import green as vip
 from ... import platform
