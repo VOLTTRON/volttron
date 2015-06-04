@@ -66,6 +66,8 @@ import sys
 import syslog
 import traceback
 
+import gevent
+
 from zmq.utils import jsonapi
 
 
@@ -168,7 +170,14 @@ def default_main(agent_class, description=None, argv=sys.argv,
         if not pub_sub_socket_enabled:
             config = os.environ.get('AGENT_CONFIG')
             agent = agent_class(config_path=config, **kwargs)
-            agent.run()
+
+
+            try:
+                if getattr(agent, "run"):
+                    agent.run()
+            except AttributeError:
+                gevent.spawn(agent.core.run).join()
+
             return
 
         try:
