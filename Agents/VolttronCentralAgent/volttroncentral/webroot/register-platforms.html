@@ -1,0 +1,67 @@
+<html>
+<head>
+    <script language="javascript" src="http://code.jquery.com/jquery-2.1.4.min.js"></script>
+
+</head>
+<body>
+<input type="text" id="token" placeholder="Enter auth token" /><br/>
+<button id="register1">Register Platform 1</button><br />
+<button id="register2">Register Platform 2</button><br />
+<button id="register3">Register Platform 3</button><br />
+VIP Identity <input type="text" id="vip_identity" value="platform.agent" /><br />
+<input type="text" id="vip_address" placeholder="VIP Address where VIP Identity is located"
+    size="80" /><br/>
+<button id="register">Register Platform</button><br />
+<input type="text" id="results" />
+
+
+<script language="javascript">
+    $('#register1').click(function(){
+        $('#vip_address').val('ipc://@/tmp/v1home/run/vip.socket');
+        $('#vip_identity').val('platform.agent');
+        $('#register').click()
+    });
+    $('#register2').click(function(){
+        $('#vip_address').val('ipc://@/tmp/v2home/run/vip.socket');
+        $('#vip_identity').val('platform.agent');
+        $('#register').click()
+    });
+    $('#register3').click(function(){
+        $('#vip_address').val('ipc://@/tmp/v3home/run/vip.socket');
+        $('#vip_identity').val('platform.agent');
+        $('#register').click()
+    });
+    $('#register').click(function(){
+         var identity = $('#vip_identity').val();
+         var address = $('#vip_address').val();
+         var token = $('#token').val();
+
+         var pdata = {
+                 jsonrpc: '2.0',
+                 method:  "register_platform",
+                 authorization: token,
+                 params: {
+                    identity: identity,
+                    address: address
+                 },
+                 id: '72581-4'
+         };
+
+        $.ajax({
+             type: 'POST',
+             url: '/jsonrpc',
+             data: JSON.stringify(pdata),
+             dataType: 'json',
+             success: function(data){
+                 $('#results').text('Success');
+                   console.log('success '+data.message.toString());},
+             failure: function(data){
+                 $('#results').text('failure');
+                  console.log('failure '+data.toString());}
+
+         });
+    });
+</script>
+
+</body>
+</html>
