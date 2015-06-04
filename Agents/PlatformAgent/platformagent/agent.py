@@ -118,7 +118,7 @@ def platform_agent(config_path, **kwargs):
             self._managers_reachable = {}
 
 
-#        @Core.periodic(15)
+        @Core.periodic(15)
         def write_status(self):
             base_topic = 'datalogger/log/platform/status'
             cpu_times = base_topic + "/cpu_times"
