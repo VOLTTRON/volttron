@@ -68,17 +68,22 @@ import tornado
 import tornado.ioloop
 import tornado.web
 from tornado.web import url
+from zmq.utils import jsonapi
 
 from authenticate import Authenticate
 
-from volttron.platform.async import AsyncCall
-from volttron.platform import vip, jsonrpc
-from volttron.platform.agent.vipagent import (BaseAgent, RPCAgent, periodic,
-                                              onevent, jsonapi, export)
 from volttron.platform.agent import utils
+from volttron.platform.async import AsyncCall
+from volttron.platform.vipagent import *
+
+# from volttron.platform import vip, jsonrpc
+# from volttron.platform.agent.vipagent import (BaseAgent, RPCAgent, periodic,
+#                                               onevent, jsonapi, export)
+# from volttron.platform.agent import utils
 
 from webserver import (ManagerWebApplication, ManagerRequestHandler,
                        StatusHandler, SessionHandler, RpcResponse)
+
 from volttron.platform.control import list_agents
 from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
                                        INVALID_REQUEST, METHOD_NOT_FOUND,
@@ -198,17 +203,19 @@ def volttron_central_agent(config_path, **kwargs):
         '''
         tornado.ioloop.IOLoop.stop()
 
-    class Agent(RPCAgent):
+    class VolttronCentralAgent(Agent):
         """Agent for querying WeatherUndergrounds API"""
 
         def __init__(self, **kwargs):
-            super(Agent, self).__init__(vip_identity=vip_identity, **kwargs)
+            super(VolttronCentralAgent, self).__init__(identity=vip_identity, **kwargs)
             _log.debug("Registering (vip_address, vip_identity) ({}, {})"
-                       .format(self.vip_address, vip_identity))
+                       .format(self.core.address, self.core.identity))
             # a list of peers that have checked in with this agent.
             self.registry = PlatformRegistry()
             self.valid_data = False
             self._vip_channels = {}
+            print('vc my identity {} address: {}'.format(self.core.identity,
+                                                      self.core.address))
 
 #         #@periodic(period=10)
 #         def _update_agent_list(self):
@@ -223,23 +230,14 @@ def volttron_central_agent(config_path, **kwargs):
             platform = self.registry.get_platform(uuid)
             results = []
             if platform:
-                if platform['vip_address'] == self.vip_address:
-                    rpc = self
-                elif not platform['vip_address'] in self._vip_channels:
-                    rpc = RPCAgent(platform['vip_address'])
-                    gevent.spawn(rpc.run).join(0)
-                    self._vip_channels[platform['vip_address']] = rpc
-                else:
-                    rpc = self._vip_channels[platform['vip_address']]
+                agent = self._get_rpc_agent(platform['vip_address'])
 
-
-
-                results = rpc.rpc_call(platform['vip_identity'],
-                                      'list_agents').get(timeout=10)
+                results = agent.vip.rpc.call(platform['vip_identity'],
+                                         'list_agents').get(timeout=10)
 
             return results
 
-        @export()
+        @RPC.export
         def register_platform(self, peer_identity, name, peer_address):
             '''Agents will call this to register with the platform.
 
@@ -247,38 +245,63 @@ def volttron_central_agent(config_path, **kwargs):
             '''
             platform = self.registry.register(peer_address, peer_identity,
                                               name)
+        def _handle_register_platform(self, address, identity=None):
+            agent = self._get_rpc_agent(address)
+
+            if not identity:
+                identity = 'platform.agent'
+
+            result = agent.vip.rpc.call(identity, "manage",
+                                        address=self.core.address,
+                                        identity=self.core.identity)
+            if result.get(timeout=10):
+                return self.registry.register(address, identity, 'platform.agent')
+
+            return False
 
 
-#         @export()
-#         def unregister_platform(self, peer_identity):
-#             del self.platform_dict[peer_identity]['identity_params']
-#             _log.debug("Platform {} unregistered successfully"
-#                        .format(peer_identity))
-#             return True
 
-        @onevent('setup')
-        def setup(self):
+        def _get_rpc_agent(self, address):
+            if address == self.core.address:
+                agent = self
+            elif address not in self._vip_channels:
+                agent = Agent(address=address)
+                gevent.spawn(agent.core.run).join(0)
+                self._vip_channels[address] = agent
+
+            else:
+                agent = self._vip_channels[address]
+            return agent
+
+        @Core.receiver('onsetup')
+        def setup(self, sender, **kwargs):
             print "Setting up"
             self.async_caller = AsyncCall()
 
-        @onevent("start")
-        def start(self):
+        @Core.receiver('onstart')
+        def start(self, sender, **kwargs):
             '''This event is triggered when the platform is ready for the agent
             '''
             # Start tornado in its own thread
             threading.Thread(target=startWebServer, args=(self,)).start()
 
-        @onevent("finish")
-        def finish(self):
+        @Core.receiver('onfinish')
+        def finish(self, sender, **kwargs):
             stopWebServer()
+
+        def _handle_list_platforms(self):
+            return [{'uuid': x['uuid'],
+                         'name': x['agentid']}
+                        for x in self.registry.get_platforms()]
 
         def route_request(self, id, method, params):
             '''Route request to either a registered platform or handle here.'''
+            print('inside route_request {}, {}, {}'.format(id, method, params))
+            if method == 'list_platforms':
+                return self._handle_list_platforms()
+            elif method == 'register_platform':
+                return self._handle_register_platform(**params)
 
-            if (method == 'list_platforms'):
-                return [{'uuid': x['uuid'],
-                         'name': x['agentid']}
-                        for x in self.registry.get_platforms()]
 
             fields = method.split('.')
 
@@ -302,26 +325,21 @@ def volttron_central_agent(config_path, **kwargs):
             platform_method = '.'.join(fields[3:])
 
 
+            agent = self._get_rpc_agent(platform['vip_address'])
 
-            # Are we talking to our own vip address?
-            if platform['vip_address'] == self.vip_address:
-                result = self.rpc_call(str(platform['vip_identity']), 'route_request',
-                                       [id, platform_method, params]).get()
-            else:
+            _log.debug("calling identity {} with parameters {} {} {}"
+                       .format(platform['vip_identity'],
+                               id,
+                               platform_method, params))
+            result = agent.vip.rpc.call(platform['vip_identity'],
+                                            "route_request",
+                                            id, platform_method, params).get(timeout=10)
 
-                if not platform['vip_address'] in self._vip_channels:
-                    rpc = RPCAgent(platform['vip_address'])
-                    gevent.spawn(rpc.run).join(0)
-                    self._vip_channels[platform['vip_address']] = rpc
-                else:
-                    rpc = self._vip_channels[platform['vip_address']]
-
-                result = rpc.rpc_call(platform['vip_identity'], "route_request", [id, platform_method, params]).get(timeout=10)
 
             return result
 
-    Agent.__name__ = 'VolttronCentralAgent'
-    return Agent(**kwargs)
+    VolttronCentralAgent.__name__ = 'VolttronCentralAgent'
+    return VolttronCentralAgent(**kwargs)
 
 
 def main(argv=sys.argv):

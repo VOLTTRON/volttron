@@ -108,7 +108,20 @@ def platform_agent(config_path, **kwargs):
 
     class PlatformAgent(Agent):
 
-        @Core.periodic(15)
+        def __init__(self, identity=vip_identity, vc_vip_address=vc_vip_address,
+                     vc_vip_identity=vc_vip_address, **kwargs):
+            super(PlatformAgent, self).__init__(identity, **kwargs)
+            self.vc_vip_identity = vc_vip_identity
+            self.vc_vip_address = vc_vip_address
+
+            print('my identity {} address: {}'.format(self.core.identity,
+                                                      self.core.address))
+            # a list of registered managers of this platform.
+            self._managers = set()
+            self._managers_reachable = {}
+
+
+#        @Core.periodic(15)
         def write_status(self):
             base_topic = 'datalogger/log/platform/status'
             cpu_times = base_topic + "/cpu_times"
@@ -130,7 +143,7 @@ def platform_agent(config_path, **kwargs):
 
         @RPC.export
         def list_agents(self):
-            result = self.rpc_call("control", "list_agents").get()
+            result = self.vip.rpc.call("control", "list_agents").get()
             return result
 
         def _install_agents(self, agent_files):
