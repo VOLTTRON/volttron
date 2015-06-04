@@ -53,6 +53,7 @@
 
 #}}}
 
+from __future__ import absolute_import, print_function
 import base64
 from datetime import datetime
 import gevent
@@ -65,6 +66,12 @@ import re
 import shutil
 import tempfile
 import uuid
+
+import psutil
+
+import gevent
+from zmq.utils import jsonapi
+from volttron.platform.vipagent import *
 
 from volttron.platform import vip, jsonrpc, control
 from volttron.platform.control import Connection
@@ -99,16 +106,29 @@ def platform_agent(config_path, **kwargs):
     if not vc_vip_address:
         raise ValueError('Invalid volttron_central_vip_address')
 
-    class Agent(BaseAgent, QueryAddressesMixin, ChannelMixin):
-        def __init__(self, **kwargs):
+    class PlatformAgent(Agent):
 
-            super(Agent, self).__init__(vip_identity=vip_identity, **kwargs)
-            self.vip_identity = vip_identity
-            self.vc_vip_identity = vc_vip_identity
-            self.vc_vip_address = vc_vip_address
-            self.agentid = agentid
+        @Core.periodic(15)
+        def write_status(self):
+            base_topic = 'datalogger/log/platform/status'
+            cpu_times = base_topic + "/cpu_times"
+            virtual_memory = base_topic + "/virtual_memory"
+            disk_partitions = base_topic + "/disk_partiions"
 
-        @export()
+            points = {}
+
+            for k, v in psutil.cpu_times().__dict__.items():
+                points[k] = {'Readings':v,
+                             'Units': 'double'}
+            output = jsonapi.dumps(points)
+
+            self.vip.pubsub.publish(peer='pubsub', topic=cpu_times,
+                                    message=[output])
+
+            _log.warn("Writing status {}".format(psutil.cpu_times()))
+
+
+        @RPC.export
         def list_agents(self):
             result = self.rpc_call("control", "list_agents").get()
             return result
@@ -125,12 +145,7 @@ def platform_agent(config_path, **kwargs):
 
                     agent_uuid = control._send_agent(self, 'control', path).get(timeout=15)
                     results.append({'uuid': agent_uuid})
-#                     if 'tag' in f:
-#                         result = self.rpc_call('control', 'tag_agent',
-#                                                [str(agent_uuid), f['tag']]).get(timeout=5)
-#                         results.append({'uuid': str(agent_uuid), 'tag': f['tag']})
-#                     else:
-#                         results.append({'uuid': str(agent_uuid), 'tag': None})
+
                 except Exception as e:
                     results.append({'error': e.message})
                     print("EXCEPTION: "+e.message)
@@ -141,7 +156,7 @@ def platform_agent(config_path, **kwargs):
                 pass
             return results
 
-        @export()
+        @RPC.export
         def route_request(self, id, method, params):
             _log.debug('platform agent routing request: {}, {}'.format(id, method))
 
@@ -193,19 +208,18 @@ def platform_agent(config_path, **kwargs):
 
             return result
 
-        @export()
+        @RPC.export
         def list_agent_methods(self, method, params, id, agent_uuid):
             return get_error_response(id, INTERNAL_ERROR, 'Not implemented')
 
-        @onevent('setup')
-        def setup(self):
+        @Core.receiver('onsetup')
+        def setup(self, sender, **kwargs):
             _log.debug('platform agent setup.  Connection to {} -> {}'.format(
                             self.vc_vip_address, self.vc_vip_identity))
             self._ctl = Connection(self.vc_vip_address,
                                    peer=self.vc_vip_identity)
 
-        @onevent("start")
-        @spawn
+        @Core.receiver('onstart')
         def start(self):
             _log.debug('Starting service vip info: {}'.format(
                                                         str(self.__dict__)))
@@ -220,12 +234,12 @@ def platform_agent(config_path, **kwargs):
             self._external_vip = self._external_vip
             self._ctl.call("register_platform", vip_identity, agentid, self._external_vip)
 
-        @onevent("finish")
+        @Core.receiver('onfinish')
         def stop(self):
             self._ctl.call("unregister_platform", vip_identity)
 
-    Agent.__name__ = 'PlatformAgent'
-    return Agent(**kwargs)
+    PlatformAgent.__name__ = 'PlatformAgent'
+    return PlatformAgent(identity=vip_identity, **kwargs)
 
 
 def is_ip_private(vip_address):
