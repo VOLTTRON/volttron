@@ -1,0 +1,8 @@
+{
+    "vip_identity": "platform.historian",
+    "agentid": "sqlite_historian",
+    "db": "/tmp/v1home/data/platform.historian.sqlite",
+    "agent": {
+        "exec": "sqlite_historianagent-0.1-py2.7.egg --config \"%c\" --sub \"%s\" --pub \"%p\""
+    }
+}
