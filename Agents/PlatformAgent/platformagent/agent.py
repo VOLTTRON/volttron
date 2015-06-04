@@ -120,6 +120,7 @@ def platform_agent(config_path, **kwargs):
 
         @Core.periodic(15)
         def write_status(self):
+
             base_topic = 'datalogger/log/platform/status'
             cpu_times = base_topic + "/cpu_times"
             virtual_memory = base_topic + "/virtual_memory"
@@ -128,15 +129,12 @@ def platform_agent(config_path, **kwargs):
             points = {}
 
             for k, v in psutil.cpu_times().__dict__.items():
-                points[k] = {'Readings':v,
-                             'Units': 'double'}
-            output = jsonapi.dumps(points)
+                points[k] = {'Readings':v, 'Units': 'double'}
 
-            self.vip.pubsub.publish(peer='pubsub', topic=cpu_times,
-                                    message=[output])
-
-            _log.warn("Writing status {}".format(psutil.cpu_times()))
-
+            message = jsonapi.dumps(points)
+            self.vip.pubsub.publish(peer='pubsub',
+                                    topic=cpu_times,
+                                    message=[message])
 
         @RPC.export
         def list_agents(self):

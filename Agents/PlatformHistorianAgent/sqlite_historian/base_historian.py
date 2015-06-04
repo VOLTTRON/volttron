@@ -192,7 +192,7 @@ class BaseHistorianAgent(Agent):
         for key, value in values.iteritems():
             point_topic = device + '/' + key
             self._event_queue.put({'source': source,
-                                   'topic': point_topic,
+                                   'topic': topic,
                                    'readings': [(timestamp,value)],
                                    'meta': meta.get(key,{})})
 
@@ -252,13 +252,11 @@ class BaseHistorianAgent(Agent):
         source = 'log'
         _log.debug("Queuing {topic} from {source} for publish".format(topic=topic,
                                                                       source=source))
-
         for point, item in data.iteritems():
             ts_path = location + '/' + point
             if 'Readings' not in item or 'Units' not in item:
                 _log.error("logging request for {path} missing Readings or Units".format(path=ts_path))
                 continue
-
             units = item['Units']
             dtype = item.get('data_type', 'float')
             if dtype == 'double':
@@ -271,7 +269,7 @@ class BaseHistorianAgent(Agent):
                 readings = [(datetime.utcnow(), readings)]
 
             self._event_queue.put({'source': source,
-                                   'topic': topic,
+                                   'topic': topic+'/'+point,
                                    'readings': readings,
                                    'meta':meta})
         if not self._processing:
