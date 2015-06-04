@@ -300,6 +300,7 @@ def volttron_central_agent(config_path, **kwargs):
             if method == 'list_platforms':
                 return self._handle_list_platforms()
             elif method == 'register_platform':
+                print('registering_platform: {}'.format(params))
                 return self._handle_register_platform(**params)
 
 
