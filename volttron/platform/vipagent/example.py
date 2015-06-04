@@ -70,6 +70,8 @@ if __name__ == '__main__':
     print('3  ===========================')
     print(agent.vip.rpc.call('example', 'hello', 'world').get(timeout=3))
     print(agent.vip.rpc.call('example', 'meh').get(timeout=3))
+    print(agent.vip.rpc.call('example', 'inspect').get(timeout=3))
+    print(agent.vip.rpc.call('example', 'hello.inspect').get(timeout=3))
     print('4  ===========================')
     print(agent.vip.pubsub.publish('example', 'this/topic/here', {'key': 'value'},
                              'Are you the Walrus?').get(timeout=3))
