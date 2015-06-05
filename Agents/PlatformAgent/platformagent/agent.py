@@ -128,13 +128,26 @@ def platform_agent(config_path, **kwargs):
 
             points = {}
 
-            for k, v in psutil.cpu_times().__dict__.items():
-                points[k] = {'Readings':v, 'Units': 'double'}
+                message = jsonapi.dumps(points)
+                self.vip.pubsub.publish(peer='pubsub',
+                                        topic=cpu_times,
+                                        message=[message])
 
-            message = jsonapi.dumps(points)
-            self.vip.pubsub.publish(peer='pubsub',
-                                    topic=cpu_times,
-                                    message=[message])
+        @RPC.export
+        def register_service(self, vip_identity):
+            # make sure that we get a ping reply
+            response = self.vip.ping(vip_identity).get(timeout=5)
+
+            # make service list not include a platform.
+            if vip_identity.startswith('platform.'):
+                vip_identity = vip_identity[len('platform.'):]
+
+            self._services[vip_identity] = 1
+
+        @RPC.export
+        def services(self):
+            return self._services
+
 
         @RPC.export
         def list_agents(self):

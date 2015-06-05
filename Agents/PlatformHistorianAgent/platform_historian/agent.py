@@ -86,6 +86,23 @@ def platform_historian_agent(config_path, **kwargs):
         to a SQLite database. It is designed to test some of the functionality
         of the BaseHistorianAgent.
         '''
+        @Core.receiver("onstart")
+        def starting(self, sender, **kwargs):
+            try:
+                ping = self.vip.ping('platform.agent', 'awake?').get(timeout=3)
+                self.vip.rpc.call('platform.agent', 'register_service',
+                                  self.core.identity).get(timeout=3)
+            except Unreachable:
+                _log.debug('Could not register historian service')
+            finally:
+                self.vip.pubsub.subscribe('pubsub', '/platform', self.__platform)
+
+        def __platform(self, peer, sender, bus, topic, headers, message):
+            _log.debug('Platform is now: ', message)
+#             if message == 'available':
+#                 gevent.spawn(self.vip.rpc.call, 'platform.agent', 'register_service',
+#                                   self.core.identity)
+#                 gevent.sleep(0)
 
         def publish_to_historian(self, to_publish_list):
             #self.report_all_published()
