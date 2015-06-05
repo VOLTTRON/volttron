@@ -277,6 +277,7 @@ class BaseHistorianAgent(Agent):
 
     def _process_loop(self):
         _log.debug("Starting process loop.")
+        self._processing = True
         backup_setup = gevent.spawn(self._setup_backup_db)
         historian_setup = gevent.spawn(self.historian_setup)
 
@@ -510,13 +511,6 @@ class BaseQueryHistorianAgent(RPCAgent):
 
          metadata is not required (The caller will normalize this to {} for you)
         """
-
-    @onevent('setup')
-    def run_setup(self):
-        self.historian_setup()
-
-    def historian_setup(self):
-        '''Optional setup routine, setup any needed db connection here.'''
 
 #The following code is
 #Copyright (c) 2011, 2012, Regents of the University of California

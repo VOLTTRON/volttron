@@ -62,6 +62,7 @@ import sqlite3
 
 from base_historian import BaseHistorianAgent
 from volttron.platform.vipagent import *
+from volttron.platform.agent.base_query_historian import BaseQueryHistorianAgent
 #from volttron.platform.agent.base_historian import BaseHistorianAgent
 from volttron.platform.agent import utils, matching
 from volttron.platform.messaging import topics, headers as headers_mod
@@ -80,23 +81,16 @@ def platform_historian_agent(config_path, **kwargs):
 
     config = utils.load_config(config_path)
 
-    class PlatformHistorian(BaseHistorianAgent):
+    class PlatformHistorian(BaseHistorianAgent, BaseQueryHistorianAgent):
         '''This is a simple example of a historian agent that writes stuff
         to a SQLite database. It is designed to test some of the functionality
         of the BaseHistorianAgent.
         '''
-#         def __init__(self, vip_identity='platform.historian', **kwargs):
-#             super(BaseHistorianAgent, self).__init__(vip_identity=vip_identity, **kwargs)
-#         @Core.receiver('onstart')
-#         def starting(self, sender, **kwargs):
-#             me = self.vip.hello().get(timeout=3)
-#             print("I am: {}".format(me))
-
 
         def publish_to_historian(self, to_publish_list):
             #self.report_all_published()
             c = self.conn.cursor()
-            print 'Publish info'
+            #print 'Publish info'
             for x in to_publish_list:
                 ts = x['timestamp']
                 topic = x['topic']
@@ -114,13 +108,67 @@ def platform_historian_agent(config_path, **kwargs):
                 c.execute('''INSERT OR REPLACE INTO data values(?, ?, ?)''',
                           (ts,topic_id,jsonapi.dumps(value)))
 
-                pprint(x)
-            print 'count:', len(to_publish_list)
+                #pprint(x)
+            print('published {} data values:'.format(len(to_publish_list)))
 
             self.conn.commit()
             c.close()
 
             self.report_all_published()
+
+        def query_historian(self, topic, start=None, end=None, skip=0, count=None):
+            """This function should return the results of a query in the form:
+            {"values": [(timestamp1, value1), (timestamp2, value2), ...],
+             "metadata": {"key1": value1, "key2": value2, ...}}
+
+             metadata is not required (The caller will normalize this to {} for you)
+            """
+            query = '''SELECT data.ts, data.value_string
+                       FROM data, topics
+                       {where}
+                       ORDER BY data.ts
+                       {limit}
+                       {offset}'''
+
+            where_clauses = ["WHERE topics.topic_name = ?", "topics.topic_id = data.topic_id"]
+            args = [topic]
+
+            if start is not None:
+                where_clauses.append("data.ts > ?")
+                args.append(start)
+
+            if end is not None:
+                where_clauses.append("data.ts < ?")
+                args.append(end)
+
+            where_statement = ' AND '.join(where_clauses)
+
+            #can't have an offset without a limit
+            # -1 = no limit and allows the user to
+            # provied just an offset
+            if count is None:
+                count = -1
+
+            limit_statement = 'LIMIT ?'
+            args.append(count)
+
+            offset_statement = ''
+            if skip > 0:
+                offset_statement = 'OFFSET ?'
+                args.append(skip)
+
+            real_query = query.format(where=where_statement,
+                                      limit=limit_statement,
+                                      offset=offset_statement)
+
+            print real_query
+            print args
+
+            c = self.conn.cursor()
+            c.execute(real_query,args)
+            values = [(ts.isoformat(), jsonapi.loads(value)) for ts, value in c]
+
+            return {'values':values}
 
         def historian_setup(self):
             self.topics={}
