@@ -122,6 +122,16 @@ class PlatformRegistry:
         '''
         self._uuids[platform_uuid]['agent_list'] = agent_list.get()
 
+    def unregister(self, vip_address):
+        if vip_address in self._vips.keys():
+            del self._vips[vip_address]
+            toremove = []
+            for k, v in self._uuids.iteritems():
+                if v['vip_address'] == vip_address:
+                    toremove.append(k)
+            for x in toremove:
+                del self._uuids[x]
+
     def register(self, vip_address, vip_identity, agentid, **kwargs):
         '''Registers a platform agent with the registry.
 
@@ -137,10 +147,9 @@ class PlatformRegistry:
         '''
         if vip_address not in self._vips.keys():
             self._vips[vip_address] = {}
+
         node = self._vips[vip_address]
-#         if vip_identity in node:
-#             raise ValueError('Duplicate vip_address vip_identity for {}-{}'
-#                              .format(vip_address, vip_identity))
+
         if agentid is None:
             raise ValueError('Invalid agentid specified')
 
@@ -223,15 +232,6 @@ def volttron_central_agent(config_path, **kwargs):
             self.valid_data = False
             self._vip_channels = {}
             self.persistence_path = ''
-            
-#         #@periodic(period=10)
-#         def _update_agent_list(self):
-#             jobs = {}
-#             print "updating agent list"
-#             for p in self.registry.get_platforms():
-#                 jobs[p['uuid']] = gevent.spawn(self.list_agents, uuid=p['uuid'])
-#             gevent.joinall(jobs.values(), timeout=20)
-#             return [self.registry.update_agent_list(j, jobs[j]) for j in jobs]
 
         def list_agents(self, uuid):
             platform = self.registry.get_platform(uuid)
@@ -245,6 +245,18 @@ def volttron_central_agent(config_path, **kwargs):
             return results
 
         @RPC.export
+        def unregister_platform(self, platform_uuid):
+            value = 'Failure'
+            platform = self.registry.get_platform(platform_uuid)
+
+            if platform:
+                self.registry.unregister(platform['vip_address'])
+                self._store_registry()
+                value = 'Success'
+
+            return value
+
+        @RPC.export
         def register_platform(self, peer_identity, name, peer_address):
             '''Agents will call this to register with the platform.
 
@@ -256,6 +268,9 @@ def volttron_central_agent(config_path, **kwargs):
                 return 'Platform Unavailable'
 
             return value
+
+        def _store_registry(self):
+            self._store('registry', self.registry.package())
 
         def _handle_register_platform(self, address, identity=None, agentid='platform.agent'):
             _log.debug('Registering platform identity {} at vip address {} with name {}'
@@ -272,7 +287,7 @@ def volttron_central_agent(config_path, **kwargs):
                 node = self.registry.register(address, identity, agentid)
 
                 if node:
-                    self._store('registry', self.registry.package())
+                    self._store_registry()
                 return node
 
             return False
@@ -371,6 +386,8 @@ def volttron_central_agent(config_path, **kwargs):
                 return self._handle_list_platforms()
             elif method == 'register_platform':
                 return self._handle_register_platform(**params)
+            elif method == 'unregister_platform':
+                return self.unregister_platform(**params)
 
 
             fields = method.split('.')
