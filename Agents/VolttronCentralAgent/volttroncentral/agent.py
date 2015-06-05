@@ -55,6 +55,7 @@
 #}}}
 
 import datetime
+import errno
 import logging
 import sys
 import requests
@@ -88,7 +89,6 @@ from volttron.platform.control import list_agents
 from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
                                        INVALID_REQUEST, METHOD_NOT_FOUND,
                                        PARSE_ERROR, UNHANDLED_EXCEPTION)
-
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 WEB_ROOT = p.abspath(p.join(p.dirname(__file__), 'webroot'))
@@ -158,6 +158,14 @@ class PlatformRegistry:
                                                           agentid))
         return node[vip_identity]
 
+    def package(self):
+        return {'vip_addresses': self._vips,
+                'uuids':self._uuids}
+
+    def unpackage(self, data):
+        self._vips = data['vip_addresses']
+        self._uuids = data['uuids']
+
 
 def volttron_central_agent(config_path, **kwargs):
     config = utils.load_config(config_path)
@@ -214,9 +222,8 @@ def volttron_central_agent(config_path, **kwargs):
             self.registry = PlatformRegistry()
             self.valid_data = False
             self._vip_channels = {}
-            print('vc my identity {} address: {}'.format(self.core.identity,
-                                                      self.core.address))
-
+            self.persistence_path = ''
+            
 #         #@periodic(period=10)
 #         def _update_agent_list(self):
 #             jobs = {}
@@ -243,9 +250,16 @@ def volttron_central_agent(config_path, **kwargs):
 
             This method is successful unless an error is raised.
             '''
-            platform = self.registry.register(peer_address, peer_identity,
-                                              name)
-        def _handle_register_platform(self, address, identity=None):
+            value = self._handle_register_platform(peer_address, peer_identity, name)
+
+            if not value:
+                return 'Platform Unavailable'
+
+            return value
+
+        def _handle_register_platform(self, address, identity=None, agentid='platform.agent'):
+            _log.debug('Registering platform identity {} at vip address {} with name {}'
+                       .format(identity, address, agentid))
             agent = self._get_rpc_agent(address)
 
             if not identity:
@@ -255,11 +269,13 @@ def volttron_central_agent(config_path, **kwargs):
                                         address=self.core.address,
                                         identity=self.core.identity)
             if result.get(timeout=10):
-                return self.registry.register(address, identity, 'platform.agent')
+                node = self.registry.register(address, identity, agentid)
+
+                if node:
+                    self._store('registry', self.registry.package())
+                return node
 
             return False
-
-
 
         def _get_rpc_agent(self, address):
             if address == self.core.address:
@@ -275,15 +291,69 @@ def volttron_central_agent(config_path, **kwargs):
 
         @Core.receiver('onsetup')
         def setup(self, sender, **kwargs):
-            print "Setting up"
+            if not os.environ.get('VOLTTRON_HOME', None):
+                raise ValueError('VOLTTRON_HOME environment must be set!')
+
+            db_path = os.path.join(os.environ.get('VOLTTRON_HOME'),
+                                   'data/volttron.central')
+            db_dir  = os.path.dirname(db_path)
+            try:
+                os.makedirs(db_dir)
+            except OSError as exc:
+                if exc.errno != errno.EEXIST or not os.path.isdir(db_dir):
+                    raise
+            self.persistence_path = db_path
+
+            # Returns None if there has been no registration of any platforms.
+            registered = self._load('registry')
+            if registered:
+                self.registry.unpackage(registered)
+
             self.async_caller = AsyncCall()
 
         @Core.receiver('onstart')
-        def start(self, sender, **kwargs):
+        def starting(self, sender, **kwargs):
             '''This event is triggered when the platform is ready for the agent
             '''
             # Start tornado in its own thread
             threading.Thread(target=startWebServer, args=(self,)).start()
+
+        def __load_persist_data(self):
+            persist_kv = None
+
+            if os.path.exists(self.persistence_path):
+                try:
+                    with open(self.persistence_path, 'rb') as file:
+                        persist_kv = jsonapi.loads(file.read())
+                        file.close()
+                except Exception as err:
+                    _log.error("Couldn't read persistence data {}"
+                               .format(err.message))
+
+            return persist_kv
+
+
+        def _store(self, key, data):
+            persist = self.__load_persist_data()
+
+            if not persist:
+                persist = {}
+
+            persist[key] = data
+
+            with open(self.persistence_path, 'wb') as file:
+                file.write(jsonapi.dumps(persist))
+
+
+        def _load(self, key):
+            persist = self.__load_persist_data()
+
+            value = None
+
+            if persist:
+                value = persist.get(key, None)
+
+            return value
 
         @Core.receiver('onfinish')
         def finish(self, sender, **kwargs):
@@ -300,7 +370,6 @@ def volttron_central_agent(config_path, **kwargs):
             if method == 'list_platforms':
                 return self._handle_list_platforms()
             elif method == 'register_platform':
-                print('registering_platform: {}'.format(params))
                 return self._handle_register_platform(**params)
 
 
