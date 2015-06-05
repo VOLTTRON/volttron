@@ -128,10 +128,10 @@ def platform_agent(config_path, **kwargs):
 
             points = {}
 
-                message = jsonapi.dumps(points)
-                self.vip.pubsub.publish(peer='pubsub',
-                                        topic=cpu_times,
-                                        message=[message])
+            message = jsonapi.dumps(points)
+            self.vip.pubsub.publish(peer='pubsub',
+                                    topic=cpu_times,
+                                    message=[message])
 
         @RPC.export
         def register_service(self, vip_identity):
