@@ -229,6 +229,15 @@ def platform_agent(config_path, **kwargs):
             self._managers_reachable[key] = True
             return True
 
+        @Core.receiver('onstart')
+        def starting(self, sender, **kwargs):
+            self.vip.pubsub.publish(peer='pubsub', topic='/platform',
+                                    message='available')
+        @Core.receiver('onstop')
+        def stoping(self, sender, **kwargs):
+            self.vip.pubsub.publish(peer='pubsub', topic='/platform',
+                                    message='leaving')
+
 #         @Core.receiver('onsetup')
 #         def setup(self, sender, **kwargs):
 #             _log.debug('platform agent setup.  Connection to {} -> {}'.format(
