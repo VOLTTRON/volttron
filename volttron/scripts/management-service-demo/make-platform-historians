@@ -10,18 +10,18 @@ VOLTTRON_HOME=$V1_HOME ../pack_install.sh \
 ../../../Agents/PlatformHistorianAgent/ \
 ./platform-historian-config1 hist
 
-VOLTTRON_HOME=$V1_HOME start --tag=hist
+VOLTTRON_HOME=$V1_HOME volttron-ctl start --tag=hist
 
 echo 'Installing platform 2 historian'
 VOLTTRON_HOME=$V2_HOME ../pack_install.sh \
 ../../../Agents/PlatformHistorianAgent/ \
 ./platform-historian-config2 hist
 
-VOLTTRON_HOME=$V2_HOME start --tag=hist
+VOLTTRON_HOME=$V2_HOME volttron-ctl start --tag=hist
 
 echo 'Installing platform 3 historian'
 VOLTTRON_HOME=$V3_HOME ../pack_install.sh \
 ../../../Agents/PlatformHistorianAgent/ \
 ./platform-historian-config3 hist
 
-VOLTTRON_HOME=$V3_HOME start --tag=hist
+VOLTTRON_HOME=$V3_HOME volttron-ctl start --tag=hist
