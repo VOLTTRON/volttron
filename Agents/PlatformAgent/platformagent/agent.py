@@ -116,6 +116,7 @@ def platform_agent(config_path, **kwargs):
             # a list of registered managers of this platform.
             self._managers = set()
             self._managers_reachable = {}
+            self._services = {}
 
 
         @Core.periodic(15)
@@ -138,11 +139,13 @@ def platform_agent(config_path, **kwargs):
             # make sure that we get a ping reply
             response = self.vip.ping(vip_identity).get(timeout=5)
 
+            alias = vip_identity
+
             # make service list not include a platform.
             if vip_identity.startswith('platform.'):
-                vip_identity = vip_identity[len('platform.'):]
+                alias = vip_identity[len('platform.'):]
 
-            self._services[vip_identity] = 1
+            self._services[alias] = vip_identity
 
         @RPC.export
         def services(self):
@@ -206,22 +209,32 @@ def platform_agent(config_path, **kwargs):
                     result = self._install_agents(params['files'])
 
             else:
-                result = {'code': METHOD_NOT_FOUND}
 
-                # Break up the method string and call the correct agent.
                 fields = method.split('.')
 
-                if len(fields) < 3:
-                    result = result = {'code': METHOD_NOT_FOUND}
-                else:
-                    agent_uuid = fields[2]
-                    agent_method = '.'.join(fields[3:])
-                    _log.debug("Calling method {} on agent {}"
-                               .format(agent_method, agent_uuid))
-                    _log.debug("Params is: {}".format(params))
+                if self._services.get(fields[0], None):
+                    service_identity = self._services[fields[0]]
+                    agent_method = fields[1]
 
-                    result = self.vip.rpc.call(agent_uuid, agent_method,
-                                           params).get()
+                    result = self.vip.rpc.call(service_identity, agent_method,
+                                               **params).get()
+
+
+                else:
+
+                    result = {'code': METHOD_NOT_FOUND}
+
+                    if len(fields) < 3:
+                        result = result = {'code': METHOD_NOT_FOUND}
+                    else:
+                        agent_uuid = fields[2]
+                        agent_method = '.'.join(fields[3:])
+                        _log.debug("Calling method {} on agent {}"
+                                   .format(agent_method, agent_uuid))
+                        _log.debug("Params is: {}".format(params))
+
+                        result = self.vip.rpc.call(agent_uuid, agent_method,
+                                               params).get()
 
             if isinstance(result, dict):
                 if 'result' in result:

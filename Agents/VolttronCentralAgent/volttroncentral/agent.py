@@ -389,7 +389,6 @@ def volttron_central_agent(config_path, **kwargs):
             elif method == 'unregister_platform':
                 return self.unregister_platform(**params)
 
-
             fields = method.split('.')
 
             if len(fields) < 3:
@@ -400,27 +399,22 @@ def volttron_central_agent(config_path, **kwargs):
 
             platform = self.registry.get_platform(platform_uuid)
 
-
             if not platform:
                 return RpcResponse(id=id, code=METHOD_NOT_FOUND,
                                    message="Unknown platform {}".format(platform_uuid))
 
-#             if fields[3] == 'list_agents':
-#                 return platform['agent_list']
-
-            # The method to route to the platform.
             platform_method = '.'.join(fields[3:])
 
-
+            # get an agent
             agent = self._get_rpc_agent(platform['vip_address'])
 
             _log.debug("calling identity {} with parameters {} {} {}"
-                       .format(platform['vip_identity'],
-                               id,
-                               platform_method, params))
+                   .format(platform['vip_identity'],
+                           id,
+                           platform_method, params))
             result = agent.vip.rpc.call(platform['vip_identity'],
-                                            "route_request",
-                                            id, platform_method, params).get(timeout=10)
+                                        "route_request",
+                                        id, platform_method, params).get(timeout=10)
 
 
             return result
