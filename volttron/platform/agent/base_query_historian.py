@@ -60,9 +60,10 @@ from collections import defaultdict
 import logging
 from pprint import pprint
 
-from volttron.platform.agent.vipagent import RPCAgent, export, onevent
+from volttron.platform.vipagent import *
+
 from volttron.platform.agent import utils
-from dateutil.parser import parse 
+from dateutil.parser import parse
 import datetime
 import pytz
 import re
@@ -71,34 +72,34 @@ import dateutil
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
-class BaseQueryHistorianAgent(RPCAgent):
-    '''This is the base agent for query historian Agents. 
-    It defines functions that must be defined to impliment the 
-    
+class BaseQueryHistorianAgent(Agent):
+    '''This is the base agent for query historian Agents.
+    It defines functions that must be defined to impliment the
+
     Event processing in publish_to_historian and setup in historian_setup
-    both happen in the same thread separate from the main thread. This is 
-    to allow blocking while processing events. 
+    both happen in the same thread separate from the main thread. This is
+    to allow blocking while processing events.
     '''
 
-    @export()
+    @RPC.export
     def query(self, topic=None, start=None, end=None, skip=0, count=None):
         """Actual RPC handler"""
-        
+
         if topic is None:
             raise TypeError('"Topic" required')
-            
+
         if start is not None:
             try:
                 start = parse(start)
             except TypeError:
                 start = time_parser.parse(start)
-                
+
         if end is not None:
             try:
                 end = parse(end)
             except TypeError:
                 end = time_parser.parse(end)
-        
+
         results = self.query_historian(topic, start, end, skip, count)
         metadata = results.get("metadata")
         if metadata is None:
@@ -110,19 +111,19 @@ class BaseQueryHistorianAgent(RPCAgent):
         """This function should return the results of a query in the form:
         {"values": [(timestamp1: value1), (timestamp2: value2), ...],
          "metadata": {"key1": value1, "key2": value2, ...}}
-         
+
          metadata is not required (The caller will normalize this to {} for you)
         """
-    
-    @onevent('setup')
-    def run_setup(self):
+
+    @Core.receiver('onsetup')
+    def run_setup(self, sender, **kwargs):
         self.historian_setup()
-        
+
     def historian_setup(self):
         '''Optional setup routine, setup any needed db connection here.'''
-    
-#The following code is 
-#Copyright (c) 2011, 2012, Regents of the University of California   
+
+#The following code is
+#Copyright (c) 2011, 2012, Regents of the University of California
 #and is under the same licence as the remainder of the code in this file.
 #Modification were made to remove unneeded pieces and to fit with the
 #intended use.
@@ -167,9 +168,9 @@ def get_timeunit(t):
     elif t.startswith('h'): return 'hours'
     elif t.startswith('m'): return 'minutes'
     elif t.startswith('s'): return 'seconds'
-    
+
 def t_QSTRING(t):
-    r'("[^"\\]*?(\\.[^"\\]*?)*?")|(\'[^\'\\]*?(\\.[^\'\\]*?)*?\')'    
+    r'("[^"\\]*?(\\.[^"\\]*?)*?")|(\'[^\'\\]*?(\\.[^\'\\]*?)*?\')'
     if t.value[0] == '"':
         t.value = t.value[1:-1].replace('\\"', '"')
     elif t.value[0] == "'":
@@ -195,7 +196,7 @@ def t_NUMBER(t):
         except ValueError:
             print "Integer value too large %d", t.value
             t.value = 0
-        
+
     return t
 is_number = lambda x: isinstance(x, int) or isinstance(x, float)
 
@@ -209,7 +210,7 @@ def t_error(t):
     #print("Illegal character '%s'" % t.value[0])
     #t.lexer.skip(1)
 
-smapql_lex = lex.lex()    
+smapql_lex = lex.lex()
 
 TIMEZONE_PATTERNS = [
     "%m/%d/%Y",
@@ -227,11 +228,11 @@ def parse_time(ts):
 def p_query_pair(t):
     """query : '(' timeref ',' timeref ')' """
     t[0] = (t[2], t[4])
-    
+
 def p_query_single(t):
     """query : timeref """
     t[0] = t[1]
-                   
+
 # an absolute time reference.  can be a unix timestamp, a date string,
 # or "now"
 def p_timeref(t):
@@ -245,7 +246,7 @@ def p_timeref(t):
     t[0] = ref
 
 def p_abstime(t):
-    """abstime : NUMBER 
+    """abstime : NUMBER
                | QSTRING
                | NOW"""
     if t[1] == 'now':
@@ -264,11 +265,11 @@ def p_reltime(t):
         t[0] = delta
     else:
         t[0] = t[3] + delta
-        
+
 # Error rule for syntax errors
 def p_error(p):
     raise ValueError("Syntax Error in Query")
 
 # Build the parser
 time_parser = yacc.yacc(write_tables=0)
-        
+

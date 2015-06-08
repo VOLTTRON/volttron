@@ -28,25 +28,6 @@ def do_rpc(method, params=None ):
 def get_dict(text):
     return json.loads(text)
 
-response = do_rpc("get_authorization", {'username': 'admin',
-                                       'password': 'admin'})
-
-if response.ok:
-    authentication = json.loads(response.text)['result']
-    print('Authentication successful')
-else:
-    print('login unsuccessful')
-    sys.exit(0)
-
-response = do_rpc("list_platforms")
-platforms = None
-if response.ok:
-    platforms = json.loads(response.text)['result']
-    print('Platforms retrieved')
-else:
-    print('Getting platforms unsuccessful')
-    sys.exit(0)
-
 def inspect_agent(platform_uuid, agent_uuid):
     method = "platforms.uuid.{}.agents.uuid.{}.inspect".format(platform_uuid,
                                                        agent_uuid)
@@ -68,6 +49,45 @@ def exec_method(platform_uuid, agent_uuid, method, params):
                                                                   method)
     return do_rpc(method, params)
 
+def register_platform(address, identity):
+    print "Registering platform platform"
+    return do_rpc('register_platform', {'address': address,
+                                        'identity': identity});
+
+
+response = do_rpc("get_authorization", {'username': 'admin',
+                                       'password': 'admin'})
+
+if response.ok:
+    authentication = json.loads(response.text)['result']
+    print('Authentication successful')
+else:
+    print('login unsuccessful')
+    sys.exit(0)
+
+response = register_platform('ipc://@/home/dev/.volttron/run/vip.socket',
+                             'platform.agent')
+if response.ok:
+    success = json.loads(response.text)['result']
+    if success:
+        print('default platform registered')
+    else:
+        print("default platform not registered correctly")
+        sys.exit(0)
+else:
+    print('Getting platforms unsuccessful')
+    sys.exit(0)
+
+response = do_rpc("list_platforms")
+platforms = None
+if response.ok:
+    platforms = json.loads(response.text)['result']
+    print('Platforms retrieved')
+else:
+    print('Getting platforms unsuccessful')
+    sys.exit(0)
+
+
 if len(platforms) > 0:
     for p in platforms:
         print(p)
@@ -79,6 +99,7 @@ if len(platforms) > 0:
             agents = json.loads(response.text)['result']
 
             for a in agents:
+                print('agents name {name}'.format(**a))
                 if 'hello' in a['name']: # hello agent only
                     print("routing to: ", p['uuid'])
                     print('agent uuid: ', a['uuid'])

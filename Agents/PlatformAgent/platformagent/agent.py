@@ -53,6 +53,7 @@
 
 #}}}
 
+from __future__ import absolute_import, print_function
 import base64
 from datetime import datetime
 import gevent
@@ -66,12 +67,15 @@ import shutil
 import tempfile
 import uuid
 
+import psutil
+
+import gevent
+from zmq.utils import jsonapi
+from volttron.platform.vipagent import *
+
 from volttron.platform import vip, jsonrpc, control
 from volttron.platform.control import Connection
 from volttron.platform.agent import utils
-from volttron.platform.agent.vipagent import (BaseAgent, periodic, onevent,
-                                              jsonapi, export, ChannelMixin,
-                                              QueryAddressesMixin, spawn)
 
 from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
                                        INVALID_REQUEST, METHOD_NOT_FOUND,
@@ -99,18 +103,58 @@ def platform_agent(config_path, **kwargs):
     if not vc_vip_address:
         raise ValueError('Invalid volttron_central_vip_address')
 
-    class Agent(BaseAgent, QueryAddressesMixin, ChannelMixin):
-        def __init__(self, **kwargs):
+    class PlatformAgent(Agent):
 
-            super(Agent, self).__init__(vip_identity=vip_identity, **kwargs)
-            self.vip_identity = vip_identity
+        def __init__(self, identity=vip_identity, vc_vip_address=vc_vip_address,
+                     vc_vip_identity=vc_vip_address, **kwargs):
+            super(PlatformAgent, self).__init__(identity, **kwargs)
             self.vc_vip_identity = vc_vip_identity
             self.vc_vip_address = vc_vip_address
-            self.agentid = agentid
 
-        @export()
+            print('my identity {} address: {}'.format(self.core.identity,
+                                                      self.core.address))
+            # a list of registered managers of this platform.
+            self._managers = set()
+            self._managers_reachable = {}
+            self._services = {}
+
+
+        @Core.periodic(15)
+        def write_status(self):
+
+            base_topic = 'datalogger/log/platform/status'
+            cpu_times = base_topic + "/cpu_times"
+            virtual_memory = base_topic + "/virtual_memory"
+            disk_partitions = base_topic + "/disk_partiions"
+
+            points = {}
+
+            message = jsonapi.dumps(points)
+            self.vip.pubsub.publish(peer='pubsub',
+                                    topic=cpu_times,
+                                    message=[message])
+
+        @RPC.export
+        def register_service(self, vip_identity):
+            # make sure that we get a ping reply
+            response = self.vip.ping(vip_identity).get(timeout=5)
+
+            alias = vip_identity
+
+            # make service list not include a platform.
+            if vip_identity.startswith('platform.'):
+                alias = vip_identity[len('platform.'):]
+
+            self._services[alias] = vip_identity
+
+        @RPC.export
+        def services(self):
+            return self._services
+
+
+        @RPC.export
         def list_agents(self):
-            result = self.rpc_call("control", "list_agents").get()
+            result = self.vip.rpc.call("control", "list_agents").get()
             return result
 
         def _install_agents(self, agent_files):
@@ -125,12 +169,7 @@ def platform_agent(config_path, **kwargs):
 
                     agent_uuid = control._send_agent(self, 'control', path).get(timeout=15)
                     results.append({'uuid': agent_uuid})
-#                     if 'tag' in f:
-#                         result = self.rpc_call('control', 'tag_agent',
-#                                                [str(agent_uuid), f['tag']]).get(timeout=5)
-#                         results.append({'uuid': str(agent_uuid), 'tag': f['tag']})
-#                     else:
-#                         results.append({'uuid': str(agent_uuid), 'tag': None})
+
                 except Exception as e:
                     results.append({'error': e.message})
                     print("EXCEPTION: "+e.message)
@@ -141,9 +180,10 @@ def platform_agent(config_path, **kwargs):
                 pass
             return results
 
-        @export()
+        @RPC.export
         def route_request(self, id, method, params):
             _log.debug('platform agent routing request: {}, {}'.format(id, method))
+            _log.debug('platform agent routing request params: {}'.format(params))
 
             # First handle the elements that are going to this platform
             if method == 'list_agents':
@@ -152,10 +192,10 @@ def platform_agent(config_path, **kwargs):
                 result = {'result': [{'name':a[1], 'uuid': a[0],
                                       'process_id': a[2][0],
                                       'return_code': a[2][1]}
-                            for a in self.rpc_call('control', method).get()]}
+                            for a in self.vip.rpc.call('control', method).get()]}
 
             elif method in ('agent_status', 'start_agent', 'stop_agent'):
-                status = self.rpc_call('control', method, params).get()
+                status = self.vip.rpc.call('control', method, params).get()
                 if method == 'stop_agent' or status == None:
                     # Note we recurse here to get the agent status.
                     result = self.route_request(id, 'agent_status', params)
@@ -169,21 +209,32 @@ def platform_agent(config_path, **kwargs):
                     result = self._install_agents(params['files'])
 
             else:
-                result = {'code': METHOD_NOT_FOUND}
 
-                # Break up the method string and call the correct agent.
                 fields = method.split('.')
 
-                if len(fields) < 3:
-                    result = result = {'code': METHOD_NOT_FOUND}
-                else:
-                    agent_uuid = fields[2]
-                    agent_method = '.'.join(fields[3:])
-                    _log.debug("Calling method {} on agent {}"
-                               .format(agent_method, agent_uuid))
+                if self._services.get(fields[0], None):
+                    service_identity = self._services[fields[0]]
+                    agent_method = fields[1]
 
-                    result = self.rpc_call(agent_uuid, agent_method,
-                                           params).get()
+                    result = self.vip.rpc.call(service_identity, agent_method,
+                                               **params).get()
+
+
+                else:
+
+                    result = {'code': METHOD_NOT_FOUND}
+
+                    if len(fields) < 3:
+                        result = result = {'code': METHOD_NOT_FOUND}
+                    else:
+                        agent_uuid = fields[2]
+                        agent_method = '.'.join(fields[3:])
+                        _log.debug("Calling method {} on agent {}"
+                                   .format(agent_method, agent_uuid))
+                        _log.debug("Params is: {}".format(params))
+
+                        result = self.vip.rpc.call(agent_uuid, agent_method,
+                                               params).get()
 
             if isinstance(result, dict):
                 if 'result' in result:
@@ -193,39 +244,54 @@ def platform_agent(config_path, **kwargs):
 
             return result
 
-        @export()
+        @RPC.export
         def list_agent_methods(self, method, params, id, agent_uuid):
             return get_error_response(id, INTERNAL_ERROR, 'Not implemented')
 
-        @onevent('setup')
-        def setup(self):
-            _log.debug('platform agent setup.  Connection to {} -> {}'.format(
-                            self.vc_vip_address, self.vc_vip_identity))
-            self._ctl = Connection(self.vc_vip_address,
-                                   peer=self.vc_vip_identity)
+        @RPC.export
+        def manage(self, address, identity):
+            key = (address, identity)
+            self._managers.add(key)
+            self._managers_reachable[key] = True
+            return True
 
-        @onevent("start")
-        @spawn
-        def start(self):
-            _log.debug('Starting service vip info: {}'.format(
-                                                        str(self.__dict__)))
-            vip_addresses = self.query_addresses().get(timeout=10)
-            self._external_vip = find_registration_address(vip_addresses)
-            self._register()
+        @Core.receiver('onstart')
+        def starting(self, sender, **kwargs):
+            self.vip.pubsub.publish(peer='pubsub', topic='/platform',
+                                    message='available')
+        @Core.receiver('onstop')
+        def stoping(self, sender, **kwargs):
+            self.vip.pubsub.publish(peer='pubsub', topic='/platform',
+                                    message='leaving')
 
-        #@periodic(period=60)
-        def _register(self):
-            _log.debug('platformagent sending call register {}'.format(
-                                    str((vip_identity, agentid, self._external_vip))))
-            self._external_vip = self._external_vip
-            self._ctl.call("register_platform", vip_identity, agentid, self._external_vip)
+#         @Core.receiver('onsetup')
+#         def setup(self, sender, **kwargs):
+#             _log.debug('platform agent setup.  Connection to {} -> {}'.format(
+#                             self.vc_vip_address, self.vc_vip_identity))
+#             self._ctl = Connection(self.vc_vip_address,
+#                                    peer=self.vc_vip_identity)
 
-        @onevent("finish")
-        def stop(self):
-            self._ctl.call("unregister_platform", vip_identity)
+#         @Core.receiver('onstart')
+#         def start(self, sender, **kwargs):
+#             _log.debug('Starting service vip info: {}'.format(
+#                                                         str(self.__dict__)))
+#             vip_addresses = self.vip.query_addresses().get(timeout=10)
+#             self._external_vip = find_registration_address(vip_addresses)
+#             self._register()
 
-    Agent.__name__ = 'PlatformAgent'
-    return Agent(**kwargs)
+#         #@periodic(period=60)
+#         def _register(self):
+#             _log.debug('platformagent sending call register {}'.format(
+#                                     str((vip_identity, agentid, self._external_vip))))
+#             self._external_vip = self._external_vip
+#             self._ctl.call("register_platform", vip_identity, agentid, self._external_vip)
+
+#         @Core.receiver('onfinish')
+#         def stop(self, sender, **kwargs):
+#             self._ctl.call("unregister_platform", vip_identity)
+
+    PlatformAgent.__name__ = 'PlatformAgent'
+    return PlatformAgent(identity=vip_identity, **kwargs)
 
 
 def is_ip_private(vip_address):

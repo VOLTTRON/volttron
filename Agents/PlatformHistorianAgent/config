@@ -1,0 +1,5 @@
+{
+    "vip_identity": "platform.historian",
+    "agentid": "platform_historian",
+    "db": "~/.volttron/data/platform.historian.sqlite"
+}

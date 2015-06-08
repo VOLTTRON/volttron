@@ -55,6 +55,7 @@
 #}}}
 
 import datetime
+import errno
 import logging
 import sys
 import requests
@@ -68,22 +69,26 @@ import tornado
 import tornado.ioloop
 import tornado.web
 from tornado.web import url
+from zmq.utils import jsonapi
 
 from authenticate import Authenticate
 
-from volttron.platform.async import AsyncCall
-from volttron.platform import vip, jsonrpc
-from volttron.platform.agent.vipagent import (BaseAgent, RPCAgent, periodic,
-                                              onevent, jsonapi, export)
 from volttron.platform.agent import utils
+from volttron.platform.async import AsyncCall
+from volttron.platform.vipagent import *
+
+# from volttron.platform import vip, jsonrpc
+# from volttron.platform.agent.vipagent import (BaseAgent, RPCAgent, periodic,
+#                                               onevent, jsonapi, export)
+# from volttron.platform.agent import utils
 
 from webserver import (ManagerWebApplication, ManagerRequestHandler,
                        StatusHandler, SessionHandler, RpcResponse)
+
 from volttron.platform.control import list_agents
 from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
                                        INVALID_REQUEST, METHOD_NOT_FOUND,
                                        PARSE_ERROR, UNHANDLED_EXCEPTION)
-
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 WEB_ROOT = p.abspath(p.join(p.dirname(__file__), 'webroot'))
@@ -117,6 +122,16 @@ class PlatformRegistry:
         '''
         self._uuids[platform_uuid]['agent_list'] = agent_list.get()
 
+    def unregister(self, vip_address):
+        if vip_address in self._vips.keys():
+            del self._vips[vip_address]
+            toremove = []
+            for k, v in self._uuids.iteritems():
+                if v['vip_address'] == vip_address:
+                    toremove.append(k)
+            for x in toremove:
+                del self._uuids[x]
+
     def register(self, vip_address, vip_identity, agentid, **kwargs):
         '''Registers a platform agent with the registry.
 
@@ -132,10 +147,9 @@ class PlatformRegistry:
         '''
         if vip_address not in self._vips.keys():
             self._vips[vip_address] = {}
+
         node = self._vips[vip_address]
-#         if vip_identity in node:
-#             raise ValueError('Duplicate vip_address vip_identity for {}-{}'
-#                              .format(vip_address, vip_identity))
+
         if agentid is None:
             raise ValueError('Invalid agentid specified')
 
@@ -152,6 +166,14 @@ class PlatformRegistry:
                                                           vip_identity,
                                                           agentid))
         return node[vip_identity]
+
+    def package(self):
+        return {'vip_addresses': self._vips,
+                'uuids':self._uuids}
+
+    def unpackage(self, data):
+        self._vips = data['vip_addresses']
+        self._uuids = data['uuids']
 
 
 def volttron_central_agent(config_path, **kwargs):
@@ -198,87 +220,174 @@ def volttron_central_agent(config_path, **kwargs):
         '''
         tornado.ioloop.IOLoop.stop()
 
-    class Agent(RPCAgent):
+    class VolttronCentralAgent(Agent):
         """Agent for querying WeatherUndergrounds API"""
 
         def __init__(self, **kwargs):
-            super(Agent, self).__init__(vip_identity=vip_identity, **kwargs)
+            super(VolttronCentralAgent, self).__init__(identity=vip_identity, **kwargs)
             _log.debug("Registering (vip_address, vip_identity) ({}, {})"
-                       .format(self.vip_address, vip_identity))
+                       .format(self.core.address, self.core.identity))
             # a list of peers that have checked in with this agent.
             self.registry = PlatformRegistry()
             self.valid_data = False
             self._vip_channels = {}
-
-#         #@periodic(period=10)
-#         def _update_agent_list(self):
-#             jobs = {}
-#             print "updating agent list"
-#             for p in self.registry.get_platforms():
-#                 jobs[p['uuid']] = gevent.spawn(self.list_agents, uuid=p['uuid'])
-#             gevent.joinall(jobs.values(), timeout=20)
-#             return [self.registry.update_agent_list(j, jobs[j]) for j in jobs]
+            self.persistence_path = ''
 
         def list_agents(self, uuid):
             platform = self.registry.get_platform(uuid)
             results = []
             if platform:
-                if platform['vip_address'] == self.vip_address:
-                    rpc = self
-                elif not platform['vip_address'] in self._vip_channels:
-                    rpc = RPCAgent(platform['vip_address'])
-                    gevent.spawn(rpc.run).join(0)
-                    self._vip_channels[platform['vip_address']] = rpc
-                else:
-                    rpc = self._vip_channels[platform['vip_address']]
+                agent = self._get_rpc_agent(platform['vip_address'])
 
-
-
-                results = rpc.rpc_call(platform['vip_identity'],
-                                      'list_agents').get(timeout=10)
+                results = agent.vip.rpc.call(platform['vip_identity'],
+                                         'list_agents').get(timeout=10)
 
             return results
 
-        @export()
+        @RPC.export
+        def unregister_platform(self, platform_uuid):
+            value = 'Failure'
+            platform = self.registry.get_platform(platform_uuid)
+
+            if platform:
+                self.registry.unregister(platform['vip_address'])
+                self._store_registry()
+                value = 'Success'
+
+            return value
+
+        @RPC.export
         def register_platform(self, peer_identity, name, peer_address):
             '''Agents will call this to register with the platform.
 
             This method is successful unless an error is raised.
             '''
-            platform = self.registry.register(peer_address, peer_identity,
-                                              name)
+            value = self._handle_register_platform(peer_address, peer_identity, name)
 
+            if not value:
+                return 'Platform Unavailable'
 
-#         @export()
-#         def unregister_platform(self, peer_identity):
-#             del self.platform_dict[peer_identity]['identity_params']
-#             _log.debug("Platform {} unregistered successfully"
-#                        .format(peer_identity))
-#             return True
+            return value
 
-        @onevent('setup')
-        def setup(self):
-            print "Setting up"
+        def _store_registry(self):
+            self._store('registry', self.registry.package())
+
+        def _handle_register_platform(self, address, identity=None, agentid='platform.agent'):
+            _log.debug('Registering platform identity {} at vip address {} with name {}'
+                       .format(identity, address, agentid))
+            agent = self._get_rpc_agent(address)
+
+            if not identity:
+                identity = 'platform.agent'
+
+            result = agent.vip.rpc.call(identity, "manage",
+                                        address=self.core.address,
+                                        identity=self.core.identity)
+            if result.get(timeout=10):
+                node = self.registry.register(address, identity, agentid)
+
+                if node:
+                    self._store_registry()
+                return node
+
+            return False
+
+        def _get_rpc_agent(self, address):
+            if address == self.core.address:
+                agent = self
+            elif address not in self._vip_channels:
+                agent = Agent(address=address)
+                gevent.spawn(agent.core.run).join(0)
+                self._vip_channels[address] = agent
+
+            else:
+                agent = self._vip_channels[address]
+            return agent
+
+        @Core.receiver('onsetup')
+        def setup(self, sender, **kwargs):
+            if not os.environ.get('VOLTTRON_HOME', None):
+                raise ValueError('VOLTTRON_HOME environment must be set!')
+
+            db_path = os.path.join(os.environ.get('VOLTTRON_HOME'),
+                                   'data/volttron.central')
+            db_dir  = os.path.dirname(db_path)
+            try:
+                os.makedirs(db_dir)
+            except OSError as exc:
+                if exc.errno != errno.EEXIST or not os.path.isdir(db_dir):
+                    raise
+            self.persistence_path = db_path
+
+            # Returns None if there has been no registration of any platforms.
+            registered = self._load('registry')
+            if registered:
+                self.registry.unpackage(registered)
+
             self.async_caller = AsyncCall()
 
-        @onevent("start")
-        def start(self):
+        @Core.receiver('onstart')
+        def starting(self, sender, **kwargs):
             '''This event is triggered when the platform is ready for the agent
             '''
             # Start tornado in its own thread
             threading.Thread(target=startWebServer, args=(self,)).start()
 
-        @onevent("finish")
-        def finish(self):
+        def __load_persist_data(self):
+            persist_kv = None
+
+            if os.path.exists(self.persistence_path):
+                try:
+                    with open(self.persistence_path, 'rb') as file:
+                        persist_kv = jsonapi.loads(file.read())
+                        file.close()
+                except Exception as err:
+                    _log.error("Couldn't read persistence data {}"
+                               .format(err.message))
+
+            return persist_kv
+
+
+        def _store(self, key, data):
+            persist = self.__load_persist_data()
+
+            if not persist:
+                persist = {}
+
+            persist[key] = data
+
+            with open(self.persistence_path, 'wb') as file:
+                file.write(jsonapi.dumps(persist))
+
+
+        def _load(self, key):
+            persist = self.__load_persist_data()
+
+            value = None
+
+            if persist:
+                value = persist.get(key, None)
+
+            return value
+
+        @Core.receiver('onfinish')
+        def finish(self, sender, **kwargs):
             stopWebServer()
+
+        def _handle_list_platforms(self):
+            return [{'uuid': x['uuid'],
+                         'name': x['agentid']}
+                        for x in self.registry.get_platforms()]
 
         def route_request(self, id, method, params):
             '''Route request to either a registered platform or handle here.'''
-
-            if (method == 'list_platforms'):
-                return [{'uuid': x['uuid'],
-                         'name': x['agentid']}
-                        for x in self.registry.get_platforms()]
+            print('inside route_request {}, {}, {}'.format(id, method, params))
+            if method == 'list_platforms':
+                return self._handle_list_platforms()
+            elif method == 'register_platform':
+                return self._handle_register_platform(**params)
+            elif method == 'unregister_platform':
+                return self.unregister_platform(**params)
 
             fields = method.split('.')
 
@@ -290,38 +399,28 @@ def volttron_central_agent(config_path, **kwargs):
 
             platform = self.registry.get_platform(platform_uuid)
 
-
             if not platform:
                 return RpcResponse(id=id, code=METHOD_NOT_FOUND,
                                    message="Unknown platform {}".format(platform_uuid))
 
-#             if fields[3] == 'list_agents':
-#                 return platform['agent_list']
-
-            # The method to route to the platform.
             platform_method = '.'.join(fields[3:])
 
+            # get an agent
+            agent = self._get_rpc_agent(platform['vip_address'])
 
+            _log.debug("calling identity {} with parameters {} {} {}"
+                   .format(platform['vip_identity'],
+                           id,
+                           platform_method, params))
+            result = agent.vip.rpc.call(platform['vip_identity'],
+                                        "route_request",
+                                        id, platform_method, params).get(timeout=10)
 
-            # Are we talking to our own vip address?
-            if platform['vip_address'] == self.vip_address:
-                result = self.rpc_call(str(platform['vip_identity']), 'route_request',
-                                       [id, platform_method, params]).get()
-            else:
-
-                if not platform['vip_address'] in self._vip_channels:
-                    rpc = RPCAgent(platform['vip_address'])
-                    gevent.spawn(rpc.run).join(0)
-                    self._vip_channels[platform['vip_address']] = rpc
-                else:
-                    rpc = self._vip_channels[platform['vip_address']]
-
-                result = rpc.rpc_call(platform['vip_identity'], "route_request", [id, platform_method, params]).get(timeout=10)
 
             return result
 
-    Agent.__name__ = 'VolttronCentralAgent'
-    return Agent(**kwargs)
+    VolttronCentralAgent.__name__ = 'VolttronCentralAgent'
+    return VolttronCentralAgent(**kwargs)
 
 
 def main(argv=sys.argv):
