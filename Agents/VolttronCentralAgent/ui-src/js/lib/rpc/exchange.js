@@ -67,7 +67,7 @@ function RpcExchange(request, redactedParams) {
                 throw new RpcError(response.error);
             }
 
-            return response.result;
+            return JSON.parse(JSON.stringify(response.result));
         })
         .catch(xhr.Error, function (error) {
             exchange.error = error;
