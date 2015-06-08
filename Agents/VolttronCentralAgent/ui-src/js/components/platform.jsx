@@ -5,48 +5,64 @@ var Router = require('react-router');
 
 var AgentRow = require('./agent-row');
 var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
-var platformManagerStore = require('../stores/platform-manager-store');
+var platformsStore = require('../stores/platforms-store');
 
 var Platform = React.createClass({
     mixins: [Router.State],
-    getInitialState: getStateFromStores,
+    getInitialState: function () {
+        return getStateFromStores(this);
+    },
     componentWillMount: function () {
         platformManagerActionCreators.initialize();
     },
     componentDidMount: function () {
-        platformManagerStore.addChangeListener(this._onStoresChange);
+        platformsStore.addChangeListener(this._onStoresChange);
     },
     componentWillUnmount: function () {
-        platformManagerStore.removeChangeListener(this._onStoresChange);
+        platformsStore.removeChangeListener(this._onStoresChange);
+        platformManagerActionCreators.clearPlatformError(this.state.platform);
     },
     _onStoresChange: function () {
-        this.setState(getStateFromStores.call(this));
+        this.setState(getStateFromStores(this));
     },
     _onFileChange: function (e) {
-        var file = e.target.files[0];
+        if (!e.target.files.length) { return; }
 
-        if (file) {
-            var reader = new FileReader();
-            var platform = this.state.platform;
+        var reader = new FileReader();
+        var platform = this.state.platform;
+        var files = e.target.files;
+        var parsedFiles = [];
+
+        function doFile(index) {
+            if (index === files.length) {
+                platformManagerActionCreators.installAgents(platform, parsedFiles);
+                return;
+            }
 
             reader.onload = function () {
-                platformManagerActionCreators.installAgent(
-                    platform,
-                    {
-                        name: file.name,
-                        data: reader.result,
-                    }
-                );
+                parsedFiles.push({
+                    file_name: files[index].name,
+                    file: reader.result,
+                });
+                doFile(index + 1);
             };
 
-            reader.readAsDataURL(file);
+            reader.readAsDataURL(files[index]);
         }
 
+        doFile(0);
     },
     render: function () {
         if (!this.state.platform) {
             return (
-                <p>Platform not found.</p>
+                <div className="view">
+                    <h2>
+                        <Router.Link to="platforms">Platforms</Router.Link>
+                        &nbsp;/&nbsp;
+                        {this.getParams().uuid}
+                    </h2>
+                    <p>Platform not found.</p>
+                </div>
             );
         }
 
@@ -73,34 +89,49 @@ var Platform = React.createClass({
                         </tr>
                     </thead>
                     <tbody>
-                        {platform.agents.map(function (agent) {
-                            return (
-                                <AgentRow
-                                    key={agent.uuid}
-                                    platform={platform}
-                                    agent={agent} />
-                            );
-                        })}
+                        {platform.agents
+                            .sort(function (a, b) {
+                                if (a.name.toLowerCase() > b.name.toLowerCase()) { return 1; }
+                                if (a.name.toLowerCase() < b.name.toLowerCase()) { return -1; }
+                                return 0;
+                            })
+                            .map(function (agent) {
+                                return (
+                                    <AgentRow
+                                        key={agent.uuid}
+                                        platform={platform}
+                                        agent={agent} />
+                                );
+                            })
+                        }
                     </tbody>
                 </table>
             );
         }
 
         return (
-            <div className="view" key={platform.uuid}>
-                <h2>{platform.name} ({platform.uuid})</h2>
+            <div className="view">
+                {this.state.error && (
+                    <div className="view__error error">{this.state.error}</div>
+                )}
+                <h2>
+                    <Router.Link to="platforms">Platforms</Router.Link>
+                    &nbsp;/&nbsp;
+                    {platform.name} ({platform.uuid})
+                </h2>
                 <h3>Agents</h3>
                 {agents}
-                <h3>Install agent</h3>
-                <input type="file" onChange={this._onFileChange} />
+                <h3>Install agents</h3>
+                <input type="file" multiple onChange={this._onFileChange} />
             </div>
         );
     },
 });
 
-function getStateFromStores() {
+function getStateFromStores(component) {
     return {
-        platform: platformManagerStore.getPlatform(this.getParams().uuid),
+        platform: platformsStore.getPlatform(component.getParams().uuid),
+        error: platformsStore.getLastError(component.getParams().uuid),
     };
 }
 

@@ -55,23 +55,5 @@
 # under Contract DE-AC05-76RL01830
 #}}}
 
-
-'''Core package.'''
-
-
-import os
-
-__import__('warnings').filterwarnings(
-    'default', 'the vipagent module', DeprecationWarning)
-
-__version__ = '2.0'
-
-
-def get_home():
-    '''Return the home directory with user and variables expanded.
-
-    If the VOLTTRON_HOME environment variable is set, it used.
-    Otherwise, the default value of '~/.volttron' is used.
-    '''
-    return os.path.expanduser(os.path.expandvars(
-        os.environ.get('VOLTTRON_HOME', '~/.volttron')))
+class SubsystemBase(object):
+    pass

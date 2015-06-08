@@ -7,7 +7,6 @@ var loginFormStore = require('../stores/login-form-store');
 var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
 
 var LoginForm = React.createClass({
-    mixins: [Router.Navigation],
     getInitialState: getStateFromStores,
     componentDidMount: function () {
         loginFormStore.addChangeListener(this._onStoresChange);
@@ -31,7 +30,6 @@ var LoginForm = React.createClass({
             this.state.username,
             this.state.password
         );
-        this.transitionTo('/');
     },
     render: function () {
         return (
@@ -58,9 +56,9 @@ var LoginForm = React.createClass({
                     disabled={!this.state.username || !this.state.password}
                 />
                 {this.state.error ? (
-                    <div className="error">
+                    <span className="login-form__error error">
                         {this.state.error.message} ({this.state.error.code})
-                    </div>
+                    </span>
                 ) : null }
             </form>
         );

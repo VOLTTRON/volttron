@@ -55,23 +55,40 @@
 # under Contract DE-AC05-76RL01830
 #}}}
 
+from __future__ import absolute_import
 
-'''Core package.'''
-
-
-import os
-
-__import__('warnings').filterwarnings(
-    'default', 'the vipagent module', DeprecationWarning)
-
-__version__ = '2.0'
+import errno
 
 
-def get_home():
-    '''Return the home directory with user and variables expanded.
+__all__ = ['VIPError', 'Unreachable', 'Again', 'UnknownSubsystem']
 
-    If the VOLTTRON_HOME environment variable is set, it used.
-    Otherwise, the default value of '~/.volttron' is used.
-    '''
-    return os.path.expanduser(os.path.expandvars(
-        os.environ.get('VOLTTRON_HOME', '~/.volttron')))
+
+class VIPError(Exception):
+    def __init__(self, errnum, msg, *args):
+        super(VIPError, self).__init__(errnum, msg, *args)
+        self.errno = errnum
+        self.msg = msg
+
+    def __string__(self):
+        return 'VIP Error (%d): %s' % (self.errno, self.msg)
+
+    def __repr__(self):
+        return '%s%r' % (type(self).__name__, self.args)
+
+    @classmethod
+    def from_errno(cls, errnum, msg, *args):
+        errnum = int(errnum)
+        return {
+            errno.EHOSTUNREACH: Unreachable,
+            errno.EAGAIN: Again,
+            errno.EPROTONOSUPPORT: UnknownSubsystem,
+        }.get(errnum, cls)(errnum, msg, *args)
+
+class Unreachable(VIPError):
+    pass
+
+class Again(VIPError):
+    pass
+
+class UnknownSubsystem(VIPError):
+    pass

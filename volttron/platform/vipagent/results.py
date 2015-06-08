@@ -55,23 +55,33 @@
 # under Contract DE-AC05-76RL01830
 #}}}
 
+from __future__ import absolute_import
 
-'''Core package.'''
+import random
+import weakref
 
-
-import os
-
-__import__('warnings').filterwarnings(
-    'default', 'the vipagent module', DeprecationWarning)
-
-__version__ = '2.0'
+from gevent.event import AsyncResult
 
 
-def get_home():
-    '''Return the home directory with user and variables expanded.
+__all__ = ['counter', 'ResultsDictionary']
 
-    If the VOLTTRON_HOME environment variable is set, it used.
-    Otherwise, the default value of '~/.volttron' is used.
-    '''
-    return os.path.expanduser(os.path.expandvars(
-        os.environ.get('VOLTTRON_HOME', '~/.volttron')))
+
+def counter(start=None, minimum=0, maximum=2**64-1):
+    count = random.randint(minimum, maximum) if start is None else start
+    while True:
+        yield count
+        count += 1
+        if count >= maximum:
+            count = minimum
+
+
+class ResultsDictionary(weakref.WeakValueDictionary):
+    def __init__(self):
+        weakref.WeakValueDictionary.__init__(self)
+        self._counter = counter()
+
+    def next(self):
+        result = AsyncResult()
+        result.ident = ident = '%s.%s' % (next(self._counter), hash(result))
+        self[ident] = result
+        return result

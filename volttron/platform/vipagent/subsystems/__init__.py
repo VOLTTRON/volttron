@@ -55,23 +55,13 @@
 # under Contract DE-AC05-76RL01830
 #}}}
 
+from __future__ import absolute_import
 
-'''Core package.'''
-
-
-import os
-
-__import__('warnings').filterwarnings(
-    'default', 'the vipagent module', DeprecationWarning)
-
-__version__ = '2.0'
+from .channel import Channel
+from .hello import Hello
+from .ping import Ping
+from .pubsub import PubSub
+from .rpc import RPC
 
 
-def get_home():
-    '''Return the home directory with user and variables expanded.
-
-    If the VOLTTRON_HOME environment variable is set, it used.
-    Otherwise, the default value of '~/.volttron' is used.
-    '''
-    return os.path.expanduser(os.path.expandvars(
-        os.environ.get('VOLTTRON_HOME', '~/.volttron')))
+__all__ = ['Ping', 'RPC', 'Hello', 'PubSub', 'Channel']

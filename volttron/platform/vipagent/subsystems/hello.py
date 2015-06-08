@@ -55,23 +55,52 @@
 # under Contract DE-AC05-76RL01830
 #}}}
 
+from __future__ import absolute_import
 
-'''Core package.'''
+import weakref
 
-
-import os
-
-__import__('warnings').filterwarnings(
-    'default', 'the vipagent module', DeprecationWarning)
-
-__version__ = '2.0'
+from .base import SubsystemBase
+from ..errors import VIPError
+from ..results import ResultsDictionary
+from ... import vip
 
 
-def get_home():
-    '''Return the home directory with user and variables expanded.
+__all__ = ['Hello']
 
-    If the VOLTTRON_HOME environment variable is set, it used.
-    Otherwise, the default value of '~/.volttron' is used.
-    '''
-    return os.path.expanduser(os.path.expandvars(
-        os.environ.get('VOLTTRON_HOME', '~/.volttron')))
+
+class Hello(SubsystemBase):
+    def __init__(self, core):
+        self.core = weakref.ref(core)
+        self._results = ResultsDictionary()
+        core.register('hello', self._handle_hello, self._handle_error)
+        core.register('welcome', self._handle_welcome, self._handle_error)
+
+    def hello(self, peer=b''):
+        socket = self.core().socket
+        result = next(self._results)
+        socket.send_vip(peer, b'hello', msg_id=result.ident)
+        return result
+
+    __call__ = hello
+
+    def _handle_hello(self, message):
+        socket = self.core().socket
+        message.subsystem = vip._WELCOME
+        message.user = b''
+        message.args = [vip._VERSION, socket.identity, message.peer]
+        socket.send_vip_object(message, copy=False)
+
+    def _handle_welcome(self, message):
+        try:
+            result = self._results.pop(bytes(message.id))
+        except KeyError:
+            return
+        result.set([bytes(arg) for arg in message.args])
+
+    def _handle_error(self, message):
+        try:
+            result = self._results.pop(bytes(message.id))
+        except KeyError:
+            return
+        result.set_exception(
+            VIPError.from_errno(*[bytes(arg) for arg in message.args]))
