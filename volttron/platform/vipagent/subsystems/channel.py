@@ -157,17 +157,11 @@ class Channel(SubsystemBase):
                 name = ''.join(random.choice(string.printable[:-5])
                                for i in range(30))
                 channel = (peer, name)
-                try:
-                    self._channels[channel]
-                except KeyError:
+                if channel not in self._channels:
                     break
         else:
             channel = (peer, name)
-            try:
-                self._channels[channel]
-            except KeyError:
-                pass
-            else:
+            if channel in self._channels:
                 raise ValueError('channel %r is unavailable' % (name,))
         sock = self.context.socket(zmq.DEALER)
         sock.identity = ident = '%s.%s' % (hash(channel), hash(sock))
