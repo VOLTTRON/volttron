@@ -72,11 +72,12 @@ import traceback
 
 import gevent
 
-from .agent.vipagent import BaseAgent, export
 from . import aip as aipmod
 from . import config
+from .agent import utils
 from .jsonrpc import RemoteError
-from volttron.platform.agent import utils
+from .vipagent import Agent as VIPAgent
+from .vipagent.subsystems.rpc import RPC
 
 try:
     import volttron.restricted
@@ -93,50 +94,50 @@ _log = logging.getLogger(os.path.basename(sys.argv[0])
                          if __name__ == '__main__' else __name__)
 
 
-class ControlService(BaseAgent):
+class ControlService(VIPAgent):
     def __init__(self, aip, *args, **kwargs):
         super(ControlService, self).__init__(*args, **kwargs)
         self._aip = aip
 
-    @export()
+    @RPC.export
     def clear_status(self, clear_all=False):
         self._aip.clear_status(clear_all)
 
-    @export()
+    @RPC.export
     def agent_status(self, uuid):
         if not isinstance(uuid, basestring):
             raise TypeError("expected a string for 'uuid'; got {!r}".format(
                 type(uuid).__name__))
         return self._aip.agent_status(uuid)
 
-    @export()
+    @RPC.export
     def status_agents(self):
         return self._aip.status_agents()
 
-    @export()
+    @RPC.export
     def start_agent(self, uuid):
         if not isinstance(uuid, basestring):
             raise TypeError("expected a string for 'uuid'; got {!r}".format(
                 type(uuid).__name__))
         self._aip.start_agent(uuid)
 
-    @export()
+    @RPC.export
     def stop_agent(self, uuid):
         if not isinstance(uuid, basestring):
             raise TypeError("expected a string for 'uuid'; got {!r}".format(
                 type(uuid).__name__))
         self._aip.stop_agent(uuid)
 
-    @export()
+    @RPC.export
     def shutdown(self):
         self._aip.shutdown()
 
-    @export()
+    @RPC.export
     def stop_platform(self):
         # XXX: Restrict call as it kills the process
-        self.vip_socket.send_vip(b'', b'quit')
+        self.core.socket.send_vip(b'', b'quit')
 
-    @export()
+    @RPC.export
     def list_agents(self):
         tag = self._aip.agent_tag
         priority = self._aip.agent_priority
@@ -144,7 +145,7 @@ class ControlService(BaseAgent):
                 'tag': tag(uuid), 'priority': priority(uuid)}
                 for uuid, name in self._aip.list_agents().iteritems()]
 
-    @export()
+    @RPC.export
     def tag_agent(self, uuid, tag):
         if not isinstance(uuid, basestring):
             raise TypeError("expected a string for 'uuid'; got {!r}".format(
@@ -154,14 +155,14 @@ class ControlService(BaseAgent):
                             'got {!r}'.format(type(tag).__name__))
         return self._aip.tag_agent(uuid, tag)
 
-    @export()
+    @RPC.export
     def remove_agent(self, uuid):
         if not isinstance(uuid, basestring):
             raise TypeError("expected a string for 'uuid'; got {!r}".format(
                 type(uuid).__name__))
         self._aip.remove_agent(uuid)
 
-    @export()
+    @RPC.export
     def prioritize_agent(self, uuid, priority='50'):
         if not isinstance(uuid, basestring):
             raise TypeError("expected a string for 'uuid'; got {!r}".format(
@@ -171,10 +172,10 @@ class ControlService(BaseAgent):
                             'got {!r}'.format(type(priority).__name__))
         self._aip.prioritize_agent(uuid, priority)
 
-    @export()
+    @RPC.export
     def install_agent(self, name, channel_name):
-        peer = bytes(self.local.vip_message.peer)
-        channel = self.channel_create(peer, channel_name)
+        peer = bytes(self.vip.rpc.context.vip_message.peer)
+        channel = self.vip.channel(peer, channel_name)
         channel.send('')
         tmpdir = tempfile.mkdtemp()
         try:
@@ -439,10 +440,10 @@ def _send_agent(connection, peer, path):
     file = open(path, 'rb')
     try:
         name = str(id(file))
-        channel = connection.channel_create(peer, name)
+        channel = connection.vip.channel(peer, name)
         try:
-            result = connection.rpc_call(
-                peer, 'install_agent', [os.path.basename(path), name])
+            result = connection.vip.rpc.call(
+                peer, 'install_agent', os.path.basename(path), name)
             channel.recv()
             while True:
                 data = file.read(16384)
@@ -494,22 +495,22 @@ class Connection(object):
         self.address = address
         self.timeout = timeout
         self.peer = peer
-        self.server = BaseAgent(vip_address=self.address)
+        self.server = VIPAgent(address=self.address)
         self._greenlet = None
 
     def _connect(self):
         if self._greenlet is None:
-            self._greenlet = gevent.spawn(self.server.run)
+            self._greenlet = gevent.spawn(self.server.core.run)
             gevent.sleep(0)
 
     def call(self, method, *args, **kwargs):
         self._connect()
-        return self.server.rpc_call(
-            self.peer, method, args, kwargs).get(timeout=self.timeout)
+        return self.server.vip.rpc.call(
+            self.peer, method, *args, **kwargs).get(timeout=self.timeout)
 
     def notify(self, method, *args, **kwargs):
         self._connect()
-        return self.server.rpc_notify(self.peer, method, args, kwargs)
+        return self.server.vip.rpc.notify(self.peer, method, *args, **kwargs)
 
     def kill(self, *args, **kwargs):
         if self._greenlet is not None:
