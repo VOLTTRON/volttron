@@ -62,11 +62,9 @@ import requests
 import os
 import os.path as p
 import re
-import shutil
-import tempfile
 import uuid
 
-from volttron.platform import vip, jsonrpc, control
+from volttron.platform import vip, jsonrpc
 from volttron.platform.control import Connection
 from volttron.platform.agent import utils
 from volttron.platform.agent.vipagent import (BaseAgent, periodic, onevent,
@@ -114,17 +112,27 @@ def platform_agent(config_path, **kwargs):
             return result
 
         def _install_agents(self, agent_files):
-            tmpdir = tempfile.mkdtemp()
+            def chunk_decode(data, chunk_size):
+                for i in xrange(0, len(data), chunk_size):
+                    yield base64.b64decode(data[i:i+chunk_size])
             results = []
             for f in agent_files:
                 try:
-
-                    path = os.path.join(tmpdir, f['file_name'])
-                    with open(path, 'wb') as fout:
-                        fout.write(base64.decodestring(f['file'].split('base64,')[1]))
-
-                    agent_uuid = control._send_agent(self, 'control', path).get(timeout=15)
-                    results.append({'uuid': agent_uuid})
+                    data = f['file'].split(';base64,')[1]
+                    channel_name = str(uuid.uuid4())
+                    channel = self.channel_create('control', channel_name)
+                    try:
+                        result = self.rpc_call('control', 'install_agent',
+                            [f['file_name'], channel_name])
+                        channel.recv()
+                        for chunk in chunk_decode(data, 16384):
+                            channel.send(chunk)
+                        channel.send('')
+                        agent_uuid = result.get(timeout=15)
+                        results.append({'uuid': agent_uuid})
+                    finally:
+                        channel.close()
+                        del channel
 #                     if 'tag' in f:
 #                         result = self.rpc_call('control', 'tag_agent',
 #                                                [str(agent_uuid), f['tag']]).get(timeout=5)
@@ -134,11 +142,6 @@ def platform_agent(config_path, **kwargs):
                 except Exception as e:
                     results.append({'error': e.message})
                     print("EXCEPTION: "+e.message)
-
-            try:
-                shutil.rmtree(tmpdir)
-            except:
-                pass
             return results
 
         @export()

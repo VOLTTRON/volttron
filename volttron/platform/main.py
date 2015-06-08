@@ -79,8 +79,9 @@ from . import aip
 from . import __version__
 from . import config
 from . import vip
+from .agent import utils
 from .control import ControlService
-from .agent import utils, vipagent
+from .vipagent import Agent as VIPAgent, Core
 
 try:
     import volttron.restricted
@@ -248,10 +249,10 @@ class Router(vip.BaseRouter):
             frames[5] = 'query.addresses.result'
             return frames
 
-class PubSubService(vipagent.VIPAgent, vipagent.RPCMixin, vipagent.PubSubMixin):
-    @vipagent.onevent('start')
-    def setup_agent(self):
-        self.pubsub_add_bus('')
+class PubSubService(VIPAgent):
+    @Core.receiver('onstart')
+    def setup_agent(self, sender, **kwargs):
+        self.vip.pubsub.add_bus('')
 
 
 def agent_exchange(in_addr, out_addr, logger_name=None):
@@ -528,9 +529,9 @@ def main(argv=sys.argv):
         exchange = gevent.spawn(
             agent_exchange, opts.publish_address, opts.subscribe_address)
         control = gevent.spawn(ControlService(
-            opts.aip, vip_address='inproc://vip', vip_identity='control').run)
+            opts.aip, address='inproc://vip', identity='control').core.run)
         pubsub = gevent.spawn(PubSubService(
-            vip_address='inproc://vip', vip_identity='pubsub').run)
+            address='inproc://vip', identity='pubsub').core.run)
         if HAVE_RESTRICTED and opts.mobility:
             address = (opts.mobility_address, opts.mobility_port)
             mobility_in = comms_server.ThreadedServer(
