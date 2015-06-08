@@ -528,7 +528,7 @@ def main(argv=sys.argv):
         exchange = gevent.spawn(
             agent_exchange, opts.publish_address, opts.subscribe_address)
         control = gevent.spawn(ControlService(
-            opts.aip, vip_address='inproc://vip', vip_identity='control').run)
+            opts.aip, address='inproc://vip', identity='control').core.run)
         pubsub = gevent.spawn(PubSubService(
             vip_address='inproc://vip', vip_identity='pubsub').run)
         if HAVE_RESTRICTED and opts.mobility:
