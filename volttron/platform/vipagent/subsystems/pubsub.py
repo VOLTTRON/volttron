@@ -233,11 +233,11 @@ class PubSub(SubsystemBase):
                             del unsubscribe[bus]
             if unsubscribe:
                 rpc.batch(
-                    peer, ((True, 'pubsub.unsubscribe', (list(topics), bus), None)
+                    peer, ((True, 'pubsub.unsubscribe', (list(topics), bus), {})
                            for bus, topics in unsubscribe.iteritems()))
             if subscribe:
                 rpc.batch(
-                    peer, ((True, 'pubsub.subscribe', (list(topics), bus), None)
+                    peer, ((True, 'pubsub.subscribe', (list(topics), bus), {})
                            for bus, topics in subscribe.iteritems()))
         finally:
             self._synchronizing -= 1
@@ -273,8 +273,7 @@ class PubSub(SubsystemBase):
             except KeyError:
                 subscriptions[prefix] = callbacks = set()
             callbacks.add(callback)
-        result = self.rpc().call(
-            peer, 'pubsub.subscribe', prefix, bus=bus)
+        result = self.rpc().call(peer, 'pubsub.subscribe', prefix, bus=bus)
         result.rawlink(finish)
         return result
     
