@@ -57,6 +57,7 @@
 
 from __future__ import absolute_import, print_function
 
+from contextlib import contextmanager
 import heapq
 import inspect
 import logging
@@ -75,7 +76,7 @@ from ..vip import green as vip
 from ... import platform
 
 
-__all__ = ['Core']
+__all__ = ['Core', 'killing']
 
 
 _log = logging.getLogger(__name__)
@@ -358,3 +359,19 @@ class Core(object):
             annotate(method, list, 'core.schedule', (deadline, args, kwargs))
             return method
         return decorate
+
+
+@contextmanager
+def killing(greenlet, *args, **kwargs):
+    '''Context manager to automatically kill spawned greenlets.
+
+    Allows one to kill greenlets that would continue after a timeout:
+
+        with killing(agent.vip.pubsub.subscribe(
+                'peer', 'topic', callback)) as subscribe:
+            subscribe.get(timeout=10)
+    '''
+    try:
+        yield greenlet
+    finally:
+        greenlet.kill(*args, **kwargs)
