@@ -275,7 +275,7 @@ class PubSub(SubsystemBase):
             callbacks.add(callback)
         result = self.rpc().call(
             peer, 'pubsub.subscribe', prefix, bus=bus)
-        result.link(finish)
+        result.rawlink(finish)
         return result
     
     @subscribe.classmethod
