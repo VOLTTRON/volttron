@@ -28,7 +28,7 @@ var platformManagerActionCreators = {
 
                 platformManagerActionCreators.loadPlatforms();
             })
-            .catch(handleRpcError);
+            .catch(rpc.Error, handleRpcError);
     },
     clearAuthorization: function () {
         dispatcher.dispatch({
@@ -52,7 +52,7 @@ var platformManagerActionCreators = {
                     platformManagerActionCreators.loadPlatform(platform);
                 });
             })
-            .catch(handleRpcError);
+            .catch(rpc.Error, handleRpcError);
     },
     loadPlatform: function (platform) {
         var authorization = authorizationStore.getAuthorization();
@@ -99,7 +99,7 @@ var platformManagerActionCreators = {
                         });
                     });
             })
-            .catch(handleRpcError);
+            .catch(rpc.Error, handleRpcError);
     },
     clearPlatformError: function (platform) {
         dispatcher.dispatch({
@@ -123,16 +123,18 @@ var platformManagerActionCreators = {
             authorization: authorization,
         }).promise
             .then(function (status) {
-                agent.actionPending = false;
                 agent.process_id = status.process_id;
                 agent.return_code = status.return_code;
+            })
+            .catch(rpc.Error, handleRpcError)
+            .finally(function () {
+                agent.actionPending = false;
 
                 dispatcher.dispatch({
                     type: ACTION_TYPES.RECEIVE_PLATFORM,
                     platform: platform,
                 });
-            })
-            .catch(handleRpcError);
+            });
     },
     stopAgent: function (platform, agent) {
         var authorization = authorizationStore.getAuthorization();
@@ -150,16 +152,18 @@ var platformManagerActionCreators = {
             authorization: authorization,
         }).promise
             .then(function (status) {
-                agent.actionPending = false;
                 agent.process_id = status.process_id;
                 agent.return_code = status.return_code;
+            })
+            .catch(rpc.Error, handleRpcError)
+            .finally(function () {
+                agent.actionPending = false;
 
                 dispatcher.dispatch({
                     type: ACTION_TYPES.RECEIVE_PLATFORM,
                     platform: platform,
                 });
-            })
-            .catch(handleRpcError);
+            });
     },
     installAgents: function (platform, files) {
         platformManagerActionCreators.clearPlatformError(platform);
@@ -203,8 +207,6 @@ function handleRpcError(error) {
         });
 
         platformManagerActionCreators.clearAuthorization();
-    } else {
-        throw error;
     }
 }
 
