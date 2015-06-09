@@ -250,7 +250,7 @@ class Core(object):
         self._schedule_event = gevent.event.Event()
         self._async = gevent.get_hub().loop.async()
         self._async.start(handle_async)
-        current.link(lambda glt: self._async.stop)
+        current.link(lambda glt: self._async.stop())
 
         self.socket = vip.Socket(self.context)
         if self.identity:
