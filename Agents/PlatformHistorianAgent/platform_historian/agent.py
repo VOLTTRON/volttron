@@ -88,6 +88,10 @@ def platform_historian_agent(config_path, **kwargs):
         '''
         @Core.receiver("onstart")
         def starting(self, sender, **kwargs):
+
+            # Check to see if the platform agent is available, if it isn't then
+            # subscribe to the /platform topic to be notified when the platform
+            # agent becomes available.
             try:
                 ping = self.vip.ping('platform.agent', 'awake?').get(timeout=3)
                 self.vip.rpc.call('platform.agent', 'register_service',
@@ -99,10 +103,10 @@ def platform_historian_agent(config_path, **kwargs):
 
         def __platform(self, peer, sender, bus, topic, headers, message):
             _log.debug('Platform is now: ', message)
-#             if message == 'available':
-#                 gevent.spawn(self.vip.rpc.call, 'platform.agent', 'register_service',
-#                                   self.core.identity)
-#                 gevent.sleep(0)
+            if message == 'available':
+                gevent.spawn(self.vip.rpc.call, 'platform.agent', 'register_service',
+                                   self.core.identity)
+                gevent.sleep(0)
 
         def publish_to_historian(self, to_publish_list):
             #self.report_all_published()
