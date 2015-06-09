@@ -177,7 +177,9 @@ def platform_historian_agent(config_path, **kwargs):
             if skip > 0:
                 offset_statement = 'OFFSET ?'
                 args.append(skip)
-
+                
+            _log.debug("About to do real_query")
+            
             real_query = query.format(where=where_statement,
                                       limit=limit_statement,
                                       offset=offset_statement)

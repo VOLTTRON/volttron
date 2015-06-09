@@ -497,6 +497,11 @@ class BaseQueryHistorianAgent(RPCAgent):
             except TypeError:
                 end = time_parser.parse(end)
 
+        _log.debug("In base query")
+        
+        if start:
+            _log.debug("start={}".format(start))
+
         results = self.query_historian(topic, start, end, skip, count)
         metadata = results.get("metadata")
         if metadata is None:
