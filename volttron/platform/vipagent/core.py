@@ -57,6 +57,7 @@
 
 from __future__ import absolute_import, print_function
 
+from contextlib import contextmanager
 import heapq
 import inspect
 import logging
@@ -75,7 +76,7 @@ from ..vip import green as vip
 from ... import platform
 
 
-__all__ = ['Core']
+__all__ = ['Core', 'killing']
 
 
 _log = logging.getLogger(__name__)
@@ -88,23 +89,13 @@ class Periodic(object):   # pylint: disable=invalid-name
     period seconds while the agent is executing its run loop.
     '''
 
-    def __init__(self, period, *args, **kwargs):
+    def __init__(self, period, args=None, kwargs=None, wait=0):
         '''Store period (seconds) and arguments to call method with.'''
         assert period > 0
         self.period = period
-        self.args = args
-        self.kwargs = kwargs
-        self.timeout = 0
-
-    def wait(self, seconds=None):
-        '''Wait before calling for the first time.
-
-        Wait period seconds, if seconds is None. Returns the decorator
-        instance.
-        '''
-        assert seconds is None or seconds >= 0
-        self.timeout = seconds
-        return self
+        self.args = args or ()
+        self.kwargs = kwargs or {}
+        self.timeout = wait
 
     def __call__(self, method):
         '''Attach this object instance to the given method.'''
@@ -325,18 +316,14 @@ class Core(object):
 
     @dualmethod
     def periodic(self, period, func, args=None, kwargs=None, wait=0):
-        if args is None:
-            args = ()
-        if kwargs is None:
-            kwargs = {}
-        greenlet = Periodic(period, *args, **kwargs).wait(wait).get(func)
+        greenlet = Periodic(period, args, kwargs, wait).get(func)
         self.greenlet.link(lambda glt: greenlet.kill())
         greenlet.start()
         return greenlet
 
     @periodic.classmethod
-    def periodic(cls, period, *args, **kwargs):   # pylint: disable=no-self-argument
-        return Periodic(period, *args, **kwargs)
+    def periodic(cls, period, args=None, kwargs=None, wait=0):   # pylint: disable=no-self-argument
+        return Periodic(period, args, kwargs, wait)
 
     @classmethod
     def receiver(cls, signal):
@@ -358,3 +345,19 @@ class Core(object):
             annotate(method, list, 'core.schedule', (deadline, args, kwargs))
             return method
         return decorate
+
+
+@contextmanager
+def killing(greenlet, *args, **kwargs):
+    '''Context manager to automatically kill spawned greenlets.
+
+    Allows one to kill greenlets that would continue after a timeout:
+
+        with killing(agent.vip.pubsub.subscribe(
+                'peer', 'topic', callback)) as subscribe:
+            subscribe.get(timeout=10)
+    '''
+    try:
+        yield greenlet
+    finally:
+        greenlet.kill(*args, **kwargs)

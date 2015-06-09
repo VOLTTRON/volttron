@@ -233,11 +233,11 @@ class PubSub(SubsystemBase):
                             del unsubscribe[bus]
             if unsubscribe:
                 rpc.batch(
-                    peer, ((True, 'pubsub.unsubscribe', (list(topics), bus), None)
+                    peer, ((True, 'pubsub.unsubscribe', (list(topics), bus), {})
                            for bus, topics in unsubscribe.iteritems()))
             if subscribe:
                 rpc.batch(
-                    peer, ((True, 'pubsub.subscribe', (list(topics), bus), None)
+                    peer, ((True, 'pubsub.subscribe', (list(topics), bus), {})
                            for bus, topics in subscribe.iteritems()))
         finally:
             self._synchronizing -= 1
@@ -248,6 +248,7 @@ class PubSub(SubsystemBase):
                                bus, subscribed, reverse)
 
     @dualmethod
+    @spawn
     def subscribe(self, peer, prefix, callback, bus=''):
         '''Subscribe to topic and register callback.
 
@@ -261,22 +262,16 @@ class PubSub(SubsystemBase):
         '''
         if not callable(callback):
             raise ValueError('callback %r is not callable' % (callback,))
-        def finish(result):
-            if not result.successful():
-                return
-            try:
-                subscriptions = self._my_subscriptions[(peer, bus)]
-            except KeyError:
-                self._my_subscriptions[(peer, bus)] = subscriptions = {}
-            try:
-                callbacks = subscriptions[prefix]
-            except KeyError:
-                subscriptions[prefix] = callbacks = set()
-            callbacks.add(callback)
-        result = self.rpc().call(
-            peer, 'pubsub.subscribe', prefix, bus=bus)
-        result.rawlink(finish)
-        return result
+        self.rpc().call(peer, 'pubsub.subscribe', prefix, bus=bus).get()
+        try:
+            subscriptions = self._my_subscriptions[(peer, bus)]
+        except KeyError:
+            self._my_subscriptions[(peer, bus)] = subscriptions = {}
+        try:
+            callbacks = subscriptions[prefix]
+        except KeyError:
+            subscriptions[prefix] = callbacks = set()
+        callbacks.add(callback)
     
     @subscribe.classmethod
     def subscribe(self, peer, prefix, bus=''):
