@@ -201,6 +201,8 @@ def platform_agent(config_path, **kwargs):
                 else:
                     if isinstance(params, list):
                         uuid = params[0]
+                    elif isinstance(params, str):
+                        uuid = params
                     else:
                         uuid = params['uuid']
 
