@@ -269,8 +269,9 @@ class RPC(SubsystemBase):
                 result._weak_set = items   # pylint: disable=protected-access
             self._outstanding[ident] = items
         else:
-            ident = None
-        self.core().socket.send_vip(peer, 'RPC', [request], msg_id=ident)
+            ident = b''
+        if request:
+            self.core().socket.send_vip(peer, 'RPC', [request], msg_id=ident)
         return results or None
 
     def call(self, peer, method, *args, **kwargs):

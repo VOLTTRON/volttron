@@ -235,6 +235,10 @@ class Socket(zmq.Socket):
                 raise ValueError("missing 'via' argument "
                                  "required by ROUTER sockets")
             self.send(via, flags=flags|SNDMORE, copy=copy, track=track)
+        if msg_id is None:
+            msg_id = b''
+        if user is None:
+            user = b''
         more = SNDMORE if args else 0
         self.send_multipart([peer, user, msg_id, subsystem],
                             flags=flags|more, copy=copy, track=track)
