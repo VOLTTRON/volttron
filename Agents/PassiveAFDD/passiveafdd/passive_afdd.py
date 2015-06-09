@@ -186,8 +186,8 @@ def passiveafdd(config_path, **kwargs):
                         self.file_path = self.file
                     self.bldg_data = read_oae_pandas(self.file_path, self.names)
                 self.process_data()
-            except Exception:
-                _log.exception('Error on data input, could not data file...')
+            except Exception, e:
+                _log.exception('Error:' + e)
 
         def process_data(self):
             '''Aggregate the data based on compressor status, heating status,
@@ -508,22 +508,16 @@ def passiveafdd(config_path, **kwargs):
                                 (self.oatemp[points] - self.high_limit >
                                  self.temp_deadband and
                                  self.economizer_type == 1.0)):
-                                if (self.compressor[points]):
-                                    if self.damper[points] <= self.damper_minimum:
-                                        # No fault detected.
-                                        oae3_result.append(40)
-                                    else:
-                                        # Damper should be at minimum
-                                        # for ventilation(Fault).
-                                        oae3_result.append(41)
-                                else:
-                                     # Conditions are favorable for economizing
-                                     oae3_result.append(43)
-                            else:
                                 if self.damper[points] <= self.damper_minimum:
+                                    # No fault detected.
+                                    oae3_result.append(40)
+                                else:
                                     # Damper should be at minimum
                                     # for ventilation(Fault).
                                     oae3_result.append(41)
+                            else:
+                                 # Conditions are favorable for economizing
+                                 oae3_result.append(43)
                         else:
                              # Missing Data (No fault).
                             oae3_result.append(47)
