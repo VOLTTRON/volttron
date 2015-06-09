@@ -129,6 +129,9 @@ def platform_agent(config_path, **kwargs):
 
             points = {}
 
+            for k, v in psutil.cpu_times().__dict__.items():
+                points[k] = {'Readings':v, 'Units': 'double'}
+
             message = jsonapi.dumps(points)
             self.vip.pubsub.publish(peer='pubsub',
                                     topic=cpu_times,
