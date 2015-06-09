@@ -126,7 +126,7 @@ class BaseHistorianAgent(Agent):
 
 
     @Core.receiver("onstart")
-    def starting(self, sender, **kwargs):
+    def starting_base(self, sender, **kwargs):
         _log.debug("Starting base historian")
 
 #         self.pubsub_subscribe(peer='pubsub',
