@@ -195,12 +195,21 @@ def platform_agent(config_path, **kwargs):
                             for a in self.vip.rpc.call('control', method).get()]}
 
             elif method in ('agent_status', 'start_agent', 'stop_agent'):
-                status = self.vip.rpc.call('control', method, params).get()
-                if method == 'stop_agent' or status == None:
-                    # Note we recurse here to get the agent status.
-                    result = self.route_request(id, 'agent_status', params)
+                if isinstance(params, list) and len(params) != 1 or \
+                    isinstance(params, dict) and 'uuid' not in params.keys():
+                    result['code'] = INVALID_PARAMS
                 else:
-                    result = {'process_id': status[0], 'return_code': status[1]}
+                    if isinstance(params, list):
+                        uuid = params[0]
+                    else:
+                        uuid = params['uuid']
+
+                    status = self.vip.rpc.call('control', method, uuid).get()
+                    if method == 'stop_agent' or status == None:
+                        # Note we recurse here to get the agent status.
+                        result = self.route_request(id, 'agent_status', uuid)
+                    else:
+                        result = {'process_id': status[0], 'return_code': status[1]}
             elif method in ('install'):
 
                 if not 'files' in params:
