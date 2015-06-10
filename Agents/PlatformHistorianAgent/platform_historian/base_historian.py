@@ -405,7 +405,10 @@ class BaseHistorianAgent(Agent):
         c = self._connection.cursor()
 
         if None in self._successful_published:
-            c.execute('DELETE FROM outstanding order by ts limit ?', (self._submit_size_limit,))
+            c.execute('''DELETE FROM outstanding
+                        WHERE ROWID IN
+                        (SELECT ROWID FROM outstanding
+                          ORDER BY ts LIMIT ?)''', (self._submit_size_limit,))
         else:
             temp = list(self._successful_published)
             temp.sort()
