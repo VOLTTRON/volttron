@@ -7,6 +7,9 @@ var authorizationStore = require('../stores/authorization-store');
 var Console = require('./console');
 var consoleActionCreators = require('../action-creators/console-action-creators');
 var consoleStore = require('../stores/console-store');
+var Modal = require('./modal');
+var modalActionCreators = require('../action-creators/modal-action-creators');
+var modalStore = require('../stores/modal-store');
 var Navigation = require('./navigation');
 
 var PlatformManager = React.createClass({
@@ -15,16 +18,25 @@ var PlatformManager = React.createClass({
     componentDidMount: function () {
         authorizationStore.addChangeListener(this._onStoreChange);
         consoleStore.addChangeListener(this._onStoreChange);
+        modalStore.addChangeListener(this._onStoreChange);
     },
     componentWillUnmount: function () {
         authorizationStore.removeChangeListener(this._onStoreChange);
         consoleStore.removeChangeListener(this._onStoreChange);
+        modalStore.removeChangeListener(this._onStoreChange);
+        window.removeEventListener('keydown', this._closeModal);
     },
     _onStoreChange: function () {
         this.setState(getStateFromStores());
     },
-    _onButtonClick: function () {
+    _onToggleClick: function () {
         consoleActionCreators.toggleConsole();
+    },
+    _closeModal: function (e) {
+        if (e.keyCode === 27) {
+            modalActionCreators.closeModal();
+            window.removeEventListener('keydown', this._closeModal);
+        }
     },
     render: function () {
         var classes = ['platform-manager'];
@@ -33,14 +45,18 @@ var PlatformManager = React.createClass({
             classes.push('platform-manager--console-open');
         }
 
-        if (this.state.loggedIn) {
-            classes.push('platform-manager--logged-in');
-        } else {
-            classes.push('platform-manager--not-logged-in');
+        classes.push(this.state.loggedIn ?
+            'platform-manager--logged-in' : 'platform-manager--not-logged-in');
+
+        if (this.state.modalContent) {
+            window.addEventListener('keydown', this._closeModal);
         }
 
         return (
             <div className={classes.join(' ')}>
+                {this.state.modalContent &&
+                    <Modal>{this.state.modalContent}</Modal>
+                }
                 <div className="main">
                     <Navigation />
                     <Router.RouteHandler />
@@ -49,7 +65,7 @@ var PlatformManager = React.createClass({
                     className="toggle"
                     type="button"
                     value={'Console ' + (this.state.consoleShown ? '\u25bc' : '\u25b2')}
-                    onClick={this._onButtonClick}
+                    onClick={this._onToggleClick}
                 />
                 {this.state.consoleShown && <Console className="console" />}
             </div>
@@ -61,6 +77,7 @@ function getStateFromStores() {
     return {
         consoleShown: consoleStore.getConsoleShown(),
         loggedIn: !!authorizationStore.getAuthorization(),
+        modalContent: modalStore.getModalContent(),
     };
 }
 
