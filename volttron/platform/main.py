@@ -362,18 +362,17 @@ def main(argv=sys.argv):
         #    '--no-mobility', action='store_false', dest='mobility',
         #    help=argparse.SUPPRESS)
 
-    vip_path = '$VOLTTRON_HOME/run/vip.socket'
-    if sys.platform.startswith('linux'):
-        vip_path = '@' + vip_path
+    ipc = 'ipc://%s$VOLTTRON_HOME/run/' % (
+        '@' if sys.platform.startswith('linux') else '')
     parser.set_defaults(
         log=None,
         log_config=None,
         verboseness=logging.WARNING,
         volttron_home=volttron_home,
         autostart=True,
-        publish_address='ipc://$VOLTTRON_HOME/run/publish',
-        subscribe_address='ipc://$VOLTTRON_HOME/run/subscribe',
-        vip_address=['ipc://' + vip_path],
+        publish_address=ipc + 'publish',
+        subscribe_address=ipc + 'subscribe',
+        vip_address=[ipc + 'vip.socket'],
         #allow_root=False,
         #allow_users=None,
         #allow_groups=None,
