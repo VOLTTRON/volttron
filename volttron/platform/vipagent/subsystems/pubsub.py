@@ -57,6 +57,7 @@
 
 from __future__ import absolute_import
 
+from base64 import b64encode, b64decode
 import inspect
 import weakref
 
@@ -70,6 +71,17 @@ from ... import jsonrpc
 
 
 __all__ = ['PubSub']
+
+
+def encode_peer(peer):
+    if peer.startswith('\x00'):
+        return peer[:1] + b64encode(peer[1:])
+    return peer
+
+def decode_peer(peer):
+    if peer.startswith('\x00'):
+        return peer[:1] + b64decode(peer[1:])
+    return peer
 
 
 class PubSub(SubsystemBase):
@@ -169,8 +181,10 @@ class PubSub(SubsystemBase):
             if subscription and topic.startswith(prefix):
                 subscribers |= subscription
         if subscribers:
+            sender = encode_peer(peer)
             json_msg = jsonapi.dumps(jsonrpc.json_method(
-                None, 'pubsub.push', [peer, bus, topic, headers, message], None))
+                None, 'pubsub.push',
+                [sender, bus, topic, headers, message], None))
             frames = [zmq.Frame(b''), zmq.Frame(b''),
                       zmq.Frame(b'RPC'), zmq.Frame(json_msg)]
             socket = self.core().socket
@@ -188,6 +202,7 @@ class PubSub(SubsystemBase):
         except KeyError:
             pass
         else:
+            sender = decode_peer(sender)
             for prefix, callbacks in subscriptions.iteritems():
                 if topic.startswith(prefix):
                     handled += 1
