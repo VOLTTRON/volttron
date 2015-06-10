@@ -62,7 +62,7 @@ import weakref
 from .base import SubsystemBase
 from ..errors import VIPError
 from ..results import ResultsDictionary
-from ... import vip
+from ...vip import green as vip
 
 
 __all__ = ['Ping']
