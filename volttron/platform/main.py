@@ -57,40 +57,30 @@
 
 from __future__ import print_function, absolute_import
 
-import gevent.monkey
-gevent.monkey.patch_all()
-
 import argparse
-from contextlib import closing
 import logging
 from logging import handlers
 import logging.config
 import os
-import socket
 import sys
 
 import gevent
-from zmq import green as zmq
-# Override zmq to use greenlets with mobility agent
-zmq.green = zmq
-sys.modules['zmq'] = zmq
 
 from . import aip
 from . import __version__
 from . import config
-from . import vip
+from .vip import green as vip
 from .control import ControlService
 from .agent import utils
 from .vipagent import Agent, Core
+from .vipagent.compat import CompatPubSub
 
 try:
     import volttron.restricted
 except ImportError:
     HAVE_RESTRICTED = False
 else:
-    from volttron.restricted import comms, comms_server, resmon
-    from volttron.restricted.mobility import MobilityAgent
-    from paramiko import PasswordRequiredException, SSHException, RSAKey
+    from volttron.restricted import resmon
     HAVE_RESTRICTED = True
 
 
@@ -255,66 +245,6 @@ class PubSubService(Agent):
         self.vip.pubsub.add_bus('')
 
 
-def agent_exchange(in_addr, out_addr, logger_name=None):
-    '''Agent message publish/subscribe exchange loop
-
-    Accept multi-part messages from sockets connected to in_addr, which
-    is a PULL socket, and forward them to sockets connected to out_addr,
-    which is a XPUB socket. When subscriptions are added or removed, a
-    message of the form 'subscriptions/<OP>/<TOPIC>' is broadcast to the
-    PUB socket where <OP> is either 'add' or 'remove' and <TOPIC> is the
-    topic being subscribed or unsubscribed. When a message is received
-    of the form 'subscriptions/list/<PREFIX>', a multipart message will
-    be broadcast with the first two received frames (topic and headers)
-    sent unchanged and with the remainder of the message containing
-    currently subscribed topics which start with <PREFIX>, each frame
-    containing exactly one topic.
-
-    If logger_name is given, a new logger will be created with the given
-    name. Otherwise, the module logger will be used.
-    '''
-    log = _log if logger_name is None else logging.getLogger(logger_name)
-    ctx = zmq.Context.instance()
-    with closing(ctx.socket(zmq.PULL)) as in_sock, \
-            closing(ctx.socket(zmq.XPUB)) as out_sock:
-        in_sock.bind(in_addr)
-        out_sock.bind(out_addr)
-        poller = zmq.Poller()
-        poller.register(in_sock, zmq.POLLIN)
-        poller.register(out_sock, zmq.POLLIN)
-        subscriptions = set()
-        while True:
-            for sock, event in poller.poll():
-                if sock is in_sock:
-                    message = in_sock.recv_multipart()
-                    log.debug('incoming message: {!r}'.format(message))
-                    topic = message[0]
-                    if (topic.startswith('subscriptions/list') and
-                            topic[18:19] in ['/', '']):
-                        if len(message) > 2:
-                            del message[2:]
-                        elif len(message) == 1:
-                            message.append('')
-                        prefix = topic[19:]
-                        message.extend([t for t in subscriptions
-                                        if t.startswith(prefix)])
-                    out_sock.send_multipart(message)
-                elif sock is out_sock:
-                    message = out_sock.recv()
-                    if message:
-                        add = bool(ord(message[0]))
-                        topic = message[1:]
-                        if add:
-                            subscriptions.add(topic)
-                        else:
-                            subscriptions.discard(topic)
-                        log.debug('incoming subscription: {} {!r}'.format(
-                            ('add' if add else 'remove'), topic))
-                        out_sock.send('subscriptions/{}{}{}'.format(
-                            ('add' if add else 'remove'),
-                            ('' if topic[:1] == '/' else '/'), topic))
-
-
 def main(argv=sys.argv):
     volttron_home = config.expandall(
         os.environ.get('VOLTTRON_HOME', '~/.volttron'))
@@ -403,7 +333,7 @@ def main(argv=sys.argv):
             def __call__(self, parser, namespace, values, option_string=None):
                 namespace.verify_agents = self.const
                 namespace.resource_monitor = self.const
-                namespace.mobility = self.const
+                #namespace.mobility = self.const
         restrict = parser.add_argument_group('restricted options')
         restrict.add_argument(
             '--restricted', action=RestrictedAction, inverse='--no-restricted',
@@ -424,18 +354,12 @@ def main(argv=sys.argv):
         restrict.add_argument(
             '--no-resource-monitor', action='store_false',
             dest='resource_monitor', help=argparse.SUPPRESS)
-        restrict.add_argument(
-            '--mobility', action='store_true', inverse='--no-mobility',
-            help='enable agent mobility')
-        restrict.add_argument(
-            '--no-mobility', action='store_false', dest='mobility',
-            help=argparse.SUPPRESS)
-        restrict.add_argument(
-            '--mobility-address', metavar='ADDRESS',
-            help='specify the address on which to listen')
-        restrict.add_argument(
-            '--mobility-port', type=int, metavar='NUMBER',
-            help='specify the port on which to listen')
+        #restrict.add_argument(
+        #    '--mobility', action='store_true', inverse='--no-mobility',
+        #    help='enable agent mobility')
+        #restrict.add_argument(
+        #    '--no-mobility', action='store_false', dest='mobility',
+        #    help=argparse.SUPPRESS)
 
     vip_path = '$VOLTTRON_HOME/run/vip.socket'
     if sys.platform.startswith('linux'):
@@ -454,9 +378,7 @@ def main(argv=sys.argv):
         #allow_groups=None,
         verify_agents=True,
         resource_monitor=True,
-        mobility=True,
-        mobility_address=None,
-        mobility_port=2522
+        #mobility=True,
     )
 
     # Parse and expand options
@@ -473,13 +395,6 @@ def main(argv=sys.argv):
     opts.publish_address = config.expandall(opts.publish_address)
     opts.subscribe_address = config.expandall(opts.subscribe_address)
     opts.vip_address = [config.expandall(addr) for addr in opts.vip_address]
-    if HAVE_RESTRICTED:
-        # Set mobility defaults
-        if opts.mobility_address is None:
-            info = socket.getaddrinfo(
-                None, 0, 0, socket.SOCK_STREAM, 0, socket.AI_NUMERICHOST)
-            family = info[0][0] if info else ''
-            opts.mobility_address = '::' if family == socket.AF_INET6 else ''
     if getattr(opts, 'show_config', False):
         for name, value in sorted(vars(opts).iteritems()):
             print(name, repr(value))
@@ -499,17 +414,6 @@ def main(argv=sys.argv):
         if error:
             parser.error('{}: {}'.format(*error))
 
-    # Setup mobility server
-    if HAVE_RESTRICTED and opts.mobility:
-        ssh_dir = os.path.join(opts.volttron_home, 'ssh')
-        try:
-            priv_key = RSAKey(filename=os.path.join(ssh_dir, 'id_rsa'))
-            authorized_keys = comms.load_authorized_keys(
-                os.path.join(ssh_dir, 'authorized_keys'))
-        except (OSError, IOError,
-                PasswordRequiredException, SSHException) as exc:
-            parser.error(exc)
-
     # Set configuration
     if HAVE_RESTRICTED:
         if opts.verify_agents:
@@ -525,29 +429,16 @@ def main(argv=sys.argv):
 
     # Main loops
     try:
-        router = Router(opts.vip_address)
-        exchange = gevent.spawn(
-            agent_exchange, opts.publish_address, opts.subscribe_address)
+        router = gevent.spawn(Router(opts.vip_address).run)
         control = gevent.spawn(ControlService(
             opts.aip, address='inproc://vip', identity='control').core.run)
         pubsub = gevent.spawn(PubSubService(
             address='inproc://vip', identity='pubsub').core.run)
-        if HAVE_RESTRICTED and opts.mobility:
-            address = (opts.mobility_address, opts.mobility_port)
-            mobility_in = comms_server.ThreadedServer(
-                address, priv_key, authorized_keys, opts.aip)
-            mobility_in.start()
-            mobility_out = MobilityAgent(
-                opts.aip,
-                subscribe_address=opts.subscribe_address,
-                publish_address=opts.publish_address)
-            gevent.spawn(mobility_out.run)
-        try:
-            router.run()
-        finally:
-            control.kill()
-            pubsub.kill()
-            exchange.kill()
+        exchange = gevent.spawn(CompatPubSub(
+            address='inproc://vip', identity='pubsub.compat',
+            publish_address=opts.publish_address,
+            subscribe_address=opts.subscribe_address).core.run)
+        router.join()
     finally:
         opts.aip.finish()
 
