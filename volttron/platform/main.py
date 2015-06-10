@@ -301,10 +301,10 @@ def main(argv=sys.argv):
         help=argparse.SUPPRESS)
     agents.add_argument(
         '--publish-address', metavar='ZMQADDR',
-        help='ZeroMQ URL used for agent publishing')
+        help='ZeroMQ URL used for pre-3.x agent publishing (deprecated)')
     agents.add_argument(
         '--subscribe-address', metavar='ZMQADDR',
-        help='ZeroMQ URL used for agent subscriptions')
+        help='ZeroMQ URL used for pre-3.x agent subscriptions (deprecated)')
     agents.add_argument(
         '--vip-address', metavar='ZMQADDR', action='append', default=[],
         help='ZeroMQ URL to bind for VIP connections')
