@@ -62,7 +62,6 @@ import weakref
 from .base import SubsystemBase
 from ..errors import VIPError
 from ..results import ResultsDictionary
-from ...vip import green as vip
 
 
 __all__ = ['Hello']
@@ -85,9 +84,9 @@ class Hello(SubsystemBase):
 
     def _handle_hello(self, message):
         socket = self.core().socket
-        message.subsystem = vip._WELCOME
+        message.subsystem = b'welcome'
         message.user = b''
-        message.args = [vip._VERSION, socket.identity, message.peer]
+        message.args = [b'1.0', socket.identity, message.peer]
         socket.send_vip_object(message, copy=False)
 
     def _handle_welcome(self, message):

@@ -55,57 +55,13 @@
 # under Contract DE-AC05-76RL01830
 #}}}
 
-'''VIP - VOLTTRON™ Interconnect Protocol implementation
 
-See https://github.com/VOLTTRON/volttron/wiki/VIP for protocol
-specification.
-'''
+from __future__ import absolute_import
 
-
-from __future__ import absolute_import, print_function
-
-from logging import CRITICAL, DEBUG, ERROR, WARNING
-import os
-
-# Import gevent-friendly version as vip.green
-if __name__.endswith('.green'):
-    import zmq.green as zmq
-    import warnings
-    warnings.filterwarnings(
-        'ignore', 'TIMEO socket options have no effect in zmq.green',
-        UserWarning, r'^zmq\.green\.core')
-else:
-    if __file__.endswith('.pyc') or __file__.endswith('.pyo'):
-        from imp import load_compiled as load
-    else:
-        from imp import load_source as load
-    green = load('.'.join([__name__, 'green']), __file__)   # pylint: disable=invalid-name
-    import zmq
-from zmq import NOBLOCK, SNDMORE, ZMQError, EINVAL, DEALER, ROUTER, RCVMORE
+from zmq import SNDMORE, RCVMORE, DEALER, ROUTER
 
 
-__all__ = ['ProtocolError', 'Message', 'Socket', 'BaseRouter']
-
-
-PROTO = b'VIP1'
-
-# Create these static frames for non-copy sends as an optimization
-_PROTO = zmq.Frame(PROTO)
-_ERROR = zmq.Frame(b'error')
-_PONG = zmq.Frame(b'pong')
-_VERSION = zmq.Frame(b'1.0')
-_WELCOME = zmq.Frame(b'welcome')
-
-# Again, optimizing by pre-creating frames
-_ROUTE_ERRORS = {
-    errnum: (zmq.Frame(str(errnum).encode('ascii')),
-             zmq.Frame(os.strerror(errnum).encode('ascii')))
-    for errnum in [zmq.EHOSTUNREACH, zmq.EAGAIN]
-}
-_INVALID_SUBSYSTEM = (
-    zmq.Frame(str(zmq.EPROTONOSUPPORT).encode('ascii')),
-    zmq.Frame(os.strerror(zmq.EPROTONOSUPPORT).encode('ascii'))
-)
+__all__ = ['ProtocolError', 'Message']
 
 
 class ProtocolError(Exception):
@@ -123,7 +79,7 @@ class Message(object):
         return '%s(**{%s})' % (self.__class__.__name__, attrs)
 
 
-class Socket(zmq.Socket):
+class _Socket(object):
     '''Subclass of zmq.Socket to implement VIP protocol.
 
     Sockets are of type DEALER by default. If a ROUTER socket is used,
@@ -134,8 +90,6 @@ class Socket(zmq.Socket):
     ensure the proper number, type, and ordering of frames. Protocol
     violations will raise ProtocolError exceptions.
     '''
-
-    __slots__ = ['_send_state', '_recv_state']
 
     def __new__(cls, context=None, socket_type=DEALER, shadow=None):
         '''Create and return a new Socket object.
@@ -148,10 +102,10 @@ class Socket(zmq.Socket):
         if socket_type not in [DEALER, ROUTER]:
             raise ValueError('socket_type must be DEALER or ROUTER')
         if context is None:
-            context = zmq.Context.instance()
+            context = cls._context_class.instance()
         # There are multiple backends which handle shadow differently.
         # It is best to send it as a positional to avoid problems.
-        base = super(Socket, cls)
+        base = super(_Socket, cls)
         if shadow is None:
             return base.__new__(cls, context, socket_type)
         return base.__new__(cls, context, socket_type, shadow)
@@ -159,10 +113,10 @@ class Socket(zmq.Socket):
     def __init__(self, context=None, socket_type=DEALER, shadow=None):
         '''Initialize the object and the send and receive state.'''
         if context is None:
-            context = zmq.Context.instance()
+            context = self._context_class.instance()
         # There are multiple backends which handle shadow differently.
         # It is best to send it as a positional to avoid problems.
-        base = super(Socket, self)
+        base = super(_Socket, self)
         if shadow is None:
             base.__init__(context, socket_type)
         else:
@@ -170,8 +124,10 @@ class Socket(zmq.Socket):
         # Initialize send and receive states, which are mapped as:
         #    state:  -1    0   [  1  ]    2       3       4      5
         #    frame:  VIA  PEER [PROTO] USER_ID  MSG_ID  SUBSYS  ...
-        self._send_state = self._recv_state = (
-            -1 if self.type == ROUTER else 0)
+        state = -1 if self.type == ROUTER else 0
+        object.__setattr__(self, '_send_state', state)
+        object.__setattr__(self, '_recv_state', state)
+        self.immediate = True
 
     def reset_send(self):
         '''Clear send buffer and reset send state machine.
@@ -183,7 +139,7 @@ class Socket(zmq.Socket):
         state = -1 if self.type == ROUTER else 0
         if self._send_state != state:
             self._send_state = state
-            super(Socket, self).send('')
+            super(_Socket, self).send('')
 
     def send(self, frame, flags=0, copy=True, track=False):
         '''Send a single frame while enforcing VIP protocol.
@@ -214,10 +170,10 @@ class Socket(zmq.Socket):
         elif state < 5:
             if state == 1:
                 # Automatically send PROTO frame
-                super(Socket, self).send(PROTO, flags=flags|SNDMORE)
+                super(_Socket, self).send(b'VIP1', flags=flags|SNDMORE)
                 state += 1
             self._send_state = state + 1
-        super(Socket, self).send(frame, flags=flags, copy=copy, track=track)
+        super(_Socket, self).send(frame, flags=flags, copy=copy, track=track)
 
     def send_vip(self, peer, subsystem, args=None, msg_id=b'',
                  user=b'', via=None, flags=0, copy=True, track=False):
@@ -282,13 +238,13 @@ class Socket(zmq.Socket):
         state = self._recv_state
         if state == 1:
             # Automatically receive and check PROTO frame
-            proto = super(Socket, self).recv(flags=flags)
+            proto = super(_Socket, self).recv(flags=flags)
             state += 1
             self._recv_state = state
-            if proto != PROTO:
+            if proto != b'VIP1':
                 raise ProtocolError('invalid protocol: {!r}{}'.format(
                     proto[:30], '...' if len(proto) > 30 else ''))
-        result = super(Socket, self).recv(flags=flags, copy=copy, track=track)
+        result = super(_Socket, self).recv(flags=flags, copy=copy, track=track)
         if not self.getsockopt(RCVMORE):
             # Ensure SUBSYSTEM is received
             if state < 4:
@@ -308,7 +264,7 @@ class Socket(zmq.Socket):
         '''
         self._recv_state = -1 if self.type == ROUTER else 0
         while self.getsockopt(RCVMORE):
-            super(Socket, self).recv()
+            super(_Socket, self).recv()
 
     def recv_vip(self, flags=0, copy=True, track=False):
         '''Receive a complete VIP message and return as a list.
@@ -344,202 +300,3 @@ class Socket(zmq.Socket):
         msg = Message()
         msg.__dict__ = self.recv_vip_dict(flags=flags, copy=copy, track=track)
         return msg
-
-
-class BaseRouter(object):
-    '''Abstract base class of VIP router implementation.
-
-    Router implementers should inherit this class and implement the
-    setup() method to bind to appropriate addresses, set identities,
-    setup authentication, etc, etc. The socket will be created by the
-    start() method, which will then call the setup() method.  Once
-    started, the socket may be polled for incoming messages and those
-    messages are handled/routed by calling the route() method.  During
-    routing, the log() method, which may be implemented, will be called
-    to allow for debugging and logging. Custom subsystems may be
-    implemented in the handle_subsystem() method. The socket will be
-    closed when the stop() method is called.
-    '''
-
-    __slots__ = ['context', 'socket']
-
-    def __init__(self, context=None):
-        '''Initialize the object instance.
-
-        If context is None (the default), the zmq global context will be
-        used for socket creation.
-        '''
-        self.context = context or zmq.Context.instance()
-        self.socket = None
-
-    def start(self):
-        '''Create the socket and call setup().
-
-        The socket is save in the socket attribute. The setup() method
-        is called at the end of the method to perform additional setup.
-        '''
-        self.socket = zmq.Socket(self.context, ROUTER)
-        self.socket.router_mandatory = True
-        self.socket.sndtimeo = 0
-        self.setup()
-
-    def stop(self, linger=1):
-        '''Close the socket.'''
-        self.socket.close(linger)
-
-    def setup(self):
-        '''Called from start() method to setup the socket.
-
-        Implement this method to bind the socket, set identities and
-        options, etc.
-        '''
-        raise NotImplementedError()
-
-    @property
-    def poll(self):
-        '''Returns the underlying socket's poll method.'''
-        return self.socket.poll
-
-    def handle_subsystem(self, frames, user_id):
-        '''Handle additional subsystems and provide a response.
-
-        This method does nothing by default and may be implemented by
-        subclasses to provide additional subsystems.
-
-        frames is a list of zmq.Frame objects with the following
-        elements:
-
-          [SENDER, RECIPIENT, PROTOCOL, USER_ID, MSG_ID, SUBSYSTEM, ...]
-
-        The return value should be None, if the subsystem is unknown, an
-        empty list or False (or other False value) if the message was
-        handled but does not require/generate a response, or a list of
-        containing the following elements:
-
-          [RECIPIENT, SENDER, PROTOCOL, USER_ID, MSG_ID, SUBSYSTEM, ...]
-
-        '''
-        pass
-
-    def log(self, level, message, frames):
-        '''Log what is happening in the router.
-
-        This method does nothing by default and is meant to be
-        overridden by router implementers. level is the same as in the
-        standard library logging module, message is a brief description,
-        and frames, if not None, is a list of frames as received from
-        the sending peer.
-        '''
-        pass
-
-    if zmq.zmq_version_info() >= (4, 1, 0):
-        def lookup_user_id(self, sender, auth_token):
-            '''Find and return a user identifier.
-
-            Returns the UTF-8 encoded User-Id property from the sender
-            frame or None if the authenticator did not set the User-Id
-            metadata. May be extended to perform additional lookups.
-            '''
-            # pylint: disable=unused-argument
-            # A user id might/should be set by the ZAP authenticator
-            try:
-                return sender.get('User-Id').encode('utf-8')
-            except ZMQError as exc:
-                if exc.errno != EINVAL:
-                    raise
-    else:
-        def lookup_user_id(self, sender, auth_token):
-            '''Find and return a user identifier.
-
-            A no-op by default, this method must be overridden to map
-            the sender and auth_token to a user ID. The returned value
-            must be a string or None (if the token was not found).
-            '''
-            pass
-
-    def route(self):
-        '''Route one message and return.
-
-        One message is read from the socket and processed. If the
-        recipient is the router (empty recipient), the standard hello
-        and ping subsystems are handled. Other subsystems are sent to
-        handle_subsystem() for processing. Messages destined for other
-        entities are routed appropriately.
-        '''
-        socket = self.socket
-        log = self.log
-        # Expecting incoming frames:
-        #   [SENDER, RECIPIENT, PROTO, USER_ID, MSG_ID, SUBSYS, ...]
-        frames = socket.recv_multipart(copy=False)
-        log(DEBUG, 'incoming message', frames)
-        if len(frames) < 6:
-            # Cannot route if there are insufficient frames, such as
-            # might happen with a router probe.
-            if len(frames) == 2 and frames[0] and not frames[1]:
-                log(DEBUG, 'router probe', frames)
-            else:
-                log(ERROR, 'unroutable message', frames)
-            return
-        sender, recipient, proto, auth_token, msg_id = frames[:5]
-        if proto.bytes != PROTO:
-            # Peer is not talking a protocol we understand
-            log(ERROR, 'invalid protocol signature', frames)
-            return
-        user_id = self.lookup_user_id(sender, auth_token)
-        if user_id is None:
-            log(WARNING, 'missing user ID', frames)
-            user_id = b''
-
-        subsystem = frames[5]
-        if not recipient.bytes:
-            # Handle requests directed at the router
-            name = subsystem.bytes
-            if name == b'hello':
-                frames = [sender, recipient, proto, user_id, msg_id,
-                          _WELCOME, _VERSION, socket.identity, sender]
-            elif name == b'ping':
-                frames[:6] = [
-                    sender, recipient, proto, user_id, msg_id, _PONG]
-            else:
-                response = self.handle_subsystem(frames, user_id)
-                if response is None:
-                    # Handler does not know of the subsystem
-                    log(ERROR, 'unknown subsystem', frames)
-                    errnum, errmsg = _INVALID_SUBSYSTEM
-                    frames = [sender, recipient, proto, b'', msg_id,
-                              _ERROR, errnum, errmsg, subsystem]
-                elif not response:
-                    # Subsystem does not require a response
-                    return
-                else:
-                    frames = response
-        else:
-            # Route all other requests to the recipient
-            frames[:4] = [recipient, sender, proto, user_id]
-
-        # Expecting outgoing frames:
-        #   [RECIPIENT, SENDER, PROTO, USER_ID, MSG_ID, SUBSYS, ...]
-        try:
-            # Try sending the message to its recipient
-            socket.send_multipart(frames, flags=NOBLOCK, copy=False)
-            log(DEBUG, 'outgoing message', frames)
-        except ZMQError as exc:
-            try:
-                errnum, errmsg = _ROUTE_ERRORS[exc.errno]
-            except KeyError:
-                log(CRITICAL, 'unhandled exception: {}'.format(exc), frames)
-                raise exc
-            log(ERROR, 'send failure: {}'.format(errmsg.bytes), frames)
-            if sender is not frames[0]:
-                # Only send errors if the sender and recipient differ
-                frames = [sender, b'', proto, user_id, msg_id,
-                          _ERROR, errnum, errmsg, recipient, subsystem]
-                try:
-                    socket.send_multipart(frames, flags=NOBLOCK, copy=False)
-                    log(DEBUG, 'outgoing error', frames)
-                except ZMQError as exc:
-                    # Be silent about most errors when sending errors
-                    if exc.errno not in _ROUTE_ERRORS:
-                        log(CRITICAL,
-                            'unhandled exception: {}'.format(exc), frames)
-                        raise

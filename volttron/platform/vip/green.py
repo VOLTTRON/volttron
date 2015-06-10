@@ -55,50 +55,29 @@
 # under Contract DE-AC05-76RL01830
 #}}}
 
+'''VIP - VOLTTRON™ Interconnect Protocol implementation
+
+See https://github.com/VOLTTRON/volttron/wiki/VIP for protocol
+specification.
+'''
+
+
 from __future__ import absolute_import
 
-import weakref
+from zmq import green as _green
+__import__('warnings').filterwarnings(
+    'ignore', 'TIMEO socket options have no effect in zmq.green',
+    UserWarning, r'^zmq\.green\.core')
 
-from .base import SubsystemBase
-from ..errors import VIPError
-from ..results import ResultsDictionary
+from . import *
+from .router import BaseRouter as _BaseRouter
+from .socket import _Socket
 
 
-__all__ = ['Ping']
+class Socket(_Socket, _green.Socket):
+    _context_class = _green.Context
 
 
-class Ping(SubsystemBase):
-    def __init__(self, core):
-        self.core = weakref.ref(core)
-        self._results = ResultsDictionary()
-        core.register('ping', self._handle_ping, self._handle_error)
-        core.register('pong', self._handle_pong, self._handle_error)
-
-    def ping(self, peer, *args):
-        socket = self.core().socket
-        result = next(self._results)
-        socket.send_vip(peer, b'ping', args, result.ident)
-        return result
-
-    __call__ = ping
-
-    def _handle_ping(self, message):
-        socket = self.core().socket
-        message.subsystem = b'pong'
-        message.user = b''
-        socket.send_vip_object(message, copy=False)
-
-    def _handle_pong(self, message):
-        try:
-            result = self._results.pop(bytes(message.id))
-        except KeyError:
-            return
-        result.set([bytes(arg) for arg in message.args])
-
-    def _handle_error(self, message):
-        try:
-            result = self._results.pop(bytes(message.id))
-        except KeyError:
-            return
-        result.set_exception(
-            VIPError.from_errno(*[bytes(arg) for arg in message.args]))
+class BaseRouter(_BaseRouter):
+    _context_class = _green.Context
+    _socket_class = _green.Socket
