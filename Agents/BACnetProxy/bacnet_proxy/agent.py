@@ -123,11 +123,9 @@ class IOCB:
 
 @class_debugging
 class BACnet_application(BIPSimpleApplication, RecurringTask):
-
     def __init__(self, *args):
         BIPSimpleApplication.__init__(self, *args)
         RecurringTask.__init__(self, 250)
-        
         self.request_queue = Queue()
 
         # assigning invoke identifiers
