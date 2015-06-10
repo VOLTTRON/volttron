@@ -70,7 +70,7 @@ import gevent
 from . import aip
 from . import __version__
 from . import config
-from .vip import green as vip
+from . import vip
 from .control import ControlService
 from .agent import utils
 from .vipagent import Agent, Core
