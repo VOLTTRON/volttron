@@ -101,8 +101,8 @@ class CompatPubSub(object):
 
     @Core.receiver('onsetup')
     def setup(self, sender, **kwargs):
-        self.in_sock = self.core.context.socket(zmq.PULL)
-        self.out_sock = self.core.context.socket(zmq.XPUB)
+        self.in_sock = zmq.Socket(self.core.context, zmq.PULL)
+        self.out_sock = zmq.Socket(self.core.context, zmq.XPUB)
 
     @Core.receiver('onstart')
     def in_loop(self, sender, **kwargs):   # pylint: disable=unused-argument

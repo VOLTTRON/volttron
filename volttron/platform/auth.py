@@ -93,7 +93,7 @@ class AuthService(RPCAgent):
 
     @onevent('setup')
     def setup_zap(self):
-        self.zap_socket = zmq.Context.instance().socket(zmq.ROUTER)
+        self.zap_socket = zmq.Socket(zmq.Context.instance(), zmq.ROUTER)
 
     @onevent('connect')
     def bind_zap(self):

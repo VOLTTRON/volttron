@@ -378,7 +378,7 @@ class BaseRouter(object):
         The socket is save in the socket attribute. The setup() method
         is called at the end of the method to perform additional setup.
         '''
-        self.socket = self.context.socket(ROUTER)
+        self.socket = zmq.Socket(self.context, ROUTER)
         self.socket.router_mandatory = True
         self.socket.sndtimeo = 0
         self.setup()
