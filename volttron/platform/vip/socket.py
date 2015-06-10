@@ -127,6 +127,7 @@ class _Socket(object):
         state = -1 if self.type == ROUTER else 0
         object.__setattr__(self, '_send_state', state)
         object.__setattr__(self, '_recv_state', state)
+        self.immediate = True
 
     def reset_send(self):
         '''Clear send buffer and reset send state machine.
