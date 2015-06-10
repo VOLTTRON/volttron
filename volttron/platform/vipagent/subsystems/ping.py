@@ -62,7 +62,6 @@ import weakref
 from .base import SubsystemBase
 from ..errors import VIPError
 from ..results import ResultsDictionary
-from ...vip import green as vip
 
 
 __all__ = ['Ping']
@@ -85,7 +84,7 @@ class Ping(SubsystemBase):
 
     def _handle_ping(self, message):
         socket = self.core().socket
-        message.subsystem = vip._PONG
+        message.subsystem = b'pong'
         message.user = b''
         socket.send_vip_object(message, copy=False)
 
