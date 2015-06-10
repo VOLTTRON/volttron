@@ -63,6 +63,7 @@ from logging import handlers
 import logging.config
 import os
 import sys
+import threading
 
 import gevent
 
@@ -428,8 +429,7 @@ def main(argv=sys.argv):
             _log.error('error starting {!r}: {}\n'.format(name, error))
 
     # Main loops
-    try:
-        router = gevent.spawn(Router(opts.vip_address).run)
+    def services():
         control = gevent.spawn(ControlService(
             opts.aip, address='inproc://vip', identity='control').core.run)
         pubsub = gevent.spawn(PubSubService(
@@ -438,7 +438,13 @@ def main(argv=sys.argv):
             address='inproc://vip', identity='pubsub.compat',
             publish_address=opts.publish_address,
             subscribe_address=opts.subscribe_address).core.run)
-        router.join()
+        gevent.wait()
+    try:
+        router = Router(opts.vip_address)
+        thread = threading.Thread(target=services)
+        thread.daemon = True
+        thread.start()
+        router.run()
     finally:
         opts.aip.finish()
 
