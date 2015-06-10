@@ -70,6 +70,10 @@ import os
 # Import gevent-friendly version as vip.green
 if __name__.endswith('.green'):
     import zmq.green as zmq
+    import warnings
+    warnings.filterwarnings(
+        'ignore', 'TIMEO socket options have no effect in zmq.green',
+        UserWarning, r'^zmq\.green\.core')
 else:
     if __file__.endswith('.pyc') or __file__.endswith('.pyo'):
         from imp import load_compiled as load
@@ -81,9 +85,6 @@ from zmq import NOBLOCK, SNDMORE, ZMQError, EINVAL, DEALER, ROUTER, RCVMORE
 
 
 __all__ = ['ProtocolError', 'Message', 'Socket', 'BaseRouter']
-
-
-_GREEN = zmq.__name__.endswith('.green')
 
 
 PROTO = b'VIP1'
@@ -379,9 +380,7 @@ class BaseRouter(object):
         '''
         self.socket = self.context.socket(ROUTER)
         self.socket.router_mandatory = True
-        if not _GREEN:
-            # Only set if not using zmq.green to avoid user warning
-            self.socket.sndtimeo = 0
+        self.socket.sndtimeo = 0
         self.setup()
 
     def stop(self, linger=1):
