@@ -27,6 +27,7 @@
 	"input_file": "/home/volttrondev/workspace/volttron/Agents/PassiveAFDD/passiveafdd/sample_data/oae_sample_data.csv",
 
 	"oaf_temp_threshold": 4.0,
+        "temp_sensor_threshold": 5.0,
 	
 	"mat_low": 50,
 	"mat_high": 90,
@@ -45,7 +46,6 @@
 
 	"minimum_oa": 0.1,
 	"oae4_oaf_threshold": 0.25,
-
 	"oae5_oaf_threshold": 0.0,
 
 	"Sunday": [0,23],
