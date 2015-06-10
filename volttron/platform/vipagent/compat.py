@@ -139,8 +139,8 @@ class CompatPubSub(object):
     def out_loop(self, sender, **kwargs):   # pylint: disable=unused-argument
         peer = self.peer
         with closing(self.out_sock) as sock:
+            sock.bind(self.subscribe_address)
             while True:
-                sock.bind(self.subscribe_address)
                 message = sock.recv()
                 if message:
                     add = bool(ord(message[0]))
