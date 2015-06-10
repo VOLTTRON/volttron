@@ -203,6 +203,11 @@ class BaseAgent(AgentBase):
     LOOP_INTERVAL = 60
 
     def __init__(self, subscribe_address, **kwargs):
+        __import__('warnings').warn(
+            'volttron.platform.agent.BaseAgent is deprecated in favor of '
+            'volttron.platform.vipagent.Agent and will be removed in a '
+            'future version. Please update agents to the new version.',
+            DeprecationWarning, 2)
         super(BaseAgent, self).__init__(**kwargs)
         self._subscriptions = {}
         self._mono = sched.Queue()
