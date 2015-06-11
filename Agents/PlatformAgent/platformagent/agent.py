@@ -117,6 +117,7 @@ def platform_agent(config_path, **kwargs):
             self._managers = set()
             self._managers_reachable = {}
             self._services = {}
+            self._settings = {}
 
 
         @Core.periodic(15)
@@ -277,32 +278,6 @@ def platform_agent(config_path, **kwargs):
         def stoping(self, sender, **kwargs):
             self.vip.pubsub.publish(peer='pubsub', topic='/platform',
                                     message='leaving')
-
-#         @Core.receiver('onsetup')
-#         def setup(self, sender, **kwargs):
-#             _log.debug('platform agent setup.  Connection to {} -> {}'.format(
-#                             self.vc_vip_address, self.vc_vip_identity))
-#             self._ctl = Connection(self.vc_vip_address,
-#                                    peer=self.vc_vip_identity)
-
-#         @Core.receiver('onstart')
-#         def start(self, sender, **kwargs):
-#             _log.debug('Starting service vip info: {}'.format(
-#                                                         str(self.__dict__)))
-#             vip_addresses = self.vip.query_addresses().get(timeout=10)
-#             self._external_vip = find_registration_address(vip_addresses)
-#             self._register()
-
-#         #@periodic(period=60)
-#         def _register(self):
-#             _log.debug('platformagent sending call register {}'.format(
-#                                     str((vip_identity, agentid, self._external_vip))))
-#             self._external_vip = self._external_vip
-#             self._ctl.call("register_platform", vip_identity, agentid, self._external_vip)
-
-#         @Core.receiver('onfinish')
-#         def stop(self, sender, **kwargs):
-#             self._ctl.call("unregister_platform", vip_identity)
 
     PlatformAgent.__name__ = 'PlatformAgent'
     return PlatformAgent(identity=vip_identity, **kwargs)
