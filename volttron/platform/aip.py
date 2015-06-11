@@ -220,7 +220,7 @@ class AIPplatform(object):
     def setup(self):
         for path in [self.run_dir, self.config_dir, self.install_dir]:
             if not os.path.exists(path):
-                os.makedirs(path, 0o775)
+                os.makedirs(path, 0o755)
 
     def finish(self):
         for exeenv in self.agents.itervalues():
