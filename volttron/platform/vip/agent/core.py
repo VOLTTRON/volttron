@@ -72,8 +72,8 @@ from zmq.green import ZMQError, EAGAIN
 
 from .decorators import annotate, annotations, dualmethod
 from .dispatch import Signal
-from ..vip import green as vip
-from ... import platform
+from ...vip import green as vip
+from .... import platform
 
 
 __all__ = ['Core', 'killing']

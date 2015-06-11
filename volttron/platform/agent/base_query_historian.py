@@ -60,7 +60,7 @@ from collections import defaultdict
 import logging
 from pprint import pprint
 
-from volttron.platform.vipagent import *
+from volttron.platform.vip.agent import *
 
 from volttron.platform.agent import utils
 from dateutil.parser import parse

@@ -3,7 +3,7 @@ from __future__ import absolute_import, print_function
 
 import gevent
 
-from volttron.platform.vipagent import *
+from volttron.platform.vip.agent import *
 
 
 def meh():

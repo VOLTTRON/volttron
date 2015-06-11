@@ -62,7 +62,7 @@
 import os
 
 __import__('warnings').filterwarnings(
-    'default', '.*vipagent.*', DeprecationWarning)
+    'default', r'.*vip\.?agent.*', DeprecationWarning)
 
 __version__ = '2.0'
 
