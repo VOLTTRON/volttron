@@ -74,6 +74,7 @@ from . import aip
 from . import __version__
 from . import config
 from . import vip
+from .vip.socket import encode_key
 from .control import ControlService
 from .agent import utils
 from .vipagent import Agent, Core
@@ -473,7 +474,7 @@ def main(argv=sys.argv):
                 key = infile.read(80)
     publickey = key[:40]
     if publickey:
-        _log.info('public key: %r', publickey)
+        _log.info('public key: %r (%s)', publickey, encode_key(publickey))
     serverkey = key[40:]
 
     # Main loops

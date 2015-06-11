@@ -58,10 +58,34 @@
 
 from __future__ import absolute_import
 
-from zmq import SNDMORE, RCVMORE, DEALER, ROUTER
+import base64
+import binascii
+import urlparse
+
+from zmq import SNDMORE, RCVMORE, DEALER, ROUTER, curve_keypair
 
 
 __all__ = ['ProtocolError', 'Message']
+
+
+def encode_key(key):
+    '''Base64-encode and return a key in a URL-safe manner.'''
+    assert len(key) == 40
+    return base64.urlsafe_b64encode(key)[:-2]
+
+
+def decode_key(key):
+    '''Parse and return a Z85 encoded key from other encodings.'''
+    length = len(key)
+    if length == 40:
+        return key
+    elif length == 54:
+        return base64.urlsafe_b64decode(key + '==')
+    elif length == 56:
+        return base64.urlsafe_b64decode(key)
+    elif length == 80:
+        return binascii.unhexlify(key)
+    raise ValueError('unknown key encoding')
 
 
 class ProtocolError(Exception):
@@ -300,3 +324,72 @@ class _Socket(object):
         msg = Message()
         msg.__dict__ = self.recv_vip_dict(flags=flags, copy=copy, track=track)
         return msg
+
+    def bind(self, addr):
+        '''Extended zmq.Socket.bind() to include options in addr.
+
+        The URL given by addr may optionally contain the query
+        parameters and a URL fragment. If given, the fragment will be
+        used as the socket identity.
+
+        Valid query parameters:
+            secretkey: curve secret key. If set, the socket
+                       ZMQ_CURVE_SERVER option will be set on the
+                       socket and ZMQ_CURVE_SECRETKEY will be set
+                       to the parameter value after it is decode
+                       by decode_key().
+
+        Note: subsequent binds will use the values of the previous bind
+              unless explicitly included in the address.
+        '''
+        url = urlparse.urlparse(addr)
+        if url.fragment:
+            self.identity = url.fragment
+        params = urlparse.parse_qs(url.query)
+        if url.scheme == 'tcp':
+            secretkey = params.get('secretkey')
+            if secretkey:
+                secretkey = decode_key(secretkey[0])
+                self.curve_server = True
+                self.curve_secretkey = secretkey
+        super(_Socket, self).bind(addr)
+
+    def connect(self, addr):
+        '''Extended zmq.Socket.connect() to include options in addr.
+
+        The URL given by addr may optionally contain the query
+        parameters and a URL fragment. If given, the fragment will be
+        used as the socket identity.
+
+        Valid query parameters:
+            serverkey: curve server public key (ZMQ_CURVE_SERVERKEY)
+            keypair: curve client key pair, concatenated
+                     (ZMQ_CURVE_PUBLICKEY, ZMQ_CURVE_SECRETKEY)
+
+        All keys are first parsed by decode_key() and then set on the
+        appropriate socket option. If serverkey is given but not
+        keypair, a key pair is automatically generated and used.
+
+        Note: subsequent connects will use the values of the previous
+              connect unless explicitly included in the address.
+        '''
+        url = urlparse.urlparse(addr)
+        if url.fragment:
+            self.identity = url.fragment
+        params = urlparse.parse_qs(url.query)
+        if url.scheme == 'tcp':
+            serverkey = params.get('serverkey')
+            if serverkey:
+                serverkey = decode_key(serverkey[0])
+                keypair = params.get('keypair')
+                if keypair:
+                    keypair = keypair[0]
+                    mid = len(keypair) // 2
+                    publickey = decode_key(keypair[:mid])
+                    secretkey = decode_key(keypair[mid:])
+                else:
+                    publickey, secretkey = keypair = curve_keypair()
+                self.curve_serverkey = serverkey
+                self.curve_secretkey = secretkey
+                self.curve_publickey = publickey
+        super(_Socket, self).connect(addr)
