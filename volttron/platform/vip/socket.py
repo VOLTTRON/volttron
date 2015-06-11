@@ -63,6 +63,7 @@ import binascii
 import urlparse
 
 from zmq import SNDMORE, RCVMORE, DEALER, ROUTER, curve_keypair
+from zmq.utils import z85
 
 
 __all__ = ['ProtocolError', 'Message']
@@ -70,8 +71,10 @@ __all__ = ['ProtocolError', 'Message']
 
 def encode_key(key):
     '''Base64-encode and return a key in a URL-safe manner.'''
-    assert len(key) == 40
-    return base64.urlsafe_b64encode(key)[:-2]
+    assert len(key) in (32, 40)
+    if len(key) == 40:
+        key = z85.decode(key)
+    return base64.urlsafe_b64encode(key)[:-1]
 
 
 def decode_key(key):
@@ -79,10 +82,16 @@ def decode_key(key):
     length = len(key)
     if length == 40:
         return key
+    elif length == 43:
+        return z85.encode(base64.urlsafe_b64decode(key + '='))
+    elif length == 44:
+        return z85.encode(base64.urlsafe_b64decode(key))
     elif length == 54:
         return base64.urlsafe_b64decode(key + '==')
     elif length == 56:
         return base64.urlsafe_b64decode(key)
+    elif length == 64:
+        return z85.encode(binascii.unhexlify(key))
     elif length == 80:
         return binascii.unhexlify(key)
     raise ValueError('unknown key encoding')
