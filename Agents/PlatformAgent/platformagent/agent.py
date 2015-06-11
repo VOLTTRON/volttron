@@ -71,7 +71,7 @@ import psutil
 
 import gevent
 from zmq.utils import jsonapi
-from volttron.platform.vipagent import *
+from volttron.platform.vip.agent import *
 
 from volttron.platform import vip, jsonrpc, control
 from volttron.platform.control import Connection
