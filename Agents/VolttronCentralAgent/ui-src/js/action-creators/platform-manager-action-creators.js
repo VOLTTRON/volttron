@@ -25,8 +25,6 @@ var platformManagerActionCreators = {
                     type: ACTION_TYPES.RECEIVE_AUTHORIZATION,
                     authorization: result,
                 });
-
-                platformManagerActionCreators.loadPlatforms();
             })
             .catch(rpc.Error, handleRpcError);
     },
