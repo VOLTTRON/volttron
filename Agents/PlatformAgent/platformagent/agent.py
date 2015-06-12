@@ -122,7 +122,6 @@ def platform_agent(config_path, **kwargs):
 
         @Core.periodic(15)
         def write_status(self):
-
             historian_present = False
             try:
                 ping = self.vip.ping('platform.historian', 'awake?').get(timeout=3)
@@ -131,20 +130,23 @@ def platform_agent(config_path, **kwargs):
                 _log.warning('platform.historian not found!')
                 return
 
-
             base_topic = 'datalogger/log/platform/status'
-            cpu_times = base_topic + "/cpu_times"
+            cpu = base_topic + '/cpu'
             virtual_memory = base_topic + "/virtual_memory"
             disk_partitions = base_topic + "/disk_partiions"
 
             points = {}
 
-            for k, v in psutil.cpu_times().__dict__.items():
-                points[k] = {'Readings':v, 'Units': 'double'}
+            for k, v in psutil.cpu_times_percent().__dict__.items():
+                points['times_percent/' + k] = {'Readings': v,
+                                                'Units': 'double'}
+
+            points['percent'] = {'Readings': psutil.cpu_percent(),
+                                 'Units': 'double'}
 
             message = jsonapi.dumps(points)
             self.vip.pubsub.publish(peer='pubsub',
-                                    topic=cpu_times,
+                                    topic=cpu,
                                     message=[message])
 
         @RPC.export
