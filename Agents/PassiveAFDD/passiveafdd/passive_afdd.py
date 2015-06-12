@@ -197,8 +197,8 @@ def passiveafdd(config_path, **kwargs):
                     self.bldg_data = read_oae_pandas(self.file_path,
                                                      self.names)
                 self.process_data()
-            except Exception, e:
-                _log.exception('Error:' + e)
+            except:
+                _log.exception('Error:' + str(sys.exc_info()[0]))
 
         def process_data(self):
             '''Aggregate the data based on compressor status, heating status,
