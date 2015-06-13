@@ -27,6 +27,10 @@ pre, code {
     font-family: "Menlo", "Monaco", "Consolas", monospace;
 }
 
+table {
+    width: 100%;
+}
+
 th {
     text-align: left;
     border-bottom: 1px solid #ddd;
@@ -199,16 +203,38 @@ td:not(:first-child) {
 }
 
 .view {
-    padding: 1.5em 1em;
+    padding: 1.5em 2.5em;
     border-top: 1px solid #fff;
 }
 
 .view > * {
-    margin: 0 1.5rem 1.5rem;
+    margin: 0 0 1.5rem;
 }
 
 .view__error {
     white-space: pre;
+}
+
+.status-chart {
+    display: inline-block;
+    width: 20%;
+    padding: 1em;
+    box-sizing: border-box;
+}
+
+.status-chart h4 {
+    margin-bottom: 1.5rem;
+}
+
+.status-chart svg {
+    width: 100%;
+    height: 50px;
+}
+
+.status-chart path {
+    fill: none;
+    stroke: #45b;
+    stroke-width: 2;
 }
 
 .view--list .view__item {

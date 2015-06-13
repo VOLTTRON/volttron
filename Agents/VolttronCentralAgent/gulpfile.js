@@ -64,6 +64,7 @@ function vendor() {
     return browserify({
         noParse: [
             'bluebird/js/browser/bluebird.min',
+            'd3/d3.min',
             'events',
             'jquery/dist/jquery.min',
             'node-uuid',
@@ -73,6 +74,7 @@ function vendor() {
     })
         .require([
             { file: 'bluebird/js/browser/bluebird.min', expose: 'bluebird' },
+            { file: 'd3/d3.min', expose: 'd3' },
             'events',
             'flux',
             { file: 'jquery/dist/jquery.min', expose: 'jquery' },

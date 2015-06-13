@@ -105,6 +105,41 @@ var platformManagerActionCreators = {
             platform: platform,
         });
     },
+    updateStatus: function (platform) {
+        var authorization = authorizationStore.getAuthorization();
+
+        platform.status = platform.status || {};
+
+        [
+            'cpu/percent',
+            'cpu/times_percent/idle',
+            'cpu/times_percent/nice',
+            'cpu/times_percent/system',
+            'cpu/times_percent/user',
+        ].forEach(function (topic) {
+            rpc.Exchange({
+                method: 'platforms.uuid.' + platform.uuid + '.historian.query',
+                params: {
+                    topic: 'datalogger/log/platform/status/' + topic,
+                    start: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+                },
+                authorization: authorization,
+            }).promise
+                .then(function (result) {
+                    result.values.forEach(function (value) {
+                        value[0] = Date.parse(value[0]);
+                    });
+
+                    platform.status[topic] = result.values;
+
+                    dispatcher.dispatch({
+                        type: ACTION_TYPES.RECEIVE_PLATFORM,
+                        platform: platform,
+                    });
+                })
+                .catch(rpc.Error, handleRpcError);
+        });
+    },
     startAgent: function (platform, agent) {
         var authorization = authorizationStore.getAuthorization();
 
