@@ -283,6 +283,8 @@ def platform_agent(config_path, **kwargs):
 
         @Core.receiver('onstart')
         def starting(self, sender, **kwargs):
+            psutil.cpu_times_percent()
+            psutil.cpu_percent()
             self.vip.pubsub.publish(peer='pubsub', topic='/platform',
                                     message='available')
         @Core.receiver('onstop')
