@@ -74,11 +74,11 @@ from . import aip
 from . import __version__
 from . import config
 from . import vip
+from .vip.agent import Agent, Core
+from .vip.agent.compat import CompatPubSub
 from .vip.socket import encode_key
 from .control import ControlService
 from .agent import utils
-from .vipagent import Agent, Core
-from .vipagent.compat import CompatPubSub
 
 try:
     import volttron.restricted

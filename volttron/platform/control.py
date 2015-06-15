@@ -72,7 +72,7 @@ import traceback
 import gevent
 
 from .agent import utils
-from .vipagent import Agent as BaseAgent, RPC
+from .vip.agent import Agent as BaseAgent, RPC
 from . import aip as aipmod
 from . import config
 from .jsonrpc import RemoteError

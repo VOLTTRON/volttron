@@ -61,7 +61,7 @@ import uuid
 import sqlite3
 
 from base_historian import BaseHistorianAgent
-from volttron.platform.vipagent import *
+from volttron.platform.vip.agent import *
 from volttron.platform.agent.base_query_historian import BaseQueryHistorianAgent
 #from volttron.platform.agent.base_historian import BaseHistorianAgent
 from volttron.platform.agent import utils, matching

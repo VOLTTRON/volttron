@@ -67,7 +67,7 @@ from zmq.utils import jsonapi
 
 from .base import SubsystemBase
 from ..decorators import annotate, annotations, dualmethod, spawn
-from ... import jsonrpc
+from .... import jsonrpc
 
 
 __all__ = ['PubSub']

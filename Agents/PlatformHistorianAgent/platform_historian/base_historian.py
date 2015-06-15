@@ -76,7 +76,7 @@ from zmq.utils import jsonapi
 import gevent
 from gevent.queue import Queue, Empty
 
-from volttron.platform.vipagent import *
+from volttron.platform.vip.agent import *
 
 from volttron.platform.agent import utils, matching
 from volttron.platform.agent.vipagent import (BaseAgent, RPCAgent, export,

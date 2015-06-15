@@ -72,7 +72,7 @@ from .base import SubsystemBase
 from ..errors import VIPError
 from ..results import counter, ResultsDictionary
 from ..decorators import annotate, annotations, dualmethod, spawn
-from ... import jsonrpc
+from .... import jsonrpc
 
 
 __all__ = ['RPC']
