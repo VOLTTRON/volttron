@@ -123,6 +123,15 @@ def platform_agent(config_path, **kwargs):
         @Core.periodic(15)
         def write_status(self):
 
+            historian_present = False
+            try:
+                ping = self.vip.ping('platform.historian', 'awake?').get(timeout=3)
+                historian_present = True
+            except Unreachable:
+                _log.warning('platform.historian not found!')
+                return
+
+
             base_topic = 'datalogger/log/platform/status'
             cpu_times = base_topic + "/cpu_times"
             virtual_memory = base_topic + "/virtual_memory"
