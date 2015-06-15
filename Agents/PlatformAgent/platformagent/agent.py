@@ -118,7 +118,34 @@ def platform_agent(config_path, **kwargs):
             self._managers_reachable = {}
             self._services = {}
             self._settings = {}
+            self._load_settings()
+            self._agent_configurations = {}
 
+        def _store_settings(self):
+            with open('platform.settings', 'wb') as f:
+                f.write(jsonapi.dumps(self._settings))
+                f.close()
+
+        def _load_settings(self):
+            try:
+                with open('platform.settings', 'rb') as f:
+                    self._settings = self._settings = jsonapi.loads(f.read())
+                f.close()
+            except Exception as e:
+                _log.debug('Exception '+ e.message)
+                self._settings = {}
+
+        @RPC.export
+        def set_setting(self, key, value):
+            _log.debug("Setting key: {} to value: {}".format(key, value))
+            self._settings[key] = value
+            self._store_settings()
+
+
+        @RPC.export
+        def get_setting(self, key):
+            _log.debug('Retrieveing key: {}'.format(key))
+            return self._settings.get(key, '')
 
         @Core.periodic(15)
         def write_status(self):
@@ -201,6 +228,10 @@ def platform_agent(config_path, **kwargs):
             # First handle the elements that are going to this platform
             if method == 'list_agents':
                 result = self.list_agents()
+            elif method == 'set_setting':
+                result = self.set_setting(**params)
+            elif method == 'get_setting':
+                result = self.get_setting(**params)
             elif method == 'status_agents':
                 result = {'result': [{'name':a[1], 'uuid': a[0],
                                       'process_id': a[2][0],
