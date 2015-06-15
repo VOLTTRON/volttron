@@ -111,7 +111,6 @@ def platform_historian_agent(config_path, **kwargs):
         def publish_to_historian(self, to_publish_list):
             #self.report_all_published()
             c = self.conn.cursor()
-            #print 'Publish info'
             for x in to_publish_list:
                 ts = x['timestamp']
                 topic = x['topic']
@@ -129,12 +128,11 @@ def platform_historian_agent(config_path, **kwargs):
                 c.execute('''INSERT OR REPLACE INTO data values(?, ?, ?)''',
                           (ts,topic_id,jsonapi.dumps(value)))
 
-                #pprint(x)
-            print('published {} data values:'.format(len(to_publish_list)))
 
             self.conn.commit()
             c.close()
 
+            _log.debug('published {} data values:'.format(len(to_publish_list)))
             self.report_all_published()
 
         def query_historian(self, topic, start=None, end=None, skip=0, count=None):
@@ -177,9 +175,9 @@ def platform_historian_agent(config_path, **kwargs):
             if skip > 0:
                 offset_statement = 'OFFSET ?'
                 args.append(skip)
-                
+
             _log.debug("About to do real_query")
-            
+
             real_query = query.format(where=where_statement,
                                       limit=limit_statement,
                                       offset=offset_statement)

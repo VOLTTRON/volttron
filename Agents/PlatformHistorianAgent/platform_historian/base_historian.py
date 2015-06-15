@@ -60,24 +60,18 @@ from abc import abstractmethod
 from collections import defaultdict
 from dateutil.parser import parse
 from datetime import datetime, timedelta
-
 import logging
 from pprint import pprint
-import pytz
-#from Queue import Queue, Empty
+from Queue import Queue, Empty
 import re
 import sqlite3
 from threading import Thread
 
+import gevent
+import pytz
 from zmq.utils import jsonapi
 
-
-
-import gevent
-from gevent.queue import Queue, Empty
-
 from volttron.platform.vip.agent import *
-
 from volttron.platform.agent import utils, matching
 from volttron.platform.agent.vipagent import (BaseAgent, RPCAgent, export,
                                               onevent, spawn)
@@ -277,42 +271,42 @@ class BaseHistorianAgent(Agent):
 
     def _process_loop(self):
         _log.debug("Starting process loop.")
-        self._processing = True
-        backup_setup = gevent.spawn(self._setup_backup_db)
-        historian_setup = gevent.spawn(self.historian_setup)
 
-        gevent.joinall([backup_setup, historian_setup])
+        self._processing = True
+
         #Based on the state of the back log and whether or not sucessful
         #publishing is currently happening (and how long it's taking)
         #we may or may not want to wait on the event queue for more input
         #before proceeding with the rest of the loop.
-        wait_for_input = not bool(self._get_outstanding_to_publish())
+        #wait_for_input = not bool(self._get_outstanding_to_publish())
 
-        while True:
-            try:
+        while not self._event_queue.empty() or \
+                    self._get_outstanding_to_publish():
+
+            if not self._event_queue.empty():
                 _log.debug("Reading from/waiting for queue.")
-                new_to_publish = [self._event_queue.get(wait_for_input, self._retry_period)]
-            except Empty:
-                _log.debug("Queue wait timed out. Falling out.")
+                new_to_publish = [self._event_queue.get(False, self._retry_period)]
+            else:
                 new_to_publish = []
 
             if new_to_publish:
+                _log.debug("Adding {} items to the queue."
+                           .format(len(new_to_publish)))
                 while True:
                     try:
-                        _log.debug("Checking for queue build up.")
                         new_to_publish.append(self._event_queue.get_nowait())
                     except Empty:
                         break
 
+            # Store before sending to the concrete historian.
             self._backup_new_to_publish(new_to_publish)
 
             wait_for_input = True
             start_time = datetime.utcnow()
 
-            while True:
-                to_publish_list = self._get_outstanding_to_publish()
-                if not to_publish_list:
-                    break
+            to_publish_list = self._get_outstanding_to_publish()
+
+            while to_publish_list:
                 _log.debug("Calling publish_to_historian.")
                 self.publish_to_historian(to_publish_list)
                 if not self._any_sucessfull_publishes():
@@ -323,6 +317,9 @@ class BaseHistorianAgent(Agent):
                 if now - start_time > self._max_time_publishing:
                     wait_for_input = False
                     break
+
+                to_publish_list = self._get_outstanding_to_publish()
+
         self._processing = False
         _log.debug("Finished processing")
 
