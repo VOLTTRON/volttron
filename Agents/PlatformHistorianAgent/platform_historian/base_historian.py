@@ -143,6 +143,48 @@ class BaseHistorianAgent(Agent):
                                     topic=topics.LOGGER_LOG,
                                     callback=self.capture_log_data)
 
+    def capture_log_data(self, peer, sender, bus, topic, headers, message):
+        '''Capture log data and submit it to be published by a historian.'''
+
+        parts = topic.split('/')
+        location = '/'.join(reversed(parts[2:]))
+
+        try:
+            data = jsonapi.loads(message[0])
+        except ValueError as e:
+            _log.error("message for {topic} bad message string: {message_string}".format(topic=topic,
+                                                                                     message_string=message[0]))
+            return
+        except IndexError as e:
+            _log.error("message for {topic} missing message string".format(topic=topic))
+            return
+
+        source = 'log'
+        _log.debug("Queuing {topic} from {source} for publish".format(topic=topic,
+                                                                      source=source))
+        for point, item in data.iteritems():
+            ts_path = location + '/' + point
+            if 'Readings' not in item or 'Units' not in item:
+                _log.error("logging request for {path} missing Readings or Units".format(path=ts_path))
+                continue
+            units = item['Units']
+            dtype = item.get('data_type', 'float')
+            if dtype == 'double':
+                dtype = 'float'
+
+            meta = {'units': units, 'type': dtype}
+
+            readings = item['Readings']
+            if not isinstance(readings, list):
+                readings = [(datetime.utcnow(), readings)]
+
+            self._event_queue.put({'source': source,
+                                   'topic': topic+'/'+point,
+                                   'readings': readings,
+                                   'meta':meta})
+        if not self._processing:
+            gevent.spawn(self._process_loop)
+
     # @matching.match_start(topics.DRIVER_TOPIC_BASE+'/'+topics.DRIVER_TOPIC_ALL)
     def capture_device_data(self, peer, bus, topic, headers, message):
         '''Capture device data and submit it to be published by a historian.'''
@@ -232,48 +274,6 @@ class BaseHistorianAgent(Agent):
                                'topic': topic,
                                'readings': [timestamp,value]})
 
-    # #@matching.match_start(topics.LOGGER_LOG)
-    def capture_log_data(self, peer, sender, bus, topic, headers, message):
-        '''Capture log data and submit it to be published by a historian.'''
-
-        parts = topic.split('/')
-        location = '/'.join(reversed(parts[2:]))
-
-        try:
-            data = jsonapi.loads(message[0])
-        except ValueError as e:
-            _log.error("message for {topic} bad message string: {message_string}".format(topic=topic,
-                                                                                     message_string=message[0]))
-            return
-        except IndexError as e:
-            _log.error("message for {topic} missing message string".format(topic=topic))
-            return
-
-        source = 'log'
-        _log.debug("Queuing {topic} from {source} for publish".format(topic=topic,
-                                                                      source=source))
-        for point, item in data.iteritems():
-            ts_path = location + '/' + point
-            if 'Readings' not in item or 'Units' not in item:
-                _log.error("logging request for {path} missing Readings or Units".format(path=ts_path))
-                continue
-            units = item['Units']
-            dtype = item.get('data_type', 'float')
-            if dtype == 'double':
-                dtype = 'float'
-
-            meta = {'units': units, 'type': dtype}
-
-            readings = item['Readings']
-            if not isinstance(readings, list):
-                readings = [(datetime.utcnow(), readings)]
-
-            self._event_queue.put({'source': source,
-                                   'topic': topic+'/'+point,
-                                   'readings': readings,
-                                   'meta':meta})
-        if not self._processing:
-            gevent.spawn(self._process_loop)
 
     def _process_loop(self):
         _log.debug("Starting process loop.")
@@ -501,7 +501,7 @@ class BaseQueryHistorianAgent(RPCAgent):
                 end = time_parser.parse(end)
 
         _log.debug("In base query")
-        
+
         if start:
             _log.debug("start={}".format(start))
 
