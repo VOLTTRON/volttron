@@ -224,7 +224,8 @@ var platformManagerActionCreators = {
                 method: 'platforms.uuid.' + platform.uuid + '.historian.query',
                 params: {
                     topic: 'datalogger/log/platform/status/' + topic,
-                    start: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+                    count: 20,
+                    order: 'LAST_TO_FIRST',
                 },
                 authorization: authorization,
             }).promise
@@ -1522,13 +1523,17 @@ consoleStore.dispatchToken = dispatcher.register(function (action) {
             break;
 
         case ACTION_TYPES.MAKE_REQUEST:
-            _exchanges.push(action.exchange);
-            consoleStore.emitChange();
+            if (_consoleShown) {
+                _exchanges.push(action.exchange);
+                consoleStore.emitChange();
+            }
             break;
 
         case ACTION_TYPES.FAIL_REQUEST:
         case ACTION_TYPES.RECEIVE_RESPONSE:
-            consoleStore.emitChange();
+            if (_consoleShown) {
+                consoleStore.emitChange();
+            }
             break;
     }
 });

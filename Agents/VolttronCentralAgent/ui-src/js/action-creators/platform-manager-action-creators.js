@@ -121,7 +121,8 @@ var platformManagerActionCreators = {
                 method: 'platforms.uuid.' + platform.uuid + '.historian.query',
                 params: {
                     topic: 'datalogger/log/platform/status/' + topic,
-                    start: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+                    count: 20,
+                    order: 'LAST_TO_FIRST',
                 },
                 authorization: authorization,
             }).promise
