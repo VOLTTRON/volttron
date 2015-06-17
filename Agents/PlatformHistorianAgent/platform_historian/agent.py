@@ -146,10 +146,9 @@ def platform_historian_agent(config_path, **kwargs):
             query = '''SELECT data.ts, data.value_string
                        FROM data, topics
                        {where}
-                       ORDER BY data.ts
+                       {order_by}
                        {limit}
-                       {offset}
-                       {order_by}'''
+                       {offset}'''
 
             where_clauses = ["WHERE topics.topic_name = ?", "topics.topic_id = data.topic_id"]
             args = [topic]
@@ -164,7 +163,7 @@ def platform_historian_agent(config_path, **kwargs):
 
             where_statement = ' AND '.join(where_clauses)
 
-            order_by = ''
+            order_by = 'ORDER BY data.ts ASC'
             if order == 'LAST_TO_FIRST':
                 order_by = ' ORDER BY data.ts DESC'
 

@@ -503,7 +503,7 @@ class BaseQueryHistorianAgent(RPCAgent):
         if start:
             _log.debug("start={}".format(start))
 
-        results = self.query_historian(topic, start, end, skip, count)
+        results = self.query_historian(topic, start, end, skip, count, order)
         metadata = results.get("metadata")
         if metadata is None:
             results['metadata'] = {}
