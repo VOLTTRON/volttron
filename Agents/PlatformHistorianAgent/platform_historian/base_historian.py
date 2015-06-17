@@ -479,7 +479,8 @@ class BaseQueryHistorianAgent(RPCAgent):
     '''
 
     @export()
-    def query(self, topic=None, start=None, end=None, skip=0, count=None):
+    def query(self, topic=None, start=None, end=None, skip=0,
+              count=None, order="FIRST_TO_LAST"):
         """Actual RPC handler"""
 
         if topic is None:
@@ -509,7 +510,7 @@ class BaseQueryHistorianAgent(RPCAgent):
         return results
 
     @abstractmethod
-    def query_historian(self, topic, start=None, end=None, skip=0, count=None):
+    def query_historian(self, topic, start=None, end=None, skip=0, count=None, order=None):
         """This function should return the results of a query in the form:
         {"values": [(timestamp1: value1), (timestamp2: value2), ...],
          "metadata": {"key1": value1, "key2": value2, ...}}

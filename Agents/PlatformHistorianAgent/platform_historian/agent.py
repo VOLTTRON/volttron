@@ -135,7 +135,8 @@ def platform_historian_agent(config_path, **kwargs):
             _log.debug('published {} data values:'.format(len(to_publish_list)))
             self.report_all_published()
 
-        def query_historian(self, topic, start=None, end=None, skip=0, count=None):
+        def query_historian(self, topic, start=None, end=None, skip=0,
+                            count=None, order="FIRST_TO_LAST"):
             """This function should return the results of a query in the form:
             {"values": [(timestamp1, value1), (timestamp2, value2), ...],
              "metadata": {"key1": value1, "key2": value2, ...}}
@@ -147,7 +148,8 @@ def platform_historian_agent(config_path, **kwargs):
                        {where}
                        ORDER BY data.ts
                        {limit}
-                       {offset}'''
+                       {offset}
+                       {order_by}'''
 
             where_clauses = ["WHERE topics.topic_name = ?", "topics.topic_id = data.topic_id"]
             args = [topic]
@@ -161,6 +163,10 @@ def platform_historian_agent(config_path, **kwargs):
                 args.append(end)
 
             where_statement = ' AND '.join(where_clauses)
+
+            order_by = ''
+            if order == 'LAST_TO_FIRST':
+                order_by = ' ORDER BY data.ts DESC'
 
             #can't have an offset without a limit
             # -1 = no limit and allows the user to
@@ -180,7 +186,8 @@ def platform_historian_agent(config_path, **kwargs):
 
             real_query = query.format(where=where_statement,
                                       limit=limit_statement,
-                                      offset=offset_statement)
+                                      offset=offset_statement,
+                                      order_by=order_by)
 
             print real_query
             print args
