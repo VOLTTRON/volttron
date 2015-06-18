@@ -61,12 +61,12 @@ router.run(function (Handler) {
         <Handler />,
         document.getElementById('app')
     );
-});
 
-authorizationStore.addChangeListener(function () {
-    if (authorizationStore.getAuthorization() && router.isActive('/login')) {
-        router.replaceWith(_afterLoginPath);
-    } else if (!authorizationStore.getAuthorization() && !router.isActive('/login')) {
-        router.replaceWith('/login');
-    }
+    authorizationStore.addChangeListener(function () {
+        if (authorizationStore.getAuthorization() && router.isActive('/login')) {
+            router.replaceWith(_afterLoginPath);
+        } else if (!authorizationStore.getAuthorization() && !router.isActive('/login')) {
+            router.replaceWith('/login');
+        }
+    });
 });

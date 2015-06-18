@@ -2,3 +2,6 @@ numpy>=1.8,<2
 pandas
 python-dateutil>=2,<3
 requests>=2.2,<3
+ply
+tornado
+psutil

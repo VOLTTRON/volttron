@@ -10,12 +10,25 @@ h1, h2, h3, h4, h5, h6 {
     margin: 0;
 }
 
+a {
+    color: #45b;
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
 input {
     line-height: 1.5;
 }
 
 pre, code {
     font-family: "Menlo", "Monaco", "Consolas", monospace;
+}
+
+table {
+    width: 100%;
 }
 
 th {
@@ -25,7 +38,7 @@ th {
 
 th, td {
     padding: 0 0.6666em;
-    line-height: 2.5em;
+    line-height: 2.5;
 }
 
 th:not(:first-child),
@@ -35,19 +48,19 @@ td:not(:first-child) {
 
 .button {
     background-color: #69b;
-    box-shadow: 0 0.3333em #479;
+    box-shadow: 0 0.3333rem #479;
     color: #fff;
     transition: opacity 150ms ease-out,
                 transform 20ms ease-out,
                 box-shadow 20ms ease-out;
     border: none;
-    border-radius: 0.3333em;
+    border-radius: 0.3333rem;
     padding: 0.25em 1em;
     outline: none;
 }
 
 .button:active:not(:disabled) {
-    transform: translateY(0.3333em);
+    transform: translateY(0.3333rem);
     box-shadow: 0 0 #479;
 }
 
@@ -119,10 +132,8 @@ td:not(:first-child) {
 }
 
 .navigation__item {
-    text-decoration: none;
     display: inline-block;
     margin-left: 1.5rem;
-    color: #45b;
     border-bottom: 0.25em solid #ddd;
     padding-bottom: 0.25em;
     transition: border-color 150ms linear;
@@ -131,6 +142,10 @@ td:not(:first-child) {
 .navigation__item--active {
     cursor: default;
     border-color: #9ac;
+}
+
+.navigation__item:hover {
+    text-decoration: none;
 }
 
 .navigation__item:not(.navigation__item--active):hover {
@@ -142,7 +157,7 @@ td:not(:first-child) {
     width: 100%;
     text-align: center;
     position: absolute;
-    top: 50%;
+    top: 38.2%;
     font-size: 2.5rem;
     margin-top: -6.5rem;
 }
@@ -157,7 +172,7 @@ td:not(:first-child) {
 
 .login-form {
     position: absolute;
-    top: 50%;
+    top: 38.2%;
     left: 0;
     right: 0;
     height: 16rem;
@@ -188,15 +203,38 @@ td:not(:first-child) {
 }
 
 .view {
-    padding: 1.5em 1em;
+    padding: 1.5em 2.5em;
+    border-top: 1px solid #fff;
 }
 
 .view > * {
-    margin: 0 1.5rem 1.5rem;
+    margin: 0 0 1.5rem;
 }
 
 .view__error {
     white-space: pre;
+}
+
+.status-chart {
+    display: inline-block;
+    width: 20%;
+    padding: 1em;
+    box-sizing: border-box;
+}
+
+.status-chart h4 {
+    margin-bottom: 1.5rem;
+}
+
+.status-chart svg {
+    width: 100%;
+    height: 50px;
+}
+
+.status-chart path {
+    fill: none;
+    stroke: #45b;
+    stroke-width: 2;
 }
 
 .view--list .view__item {
@@ -209,10 +247,18 @@ td:not(:first-child) {
 a.view__item {
     color: inherit;
     text-decoration: inherit;
+    position: relative;
 }
 
-a.view__item:hover {
-    background-color: #f8f8ff;
+a.view__item:hover::before {
+    content: "";
+    display: block;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 0.3333rem;
+    background-color: #45b;
 }
 
 .view--list .view__item + .view__item {
@@ -228,7 +274,7 @@ a.view__item:hover {
     width: 8em;
     margin-left: -4em;
     background-color: #69b;
-    border-radius: 0.3333em 0.3333em 0 0;
+    border-radius: 0.3333rem 0.3333rem 0 0;
     border: none;
     color: #fff;
     padding: 0.25em 1em;
@@ -240,7 +286,7 @@ a.view__item:hover {
 .platform-manager--console-open .toggle {
     top: 50%;
     bottom: auto;
-    border-radius: 0 0 0.3333em 0.3333em;
+    border-radius: 0 0 0.3333rem 0.3333rem;
     box-shadow: 0 0 0.5em rgba(0,0,0,0.3);
 }
 
@@ -322,6 +368,7 @@ a.view__item:hover {
 }
 
 .composer textarea {
+    display: block;
     font-family: "Menlo", "Monaco", "Consolas", monospace;
     height: 100%;
     width: 100%;
