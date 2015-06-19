@@ -478,10 +478,10 @@ def main(argv=sys.argv):
     serverkey = key[40:]
 
     # Main loops
-    if opts.autostart:
-        for name, error in opts.aip.autostart():
-            _log.error('error starting {!r}: {}\n'.format(name, error))
     def services():
+        if opts.autostart:
+            for name, error in opts.aip.autostart():
+                _log.error('error starting {!r}: {}\n'.format(name, error))
         control = gevent.spawn(ControlService(
             opts.aip, address='inproc://vip', identity='control').core.run)
         pubsub = gevent.spawn(PubSubService(
