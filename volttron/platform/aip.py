@@ -61,16 +61,21 @@
 
 import contextlib
 import errno
-from fcntl import fcntl, F_GETFL, F_SETFL
+try:
+    from fcntl import fcntl, F_GETFL, F_SETFL
+except ImportError:
+    # Make this a no-op on Windows
+    def fcntl(*args, **kwargs):
+        pass
+else:
+    from os import O_NONBLOCK
 import logging
 import os
-from os import O_NONBLOCK
 import shutil
 import signal
 import subprocess
 from subprocess import PIPE
 import sys
-import syslog
 import uuid
 
 import gevent
@@ -126,14 +131,15 @@ def gevent_readlines(fd):
         yield ''.join(data)
 
 
-_level_map = {syslog.LOG_DEBUG: logging.DEBUG,
-              syslog.LOG_INFO: logging.INFO,
-              syslog.LOG_NOTICE: logging.INFO,
-              syslog.LOG_WARNING: logging.WARNING,
-              syslog.LOG_ERR: logging.ERROR,
-              syslog.LOG_CRIT: logging.CRITICAL,
-              syslog.LOG_ALERT: logging.CRITICAL,
-              syslog.LOG_EMERG: logging.CRITICAL,}
+# LOG_* constants from syslog module (not available on Windows)
+_level_map = {7: logging.DEBUG,      # LOG_DEBUG
+              6: logging.INFO,       # LOG_INFO
+              5: logging.INFO,       # LOG_NOTICE
+              4: logging.WARNING,    # LOG_WARNING
+              3: logging.ERROR,      # LOG_ERR
+              2: logging.CRITICAL,   # LOG_CRIT
+              1: logging.CRITICAL,   # LOG_ALERT
+              0: logging.CRITICAL,}  # LOG_EMERG
 
 def _log_stream(name, agent, pid, level, stream):
     log = logging.getLogger(name)
