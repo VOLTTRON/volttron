@@ -2,6 +2,8 @@ import errno
 import os
 import sqlite3
 
+from zmq.utils import jsonapi
+
 __database = None
 __detect_types = None
 
@@ -50,14 +52,37 @@ def execute(query, connection=None, commit=True):
     if commit:
         connection.commit()
 
-
-
 def connect():
     if __database is None:
         raise AttributeError
     if __detect_types:
         return sqlite3.connect(__database, detect_types=__detect_types)
     return sqlite3.connect(__database)
+
+def insert_data(ts, topic_id, data, connection=None, commit=True):
+    if not connection:
+        connection = connect()
+
+    c = connection.cursor()
+    c.execute('''INSERT OR REPLACE INTO data values(?, ?, ?)''',
+                              (ts,topic_id,jsonapi.dumps(data)))
+    if commit:
+        connection.commit()
+
+def insert_topic(topic, connection=None, commit=True):
+    if not connection:
+        connection = connect()
+
+    c = connection.cursor()
+    c.execute('''INSERT INTO topics values (?,?)''', (None, topic))
+    c.execute('''SELECT last_insert_rowid()''')
+    row = c.fetchone()
+
+    if commit:
+        connection.commit()
+
+    return row
+
 
 def query_topics(connection=None):
     if not connection:
