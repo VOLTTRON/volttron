@@ -65,10 +65,12 @@ import random
 import re
 
 import gevent
-from gevent import core
-import zmq.green as zmq
+from zmq import green as zmq
 
-from .agent.vipagent import RPCAgent, export, onevent, subsystem
+from .vip.agent import Agent, Core, RPC
+
+
+_log = logging.getLogger(__name__)
 
 
 def dump_user(*args):
@@ -81,46 +83,42 @@ def load_user(string):
     return re.sub(r'\\(.)|,', sub, string).split('\x00')
 
 
-class AuthService(RPCAgent):
+class AuthService(Agent):
     def __init__(self, *args, **kwargs):
         super(AuthService, self).__init__(*args, **kwargs)
         self.zap_socket = None
         self._zap_greenlet = None
 
-    @export()
+    @RPC.export
     def get_authorization(self):
         pass
 
-    @onevent('setup')
-    def setup_zap(self):
+    @Core.receiver('onsetup')
+    def setup_zap(self, sender, **kwargs):
         self.zap_socket = zmq.Socket(zmq.Context.instance(), zmq.ROUTER)
-
-    @onevent('connect')
-    def bind_zap(self):
         self.zap_socket.bind('inproc://zeromq.zap.01')
 
-    @onevent('start')
-    def start_zap(self):
-        self._zap_greenlet = gevent.spawn(self.zap_loop)
-
-    @onevent('stop')
-    def stop_zap(self):
+    @Core.receiver('onstop')
+    def stop_zap(self, sender, **kwargs):
         if self._zap_greenlet is not None:
             self._zap_greenlet.kill()
 
-    @onevent('disconnect')
-    def unbind_zap(self):
+    @Core.receiver('onfinish')
+    def unbind_zap(self, sender, **kwargs):
         if self.zap_socket is not None:
             self.zap_socket.unbind('inproc://zeromq.zap.01')
 
-    def zap_loop(self):
+    @Core.receiver('onstart')
+    def zap_loop(self, sender, **kwargs):
+        self._zap_greenlet = gevent.getcurrent()
         sock = self.zap_socket
+        time = gevent.core.time
         blocked = {}
         wait_list = []
         timeout = None
         while True:
             events = sock.poll(timeout)
-            now = core.time()
+            now = time()
             if events:
                 zap = sock.recv_multipart()
                 version = zap[2]
@@ -165,4 +163,5 @@ class AuthService(RPCAgent):
             timeout = (wait_list[0][0] - now) if wait_list else None
 
     def authenticate(self, domain, address, mechanism, credentials):
-        pass
+        _log.info('%r %r %r %r', domain, address, mechanism, credentials)
+        return True
