@@ -69,6 +69,7 @@ import sys
 import uuid
 
 import gevent
+import gevent.event
 from gevent.fileobject import FileObject
 from gevent import subprocess
 from gevent.subprocess import PIPE
@@ -79,6 +80,7 @@ from zmq.utils import jsonapi
 from . import messaging
 from .messaging import topics
 from .packages import UnpackedPackage
+from .vip.agent import Agent
 
 try:
     from volttron.restricted import auth
@@ -210,21 +212,19 @@ class AIPplatform(object):
             if exeenv.process.poll() is None:
                 exeenv.process.kill()
 
-    def _sub_socket(self):
-        sock = messaging.Socket(zmq.SUB)
-        sock.connect(self.env.subscribe_address)
-        return sock
-
-    def _pub_socket(self):
-        sock = messaging.Socket(zmq.PUSH)
-        sock.connect(self.env.publish_address)
-        return sock
-
     def shutdown(self):
-        with contextlib.closing(self._pub_socket()) as sock:
-            sock.send_message(topics.PLATFORM_SHUTDOWN,
-                              {'reason': 'Received shutdown command'},
-                              flags=zmq.NOBLOCK)
+        event = gevent.event.Event()
+        agent = Agent(identity='aip', address='inproc://vip')
+        agent.core.onstart.connect(lambda s, **kw: event.set())
+        task = gevent.spawn(agent.core.run)
+        try:
+            event.wait()
+            agent.vip.pubsub.publish(
+                'pubsub', topics.PLATFORM_SHUTDOWN,
+                {'reason': 'Received shutdown command'}).get()
+        finally:
+            agent.core.stop()
+            task.kill()
 
     subscribe_address = property(lambda me: me.env.subscribe_address)
     publish_address = property(lambda me: me.env.publish_address)
