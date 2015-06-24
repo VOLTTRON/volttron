@@ -209,11 +209,11 @@ class LogLevelAction(argparse.Action):
 class Router(vip.BaseRouter):
     '''Concrete VIP router.'''
     def __init__(self, local_address, addresses=(),
-                 context=None, serverkey=None):
+                 context=None, secretkey=None):
         super(Router, self).__init__(context=context)
         self.local_address = local_address
         self.addresses = addresses
-        self._serverkey = serverkey
+        self._secretkey = secretkey
         self.logger = logging.getLogger('vip.router')
         if self.logger.level == logging.NOTSET:
             self.logger.setLevel(logging.INFO)
@@ -224,9 +224,9 @@ class Router(vip.BaseRouter):
         sock.zap_domain = 'vip'
         sock.bind(self.local_address)
         for address in self.addresses:
-            if address.startswith('tcp://') and self._serverkey:
+            if address.startswith('tcp://') and self._secretkey:
                 sock.curve_server = True
-                sock.curve_serverkey = self._serverkey
+                sock.curve_secretkey = self._secretkey
             else:
                 sock.curve_server = False
             sock.bind(address)
@@ -484,7 +484,7 @@ def main(argv=sys.argv):
     publickey = key[:40]
     if publickey:
         _log.info('public key: %r (%s)', publickey, encode_key(publickey))
-    serverkey = key[40:]
+    secretkey = key[40:]
 
     # The following line doesn't appear to do anything, but it creates 
     # a context common to the green and non-green zmq modules.
@@ -494,7 +494,7 @@ def main(argv=sys.argv):
     def router(stop):
         try:
             Router(opts.vip_local_address, opts.vip_address,
-                   serverkey=serverkey).run()
+                   secretkey=secretkey).run()
         finally:
             stop()
 
