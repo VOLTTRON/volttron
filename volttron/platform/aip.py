@@ -65,16 +65,16 @@ import logging
 import os
 import shutil
 import signal
-import subprocess
-from subprocess import PIPE
 import sys
 import uuid
 
 import gevent
 from gevent.fileobject import FileObject
-import simplejson as jsonapi
+from gevent import subprocess
+from gevent.subprocess import PIPE
 from wheel.tool import unpack
 import zmq
+from zmq.utils import jsonapi
 
 from . import messaging
 from .messaging import topics
@@ -115,7 +115,7 @@ _level_map = {7: logging.DEBUG,      # LOG_DEBUG
 def log_entries(name, agent, pid, level, stream):
     log = logging.getLogger(name)
     extra = {'processName': agent, 'process': pid}
-    for line in (l.rstrip() for l in stream):
+    for line in (l.rstrip('\r\n') for l in stream):
         if line[0:1] == '{' and line[-1:] == '}':
             try:
                 obj = jsonapi.loads(line)
@@ -491,10 +491,10 @@ class AIPplatform(object):
         _log.info('agent %s has PID %s', agent_path, proc.pid)
         gevent.spawn(log_stream, 'agents.stderr', name, proc.pid, argv[0],
                      log_entries('agents.log', name, proc.pid, logging.ERROR,
-                                 FileObject(proc.stderr, proc.stderr.mode)))
+                                 proc.stderr))
         gevent.spawn(log_stream, 'agents.stdout', name, proc.pid, argv[0],
-                     ((logging.INFO, line) for line in
-                      FileObject(proc.stdout, proc.stdout.mode)))
+                     ((logging.INFO, line.rstrip('\r\n'))
+                      for line in proc.stdout))
 
     def launch_agent(self, agent_path):
         while True:
