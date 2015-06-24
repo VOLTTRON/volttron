@@ -78,6 +78,7 @@ from . import vip
 from .vip.agent import Agent, Core
 from .vip.agent.compat import CompatPubSub
 from .vip.socket import encode_key
+from .auth import AuthService
 from .control import ControlService
 from .agent import utils
 
@@ -506,6 +507,8 @@ def main(argv=sys.argv):
         thread.start()
 
         control = gevent.spawn(control.core.run)
+        auth = gevent.spawn(AuthService(
+            address='inproc://vip', identity='auth').core.run)
         pubsub = gevent.spawn(PubSubService(
             address='inproc://vip', identity='pubsub').core.run)
         exchange = gevent.spawn(CompatPubSub(
