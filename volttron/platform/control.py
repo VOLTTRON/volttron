@@ -70,6 +70,7 @@ import tempfile
 import traceback
 
 import gevent
+import gevent.event
 
 from .agent import utils
 from .vip.agent import Agent as BaseAgent, RPC
@@ -501,8 +502,10 @@ class Connection(object):
     @property
     def server(self):
         if self._greenlet is None:
+            event = gevent.event.Event()
+            self._server.core.onstart.connect(lambda s, **kw: event.set())
             self._greenlet = gevent.spawn(self._server.core.run)
-            gevent.sleep(0)
+            event.wait()
         return self._server
 
     def call(self, method, *args, **kwargs):
