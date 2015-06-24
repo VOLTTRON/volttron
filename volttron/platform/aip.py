@@ -61,14 +61,6 @@
 
 import contextlib
 import errno
-try:
-    from fcntl import fcntl, F_GETFL, F_SETFL
-except ImportError:
-    # Make this a no-op on Windows
-    def fcntl(*args, **kwargs):
-        pass
-else:
-    from os import O_NONBLOCK
 import logging
 import os
 import shutil
@@ -79,7 +71,7 @@ import sys
 import uuid
 
 import gevent
-from gevent import select
+from gevent.fileobject import FileObject
 import simplejson as jsonapi
 from wheel.tool import unpack
 import zmq
@@ -110,27 +102,6 @@ def process_wait(p):
             timeout *= 2
 
 
-def gevent_readlines(fd):
-    fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK)
-    data = []
-    while True:
-        select.select([fd], [], [])
-        buf = fd.read(4096)
-        if not buf:
-            break
-        parts = buf.split('\n')
-        if len(parts) < 2:
-            data.extend(parts)
-        else:
-            first, rest, data = (
-                ''.join(data + parts[0:1]), parts[1:-1], parts[-1:])
-            yield first
-            for line in rest:
-                yield line
-    if any(data):
-        yield ''.join(data)
-
-
 # LOG_* constants from syslog module (not available on Windows)
 _level_map = {7: logging.DEBUG,      # LOG_DEBUG
               6: logging.INFO,       # LOG_INFO
@@ -141,10 +112,10 @@ _level_map = {7: logging.DEBUG,      # LOG_DEBUG
               1: logging.CRITICAL,   # LOG_ALERT
               0: logging.CRITICAL,}  # LOG_EMERG
 
-def _log_stream(name, agent, pid, level, stream):
+def log_entries(name, agent, pid, level, stream):
     log = logging.getLogger(name)
     extra = {'processName': agent, 'process': pid}
-    for line in stream:
+    for line in (l.rstrip() for l in stream):
         if line[0:1] == '{' and line[-1:] == '}':
             try:
                 obj = jsonapi.loads(line)
@@ -516,14 +487,14 @@ class AIPplatform(object):
         execenv.execute(argv, cwd=data_dir, env=environ, close_fds=True,
                         stdin=open(os.devnull), stdout=PIPE, stderr=PIPE)
         self.agents[agent_uuid] = execenv
-        pid = execenv.process.pid
-        _log.info('agent %s has PID %s', agent_path, pid)
-        gevent.spawn(log_stream, 'agents.stderr', name, pid, argv[0],
-                     _log_stream('agents.log', name, pid, logging.ERROR,
-                                 gevent_readlines(execenv.process.stderr)))
-        gevent.spawn(log_stream, 'agents.stdout', name, pid, argv[0],
+        proc = execenv.process
+        _log.info('agent %s has PID %s', agent_path, proc.pid)
+        gevent.spawn(log_stream, 'agents.stderr', name, proc.pid, argv[0],
+                     log_entries('agents.log', name, proc.pid, logging.ERROR,
+                                 FileObject(proc.stderr, proc.stderr.mode)))
+        gevent.spawn(log_stream, 'agents.stdout', name, proc.pid, argv[0],
                      ((logging.INFO, line) for line in
-                      gevent_readlines(execenv.process.stdout)))
+                      FileObject(proc.stdout, proc.stdout.mode)))
 
     def launch_agent(self, agent_path):
         while True:
