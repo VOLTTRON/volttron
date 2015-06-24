@@ -361,6 +361,7 @@ class _Socket(object):
                 secretkey = decode_key(secretkey[0])
                 self.curve_server = True
                 self.curve_secretkey = secretkey
+        addr = urlparse.urlunparse(url[:3] + ('', '', ''))
         super(_Socket, self).bind(addr)
 
     def connect(self, addr):
@@ -385,8 +386,8 @@ class _Socket(object):
         url = urlparse.urlparse(addr)
         if url.fragment:
             self.identity = url.fragment
-        params = urlparse.parse_qs(url.query)
         if url.scheme == 'tcp':
+            params = urlparse.parse_qs(url.query)
             serverkey = params.get('serverkey')
             if serverkey:
                 serverkey = decode_key(serverkey[0])
@@ -401,4 +402,5 @@ class _Socket(object):
                 self.curve_serverkey = serverkey
                 self.curve_secretkey = secretkey
                 self.curve_publickey = publickey
+        addr = urlparse.urlunparse(url[:3] + ('', '', ''))
         super(_Socket, self).connect(addr)
