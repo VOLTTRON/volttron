@@ -69,6 +69,7 @@ import threading
 
 import gevent
 from zmq import curve_keypair
+import zmq
 
 from . import aip
 from . import __version__
@@ -477,26 +478,35 @@ def main(argv=sys.argv):
         _log.info('public key: %r (%s)', publickey, encode_key(publickey))
     serverkey = key[40:]
 
+    # The following line doesn't appear to do anything, but it creates 
+    # a context common to the green and non-green zmq modules.
+    zmq.Context.instance()   # DO NOT REMOVE LINE!!
+
     # Main loops
-    def services():
-        if opts.autostart:
-            for name, error in opts.aip.autostart():
-                _log.error('error starting {!r}: {}\n'.format(name, error))
-        control = gevent.spawn(ControlService(
-            opts.aip, address='inproc://vip', identity='control').core.run)
+    def router(stop):
+        try:
+            Router(opts.vip_address, serverkey=serverkey).run()
+        finally:
+            stop()
+
+    try:
+        control = ControlService(
+            opts.aip, address='inproc://vip', identity='control')
+        thread = threading.Thread(target=router, args=(control.core.stop,))
+        thread.daemon = True
+        thread.start()
+
+        control = gevent.spawn(control.core.run)
         pubsub = gevent.spawn(PubSubService(
             address='inproc://vip', identity='pubsub').core.run)
         exchange = gevent.spawn(CompatPubSub(
             address='inproc://vip', identity='pubsub.compat',
             publish_address=opts.publish_address,
             subscribe_address=opts.subscribe_address).core.run)
-        gevent.wait()
-    try:
-        router = Router(opts.vip_address, serverkey=serverkey)
-        thread = threading.Thread(target=services)
-        thread.daemon = True
-        thread.start()
-        router.run()
+        if opts.autostart:
+            for name, error in opts.aip.autostart():
+                _log.error('error starting {!r}: {}\n'.format(name, error))
+        gevent.wait(objects=[control, pubsub, exchange], count=1)
     finally:
         opts.aip.finish()
 
