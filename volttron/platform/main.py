@@ -208,8 +208,10 @@ class LogLevelAction(argparse.Action):
 
 class Router(vip.BaseRouter):
     '''Concrete VIP router.'''
-    def __init__(self, addresses, context=None, serverkey=None):
+    def __init__(self, local_address, addresses=(),
+                 context=None, serverkey=None):
         super(Router, self).__init__(context=context)
+        self.local_address = local_address
         self.addresses = addresses
         self._serverkey = serverkey
         self.logger = logging.getLogger('vip.router')
@@ -220,6 +222,7 @@ class Router(vip.BaseRouter):
         sock = self.socket
         sock.bind('inproc://vip')
         sock.zap_domain = 'vip'
+        sock.bind(self.local_address)
         for address in self.addresses:
             if address.startswith('tcp://') and self._serverkey:
                 sock.curve_server = True
@@ -321,6 +324,9 @@ def main(argv=sys.argv):
     agents.add_argument(
         '--vip-address', metavar='ZMQADDR', action='append', default=[],
         help='ZeroMQ URL to bind for VIP connections')
+    agents.add_argument(
+        '--vip-local-address', metavar='ZMQADDR',
+        help='ZeroMQ URL to bind for local agent VIP connections')
 
     # XXX: re-implement control options
     #on
@@ -385,7 +391,8 @@ def main(argv=sys.argv):
         autostart=True,
         publish_address=ipc + 'publish',
         subscribe_address=ipc + 'subscribe',
-        vip_address=[ipc + 'vip.socket'],
+        vip_address=[],
+        vip_local_address=ipc + 'vip.socket',
         #allow_root=False,
         #allow_users=None,
         #allow_groups=None,
@@ -408,6 +415,7 @@ def main(argv=sys.argv):
     opts.publish_address = config.expandall(opts.publish_address)
     opts.subscribe_address = config.expandall(opts.subscribe_address)
     opts.vip_address = [config.expandall(addr) for addr in opts.vip_address]
+    opts.vip_local_address = config.expandall(opts.vip_local_address)
     if getattr(opts, 'show_config', False):
         for name, value in sorted(vars(opts).iteritems()):
             print(name, repr(value))
@@ -485,7 +493,8 @@ def main(argv=sys.argv):
     # Main loops
     def router(stop):
         try:
-            Router(opts.vip_address, serverkey=serverkey).run()
+            Router(opts.vip_local_address, opts.vip_address,
+                   serverkey=serverkey).run()
         finally:
             stop()
 
