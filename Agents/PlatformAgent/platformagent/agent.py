@@ -145,7 +145,7 @@ def platform_agent(config_path, **kwargs):
         @RPC.export
         def get_setting(self, key):
             _log.debug('Retrieveing key: {}'.format(key))
-            return self._settings.get(key, '')
+            return self._settings.get(key, None)
 
         @Core.periodic(15)
         def write_status(self):
