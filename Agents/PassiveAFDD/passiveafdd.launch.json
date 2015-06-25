@@ -14,7 +14,7 @@
 	"heat_cmd_name": "Heating",
 	"timestamp_name": "Timestamp",
 
-        # Requires mixed-air temperature (MAT) or discharge-air temperature (DAT)
+    # Requires mixed-air temperature (MAT) or discharge-air temperature (DAT)
 	# If using DAT set matemp_missing to 1
 	"mat_point_name": "MixedAirTemp",
 	"dat_point_name": "DischargeAirTemp",
@@ -27,7 +27,7 @@
 	"input_file": "/home/volttrondev/workspace/volttron/Agents/PassiveAFDD/passiveafdd/sample_data/oae_sample_data.csv",
 
 	"oaf_temp_threshold": 4.0,
-        "temp_sensor_threshold": 5.0,
+    "temp_sensor_threshold": 5.0,
 	
 	"mat_low": 50,
 	"mat_high": 90,
@@ -43,7 +43,7 @@
 	"oae2_oaf_threshold": 0.25,  
 
 	"damper_minimum": 20, 
-
+    "damper_deadband": 10.0,
 	"minimum_oa": 0.1,
 	"oae4_oaf_threshold": 0.25,
 	"oae5_oaf_threshold": 0.0,
