@@ -503,8 +503,7 @@ class Connection(object):
     def server(self):
         if self._greenlet is None:
             event = gevent.event.Event()
-            self._server.core.onstart.connect(lambda s, **kw: event.set())
-            self._greenlet = gevent.spawn(self._server.core.run)
+            self._greenlet = gevent.spawn(self._server.core.run, event)
             event.wait()
         return self._server
 

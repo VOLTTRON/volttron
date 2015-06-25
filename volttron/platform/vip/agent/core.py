@@ -176,7 +176,7 @@ class Core(object):
             _log.debug('unhandled VIP error %s', message)
 
 
-    def run(self):   # pylint: disable=method-hidden
+    def run(self, running_event=None):   # pylint: disable=method-hidden
         '''Entry point for running agent.'''
 
         self.greenlet = current = gevent.getcurrent()
@@ -254,6 +254,9 @@ class Core(object):
         scheduler = gevent.spawn(schedule_loop)
         loop.link(lambda glt: scheduler.kill())
         self.onstart.sendby(link_receiver, self)
+        if running_event:
+            running_event.set()
+            del running_event
         if loop in gevent.wait([loop, stop], count=1):
             raise RuntimeError('VIP loop ended prematurely')
         stop.wait()

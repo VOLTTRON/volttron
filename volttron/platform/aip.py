@@ -215,8 +215,7 @@ class AIPplatform(object):
     def shutdown(self):
         event = gevent.event.Event()
         agent = Agent(identity='aip', address='inproc://vip')
-        agent.core.onstart.connect(lambda s, **kw: event.set())
-        task = gevent.spawn(agent.core.run)
+        task = gevent.spawn(agent.core.run, event)
         try:
             event.wait()
             agent.vip.pubsub.publish(
