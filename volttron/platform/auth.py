@@ -66,6 +66,7 @@ import re
 
 import gevent
 from zmq import green as zmq
+from zmq.utils import z85
 
 from .vip.agent import Agent, Core, RPC
 
@@ -125,9 +126,11 @@ class AuthService(Agent):
                 if version != b'1.0':
                     continue
                 domain, address, _, kind = zap[4:8]
-                if kind not in ['NULL', 'PLAIN', 'CURVE']:
-                    continue
                 credentials = zap[8:]
+                if kind == b'CURVE':
+                    credentials[0] = z85.encode(credentials[0])
+                elif kind not in [b'NULL', b'PLAIN']:
+                    continue
                 response = zap[:4]
                 if self.authenticate(domain, address, kind, credentials):
                     user = dump_user(domain, address, kind, *credentials[:1])
