@@ -500,26 +500,42 @@ def main(argv=sys.argv):
         finally:
             stop()
 
+    address = 'inproc://vip'
     try:
-        control = ControlService(
-            opts.aip, address='inproc://vip', identity='control')
-        thread = threading.Thread(target=router, args=(control.core.stop,))
+        # Ensure auth service is running before router
+        auth = AuthService(address=address, identity='auth')
+        event = gevent.event.Event()
+        auth_task = gevent.spawn(auth.core.run, event)
+        event.wait()
+        del event
+
+        # Start router in separate thread to remain responsive
+        thread = threading.Thread(target=router, args=(auth.core.stop,))
         thread.daemon = True
         thread.start()
 
-        control = gevent.spawn(control.core.run)
-        auth = gevent.spawn(AuthService(
-            address='inproc://vip', identity='auth').core.run)
-        pubsub = gevent.spawn(PubSubService(
-            address='inproc://vip', identity='pubsub').core.run)
-        exchange = gevent.spawn(CompatPubSub(
-            address='inproc://vip', identity='pubsub.compat',
-            publish_address=opts.publish_address,
-            subscribe_address=opts.subscribe_address).core.run)
+        # Launch additional services and wait for them to start before
+        # auto-starting agents
+        services = [
+            ControlService(opts.aip, address=address, identity='control'),
+            PubSubService(address=address, identity='pubsub'),
+            CompatPubSub(address=address, identity='pubsub.compat',
+                         publish_address=opts.publish_address,
+                         subscribe_address=opts.subscribe_address),
+        ]
+        events = [gevent.event.Event() for service in services]
+        tasks = [gevent.spawn(service.core.run, event)
+                 for service, event in zip(services, events)]
+        tasks.append(auth_task)
+        gevent.wait(events)
+        del events
+
+        # Auto-start agents now that all services are up
         if opts.autostart:
             for name, error in opts.aip.autostart():
                 _log.error('error starting {!r}: {}\n'.format(name, error))
-        gevent.wait(objects=[control, pubsub, exchange], count=1)
+        # Wait for any service to stop, signaling exit
+        gevent.wait(tasks, count=1)
     finally:
         opts.aip.finish()
 
