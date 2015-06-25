@@ -74,14 +74,16 @@ from .vip.agent import Agent, Core, RPC
 _log = logging.getLogger(__name__)
 
 
-def dump_user(*args):
-    return ','.join([re.sub(r'([,\\])', r'\\\1', arg) for arg in args])
+_dump_re = re.compile(r'([,\\])')
+_load_re = re.compile(r'\\(.)|,')
 
+def dump_user(*args):
+    return ','.join([_dump_re.sub(r'\\\1', arg) for arg in args])
 
 def load_user(string):
     def sub(match):
         return match.group(1) or '\x00'
-    return re.sub(r'\\(.)|,', sub, string).split('\x00')
+    return _load_re.sub(sub, string).split('\x00')
 
 
 class AuthService(Agent):
