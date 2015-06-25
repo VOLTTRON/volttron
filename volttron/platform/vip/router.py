@@ -168,7 +168,7 @@ class BaseRouter(object):
         pass
 
     if zmq.zmq_version_info() >= (4, 1, 0):
-        def lookup_user_id(self, sender, auth_token):
+        def lookup_user_id(self, sender, recipient, auth_token):
             '''Find and return a user identifier.
 
             Returns the UTF-8 encoded User-Id property from the sender
@@ -178,12 +178,12 @@ class BaseRouter(object):
             # pylint: disable=unused-argument
             # A user id might/should be set by the ZAP authenticator
             try:
-                return sender.get('User-Id').encode('utf-8')
+                return recipient.get('User-Id').encode('utf-8')
             except ZMQError as exc:
                 if exc.errno != EINVAL:
                     raise
     else:
-        def lookup_user_id(self, sender, auth_token):
+        def lookup_user_id(self, sender, recipient, auth_token):
             '''Find and return a user identifier.
 
             A no-op by default, this method must be overridden to map
@@ -220,7 +220,7 @@ class BaseRouter(object):
             # Peer is not talking a protocol we understand
             log(ERROR, 'invalid protocol signature', frames)
             return
-        user_id = self.lookup_user_id(sender, auth_token)
+        user_id = self.lookup_user_id(sender, recipient, auth_token)
         if user_id is None:
             log(WARNING, 'missing user ID', frames)
             user_id = b''
