@@ -98,13 +98,14 @@ class BaseRouter(object):
     _context_class = zmq.Context
     _socket_class = zmq.Socket
 
-    def __init__(self, context=None):
+    def __init__(self, context=None, default_user_id=None):
         '''Initialize the object instance.
 
         If context is None (the default), the zmq global context will be
         used for socket creation.
         '''
         self.context = context or self._context_class.instance()
+        self.default_user_id = default_user_id
         self.socket = None
 
     def start(self):
@@ -182,6 +183,7 @@ class BaseRouter(object):
             except ZMQError as exc:
                 if exc.errno != EINVAL:
                     raise
+            return self.default_user_id
     else:
         def lookup_user_id(self, sender, recipient, auth_token):
             '''Find and return a user identifier.
@@ -190,7 +192,7 @@ class BaseRouter(object):
             the sender and auth_token to a user ID. The returned value
             must be a string or None (if the token was not found).
             '''
-            pass
+            return self.default_user_id
 
     def route(self):
         '''Route one message and return.

@@ -210,8 +210,9 @@ class LogLevelAction(argparse.Action):
 class Router(vip.BaseRouter):
     '''Concrete VIP router.'''
     def __init__(self, local_address, addresses=(),
-                 context=None, secretkey=None):
-        super(Router, self).__init__(context=context)
+                 context=None, secretkey=None, default_user_id=None):
+        super(Router, self).__init__(
+            context=context, default_user_id=default_user_id)
         self.local_address = local_address
         self.addresses = addresses
         self._secretkey = secretkey
@@ -495,7 +496,7 @@ def main(argv=sys.argv):
     def router(stop):
         try:
             Router(opts.vip_local_address, opts.vip_address,
-                   secretkey=secretkey).run()
+                   secretkey=secretkey, default_user_id=b'vip.service').run()
         finally:
             stop()
 
