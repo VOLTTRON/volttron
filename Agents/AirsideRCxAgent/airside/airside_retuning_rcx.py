@@ -49,6 +49,7 @@ operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 under Contract DE-AC05-76RL01830
 '''
 import datetime
+from datetime import timedelta as td
 import logging
 import re
 import math
@@ -82,7 +83,6 @@ class Application(AbstractDrivenAgent):
     Air-side HVAC Auto-Retuning Diagnostics
     for AHUs.
     '''
-
     fan_speedcmd_priority = ''
     duct_stp_stpt_priority = ''
     ahu_ccoil_priority = ''
@@ -116,17 +116,15 @@ class Application(AbstractDrivenAgent):
                          'could not verify system is ON.')
         self.pre_msg1 = ('Supply fan is off, current data will '
                          'not be used for diagnostics.')
-        self.pre_msg2 = ('Missing required data for diagnostic:  '
-                         'duct static pressure.')
-        self.pre_msg3 = ('Missing required data for diagnostic:  '
+        self.pre_msg2 = ('Missing required data: duct static pressure.')
+        self.pre_msg3 = ('Missing required data:  '
                          'duct static pressure set point')
-        self.pre_msg4 = ('Missing required data for diagnostic:  '
+        self.pre_msg4 = ('Missing required data:  '
                          'terminal-box damper-position (all zones).')
         self.pre_msg5 = ('Missing required data for diagnostic: SAT.')
-        self.pre_msg6 = ('Missing required data for diagnostic: '
+        self.pre_msg6 = ('Missing required data: '
                          'terminal-box reheat-valve-positions (all zones).')
-        self.pre_msg7 = ('Missing required data for diagnostic: '
-                         'SAT set point.')
+        self.pre_msg7 = ('Missing required data: SAT set point.')
 
         # Point names (Configurable)
         def get_or_none(name):
@@ -505,6 +503,7 @@ class Application(AbstractDrivenAgent):
 #                                                          current_time)
         for key, value in points.items():
             device_dict[key.lower()] = value
+        print device_dict
         supply_fan_off = False
         fan_stat_data = []
         fan_stat_check = False
@@ -618,7 +617,7 @@ class Application(AbstractDrivenAgent):
             diagnostic_result = self.pre_message(diagnostic_result,
                                                  current_time)
             return diagnostic_result
-        time_check = datetime.timedelta(minutes=self.warm_up_time)
+        time_check = td(minutes=self.warm_up_time)
         if (self.warm_up_start is not None and
                 (current_time - self.warm_up_start) < time_check):
             diagnostic_result = self.pre_message(diagnostic_result,
@@ -729,39 +728,37 @@ class DuctStaticRcx(object):
                                       (len(set_point_tracking) *
                                        avg_duct_stpr_stpt)*100)
                 if set_point_tracking > self.setpoint_allowable_deviation:
-                    diagnostic_message = ('The duct static '
-                                          'pressure is deviating from its '
-                                          'set point significantly.')
+                    msg = ('The duct static pressure is deviating from its '
+                           'set point significantly.')
                     # color_code = 'RED'
                     # energy_impact = None
                     dx_msg = 1.1
                     dx_table = {
                         # 'datetime': str(self.timestamp[-1]),
                         # 'diagnostic_name': DUCT_STC_RCx,
-                        # 'diagnostic_message': diagnostic_message,
+                        # 'diagnostic_message': msg,
                         # 'energy_impact': energy_impact,
                         # 'color_code': color_code
                         DUCT_STC_RCx + dx: dx_msg
                     }
 
                 else:
-                    diagnostic_message = ('No problem detected.')
+                    msg = 'No problem detected.'
                     # color_code = 'GREEN'
                     # energy_impact = None
                     dx_msg = 0.0
                     dx_table = {
                         # 'datetime': str(self.timestamp[-1]),
                         # 'diagnostic_name': DUCT_STC_RCx,
-                        # 'diagnostic_message': diagnostic_message,
+                        # 'diagnostic_message': msg,
                         # 'energy_impact': energy_impact,
                         # 'color_code': color_code
                         DUCT_STC_RCx + dx: dx_msg
                     }
                 diagnostic_result.insert_table_row(Application.analysis,
                                                    dx_table)
-                diagnostic_result.log(diagnostic_message, logging.INFO)
-            if (self.timestamp[-1] - self.timestamp[0] >
-                    datetime.timedelta(minutes=480)):
+                diagnostic_result.log(msg, logging.INFO)
+            if elapsed_time > td(minutes=75):
                 diagnostic_result.insert_table_row(Application.analysis,
                                                    {DUCT_STC_RCx1 + dx: 16.2})
                 diagnostic_result.insert_table_row(Application.analysis,
@@ -813,12 +810,10 @@ class DuctStaticRcx(object):
                         duct_stpr_stpt = str(duct_stpr_stpt)
                         duct_stpr_stpt = ''.join([duct_stpr_stpt,
                                                   ' in. w.g.'])
-                        diagnostic_message = ('The duct static '
-                                              'pressure was detected to be '
-                                              'too low. The duct static '
-                                              'pressure has been increased '
-                                              'to: {val}'
-                                              .format(val=duct_stpr_stpt))
+                        msg = ('The duct static pressure was detected to be '
+                               'too low. The duct static pressure has been '
+                               'increased to: {val}'
+                               .format(val=duct_stpr_stpt))
                         dx_msg = 11.1
                     else:
                         result.command(Application.duct_stp_stpt_cname,
@@ -829,47 +824,39 @@ class DuctStaticRcx(object):
                         duct_stpr_stpt = str(duct_stpr_stpt)
                         duct_stpr_stpt = ''.join([duct_stpr_stpt,
                                                   ' in. w.g.'])
-                        diagnostic_message = ('The duct static pressure set '
-                                              'point is at the maximum '
-                                              'value configured by the '
-                                              'building operator: {val})'
-                                              .format(val=duct_stpr_stpt))
+                        msg = ('The duct static pressure set point is at the '
+                               'maximum value configured by the building '
+                               'operator: {val})'.format(val=duct_stpr_stpt))
                         dx_msg = 12.1
                 else:
-                    diagnostic_message = ('The duct static pressure set '
-                                          'point was detected to be too low '
-                                          'but auto-correction '
-                                          'is not enabled.')
+                    msg = ('The duct static pressure set point was detected '
+                           'to be too low but auto-correction is not enabled.')
                     dx_msg = 13.1
 
             elif not static_override_check:
-                diagnostic_message = ('The duct static pressure was '
-                                      'detected to be too low.')
+                msg = 'The duct static pressure was detected to be too low.'
                 dx_msg = 14.1
             else:
-                diagnostic_message = ('The duct static pressure was '
-                                      'detected to be too low but an operator '
-                                      'override was detected. Auto-correction '
-                                      'can not be performed when the static '
-                                      'pressure set point or fan speed '
-                                      'command is in override.')
+                msg = ('The duct static pressure was detected to be too low '
+                       'but an operator override was detected. '
+                       'Auto-correction can not be performed when the static '
+                       'pressure set point or fan command is in override.')
                 dx_msg = 15.1
         else:
-            diagnostic_message = ('No re-tuning opportunity was '
-                                  'detected during the low duct static '
-                                  'pressure diagnostic.')
+            msg = ('No re-tuning opportunity was detected during the low duct '
+                   'static pressure diagnostic.')
             # color_code = 'GREEN'
             dx_msg = 10.0
         dx_table = {
             # 'datetime': str(self.timestamp[-1]),
             # 'diagnostic_name': DUCT_STC_RCx1,
-            # 'diagnostic_message': diagnostic_message,
+            # 'diagnostic_message': msg,
             # 'energy_impact': energy_impact,
             # 'color_code': color_code
             DUCT_STC_RCx1 + dx: dx_msg
         }
         result.insert_table_row(Application.analysis, dx_table)
-        result.log(diagnostic_message, logging.INFO)
+        result.log(msg, logging.INFO)
         return result
 
     def high_ductstatic_pr(self, result, static_override_check):
@@ -900,12 +887,10 @@ class DuctStaticRcx(object):
                         duct_stpr_stpt = str(duct_stpr_stpt)
                         duct_stpr_stpt = ''.join([duct_stpr_stpt,
                                                   ' in. w.g.'])
-                        diagnostic_message = ('The duct static '
-                                              'pressure was detected to be '
-                                              'too high. The duct static '
-                                              'pressure set point has been '
-                                              'reduced to: {val}'
-                                              .format(val=duct_stpr_stpt))
+                        msg = ('The duct static pressure was detected to be '
+                               'too high. The duct static pressure set point '
+                               'has been reduced to: {val}'
+                               .format(val=duct_stpr_stpt))
                         dx_msg = 21.1
                     else:
                         result.command(
@@ -917,47 +902,39 @@ class DuctStaticRcx(object):
                         duct_stpr_stpt = str(duct_stpr_stpt)
                         duct_stpr_stpt = ''.join([duct_stpr_stpt,
                                                   ' in. w.g.'])
-                        diagnostic_message = ('The duct static pressure set '
-                                              'point is at the minimum value '
-                                              'configured by the building '
-                                              'operator: {val})'
-                                              .format(val=duct_stpr_stpt))
+                        msg = ('The duct static pressure set point is at the '
+                               'minimum value configured by the building '
+                               'operator: {val})'.format(val=duct_stpr_stpt))
                         dx_msg = 22.1
                 else:
-                    diagnostic_message = ('Duct static pressure set '
-                                          'point was detected to be too high '
-                                          'but auto-correction '
-                                          'is not enabled.')
+                    msg = ('Duct static pressure set point was detected to be '
+                           'too high but auto-correction is not enabled.')
                     dx_msg = 23.1
             elif not static_override_check:
-                diagnostic_message = ('The duct static pressure was '
-                                      'detected to be too high.')
+                msg = 'The duct static pressure was detected to be too high.'
                 dx_msg = 24.1
             else:
-                diagnostic_message = ('The duct static pressure was '
-                                      'detected to be too high but an '
-                                      'operator override was detected. '
-                                      'Auto-correction can not be performed '
-                                      'when the static pressure set point '
-                                      'or fan speed command is in override.')
+                msg = ('The duct static pressure was detected to be too high '
+                       'but an operator override was detected. Auto-correction'
+                       ' can not be performed when the static pressure set '
+                       'point or fan speed command is in override.')
                 dx_msg = 25.1
         else:
-            diagnostic_message = ('No re-tuning opportunity was '
-                                  'detected during the low duct static '
-                                  'pressure diagnostic.')
+            msg = ('No re-tuning opportunity was detected during the low duct '
+                   'static pressure diagnostic.')
             dx_msg = 20.0
             # color_code = 'GREEN'
 
         dx_table = {
             # 'datetime': str(self.timestamp[-1]),
             # 'diagnostic_name': DUCT_STC_RCx2,
-            # 'diagnostic_message': diagnostic_message,
+            # 'diagnostic_message': msg,
             # 'energy_impact': energy_impact,
             # 'color_code': color_code
             DUCT_STC_RCx2 + dx: dx_msg
         }
         result.insert_table_row(Application.analysis, dx_table)
-        result.log(diagnostic_message, logging.INFO)
+        result.log(msg, logging.INFO)
         self.duct_stp_stpt_values = []
         self.duct_stp_values = []
         self.zone_damper_values = []
@@ -1042,38 +1019,35 @@ class SupplyTempRcx(object):
                                   avg_sat_stpt) * 100
 
             if set_point_tracking > self.setpoint_allowable_deviation:
-                diagnostic_message = ('Supply-air temperature is '
-                                      'deviating significantly '
-                                      'from the supply-air temperature '
-                                      'set point.')
+                msg = ('Supply-air temperature is deviating significantly '
+                       'from the supply-air temperature set point.')
                 # color_code = 'RED'
                 # energy_impact = None
                 dx_msg = 31.1
                 dx_table = {
                     # 'datetime': str(self.timestamp[-1]),
                     # 'diagnostic_name': SA_TEMP_RCx,
-                    # 'diagnostic_message': diagnostic_message,
+                    # 'diagnostic_message': msg,
                     # 'energy_impact': energy_impact,
                     # 'color_code': color_code
                     SA_TEMP_RCx + dx: dx_msg
                 }
             else:
-                diagnostic_message = ('No problem detected.')
+                msg = 'No problem detected.'
                 # color_code = 'GREEN'
                 # energy_impact = None
                 dx_msg = 30.0
                 dx_table = {
                     # 'datetime': str(self.timestamp[-1]),
                     # 'diagnostic_name': SA_TEMP_RCx,
-                    # 'diagnostic_message': diagnostic_message,
+                    # 'diagnostic_message': msg,
                     # 'energy_impact': energy_impact,
                     # 'color_code': color_code
                     SA_TEMP_RCx + dx: dx_msg
                 }
             diagnostic_result.insert_table_row(Application.analysis, dx_table)
-            diagnostic_result.log(diagnostic_message, logging.INFO)
-            if (self.timestamp[-1] - self.timestamp[0] >
-                    datetime.timedelta(minutes=480)):
+            diagnostic_result.log(msg, logging.INFO)
+            if elapsed_time > td(minutes=75):
                 diagnostic_result.insert_table_row(Application.analysis,
                                                    {SA_TEMP_RCx1 + dx: 46.2})
                 diagnostic_result.insert_table_row(Application.analysis,
@@ -1094,9 +1068,8 @@ class SupplyTempRcx(object):
         '''Diagnostic to identify and correct low supply-air temperature
         (correction by modifying SAT set point)
         '''
-        avg_zones_reheat = (sum(self.percent_in_reheat) /
-                            len(self.percent_in_reheat) * 100)
-
+        avg_zones_reheat = \
+            (sum(self.percent_in_reheat) / len(self.percent_in_reheat) * 100)
         reheat_coil_average = (sum(self.rht_values)) / (len(self.rht_values))
         # energy_impact = None
         if (reheat_coil_average > self.reheat_valve_threshold and
@@ -1113,12 +1086,10 @@ class SupplyTempRcx(object):
                         result.command(Application.sat_stpt_cname, sat_stpt)
                         sat_stpt = '%s' % float('%.2g' % sat_stpt)
                         sat_stpt = str(sat_stpt)
-                        diagnostic_message = ('The SAT has been '
-                                              'detected to be too low. '
-                                              'The SAT set point has been '
-                                              'increased to: {val}{drg}F'
-                                              .format(drg=self.dgr_sym,
-                                                      val=sat_stpt))
+                        msg = \
+                            ('The SAT has been detected to be too low. '
+                             'The SAT set point has been increased to: '
+                             '{}{drg}F'.format(self.dgr_sym, sat_stpt))
                         dx_msg = 41.1
                     else:
                         # Create diagnostic message
@@ -1128,47 +1099,39 @@ class SupplyTempRcx(object):
                                        self.maximum_sat_stpt)
                         sat_stpt = '%s' % float('%.2g' % self.maximum_sat_stpt)
                         sat_stpt = str(sat_stpt)
-                        diagnostic_message = ('The SAT was detected '
-                                              'to be too low. Auto-correction '
-                                              'has increased the SAT set '
-                                              'point to the maximum '
-                                              'configured SAT set point: '
-                                              '{val}{drg}F)'
-                                              .format(drg=self.dgr_sym,
-                                                      val=sat_stpt))
+                        msg = ('The SAT was detected to be too low. '
+                               'Auto-correction has increased the SAT set '
+                               'point to the maximum configured SAT set '
+                               'point: {}{}F)'.format(self.dgr_sym, sat_stpt))
                         dx_msg = 42.1
                 else:
                     # Create diagnostic message for fault
                     # condition without auto-correction
-                    diagnostic_message = ('The SAT has been detected '
-                                          'to be too low but auto-correction '
-                                          'is not enabled.')
+                    msg = ('The SAT has been detected to be too low but '
+                           'auto-correction is not enabled.')
                     dx_msg = 43.1
             elif not sat_override_check:
-                diagnostic_message = ('The SAT has been detected to '
-                                      'be too low.')
+                msg = 'The SAT has been detected to be too low.'
                 dx_msg = 44.1
             else:
-                diagnostic_message = ('The SAT has been detected to '
-                                      'be too low but auto-correction cannot '
-                                      'be performed because the SAT set-point '
-                                      'is in an override state.')
+                msg = ('The SAT has been detected to be too low but '
+                       'auto-correction cannot be performed because the SAT '
+                       'set-point is in an override state.')
                 dx_msg = 45.1
         else:
-            diagnostic_message = ('No problem detected')
+            msg = 'No problem detected'
             # color_code = 'GREEN'
             dx_msg = 40.0
-
         dx_table = {
             # 'datetime': str(self.timestamp[-1]),
             # 'diagnostic_name': SA_TEMP_RCx1,
-            # 'diagnostic_message': diagnostic_message,
+            # 'diagnostic_message': msg,
             # 'energy_impact': energy_impact,
             # 'color_code': color_code
             SA_TEMP_RCx1 + dx: dx_msg
         }
         result.insert_table_row(Application.analysis, dx_table)
-        result.log(diagnostic_message, logging.INFO)
+        result.log(msg, logging.INFO)
         return result
 
     def high_sat(self, result, avg_sat_stpt, sat_override_check):
@@ -1193,12 +1156,9 @@ class SupplyTempRcx(object):
                         result.command(Application.sat_stpt_cname, sat_stpt)
                         sat_stpt = '%s' % float('%.2g' % sat_stpt)
                         sat_stpt = str(sat_stpt)
-                        diagnostic_message = ('The SAT has been detected to '
-                                              'be too high. The SAT set point '
-                                              'has been increased to: '
-                                              '{val}{drg}F'
-                                              .format(drg=self.dgr_sym,
-                                                      val=sat_stpt))
+                        msg = ('The SAT has been detected to be too high. The '
+                               'SAT set point has been increased to: '
+                               '{}{}F'.format(self.dgr_sym, sat_stpt))
                         dx_msg = 51.1
                     else:
                         # Create diagnostic message for fault condition
@@ -1207,46 +1167,39 @@ class SupplyTempRcx(object):
                             Application.sat_stpt_cname, self.minimum_sat_stpt)
                         sat_stpt = '%s' % float('%.2g' % self.minimum_sat_stpt)
                         sat_stpt = str(sat_stpt)
-                        diagnostic_message = ('The SAT was detected '
-                                              'to be too high, '
-                                              'auto-correction has increased '
-                                              'the SAT to the minimum '
-                                              'configured SAT: {val}{drg}F'
-                                              .format(drg=self.dgr_sym,
-                                                      val=sat_stpt))
+                        msg = ('The SAT was detected to be too high, '
+                               'auto-correction has increased the SAT to the '
+                               'minimum configured SAT: {}{}F'
+                               .format(self.dgr_sym, sat_stpt))
                         dx_msg = 52.1
                 else:
                     # Create diagnostic message for fault condition
                     # without auto-correction
-                    diagnostic_message = ('The SAT has been detected '
-                                          'to be too high but auto-correction '
-                                          'is not enabled.')
+                    msg = ('The SAT has been detected to be too high but '
+                           'auto-correction is not enabled.')
                     dx_msg = 53.1
             elif not sat_override_check:
-                diagnostic_message = ('The SAT has been detected to '
-                                      'be too high.')
+                msg = 'The SAT has been detected to be too high.'
                 dx_msg = 54.1
             else:
-                diagnostic_message = ('The SAT has been detected to '
-                                      'be too high but auto-correction cannot '
-                                      'be performed because the SAT set point '
-                                      'is in an override state.')
+                msg = ('The SAT has been detected to be too high but '
+                       'auto-correction cannot be performed because the '
+                       'SAT set point is in an override state.')
                 dx_msg = 55.1
         else:
-            diagnostic_message = ('No problem detected.'
-                                  .format(name=SA_TEMP_RCx2))
+            msg = 'No problem detected.'
             # color_code = 'GREEN'
             dx_msg = 50.0
         dx_table = {
             # 'datetime': str(self.timestamp[-1]),
             # 'diagnostic_name': SA_TEMP_RCx2,
-            # 'diagnostic_message': diagnostic_message,
+            # 'diagnostic_message': msg,
             # 'energy_impact': energy_impact,
             # 'color_code': color_code
             SA_TEMP_RCx2 + dx: dx_msg
         }
         result.insert_table_row(Application.analysis, dx_table)
-        result.log(diagnostic_message, logging.INFO)
+        result.log(msg, logging.INFO)
         self.sat_stpt_values = []
         self.sa_temp_values = []
         self.timestamp = []
@@ -1375,15 +1328,15 @@ class SchedResetRcx(object):
             diagnostic_result = self.no_sat_sp_reset(diagnostic_result)
             clear_old()
         elif run:
-            # diagnostic_message = ('Inconclusive diagnostic, '
-                                    # 'insufficient data to perform RCx.')
+            # msg = ('Inconclusive diagnostic, '
+            # insufficient data to perform RCx.')
             # color_code = 'GREY'
             # energy_impact = None
             dx_msg = 61.2
             dx_table = {
                 # 'datetime': self.dx_time,
                 # 'diagnostic_name': SCHED_RCx,
-                # 'diagnostic_message': diagnostic_message,
+                # 'diagnostic_message': msg,
                 # 'energy_impact': energy_impact,
                 # 'color_code': color_code
                 SCHED_RCx + dx:  dx_msg
@@ -1410,33 +1363,31 @@ class SchedResetRcx(object):
             avg_duct_stpr = 0
         # energy_impact = None
         if per_times_fan_status_on > self.unocc_time_threshold:
-            diagnostic_message = ('Supply fan is on during unoccupied '
-                                  'times.')
+            msg = 'Supply fan is on during unoccupied times.'
             # color_code = 'RED'
             dx_msg = 63.1
         else:
             if avg_duct_stpr < self.unocc_stp_threshold:
-                diagnostic_message = 'No problems detected.'
+                msg = 'No problems detected.'
                 # color_code = 'GREEN'
                 dx_msg = 60.0
             else:
-                diagnostic_message = ('Fan status show the fan is off '
-                                      'but the duct static pressure is high, '
-                                      'check the functionality of the '
-                                      'pressure sensor.')
+                msg = ('Fan status show the fan is off but the duct static '
+                       'pressure is high, check the functionality of the '
+                       'pressure sensor.')
                 # color_code = 'GREY'
                 dx_msg = 64.2
         for item in self.sched_time:
             dx_table = {
                 # 'datetime': str(item),
                 # 'diagnostic_name': SCHED_RCx,
-                # 'diagnostic_message': diagnostic_message,
+                # 'diagnostic_message': msg,
                 # 'energy_impact': energy_impact,
                 # 'color_code': color_code
                 SCHED_RCx + dx:  dx_msg
             }
             result.insert_table_row(Application.analysis, dx_table)
-        result.log(diagnostic_message, logging.INFO)
+        result.log(msg, logging.INFO)
         return result
 
     def no_static_pr_reset(self, result):
@@ -1450,26 +1401,24 @@ class SchedResetRcx(object):
         # energy_impact = None
 
         if stp_diff < self.stpr_reset_threshold:
-            diagnostic_message = ('No duct static pressure '
-                                  'reset detected. A duct static '
-                                  'pressure set point reset can save '
-                                  'significant amounts of energy.')
+            msg = ('No duct static pressure reset detected. A duct static '
+                   'pressure set point reset can save significant energy.')
             # color_code = 'RED'
             dx_msg = 71.1
         else:
-            diagnostic_message = 'No problem detected.'
+            msg = 'No problem detected.'
             # color_code = 'GREEN'
             dx_msg = 70.0
         dx_table = {
             # 'datetime': str(self.dx_time),
             # 'diagnostic_name': DUCT_STC_RCx3,
-            # 'diagnostic_message': diagnostic_message,
+            # 'diagnostic_message': msg,
             # 'energy_impact': energy_impact,
             # 'color_code': color_code
             DUCT_STC_RCx3 + dx:  dx_msg
         }
         result.insert_table_row(Application.analysis, dx_table)
-        result.log(diagnostic_message, logging.INFO)
+        result.log(msg, logging.INFO)
         return result
 
     def no_sat_sp_reset(self, result):
@@ -1481,25 +1430,22 @@ class SchedResetRcx(object):
         satemp_diff = max(self.sat_stpt_values) - min(self.sat_stpt_values)
         # energy_impact = None
         if satemp_diff <= self.sat_reset_threshold:
-            diagnostic_message = ('A supply-air temperature '
-                                  'reset was not detected. This can '
-                                  'result in excess energy '
-                                  'consumption.')
+            msg = ('A supply-air temperature reset was not detected. This can '
+                   'result in excess energy consumption.')
             # color_code = 'RED'
             dx_msg = 81.1
         else:
-            diagnostic_message = ('No problems detected for this '
-                                  'diagnostic.')
+            msg = 'No problems detected for this diagnostic.'
             # color_code = 'GREEN'
             dx_msg = 80.0
         dx_table = {
             # 'datetime': str(self.dx_time),
             # 'diagnostic_name': SA_TEMP_RCx3,
-            # 'diagnostic_message': diagnostic_message,
+            # 'diagnostic_message': msg,
             # 'energy_impact': energy_impact,
             # 'color_code': color_code
             SA_TEMP_RCx3 + dx:  dx_msg
         }
         result.insert_table_row(Application.analysis, dx_table)
-        result.log(diagnostic_message, logging.INFO)
+        result.log(msg, logging.INFO)
         return result

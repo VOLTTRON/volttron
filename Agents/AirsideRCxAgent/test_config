@@ -10,10 +10,14 @@
                 "subdevices": []
             },
             "rtu5": {
-                "subdevices": []
+                "subdevices": [
+                    "VAV13111", "VAV13112",
+                    "FCU13258", "FCU13259"
+                ]
             }
         },
-        "analysis_name": "Airside_RCx"
+        "analysis_name": "Airside_RCx",
+        "pub_device": "rtu3"
     },
     "output_file": "./junk.csv",
     "mode": "PASSIVE",
