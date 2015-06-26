@@ -180,14 +180,20 @@ def platform_agent(config_path, **kwargs):
 
         @RPC.export
         def publish_to_peers(self, topic, message, headers = None):
+            spawned = []
             for key, item in self._sibling_cache.items():
                 for peer_address in item:
                     #TODO: cache these worker agents
                     try:
                         agent = Agent(address=peer_address)
+                        event = gevent.event.Event()
+                        gevent.spawn(agent.core.run, event)
+                        event.wait()
+
                         agent.vip.pubsub.publish(headers=headers,
                                         topic=topic,
                                         message=message)
+                        
                     except Unreachable:
                         _log.error("Count not publish to peer: {}".
                                    format(peer_address))
