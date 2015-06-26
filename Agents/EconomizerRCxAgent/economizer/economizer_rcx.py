@@ -63,9 +63,9 @@ from volttron.platform.messaging import headers as headers_mod, topics
 #                                   InputDescriptor,
 #                                   Results,
 #                                   Descriptor,
-#                                   reports)
+#                                  reports)
 ECON1 = 'Temperature Sensor Dx'
-ECON2 = 'Economizing When Unit Should Dx'
+ECON2 = 'Not Economizing When Unit Should Dx'
 ECON3 = 'Economizing When Unit Should Not Dx'
 ECON4 = 'Excess Outdoor-air Intake Dx'
 ECON5 = 'Insufficient Outdoor-air Intake Dx'
