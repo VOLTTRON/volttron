@@ -75,7 +75,12 @@ from gevent import subprocess
 from gevent.subprocess import PIPE
 from wheel.tool import unpack
 import zmq
-from zmq.utils import jsonapi
+
+# Can't use zmq.utils.jsonapi because it is missing the load() method.
+try:
+    import simplejson as jsonapi
+except ImportError:
+    import json as jsonapi
 
 from . import messaging
 from .messaging import topics
