@@ -1,62 +1,52 @@
 {
-    "agent": {
-        "exec": "passiveafdd-0.1-py2.7.egg --config \"%c\" --sub \"%s\" --pub \"%p\""
-    },
-     "agentid": "pnnl_twt4",
-     "publisherid": "publisher",
-	 "campus": "pnnl",
-	 "building": "twt",
-	 "unit": "catalyst4",
-	 "smap_path": "datalogger/log/passiveafdd/twt/catalyst4" ,  
-	    
-   
-    
-     "oat_point_name": "OutsideAirTemp",
-     "mat_point_name": "MixedAirTemp",
-     "dat_point_name": "DischargeAirTemperature",
-     "rat_point_name": "ReturnAirTemp",
-     "damper_point_name": "Damper",
-     "cool_cmd1_point_name": "CompressorStatus",
-     "fan_status_point_name": "FanStatus",
-     "heat_command1_point_name": "Heating",
-   
-   
-    "aggregate_data": 1,
-    "csv_input": 1,
-    "input_file": "/home/volttrondev/workspace/volttron/Agents/PassiveAFDD/passiveafdd/sample_data/oae_sample_data.csv",
+	"agentid": "passiveafdd",
+	"campus": "campus1",
+	"building": "building1",
+	"unit": "rtu1",
+	"smap_path": "datalogger/log/passiveafdd",
 
-	"oaf_temp_threshold": 4.0,
-	
+	# Required data for diagnostic
+	"oat_point_name": "OutsideAirTemp",
+	"rat_point_name": "ReturnAirTemp",
+	"damper_point_name": "Damper",
+	"cool_cmd_name": "CompressorStatus",
+	"fan_status_point_name": "FanStatus",
+	"heat_cmd_name": "Heating",
+	"timestamp_name": "Timestamp",
+
+        # Requires mixed-air temperature (MAT) or discharge-air temperature (DAT)
+	# If using DAT set matemp_missing to 1
+	"mat_point_name": "MixedAirTemp",
+	"dat_point_name": "DischargeAirTemp",
 
 	"matemp_missing": 0,
+	"sampling_rate": 1,
+	"aggregate_data": 1,
+	"csv_input": 1,
+
+	# "input_file": "/home/volttrondev/workspace/volttron/Agents/PassiveAFDD/passiveafdd/sample_data/oae_sample_data.csv",
+
+	"oaf_temp_threshold": 4.0,
+        "temp_sensor_threshold": 5.0,
+	
 	"mat_low": 50,
 	"mat_high": 90,
 	"rat_low": 50,
 	"rat_high": 90,
 	"oat_low": 30,
 	"oat_high": 120,
-	
-	
+	"temp_deadband": 2.5,
 
 	"high_limit": 70,
 	"economizer_type": 0, 
 	"oae2_damper_threshold": 30.0,
 	"oae2_oaf_threshold": 0.25,  
-	
-	
-	
+
 	"damper_minimum": 20, 
-	
-	
-	
+        "damper_deadband": 15.0,
 	"minimum_oa": 0.1,
 	"oae4_oaf_threshold": 0.25,
-	
-	
-	
 	"oae5_oaf_threshold": 0.0,
-	
-	
 
 	"Sunday": [0,23],
 	"Monday": [0,23],
@@ -65,9 +55,7 @@
 	"Thursday": [0,23],
 	"Friday": [0,23],
 	"Saturday": [0,23],
-	
 
 	"EER": 10,
 	"tonnage": 10		
-		
 }
