@@ -99,6 +99,7 @@ def platform_agent(config_path, **kwargs):
     vc_vip_identity = config.get('volttron_central_vip_identity',
                                  "volttron.central")
     vip_identity = config.get('vip_identity', 'platform.agent')
+    
 
     if not vc_vip_address:
         raise ValueError('Invalid volttron_central_vip_address')
@@ -120,6 +121,7 @@ def platform_agent(config_path, **kwargs):
             self._settings = {}
             self._load_settings()
             self._agent_configurations = {}
+            self._sibling_cache = {}
 
         def _store_settings(self):
             with open('platform.settings', 'wb') as f:
@@ -176,6 +178,37 @@ def platform_agent(config_path, **kwargs):
                                     topic=cpu,
                                     message=[message])
 
+        @RPC.export
+        def publish_to_peers(self, topic, message, headers = None):
+            for key, item in self._sibling_cache.items():
+                for peer_address in item:
+                    #TODO: cache these worker agents
+                    try:
+                        agent = Agent(address=peer_address)
+                        agent.vip.pubsub.publish(headers=headers,
+                                        topic=topic,
+                                        message=message)
+                    except Unreachable:
+                        _log.error("Count not publish to peer: {}".
+                                   format(peer_address))
+                        
+        #TODO: Make configurable
+        @Core.periodic(30)
+        def update_sibling_address_cache(self):
+            for manager in self.managers:
+                try:
+                    print (manager[0],manager[1]) 
+                    agent = Agent(address=manager[0])
+                    result = agent.vip.rpc.call(manager[1],"list_platform_details").get()
+                    self._sibling_cache[manager[0]] = result
+                
+                except Unreachable:
+                    _log.error('Could not reach manager: {}'.format(manager))
+                    
+        
+        
+        
+    
         @RPC.export
         def register_service(self, vip_identity):
             # make sure that we get a ping reply

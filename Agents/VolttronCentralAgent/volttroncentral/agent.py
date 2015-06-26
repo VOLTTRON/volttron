@@ -243,6 +243,10 @@ def volttron_central_agent(config_path, **kwargs):
                                          'list_agents').get(timeout=10)
 
             return results
+        
+        @RPC.export
+        def list_platform_details(self):
+            return self._vips.keys()
 
         @RPC.export
         def unregister_platform(self, platform_uuid):
