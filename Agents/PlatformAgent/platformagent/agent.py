@@ -189,7 +189,7 @@ def platform_agent(config_path, **kwargs):
                         event = gevent.event.Event()
                         gevent.spawn(agent.core.run, event)
                         event.wait()
-
+                        print ("about to publish to peers: {}".format(agent.core.identity))
                         agent.vip.pubsub.publish(headers=headers,
                                         topic=topic,
                                         message=message)
