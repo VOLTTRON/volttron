@@ -122,6 +122,7 @@ def platform_agent(config_path, **kwargs):
             self._load_settings()
             self._agent_configurations = {}
             self._sibling_cache = {}
+            self._vip_channels = {}
 
         def _store_settings(self):
             with open('platform.settings', 'wb') as f:
@@ -136,6 +137,19 @@ def platform_agent(config_path, **kwargs):
             except Exception as e:
                 _log.debug('Exception '+ e.message)
                 self._settings = {}
+
+        def _get_rpc_agent(self, address):
+            if address == self.core.address:
+                agent = self
+            elif address not in self._vip_channels:
+                agent = Agent(address=address)
+                gevent.spawn(agent.core.run).join(0)
+                self._vip_channels[address] = agent
+
+            else:
+                agent = self._vip_channels[address]
+            return agent
+
 
         @RPC.export
         def set_setting(self, key, value):
@@ -185,12 +199,15 @@ def platform_agent(config_path, **kwargs):
                 for peer_address in item:
                     #TODO: cache these worker agents
                     try:
-                        agent = Agent(address=peer_address)
-                        event = gevent.event.Event()
-                        gevent.spawn(agent.core.run, event)
-                        event.wait()
+#                         agent = Agent(address=peer_address)
+
+#                         event = gevent.event.Event()
+#                         gevent.spawn(agent.core.run, event)
+#                         event.wait()
+                        agent = self._get_rpc_agent(peer_address)
                         print ("about to publish to peers: {}".format(agent.core.identity))
-                        agent.vip.pubsub.publish(headers=headers,
+#                         agent.vip.publish()
+                        agent.vip.pubsub.publish(peer='pubsub',headers=headers,
                                         topic=topic,
                                         message=message)
                         
@@ -204,8 +221,9 @@ def platform_agent(config_path, **kwargs):
             for manager in self._managers:
                 try:
                     print (manager[0],manager[1]) 
-                    agent = Agent(address=manager[0])
-                    result = agent.vip.rpc.call(manager[1],"list_platform_details").get()
+                    agent = self._get_rpc_agent(manager[0])
+#                     agent = Agent(address=manager[0])
+                    result = agent.vip.rpc.call(manager[1],"list_platform_details").get(timeout=10)
                     self._sibling_cache[manager[0]] = result
                 
                 except Unreachable:
