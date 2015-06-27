@@ -158,3 +158,16 @@ _BUILDING = _('building/{op}/{{campus}}//{{building}}//{{topic}}')
 BUILDING_SEND = _(_BUILDING.format(op='send'))
 BUILDING_RECV = _(_BUILDING.format(op='recv'))
 BUILDING_ERROR = _(_BUILDING.format(op='error'))
+
+CONFIG_TOPIC_BASE = 'config'
+CONFIG_PATH = _('{base}//{action}//{category}//{name}')
+_CONFIG_VALUE = _(CONFIG_PATH.replace('{base}',CONFIG_TOPIC_BASE))
+CONFIG_ADD = _(_CONFIG_VALUE.replace('{action}', 'add'))
+CONFIG_REMOVE = _(_CONFIG_VALUE.replace('{action}', 'remove'))
+CONFIG_UPDATE = _(_CONFIG_VALUE.replace('{action}', 'update'))
+
+DRIVER_CONFIG_ADD = _(_CONFIG_VALUE.replace('{category}', 'driver'))
+DRIVER_CONFIG_REMOVE = _(_CONFIG_VALUE.replace('{category}', 'driver'))
+DRIVER_CONFIG_UPDATE = _(_CONFIG_VALUE.replace('{category}', 'driver'))
+
+
