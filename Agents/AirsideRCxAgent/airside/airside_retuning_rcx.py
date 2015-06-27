@@ -62,11 +62,11 @@ from volttron.platform.agent import (Results, AbstractDrivenAgent)
 #                                   Descriptor,
 #                                   reports)
 
-DUCT_STC_RCx = 'Duct Static Pressure Control Loop Diagnostics'
+DUCT_STC_RCx = 'Duct Static Pressure Control Loop Dx'
 DUCT_STC_RCx1 = 'Low Duct Static Pressure Dx'
 DUCT_STC_RCx2 = 'High Duct Static Pressure Dx'
 DUCT_STC_RCx3 = 'No Static Pressure Reset Dx'
-SA_TEMP_RCx = 'Supply-air temperature Control Loop Dx'
+SA_TEMP_RCx = 'Supply-air Temperature Control Loop Dx'
 SA_TEMP_RCx1 = 'Low Supply-air Temperature Dx'
 SA_TEMP_RCx2 = 'High Supply-air Temperature Dx'
 SA_TEMP_RCx3 = 'No Supply-air Temperature Reset Dx'
