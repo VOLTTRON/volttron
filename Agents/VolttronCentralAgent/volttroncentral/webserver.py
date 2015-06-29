@@ -17,7 +17,7 @@ utils.setup_logging()
 _log = logging.getLogger(__name__)
 
 
-def get_standard_error_message(self, code):
+def get_standard_error_message(code):
 
     if code == INTERNAL_ERROR:
         error = 'Internal JSON-RPC error'
@@ -277,37 +277,40 @@ class ManagerRequestHandler(tornado.web.RequestHandler):
 
     def _response_complete(self, data):
         print("RESPONSE COMPLETE:{}".format(data))
-        if (data[0] is not None):
-            if isinstance(data[0], RpcResponse):
-                self.write(data[0].get_response())
-            else:
-                resp = None
-                if isinstance(data[0], Exception):
-                    if isinstance(data[0], NameError):
+        try:
+
+            if (data[0] is not None):
+                if isinstance(data[0], RpcResponse):
+                    self.write(data[0].get_response())
+                else:
+                    resp = None
+                    if isinstance(data[0], Exception):
+                        if isinstance(data[0], NameError):
+                            resp = RpcResponse(id=self.rpcrequest.id,
+                                               code=METHOD_NOT_FOUND,
+                                               message=data[0].msg)
+                    if not resp:
                         resp = RpcResponse(id=self.rpcrequest.id,
-                                           code=METHOD_NOT_FOUND,
-                                           message=data[0].msg)
-                if not resp:
-                    resp = RpcResponse(id=self.rpcrequest.id,
-                                       code=UNHANDLED_EXCEPTION,
-                                       message=str(data[0][1]))
-                print("Writing: "+str(resp.get_response()))
-                self.write(resp.get_response())
+                                           code=UNHANDLED_EXCEPTION,
+                                           message=str(data[0][1]))
+                    print("Writing: "+str(resp.get_response()))
+                    self.write(resp.get_response())
 
-#                 else:
-# #                 resp = RpcResponse(code=UNHANDLED_EXCEPTION,
-# #                                    message=str(data[0][1]))
-#                     print(self.write("Error: "+str(data[0][0])
-#                                + " message: "+str(data[0][1])))
-#                     self.write("Error: "+str(data[0][0])
-#                                + " message: "+str(data[0][1]))
-        else:
-            if isinstance(data[1], RpcResponse):
-                self.write(data[1].get_response())
+    #                 else:
+    # #                 resp = RpcResponse(code=UNHANDLED_EXCEPTION,
+    # #                                    message=str(data[0][1]))
+    #                     print(self.write("Error: "+str(data[0][0])
+    #                                + " message: "+str(data[0][1])))
+    #                     self.write("Error: "+str(data[0][0])
+    #                                + " message: "+str(data[0][1]))
             else:
-                rpcresponse = RpcResponse(self.rpcrequest.id, result=data[1])
-                self.write(rpcresponse.get_response())
-
+                if isinstance(data[1], RpcResponse):
+                    self.write(data[1].get_response())
+                else:
+                    rpcresponse = RpcResponse(self.rpcrequest.id, result=data[1])
+                    self.write(rpcresponse.get_response())
+        except KeyError as e:
+            self.write(data)
         print('handling request done')
         try:
             self.finish()
