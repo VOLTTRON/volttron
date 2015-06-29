@@ -244,7 +244,7 @@ class BaseRouter(object):
                     log(ERROR, 'unknown subsystem', frames)
                     errnum, errmsg = _INVALID_SUBSYSTEM
                     frames = [sender, recipient, proto, b'', msg_id,
-                              b'error', errnum, errmsg, subsystem]
+                              b'error', errnum, errmsg, b'', subsystem]
                 elif not response:
                     # Subsystem does not require a response
                     return

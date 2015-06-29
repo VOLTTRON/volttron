@@ -166,10 +166,10 @@ class Core(object):
         self.subsystems[name] = (handler, error_handler)
 
     def handle_error(self, message):
-        subsystem = bytes(message.args[2 if message.peer else 3])
         try:
+            subsystem = bytes(message.args[3])
             _, handle = self.subsystems[subsystem]
-        except KeyError:
+        except (IndexError, KeyError):
             handle = None
         if handle:
             handle(message)
