@@ -107,8 +107,11 @@ class Message(object):
     def __init__(self, **kwargs):
         self.__dict__ = kwargs
     def __repr__(self):
-        attrs = ', '.join('%r: %r' % (name, bytes(value)) for name, value in
-                          self.__dict__.iteritems())
+        attrs = ', '.join('%r: %r' % (
+            name, [bytes(x) for x in value]
+            if isinstance(value, (list, tuple))
+            else bytes(value)) for name, value in
+                self.__dict__.iteritems())
         return '%s(**{%s})' % (self.__class__.__name__, attrs)
 
 
