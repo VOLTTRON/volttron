@@ -87,8 +87,6 @@ _log = logging.getLogger(__name__)
 def listener_agent(config_path, **kwargs):
     config = utils.load_config(config_path)
 
-    agentid = config.get('agentid', 'platform')
-    agent_type = config.get('agent_type', 'example')
 
     class ListenerAgent(Agent):
 
@@ -137,7 +135,8 @@ def listener_agent(config_path, **kwargs):
 
 
             message = jsonapi.dumps({'Readings': "HI!!",
-                                 'Units': 'string'})
+                                 'Units': 'string',
+                                 'agentname': self.core.identity})
 #             self.vip.pubsub.publish(peer='pubsub',
 #                                     topic=base_topic,
 #                                     message=[message])
