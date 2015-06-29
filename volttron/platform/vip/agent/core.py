@@ -58,6 +58,7 @@
 from __future__ import absolute_import, print_function
 
 from contextlib import contextmanager
+from errno import ENOENT
 import heapq
 import inspect
 import logging
@@ -263,7 +264,11 @@ class Core(object):
         scheduler.kill()
         receivers = self.onstop.sendby(link_receiver, self)
         gevent.wait(receivers)
-        self.socket.disconnect(self.address)
+        try:
+            self.socket.disconnect(self.address)
+        except ZMQError as exc:
+            if exc.errno != ENOENT:
+                _log.exception('disconnect error')
         self.onfinish.send(self)
 
     def stop(self, timeout=None):
