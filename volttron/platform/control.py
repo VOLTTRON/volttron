@@ -513,7 +513,7 @@ class Connection(object):
 
     def notify(self, method, *args, **kwargs):
         return self.server.vip.rpc.notify(
-            self.peer, method, *args, **kwargs).get()
+            self.peer, method, *args, **kwargs)
 
     def kill(self, *args, **kwargs):
         if self._greenlet is not None:
