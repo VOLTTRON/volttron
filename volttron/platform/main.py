@@ -249,7 +249,7 @@ class Router(vip.BaseRouter):
         subsystem = bytes(frames[5])
         if subsystem == b'quit':
             sender = bytes(frames[0])
-            if sender == b'control' and not user_id:
+            if sender == b'control' and user_id == self.default_user_id:
                 raise KeyboardInterrupt()
         elif subsystem == 'query.addresses':
             frames[6:] = self.addresses
