@@ -1,3 +1,4 @@
+import errno
 import logging
 import os
 import Queue
@@ -10,9 +11,10 @@ import tornado.websocket
 import traceback
 import uuid
 
+from zmq.utils import jsonapi
+
 from volttron.platform.agent import utils
 from volttron.platform import jsonrpc
-from volttron.platform.agent.vipagent import jsonapi
 from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
                                        INVALID_REQUEST, METHOD_NOT_FOUND, PARSE_ERROR,
                                        UNHANDLED_EXCEPTION)
@@ -58,6 +60,7 @@ class SessionHandler:
         self._sessions = {}
         self._session_tokens = {}
         self._authenticator = authenticator
+        self.__persistence_path = None
 
     def authenticate(self, username, password, ip):
         '''Authenticates a user with the authenticator.
@@ -68,6 +71,7 @@ class SessionHandler:
         if groups:
             token = str(uuid.uuid4())
             self._add_session(username, token, ip, ",".join(groups))
+            self.__store_auths()
             return token
         return None
 
@@ -79,11 +83,49 @@ class SessionHandler:
 
     def check_session(self, token, ip):
         '''Check if a user token has been authenticated.'''
+        if not self._session_tokens:
+            self.__load_auths(
+                              )
         session = self._session_tokens.get(str(token))
         if session:
             return session['ip'] == ip
 
         return False
+
+    def __store_auths(self):
+        if not self.__persistence_path:
+            self.__get_auth_storage()
+
+        with open(self.__persistence_path, 'wb') as file:
+            file.write(jsonapi.dumps(self._sessions))
+
+
+    def __load_auths(self):
+        if not self.__persistence_path:
+            self.__get_auth_storage()
+        try:
+            with open(self.__persistence_path) as file:
+                self._sessions = jsonapi.loads(file.read())
+
+            self._session_tokens.clear()
+            for k, v in self._sessions.items():
+                self._session_tokens[v['token']] = v
+        except IOError:
+            pass
+
+    def __get_auth_storage(self):
+        if not os.environ.get('VOLTTRON_HOME', None):
+                raise ValueError('VOLTTRON_HOME environment must be set!')
+
+        db_path = os.path.join(os.environ.get('VOLTTRON_HOME'),
+                               'data/volttron.central.sessions')
+        db_dir  = os.path.dirname(db_path)
+        try:
+            os.makedirs(db_dir)
+        except OSError as exc:
+            if exc.errno != errno.EEXIST or not os.path.isdir(db_dir):
+                raise
+        self.__persistence_path = db_path
 
 
 class ManagerWebApplication(tornado.web.Application):
