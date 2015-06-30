@@ -137,6 +137,7 @@ def listener_agent(config_path, **kwargs):
             message = jsonapi.dumps({'Readings': "HI!!",
                                  'Units': 'string',
                                  'agentname': self.core.identity})
+<<<<<<< HEAD
 #             self.vip.pubsub.publish(peer='pubsub',
 #                                     topic=base_topic,
 #                                     message=[message])
@@ -333,6 +334,8 @@ def listener_agent(config_path, **kwargs):
             message = jsonapi.dumps({'Readings': "HI!!",
                                  'Units': 'string',
                                  'agentname': self.core.identity})
+=======
+>>>>>>> 310143f6c8209f6f1e05a2d018505597edc64c33
 #             self.vip.pubsub.publish(peer='pubsub',
 #                                     topic=base_topic,
 #                                     message=[message])
