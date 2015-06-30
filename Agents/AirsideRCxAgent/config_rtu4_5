@@ -47,7 +47,7 @@
         "sa_temp": "dischargeairtemperature",
         "fan_speedcmd": "supplyfanspeed",
         "sat_stpt": "dischargeairtemperaturesetpoint",
-        "data_window": 20,
+        "data_window": 15,
         "no_required_data": 15,
 
          "max_duct_stp_stpt": 2.5,

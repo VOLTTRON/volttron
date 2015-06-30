@@ -69,6 +69,7 @@ import threading
 
 import gevent
 from zmq import curve_keypair
+import zmq
 
 from . import aip
 from . import __version__
@@ -77,6 +78,7 @@ from . import vip
 from .vip.agent import Agent, Core
 from .vip.agent.compat import CompatPubSub
 from .vip.socket import encode_key
+from .auth import AuthService
 from .control import ControlService
 from .agent import utils
 
@@ -207,10 +209,13 @@ class LogLevelAction(argparse.Action):
 
 class Router(vip.BaseRouter):
     '''Concrete VIP router.'''
-    def __init__(self, addresses, context=None, serverkey=None):
-        super(Router, self).__init__(context=context)
+    def __init__(self, local_address, addresses=(),
+                 context=None, secretkey=None, default_user_id=None):
+        super(Router, self).__init__(
+            context=context, default_user_id=default_user_id)
+        self.local_address = local_address
         self.addresses = addresses
-        self._serverkey = serverkey
+        self._secretkey = secretkey
         self.logger = logging.getLogger('vip.router')
         if self.logger.level == logging.NOTSET:
             self.logger.setLevel(logging.INFO)
@@ -219,10 +224,11 @@ class Router(vip.BaseRouter):
         sock = self.socket
         sock.bind('inproc://vip')
         sock.zap_domain = 'vip'
+        sock.bind(self.local_address)
         for address in self.addresses:
-            if address.startswith('tcp://') and self._serverkey:
+            if address.startswith('tcp://') and self._secretkey:
                 sock.curve_server = True
-                sock.curve_serverkey = self._serverkey
+                sock.curve_secretkey = self._secretkey
             else:
                 sock.curve_server = False
             sock.bind(address)
@@ -243,7 +249,7 @@ class Router(vip.BaseRouter):
         subsystem = bytes(frames[5])
         if subsystem == b'quit':
             sender = bytes(frames[0])
-            if sender == b'control' and not user_id:
+            if sender == b'control' and user_id == self.default_user_id:
                 raise KeyboardInterrupt()
         elif subsystem == 'query.addresses':
             frames[6:] = self.addresses
@@ -320,6 +326,9 @@ def main(argv=sys.argv):
     agents.add_argument(
         '--vip-address', metavar='ZMQADDR', action='append', default=[],
         help='ZeroMQ URL to bind for VIP connections')
+    agents.add_argument(
+        '--vip-local-address', metavar='ZMQADDR',
+        help='ZeroMQ URL to bind for local agent VIP connections')
 
     # XXX: re-implement control options
     #on
@@ -384,7 +393,8 @@ def main(argv=sys.argv):
         autostart=True,
         publish_address=ipc + 'publish',
         subscribe_address=ipc + 'subscribe',
-        vip_address=[ipc + 'vip.socket'],
+        vip_address=[],
+        vip_local_address=ipc + 'vip.socket',
         #allow_root=False,
         #allow_users=None,
         #allow_groups=None,
@@ -407,6 +417,7 @@ def main(argv=sys.argv):
     opts.publish_address = config.expandall(opts.publish_address)
     opts.subscribe_address = config.expandall(opts.subscribe_address)
     opts.vip_address = [config.expandall(addr) for addr in opts.vip_address]
+    opts.vip_local_address = config.expandall(opts.vip_local_address)
     if getattr(opts, 'show_config', False):
         for name, value in sorted(vars(opts).iteritems()):
             print(name, repr(value))
@@ -475,28 +486,56 @@ def main(argv=sys.argv):
     publickey = key[:40]
     if publickey:
         _log.info('public key: %r (%s)', publickey, encode_key(publickey))
-    serverkey = key[40:]
+    secretkey = key[40:]
+
+    # The following line doesn't appear to do anything, but it creates 
+    # a context common to the green and non-green zmq modules.
+    zmq.Context.instance()   # DO NOT REMOVE LINE!!
 
     # Main loops
-    def services():
+    def router(stop):
+        try:
+            Router(opts.vip_local_address, opts.vip_address,
+                   secretkey=secretkey, default_user_id=b'vip.service').run()
+        finally:
+            stop()
+
+    address = 'inproc://vip'
+    try:
+        # Ensure auth service is running before router
+        auth = AuthService(address=address, identity='auth')
+        event = gevent.event.Event()
+        auth_task = gevent.spawn(auth.core.run, event)
+        event.wait()
+        del event
+
+        # Start router in separate thread to remain responsive
+        thread = threading.Thread(target=router, args=(auth.core.stop,))
+        thread.daemon = True
+        thread.start()
+
+        # Launch additional services and wait for them to start before
+        # auto-starting agents
+        services = [
+            ControlService(opts.aip, address=address, identity='control'),
+            PubSubService(address=address, identity='pubsub'),
+            CompatPubSub(address=address, identity='pubsub.compat',
+                         publish_address=opts.publish_address,
+                         subscribe_address=opts.subscribe_address),
+        ]
+        events = [gevent.event.Event() for service in services]
+        tasks = [gevent.spawn(service.core.run, event)
+                 for service, event in zip(services, events)]
+        tasks.append(auth_task)
+        gevent.wait(events)
+        del events
+
+        # Auto-start agents now that all services are up
         if opts.autostart:
             for name, error in opts.aip.autostart():
                 _log.error('error starting {!r}: {}\n'.format(name, error))
-        control = gevent.spawn(ControlService(
-            opts.aip, address='inproc://vip', identity='control').core.run)
-        pubsub = gevent.spawn(PubSubService(
-            address='inproc://vip', identity='pubsub').core.run)
-        exchange = gevent.spawn(CompatPubSub(
-            address='inproc://vip', identity='pubsub.compat',
-            publish_address=opts.publish_address,
-            subscribe_address=opts.subscribe_address).core.run)
-        gevent.wait()
-    try:
-        router = Router(opts.vip_address, serverkey=serverkey)
-        thread = threading.Thread(target=services)
-        thread.daemon = True
-        thread.start()
-        router.run()
+        # Wait for any service to stop, signaling exit
+        gevent.wait(tasks, count=1)
     finally:
         opts.aip.finish()
 
