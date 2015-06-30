@@ -222,10 +222,12 @@ def platform_agent(config_path, **kwargs):
             print('update_sibling_address_cache',self._managers)
             for manager in self._managers:
                 try:
+                    print ("Manager",manager)
                     print (manager[0],manager[1]) 
                     agent = self._get_rpc_agent(manager[0])
 #                     agent = Agent(address=manager[0])
                     result = agent.vip.rpc.call(manager[1],"list_platform_details").get(timeout=10)
+                    print("RESULT",result)
                     self._sibling_cache[manager[0]] = result
                 
                 except Unreachable:

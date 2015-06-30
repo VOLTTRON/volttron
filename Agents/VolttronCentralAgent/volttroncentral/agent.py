@@ -246,6 +246,7 @@ def volttron_central_agent(config_path, **kwargs):
         
         @RPC.export
         def list_platform_details(self):
+            print('list_platform_details', self.registry._vips)
             return self.registry._vips.keys()
 
         @RPC.export
