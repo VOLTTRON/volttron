@@ -195,6 +195,7 @@ def platform_agent(config_path, **kwargs):
         @RPC.export
         def publish_to_peers(self, topic, message, headers = None):
             spawned = []
+            print("Should publish to peers:",self._sibling_cache)
             for key, item in self._sibling_cache.items():
                 for peer_address in item:
                     #TODO: cache these worker agents
