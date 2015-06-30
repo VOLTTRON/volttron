@@ -250,7 +250,7 @@ class AgentFormatter(logging.Formatter):
             record.__dict__['args'] = []
         #print('RECORD: {}'.format(record))
         try: 
-            super(AgentFormatter, self).format(record)
+            record = super(AgentFormatter, self).format(record)
         except TypeError as e:
             print("Type error: ",e)
         
