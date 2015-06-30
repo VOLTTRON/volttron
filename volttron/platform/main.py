@@ -279,10 +279,19 @@ class Router(vip.BaseRouter):
             sender = bytes(frames[0])
             if sender == b'control' and user_id == self.default_user_id:
                 raise KeyboardInterrupt()
-        elif subsystem == 'query.addresses':
-            frames[6:] = self.addresses
-            frames[3] = ''
-            frames[5] = 'query.addresses.result'
+        elif subsystem == b'query':
+            try:
+                name = bytes(frames[6])
+            except IndexError:
+                value = []
+            else:
+                if name == b'addresses':
+                    value = [name] + self.addresses
+                else:
+                    value = []
+            frames[6:] = value
+            frames[5] = 'query.result'
+            frames[3] = b''
             return frames
 
 
