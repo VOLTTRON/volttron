@@ -64,6 +64,7 @@ from logging import handlers
 import logging.config
 import os
 import stat
+import struct
 import sys
 import threading
 
@@ -207,10 +208,34 @@ class LogLevelAction(argparse.Action):
             logger.setLevel(level)
 
 
+class Monitor(threading.Thread):
+    '''Monitor thread to log connections.'''
+
+    def __init__(self, sock):
+        super(Monitor, self).__init__()
+        self.daemon = True
+        self.sock = sock
+
+    def run(self):
+        events = {value: name[6:] for name, value in vars(zmq).iteritems()
+                  if name.startswith('EVENT_') and name != 'EVENT_ALL'}
+        log = logging.getLogger('vip.monitor')
+        if log.level == logging.NOTSET:
+            log.setLevel(logging.INFO)
+        sock = self.sock
+        while True:
+            event, endpoint = sock.recv_multipart()
+            event_id, event_value = struct.unpack('=HI', event)
+            event_name = events[event_id]
+            log.info('%s %s %s', event_name, event_value, endpoint)
+
+
 class Router(vip.BaseRouter):
     '''Concrete VIP router.'''
+
     def __init__(self, local_address, addresses=(),
-                 context=None, secretkey=None, default_user_id=None):
+                 context=None, secretkey=None, default_user_id=None,
+                 monitor=False):
         super(Router, self).__init__(
             context=context, default_user_id=default_user_id)
         self.local_address = local_address
@@ -219,9 +244,12 @@ class Router(vip.BaseRouter):
         self.logger = logging.getLogger('vip.router')
         if self.logger.level == logging.NOTSET:
             self.logger.setLevel(logging.INFO)
+        self._monitor = monitor
 
     def setup(self):
         sock = self.socket
+        if self._monitor:
+            Monitor(sock.get_monitor_socket()).start()
         sock.bind('inproc://vip')
         sock.zap_domain = 'vip'
         sock.bind(self.local_address)
@@ -292,6 +320,9 @@ def main(argv=sys.argv):
     parser.add_argument(
         '--log-level', metavar='LOGGER:LEVEL', action=LogLevelAction,
         help='override default logger logging level')
+    parser.add_argument(
+        '--monitor', action='store_true',
+        help='monitor and log connections (implies -v)')
     parser.add_argument(
         '-q', '--quiet', action='add_const', const=10, dest='verboseness',
         help='decrease logger verboseness; may be used multiple times')
@@ -388,6 +419,7 @@ def main(argv=sys.argv):
     parser.set_defaults(
         log=None,
         log_config=None,
+        monitor=False,
         verboseness=logging.WARNING,
         volttron_home=volttron_home,
         autostart=True,
@@ -424,6 +456,8 @@ def main(argv=sys.argv):
         return
     # Configure logging
     level = max(1, opts.verboseness)
+    if opts.monitor and level > logging.INFO:
+        level = logging.INFO
     if opts.log is None:
         log_to_file(sys.stderr, level)
     elif opts.log == '-':
@@ -496,7 +530,8 @@ def main(argv=sys.argv):
     def router(stop):
         try:
             Router(opts.vip_local_address, opts.vip_address,
-                   secretkey=secretkey, default_user_id=b'vip.service').run()
+                   secretkey=secretkey, default_user_id=b'vip.service',
+                   monitor=opts.monitor).run()
         finally:
             stop()
 

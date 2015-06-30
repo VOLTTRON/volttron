@@ -226,14 +226,8 @@ def platform_agent(config_path, **kwargs):
             for manager in self._managers:
                 try:
                     print ("Manager",manager)
-<<<<<<< HEAD
-                    print ("Manager",manager)
-                    print ("Manager",manager)
-                    print ("Manager",manager)
                     print (manager[0],manager[1])
-=======
-                    print (manager[0],manager[1]) 
->>>>>>> 310143f6c8209f6f1e05a2d018505597edc64c33
+
                     agent = self._get_rpc_agent(manager[0])
 #                     agent = Agent(address=manager[0])
                     result = agent.vip.rpc.call(manager[1],"list_platform_details").get(timeout=10)
@@ -244,10 +238,10 @@ def platform_agent(config_path, **kwargs):
                     _log.error('Could not reach manager: {}'.format(manager))
                 except:
                     print("SOMETHING BAD")
-        
-        
-        
-    
+
+
+
+
         @RPC.export
         def register_service(self, vip_identity):
             # make sure that we get a ping reply
