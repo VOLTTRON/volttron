@@ -322,7 +322,7 @@ def main(argv=sys.argv):
         help='override default logger logging level')
     parser.add_argument(
         '--monitor', action='store_true',
-        help='monitor and log connections')
+        help='monitor and log connections (implies -v)')
     parser.add_argument(
         '-q', '--quiet', action='add_const', const=10, dest='verboseness',
         help='decrease logger verboseness; may be used multiple times')
@@ -456,6 +456,8 @@ def main(argv=sys.argv):
         return
     # Configure logging
     level = max(1, opts.verboseness)
+    if opts.monitor and level > logging.INFO:
+        level = logging.INFO
     if opts.log is None:
         log_to_file(sys.stderr, level)
     elif opts.log == '-':
