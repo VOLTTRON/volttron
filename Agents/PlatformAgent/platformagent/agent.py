@@ -57,6 +57,7 @@ from __future__ import absolute_import, print_function
 import base64
 from datetime import datetime
 import gevent
+import gevent.event
 import logging
 import sys
 import requests
@@ -143,7 +144,10 @@ def platform_agent(config_path, **kwargs):
                 agent = self
             elif address not in self._vip_channels:
                 agent = Agent(address=address)
-                gevent.spawn(agent.core.run).join(0)
+                event = gevent.event.Event()
+                agent.core.onstart.connect(lambda *a, **kw: event.set(), event)
+                gevent.spawn(agent.core.run)
+                event.wait()
                 self._vip_channels[address] = agent
 
             else:
