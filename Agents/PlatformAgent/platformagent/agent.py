@@ -232,7 +232,8 @@ def platform_agent(config_path, **kwargs):
                 
                 except Unreachable:
                     _log.error('Could not reach manager: {}'.format(manager))
-                    
+                except:
+                    print("SOMETHING BAD")
         
         
         
