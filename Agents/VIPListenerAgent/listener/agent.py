@@ -148,7 +148,6 @@ def listener_agent(config_path, **kwargs):
             print('***** Demo Agent is starting')
         
             _, _, self._my_id = self.vip.hello().get(timeout=3)
-            print('I am', my_id)
         
             self.vip.pubsub.subscribe('pubsub', 
                                   '', self.onmessage)
