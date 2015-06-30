@@ -137,13 +137,6 @@ def listener_agent(config_path, **kwargs):
             message = jsonapi.dumps({'Readings': "HI!!",
                                  'Units': 'string',
                                  'agentname': self.core.identity})
-<<<<<<< HEAD
-#             self.vip.pubsub.publish(peer='pubsub',
-#                                     topic=base_topic,
-#                                     message=[message])
-
-            
-
             self.vip.rpc.call('platform.agent','publish_to_peers', topic='neighborhood/needs',
                           message=message)
         
@@ -161,15 +154,13 @@ def listener_agent(config_path, **kwargs):
             
             print("ON MESSAGE: {}".format(message))
             
-            _log.debug("Topic: {topic}, Headers: {headers}, "
-                             "Message: {message}".format(
-                             topic=topic, headers=headers, message=message))
+            
         
             '''
             Receive energy usage change message from another agent. If we have energy
             needs and there is now some available, use it.
             '''
-            message = jsonapi.loads(message[0])        
+#             message = jsonapi.loads(message[0])        
             
         @Core.receiver('onstop')
         def stoping(self, sender, **kwargs):
