@@ -98,7 +98,7 @@ def listener_agent(config_path, **kwargs):
             # a list of registered managers of this platform.
             self._settings = {}
             self._load_settings()
-            self._my_id = "unknown"
+            self._my_id = config.get('agentid')
             
             self._subscribed = False
 
@@ -147,7 +147,7 @@ def listener_agent(config_path, **kwargs):
         def starting(self, sender, **kwargs):
             print('***** Demo Agent is starting')
         
-            _, _, self._my_id = self.vip.hello().get(timeout=3)
+#             _, _, self._my_id = self.vip.hello().get(timeout=3)
         
             self.vip.pubsub.subscribe('pubsub', 
                                   '', self.onmessage)
