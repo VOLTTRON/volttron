@@ -1,6 +1,10 @@
 import logging
+import os
+import Queue
 import sys
+import threading
 from tempfile import TemporaryFile
+import time
 import tornado
 import tornado.websocket
 import traceback
@@ -199,6 +203,51 @@ class RpcRequest:
 
         except:
             self.error = PARSE_ERROR
+
+class LogReader(object):
+
+    def __init__(self, file):
+        self.logfile = open(file)
+        self.read_thread = threading.Thread(target=self.read_messages)
+        self.log_queue = Queue.Queue()
+        self.read_thread.start()
+
+    def read_messages(self):
+        while True:
+            line = self.logfile.readline()
+            if not line:
+                time.sleep(0.01)
+                continue
+                #time.sleep(sleep)    # Sleep briefly
+#                 if sleep < 1.0:
+#                     sleep += 0.00001
+#                 continue
+#             sleep = 0.00001
+            #yield line
+            self.log_queue.put(line)
+logreader = LogReader(os.path.expandvars('$VOLTTRON_HOME/volttron.log'))
+
+class LogHandler(tornado.websocket.WebSocketHandler):
+
+    def open(self):
+        self.write_thread = threading.Thread(target=self.writing_messages)
+        self.write_thread.start()
+
+    def writing_messages(self):
+        while True:
+            if not logreader.log_queue.empty():
+                print("Queue is: " +str(logreader.log_queue.qsize()))
+                self.write_message(logreader.log_queue.get_nowait())
+            time.sleep(0.5)
+
+    def on_close(self):
+        self.write_thread.join(5)
+
+
+#     def on_message(self, message):
+#         #tornado.websocket.WebSocketHandler.on_message(self, message)
+#         self.write_message("written from server "+message)
+
 
 class StatusHandler(tornado.websocket.WebSocketHandler):
     def open(self):
