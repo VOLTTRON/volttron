@@ -83,7 +83,7 @@ from volttron.platform.vip.agent import *
 # from volttron.platform.agent import utils
 
 from webserver import (ManagerWebApplication, ManagerRequestHandler,
-                       StatusHandler, SessionHandler, RpcResponse)
+                       StatusHandler, LogHandler, SessionHandler, RpcResponse)
 
 from volttron.platform.control import list_agents
 from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
@@ -194,6 +194,8 @@ def volttron_central_agent(config_path, **kwargs):
         (r'/jsonrpc/', ManagerRequestHandler),
         (r'/websocket', StatusHandler),
         (r'/websocket/', StatusHandler),
+        (r'/log', LogHandler),
+        (r'/log/', LogHandler),
         (r"/(.*)", tornado.web.StaticFileHandler,
          {"path": WEB_ROOT, "default_filename": "index.html"})
     ]
@@ -243,9 +245,10 @@ def volttron_central_agent(config_path, **kwargs):
                                          'list_agents').get(timeout=10)
 
             return results
-        
+
         @RPC.export
         def list_platform_details(self):
+            print('list_platform_details', self.registry._vips)
             return self.registry._vips.keys()
 
         @RPC.export

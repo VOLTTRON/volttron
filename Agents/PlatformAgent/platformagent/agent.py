@@ -57,6 +57,7 @@ from __future__ import absolute_import, print_function
 import base64
 from datetime import datetime
 import gevent
+import gevent.event
 import logging
 import sys
 import requests
@@ -99,7 +100,7 @@ def platform_agent(config_path, **kwargs):
     vc_vip_identity = config.get('volttron_central_vip_identity',
                                  "volttron.central")
     vip_identity = config.get('vip_identity', 'platform.agent')
-    
+
 
     if not vc_vip_address:
         raise ValueError('Invalid volttron_central_vip_address')
@@ -143,7 +144,10 @@ def platform_agent(config_path, **kwargs):
                 agent = self
             elif address not in self._vip_channels:
                 agent = Agent(address=address)
-                gevent.spawn(agent.core.run).join(0)
+                event = gevent.event.Event()
+                agent.core.onstart.connect(lambda *a, **kw: event.set(), event)
+                gevent.spawn(agent.core.run)
+                event.wait()
                 self._vip_channels[address] = agent
 
             else:
@@ -195,9 +199,9 @@ def platform_agent(config_path, **kwargs):
         @RPC.export
         def publish_to_peers(self, topic, message, headers = None):
             spawned = []
+            print("Should publish to peers:",self._sibling_cache)
             for key, item in self._sibling_cache.items():
                 for peer_address in item:
-                    #TODO: cache these worker agents
                     try:
 #                         agent = Agent(address=peer_address)
 
@@ -210,25 +214,32 @@ def platform_agent(config_path, **kwargs):
                         agent.vip.pubsub.publish(peer='pubsub',headers=headers,
                                         topic=topic,
                                         message=message)
-                        
+
                     except Unreachable:
                         _log.error("Count not publish to peer: {}".
                                    format(peer_address))
-                        
+
         #TODO: Make configurable
         @Core.periodic(30)
         def update_sibling_address_cache(self):
+            print('update_sibling_address_cache',self._managers)
             for manager in self._managers:
                 try:
-                    print (manager[0],manager[1]) 
+                    print ("Manager",manager)
+                    print ("Manager",manager)
+                    print ("Manager",manager)
+                    print ("Manager",manager)
+                    print (manager[0],manager[1])
                     agent = self._get_rpc_agent(manager[0])
 #                     agent = Agent(address=manager[0])
                     result = agent.vip.rpc.call(manager[1],"list_platform_details").get(timeout=10)
+                    print("RESULT",result)
                     self._sibling_cache[manager[0]] = result
-                
+
                 except Unreachable:
                     _log.error('Could not reach manager: {}'.format(manager))
-                    
+                except:
+                    print("SOMETHING BAD")
         
         
         
