@@ -101,6 +101,7 @@ class PlatformRegistry:
     def __init__(self, stale=5*60):
         self._vips = {}
         self._uuids = {}
+        self._external_addresses = None
 
     def get_vip_addresses(self):
         '''Returns all of the known vip addresses.
@@ -287,8 +288,11 @@ def volttron_central_agent(config_path, **kwargs):
             if not identity:
                 identity = 'platform.agent'
 
+
+
+
             result = agent.vip.rpc.call(identity, "manage",
-                                        address=self.core.address,
+                                        address=self._external_addresses,
                                         identity=self.core.identity)
             if result.get(timeout=10):
                 node = self.registry.register(address, identity, agentid)
@@ -337,8 +341,16 @@ def volttron_central_agent(config_path, **kwargs):
         def starting(self, sender, **kwargs):
             '''This event is triggered when the platform is ready for the agent
             '''
+            q = query.Query(self.core)
+            result = q.query('addresses').get()
+            
+            #TODO: Use all addresses for fallback, #114
+            self._external_addresses = result[0]
+            
             # Start tornado in its own thread
             threading.Thread(target=startWebServer, args=(self,)).start()
+            
+            
 
         def __load_persist_data(self):
             persist_kv = None
