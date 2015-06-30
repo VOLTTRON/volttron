@@ -76,6 +76,7 @@ from authenticate import Authenticate
 from volttron.platform.agent import utils
 from volttron.platform.async import AsyncCall
 from volttron.platform.vip.agent import *
+from volttron.platform.vip.agent.subsystems import query
 
 # from volttron.platform import vip, jsonrpc
 # from volttron.platform.agent.vipagent import (BaseAgent, RPCAgent, periodic,
