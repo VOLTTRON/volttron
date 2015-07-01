@@ -71,6 +71,7 @@ import threading
 import gevent
 from zmq import curve_keypair
 import zmq
+from zmq.utils import jsonapi
 
 from . import aip
 from . import __version__
@@ -283,13 +284,13 @@ class Router(vip.BaseRouter):
             try:
                 name = bytes(frames[6])
             except IndexError:
-                value = []
+                value = None
             else:
                 if name == b'addresses':
-                    value = [name] + self.addresses
+                    value = self.addresses
                 else:
-                    value = []
-            frames[6:] = value
+                    value = None
+            frames[6:] = [jsonapi.dumps(value)]
             frames[5] = 'query.result'
             frames[3] = b''
             return frames
