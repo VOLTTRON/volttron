@@ -184,10 +184,8 @@ def bootstrap(dest, prompt='(volttron)', version=None, verbose=None):
                 args = [sys.executable]
                 args.append(os.path.join(tmpdir, 'virtualenv-{}'.format(
                     self.version), 'virtualenv.py'))
-                if verbose:
-                    args.append('--verbose')
-                elif verbose is not None:
-                    args.append('--quiet')
+                if verbose is not None:
+                    args.append('--verbose' if verbose else '--quiet')
                 if self.prompt:
                     args.extend(['--prompt', prompt])
                 args.append(directory)
@@ -211,14 +209,8 @@ def bootstrap(dest, prompt='(volttron)', version=None, verbose=None):
 def pip(operation, args, verbose=None, upgrade=False, offline=False):
     '''Call pip in the virtual environment to perform operation.'''
     cmd = ['pip', operation]
-    if verbose:
-        cmd.extend(['--verbose', '--global-option', '--verbose'])
-    elif verbose is None:
-        cmd.extend(['--global-option', '--quiet'])
-    else:
-        cmd.extend(['--quiet', '--global-option', '--quiet'])
-    if upgrade:
-        cmd.append('--upgrade')
+    if verbose is not None:
+        cmd.append('--verbose' if verbose else '--quiet')
     if offline:
         cmd.extend(['--retries', '0', '--timeout', '1'])
     cmd.extend(args)
