@@ -243,8 +243,10 @@ def update(operation, verbose=None, upgrade=False, offline=False):
     args = []
     for _, location in local_requirements:
         args.extend(['--editable', os.path.join(path, location)])
-    args.extend(['--editable', path,
-                 '--requirement', os.path.join(path, 'requirements.txt')])
+    args.extend(['--editable', path])
+    requirements_txt = os.path.join(path, 'requirements.txt')
+    if os.path.exists(requirements_txt):
+        args.extend(['--requirement', requirements_txt])
     pip(operation, args, verbose, upgrade, offline)
 
 
