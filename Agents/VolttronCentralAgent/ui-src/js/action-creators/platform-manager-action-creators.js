@@ -3,13 +3,17 @@
 var ACTION_TYPES = require('../constants/action-types');
 var authorizationStore = require('../stores/authorization-store');
 var dispatcher = require('../dispatcher');
-var platformsStore = require('../stores/platforms-store');
 var rpc = require('../lib/rpc');
+
+var initializing = false;
 
 var platformManagerActionCreators = {
     initialize: function () {
-        if (authorizationStore.getAuthorization() && !platformsStore.getPlatforms()) {
-            platformManagerActionCreators.loadPlatforms();
+        if (!initializing && authorizationStore.getAuthorization()) {
+            initializing = true;
+            platformManagerActionCreators.loadPlatforms().finally(function () {
+                initializing = false;
+            });
         }
     },
     requestAuthorization: function (username, password) {
@@ -36,7 +40,7 @@ var platformManagerActionCreators = {
     loadPlatforms: function () {
         var authorization = authorizationStore.getAuthorization();
 
-        new rpc.Exchange({
+        return new rpc.Exchange({
             method: 'list_platforms',
             authorization: authorization,
         }).promise
