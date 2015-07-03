@@ -89,17 +89,16 @@ td:not(:first-child) {
     text-align: center;
 }
 
+.platform-manager--console-open .modal__overlay {
+    bottom: 50%;
+}
+
 /* Helper for vertically centering .modal__dialog */
 .modal__overlay::before {
     content: "";
     display: inline-block;
     height: 100%;
     vertical-align: middle;
-}
-
-.modal__overlay ~ * {
-    -webkit-filter: blur(0.25rem) saturate(0);
-    filter: blur(0.25rem) saturate(0);
 }
 
 .modal__dialog {
@@ -130,6 +129,15 @@ td:not(:first-child) {
 .platform-manager--console-open .main {
     height: 50%;
     z-index: 3;
+}
+
+.platform-manager--modal-open .main {
+    overflow: hidden;
+}
+
+.platform-manager--modal-open .main > * {
+    -webkit-filter: blur(0.25rem) saturate(0);
+    filter: blur(0.25rem) saturate(0);
 }
 
 .navigation {
@@ -307,7 +315,7 @@ a.view__item:hover::before {
 
 .toggle {
     position: absolute;
-    z-index: 2;
+    z-index: 101;
     top: auto;
     bottom: 0;
     left: 50%;

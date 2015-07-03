@@ -40,6 +40,7 @@ var PlatformManager = React.createClass({
     },
     render: function () {
         var classes = ['platform-manager'];
+        var modal;
 
         if (this.state.consoleShown) {
             classes.push('platform-manager--console-open');
@@ -50,13 +51,15 @@ var PlatformManager = React.createClass({
 
         if (this.state.modalContent) {
             window.addEventListener('keydown', this._closeModal);
+            classes.push('platform-manager--modal-open');
+            modal = (
+                <Modal>{this.state.modalContent}</Modal>
+            );
         }
 
         return (
             <div className={classes.join(' ')}>
-                {this.state.modalContent &&
-                    <Modal>{this.state.modalContent}</Modal>
-                }
+                {modal}
                 <div className="main">
                     <Navigation />
                     <Router.RouteHandler />
