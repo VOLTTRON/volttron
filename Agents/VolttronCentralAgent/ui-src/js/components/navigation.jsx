@@ -40,7 +40,12 @@ var Navigation = React.createClass({
             });
 
             navItems.push(
-                <a key="logout" className="navigation__item" onClick={this._onLogOutClick}>
+                <a
+                    key="logout"
+                    className="navigation__item"
+                    tabIndex="0"
+                    onClick={this._onLogOutClick}
+                >
                     Log out
                 </a>
             );
