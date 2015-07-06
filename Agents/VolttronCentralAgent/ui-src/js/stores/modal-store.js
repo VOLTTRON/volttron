@@ -20,6 +20,7 @@ modalStore.dispatchToken = dispatcher.register(function (action) {
             break;
 
         case ACTION_TYPES.CLOSE_MODAL:
+        case ACTION_TYPES.RECEIVE_UNAUTHORIZED:
             _modalContent = null;
             modalStore.emitChange();
             break;

@@ -18,6 +18,9 @@ module.exports = keyMirror({
     RECEIVE_UNAUTHORIZED: null,
     CLEAR_AUTHORIZATION: null,
 
+    REGISTER_PLATFORM_ERROR: null,
+    DEREGISTER_PLATFORM_ERROR: null,
+
     RECEIVE_PLATFORMS: null,
     RECEIVE_PLATFORM: null,
     RECEIVE_PLATFORM_ERROR: null,

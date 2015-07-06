@@ -51,7 +51,7 @@ var platformActionCreators = {
                         });
                     });
             })
-            .catch(rpc.Error, handleRpcError);
+            .catch(rpc.Error, handle401);
     },
     clearPlatformError: function (platform) {
         dispatcher.dispatch({
@@ -92,7 +92,7 @@ var platformActionCreators = {
                         platform: platform,
                     });
                 })
-                .catch(rpc.Error, handleRpcError);
+                .catch(rpc.Error, handle401);
         });
     },
     startAgent: function (platform, agent) {
@@ -114,7 +114,7 @@ var platformActionCreators = {
                 agent.process_id = status.process_id;
                 agent.return_code = status.return_code;
             })
-            .catch(rpc.Error, handleRpcError)
+            .catch(rpc.Error, handle401)
             .finally(function () {
                 agent.actionPending = false;
 
@@ -143,7 +143,7 @@ var platformActionCreators = {
                 agent.process_id = status.process_id;
                 agent.return_code = status.return_code;
             })
-            .catch(rpc.Error, handleRpcError)
+            .catch(rpc.Error, handle401)
             .finally(function () {
                 agent.actionPending = false;
 
@@ -187,7 +187,7 @@ var platformActionCreators = {
     },
 };
 
-function handleRpcError(error) {
+function handle401(error) {
     if (error.code && error.code === 401) {
         dispatcher.dispatch({
             type: ACTION_TYPES.RECEIVE_UNAUTHORIZED,

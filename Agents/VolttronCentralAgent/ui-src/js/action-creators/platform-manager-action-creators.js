@@ -31,7 +31,7 @@ var platformManagerActionCreators = {
                     authorization: result,
                 });
             })
-            .catch(rpc.Error, handleRpcError);
+            .catch(rpc.Error, handle401);
     },
     clearAuthorization: function () {
         dispatcher.dispatch({
@@ -55,11 +55,65 @@ var platformManagerActionCreators = {
                     platformActionCreators.loadPlatform(platform);
                 });
             })
-            .catch(rpc.Error, handleRpcError);
+            .catch(rpc.Error, handle401);
+    },
+    registerPlatform: function (name, address) {
+        var authorization = authorizationStore.getAuthorization();
+
+        new rpc.Exchange({
+            method: 'register_platform',
+            authorization: authorization,
+            params: {
+                identity: 'platform.agent',
+                agentid: name,
+                address: address,
+            },
+        }).promise
+            .then(function () {
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.CLOSE_MODAL,
+                });
+
+                platformManagerActionCreators.loadPlatforms();
+            })
+            .catch(rpc.Error, function (error) {
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.REGISTER_PLATFORM_ERROR,
+                    error: error,
+                });
+
+                handle401(error);
+            });
+    },
+    deregisterPlatform: function (platform) {
+        var authorization = authorizationStore.getAuthorization();
+
+        new rpc.Exchange({
+            method: 'unregister_platform',
+            authorization: authorization,
+            params: {
+                platform_uuid: platform.uuid
+            },
+        }).promise
+            .then(function (platform) {
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.CLOSE_MODAL,
+                });
+
+                platformManagerActionCreators.loadPlatforms();
+            })
+            .catch(rpc.Error, function (error) {
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.DEREGISTER_PLATFORM_ERROR,
+                    error: error,
+                });
+
+                handle401(error);
+            });
     },
 };
 
-function handleRpcError(error) {
+function handle401(error) {
     if (error.code && error.code === 401) {
         dispatcher.dispatch({
             type: ACTION_TYPES.RECEIVE_UNAUTHORIZED,

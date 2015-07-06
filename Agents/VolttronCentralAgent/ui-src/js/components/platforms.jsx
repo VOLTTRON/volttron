@@ -3,8 +3,11 @@
 var React = require('react');
 var Router = require('react-router');
 
+var modalActionCreators = require('../action-creators/modal-action-creators');
 var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
 var platformsStore = require('../stores/platforms-store');
+var RegisterPlatformForm = require('../components/register-platform-form');
+var DeregisterPlatformConfirmation = require('../components/deregister-platform-confirmation');
 
 var Platforms = React.createClass({
     getInitialState: getStateFromStores,
@@ -19,6 +22,12 @@ var Platforms = React.createClass({
     },
     _onStoresChange: function () {
         this.setState(getStateFromStores());
+    },
+    _onRegisterClick: function () {
+        modalActionCreators.openModal(<RegisterPlatformForm />);
+    },
+    _onDeregisterClick: function (platform) {
+        modalActionCreators.openModal(<DeregisterPlatformConfirmation platform={platform} />);
     },
     render: function () {
         var platforms;
@@ -59,22 +68,39 @@ var Platforms = React.createClass({
                     }
 
                     return (
-                        <Router.Link
+                        <div
                             key={platform.uuid}
-                            to="platform"
-                            params={{uuid: platform.uuid}}
                             className="view__item"
                         >
-                            <h3>{platform.name}</h3>
+                            <h3>
+                                <Router.Link
+                                    to="platform"
+                                    params={{uuid: platform.uuid}}
+                                >
+                                    {platform.name}
+                                </Router.Link>
+                            </h3>
+                            <button
+                                className="deregister-platform"
+                                onClick={this._onDeregisterClick.bind(this, platform)}
+                                title="Deregister platform"
+                            >
+                                &times;
+                            </button>
                             <code>{status.join(' | ')}</code>
-                        </Router.Link>
+                        </div>
                     );
-                });
+                }, this);
         }
 
         return (
             <div className="view view--list">
                 <h2>Platforms</h2>
+                <div className="view__actions">
+                    <button className="button" onClick={this._onRegisterClick}>
+                        Register platform
+                    </button>
+                </div>
                 {platforms}
             </div>
         );
