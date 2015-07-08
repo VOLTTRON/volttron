@@ -92,15 +92,15 @@ class Application(AbstractDrivenAgent):
                  mat_low_threshold=50.0, mat_high_threshold=90.0,
                  oat_low_threshold=30.0, oat_high_threshold=100.0,
                  rat_low_threshold=50.0, rat_high_threshold=90.0,
-                 temp_diff_thr=4.0, oat_mat_check=5.0,
+                 temp_difference_threshold=4.0, oat_mat_check=5.0,
                  open_damper_threshold=90.0, oaf_economizing_threshold=25.0,
-                 oaf_temp_thr=4.0,
+                 oaf_temperature_threshold=4.0,
                  cooling_enabled_threshold=5.0,
                  minimum_damper_setpoint=15.0, excess_damper_threshold=20.0,
                  excess_oaf_threshold=20.0, desired_oaf=10.0,
                  ventilation_oaf_threshold=5.0,
                  insufficient_damper_threshold=15.0,
-                 temp_damper_threshold=90.0, rated_cfm=1000.0, eer=10.0,
+                 temp_damper_threshold=90.0, rated_cfm=6000.0, eer=10.0,
                  **kwargs):
         # initialize user configurable parameters.
         # super(Application, self).__init__(**kwargs)
@@ -121,7 +121,7 @@ class Application(AbstractDrivenAgent):
             self.econ_hl_temp = float(econ_hl_temp)
         Application.pre_requiste_messages = []
         Application.pre_msg_time = []
-        self.oaf_temp_thr = float(oaf_temp_thr)
+        self.oaf_temp_thr = float(oaf_temperature_threshold)
         # Application thresholds (Configurable)
         self.data_window = float(data_window)
         no_required_data = int(no_required_data)
@@ -168,7 +168,7 @@ class Application(AbstractDrivenAgent):
                           'operating limits, check the functionality '
                           'of the temperature sensor.')
         self.econ1 = temperature_sensor_dx(data_window, no_required_data,
-                                           temp_diff_thr,
+                                           temp_difference_threshold,
                                            open_damper_time,
                                            oat_mat_check,
                                            temp_damper_threshold)
@@ -888,7 +888,8 @@ class econ_correctly_on(object):
             dx_time = (len(energy_calc) - 1) * avg_step if len(energy_calc) > 1 else 1.0
             energy_impact = \
                 (sum(energy_calc) * 60.0) / (len(energy_calc) * dx_time)
-            energy_impact = '%s' % float('%.2g' % energy_impact)
+            energy_impact = round(energy_impact, 2)
+            # energy_impact = '%s' % float('%.2g' % energy_impact)
             # energy_impact = str(energy_impact)
             # energy_impact = ''.join([energy_impact, ' kWh/h'])
         dx_table = {
@@ -1019,7 +1020,8 @@ class econ_correctly_off(object):
                 avg_step if len(energy_calc) > 1 else 1.0
             energy_impact = (
                 (sum(energy_calc) * 60.0) / (len(energy_calc) * dx_time))
-            energy_impact = '%s' % float('%.2g' % energy_impact)
+            energy_impact = round(energy_impact, 2)
+            # energy_impact = '%s' % float('%.2g' % energy_impact)
             # energy_impact = str(energy_impact)
             # energy_impact = ''.join([energy_impact, ' kWh/h'])
         dx_table = {
@@ -1174,7 +1176,7 @@ class excess_oa_intake(object):
                     (len(energy_calc) - 1) * avg_step if len(energy_calc) > 1 else 1.0
                 energy_impact = (
                     sum(energy_calc) * 60.0) / (len(energy_calc) * dx_time)
-                energy_impact = '%s' % float('%.2g' % energy_impact)
+                # energy_impact = '%s' % float('%.2g' % energy_impact)
                 # energy_impact = str(energy_impact)
                 # energy_impact = ''.join([energy_impact, ' kWh/h'])
         elif not dx_msg:
