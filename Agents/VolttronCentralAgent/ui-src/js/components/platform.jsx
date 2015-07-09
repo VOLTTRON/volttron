@@ -6,16 +6,12 @@ var Router = require('react-router');
 var AgentRow = require('./agent-row');
 var PercentChart = require('./percent-chart');
 var platformActionCreators = require('../action-creators/platform-action-creators');
-var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
 var platformsStore = require('../stores/platforms-store');
 
 var Platform = React.createClass({
     mixins: [Router.State],
     getInitialState: function () {
         return getStateFromStores(this);
-    },
-    componentWillMount: function () {
-        platformManagerActionCreators.initialize();
     },
     componentDidMount: function () {
         platformsStore.addChangeListener(this._onStoresChange);

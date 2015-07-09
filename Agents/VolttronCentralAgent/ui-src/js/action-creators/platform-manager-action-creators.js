@@ -10,12 +10,9 @@ var initializing = false;
 
 var platformManagerActionCreators = {
     initialize: function () {
-        if (!initializing && authorizationStore.getAuthorization()) {
-            initializing = true;
-            platformManagerActionCreators.loadPlatforms().finally(function () {
-                initializing = false;
-            });
-        }
+        if (!authorizationStore.getAuthorization()) { return; }
+
+        platformManagerActionCreators.loadPlatforms();
     },
     requestAuthorization: function (username, password) {
         new rpc.Exchange({
@@ -31,6 +28,7 @@ var platformManagerActionCreators = {
                     authorization: result,
                 });
             })
+            .then(platformManagerActionCreators.initialize)
             .catch(rpc.Error, handle401);
     },
     clearAuthorization: function () {
