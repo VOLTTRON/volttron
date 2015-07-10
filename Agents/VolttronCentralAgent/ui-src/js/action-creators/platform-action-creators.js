@@ -7,6 +7,16 @@ var rpc = require('../lib/rpc');
 
 var platformActionCreators = {
     loadPlatform: function (platform) {
+        platformActionCreators.loadAgents(platform);
+        platformActionCreators.loadCharts(platform);
+    },
+    clearPlatformError: function (platform) {
+        dispatcher.dispatch({
+            type: ACTION_TYPES.CLEAR_PLATFORM_ERROR,
+            platform: platform,
+        });
+    },
+    loadAgents: function (platform) {
         var authorization = authorizationStore.getAuthorization();
 
         new rpc.Exchange({
@@ -52,48 +62,6 @@ var platformActionCreators = {
                     });
             })
             .catch(rpc.Error, handle401);
-    },
-    clearPlatformError: function (platform) {
-        dispatcher.dispatch({
-            type: ACTION_TYPES.CLEAR_PLATFORM_ERROR,
-            platform: platform,
-        });
-    },
-    updateStatus: function (platform) {
-        var authorization = authorizationStore.getAuthorization();
-
-        platform.status = platform.status || {};
-
-        [
-            'cpu/percent',
-            'cpu/times_percent/idle',
-            'cpu/times_percent/nice',
-            'cpu/times_percent/system',
-            'cpu/times_percent/user',
-        ].forEach(function (topic) {
-            rpc.Exchange({
-                method: 'platforms.uuid.' + platform.uuid + '.historian.query',
-                params: {
-                    topic: 'datalogger/log/platform/status/' + topic,
-                    count: 20,
-                    order: 'LAST_TO_FIRST',
-                },
-                authorization: authorization,
-            }).promise
-                .then(function (result) {
-                    result.values.forEach(function (value) {
-                        value[0] = Date.parse(value[0]);
-                    });
-
-                    platform.status[topic] = result.values;
-
-                    dispatcher.dispatch({
-                        type: ACTION_TYPES.RECEIVE_PLATFORM,
-                        platform: platform,
-                    });
-                })
-                .catch(rpc.Error, handle401);
-        });
     },
     startAgent: function (platform, agent) {
         var authorization = authorizationStore.getAuthorization();
@@ -183,6 +151,149 @@ var platformActionCreators = {
                 if (errors.length !== files.length) {
                     platformActionCreators.loadPlatform(platform);
                 }
+            })
+            .catch(rpc.Error, handle401);
+    },
+    loadCharts: function (platform) {
+        var authorization = authorizationStore.getAuthorization();
+
+        new rpc.Exchange({
+            method: 'platforms.uuid.' + platform.uuid + '.get_setting',
+            params: { key: 'charts' },
+            authorization: authorization,
+        }).promise
+            .then(function (charts) {
+                if (charts && charts.length) {
+                    platform.charts = charts;
+                } else {
+                    // Provide default set of charts if none are configured
+                    platform.charts = [
+                        {
+                          "topic": "datalogger/log/platform/status/cpu/percent",
+                          "refreshInterval": 15000,
+                          "type": "line",
+                          "min": 0,
+                          "max": 100
+                        },
+                        {
+                          "topic": "datalogger/log/platform/status/cpu/times_percent/idle",
+                          "refreshInterval": 15000,
+                          "type": "line",
+                          "min": 0,
+                          "max": 100
+                        },
+                        {
+                          "topic": "datalogger/log/platform/status/cpu/times_percent/nice",
+                          "refreshInterval": 15000,
+                          "type": "line",
+                          "min": 0,
+                          "max": 100
+                        },
+                        {
+                          "topic": "datalogger/log/platform/status/cpu/times_percent/system",
+                          "refreshInterval": 15000,
+                          "type": "line",
+                          "min": 0,
+                          "max": 100
+                        },
+                        {
+                          "topic": "datalogger/log/platform/status/cpu/times_percent/user",
+                          "refreshInterval": 15000,
+                          "type": "line",
+                          "min": 0,
+                          "max": 100
+                        },
+                    ];
+                }
+
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.RECEIVE_PLATFORM,
+                    platform: platform,
+                });
+            })
+            .catch(rpc.Error, handle401);
+    },
+    getTopicData: function (platform, topic) {
+        var authorization = authorizationStore.getAuthorization();
+
+        new rpc.Exchange({
+            method: 'platforms.uuid.' + platform.uuid + '.historian.query',
+            params: {
+                topic: topic,
+                count: 20,
+                order: 'LAST_TO_FIRST',
+            },
+            authorization: authorization,
+        }).promise
+            .then(function (result) {
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.RECEIVE_PLATFORM_TOPIC_DATA,
+                    platform: platform,
+                    topic: topic,
+                    data: result.values.map(function (value) {
+                        return[Date.parse(value[0]), value[1]];
+                    }),
+                });
+            })
+            .catch(rpc.Error, handle401);
+    },
+    saveChart: function (platform, oldChart, newChart) {
+        var authorization = authorizationStore.getAuthorization();
+        var newCharts;
+
+        if (!oldChart) {
+            newCharts = platform.charts.concat([newChart]);
+        } else {
+            newCharts = platform.charts.map(function (chart) {
+                if (chart === oldChart) {
+                    return newChart;
+                }
+
+                return chart;
+            });
+        }
+
+        new rpc.Exchange({
+            method: 'platforms.uuid.' + platform.uuid + '.set_setting',
+            params: { key: 'charts', value: newCharts },
+            authorization: authorization,
+        }).promise
+            .then(function () {
+                platform.charts = newCharts;
+
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.CLOSE_MODAL,
+                });
+
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.RECEIVE_PLATFORM,
+                    platform: platform,
+                });
+            });
+    },
+    deleteChart: function (platform, chartToDelete) {
+        var authorization = authorizationStore.getAuthorization();
+
+        var newCharts = platform.charts.filter(function (chart) {
+            return (chart !== chartToDelete);
+        });
+
+        new rpc.Exchange({
+            method: 'platforms.uuid.' + platform.uuid + '.set_setting',
+            params: { key: 'charts', value: newCharts },
+            authorization: authorization,
+        }).promise
+            .then(function () {
+                platform.charts = newCharts;
+
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.CLOSE_MODAL,
+                });
+
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.RECEIVE_PLATFORM,
+                    platform: platform,
+                });
             });
     },
 };

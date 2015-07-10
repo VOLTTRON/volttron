@@ -12,10 +12,14 @@ var Modal = require('./modal');
 var modalActionCreators = require('../action-creators/modal-action-creators');
 var modalStore = require('../stores/modal-store');
 var Navigation = require('./navigation');
+var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
 
 var PlatformManager = React.createClass({
     mixins: [Router.Navigation, Router.State],
     getInitialState: getStateFromStores,
+    componentWillMount: function () {
+        platformManagerActionCreators.initialize();
+    },
     componentDidMount: function () {
         authorizationStore.addChangeListener(this._onStoreChange);
         consoleStore.addChangeListener(this._onStoreChange);

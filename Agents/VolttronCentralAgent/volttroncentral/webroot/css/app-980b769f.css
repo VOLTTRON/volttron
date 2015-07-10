@@ -84,27 +84,39 @@ td:not(:first-child) {
     box-shadow: 0 0 0.0833rem 0.1667rem rgba(128,128,255,0.5), 0 0.3333rem #bbb;
 }
 
-form label {
+.form__control-group {
+    margin-top: 1.5em;
+}
+
+.form__control-group > label:first-child {
     display: block;
     text-transform: uppercase;
     font-weight: bold;
     font-size: 0.83333em;
-    margin: 1.5em 0 0.5em;
+    margin-bottom: 0.5em;
 }
 
-form input {
+.form__control--block {
     display: block;
     width: 100%;
     box-sizing: border-box;
 }
 
+.form__control-help {
+    color: #999;
+}
+
+.form__control--inline + .form__control-help {
+    margin-left: 1em;
+}
+
 .form__actions {
-    margin-top: 1em;
+    margin-top: 1.5em;
     text-align: right;
 }
 
 .form__actions > * {
-    margin-left: 0.5em;
+    margin-left: 1em;
 }
 
 .platform-manager {
@@ -142,10 +154,10 @@ form input {
     display: inline-block;
     vertical-align: middle;
     position: relative;
-    top: -7%;
+    margin-top: -10%;
     padding: 1.5rem;
-    max-height: 60%;
-    max-width: 60%;
+    max-height: 75%;
+    max-width: 75%;
     box-sizing: border-box;
     overflow: auto;
     text-align: left;
@@ -313,35 +325,68 @@ form input {
     margin-top: 1.5em;
 }
 
-.status-chart {
+.edit-chart-form {
+    width: 400px;
+}
+
+.chart--platform {
     display: inline-block;
-    width: 20%;
+    width: 33%;
     padding: 1em;
     box-sizing: border-box;
 }
 
-.status-chart h4 {
+.chart__title {
     margin-bottom: 1.5rem;
 }
 
-.status-chart svg {
+.chart__svg {
     width: 100%;
     height: 50px;
 }
 
-.status-chart path {
+.chart__svg--line .axis {
+    fill: none;
+    stroke: #ddd;
+    stroke-width: 1;
+}
+
+.chart__svg--line .line {
     fill: none;
     stroke: #45b;
     stroke-width: 2;
 }
 
+.chart__actions {
+    text-align: right;
+}
+
+.chart__actions a {
+    margin-left: 1em;
+    cursor: pointer;
+}
+
+.view__item {
+    padding: 1.5em;
+    background-color: #fff;
+    border-radius: 0.3333em;
+    box-sizing: border-box;
+    margin-bottom: 1.5rem;
+}
+
 .view--list .view__item {
     display: block;
     margin-bottom: 0;
-    padding: 1.5em;
-    background-color: #fff;
     position: relative;
-    border-radius: 0.3333em;
+}
+
+.view--tiled .view__item {
+    width: calc(50% - .75rem);
+    display: inline-block;
+}
+
+.view--tiled .view__item:nth-child(even) {
+    margin-left: 1.5rem;
 }
 
 a.view__item {
@@ -370,18 +415,27 @@ a.view__item:hover::before {
     margin-top: 0.5em;
 }
 
+.empty-help {
+    text-align: center;
+    padding: 1.5rem;
+    border-radius: 0.3333rem;
+    color: #bbb;
+    background-color: #fff;
+}
+
 .deregister-platform {
     position: absolute;
     top: 50%;
     right: 1.5rem;
     border: none;
-    color: #45b;
+    color: #bbb;
     background-color: transparent;
     font-size: 2em;
     height: 1em;
     width: 1em;
     line-height: 1em;
     margin-top: -0.5em;
+    padding: 0;
     border-radius: 0.25rem;
     transition: color 150ms linear, background-color 150ms linear;
 }
@@ -392,6 +446,11 @@ a.view__item:hover::before {
 }
 
 .deregister-platform:hover {
+    color: #45b;
+    transition: color 20ms linear, background 20ms linear;
+}
+
+.deregister-platform:active {
     color: #fff;
     background-color: #45b;
 }
