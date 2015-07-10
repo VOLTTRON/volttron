@@ -4,6 +4,7 @@ var React = require('react');
 var Router = require('react-router');
 
 var authorizationStore = require('./stores/authorization-store');
+var Dashboard = require('./components/Dashboard');
 var LoginForm = require('./components/login-form');
 var PageNotFound = require('./components/page-not-found');
 var Platform = require('./components/platform');
@@ -47,6 +48,7 @@ var AfterLogin = React.createClass({
 var routes = (
     <Router.Route path="/" handler={PlatformManager}>
         <Router.Route name="login" path="login" handler={checkAuth(LoginForm)} />
+        <Router.Route name="dashboard" path="dashboard" handler={checkAuth(Dashboard)} />
         <Router.Route name="platforms" path="platforms" handler={checkAuth(Platforms)} />
         <Router.Route name="platform" path="platforms/:uuid" handler={checkAuth(Platform)} />
         <Router.NotFoundRoute handler={checkAuth(PageNotFound)} />

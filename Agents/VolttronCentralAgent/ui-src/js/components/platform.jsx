@@ -4,7 +4,7 @@ var React = require('react');
 var Router = require('react-router');
 
 var AgentRow = require('./agent-row');
-var PercentChart = require('./percent-chart');
+var Chart = require('./chart');
 var platformActionCreators = require('../action-creators/platform-action-creators');
 var platformsStore = require('../stores/platforms-store');
 
@@ -15,25 +15,12 @@ var Platform = React.createClass({
     },
     componentDidMount: function () {
         platformsStore.addChangeListener(this._onStoresChange);
-        this._initUpdateStatus();
-    },
-    componentDidUpdate: function () {
-        this._initUpdateStatus();
     },
     componentWillUnmount: function () {
         platformsStore.removeChangeListener(this._onStoresChange);
-        clearTimeout(this._updateStatusTimeout);
         if (this.state.error) {
             platformActionCreators.clearPlatformError(this.state.platform);
         }
-    },
-    _initUpdateStatus: function () {
-        if (!this.state.platform || this._updateStatusTimeout) { return; }
-        this._updateStatusTimeout = setTimeout(this._updateStatus, 0);
-    },
-    _updateStatus: function () {
-        platformActionCreators.updateStatus(this.state.platform);
-        this._updateStatusTimeout = setTimeout(this._updateStatus, 15000);
     },
     _onStoresChange: function () {
         this.setState(getStateFromStores(this));
@@ -81,26 +68,31 @@ var Platform = React.createClass({
             );
         }
 
-        var status;
+        var charts;
         var agents;
 
-        if (!platform.status) {
-            status = (
-                <p>Loading status...</p>
+        if (!platform.charts) {
+            charts = (
+                <p>Loading charts...</p>
             );
         } else {
-            status = [];
+            charts = platform.charts.map(function (chart) {
+                var key = [
+                    platform.uuid,
+                    chart.topic,
+                    chart.type,
+                ].join('::');
 
-            for (var topic in platform.status) {
-                status.push(
-                    <div key={topic} className="status-chart">
-                        <h4>{topic}</h4>
-                        <PercentChart
-                            points={platform.status[topic]}
+                return (
+                    <div key={key} className="chart chart--platform">
+                        <h4 className="chart__title">{chart.topic}</h4>
+                        <Chart
+                            platform={platform}
+                            chart={chart}
                         />
                     </div>
                 );
-            }
+            });
         }
 
         if (!platform.agents) {
@@ -153,8 +145,8 @@ var Platform = React.createClass({
                     &nbsp;/&nbsp;
                     {platform.name} ({platform.uuid})
                 </h2>
-                <h3>Status</h3>
-                {status}
+                <h3>Charts</h3>
+                {charts}
                 <h3>Agents</h3>
                 {agents}
                 <h3>Install agents</h3>

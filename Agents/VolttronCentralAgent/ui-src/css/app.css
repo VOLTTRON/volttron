@@ -313,35 +313,49 @@ form input {
     margin-top: 1.5em;
 }
 
-.status-chart {
+.chart--platform {
     display: inline-block;
     width: 20%;
     padding: 1em;
     box-sizing: border-box;
 }
 
-.status-chart h4 {
+.chart__title {
     margin-bottom: 1.5rem;
 }
 
-.status-chart svg {
+.chart__svg {
     width: 100%;
     height: 50px;
 }
 
-.status-chart path {
+.chart__svg--line-plot path {
     fill: none;
     stroke: #45b;
     stroke-width: 2;
 }
 
+.view__item {
+    padding: 1.5em;
+    background-color: #fff;
+    border-radius: 0.3333em;
+    box-sizing: border-box;
+    margin-bottom: 1.5rem;
+}
+
 .view--list .view__item {
     display: block;
     margin-bottom: 0;
-    padding: 1.5em;
-    background-color: #fff;
     position: relative;
-    border-radius: 0.3333em;
+}
+
+.view--tiled .view__item {
+    width: calc(50% - .75rem);
+    display: inline-block;
+}
+
+.view--tiled .view__item:nth-child(even) {
+    margin-left: 1.5rem;
 }
 
 a.view__item {
@@ -370,18 +384,27 @@ a.view__item:hover::before {
     margin-top: 0.5em;
 }
 
+.empty-help {
+    text-align: center;
+    padding: 1.5rem;
+    border-radius: 0.3333rem;
+    color: #bbb;
+    background-color: #fff;
+}
+
 .deregister-platform {
     position: absolute;
     top: 50%;
     right: 1.5rem;
     border: none;
-    color: #45b;
+    color: #bbb;
     background-color: transparent;
     font-size: 2em;
     height: 1em;
     width: 1em;
     line-height: 1em;
     margin-top: -0.5em;
+    padding: 0;
     border-radius: 0.25rem;
     transition: color 150ms linear, background-color 150ms linear;
 }
@@ -392,6 +415,11 @@ a.view__item:hover::before {
 }
 
 .deregister-platform:hover {
+    color: #45b;
+    transition: color 20ms linear, background 20ms linear;
+}
+
+.deregister-platform:active {
     color: #fff;
     background-color: #45b;
 }

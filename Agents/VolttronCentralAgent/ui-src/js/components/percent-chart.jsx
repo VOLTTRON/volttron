@@ -43,7 +43,7 @@ var PercentChart = React.createClass({
         }
 
         return (
-            <svg ref="svg">
+            <svg className="chart__svg chart__svg--line-plot" ref="svg">
                 {path}
             </svg>
         );
