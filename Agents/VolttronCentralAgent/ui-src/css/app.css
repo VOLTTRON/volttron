@@ -315,7 +315,7 @@ form input {
 
 .chart--platform {
     display: inline-block;
-    width: 20%;
+    width: 33%;
     padding: 1em;
     box-sizing: border-box;
 }
@@ -329,7 +329,13 @@ form input {
     height: 50px;
 }
 
-.chart__svg--line-plot path {
+.chart__svg--line .axis {
+    fill: none;
+    stroke: #ddd;
+    stroke-width: 1;
+}
+
+.chart__svg--line .line {
     fill: none;
     stroke: #45b;
     stroke-width: 2;
