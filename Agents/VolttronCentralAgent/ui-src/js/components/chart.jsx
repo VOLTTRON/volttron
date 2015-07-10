@@ -4,10 +4,10 @@ var React = require('react');
 
 var topicDataStore = require('../stores/topic-data-store');
 var platformActionCreators = require('../action-creators/platform-action-creators');
-var PercentChart = require('./percent-chart');
+var LineChart = require('./line-chart');
 
 var chartTypes = {
-    'percent-chart': PercentChart,
+    'line': LineChart,
 };
 
 var Chart = React.createClass({
@@ -44,6 +44,7 @@ var Chart = React.createClass({
         return (
             <ChartClass
                 className="chart"
+                chart={this.props.chart}
                 points={this.state.data || []}
             />
         );

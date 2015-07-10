@@ -170,23 +170,33 @@ var platformActionCreators = {
                     platform.charts = [
                         {
                           "topic": "datalogger/log/platform/status/cpu/percent",
-                          "type": "percent-chart",
+                          "type": "line",
+                          "min": 0,
+                          "max": 100
                         },
                         {
                           "topic": "datalogger/log/platform/status/cpu/times_percent/idle",
-                          "type": "percent-chart",
+                          "type": "line",
+                          "min": 0,
+                          "max": 100
                         },
                         {
                           "topic": "datalogger/log/platform/status/cpu/times_percent/nice",
-                          "type": "percent-chart",
+                          "type": "line",
+                          "min": 0,
+                          "max": 100
                         },
                         {
                           "topic": "datalogger/log/platform/status/cpu/times_percent/system",
-                          "type": "percent-chart",
+                          "type": "line",
+                          "min": 0,
+                          "max": 100
                         },
                         {
                           "topic": "datalogger/log/platform/status/cpu/times_percent/user",
-                          "type": "percent-chart",
+                          "type": "line",
+                          "min": 0,
+                          "max": 100
                         },
                     ];
                 }
