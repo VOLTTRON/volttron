@@ -60,6 +60,8 @@ from __future__ import absolute_import
 import re
 import weakref
 
+from zmq.utils import jsonapi
+
 from .base import SubsystemBase
 from ..errors import VIPError
 from ..results import ResultsDictionary
@@ -87,7 +89,8 @@ class Query(SubsystemBase):
             result = self._results.pop(bytes(message.id))
         except KeyError:
             return
-        result.set([bytes(arg) for arg in message.args] or None)
+        result.set(jsonapi.loads(bytes(message.args[0]))
+                   if message.args else None)
 
     def _handle_error(self, message):
         try:

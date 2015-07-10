@@ -48,7 +48,7 @@
         "ventilation_oaf_threshold": 5.0,
         "insufficient_damper_threshold": 15.0,
         "temp_damper_threshold": 90.0,
-        "rated_cfm": 10000.0,
+        "rated_cfm": 6000.0,
         "eer": 10.0
     },
 

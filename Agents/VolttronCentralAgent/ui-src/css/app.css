@@ -56,7 +56,11 @@ td:not(:first-child) {
     border: none;
     border-radius: 0.3333rem;
     padding: 0.25em 1em;
+}
+
+.button:focus {
     outline: none;
+    box-shadow: 0 0 0.0833rem 0.1667rem rgba(128,128,255,0.5), 0 0.3333rem #479;
 }
 
 .button:active:not(:disabled) {
@@ -70,12 +74,88 @@ td:not(:first-child) {
     box-shadow: 0 0 #479;
 }
 
+.button--secondary {
+    background-color: #ddd;
+    color: #000;
+    box-shadow: 0 0.3333rem #bbb;
+}
+
+.button--secondary:focus {
+    box-shadow: 0 0 0.0833rem 0.1667rem rgba(128,128,255,0.5), 0 0.3333rem #bbb;
+}
+
+form label {
+    display: block;
+    text-transform: uppercase;
+    font-weight: bold;
+    font-size: 0.83333em;
+    margin: 1.5em 0 0.5em;
+}
+
+form input {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.form__actions {
+    margin-top: 1em;
+    text-align: right;
+}
+
+.form__actions > * {
+    margin-left: 0.5em;
+}
+
 .platform-manager {
     position: absolute;
     top: 0;
     bottom: 0;
     left: 0;
     right: 0;
+}
+
+.modal__overlay {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    background-color: rgba(192,192,192,0.5);
+    text-align: center;
+}
+
+.platform-manager--console-open .modal__overlay {
+    bottom: 50%;
+}
+
+/* Helper for vertically centering .modal__dialog */
+.modal__overlay::before {
+    content: "";
+    display: inline-block;
+    height: 100%;
+    vertical-align: middle;
+}
+
+.modal__dialog {
+    display: inline-block;
+    vertical-align: middle;
+    position: relative;
+    top: -7%;
+    padding: 1.5rem;
+    max-height: 60%;
+    max-width: 60%;
+    box-sizing: border-box;
+    overflow: auto;
+    text-align: left;
+    border-radius: 0.3333rem;
+    background-color: #fff;
+    box-shadow: 0 0.1rem 0.2rem rgba(0,0,0,0.3);
+}
+
+.modal__dialog h1 {
+    font-size: 1.5em;
 }
 
 .main {
@@ -90,6 +170,15 @@ td:not(:first-child) {
 .platform-manager--console-open .main {
     height: 50%;
     z-index: 3;
+}
+
+.platform-manager--modal-open .main {
+    overflow: hidden;
+}
+
+.platform-manager--modal-open .main > * {
+    -webkit-filter: blur(0.25rem) saturate(0);
+    filter: blur(0.25rem) saturate(0);
 }
 
 .navigation {
@@ -205,6 +294,7 @@ td:not(:first-child) {
 .view {
     padding: 1.5em 2.5em;
     border-top: 1px solid #fff;
+    position: relative;
 }
 
 .view > * {
@@ -213,6 +303,14 @@ td:not(:first-child) {
 
 .view__error {
     white-space: pre;
+}
+
+.register-platform-form {
+    width: 300px;
+}
+
+.register-platform-form .error {
+    margin-top: 1.5em;
 }
 
 .status-chart {
@@ -242,12 +340,13 @@ td:not(:first-child) {
     margin-bottom: 0;
     padding: 1.5em;
     background-color: #fff;
+    position: relative;
+    border-radius: 0.3333em;
 }
 
 a.view__item {
     color: inherit;
     text-decoration: inherit;
-    position: relative;
 }
 
 a.view__item:hover::before {
@@ -261,13 +360,45 @@ a.view__item:hover::before {
     background-color: #45b;
 }
 
+.view__actions {
+    position: absolute;
+    top: 1.5em;
+    right: 2.5em;
+}
+
 .view--list .view__item + .view__item {
     margin-top: 0.5em;
 }
 
+.deregister-platform {
+    position: absolute;
+    top: 50%;
+    right: 1.5rem;
+    border: none;
+    color: #45b;
+    background-color: transparent;
+    font-size: 2em;
+    height: 1em;
+    width: 1em;
+    line-height: 1em;
+    margin-top: -0.5em;
+    border-radius: 0.25rem;
+    transition: color 150ms linear, background-color 150ms linear;
+}
+
+.deregister-platform:focus {
+    outline: none;
+    box-shadow: 0 0 0.0833rem 0.1667rem rgba(128,128,255,0.5);
+}
+
+.deregister-platform:hover {
+    color: #fff;
+    background-color: #45b;
+}
+
 .toggle {
     position: absolute;
-    z-index: 2;
+    z-index: 101;
     top: auto;
     bottom: 0;
     left: 50%;

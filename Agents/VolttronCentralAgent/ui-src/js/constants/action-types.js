@@ -3,6 +3,9 @@
 var keyMirror = require('react/lib/keyMirror');
 
 module.exports = keyMirror({
+    OPEN_MODAL: null,
+    CLOSE_MODAL: null,
+
     TOGGLE_CONSOLE: null,
 
     UPDATE_COMPOSER_VALUE: null,
@@ -14,6 +17,9 @@ module.exports = keyMirror({
     RECEIVE_AUTHORIZATION: null,
     RECEIVE_UNAUTHORIZED: null,
     CLEAR_AUTHORIZATION: null,
+
+    REGISTER_PLATFORM_ERROR: null,
+    DEREGISTER_PLATFORM_ERROR: null,
 
     RECEIVE_PLATFORMS: null,
     RECEIVE_PLATFORM: null,

@@ -5,6 +5,7 @@ var Router = require('react-router');
 
 var AgentRow = require('./agent-row');
 var PercentChart = require('./percent-chart');
+var platformActionCreators = require('../action-creators/platform-action-creators');
 var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
 var platformsStore = require('../stores/platforms-store');
 
@@ -27,7 +28,7 @@ var Platform = React.createClass({
         platformsStore.removeChangeListener(this._onStoresChange);
         clearTimeout(this._updateStatusTimeout);
         if (this.state.error) {
-            platformManagerActionCreators.clearPlatformError(this.state.platform);
+            platformActionCreators.clearPlatformError(this.state.platform);
         }
     },
     _initUpdateStatus: function () {
@@ -35,7 +36,7 @@ var Platform = React.createClass({
         this._updateStatusTimeout = setTimeout(this._updateStatus, 0);
     },
     _updateStatus: function () {
-        platformManagerActionCreators.updateStatus(this.state.platform);
+        platformActionCreators.updateStatus(this.state.platform);
         this._updateStatusTimeout = setTimeout(this._updateStatus, 15000);
     },
     _onStoresChange: function () {
@@ -51,7 +52,7 @@ var Platform = React.createClass({
 
         function doFile(index) {
             if (index === files.length) {
-                platformManagerActionCreators.installAgents(platform, parsedFiles);
+                platformActionCreators.installAgents(platform, parsedFiles);
                 return;
             }
 
