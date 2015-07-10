@@ -84,27 +84,39 @@ td:not(:first-child) {
     box-shadow: 0 0 0.0833rem 0.1667rem rgba(128,128,255,0.5), 0 0.3333rem #bbb;
 }
 
-form label {
+.form__control-group {
+    margin-top: 1.5em;
+}
+
+.form__control-group > label:first-child {
     display: block;
     text-transform: uppercase;
     font-weight: bold;
     font-size: 0.83333em;
-    margin: 1.5em 0 0.5em;
+    margin-bottom: 0.5em;
 }
 
-form input {
+.form__control--block {
     display: block;
     width: 100%;
     box-sizing: border-box;
 }
 
+.form__control-help {
+    color: #999;
+}
+
+.form__control--inline + .form__control-help {
+    margin-left: 1em;
+}
+
 .form__actions {
-    margin-top: 1em;
+    margin-top: 1.5em;
     text-align: right;
 }
 
 .form__actions > * {
-    margin-left: 0.5em;
+    margin-left: 1em;
 }
 
 .platform-manager {
@@ -142,10 +154,10 @@ form input {
     display: inline-block;
     vertical-align: middle;
     position: relative;
-    top: -7%;
+    margin-top: -10%;
     padding: 1.5rem;
-    max-height: 60%;
-    max-width: 60%;
+    max-height: 75%;
+    max-width: 75%;
     box-sizing: border-box;
     overflow: auto;
     text-align: left;
@@ -313,6 +325,10 @@ form input {
     margin-top: 1.5em;
 }
 
+.edit-chart-form {
+    width: 400px;
+}
+
 .chart--platform {
     display: inline-block;
     width: 33%;
@@ -339,6 +355,15 @@ form input {
     fill: none;
     stroke: #45b;
     stroke-width: 2;
+}
+
+.chart__actions {
+    text-align: right;
+}
+
+.chart__actions a {
+    margin-left: 1em;
+    cursor: pointer;
 }
 
 .view__item {

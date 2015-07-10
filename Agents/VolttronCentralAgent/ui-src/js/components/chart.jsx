@@ -36,7 +36,10 @@ var Chart = React.createClass({
             this.props.platform,
             this.props.chart.topic
         );
-        this._getTopicDataTimeout = setTimeout(this._getTopicData, 15000);
+
+        if (this.props.chart.refreshInterval) {
+            this._getTopicDataTimeout = setTimeout(this._getTopicData, this.props.chart.refreshInterval);
+        }
     },
     render: function () {
         var ChartClass = chartTypes[this.props.chart.type];

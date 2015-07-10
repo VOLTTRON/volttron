@@ -40,9 +40,10 @@ var RegisterPlatformForm = React.createClass({
                 {this.state.error && (
                     <div className="error">{this.state.error.message}</div>
                 )}
-                <div>
+                <div className="form__control-group">
                     <label>Name</label>
                     <input
+                        className="form__control form__control--block"
                         type="text"
                         onChange={this._onNameChange}
                         value={this.state.name}
@@ -50,9 +51,10 @@ var RegisterPlatformForm = React.createClass({
                         required
                     />
                 </div>
-                <div>
+                <div className="form__control-group">
                     <label>VIP address</label>
                     <input
+                        className="form__control form__control--block"
                         type="text"
                         onChange={this._onAddressChange}
                         value={this.state.address}

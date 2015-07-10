@@ -5,6 +5,8 @@ var Router = require('react-router');
 
 var platformsStore = require('../stores/platforms-store');
 var Chart = require('./chart');
+var EditChartForm = require('./edit-chart-form');
+var modalActionCreators = require('../action-creators/modal-action-creators');
 
 var Dashboard = React.createClass({
     getInitialState: getStateFromStores,
@@ -16,6 +18,9 @@ var Dashboard = React.createClass({
     },
     _onStoreChange: function () {
         this.setState(getStateFromStores());
+    },
+    _onEditChartClick: function (platform, chart) {
+        modalActionCreators.openModal(<EditChartForm platform={platform} chart={chart} />);
     },
     render: function () {
         var charts;
@@ -31,7 +36,7 @@ var Dashboard = React.createClass({
                 if (!platform.charts) { return; }
 
                 platform.charts
-                    .filter(function (chart) { return chart.pinned; })
+                    .filter(function (chart) { return chart.pin; })
                     .forEach(function (chart) {
                         var key = [
                             platform.uuid,
@@ -54,10 +59,18 @@ var Dashboard = React.createClass({
                                     platform={platform}
                                     chart={chart}
                                 />
+                                <div className="chart__actions">
+                                    <a
+                                        className="chart__edit"
+                                        onClick={this._onEditChartClick.bind(this, platform, chart)}
+                                    >
+                                        Edit
+                                    </a>
+                                </div>
                             </div>
                         );
-                    });
-            });
+                    }, this);
+            }, this);
 
             if (!charts.length) {
                 charts = (

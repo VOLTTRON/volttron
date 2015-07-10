@@ -11,7 +11,7 @@ var Platform = require('./components/platform');
 var PlatformManager = require('./components/platform-manager');
 var Platforms = require('./components/platforms');
 
-var _afterLoginPath = '/platforms';
+var _afterLoginPath = '/dashboard';
 
 function checkAuth(Component) {
     return React.createClass({

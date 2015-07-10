@@ -170,30 +170,35 @@ var platformActionCreators = {
                     platform.charts = [
                         {
                           "topic": "datalogger/log/platform/status/cpu/percent",
+                          "refreshInterval": 15000,
                           "type": "line",
                           "min": 0,
                           "max": 100
                         },
                         {
                           "topic": "datalogger/log/platform/status/cpu/times_percent/idle",
+                          "refreshInterval": 15000,
                           "type": "line",
                           "min": 0,
                           "max": 100
                         },
                         {
                           "topic": "datalogger/log/platform/status/cpu/times_percent/nice",
+                          "refreshInterval": 15000,
                           "type": "line",
                           "min": 0,
                           "max": 100
                         },
                         {
                           "topic": "datalogger/log/platform/status/cpu/times_percent/system",
+                          "refreshInterval": 15000,
                           "type": "line",
                           "min": 0,
                           "max": 100
                         },
                         {
                           "topic": "datalogger/log/platform/status/cpu/times_percent/user",
+                          "refreshInterval": 15000,
                           "type": "line",
                           "min": 0,
                           "max": 100
@@ -231,6 +236,65 @@ var platformActionCreators = {
                 });
             })
             .catch(rpc.Error, handle401);
+    },
+    saveChart: function (platform, oldChart, newChart) {
+        var authorization = authorizationStore.getAuthorization();
+        var newCharts;
+
+        if (!oldChart) {
+            newCharts = platform.charts.concat([newChart]);
+        } else {
+            newCharts = platform.charts.map(function (chart) {
+                if (chart === oldChart) {
+                    return newChart;
+                }
+
+                return chart;
+            });
+        }
+
+        new rpc.Exchange({
+            method: 'platforms.uuid.' + platform.uuid + '.set_setting',
+            params: { key: 'charts', value: newCharts },
+            authorization: authorization,
+        }).promise
+            .then(function () {
+                platform.charts = newCharts;
+
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.CLOSE_MODAL,
+                });
+
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.RECEIVE_PLATFORM,
+                    platform: platform,
+                });
+            });
+    },
+    deleteChart: function (platform, chartToDelete) {
+        var authorization = authorizationStore.getAuthorization();
+
+        var newCharts = platform.charts.filter(function (chart) {
+            return (chart !== chartToDelete);
+        });
+
+        new rpc.Exchange({
+            method: 'platforms.uuid.' + platform.uuid + '.set_setting',
+            params: { key: 'charts', value: newCharts },
+            authorization: authorization,
+        }).promise
+            .then(function () {
+                platform.charts = newCharts;
+
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.CLOSE_MODAL,
+                });
+
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.RECEIVE_PLATFORM,
+                    platform: platform,
+                });
+            });
     },
 };
 
