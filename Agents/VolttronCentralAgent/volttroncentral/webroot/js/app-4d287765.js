@@ -5,13 +5,14 @@ var React = require('react');
 var Router = require('react-router');
 
 var authorizationStore = require('./stores/authorization-store');
+var Dashboard = require('./components/Dashboard');
 var LoginForm = require('./components/login-form');
 var PageNotFound = require('./components/page-not-found');
 var Platform = require('./components/platform');
 var PlatformManager = require('./components/platform-manager');
 var Platforms = require('./components/platforms');
 
-var _afterLoginPath = '/platforms';
+var _afterLoginPath = '/dashboard';
 
 function checkAuth(Component) {
     return React.createClass({
@@ -48,6 +49,7 @@ var AfterLogin = React.createClass({displayName: "AfterLogin",
 var routes = (
     React.createElement(Router.Route, {path: "/", handler: PlatformManager}, 
         React.createElement(Router.Route, {name: "login", path: "login", handler: checkAuth(LoginForm)}), 
+        React.createElement(Router.Route, {name: "dashboard", path: "dashboard", handler: checkAuth(Dashboard)}), 
         React.createElement(Router.Route, {name: "platforms", path: "platforms", handler: checkAuth(Platforms)}), 
         React.createElement(Router.Route, {name: "platform", path: "platforms/:uuid", handler: checkAuth(Platform)}), 
         React.createElement(Router.NotFoundRoute, {handler: checkAuth(PageNotFound)}), 
@@ -73,7 +75,7 @@ router.run(function (Handler) {
 });
 
 
-},{"./components/login-form":12,"./components/page-not-found":15,"./components/platform":18,"./components/platform-manager":17,"./components/platforms":19,"./stores/authorization-store":30,"react":undefined,"react-router":undefined}],2:[function(require,module,exports){
+},{"./components/Dashboard":6,"./components/login-form":17,"./components/page-not-found":20,"./components/platform":22,"./components/platform-manager":21,"./components/platforms":23,"./stores/authorization-store":34,"react":undefined,"react-router":undefined}],2:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -100,7 +102,7 @@ var consoleActionCreators = {
 module.exports = consoleActionCreators;
 
 
-},{"../constants/action-types":21,"../dispatcher":22,"../lib/rpc/exchange":24}],3:[function(require,module,exports){
+},{"../constants/action-types":25,"../dispatcher":26,"../lib/rpc/exchange":28}],3:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -123,7 +125,7 @@ var modalActionCreators = {
 module.exports = modalActionCreators;
 
 
-},{"../constants/action-types":21,"../dispatcher":22}],4:[function(require,module,exports){
+},{"../constants/action-types":25,"../dispatcher":26}],4:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -133,6 +135,16 @@ var rpc = require('../lib/rpc');
 
 var platformActionCreators = {
     loadPlatform: function (platform) {
+        platformActionCreators.loadAgents(platform);
+        platformActionCreators.loadCharts(platform);
+    },
+    clearPlatformError: function (platform) {
+        dispatcher.dispatch({
+            type: ACTION_TYPES.CLEAR_PLATFORM_ERROR,
+            platform: platform,
+        });
+    },
+    loadAgents: function (platform) {
         var authorization = authorizationStore.getAuthorization();
 
         new rpc.Exchange({
@@ -178,48 +190,6 @@ var platformActionCreators = {
                     });
             })
             .catch(rpc.Error, handle401);
-    },
-    clearPlatformError: function (platform) {
-        dispatcher.dispatch({
-            type: ACTION_TYPES.CLEAR_PLATFORM_ERROR,
-            platform: platform,
-        });
-    },
-    updateStatus: function (platform) {
-        var authorization = authorizationStore.getAuthorization();
-
-        platform.status = platform.status || {};
-
-        [
-            'cpu/percent',
-            'cpu/times_percent/idle',
-            'cpu/times_percent/nice',
-            'cpu/times_percent/system',
-            'cpu/times_percent/user',
-        ].forEach(function (topic) {
-            rpc.Exchange({
-                method: 'platforms.uuid.' + platform.uuid + '.historian.query',
-                params: {
-                    topic: 'datalogger/log/platform/status/' + topic,
-                    count: 20,
-                    order: 'LAST_TO_FIRST',
-                },
-                authorization: authorization,
-            }).promise
-                .then(function (result) {
-                    result.values.forEach(function (value) {
-                        value[0] = Date.parse(value[0]);
-                    });
-
-                    platform.status[topic] = result.values;
-
-                    dispatcher.dispatch({
-                        type: ACTION_TYPES.RECEIVE_PLATFORM,
-                        platform: platform,
-                    });
-                })
-                .catch(rpc.Error, handle401);
-        });
     },
     startAgent: function (platform, agent) {
         var authorization = authorizationStore.getAuthorization();
@@ -309,6 +279,149 @@ var platformActionCreators = {
                 if (errors.length !== files.length) {
                     platformActionCreators.loadPlatform(platform);
                 }
+            })
+            .catch(rpc.Error, handle401);
+    },
+    loadCharts: function (platform) {
+        var authorization = authorizationStore.getAuthorization();
+
+        new rpc.Exchange({
+            method: 'platforms.uuid.' + platform.uuid + '.get_setting',
+            params: { key: 'charts' },
+            authorization: authorization,
+        }).promise
+            .then(function (charts) {
+                if (charts && charts.length) {
+                    platform.charts = charts;
+                } else {
+                    // Provide default set of charts if none are configured
+                    platform.charts = [
+                        {
+                          "topic": "datalogger/log/platform/status/cpu/percent",
+                          "refreshInterval": 15000,
+                          "type": "line",
+                          "min": 0,
+                          "max": 100
+                        },
+                        {
+                          "topic": "datalogger/log/platform/status/cpu/times_percent/idle",
+                          "refreshInterval": 15000,
+                          "type": "line",
+                          "min": 0,
+                          "max": 100
+                        },
+                        {
+                          "topic": "datalogger/log/platform/status/cpu/times_percent/nice",
+                          "refreshInterval": 15000,
+                          "type": "line",
+                          "min": 0,
+                          "max": 100
+                        },
+                        {
+                          "topic": "datalogger/log/platform/status/cpu/times_percent/system",
+                          "refreshInterval": 15000,
+                          "type": "line",
+                          "min": 0,
+                          "max": 100
+                        },
+                        {
+                          "topic": "datalogger/log/platform/status/cpu/times_percent/user",
+                          "refreshInterval": 15000,
+                          "type": "line",
+                          "min": 0,
+                          "max": 100
+                        },
+                    ];
+                }
+
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.RECEIVE_PLATFORM,
+                    platform: platform,
+                });
+            })
+            .catch(rpc.Error, handle401);
+    },
+    getTopicData: function (platform, topic) {
+        var authorization = authorizationStore.getAuthorization();
+
+        new rpc.Exchange({
+            method: 'platforms.uuid.' + platform.uuid + '.historian.query',
+            params: {
+                topic: topic,
+                count: 20,
+                order: 'LAST_TO_FIRST',
+            },
+            authorization: authorization,
+        }).promise
+            .then(function (result) {
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.RECEIVE_PLATFORM_TOPIC_DATA,
+                    platform: platform,
+                    topic: topic,
+                    data: result.values.map(function (value) {
+                        return[Date.parse(value[0]), value[1]];
+                    }),
+                });
+            })
+            .catch(rpc.Error, handle401);
+    },
+    saveChart: function (platform, oldChart, newChart) {
+        var authorization = authorizationStore.getAuthorization();
+        var newCharts;
+
+        if (!oldChart) {
+            newCharts = platform.charts.concat([newChart]);
+        } else {
+            newCharts = platform.charts.map(function (chart) {
+                if (chart === oldChart) {
+                    return newChart;
+                }
+
+                return chart;
+            });
+        }
+
+        new rpc.Exchange({
+            method: 'platforms.uuid.' + platform.uuid + '.set_setting',
+            params: { key: 'charts', value: newCharts },
+            authorization: authorization,
+        }).promise
+            .then(function () {
+                platform.charts = newCharts;
+
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.CLOSE_MODAL,
+                });
+
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.RECEIVE_PLATFORM,
+                    platform: platform,
+                });
+            });
+    },
+    deleteChart: function (platform, chartToDelete) {
+        var authorization = authorizationStore.getAuthorization();
+
+        var newCharts = platform.charts.filter(function (chart) {
+            return (chart !== chartToDelete);
+        });
+
+        new rpc.Exchange({
+            method: 'platforms.uuid.' + platform.uuid + '.set_setting',
+            params: { key: 'charts', value: newCharts },
+            authorization: authorization,
+        }).promise
+            .then(function () {
+                platform.charts = newCharts;
+
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.CLOSE_MODAL,
+                });
+
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.RECEIVE_PLATFORM,
+                    platform: platform,
+                });
             });
     },
 };
@@ -327,7 +440,7 @@ function handle401(error) {
 module.exports = platformActionCreators;
 
 
-},{"../constants/action-types":21,"../dispatcher":22,"../lib/rpc":25,"../stores/authorization-store":30}],5:[function(require,module,exports){
+},{"../constants/action-types":25,"../dispatcher":26,"../lib/rpc":29,"../stores/authorization-store":34}],5:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -340,12 +453,9 @@ var initializing = false;
 
 var platformManagerActionCreators = {
     initialize: function () {
-        if (!initializing && authorizationStore.getAuthorization()) {
-            initializing = true;
-            platformManagerActionCreators.loadPlatforms().finally(function () {
-                initializing = false;
-            });
-        }
+        if (!authorizationStore.getAuthorization()) { return; }
+
+        platformManagerActionCreators.loadPlatforms();
     },
     requestAuthorization: function (username, password) {
         new rpc.Exchange({
@@ -361,6 +471,7 @@ var platformManagerActionCreators = {
                     authorization: result,
                 });
             })
+            .then(platformManagerActionCreators.initialize)
             .catch(rpc.Error, handle401);
     },
     clearAuthorization: function () {
@@ -457,7 +568,111 @@ function handle401(error) {
 module.exports = platformManagerActionCreators;
 
 
-},{"../action-creators/platform-action-creators":4,"../constants/action-types":21,"../dispatcher":22,"../lib/rpc":25,"../stores/authorization-store":30}],6:[function(require,module,exports){
+},{"../action-creators/platform-action-creators":4,"../constants/action-types":25,"../dispatcher":26,"../lib/rpc":29,"../stores/authorization-store":34}],6:[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+var Router = require('react-router');
+
+var platformsStore = require('../stores/platforms-store');
+var Chart = require('./chart');
+var EditChartForm = require('./edit-chart-form');
+var modalActionCreators = require('../action-creators/modal-action-creators');
+
+var Dashboard = React.createClass({displayName: "Dashboard",
+    getInitialState: getStateFromStores,
+    componentDidMount: function () {
+        platformsStore.addChangeListener(this._onStoreChange);
+    },
+    componentWillUnmount: function () {
+        platformsStore.removeChangeListener(this._onStoreChange);
+    },
+    _onStoreChange: function () {
+        this.setState(getStateFromStores());
+    },
+    _onEditChartClick: function (platform, chart) {
+        modalActionCreators.openModal(React.createElement(EditChartForm, {platform: platform, chart: chart}));
+    },
+    render: function () {
+        var charts;
+
+        if (!this.state.platforms) {
+            charts = (
+                React.createElement("p", null, "Loading charts...")
+            );
+        } else {
+            charts = [];
+
+            this.state.platforms.forEach(function (platform) {
+                if (!platform.charts) { return; }
+
+                platform.charts
+                    .filter(function (chart) { return chart.pin; })
+                    .forEach(function (chart) {
+                        var key = [
+                            platform.uuid,
+                            chart.topic,
+                            chart.type,
+                        ].join('::');
+
+                        charts.push(
+                            React.createElement("div", {key: key, className: "view__item chart chart--dashboard"}, 
+                                React.createElement("h3", {className: "chart__title"}, 
+                                    React.createElement(Router.Link, {
+                                        to: "platform", 
+                                        params: {uuid: platform.uuid}
+                                    }, 
+                                        platform.name
+                                    ), 
+                                    ": ", chart.topic
+                                ), 
+                                React.createElement(Chart, {
+                                    platform: platform, 
+                                    chart: chart}
+                                ), 
+                                React.createElement("div", {className: "chart__actions"}, 
+                                    React.createElement("a", {
+                                        className: "chart__edit", 
+                                        onClick: this._onEditChartClick.bind(this, platform, chart)
+                                    }, 
+                                        "Edit"
+                                    )
+                                )
+                            )
+                        );
+                    }, this);
+            }, this);
+
+            if (!charts.length) {
+                charts = (
+                    React.createElement("p", {className: "empty-help"}, 
+                        "Pin a platform chart to have it appear on the dashboard"
+                    )
+                );
+            }
+        }
+
+        return (
+            React.createElement("div", {className: "view view--tiled"}, 
+                React.createElement("h2", null, "Dashboard"), 
+                React.createElement("div", {className: "view__items"}, 
+                    charts
+                )
+            )
+        );
+    },
+});
+
+function getStateFromStores() {
+    return {
+        platforms: platformsStore.getPlatforms(),
+    };
+}
+
+module.exports = Dashboard;
+
+
+},{"../action-creators/modal-action-creators":3,"../stores/platforms-store":39,"./chart":8,"./edit-chart-form":14,"react":undefined,"react-router":undefined}],7:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -521,7 +736,71 @@ var AgentRow = React.createClass({displayName: "AgentRow",
 module.exports = AgentRow;
 
 
-},{"../action-creators/platform-manager-action-creators":5,"react":undefined}],7:[function(require,module,exports){
+},{"../action-creators/platform-manager-action-creators":5,"react":undefined}],8:[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+
+var topicDataStore = require('../stores/topic-data-store');
+var platformActionCreators = require('../action-creators/platform-action-creators');
+var LineChart = require('./line-chart');
+
+var chartTypes = {
+    'line': LineChart,
+};
+
+var Chart = React.createClass({displayName: "Chart",
+    getInitialState: function () {
+        return getStateFromStores(this.props.platform, this.props.chart);
+    },
+    componentDidMount: function () {
+        topicDataStore.addChangeListener(this._onStoreChange);
+
+        if (!this._getTopicDataTimeout) {
+            this._getTopicDataTimeout = setTimeout(this._getTopicData, 0);
+        }
+    },
+    componentWillUnmount: function () {
+        topicDataStore.removeChangeListener(this._onStoreChange);
+        clearTimeout(this._getTopicDataTimeout);
+    },
+    _initTopicData: function () {
+
+    },
+    _onStoreChange: function () {
+        this.setState(getStateFromStores(this.props.platform, this.props.chart));
+    },
+    _getTopicData: function () {
+        platformActionCreators.getTopicData(
+            this.props.platform,
+            this.props.chart.topic
+        );
+
+        if (this.props.chart.refreshInterval) {
+            this._getTopicDataTimeout = setTimeout(this._getTopicData, this.props.chart.refreshInterval);
+        }
+    },
+    render: function () {
+        var ChartClass = chartTypes[this.props.chart.type];
+
+        return (
+            React.createElement(ChartClass, {
+                className: "chart", 
+                chart: this.props.chart, 
+                points: this.state.data || []}
+            )
+        );
+    },
+});
+
+function getStateFromStores(platform, chart) {
+    return { data: topicDataStore.getTopicData(platform, chart.topic) };
+}
+
+module.exports = Chart;
+
+
+},{"../action-creators/platform-action-creators":4,"../stores/topic-data-store":40,"./line-chart":16,"react":undefined}],9:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -591,7 +870,45 @@ function getStateFromStores() {
 module.exports = Composer;
 
 
-},{"../action-creators/console-action-creators":2,"../stores/console-store":31,"react":undefined}],8:[function(require,module,exports){
+},{"../action-creators/console-action-creators":2,"../stores/console-store":35,"react":undefined}],10:[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+
+var modalActionCreators = require('../action-creators/modal-action-creators');
+
+var ConfirmForm = React.createClass({displayName: "ConfirmForm",
+    _onCancelClick: modalActionCreators.closeModal,
+    _onSubmit: function () {
+        this.props.onConfirm();
+    },
+    render: function () {
+        return (
+            React.createElement("form", {className: "confirmation-form", onSubmit: this._onSubmit}, 
+                React.createElement("h1", null, this.props.promptTitle), 
+                React.createElement("p", null, 
+                    this.props.promptText
+                ), 
+                React.createElement("div", {className: "form__actions"}, 
+                    React.createElement("button", {
+                        className: "button button--secondary", 
+                        type: "button", 
+                        onClick: this._onCancelClick, 
+                        autoFocus: true
+                    }, 
+                        "Cancel"
+                    ), 
+                    React.createElement("button", {className: "button"}, this.props.confirmText)
+                )
+            )
+        );
+    },
+});
+
+module.exports = ConfirmForm;
+
+
+},{"../action-creators/modal-action-creators":3,"react":undefined}],11:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -613,7 +930,7 @@ var Console = React.createClass({displayName: "Console",
 module.exports = Console;
 
 
-},{"./composer":7,"./conversation":9,"react":undefined}],9:[function(require,module,exports){
+},{"./composer":9,"./conversation":12,"react":undefined}],12:[function(require,module,exports){
 'use strict';
 
 var $ = require('jquery');
@@ -664,7 +981,7 @@ function getStateFromStores() {
 module.exports = Conversation;
 
 
-},{"../stores/console-store":31,"./exchange":11,"jquery":undefined,"react":undefined}],10:[function(require,module,exports){
+},{"../stores/console-store":35,"./exchange":15,"jquery":undefined,"react":undefined}],13:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -720,7 +1037,161 @@ function getStateFromStores() {
 module.exports = RegisterPlatformForm;
 
 
-},{"../action-creators/modal-action-creators":3,"../action-creators/platform-manager-action-creators":5,"../stores/platform-registration-store":34,"react":undefined}],11:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../action-creators/platform-manager-action-creators":5,"../stores/platform-registration-store":38,"react":undefined}],14:[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+
+var modalActionCreators = require('../action-creators/modal-action-creators');
+var platformActionCreators = require('../action-creators/platform-action-creators');
+
+var EditChartForm = React.createClass({displayName: "EditChartForm",
+    getInitialState: function () {
+        var state = {};
+
+        for (var prop in this.props.chart) {
+            state[prop] = this.props.chart[prop];
+        }
+
+        return state;
+    },
+    _onPropChange: function (e) {
+        var state = {};
+
+        switch (e.target.type) {
+        case 'checkbox':
+            state[e.target.id] = e.target.checked;
+            break;
+        case 'number':
+            state[e.target.id] = parseFloat(e.target.value);
+            break;
+        default:
+            state[e.target.id] = e.target.value;
+        }
+
+        this.setState(state);
+    },
+    _onCancelClick: modalActionCreators.closeModal,
+    _onSubmit: function () {
+        platformActionCreators.saveChart(this.props.platform, this.props.chart, this.state);
+    },
+    render: function () {
+        var typeOptions;
+
+        switch (this.state.type) {
+        case 'line':
+            typeOptions = (
+                React.createElement("div", {className: "form__control-group"}, 
+                    React.createElement("label", null, "Y-axis range"), 
+                    React.createElement("label", {htmlFor: "min"}, "Min:"), " ", 
+                    React.createElement("input", {
+                        className: "form__control form__control--inline", 
+                        type: "number", 
+                        id: "min", 
+                        onChange: this._onPropChange, 
+                        value: this.state.min, 
+                        placeholder: "auto"}
+                    ), " ", 
+                    React.createElement("label", {htmlFor: "max"}, "Max:"), " ", 
+                    React.createElement("input", {
+                        className: "form__control form__control--inline", 
+                        type: "number", 
+                        id: "max", 
+                        onChange: this._onPropChange, 
+                        value: this.state.max, 
+                        placeholder: "auto"}
+                    )
+                )
+            );
+        }
+
+        return (
+            React.createElement("form", {className: "edit-chart-form", onSubmit: this._onSubmit}, 
+                React.createElement("h1", null, "Edit chart"), 
+                this.state.error && (
+                    React.createElement("div", {className: "error"}, this.state.error.message)
+                ), 
+                React.createElement("div", {className: "form__control-group"}, 
+                    React.createElement("label", {htmlFor: "topic"}, "Platform"), 
+                    this.props.platform.name, " (", this.props.platform.uuid, ")"
+                ), 
+                React.createElement("div", {className: "form__control-group"}, 
+                    React.createElement("label", {htmlFor: "topic"}, "Topic"), 
+                    React.createElement("input", {
+                        className: "form__control form__control--block", 
+                        type: "text", 
+                        id: "topic", 
+                        onChange: this._onPropChange, 
+                        value: this.state.topic, 
+                        required: true}
+                    )
+                ), 
+                React.createElement("div", {className: "form__control-group"}, 
+                    React.createElement("label", null, "Dashboard"), 
+                    React.createElement("input", {
+                        className: "form__control form__control--inline", 
+                        type: "checkbox", 
+                        id: "pin", 
+                        onChange: this._onPropChange, 
+                        checked: this.state.pin}
+                    ), " ", 
+                    React.createElement("label", {htmlFor: "pin"}, "Pin to dashboard")
+                ), 
+                React.createElement("div", {className: "form__control-group"}, 
+                    React.createElement("label", {htmlFor: "refreshInterval"}, "Refresh interval (ms)"), 
+                    React.createElement("input", {
+                        className: "form__control form__control--inline", 
+                        type: "number", 
+                        id: "refreshInterval", 
+                        onChange: this._onPropChange, 
+                        defaultValue: "5000", 
+                        value: this.state.refreshInterval, 
+                        min: "0", 
+                        step: "1", 
+                        required: true}
+                    ), 
+                    React.createElement("span", {className: "form__control-help"}, 
+                        "in milliseconds (0 to disable)"
+                    )
+                ), 
+                React.createElement("div", {className: "form__control-group"}, 
+                    React.createElement("label", {htmlFor: "type"}, "Chart type"), 
+                    React.createElement("select", {
+                        id: "type", 
+                        onChange: this._onPropChange, 
+                        value: this.state.type, 
+                        autoFocus: true, 
+                        required: true
+                    }, 
+                        React.createElement("option", {value: ""}, "-- Select type --"), 
+                        React.createElement("option", {value: "line"}, "Line")
+                    )
+                ), 
+                typeOptions, 
+                React.createElement("div", {className: "form__actions"}, 
+                    React.createElement("button", {
+                        className: "button button--secondary", 
+                        type: "button", 
+                        onClick: this._onCancelClick
+                    }, 
+                        "Cancel"
+                    ), 
+                    React.createElement("button", {
+                        className: "button", 
+                        disabled: !this.state.topic || !this.state.type
+                    }, 
+                        "Save"
+                    )
+                )
+            )
+        );
+    },
+});
+
+module.exports = EditChartForm;
+
+
+},{"../action-creators/modal-action-creators":3,"../action-creators/platform-action-creators":4,"react":undefined}],15:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -773,7 +1244,79 @@ var Exchange = React.createClass({displayName: "Exchange",
 module.exports = Exchange;
 
 
-},{"react":undefined}],12:[function(require,module,exports){
+},{"react":undefined}],16:[function(require,module,exports){
+'use strict';
+
+var d3 = require('d3');
+var React = require('react');
+
+var LineChart = React.createClass({displayName: "LineChart",
+    componentDidMount: function () {
+        this._updateSize();
+        window.addEventListener('resize', this._onResize);
+    },
+    componentWillUpdate: function () {
+        this._updateSize();
+    },
+    componentWillUnmount: function () {
+        window.removeEventListener('resize', this._onResize);
+    },
+    _onResize: function () {
+        this.forceUpdate();
+    },
+    _updateSize: function () {
+        var computedStyles = window.getComputedStyle(React.findDOMNode(this.refs.svg));
+        this._width = parseInt(computedStyles.width, 10);
+        this._height = parseInt(computedStyles.height, 10);
+    },
+    render: function () {
+        var xAxis, yAxis, path;
+
+        if (this._width && this._height && this.props.points.length) {
+            var xRange = d3.extent(this.props.points, function (d) { return d[0]; });
+            var yMin = (this.props.chart.min === 0 || this.props.chart.min) ?
+                this.props.chart.min : d3.min(this.props.points, function (d) { return d[1]; });
+            var yMax = (this.props.chart.max === 0 || this.props.chart.max) ?
+                this.props.chart.max : d3.max(this.props.points, function (d) { return d[1]; });
+
+            var x = d3.scale.linear()
+                .range([0, this._width - 2])
+                .domain(xRange);
+            var y = d3.scale.linear()
+                .range([this._height - 2, 0])
+                .domain([yMin, yMax]);
+
+            var line = d3.svg.line()
+                .x(function (d) { return x(d[0]) + 1; })
+                .y(function (d) { return y(d[1]) + 1; });
+
+            xAxis = (
+                React.createElement("path", {className: "axis", d: line([[xRange[0], yMin], [xRange[0], yMax]])})
+            );
+
+            yAxis = (
+                React.createElement("path", {className: "axis", d: line([[xRange[0], yMin], [xRange[1], yMin]])})
+            );
+
+            path = (
+                React.createElement("path", {className: "line", d: line(this.props.points)})
+            );
+        }
+
+        return (
+            React.createElement("svg", {className: "chart__svg chart__svg--line", ref: "svg"}, 
+                xAxis, 
+                yAxis, 
+                path
+            )
+        );
+    },
+});
+
+module.exports = LineChart;
+
+
+},{"d3":undefined,"react":undefined}],17:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -851,7 +1394,7 @@ function getStateFromStores() {
 module.exports = LoginForm;
 
 
-},{"../action-creators/platform-manager-action-creators":5,"../stores/login-form-store":32,"react":undefined,"react-router":undefined}],13:[function(require,module,exports){
+},{"../action-creators/platform-manager-action-creators":5,"../stores/login-form-store":36,"react":undefined,"react-router":undefined}],18:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -878,7 +1421,7 @@ var Modal = React.createClass({displayName: "Modal",
 module.exports = Modal;
 
 
-},{"../action-creators/modal-action-creators":3,"react":undefined}],14:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"react":undefined}],19:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -905,7 +1448,7 @@ var Navigation = React.createClass({displayName: "Navigation",
         var navItems;
 
         if (this.state.loggedIn) {
-            navItems = ['Platforms'].map(function (navItem) {
+            navItems = ['Dashboard', 'Platforms'].map(function (navItem) {
                 var route = navItem.toLowerCase();
 
                 return (
@@ -953,7 +1496,7 @@ function getStateFromStores() {
 module.exports = Navigation;
 
 
-},{"../action-creators/platform-manager-action-creators":5,"../stores/authorization-store":30,"react":undefined,"react-router":undefined}],15:[function(require,module,exports){
+},{"../action-creators/platform-manager-action-creators":5,"../stores/authorization-store":34,"react":undefined,"react-router":undefined}],20:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -971,63 +1514,7 @@ var PageNotFound = React.createClass({displayName: "PageNotFound",
 module.exports = PageNotFound;
 
 
-},{"react":undefined}],16:[function(require,module,exports){
-'use strict';
-
-var d3 = require('d3');
-var React = require('react');
-
-var PercentChart = React.createClass({displayName: "PercentChart",
-    componentDidMount: function () {
-        this._updateSize();
-        window.addEventListener('resize', this._onResize);
-    },
-    componentWillUpdate: function () {
-        this._updateSize();
-    },
-    componentWillUnmount: function () {
-        window.removeEventListener('resize', this._onResize);
-    },
-    _onResize: function () {
-        this.forceUpdate();
-    },
-    _updateSize: function () {
-        var computedStyles = window.getComputedStyle(React.findDOMNode(this.refs.svg));
-        this._width = parseInt(computedStyles.width, 10);
-        this._height = parseInt(computedStyles.height, 10);
-    },
-    render: function () {
-        var path;
-
-        if (this._width && this._height) {
-            var x = d3.scale.linear()
-                .range([0, this._width - 2])
-                .domain(d3.extent(this.props.points, function (d) { return d[0]; }));
-            var y = d3.scale.linear()
-                .range([this._height - 2, 0])
-                .domain([0, 100]);
-
-            var line = d3.svg.line()
-                .x(function (d) { return x(d[0]) + 1; })
-                .y(function (d) { return y(d[1]) + 1; });
-
-            path = (
-                React.createElement("path", {d: line(this.props.points)})
-            );
-        }
-
-        return (
-            React.createElement("svg", {ref: "svg"}, 
-                path
-            )
-        );
-    },
-});
-
-module.exports = PercentChart;
-
-
-},{"d3":undefined,"react":undefined}],17:[function(require,module,exports){
+},{"react":undefined}],21:[function(require,module,exports){
 'use strict';
 
 var $ = require('jquery');
@@ -1042,10 +1529,14 @@ var Modal = require('./modal');
 var modalActionCreators = require('../action-creators/modal-action-creators');
 var modalStore = require('../stores/modal-store');
 var Navigation = require('./navigation');
+var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
 
 var PlatformManager = React.createClass({displayName: "PlatformManager",
     mixins: [Router.Navigation, Router.State],
     getInitialState: getStateFromStores,
+    componentWillMount: function () {
+        platformManagerActionCreators.initialize();
+    },
     componentDidMount: function () {
         authorizationStore.addChangeListener(this._onStoreChange);
         consoleStore.addChangeListener(this._onStoreChange);
@@ -1132,16 +1623,18 @@ function getStateFromStores() {
 module.exports = PlatformManager;
 
 
-},{"../action-creators/console-action-creators":2,"../action-creators/modal-action-creators":3,"../stores/authorization-store":30,"../stores/console-store":31,"../stores/modal-store":33,"./console":8,"./modal":13,"./navigation":14,"jquery":undefined,"react":undefined,"react-router":undefined}],18:[function(require,module,exports){
+},{"../action-creators/console-action-creators":2,"../action-creators/modal-action-creators":3,"../action-creators/platform-manager-action-creators":5,"../stores/authorization-store":34,"../stores/console-store":35,"../stores/modal-store":37,"./console":11,"./modal":18,"./navigation":19,"jquery":undefined,"react":undefined,"react-router":undefined}],22:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
 var Router = require('react-router');
 
 var AgentRow = require('./agent-row');
-var PercentChart = require('./percent-chart');
+var Chart = require('./chart');
+var EditChartForm = require('./edit-chart-form');
+var ConfirmForm = require('./confirm-form');
+var modalActionCreators = require('../action-creators/modal-action-creators');
 var platformActionCreators = require('../action-creators/platform-action-creators');
-var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
 var platformsStore = require('../stores/platforms-store');
 
 var Platform = React.createClass({displayName: "Platform",
@@ -1149,33 +1642,33 @@ var Platform = React.createClass({displayName: "Platform",
     getInitialState: function () {
         return getStateFromStores(this);
     },
-    componentWillMount: function () {
-        platformManagerActionCreators.initialize();
-    },
     componentDidMount: function () {
         platformsStore.addChangeListener(this._onStoresChange);
-        this._initUpdateStatus();
-    },
-    componentDidUpdate: function () {
-        this._initUpdateStatus();
     },
     componentWillUnmount: function () {
         platformsStore.removeChangeListener(this._onStoresChange);
-        clearTimeout(this._updateStatusTimeout);
         if (this.state.error) {
             platformActionCreators.clearPlatformError(this.state.platform);
         }
     },
-    _initUpdateStatus: function () {
-        if (!this.state.platform || this._updateStatusTimeout) { return; }
-        this._updateStatusTimeout = setTimeout(this._updateStatus, 0);
-    },
-    _updateStatus: function () {
-        platformActionCreators.updateStatus(this.state.platform);
-        this._updateStatusTimeout = setTimeout(this._updateStatus, 15000);
-    },
     _onStoresChange: function () {
         this.setState(getStateFromStores(this));
+    },
+    _onEditChartClick: function (platform, chart) {
+        modalActionCreators.openModal(React.createElement(EditChartForm, {platform: platform, chart: chart}));
+    },
+    _onDeleteChartClick: function (platform, chart) {
+        modalActionCreators.openModal(
+            React.createElement(ConfirmForm, {
+                promptTitle: "Delete chart", 
+                promptText: 'Delete ' + chart.type + ' chart for ' + chart.topic + '?', 
+                confirmText: "Delete", 
+                onConfirm: platformActionCreators.deleteChart.bind(null, platform, chart)}
+            )
+        );
+    },
+    _onAddChartClick: function (platform) {
+        modalActionCreators.openModal(React.createElement(EditChartForm, {platform: platform}));
     },
     _onFileChange: function (e) {
         if (!e.target.files.length) { return; }
@@ -1220,26 +1713,39 @@ var Platform = React.createClass({displayName: "Platform",
             );
         }
 
-        var status;
+        var charts;
         var agents;
 
-        if (!platform.status) {
-            status = (
-                React.createElement("p", null, "Loading status...")
+        if (!platform.charts) {
+            charts = (
+                React.createElement("p", null, "Loading charts...")
             );
         } else {
-            status = [];
+            charts = platform.charts.map(function (chart) {
+                var key = [
+                    platform.uuid,
+                    chart.topic,
+                    chart.type,
+                ].join('::');
 
-            for (var topic in platform.status) {
-                status.push(
-                    React.createElement("div", {key: topic, className: "status-chart"}, 
-                        React.createElement("h4", null, topic), 
-                        React.createElement(PercentChart, {
-                            points: platform.status[topic]}
+                return (
+                    React.createElement("div", {key: key, className: "chart chart--platform"}, 
+                        React.createElement("h4", {className: "chart__title"}, chart.topic), 
+                        React.createElement(Chart, {
+                            platform: platform, 
+                            chart: chart}
+                        ), 
+                        React.createElement("div", {className: "chart__actions"}, 
+                            React.createElement("a", {onClick: this._onEditChartClick.bind(this, platform, chart)}, 
+                                "Edit"
+                            ), 
+                            React.createElement("a", {onClick: this._onDeleteChartClick.bind(this, platform, chart)}, 
+                                "Delete"
+                            )
                         )
                     )
                 );
-            }
+            }, this);
         }
 
         if (!platform.agents) {
@@ -1292,8 +1798,16 @@ var Platform = React.createClass({displayName: "Platform",
                     " / ", 
                     platform.name, " (", platform.uuid, ")"
                 ), 
-                React.createElement("h3", null, "Status"), 
-                status, 
+                React.createElement("h3", null, "Charts"), 
+                charts, 
+                React.createElement("div", null, 
+                    React.createElement("button", {
+                        className: "button", 
+                        onClick: this._onAddChartClick.bind(null, this.state.platform)
+                    }, 
+                        "Add chart"
+                    )
+                ), 
                 React.createElement("h3", null, "Agents"), 
                 agents, 
                 React.createElement("h3", null, "Install agents"), 
@@ -1313,23 +1827,19 @@ function getStateFromStores(component) {
 module.exports = Platform;
 
 
-},{"../action-creators/platform-action-creators":4,"../action-creators/platform-manager-action-creators":5,"../stores/platforms-store":35,"./agent-row":6,"./percent-chart":16,"react":undefined,"react-router":undefined}],19:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../action-creators/platform-action-creators":4,"../stores/platforms-store":39,"./agent-row":7,"./chart":8,"./confirm-form":10,"./edit-chart-form":14,"react":undefined,"react-router":undefined}],23:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
 var Router = require('react-router');
 
 var modalActionCreators = require('../action-creators/modal-action-creators');
-var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
 var platformsStore = require('../stores/platforms-store');
 var RegisterPlatformForm = require('../components/register-platform-form');
 var DeregisterPlatformConfirmation = require('../components/deregister-platform-confirmation');
 
 var Platforms = React.createClass({displayName: "Platforms",
     getInitialState: getStateFromStores,
-    componentWillMount: function () {
-        platformManagerActionCreators.initialize();
-    },
     componentDidMount: function () {
         platformsStore.addChangeListener(this._onStoresChange);
     },
@@ -1432,7 +1942,7 @@ function getStateFromStores() {
 module.exports = Platforms;
 
 
-},{"../action-creators/modal-action-creators":3,"../action-creators/platform-manager-action-creators":5,"../components/deregister-platform-confirmation":10,"../components/register-platform-form":20,"../stores/platforms-store":35,"react":undefined,"react-router":undefined}],20:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../components/deregister-platform-confirmation":13,"../components/register-platform-form":24,"../stores/platforms-store":39,"react":undefined,"react-router":undefined}],24:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1475,9 +1985,10 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
                 this.state.error && (
                     React.createElement("div", {className: "error"}, this.state.error.message)
                 ), 
-                React.createElement("div", null, 
+                React.createElement("div", {className: "form__control-group"}, 
                     React.createElement("label", null, "Name"), 
                     React.createElement("input", {
+                        className: "form__control form__control--block", 
                         type: "text", 
                         onChange: this._onNameChange, 
                         value: this.state.name, 
@@ -1485,9 +1996,10 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
                         required: true}
                     )
                 ), 
-                React.createElement("div", null, 
+                React.createElement("div", {className: "form__control-group"}, 
                     React.createElement("label", null, "VIP address"), 
                     React.createElement("input", {
+                        className: "form__control form__control--block", 
                         type: "text", 
                         onChange: this._onAddressChange, 
                         value: this.state.address, 
@@ -1521,7 +2033,7 @@ function getStateFromStores() {
 module.exports = RegisterPlatformForm;
 
 
-},{"../action-creators/modal-action-creators":3,"../action-creators/platform-manager-action-creators":5,"../stores/platform-registration-store":34,"react":undefined}],21:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../action-creators/platform-manager-action-creators":5,"../stores/platform-registration-store":38,"react":undefined}],25:[function(require,module,exports){
 'use strict';
 
 var keyMirror = require('react/lib/keyMirror');
@@ -1549,10 +2061,12 @@ module.exports = keyMirror({
     RECEIVE_PLATFORM: null,
     RECEIVE_PLATFORM_ERROR: null,
     CLEAR_PLATFORM_ERROR: null,
+
+    RECEIVE_PLATFORM_TOPIC_DATA: null,
 });
 
 
-},{"react/lib/keyMirror":undefined}],22:[function(require,module,exports){
+},{"react/lib/keyMirror":undefined}],26:[function(require,module,exports){
 'use strict';
 
 var Dispatcher = require('flux').Dispatcher;
@@ -1572,7 +2086,7 @@ dispatcher.dispatch = function (action) {
 module.exports = dispatcher;
 
 
-},{"../constants/action-types":21,"flux":undefined}],23:[function(require,module,exports){
+},{"../constants/action-types":25,"flux":undefined}],27:[function(require,module,exports){
 'use strict';
 
 function RpcError(error) {
@@ -1587,7 +2101,7 @@ RpcError.prototype.constructor = RpcError;
 module.exports = RpcError;
 
 
-},{}],24:[function(require,module,exports){
+},{}],28:[function(require,module,exports){
 'use strict';
 
 var uuid = require('node-uuid');
@@ -1675,7 +2189,7 @@ function RpcExchange(request, redactedParams) {
 module.exports = RpcExchange;
 
 
-},{"../../constants/action-types":21,"../../dispatcher":22,"../xhr":28,"./error":23,"node-uuid":undefined}],25:[function(require,module,exports){
+},{"../../constants/action-types":25,"../../dispatcher":26,"../xhr":32,"./error":27,"node-uuid":undefined}],29:[function(require,module,exports){
 'use strict';
 
 module.exports = {
@@ -1684,7 +2198,7 @@ module.exports = {
 };
 
 
-},{"./error":23,"./exchange":24}],26:[function(require,module,exports){
+},{"./error":27,"./exchange":28}],30:[function(require,module,exports){
 'use strict';
 
 var EventEmitter = require('events').EventEmitter;
@@ -1712,7 +2226,7 @@ Store.prototype.removeChangeListener = function (callback) {
 module.exports = Store;
 
 
-},{"events":undefined}],27:[function(require,module,exports){
+},{"events":undefined}],31:[function(require,module,exports){
 'use strict';
 
 function XhrError(message, response) {
@@ -1726,7 +2240,7 @@ XhrError.prototype.constructor = XhrError;
 module.exports = XhrError;
 
 
-},{}],28:[function(require,module,exports){
+},{}],32:[function(require,module,exports){
 'use strict';
 
 module.exports = {
@@ -1735,7 +2249,7 @@ module.exports = {
 };
 
 
-},{"./error":27,"./request":29}],29:[function(require,module,exports){
+},{"./error":31,"./request":33}],33:[function(require,module,exports){
 'use strict';
 
 var jQuery = require('jquery');
@@ -1766,7 +2280,7 @@ function XhrRequest(opts) {
 module.exports = XhrRequest;
 
 
-},{"./error":27,"bluebird":undefined,"jquery":undefined}],30:[function(require,module,exports){
+},{"./error":31,"bluebird":undefined,"jquery":undefined}],34:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -1804,7 +2318,7 @@ authorizationStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = authorizationStore;
 
 
-},{"../constants/action-types":21,"../dispatcher":22,"../lib/store":26}],31:[function(require,module,exports){
+},{"../constants/action-types":25,"../dispatcher":26,"../lib/store":30}],35:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -1897,7 +2411,7 @@ consoleStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = consoleStore;
 
 
-},{"../constants/action-types":21,"../dispatcher":22,"../lib/store":26,"../stores/authorization-store":30}],32:[function(require,module,exports){
+},{"../constants/action-types":25,"../dispatcher":26,"../lib/store":30,"../stores/authorization-store":34}],36:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -1932,7 +2446,7 @@ loginFormStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = loginFormStore;
 
 
-},{"../constants/action-types":21,"../dispatcher":22,"../lib/store":26,"./authorization-store":30}],33:[function(require,module,exports){
+},{"../constants/action-types":25,"../dispatcher":26,"../lib/store":30,"./authorization-store":34}],37:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -1965,7 +2479,7 @@ modalStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = modalStore;
 
 
-},{"../constants/action-types":21,"../dispatcher":22,"../lib/store":26}],34:[function(require,module,exports){
+},{"../constants/action-types":25,"../dispatcher":26,"../lib/store":30}],38:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -2011,7 +2525,7 @@ platformRegistrationStore.dispatchToken = dispatcher.register(function (action) 
 module.exports = platformRegistrationStore;
 
 
-},{"../constants/action-types":21,"../dispatcher":22,"../lib/store":26,"./authorization-store":30}],35:[function(require,module,exports){
+},{"../constants/action-types":25,"../dispatcher":26,"../lib/store":30,"./authorization-store":34}],39:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -2080,4 +2594,44 @@ platformsStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = platformsStore;
 
 
-},{"../constants/action-types":21,"../dispatcher":22,"../lib/store":26,"../stores/authorization-store":30}]},{},[1]);
+},{"../constants/action-types":25,"../dispatcher":26,"../lib/store":30,"../stores/authorization-store":34}],40:[function(require,module,exports){
+'use strict';
+
+var ACTION_TYPES = require('../constants/action-types');
+var authorizationStore = require('./authorization-store');
+var dispatcher = require('../dispatcher');
+var Store = require('../lib/store');
+
+var topicData = {};
+
+var topicDataStore = new Store();
+
+topicDataStore.getTopicData = function (platform, topic) {
+    if (topicData[platform.uuid] && topicData[platform.uuid][topic]) {
+        return topicData[platform.uuid][topic];
+    }
+
+    return null;
+};
+
+topicDataStore.dispatchToken = dispatcher.register(function (action) {
+    dispatcher.waitFor([authorizationStore.dispatchToken]);
+
+    switch (action.type) {
+        case ACTION_TYPES.RECEIVE_PLATFORM_TOPIC_DATA:
+            topicData[action.platform.uuid] = topicData[action.platform.uuid] || {};
+            topicData[action.platform.uuid][action.topic] = action.data;
+            topicDataStore.emitChange();
+            break;
+
+        case ACTION_TYPES.CLEAR_AUTHORIZATION:
+            topicData= {};
+            topicDataStore.emitChange();
+            break;
+    }
+});
+
+module.exports = topicDataStore;
+
+
+},{"../constants/action-types":25,"../dispatcher":26,"../lib/store":30,"./authorization-store":34}]},{},[1]);
