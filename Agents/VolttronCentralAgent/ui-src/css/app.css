@@ -368,6 +368,16 @@ br + .form__control-help {
     stroke-width: 2;
 }
 
+.chart__svg--line .dot {
+    fill: none;
+    stroke: #45b;
+    stroke-width: 2;
+}
+
+.chart__svg--line .no-data-text {
+    fill: #999;
+}
+
 .chart__actions {
     text-align: right;
 }

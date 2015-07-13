@@ -48,7 +48,7 @@ var Chart = React.createClass({
             <ChartClass
                 className="chart"
                 chart={this.props.chart}
-                points={this.state.data || []}
+                data={this.state.data || []}
             />
         );
     },
