@@ -110,6 +110,12 @@ td:not(:first-child) {
     margin-left: 1em;
 }
 
+.form__control--block + .form__control-help,
+br + .form__control-help {
+    display: block;
+    margin-top: 0.5em;
+}
+
 .form__actions {
     margin-top: 1.5em;
     text-align: right;

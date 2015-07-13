@@ -67,7 +67,7 @@ var EditChartForm = React.createClass({
 
         return (
             <form className="edit-chart-form" onSubmit={this._onSubmit}>
-                <h1>Edit chart</h1>
+                <h1>{this.props.chart ? 'Edit' : 'Add'} chart</h1>
                 {this.state.error && (
                     <div className="error">{this.state.error.message}</div>
                 )}
@@ -83,6 +83,7 @@ var EditChartForm = React.createClass({
                         id="topic"
                         onChange={this._onPropChange}
                         value={this.state.topic}
+                        placeholder="e.g. some/published/topic"
                         required
                     />
                 </div>
@@ -104,14 +105,13 @@ var EditChartForm = React.createClass({
                         type="number"
                         id="refreshInterval"
                         onChange={this._onPropChange}
-                        defaultValue="5000"
                         value={this.state.refreshInterval}
-                        min="0"
+                        min="250"
                         step="1"
-                        required
+                        placeholder="disabled"
                     />
                     <span className="form__control-help">
-                        in milliseconds (0 to disable)
+                        Omit to disable
                     </span>
                 </div>
                 <div className="form__control-group">
