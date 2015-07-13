@@ -67,26 +67,38 @@ var LineChart = React.createClass({
                 this.props.chart.max : d3.max(this.state.points, function (d) { return d[1]; });
 
             var x = d3.scale.linear()
-                .range([0, this._width - 2])
+                .range([0, this._width - 4])
                 .domain(xRange);
             var y = d3.scale.linear()
-                .range([this._height - 24, 0])
+                .range([this._height - 26, 0])
                 .domain([yMin, yMax]);
 
             var line = d3.svg.line()
-                .x(function (d) { return x(d[0]) + 1; })
-                .y(function (d) { return y(d[1]) + 11; });
+                .x(function (d) { return x(d[0]) + 2; })
+                .y(function (d) { return y(d[1]) + 13; });
 
             xAxis = (
-                <path className="axis" d={'M0,10L0,' + (this._height - 12)} />
+                <path
+                    className="axis"
+                    strokeLinecap="square"
+                    d={'M1,12L1,' + (this._height - 12)}
+                />
             );
 
             yAxis = (
-                <path className="axis" d={'M0,' + (this._height - 12) + 'L' + (this._width) + ',' + (this._height - 12)} />
+                <path
+                    className="axis"
+                    strokeLinecap="square"
+                    d={'M1,' + (this._height - 12) + 'L' + (this._width - 1) + ',' + (this._height - 12)}
+                />
             );
 
             xMinLabel = (
-                <text className="label" x="0" y={this._height}>
+                <text
+                    className="label"
+                    x="1"
+                    y={this._height - 1}
+                >
                     {this.state.xDates ? new Date(xRange[0]).toISOString() : xRange[0]}
                 </text>
             );
@@ -94,8 +106,8 @@ var LineChart = React.createClass({
             xMaxLabel = (
                 <text
                     className="label"
-                    x={this._width}
-                    y={this._height}
+                    x={this._width - 1}
+                    y={this._height - 1}
                     textAnchor="end"
                 >
                     {this.state.xDates ? new Date(xRange[1]).toISOString() : xRange[1]}
@@ -103,11 +115,15 @@ var LineChart = React.createClass({
             );
 
             yMaxLabel = (
-                <text className="label" x="0" y="9">{yMax}</text>
+                <text className="label" x="0" y="10">{yMax}</text>
             );
 
             path = (
-                <path className="line" d={line(this.state.points)} />
+                <path
+                    className="line"
+                    strokeLinecap="round"
+                    d={line(this.state.points)}
+                />
             );
         }
 
