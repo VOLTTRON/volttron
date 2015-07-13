@@ -57,7 +57,7 @@ var LineChart = React.createClass({
         this._height = parseInt(computedStyles.height, 10);
     },
     render: function () {
-        var xAxis, yAxis, path;
+        var xAxis, yAxis, xMinLabel, xMaxLabel, yMaxLabel, path;
 
         if (this._width && this._height && this.state.points.length) {
             var xRange = d3.extent(this.state.points, function (d) { return d[0]; });
@@ -70,19 +70,40 @@ var LineChart = React.createClass({
                 .range([0, this._width - 2])
                 .domain(xRange);
             var y = d3.scale.linear()
-                .range([this._height - 2, 0])
+                .range([this._height - 24, 0])
                 .domain([yMin, yMax]);
 
             var line = d3.svg.line()
                 .x(function (d) { return x(d[0]) + 1; })
-                .y(function (d) { return y(d[1]) + 1; });
+                .y(function (d) { return y(d[1]) + 11; });
 
             xAxis = (
-                <path className="axis" d={line([[xRange[0], yMin], [xRange[0], yMax]])} />
+                <path className="axis" d={'M0,10L0,' + (this._height - 12)} />
             );
 
             yAxis = (
-                <path className="axis" d={line([[xRange[0], yMin], [xRange[1], yMin]])} />
+                <path className="axis" d={'M0,' + (this._height - 12) + 'L' + (this._width) + ',' + (this._height - 12)} />
+            );
+
+            xMinLabel = (
+                <text className="label" x="0" y={this._height}>
+                    {this.state.xDates ? new Date(xRange[0]).toISOString() : xRange[0]}
+                </text>
+            );
+
+            xMaxLabel = (
+                <text
+                    className="label"
+                    x={this._width}
+                    y={this._height}
+                    textAnchor="end"
+                >
+                    {this.state.xDates ? new Date(xRange[1]).toISOString() : xRange[1]}
+                </text>
+            );
+
+            yMaxLabel = (
+                <text className="label" x="0" y="9">{yMax}</text>
             );
 
             path = (
@@ -94,6 +115,9 @@ var LineChart = React.createClass({
             <svg className="chart__svg chart__svg--line" ref="svg">
                 {xAxis}
                 {yAxis}
+                {xMinLabel}
+                {xMaxLabel}
+                {yMaxLabel}
                 {path}
             </svg>
         );
