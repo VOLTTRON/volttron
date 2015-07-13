@@ -4,9 +4,43 @@ var d3 = require('d3');
 var React = require('react');
 
 var LineChart = React.createClass({
+    getInitialState: function () {
+        var initialState = {
+            points: this.props.points,
+            xDates: false,
+        };
+
+        if (this.props.points.length &&
+            typeof this.props.points[0][0] === 'string' &&
+            Date.parse(this.props.points[0][0])) {
+            initialState.points = this.props.points.map(function (value) {
+                return[Date.parse(value[0]), value[1]];
+            });
+            initialState.xDates = true;
+        }
+
+        return initialState;
+    },
     componentDidMount: function () {
         this._updateSize();
         window.addEventListener('resize', this._onResize);
+    },
+    componentWillReceiveProps: function (newProps) {
+        var newState = {
+            points: newProps.points,
+            xDates: false,
+        };
+
+        if (newProps.points.length &&
+            typeof newProps.points[0][0] === 'string' &&
+            Date.parse(newProps.points[0][0])) {
+            newState.points = newProps.points.map(function (value) {
+                return[Date.parse(value[0]), value[1]];
+            });
+            newState.xDates = true;
+        }
+
+        this.setState(newState);
     },
     componentWillUpdate: function () {
         this._updateSize();
@@ -25,12 +59,12 @@ var LineChart = React.createClass({
     render: function () {
         var xAxis, yAxis, path;
 
-        if (this._width && this._height && this.props.points.length) {
-            var xRange = d3.extent(this.props.points, function (d) { return d[0]; });
+        if (this._width && this._height && this.state.points.length) {
+            var xRange = d3.extent(this.state.points, function (d) { return d[0]; });
             var yMin = (this.props.chart.min === 0 || this.props.chart.min) ?
-                this.props.chart.min : d3.min(this.props.points, function (d) { return d[1]; });
+                this.props.chart.min : d3.min(this.state.points, function (d) { return d[1]; });
             var yMax = (this.props.chart.max === 0 || this.props.chart.max) ?
-                this.props.chart.max : d3.max(this.props.points, function (d) { return d[1]; });
+                this.props.chart.max : d3.max(this.state.points, function (d) { return d[1]; });
 
             var x = d3.scale.linear()
                 .range([0, this._width - 2])
@@ -52,7 +86,7 @@ var LineChart = React.createClass({
             );
 
             path = (
-                <path className="line" d={line(this.props.points)} />
+                <path className="line" d={line(this.state.points)} />
             );
         }
 
