@@ -45,7 +45,7 @@ var Dashboard = React.createClass({
                         ].join('::');
 
                         charts.push(
-                            <div key={key} className="view__item chart chart--dashboard">
+                            <div key={key} className="view__item view__item--tile chart chart--dashboard">
                                 <h3 className="chart__title">
                                     <Router.Link
                                         to="platform"
@@ -82,11 +82,9 @@ var Dashboard = React.createClass({
         }
 
         return (
-            <div className="view view--tiled">
+            <div className="view">
                 <h2>Dashboard</h2>
-                <div className="view__items">
-                    {charts}
-                </div>
+                {charts}
             </div>
         );
     },
