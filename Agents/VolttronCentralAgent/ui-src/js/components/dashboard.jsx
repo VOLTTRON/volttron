@@ -32,45 +32,49 @@ var Dashboard = React.createClass({
         } else {
             charts = [];
 
-            this.state.platforms.forEach(function (platform) {
-                if (!platform.charts) { return; }
+            this.state.platforms
+                .sort(function (a, b) {
+                    return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+                })
+                .forEach(function (platform) {
+                    if (!platform.charts) { return; }
 
-                platform.charts
-                    .filter(function (chart) { return chart.pin; })
-                    .forEach(function (chart) {
-                        var key = [
-                            platform.uuid,
-                            chart.topic,
-                            chart.type,
-                        ].join('::');
+                    platform.charts
+                        .filter(function (chart) { return chart.pin; })
+                        .forEach(function (chart) {
+                            var key = [
+                                platform.uuid,
+                                chart.topic,
+                                chart.type,
+                            ].join('::');
 
-                        charts.push(
-                            <div key={key} className="view__item view__item--tile chart chart--dashboard">
-                                <h3 className="chart__title">
-                                    <Router.Link
-                                        to="platform"
-                                        params={{uuid: platform.uuid}}
-                                    >
-                                        {platform.name}
-                                    </Router.Link>
-                                    : {chart.topic}
-                                </h3>
-                                <Chart
-                                    platform={platform}
-                                    chart={chart}
-                                />
-                                <div className="chart__actions">
-                                    <a
-                                        className="chart__edit"
-                                        onClick={this._onEditChartClick.bind(this, platform, chart)}
-                                    >
-                                        Edit
-                                    </a>
+                            charts.push(
+                                <div key={key} className="view__item view__item--tile chart">
+                                    <h3 className="chart__title">
+                                        <Router.Link
+                                            to="platform"
+                                            params={{uuid: platform.uuid}}
+                                        >
+                                            {platform.name}
+                                        </Router.Link>
+                                        : {chart.topic}
+                                    </h3>
+                                    <Chart
+                                        platform={platform}
+                                        chart={chart}
+                                    />
+                                    <div className="chart__actions">
+                                        <a
+                                            className="chart__edit"
+                                            onClick={this._onEditChartClick.bind(this, platform, chart)}
+                                        >
+                                            Edit
+                                        </a>
+                                    </div>
                                 </div>
-                            </div>
-                        );
-                    }, this);
-            }, this);
+                            );
+                        }, this);
+                }, this);
 
             if (!charts.length) {
                 charts = (
