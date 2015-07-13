@@ -60,7 +60,10 @@ var EditChartForm = React.createClass({
                         onChange={this._onPropChange}
                         value={this.state.max}
                         placeholder="auto"
-                    />
+                    /><br />
+                    <span className="form__control-help">
+                        Omit either to determine from data
+                    </span>
                 </div>
             );
         }
