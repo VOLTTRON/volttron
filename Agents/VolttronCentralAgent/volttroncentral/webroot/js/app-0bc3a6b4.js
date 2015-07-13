@@ -358,9 +358,7 @@ var platformActionCreators = {
                     type: ACTION_TYPES.RECEIVE_PLATFORM_TOPIC_DATA,
                     platform: platform,
                     topic: topic,
-                    data: result.values.map(function (value) {
-                        return[Date.parse(value[0]), value[1]];
-                    }),
+                    data: result.values,
                 });
             })
             .catch(rpc.Error, handle401);
@@ -1107,7 +1105,7 @@ var EditChartForm = React.createClass({displayName: "EditChartForm",
 
         return (
             React.createElement("form", {className: "edit-chart-form", onSubmit: this._onSubmit}, 
-                React.createElement("h1", null, "Edit chart"), 
+                React.createElement("h1", null, this.props.chart ? 'Edit' : 'Add', " chart"), 
                 this.state.error && (
                     React.createElement("div", {className: "error"}, this.state.error.message)
                 ), 
@@ -1123,6 +1121,7 @@ var EditChartForm = React.createClass({displayName: "EditChartForm",
                         id: "topic", 
                         onChange: this._onPropChange, 
                         value: this.state.topic, 
+                        placeholder: "e.g. some/published/topic", 
                         required: true}
                     )
                 ), 
@@ -1144,14 +1143,13 @@ var EditChartForm = React.createClass({displayName: "EditChartForm",
                         type: "number", 
                         id: "refreshInterval", 
                         onChange: this._onPropChange, 
-                        defaultValue: "5000", 
                         value: this.state.refreshInterval, 
-                        min: "0", 
+                        min: "250", 
                         step: "1", 
-                        required: true}
+                        placeholder: "disabled"}
                     ), 
                     React.createElement("span", {className: "form__control-help"}, 
-                        "in milliseconds (0 to disable)"
+                        "Omit to disable"
                     )
                 ), 
                 React.createElement("div", {className: "form__control-group"}, 
@@ -1251,9 +1249,43 @@ var d3 = require('d3');
 var React = require('react');
 
 var LineChart = React.createClass({displayName: "LineChart",
+    getInitialState: function () {
+        var initialState = {
+            points: this.props.points,
+            xDates: false,
+        };
+
+        if (this.props.points.length &&
+            typeof this.props.points[0][0] === 'string' &&
+            Date.parse(this.props.points[0][0])) {
+            initialState.points = this.props.points.map(function (value) {
+                return[Date.parse(value[0]), value[1]];
+            });
+            initialState.xDates = true;
+        }
+
+        return initialState;
+    },
     componentDidMount: function () {
         this._updateSize();
         window.addEventListener('resize', this._onResize);
+    },
+    componentWillReceiveProps: function (newProps) {
+        var newState = {
+            points: newProps.points,
+            xDates: false,
+        };
+
+        if (newProps.points.length &&
+            typeof newProps.points[0][0] === 'string' &&
+            Date.parse(newProps.points[0][0])) {
+            newState.points = newProps.points.map(function (value) {
+                return[Date.parse(value[0]), value[1]];
+            });
+            newState.xDates = true;
+        }
+
+        this.setState(newState);
     },
     componentWillUpdate: function () {
         this._updateSize();
@@ -1270,36 +1302,57 @@ var LineChart = React.createClass({displayName: "LineChart",
         this._height = parseInt(computedStyles.height, 10);
     },
     render: function () {
-        var xAxis, yAxis, path;
+        var xAxis, yAxis, xMinLabel, xMaxLabel, yMaxLabel, path;
 
-        if (this._width && this._height && this.props.points.length) {
-            var xRange = d3.extent(this.props.points, function (d) { return d[0]; });
+        if (this._width && this._height && this.state.points.length) {
+            var xRange = d3.extent(this.state.points, function (d) { return d[0]; });
             var yMin = (this.props.chart.min === 0 || this.props.chart.min) ?
-                this.props.chart.min : d3.min(this.props.points, function (d) { return d[1]; });
+                this.props.chart.min : d3.min(this.state.points, function (d) { return d[1]; });
             var yMax = (this.props.chart.max === 0 || this.props.chart.max) ?
-                this.props.chart.max : d3.max(this.props.points, function (d) { return d[1]; });
+                this.props.chart.max : d3.max(this.state.points, function (d) { return d[1]; });
 
             var x = d3.scale.linear()
                 .range([0, this._width - 2])
                 .domain(xRange);
             var y = d3.scale.linear()
-                .range([this._height - 2, 0])
+                .range([this._height - 24, 0])
                 .domain([yMin, yMax]);
 
             var line = d3.svg.line()
                 .x(function (d) { return x(d[0]) + 1; })
-                .y(function (d) { return y(d[1]) + 1; });
+                .y(function (d) { return y(d[1]) + 11; });
 
             xAxis = (
-                React.createElement("path", {className: "axis", d: line([[xRange[0], yMin], [xRange[0], yMax]])})
+                React.createElement("path", {className: "axis", d: 'M0,10L0,' + (this._height - 12)})
             );
 
             yAxis = (
-                React.createElement("path", {className: "axis", d: line([[xRange[0], yMin], [xRange[1], yMin]])})
+                React.createElement("path", {className: "axis", d: 'M0,' + (this._height - 12) + 'L' + (this._width) + ',' + (this._height - 12)})
+            );
+
+            xMinLabel = (
+                React.createElement("text", {className: "label", x: "0", y: this._height}, 
+                    this.state.xDates ? new Date(xRange[0]).toISOString() : xRange[0]
+                )
+            );
+
+            xMaxLabel = (
+                React.createElement("text", {
+                    className: "label", 
+                    x: this._width, 
+                    y: this._height, 
+                    textAnchor: "end"
+                }, 
+                    this.state.xDates ? new Date(xRange[1]).toISOString() : xRange[1]
+                )
+            );
+
+            yMaxLabel = (
+                React.createElement("text", {className: "label", x: "0", y: "9"}, yMax)
             );
 
             path = (
-                React.createElement("path", {className: "line", d: line(this.props.points)})
+                React.createElement("path", {className: "line", d: line(this.state.points)})
             );
         }
 
@@ -1307,6 +1360,9 @@ var LineChart = React.createClass({displayName: "LineChart",
             React.createElement("svg", {className: "chart__svg chart__svg--line", ref: "svg"}, 
                 xAxis, 
                 yAxis, 
+                xMinLabel, 
+                xMaxLabel, 
+                yMaxLabel, 
                 path
             )
         );
