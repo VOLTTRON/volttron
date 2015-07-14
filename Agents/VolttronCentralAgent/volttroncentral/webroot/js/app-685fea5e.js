@@ -601,45 +601,49 @@ var Dashboard = React.createClass({displayName: "Dashboard",
         } else {
             charts = [];
 
-            this.state.platforms.forEach(function (platform) {
-                if (!platform.charts) { return; }
+            this.state.platforms
+                .sort(function (a, b) {
+                    return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+                })
+                .forEach(function (platform) {
+                    if (!platform.charts) { return; }
 
-                platform.charts
-                    .filter(function (chart) { return chart.pin; })
-                    .forEach(function (chart) {
-                        var key = [
-                            platform.uuid,
-                            chart.topic,
-                            chart.type,
-                        ].join('::');
+                    platform.charts
+                        .filter(function (chart) { return chart.pin; })
+                        .forEach(function (chart) {
+                            var key = [
+                                platform.uuid,
+                                chart.topic,
+                                chart.type,
+                            ].join('::');
 
-                        charts.push(
-                            React.createElement("div", {key: key, className: "view__item chart chart--dashboard"}, 
-                                React.createElement("h3", {className: "chart__title"}, 
-                                    React.createElement(Router.Link, {
-                                        to: "platform", 
-                                        params: {uuid: platform.uuid}
-                                    }, 
-                                        platform.name
+                            charts.push(
+                                React.createElement("div", {key: key, className: "view__item view__item--tile chart"}, 
+                                    React.createElement("h3", {className: "chart__title"}, 
+                                        React.createElement(Router.Link, {
+                                            to: "platform", 
+                                            params: {uuid: platform.uuid}
+                                        }, 
+                                            platform.name
+                                        ), 
+                                        ": ", chart.topic
                                     ), 
-                                    ": ", chart.topic
-                                ), 
-                                React.createElement(Chart, {
-                                    platform: platform, 
-                                    chart: chart}
-                                ), 
-                                React.createElement("div", {className: "chart__actions"}, 
-                                    React.createElement("a", {
-                                        className: "chart__edit", 
-                                        onClick: this._onEditChartClick.bind(this, platform, chart)
-                                    }, 
-                                        "Edit"
+                                    React.createElement(Chart, {
+                                        platform: platform, 
+                                        chart: chart}
+                                    ), 
+                                    React.createElement("div", {className: "chart__actions"}, 
+                                        React.createElement("a", {
+                                            className: "chart__edit", 
+                                            onClick: this._onEditChartClick.bind(this, platform, chart)
+                                        }, 
+                                            "Edit"
+                                        )
                                     )
                                 )
-                            )
-                        );
-                    }, this);
-            }, this);
+                            );
+                        }, this);
+                }, this);
 
             if (!charts.length) {
                 charts = (
@@ -651,11 +655,9 @@ var Dashboard = React.createClass({displayName: "Dashboard",
         }
 
         return (
-            React.createElement("div", {className: "view view--tiled"}, 
+            React.createElement("div", {className: "view"}, 
                 React.createElement("h2", null, "Dashboard"), 
-                React.createElement("div", {className: "view__items"}, 
-                    charts
-                )
+                charts
             )
         );
     },
@@ -785,7 +787,7 @@ var Chart = React.createClass({displayName: "Chart",
             React.createElement(ChartClass, {
                 className: "chart", 
                 chart: this.props.chart, 
-                points: this.state.data || []}
+                data: this.state.data || []}
             )
         );
     },
@@ -1098,6 +1100,9 @@ var EditChartForm = React.createClass({displayName: "EditChartForm",
                         onChange: this._onPropChange, 
                         value: this.state.max, 
                         placeholder: "auto"}
+                    ), React.createElement("br", null), 
+                    React.createElement("span", {className: "form__control-help"}, 
+                        "Omit either to determine from data"
                     )
                 )
             );
@@ -1251,14 +1256,14 @@ var React = require('react');
 var LineChart = React.createClass({displayName: "LineChart",
     getInitialState: function () {
         var initialState = {
-            points: this.props.points,
+            data: this.props.data,
             xDates: false,
         };
 
-        if (this.props.points.length &&
-            typeof this.props.points[0][0] === 'string' &&
-            Date.parse(this.props.points[0][0])) {
-            initialState.points = this.props.points.map(function (value) {
+        if (this.props.data.length &&
+            typeof this.props.data[0][0] === 'string' &&
+            Date.parse(this.props.data[0][0])) {
+            initialState.data = this.props.data.map(function (value) {
                 return[Date.parse(value[0]), value[1]];
             });
             initialState.xDates = true;
@@ -1272,14 +1277,14 @@ var LineChart = React.createClass({displayName: "LineChart",
     },
     componentWillReceiveProps: function (newProps) {
         var newState = {
-            points: newProps.points,
+            data: newProps.data,
             xDates: false,
         };
 
-        if (newProps.points.length &&
-            typeof newProps.points[0][0] === 'string' &&
-            Date.parse(newProps.points[0][0])) {
-            newState.points = newProps.points.map(function (value) {
+        if (newProps.data.length &&
+            typeof newProps.data[0][0] === 'string' &&
+            Date.parse(newProps.data[0][0])) {
+            newState.data = newProps.data.map(function (value) {
                 return[Date.parse(value[0]), value[1]];
             });
             newState.xDates = true;
@@ -1302,84 +1307,114 @@ var LineChart = React.createClass({displayName: "LineChart",
         this._height = parseInt(computedStyles.height, 10);
     },
     render: function () {
-        var xAxis, yAxis, xMinLabel, xMaxLabel, yMaxLabel, path;
+        var contents = [];
 
-        if (this._width && this._height && this.state.points.length) {
-            var xRange = d3.extent(this.state.points, function (d) { return d[0]; });
-            var yMin = (this.props.chart.min === 0 || this.props.chart.min) ?
-                this.props.chart.min : d3.min(this.state.points, function (d) { return d[1]; });
-            var yMax = (this.props.chart.max === 0 || this.props.chart.max) ?
-                this.props.chart.max : d3.max(this.state.points, function (d) { return d[1]; });
-
-            var x = d3.scale.linear()
-                .range([0, this._width - 4])
-                .domain(xRange);
-            var y = d3.scale.linear()
-                .range([this._height - 26, 0])
-                .domain([yMin, yMax]);
-
-            var line = d3.svg.line()
-                .x(function (d) { return x(d[0]) + 2; })
-                .y(function (d) { return y(d[1]) + 13; });
-
-            xAxis = (
+        if (this._width && this._height) {
+            contents.push(
                 React.createElement("path", {
-                    className: "axis", 
-                    strokeLinecap: "square", 
-                    d: 'M1,12L1,' + (this._height - 12)}
-                )
-            );
-
-            yAxis = (
-                React.createElement("path", {
+                    key: "xAxis", 
                     className: "axis", 
                     strokeLinecap: "square", 
                     d: 'M1,' + (this._height - 12) + 'L' + (this._width - 1) + ',' + (this._height - 12)}
                 )
             );
 
-            xMinLabel = (
-                React.createElement("text", {
-                    className: "label", 
-                    x: "1", 
-                    y: this._height - 1
-                }, 
-                    this.state.xDates ? new Date(xRange[0]).toISOString() : xRange[0]
-                )
-            );
-
-            xMaxLabel = (
-                React.createElement("text", {
-                    className: "label", 
-                    x: this._width - 1, 
-                    y: this._height - 1, 
-                    textAnchor: "end"
-                }, 
-                    this.state.xDates ? new Date(xRange[1]).toISOString() : xRange[1]
-                )
-            );
-
-            yMaxLabel = (
-                React.createElement("text", {className: "label", x: "0", y: "10"}, yMax)
-            );
-
-            path = (
+            contents.push(
                 React.createElement("path", {
-                    className: "line", 
-                    strokeLinecap: "round", 
-                    d: line(this.state.points)}
+                    key: "yAxis", 
+                    className: "axis", 
+                    strokeLinecap: "square", 
+                    d: 'M1,12L1,' + (this._height - 12)}
                 )
             );
+
+            if (!this.state.data.length) {
+                contents.push(
+                    React.createElement("text", {
+                        key: "noData", 
+                        className: "no-data-text", 
+                        x: this._width / 2, 
+                        y: this._height / 2, 
+                        textAnchor: "middle"
+                    }, 
+                        "No data available"
+                    )
+                );
+            } else {
+                var xRange = d3.extent(this.state.data, function (d) { return d[0]; });
+                var yMin = (this.props.chart.min === 0 || this.props.chart.min) ?
+                    this.props.chart.min : d3.min(this.state.data, function (d) { return d[1]; });
+                var yMax = (this.props.chart.max === 0 || this.props.chart.max) ?
+                    this.props.chart.max : d3.max(this.state.data, function (d) { return d[1]; });
+
+                var x = d3.scale.linear()
+                    .range([0, this._width - 4])
+                    .domain(xRange);
+                var y = d3.scale.linear()
+                    .range([this._height - 26, 0])
+                    .domain([yMin, yMax]);
+
+                var line = d3.svg.line()
+                    .x(function (d) { return x(d[0]) + 2; })
+                    .y(function (d) { return y(d[1]) + 13; });
+
+                contents.push(
+                    React.createElement("text", {
+                        key: "xMinLabel", 
+                        className: "label", 
+                        x: "1", 
+                        y: this._height - 1
+                    }, 
+                        this.state.xDates ? new Date(xRange[0]).toISOString() : xRange[0]
+                    )
+                );
+
+                contents.push(
+                    React.createElement("text", {
+                        key: "xMaxLabel", 
+                        className: "label", 
+                        x: this._width - 1, 
+                        y: this._height - 1, 
+                        textAnchor: "end"
+                    }, 
+                        this.state.xDates ? new Date(xRange[1]).toISOString() : xRange[1]
+                    )
+                );
+
+                contents.push(
+                    React.createElement("text", {
+                        key: "yMaxLabel", 
+                        className: "label", x: "0", y: "10"}, 
+                        yMax
+                    )
+                );
+
+                if (this.state.data.length > 1) {
+                    contents.push(
+                        React.createElement("path", {
+                            key: "line", 
+                            className: "line", 
+                            strokeLinecap: "round", 
+                            d: line(this.state.data)}
+                        )
+                    );
+                } else {
+                    contents.push(
+                        React.createElement("circle", {
+                            key: "dot", 
+                            className: "dot", 
+                            cx: this._width / 2, 
+                            cy: y(this.state.data[0][1]) + 13, 
+                            r: "1"}
+                        )
+                    );
+                }
+            }
         }
 
         return (
             React.createElement("svg", {className: "chart__svg chart__svg--line", ref: "svg"}, 
-                xAxis, 
-                yAxis, 
-                xMinLabel, 
-                xMaxLabel, 
-                yMaxLabel, 
-                path
+                contents
             )
         );
     },
@@ -1801,7 +1836,7 @@ var Platform = React.createClass({displayName: "Platform",
                 ].join('::');
 
                 return (
-                    React.createElement("div", {key: key, className: "chart chart--platform"}, 
+                    React.createElement("div", {key: key, className: "view__item view__item--tile chart"}, 
                         React.createElement("h4", {className: "chart__title"}, chart.topic), 
                         React.createElement(Chart, {
                             platform: platform, 
@@ -1968,7 +2003,7 @@ var Platforms = React.createClass({displayName: "Platforms",
                     return (
                         React.createElement("div", {
                             key: platform.uuid, 
-                            className: "view__item"
+                            className: "view__item view__item--list"
                         }, 
                             React.createElement("h3", null, 
                                 React.createElement(Router.Link, {
@@ -1992,7 +2027,7 @@ var Platforms = React.createClass({displayName: "Platforms",
         }
 
         return (
-            React.createElement("div", {className: "view view--list"}, 
+            React.createElement("div", {className: "view"}, 
                 React.createElement("h2", null, "Platforms"), 
                 React.createElement("div", {className: "view__actions"}, 
                     React.createElement("button", {className: "button", onClick: this._onRegisterClick}, 

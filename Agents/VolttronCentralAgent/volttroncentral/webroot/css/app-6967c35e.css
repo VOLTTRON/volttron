@@ -335,13 +335,6 @@ br + .form__control-help {
     width: 400px;
 }
 
-.chart--platform {
-    display: inline-block;
-    width: 33%;
-    padding: 1em;
-    box-sizing: border-box;
-}
-
 .chart__title {
     margin-bottom: 1.5rem;
 }
@@ -368,6 +361,16 @@ br + .form__control-help {
     stroke-width: 2;
 }
 
+.chart__svg--line .dot {
+    fill: none;
+    stroke: #45b;
+    stroke-width: 2;
+}
+
+.chart__svg--line .no-data-text {
+    fill: #999;
+}
+
 .chart__actions {
     text-align: right;
 }
@@ -385,19 +388,36 @@ br + .form__control-help {
     margin-bottom: 1.5rem;
 }
 
-.view--list .view__item {
+.view__item--list {
     display: block;
     margin-bottom: 0;
     position: relative;
 }
 
-.view--tiled .view__item {
-    width: calc(50% - .75rem);
+.view__item--tile {
+    width: 100%;
     display: inline-block;
+    vertical-align: top;
 }
 
-.view--tiled .view__item:nth-child(even) {
-    margin-left: 1.5rem;
+@media (min-width: 1220px) and (max-width: 1859px) {
+    .view__item--tile {
+        width: calc(50% - .75rem);
+    }
+
+    .view__item--tile:nth-of-type(even) {
+        margin-left: 1.5rem;
+    }
+}
+
+@media (min-width: 1860px) {
+    .view__item--tile {
+        width: calc(33.3333% - 1rem);
+    }
+
+    .view__item--tile:not(:nth-of-type(3n + 1)) {
+        margin-left: 1.5rem;
+    }
 }
 
 a.view__item {
