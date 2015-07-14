@@ -1,3 +1,6 @@
 {
-    "agentid": "master_driver"
+    "agentid": "master_driver",
+    "driver_config_list": [
+    					   "/home/kyle/workspaces/volttron/Agents/MasterDriverAgent/master_driver/test_bacnet1.config"
+    					  ]
 }

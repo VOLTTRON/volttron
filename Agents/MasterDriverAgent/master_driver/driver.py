@@ -51,7 +51,8 @@ operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 under Contract DE-AC05-76RL01830
 '''
 import datetime
-from volttron.platform.vipagent import Agent, Core
+from volttron.platform.vip.agent import Agent, Core
+from volttron.platform.agent.vipagent import export
 from volttron.platform.agent import utils
 from zmq.utils import jsonapi
 from volttron.platform.messaging import headers as headers_mod
@@ -62,17 +63,26 @@ from volttron.platform.messaging.topics import (DRIVER_TOPIC_BASE,
                                                 CONFIG_REMOVE,
                                                 CONFIG_UPDATE)
 
-class DriverAgent(Agent):              
+class DriverAgent(Agent): 
+    def __init__(self, **kwargs):             
+        super(DriverAgent, self).__init__(**kwargs)
+        
     def get_config(self, config_name):
         #Until config store is setup just grab a file.
         return open(config_name).read()
             
         
-    def get_interface(self, config, config_string):
+    def get_interface(self, driver_type, config_dict, config_string):
         """Returns an instance of the interface"""
-    
-    @Core.receiver("onstart")
-    def starting(self, sender, **kwargs):
+        module_name = "interfaces." + driver_type
+        module = __import__(module_name,globals(),locals(),[], -1)
+        klass = getattr(module, "Interface")
+        interface = klass(self.vip)
+        interface.configure(config_dict, config_string)
+        return interface
+        
+    @Core.receiver('onstart')
+    def starting(self):
         self.registry_config_name = None
         self.setup_device()
         
@@ -86,10 +96,11 @@ class DriverAgent(Agent):
         
         config = self.get_config(self.core.identity)
         self.config = jsonapi.loads(utils.strip_comments(config))  
-        driver_config = self.get_config(self.config["driver"]) 
+        driver_config = self.get_config(self.config["driver_config"]) 
+        driver_type = self.config["driver_type"] 
         registry_config = self.get_config(driver_config["registry_config"]) 
                            
-        self.interface = self.get_interface(driver_config, registry_config)
+        self.interface = self.get_interface(driver_type, driver_config, registry_config)
         self.meta_data = {}
         
         for point in self.interface.get_register_names():
@@ -158,3 +169,11 @@ class DriverAgent(Agent):
         breadth_first = '/'.join(breadth_first_parts)
          
         return depth_first, breadth_first 
+    
+    @export
+    def get_point(self, point_name):
+        return self.interface.get_point(point_name)
+    
+    @export
+    def set_point(self, point_name, value):
+        return self.interface.get_point(point_name, value)

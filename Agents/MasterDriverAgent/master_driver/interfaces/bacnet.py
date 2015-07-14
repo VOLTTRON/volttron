@@ -50,3 +50,95 @@ PACIFIC NORTHWEST NATIONAL LABORATORY
 operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 under Contract DE-AC05-76RL01830
 '''
+
+from ..base_driver_interface import BaseInterface, BaseRegister
+from csv import DictReader
+from StringIO import StringIO
+
+class Register(BaseRegister):
+    def __init__(self, instance_number, object_type, property_name, read_only, pointName, units, description = ''):
+        super(Register, self).__init__("byte", read_only, pointName, units, description = '')
+        self.instance_number = int(instance_number)
+        self.object_type = object_type
+        self.property = property_name
+
+        
+class Interface(BaseInterface):
+    def __init__(self, **kwargs):
+        super(Interface, self).__init__(**kwargs)
+        
+    def configure(self, config_dict, registry_config_str):
+        self.parse_config(registry_config_str)         
+        self.target_address = config_dict["target_address"]
+        self.proxy_address = config_dict["proxy_address"]
+        self.ping_target(self.target_address)
+                                         
+    def ping_target(self, address):    
+        #Some devices (mostly RemoteStation addresses behind routers) will not be reachable without 
+        # first establishing the route to the device. Sending a directed WhoIsRequest is will
+        # settle that for us when the response comes back. 
+        return self.vip.rpc.rpc_call(self.proxy_address, 'ping_device', [self.target_address]).get()
+        
+    def get_point(self, point_name): 
+        register = self.get_register_by_name(point_name)   
+        point_map = {point_name:[register.object_type, 
+                                 register.instance_number, 
+                                 register.property]}
+        result = self.vip.rpc.rpc_call(self.proxy_address, 'read_properties', 
+                                       [self.target_address, point_map]).get()
+        return result[point_name]
+    
+    def set_point(self, point_name, value):    
+        register = self.get_register_by_name(point_name)  
+        if register.read_only:
+            raise  IOError("Trying to write to a point configured read only: "+point_name)
+        args = [self.target_address, value,
+                register.object_type, 
+                register.instance_number, 
+                register.property]
+        result = self.vip.rpc.rpc_call(self.proxy_address, 'write_property', args).get()
+        return result
+        
+    def scrape_all(self):
+        point_map = {}
+        read_registers = self.get_registers_by_type("byte", True)
+        write_registers = self.get_registers_by_type("byte", True) 
+        for register in read_registers + write_registers:             
+            point_map[register.point_name] = [register.object_type, 
+                                              register.instance_number, 
+                                              register.property]
+        
+        result = self.vip.rpc.rpc_call(self.proxy_address, 'read_properties', 
+                                       [self.target_address, point_map]).get()
+        return result
+    
+    def parse_config(self, config_string):
+        if config_string is None:
+            return
+        
+        f = StringIO(config_string)
+        
+        configDict = DictReader(f)
+        
+        for regDef in configDict:
+            #Skip lines that have no address yet.
+            if not regDef['Point Name']:
+                continue
+            
+            io_type = regDef['BACnet Object Type']
+            read_only = regDef['Writable'].lower() != 'true'
+            point_name = regDef['PNNL Point Name']        
+            index = int(regDef['Index'])        
+            description = regDef['Notes']                 
+            units = regDef['Units']       
+            property_name = regDef['Property']       
+                        
+            register = Register(index, 
+                                io_type, 
+                                property_name, 
+                                read_only, 
+                                point_name,
+                                units, 
+                                description = description)
+                
+            self.insert_register(register)

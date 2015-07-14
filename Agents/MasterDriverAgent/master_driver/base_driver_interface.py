@@ -77,8 +77,9 @@ class BaseRegister(object):
     
 class BaseInterface(object):
     __metaclass__ = abc.ABCMeta
-    def __init__(self, **kwargs):
+    def __init__(self, vip=None, **kwargs):
         super(BaseInterface, self).__init__(**kwargs)
+        self.vip = vip
         
         self.point_map = {}
         
@@ -122,6 +123,5 @@ class BaseInterface(object):
     
     @abc.abstractmethod        
     def scrape_all(self):
-        """Should return either a dictionary of point names:values
-        Alternatively it can return a deferred that will produce the same thing."""
+        """Return a dictionary of point names:values for device"""
         pass

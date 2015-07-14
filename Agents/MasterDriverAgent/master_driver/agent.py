@@ -56,8 +56,9 @@
 import logging
 import sys
 import os
-from volttron.platform.vipagent import Agent, RPC
+from volttron.platform.vip.agent import Agent, Core
 from volttron.platform.agent import utils
+from driver import DriverAgent
 
 
 utils.setup_logging()
@@ -79,16 +80,26 @@ def master_driver_agent(config_path, **kwargs):
 
     agentid = get_config('agentid')
     vip_identity = get_config('vip_identity')
+    driver_config_list = get_config('driver_config_list')
     if not vip_identity:
         vip_identity = os.environ.get('AGENT_UUID')
 
-    class Agent(Agent):
-
+    class MasterDriverAgent(Agent):
         def __init__(self, **kwargs):
-            super(Agent, self).__init__(vip_identity=vip_identity, **kwargs)
+            super(MasterDriverAgent, self).__init__(identity=vip_identity, **kwargs)
+            self.instances = {}
+            
+        @Core.receiver('onstart')
+        def starting(self, sender, **kwargs):
+            for config_name in driver_config_list:
+                driver = DriverAgent(identity=config_name)
+                driver.run()                
+                self.instances[config_name] = driver
+                
+            
 
-    Agent.__name__ = 'MasterDriverAgent'
-    return Agent(**kwargs)
+    MasterDriverAgent.__name__ = 'MasterDriverAgent'
+    return MasterDriverAgent(**kwargs)
 
 
 
@@ -96,13 +107,13 @@ def master_driver_agent(config_path, **kwargs):
 def main(argv=sys.argv):
     '''Main method called to start the agent.'''
     utils.setup_logging()
-    try:
-        utils.default_main(master_driver_agent,
-            description='Master agent for starting and stopping driver agents.',
-            no_pub_sub_socket=True,
-            argv=argv)
-    except Exception:
-        _log.exception('unhandled exception')
+    #try:
+    utils.default_main(master_driver_agent,
+        description='Master agent for starting and stopping driver agents.',
+        no_pub_sub_socket=True,
+        argv=argv)
+    #except Exception:
+    #    _log.exception('unhandled exception')
 
 
 if __name__ == '__main__':
