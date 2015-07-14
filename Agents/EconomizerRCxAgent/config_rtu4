@@ -25,8 +25,8 @@
         "damper_signal": "outsidedampercommand",
         "cool_call": "coolingvalveposition",
         "fan_speedcmd": "supplyfanspeed",
-        "data_window": 30,
-        "no_required_data": 20,
+        "data_window": 15,
+        "no_required_data": 15,
         "open_damper_time": 5,
         "low_supply_fan_threshold": 20.0,
         "mat_low_threshold": 50.0,
@@ -48,7 +48,7 @@
         "ventilation_oaf_threshold": 5.0,
         "insufficient_damper_threshold": 15.0,
         "temp_damper_threshold": 90.0,
-        "rated_cfm": 10000.0,
+        "rated_cfm": 6000.0,
         "eer": 10.0
     },
 

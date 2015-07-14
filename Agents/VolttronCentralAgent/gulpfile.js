@@ -3,10 +3,12 @@
 var browserify = require('browserify');
 var buffer = require('gulp-buffer');
 var del = require('del');
+var fs = require('fs');
 var gulp = require('gulp');
 var inject = require('gulp-inject');
 var rev = require('gulp-rev');
 var source = require('vinyl-source-stream');
+var through2 = require('through2');
 
 var BUILD_DIR = 'volttroncentral/webroot/';
 var APP_GLOB = '{css,js}/app-*';
@@ -47,8 +49,8 @@ function js() {
         bundleExternal: false,
         entries: './ui-src/js/app',
         extensions: ['.jsx'],
+        transform: ['reactify'],
     })
-        .transform('reactify')
         .bundle()
         .pipe(source('app.js'))
         .pipe(buffer())
@@ -64,8 +66,10 @@ function vendor() {
     return browserify({
         noParse: [
             'bluebird/js/browser/bluebird.min',
+            'd3/d3.min',
             'events',
             'jquery/dist/jquery.min',
+            'moment/min/moment.min.js',
             'node-uuid',
             'react/dist/react.min',
             'react-router/umd/ReactRouter.min',
@@ -73,14 +77,29 @@ function vendor() {
     })
         .require([
             { file: 'bluebird/js/browser/bluebird.min', expose: 'bluebird' },
+            { file: 'd3/d3.min', expose: 'd3' },
             'events',
             'flux',
             { file: 'jquery/dist/jquery.min', expose: 'jquery' },
+            { file: 'moment/min/moment.min.js', expose: 'moment' },
             'node-uuid',
             { file: 'react/dist/react.min', expose: 'react' },
             'react/lib/keyMirror',
             { file: 'react-router/umd/ReactRouter.min', expose: 'react-router' },
         ])
+        .transform(function (file) {
+            if (file.match('/d3/d3.min.')) {
+                var stream = through2();
+
+                stream.push(new Buffer('/*\n'));
+                stream.push(fs.readFileSync('node_modules/d3/LICENSE'));
+                stream.push(new Buffer('*/\n'));
+
+                return stream;
+            }
+
+            return through2();
+        }, { global: true })
         .bundle()
         .pipe(source('vendor.js'))
         .pipe(buffer())

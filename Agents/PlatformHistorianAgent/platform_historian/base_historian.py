@@ -60,24 +60,18 @@ from abc import abstractmethod
 from collections import defaultdict
 from dateutil.parser import parse
 from datetime import datetime, timedelta
-
 import logging
 from pprint import pprint
-import pytz
-#from Queue import Queue, Empty
+from Queue import Queue, Empty
 import re
 import sqlite3
 from threading import Thread
 
+import gevent
+import pytz
 from zmq.utils import jsonapi
 
-
-
-import gevent
-from gevent.queue import Queue, Empty
-
-from volttron.platform.vipagent import *
-
+from volttron.platform.vip.agent import *
 from volttron.platform.agent import utils, matching
 from volttron.platform.agent.vipagent import (BaseAgent, RPCAgent, export,
                                               onevent, spawn)
@@ -142,6 +136,48 @@ class BaseHistorianAgent(Agent):
         self.vip.pubsub.unsubscribe(peer=self.identity,
                                     topic=topics.LOGGER_LOG,
                                     callback=self.capture_log_data)
+
+    def capture_log_data(self, peer, sender, bus, topic, headers, message):
+        '''Capture log data and submit it to be published by a historian.'''
+
+        parts = topic.split('/')
+        location = '/'.join(reversed(parts[2:]))
+
+        try:
+            data = jsonapi.loads(message[0])
+        except ValueError as e:
+            _log.error("message for {topic} bad message string: {message_string}".format(topic=topic,
+                                                                                     message_string=message[0]))
+            return
+        except IndexError as e:
+            _log.error("message for {topic} missing message string".format(topic=topic))
+            return
+
+        source = 'log'
+        _log.debug("Queuing {topic} from {source} for publish".format(topic=topic,
+                                                                      source=source))
+        for point, item in data.iteritems():
+            ts_path = location + '/' + point
+            if 'Readings' not in item or 'Units' not in item:
+                _log.error("logging request for {path} missing Readings or Units".format(path=ts_path))
+                continue
+            units = item['Units']
+            dtype = item.get('data_type', 'float')
+            if dtype == 'double':
+                dtype = 'float'
+
+            meta = {'units': units, 'type': dtype}
+
+            readings = item['Readings']
+            if not isinstance(readings, list):
+                readings = [(datetime.utcnow(), readings)]
+
+            self._event_queue.put({'source': source,
+                                   'topic': topic+'/'+point,
+                                   'readings': readings,
+                                   'meta':meta})
+        if not self._processing:
+            gevent.spawn(self._process_loop)
 
     # @matching.match_start(topics.DRIVER_TOPIC_BASE+'/'+topics.DRIVER_TOPIC_ALL)
     def capture_device_data(self, peer, bus, topic, headers, message):
@@ -232,87 +268,45 @@ class BaseHistorianAgent(Agent):
                                'topic': topic,
                                'readings': [timestamp,value]})
 
-    # #@matching.match_start(topics.LOGGER_LOG)
-    def capture_log_data(self, peer, sender, bus, topic, headers, message):
-        '''Capture log data and submit it to be published by a historian.'''
-
-        parts = topic.split('/')
-        location = '/'.join(reversed(parts[2:]))
-
-        try:
-            data = jsonapi.loads(message[0])
-        except ValueError as e:
-            _log.error("message for {topic} bad message string: {message_string}".format(topic=topic,
-                                                                                     message_string=message[0]))
-            return
-        except IndexError as e:
-            _log.error("message for {topic} missing message string".format(topic=topic))
-            return
-
-        source = 'log'
-        _log.debug("Queuing {topic} from {source} for publish".format(topic=topic,
-                                                                      source=source))
-        for point, item in data.iteritems():
-            ts_path = location + '/' + point
-            if 'Readings' not in item or 'Units' not in item:
-                _log.error("logging request for {path} missing Readings or Units".format(path=ts_path))
-                continue
-            units = item['Units']
-            dtype = item.get('data_type', 'float')
-            if dtype == 'double':
-                dtype = 'float'
-
-            meta = {'units': units, 'type': dtype}
-
-            readings = item['Readings']
-            if not isinstance(readings, list):
-                readings = [(datetime.utcnow(), readings)]
-
-            self._event_queue.put({'source': source,
-                                   'topic': topic+'/'+point,
-                                   'readings': readings,
-                                   'meta':meta})
-        if not self._processing:
-            gevent.spawn(self._process_loop)
 
     def _process_loop(self):
         _log.debug("Starting process loop.")
-        self._processing = True
-        backup_setup = gevent.spawn(self._setup_backup_db)
-        historian_setup = gevent.spawn(self.historian_setup)
 
-        gevent.joinall([backup_setup, historian_setup])
+        self._processing = True
+
         #Based on the state of the back log and whether or not sucessful
         #publishing is currently happening (and how long it's taking)
         #we may or may not want to wait on the event queue for more input
         #before proceeding with the rest of the loop.
-        wait_for_input = not bool(self._get_outstanding_to_publish())
+        #wait_for_input = not bool(self._get_outstanding_to_publish())
 
-        while True:
-            try:
+        while not self._event_queue.empty() or \
+                    self._get_outstanding_to_publish():
+
+            if not self._event_queue.empty():
                 _log.debug("Reading from/waiting for queue.")
-                new_to_publish = [self._event_queue.get(wait_for_input, self._retry_period)]
-            except Empty:
-                _log.debug("Queue wait timed out. Falling out.")
+                new_to_publish = [self._event_queue.get(False, self._retry_period)]
+            else:
                 new_to_publish = []
 
             if new_to_publish:
+                _log.debug("Adding {} items to the queue."
+                           .format(len(new_to_publish)))
                 while True:
                     try:
-                        _log.debug("Checking for queue build up.")
                         new_to_publish.append(self._event_queue.get_nowait())
                     except Empty:
                         break
 
+            # Store before sending to the concrete historian.
             self._backup_new_to_publish(new_to_publish)
 
             wait_for_input = True
             start_time = datetime.utcnow()
 
-            while True:
-                to_publish_list = self._get_outstanding_to_publish()
-                if not to_publish_list:
-                    break
+            to_publish_list = self._get_outstanding_to_publish()
+
+            while to_publish_list:
                 _log.debug("Calling publish_to_historian.")
                 self.publish_to_historian(to_publish_list)
                 if not self._any_sucessfull_publishes():
@@ -323,6 +317,9 @@ class BaseHistorianAgent(Agent):
                 if now - start_time > self._max_time_publishing:
                     wait_for_input = False
                     break
+
+                to_publish_list = self._get_outstanding_to_publish()
+
         self._processing = False
         _log.debug("Finished processing")
 
@@ -482,7 +479,8 @@ class BaseQueryHistorianAgent(RPCAgent):
     '''
 
     @export()
-    def query(self, topic=None, start=None, end=None, skip=0, count=None):
+    def query(self, topic=None, start=None, end=None, skip=0,
+              count=None, order="FIRST_TO_LAST"):
         """Actual RPC handler"""
 
         if topic is None:
@@ -501,18 +499,18 @@ class BaseQueryHistorianAgent(RPCAgent):
                 end = time_parser.parse(end)
 
         _log.debug("In base query")
-        
+
         if start:
             _log.debug("start={}".format(start))
 
-        results = self.query_historian(topic, start, end, skip, count)
+        results = self.query_historian(topic, start, end, skip, count, order)
         metadata = results.get("metadata")
         if metadata is None:
             results['metadata'] = {}
         return results
 
     @abstractmethod
-    def query_historian(self, topic, start=None, end=None, skip=0, count=None):
+    def query_historian(self, topic, start=None, end=None, skip=0, count=None, order=None):
         """This function should return the results of a query in the form:
         {"values": [(timestamp1: value1), (timestamp2: value2), ...],
          "metadata": {"key1": value1, "key2": value2, ...}}

@@ -85,8 +85,8 @@ del volttron
 
 
 __import__('warnings').warn(
-    'the vipagent module (%s) is deprecated in favor of the vipagent package '
-    '(%s.vipagent)' % (__name__, platform.__name__), DeprecationWarning, 2)
+    'the vipagent module (%s) is deprecated in favor of the vip.agent package '
+    '(%s.vip.agent)' % (__name__, platform.__name__), DeprecationWarning, 2)
 
 
 _log = logging.getLogger(__name__)   # pylint: disable=invalid-name

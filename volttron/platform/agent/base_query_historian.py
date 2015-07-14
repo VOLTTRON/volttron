@@ -60,7 +60,7 @@ from collections import defaultdict
 import logging
 from pprint import pprint
 
-from volttron.platform.vipagent import *
+from volttron.platform.vip.agent import *
 
 from volttron.platform.agent import utils
 from dateutil.parser import parse
@@ -82,7 +82,8 @@ class BaseQueryHistorianAgent(Agent):
     '''
 
     @RPC.export
-    def query(self, topic=None, start=None, end=None, skip=0, count=None):
+    def query(self, topic=None, start=None, end=None, skip=0, count=None,
+              order="FIRST_TO_LAST"):
         """Actual RPC handler"""
 
         if topic is None:
@@ -100,14 +101,15 @@ class BaseQueryHistorianAgent(Agent):
             except TypeError:
                 end = time_parser.parse(end)
 
-        results = self.query_historian(topic, start, end, skip, count)
+        results = self.query_historian(topic, start, end, skip, count, order)
         metadata = results.get("metadata")
         if metadata is None:
             results['metadata'] = {}
         return results
 
     @abstractmethod
-    def query_historian(self, topic, start=None, end=None, skip=0, count=None):
+    def query_historian(self, topic, start=None, end=None, skip=0, count=None,
+                        order=None):
         """This function should return the results of a query in the form:
         {"values": [(timestamp1: value1), (timestamp2: value2), ...],
          "metadata": {"key1": value1, "key2": value2, ...}}

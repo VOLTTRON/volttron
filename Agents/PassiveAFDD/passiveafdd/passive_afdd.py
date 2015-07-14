@@ -70,8 +70,8 @@ logging.captureWarnings(True)
 
 def passiveafdd(config_path, **kwargs):
     '''Passive fault detection application for AHU/RTU economizer systems'''
-    config_data = utils.load_config(config_path)
-    rtu_path = dict((key, config_data[key])
+    config = utils.load_config(config_path)
+    rtu_path = dict((key, config[key])
                     for key in ['campus', 'building', 'unit'])
     utils.setup_logging()
     _log = logging.getLogger(__name__)
@@ -84,56 +84,60 @@ def passiveafdd(config_path, **kwargs):
             '''Input and initialize user configurable parameters.'''
             super(Agent, self).__init__(**kwargs)
             # Agent Configuration parameters
-            self.agent_id = config_data.get('agentid')
-            self.aggregate_data = int(config_data["aggregate_data"])
-            self.matemp_missing = int(config_data["matemp_missing"])
+            self.agent_id = config.get('agentid')
+            self.aggregate_data = int(config.get("aggregate_data", 1))
+            self.matemp_missing = int(config.get("matemp_missing"))
             # Temperature sensor diagnostic thresholds
-            self.mat_low = float(config_data["mat_low"])
-            self.mat_high = float(config_data["mat_high"])
-            self.oat_low = float(config_data["oat_low"])
-            self.oat_high = float(config_data["oat_high"])
-            self.rat_low = float(config_data["rat_low"])
-            self.rat_high = float(config_data["rat_high"])
+            self.mat_low = float(config.get("mat_low", 50.0))
+            self.mat_high = float(config.get("mat_high", 90.0))
+            self.oat_low = float(config.get("oat_low", 30.0))
+            self.oat_high = float(config.get("oat_high", 120.0))
+            self.rat_low = float(config.get("rat_low", 50.0))
+            self.rat_high = float(config.get("rat_high", 90.0))
             self.temp_sensor_threshold = (
-                float(config_data["temp_sensor_threshold"]))
-            self.temp_deadband = config_data.get('temp_deadband')
+                float(config.get("temp_sensor_threshold", 5.0)))
+            self.temp_deadband = config.get('temp_deadband', 2.5)
             # Economizer diagnostic thresholds and parameters
-            self.high_limit = float(config_data["high_limit"])
-            self.economizer_type = int(config_data["economizer_type"])
-            self.damper_minimum = float(config_data["damper_minimum"])
-            self.minimum_oa = float(config_data["minimum_oa"])
+            self.high_limit = float(config.get("high_limit", 60.0))
+            self.economizer_type = int(config.get("economizer_type", 0))
+            self.damper_minimum = float(config.get("damper_minimum", 15.0))
+            self.minimum_oa = float(config.get("minimum_oa", 0.1))
             self.oae2_damper_threshold = (
-                float(config_data["oae2_damper_threshold"]))
-            self.oae2_oaf_threshold = float(config_data["oae2_oaf_threshold"])
-            self.oae4_oaf_threshold = float(config_data["oae4_oaf_threshold"])
-            self.oae5_oaf_threshold = float(config_data["oae5_oaf_threshold"])
-            self.damper_deadband = config_data.get('damper_deadband')
+                float(config.get("oae2_damper_threshold", 30.0)))
+            self.oae2_oaf_threshold = \
+                float(config.get("oae2_oaf_threshold", 0.25))
+            self.oae4_oaf_threshold = \
+                float(config.get("oae4_oaf_threshold", 0.25))
+            self.oae5_oaf_threshold = \
+                float(config.get("oae5_oaf_threshold", 0))
+            self.damper_deadband = config.get('damper_deadband', 10.0)
             # RTU rated parameters (e.g., capacity)
-            self.eer = float(config_data["EER"])
-            tonnage = float(config_data["tonnage"])
-            self.cfm = 300*tonnage
-            self.csv_input = int(config_data["csv_input"])
+            self.eer = float(config.get("EER", 10))
+            tonnage = float(config.get("tonnage"))
+            if tonnage:
+                self.cfm = 300*tonnage
+            self.csv_input = int(config["csv_input"])
             # Point names for input file (CSV) or BACnet config
-            self.timestamp_name = config_data.get('timestamp_name')
-            self.input_file = config_data.get('input_file', 'CONFIG_ERROR')
-            self.oat_name = config_data.get('oat_point_name')
-            self.rat_name = config_data.get('rat_point_name')
-            self.mat_name = config_data.get('mat_point_name')
-            self.fan_status_name = config_data.get('fan_status_point_name')
-            self.cool_cmd_name = config_data.get('cool_cmd_name')
-            self.heat_cmd_name = config_data.get('heat_cmd_name')
-            self.damper_name = config_data.get('damper_point_name')
+            self.timestamp_name = config.get('timestamp_name')
+            self.input_file = config.get('input_file', 'CONFIG_ERROR')
+            self.oat_name = config.get('oat_point_name')
+            self.rat_name = config.get('rat_point_name')
+            self.mat_name = config.get('mat_point_name')
+            self.fan_status_name = config.get('fan_status_point_name')
+            self.cool_cmd_name = config.get('cool_cmd_name')
+            self.heat_cmd_name = config.get('heat_cmd_name')
+            self.damper_name = config.get('damper_point_name')
             # Misc. data configuration parameters
-            self.sampling_rate = config_data.get('sampling_rate')
-            self.mat_missing = config_data.get('mixed_air_sensor_missing')
+            self.sampling_rate = config.get('sampling_rate')
+            self.mat_missing = config.get('mixed_air_sensor_missing')
             # Device occupancy schedule
-            sunday = config_data.get('Sunday')
-            monday = config_data.get('Monday')
-            tuesday = config_data.get('Tuesday')
-            wednesday = config_data.get('Wednesday')
-            thursday = config_data.get('Thursday')
-            friday = config_data.get('Friday')
-            saturday = config_data.get('Saturday')
+            sunday = config.get('Sunday')
+            monday = config.get('Monday')
+            tuesday = config.get('Tuesday')
+            wednesday = config.get('Wednesday')
+            thursday = config.get('Thursday')
+            friday = config.get('Friday')
+            saturday = config.get('Saturday')
 
             self.schedule_dict = dict({0: sunday, 1: monday, 2: tuesday,
                                        3: wednesday, 4: thursday, 5: friday,
@@ -144,7 +148,7 @@ def passiveafdd(config_path, **kwargs):
             self.matemp_raw = []
             self.oatemp_raw = []
             self.ratemp_raw = []
-            self.compressor_raw = []
+            self.cooling_raw = []
             self.heating_raw = []
             self.damper_raw = []
             self.fan_status_raw = []
@@ -154,20 +158,20 @@ def passiveafdd(config_path, **kwargs):
             self.matemp = []
             self.oatemp = []
             self.ratemp = []
-            self.compressor = []
+            self.cooling = []
             self.heating = []
             self.damper = []
             self.fan_status = []
             self.run_aggregate = None
-            self.names = [config_data.get('oat_point_name'),
-                          config_data.get('mat_point_name'),
-                          config_data.get('dat_point_name'),
-                          config_data.get('rat_point_name'),
-                          config_data.get('damper_point_name'),
-                          config_data.get('cool_cmd_name'),
-                          config_data.get('fan_status_point_name'),
-                          config_data.get('heat_cmd_name')]
-            self.file = config_data.get('input_file')
+            self.names = [config.get('oat_point_name'),
+                          config.get('mat_point_name'),
+                          config.get('dat_point_name'),
+                          config.get('rat_point_name'),
+                          config.get('damper_point_name'),
+                          config.get('cool_cmd_name'),
+                          config.get('fan_status_point_name'),
+                          config.get('heat_cmd_name')]
+            self.file = config.get('input_file')
 
         def setup(self):
             '''Enter location for the data file if using text csv.
@@ -197,11 +201,11 @@ def passiveafdd(config_path, **kwargs):
                     self.bldg_data = read_oae_pandas(self.file_path,
                                                      self.names)
                 self.process_data()
-            except Exception, e:
-                _log.exception('Error:' + e)
+            except:
+                _log.exception('Error:' + str(sys.exc_info()[0]))
 
         def process_data(self):
-            '''Aggregate the data based on compressor status, heating status,
+            '''Aggregate the data based on cooling status, heating status,
             and supply-fan status where one hour is the largest aggregated
             interval.
             '''
@@ -212,7 +216,7 @@ def passiveafdd(config_path, **kwargs):
                 matemp = self.bldg_data[self.mat_name].tolist()
                 oatemp = self.bldg_data[self.oat_name].tolist()
                 ratemp = self.bldg_data[self.rat_name].tolist()
-                compressor = self.bldg_data[self.cool_cmd_name].tolist()
+                cooling = self.bldg_data[self.cool_cmd_name].tolist()
                 heating = self.bldg_data[self.heat_cmd_name].tolist()
                 damper = self.bldg_data[self.damper_name].tolist()
                 fan_status = self.bldg_data[self.fan_status_name].tolist()
@@ -221,7 +225,7 @@ def passiveafdd(config_path, **kwargs):
                 matemp = self.matemp_raw
                 oatemp = self.oatemp_raw
                 ratemp = self.ratemp_raw
-                compressor = self.compressor_raw
+                cooling = self.cooling_raw
                 heating = self.heating_raw
                 damper = self.damper_raw
                 fan_status = self.fan_status_raw
@@ -252,7 +256,7 @@ def passiveafdd(config_path, **kwargs):
                         self.oatemp.append(numpy.mean(temp_oat))
                         self.matemp.append(numpy.mean(temp_mat))
                         self.ratemp.append(numpy.mean(temp_rat))
-                        self.compressor.append(compressor[points])
+                        self.cooling.append(cooling[points])
                         self.fan_status.append(fan_status[points])
                         self.heating.append(heating[points])
                         temp_damper = []
@@ -260,8 +264,9 @@ def passiveafdd(config_path, **kwargs):
                         temp_oat = []
                         temp_rat = []
 
-                    elif (compressor[points+1] != compressor[points] or
+                    elif (cooling[points+1] != cooling[points] or
                           heating[points+1] != heating[points] or
+                          fan_status[points+1] != fan_status[points] or
                           ((timestamp[points+1] - timestamp[points] >
                             datetime.timedelta(minutes=self.sampling_rate)))):
                         self.timestamp.append(timestamp[points])
@@ -275,7 +280,7 @@ def passiveafdd(config_path, **kwargs):
                         self.oatemp.append(numpy.mean(temp_oat))
                         self.matemp.append(numpy.mean(temp_mat))
                         self.ratemp.append(numpy.mean(temp_rat))
-                        self.compressor.append(compressor[points])
+                        self.cooling.append(cooling[points])
                         self.fan_status.append(fan_status[points])
                         self.heating.append(heating[points])
                         temp_damper = []
@@ -298,7 +303,7 @@ def passiveafdd(config_path, **kwargs):
                         self.oatemp.append(numpy.mean(temp_oat))
                         self.matemp.append(numpy.mean(temp_mat))
                         self.ratemp.append(numpy.mean(temp_rat))
-                        self.compressor.append(compressor[points+1])
+                        self.cooling.append(cooling[points+1])
                         self.fan_status.append(fan_status[points+1])
                         self.heating.append(heating[points+1])
                         temp_damper = []
@@ -306,10 +311,11 @@ def passiveafdd(config_path, **kwargs):
                         temp_oat = []
                         temp_rat = []
             else:
+                self.timestamp = timestamp
                 self.matemp = matemp
                 self.oatemp = oatemp
                 self.ratemp = ratemp
-                self.compressor = compressor
+                self.cooling = cooling
                 self.heating = heating
                 self.damper = damper
                 self.fan_status = fan_status
@@ -318,7 +324,7 @@ def passiveafdd(config_path, **kwargs):
             self.matemp_raw = []
             self.oatemp_raw = []
             self.ratemp_raw = []
-            self.compressor_raw = []
+            self.cooling_raw = []
             self.heating_raw = []
             self.damper_raw = []
             self.fan_status_raw = []
@@ -331,15 +337,16 @@ def passiveafdd(config_path, **kwargs):
                     if math.isnan(data[x]):
                         data[x] = -99
                 return data
+            self.newdata = len(self.timestamp)
             self.matemp = check_nan(self.matemp)
             self.oatemp = check_nan(self.oatemp)
             self.ratemp = check_nan(self.ratemp)
-            self.compressor = check_nan(self.compressor)
+            self.cooling = check_nan(self.cooling)
             self.heating = check_nan(self.heating)
             self.damper = check_nan(self.damper)
             self.fan_status = check_nan(self.fan_status)
             self.oaf = self.calculate_oaf()
-            # self.output_aggregate()
+            self.output_aggregate()
             _log.info('Performing Diagnostic')
             oae_1 = self.sensor_diagnostic()
             oae_2 = self.economizer_diagnostic1()
@@ -351,6 +358,7 @@ def passiveafdd(config_path, **kwargs):
             contents = [self.timestamp, oae_1, oae_2, oae_3, oae_4, oae_5,
                         oae_6, energy_impact, self.oaf]
             result_writer(contents)
+            _log.info('Processing Done!')
 
         def output_aggregate(self):
             '''output_aggregate writes the results of the data
@@ -364,20 +372,20 @@ def passiveafdd(config_path, **kwargs):
 
             ofile = open(file_path, 'wb')
             x = [self.timestamp, self.oatemp, self.matemp, self.ratemp,
-                 self.damper, self.compressor, self.heating, self.fan_status]
+                 self.damper, self.cooling, self.heating, self.fan_status]
             outs = csv.writer(ofile, dialect='excel')
             writer = csv.DictWriter(ofile, fieldnames=["Timestamp",
                                                        "OutsideAirTemp",
                                                        "MixedAirTemp",
                                                        "ReturnAirTemp",
                                                        "Damper",
-                                                       "CompressorStatus",
+                                                       "CoolingStatus",
                                                        "Heating",
                                                        "FanStatus"],
                                     delimiter=',')
             writer.writeheader()
             for row in itertools.izip_longest(*x):
-                    outs.writerow(row)
+                outs.writerow(row)
             ofile.close()
 
         def calculate_oaf(self):
@@ -404,7 +412,7 @@ def passiveafdd(config_path, **kwargs):
                            self.ratemp[points] != -99 and
                            self.oatemp[points] != -99):
                             if ((int(self.matemp_missing) and
-                               int(self.compressor[points]) or
+                               int(self.cooling[points]) or
                                int(self.heating[points]))):
                                 oae1_result.append(22)
                             elif (self.matemp[points] < self.mat_low or
@@ -450,13 +458,13 @@ def passiveafdd(config_path, **kwargs):
                     if self.fan_status[points]:
                         if (self.ratemp[points] != -99 and
                            self.oatemp[points] != -99 and
-                           self.compressor[points] != -99 and
+                           self.cooling[points] != -99 and
                            self.damper[points] != -99):
                             if((self.ratemp[points] - self.oatemp[points] >
-                                self.temp_deadband and
+                                self.temp_deadband and self.cooling[points] and
                                 self.economizer_type == 0.0) or
                                 (self.high_limit - self.oatemp[points] >
-                                 self.temp_deadband and
+                                 self.temp_deadband and self.cooling[points] and
                                  self.economizer_type == 1.0)):
                                 if ((100.0 - self.damper[points]) <
                                    self.oae2_damper_threshold):
@@ -482,7 +490,7 @@ def passiveafdd(config_path, **kwargs):
                                             oae2_result.append(38)
                                     elif not ((
                                           self.heating[points] and
-                                          self.compressor[points]) and
+                                          self.cooling[points]) and
                                           math.fabs(
                                             self.oatemp[points] -
                                             self.ratemp[points]) > 5.0 and
@@ -525,7 +533,7 @@ def passiveafdd(config_path, **kwargs):
             for points in xrange(0, self.newdata):
                 if self.fan_status[points] != -99:
                     if self.fan_status[points]:
-                        if (self.compressor[points] != -99 and
+                        if (self.cooling[points] != -99 and
                            self.ratemp[points] != -99 and
                            self.oatemp[points] != -99 and
                            self.damper[points] != -99):
@@ -561,7 +569,7 @@ def passiveafdd(config_path, **kwargs):
             for points in xrange(0, self.newdata):
                 if self.fan_status[points] != -99:
                     if self.fan_status[points]:
-                        if (self.compressor[points] != -99 and
+                        if (self.cooling[points] != -99 and
                            self.oatemp[points] != -99 and
                            self.ratemp[points] != -99 and
                            self.damper[points] != -99):
@@ -594,7 +602,7 @@ def passiveafdd(config_path, **kwargs):
                                             # unexpected value (No fault).
                                             oae4_result.append(58)
                                     elif (not int(self.heating[points]) and
-                                          not int(self.compressor[points]) and
+                                          not int(self.cooling[points]) and
                                           math.fabs(self.oatemp[points] -
                                                     self.ratemp[points]) >
                                           5.0 and self.matemp_missing):
@@ -644,7 +652,7 @@ def passiveafdd(config_path, **kwargs):
             for points in xrange(0, self.newdata):
                 if self.fan_status[points] != -99:
                     if int(self.fan_status[points]):
-                        if (self.compressor[points] != -99 and
+                        if (self.cooling[points] != -99 and
                            self.oatemp[points] != -99 and
                            self.ratemp[points] != -99 and
                            self.damper[points] != -99):
@@ -674,7 +682,7 @@ def passiveafdd(config_path, **kwargs):
                                 elif (math.fabs(self.oatemp[points] -
                                                 self.ratemp[points]) > 5.0 and
                                       self.matemp_missing and not
-                                      int(self.compressor[points]) and
+                                      int(self.cooling[points]) and
                                       int(self.heating[points])):
                                     if ((self.minimum_oa - self.oaf[points]) >
                                         self.oae5_oaf_threshold and
@@ -714,9 +722,9 @@ def passiveafdd(config_path, **kwargs):
             oae6_result = []
             for points in xrange(0, self.newdata):
                 if (self.fan_status[points] != -99 and
-                   self.compressor[points] != -99):
+                   self.cooling[points] != -99):
                     if (int(self.fan_status[points]) or
-                       int(self.compressor[points])):
+                       int(self.cooling[points])):
                         day = self.timestamp[points].weekday()
                         sched = self.schedule_dict[day]
                         start = int(sched[0])
@@ -791,7 +799,7 @@ def passiveafdd(config_path, **kwargs):
                 self.matemp_raw = []
                 self.oatemp_raw = []
                 self.ratemp_raw = []
-                self.compressor_raw = []
+                self.cooling_raw = []
                 self.heating_raw = []
                 self.damper_raw = []
                 self.fan_status_raw = []
@@ -808,7 +816,7 @@ def passiveafdd(config_path, **kwargs):
                 time_check = time + time_delta
                 self.timestamp_raw.append(time)
                 self.fan_status_raw.append(data[self.fan_status_name])
-                self.compressor_raw.append(data[self.coolcmd1_name])
+                self.cooling_raw.append(data[self.coolcmd1_name])
                 self.heating_raw.append(data[self.heat_cmd1_name])
                 self.damper_raw.append(data[self.damper_name])
                 self.oatemp_raw.append(data[self.oat_name])
@@ -821,7 +829,7 @@ def passiveafdd(config_path, **kwargs):
                     self.timestamp_raw = []
                     self.oatemp_raw = []
                     self.ratemp_raw = []
-                    self.compressor_raw = []
+                    self.cooling_raw = []
                     self.heating_raw = []
                     self.damper_raw = []
                     self.fan_status_raw = []
@@ -829,7 +837,7 @@ def passiveafdd(config_path, **kwargs):
             if publisher_id != 'publisher':
                 self.timestamp_raw.append(datetime.datetime.now())
                 self.fan_status_raw.append(data[self.fan_status_name])
-                self.compressor_raw.append(data[self.coolcmd1_name])
+                self.cooling_raw.append(data[self.coolcmd1_name])
                 self.heating_raw.append(data[self.heat_cmd1_name])
                 self.damper_raw.append(data[self.damper_name])
                 self.oatemp_raw.append(data[self.oat_name])

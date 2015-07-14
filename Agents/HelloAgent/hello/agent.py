@@ -96,8 +96,8 @@ def hello_agent(config_path, **kwargs):
             super(Agent, self).__init__(vip_identity=vip_identity, **kwargs)
 
         @export()
-        def sayHello(self, name="juniper"):
-            return "Hello, "+name+ " from " + agentid
+        def sayHello(self, payload="'name': 'juniper'"):
+            return "Hello, {them} from {me}".format(them=payload['name'], me=agentid)
 
     Agent.__name__ = 'HelloAgent'
     return Agent(**kwargs)

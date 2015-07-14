@@ -17,10 +17,15 @@ var LoginForm = React.createClass({
     _onStoresChange: function () {
         this.setState(getStateFromStores());
     },
-    _onInputChange: function () {
+    _onUsernameChange: function (e) {
         this.setState({
-            username: this.refs.username.getDOMNode().value,
-            password: this.refs.password.getDOMNode().value,
+            username: e.target.value,
+            error: null,
+        });
+    },
+    _onPasswordChange: function (e) {
+        this.setState({
+            password: e.target.value,
             error: null,
         });
     },
@@ -36,18 +41,16 @@ var LoginForm = React.createClass({
             <form className="login-form" onSubmit={this._onSubmit}>
                 <input
                     className="login-form__field"
-                    ref="username"
                     type="text"
                     placeholder="Username"
                     autoFocus
-                    onChange={this._onInputChange}
+                    onChange={this._onUsernameChange}
                 />
                 <input
                     className="login-form__field"
-                    ref="password"
                     type="password"
                     placeholder="Password"
-                    onChange={this._onInputChange}
+                    onChange={this._onPasswordChange}
                 />
                 <input
                     className="button login-form__submit"

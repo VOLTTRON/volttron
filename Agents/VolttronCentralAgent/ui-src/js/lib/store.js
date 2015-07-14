@@ -6,6 +6,7 @@ var CHANGE_EVENT = 'change';
 
 function Store() {
     EventEmitter.call(this);
+    this.setMaxListeners(0);
 }
 Store.prototype = EventEmitter.prototype;
 

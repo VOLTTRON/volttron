@@ -70,9 +70,10 @@ import tempfile
 import traceback
 
 import gevent
+import gevent.event
 
 from .agent import utils
-from .vipagent import Agent as BaseAgent, RPC
+from .vip.agent import Agent as BaseAgent, RPC
 from . import aip as aipmod
 from . import config
 from .jsonrpc import RemoteError
@@ -463,8 +464,7 @@ def _send_agent(connection, peer, path):
 def send_agent(opts):
     connection = opts.connection
     for wheel in opts.wheel:
-        uuid = _send_agent(connection.server, connection.peer, wheel).get(
-            timeout=connection.timeout)
+        uuid = _send_agent(connection.server, connection.peer, wheel).get()
         connection.call('start_agent', uuid)
         _stdout.write('Agent {} started as {}\n'.format(wheel, uuid))
 
@@ -493,9 +493,8 @@ def send_agent(opts):
 
 
 class Connection(object):
-    def __init__(self, address, timeout=30, peer='control'):
+    def __init__(self, address, peer='control'):
         self.address = address
-        self.timeout = timeout
         self.peer = peer
         self._server = BaseAgent(address=self.address)
         self._greenlet = None
@@ -503,17 +502,18 @@ class Connection(object):
     @property
     def server(self):
         if self._greenlet is None:
-            self._greenlet = gevent.spawn(self._server.core.run)
-            gevent.sleep(0)
+            event = gevent.event.Event()
+            self._greenlet = gevent.spawn(self._server.core.run, event)
+            event.wait()
         return self._server
 
     def call(self, method, *args, **kwargs):
         return self.server.vip.rpc.call(
-            self.peer, method, *args, **kwargs).get(timeout=self.timeout)
+            self.peer, method, *args, **kwargs).get()
 
     def notify(self, method, *args, **kwargs):
         return self.server.vip.rpc.notify(
-            self.peer, method, *args, **kwargs).get(timeout=self.timeout)
+            self.peer, method, *args, **kwargs)
 
     def kill(self, *args, **kwargs):
         if self._greenlet is not None:
@@ -528,6 +528,12 @@ def priority(value):
 
 
 def main(argv=sys.argv):
+    # Refuse to run as root
+    if not getattr(os, 'getuid', lambda: -1)():
+        sys.stderr.write('%s: error: refusing to run as root to prevent '
+                         'potential damage.\n' % os.path.basename(argv[0]))
+        sys.exit(77)
+
     volttron_home = config.expandall(
             os.environ.get('VOLTTRON_HOME', '~/.volttron'))
     os.environ['VOLTTRON_HOME'] = volttron_home
@@ -719,10 +725,14 @@ def main(argv=sys.argv):
     opts.vip_address = config.expandall(opts.vip_address)
     opts.aip = aipmod.AIPplatform(opts)
     opts.aip.setup()
-    opts.connection = Connection(opts.vip_address, opts.timeout)
+    opts.connection = Connection(opts.vip_address)
 
     try:
-        return opts.func(opts)
+        with gevent.Timeout(opts.timeout):
+            return opts.func(opts)
+    except gevent.Timeout:
+        _stderr.write('{}: operation timed out\n'.format(opts.command))
+        return 75
     except RemoteError as exc:
         print_tb = exc.print_tb
         error = exc.message

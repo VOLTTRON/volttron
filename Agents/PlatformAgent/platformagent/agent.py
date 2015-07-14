@@ -71,7 +71,7 @@ import psutil
 
 import gevent
 from zmq.utils import jsonapi
-from volttron.platform.vipagent import *
+from volttron.platform.vip.agent import *
 
 from volttron.platform import vip, jsonrpc, control
 from volttron.platform.control import Connection
@@ -117,24 +117,63 @@ def platform_agent(config_path, **kwargs):
             self._managers = set()
             self._managers_reachable = {}
             self._services = {}
+            self._settings = {}
+            self._load_settings()
+            self._agent_configurations = {}
 
+        def _store_settings(self):
+            with open('platform.settings', 'wb') as f:
+                f.write(jsonapi.dumps(self._settings))
+                f.close()
+
+        def _load_settings(self):
+            try:
+                with open('platform.settings', 'rb') as f:
+                    self._settings = self._settings = jsonapi.loads(f.read())
+                f.close()
+            except Exception as e:
+                _log.debug('Exception '+ e.message)
+                self._settings = {}
+
+        @RPC.export
+        def set_setting(self, key, value):
+            _log.debug("Setting key: {} to value: {}".format(key, value))
+            self._settings[key] = value
+            self._store_settings()
+
+
+        @RPC.export
+        def get_setting(self, key):
+            _log.debug('Retrieveing key: {}'.format(key))
+            return self._settings.get(key, None)
 
         @Core.periodic(15)
         def write_status(self):
+            historian_present = False
+            try:
+                ping = self.vip.ping('platform.historian', 'awake?').get(timeout=3)
+                historian_present = True
+            except Unreachable:
+                _log.warning('platform.historian not found!')
+                return
 
             base_topic = 'datalogger/log/platform/status'
-            cpu_times = base_topic + "/cpu_times"
+            cpu = base_topic + '/cpu'
             virtual_memory = base_topic + "/virtual_memory"
             disk_partitions = base_topic + "/disk_partiions"
 
             points = {}
 
-            for k, v in psutil.cpu_times().__dict__.items():
-                points[k] = {'Readings':v, 'Units': 'double'}
+            for k, v in psutil.cpu_times_percent().__dict__.items():
+                points['times_percent/' + k] = {'Readings': v,
+                                                'Units': 'double'}
+
+            points['percent'] = {'Readings': psutil.cpu_percent(),
+                                 'Units': 'double'}
 
             message = jsonapi.dumps(points)
             self.vip.pubsub.publish(peer='pubsub',
-                                    topic=cpu_times,
+                                    topic=cpu,
                                     message=[message])
 
         @RPC.export
@@ -191,6 +230,10 @@ def platform_agent(config_path, **kwargs):
             # First handle the elements that are going to this platform
             if method == 'list_agents':
                 result = self.list_agents()
+            elif method == 'set_setting':
+                result = self.set_setting(**params)
+            elif method == 'get_setting':
+                result = self.get_setting(**params)
             elif method == 'status_agents':
                 result = {'result': [{'name':a[1], 'uuid': a[0],
                                       'process_id': a[2][0],
@@ -271,38 +314,14 @@ def platform_agent(config_path, **kwargs):
 
         @Core.receiver('onstart')
         def starting(self, sender, **kwargs):
+            psutil.cpu_times_percent()
+            psutil.cpu_percent()
             self.vip.pubsub.publish(peer='pubsub', topic='/platform',
                                     message='available')
         @Core.receiver('onstop')
         def stoping(self, sender, **kwargs):
             self.vip.pubsub.publish(peer='pubsub', topic='/platform',
                                     message='leaving')
-
-#         @Core.receiver('onsetup')
-#         def setup(self, sender, **kwargs):
-#             _log.debug('platform agent setup.  Connection to {} -> {}'.format(
-#                             self.vc_vip_address, self.vc_vip_identity))
-#             self._ctl = Connection(self.vc_vip_address,
-#                                    peer=self.vc_vip_identity)
-
-#         @Core.receiver('onstart')
-#         def start(self, sender, **kwargs):
-#             _log.debug('Starting service vip info: {}'.format(
-#                                                         str(self.__dict__)))
-#             vip_addresses = self.vip.query_addresses().get(timeout=10)
-#             self._external_vip = find_registration_address(vip_addresses)
-#             self._register()
-
-#         #@periodic(period=60)
-#         def _register(self):
-#             _log.debug('platformagent sending call register {}'.format(
-#                                     str((vip_identity, agentid, self._external_vip))))
-#             self._external_vip = self._external_vip
-#             self._ctl.call("register_platform", vip_identity, agentid, self._external_vip)
-
-#         @Core.receiver('onfinish')
-#         def stop(self, sender, **kwargs):
-#             self._ctl.call("unregister_platform", vip_identity)
 
     PlatformAgent.__name__ = 'PlatformAgent'
     return PlatformAgent(identity=vip_identity, **kwargs)

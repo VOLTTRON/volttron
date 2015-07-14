@@ -61,7 +61,7 @@ import uuid
 import sqlite3
 
 from base_historian import BaseHistorianAgent
-from volttron.platform.vipagent import *
+from volttron.platform.vip.agent import *
 from volttron.platform.agent.base_query_historian import BaseQueryHistorianAgent
 #from volttron.platform.agent.base_historian import BaseHistorianAgent
 from volttron.platform.agent import utils, matching
@@ -111,7 +111,6 @@ def platform_historian_agent(config_path, **kwargs):
         def publish_to_historian(self, to_publish_list):
             #self.report_all_published()
             c = self.conn.cursor()
-            #print 'Publish info'
             for x in to_publish_list:
                 ts = x['timestamp']
                 topic = x['topic']
@@ -129,15 +128,15 @@ def platform_historian_agent(config_path, **kwargs):
                 c.execute('''INSERT OR REPLACE INTO data values(?, ?, ?)''',
                           (ts,topic_id,jsonapi.dumps(value)))
 
-                #pprint(x)
-            print('published {} data values:'.format(len(to_publish_list)))
 
             self.conn.commit()
             c.close()
 
+            _log.debug('published {} data values:'.format(len(to_publish_list)))
             self.report_all_published()
 
-        def query_historian(self, topic, start=None, end=None, skip=0, count=None):
+        def query_historian(self, topic, start=None, end=None, skip=0,
+                            count=None, order="FIRST_TO_LAST"):
             """This function should return the results of a query in the form:
             {"values": [(timestamp1, value1), (timestamp2, value2), ...],
              "metadata": {"key1": value1, "key2": value2, ...}}
@@ -147,7 +146,7 @@ def platform_historian_agent(config_path, **kwargs):
             query = '''SELECT data.ts, data.value_string
                        FROM data, topics
                        {where}
-                       ORDER BY data.ts
+                       {order_by}
                        {limit}
                        {offset}'''
 
@@ -164,6 +163,10 @@ def platform_historian_agent(config_path, **kwargs):
 
             where_statement = ' AND '.join(where_clauses)
 
+            order_by = 'ORDER BY data.ts ASC'
+            if order == 'LAST_TO_FIRST':
+                order_by = ' ORDER BY data.ts DESC'
+
             #can't have an offset without a limit
             # -1 = no limit and allows the user to
             # provied just an offset
@@ -177,12 +180,13 @@ def platform_historian_agent(config_path, **kwargs):
             if skip > 0:
                 offset_statement = 'OFFSET ?'
                 args.append(skip)
-                
+
             _log.debug("About to do real_query")
-            
+
             real_query = query.format(where=where_statement,
                                       limit=limit_statement,
-                                      offset=offset_statement)
+                                      offset=offset_statement,
+                                      order_by=order_by)
 
             print real_query
             print args

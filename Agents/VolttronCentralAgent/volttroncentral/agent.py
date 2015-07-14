@@ -75,7 +75,7 @@ from authenticate import Authenticate
 
 from volttron.platform.agent import utils
 from volttron.platform.async import AsyncCall
-from volttron.platform.vipagent import *
+from volttron.platform.vip.agent import *
 
 # from volttron.platform import vip, jsonrpc
 # from volttron.platform.agent.vipagent import (BaseAgent, RPCAgent, periodic,
@@ -211,7 +211,7 @@ def volttron_central_agent(config_path, **kwargs):
         session_handler = SessionHandler(Authenticate(user_map))
         webserver = ManagerWebApplication(session_handler, manager,
                                           hander_config, debug=True)
-        webserver.listen(server_conf.get('port', 8080),
+        webserver.listen(server_conf.get('port', server_conf.get('port', 8080)),
                          server_conf.get('host', ''))
         tornado.ioloop.IOLoop.instance().start()
 
