@@ -1251,6 +1251,7 @@ module.exports = Exchange;
 'use strict';
 
 var d3 = require('d3');
+var moment = require('moment');
 var React = require('react');
 
 var LineChart = React.createClass({displayName: "LineChart",
@@ -1262,9 +1263,9 @@ var LineChart = React.createClass({displayName: "LineChart",
 
         if (this.props.data.length &&
             typeof this.props.data[0][0] === 'string' &&
-            Date.parse(this.props.data[0][0])) {
+            Date.parse(this.props.data[0][0] + 'Z')) {
             initialState.data = this.props.data.map(function (value) {
-                return[Date.parse(value[0]), value[1]];
+                return[Date.parse(value[0] + 'Z'), value[1]];
             });
             initialState.xDates = true;
         }
@@ -1283,9 +1284,9 @@ var LineChart = React.createClass({displayName: "LineChart",
 
         if (newProps.data.length &&
             typeof newProps.data[0][0] === 'string' &&
-            Date.parse(newProps.data[0][0])) {
+            Date.parse(newProps.data[0][0] + 'Z')) {
             newState.data = newProps.data.map(function (value) {
-                return[Date.parse(value[0]), value[1]];
+                return[Date.parse(value[0] + 'Z'), value[1]];
             });
             newState.xDates = true;
         }
@@ -1315,7 +1316,7 @@ var LineChart = React.createClass({displayName: "LineChart",
                     key: "xAxis", 
                     className: "axis", 
                     strokeLinecap: "square", 
-                    d: 'M1,' + (this._height - 12) + 'L' + (this._width - 1) + ',' + (this._height - 12)}
+                    d: 'M3,' + (this._height - 19) + 'L' + (this._width - 3) + ',' + (this._height - 19)}
                 )
             );
 
@@ -1324,7 +1325,7 @@ var LineChart = React.createClass({displayName: "LineChart",
                     key: "yAxis", 
                     className: "axis", 
                     strokeLinecap: "square", 
-                    d: 'M1,12L1,' + (this._height - 12)}
+                    d: 'M3,17L3,' + (this._height - 19)}
                 )
             );
 
@@ -1348,24 +1349,24 @@ var LineChart = React.createClass({displayName: "LineChart",
                     this.props.chart.max : d3.max(this.state.data, function (d) { return d[1]; });
 
                 var x = d3.scale.linear()
-                    .range([0, this._width - 4])
+                    .range([4, this._width - 4])
                     .domain(xRange);
                 var y = d3.scale.linear()
-                    .range([this._height - 26, 0])
+                    .range([this._height - 20, 18])
                     .domain([yMin, yMax]);
 
                 var line = d3.svg.line()
-                    .x(function (d) { return x(d[0]) + 2; })
-                    .y(function (d) { return y(d[1]) + 13; });
+                    .x(function (d) { return x(d[0]); })
+                    .y(function (d) { return y(d[1]); });
 
                 contents.push(
                     React.createElement("text", {
                         key: "xMinLabel", 
                         className: "label", 
-                        x: "1", 
-                        y: this._height - 1
+                        x: "2", 
+                        y: this._height - 4
                     }, 
-                        this.state.xDates ? new Date(xRange[0]).toISOString() : xRange[0]
+                        this.state.xDates ? moment(xRange[0]).fromNow() : xRange[0]
                     )
                 );
 
@@ -1373,42 +1374,54 @@ var LineChart = React.createClass({displayName: "LineChart",
                     React.createElement("text", {
                         key: "xMaxLabel", 
                         className: "label", 
-                        x: this._width - 1, 
-                        y: this._height - 1, 
+                        x: this._width - 2, 
+                        y: this._height - 4, 
                         textAnchor: "end"
                     }, 
-                        this.state.xDates ? new Date(xRange[1]).toISOString() : xRange[1]
+                        this.state.xDates ? moment(xRange[1]).fromNow() : xRange[1]
                     )
                 );
 
                 contents.push(
                     React.createElement("text", {
                         key: "yMaxLabel", 
-                        className: "label", x: "0", y: "10"}, 
+                        className: "label", x: "2", y: "10"}, 
                         yMax
                     )
                 );
 
-                if (this.state.data.length > 1) {
+                contents.push(
+                    React.createElement("path", {
+                        key: "line", 
+                        className: "line", 
+                        strokeLinecap: "round", 
+                        d: line(this.state.data)}
+                    )
+                );
+
+                this.state.data.forEach(function (d, index) {
+                    var text;
+
+                    if (this.state.xDates) {
+                        text = d[1]  + ' @ ' + moment(d[0]).format('MMM d, YYYY h:mm:ss A');
+                    } else {
+                        text = d.join(', ');
+                    }
+
                     contents.push(
-                        React.createElement("path", {
-                            key: "line", 
-                            className: "line", 
-                            strokeLinecap: "round", 
-                            d: line(this.state.data)}
+                        React.createElement("g", {key: 'point' + index, className: "dot"}, 
+                            React.createElement("circle", {className: "outer", cx: x(d[0]), cy: y(d[1]), r: "4"}), 
+                            React.createElement("circle", {className: "inner", cx: x(d[0]), cy: y(d[1]), r: "2"}), 
+                            React.createElement("text", {
+                                x: this._width / 2, 
+                                y: "10", 
+                                textAnchor: "middle"
+                            }, 
+                                text
+                            )
                         )
                     );
-                } else {
-                    contents.push(
-                        React.createElement("circle", {
-                            key: "dot", 
-                            className: "dot", 
-                            cx: this._width / 2, 
-                            cy: y(this.state.data[0][1]) + 13, 
-                            r: "1"}
-                        )
-                    );
-                }
+                }, this);
             }
         }
 
@@ -1423,7 +1436,7 @@ var LineChart = React.createClass({displayName: "LineChart",
 module.exports = LineChart;
 
 
-},{"d3":undefined,"react":undefined}],17:[function(require,module,exports){
+},{"d3":undefined,"moment":undefined,"react":undefined}],17:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
