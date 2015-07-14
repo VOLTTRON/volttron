@@ -66,7 +66,7 @@ var Platforms = React.createClass({
                     return (
                         <div
                             key={platform.uuid}
-                            className="view__item"
+                            className="view__item view__item--list"
                         >
                             <h3>
                                 <Router.Link
@@ -90,7 +90,7 @@ var Platforms = React.createClass({
         }
 
         return (
-            <div className="view view--list">
+            <div className="view">
                 <h2>Platforms</h2>
                 <div className="view__actions">
                     <button className="button" onClick={this._onRegisterClick}>

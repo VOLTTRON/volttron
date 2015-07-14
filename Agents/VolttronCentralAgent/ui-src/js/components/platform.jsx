@@ -103,7 +103,7 @@ var Platform = React.createClass({
                 ].join('::');
 
                 return (
-                    <div key={key} className="chart chart--platform">
+                    <div key={key} className="view__item view__item--tile chart">
                         <h4 className="chart__title">{chart.topic}</h4>
                         <Chart
                             platform={platform}

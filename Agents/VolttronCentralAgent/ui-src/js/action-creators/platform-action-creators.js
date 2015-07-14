@@ -230,9 +230,7 @@ var platformActionCreators = {
                     type: ACTION_TYPES.RECEIVE_PLATFORM_TOPIC_DATA,
                     platform: platform,
                     topic: topic,
-                    data: result.values.map(function (value) {
-                        return[Date.parse(value[0]), value[1]];
-                    }),
+                    data: result.values,
                 });
             })
             .catch(rpc.Error, handle401);

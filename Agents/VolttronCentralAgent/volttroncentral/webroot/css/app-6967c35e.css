@@ -110,6 +110,12 @@ td:not(:first-child) {
     margin-left: 1em;
 }
 
+.form__control--block + .form__control-help,
+br + .form__control-help {
+    display: block;
+    margin-top: 0.5em;
+}
+
 .form__actions {
     margin-top: 1.5em;
     text-align: right;
@@ -329,20 +335,18 @@ td:not(:first-child) {
     width: 400px;
 }
 
-.chart--platform {
-    display: inline-block;
-    width: 33%;
-    padding: 1em;
-    box-sizing: border-box;
-}
-
 .chart__title {
     margin-bottom: 1.5rem;
 }
 
 .chart__svg {
     width: 100%;
-    height: 50px;
+    height: 80px;
+}
+
+.chart__svg--line .label {
+    font-size: 0.8333em;
+    fill: #999;
 }
 
 .chart__svg--line .axis {
@@ -355,6 +359,16 @@ td:not(:first-child) {
     fill: none;
     stroke: #45b;
     stroke-width: 2;
+}
+
+.chart__svg--line .dot {
+    fill: none;
+    stroke: #45b;
+    stroke-width: 2;
+}
+
+.chart__svg--line .no-data-text {
+    fill: #999;
 }
 
 .chart__actions {
@@ -374,19 +388,36 @@ td:not(:first-child) {
     margin-bottom: 1.5rem;
 }
 
-.view--list .view__item {
+.view__item--list {
     display: block;
     margin-bottom: 0;
     position: relative;
 }
 
-.view--tiled .view__item {
-    width: calc(50% - .75rem);
+.view__item--tile {
+    width: 100%;
     display: inline-block;
+    vertical-align: top;
 }
 
-.view--tiled .view__item:nth-child(even) {
-    margin-left: 1.5rem;
+@media (min-width: 1220px) and (max-width: 1859px) {
+    .view__item--tile {
+        width: calc(50% - .75rem);
+    }
+
+    .view__item--tile:nth-of-type(even) {
+        margin-left: 1.5rem;
+    }
+}
+
+@media (min-width: 1860px) {
+    .view__item--tile {
+        width: calc(33.3333% - 1rem);
+    }
+
+    .view__item--tile:not(:nth-of-type(3n + 1)) {
+        margin-left: 1.5rem;
+    }
 }
 
 a.view__item {
