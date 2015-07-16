@@ -64,6 +64,7 @@ from zmq.utils import jsonapi
 
 from . import Core, RPC, PubSub
 from .subsystems.pubsub import encode_peer
+from volttron.platform.messaging.headers import Headers
 
 
 class CompatPubSub(object):
@@ -156,11 +157,19 @@ class CompatPubSub(object):
                         ('' if topic[:1] == '/' else '/'), topic).encode('utf-8'))
 
     def forward(self, peer, sender, bus, topic, headers, message):
+        headers = Headers(headers)
         headers['VIP.peer'] = encode_peer(peer)
         headers['VIP.sender'] = encode_peer(sender)
         headers['VIP.bus'] = bus
         parts = [topic]
-        parts.append(jsonapi.dumps(headers))
-        if message:
-            parts.extend(message)
+        if message is not None:
+            if 'Content-Type' in headers:
+                if isinstance(message, list):
+                    parts.extend(message)
+                else:
+                    parts.append(message)
+            else:
+                parts.append(jsonapi.dumps(message))
+                headers['Content-Type'] = 'application/json'
+        parts.insert(1, jsonapi.dumps(headers.dict))
         self.out_sock.send_multipart(parts)
