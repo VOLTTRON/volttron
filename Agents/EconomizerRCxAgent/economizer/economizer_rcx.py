@@ -1185,6 +1185,7 @@ class excess_oa_intake(object):
             # color_code = 'GREEN'
             energy_impact = 0.0
             dx_msg = 30.0
+        energy_impact = round(energy_impact, 2)
         dx_table = {
             # 'datetime': current_time,
             # 'diagnostic_name': ECON4,
