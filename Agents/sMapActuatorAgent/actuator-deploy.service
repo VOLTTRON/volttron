@@ -6,7 +6,7 @@
     "lock_timeout": 3600,
     "schedule_publish_interval": 30,
     "heartbeat_interval": 30,
-    "schedule_state_file": "actuator_state.pickle",
+    "schedule_state_file": "smap_actuator_state.pickle",
     "connection-timeout": 10,
  	"points":
  	{
