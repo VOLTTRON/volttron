@@ -603,6 +603,7 @@ class temperature_sensor_dx(object):
         self.open_damper_time = int(open_damper_time)
         self.econ_time_check = td(minutes=self.open_damper_time - 1)
         temperature_sensor_dx.temp_sensor_problem = None
+        self.max_dx_time = 75
 
         '''Application thresholds (Configurable)'''
         self.data_window = float(data_window)
@@ -632,7 +633,6 @@ class temperature_sensor_dx(object):
                 ((cur_time - self.timestamp[-1])
                  .total_seconds()/60) > 5.0):
             self.econ_check = False
-
         self.timestamp.append(cur_time)
         elapsed_time = ((self.timestamp[-1] - self.timestamp[0])
                         .total_seconds()/60)
@@ -640,7 +640,7 @@ class temperature_sensor_dx(object):
 
         if (elapsed_time >= self.data_window and
                 len(self.timestamp) >= self.no_required_data):
-            if elapsed_time > td(minutes=75):
+            if elapsed_time > self.max_dx_time:
                 dx_result.insert_table_row(Application.analysis,
                                            {ECON1 + dx: 3.2})
                 dx_result = self.clear_data(dx_result)
@@ -784,6 +784,7 @@ class econ_correctly_on(object):
         self.no_required_data = no_required_data
         self.cfm = cfm
         self.eer = eer
+        self.max_dx_time = 75
 
         '''Application result messages'''
         self.alg_result_messages = [
@@ -842,7 +843,7 @@ class econ_correctly_on(object):
 
         if (elapsed_time >= self.data_window and
                 len(self.timestamp) >= self.no_required_data):
-            if elapsed_time > td(minutes=75):
+            if elapsed_time > self.max_dx_time:
                 dx_result.insert_table_row(Application.analysis,
                                            {ECON2 + dx: 13.2})
                 dx_result = self.clear_data(dx_result)
@@ -944,8 +945,7 @@ class econ_correctly_off(object):
              'No problems detected.',
              'The diagnostic led to inconclusive results, could not '
              'verify the status of the economizer.']
-        self.cfm = cfm
-        self.eer = float(eer)
+        self.max_dx_time = 75
         self.data_window = float(data_window)
         self.no_required_data = no_required_data
         self.min_damper_sp = float(min_damper_sp)
@@ -978,7 +978,7 @@ class econ_correctly_off(object):
 
         if (elapsed_time >= self.data_window and
                 len(self.timestamp) >= self.no_required_data):
-            if elapsed_time > td(minutes=75):
+            if elapsed_time > self.max_dx_time:
                 dx_result.insert_table_row(Application.analysis,
                                            {ECON3 + dx: 23.2})
                 dx_result = self.clear_data(dx_result)
@@ -1068,6 +1068,7 @@ class excess_oa_intake(object):
         # Application thresholds (Configurable)
         self.cfm = cfm
         self.eer = eer
+        self.max_dx_time = 75
         self.data_window = float(data_window)
         self.no_required_data = no_required_data
         self.excess_oaf_threshold = float(excess_oaf_threshold)
@@ -1098,7 +1099,7 @@ class excess_oa_intake(object):
         elapsed_time = elapsed_time if elapsed_time > 0 else 1.0
         if (elapsed_time >= self.data_window and
                 len(self.timestamp) >= self.no_required_data):
-            if elapsed_time > td(minutes=75):
+            if elapsed_time > self.max_dx_time:
                 dx_result.insert_table_row(Application.analysis,
                                            {ECON4 + dx: 35.2})
                 dx_result = self.clear_data(dx_result)
@@ -1230,7 +1231,7 @@ class insufficient_oa_intake(object):
         '''Application thresholds (Configurable)'''
         self.data_window = float(data_window)
         self.no_required_data = no_required_data
-
+        self.max_dx_time = 75
         self.ventilation_oaf_threshold = float(ventilation_oaf_threshold)
         self.insufficient_damper_threshold = float(
             insufficient_damper_threshold)
@@ -1252,7 +1253,7 @@ class insufficient_oa_intake(object):
 
         if (elapsed_time >= self.data_window and
                 len(self.timestamp) >= self.no_required_data):
-            if elapsed_time > td(minutes=75):
+            if elapsed_time > self.max_dx_time:
                 dx_result.insert_table_row(Application.analysis,
                                            {ECON5 + dx: 44.2})
                 dx_result = self.clear_data(dx_result)
