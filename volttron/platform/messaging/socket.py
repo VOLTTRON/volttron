@@ -57,10 +57,14 @@
 
 '''VOLTTRON platform™ messaging classes.'''
 
+from __future__ import absolute_import
+
 import collections
 
 import zmq
 from zmq.utils import jsonapi
+
+from .headers import Headers
 
 
 __all__ = ['Headers', 'Socket']
@@ -68,32 +72,6 @@ __all__ = ['Headers', 'Socket']
 __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2013, Battelle Memorial Institute'
 __license__ = 'FreeBSD'
-
-
-class Headers(collections.MutableMapping):
-    '''Case-insensitive dictionary for HTTP-like headers.'''
-    def __init__(self, *args, **kwargs):
-        self._dict = dict((k.lower(), (k, v)) for k, v in
-                          dict(*args, **kwargs).iteritems())
-    @property
-    def dict(self):
-        '''Access the headers as a dict object.'''
-        return dict(self.iteritems())
-    def __getitem__(self, key):
-        return self._dict[key.lower()][1]
-    def __setitem__(self, key, value):
-        self._dict[key.lower()] = key, value
-    def __delitem__(self, key):
-        del self._dict[key.lower()]
-    def __iter__(self):
-        return (key for key, value in self._dict.itervalues())
-    def __len__(self):
-        return len(self._dict)
-    def iteritems(self):
-        return self._dict.itervalues()
-    def __repr__(self):
-        return '{}({}{}{})'.format(self.__class__.__name__, '{', ', '.join(
-                '{!r}: {!r}'.format(k, v) for k, v in self.iteritems()), '}')
 
 
 class Socket(zmq.Socket):
