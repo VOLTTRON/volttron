@@ -50,3 +50,269 @@ PACIFIC NORTHWEST NATIONAL LABORATORY
 operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 under Contract DE-AC05-76RL01830
 '''
+
+from gevent import monkey
+monkey.patch_socket()
+
+from pymodbus.client.sync import ModbusTcpClient as SyncModbusClient  
+from pymodbus.exceptions import ConnectionException, ModbusIOException, ModbusException
+from pymodbus.pdu import ExceptionResponse
+from pymodbus.constants import Defaults
+
+from interfaces import BaseInterface, BaseRegister
+
+import struct
+from csv import DictReader
+from StringIO import StringIO
+import os.path
+
+MODBUS_REGISTER_SIZE = 2
+MODBUS_READ_MAX = 100
+PYMODBUS_REGISTER_STRUCT = struct.Struct('>H')
+
+path = os.path.dirname(os.path.abspath(__file__))
+configFile = os.path.join(path, "example.csv")
+
+
+class ModbusInterfaceException(ModbusException):
+    pass
+
+class ModbusRegisterBase(BaseRegister):
+    def __init__(self, address, register_type, read_only, pointName, units, description = '', slave_id=0):
+        super(ModbusRegisterBase, self).__init__(register_type, read_only, pointName, units, description = '')
+        self.address = address
+        self.slave_id = slave_id
+
+class ModbusBitRegister(ModbusRegisterBase):
+    def __init__(self, address, type_string, pointName, units, read_only, description = '', slave_id=0):
+        super(ModbusBitRegister, self).__init__(address, "bit", read_only, pointName, units, 
+                                                description = description, slave_id=slave_id)        
+        
+        self.python_type = bool
+    
+    def parse_value(self, starting_address, bit_stream):
+        #find the bytes we care about
+        index = (self.address - starting_address)        
+        return bit_stream[index]
+    
+    def get_register_count(self):
+        return 1
+    
+    def get_state(self, client):
+        response_bits = client.read_discrete_inputs(self.address, unit=self.slave_id) if self.read_only else client.read_coils(self.address, unit=self.slave_id)
+        if response_bits is None:
+            raise ModbusInterfaceException("pymodbus returned None")
+        return response_bits.bits[0]
+    
+    def set_state(self, client, value):
+        if not self.read_only:   
+            response = client.write_coil(self.address, value, unit=self.slave_id)
+            if response is None:
+                raise ModbusInterfaceException("pymodbus returned None")
+            if isinstance(response, ExceptionResponse):
+                raise ModbusInterfaceException(str(response))
+            return response.value
+        return None
+
+class ModbusByteRegister(ModbusRegisterBase):
+    def __init__(self, address, type_string, pointName, units, read_only, description = '', slave_id=0):
+        super(ModbusByteRegister, self).__init__(address, "byte", read_only, 
+                                                 pointName, units, description = description, slave_id=slave_id)
+        
+        try:
+            self.parse_struct = struct.Struct(type_string)
+        except struct.error:
+            raise ValueError("Invalid Modbus Register '" + type_string + "' for point " + pointName)
+        
+        struct_types = [type(x) for x in self.parse_struct.unpack('\x00'*self.parse_struct.size)]
+        
+        if len(struct_types) != 1:
+            raise ValueError("Invalid length Modbus Register '" + type_string + "' for point " + pointName)
+        
+        self.python_type = struct_types[0]
+        
+    def get_register_count(self):        
+        return self.parse_struct.size // MODBUS_REGISTER_SIZE
+    
+    def parse_value(self, starting_address, byte_stream):
+        #find the bytes we care about
+        index = (self.address - starting_address) * 2
+        width = self.parse_struct.size
+        
+        target_bytes = byte_stream[index:index+width]
+        if len(target_bytes) < width:
+            raise ValueError('Not enough data to parse')
+        
+        return self.parse_struct.unpack(target_bytes)[0]
+    
+   
+    def get_state(self, client):
+        if self.read_only:
+            response = client.read_input_registers(self.address, count=self.get_register_count(), unit=self.slave_id)
+        else:
+            response = client.read_holding_registers(self.address, count=self.get_register_count(), unit=self.slave_id)
+            
+        if response is None:
+            raise ModbusInterfaceException("pymodbus returned None")
+        response_bytes = response.encode()
+        #skip the result count
+        return self.parse_struct.unpack(response_bytes[1:])[0]
+    
+    
+    def set_state(self, client, value):
+        if not self.read_only:   
+            value_bytes = self.parse_struct.pack(value)
+            register_values = PYMODBUS_REGISTER_STRUCT.unpack_from(value_bytes)
+            client.write_registers(self.address, register_values, unit=self.slave_id)
+            return self.get_state(client)
+        return None
+    
+        
+class Interface(BaseInterface):
+    def __init__(self, **kwargs):
+        super(Interface, self).__init__(**kwargs)
+        self.build_ranges_map()
+        
+    def configure(self, config_dict, registry_config_str):
+        self.slave_id=config_dict.get("slave_id", 0)
+        self.ip_address = config_dict["device_address"]
+        self.port = config_dict.get("port", Defaults.Port)
+        self.parse_config(registry_config_str) 
+        
+    def build_ranges_map(self):
+        self.register_ranges = {('byte',True):[None,None],
+                                ('byte',False):[None,None],
+                                ('bit',True):[None,None],
+                                ('bit',False):[None,None]}
+        
+    def insert_register(self, register):
+        super(Interface, self).insert_register(register)
+        
+        register_type = register.get_register_type()
+        
+        register_range = self.register_ranges[register_type]    
+        register_count = register.get_register_count()
+        
+        start, end = register.address, register.address + register_count - 1
+        
+        if register_range[0] is None:
+            register_range[:] = start, end            
+        else:
+            if register_range[0] > start:
+                register_range[0] = start
+            if register_range[1] < end:
+                register_range[1] = end        
+        
+    def get_point(self, point_name):    
+        register = self.point_map[point_name]
+        client = SyncModbusClient(self.ip_address, port=self.port)
+        try:
+            result = register.get_state_sync(client)
+        except (ConnectionException, ModbusIOException, ModbusInterfaceException):
+            result = None
+        finally:
+            client.close()
+        return result
+    
+    def set_point(self, point_name, value):    
+        register = self.point_map[point_name]
+        client = SyncModbusClient(self.ip_address, port=self.port)
+        result = None
+        try:
+            result = register.set_state_sync(client, value)
+        except (ConnectionException, ModbusIOException, ModbusInterfaceException):
+            result = None
+        finally:
+            client.close()
+        return result
+    
+    def scrape_byte_registers(self, client, read_only):
+        result_dict = {}
+        start, end = self.register_ranges[('byte',read_only)]
+        registers = self.registers[('byte',read_only)]
+        
+        if not registers:
+            return result_dict
+        
+        result = ''
+        
+        for group in xrange(start, end + 1, MODBUS_READ_MAX):
+            count = min(end - group + 1, MODBUS_READ_MAX)            
+            response = client.read_input_registers(group, count, unit=self.slave_id) if read_only else client.read_holding_registers(group, count, unit=self.slave_id)
+            if response is None:
+                raise ModbusInterfaceException("pymodbus returned None")
+            response_bytes = response.encode()
+            result += response_bytes[1:]
+            
+        for register in registers:
+            point = register.point_name
+            value = register.parse_value(start, result)
+            result_dict[point] = value
+            
+        return result_dict
+    
+    def scrape_bit_registers(self, client, read_only):
+        result_dict = {}
+        start, end = self.register_ranges[('bit',read_only)]
+        registers = self.registers[('bit',read_only)]
+        
+        if not registers:
+            return result_dict
+        
+        result = []
+        
+        for group in xrange(start, end + 1, MODBUS_READ_MAX):
+            count = min(end - group + 1, MODBUS_READ_MAX)            
+            response = client.read_discrete_inputs(group, count, unit=self.slave_id) if read_only else client.read_coils(group, count, unit=self.slave_id)
+            if response is None:
+                raise ModbusInterfaceException("pymodbus returned None")
+            result += response.bits
+            
+        for register in registers:
+            point = register.point_name
+            value = register.parse_value(start, result)
+            result_dict[point] = value
+            
+        return result_dict
+        
+    def scrape_all(self):
+        result_dict={}
+        try:
+            client = SyncModbusClient(self.ip_address, port=self.port)
+            
+            result_dict.update(self.scrape_byte_registers(client, True))
+            result_dict.update(self.scrape_byte_registers(client, False))
+            
+            result_dict.update(self.scrape_bit_registers(client, True))
+            result_dict.update(self.scrape_bit_registers(client, False))
+        except (ConnectionException, ModbusIOException, ModbusInterfaceException) as e:
+            print ("ERROR: Failed to scrape device at " + 
+                   self.ip_address + ":" + str(self.port) + " " + 
+                   "ID: " + str(self.slave_id) + str(e))
+            return None
+        finally:
+            client.close()
+        
+        return result_dict
+    
+    def parse_config(self, config_string):
+        f = StringIO(config_string)
+        configDict = DictReader(f)
+        
+        for regDef in configDict:
+            #Skip lines that have no address yet.
+            if not regDef['Point Name']:
+                continue
+            
+            io_type = regDef['Modbus Register']
+            bit_register = io_type.lower() == 'bool'
+            read_only = regDef['Writable'].lower() != 'true'
+            point_path = regDef['Volttron Point Name']        
+            address = int(regDef['Point Address'])        
+            description = regDef['Notes']                 
+            units = regDef['Units']         
+                        
+            klass = ModbusBitRegister if bit_register else ModbusByteRegister
+            register = klass(address, io_type, point_path, units, read_only, description = description, slave_id=self.slave_id)
+                
+            self.insert_register(register)

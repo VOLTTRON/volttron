@@ -1,4 +1,4 @@
-Point Name,PNNL Point Name,Units,Units Details,Modbus Register,Writable,Point Address,Notes
+Reference Point Name,Volttron Point Name,Units,Units Details,Modbus Register,Writable,Point Address,Notes
 CO2Sensor,ReturnAirCO2,PPM,0.00-2000.00,>f,FALSE,1001,CO2 Reading 0.00-2000.0 ppm
 FanSpeed,SupplyFanSpeed,%,0.00 to 100.00,>f,FALSE,1003,Fan speed from drive
 Cool1Spd,CoolSupplyFanSpeed1,%,0.00 to 100.00 (75 default),>f,TRUE,1005,Fan speed on cool 1 call

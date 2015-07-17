@@ -51,7 +51,7 @@ operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 under Contract DE-AC05-76RL01830
 '''
 
-from ..base_driver_interface import BaseInterface, BaseRegister
+from interfaces import BaseInterface, BaseRegister
 from csv import DictReader
 from StringIO import StringIO
 
@@ -69,7 +69,7 @@ class Interface(BaseInterface):
         
     def configure(self, config_dict, registry_config_str):
         self.parse_config(registry_config_str)         
-        self.target_address = config_dict["target_address"]
+        self.target_address = config_dict["device_address"]
         self.proxy_address = config_dict["proxy_address"]
         self.ping_target(self.target_address)
                                          
@@ -77,15 +77,15 @@ class Interface(BaseInterface):
         #Some devices (mostly RemoteStation addresses behind routers) will not be reachable without 
         # first establishing the route to the device. Sending a directed WhoIsRequest is will
         # settle that for us when the response comes back. 
-        return self.vip.rpc.rpc_call(self.proxy_address, 'ping_device', [self.target_address]).get()
+        return self.vip.rpc.call(self.proxy_address, 'ping_device', self.target_address).get()
         
     def get_point(self, point_name): 
         register = self.get_register_by_name(point_name)   
         point_map = {point_name:[register.object_type, 
                                  register.instance_number, 
                                  register.property]}
-        result = self.vip.rpc.rpc_call(self.proxy_address, 'read_properties', 
-                                       [self.target_address, point_map]).get()
+        result = self.vip.rpc.call(self.proxy_address, 'read_properties', 
+                                       self.target_address, point_map).get()
         return result[point_name]
     
     def set_point(self, point_name, value):    
@@ -96,20 +96,20 @@ class Interface(BaseInterface):
                 register.object_type, 
                 register.instance_number, 
                 register.property]
-        result = self.vip.rpc.rpc_call(self.proxy_address, 'write_property', args).get()
+        result = self.vip.rpc.call(self.proxy_address, 'write_property', *args).get()
         return result
         
     def scrape_all(self):
         point_map = {}
         read_registers = self.get_registers_by_type("byte", True)
-        write_registers = self.get_registers_by_type("byte", True) 
+        write_registers = self.get_registers_by_type("byte", False) 
         for register in read_registers + write_registers:             
             point_map[register.point_name] = [register.object_type, 
                                               register.instance_number, 
                                               register.property]
         
-        result = self.vip.rpc.rpc_call(self.proxy_address, 'read_properties', 
-                                       [self.target_address, point_map]).get()
+        result = self.vip.rpc.call(self.proxy_address, 'read_properties', 
+                                       self.target_address, point_map).get()
         return result
     
     def parse_config(self, config_string):
@@ -127,7 +127,7 @@ class Interface(BaseInterface):
             
             io_type = regDef['BACnet Object Type']
             read_only = regDef['Writable'].lower() != 'true'
-            point_name = regDef['PNNL Point Name']        
+            point_name = regDef['Volttron Point Name']        
             index = int(regDef['Index'])        
             description = regDef['Notes']                 
             units = regDef['Units']       

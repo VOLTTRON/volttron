@@ -56,7 +56,8 @@
 import logging
 import sys
 import os
-from volttron.platform.vip.agent import Agent, Core
+import gevent
+from volttron.platform.vip.agent import Agent, Core, RPC
 from volttron.platform.agent import utils
 from driver import DriverAgent
 
@@ -93,8 +94,19 @@ def master_driver_agent(config_path, **kwargs):
         def starting(self, sender, **kwargs):
             for config_name in driver_config_list:
                 driver = DriverAgent(identity=config_name)
-                driver.run()                
-                self.instances[config_name] = driver
+                gevent.spawn(driver.core.run)   
+                #driver.core.stop to kill an agent.    
+                
+        def device_startup_callback(self, topic, driver):
+            self.instances[topic] = driver
+            
+        @RPC.export
+        def get_point(self, point_name):
+            return self.interface.get_point(point_name)
+        
+        @RPC.export
+        def set_point(self, point_name, value):
+            return self.interface.set_point(point_name, value)
                 
             
 

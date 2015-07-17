@@ -51,8 +51,7 @@ operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 under Contract DE-AC05-76RL01830
 '''
 import datetime
-from volttron.platform.vip.agent import Agent, Core
-from volttron.platform.agent.vipagent import export
+from volttron.platform.vip.agent import Agent, Core, RPC
 from volttron.platform.agent import utils
 from zmq.utils import jsonapi
 from volttron.platform.messaging import headers as headers_mod
@@ -64,41 +63,48 @@ from volttron.platform.messaging.topics import (DRIVER_TOPIC_BASE,
                                                 CONFIG_UPDATE)
 
 class DriverAgent(Agent): 
-    def __init__(self, **kwargs):             
+    def __init__(self, parent, **kwargs):             
         super(DriverAgent, self).__init__(**kwargs)
+        self.parent = parent
         
     def get_config(self, config_name):
         #Until config store is setup just grab a file.
-        return open(config_name).read()
+        return open(config_name, 'rb').read()
             
         
     def get_interface(self, driver_type, config_dict, config_string):
         """Returns an instance of the interface"""
         module_name = "interfaces." + driver_type
         module = __import__(module_name,globals(),locals(),[], -1)
-        klass = getattr(module, "Interface")
-        interface = klass(self.vip)
+        sub_module = getattr(module, driver_type)
+        klass = getattr(sub_module, "Interface")
+        interface = klass(vip=self.vip)
         interface.configure(config_dict, config_string)
         return interface
         
     @Core.receiver('onstart')
-    def starting(self):
+    def starting(self, sender, **kwargs):
         self.registry_config_name = None
         self.setup_device()
         
-        self.core.periodic(self.config.get("interval", 60), self.periodic_read, wait=0)
+        interval = self.config.get("interval", 60)
+        self.core.periodic(interval, self.periodic_read, wait=None)
             
         self.all_path_depth, self.all_path_breadth = self.get_paths_for_point(DRIVER_TOPIC_ALL)
 
 
     def setup_device(self):
-        self.vip.pubsub.unsubscribe('pubsub', None, None)
+        #First call to setup_device won't have anything to unsubscribe to.
+#         try:
+#             self.vip.pubsub.unsubscribe('pubsub', None, None)
+#         except KeyError:
+#             pass
         
         config = self.get_config(self.core.identity)
         self.config = jsonapi.loads(utils.strip_comments(config))  
-        driver_config = self.get_config(self.config["driver_config"]) 
+        driver_config = self.config["driver_config"] 
         driver_type = self.config["driver_type"] 
-        registry_config = self.get_config(driver_config["registry_config"]) 
+        registry_config = self.get_config(self.config["registry_config"]) 
                            
         self.interface = self.get_interface(driver_type, driver_config, registry_config)
         self.meta_data = {}
@@ -120,14 +126,16 @@ class DriverAgent(Agent):
                                      'tz': self.config['timezone']}
             
         self.base_topic = DEVICES_VALUE(campus=self.config.get('campus', ''), 
-                                       building=self.config.get('building', ''), 
-                                       unit=self.config.get('unit', ''),
-                                       point=None)
+                                        building=self.config.get('building', ''), 
+                                        unit=self.config.get('unit', ''),
+                                        path=self.config.get('path', ''),
+                                        point=None)
         
-        self.vip.pubsub.subscribe('pubsub', '/platform', self.setup_device)
+        self.parent.device_startup_callback(self.base_topic, self)
             
         
     def periodic_read(self):
+        print "scraping target"
         results = self.interface.scrape_all()
         
         # XXX: Does a warning need to be printed?
@@ -140,24 +148,26 @@ class DriverAgent(Agent):
             headers_mod.CONTENT_TYPE: headers_mod.CONTENT_TYPE.JSON,
             headers_mod.DATE: now,
         }
-         
-        for point, value in results.iteritems():
-            if isinstance(value, bool):
-                value = int(value)
-            self.add('/'+point, value)
             
 
         for point, value in results.iteritems():
-            if isinstance(value, bool):
-                value = int(value)
             topics = self.get_paths_for_point(point)
             for topic in topics:
+                message = [jsonapi.dumps(value), jsonapi.dumps(self.meta_data[point])] 
                 self.vip.pubsub.publish('pubsub', topic, 
                                         headers=headers, 
-                                        message=[value, self.meta_data[point]])
-            
-        self.publish_json(self.all_path_depth, headers, results, self.meta_data)
-        self.publish_json(self.all_path_breadth, headers, results, self.meta_data)
+                                        message=message)
+         
+        message = [jsonapi.dumps(results), jsonapi.dumps(self.meta_data)] 
+        self.vip.pubsub.publish('pubsub', 
+                                self.all_path_depth, 
+                                headers=headers, 
+                                message=message)
+         
+        self.vip.pubsub.publish('pubsub', 
+                                self.all_path_breadth, 
+                                headers=headers, 
+                                message=message)
 
     def get_paths_for_point(self, point):
         depth_first = self.base_topic(point=point)
@@ -170,10 +180,10 @@ class DriverAgent(Agent):
          
         return depth_first, breadth_first 
     
-    @export
+    @RPC.export
     def get_point(self, point_name):
         return self.interface.get_point(point_name)
     
-    @export
+    @RPC.export
     def set_point(self, point_name, value):
-        return self.interface.get_point(point_name, value)
+        return self.interface.set_point(point_name, value)
