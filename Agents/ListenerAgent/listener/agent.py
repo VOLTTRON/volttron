@@ -24,9 +24,9 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# The views and conclusions contained in the software and documentation are those
-# of the authors and should not be interpreted as representing official policies,
-# either expressed or implied, of the FreeBSD Project.
+# The views and conclusions contained in the software and documentation are
+# those of the authors and should not be interpreted as representing official
+# policies, either expressed or implied, of the FreeBSD Project.
 #
 
 # This material was prepared as an account of work sponsored by an
@@ -53,69 +53,141 @@
 
 #}}}
 
-
+from __future__ import absolute_import, print_function
+import base64
 from datetime import datetime
+import gevent
 import logging
 import sys
+import requests
+import os
+import os.path as p
+import re
+import shutil
+import tempfile
+import uuid
 
-from volttron.platform.agent import BaseAgent, PublishMixin, periodic
-from volttron.platform.agent import utils, matching
-from volttron.platform.messaging import headers as headers_mod
+import psutil
 
-import settings
+import gevent
+from zmq.utils import jsonapi
+from volttron.platform.vip.agent import *
 
+from volttron.platform import vip, jsonrpc, control
+from volttron.platform.control import Connection
+from volttron.platform.agent import utils
+
+from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
+                                       INVALID_REQUEST, METHOD_NOT_FOUND,
+                                       PARSE_ERROR, UNHANDLED_EXCEPTION)
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
+def listener_agent(config_path, **kwargs):
+    config = utils.load_config(config_path)
 
-class ListenerAgent(PublishMixin, BaseAgent):
-    '''Listens to everything and publishes a heartbeat according to the
-    heartbeat period specified in the settings module.
-    '''
+    agentid = config.get('agentid', 'platform')
+    agent_type = config.get('agent_type', 'example')
 
-    def __init__(self, config_path, **kwargs):
-        super(ListenerAgent, self).__init__(**kwargs)
-        self.config = utils.load_config(config_path)
+    class ListenerAgent(Agent):
 
-    def setup(self):
-        # Demonstrate accessing a value from the config file
-        _log.info(self.config['message'])
-        self._agent_id = self.config['agentid']
-        # Always call the base class setup()
-        super(ListenerAgent, self).setup()
+        def __init__(self, **kwargs):
+            super(ListenerAgent, self).__init__(**kwargs)
 
-    @matching.match_all
-    def on_match(self, topic, headers, message, match):
-        '''Use match_all to receive all messages and print them out.'''
-        _log.debug("Topic: {topic}, Headers: {headers}, "
-                         "Message: {message}".format(
-                         topic=topic, headers=headers, message=message))
+            print('my identity {} address: {}'.format(self.core.identity,
+                                                      self.core.address))
+            # a list of registered managers of this platform.
+            self._settings = {}
+            self._load_settings()
+            
+            self._subscribed = False
 
-    # Demonstrate periodic decorator and settings access
-    @periodic(settings.HEARTBEAT_PERIOD)
-    def publish_heartbeat(self):
-        '''Send heartbeat message every HEARTBEAT_PERIOD seconds.
+        def _store_settings(self):
+            with open('listener.settings', 'wb') as f:
+                f.write(jsonapi.dumps(self._settings))
+                f.close()
 
-        HEARTBEAT_PERIOD is set and can be adjusted in the settings module.
-        '''
-        now = datetime.utcnow().isoformat(' ') + 'Z'
-        headers = {
-            'AgentID': self._agent_id,
-            headers_mod.CONTENT_TYPE: headers_mod.CONTENT_TYPE.PLAIN_TEXT,
-            headers_mod.DATE: now,
-        }
-        self.publish('heartbeat/listeneragent', headers, now)
+        def _load_settings(self):
+            try:
+                with open('listener.settings', 'rb') as f:
+                    self._settings = self._settings = jsonapi.loads(f.read())
+                f.close()
+            except Exception as e:
+                _log.debug('Exception '+ e.message)
+                self._settings = {}
+
+        @RPC.export
+        def set_setting(self, key, value):
+            _log.debug("Setting key: {} to value: {}".format(key, value))
+            self._settings[key] = value
+            self._store_settings()
+
+
+        @RPC.export
+        def get_setting(self, key):
+            _log.debug('Retrieveing key: {}'.format(key))
+            return self._settings.get(key, '')
+
+        @Core.periodic(30)
+        def publish_heartbeat(self):
+            historian_present = False
+
+#             base_topic = 'datalogger/log/listener/heartbeat'
+
+
+            message = jsonapi.dumps({'Readings': "HI!!",
+                                 'Units': 'string'})
+#             self.vip.pubsub.publish(peer='pubsub',
+#                                     topic=base_topic,
+#                                     message=[message])
+
+            
+
+            self.vip.rpc.call('platform.agent','publish_to_peers', topic='neighborhood/needs',
+                          message=message)
+        
+ 
+ 
+        @Core.receiver('onstart')
+        def starting(self, sender, **kwargs):
+            print('***** Demo Agent is starting')
+        
+            self.vip.pubsub.subscribe('pubsub', 
+                                  '', self.onmessage)
+            print("SUBSCRIBED")
+
+        def onmessage(self, peer, sender, bus, topic, headers, message):
+            
+            print("ON MESSAGE: {}".format(message))
+            
+            _log.debug("Topic: {topic}, Headers: {headers}, "
+                             "Message: {message}".format(
+                             topic=topic, headers=headers, message=message))
+        
+            '''
+            Receive energy usage change message from another agent. If we have energy
+            needs and there is now some available, use it.
+            '''
+            message = jsonapi.loads(message[0])        
+            
+        @Core.receiver('onstop')
+        def stoping(self, sender, **kwargs):
+            pass
+
+    ListenerAgent.__name__ = 'ListenerAgent'
+    return ListenerAgent(**kwargs)
+
+
 
 
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
-    try:
-        utils.default_main(ListenerAgent,
-                           description='Example VOLTTRON platform™ heartbeat agent',
-                           argv=argv)
-    except Exception as e:
-        _log.exception('unhandled exception')
+    utils.default_main(listener_agent,
+                       description='Agent available to manage from a remote '
+                                    + 'system.',
+                       no_pub_sub_socket=True,
+                       argv=argv)
 
 
 if __name__ == '__main__':

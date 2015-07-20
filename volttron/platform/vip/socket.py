@@ -107,8 +107,11 @@ class Message(object):
     def __init__(self, **kwargs):
         self.__dict__ = kwargs
     def __repr__(self):
-        attrs = ', '.join('%r: %r' % (name, bytes(value)) for name, value in
-                          self.__dict__.iteritems())
+        attrs = ', '.join('%r: %r' % (
+            name, [bytes(x) for x in value]
+            if isinstance(value, (list, tuple))
+            else bytes(value)) for name, value in
+                self.__dict__.iteritems())
         return '%s(**{%s})' % (self.__class__.__name__, attrs)
 
 
@@ -361,6 +364,7 @@ class _Socket(object):
                 secretkey = decode_key(secretkey[0])
                 self.curve_server = True
                 self.curve_secretkey = secretkey
+        addr = '%s://%s%s' % url[:3]
         super(_Socket, self).bind(addr)
 
     def connect(self, addr):
@@ -385,8 +389,8 @@ class _Socket(object):
         url = urlparse.urlparse(addr)
         if url.fragment:
             self.identity = url.fragment
-        params = urlparse.parse_qs(url.query)
         if url.scheme == 'tcp':
+            params = urlparse.parse_qs(url.query)
             serverkey = params.get('serverkey')
             if serverkey:
                 serverkey = decode_key(serverkey[0])
@@ -401,4 +405,5 @@ class _Socket(object):
                 self.curve_serverkey = serverkey
                 self.curve_secretkey = secretkey
                 self.curve_publickey = publickey
+        addr = '%s://%s%s' % url[:3]
         super(_Socket, self).connect(addr)

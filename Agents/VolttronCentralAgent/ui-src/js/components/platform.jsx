@@ -4,8 +4,11 @@ var React = require('react');
 var Router = require('react-router');
 
 var AgentRow = require('./agent-row');
-var PercentChart = require('./percent-chart');
-var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
+var Chart = require('./chart');
+var EditChartForm = require('./edit-chart-form');
+var ConfirmForm = require('./confirm-form');
+var modalActionCreators = require('../action-creators/modal-action-creators');
+var platformActionCreators = require('../action-creators/platform-action-creators');
 var platformsStore = require('../stores/platforms-store');
 
 var Platform = React.createClass({
@@ -13,33 +16,33 @@ var Platform = React.createClass({
     getInitialState: function () {
         return getStateFromStores(this);
     },
-    componentWillMount: function () {
-        platformManagerActionCreators.initialize();
-    },
     componentDidMount: function () {
         platformsStore.addChangeListener(this._onStoresChange);
-        this._initUpdateStatus();
-    },
-    componentDidUpdate: function () {
-        this._initUpdateStatus();
     },
     componentWillUnmount: function () {
         platformsStore.removeChangeListener(this._onStoresChange);
-        clearTimeout(this._updateStatusTimeout);
         if (this.state.error) {
-            platformManagerActionCreators.clearPlatformError(this.state.platform);
+            platformActionCreators.clearPlatformError(this.state.platform);
         }
-    },
-    _initUpdateStatus: function () {
-        if (!this.state.platform || this._updateStatusTimeout) { return; }
-        this._updateStatusTimeout = setTimeout(this._updateStatus, 0);
-    },
-    _updateStatus: function () {
-        platformManagerActionCreators.updateStatus(this.state.platform);
-        this._updateStatusTimeout = setTimeout(this._updateStatus, 15000);
     },
     _onStoresChange: function () {
         this.setState(getStateFromStores(this));
+    },
+    _onEditChartClick: function (platform, chart) {
+        modalActionCreators.openModal(<EditChartForm platform={platform} chart={chart} />);
+    },
+    _onDeleteChartClick: function (platform, chart) {
+        modalActionCreators.openModal(
+            <ConfirmForm
+                promptTitle="Delete chart"
+                promptText={'Delete ' + chart.type + ' chart for ' + chart.topic + '?'}
+                confirmText="Delete"
+                onConfirm={platformActionCreators.deleteChart.bind(null, platform, chart)}
+            />
+        );
+    },
+    _onAddChartClick: function (platform) {
+        modalActionCreators.openModal(<EditChartForm platform={platform} />);
     },
     _onFileChange: function (e) {
         if (!e.target.files.length) { return; }
@@ -51,7 +54,7 @@ var Platform = React.createClass({
 
         function doFile(index) {
             if (index === files.length) {
-                platformManagerActionCreators.installAgents(platform, parsedFiles);
+                platformActionCreators.installAgents(platform, parsedFiles);
                 return;
             }
 
@@ -84,26 +87,39 @@ var Platform = React.createClass({
             );
         }
 
-        var status;
+        var charts;
         var agents;
 
-        if (!platform.status) {
-            status = (
-                <p>Loading status...</p>
+        if (!platform.charts) {
+            charts = (
+                <p>Loading charts...</p>
             );
         } else {
-            status = [];
+            charts = platform.charts.map(function (chart) {
+                var key = [
+                    platform.uuid,
+                    chart.topic,
+                    chart.type,
+                ].join('::');
 
-            for (var topic in platform.status) {
-                status.push(
-                    <div key={topic} className="status-chart">
-                        <h4>{topic}</h4>
-                        <PercentChart
-                            points={platform.status[topic]}
+                return (
+                    <div key={key} className="view__item view__item--tile chart">
+                        <h4 className="chart__title">{chart.topic}</h4>
+                        <Chart
+                            platform={platform}
+                            chart={chart}
                         />
+                        <div className="chart__actions">
+                            <a onClick={this._onEditChartClick.bind(this, platform, chart)}>
+                                Edit
+                            </a>
+                            <a onClick={this._onDeleteChartClick.bind(this, platform, chart)}>
+                                Delete
+                            </a>
+                        </div>
                     </div>
                 );
-            }
+            }, this);
         }
 
         if (!platform.agents) {
@@ -156,8 +172,16 @@ var Platform = React.createClass({
                     &nbsp;/&nbsp;
                     {platform.name} ({platform.uuid})
                 </h2>
-                <h3>Status</h3>
-                {status}
+                <h3>Charts</h3>
+                {charts}
+                <div>
+                    <button
+                        className="button"
+                        onClick={this._onAddChartClick.bind(null, this.state.platform)}
+                    >
+                        Add chart
+                    </button>
+                </div>
                 <h3>Agents</h3>
                 {agents}
                 <h3>Install agents</h3>

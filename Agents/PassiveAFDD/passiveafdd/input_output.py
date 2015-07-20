@@ -103,7 +103,6 @@ def result_writer(contents):
         for row in itertools.izip_longest(*contents):
             outs.writerow(row)
         ofile.close()
-        print 'Processing Done!'
     except IOError:
         print('Output error please close results file and rerun.')
         return

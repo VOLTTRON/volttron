@@ -184,10 +184,8 @@ def bootstrap(dest, prompt='(volttron)', version=None, verbose=None):
                 args = [sys.executable]
                 args.append(os.path.join(tmpdir, 'virtualenv-{}'.format(
                     self.version), 'virtualenv.py'))
-                if verbose:
-                    args.append('--verbose')
-                elif verbose is not None:
-                    args.append('--quiet')
+                if verbose is not None:
+                    args.append('--verbose' if verbose else '--quiet')
                 if self.prompt:
                     args.extend(['--prompt', prompt])
                 args.append(directory)
@@ -211,14 +209,8 @@ def bootstrap(dest, prompt='(volttron)', version=None, verbose=None):
 def pip(operation, args, verbose=None, upgrade=False, offline=False):
     '''Call pip in the virtual environment to perform operation.'''
     cmd = ['pip', operation]
-    if verbose:
-        cmd.extend(['--verbose', '--global-option', '--verbose'])
-    elif verbose is None:
-        cmd.extend(['--global-option', '--quiet'])
-    else:
-        cmd.extend(['--quiet', '--global-option', '--quiet'])
-    if upgrade:
-        cmd.append('--upgrade')
+    if verbose is not None:
+        cmd.append('--verbose' if verbose else '--quiet')
     if offline:
         cmd.extend(['--retries', '0', '--timeout', '1'])
     cmd.extend(args)
@@ -251,13 +243,22 @@ def update(operation, verbose=None, upgrade=False, offline=False):
     args = []
     for _, location in local_requirements:
         args.extend(['--editable', os.path.join(path, location)])
-    args.extend(['--editable', path,
-                 '--requirement', os.path.join(path, 'requirements.txt')])
+    args.extend(['--editable', path])
+    requirements_txt = os.path.join(path, 'requirements.txt')
+    if os.path.exists(requirements_txt):
+        args.extend(['--requirement', requirements_txt])
     pip(operation, args, verbose, upgrade, offline)
 
 
 def main(argv=sys.argv):
     '''Script entry point.'''
+
+    # Refuse to run as root
+    if not getattr(os, 'getuid', lambda: -1)():
+        sys.stderr.write('%s: error: refusing to run as root to prevent '
+                         'potential damage.\n' % os.path.basename(argv[0]))
+        sys.exit(77)
+
     # Unfortunately, many dependencies are not yet available in Python3.
     if sys.version_info[:2] != (2, 7):
         sys.stderr.write('error: Python 2.7 is required\n')
@@ -281,7 +282,6 @@ def main(argv=sys.argv):
             this script or in the directory given by the --envdir option.
             Subsequent invocations of this script should use the Python
             executable installed in the virtual environment.'''
-
     )
     verbose = parser.add_mutually_exclusive_group()
     verbose.add_argument(

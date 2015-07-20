@@ -187,11 +187,11 @@ def default_main(agent_class, description=None, argv=sys.argv,
             sys.stderr.write(
                 'missing environment variable: {}\n'.format(exc.args[0]))
             sys.exit(1)
-        if sub_addr.startswith('ipc://'):
+        if sub_addr.startswith('ipc://') and sub_addr[6:7] != '@':
             if not os.path.exists(sub_addr[6:]):
                 sys.stderr.write('warning: subscription socket does not '
                                  'exist: {}\n'.format(sub_addr[6:]))
-        if pub_addr.startswith('ipc://'):
+        if pub_addr.startswith('ipc://') and pub_addr[6:7] != '@':
             if not os.path.exists(pub_addr[6:]):
                 sys.stderr.write('warning: publish socket does not '
                                  'exist: {}\n'.format(pub_addr[6:]))
@@ -249,7 +249,12 @@ class AgentFormatter(logging.Formatter):
             record.__dict__['msg'] = ','.join([str(b) for b in record.args])
             record.__dict__['args'] = []
         #print('RECORD: {}'.format(record))
-        return super(AgentFormatter, self).format(record)
+        try: 
+            record = super(AgentFormatter, self).format(record)
+        except TypeError as e:
+            print("Type error: ",e)
+        
+        return record
 
 
 def setup_logging(level=logging.DEBUG):

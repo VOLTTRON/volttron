@@ -161,5 +161,6 @@ class CompatPubSub(object):
         headers['VIP.bus'] = bus
         parts = [topic]
         parts.append(jsonapi.dumps(headers))
-        parts.extend(message)
+        if message:
+            parts.extend(message)
         self.out_sock.send_multipart(parts)
