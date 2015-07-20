@@ -87,9 +87,22 @@ class BaseHistorianAgent(Agent):
     '''This is the base agent for historian Agents.
     It automatically subscribes to all device publish topics.
 
-    Event processing in publish_to_historian and setup in historian_setup
-    both happen in the same thread separate from the main thread. This is
-    to allow blocking while processing events.
+    Event processing occurs in its own greenlet as to not block the main
+    thread.
+
+    By default the base historian will listen to 4 separate root topics (
+    datalogger/*, record/*, actuators/*, and device/*.  Messages that are
+    published to actuator are assumed to be part of the actuation process.
+    Messages published to datalogger will be assumed to be timepoint data that
+    is composed of units and specific types with the assumption that they have
+    the ability to be graphed easily. Messages published to devices
+    are data that comes directly from drivers.  Finally Messages that are
+    published to record will be handled as string data and can be customized
+    to the user specific situation.
+
+    This base historian will cache all received messages to a local database
+    before publishing it to the historian.  This allows recovery for unexpected
+    happenings before the successful writing of data to the historian.
     '''
 
     def __init__(self,
@@ -106,12 +119,14 @@ class BaseHistorianAgent(Agent):
         self._topic_map = {}
         self._event_queue = Queue()
         self._processing = False
-#         self._process_thread = Thread(target = self._process_loop)
-#         self._process_thread.daemon = True  # Don't wait on thread to exit.
-#         self._process_thread.start()
 
     @Core.receiver("onsetup")
     def settingup(self, sender, **kwargs):
+        '''
+        Setup the core environments making sure that the backup database and
+        the specified historian driver database are setup before events are
+        processed.
+        '''
         backup_setup = gevent.spawn(self._setup_backup_db)
         historian_setup = gevent.spawn(self.historian_setup)
 
@@ -121,6 +136,10 @@ class BaseHistorianAgent(Agent):
 
     @Core.receiver("onstart")
     def starting_base(self, sender, **kwargs):
+        '''
+        Subscribes to the platform message bus on the actuator, record,
+        datalogger, and device topics to capture data.
+        '''
         _log.debug("Starting base historian")
 
 #         self.pubsub_subscribe(peer='pubsub',
@@ -133,9 +152,12 @@ class BaseHistorianAgent(Agent):
 
     @Core.receiver("onstop")
     def stopping(self, sender, **kwargs):
-        self.vip.pubsub.unsubscribe(peer=self.identity,
-                                    topic=topics.LOGGER_LOG,
-                                    callback=self.capture_log_data)
+        '''
+        Release subscription to the message bus because we are no longer able
+        to respond to messages now.
+        '''
+        # unsubscribes to all topics that we are subscribed to.
+        self.vip.pubsub.unsubscribe(peer='pubsub', None, None)
 
     def capture_log_data(self, peer, sender, bus, topic, headers, message):
         '''Capture log data and submit it to be published by a historian.'''
@@ -234,7 +256,8 @@ class BaseHistorianAgent(Agent):
 
     @matching.match_start(topics.ACTUATOR_VALUE)
     def capture_actuator_data(self, topic, headers, message, match):
-        '''Capture device data and submit it to be published by a historian.'''
+        '''Capture actuation data and submit it to be published by a historian.
+        '''
         timestamp_string = headers.get('time')
         if timestamp_string is None:
             _log.error("message for {topic} missing timetamp".format(topic=topic))
@@ -285,7 +308,8 @@ class BaseHistorianAgent(Agent):
 
             if not self._event_queue.empty():
                 _log.debug("Reading from/waiting for queue.")
-                new_to_publish = [self._event_queue.get(False, self._retry_period)]
+                new_to_publish = [self._event_queue.get(False,
+                                                        self._retry_period)]
             else:
                 new_to_publish = []
 
@@ -324,6 +348,8 @@ class BaseHistorianAgent(Agent):
         _log.debug("Finished processing")
 
     def _setup_backup_db(self):
+        ''' Creates a backup database for the historian if doesn't exist.'''
+
         _log.debug("Setting up backup DB.")
         self._connection = sqlite3.connect('backup.sqlite',
                                            detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
