@@ -249,7 +249,12 @@ class AgentFormatter(logging.Formatter):
             record.__dict__['msg'] = ','.join([str(b) for b in record.args])
             record.__dict__['args'] = []
         #print('RECORD: {}'.format(record))
-        return super(AgentFormatter, self).format(record)
+        try: 
+            record = super(AgentFormatter, self).format(record)
+        except TypeError as e:
+            print("Type error: ",e)
+        
+        return record
 
 
 def setup_logging(level=logging.DEBUG):

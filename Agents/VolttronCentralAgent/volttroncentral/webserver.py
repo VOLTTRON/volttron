@@ -1,14 +1,20 @@
+import errno
 import logging
+import os
+import Queue
 import sys
+import threading
 from tempfile import TemporaryFile
+import time
 import tornado
 import tornado.websocket
 import traceback
 import uuid
 
+from zmq.utils import jsonapi
+
 from volttron.platform.agent import utils
 from volttron.platform import jsonrpc
-from volttron.platform.agent.vipagent import jsonapi
 from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
                                        INVALID_REQUEST, METHOD_NOT_FOUND, PARSE_ERROR,
                                        UNHANDLED_EXCEPTION)
@@ -17,7 +23,7 @@ utils.setup_logging()
 _log = logging.getLogger(__name__)
 
 
-def get_standard_error_message(self, code):
+def get_standard_error_message(code):
 
     if code == INTERNAL_ERROR:
         error = 'Internal JSON-RPC error'
@@ -54,6 +60,7 @@ class SessionHandler:
         self._sessions = {}
         self._session_tokens = {}
         self._authenticator = authenticator
+        self.__persistence_path = None
 
     def authenticate(self, username, password, ip):
         '''Authenticates a user with the authenticator.
@@ -64,6 +71,7 @@ class SessionHandler:
         if groups:
             token = str(uuid.uuid4())
             self._add_session(username, token, ip, ",".join(groups))
+            self.__store_auths()
             return token
         return None
 
@@ -75,11 +83,49 @@ class SessionHandler:
 
     def check_session(self, token, ip):
         '''Check if a user token has been authenticated.'''
+        if not self._session_tokens:
+            self.__load_auths(
+                              )
         session = self._session_tokens.get(str(token))
         if session:
             return session['ip'] == ip
 
         return False
+
+    def __store_auths(self):
+        if not self.__persistence_path:
+            self.__get_auth_storage()
+
+        with open(self.__persistence_path, 'wb') as file:
+            file.write(jsonapi.dumps(self._sessions))
+
+
+    def __load_auths(self):
+        if not self.__persistence_path:
+            self.__get_auth_storage()
+        try:
+            with open(self.__persistence_path) as file:
+                self._sessions = jsonapi.loads(file.read())
+
+            self._session_tokens.clear()
+            for k, v in self._sessions.items():
+                self._session_tokens[v['token']] = v
+        except IOError:
+            pass
+
+    def __get_auth_storage(self):
+        if not os.environ.get('VOLTTRON_HOME', None):
+                raise ValueError('VOLTTRON_HOME environment must be set!')
+
+        db_path = os.path.join(os.environ.get('VOLTTRON_HOME'),
+                               'data/volttron.central.sessions')
+        db_dir  = os.path.dirname(db_path)
+        try:
+            os.makedirs(db_dir)
+        except OSError as exc:
+            if exc.errno != errno.EEXIST or not os.path.isdir(db_dir):
+                raise
+        self.__persistence_path = db_path
 
 
 class ManagerWebApplication(tornado.web.Application):
@@ -200,6 +246,51 @@ class RpcRequest:
         except:
             self.error = PARSE_ERROR
 
+class LogReader(object):
+
+    def __init__(self, file):
+        self.logfile = open(file)
+        self.read_thread = threading.Thread(target=self.read_messages)
+        self.log_queue = Queue.Queue()
+        self.read_thread.start()
+
+    def read_messages(self):
+        while True:
+            line = self.logfile.readline()
+            if not line:
+                time.sleep(0.01)
+                continue
+                #time.sleep(sleep)    # Sleep briefly
+#                 if sleep < 1.0:
+#                     sleep += 0.00001
+#                 continue
+#             sleep = 0.00001
+            #yield line
+            self.log_queue.put(line)
+logreader = LogReader(os.path.expandvars('$VOLTTRON_HOME/volttron.log'))
+
+class LogHandler(tornado.websocket.WebSocketHandler):
+
+    def open(self):
+        self.write_thread = threading.Thread(target=self.writing_messages)
+        self.write_thread.start()
+
+    def writing_messages(self):
+        while True:
+            if not logreader.log_queue.empty():
+                print("Queue is: " +str(logreader.log_queue.qsize()))
+                self.write_message(logreader.log_queue.get_nowait())
+            time.sleep(0.5)
+
+    def on_close(self):
+        self.write_thread.join(5)
+
+
+#     def on_message(self, message):
+#         #tornado.websocket.WebSocketHandler.on_message(self, message)
+#         self.write_message("written from server "+message)
+
+
 class StatusHandler(tornado.websocket.WebSocketHandler):
     def open(self):
         print("Opened!")
@@ -277,37 +368,40 @@ class ManagerRequestHandler(tornado.web.RequestHandler):
 
     def _response_complete(self, data):
         print("RESPONSE COMPLETE:{}".format(data))
-        if (data[0] is not None):
-            if isinstance(data[0], RpcResponse):
-                self.write(data[0].get_response())
-            else:
-                resp = None
-                if isinstance(data[0], Exception):
-                    if isinstance(data[0], NameError):
+        try:
+
+            if (data[0] is not None):
+                if isinstance(data[0], RpcResponse):
+                    self.write(data[0].get_response())
+                else:
+                    resp = None
+                    if isinstance(data[0], Exception):
+                        if isinstance(data[0], NameError):
+                            resp = RpcResponse(id=self.rpcrequest.id,
+                                               code=METHOD_NOT_FOUND,
+                                               message=data[0].msg)
+                    if not resp:
                         resp = RpcResponse(id=self.rpcrequest.id,
-                                           code=METHOD_NOT_FOUND,
-                                           message=data[0].msg)
-                if not resp:
-                    resp = RpcResponse(id=self.rpcrequest.id,
-                                       code=UNHANDLED_EXCEPTION,
-                                       message=str(data[0][1]))
-                print("Writing: "+str(resp.get_response()))
-                self.write(resp.get_response())
+                                           code=UNHANDLED_EXCEPTION,
+                                           message=str(data[0][1]))
+                    print("Writing: "+str(resp.get_response()))
+                    self.write(resp.get_response())
 
-#                 else:
-# #                 resp = RpcResponse(code=UNHANDLED_EXCEPTION,
-# #                                    message=str(data[0][1]))
-#                     print(self.write("Error: "+str(data[0][0])
-#                                + " message: "+str(data[0][1])))
-#                     self.write("Error: "+str(data[0][0])
-#                                + " message: "+str(data[0][1]))
-        else:
-            if isinstance(data[1], RpcResponse):
-                self.write(data[1].get_response())
+    #                 else:
+    # #                 resp = RpcResponse(code=UNHANDLED_EXCEPTION,
+    # #                                    message=str(data[0][1]))
+    #                     print(self.write("Error: "+str(data[0][0])
+    #                                + " message: "+str(data[0][1])))
+    #                     self.write("Error: "+str(data[0][0])
+    #                                + " message: "+str(data[0][1]))
             else:
-                rpcresponse = RpcResponse(self.rpcrequest.id, result=data[1])
-                self.write(rpcresponse.get_response())
-
+                if isinstance(data[1], RpcResponse):
+                    self.write(data[1].get_response())
+                else:
+                    rpcresponse = RpcResponse(self.rpcrequest.id, result=data[1])
+                    self.write(rpcresponse.get_response())
+        except KeyError as e:
+            self.write(data)
         print('handling request done')
         try:
             self.finish()

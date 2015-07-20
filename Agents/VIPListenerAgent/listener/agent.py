@@ -87,8 +87,6 @@ _log = logging.getLogger(__name__)
 def listener_agent(config_path, **kwargs):
     config = utils.load_config(config_path)
 
-    agentid = config.get('agentid', 'platform')
-    agent_type = config.get('agent_type', 'example')
 
     class ListenerAgent(Agent):
 
@@ -100,6 +98,7 @@ def listener_agent(config_path, **kwargs):
             # a list of registered managers of this platform.
             self._settings = {}
             self._load_settings()
+            self._my_id = config.get('agentid')
             
             self._subscribed = False
 
@@ -137,13 +136,8 @@ def listener_agent(config_path, **kwargs):
 
 
             message = jsonapi.dumps({'Readings': "HI!!",
-                                 'Units': 'string'})
-#             self.vip.pubsub.publish(peer='pubsub',
-#                                     topic=base_topic,
-#                                     message=[message])
-
-            
-
+                                 'Units': 'string',
+                                 'agentname': self._my_id})
             self.vip.rpc.call('platform.agent','publish_to_peers', topic='neighborhood/needs',
                           message=message)
         
@@ -153,6 +147,8 @@ def listener_agent(config_path, **kwargs):
         def starting(self, sender, **kwargs):
             print('***** Demo Agent is starting')
         
+#             _, _, self._my_id = self.vip.hello().get(timeout=3)
+        
             self.vip.pubsub.subscribe('pubsub', 
                                   '', self.onmessage)
             print("SUBSCRIBED")
@@ -161,15 +157,13 @@ def listener_agent(config_path, **kwargs):
             
             print("ON MESSAGE: {}".format(message))
             
-            _log.debug("Topic: {topic}, Headers: {headers}, "
-                             "Message: {message}".format(
-                             topic=topic, headers=headers, message=message))
+            
         
             '''
             Receive energy usage change message from another agent. If we have energy
             needs and there is now some available, use it.
             '''
-            message = jsonapi.loads(message[0])        
+#             message = jsonapi.loads(message[0])        
             
         @Core.receiver('onstop')
         def stoping(self, sender, **kwargs):
@@ -195,4 +189,4 @@ if __name__ == '__main__':
     try:
         sys.exit(main())
     except KeyboardInterrupt:
-        pass
+        pass# -*- coding: utf-8 -*- {{{
