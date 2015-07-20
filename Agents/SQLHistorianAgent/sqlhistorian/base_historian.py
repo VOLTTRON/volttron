@@ -150,6 +150,10 @@ class BaseHistorianAgent(Agent):
                                prefix=topics.LOGGER_LOG,
                                callback=self.capture_log_data)
 
+        self.vip.pubsub.subscribe(peer='pubsub',
+                               prefix=topics.ACTUATOR,  # datalogger/*
+                               callback=self.capture_actuator_data)
+
     @Core.receiver("onstop")
     def stopping(self, sender, **kwargs):
         '''
