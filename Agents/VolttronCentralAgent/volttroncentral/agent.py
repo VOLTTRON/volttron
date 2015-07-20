@@ -346,7 +346,7 @@ def volttron_central_agent(config_path, **kwargs):
             result = q.query('addresses').get()
             
             #TODO: Use all addresses for fallback, #114
-            self._external_addresses = "tcp://130.20.116.175:8081"
+            self._external_addresses = result[0]
             
             # Start tornado in its own thread
             threading.Thread(target=startWebServer, args=(self,)).start()
