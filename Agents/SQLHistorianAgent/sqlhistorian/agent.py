@@ -67,8 +67,7 @@ import gevent
 from zmq.utils import jsonapi
 
 from volttron.platform.vip.agent import *
-from base_historian import BaseHistorianAgent
-from volttron.platform.agent.base_query_historian import BaseQueryHistorianAgent
+from base_historian import (BaseHistorianAgent, BaseQueryHistorianAgent)
 from volttron.platform.agent import utils, matching
 from volttron.platform.messaging import topics, headers as headers_mod
 import settings
@@ -110,6 +109,7 @@ def sqlhistorian(config_path, **kwargs):
                 try:
                     ping = self.vip.ping('platform.agent',
                                          'awake?').get(timeout=3)
+                    _log.debug("Ping response was? "+ str(ping))
                     self.vip.rpc.call('platform.agent', 'register_service',
                                       self.core.identity).get(timeout=3)
                 except Unreachable:
