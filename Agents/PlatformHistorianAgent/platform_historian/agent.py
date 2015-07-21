@@ -242,10 +242,7 @@ def platform_historian_agent(config_path, **kwargs):
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
     try:
-        utils.default_main(platform_historian_agent,
-                           description='Historian agent that saves a history to a sqlite db.',
-                           argv=argv,
-                           no_pub_sub_socket=True)
+        utils.vip_main(platform_historian_agent)
     except Exception as e:
         print e
         _log.exception('unhandled exception')

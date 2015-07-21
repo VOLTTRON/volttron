@@ -425,10 +425,7 @@ def volttron_central_agent(config_path, **kwargs):
 
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
-    utils.default_main(volttron_central_agent,
-                       description='Volttron central agent',
-                       no_pub_sub_socket=True,
-                       argv=argv)
+    utils.vip_main(volttron_central_agent)
 
 if __name__ == '__main__':
     # Entry point for script

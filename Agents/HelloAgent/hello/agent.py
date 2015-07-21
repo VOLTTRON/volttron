@@ -109,10 +109,7 @@ def main(argv=sys.argv):
     '''Main method called to start the agent.'''
     utils.setup_logging()
     try:
-        utils.default_main(hello_agent,
-            description='Example hello agent for testing with Volttron Central',
-            no_pub_sub_socket=True,
-            argv=argv)
+        utils.vip_main(hello_agent)
     except Exception:
         _log.exception('unhandled exception')
 
