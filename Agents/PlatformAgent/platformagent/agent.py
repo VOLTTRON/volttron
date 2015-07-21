@@ -430,11 +430,7 @@ def find_registration_address(vip_addresses):
 
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
-    utils.default_main(platform_agent,
-                       description='Agent available to manage from a remote '
-                                    + 'system.',
-                       no_pub_sub_socket=True,
-                       argv=argv)
+    utils.vip_main(platform_agent)
 
 
 if __name__ == '__main__':
