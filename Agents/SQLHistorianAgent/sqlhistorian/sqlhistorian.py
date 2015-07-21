@@ -226,7 +226,7 @@ def sqlhistorian(config_path, **kwargs):
             self.conn = connect()
 
             for row in query_topics(self.conn):
-                self.topics[row[1]] = row[0]
+                self.topic_map[row[1]] = row[0]
 
     SQLHistorian.__name__ = 'SQLHistorian'
     return SQLHistorian(identity=identity, **kwargs)

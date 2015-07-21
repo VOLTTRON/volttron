@@ -116,6 +116,7 @@ class BaseHistorianAgent(Agent):
         self._max_time_publishing = timedelta(seconds=max_time_publishing)
         self._successful_published = set()
         self._meta_data = defaultdict(dict)
+
         self._topic_map = {}
         self._event_queue = Queue()
         self._processing = False
@@ -130,6 +131,7 @@ class BaseHistorianAgent(Agent):
         backup_setup = gevent.spawn(self._setup_backup_db)
         historian_setup = gevent.spawn(self.historian_setup)
 
+        # make sure both functions are complete before starting processing.
         gevent.joinall([backup_setup, historian_setup])
         _log.debug("All setup")
 
@@ -142,16 +144,17 @@ class BaseHistorianAgent(Agent):
         '''
         _log.debug("Starting base historian")
 
-#         self.pubsub_subscribe(peer='pubsub',
-#                               prefix=topics.DRIVER_TOPIC_BASE+'/'+topics.DRIVER_TOPIC_ALL,
-#                               callback=self.capture_device_data)
+        driver_prefix = topics.DRIVER_TOPIC_BASE+'/'+topics.DRIVER_TOPIC_ALL
+        self.vip.pubsub.subscribe(peer='pubsub',
+                               prefix=driver_prefix,
+                               callback=self.capture_device_data)
 
         self.vip.pubsub.subscribe(peer='pubsub',
-                               prefix=topics.LOGGER_LOG,
+                               prefix="datalogger",
                                callback=self.capture_log_data)
 
         self.vip.pubsub.subscribe(peer='pubsub',
-                               prefix=topics.ACTUATOR,  # datalogger/*
+                               prefix=topics.ACTUATOR,  # actuators/*
                                callback=self.capture_actuator_data)
 
     @Core.receiver("onstop")
@@ -161,7 +164,7 @@ class BaseHistorianAgent(Agent):
         to respond to messages now.
         '''
         # unsubscribes to all topics that we are subscribed to.
-        self.vip.pubsub.unsubscribe(peer='pubsub', None, None)
+        self.vip.pubsub.unsubscribe(peer='pubsub', prefix=None, callback=None)
 
     def capture_log_data(self, peer, sender, bus, topic, headers, message):
         '''Capture log data and submit it to be published by a historian.'''
@@ -205,7 +208,6 @@ class BaseHistorianAgent(Agent):
         if not self._processing:
             gevent.spawn(self._process_loop)
 
-    # @matching.match_start(topics.DRIVER_TOPIC_BASE+'/'+topics.DRIVER_TOPIC_ALL)
     def capture_device_data(self, peer, bus, topic, headers, message):
         '''Capture device data and submit it to be published by a historian.'''
         timestamp_string = headers.get(headers_mod.DATE)
@@ -258,7 +260,6 @@ class BaseHistorianAgent(Agent):
                                    'readings': [(timestamp,value)],
                                    'meta': meta.get(key,{})})
 
-    @matching.match_start(topics.ACTUATOR_VALUE)
     def capture_actuator_data(self, topic, headers, message, match):
         '''Capture actuation data and submit it to be published by a historian.
         '''
