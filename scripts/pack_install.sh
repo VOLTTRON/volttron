@@ -27,22 +27,23 @@ then
   exit 0
 fi
 
-if [ -z "$VOLTTRON_HOME" ]; then 
+if [ -z "$VOLTTRON_HOME" ]; then
   VOLTTRON_HOME=$HOME/.volttron
-  echo "VOLTTRON_HOME UNSET setting to v1_home: $VOLTTRON_HOME"; 
+  echo "VOLTTRON_HOME UNSET setting to $VOLTTRON_HOME";
 fi
+
+# volttron-pkg package $1
 
 WHEEL=$(volttron-pkg package $1 | awk -F": " '{ print $2 }')
 
-if [ ! -e "$WHEEL" ]
-then
+if [ ! -e "$WHEEL" ]; then
   echo "$WHEEL doesn't exist"
   exit 0
 fi
 
-volttron-pkg configure "$WHEEL" "$2"
+VOLTTRON_HOME=$VOLTTRON_HOME volttron-pkg configure "$WHEEL" "$2"
 
-volttron-ctl install "$3=$WHEEL"
+VOLTTRON_HOME=$VOLTTRON_HOME volttron-ctl install "$3=$WHEEL"
 
 
 
