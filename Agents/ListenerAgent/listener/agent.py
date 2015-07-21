@@ -53,23 +53,24 @@
 
 #}}}
 
+from __future__ import absolute_import
 
 from datetime import datetime
 import logging
 import sys
 
-from volttron.platform.agent import BaseAgent, PublishMixin, periodic
-from volttron.platform.agent import utils, matching
+from volttron.platform.vip.agent import Agent, Core, PubSub
+from volttron.platform.agent import utils
 from volttron.platform.messaging import headers as headers_mod
 
-import settings
+from . import settings
 
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
 
-class ListenerAgent(PublishMixin, BaseAgent):
+class ListenerAgent(Agent):
     '''Listens to everything and publishes a heartbeat according to the
     heartbeat period specified in the settings module.
     '''
@@ -78,22 +79,20 @@ class ListenerAgent(PublishMixin, BaseAgent):
         super(ListenerAgent, self).__init__(**kwargs)
         self.config = utils.load_config(config_path)
 
-    def setup(self):
+    @Core.receiver('onsetup')
+    def setup(self, sender, **kwargs):
         # Demonstrate accessing a value from the config file
         _log.info(self.config['message'])
         self._agent_id = self.config['agentid']
-        # Always call the base class setup()
-        super(ListenerAgent, self).setup()
 
-    @matching.match_all
-    def on_match(self, topic, headers, message, match):
+    @PubSub.subscribe('pubsub', '')
+    def on_match(self, peer, sender, bus,  topic, headers, message):
         '''Use match_all to receive all messages and print them out.'''
-        _log.debug("Topic: {topic}, Headers: {headers}, "
-                         "Message: {message}".format(
-                         topic=topic, headers=headers, message=message))
+        _log.debug(
+            "Topic: %r, Headers: %r, Message: %r" % (topic, headers, message))
 
     # Demonstrate periodic decorator and settings access
-    @periodic(settings.HEARTBEAT_PERIOD)
+    @Core.periodic(settings.HEARTBEAT_PERIOD)
     def publish_heartbeat(self):
         '''Send heartbeat message every HEARTBEAT_PERIOD seconds.
 
@@ -105,15 +104,14 @@ class ListenerAgent(PublishMixin, BaseAgent):
             headers_mod.CONTENT_TYPE: headers_mod.CONTENT_TYPE.PLAIN_TEXT,
             headers_mod.DATE: now,
         }
-        self.publish('heartbeat/listeneragent', headers, now)
+        self.vip.pubsub.publish(
+            'pubsub', 'heartbeat/listeneragent', headers, now)
 
 
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
     try:
-        utils.default_main(ListenerAgent,
-                           description='Example VOLTTRON platform™ heartbeat agent',
-                           argv=argv)
+        utils.vip_main(ListenerAgent)
     except Exception as e:
         _log.exception('unhandled exception')
 
