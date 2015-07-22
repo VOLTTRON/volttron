@@ -63,13 +63,9 @@ __copyright__ = 'Copyright (c) 2013, Battelle Memorial Institute'
 __license__ = 'FreeBSD'
 
 
-class _(str):
-    pass
-
-
-CONTENT_TYPE = _('Content-Type')
-CONTENT_TYPE.JSON = 'application/json'
-CONTENT_TYPE.PLAIN_TEXT = 'text/plain'
+CONTENT_TYPE = type('ContentTypeStr', (str,),
+                    {'JSON': 'application/json',
+                     'PLAIN_TEXT': 'text/plain'})('Content-Type')
 
 DATE = 'Date'
 
@@ -78,3 +74,46 @@ TO = 'To'
 
 REQUESTER_ID = 'requesterID'
 COOKIE = 'Cookie'
+
+
+class Headers(dict):
+    '''Case-insensitive dictionary for HTTP-like headers.'''
+
+    class Key(str):
+        def __new__(cls, value):
+            string = str(value)
+            obj = str.__new__(cls, string.lower())
+            obj._orig = string
+            return obj
+        def __str__(self):
+            return self._orig
+        def __repr__(self):
+            return repr(self._orig)
+
+    def __init__(self, *args, **kwargs):
+        Key = self.__class__.Key
+        obj = super(Headers, self).__init__(((Key(key), value)
+               for key, value in dict(*args, **kwargs).iteritems()))
+    def __contains__(self, key):
+        return super(Headers, self).__contains__(str(key).lower())
+    def __getitem__(self, key):
+        return super(Headers, self).__getitem__(str(key).lower())
+    def __setitem__(self, key, value):
+        super(Headers, self).__setitem__(self.__class__.Key(key), value)
+    def __delitem__(self, key):
+        super(Headers, self).__delitem__(str(key).lower())
+    def copy(self):
+        return Headers(super(Headers, self).copy())
+    @property
+    def dict(self):
+        '''Return a dictionary with originally-cased keys.'''
+        return {str(k): v for k, v in self.iteritems()}
+    def setdefault(self, key, value):
+        return super(Headers, self).setdefault(self.__class__.Key(key), value)
+    def update(self, *args, **kwargs):
+        Key = self.__class__.Key
+        obj = super(Headers, self).update(((Key(key), value)
+               for key, value in dict(*args, **kwargs).iteritems()))
+    def __repr__(self):
+        return '%s(%s)' % (self.__class__.__name__,
+                           super(Headers, self).__repr__())

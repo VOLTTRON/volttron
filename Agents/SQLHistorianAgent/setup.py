@@ -68,7 +68,7 @@ setup(
     packages = packages,
     entry_points = {
         'setuptools.installation': [
-            'eggsecutable = ' + package + '.sqlhistorian:main',
+            'eggsecutable = ' + package + '.historian:main',
         ]
     }
 )

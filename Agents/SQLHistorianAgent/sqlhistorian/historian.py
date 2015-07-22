@@ -67,17 +67,20 @@ import gevent
 from zmq.utils import jsonapi
 
 from volttron.platform.vip.agent import *
-from base_historian import (BaseHistorianAgent, BaseQueryHistorianAgent)
-from volttron.platform.agent import utils, matching
+from volttron.platform.agent import BaseHistorianAgent, BaseQueryHistorianAgent
+from volttron.platform.agent import utils
 from volttron.platform.messaging import topics, headers as headers_mod
-import settings
+
+#import sqlhistorian
+#import sqlhistorian.settings
+
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
 
 
-def sqlhistorian(config_path, **kwargs):
+def historian(config_path, **kwargs):
 
     config = utils.load_config(config_path)
     connection = config.get('connection', None);
@@ -90,7 +93,7 @@ def sqlhistorian(config_path, **kwargs):
     identity = config.get('identity', None)
 
     if databaseType == 'sqlite':
-        from sqlitefuncts import (prepare, connect, query_topics, insert_topic,
+        from . sqlitefuncts import (prepare, connect, query_topics, insert_topic,
                                   insert_data)
 
     class SQLHistorian(BaseHistorianAgent, BaseQueryHistorianAgent):
@@ -120,7 +123,7 @@ def sqlhistorian(config_path, **kwargs):
                     _log.debug("Listening to /platform")
 
         def __platform(self, peer, sender, bus, topic, headers, message):
-            _log.debug('Platform is now: ', message)
+            _log.debug('Platform is now: {}'.format(message))
             if message == 'available' and \
                     self.core.identity == 'platform.historian':
                 gevent.spawn(self.vip.rpc.call, 'platform.agent', 'register_service',
@@ -136,13 +139,12 @@ def sqlhistorian(config_path, **kwargs):
                 topic = x['topic']
                 value = x['value']
 
-                topic_id = self._topic_map.get(topic, None)
+                topic_id = self.topic_map.get(topic, None)
 
                 if topic_id is None:
-                    row = insert_topic = ins
                     row  = insert_topic(topic, self.conn, False)
                     topic_id = row[0]
-                    self.topics[topic] = topic_id
+                    self.topic_map[topic] = topic_id
 
                 insert_data(ts,topic_id, value, self.conn)
 
@@ -152,8 +154,8 @@ def sqlhistorian(config_path, **kwargs):
             self.report_all_published()
 
         def query_topic_list(self):
-            if len(self._topic_map) > 0:
-                return self._topic_map.keys()
+            if len(self.topic_map) > 0:
+                return self.topic_map.keys()
             else:
                 # do quer on db and return results.
                 return []
@@ -236,10 +238,11 @@ def sqlhistorian(config_path, **kwargs):
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
     try:
-        utils.default_main(sqlhistorian,
-                           description='Historian agent that saves a history to a sqlite db.',
-                           argv=argv,
-                           no_pub_sub_socket=True)
+        utils.vip_main(historian)
+        #utils.default_main(historian,
+        #                   description='Historian agent that saves a history to a sqlite db.',
+        #                   argv=argv,
+        #                   no_pub_sub_socket=True)
     except Exception as e:
         print(e)
         _log.exception('unhandled exception')
