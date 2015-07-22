@@ -677,14 +677,14 @@ module.exports = Dashboard;
 
 var React = require('react');
 
-var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
+var platformActionCreators = require('../action-creators/platform-action-creators');
 
 var AgentRow = React.createClass({displayName: "AgentRow",
     _onStop: function () {
-        platformManagerActionCreators.stopAgent(this.props.platform, this.props.agent);
+        platformActionCreators.stopAgent(this.props.platform, this.props.agent);
     },
     _onStart: function () {
-        platformManagerActionCreators.startAgent(this.props.platform, this.props.agent);
+        platformActionCreators.startAgent(this.props.platform, this.props.agent);
     },
     render: function () {
         var agent = this.props.agent, status, action;
@@ -736,7 +736,7 @@ var AgentRow = React.createClass({displayName: "AgentRow",
 module.exports = AgentRow;
 
 
-},{"../action-creators/platform-manager-action-creators":5,"react":undefined}],8:[function(require,module,exports){
+},{"../action-creators/platform-action-creators":4,"react":undefined}],8:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
