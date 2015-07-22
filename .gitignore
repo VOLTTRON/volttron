@@ -3,6 +3,7 @@
 *.egg-info
 *~
 .svn
+.metadata
 
 /env/
 /Agents/*/{build,dist}/

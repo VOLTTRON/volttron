@@ -1,8 +1,11 @@
 {
-    "vip_identity": "platform.historian",
-    "agentid": "sqlite_historian",
-    "db": "/tmp/v3home/data/platform.historian.sqlite",
-    "agent": {
-        "exec": "sqlite_historianagent-0.1-py2.7.egg --config \"%c\" --sub \"%s\" --pub \"%p\""
+    "agentid": "sqlhistorian-sqlite",
+    "identity": "platform.historian",
+    "connection": {
+        "type": "sqlite",
+        "params": {
+            "database": "/tmp/v3home/data/platform.historian.sqlite",
+            "detect_types": "sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES"
+        }
     }
 }

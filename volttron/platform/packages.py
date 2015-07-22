@@ -135,13 +135,6 @@ class VolttronPackageWheelFileNoSign(WheelFile):
                             _log.error("couldn't access {}" % files_to_add['config_file'])
                             raise
 
-                        if files_to_add['config_file'] != 'config':
-                            msg = 'WARNING: renaming passed config file: {}'.format(
-                                                        files_to_add['config_file'])
-                            msg += ' to config'
-                            sys.stderr.write(msg)
-                            _log.warn(msg)
-
                         self.zipfile.writestr("%s/%s" % (self.distinfo_name, 'config'),
                                               data)
 
