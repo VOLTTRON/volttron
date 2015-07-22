@@ -2,14 +2,14 @@
 
 var React = require('react');
 
-var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
+var platformActionCreators = require('../action-creators/platform-action-creators');
 
 var AgentRow = React.createClass({
     _onStop: function () {
-        platformManagerActionCreators.stopAgent(this.props.platform, this.props.agent);
+        platformActionCreators.stopAgent(this.props.platform, this.props.agent);
     },
     _onStart: function () {
-        platformManagerActionCreators.startAgent(this.props.platform, this.props.agent);
+        platformActionCreators.startAgent(this.props.platform, this.props.agent);
     },
     render: function () {
         var agent = this.props.agent, status, action;
