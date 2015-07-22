@@ -20,7 +20,7 @@ $SCRIPTS/remove_agent.sh $HIST_TAG
 
 if [ "$1" = "full" ]
 then
-    `$HIST_TEST_DIR/start-platform.sh`
+    $HIST_TEST_DIR/start-platform.sh
 fi
 
 SCRIPTS="./scripts"

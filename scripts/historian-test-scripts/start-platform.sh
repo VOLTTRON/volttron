@@ -8,6 +8,11 @@
 
 export VOLTTRON_HOME=$HOME/.volttron
 
+if [ ! -e "./Agents" ]; then
+    echo "Please execute from root of volttron repository."
+    exit 0
+fi
+
 echo "Starting the vc platform and platform agent on the default volttron home."
 SCRIPTS="volttron/scripts"
 PACK="$SCRIPTS/pack_install.sh"
