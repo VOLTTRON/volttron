@@ -67,6 +67,10 @@ if __name__ == '__main__':
     gevent.sleep(10)
     print('2  ===========================')
     print(agent.vip.ping('example', 'Are you hearing this?').get(timeout=3))
+    try:
+        print(agent.vip.ping('doah', 'hear me!').get(timeout=3))
+    except Unreachable as e:
+        print("It was unreachable!")
     print('3  ===========================')
     print(agent.vip.rpc.call('example', 'hello', 'world').get(timeout=3))
     print(agent.vip.rpc.call('example', 'meh').get(timeout=3))
