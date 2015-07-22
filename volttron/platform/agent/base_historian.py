@@ -116,11 +116,13 @@ class BaseHistorianAgent(Agent):
         self._successful_published = set()
         self._meta_data = defaultdict(dict)
 
-        self.topic_map = {}
         self._event_queue = Queue()
         self._process_thread = Thread(target = self._process_loop)
         self._process_thread.daemon = True  # Don't wait on thread to exit.
         self._process_thread.start()
+        # The topic cache is only meant as a local lookup and should not be
+        # accessed via the implemented historians.
+        self._backup_cache = {}
 
     @Core.receiver("onstart")
     def starting_base(self, sender, **kwargs):
@@ -292,6 +294,9 @@ class BaseHistorianAgent(Agent):
         self._setup_backup_db()
         self.historian_setup()
 
+        # now that everything is setup we need to make sure that the topics
+        # are syncronized between
+
 
         #Based on the state of the back log and whether or not sucessful
         #publishing is currently happening (and how long it's taking)
@@ -382,8 +387,8 @@ class BaseHistorianAgent(Agent):
         else:
             c.execute("SELECT * FROM topics")
             for row in c:
-                self.topic_map[row[0]] = row[1]
-                self.topic_map[row[1]] = row[0]
+                self._backup_cache[row[0]] = row[1]
+                self._backup_cache[row[1]] = row[0]
 
         c.close()
 
@@ -405,7 +410,7 @@ class BaseHistorianAgent(Agent):
             results.append({'_id':_id,
                             'timestamp': timestamp.replace(tzinfo=pytz.UTC),
                             'source': source,
-                            'topic': self.topic_map[topic_id],
+                            'topic': self._backup_cache[topic_id],
                             'value': value,
                             'meta': meta})
 
@@ -448,15 +453,15 @@ class BaseHistorianAgent(Agent):
             meta = item.get('meta', {})
             values = item['readings']
 
-            topic_id = self.topic_map.get(topic)
+            topic_id = self._backup_cache.get(topic)
 
             if topic_id is None:
                 c.execute('''INSERT INTO topics values (?,?)''', (None, topic))
                 c.execute('''SELECT last_insert_rowid()''')
                 row = c.fetchone()
                 topic_id = row[0]
-                self.topic_map[topic_id] = topic
-                self.topic_map[topic] = topic_id
+                self._backup_cache[topic_id] = topic
+                self._backup_cache[topic] = topic_id
 
             #update meta data
             for name, value in meta.iteritems():
