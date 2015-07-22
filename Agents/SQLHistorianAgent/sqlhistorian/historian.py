@@ -73,7 +73,7 @@ from volttron.platform.messaging import topics, headers as headers_mod
 
 #import sqlhistorian
 #import sqlhistorian.settings
-import settings
+#import .settings
 
 
 utils.setup_logging()
@@ -83,6 +83,10 @@ _log = logging.getLogger(__name__)
 
 def historian(config_path, **kwargs):
 
+    for s in sys.path:
+        print("PATH: ", s)
+
+    print("Thie package is ", __package__)
     config = utils.load_config(config_path)
     connection = config.get('connection', None);
 
@@ -94,7 +98,7 @@ def historian(config_path, **kwargs):
     identity = config.get('identity', None)
 
     if databaseType == 'sqlite':
-        from sqlitefuncts import SqlLiteFuncts as DbFuncts
+        from . sqlitefuncts import SqlLiteFuncts as DbFuncts
 #         from sqlitefuncts import (prepare, connect, query_topics, insert_topic,
 #                                   insert_data)
 
@@ -135,26 +139,26 @@ def historian(config_path, **kwargs):
                 gevent.sleep(0)
 
         def publish_to_historian(self, to_publish_list):
-            #print 'Publish info'
             _log.debug("publish_to_historian number of items: {}"
                        .format(len(to_publish_list)))
+
             for x in to_publish_list:
                 ts = x['timestamp']
                 topic = x['topic']
                 value = x['value']
-
-                topic_id = self.topic_map.get(topic, None)
+                # look at the topics that are stored in the database already
+                # to see if this topic has a value
+                topic_id = self.topic_map.get(topic)
 
                 if topic_id is None:
-                    row  = self.writer.insert_topic(topic, self.conn, False)
+                    row  = self.writer.insert_topic(topic)
                     topic_id = row[0]
                     self.topic_map[topic] = topic_id
 
-                self.writer.insert_data(ts,topic_id, value)
+                self.writer.insert_data(ts,topic_id, value, False)
 
-            print('published {} data values:'.format(len(to_publish_list)))
             self.writer.insert_complete()
-            #self.conn.commit()
+            print('published {} data values:'.format(len(to_publish_list)))
             self.report_all_published()
 
         def query_topic_list(self):
