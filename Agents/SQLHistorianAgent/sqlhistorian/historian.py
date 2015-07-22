@@ -67,12 +67,13 @@ import gevent
 from zmq.utils import jsonapi
 
 from volttron.platform.vip.agent import *
-from volttron.platform.agent import BaseHistorianAgent, BaseQueryHistorianAgent
+from volttron.platform.agent import BaseHistorian
 from volttron.platform.agent import utils
 from volttron.platform.messaging import topics, headers as headers_mod
 
 #import sqlhistorian
 #import sqlhistorian.settings
+import settings
 
 
 utils.setup_logging()
@@ -93,10 +94,11 @@ def historian(config_path, **kwargs):
     identity = config.get('identity', None)
 
     if databaseType == 'sqlite':
-        from . sqlitefuncts import (prepare, connect, query_topics, insert_topic,
-                                  insert_data)
+        from sqlitefuncts import SqlLiteFuncts as DbFuncts
+#         from sqlitefuncts import (prepare, connect, query_topics, insert_topic,
+#                                   insert_data)
 
-    class SQLHistorian(BaseHistorianAgent, BaseQueryHistorianAgent):
+    class SQLHistorian(BaseHistorian):
         '''This is a simple example of a historian agent that writes stuff
         to a SQLite database. It is designed to test some of the functionality
         of the BaseHistorianAgent.
@@ -104,6 +106,8 @@ def historian(config_path, **kwargs):
 
         @Core.receiver("onstart")
         def starting(self, sender, **kwargs):
+            self.reader = DbFuncts(**connection['params'])
+            self.topic_map = self.reader.get_topic_map()
 
             if self.core.identity == 'platform.historian':
                 # Check to see if the platform agent is available, if it isn't then
@@ -142,15 +146,15 @@ def historian(config_path, **kwargs):
                 topic_id = self.topic_map.get(topic, None)
 
                 if topic_id is None:
-                    row  = insert_topic(topic, self.conn, False)
+                    row  = self.writer.insert_topic(topic, self.conn, False)
                     topic_id = row[0]
                     self.topic_map[topic] = topic_id
 
-                insert_data(ts,topic_id, value, self.conn)
+                self.writer.insert_data(ts,topic_id, value)
 
             print('published {} data values:'.format(len(to_publish_list)))
-
-            self.conn.commit()
+            self.writer.insert_complete()
+            #self.conn.commit()
             self.report_all_published()
 
         def query_topic_list(self):
@@ -168,67 +172,13 @@ def historian(config_path, **kwargs):
 
              metadata is not required (The caller will normalize this to {} for you)
             """
-            query = '''SELECT data.ts, data.value_string
-                       FROM data, topics
-                       {where}
-                       {order_by}
-                       {limit}
-                       {offset}'''
-
-            where_clauses = ["WHERE topics.topic_name = ?", "topics.topic_id = data.topic_id"]
-            args = [topic]
-
-            if start is not None:
-                where_clauses.append("data.ts > ?")
-                args.append(start)
-
-            if end is not None:
-                where_clauses.append("data.ts < ?")
-                args.append(end)
-
-            where_statement = ' AND '.join(where_clauses)
-
-            order_by = 'ORDER BY data.ts ASC'
-            if order == 'LAST_TO_FIRST':
-                order_by = ' ORDER BY data.ts DESC'
-
-            #can't have an offset without a limit
-            # -1 = no limit and allows the user to
-            # provied just an offset
-            if count is None:
-                count = -1
-
-            limit_statement = 'LIMIT ?'
-            args.append(count)
-
-            offset_statement = ''
-            if skip > 0:
-                offset_statement = 'OFFSET ?'
-                args.append(skip)
-
-            _log.debug("About to do real_query")
-
-            real_query = query.format(where=where_statement,
-                                      limit=limit_statement,
-                                      offset=offset_statement,
-                                      order_by=order_by)
-
-            print(real_query)
-            print(args)
-
-            c = self.conn.cursor()
-            c.execute(real_query,args)
-            values = [(ts.isoformat(), jsonapi.loads(value)) for ts, value in c]
-
-            return {'values':values}
-
+            return self.reader.query(topic, start=start, end=end, skip=skip,
+                                     count=count, order=order)
 
         def historian_setup(self):
-            prepare(**connection['params'])
-            self.conn = connect()
+            self.writer = DbFuncts(**connection['params'])
 
-            for row in query_topics(self.conn):
-                self.topic_map[row[1]] = row[0]
+
 
     SQLHistorian.__name__ = 'SQLHistorian'
     return SQLHistorian(identity=identity, **kwargs)

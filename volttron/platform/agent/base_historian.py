@@ -135,8 +135,9 @@ class BaseHistorianAgent(Agent):
                                prefix=driver_prefix,
                                callback=self.capture_device_data)
 
+        print('Subscribing to: ',topics.LOGGER_LOG)
         self.vip.pubsub.subscribe(peer='pubsub',
-                               prefix="datalogger",
+                               prefix=topics.LOGGER_LOG, #"datalogger",
                                callback=self.capture_log_data)
 
         self.vip.pubsub.subscribe(peer='pubsub',
@@ -159,7 +160,7 @@ class BaseHistorianAgent(Agent):
         location = '/'.join(reversed(parts[2:]))
 
         try:
-            data = jsonapi.loads(message[0])
+            data = message # jsonapi.loads(message[0])
         except ValueError as e:
             _log.error("message for {topic} bad message string: {message_string}".format(topic=topic,
                                                                                      message_string=message[0]))
@@ -450,12 +451,12 @@ class BaseHistorianAgent(Agent):
             topic_id = self.topic_map.get(topic)
 
             if topic_id is None:
-                    c.execute('''INSERT INTO topics values (?,?)''', (None, topic))
-                    c.execute('''SELECT last_insert_rowid()''')
-                    row = c.fetchone()
-                    topic_id = row[0]
-                    self.topic_map[topic_id] = topic
-                    self.topic_map[topic] = topic_id
+                c.execute('''INSERT INTO topics values (?,?)''', (None, topic))
+                c.execute('''SELECT last_insert_rowid()''')
+                row = c.fetchone()
+                topic_id = row[0]
+                self.topic_map[topic_id] = topic
+                self.topic_map[topic] = topic_id
 
             #update meta data
             for name, value in meta.iteritems():
@@ -532,6 +533,9 @@ class BaseQueryHistorianAgent(Agent):
 
          metadata is not required (The caller will normalize this to {} for you)
         """
+
+class BaseHistorian(BaseHistorianAgent, BaseQueryHistorianAgent):
+    pass
 
 #The following code is
 #Copyright (c) 2011, 2012, Regents of the University of California

@@ -170,13 +170,14 @@ def platform_agent(config_path, **kwargs):
         @Core.periodic(15)
         def write_status(self):
             historian_present = False
-            try:
-                ping = self.vip.ping('platform.historian', 'awake?').get(timeout=3)
-                historian_present = True
-            except Unreachable:
-                _log.warning('platform.historian not found!')
-                return
 
+#             try:
+#                 ping = self.vip.ping('platform.historian', 'awake?').get(timeout=10)
+#                 historian_present = True
+#             except Unreachable:
+#                 _log.warning('platform.historian not found!')
+#                 return
+            print('publishing data')
             base_topic = 'datalogger/log/platform/status'
             cpu = base_topic + '/cpu'
             virtual_memory = base_topic + "/virtual_memory"
@@ -192,9 +193,10 @@ def platform_agent(config_path, **kwargs):
                                  'Units': 'double'}
 
             message = jsonapi.dumps(points)
+            print(points)
             self.vip.pubsub.publish(peer='pubsub',
                                     topic=cpu,
-                                    message=[message])
+                                    message=points)
 
         @RPC.export
         def publish_to_peers(self, topic, message, headers = None):
@@ -382,6 +384,8 @@ def platform_agent(config_path, **kwargs):
         def starting(self, sender, **kwargs):
             psutil.cpu_times_percent()
             psutil.cpu_percent()
+            _, _, my_id = self.vip.hello().get(timeout=3)
+            print("STARTING: ",my_id)
             self.vip.pubsub.publish(peer='pubsub', topic='/platform',
                                     message='available')
         @Core.receiver('onstop')
@@ -430,6 +434,7 @@ def find_registration_address(vip_addresses):
 
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
+    #utils.vip_main(platform_agent)
     utils.vip_main(platform_agent)
 
 
