@@ -71,7 +71,8 @@ from volttron.platform.agent import BaseHistorianAgent, BaseQueryHistorianAgent
 from volttron.platform.agent import utils
 from volttron.platform.messaging import topics, headers as headers_mod
 
-import settings
+#import sqlhistorian
+#import sqlhistorian.settings
 
 
 utils.setup_logging()
@@ -92,7 +93,7 @@ def historian(config_path, **kwargs):
     identity = config.get('identity', None)
 
     if databaseType == 'sqlite':
-        from sqlitefuncts import (prepare, connect, query_topics, insert_topic,
+        from . sqlitefuncts import (prepare, connect, query_topics, insert_topic,
                                   insert_data)
 
     class SQLHistorian(BaseHistorianAgent, BaseQueryHistorianAgent):
@@ -237,10 +238,11 @@ def historian(config_path, **kwargs):
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
     try:
-        utils.default_main(historian,
-                           description='Historian agent that saves a history to a sqlite db.',
-                           argv=argv,
-                           no_pub_sub_socket=True)
+        utils.vip_main(historian)
+        #utils.default_main(historian,
+        #                   description='Historian agent that saves a history to a sqlite db.',
+        #                   argv=argv,
+        #                   no_pub_sub_socket=True)
     except Exception as e:
         print(e)
         _log.exception('unhandled exception')
