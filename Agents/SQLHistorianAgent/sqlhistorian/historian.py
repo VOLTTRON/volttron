@@ -52,7 +52,7 @@
 # under Contract DE-AC05-76RL01830
 
 #}}}
-from __future__ import absolute_import, print_function
+#from __future__ import absolute_import, print_function
 
 import datetime
 import errno
@@ -73,7 +73,7 @@ from volttron.platform.messaging import topics, headers as headers_mod
 
 #import sqlhistorian
 #import sqlhistorian.settings
-#import .settings
+#import settings
 
 
 utils.setup_logging()
@@ -98,7 +98,7 @@ def historian(config_path, **kwargs):
     identity = config.get('identity', None)
 
     if databaseType == 'sqlite':
-        from . sqlitefuncts import SqlLiteFuncts as DbFuncts
+        from sqlitefuncts import SqlLiteFuncts as DbFuncts
 #         from sqlitefuncts import (prepare, connect, query_topics, insert_topic,
 #                                   insert_data)
 

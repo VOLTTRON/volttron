@@ -165,9 +165,9 @@ class SqlLiteFuncts(object):
         print(real_query)
         print(args)
 
-        c = connect()
-        c.execute(real_query,args)
-        values = [(ts.isoformat(), jsonapi.loads(value)) for ts, value in c]
+        c = self.connect()
+        rows = c.execute(real_query,args)
+        values = [(ts.isoformat(), jsonapi.loads(value)) for ts, value in rows]
 
         return {'values':values}
 
