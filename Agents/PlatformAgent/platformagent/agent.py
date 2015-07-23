@@ -167,17 +167,17 @@ def platform_agent(config_path, **kwargs):
             _log.debug('Retrieveing key: {}'.format(key))
             return self._settings.get(key, None)
 
-        @Core.periodic(15)
+        @Core.periodic(period=15, wait=30)
         def write_status(self):
             historian_present = False
 
-#             try:
-#                 ping = self.vip.ping('platform.historian', 'awake?').get(timeout=10)
-#                 historian_present = True
-#             except Unreachable:
-#                 _log.warning('platform.historian not found!')
-#                 return
-            print('publishing data')
+            try:
+                ping = self.vip.ping('platform.historian', 'awake?').get(timeout=10)
+                historian_present = True
+            except Unreachable:
+                _log.warning('platform.historian unavailable no logging of data will occur.')
+                return
+            _log.debug('publishing data')
             base_topic = 'datalogger/log/platform/status'
             cpu = base_topic + '/cpu'
             virtual_memory = base_topic + "/virtual_memory"
