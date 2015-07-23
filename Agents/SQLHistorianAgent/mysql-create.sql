@@ -7,5 +7,5 @@ CREATE TABLE data (ts timestamp NOT NULL,
 CREATE INDEX data_idx ON data (ts ASC);
 
 CREATE TABLE topics (topic_id INTEGER PRIMARY KEY, 
-                                 topic_name varchar(255) NOT NULL,
+                                 topic_name varchar(512) NOT NULL,
                                  UNIQUE(topic_name));
