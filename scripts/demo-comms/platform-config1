@@ -1,0 +1,6 @@
+{
+    "agentid": "VCentral platform",
+    "agent_type": "platform node",
+    #"volttron_central_vip_address": "ipc://@/tmp/v1home/run/vip.socket"
+    #"volttron_central_vip_identity": "volttron.central"
+}

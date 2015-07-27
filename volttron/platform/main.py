@@ -538,7 +538,7 @@ def main(argv=sys.argv):
         _log.info('public key: %r (%s)', publickey, encode_key(publickey))
     secretkey = key[40:]
 
-    # The following line doesn't appear to do anything, but it creates 
+    # The following line doesn't appear to do anything, but it creates
     # a context common to the green and non-green zmq modules.
     zmq.Context.instance()   # DO NOT REMOVE LINE!!
 

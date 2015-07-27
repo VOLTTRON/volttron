@@ -148,7 +148,7 @@ def isapipe(fd):
 
 def default_main(agent_class, description=None, argv=sys.argv,
                  parser_class=argparse.ArgumentParser, **kwargs):
-    '''Default main entry point implementation.
+    '''Default main entry point implementation for legacy agents.
 
     description and parser_class are depricated. Please avoid using them.
     '''
@@ -159,26 +159,6 @@ def default_main(agent_class, description=None, argv=sys.argv,
             # get garbage collected and close the underlying descriptor.
             stdout = sys.stdout
             sys.stdout = os.fdopen(stdout.fileno(), 'w', 1)
-        # new vip agents do not need the pub sub socket to be defined in order
-        # them to operate.  Passing the kwarg of no_pub_sub_socket=True to the
-        # function will disable the setting up of a pub sub socket for this
-        # agent.
-        pub_sub_socket_enabled = True
-        if 'no_pub_sub_socket' in kwargs:
-            pub_sub_socket_enabled = not kwargs.pop('no_pub_sub_socket')
-
-        if not pub_sub_socket_enabled:
-            config = os.environ.get('AGENT_CONFIG')
-            agent = agent_class(config_path=config, **kwargs)
-
-
-            try:
-                if getattr(agent, "run"):
-                    agent.run()
-            except AttributeError:
-                gevent.spawn(agent.core.run).join()
-
-            return
 
         try:
             sub_addr = os.environ['AGENT_SUB_ADDR']
@@ -200,6 +180,27 @@ def default_main(agent_class, description=None, argv=sys.argv,
                             publish_address=pub_addr,
                             config_path=config, **kwargs)
         agent.run()
+    except KeyboardInterrupt:
+        pass
+
+
+def vip_main(agent_class, **kwargs):
+    '''Default main entry point implementation for VIP agents.'''
+    try:
+        # If stdout is a pipe, re-open it line buffered
+        if isapipe(sys.stdout):
+            # Hold a reference to the previous file object so it doesn't
+            # get garbage collected and close the underlying descriptor.
+            stdout = sys.stdout
+            sys.stdout = os.fdopen(stdout.fileno(), 'w', 1)
+
+        config = os.environ.get('AGENT_CONFIG')
+        agent = agent_class(config_path=config, **kwargs)
+        try:
+            run = agent.run
+        except AttributeError:
+            run = agent.core.run
+        gevent.spawn(run).join()
     except KeyboardInterrupt:
         pass
 
@@ -249,7 +250,12 @@ class AgentFormatter(logging.Formatter):
             record.__dict__['msg'] = ','.join([str(b) for b in record.args])
             record.__dict__['args'] = []
         #print('RECORD: {}'.format(record))
-        return super(AgentFormatter, self).format(record)
+        try: 
+            record = super(AgentFormatter, self).format(record)
+        except TypeError as e:
+            print("Type error: ",e)
+        
+        return record
 
 
 def setup_logging(level=logging.DEBUG):

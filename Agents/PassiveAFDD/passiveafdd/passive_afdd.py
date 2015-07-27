@@ -191,7 +191,7 @@ def passiveafdd(config_path, **kwargs):
                        not self.file_path.endswith('.csv')):
                         _log.info('File must be in CSV format.')
                         return
-                    if self.input_file == "CONFIG_ERROR":
+                    if self.file_path is None and self.input_file == "CONFIG_ERROR":
                         _log.info(
                             'Check configuration file and add input_file '
                             'parameter as file path to data file')
@@ -200,7 +200,7 @@ def passiveafdd(config_path, **kwargs):
                         self.file_path = self.file
                     self.bldg_data = read_oae_pandas(self.file_path,
                                                      self.names)
-                self.process_data()
+                    self.process_data()
             except:
                 _log.exception('Error:' + str(sys.exc_info()[0]))
 
@@ -411,8 +411,8 @@ def passiveafdd(config_path, **kwargs):
                         if (self.matemp[points] != -99 and
                            self.ratemp[points] != -99 and
                            self.oatemp[points] != -99):
-                            if ((int(self.matemp_missing) and
-                               int(self.cooling[points]) or
+                            if ((int(self.matemp_missing)) and
+                               (int(self.cooling[points]) or
                                int(self.heating[points]))):
                                 oae1_result.append(22)
                             elif (self.matemp[points] < self.mat_low or
@@ -456,8 +456,7 @@ def passiveafdd(config_path, **kwargs):
             for points in xrange(0, self.newdata):
                 if self.fan_status[points] != -99:
                     if self.fan_status[points]:
-                        if (self.ratemp[points] != -99 and
-                           self.oatemp[points] != -99 and
+                        if (self.oaf[points] != -99 and
                            self.cooling[points] != -99 and
                            self.damper[points] != -99):
                             if((self.ratemp[points] - self.oatemp[points] >
@@ -570,8 +569,7 @@ def passiveafdd(config_path, **kwargs):
                 if self.fan_status[points] != -99:
                     if self.fan_status[points]:
                         if (self.cooling[points] != -99 and
-                           self.oatemp[points] != -99 and
-                           self.ratemp[points] != -99 and
+                           self.oaf[points] != -99 and
                            self.damper[points] != -99):
                             if((self.oatemp[points] - self.ratemp[points] >
                                 self.temp_deadband and
@@ -653,13 +651,12 @@ def passiveafdd(config_path, **kwargs):
                 if self.fan_status[points] != -99:
                     if int(self.fan_status[points]):
                         if (self.cooling[points] != -99 and
-                           self.oatemp[points] != -99 and
-                           self.ratemp[points] != -99 and
+                           self.oaf[points] != -99 and
                            self.damper[points] != -99):
                             if (self.damper_minimum - self.damper[points] <=
                                     self.damper_deadband):
-                                if (math.fabs(self.oatemp[points] -
-                                              self.ratemp[points] > 5.0) and
+                                if ((math.fabs(self.oatemp[points] -
+                                               self.ratemp[points]) > 5.0) and
                                    not self.matemp_missing):
                                     if ((self.minimum_oa - self.oaf[points]) >
                                         self.oae5_oaf_threshold and

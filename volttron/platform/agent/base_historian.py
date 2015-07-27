@@ -55,37 +55,53 @@
 # under Contract DE-AC05-76RL01830
 #}}}
 
+from __future__ import absolute_import, print_function
 from abc import abstractmethod
 from collections import defaultdict
 from dateutil.parser import parse
 from datetime import datetime, timedelta
 import logging
 from pprint import pprint
-import pytz
 from Queue import Queue, Empty
 import re
 import sqlite3
 from threading import Thread
 
+import gevent
+import pytz
 from zmq.utils import jsonapi
 
-from volttron.platform.agent import BaseAgent
-from volttron.platform.agent import utils, matching
-from volttron.platform.agent.vipagent import RPCAgent, export, onevent
+from volttron.platform.vip.agent import *
+from volttron.platform.agent import utils
 from volttron.platform.messaging import topics, headers as headers_mod
+
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
 ACTUATOR_TOPIC_PREFIX_PARTS = len(topics.ACTUATOR_VALUE.split('/'))
 
-class BaseHistorianAgent(BaseAgent):
+class BaseHistorianAgent(Agent):
     '''This is the base agent for historian Agents.
     It automatically subscribes to all device publish topics.
 
-    Event processing in publish_to_historian and setup in historian_setup
-    both happen in the same thread separate from the main thread. This is
-    to allow blocking while processing events.
+    Event processing occurs in its own thread as to not block the main
+    thread.  Both the historian_setup and publish_to_historian happen in
+    the same thread.
+
+    By default the base historian will listen to 4 separate root topics (
+    datalogger/*, record/*, actuators/*, and device/*.  Messages that are
+    published to actuator are assumed to be part of the actuation process.
+    Messages published to datalogger will be assumed to be timepoint data that
+    is composed of units and specific types with the assumption that they have
+    the ability to be graphed easily. Messages published to devices
+    are data that comes directly from drivers.  Finally Messages that are
+    published to record will be handled as string data and can be customized
+    to the user specific situation.
+
+    This base historian will cache all received messages to a local database
+    before publishing it to the historian.  This allows recovery for unexpected
+    happenings before the successful writing of data to the historian.
     '''
 
     def __init__(self,
@@ -99,15 +115,87 @@ class BaseHistorianAgent(BaseAgent):
         self._max_time_publishing = timedelta(seconds=max_time_publishing)
         self._successful_published = set()
         self._meta_data = defaultdict(dict)
-        self._topic_map = {}
+
         self._event_queue = Queue()
         self._process_thread = Thread(target = self._process_loop)
         self._process_thread.daemon = True  # Don't wait on thread to exit.
         self._process_thread.start()
+        # The topic cache is only meant as a local lookup and should not be
+        # accessed via the implemented historians.
+        self._backup_cache = {}
 
+    @Core.receiver("onstart")
+    def starting_base(self, sender, **kwargs):
+        '''
+        Subscribes to the platform message bus on the actuator, record,
+        datalogger, and device topics to capture data.
+        '''
+        _log.debug("Starting base historian")
 
-    @matching.match_start(topics.DRIVER_TOPIC_BASE+'/'+topics.DRIVER_TOPIC_ALL)
-    def capture_device_data(self, topic, headers, message, match):
+        driver_prefix = topics.DRIVER_TOPIC_BASE+'/'+topics.DRIVER_TOPIC_ALL
+        self.vip.pubsub.subscribe(peer='pubsub',
+                               prefix=driver_prefix,
+                               callback=self.capture_device_data)
+
+        print('Subscribing to: ',topics.LOGGER_LOG)
+        self.vip.pubsub.subscribe(peer='pubsub',
+                               prefix=topics.LOGGER_LOG, #"datalogger",
+                               callback=self.capture_log_data)
+
+        self.vip.pubsub.subscribe(peer='pubsub',
+                               prefix=topics.ACTUATOR,  # actuators/*
+                               callback=self.capture_actuator_data)
+
+    @Core.receiver("onstop")
+    def stopping(self, sender, **kwargs):
+        '''
+        Release subscription to the message bus because we are no longer able
+        to respond to messages now.
+        '''
+        # unsubscribes to all topics that we are subscribed to.
+        self.vip.pubsub.unsubscribe(peer='pubsub', prefix=None, callback=None)
+
+    def capture_log_data(self, peer, sender, bus, topic, headers, message):
+        '''Capture log data and submit it to be published by a historian.'''
+
+        parts = topic.split('/')
+        location = '/'.join(reversed(parts[2:]))
+
+        try:
+            data = message # jsonapi.loads(message[0])
+        except ValueError as e:
+            _log.error("message for {topic} bad message string: {message_string}".format(topic=topic,
+                                                                                     message_string=message[0]))
+            return
+        except IndexError as e:
+            _log.error("message for {topic} missing message string".format(topic=topic))
+            return
+
+        source = 'log'
+        _log.debug("Queuing {topic} from {source} for publish".format(topic=topic,
+                                                                      source=source))
+        for point, item in data.iteritems():
+            ts_path = location + '/' + point
+            if 'Readings' not in item or 'Units' not in item:
+                _log.error("logging request for {path} missing Readings or Units".format(path=ts_path))
+                continue
+            units = item['Units']
+            dtype = item.get('data_type', 'float')
+            if dtype == 'double':
+                dtype = 'float'
+
+            meta = {'units': units, 'type': dtype}
+
+            readings = item['Readings']
+            if not isinstance(readings, list):
+                readings = [(datetime.utcnow(), readings)]
+
+            self._event_queue.put({'source': source,
+                                   'topic': topic+'/'+point,
+                                   'readings': readings,
+                                   'meta':meta})
+
+    def capture_device_data(self, peer, bus, topic, headers, message):
         '''Capture device data and submit it to be published by a historian.'''
         timestamp_string = headers.get(headers_mod.DATE)
         if timestamp_string is None:
@@ -155,13 +243,13 @@ class BaseHistorianAgent(BaseAgent):
         for key, value in values.iteritems():
             point_topic = device + '/' + key
             self._event_queue.put({'source': source,
-                                   'topic': point_topic,
+                                   'topic': topic,
                                    'readings': [(timestamp,value)],
                                    'meta': meta.get(key,{})})
 
-    @matching.match_start(topics.ACTUATOR_VALUE)
     def capture_actuator_data(self, topic, headers, message, match):
-        '''Capture device data and submit it to be published by a historian.'''
+        '''Capture actuation data and submit it to be published by a historian.
+        '''
         timestamp_string = headers.get('time')
         if timestamp_string is None:
             _log.error("message for {topic} missing timetamp".format(topic=topic))
@@ -195,58 +283,26 @@ class BaseHistorianAgent(BaseAgent):
                                'topic': topic,
                                'readings': [timestamp,value]})
 
-    @matching.match_start(topics.LOGGER_LOG)
-    def capture_log_data(self, topic, headers, message, match):
-        '''Capture log data and submit it to be published by a historian.'''
-
-        parts = topic.split('/')
-        location = '/'.join(reversed(parts[2:]))
-
-        try:
-            data = utils.jsonapi.loads(message[0])
-        except ValueError as e:
-            _log.error("message for {topic} bad message string: {message_string}".format(topic=topic,
-                                                                                     message_string=message[0]))
-            return
-        except IndexError as e:
-            _log.error("message for {topic} missing message string".format(topic=topic))
-            return
-
-        source = 'log'
-        _log.debug("Queuing {topic} from {source} for publish".format(topic=topic,
-                                                                      source=source))
-
-        for point, item in data.iteritems():
-            ts_path = location + '/' + point
-            if 'Readings' not in item or 'Units' not in item:
-                _log.error("logging request for {path} missing Readings or Units".format(path=ts_path))
-                continue
-
-            units = item['Units']
-            dtype = item.get('data_type', 'float')
-            if dtype == 'double':
-                dtype = 'float'
-
-            meta = {'units': units, 'type': dtype}
-
-            readings = item['Readings']
-            if not isinstance(readings, list):
-                readings = [(datetime.utcnow(), readings)]
-
-            self._event_queue.put({'source': source,
-                                   'topic': topic,
-                                   'readings': readings,
-                                   'meta':meta})
 
     def _process_loop(self):
+        '''
+        The process loop is called off of the main thread and will not exit
+        unless the main agent is shutdown.
+        '''
+
         _log.debug("Starting process loop.")
         self._setup_backup_db()
         self.historian_setup()
+
+        # now that everything is setup we need to make sure that the topics
+        # are syncronized between
+
 
         #Based on the state of the back log and whether or not sucessful
         #publishing is currently happening (and how long it's taking)
         #we may or may not want to wait on the event queue for more input
         #before proceeding with the rest of the loop.
+        #wait_for_input = not bool(self._get_outstanding_to_publish())
         wait_for_input = not bool(self._get_outstanding_to_publish())
 
         while True:
@@ -284,9 +340,11 @@ class BaseHistorianAgent(BaseAgent):
                 if now - start_time > self._max_time_publishing:
                     wait_for_input = False
                     break
-
+        _log.debug("Finished processing")
 
     def _setup_backup_db(self):
+        ''' Creates a backup database for the historian if doesn't exist.'''
+
         _log.debug("Setting up backup DB.")
         self._connection = sqlite3.connect('backup.sqlite',
                                            detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
@@ -329,8 +387,8 @@ class BaseHistorianAgent(BaseAgent):
         else:
             c.execute("SELECT * FROM topics")
             for row in c:
-                self._topic_map[row[0]] = row[1]
-                self._topic_map[row[1]] = row[0]
+                self._backup_cache[row[0]] = row[1]
+                self._backup_cache[row[1]] = row[0]
 
         c.close()
 
@@ -352,7 +410,7 @@ class BaseHistorianAgent(BaseAgent):
             results.append({'_id':_id,
                             'timestamp': timestamp.replace(tzinfo=pytz.UTC),
                             'source': source,
-                            'topic': self._topic_map[topic_id],
+                            'topic': self._backup_cache[topic_id],
                             'value': value,
                             'meta': meta})
 
@@ -395,15 +453,15 @@ class BaseHistorianAgent(BaseAgent):
             meta = item.get('meta', {})
             values = item['readings']
 
-            topic_id = self._topic_map.get(topic)
+            topic_id = self._backup_cache.get(topic)
 
             if topic_id is None:
-                    c.execute('''INSERT INTO topics values (?,?)''', (None, topic))
-                    c.execute('''SELECT last_insert_rowid()''')
-                    row = c.fetchone()
-                    topic_id = row[0]
-                    self._topic_map[topic_id] = topic
-                    self._topic_map[topic] = topic_id
+                c.execute('''INSERT INTO topics values (?,?)''', (None, topic))
+                c.execute('''SELECT last_insert_rowid()''')
+                row = c.fetchone()
+                topic_id = row[0]
+                self._backup_cache[topic_id] = topic
+                self._backup_cache[topic] = topic_id
 
             #update meta data
             for name, value in meta.iteritems():
@@ -432,7 +490,7 @@ class BaseHistorianAgent(BaseAgent):
            main processing loop starts.'''
 
 
-class BaseQueryHistorianAgent(RPCAgent):
+class BaseQueryHistorianAgent(Agent):
     '''This is the base agent for query historian Agents.
     It defines functions that must be defined to impliment the
 
@@ -441,8 +499,9 @@ class BaseQueryHistorianAgent(RPCAgent):
     to allow blocking while processing events.
     '''
 
-    @export()
-    def query(self, topic=None, start=None, end=None, skip=0, count=None):
+    @RPC.export
+    def query(self, topic=None, start=None, end=None, skip=0,
+              count=None, order="FIRST_TO_LAST"):
         """Actual RPC handler"""
 
         if topic is None:
@@ -460,14 +519,19 @@ class BaseQueryHistorianAgent(RPCAgent):
             except TypeError:
                 end = time_parser.parse(end)
 
-        results = self.query_historian(topic, start, end, skip, count)
+        _log.debug("In base query")
+
+        if start:
+            _log.debug("start={}".format(start))
+
+        results = self.query_historian(topic, start, end, skip, count, order)
         metadata = results.get("metadata")
         if metadata is None:
             results['metadata'] = {}
         return results
 
     @abstractmethod
-    def query_historian(self, topic, start=None, end=None, skip=0, count=None):
+    def query_historian(self, topic, start=None, end=None, skip=0, count=None, order=None):
         """This function should return the results of a query in the form:
         {"values": [(timestamp1: value1), (timestamp2: value2), ...],
          "metadata": {"key1": value1, "key2": value2, ...}}
@@ -475,12 +539,8 @@ class BaseQueryHistorianAgent(RPCAgent):
          metadata is not required (The caller will normalize this to {} for you)
         """
 
-    @onevent('setup')
-    def run_setup(self):
-        self.historian_setup()
-
-    def historian_setup(self):
-        '''Optional setup routine, setup any needed db connection here.'''
+class BaseHistorian(BaseHistorianAgent, BaseQueryHistorianAgent):
+    pass
 
 #The following code is
 #Copyright (c) 2011, 2012, Regents of the University of California
@@ -548,13 +608,13 @@ def t_NUMBER(t):
         try:
             t.value = float(t.value)
         except ValueError:
-            print "Invalid floating point number", t.value
+            print("Invalid floating point number", t.value)
             t.value = 0
     else:
         try:
             t.value = int(t.value)
         except ValueError:
-            print "Integer value too large %d", t.value
+            print("Integer value too large %d", t.value)
             t.value = 0
 
     return t

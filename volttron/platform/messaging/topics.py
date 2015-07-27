@@ -132,6 +132,9 @@ ACTUATOR_SCHEDULE_ANNOUNCE_RAW = _(_ACTUATOR_SCHEDULE.replace('{op}','announce/{
 # and want to use the {campus}//{building}//{unit} style replacement
 ACTUATOR_SCHEDULE_ANNOUNCE = _(ACTUATOR_SCHEDULE_ANNOUNCE_RAW.replace('{device}','{campus}//{building}//{unit}'))
 
+# Added by CHA to be used as the root of all actuators for working within
+# base_historian.py.
+ACTUATOR = _(_DEVICES_VALUE.replace('{node}', 'actuators'))
 ACTUATOR_ERROR = _(_DEVICES_VALUE.replace('{node}', 'actuators/error'))
 ACTUATOR_VALUE = _(_DEVICES_VALUE.replace('{node}', 'actuators/value'))
 

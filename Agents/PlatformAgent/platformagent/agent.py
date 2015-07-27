@@ -57,6 +57,7 @@ from __future__ import absolute_import, print_function
 import base64
 from datetime import datetime
 import gevent
+import gevent.event
 import logging
 import sys
 import requests
@@ -100,6 +101,7 @@ def platform_agent(config_path, **kwargs):
                                  "volttron.central")
     vip_identity = config.get('vip_identity', 'platform.agent')
 
+
     if not vc_vip_address:
         raise ValueError('Invalid volttron_central_vip_address')
 
@@ -120,6 +122,8 @@ def platform_agent(config_path, **kwargs):
             self._settings = {}
             self._load_settings()
             self._agent_configurations = {}
+            self._sibling_cache = {}
+            self._vip_channels = {}
 
         def _store_settings(self):
             with open('platform.settings', 'wb') as f:
@@ -135,6 +139,22 @@ def platform_agent(config_path, **kwargs):
                 _log.debug('Exception '+ e.message)
                 self._settings = {}
 
+        def _get_rpc_agent(self, address):
+            if address == self.core.address:
+                agent = self
+            elif address not in self._vip_channels:
+                agent = Agent(address=address)
+                event = gevent.event.Event()
+                agent.core.onstart.connect(lambda *a, **kw: event.set(), event)
+                gevent.spawn(agent.core.run)
+                event.wait()
+                self._vip_channels[address] = agent
+
+            else:
+                agent = self._vip_channels[address]
+            return agent
+
+
         @RPC.export
         def set_setting(self, key, value):
             _log.debug("Setting key: {} to value: {}".format(key, value))
@@ -147,16 +167,17 @@ def platform_agent(config_path, **kwargs):
             _log.debug('Retrieveing key: {}'.format(key))
             return self._settings.get(key, None)
 
-        @Core.periodic(15)
+        @Core.periodic(period=15, wait=30)
         def write_status(self):
             historian_present = False
+
             try:
-                ping = self.vip.ping('platform.historian', 'awake?').get(timeout=3)
+                ping = self.vip.ping('platform.historian', 'awake?').get(timeout=10)
                 historian_present = True
             except Unreachable:
-                _log.warning('platform.historian not found!')
+                _log.warning('platform.historian unavailable no logging of data will occur.')
                 return
-
+            _log.debug('publishing data')
             base_topic = 'datalogger/log/platform/status'
             cpu = base_topic + '/cpu'
             virtual_memory = base_topic + "/virtual_memory"
@@ -172,9 +193,56 @@ def platform_agent(config_path, **kwargs):
                                  'Units': 'double'}
 
             message = jsonapi.dumps(points)
+            print(points)
             self.vip.pubsub.publish(peer='pubsub',
                                     topic=cpu,
-                                    message=[message])
+                                    message=points)
+
+        @RPC.export
+        def publish_to_peers(self, topic, message, headers = None):
+            spawned = []
+            print("Should publish to peers:",self._sibling_cache)
+            for key, item in self._sibling_cache.items():
+                for peer_address in item:
+                    try:
+#                         agent = Agent(address=peer_address)
+
+#                         event = gevent.event.Event()
+#                         gevent.spawn(agent.core.run, event)
+#                         event.wait()
+                        agent = self._get_rpc_agent(peer_address)
+                        print ("about to publish to peers: {}".format(agent.core.identity))
+#                         agent.vip.publish()
+                        agent.vip.pubsub.publish(peer='pubsub',headers=headers,
+                                        topic=topic,
+                                        message=message)
+
+                    except Unreachable:
+                        _log.error("Count not publish to peer: {}".
+                                   format(peer_address))
+
+        #TODO: Make configurable
+        @Core.periodic(30)
+        def update_sibling_address_cache(self):
+            print('update_sibling_address_cache',self._managers)
+            for manager in self._managers:
+                try:
+                    print ("Manager",manager)
+                    print (manager[0],manager[1])
+
+                    agent = self._get_rpc_agent(manager[0])
+#                     agent = Agent(address=manager[0])
+                    result = agent.vip.rpc.call(manager[1],"list_platform_details").get(timeout=10)
+                    print("RESULT",result)
+                    self._sibling_cache[manager[0]] = result
+
+                except Unreachable:
+                    _log.error('Could not reach manager: {}'.format(manager))
+                except:
+                    print("SOMETHING BAD")
+
+
+
 
         @RPC.export
         def register_service(self, vip_identity):
@@ -316,6 +384,8 @@ def platform_agent(config_path, **kwargs):
         def starting(self, sender, **kwargs):
             psutil.cpu_times_percent()
             psutil.cpu_percent()
+            _, _, my_id = self.vip.hello().get(timeout=3)
+            print("STARTING: ",my_id)
             self.vip.pubsub.publish(peer='pubsub', topic='/platform',
                                     message='available')
         @Core.receiver('onstop')
@@ -364,11 +434,8 @@ def find_registration_address(vip_addresses):
 
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
-    utils.default_main(platform_agent,
-                       description='Agent available to manage from a remote '
-                                    + 'system.',
-                       no_pub_sub_socket=True,
-                       argv=argv)
+    #utils.vip_main(platform_agent)
+    utils.vip_main(platform_agent)
 
 
 if __name__ == '__main__':

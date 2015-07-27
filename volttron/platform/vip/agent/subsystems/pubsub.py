@@ -289,7 +289,7 @@ class PubSub(SubsystemBase):
         callbacks.add(callback)
     
     @subscribe.classmethod
-    def subscribe(self, peer, prefix, bus=''):
+    def subscribe(cls, peer, prefix, bus=''):
         def decorate(method):
             annotate(method, set, 'pubsub.subscriptions', (peer, bus, prefix))
             return method
