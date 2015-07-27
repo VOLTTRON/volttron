@@ -107,7 +107,7 @@ class DriverAgent(Agent):
         driver_type = self.config["driver_type"] 
         registry_config = self.get_config(self.config["registry_config"]) 
         
-        self.heart_beat_point = self.config("heart_beat_point") 
+        self.heart_beat_point = self.config.get("heart_beat_point") 
                            
         self.interface = self.get_interface(driver_type, driver_config, registry_config)
         self.meta_data = {}
