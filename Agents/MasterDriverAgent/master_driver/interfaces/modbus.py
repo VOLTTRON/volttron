@@ -204,7 +204,7 @@ class Interface(BaseInterface):
                 register_range[1] = end        
         
     def get_point(self, point_name):    
-        register = self.point_map[point_name]
+        register = self.get_register_by_name(point_name)
         client = SyncModbusClient(self.ip_address, port=self.port)
         try:
             result = register.get_state_sync(client)
@@ -215,7 +215,7 @@ class Interface(BaseInterface):
         return result
     
     def set_point(self, point_name, value):    
-        register = self.point_map[point_name]
+        register = self.get_register_by_name(point_name)
         client = SyncModbusClient(self.ip_address, port=self.port)
         result = None
         try:
@@ -301,7 +301,7 @@ class Interface(BaseInterface):
         
         for regDef in configDict:
             #Skip lines that have no address yet.
-            if not regDef['Point Name']:
+            if not regDef['Volttron Point Name']:
                 continue
             
             io_type = regDef['Modbus Register']

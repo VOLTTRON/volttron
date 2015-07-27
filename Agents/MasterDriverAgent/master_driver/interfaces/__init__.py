@@ -53,6 +53,9 @@ under Contract DE-AC05-76RL01830
 
 import abc
 
+class DriverInterfaceError(Exception):
+    pass
+
 class BaseRegister(object):
     def __init__(self, register_type, read_only, pointName, units, description = ''):
         self.read_only = read_only
@@ -96,7 +99,10 @@ class BaseInterface(object):
         pass
         
     def get_register_by_name(self, name):
-        return self.point_map[name]
+        try:
+            return self.point_map[name]
+        except KeyError:
+            raise DriverInterfaceError("Point not configured on device: "+name)
     
     def get_register_names(self):
         return self.point_map.keys()
@@ -111,12 +117,10 @@ class BaseInterface(object):
         register_type = register.get_register_type()
         self.registers[register_type].append(register)        
         
-    #Getting data in a async manner
     @abc.abstractmethod
     def get_point(self, point_name):    
         pass
     
-    #setting data in a async manner
     @abc.abstractmethod
     def set_point(self, point_name, value): 
         pass

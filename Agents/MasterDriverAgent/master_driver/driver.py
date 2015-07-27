@@ -51,7 +51,7 @@ operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 under Contract DE-AC05-76RL01830
 '''
 import datetime
-from volttron.platform.vip.agent import Agent, Core, RPC
+from volttron.platform.vip.agent import Agent, Core
 from volttron.platform.agent import utils
 from zmq.utils import jsonapi
 from volttron.platform.messaging import headers as headers_mod
@@ -66,6 +66,7 @@ class DriverAgent(Agent):
     def __init__(self, parent, **kwargs):             
         super(DriverAgent, self).__init__(**kwargs)
         self.parent = parent
+        self.heart_beat_value = 0
         
     def get_config(self, config_name):
         #Until config store is setup just grab a file.
@@ -105,6 +106,8 @@ class DriverAgent(Agent):
         driver_config = self.config["driver_config"] 
         driver_type = self.config["driver_type"] 
         registry_config = self.get_config(self.config["registry_config"]) 
+        
+        self.heart_beat_point = self.config("heart_beat_point") 
                            
         self.interface = self.get_interface(driver_type, driver_config, registry_config)
         self.meta_data = {}
@@ -145,7 +148,6 @@ class DriverAgent(Agent):
         now = datetime.datetime.utcnow().isoformat(' ') + 'Z'
         
         headers = {
-            headers_mod.CONTENT_TYPE: headers_mod.CONTENT_TYPE.JSON,
             headers_mod.DATE: now,
         }
             
@@ -153,12 +155,12 @@ class DriverAgent(Agent):
         for point, value in results.iteritems():
             topics = self.get_paths_for_point(point)
             for topic in topics:
-                message = [jsonapi.dumps(value), jsonapi.dumps(self.meta_data[point])] 
+                message = [value, self.meta_data[point]] 
                 self.vip.pubsub.publish('pubsub', topic, 
                                         headers=headers, 
                                         message=message)
          
-        message = [jsonapi.dumps(results), jsonapi.dumps(self.meta_data)] 
+        message = [results, self.meta_data] 
         self.vip.pubsub.publish('pubsub', 
                                 self.all_path_depth, 
                                 headers=headers, 
@@ -168,6 +170,14 @@ class DriverAgent(Agent):
                                 self.all_path_breadth, 
                                 headers=headers, 
                                 message=message)
+        
+    def heart_beat(self):
+        if self.heart_beat_point is None:
+            return
+        
+        self.heart_beat_value = int(not bool(self.heart_beat_value))
+        
+        self.set_point(self.heart_beat_point, self.heart_beat_value)
 
     def get_paths_for_point(self, point):
         depth_first = self.base_topic(point=point)
@@ -180,10 +190,8 @@ class DriverAgent(Agent):
          
         return depth_first, breadth_first 
     
-    @RPC.export
     def get_point(self, point_name):
         return self.interface.get_point(point_name)
     
-    @RPC.export
     def set_point(self, point_name, value):
         return self.interface.set_point(point_name, value)

@@ -93,24 +93,28 @@ def master_driver_agent(config_path, **kwargs):
         @Core.receiver('onstart')
         def starting(self, sender, **kwargs):
             for config_name in driver_config_list:
-                driver = DriverAgent(identity=config_name)
+                driver = DriverAgent(self, identity=config_name)
                 gevent.spawn(driver.core.run)   
                 #driver.core.stop to kill an agent.    
                 
         def device_startup_callback(self, topic, driver):
+            topic = topic.strip('/')
             self.instances[topic] = driver
             
         @RPC.export
-        def get_point(self, point_name):
-            return self.interface.get_point(point_name)
+        def get_point(self, path, point_name):
+            return self.instances[path].get_point(point_name)
         
         @RPC.export
-        def set_point(self, point_name, value):
-            return self.interface.set_point(point_name, value)
+        def set_point(self, path, point_name, value):
+            return self.instances[path].set_point(point_name, value)
+        
+        @RPC.export
+        def heart_beat(self):
+            for device in self.instances.values():
+                device.heart_beat()
                 
             
-
-    MasterDriverAgent.__name__ = 'MasterDriverAgent'
     return MasterDriverAgent(**kwargs)
 
 
