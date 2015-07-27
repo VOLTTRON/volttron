@@ -124,10 +124,7 @@ def main(argv=sys.argv):
     '''Main method called to start the agent.'''
     utils.setup_logging()
     #try:
-    utils.default_main(master_driver_agent,
-        description='Master agent for starting and stopping driver agents.',
-        no_pub_sub_socket=True,
-        argv=argv)
+    utils.vip_main(master_driver_agent)
     #except Exception:
     #    _log.exception('unhandled exception')
 
