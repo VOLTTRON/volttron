@@ -113,7 +113,7 @@ def platform_agent(config_path, **kwargs):
             self.vc_vip_identity = vc_vip_identity
             self.vc_vip_address = vc_vip_address
 
-            print('my identity {} address: {}'.format(self.core.identity,
+            _log.info('my identity {} address: {}'.format(self.core.identity,
                                                       self.core.address))
             # a list of registered managers of this platform.
             self._managers = set()
@@ -193,7 +193,6 @@ def platform_agent(config_path, **kwargs):
                                  'Units': 'double'}
 
             message = jsonapi.dumps(points)
-            print(points)
             self.vip.pubsub.publish(peer='pubsub',
                                     topic=cpu,
                                     message=points)
@@ -201,7 +200,7 @@ def platform_agent(config_path, **kwargs):
         @RPC.export
         def publish_to_peers(self, topic, message, headers = None):
             spawned = []
-            print("Should publish to peers:",self._sibling_cache)
+            _log.debug("Should publish to peers:",self._sibling_cache)
             for key, item in self._sibling_cache.items():
                 for peer_address in item:
                     try:
@@ -211,7 +210,7 @@ def platform_agent(config_path, **kwargs):
 #                         gevent.spawn(agent.core.run, event)
 #                         event.wait()
                         agent = self._get_rpc_agent(peer_address)
-                        print ("about to publish to peers: {}".format(agent.core.identity))
+                        _log.debug("about to publish to peers: {}".format(agent.core.identity))
 #                         agent.vip.publish()
                         agent.vip.pubsub.publish(peer='pubsub',headers=headers,
                                         topic=topic,
@@ -224,22 +223,22 @@ def platform_agent(config_path, **kwargs):
         #TODO: Make configurable
         @Core.periodic(30)
         def update_sibling_address_cache(self):
-            print('update_sibling_address_cache',self._managers)
+            _log.debug('update_sibling_address_cache',self._managers)
             for manager in self._managers:
                 try:
-                    print ("Manager",manager)
-                    print (manager[0],manager[1])
+                    _log.debug("Manager",manager)
+                    _log.debug(manager[0],manager[1])
 
                     agent = self._get_rpc_agent(manager[0])
 #                     agent = Agent(address=manager[0])
                     result = agent.vip.rpc.call(manager[1],"list_platform_details").get(timeout=10)
-                    print("RESULT",result)
+                    _log.debug("RESULT",result)
                     self._sibling_cache[manager[0]] = result
 
                 except Unreachable:
                     _log.error('Could not reach manager: {}'.format(manager))
-                except:
-                    print("SOMETHING BAD")
+                except StandardError as ex:
+                    _log.error("Unhandled Exception: "+str(ex))
 
 
 
@@ -282,7 +281,7 @@ def platform_agent(config_path, **kwargs):
 
                 except Exception as e:
                     results.append({'error': e.message})
-                    print("EXCEPTION: "+e.message)
+                    _log.error("EXCEPTION: "+e.message)
 
             try:
                 shutil.rmtree(tmpdir)
@@ -385,7 +384,7 @@ def platform_agent(config_path, **kwargs):
             psutil.cpu_times_percent()
             psutil.cpu_percent()
             _, _, my_id = self.vip.hello().get(timeout=3)
-            print("STARTING: ",my_id)
+            _log.debug("STARTING: ",my_id)
             self.vip.pubsub.publish(peer='pubsub', topic='/platform',
                                     message='available')
         @Core.receiver('onstop')
