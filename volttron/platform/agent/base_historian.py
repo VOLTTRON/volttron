@@ -531,6 +531,14 @@ class BaseQueryHistorianAgent(Agent):
             results['metadata'] = {}
         return results
 
+    @RPC.export
+    def get_topic_list(self):
+        return self.query_topic_list()
+
+    @abstractmethod
+    def query_topic_list(self):
+        pass
+
     @abstractmethod
     def query_historian(self, topic, start=None, end=None, skip=0, count=None, order=None):
         """This function should return the results of a query in the form:
