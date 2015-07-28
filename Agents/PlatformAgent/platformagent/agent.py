@@ -223,7 +223,7 @@ def platform_agent(config_path, **kwargs):
         #TODO: Make configurable
         @Core.periodic(30)
         def update_sibling_address_cache(self):
-            _log.debug('update_sibling_address_cache '+self._managers)
+            _log.debug('update_sibling_address_cache '+str(self._managers))
             for manager in self._managers:
                 try:
 #                     _log.debug("Manager",manager)
