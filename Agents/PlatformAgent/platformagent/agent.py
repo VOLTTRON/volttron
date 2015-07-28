@@ -200,7 +200,7 @@ def platform_agent(config_path, **kwargs):
         @RPC.export
         def publish_to_peers(self, topic, message, headers = None):
             spawned = []
-            _log.debug("Should publish to peers:",self._sibling_cache)
+            _log.debug("Should publish to peers: "+str(self._sibling_cache))
             for key, item in self._sibling_cache.items():
                 for peer_address in item:
                     try:
@@ -223,16 +223,16 @@ def platform_agent(config_path, **kwargs):
         #TODO: Make configurable
         @Core.periodic(30)
         def update_sibling_address_cache(self):
-            _log.debug('update_sibling_address_cache',self._managers)
+            _log.debug('update_sibling_address_cache '+self._managers)
             for manager in self._managers:
                 try:
-                    _log.debug("Manager",manager)
-                    _log.debug(manager[0],manager[1])
+#                     _log.debug("Manager",manager)
+#                     _log.debug(manager[0],manager[1])
 
                     agent = self._get_rpc_agent(manager[0])
 #                     agent = Agent(address=manager[0])
                     result = agent.vip.rpc.call(manager[1],"list_platform_details").get(timeout=10)
-                    _log.debug("RESULT",result)
+#                     _log.debug("RESULT",result)
                     self._sibling_cache[manager[0]] = result
 
                 except Unreachable:
@@ -384,7 +384,7 @@ def platform_agent(config_path, **kwargs):
             psutil.cpu_times_percent()
             psutil.cpu_percent()
             _, _, my_id = self.vip.hello().get(timeout=3)
-            _log.debug("STARTING: ",my_id)
+            _log.debug("STARTING: {}".format(my_id))
             self.vip.pubsub.publish(peer='pubsub', topic='/platform',
                                     message='available')
         @Core.receiver('onstop')
