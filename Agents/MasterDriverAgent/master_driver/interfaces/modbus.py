@@ -59,7 +59,7 @@ from pymodbus.exceptions import ConnectionException, ModbusIOException, ModbusEx
 from pymodbus.pdu import ExceptionResponse
 from pymodbus.constants import Defaults
 
-from interfaces import BaseInterface, BaseRegister
+from master_driver.interfaces import BaseInterface, BaseRegister
 
 import struct
 from csv import DictReader
