@@ -158,8 +158,8 @@ class BaseHistorianAgent(Agent):
     def capture_log_data(self, peer, sender, bus, topic, headers, message):
         '''Capture log data and submit it to be published by a historian.'''
 
-        parts = topic.split('/')
-        location = '/'.join(reversed(parts[2:]))
+#         parts = topic.split('/')
+#         location = '/'.join(reversed(parts[2:]))
 
         try:
             data = message # jsonapi.loads(message[0])
@@ -175,7 +175,7 @@ class BaseHistorianAgent(Agent):
         _log.debug("Queuing {topic} from {source} for publish".format(topic=topic,
                                                                       source=source))
         for point, item in data.iteritems():
-            ts_path = location + '/' + point
+#             ts_path = location + '/' + point
             if 'Readings' not in item or 'Units' not in item:
                 _log.error("logging request for {path} missing Readings or Units".format(path=ts_path))
                 continue
@@ -195,8 +195,9 @@ class BaseHistorianAgent(Agent):
                                    'readings': readings,
                                    'meta':meta})
 
-    def capture_device_data(self, peer, bus, topic, headers, message):
+    def capture_device_data(self, peer, sender, bus, topic, headers, message):
         '''Capture device data and submit it to be published by a historian.'''
+        #peer, sender, bus, topic, headers, message
         timestamp_string = headers.get(headers_mod.DATE)
         if timestamp_string is None:
             _log.error("message for {topic} missing timetamp".format(topic=topic))
@@ -217,7 +218,7 @@ class BaseHistorianAgent(Agent):
         device = '/'.join(reversed(parts[2:]))
 
         try:
-            values = utils.jsonapi.loads(message[0])
+            values = message[0]
         except ValueError as e:
             _log.error("message for {topic} bad message string: {message_string}".format(topic=topic,
                                                                                      message_string=message[0]))
@@ -228,7 +229,7 @@ class BaseHistorianAgent(Agent):
 
         meta = {}
         try:
-            meta = utils.jsonapi.loads(message[1])
+            meta = message[1]
         except ValueError as e:
             _log.warning("meta data for {topic} bad message string: {message_string}".format(topic=topic,
                                                                                      message_string=message[0]))
@@ -243,7 +244,7 @@ class BaseHistorianAgent(Agent):
         for key, value in values.iteritems():
             point_topic = device + '/' + key
             self._event_queue.put({'source': source,
-                                   'topic': topic,
+                                   'topic': point_topic,
                                    'readings': [(timestamp,value)],
                                    'meta': meta.get(key,{})})
 
@@ -265,7 +266,7 @@ class BaseHistorianAgent(Agent):
         topic = '/'.join(parts[ACTUATOR_TOPIC_PREFIX_PARTS:])
 
         try:
-            value = utils.jsonapi.loads(message[0])
+            value = message[0]
         except ValueError as e:
             _log.error("message for {topic} bad message string: {message_string}".format(topic=topic,
                                                                                      message_string=message[0]))
