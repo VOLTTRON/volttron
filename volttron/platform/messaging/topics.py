@@ -111,7 +111,7 @@ LOGGER_STATUS = LOGGER(subtopic='status')
 
 DRIVER_TOPIC_BASE = 'devices'
 DRIVER_TOPIC_ALL = 'all'
-DEVICES_PATH = _('{base}//{node}//{campus}//{building}//{unit}//{point}')
+DEVICES_PATH = _('{base}//{node}//{campus}//{building}//{unit}//{path}//{point}')
 _DEVICES_VALUE = _(DEVICES_PATH.replace('{base}',DRIVER_TOPIC_BASE))
 DEVICES_VALUE = _(_DEVICES_VALUE.replace('{node}/', ''))
 
@@ -138,6 +138,11 @@ ACTUATOR = _(_DEVICES_VALUE.replace('{node}', 'actuators'))
 ACTUATOR_ERROR = _(_DEVICES_VALUE.replace('{node}', 'actuators/error'))
 ACTUATOR_VALUE = _(_DEVICES_VALUE.replace('{node}', 'actuators/value'))
 
+#Ragardless of the interface used (RPC vs pubsub) when an agent 
+# attempts to set a point it is announced on this topic.
+#This is intended to inable a historian to capture all attempted writes.
+ACTUATOR_WRITE = _(_DEVICES_VALUE.replace('{node}', 'actuators/write'))
+
 BASE_ARCHIVER_REQUEST = _('archiver/request')
 BASE_ARCHIVER_FULL_REQUEST = _('archiver/full/request')
 BASE_ARCHIVER_RESPONSE = _('archiver/response')
@@ -161,3 +166,16 @@ _BUILDING = _('building/{op}/{{campus}}//{{building}}//{{topic}}')
 BUILDING_SEND = _(_BUILDING.format(op='send'))
 BUILDING_RECV = _(_BUILDING.format(op='recv'))
 BUILDING_ERROR = _(_BUILDING.format(op='error'))
+
+CONFIG_TOPIC_BASE = 'config'
+CONFIG_PATH = _('{base}//{action}//{category}//{name}')
+_CONFIG_VALUE = _(CONFIG_PATH.replace('{base}',CONFIG_TOPIC_BASE))
+CONFIG_ADD = _(_CONFIG_VALUE.replace('{action}', 'add'))
+CONFIG_REMOVE = _(_CONFIG_VALUE.replace('{action}', 'remove'))
+CONFIG_UPDATE = _(_CONFIG_VALUE.replace('{action}', 'update'))
+
+DRIVER_CONFIG_ADD = _(_CONFIG_VALUE.replace('{category}', 'driver'))
+DRIVER_CONFIG_REMOVE = _(_CONFIG_VALUE.replace('{category}', 'driver'))
+DRIVER_CONFIG_UPDATE = _(_CONFIG_VALUE.replace('{category}', 'driver'))
+
+

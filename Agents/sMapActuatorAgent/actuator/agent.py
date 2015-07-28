@@ -62,19 +62,24 @@ import sys
 import time
 import logging
 
-from volttron.platform.vip.agent import Agent, Core, RPC, PubSub
+from collections import OrderedDict
+from dateutil.rrule import DAILY, rruleset, rrule
+
+import requests
+
+from volttron.platform.agent import BaseAgent, PublishMixin
+from volttron.platform.agent import matching, utils
+from volttron.platform.agent.utils import jsonapi
 from volttron.platform.messaging import topics
 from volttron.platform.agent import utils
 from volttron.platform.messaging.utils import normtopic
 from volttron.platform.agent.sched import EventWithTime
 from scheduler import ScheduleManager
 
-from dateutil.parser import parse 
+
 
 VALUE_RESPONSE_PREFIX = topics.ACTUATOR_VALUE()
 ERROR_RESPONSE_PREFIX = topics.ACTUATOR_ERROR()
-
-WRITE_ATTEMPT_PREFIX = topics.ACTUATOR_WRITE()
 
 SCHEDULE_ACTION_NEW = 'NEW_SCHEDULE'
 SCHEDULE_ACTION_CANCEL = 'CANCEL_SCHEDULE'
@@ -90,11 +95,8 @@ ACTUATOR_COLLECTION = 'actuators'
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
-class LockError(StandardError):
-    pass
 
-
-def actuator_agent(config_path, **kwargs):
+def ActuatorAgent(config_path, **kwargs):
     config = utils.load_config(config_path)
     url = config['url']
     schedule_publish_interval = int(config.get('schedule_publish_interval', 60))
@@ -102,10 +104,10 @@ def actuator_agent(config_path, **kwargs):
     points = config.get('points', {})
     schedule_state_file = config.get('schedule_state_file')
     preempt_grace_time = config.get('preempt_grace_time', 60)
+    minimum_slot_time = config.get('preempt_grace_time', preempt_grace_time*2)
     connection_timeout=config.get('connection-timeout', 10)
-    master_driver_agent_address=config.get('master_driver_agent_address')
     
-    class ActuatorAgent(Agent):
+    class Agent(PublishMixin, BaseAgent):
         '''Agent to listen for requests to talk to the sMAP driver.'''
 
         def __init__(self, **kwargs):
@@ -116,10 +118,39 @@ def actuator_agent(config_path, **kwargs):
             self._device_states = {}
             
             self.setup_schedule()
-                    
-        @RPC.export
-        def heart_beat(self):
-            self.vip.rpc.call(master_driver_agent_address, 'heart_beat')
+            
+            self.setup_heartbeats()
+            
+        def setup_heartbeats(self):
+            for point in points:
+                heartbeat_point = points[point].get("heartbeat_point")
+                if heartbeat_point is None:
+                    continue
+                
+                heartbeat_handler = self.heartbeat_factory(point, heartbeat_point)
+                self.periodic_timer(heartbeat_interval, heartbeat_handler)
+        
+        def heartbeat_factory(self, point, actuator):
+            #Stupid lack on nonlocal in 2.x
+            value = [False]
+            request_url = '/'.join([url, point,
+                                    ACTUATOR_COLLECTION, actuator])
+            
+            publish_topic = '/'.join([point, actuator])
+            
+            def update_heartbeat_value():
+                _log.debug('update_heartbeat')
+                value[0] = not value[0]
+                payload = {'state': str(int(value[0]))}
+                try:
+                    _log.debug('About to publish actuation')
+                    r = requests.put(request_url, params=payload, timeout=connection_timeout)
+                    self.process_smap_request_result(r, publish_topic, None)
+                except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as ex:
+                    print "Warning: smap driver not running."
+                    _log.error("Connection error: "+str(ex))
+            
+            return update_heartbeat_value
         
         def setup_schedule(self):
             now = datetime.datetime.now()
@@ -138,7 +169,7 @@ def actuator_agent(config_path, **kwargs):
                 header = self.get_headers(state.agent_id, time=str(now), task_id=state.task_id)
                 header['window'] = state.time_remaining
                 topic = topics.ACTUATOR_SCHEDULE_ANNOUNCE_RAW.replace('{device}', device)
-                self.vip.pubsub.publish('pubsub', topic, header=header, message={})
+                self.publish_json(topic, header, {})
                 
             if self._update_event is not None:
                 #This won't hurt anything if we are canceling ourselves.
@@ -169,21 +200,30 @@ def actuator_agent(config_path, **kwargs):
         @matching.match_regex(topics.ACTUATOR_GET() + '/(.+)')
         def handle_get(self, topic, headers, message, match):
             point = match.group(1)
-            try:
-                value = self.get_point(point)
-                self.push_result_topic_pair(VALUE_RESPONSE_PREFIX,
-                                            point, headers, value)
-            except StandardError as ex:
-                error = {'type': ex.__class__.__name__, 'value': str(ex)}
-                self.push_result_topic_pair(ERROR_RESPONSE_PREFIX,
-                                            point, headers, error)
-
+            collection_tokens, point_name = point.rsplit('/', 1)
+            requester = headers.get('requesterID')
+            if self.check_lock(collection_tokens, requester):
+                request_url = '/'.join([url, collection_tokens,
+                                        ACTUATOR_COLLECTION, point_name])
+                try:
+                    r = requests.get(request_url, timeout=connection_timeout)
+                    self.process_smap_request_result(r, point, requester)
+                except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as ex:
+                    error = {'type': ex.__class__.__name__, 'value': str(ex)}
+                    self.push_result_topic_pair(ERROR_RESPONSE_PREFIX,
+                                                point, headers, error)
+            else:
+                error = {'type': 'LockError',
+                         'value': 'does not have this lock'}
+                self.push_result_topic_pair(ERROR_RESPONSE_PREFIX, point,
+                                            headers, error)
 
         @matching.match_regex(topics.ACTUATOR_SET() + '/(.+)')
         def handle_set(self, topic, headers, message, match):
             _log.debug('handle_set: {topic},{headers}, {message}'.
                        format(topic=topic, headers=headers, message=message))
             point = match.group(1)
+            collection_tokens, point_name = point.rsplit('/', 1)
             requester = headers.get('requesterID')
             headers = self.get_headers(requester)
             if not message:
@@ -194,7 +234,7 @@ def actuator_agent(config_path, **kwargs):
                 return
             else:
                 try:
-                    message = message[0]
+                    message = jsonapi.loads(message[0])
                     if isinstance(message, bool):
                         message = int(message)
                 except ValueError as ex:
@@ -206,48 +246,26 @@ def actuator_agent(config_path, **kwargs):
                     self.push_result_topic_pair(ERROR_RESPONSE_PREFIX,
                                                 point, headers, error)
                     return
-            
-            try:
-                self.set_point(requester, point, message)
-            except StandardError as ex:
-                
-                error = {'type': ex.__class__.__name__, 'value': str(ex)}
+
+            if self.check_lock(collection_tokens, requester):
+                request_url = '/'.join([url, collection_tokens,
+                                        ACTUATOR_COLLECTION, point_name])
+                payload = {'state': str(message)}
+                try:
+                    r = requests.put(request_url, params=payload, timeout=connection_timeout)
+                    self.process_smap_request_result(r, point, requester)
+                except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as ex:
+                    
+                    error = {'type': ex.__class__.__name__, 'value': str(ex)}
+                    self.push_result_topic_pair(ERROR_RESPONSE_PREFIX,
+                                                point, headers, error)
+                    _log.debug('ConnectionError: '+str(error))
+            else:
+                error = {'type': 'LockError',
+                         'value': 'does not have this lock'}
+                _log.debug('LockError: '+str(error))
                 self.push_result_topic_pair(ERROR_RESPONSE_PREFIX,
                                             point, headers, error)
-                _log.debug('Actuator Agent Error: '+str(error))
-                
-                
-        @RPC.export        
-        def get_point(self, topic):
-            topic = topic.strip('/')
-            path, point_name = topic.rsplit('/', 1)
-            return self.vip.rpc.call(master_driver_agent_address, 'get_point', path, point_name).get()
-        
-        @RPC.export
-        def set_point(self, requester_id, topic, value):  
-            topic = topic.strip('/')
-            _log.debug('handle_set: {topic},{requester_id}, {value}'.
-                       format(topic=topic, requester_id=requester_id, value=value))
-            
-            path, point_name = topic.rsplit('/', 1)
-            self.vip.rpc.call(master_driver_agent_address, 'set_point', path, point_name, value)
-            
-            headers = self.get_headers(requester_id)
-            self.push_result_topic_pair(WRITE_ATTEMPT_PREFIX,
-                                        topic, headers, value)
-            
-            if self.check_lock(path, requester_id):
-                result = self.vip.rpc.call(master_driver_agent_address, 'set_point', path, point_name, value).get()
-        
-                headers = self.get_headers(requester_id)
-                self.push_result_topic_pair(WRITE_ATTEMPT_PREFIX,
-                                            topic, headers, value)
-                self.push_result_topic_pair(VALUE_RESPONSE_PREFIX,
-                                            topic, headers, result)
-            else:
-                raise LockError("caller does not have this lock")
-                
-            return result
 
         def check_lock(self, device, requester):
             _log.debug('check_lock: {device}, {requester}'.format(device=device, 
@@ -258,46 +276,18 @@ def actuator_agent(config_path, **kwargs):
                 return device_state.agent_id == requester
             return False
 
-        @PubSub.subscribe("pubsub", topics.ACTUATOR_SCHEDULE_REQUEST())
-        def handle_schedule_request(self, peer, sender, bus, topic, headers, message):
+        @matching.match_exact(topics.ACTUATOR_SCHEDULE_REQUEST())
+        def handle_schedule_request(self, topic, headers, message, match):
             request_type = headers.get('type')
+            now = datetime.datetime.now()
             _log.debug('handle_schedule_request: {topic}, {headers}, {message}'.
                        format(topic=topic, headers=str(headers), message=str(message)))
             
-            requester_id = headers.get('requesterID')
-            task_id = headers.get('taskID')
-            priority = headers.get('priority')
-                   
             if request_type == SCHEDULE_ACTION_NEW:
-                try:
-                    requests = message[0]
-                except IndexError as ex:
-                    # Could be ValueError of JSONDecodeError depending
-                    # on if simplesjson was used.  JSONDecodeError
-                    # inherits from ValueError
-                    
-                    #We let the schedule manager tell us this is a bad request.
-                    _log.error('bad request: {request}, {error}'.format(request=requests, error=str(ex)))
-                    requests = []
+                self.handle_new(headers, message, now)
                 
-                try: 
-                    self.request_new_schedule(requester_id, task_id, priority, requests)
-                except StandardError as ex:
-                    _log.error('bad request: {request}, {error}'.format(request=requests, error=str(ex)))
-                    self.publish_json(topics.ACTUATOR_SCHEDULE_RESULT(), headers,
-                                      {'result':SCHEDULE_RESPONSE_FAILURE, 
-                                       'data': {},
-                                       'info': 'INVALID_REQUEST_TYPE'})
-                    
             elif request_type == SCHEDULE_ACTION_CANCEL:
-                try:
-                    self.request_cancel_schedule(requester_id, task_id)
-                except StandardError as ex:
-                    _log.error('bad request: {request}, {error}'.format(request=requests, error=str(ex)))
-                    self.publish_json(topics.ACTUATOR_SCHEDULE_RESULT(), headers,
-                                      {'result':SCHEDULE_RESPONSE_FAILURE, 
-                                       'data': {},
-                                       'info': 'INVALID_REQUEST_TYPE'})
+                self.handle_cancel(headers, now)
                 
             else:
                 _log.debug('handle-schedule_request, invalid request type')
@@ -306,19 +296,39 @@ def actuator_agent(config_path, **kwargs):
                                    'data': {},
                                    'info': 'INVALID_REQUEST_TYPE'})
             
-        
-        @RPC.export    
-        def request_new_schedule(self, requester_id, task_id, priority, requests):
-            now = datetime.datetime.now()
             
-            requests = [[r[0].strip('/'),parse(r[1]),parse(r[2])] for r in requests]
+        def handle_new(self, headers, message, now):
+            requester = headers.get('requesterID')
+            taskID = headers.get('taskID')
+            priority = headers.get('priority')
+            
+            _log.debug("Got new schedule request: {headers}, {message}".
+                       format(headers = str(headers), message = str(message)))
+            
+            try:
+                requests = jsonapi.loads(message[0])
+            except (ValueError, IndexError) as ex:
+                # Could be ValueError of JSONDecodeError depending
+                # on if simplesjson was used.  JSONDecodeError
+                # inherits from ValueError
+                
+                #We let the schedule manager tell us this is a bad request.
+                _log.error('bad request: {request}, {error}'.format(request=requests, error=str(ex)))
+                requests = []
                 
             
-            _log.debug("Got new schedule request: {}, {}, {}, {}".
-                       format(requester_id, task_id, priority, requests))
-            
-            result = self._schedule_manager.request_slots(requester_id, task_id, requests, priority, now)
+            result = self._schedule_manager.request_slots(requester, taskID, requests, priority, now)
             success = SCHEDULE_RESPONSE_SUCCESS if result.success else SCHEDULE_RESPONSE_FAILURE
+            
+            #If we are successful we do something else with the real result data
+            data = result.data if not result.success else {}
+            
+            topic = topics.ACTUATOR_SCHEDULE_RESULT()
+            headers = self.get_headers(requester, task_id=taskID)
+            headers['type'] = SCHEDULE_ACTION_NEW
+            self.publish_json(topic, headers, {'result':success, 
+                                               'data': data, 
+                                               'info':result.info_string})
             
             #Dealing with success and other first world problems.
             if result.success:
@@ -327,44 +337,26 @@ def actuator_agent(config_path, **kwargs):
                     topic = topics.ACTUATOR_SCHEDULE_RESULT()
                     headers = self.get_headers(preempted_task[0], task_id=preempted_task[1])
                     headers['type'] = SCHEDULE_ACTION_CANCEL
-                    self.publish_json(topic, headers=headers, 
-                                      message={'result':SCHEDULE_CANCEL_PREEMPTED,
-                                               'info': '',
-                                               'data':{'agentID': requester_id,
-                                                       'taskID': task_id}})
-            
-            #If we are successful we do something else with the real result data
-            data = result.data if not result.success else {}        
-            topic = topics.ACTUATOR_SCHEDULE_RESULT()
-            headers = self.get_headers(requester_id, task_id=task_id)
-            headers['type'] = SCHEDULE_ACTION_NEW
-            results = {'result':success, 
-                       'data': data, 
-                       'info':result.info_string}
-            self.vip.pubsub.publish('pubsub', topic, headers=headers, message=results)
-            
-            return results
+                    self.publish_json(topic, headers, {'result':SCHEDULE_CANCEL_PREEMPTED,
+                                                       'info': '',
+                                                       'data':{'agentID': requester,
+                                                               'taskID': taskID}})
                     
-        @RPC.export 
-        def request_cancel_schedule(self, requester_id, task_id):
-            now = datetime.datetime.now()
-            headers = self.get_headers(requester_id, task_id=task_id)
+                    
+        def handle_cancel(self, headers, now):
+            requester = headers.get('requesterID')
+            taskID = headers.get('taskID')
             
-            result = self._schedule_manager.cancel_task(requester_id, task_id, now)
+            result = self._schedule_manager.cancel_task(requester, taskID, now)
             success = SCHEDULE_RESPONSE_SUCCESS if result.success else SCHEDULE_RESPONSE_FAILURE
             
             topic = topics.ACTUATOR_SCHEDULE_RESULT()
-            message = {'result':success,  
-                       'info': result.info_string,
-                       'data':{}}
-            self.vip.pubsub.publish('pubsub', topic, 
-                                    headers=headers, 
-                                    message=message)
+            self.publish_json(topic, headers, {'result':success,  
+                                               'info': result.info_string,
+                                               'data':{}})
             
             if result.success:
-                self.update_device_state_and_schedule(now) 
-                
-            return message           
+                self.update_device_state_and_schedule(now)            
             
 
         def get_headers(self, requester, time=None, task_id=None):
@@ -379,18 +371,45 @@ def actuator_agent(config_path, **kwargs):
                 headers['taskID'] = task_id
             return headers
 
+        def process_smap_request_result(self, request, point, requester):
+            _log.debug('Start of process_smap: \n{request}, \n{point}, \n{requester}'.
+                       format(request=request,point=point,requester=requester))
+            headers = self.get_headers(requester)
+            try:
+                
+                request.raise_for_status()
+                results = request.json()
+                readings = results['Readings']
+                _log.debug('Readings: {readings}'.format(readings=readings))
+                reading = readings[0][1]
+                self.push_result_topic_pair(VALUE_RESPONSE_PREFIX,
+                                            point, headers, reading)
+            except requests.exceptions.HTTPError as ex:
+                error = {'type': ex.__class__.__name__, 'value': str(request.text)}
+                _log.error('process_smap HTTPError: '+str(error))
+                self.push_result_topic_pair(ERROR_RESPONSE_PREFIX,
+                                            point, headers, error)
+            except (ValueError, IndexError, KeyError,
+                        requests.exceptions.ConnectionError) as ex:
+                error = {'type': ex.__class__.__name__, 'value': str(ex)}
+                _log.error('process_smap RequestError: '+str(error))
+                self.push_result_topic_pair(ERROR_RESPONSE_PREFIX,
+                                            point, headers, error)
+                
+            _log.debug('End of process_smap: \n{request}, \n{point}, \n{requester}'.
+                       format(request=request,point=point,requester=requester))
 
         def push_result_topic_pair(self, prefix, point, headers, *args):
             topic = normtopic('/'.join([prefix, point]))
-            self.vip.pubsub.publish('pubsub', topic, headers, message = args)
+            self.publish_json(topic, headers, *args)
 
-    return ActuatorAgent(**kwargs)
+    Agent.__name__ = 'ActuatorAgent'
+    return Agent(**kwargs)
 
 
 def main(argv=sys.argv):
-    '''Main method called to start the agent.'''
-    utils.setup_logging()
-    utils.default_main(actuator_agent,
+    '''Main method called by the eggsecutable.'''
+    utils.default_main(ActuatorAgent,
                        description='Example VOLTTRON platform™ actuator agent',
                        argv=argv)
 
