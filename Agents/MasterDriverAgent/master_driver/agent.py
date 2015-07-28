@@ -71,6 +71,8 @@ def master_driver_agent(config_path, **kwargs):
 #                  os.environ.get('VOLTTRON_HOME', '~/.volttron')))
 #     vip_address = 'ipc://@{}/run/vip.socket'.format(home)
 
+    print(sys.path)
+
     config = utils.load_config(config_path)
 
     def get_config(name, default=None):
