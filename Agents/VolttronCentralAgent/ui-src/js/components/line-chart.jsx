@@ -153,7 +153,7 @@ var LineChart = React.createClass({
                     var text;
 
                     if (this.state.xDates) {
-                        text = d[1]  + ' @ ' + moment(d[0]).format('MMM d, YYYY h:mm:ss A');
+                        text = d[1]  + ' @ ' + moment(d[0]).format('MMM D, YYYY h:mm:ss A');
                     } else {
                         text = d.join(', ');
                     }
