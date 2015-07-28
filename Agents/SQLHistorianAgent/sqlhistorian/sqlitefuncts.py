@@ -161,14 +161,13 @@ class SqlLiteFuncts(object):
                                   limit=limit_statement,
                                   offset=offset_statement,
                                   order_by=order_by)
-
-        print(real_query)
-        print(args)
+        _log.debug("Real Query", real_query)
+        _log.debug("args",args)
 
         c = self.connect()
         rows = c.execute(real_query,args)
         values = [(ts.isoformat(), jsonapi.loads(value)) for ts, value in rows]
-
+        print ("QueryResults", values)
         return {'values':values}
 
     def execute(self, query, commit=True):
