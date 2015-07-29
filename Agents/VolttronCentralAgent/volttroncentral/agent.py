@@ -274,9 +274,14 @@ def volttron_central_agent(config_path, **kwargs):
             
             q = query.Query(self.core)
             result = q.query('addresses').get(timeout=10)
-                         
+            
             #TODO: Use all addresses for fallback, #114
             self._external_addresses = (result and result[0]) or self.core.address
+            
+            # Start server in own thread.
+            th = threading.Thread(target=startWebServer, args=(self,))
+            th.daemon = True
+            th.start()
             
 
         def __load_persist_data(self):
