@@ -167,6 +167,7 @@ def volttron_central_agent(config_path, **kwargs):
             self.valid_data = False
             self._vip_channels = {}
             self.persistence_path = ''
+            self._external_addresses = None
 
         def list_agents(self, uuid):
             platform = self.registry.get_platform(uuid)
@@ -220,9 +221,6 @@ def volttron_central_agent(config_path, **kwargs):
             if not identity:
                 identity = 'platform.agent'
 
-
-
-
             result = agent.vip.rpc.call(identity, "manage",
                                         address=self._external_addresses,
                                         identity=self.core.identity)
@@ -274,22 +272,11 @@ def volttron_central_agent(config_path, **kwargs):
             '''This event is triggered when the platform is ready for the agent
             '''
             
-            #TODO Broken query of addresses
-#             q = query.Query(self.core)
-#             result = q.query('addresses').get()
-#             
-#             #TODO: Use all addresses for fallback, #114
-#             if result:
-#                 self._external_addresses = result[0]
-#             else:
-#                 _log.warning("volttron central has no external addresses "
-#                              "configured!")
-#                 self._external_addresses = None
-            self._external_addresses = None
-            
-            # Start tornado in its own thread
-            threading.Thread(target=startWebServer, args=(self,)).start()
-            
+            q = query.Query(self.core)
+            result = q.query('addresses').get(timeout=10)
+                         
+            #TODO: Use all addresses for fallback, #114
+            self._external_addresses = (result and result[0]) or self.core.address
             
 
         def __load_persist_data(self):
