@@ -52,7 +52,7 @@
 # under Contract DE-AC05-76RL01830
 
 #}}}
-#from __future__ import absolute_import, print_function
+from __future__ import absolute_import, print_function
 
 import datetime
 import errno
@@ -98,7 +98,9 @@ def historian(config_path, **kwargs):
     identity = config.get('identity', None)
 
     if databaseType == 'sqlite':
-        from sqlitefuncts import SqlLiteFuncts as DbFuncts
+        from . sqlitefuncts import SqlLiteFuncts as DbFuncts
+    elif databaseType == 'mysql':
+        from . mysqlfuncts import MySqlFuncts as DbFuncts
 #         from sqlitefuncts import (prepare, connect, query_topics, insert_topic,
 #                                   insert_data)
 
@@ -110,7 +112,13 @@ def historian(config_path, **kwargs):
 
         @Core.receiver("onstart")
         def starting(self, sender, **kwargs):
-            self.reader = DbFuncts(**connection['params'])
+            
+            try:
+                self.reader = DbFuncts(**connection['params'])
+            except AttributeError:
+                self.core.stop()
+                return
+                        
             self.topic_map = self.reader.get_topic_map()
 
             if self.core.identity == 'platform.historian':
@@ -165,7 +173,7 @@ def historian(config_path, **kwargs):
             if len(self.topic_map) > 0:
                 return self.topic_map.keys()
             else:
-                # do quer on db and return results.
+                # No topics present.
                 return []
 
         def query_historian(self, topic, start=None, end=None, skip=0,
@@ -180,9 +188,11 @@ def historian(config_path, **kwargs):
                                      count=count, order=order)
 
         def historian_setup(self):
-            self.writer = DbFuncts(**connection['params'])
-
-
+            try:
+                self.writer = DbFuncts(**connection['params'])
+            except AttributeError as exc:
+                print(exc)
+                self.core.stop()
 
     SQLHistorian.__name__ = 'SQLHistorian'
     return SQLHistorian(identity=identity, **kwargs)
