@@ -62,9 +62,13 @@ from pymodbus.constants import Defaults
 from master_driver.interfaces import BaseInterface, BaseRegister
 
 import struct
+import logging
 from csv import DictReader
 from StringIO import StringIO
 import os.path
+
+modbus_logger = logging.getLogger("pymodbus")
+modbus_logger.setLevel(logging.WARNING)
 
 MODBUS_REGISTER_SIZE = 2
 MODBUS_READ_MAX = 100
