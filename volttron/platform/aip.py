@@ -126,6 +126,10 @@ def log_entries(name, agent, pid, level, stream):
         if line[0:1] == '{' and line[-1:] == '}':
             try:
                 obj = jsonapi.loads(line)
+                try:
+                    obj['args'] = tuple(obj['args'])
+                except (KeyError, TypeError, ValueError):
+                    pass
                 record = logging.makeLogRecord(obj)
             except Exception:
                 pass
