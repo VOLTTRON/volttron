@@ -268,6 +268,7 @@ class LogReader(object):
         st_size = st_results[6]
         self.logfile.seek(st_size)
         
+        self.log_queue.put("Reading logfile: {}".format(self.filename))
         while True:
             where = self.logfile.tell()
             line = self.logfile.readline()
@@ -281,6 +282,7 @@ class LogReader(object):
 class LogHandler(tornado.websocket.WebSocketHandler):
 
     def open(self):
+        self.write_thread = None
         _log.debug("Connection open")
     
     def on_message(self, message):
@@ -291,9 +293,13 @@ class LogHandler(tornado.websocket.WebSocketHandler):
         
         if method == 'start_reading':
             if params['log_path']:
-                self.write_thread = threading.Thread(target=self.writing_messages,
+                if self.write_thread == None:
+                    self.log_path = params['log_path']
+                    self.write_thread = threading.Thread(target=self.writing_messages,
                                                      args=[params['log_path']])
-                self.write_thread.start()
+                    self.write_thread.start()
+                else:
+                    self.write_message("Already reading log file: {}".format(self.log_path))
             else:
                 msg = "Invalid params 'log_path' must be specified"
                 self.write_message(msg)
