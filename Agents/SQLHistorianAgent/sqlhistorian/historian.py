@@ -83,10 +83,6 @@ _log = logging.getLogger(__name__)
 
 def historian(config_path, **kwargs):
 
-    for s in sys.path:
-        print("PATH: ", s)
-
-    print("Thie package is ", __package__)
     config = utils.load_config(config_path)
     connection = config.get('connection', None);
 
@@ -98,12 +94,13 @@ def historian(config_path, **kwargs):
     identity = config.get('identity', None)
 
     if databaseType == 'sqlite':
-        from . sqlitefuncts import SqlLiteFuncts as DbFuncts
+        from .db.sqlitefuncts import SqlLiteFuncts as DbFuncts
     elif databaseType == 'mysql':
-        from . mysqlfuncts import MySqlFuncts as DbFuncts
-#         from sqlitefuncts import (prepare, connect, query_topics, insert_topic,
-#                                   insert_data)
-
+        from .db.mysqlfuncts import MySqlFuncts as DbFuncts
+    else:
+        _log.error("Unknown database type specified!")
+        raise Exception("Unkown database type specified!")
+        
     class SQLHistorian(BaseHistorian):
         '''This is a simple example of a historian agent that writes stuff
         to a SQLite database. It is designed to test some of the functionality
@@ -113,6 +110,7 @@ def historian(config_path, **kwargs):
         @Core.receiver("onstart")
         def starting(self, sender, **kwargs):
             
+            print('Starting address: {} identity: {}'.format(self.core.address, self.core.identity))
             try:
                 self.reader = DbFuncts(**connection['params'])
             except AttributeError:
