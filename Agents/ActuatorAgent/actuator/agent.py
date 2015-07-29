@@ -67,7 +67,7 @@ from volttron.platform.messaging import topics
 from volttron.platform.agent import utils
 from volttron.platform.messaging.utils import normtopic
 from volttron.platform.agent.sched import EventWithTime
-from scheduler import ScheduleManager
+from actuator.scheduler import ScheduleManager
 
 from dateutil.parser import parse 
 
@@ -96,23 +96,19 @@ class LockError(StandardError):
 
 def actuator_agent(config_path, **kwargs):
     config = utils.load_config(config_path)
-    url = config['url']
     schedule_publish_interval = int(config.get('schedule_publish_interval', 60))
-    heartbeat_interval = int(config.get('heartbeat_interval', 60))
-    points = config.get('points', {})
     schedule_state_file = config.get('schedule_state_file')
     preempt_grace_time = config.get('preempt_grace_time', 60)
-    connection_timeout=config.get('connection-timeout', 10)
     master_driver_agent_address=config.get('master_driver_agent_address')
+    vip_identity = config.get('vip_identity')
     
     class ActuatorAgent(Agent):
         '''Agent to listen for requests to talk to the sMAP driver.'''
 
         def __init__(self, **kwargs):
-            super(Agent, self).__init__(**kwargs)
+            super(ActuatorAgent, self).__init__(identity=vip_identity, **kwargs)
             
             self._update_event = None
-            self._update_event_time = None
             self._device_states = {}
             
             self.setup_schedule()
@@ -130,6 +126,11 @@ def actuator_agent(config_path, **kwargs):
             
         def update_device_state_and_schedule(self, now):
             _log.debug("update_device_state_and schedule")
+            #Sanity check now.
+            #This is specifically for when this is running in a VM that gets suspeded and then resumed.
+            #If we don't make this check a resumed VM will publish one event per minute of 
+            # time the VM was suspended for. 
+            
             self._device_states = self._schedule_manager.get_schedule_state(now)
             schedule_next_event_time = self._schedule_manager.get_next_event_time(now)
             new_update_event_time = self._get_ajusted_next_event_time(now, schedule_next_event_time)
@@ -143,9 +144,9 @@ def actuator_agent(config_path, **kwargs):
             if self._update_event is not None:
                 #This won't hurt anything if we are canceling ourselves.
                 self._update_event.cancel()
-            self._update_event_time = new_update_event_time
-            self._update_event = EventWithTime(self._update_schedule_state)
-            self.schedule(self._update_event_time, self._update_event)  
+            self._update_event = self.core.schedule(new_update_event_time, 
+                                                    self._update_schedule_state,
+                                                    new_update_event_time)  
             
             
         def _get_ajusted_next_event_time(self, now, next_event_time):
@@ -159,16 +160,13 @@ def actuator_agent(config_path, **kwargs):
             return next_event_time
         
             
-        def _update_schedule_state(self, unix_time):
-            #Find the current slot and update the state
-            now = datetime.datetime.fromtimestamp(unix_time)
-            
+        def _update_schedule_state(self, now):            
             self.update_device_state_and_schedule(now)
                             
 
-        @matching.match_regex(topics.ACTUATOR_GET() + '/(.+)')
-        def handle_get(self, topic, headers, message, match):
-            point = match.group(1)
+        @PubSub.subscribe("pubsub", topics.ACTUATOR_GET())
+        def handle_get(self, peer, sender, bus, topic, headers, message):
+            point = topic.replace(topics.ACTUATOR_GET()+'/', '', 1)
             try:
                 value = self.get_point(point)
                 self.push_result_topic_pair(VALUE_RESPONSE_PREFIX,
@@ -179,11 +177,11 @@ def actuator_agent(config_path, **kwargs):
                                             point, headers, error)
 
 
-        @matching.match_regex(topics.ACTUATOR_SET() + '/(.+)')
-        def handle_set(self, topic, headers, message, match):
+        @PubSub.subscribe("pubsub", topics.ACTUATOR_SET())
+        def handle_set(self, peer, sender, bus, topic, headers, message):
             _log.debug('handle_set: {topic},{headers}, {message}'.
                        format(topic=topic, headers=headers, message=message))
-            point = match.group(1)
+            point = topic.replace(topics.ACTUATOR_SET()+'/', '', 1)
             requester = headers.get('requesterID')
             headers = self.get_headers(requester)
             if not message:
@@ -390,9 +388,7 @@ def actuator_agent(config_path, **kwargs):
 def main(argv=sys.argv):
     '''Main method called to start the agent.'''
     utils.setup_logging()
-    utils.default_main(actuator_agent,
-                       description='Example VOLTTRON platform™ actuator agent',
-                       argv=argv)
+    utils.vip_main(actuator_agent)
 
 
 if __name__ == '__main__':
