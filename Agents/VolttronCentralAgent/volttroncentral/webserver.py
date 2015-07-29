@@ -254,7 +254,6 @@ class LogReader(object):
 
     def __init__(self, file):
         self.filename = file
-        self.logfile = open(file)
         self.read_thread = threading.Thread(target=self.read_messages)
         self.log_queue = Queue.Queue()
         self.read_thread.start()
@@ -263,20 +262,17 @@ class LogReader(object):
         self.read_thread.join(5)
         
     def read_messages(self):
-        #Find the size of the file and move to the end
-        st_results = os.stat(self.filename)
-        st_size = st_results[6]
-        self.logfile.seek(st_size)
+        logfile = open(self.filename, 'rb')
+        # last byte in the file.
+        logfile.seek(0, 2)
         
-        self.log_queue.put("Reading logfile: {}".format(self.filename))
+        self.log_queue.put("Reading logfile: {}\n".format(self.filename))
         while True:
-            where = self.logfile.tell()
-            line = self.logfile.readline()
+            line = logfile.readline()
             if not line:
                 time.sleep(0.01)
-                self.logfile.seek(where)
                 continue
-            
+            #print("Queueing line {}".format(line))
             self.log_queue.put(line)
             
 class LogHandler(tornado.websocket.WebSocketHandler):
@@ -326,7 +322,6 @@ class LogHandler(tornado.websocket.WebSocketHandler):
                 
                 while True:                    
                     if not reader.log_queue.empty():
-                        _log.debug("Queue is: " +str(reader.log_queue.qsize()))
                         self.write_message(reader.log_queue.get_nowait())
                         
                     time.sleep(0.5)
