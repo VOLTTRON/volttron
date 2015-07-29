@@ -2,7 +2,6 @@
     "agentid": "sqlhistorian-mysql",
     "connection": {
         "type": "mysql",
-        "identity": "platform.historian",
         "params": {
             "host": "localhost",
             "port": 3306,
