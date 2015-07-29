@@ -145,6 +145,7 @@ class BaseHistorianAgent(Agent):
         self.vip.pubsub.subscribe(peer='pubsub',
                                prefix=topics.ACTUATOR,  # actuators/*
                                callback=self.capture_actuator_data)
+                
 
     @Core.receiver("onstop")
     def stopping(self, sender, **kwargs):
@@ -152,8 +153,13 @@ class BaseHistorianAgent(Agent):
         Release subscription to the message bus because we are no longer able
         to respond to messages now.
         '''
-        # unsubscribes to all topics that we are subscribed to.
-        self.vip.pubsub.unsubscribe(peer='pubsub', prefix=None, callback=None)
+        try:
+            # unsubscribes to all topics that we are subscribed to.
+            self.vip.pubsub.unsubscribe(peer='pubsub', prefix=None, callback=None)
+        except KeyError:
+            # means that the agent didn't start up properly so the pubsub
+            # subscriptions never got finished.
+            pass
 
     def capture_log_data(self, peer, sender, bus, topic, headers, message):
         '''Capture log data and submit it to be published by a historian.'''
