@@ -1,7 +1,6 @@
 {
     "agentid": "volttron central",
     "vip_identity": "volttron.central",
-    "log_file": "~/.volttron/volttron.log",
     "server" : {
         "host": "127.0.0.1",
         "port": 8080,

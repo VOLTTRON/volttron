@@ -115,10 +115,6 @@ def volttron_central_agent(config_path, **kwargs):
     agent_id = config.get('agentid', 'Volttron Central')
     server_conf = config.get('server', {})
     
-    log_file = config.get('log_file', None)
-    if log_file:
-        log_file = os.path.expanduser(log_file)
-    
     # Required users.
     user_map = config.get('users', None)
     
@@ -149,7 +145,7 @@ def volttron_central_agent(config_path, **kwargs):
         '''
         session_handler = SessionHandler(Authenticate(user_map))
         webserver = ManagerWebApplication(session_handler, manager,
-                                          hander_config, log_file=log_file, debug=True)
+                                          hander_config, debug=True)
         webserver.listen(server_conf.get('port', server_conf.get('port', 8080)),
                          server_conf.get('host', ''))
         tornado.ioloop.IOLoop.instance().start()
@@ -277,11 +273,19 @@ def volttron_central_agent(config_path, **kwargs):
         def starting(self, sender, **kwargs):
             '''This event is triggered when the platform is ready for the agent
             '''
-            q = query.Query(self.core)
-            result = q.query('addresses').get()
             
-            #TODO: Use all addresses for fallback, #114
-            self._external_addresses = result[0]
+            #TODO Broken query of addresses
+#             q = query.Query(self.core)
+#             result = q.query('addresses').get()
+#             
+#             #TODO: Use all addresses for fallback, #114
+#             if result:
+#                 self._external_addresses = result[0]
+#             else:
+#                 _log.warning("volttron central has no external addresses "
+#                              "configured!")
+#                 self._external_addresses = None
+            self._external_addresses = None
             
             # Start tornado in its own thread
             threading.Thread(target=startWebServer, args=(self,)).start()
