@@ -321,9 +321,9 @@ class BaseHistorianAgent(Agent):
                 new_to_publish = []
 
             if new_to_publish:
+                _log.debug("Checking for queue build up.")
                 while True:
                     try:
-                        _log.debug("Checking for queue build up.")
                         new_to_publish.append(self._event_queue.get_nowait())
                     except Empty:
                         break
@@ -332,12 +332,13 @@ class BaseHistorianAgent(Agent):
 
             wait_for_input = True
             start_time = datetime.utcnow()
-
+            
+            _log.debug("Calling publish_to_historian.")
             while True:
                 to_publish_list = self._get_outstanding_to_publish()
                 if not to_publish_list:
                     break
-                _log.debug("Calling publish_to_historian.")
+                
                 self.publish_to_historian(to_publish_list)
                 if not self._any_sucessfull_publishes():
                     break
