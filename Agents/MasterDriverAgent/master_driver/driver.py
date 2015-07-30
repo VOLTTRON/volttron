@@ -138,7 +138,6 @@ class DriverAgent(Agent):
             
         
     def periodic_read(self):
-        print "scraping target"
         results = self.interface.scrape_all()
         
         # XXX: Does a warning need to be printed?
