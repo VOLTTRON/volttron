@@ -58,8 +58,8 @@
 import errno
 import logging
 import os
-import sqlite3
 
+from mysql import connector
 from zmq.utils import jsonapi
 
 from volttron.platform.agent import utils
@@ -67,48 +67,51 @@ from volttron.platform.agent import utils
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
-class SqlLiteFuncts(object):
+class MySqlFuncts(object):
 
-    def __init__(self, database,
-                 detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES):
-
-        if database == ':memory:':
-            self.__database = database
+    def __init__(self, **kwargs):
+        _log.debug("Constructing MySqlFuncts")
+        self.__connect_params = kwargs
+        
+        if not kwargs.get('user', None):
+            raise AttributeError('Invalid parameter for "user" specified!')
+        if not kwargs.get('passwd', None):
+            raise AttributeError('Invalid parameter for "passwd" specified!')
+        if not kwargs.get('database', None):
+            raise AttributeError('Invalid "database" specified!')
+        
+        try:
+            if not self.__check_connection():
+                raise AttributeError(
+                        "Couldn't connect using specified configuration" 
+                        " credentials")
+        except connector.errors.ProgrammingError:
+            raise AttributeError("Couldn't connect using specified " 
+                        "configuration credentials")
+            
+    def __check_connection(self):
+        can_connect = False
+        
+        conn = connector.connect(**self.__connect_params)
+        
+        if conn:
+            can_connect = conn.is_connected()        
         else:
-            self.__database = os.path.expanduser(database)
-            db_dir  = os.path.dirname(self.__database)
+            raise AttributeError("Could not connect to specified mysql " 
+                                 "instance.")
+        if can_connect:
+            conn.close()
+        
+        return can_connect
 
-            #If the db does not exist create it
-            # in case we are started before the historian.
-            try:
-                os.makedirs(db_dir)
-            except OSError as exc:
-                if exc.errno != errno.EEXIST or not os.path.isdir(db_dir):
-                    raise
-            try:
-                self.__detect_types = eval(detect_types)
-            except TypeError:
-                self.__detect_types = detect_types
-
-        self.conn = self.connect()
-        self.execute('''CREATE TABLE IF NOT EXISTS data
-                                (ts timestamp NOT NULL,
-                                 topic_id INTEGER NOT NULL,
-                                 value_string TEXT NOT NULL,
-                                 UNIQUE(ts, topic_id))''',
-                False)
-
-        self.execute('''CREATE INDEX IF NOT EXISTS data_idx
-                                ON data (ts ASC)''',
-                False)
-
-        self.execute('''CREATE TABLE IF NOT EXISTS topics
-                                (topic_id INTEGER PRIMARY KEY,
-                                 topic_name TEXT NOT NULL,
-                                 UNIQUE(topic_name))''',
-                True)
-
-
+    def __connect(self):
+        
+        conn = connector.connect(**self.__connect_params)
+        # enable transactions here.
+        conn.autocommit=False
+        
+        return conn
+    
     def query(self, topic, start=None, end=None, skip=0,
                             count=None, order="FIRST_TO_LAST"):
         """This function should return the results of a query in the form:
@@ -124,15 +127,15 @@ class SqlLiteFuncts(object):
                    {limit}
                    {offset}'''
 
-        where_clauses = ["WHERE topics.topic_name = ?", "topics.topic_id = data.topic_id"]
+        where_clauses = ["WHERE topics.topic_name = %s", "topics.topic_id = data.topic_id"]
         args = [topic]
 
         if start is not None:
-            where_clauses.append("data.ts > ?")
+            where_clauses.append("data.ts > %s")
             args.append(start)
 
         if end is not None:
-            where_clauses.append("data.ts < ?")
+            where_clauses.append("data.ts < %s")
             args.append(end)
 
         where_statement = ' AND '.join(where_clauses)
@@ -145,15 +148,16 @@ class SqlLiteFuncts(object):
         # -1 = no limit and allows the user to
         # provied just an offset
         if count is None:
-            count = -1
+            count = 100
 
-        limit_statement = 'LIMIT ?'
+        limit_statement = 'LIMIT %s'
         args.append(count)
 
         offset_statement = ''
         if skip > 0:
-            offset_statement = 'OFFSET ?'
+            offset_statement = 'OFFSET %s'
             args.append(skip)
+        
 
         _log.debug("About to do real_query")
 
@@ -161,71 +165,67 @@ class SqlLiteFuncts(object):
                                   limit=limit_statement,
                                   offset=offset_statement,
                                   order_by=order_by)
+        _log.debug("Real Query: " + real_query)
+        _log.debug("args: "+str(args))
 
-        print(real_query)
-        print(args)
-
-        c = self.connect()
-        rows = c.execute(real_query,args)
-        values = [(ts.isoformat(), jsonapi.loads(value)) for ts, value in rows]
-
+        conn = self.connect()
+        cur = conn.cursor()
+        cur.execute(real_query, args)
+        rows = cur.fetchall()
+        if rows:
+            values = [(ts.isoformat(), jsonapi.loads(value)) for ts, value in rows]
+        else:
+            values = {}
+        cur.close()
+        conn.close()
         return {'values':values}
 
     def execute(self, query, commit=True):
-        if not self.conn:
-            self.conn = connect()
-        self.conn.execute(query)
-        if commit:
-            self.conn.commit()
+        conn = self.__connect()
+        cur = conn.cursor()
+        cur.execute(query)
+        conn.commit()
+        cur.close()
+        conn.close()
 
     def connect(self):
-        if self.__database is None:
-            raise AttributeError
-        if self.__detect_types:
-            return sqlite3.connect(self.__database,
-                                   detect_types=self.__detect_types)
-        return sqlite3.connect(self.__database)
+        return self.__connect()
 
-    def insert_data(self, ts, topic_id, data, commit=True):
-        if not self.conn:
-            self.conn = self.connect()
-
-        c = self.conn.cursor()
-        c.execute('''INSERT OR REPLACE INTO data values(?, ?, ?)''',
+    def insert_data(self, ts, topic_id, data):
+        conn = self.__connect()
+        
+        cur = conn.cursor()
+        cur.execute('''INSERT INTO data values(%s, %s, %s)''',
                                   (ts,topic_id,jsonapi.dumps(data)))
-        if commit:
-            self.conn.commit()
-
+        conn.commit()
+        cur.close()
+        conn.close()
+        
     def insert_topic(self, topic, commit=True):
-        if not self.conn:
-            self.conn = self.connect()
-
-        c = self.conn.cursor()
-        c.execute('''INSERT INTO topics values (?,?)''', (None, topic))
-        c.execute('''SELECT last_insert_rowid()''')
-        row = c.fetchone()
-
-        if commit:
-            self.conn.commit()
+        conn = self.__connect()
+        
+        cur = conn.cursor()
+        cur.execute('''INSERT INTO topics (topic_name) values (%s)''', (topic,))
+        row = [cur.lastrowid]
+        conn.commit()
+        cur.close()
+        conn.close()
 
         return row
 
-    def insert_complete(self):
-        self.conn.commit()
-
-    def get_topic_map(self):
-        if not self.conn:
-            self.conn = self.connect()
-
-        c = self.conn.cursor()
-        c.execute("SELECT * FROM topics")
+    def get_topic_map(self):        
+        conn = self.__connect()
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM topics")
         tm = {}
 
         while True:
-            results = c.fetchmany(1000)
+            results = cur.fetchmany(1000)
             if not results:
                 break
             for result in results:
                 tm[result[1]] = result[0]
 
+        cur.close()
+        conn.close()
         return tm

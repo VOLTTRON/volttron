@@ -16,10 +16,11 @@
         var ws = null;
         var status="closed";
         var writeMessage = function(msg) {
-            var pre = document.createElement("p");
+            /*var pre = document.createElement("p");
             pre.style.wordWrap = "break-word";
-            pre.innerHTML = msg;
-            $("#responses").append(pre);
+            pre.innerHTML = msg;*/
+            $("#responses").append(msg+"\n");
+            $('#responses').scrollTop($('#responses')[0].scrollHeight);
         };
 
         $("#open").click(function(evt) {
@@ -31,7 +32,7 @@
           ws = new WebSocket("ws://" + host + ":" + port + uri);
 
           ws.onmessage = function(evt) {
-            writeMessage("MESSAGE RECEIVED: " + evt.data);
+            writeMessage(evt.data);
           };
 
           ws.onerror = function(evt) {
@@ -86,7 +87,9 @@
       <input type="button" id="open" value="open" /> <input type="button" id="close" value="close" /><br />
       <input type="text" id="message" value="This is a temp message" /><br />
       <input type="button" id="send" value="send" />
-      <div id="responses" />
+      <div>
+      	<textarea id="responses" cols="200" rows="20"></textarea>
+      </div>
     </div>
   </body>
 </html>

@@ -1,5 +1,6 @@
 {
     "agentid": "sqlhistorian-mysql",
+    "identity": "platform.historian",
     "connection": {
         "type": "mysql",
         "params": {
