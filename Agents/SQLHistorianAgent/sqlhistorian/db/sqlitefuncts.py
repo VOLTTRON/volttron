@@ -185,15 +185,14 @@ class SqlLiteFuncts(object):
                                    detect_types=self.__detect_types)
         return sqlite3.connect(self.__database)
 
-    def insert_data(self, ts, topic_id, data, commit=True):
+    def insert_data(self, ts, topic_id, data):
         if not self.conn:
             self.conn = self.connect()
 
         c = self.conn.cursor()
         c.execute('''INSERT OR REPLACE INTO data values(?, ?, ?)''',
                                   (ts,topic_id,jsonapi.dumps(data)))
-        if commit:
-            self.conn.commit()
+        self.conn.commit()
 
     def insert_topic(self, topic, commit=True):
         if not self.conn:
@@ -208,9 +207,6 @@ class SqlLiteFuncts(object):
             self.conn.commit()
 
         return row
-
-    def insert_complete(self):
-        self.conn.commit()
 
     def get_topic_map(self):
         if not self.conn:
