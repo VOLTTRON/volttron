@@ -58,9 +58,8 @@
 import errno
 import logging
 import os
-import sqlite3
-from mysql import connector
 
+from mysql import connector
 from zmq.utils import jsonapi
 
 from volttron.platform.agent import utils
@@ -72,7 +71,6 @@ class MySqlFuncts(object):
 
     def __init__(self, **kwargs):
         _log.debug("Constructing MySqlFuncts")
-        self.__pool = [] 
         self.__connect_params = kwargs
         
         if not kwargs.get('user', None):
@@ -107,20 +105,13 @@ class MySqlFuncts(object):
         return can_connect
 
     def __connect(self):
-        for coninst in self.__pool:
-            if not coninst.is_connected():
-                return coninst
-            
-        if len(self.__pool) > 5:
-            _log.critical('Pool size increased above 5.  Probable leak')
-            
-        coninst = connector.connect(**self.__connect_params)
-        if not coninst.is_connected():
-            raise AttributeError("Could not connect to specified mysql " 
-                                 "instance.")
-        self.__pool.append(coninst)
-        return coninst
-
+        
+        conn = connector.connect(**self.__connect_params)
+        # enable transactions here.
+        conn.autocommit=False
+        
+        return conn
+    
     def query(self, topic, start=None, end=None, skip=0,
                             count=None, order="FIRST_TO_LAST"):
         """This function should return the results of a query in the form:
@@ -136,15 +127,15 @@ class MySqlFuncts(object):
                    {limit}
                    {offset}'''
 
-        where_clauses = ["WHERE topics.topic_name = ?", "topics.topic_id = data.topic_id"]
+        where_clauses = ["WHERE topics.topic_name = %s", "topics.topic_id = data.topic_id"]
         args = [topic]
 
         if start is not None:
-            where_clauses.append("data.ts > ?")
+            where_clauses.append("data.ts > %s")
             args.append(start)
 
         if end is not None:
-            where_clauses.append("data.ts < ?")
+            where_clauses.append("data.ts < %s")
             args.append(end)
 
         where_statement = ' AND '.join(where_clauses)
@@ -157,15 +148,16 @@ class MySqlFuncts(object):
         # -1 = no limit and allows the user to
         # provied just an offset
         if count is None:
-            count = -1
+            count = 100
 
-        limit_statement = 'LIMIT ?'
+        limit_statement = 'LIMIT %s'
         args.append(count)
 
         offset_statement = ''
         if skip > 0:
-            offset_statement = 'OFFSET ?'
+            offset_statement = 'OFFSET %s'
             args.append(skip)
+        
 
         _log.debug("About to do real_query")
 
@@ -178,9 +170,14 @@ class MySqlFuncts(object):
 
         conn = self.connect()
         cur = conn.cursor()
-        rows = cur.execute(real_query,args)
-        values = [(ts.isoformat(), jsonapi.loads(value)) for ts, value in rows]
-        _log.debug("QueryResults: " + str(values))
+        cur.execute(real_query, args)
+        rows = cur.fetchall()
+        if rows:
+            values = [(ts.isoformat(), jsonapi.loads(value)) for ts, value in rows]
+        else:
+            values = {}
+        cur.close()
+        conn.close()
         return {'values':values}
 
     def execute(self, query, commit=True):
@@ -188,45 +185,47 @@ class MySqlFuncts(object):
         cur = conn.cursor()
         cur.execute(query)
         conn.commit()
+        cur.close()
+        conn.close()
 
     def connect(self):
         return self.__connect()
 
-    def insert_data(self, ts, topic_id, data, commit=True):
+    def insert_data(self, ts, topic_id, data):
         conn = self.__connect()
         
-        c = conn.cursor()
-        c.execute('''INSERT INTO data values(?, ?, ?)''',
+        cur = conn.cursor()
+        cur.execute('''INSERT INTO data values(%s, %s, %s)''',
                                   (ts,topic_id,jsonapi.dumps(data)))
         conn.commit()
+        cur.close()
+        conn.close()
         
     def insert_topic(self, topic, commit=True):
         conn = self.__connect()
         
-        c = conn.cursor()
-        c.execute('''INSERT INTO topics values (?,?)''', (None, topic))
-        c.execute('''SELECT last_insert_rowid()''')
-        row = c.fetchone()
-
+        cur = conn.cursor()
+        cur.execute('''INSERT INTO topics (topic_name) values (%s)''', (topic,))
+        row = [cur.lastrowid]
         conn.commit()
+        cur.close()
+        conn.close()
 
         return row
 
-    def insert_complete(self):
-        pass #self.conn.commit()
-
-    def get_topic_map(self):
-        
+    def get_topic_map(self):        
         conn = self.__connect()
-        c = conn.cursor()
-        c.execute("SELECT * FROM topics")
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM topics")
         tm = {}
 
         while True:
-            results = c.fetchmany(1000)
+            results = cur.fetchmany(1000)
             if not results:
                 break
             for result in results:
                 tm[result[1]] = result[0]
 
+        cur.close()
+        conn.close()
         return tm
