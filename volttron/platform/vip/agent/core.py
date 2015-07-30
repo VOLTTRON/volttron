@@ -73,6 +73,7 @@ from zmq.green import ZMQError, EAGAIN
 
 from .decorators import annotate, annotations, dualmethod
 from .dispatch import Signal
+from .errors import VIPError
 from ...vip import green as vip
 from .... import platform
 
@@ -149,7 +150,7 @@ class Core(object):
         self.identity = identity
         self.socket = None
         self.greenlet = None
-        self.subsystems = {'error': (self.handle_error, None)}
+        self.subsystems = {'error': self.handle_error}
         self._async = None
         self._async_calls = []
         self._stop_event = None
@@ -159,6 +160,7 @@ class Core(object):
         self.onstart = Signal()
         self.onstop = Signal()
         self.onfinish = Signal()
+        self.onviperror = Signal()
 
         periodics = []
         def setup(member):   # pylint: disable=redefined-outer-name
@@ -183,20 +185,21 @@ class Core(object):
             del periodics[:]
         self.onstart.connect(start_periodics)
 
-    def register(self, name, handler, error_handler):
-        self.subsystems[name] = (handler, error_handler)
+    def register(self, name, handler, error_handler=None):
+        self.subsystems[name] = handler
+        if error_handler:
+            def onerror(sender, error, **kwargs):
+                if error.subsystem == name:
+                    error_handler(sender, error=error, **kwargs)
+            self.onviperror.connect(onerror)
 
     def handle_error(self, message):
-        try:
-            subsystem = bytes(message.args[3])
-            _, handle = self.subsystems[subsystem]
-        except (IndexError, KeyError):
-            handle = None
-        if handle:
-            handle(message)
-        else:
+        if len(message.args) < 4:
             _log.debug('unhandled VIP error %s', message)
-
+        elif self.onviperror:
+            args = [bytes(arg) for arg in message.args]
+            error = VIPError.from_errno(*args)
+            self.onviperror.send(self, error=error, message=message)
 
     def run(self, running_event=None):   # pylint: disable=method-hidden
         '''Entry point for running agent.'''
@@ -223,7 +226,7 @@ class Core(object):
 
                 subsystem = bytes(message.subsystem)
                 try:
-                    handle, _ = self.subsystems[subsystem]
+                    handle = self.subsystems[subsystem]
                 except KeyError:
                     _log.error('peer %r requested unknown subsystem %r',
                                bytes(message.peer), subsystem)
