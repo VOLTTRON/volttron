@@ -287,11 +287,10 @@ class Router(vip.BaseRouter):
                 value = None
             else:
                 if name == b'addresses':
-                    value = self.addresses
+                    value = [addr.base for addr in self.addresses]
                 else:
                     value = None
-            frames[6:] = [jsonapi.dumps(value)]
-            frames[5] = 'query.result'
+            frames[6:] = [b'', jsonapi.dumps(value)]
             frames[3] = b''
             return frames
 
