@@ -249,13 +249,7 @@ class AgentFormatter(logging.Formatter):
             and 'tornado.access' in record.__dict__['composite_name']:
             record.__dict__['msg'] = ','.join([str(b) for b in record.args])
             record.__dict__['args'] = []
-        #print('RECORD: {}'.format(record))
-        try: 
-            record = super(AgentFormatter, self).format(record)
-        except TypeError as e:
-            print("Type error: ",e)
-        
-        return record
+        return super(AgentFormatter, self).format(record)
 
 
 def setup_logging(level=logging.DEBUG):
@@ -269,4 +263,3 @@ def setup_logging(level=logging.DEBUG):
                     '%(asctime)s %(name)s %(levelname)s: %(message)s'))
         root.addHandler(handler)
     root.setLevel(level)
-

@@ -116,6 +116,26 @@ class Periodic(object):   # pylint: disable=invalid-name
         return gevent.Greenlet(self._loop, method)
 
 
+class ScheduledEvent(object):
+    '''Class returned from Core.schedule.'''
+
+    def __init__(self, function, args=None, kwargs=None):
+        self.function = function
+        self.args = args or []
+        self.kwargs = kwargs or {}
+        self.canceled = False
+        self.finished = False
+
+    def cancel(self):
+        '''Mark the timer as canceled to avoid a callback.'''
+        self.canceled = True
+
+    def __call__(self):
+        if not self.canceled:
+            self.function(*self.args, **self.kwargs)
+        self.finished = True
+
+
 class Core(object):
     def __init__(self, owner, address=None, identity=None, context=None):
         if not address:
@@ -146,7 +166,8 @@ class Core(object):
                 periodic.get(member) for periodic in annotations(
                     member, list, 'core.periodics'))
             self._schedule.extend(
-                (deadline, member, args, kwargs) for deadline, args, kwargs in
+                (deadline, ScheduledEvent(member, args, kwargs))
+                for deadline, args, kwargs in
                 annotations(member, list, 'core.schedule'))
             for name in annotations(member, set, 'core.signals'):
                 signal = getattr(self, name)
@@ -222,15 +243,15 @@ class Core(object):
             while True:
                 if heap:
                     deadline = heap[0][0]
-                    timeout = min(60.0, max(0.0, deadline - now))
+                    timeout = min(5.0, max(0.0, deadline - now))
                 else:
                     timeout = None
                 if event.wait(timeout):
                     event.clear()
                 now = time.time()
                 while heap and now >= heap[0][0]:
-                    _, func, args, kwargs = heapq.heappop(heap)
-                    greenlet = gevent.spawn(func, *args, **kwargs)
+                    _, callback = heapq.heappop(heap)
+                    greenlet = gevent.spawn(callback)
                     cur.link(lambda glt: greenlet.kill())
 
         def link_receiver(receiver, sender, **kwargs):
@@ -344,11 +365,15 @@ class Core(object):
     def schedule(self, deadline, func, *args, **kwargs):
         if hasattr(deadline, 'timetuple'):
             deadline = time.mktime(deadline.timetuple())
-        heapq.heappush(self._schedule, (deadline, func, args, kwargs))
+        event = ScheduledEvent(func, args, kwargs)
+        heapq.heappush(self._schedule, (deadline, event))
         self._schedule_event.set()
+        return event
 
     @schedule.classmethod
     def schedule(cls, deadline, *args, **kwargs):   # pylint: disable=no-self-argument
+        if hasattr(deadline, 'timetuple'):
+            deadline = time.mktime(deadline.timetuple())
         def decorate(method):
             annotate(method, list, 'core.schedule', (deadline, args, kwargs))
             return method
