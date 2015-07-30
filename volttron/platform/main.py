@@ -67,6 +67,7 @@ import stat
 import struct
 import sys
 import threading
+import traceback
 
 import gevent
 from zmq import curve_keypair
@@ -548,6 +549,8 @@ def main(argv=sys.argv):
             Router(opts.vip_local_address, opts.vip_address,
                    secretkey=secretkey, default_user_id=b'vip.service',
                    monitor=opts.monitor).run()
+        except Exception:
+            traceback.print_exc()
         finally:
             stop()
 
