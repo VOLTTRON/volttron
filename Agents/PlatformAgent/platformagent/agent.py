@@ -377,10 +377,10 @@ def platform_agent(config_path, **kwargs):
 
         @Core.receiver('onstart')
         def starting(self, sender, **kwargs):
+            
             psutil.cpu_times_percent()
             psutil.cpu_percent()
             _, _, my_id = self.vip.hello().get(timeout=3)
-            _log.debug("STARTING: {}".format(my_id))
             self.vip.pubsub.publish(peer='pubsub', topic='/platform',
                                     message='available')
         @Core.receiver('onstop')
