@@ -209,7 +209,12 @@ class _Socket(object):
                 super(_Socket, self).send(b'VIP1', flags=flags|SNDMORE)
                 state += 1
             self._send_state = state + 1
-        super(_Socket, self).send(frame, flags=flags, copy=copy, track=track)
+        try:
+            super(_Socket, self).send(
+                frame, flags=flags, copy=copy, track=track)
+        except Exception:
+            self._send_state = state
+            raise
 
     def send_vip(self, peer, subsystem, args=None, msg_id=b'',
                  user=b'', via=None, flags=0, copy=True, track=False):
