@@ -110,12 +110,26 @@ def actuator_agent(config_path, **kwargs):
             
             self._update_event = None
             self._device_states = {}
-            
-            self.setup_schedule()
                     
         @RPC.export
         def heart_beat(self):
             self.vip.rpc.call(master_driver_agent_address, 'heart_beat')
+        
+        @Core.receiver('onstart')
+        def on_start(self, sender, **kwargs):
+            self.setup_schedule()
+            self.vip.pubsub.subscribe(peer='pubsub',
+                                      prefix=topics.ACTUATOR_GET(), 
+                                      callback=self.handle_get)
+
+            self.vip.pubsub.subscribe(peer='pubsub',
+                                      prefix=topics.ACTUATOR_SET(),
+                                      callback=self.handle_set)
+            
+            self.vip.pubsub.subscribe(peer='pubsub',
+                                      prefix=topics.ACTUATOR_SCHEDULE_REQUEST(), 
+                                      callback=self.handle_schedule_request)
+            
         
         def setup_schedule(self):
             now = datetime.datetime.now()
@@ -130,6 +144,9 @@ def actuator_agent(config_path, **kwargs):
             #This is specifically for when this is running in a VM that gets suspeded and then resumed.
             #If we don't make this check a resumed VM will publish one event per minute of 
             # time the VM was suspended for. 
+            test_now = datetime.datetime.now()
+            if test_now - now > datetime.timedelta(minutes=3):
+                now = test_now
             
             self._device_states = self._schedule_manager.get_schedule_state(now)
             schedule_next_event_time = self._schedule_manager.get_next_event_time(now)
@@ -164,7 +181,6 @@ def actuator_agent(config_path, **kwargs):
             self.update_device_state_and_schedule(now)
                             
 
-        @PubSub.subscribe("pubsub", topics.ACTUATOR_GET())
         def handle_get(self, peer, sender, bus, topic, headers, message):
             point = topic.replace(topics.ACTUATOR_GET()+'/', '', 1)
             try:
@@ -177,7 +193,6 @@ def actuator_agent(config_path, **kwargs):
                                             point, headers, error)
 
 
-        @PubSub.subscribe("pubsub", topics.ACTUATOR_SET())
         def handle_set(self, peer, sender, bus, topic, headers, message):
             _log.debug('handle_set: {topic},{headers}, {message}'.
                        format(topic=topic, headers=headers, message=message))
@@ -256,7 +271,7 @@ def actuator_agent(config_path, **kwargs):
                 return device_state.agent_id == requester
             return False
 
-        @PubSub.subscribe("pubsub", topics.ACTUATOR_SCHEDULE_REQUEST())
+        #@PubSub.subscribe("pubsub", topics.ACTUATOR_SCHEDULE_REQUEST())
         def handle_schedule_request(self, peer, sender, bus, topic, headers, message):
             request_type = headers.get('type')
             _log.debug('handle_schedule_request: {topic}, {headers}, {message}'.
