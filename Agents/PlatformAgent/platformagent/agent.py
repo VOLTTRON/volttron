@@ -101,10 +101,6 @@ def platform_agent(config_path, **kwargs):
                                  "volttron.central")
     vip_identity = config.get('vip_identity', 'platform.agent')
 
-
-    if not vc_vip_address:
-        raise ValueError('Invalid volttron_central_vip_address')
-
     class PlatformAgent(Agent):
 
         def __init__(self, identity=vip_identity, vc_vip_address=vc_vip_address,
@@ -172,7 +168,7 @@ def platform_agent(config_path, **kwargs):
             historian_present = False
 
             try:
-                ping = self.vip.ping('platform.historian', 'awake?').get(timeout=10)
+                ping = self.vip.ping('platform.historian', 'awake?').get(timeout=2)
                 historian_present = True
             except Unreachable:
                 _log.warning('platform.historian unavailable no logging of data will occur.')
