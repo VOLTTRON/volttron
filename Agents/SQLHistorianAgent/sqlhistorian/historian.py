@@ -147,6 +147,12 @@ def historian(config_path, **kwargs):
         def publish_to_historian(self, to_publish_list):
             _log.debug("publish_to_historian number of items: {}"
                        .format(len(to_publish_list)))
+            
+            # load a topic map if there isn't one yet.
+            try:
+                self.topic_map.items()
+            except:
+                self.topic_map = self.reader.get_topic_map()
 
             for x in to_publish_list:
                 ts = x['timestamp']
@@ -161,9 +167,8 @@ def historian(config_path, **kwargs):
                     topic_id = row[0]
                     self.topic_map[topic] = topic_id
 
-                self.writer.insert_data(ts,topic_id, value, False)
+                self.writer.insert_data(ts,topic_id, value)
 
-            self.writer.insert_complete()
             print('published {} data values:'.format(len(to_publish_list)))
             self.report_all_published()
 
