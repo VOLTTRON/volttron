@@ -67,7 +67,6 @@ import stat
 import struct
 import sys
 import threading
-import traceback
 
 import gevent
 from zmq import curve_keypair
@@ -550,7 +549,7 @@ def main(argv=sys.argv):
                    secretkey=secretkey, default_user_id=b'vip.service',
                    monitor=opts.monitor).run()
         except Exception:
-            traceback.print_exc()
+            _log.exception('Unhandled exception in router loop')
         finally:
             stop()
 
