@@ -2,9 +2,9 @@
 
 if [ $1 == "-h" ]
 then
-  echo "./install_agent.sh <path to agent directory> <config path> <tag>"
+  echo "./pack_agent.sh <path to agent directory> <config path> <tag>"
   echo ""
-  echo "install an agent on a volttron platform depending on VOLTTRON."
+  echo "Package and install an agent to a running instance of volttron."
   echo "If VOLTTRON_HOME is not set then uses \$HOME/.volttron as VOLTTRON_HOME"
   exit 0
 fi

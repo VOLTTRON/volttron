@@ -8,18 +8,18 @@
 
 export VOLTTRON_HOME=$HOME/.volttron
 
-if [ ! -e "./Agents" ]; then
+if [ ! -e "./applications" ]; then
     echo "Please execute from root of volttron repository."
     exit 0
 fi
 
 echo "Starting the vc platform and platform agent on the default volttron home."
-SCRIPTS="volttron/scripts"
+SCRIPTS="./scripts/core"
 PACK="$SCRIPTS/pack_install.sh"
 
-VC="Agents/VolttronCentralAgent"
+VC="services/core/VolttronCentral"
 VC_TAG="vc"
-PLATFORM="Agents/PlatformAgent"
+PLATFORM="services/core/Platform"
 PLATFORM_TAG="plat"
 
 START="volttron-ctl start"
@@ -28,7 +28,7 @@ DEL="volttron-ctl remove"
 CLEAR="volttron-ctl clear"
 
 $STOP --tag $PLATFORM_TAG $VC_TAG
-$DEL --tag $PLATFORM_TAG $VC_TAG
+$DEL -f --tag $PLATFORM_TAG $VC_TAG
 
 # Install and start VC.
 $PACK $VC $VC/config $VC_TAG
