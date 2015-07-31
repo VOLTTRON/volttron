@@ -67,7 +67,7 @@ import gevent
 from zmq.utils import jsonapi
 
 from volttron.platform.vip.agent import *
-from volttron.platform.agent import BaseHistorian
+from volttron.platform.agent.base_historian import BaseHistorian
 from volttron.platform.agent import utils
 from volttron.platform.messaging import topics, headers as headers_mod
 
