@@ -14,3 +14,7 @@ effectively.
 All other directories should be assumed to be customized for a specific need 
 and should have a README associated with it in order to better document the 
 purpose of the directory.
+
+NOTE
+In general scripts should be executed from the root volttron directory not from
+the scripts directory itself.
