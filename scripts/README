@@ -16,5 +16,6 @@ and should have a README associated with it in order to better document the
 purpose of the directory.
 
 NOTE
-In general scripts should be executed from the root volttron directory not from
-the scripts directory itself.
+All scripts should be run in an activated environment in order to use the 
+command line interface for volttron.  In general scripts should be executed 
+from the root volttron directory not from the scripts directory itself.
