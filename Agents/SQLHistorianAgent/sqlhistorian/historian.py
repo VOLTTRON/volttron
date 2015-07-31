@@ -52,7 +52,7 @@
 # under Contract DE-AC05-76RL01830
 
 #}}}
-#from __future__ import absolute_import, print_function
+from __future__ import absolute_import, print_function
 
 import datetime
 import errno
@@ -83,10 +83,6 @@ _log = logging.getLogger(__name__)
 
 def historian(config_path, **kwargs):
 
-    for s in sys.path:
-        print("PATH: ", s)
-
-    print("Thie package is ", __package__)
     config = utils.load_config(config_path)
     connection = config.get('connection', None);
 
@@ -98,10 +94,13 @@ def historian(config_path, **kwargs):
     identity = config.get('identity', None)
 
     if databaseType == 'sqlite':
-        from sqlitefuncts import SqlLiteFuncts as DbFuncts
-#         from sqlitefuncts import (prepare, connect, query_topics, insert_topic,
-#                                   insert_data)
-
+        from .db.sqlitefuncts import SqlLiteFuncts as DbFuncts
+    elif databaseType == 'mysql':
+        from .db.mysqlfuncts import MySqlFuncts as DbFuncts
+    else:
+        _log.error("Unknown database type specified!")
+        raise Exception("Unkown database type specified!")
+        
     class SQLHistorian(BaseHistorian):
         '''This is a simple example of a historian agent that writes stuff
         to a SQLite database. It is designed to test some of the functionality
@@ -110,7 +109,14 @@ def historian(config_path, **kwargs):
 
         @Core.receiver("onstart")
         def starting(self, sender, **kwargs):
-            self.reader = DbFuncts(**connection['params'])
+            
+            print('Starting address: {} identity: {}'.format(self.core.address, self.core.identity))
+            try:
+                self.reader = DbFuncts(**connection['params'])
+            except AttributeError:
+                self.core.stop()
+                return
+                        
             self.topic_map = self.reader.get_topic_map()
 
             if self.core.identity == 'platform.historian':
@@ -141,6 +147,12 @@ def historian(config_path, **kwargs):
         def publish_to_historian(self, to_publish_list):
             _log.debug("publish_to_historian number of items: {}"
                        .format(len(to_publish_list)))
+            
+            # load a topic map if there isn't one yet.
+            try:
+                self.topic_map.items()
+            except:
+                self.topic_map = self.reader.get_topic_map()
 
             for x in to_publish_list:
                 ts = x['timestamp']
@@ -155,9 +167,8 @@ def historian(config_path, **kwargs):
                     topic_id = row[0]
                     self.topic_map[topic] = topic_id
 
-                self.writer.insert_data(ts,topic_id, value, False)
+                self.writer.insert_data(ts,topic_id, value)
 
-            self.writer.insert_complete()
             print('published {} data values:'.format(len(to_publish_list)))
             self.report_all_published()
 
@@ -165,7 +176,7 @@ def historian(config_path, **kwargs):
             if len(self.topic_map) > 0:
                 return self.topic_map.keys()
             else:
-                # do quer on db and return results.
+                # No topics present.
                 return []
 
         def query_historian(self, topic, start=None, end=None, skip=0,
@@ -180,9 +191,11 @@ def historian(config_path, **kwargs):
                                      count=count, order=order)
 
         def historian_setup(self):
-            self.writer = DbFuncts(**connection['params'])
-
-
+            try:
+                self.writer = DbFuncts(**connection['params'])
+            except AttributeError as exc:
+                print(exc)
+                self.core.stop()
 
     SQLHistorian.__name__ = 'SQLHistorian'
     return SQLHistorian(identity=identity, **kwargs)

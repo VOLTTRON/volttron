@@ -22,6 +22,9 @@ from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
+# By default our log reader is none.  Only when start_log_reader is called with a
+# valid file path will this variable be set 
+logreader = None
 
 def get_standard_error_message(code):
 
@@ -65,7 +68,7 @@ class SessionHandler:
     def authenticate(self, username, password, ip):
         '''Authenticates a user with the authenticator.
 
-        This is the main login function for the system.
+        This is the main login function for the system. 
         '''
         groups = self._authenticator.authenticate(username, password)
         if groups:
@@ -145,6 +148,7 @@ class ManagerWebApplication(tornado.web.Application):
                                                     transforms, **settings)
         self.sessions = session_handler
         self.manager = manager
+        self.settings = settings
 
 
 class RpcResponse:
@@ -174,7 +178,7 @@ class RpcResponse:
             self.code in (INTERNAL_ERROR, INVALID_PARAMS,
                           INVALID_REQUEST, METHOD_NOT_FOUND, PARSE_ERROR,
                           UNHANDLED_EXCEPTION):
-            self.message = self.get_standard_error_message(self.code)
+            self.message = get_standard_error_message(self.code)
 
         # There is probably a better way to move the result up a level, however
         # this was the fastest I could think of.
@@ -249,39 +253,84 @@ class RpcRequest:
 class LogReader(object):
 
     def __init__(self, file):
-        self.logfile = open(file)
+        self.filename = file
         self.read_thread = threading.Thread(target=self.read_messages)
         self.log_queue = Queue.Queue()
         self.read_thread.start()
 
+    def close(self):
+        self.read_thread.join(5)
+        
     def read_messages(self):
+        logfile = open(self.filename, 'rb')
+        # last byte in the file.
+        logfile.seek(0, 2)
+        
+        self.log_queue.put("Reading logfile: {}\n".format(self.filename))
         while True:
-            line = self.logfile.readline()
+            line = logfile.readline()
             if not line:
                 time.sleep(0.01)
                 continue
-                #time.sleep(sleep)    # Sleep briefly
-#                 if sleep < 1.0:
-#                     sleep += 0.00001
-#                 continue
-#             sleep = 0.00001
-            #yield line
+            #print("Queueing line {}".format(line))
             self.log_queue.put(line)
-logreader = LogReader(os.path.expandvars('$VOLTTRON_HOME/volttron.log'))
-
+            
 class LogHandler(tornado.websocket.WebSocketHandler):
 
     def open(self):
-        self.write_thread = threading.Thread(target=self.writing_messages)
-        self.write_thread.start()
+        self.write_thread = None
+        _log.debug("Connection open")
+    
+    def on_message(self, message):
+        
+        passed = jsonapi.loads(message)
+        method = passed['method']
+        params = passed['params']
+        
+        if method == 'start_reading':
+            if params['log_path']:
+                if self.write_thread == None:
+                    self.log_path = params['log_path']
+                    self.write_thread = threading.Thread(target=self.writing_messages,
+                                                     args=[params['log_path']])
+                    self.write_thread.start()
+                else:
+                    self.write_message("Already reading log file: {}".format(self.log_path))
+            else:
+                msg = "Invalid params 'log_path' must be specified"
+                self.write_message(msg)
+                self.close(1002, msg)
+        else:
+            self.write_message(message)
+        #self.log_path = os.path.expanduser(params['log_path'])
+        #self.logreader = LogReader(self.log_path)         
+        
+        _log.debug("Message was: {}".format(message))
 
-    def writing_messages(self):
-        while True:
-            if not logreader.log_queue.empty():
-                print("Queue is: " +str(logreader.log_queue.qsize()))
-                self.write_message(logreader.log_queue.get_nowait())
-            time.sleep(0.5)
-
+    def writing_messages(self, log_path):
+        
+        log_path = os.path.expanduser(log_path)
+        
+        if os.path.exists(log_path):
+            try:
+                reader = LogReader(log_path)            
+            except OSError as exc:
+                if exc.errno != errno.EEXIST or not os.path.isdir(db_dir):
+                    raise
+            
+            if reader:
+                
+                while True:                    
+                    if not reader.log_queue.empty():
+                        self.write_message(reader.log_queue.get_nowait())
+                        
+                    time.sleep(0.5)
+                    
+                reader.close()
+        else:
+            self.write_message("Invalid log file specified {}".format(log_path))
+            self.close()
+        
     def on_close(self):
         self.write_thread.join(5)
 

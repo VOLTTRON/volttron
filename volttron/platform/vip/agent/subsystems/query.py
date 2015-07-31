@@ -74,7 +74,7 @@ class Query(SubsystemBase):
     def __init__(self, core):
         self.core = weakref.ref(core)
         self._results = ResultsDictionary()
-        core.register(b'query.result', self._handle_result, self._handle_error)
+        core.register('query', self._handle_result, self._handle_error)
 
     def query(self, prop, peer=b''):
         socket = self.core().socket
@@ -85,17 +85,20 @@ class Query(SubsystemBase):
     __call__ = query
 
     def _handle_result(self, message):
-        try:
-            result = self._results.pop(bytes(message.id))
-        except KeyError:
-            return
-        result.set(jsonapi.loads(bytes(message.args[0]))
-                   if message.args else None)
+        if message.args and not message.args[0]:
+            try:
+                result = self._results.pop(bytes(message.id))
+            except KeyError:
+                return
+            try:
+                value = jsonapi.loads(bytes(message.args[1]))
+            except IndexError:
+                value = None
+            result.set(value)
 
-    def _handle_error(self, message):
+    def _handle_error(self, sender, message, error, **kwargs):
         try:
             result = self._results.pop(bytes(message.id))
         except KeyError:
             return
-        result.set_exception(
-            VIPError.from_errno(*[bytes(arg) for arg in message.args]))
+        result.set_exception(error)

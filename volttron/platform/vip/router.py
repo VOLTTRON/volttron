@@ -233,10 +233,10 @@ class BaseRouter(object):
             name = subsystem.bytes
             if name == b'hello':
                 frames = [sender, recipient, proto, user_id, msg_id,
-                          b'welcome', b'1.0', socket.identity, sender]
+                          b'hello', b'welcome', b'1.0', socket.identity, sender]
             elif name == b'ping':
-                frames[:6] = [
-                    sender, recipient, proto, user_id, msg_id, b'pong']
+                frames[:7] = [
+                    sender, recipient, proto, user_id, msg_id, b'ping', b'pong']
             else:
                 response = self.handle_subsystem(frames, user_id)
                 if response is None:

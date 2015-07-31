@@ -88,3 +88,6 @@ class Signal(object):
     def receiver(self, func):
         self.connect(func)
         return func
+
+    def __nonzero__(self):
+        return bool(self._receivers)

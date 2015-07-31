@@ -85,7 +85,7 @@ class Channel(SubsystemBase):
         self.socket = None
         self.greenlet = None
         self._channels = {}
-        core.register('channel', self._handle_subsystem, None)
+        core.register('channel', self._handle_subsystem)
 
         def setup(sender, **kwargs):
             # pylint: disable=unused-argument

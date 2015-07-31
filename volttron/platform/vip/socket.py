@@ -62,7 +62,9 @@ import base64
 import binascii
 import urlparse
 
-from zmq import SNDMORE, RCVMORE, DEALER, ROUTER, curve_keypair
+from zmq import (SNDMORE, RCVMORE, NOBLOCK, POLLOUT, DEALER, ROUTER,
+                 curve_keypair)
+from zmq.error import Again
 from zmq.utils import z85
 
 
@@ -177,6 +179,13 @@ class _Socket(object):
             self._send_state = state
             super(_Socket, self).send('')
 
+    def wait_send(self, flags=0):
+        if flags & NOBLOCK:
+            if not self.poll(0, POLLOUT):
+                raise Again()
+        else:
+            self.poll(None, POLLOUT)
+
     def send(self, frame, flags=0, copy=True, track=False):
         '''Send a single frame while enforcing VIP protocol.
 
@@ -190,6 +199,7 @@ class _Socket(object):
         after SUBSYSTEM, which may not be empty. All frames up to
         SUBSYSTEM must be sent with the SNDMORE flag.
         '''
+        self.wait_send(flags)
         state = self._send_state
         if state == 4:
             # Verify that subsystem has some non-space content
@@ -209,7 +219,12 @@ class _Socket(object):
                 super(_Socket, self).send(b'VIP1', flags=flags|SNDMORE)
                 state += 1
             self._send_state = state + 1
-        super(_Socket, self).send(frame, flags=flags, copy=copy, track=track)
+        try:
+            super(_Socket, self).send(
+                frame, flags=flags, copy=copy, track=track)
+        except Exception:
+            self._send_state = state
+            raise
 
     def send_vip(self, peer, subsystem, args=None, msg_id=b'',
                  user=b'', via=None, flags=0, copy=True, track=False):
@@ -220,6 +235,7 @@ class _Socket(object):
         constraints are violated. If SNDMORE flag is used, additional
         arguments may be sent. via is required for ROUTER sockets.
         '''
+        self.wait_send(flags)
         state = self._send_state
         if state > 0:
             raise ProtocolError('previous send operation is not complete')
