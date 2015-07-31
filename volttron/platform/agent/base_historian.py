@@ -72,12 +72,11 @@ import pytz
 from zmq.utils import jsonapi
 
 from volttron.platform.vip.agent import *
-from volttron.platform.agent import utils
 from volttron.platform.messaging import topics, headers as headers_mod
 
 
-utils.setup_logging()
 _log = logging.getLogger(__name__)
+
 
 ACTUATOR_TOPIC_PREFIX_PARTS = len(topics.ACTUATOR_VALUE.split('/'))
 
@@ -217,7 +216,7 @@ class BaseHistorianAgent(Agent):
         device = '/'.join(reversed(parts[2:]))
 
         try:
-            values = utils.jsonapi.loads(message[0])
+            values = jsonapi.loads(message[0])
         except ValueError as e:
             _log.error("message for {topic} bad message string: {message_string}".format(topic=topic,
                                                                                      message_string=message[0]))
@@ -228,7 +227,7 @@ class BaseHistorianAgent(Agent):
 
         meta = {}
         try:
-            meta = utils.jsonapi.loads(message[1])
+            meta = jsonapi.loads(message[1])
         except ValueError as e:
             _log.warning("meta data for {topic} bad message string: {message_string}".format(topic=topic,
                                                                                      message_string=message[0]))
@@ -265,7 +264,7 @@ class BaseHistorianAgent(Agent):
         topic = '/'.join(parts[ACTUATOR_TOPIC_PREFIX_PARTS:])
 
         try:
-            value = utils.jsonapi.loads(message[0])
+            value = jsonapi.loads(message[0])
         except ValueError as e:
             _log.error("message for {topic} bad message string: {message_string}".format(topic=topic,
                                                                                      message_string=message[0]))
