@@ -10,3 +10,7 @@ other mechanism.
 The core directory is meant to have scripts that automate specific portions
 of the technology stack in order to allow instances to configure themselves
 effectively.
+
+All other directories should be assumed to be customized for a specific need 
+and should have a README associated with it in order to better document the 
+purpose of the directory.
