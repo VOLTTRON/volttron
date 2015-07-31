@@ -53,7 +53,7 @@ from datetime import timedelta as td
 import logging
 import re
 import math
-from volttron.platform.agent import (Results, AbstractDrivenAgent)
+from volttron.platform.agent.driven import Results, AbstractDrivenAgent
 # from openeis.applications import (DrivenApplicationBaseClass,
 #                                   OutputDescriptor,
 #                                   ConfigDescriptor,

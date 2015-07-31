@@ -72,11 +72,9 @@ import pytz
 from zmq.utils import jsonapi
 
 from volttron.platform.vip.agent import *
-from volttron.platform.agent import utils
 from volttron.platform.messaging import topics, headers as headers_mod
 
 
-utils.setup_logging()
 _log = logging.getLogger(__name__)
 
 ACTUATOR_TOPIC_PREFIX_PARTS = len(topics.ACTUATOR_VALUE.split('/'))
@@ -145,7 +143,6 @@ class BaseHistorianAgent(Agent):
         self.vip.pubsub.subscribe(peer='pubsub',
                                prefix=topics.ACTUATOR,  # actuators/*
                                callback=self.capture_actuator_data)
-                
 
     @Core.receiver("onstop")
     def stopping(self, sender, **kwargs):

@@ -63,9 +63,8 @@ import sys
 import re
 # import dateutil.parser
 
-from volttron.platform.agent import (AbstractDrivenAgent, BaseAgent,
-                                     ConversionMapper, PublishMixin,
-                                     matching, utils)
+from volttron.platform.agent import BaseAgent, PublishMixin, matching, utils
+from volttron.platform.agent.driven import  ConversionMapper
 from volttron.platform.agent.utils import jsonapi
 from volttron.platform.messaging import (headers as headers_mod, topics)
 from copy import deepcopy
