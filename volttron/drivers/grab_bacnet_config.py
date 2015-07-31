@@ -193,8 +193,8 @@ try:
     _log.debug('objectCount = ' + str(objectCount))
     
     config_writer = DictWriter(args.out_file, 
-                               ('Point Name',
-                                'PNNL Point Name',
+                               ('Reference Point Name',
+                                'Volttron Point Name',
                                 'Units',
                                 'Unit Details',
                                 'BACnet Object Type',
@@ -371,7 +371,7 @@ try:
         _log.debug('  object notes = ' + object_notes)    
         
         results = {}     
-        results['Point Name'] = results['PNNL Point Name'] = object_name
+        results['Reference Point Name'] = results['Volttron Point Name'] = object_name
         results['Units'] = object_units
         results['Unit Details'] = object_units_details
         results['BACnet Object Type'] = obj_type

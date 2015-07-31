@@ -77,7 +77,6 @@ from volttron.platform.messaging import topics, headers as headers_mod
 
 _log = logging.getLogger(__name__)
 
-
 ACTUATOR_TOPIC_PREFIX_PARTS = len(topics.ACTUATOR_VALUE.split('/'))
 
 class BaseHistorianAgent(Agent):
@@ -151,14 +150,19 @@ class BaseHistorianAgent(Agent):
         Release subscription to the message bus because we are no longer able
         to respond to messages now.
         '''
-        # unsubscribes to all topics that we are subscribed to.
-        self.vip.pubsub.unsubscribe(peer='pubsub', prefix=None, callback=None)
+        try:
+            # unsubscribes to all topics that we are subscribed to.
+            self.vip.pubsub.unsubscribe(peer='pubsub', prefix=None, callback=None)
+        except KeyError:
+            # means that the agent didn't start up properly so the pubsub
+            # subscriptions never got finished.
+            pass
 
     def capture_log_data(self, peer, sender, bus, topic, headers, message):
         '''Capture log data and submit it to be published by a historian.'''
 
-        parts = topic.split('/')
-        location = '/'.join(reversed(parts[2:]))
+#         parts = topic.split('/')
+#         location = '/'.join(reversed(parts[2:]))
 
         try:
             data = message # jsonapi.loads(message[0])
@@ -174,7 +178,7 @@ class BaseHistorianAgent(Agent):
         _log.debug("Queuing {topic} from {source} for publish".format(topic=topic,
                                                                       source=source))
         for point, item in data.iteritems():
-            ts_path = location + '/' + point
+#             ts_path = location + '/' + point
             if 'Readings' not in item or 'Units' not in item:
                 _log.error("logging request for {path} missing Readings or Units".format(path=ts_path))
                 continue
@@ -194,8 +198,9 @@ class BaseHistorianAgent(Agent):
                                    'readings': readings,
                                    'meta':meta})
 
-    def capture_device_data(self, peer, bus, topic, headers, message):
+    def capture_device_data(self, peer, sender, bus, topic, headers, message):
         '''Capture device data and submit it to be published by a historian.'''
+        #peer, sender, bus, topic, headers, message
         timestamp_string = headers.get(headers_mod.DATE)
         if timestamp_string is None:
             _log.error("message for {topic} missing timetamp".format(topic=topic))
@@ -216,7 +221,7 @@ class BaseHistorianAgent(Agent):
         device = '/'.join(reversed(parts[2:]))
 
         try:
-            values = jsonapi.loads(message[0])
+            values = message[0]
         except ValueError as e:
             _log.error("message for {topic} bad message string: {message_string}".format(topic=topic,
                                                                                      message_string=message[0]))
@@ -227,7 +232,7 @@ class BaseHistorianAgent(Agent):
 
         meta = {}
         try:
-            meta = jsonapi.loads(message[1])
+            meta = message[1]
         except ValueError as e:
             _log.warning("meta data for {topic} bad message string: {message_string}".format(topic=topic,
                                                                                      message_string=message[0]))
@@ -242,7 +247,7 @@ class BaseHistorianAgent(Agent):
         for key, value in values.iteritems():
             point_topic = device + '/' + key
             self._event_queue.put({'source': source,
-                                   'topic': topic,
+                                   'topic': point_topic,
                                    'readings': [(timestamp,value)],
                                    'meta': meta.get(key,{})})
 
@@ -264,7 +269,7 @@ class BaseHistorianAgent(Agent):
         topic = '/'.join(parts[ACTUATOR_TOPIC_PREFIX_PARTS:])
 
         try:
-            value = jsonapi.loads(message[0])
+            value = message[0]
         except ValueError as e:
             _log.error("message for {topic} bad message string: {message_string}".format(topic=topic,
                                                                                      message_string=message[0]))
@@ -313,9 +318,9 @@ class BaseHistorianAgent(Agent):
                 new_to_publish = []
 
             if new_to_publish:
+                _log.debug("Checking for queue build up.")
                 while True:
                     try:
-                        _log.debug("Checking for queue build up.")
                         new_to_publish.append(self._event_queue.get_nowait())
                     except Empty:
                         break
@@ -324,12 +329,13 @@ class BaseHistorianAgent(Agent):
 
             wait_for_input = True
             start_time = datetime.utcnow()
-
+            
+            _log.debug("Calling publish_to_historian.")
             while True:
                 to_publish_list = self._get_outstanding_to_publish()
                 if not to_publish_list:
                     break
-                _log.debug("Calling publish_to_historian.")
+                
                 self.publish_to_historian(to_publish_list)
                 if not self._any_sucessfull_publishes():
                     break
@@ -528,6 +534,14 @@ class BaseQueryHistorianAgent(Agent):
         if metadata is None:
             results['metadata'] = {}
         return results
+
+    @RPC.export
+    def get_topic_list(self):
+        return self.query_topic_list()
+
+    @abstractmethod
+    def query_topic_list(self):
+        pass
 
     @abstractmethod
     def query_historian(self, topic, start=None, end=None, skip=0, count=None, order=None):
