@@ -72,7 +72,7 @@ setup(
     },
     entry_points = {
         'setuptools.installation': [
-            'eggsecutable = ' + package + '.agent:main',
+            'eggsecutable = ' + package + '.vc:main',
         ]
     }
 )
