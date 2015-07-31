@@ -224,8 +224,8 @@ def platform_agent(config_path, **kwargs):
                 try:
 #                     _log.debug("Manager",manager)
 #                     _log.debug(manager[0],manager[1])
-
-                    agent = self._get_rpc_agent(manager[0])
+                    #TODO: #14 Go through manager addresses until one works. For now just use first.
+                    agent = self._get_rpc_agent(manager[0][0])
 #                     agent = Agent(address=manager[0])
                     result = agent.vip.rpc.call(manager[1],"list_platform_details").get(timeout=10)
 #                     _log.debug("RESULT",result)
