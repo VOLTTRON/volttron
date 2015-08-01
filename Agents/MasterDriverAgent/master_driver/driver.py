@@ -58,6 +58,7 @@ from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.messaging.topics import (DRIVER_TOPIC_BASE, 
                                                 DRIVER_TOPIC_ALL, 
                                                 DEVICES_VALUE,
+                                                DEVICES_PATH,
                                                 CONFIG_ADD,
                                                 CONFIG_REMOVE,
                                                 CONFIG_UPDATE)
@@ -134,7 +135,15 @@ class DriverAgent(Agent):
                                         path=self.config.get('path', ''),
                                         point=None)
         
-        self.parent.device_startup_callback(self.base_topic, self)
+        device_name = DEVICES_PATH(base='',
+                                   node='',
+                                   campus=self.config.get('campus', ''), 
+                                   building=self.config.get('building', ''), 
+                                   unit=self.config.get('unit', ''),
+                                   path=self.config.get('path', ''),
+                                   point='')
+        
+        self.parent.device_startup_callback(device_name, self)
             
         
     def periodic_read(self):
