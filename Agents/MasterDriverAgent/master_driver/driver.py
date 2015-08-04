@@ -54,6 +54,7 @@ import datetime
 from volttron.platform.vip.agent import Agent, Core
 from volttron.platform.agent import utils
 from zmq.utils import jsonapi
+import logging
 from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.messaging.topics import (DRIVER_TOPIC_BASE, 
                                                 DRIVER_TOPIC_ALL, 
@@ -63,11 +64,15 @@ from volttron.platform.messaging.topics import (DRIVER_TOPIC_BASE,
                                                 CONFIG_REMOVE,
                                                 CONFIG_UPDATE)
 
+utils.setup_logging()
+_log = logging.getLogger(__name__)
+
 class DriverAgent(Agent): 
     def __init__(self, parent, **kwargs):             
         super(DriverAgent, self).__init__(**kwargs)
         self.parent = parent
         self.heart_beat_value = 0
+        self.device_name = ''
         
     def get_config(self, config_name):
         #Until config store is setup just grab a file.
@@ -135,7 +140,7 @@ class DriverAgent(Agent):
                                         path=self.config.get('path', ''),
                                         point=None)
         
-        device_name = DEVICES_PATH(base='',
+        self.device_name = DEVICES_PATH(base='',
                                    node='',
                                    campus=self.config.get('campus', ''), 
                                    building=self.config.get('building', ''), 
@@ -143,7 +148,7 @@ class DriverAgent(Agent):
                                    path=self.config.get('path', ''),
                                    point='')
         
-        self.parent.device_startup_callback(device_name, self)
+        self.parent.device_startup_callback(self.device_name, self)
             
         
     def periodic_read(self):
@@ -184,6 +189,8 @@ class DriverAgent(Agent):
             return
         
         self.heart_beat_value = int(not bool(self.heart_beat_value))
+        
+        _log.debug("sending heartbeat: " + self.device_name + ' ' + str(self.heart_beat_value))
         
         self.set_point(self.heart_beat_point, self.heart_beat_value)
 

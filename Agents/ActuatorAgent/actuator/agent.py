@@ -114,6 +114,7 @@ def actuator_agent(config_path, **kwargs):
                     
         @RPC.export
         def heart_beat(self):
+            _log.debug("sending heartbeat")
             self.vip.rpc.call(master_driver_agent_address, 'heart_beat')
         
         @Core.receiver('onstart')

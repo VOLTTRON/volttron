@@ -53,83 +53,46 @@
 
 #}}}
 
+from __future__ import absolute_import
+
 import logging
 import sys
-import os
-import gevent
-from volttron.platform.vip.agent import Agent, Core, RPC
-from volttron.platform.agent import utils
-from driver import DriverAgent
 
+from volttron.platform.vip.agent import Agent, Core
+from volttron.platform.agent import utils
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
-def master_driver_agent(config_path, **kwargs):
 
-#     home = os.path.expanduser(os.path.expandvars(
-#                  os.environ.get('VOLTTRON_HOME', '~/.volttron')))
-#     vip_address = 'ipc://@{}/run/vip.socket'.format(home)
-
-    print(sys.path)
-
+def heartbeat_agent(config_path, **kwargs):
     config = utils.load_config(config_path)
-
-    def get_config(name, default=None):
-        try:
-            return kwargs.pop(name)
-        except KeyError:
-            return config.get(name, default)
-
-    agentid = get_config('agentid')
-    vip_identity = get_config('vip_identity')
-    driver_config_list = get_config('driver_config_list')
-    if not vip_identity:
-        vip_identity = os.environ.get('AGENT_UUID')
-
-    class MasterDriverAgent(Agent):
+    heartbeat_interval = int(config.get('period', 60))
+    actuator_vip_address = config.get('actuator_vip')
+    
+    class HeartbeatAgent(Agent):
+        '''Stopgap agent to trigger heartbeats until we've addd that feature to the 
+           platform.
+        '''
+    
         def __init__(self, **kwargs):
-            super(MasterDriverAgent, self).__init__(identity=vip_identity, **kwargs)
-            self.instances = {}
+            super(HeartbeatAgent, self).__init__(**kwargs)
             
-        @Core.receiver('onstart')
-        def starting(self, sender, **kwargs):
-            for config_name in driver_config_list:
-                driver = DriverAgent(self, identity=config_name)
-                gevent.spawn(driver.core.run)   
-                #driver.core.stop to kill an agent.    
-                
-        def device_startup_callback(self, topic, driver):
-            _log.debug("Driver hooked up for "+topic)
-            topic = topic.strip('/')
-            self.instances[topic] = driver
-            
-        @RPC.export
-        def get_point(self, path, point_name):
-            return self.instances[path].get_point(point_name)
-        
-        @RPC.export
-        def set_point(self, path, point_name, value):
-            return self.instances[path].set_point(point_name, value)
-        
-        @RPC.export
-        def heart_beat(self):
+        @Core.periodic(heartbeat_interval)
+        def publish_heartbeat(self):
+            '''Send heartbeat message to the actuator agent.
+            '''
             _log.debug("sending heartbeat")
-            for device in self.instances.values():
-                device.heart_beat()
-                
+            self.vip.rpc.call(actuator_vip_address, 'heart_beat')
             
-    return MasterDriverAgent(**kwargs)
-
-
-
+    return HeartbeatAgent(**kwargs)
 
 def main(argv=sys.argv):
-    '''Main method called to start the agent.'''
-    #try:
-    utils.vip_main(master_driver_agent)
-    #except Exception:
-    #    _log.exception('unhandled exception')
+    '''Main method called by the eggsecutable.'''
+    try:
+        utils.vip_main(heartbeat_agent)
+    except Exception as e:
+        _log.exception('unhandled exception')
 
 
 if __name__ == '__main__':

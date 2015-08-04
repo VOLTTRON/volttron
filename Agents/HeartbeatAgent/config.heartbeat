@@ -1,0 +1,6 @@
+{
+    "agentid": "listener1",
+    "message": "hello",    
+    "period":20,
+    "actuator_vip": "73aadb9c-3584-11e5-bac0-080027543b73" 
+}
