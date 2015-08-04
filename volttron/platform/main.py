@@ -287,7 +287,13 @@ class Router(vip.BaseRouter):
                 value = None
             else:
                 if name == b'addresses':
-                    value = [addr.base for addr in self.addresses]
+                    _log.debug("ADDRESS {}".format(self.addresses))
+                    # #140
+#                     value = [addr.base for addr in self.addresses]
+                    if self.addresses:
+                        value = self.addresses
+                    else:
+                        value = [self.local_address]
                 else:
                     value = None
             frames[6:] = [b'', jsonapi.dumps(value)]
