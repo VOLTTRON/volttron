@@ -59,15 +59,23 @@
 
 See https://github.com/VOLTTRON/volttron/wiki/VIP for protocol
 specification.
+
+This module is for use within gevent. It provides some locking around
+send operations to protect the VIP state. It should be safe to use a
+single socket in multiple greenlets without any kind of locking.
 '''
 
 
 from __future__ import absolute_import
 
+from contextlib import contextmanager as _contextmanager
+
+from gevent import sleep as _sleep
+from gevent.local import local as _local
+from gevent.lock import RLock as _RLock
+
+from zmq.green import NOBLOCK, POLLOUT
 from zmq import green as _green
-__import__('warnings').filterwarnings(
-    'ignore', 'TIMEO socket options have no effect in zmq.green',
-    UserWarning, r'^zmq\.green\.core')
 
 from . import *
 from .router import BaseRouter as _BaseRouter
@@ -76,6 +84,24 @@ from .socket import _Socket
 
 class Socket(_Socket, _green.Socket):
     _context_class = _green.Context
+    _local_class = _local
+
+    def __init__(self, *args, **kwargs):
+        super(Socket, self).__init__(*args, **kwargs)
+        object.__setattr__(self, '_Socket__send_lock', _RLock())
+
+    @_contextmanager
+    def _sending(self, flags):
+        flags |= getattr(self._Socket__local, 'flags', 0)
+        lock = self._Socket__send_lock
+        while not lock.acquire(not flags & NOBLOCK):
+            if not self.poll(0, POLLOUT):
+                raise _green.Again()
+            _sleep(0)
+        try:
+            yield flags
+        finally:
+            lock.release()
 
 
 class BaseRouter(_BaseRouter):

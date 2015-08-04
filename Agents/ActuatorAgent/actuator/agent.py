@@ -67,7 +67,7 @@ from volttron.platform.messaging import topics
 from volttron.platform.agent import utils
 from volttron.platform.messaging.utils import normtopic
 from volttron.platform.agent.sched import EventWithTime
-from scheduler import ScheduleManager
+from actuator.scheduler import ScheduleManager
 
 from dateutil.parser import parse 
 
@@ -96,30 +96,41 @@ class LockError(StandardError):
 
 def actuator_agent(config_path, **kwargs):
     config = utils.load_config(config_path)
-    url = config['url']
     schedule_publish_interval = int(config.get('schedule_publish_interval', 60))
-    heartbeat_interval = int(config.get('heartbeat_interval', 60))
-    points = config.get('points', {})
     schedule_state_file = config.get('schedule_state_file')
     preempt_grace_time = config.get('preempt_grace_time', 60)
-    connection_timeout=config.get('connection-timeout', 10)
     master_driver_agent_address=config.get('master_driver_agent_address')
+    vip_identity = config.get('vip_identity')
     
     class ActuatorAgent(Agent):
         '''Agent to listen for requests to talk to the sMAP driver.'''
 
         def __init__(self, **kwargs):
-            super(Agent, self).__init__(**kwargs)
+            super(ActuatorAgent, self).__init__(identity=vip_identity, **kwargs)
+            _log.debug("vip_identity: "+vip_identity)
             
             self._update_event = None
-            self._update_event_time = None
             self._device_states = {}
-            
-            self.setup_schedule()
                     
         @RPC.export
         def heart_beat(self):
             self.vip.rpc.call(master_driver_agent_address, 'heart_beat')
+        
+        @Core.receiver('onstart')
+        def on_start(self, sender, **kwargs):
+            self.setup_schedule()
+            self.vip.pubsub.subscribe(peer='pubsub',
+                                      prefix=topics.ACTUATOR_GET(), 
+                                      callback=self.handle_get)
+
+            self.vip.pubsub.subscribe(peer='pubsub',
+                                      prefix=topics.ACTUATOR_SET(),
+                                      callback=self.handle_set)
+            
+            self.vip.pubsub.subscribe(peer='pubsub',
+                                      prefix=topics.ACTUATOR_SCHEDULE_REQUEST(), 
+                                      callback=self.handle_schedule_request)
+            
         
         def setup_schedule(self):
             now = datetime.datetime.now()
@@ -130,6 +141,14 @@ def actuator_agent(config_path, **kwargs):
             
         def update_device_state_and_schedule(self, now):
             _log.debug("update_device_state_and schedule")
+            #Sanity check now.
+            #This is specifically for when this is running in a VM that gets suspeded and then resumed.
+            #If we don't make this check a resumed VM will publish one event per minute of 
+            # time the VM was suspended for. 
+            test_now = datetime.datetime.now()
+            if test_now - now > datetime.timedelta(minutes=3):
+                now = test_now
+            
             self._device_states = self._schedule_manager.get_schedule_state(now)
             schedule_next_event_time = self._schedule_manager.get_next_event_time(now)
             new_update_event_time = self._get_ajusted_next_event_time(now, schedule_next_event_time)
@@ -138,14 +157,14 @@ def actuator_agent(config_path, **kwargs):
                 header = self.get_headers(state.agent_id, time=str(now), task_id=state.task_id)
                 header['window'] = state.time_remaining
                 topic = topics.ACTUATOR_SCHEDULE_ANNOUNCE_RAW.replace('{device}', device)
-                self.vip.pubsub.publish('pubsub', topic, header=header, message={})
+                self.vip.pubsub.publish('pubsub', topic, headers=header)
                 
             if self._update_event is not None:
                 #This won't hurt anything if we are canceling ourselves.
                 self._update_event.cancel()
-            self._update_event_time = new_update_event_time
-            self._update_event = EventWithTime(self._update_schedule_state)
-            self.schedule(self._update_event_time, self._update_event)  
+            self._update_event = self.core.schedule(new_update_event_time, 
+                                                    self._update_schedule_state,
+                                                    new_update_event_time)  
             
             
         def _get_ajusted_next_event_time(self, now, next_event_time):
@@ -159,16 +178,14 @@ def actuator_agent(config_path, **kwargs):
             return next_event_time
         
             
-        def _update_schedule_state(self, unix_time):
-            #Find the current slot and update the state
-            now = datetime.datetime.fromtimestamp(unix_time)
-            
+        def _update_schedule_state(self, now):            
             self.update_device_state_and_schedule(now)
                             
 
-        @matching.match_regex(topics.ACTUATOR_GET() + '/(.+)')
-        def handle_get(self, topic, headers, message, match):
-            point = match.group(1)
+        def handle_get(self, peer, sender, bus, topic, headers, message):
+            point = topic.replace(topics.ACTUATOR_GET()+'/', '', 1)
+            requester = headers.get('requesterID')
+            headers = self.get_headers(requester)
             try:
                 value = self.get_point(point)
                 self.push_result_topic_pair(VALUE_RESPONSE_PREFIX,
@@ -179,11 +196,8 @@ def actuator_agent(config_path, **kwargs):
                                             point, headers, error)
 
 
-        @matching.match_regex(topics.ACTUATOR_SET() + '/(.+)')
-        def handle_set(self, topic, headers, message, match):
-            _log.debug('handle_set: {topic},{headers}, {message}'.
-                       format(topic=topic, headers=headers, message=message))
-            point = match.group(1)
+        def handle_set(self, peer, sender, bus, topic, headers, message):
+            point = topic.replace(topics.ACTUATOR_SET()+'/', '', 1)
             requester = headers.get('requesterID')
             headers = self.get_headers(requester)
             if not message:
@@ -220,6 +234,7 @@ def actuator_agent(config_path, **kwargs):
         @RPC.export        
         def get_point(self, topic):
             topic = topic.strip('/')
+            _log.debug('handle_get: {topic}'.format(topic=topic))
             path, point_name = topic.rsplit('/', 1)
             return self.vip.rpc.call(master_driver_agent_address, 'get_point', path, point_name).get()
         
@@ -258,7 +273,7 @@ def actuator_agent(config_path, **kwargs):
                 return device_state.agent_id == requester
             return False
 
-        @PubSub.subscribe("pubsub", topics.ACTUATOR_SCHEDULE_REQUEST())
+
         def handle_schedule_request(self, peer, sender, bus, topic, headers, message):
             request_type = headers.get('type')
             _log.debug('handle_schedule_request: {topic}, {headers}, {message}'.
@@ -270,46 +285,43 @@ def actuator_agent(config_path, **kwargs):
                    
             if request_type == SCHEDULE_ACTION_NEW:
                 try:
-                    requests = message[0]
-                except IndexError as ex:
-                    # Could be ValueError of JSONDecodeError depending
-                    # on if simplesjson was used.  JSONDecodeError
-                    # inherits from ValueError
-                    
-                    #We let the schedule manager tell us this is a bad request.
-                    _log.error('bad request: {request}, {error}'.format(request=requests, error=str(ex)))
-                    requests = []
+                    if len(message) == 1:
+                        requests = message[0]
+                    else:
+                        requests = message
                 
-                try: 
                     self.request_new_schedule(requester_id, task_id, priority, requests)
                 except StandardError as ex:
                     _log.error('bad request: {request}, {error}'.format(request=requests, error=str(ex)))
-                    self.publish_json(topics.ACTUATOR_SCHEDULE_RESULT(), headers,
-                                      {'result':SCHEDULE_RESPONSE_FAILURE, 
-                                       'data': {},
-                                       'info': 'INVALID_REQUEST_TYPE'})
+                    self.vip.pubsub.publish('pubsub', topics.ACTUATOR_SCHEDULE_RESULT(), headers,
+                                            {'result':SCHEDULE_RESPONSE_FAILURE, 
+                                             'data': {},
+                                             'info': 'INVALID_REQUEST_TYPE'})
                     
             elif request_type == SCHEDULE_ACTION_CANCEL:
                 try:
                     self.request_cancel_schedule(requester_id, task_id)
                 except StandardError as ex:
                     _log.error('bad request: {request}, {error}'.format(request=requests, error=str(ex)))
-                    self.publish_json(topics.ACTUATOR_SCHEDULE_RESULT(), headers,
-                                      {'result':SCHEDULE_RESPONSE_FAILURE, 
-                                       'data': {},
-                                       'info': 'INVALID_REQUEST_TYPE'})
+                    self.vip.pubsub.publish('pubsub', topics.ACTUATOR_SCHEDULE_RESULT(), headers,
+                                            {'result':SCHEDULE_RESPONSE_FAILURE, 
+                                             'data': {},
+                                             'info': 'INVALID_REQUEST_TYPE'})
                 
             else:
                 _log.debug('handle-schedule_request, invalid request type')
-                self.publish_json(topics.ACTUATOR_SCHEDULE_RESULT(), headers,
-                                  {'result':SCHEDULE_RESPONSE_FAILURE, 
-                                   'data': {},
-                                   'info': 'INVALID_REQUEST_TYPE'})
+                self.vip.pubsub.publish('pubsub', topics.ACTUATOR_SCHEDULE_RESULT(), headers,
+                                        {'result':SCHEDULE_RESPONSE_FAILURE, 
+                                         'data': {},
+                                         'info': 'INVALID_REQUEST_TYPE'})
             
         
         @RPC.export    
         def request_new_schedule(self, requester_id, task_id, priority, requests):
             now = datetime.datetime.now()
+            
+            if isinstance(requests[0], basestring):
+                requests = [requests]
             
             requests = [[r[0].strip('/'),parse(r[1]),parse(r[2])] for r in requests]
                 
@@ -327,11 +339,11 @@ def actuator_agent(config_path, **kwargs):
                     topic = topics.ACTUATOR_SCHEDULE_RESULT()
                     headers = self.get_headers(preempted_task[0], task_id=preempted_task[1])
                     headers['type'] = SCHEDULE_ACTION_CANCEL
-                    self.publish_json(topic, headers=headers, 
-                                      message={'result':SCHEDULE_CANCEL_PREEMPTED,
-                                               'info': '',
-                                               'data':{'agentID': requester_id,
-                                                       'taskID': task_id}})
+                    self.vip.pubsub.publish('pubsub', topic, headers=headers, 
+                                            message={'result':SCHEDULE_CANCEL_PREEMPTED,
+                                                     'info': '',
+                                                     'data':{'agentID': requester_id,
+                                                             'taskID': task_id}})
             
             #If we are successful we do something else with the real result data
             data = result.data if not result.success else {}        
@@ -389,10 +401,7 @@ def actuator_agent(config_path, **kwargs):
 
 def main(argv=sys.argv):
     '''Main method called to start the agent.'''
-    utils.setup_logging()
-    utils.default_main(actuator_agent,
-                       description='Example VOLTTRON platform™ actuator agent',
-                       argv=argv)
+    utils.vip_main(actuator_agent)
 
 
 if __name__ == '__main__':

@@ -62,9 +62,13 @@ from pymodbus.constants import Defaults
 from master_driver.interfaces import BaseInterface, BaseRegister
 
 import struct
+import logging
 from csv import DictReader
 from StringIO import StringIO
 import os.path
+
+modbus_logger = logging.getLogger("pymodbus")
+modbus_logger.setLevel(logging.WARNING)
 
 MODBUS_REGISTER_SIZE = 2
 MODBUS_READ_MAX = 100
@@ -207,7 +211,7 @@ class Interface(BaseInterface):
         register = self.get_register_by_name(point_name)
         client = SyncModbusClient(self.ip_address, port=self.port)
         try:
-            result = register.get_state_sync(client)
+            result = register.get_state(client)
         except (ConnectionException, ModbusIOException, ModbusInterfaceException):
             result = None
         finally:
@@ -219,7 +223,7 @@ class Interface(BaseInterface):
         client = SyncModbusClient(self.ip_address, port=self.port)
         result = None
         try:
-            result = register.set_state_sync(client, value)
+            result = register.set_state(client, value)
         except (ConnectionException, ModbusIOException, ModbusInterfaceException):
             result = None
         finally:

@@ -100,6 +100,7 @@ def master_driver_agent(config_path, **kwargs):
                 #driver.core.stop to kill an agent.    
                 
         def device_startup_callback(self, topic, driver):
+            _log.debug("Driver hooked up for "+topic)
             topic = topic.strip('/')
             self.instances[topic] = driver
             
@@ -124,7 +125,6 @@ def master_driver_agent(config_path, **kwargs):
 
 def main(argv=sys.argv):
     '''Main method called to start the agent.'''
-    utils.setup_logging()
     #try:
     utils.vip_main(master_driver_agent)
     #except Exception:

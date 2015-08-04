@@ -59,10 +59,17 @@
 
 See https://github.com/VOLTTRON/volttron/wiki/VIP for protocol
 specification.
+
+This module is useful for using VIP outside of gevent. Please understand
+that ZeroMQ sockets are not thread-safe and care must be used when using
+across threads (or avoided all together). There is no locking around the
+state as there is with the gevent version in the green sub-module.
 '''
 
 
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
+
+from threading import local as _local
 
 import zmq as _zmq
 
@@ -73,3 +80,4 @@ from .socket import _Socket
 
 class Socket(_Socket, _zmq.Socket):
     _context_class = _zmq.Context
+    _local_class = _local
