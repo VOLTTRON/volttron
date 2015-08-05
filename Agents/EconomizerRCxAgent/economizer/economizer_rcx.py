@@ -52,8 +52,8 @@ import datetime
 from datetime import timedelta as td
 import time
 import logging
-from volttron.platform.agent import (Results, AbstractDrivenAgent, PublishMixin,
-                                     BaseAgent)
+from volttron.platform.agent.driven import Results, AbstractDrivenAgent
+from volttron.platform.messaging import headers as topics
 from zmq.utils import jsonapi
 from volttron.platform.agent import utils
 from volttron.platform.messaging import headers as headers_mod, topics

@@ -73,6 +73,7 @@ from zmq.green import ZMQError, EAGAIN
 
 from .decorators import annotate, annotations, dualmethod
 from .dispatch import Signal
+from .errors import VIPError
 from ...vip import green as vip
 from .... import platform
 
@@ -116,6 +117,26 @@ class Periodic(object):   # pylint: disable=invalid-name
         return gevent.Greenlet(self._loop, method)
 
 
+class ScheduledEvent(object):
+    '''Class returned from Core.schedule.'''
+
+    def __init__(self, function, args=None, kwargs=None):
+        self.function = function
+        self.args = args or []
+        self.kwargs = kwargs or {}
+        self.canceled = False
+        self.finished = False
+
+    def cancel(self):
+        '''Mark the timer as canceled to avoid a callback.'''
+        self.canceled = True
+
+    def __call__(self):
+        if not self.canceled:
+            self.function(*self.args, **self.kwargs)
+        self.finished = True
+
+
 class Core(object):
     def __init__(self, owner, address=None, identity=None, context=None):
         if not address:
@@ -129,7 +150,7 @@ class Core(object):
         self.identity = identity
         self.socket = None
         self.greenlet = None
-        self.subsystems = {'error': (self.handle_error, None)}
+        self.subsystems = {'error': self.handle_error}
         self._async = None
         self._async_calls = []
         self._stop_event = None
@@ -139,6 +160,7 @@ class Core(object):
         self.onstart = Signal()
         self.onstop = Signal()
         self.onfinish = Signal()
+        self.onviperror = Signal()
 
         periodics = []
         def setup(member):   # pylint: disable=redefined-outer-name
@@ -146,7 +168,8 @@ class Core(object):
                 periodic.get(member) for periodic in annotations(
                     member, list, 'core.periodics'))
             self._schedule.extend(
-                (deadline, member, args, kwargs) for deadline, args, kwargs in
+                (deadline, ScheduledEvent(member, args, kwargs))
+                for deadline, args, kwargs in
                 annotations(member, list, 'core.schedule'))
             for name in annotations(member, set, 'core.signals'):
                 signal = getattr(self, name)
@@ -162,20 +185,21 @@ class Core(object):
             del periodics[:]
         self.onstart.connect(start_periodics)
 
-    def register(self, name, handler, error_handler):
-        self.subsystems[name] = (handler, error_handler)
+    def register(self, name, handler, error_handler=None):
+        self.subsystems[name] = handler
+        if error_handler:
+            def onerror(sender, error, **kwargs):
+                if error.subsystem == name:
+                    error_handler(sender, error=error, **kwargs)
+            self.onviperror.connect(onerror)
 
     def handle_error(self, message):
-        try:
-            subsystem = bytes(message.args[3])
-            _, handle = self.subsystems[subsystem]
-        except (IndexError, KeyError):
-            handle = None
-        if handle:
-            handle(message)
-        else:
+        if len(message.args) < 4:
             _log.debug('unhandled VIP error %s', message)
-
+        elif self.onviperror:
+            args = [bytes(arg) for arg in message.args]
+            error = VIPError.from_errno(*args)
+            self.onviperror.send(self, error=error, message=message)
 
     def run(self, running_event=None):   # pylint: disable=method-hidden
         '''Entry point for running agent.'''
@@ -202,7 +226,7 @@ class Core(object):
 
                 subsystem = bytes(message.subsystem)
                 try:
-                    handle, _ = self.subsystems[subsystem]
+                    handle = self.subsystems[subsystem]
                 except KeyError:
                     _log.error('peer %r requested unknown subsystem %r',
                                bytes(message.peer), subsystem)
@@ -222,15 +246,15 @@ class Core(object):
             while True:
                 if heap:
                     deadline = heap[0][0]
-                    timeout = min(60.0, max(0.0, deadline - now))
+                    timeout = min(5.0, max(0.0, deadline - now))
                 else:
                     timeout = None
                 if event.wait(timeout):
                     event.clear()
                 now = time.time()
                 while heap and now >= heap[0][0]:
-                    _, func, args, kwargs = heapq.heappop(heap)
-                    greenlet = gevent.spawn(func, *args, **kwargs)
+                    _, callback = heapq.heappop(heap)
+                    greenlet = gevent.spawn(callback)
                     cur.link(lambda glt: greenlet.kill())
 
         def link_receiver(receiver, sender, **kwargs):
@@ -344,11 +368,15 @@ class Core(object):
     def schedule(self, deadline, func, *args, **kwargs):
         if hasattr(deadline, 'timetuple'):
             deadline = time.mktime(deadline.timetuple())
-        heapq.heappush(self._schedule, (deadline, func, args, kwargs))
+        event = ScheduledEvent(func, args, kwargs)
+        heapq.heappush(self._schedule, (deadline, event))
         self._schedule_event.set()
+        return event
 
     @schedule.classmethod
     def schedule(cls, deadline, *args, **kwargs):   # pylint: disable=no-self-argument
+        if hasattr(deadline, 'timetuple'):
+            deadline = time.mktime(deadline.timetuple())
         def decorate(method):
             annotate(method, list, 'core.schedule', (deadline, args, kwargs))
             return method

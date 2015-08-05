@@ -55,7 +55,7 @@
 # under Contract DE-AC05-76RL01830
 #}}}
 
-from dateutil.parser import parse 
+
 from datetime import datetime, timedelta
 from collections import defaultdict, namedtuple
 from copy import deepcopy
@@ -141,10 +141,9 @@ class Task(object):
     def populate_schedule(self, requests):
         for request in requests:
             device, start, end = request
-            time_slice = TimeSlice(parse(start), parse(end))
+            time_slice = TimeSlice(start, end)
             if not isinstance(device, str):
                 raise ValueError('Device not string.')
-            device = device.strip('/')
             self.devices[device].schedule_slot(time_slice)
             self.time_slice.stretch_to_include(time_slice)
             

@@ -79,6 +79,8 @@ EPROTONOSUPPORT = 93
 class ZMQError(Exception):
     pass
 
+class Again(ZMQError):
+    pass
 
 class Context(object):
     def instance(self):
@@ -128,6 +130,9 @@ class Socket(object):
     @context.setter
     def context(self, value):
         pass
+
+    def poll(self, timeout=None, flags=1):
+        return 0
 
     def send_string(self, u, flags=0, copy=True, encoding='utf-8'):
         pass

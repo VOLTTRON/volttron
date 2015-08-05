@@ -64,13 +64,15 @@ __all__ = ['VIPError', 'Unreachable', 'Again', 'UnknownSubsystem']
 
 
 class VIPError(Exception):
-    def __init__(self, errnum, msg, *args):
-        super(VIPError, self).__init__(errnum, msg, *args)
-        self.errno = errnum
+    def __init__(self, errnum, msg, peer, subsystem, *args):
+        super(VIPError, self).__init__(errnum, msg, peer, subsystem, *args)
+        self.errno = int(errnum)
         self.msg = msg
+        self.peer = peer
+        self.subsystem = subsystem
 
-    def __string__(self):
-        return 'VIP Error (%d): %s' % (self.errno, self.msg)
+    def __str__(self):
+        return 'VIP error (%d): %s' % (self.errno, self.msg)
 
     def __repr__(self):
         return '%s%r' % (type(self).__name__, self.args)
@@ -85,10 +87,13 @@ class VIPError(Exception):
         }.get(errnum, cls)(errnum, msg, *args)
 
 class Unreachable(VIPError):
-    pass
+    def __str__(self):
+        return '%s: %s' % (super(Unreachable, self).__str__(), self.peer)
 
 class Again(VIPError):
     pass
 
 class UnknownSubsystem(VIPError):
-    pass
+    def __str__(self):
+        return '%s: %s' % (
+            super(UnknownSubsystem, self).__str__(), self.subsystem)

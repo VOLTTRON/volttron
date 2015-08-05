@@ -223,10 +223,7 @@ def SMAPHistorianAgent(config_path, **kwargs):
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
     try:
-        utils.default_main(SMAPHistorianAgent,
-                           description='Historian agent that saves a history '\
-                                        'to an SMAP Archiver.',
-                           argv=argv)
+        utils.vip_main(SMAPHistorianAgent)
     except Exception as e:
         _log.error(e)
         _log.exception('unhandled exception')

@@ -57,6 +57,7 @@
 
 from __future__ import absolute_import
 
+import logging
 import weakref
 
 from .base import SubsystemBase
@@ -67,38 +68,47 @@ from ..results import ResultsDictionary
 __all__ = ['Ping']
 
 
+_log = logging.getLogger(__name__)
+
+
 class Ping(SubsystemBase):
     def __init__(self, core):
         self.core = weakref.ref(core)
         self._results = ResultsDictionary()
         core.register('ping', self._handle_ping, self._handle_error)
-        core.register('pong', self._handle_pong, self._handle_error)
 
     def ping(self, peer, *args):
         socket = self.core().socket
         result = next(self._results)
+        args = list(args)
+        args.insert(0, b'ping')
         socket.send_vip(peer, b'ping', args, result.ident)
         return result
 
     __call__ = ping
 
     def _handle_ping(self, message):
-        socket = self.core().socket
-        message.subsystem = b'pong'
-        message.user = b''
-        socket.send_vip_object(message, copy=False)
+        try:
+            op = bytes(message.args[0])
+        except IndexError:
+            _log.error('missing ping subsystem operation')
+            return
+        if op == b'ping':
+            message.user = b''
+            message.args[0] = b'pong'
+            self.core().socket.send_vip_object(message, copy=False)
+        elif op == b'pong':
+            try:
+                result = self._results.pop(bytes(message.id))
+            except KeyError:
+                return
+            result.set([bytes(arg) for arg in message.args[1:]])
+        else:
+            _log.error('unknown ping subsystem operation')
 
-    def _handle_pong(self, message):
+    def _handle_error(self, sender, message, error, **kwargs):
         try:
             result = self._results.pop(bytes(message.id))
         except KeyError:
             return
-        result.set([bytes(arg) for arg in message.args])
-
-    def _handle_error(self, message):
-        try:
-            result = self._results.pop(bytes(message.id))
-        except KeyError:
-            return
-        result.set_exception(
-            VIPError.from_errno(*[bytes(arg) for arg in message.args]))
+        result.set_exception(error)

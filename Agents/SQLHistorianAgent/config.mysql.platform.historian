@@ -1,0 +1,14 @@
+{
+    "agentid": "sqlhistorian-mysql",
+    "identity": "platform.historian",
+    "connection": {
+        "type": "mysql",
+        "params": {
+            "host": "localhost",
+            "port": 3306,
+            "database": "historian",
+            "user": "historian",
+            "passwd": "historian"
+        }
+    }
+}

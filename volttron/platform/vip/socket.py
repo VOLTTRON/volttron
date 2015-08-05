@@ -55,18 +55,41 @@
 # under Contract DE-AC05-76RL01830
 #}}}
 
+'''VIP - VOLTTRON™ Interconnect Protocol implementation
+
+See https://github.com/VOLTTRON/volttron/wiki/VIP for protocol
+specification.
+
+This file contains an abstract _Socket class which should be extended to
+provide missing features for different threading models. The standard
+Socket class is defined in __init__.py. A gevent-friendly version is
+defined in green.py.
+'''
+
 
 from __future__ import absolute_import
 
 import base64
 import binascii
+from contextlib import contextmanager
 import urlparse
 
-from zmq import SNDMORE, RCVMORE, DEALER, ROUTER, curve_keypair
+from zmq import (SNDMORE, RCVMORE, NOBLOCK, POLLOUT, DEALER, ROUTER,
+                 curve_keypair)
+from zmq.error import Again
 from zmq.utils import z85
 
 
-__all__ = ['ProtocolError', 'Message']
+__all__ = ['ProtocolError', 'Message', 'nonblocking']
+
+
+@contextmanager
+def nonblocking(sock):
+    local = sock._Socket__local
+    flags = getattr(local, 'flags', 0)
+    local.flags = NOBLOCK
+    yield sock
+    local.flags = flags
 
 
 def encode_key(key):
@@ -163,6 +186,7 @@ class _Socket(object):
         state = -1 if self.type == ROUTER else 0
         object.__setattr__(self, '_send_state', state)
         object.__setattr__(self, '_recv_state', state)
+        object.__setattr__(self, '_Socket__local', self._local_class())
         self.immediate = True
 
     def reset_send(self):
@@ -177,6 +201,11 @@ class _Socket(object):
             self._send_state = state
             super(_Socket, self).send('')
 
+    @contextmanager
+    def _sending(self, flags):
+        flags |= getattr(self._Socket__local, 'flags', 0)
+        yield flags
+
     def send(self, frame, flags=0, copy=True, track=False):
         '''Send a single frame while enforcing VIP protocol.
 
@@ -190,26 +219,37 @@ class _Socket(object):
         after SUBSYSTEM, which may not be empty. All frames up to
         SUBSYSTEM must be sent with the SNDMORE flag.
         '''
-        state = self._send_state
-        if state == 4:
-            # Verify that subsystem has some non-space content
-            subsystem = bytes(frame)
-            if not subsystem.strip():
-                raise ProtocolError('invalid subsystem: {!r}'.format(subsystem))
-        if not flags & SNDMORE:
-            # Must have SNDMORE flag until sending SUBSYSTEM frame.
-            if state < 4:
-                raise ProtocolError(
-                    'expecting at least {} more frames'.format(4 - state - 1))
-            # Reset the send state when the last frame is sent
-            self._send_state = -1 if self.type == ROUTER else 0
-        elif state < 5:
-            if state == 1:
-                # Automatically send PROTO frame
-                super(_Socket, self).send(b'VIP1', flags=flags|SNDMORE)
-                state += 1
-            self._send_state = state + 1
-        super(_Socket, self).send(frame, flags=flags, copy=copy, track=track)
+        with self._sending(flags) as flags:
+            state = self._send_state
+            if state == 4:
+                # Verify that subsystem has some non-space content
+                subsystem = bytes(frame)
+                if not subsystem.strip():
+                    raise ProtocolError('invalid subsystem: %s' % subsystem)
+            if not flags & SNDMORE:
+                # Must have SNDMORE flag until sending SUBSYSTEM frame.
+                if state < 4:
+                    raise ProtocolError(
+                        'expecting at least %d more frames' % (4 - state - 1))
+                # Reset the send state when the last frame is sent
+                self._send_state = -1 if self.type == ROUTER else 0
+            elif state < 5:
+                if state == 1:
+                    # Automatically send PROTO frame
+                    super(_Socket, self).send(b'VIP1', flags=flags|SNDMORE)
+                    state += 1
+                self._send_state = state + 1
+            try:
+                super(_Socket, self).send(
+                    frame, flags=flags, copy=copy, track=track)
+            except Exception:
+                self._send_state = state
+                raise
+
+    def send_multipart(self, msg_parts, flags=0, copy=True, track=False):
+        with self._sending(flags) as flags:
+            super(_Socket, self).send_multipart(
+                msg_parts, flags=flags, copy=copy, track=track)
 
     def send_vip(self, peer, subsystem, args=None, msg_id=b'',
                  user=b'', via=None, flags=0, copy=True, track=False):
@@ -220,25 +260,26 @@ class _Socket(object):
         constraints are violated. If SNDMORE flag is used, additional
         arguments may be sent. via is required for ROUTER sockets.
         '''
-        state = self._send_state
-        if state > 0:
-            raise ProtocolError('previous send operation is not complete')
-        elif state == -1:
-            if via is None:
-                raise ValueError("missing 'via' argument "
-                                 "required by ROUTER sockets")
-            self.send(via, flags=flags|SNDMORE, copy=copy, track=track)
-        if msg_id is None:
-            msg_id = b''
-        if user is None:
-            user = b''
-        more = SNDMORE if args else 0
-        self.send_multipart([peer, user, msg_id, subsystem],
-                            flags=flags|more, copy=copy, track=track)
-        if args:
-            send = (self.send if isinstance(args, basestring)
-                    else self.send_multipart)
-            send(args, flags=flags, copy=copy, track=track)
+        with self._sending(flags) as flags:
+            state = self._send_state
+            if state > 0:
+                raise ProtocolError('previous send operation is not complete')
+            elif state == -1:
+                if via is None:
+                    raise ValueError("missing 'via' argument "
+                                     "required by ROUTER sockets")
+                self.send(via, flags=flags|SNDMORE, copy=copy, track=track)
+            if msg_id is None:
+                msg_id = b''
+            if user is None:
+                user = b''
+            more = SNDMORE if args else 0
+            self.send_multipart([peer, user, msg_id, subsystem],
+                                flags=flags|more, copy=copy, track=track)
+            if args:
+                send = (self.send if isinstance(args, basestring)
+                        else self.send_multipart)
+                send(args, flags=flags, copy=copy, track=track)
 
     def send_vip_dict(self, dct, flags=0, copy=True, track=False):
         '''Send VIP message from a dictionary.'''

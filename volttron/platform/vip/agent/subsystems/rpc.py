@@ -235,15 +235,13 @@ class RPC(SubsystemBase):
             message.args = responses
             self.core().socket.send_vip_object(message, copy=False)
 
-    def _handle_error(self, message):
+    def _handle_error(self, sender, message, error, **kwargs):
         result = self._outstanding.pop(bytes(message.id), None)
         if isinstance(result, AsyncResult):
-            result.set_exception(
-                VIPError.from_errno(*[bytes(arg) for arg in message.args]))
+            result.set_exception(error)
         elif result:
-            args = [bytes(arg) for arg in message.args]
             for result in result:
-                result.set_exception(VIPError.from_errno(*args))
+                result.set_exception(error)
 
     @dualmethod
     def export(self, method, name=None):

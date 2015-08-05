@@ -290,8 +290,7 @@ class Router(vip.BaseRouter):
                     value = self.addresses
                 else:
                     value = None
-            frames[6:] = [jsonapi.dumps(value)]
-            frames[5] = 'query.result'
+            frames[6:] = [b'', jsonapi.dumps(value)]
             frames[3] = b''
             return frames
 
@@ -548,6 +547,8 @@ def main(argv=sys.argv):
             Router(opts.vip_local_address, opts.vip_address,
                    secretkey=secretkey, default_user_id=b'vip.service',
                    monitor=opts.monitor).run()
+        except Exception:
+            _log.exception('Unhandled exception in router loop')
         finally:
             stop()
 
