@@ -99,8 +99,8 @@ def actuator_agent(config_path, **kwargs):
     schedule_publish_interval = int(config.get('schedule_publish_interval', 60))
     schedule_state_file = config.get('schedule_state_file')
     preempt_grace_time = config.get('preempt_grace_time', 60)
-    master_driver_agent_address=config.get('master_driver_agent_address')
-    vip_identity = config.get('vip_identity')
+    driver_vip_identity=config.get('driver_vip_identity', 'platform.driver')
+    vip_identity = config.get('vip_identity', 'platform.actuator')
     
     class ActuatorAgent(Agent):
         '''Agent to listen for requests to talk to the sMAP driver.'''
@@ -115,7 +115,7 @@ def actuator_agent(config_path, **kwargs):
         @RPC.export
         def heart_beat(self):
             _log.debug("sending heartbeat")
-            self.vip.rpc.call(master_driver_agent_address, 'heart_beat')
+            self.vip.rpc.call(driver_vip_identity, 'heart_beat')
         
         @Core.receiver('onstart')
         def on_start(self, sender, **kwargs):
@@ -237,7 +237,7 @@ def actuator_agent(config_path, **kwargs):
             topic = topic.strip('/')
             _log.debug('handle_get: {topic}'.format(topic=topic))
             path, point_name = topic.rsplit('/', 1)
-            return self.vip.rpc.call(master_driver_agent_address, 'get_point', path, point_name).get()
+            return self.vip.rpc.call(driver_vip_identity, 'get_point', path, point_name).get()
         
         @RPC.export
         def set_point(self, requester_id, topic, value):  
@@ -246,14 +246,14 @@ def actuator_agent(config_path, **kwargs):
                        format(topic=topic, requester_id=requester_id, value=value))
             
             path, point_name = topic.rsplit('/', 1)
-            self.vip.rpc.call(master_driver_agent_address, 'set_point', path, point_name, value)
+            self.vip.rpc.call(driver_vip_identity, 'set_point', path, point_name, value)
             
             headers = self.get_headers(requester_id)
             self.push_result_topic_pair(WRITE_ATTEMPT_PREFIX,
                                         topic, headers, value)
             
             if self.check_lock(path, requester_id):
-                result = self.vip.rpc.call(master_driver_agent_address, 'set_point', path, point_name, value).get()
+                result = self.vip.rpc.call(driver_vip_identity, 'set_point', path, point_name, value).get()
         
                 headers = self.get_headers(requester_id)
                 self.push_result_topic_pair(WRITE_ATTEMPT_PREFIX,

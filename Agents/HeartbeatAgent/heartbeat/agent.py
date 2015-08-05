@@ -68,7 +68,7 @@ _log = logging.getLogger(__name__)
 def heartbeat_agent(config_path, **kwargs):
     config = utils.load_config(config_path)
     heartbeat_interval = int(config.get('period', 60))
-    actuator_vip_address = config.get('actuator_vip')
+    actuator_vip_address = config.get('actuator_vip', 'platform.actuator')
     
     class HeartbeatAgent(Agent):
         '''Stopgap agent to trigger heartbeats until we've addd that feature to the 

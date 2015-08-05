@@ -81,11 +81,8 @@ def master_driver_agent(config_path, **kwargs):
         except KeyError:
             return config.get(name, default)
 
-    agentid = get_config('agentid')
-    vip_identity = get_config('vip_identity')
+    vip_identity = get_config('vip_identity', 'platform.driver')
     driver_config_list = get_config('driver_config_list')
-    if not vip_identity:
-        vip_identity = os.environ.get('AGENT_UUID')
 
     class MasterDriverAgent(Agent):
         def __init__(self, **kwargs):
