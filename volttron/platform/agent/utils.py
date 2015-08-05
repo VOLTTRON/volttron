@@ -256,7 +256,7 @@ def setup_logging(level=logging.DEBUG):
     root = logging.getLogger()
     if not root.handlers:
         handler = logging.StreamHandler()
-        if isapipe(sys.stderr):
+        if isapipe(sys.stderr) and 'ECLIPSE_HOME' not in os.environ:
             handler.setFormatter(JsonFormatter())
         else:
             handler.setFormatter(logging.Formatter(
