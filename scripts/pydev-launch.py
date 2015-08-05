@@ -41,6 +41,7 @@ try:
     home = os.environ['VOLTTRON_HOME']
 except KeyError:
     home = os.path.expanduser('~/.volttron')
+    os.environ['VOLTTRON_HOME'] = home
 
 if 'AGENT_CONFIG' not in os.environ:
     config = os.path.join(path, 'config')
