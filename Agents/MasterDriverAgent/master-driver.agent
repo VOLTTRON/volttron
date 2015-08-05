@@ -1,6 +1,5 @@
 {
     "agentid": "master_driver",
-    "vip_identity": "a87ac77e-3584-11e5-bac0-080027543b73",
     "driver_config_list": [
     					   #"/home/kyle/workspaces/volttron/Agents/MasterDriverAgent/master_driver/test_bacnet1.config",
     					   #"/home/kyle/workspaces/volttron/Agents/MasterDriverAgent/master_driver/test_bacnet2.config",

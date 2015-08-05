@@ -1,7 +1,4 @@
 {
-    "lock_timeout": 3600,
     "schedule_publish_interval": 30,
-    "schedule_state_file": "actuator_state.pickle",
-    "vip_identity": "73aadb9c-3584-11e5-bac0-080027543b73",
-    "master_driver_agent_address": "a87ac77e-3584-11e5-bac0-080027543b73"
+    "schedule_state_file": "actuator_state.pickle"
 }
