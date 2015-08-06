@@ -1,5 +1,4 @@
 {
-    "vip_identity": "9f18c8d7-ec4b-4674-ad49-e7d0d3328f99",
     "agentid": "bacnet_proxy",
     
     #Maximum APDU legnth accepted
