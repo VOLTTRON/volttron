@@ -62,7 +62,7 @@ import sys
 import time
 import logging
 
-from volttron.platform.vip.agent import Agent, Core, RPC, PubSub
+from volttron.platform.vip.agent import Agent, Core, RPC
 from volttron.platform.messaging import topics
 from volttron.platform.agent import utils
 from volttron.platform.messaging.utils import normtopic
