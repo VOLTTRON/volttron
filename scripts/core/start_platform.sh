@@ -35,6 +35,8 @@ if [ -z $VOLTTRON_HOME ]
 then
   echo "VOLTTRON_HOME not set setting to $HOME/.volttron"
   export VOLTTRON_HOME=$HOME/.volttron
+else
+  echo "VOLTTRON_HOME is $VOLTTRON_HOME"
 fi
 
 # Default case 
@@ -75,9 +77,10 @@ then
   $STOP --tag $VC_TAG
   $DEL -f --tag $VC_TAG
   if [ -z $VC_CONFIG ]; then
-    echo "VC_CONFIG set to $VC/config"
+    #echo "VC_CONFIG set to $VC/config"
     VC_CONFIG=$VC/config
   fi
+  echo "VC_CONFIG is $VC_CONFIG"
   echo "Starting Volttron Central with tag $VC_TAG"
   $PACK $VC "$VC_CONFIG" $VC_TAG
   $START --tag $VC_TAG
@@ -88,9 +91,10 @@ then
   $STOP --tag $PLATFORM_TAG
   $DEL -f --tag $PLATFORM_TAG
   if [ -z $PLATFORM_CONFIG ]; then
-    echo "PLATFORM_CONFIG set to $PLATFORM/config"
+    #echo "PLATFORM_CONFIG set to $PLATFORM/config"
     PLATFORM_CONFIG=$PLATFORM/config
   fi
+  echo "PLATFORM_CONFIG is $PLATFORM_CONFIG"
   echo "Starting Platform agent with tag $PLATFORM_TAG"  
   $PACK $PLATFORM "$PLATFORM_CONFIG" $PLATFORM_TAG
   $START --tag $PLATFORM_TAG
