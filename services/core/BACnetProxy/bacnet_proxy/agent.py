@@ -57,7 +57,7 @@ import logging
 import sys
 import sqlite3
 
-from volttron.platform.vip.agent import *
+from volttron.platform.vip.agent import Agent, Core, RPC
 from volttron.platform.async import AsyncCall
 from volttron.platform.agent import utils
 import os.path
@@ -286,16 +286,16 @@ utils.setup_logging()
 _log = logging.getLogger(__name__)
 
 
-def BACnetProxyAgent(config_path, **kwargs):
+def bacnet_proxy_agent(config_path, **kwargs):
     config = utils.load_config(config_path)
+    vip_identity = config.get("vip_identity", "platform.bacnet_proxy")
 
-    class Agent(RPCAgent):
-        '''This is a simple example of a historian agent that writes stuff 
-        to a SQLite database. It is designed to test some of the functionality
-        of the BaseHistorianAgent.
+    class BACnetProxyAgent(Agent):
+        '''This agent creates a virtual bacnet device that is used by
+        the bacnet driver interface to communicate with devices.
         '''
         def __init__(self, **kwargs):
-            super(Agent, self).__init__(vip_identity=config["vip_identity"], **kwargs)
+            super(BACnetProxyAgent, self).__init__(identity=vip_identity, **kwargs)
             
             self.async_call = AsyncCall()
             self.setup_device(config["device_address"], 
@@ -346,7 +346,7 @@ def BACnetProxyAgent(config_path, **kwargs):
             server_thread.daemon = True
             server_thread.start()
             
-        @RPC.export()
+        @RPC.export
         def ping_device(self, target_address):
             """Ping a device with a whois to potentially setup routing."""
             request = WhoIsRequest()
@@ -355,7 +355,7 @@ def BACnetProxyAgent(config_path, **kwargs):
             iocb = IOCB(request, self.async_call)
             self.this_application.submit_request(iocb)
             
-        @RPC.export()
+        @RPC.export
         def write_property(self, target_address, value, object_type, instance_number, property_name, priority=None, index=None):
             """Write to a property."""
             request = WritePropertyRequest(
@@ -396,7 +396,7 @@ def BACnetProxyAgent(config_path, **kwargs):
             raise RuntimeError("Failed to set value: " + str(result))
             
         
-        @RPC.export()
+        @RPC.export
         def read_properties(self, target_address, point_map, max_per_request=None):
             """Read a set of points and return the results"""
             #This will be used to get the results mapped
@@ -442,30 +442,13 @@ def BACnetProxyAgent(config_path, **kwargs):
             return result_dict
         
                     
-    Agent.__name__ = 'BACnetProxyAgent'
-    return Agent(**kwargs)
+    return BACnetProxyAgent(**kwargs)
             
     
     
 def main(argv=sys.argv):
-    '''Main method called by the eggsecutable.'''
-    try:
-        # If stdout is a pipe, re-open it line buffered
-        if utils.isapipe(sys.stdout):
-            # Hold a reference to the previous file object so it doesn't
-            # get garbage collected and close the underlying descriptor.
-            stdout = sys.stdout
-            sys.stdout = os.fdopen(stdout.fileno(), 'w', 1)
-        '''Main method called by the eggsecutable.'''
-
-        config = os.environ.get('AGENT_CONFIG')
-        agent = BACnetProxyAgent(config_path=config)
-        agent.run()
-    except KeyboardInterrupt:
-        pass
-#     except Exception as e:
-#         print e
-#         _log.exception('unhandled exception')
+    '''Main method called to start the agent.'''
+    utils.vip_main(bacnet_proxy_agent)
 
 
 if __name__ == '__main__':

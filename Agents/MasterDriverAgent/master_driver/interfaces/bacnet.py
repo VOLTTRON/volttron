@@ -70,7 +70,7 @@ class Interface(BaseInterface):
     def configure(self, config_dict, registry_config_str):
         self.parse_config(registry_config_str)         
         self.target_address = config_dict["device_address"]
-        self.proxy_address = config_dict["proxy_address"]
+        self.proxy_address = config_dict.get("proxy_address", "platform.bacnet_proxy")
         self.ping_target(self.target_address)
                                          
     def ping_target(self, address):    
