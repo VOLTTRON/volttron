@@ -38,20 +38,21 @@ module = '.'.join(module)
 
 # Add environment variables required to execute agents
 try:
-    home = os.environ['VOLTTRON_HOME']
+    home = os.path.expanduser(os.path.expandvars(os.environ['VOLTTRON_HOME']))
 except KeyError:
-    home = os.path.expanduser('~/.volttron')
-    os.environ['VOLTTRON_HOME'] = home
+    os.environ['VOLTTRON_HOME'] = home = os.path.expanduser('~/.volttron')
 
 if 'AGENT_CONFIG' not in os.environ:
     config = os.path.join(path, 'config')
     if os.path.exists(config):
         os.environ['AGENT_CONFIG'] = config
 
+ipc = 'ipc://%s%s/run/' % (
+    '@' if sys.platform.startswith('linux') else '', home)
 if 'AGENT_SUB_ADDR' not in os.environ:
-    os.environ['AGENT_SUB_ADDR'] = 'ipc://@/%s/run/subscribe' % home
+    os.environ['AGENT_SUB_ADDR'] = ipc + 'subscribe'
 if 'AGENT_PUB_ADDR' not in os.environ:
-    os.environ['AGENT_PUB_ADDR'] = 'ipc://@/%s/run/publish' % home
+    os.environ['AGENT_PUB_ADDR'] = ipc + 'publish'
 
 # Remove this script from sys.argv
 del sys.argv[0]
