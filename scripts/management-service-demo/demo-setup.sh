@@ -1,7 +1,19 @@
-. demo-vars.sh
+#!/usr/bin/env bash
+
+set -e
+
+# Make sure that DEMO_DIR is set before continuing setup.
+if [ -z $DEMO_DIR ]; then
+  echo "Missing DEMO_DIR in the environment."
+  exit 100
+fi
+
+# Checks whether or not all of the environment variables for the demo script
+# are set up before continuing.  This block of code should be copied to all
+# of the scripts that are going to be executed from the demo script.
+$DEMO_DIR/check-config.sh
 
 echo "(Re)creating Platform Directories:"
-echo "$V1_HOME, $V2_HOME, $V3_HOME"
 if [ -d "$V1_HOME" ]; then
   rm -rf $V1_HOME
 fi
