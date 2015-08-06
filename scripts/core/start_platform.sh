@@ -2,11 +2,29 @@
 
 set -e
 
-# Starts a volttron central and platform agent.  The platform agent will
-# tagged plat and the volttron central agent will be  tagged vc.
+# This script has the ability to start a volttron central and/or platform agent
+# with customizable configuration files.
 #
-# After execting this shell script one should be able to browse to
-# http://localhost:8080 and see the web interface.
+# Environmental variables 
+#   VOLTTRON_HOME 
+#     If not set will be defaulted to $HOME/.volttron
+#
+#   VC_CONFIG (if no arguments or vc argument is passed)  
+#     If not set will be set to ./services/core/VottronCentral/config
+#
+#   PLATFORM_CONFIG  (if no arguments or platform argument is passed)
+#     If not set will be set to ./services/core/Platform/config
+#
+# Command Line Arguments
+#   platform - If present the platform agent will be deleted and reinstalled
+#   vc       - If present the volttron central agent will be deleted and reinstalled
+#
+#   If no arguments are specified then both the platform and volttron central
+#   agents will be deleted and reinstalled.
+#
+# Outcome
+#   If volttron central agent is successfully started one should be able to 
+#   access it at http://localhost:8080 and see the web interface.
 
 if [ ! -e "./applications" ]; then
     echo "Please execute from root of volttron repository."
