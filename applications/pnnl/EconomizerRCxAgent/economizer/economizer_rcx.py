@@ -628,7 +628,14 @@ class temperature_sensor_dx(object):
         self.oat_values.append(oatemp)
         self.mat_values.append(matemp)
         self.rat_values.append(ratemp)
-
+        data = {
+                'Timestamp': cur_time,
+                'ReturnAirTemperature': ratemp,
+                'MixedAirTemperature': matemp,
+                'OutsideAirTemperature': oatemp,
+                'OutsideDamperSignal': damper_signal,
+                'State': 0
+        }
         if (self.timestamp and
                 ((cur_time - self.timestamp[-1])
                  .total_seconds()/60) > 5.0):
@@ -644,9 +651,34 @@ class temperature_sensor_dx(object):
                 dx_result.insert_table_row(Application.analysis,
                                            {ECON1 + dx: 3.2})
                 dx_result = self.clear_data(dx_result)
+                data = {
+                    'Timestamp': cur_time,
+                    'ReturnAirTemperature': ratemp,
+                    'MixedAirTemperature': matemp,
+                    'OutsideAirTemperature': oatemp,
+                    'OutsideDamperSignal': damper_signal,
+                    'State': 2
+                }
                 return dx_result
             dx_result = self.temperature_sensor_dx(
                 dx_result, cur_time)
+            data = {
+                'Timestamp': cur_time,
+                'ReturnAirTemperature': ratemp,
+                'MixedAirTemperature': matemp,
+                'OutsideAirTemperature': oatemp,
+                'OutsideDamperSignal': damper_signal,
+                'State': 1
+            }
+        else:
+            data = {
+                'Timestamp': cur_time,
+                'ReturnAirTemperature': ratemp,
+                'MixedAirTemperature': matemp,
+                'OutsideAirTemperature': oatemp,
+                'OutsideDamperSignal': damper_signal,
+                'State': 0
+            }
         return dx_result
 
     def temperature_sensor_dx(self, result, cur_time):
@@ -847,9 +879,43 @@ class econ_correctly_on(object):
                 dx_result.insert_table_row(Application.analysis,
                                            {ECON2 + dx: 13.2})
                 dx_result = self.clear_data(dx_result)
+                data = {
+                    'Timestamp': cur_time,
+                    'ReturnAirTemperature': ratemp,
+                    'MixedAirTemperature': matemp,
+                    'OutsideAirTemperature': oatemp,
+                    'OutsideDamperSignal': damper_signal,
+                    'CoolCall': cooling_call,
+                    'SupplyFanSpeed': fan_sp,
+                    'EconomizerCondition': econ_condition,
+                    'State': 2
+                }
                 return dx_result
             dx_result = \
                 self.not_economizing_when_needed(dx_result, cur_time)
+            data = {
+                'Timestamp': cur_time,
+                'ReturnAirTemperature': ratemp,
+                'MixedAirTemperature': matemp,
+                'OutsideAirTemperature': oatemp,
+                'OutsideDamperSignal': damper_signal,
+                'CoolCall': cooling_call,
+                'SupplyFanSpeed': fan_sp,
+                'EconomizerCondition': econ_condition,
+                'State': 1
+            }
+        else:
+            data = {
+                'Timestamp': cur_time,
+                'ReturnAirTemperature': ratemp,
+                'MixedAirTemperature': matemp,
+                'OutsideAirTemperature': oatemp,
+                'OutsideDamperSignal': damper_signal,
+                'CoolCall': cooling_call,
+                'SupplyFanSpeed': fan_sp,
+                'EconomizerCondition': econ_condition,
+                'State': 0
+            }
         return dx_result
 
     def not_economizing_when_needed(self, result, cur_time):
@@ -982,8 +1048,42 @@ class econ_correctly_off(object):
                 dx_result.insert_table_row(Application.analysis,
                                            {ECON3 + dx: 23.2})
                 dx_result = self.clear_data(dx_result)
+                data = {
+                    'Timestamp': cur_time,
+                    'ReturnAirTemperature': ratemp,
+                    'MixedAirTemperature': matemp,
+                    'OutsideAirTemperature': oatemp,
+                    'OutsideDamperSignal': damper_signal,
+                    'CoolCall': cooling_call,
+                    'SupplyFanSpeed': fan_sp,
+                    'EconomizerCondition': econ_condition,
+                    'State': 2
+                }
                 return dx_result
             dx_result = self.economizing_when_not_needed(dx_result, cur_time)
+            data = {
+                'Timestamp': cur_time,
+                'ReturnAirTemperature': ratemp,
+                'MixedAirTemperature': matemp,
+                'OutsideAirTemperature': oatemp,
+                'OutsideDamperSignal': damper_signal,
+                'CoolCall': cooling_call,
+                'SupplyFanSpeed': fan_sp,
+                'EconomizerCondition': econ_condition,
+                'State': 1
+            }
+        else:
+            data = {
+                'Timestamp': cur_time,
+                'ReturnAirTemperature': ratemp,
+                'MixedAirTemperature': matemp,
+                'OutsideAirTemperature': oatemp,
+                'OutsideDamperSignal': damper_signal,
+                'CoolCall': cooling_call,
+                'SupplyFanSpeed': fan_sp,
+                'EconomizerCondition': econ_condition,
+                'State': 0
+            }
         return dx_result
 
     def economizing_when_not_needed(self, result, current_time):
@@ -1103,8 +1203,42 @@ class excess_oa_intake(object):
                 dx_result.insert_table_row(Application.analysis,
                                            {ECON4 + dx: 35.2})
                 dx_result = self.clear_data(dx_result)
+                data = {
+                    'Timestamp': cur_time,
+                    'ReturnAirTemperature': ratemp,
+                    'MixedAirTemperature': matemp,
+                    'OutsideAirTemperature': oatemp,
+                    'OutsideDamperSignal': damper_signal,
+                    'CoolCall': cooling_call,
+                    'SupplyFanSpeed': fan_sp,
+                    'EconomizerCondition': econ_condition,
+                    'State': 2
+                }
                 return dx_result
             dx_result = self.excess_oa(dx_result, current_time)
+            data = {
+                'Timestamp': cur_time,
+                'ReturnAirTemperature': ratemp,
+                'MixedAirTemperature': matemp,
+                'OutsideAirTemperature': oatemp,
+                'OutsideDamperSignal': damper_signal,
+                'CoolCall': cooling_call,
+                'SupplyFanSpeed': fan_sp,
+                'EconomizerCondition': econ_condition,
+                'State': 1
+            }
+        else:
+            data = {
+                'Timestamp': cur_time,
+                'ReturnAirTemperature': ratemp,
+                'MixedAirTemperature': matemp,
+                'OutsideAirTemperature': oatemp,
+                'OutsideDamperSignal': damper_signal,
+                'CoolCall': cooling_call,
+                'SupplyFanSpeed': fan_sp,
+                'EconomizerCondition': econ_condition,
+                'State': 0
+            }
         return dx_result
 
     def excess_oa(self, result, current_time):
@@ -1257,9 +1391,43 @@ class insufficient_oa_intake(object):
                 dx_result.insert_table_row(Application.analysis,
                                            {ECON5 + dx: 44.2})
                 dx_result = self.clear_data(dx_result)
+                data = {
+                    'Timestamp': cur_time,
+                    'ReturnAirTemperature': ratemp,
+                    'MixedAirTemperature': matemp,
+                    'OutsideAirTemperature': oatemp,
+                    'OutsideDamperSignal': damper_signal,
+                    'CoolCall': cooling_call,
+                    'SupplyFanSpeed': fan_sp,
+                    'EconomizerCondition': econ_condition,
+                    'State': 2
+                }
                 return dx_result
             dx_result = self.insufficient_oa(
                 dx_result, current_time)
+            data = {
+                'Timestamp': cur_time,
+                'ReturnAirTemperature': ratemp,
+                'MixedAirTemperature': matemp,
+                'OutsideAirTemperature': oatemp,
+                'OutsideDamperSignal': damper_signal,
+                'CoolCall': cooling_call,
+                'SupplyFanSpeed': fan_sp,
+                'EconomizerCondition': econ_condition,
+                'State': 1
+            }
+        else:
+            data = {
+                'Timestamp': cur_time,
+                'ReturnAirTemperature': ratemp,
+                'MixedAirTemperature': matemp,
+                'OutsideAirTemperature': oatemp,
+                'OutsideDamperSignal': damper_signal,
+                'CoolCall': cooling_call,
+                'SupplyFanSpeed': fan_sp,
+                'EconomizerCondition': econ_condition,
+                'State': 0
+            }
         return dx_result
 
     def insufficient_oa(self, result, current_time):
