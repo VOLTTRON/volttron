@@ -57,7 +57,7 @@ import logging
 import sys
 import sqlite3
 
-from volttron.platform.agent.vipagent import RPCAgent, export, onevent
+from volttron.platform.vip.agent import *
 from volttron.platform.async import AsyncCall
 from volttron.platform.agent import utils
 import os.path
@@ -346,7 +346,7 @@ def BACnetProxyAgent(config_path, **kwargs):
             server_thread.daemon = True
             server_thread.start()
             
-        @export()
+        @RPC.export()
         def ping_device(self, target_address):
             """Ping a device with a whois to potentially setup routing."""
             request = WhoIsRequest()
@@ -355,7 +355,7 @@ def BACnetProxyAgent(config_path, **kwargs):
             iocb = IOCB(request, self.async_call)
             self.this_application.submit_request(iocb)
             
-        @export()
+        @RPC.export()
         def write_property(self, target_address, value, object_type, instance_number, property_name, priority=None, index=None):
             """Write to a property."""
             request = WritePropertyRequest(
@@ -396,7 +396,7 @@ def BACnetProxyAgent(config_path, **kwargs):
             raise RuntimeError("Failed to set value: " + str(result))
             
         
-        @export()
+        @RPC.export()
         def read_properties(self, target_address, point_map, max_per_request=None):
             """Read a set of points and return the results"""
             #This will be used to get the results mapped
