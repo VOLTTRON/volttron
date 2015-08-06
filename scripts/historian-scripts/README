@@ -1,0 +1,6 @@
+The historian-scripts directory allows a starting of historians with different
+configurations.  
+
+REQUIRES
+  - The volttron instance must be running in order for these scripts to execute
+    properly.
