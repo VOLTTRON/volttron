@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 # Error out when an error occurs.
 set -e
 
