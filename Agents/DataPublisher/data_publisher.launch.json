@@ -9,12 +9,15 @@
     "unit": {
             "rtu4": {
                 "subdevices": []
+            },
+            "rtu5": {
+                "subdevices": ["VAV13111", "VAV13112","FCU13258","FCU13259"]
             }
         },
     # If a custom topic is desired the entire topic must be configured.
     # e.g., "custom_topic": 'custom/topic/configuration'
     # "custom_topic":
-    "input_file": "./Agents/EconomizerRCxAgent/econ_test.csv",
+    "input_file": "./Agents/DataPublisher/datapublisher/sample_data/airside_test.csv",
     # Publish interval in seconds
-    "publish_interval": 1
+    "publish_interval": 5
 }
