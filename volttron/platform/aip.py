@@ -222,6 +222,8 @@ class AIPplatform(object):
                 exeenv.process.kill()
 
     def shutdown(self):
+        for agent_uuid in self.agents.iterkeys():
+            self.stop_agent(agent_uuid)
         event = gevent.event.Event()
         agent = Agent(identity='aip', address='inproc://vip')
         task = gevent.spawn(agent.core.run, event)
