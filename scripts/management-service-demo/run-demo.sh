@@ -32,15 +32,26 @@ $DEMO_DIR/demo-setup.sh
 $DEMO_DIR/start-platforms.sh
 
 # Start historians on each of the different platforms
-$DEMO_DIR/make-platform-historians.sh
+$DEMO_DIR/start-platform-historians.sh
 
-echo "START make-hello1"
-#VOLTTRON_HOME=$V1_HOME ./make-hello1
-echo "START make-hello2"
-#VOLTTRON_HOME=$V2_HOME ./make-hello2
+# Install but don't start two hello agents.
+$DEMO_DIR/make-hello-agents.sh
 
-#./make-platform-historians
+URL="http://localhost:8080"
 
-echo "Launching browser"
-#x-www-browser http://localhost:8080 &
-
+if [ "$#" -eq 0 ]
+then
+  if which xdg-open > /dev/null
+  then
+    xdg-open "$URL" &>/dev/null
+  elif which gnome-open > /dev/null
+  then
+    gnome-open "$URL" &>/dev/null
+  fi
+fi
+printf "\n\n____________CONFIGURATION_______________________\n"
+printf "Username and password are\n\tadmin:admin\n"
+printf "Register platforms using the following addresses\n"
+printf "\tipc://@/tmp/v1home/run/vip.socket\n"
+printf "\tipc://@/tmp/v2home/run/vip.socket\n"
+printf "\tipc://@/tmp/v3home/run/vip.socket\n"

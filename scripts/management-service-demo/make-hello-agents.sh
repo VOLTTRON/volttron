@@ -1,14 +1,17 @@
-WHEEL=$VOLTTRON_HOME/packaged/helloagent-0.1-py2-none-any.whl
+#!/usr/bin/env bash
 
-volttron-pkg package ../../../Agents/HelloAgent/
-volttron-pkg configure $WHEEL ./hello-config1
+set -e
 
-volttron-ctl stop --tag helloagent
-volttron-ctl remove --tag helloagent
-volttron-ctl install helloagent=$WHEEL
+# Make sure that DEMO_DIR is set before continuing setup.
+if [ -z $DEMO_DIR ]; then
+  echo "Missing DEMO_DIR in the environment."
+  exit 100
+fi
 
+$DEMO_DIR/check-config.sh
 
-#volttron-pkg sign --creator /home/volttron/.volttron/packaged/multibuildingagent-0.1-py2-none-any.whl
-#volttron-pkg sign --soi /home/volttron/.volttron/packaged/multibuildingagent-0.1-py2-none-any.whl 
-#volttron-pkg sign --initiator /home/volttron/.volttron/packaged/multibuildingagent-0.1-py2-none-any.whl --config-file config/volttron-bsf.multinode.conf --contract Agents/ListenerAgent/execreqs.json
-
+VOLTTRON_HOME=$V1_HOME $SCRIPTS_CORE/pack_install.sh examples/HelloAgent \
+  $DEMO_DIR/hello-config1 hello
+  
+VOLTTRON_HOME=$V2_HOME $SCRIPTS_CORE/pack_install.sh examples/HelloAgent \
+  $DEMO_DIR/hello-config2 hello

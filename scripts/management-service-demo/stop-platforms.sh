@@ -18,10 +18,10 @@ V3_HOME=/tmp/v3home
 DEMO_DIR=`dirname $0`
 
 echo "Shutting down platform 1"
-VOLTTRON_HOME=$V1_HOME volttron-ctl shutdown --platform&
+VOLTTRON_HOME=$V1_HOME volttron-ctl shutdown --platform &> /dev/null
 echo "Shutting down platform 2"
-VOLTTRON_HOME=$V2_HOME volttron-ctl shutdown --platform&
+VOLTTRON_HOME=$V2_HOME volttron-ctl shutdown --platform &> /dev/null
 echo "Shutting down platform 3"
-VOLTTRON_HOME=$V3_HOME volttron-ctl shutdown --platform&
+VOLTTRON_HOME=$V3_HOME volttron-ctl shutdown --platform &> /dev/null 
 
 
