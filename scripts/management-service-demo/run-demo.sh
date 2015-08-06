@@ -31,6 +31,9 @@ $DEMO_DIR/demo-setup.sh
 # of the instances of volttron.
 $DEMO_DIR/start-platforms.sh
 
+# Start historians on each of the different platforms
+$DEMO_DIR/make-platform-historians.sh
+
 echo "START make-hello1"
 #VOLTTRON_HOME=$V1_HOME ./make-hello1
 echo "START make-hello2"
