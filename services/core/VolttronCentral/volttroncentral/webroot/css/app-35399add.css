@@ -1,3 +1,28 @@
+/* Montserrat-Bold
+   Copyright (c) 2011-2012, Julieta Ulanovsky (julieta.ulanovsky@gmail.com), with Reserved Font Names 'Montserrat'
+   SIL Open Font License, 1.1 (http://scripts.sil.org/OFL) */
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: 700;
+  src: local('Montserrat-Bold'), url(../fonts/montserrat-bold.woff2) format('woff2'), url(../fonts/montserrat-bold.woff) format('woff');
+}
+/* Open Sans, Open Sans Bold
+   Digitized data copyright © 2010-2011, Google Corporation.
+   Apache License, version 2.0 (http://www.apache.org/licenses/LICENSE-2.0.html) */
+@font-face {
+  font-family: 'Open Sans';
+  font-style: normal;
+  font-weight: 400;
+  src: local('Open Sans'), local('OpenSans'), url(../fonts/opensans.woff2) format('woff2'), url(../fonts/opensans.woff) format('woff');
+}
+@font-face {
+  font-family: 'Open Sans';
+  font-style: normal;
+  font-weight: 700;
+  src: local('Open Sans Bold'), local('OpenSans-Bold'), url(../fonts/opensans-bold.woff2) format('woff2'), url(../fonts/opensans-bold.woff) format('woff');
+}
+
 html {
     font: 75%/1.5 "Open Sans", sans-serif;
 }

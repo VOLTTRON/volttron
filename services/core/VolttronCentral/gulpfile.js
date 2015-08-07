@@ -11,15 +11,16 @@ var source = require('vinyl-source-stream');
 var through2 = require('through2');
 
 var BUILD_DIR = 'volttroncentral/webroot/';
-var APP_GLOB = '{css,js}/app-*';
+var APP_GLOB = '{css,fonts,js}/app-*';
 var VENDOR_GLOB = '{css,js}/{normalize,vendor}-*';
 
 gulp.task('default', ['watch']);
 gulp.task('clean-app', cleanApp);
 gulp.task('clean-vendor', cleanVendor);
 gulp.task('css', ['clean-app'], css);
-gulp.task('build', ['css', 'js', 'vendor'], htmlInject);
-gulp.task('build-app', ['css', 'js'], htmlInject);
+gulp.task('fonts', ['clean-app'], fonts);
+gulp.task('build', ['css', 'fonts', 'js', 'vendor'], htmlInject);
+gulp.task('build-app', ['css', 'fonts', 'js'], htmlInject);
 gulp.task('js', ['clean-app'], js);
 gulp.task('watch', ['build'], watch);
 gulp.task('vendor', ['clean-vendor'], vendor);
@@ -36,6 +37,11 @@ function css() {
     return gulp.src('ui-src/css/app.css')
         .pipe(rev())
         .pipe(gulp.dest(BUILD_DIR + 'css'));
+}
+
+function fonts() {
+    return gulp.src('ui-src/fonts/*')
+        .pipe(gulp.dest(BUILD_DIR + 'fonts'));
 }
 
 function htmlInject() {
