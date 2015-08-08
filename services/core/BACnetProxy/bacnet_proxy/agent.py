@@ -431,7 +431,7 @@ def bacnet_proxy_agent(config_path, **kwargs):
             
             iocb = IOCB(request, self.async_call)
             self.this_application.submit_request(iocb)   
-            bacnet_results = iocb.ioResult.wait()
+            bacnet_results = iocb.ioResult.get(10)
             
             result_dict={}
         
