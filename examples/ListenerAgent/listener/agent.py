@@ -89,7 +89,8 @@ class ListenerAgent(Agent):
     def on_match(self, peer, sender, bus,  topic, headers, message):
         '''Use match_all to receive all messages and print them out.'''
         _log.debug(
-            "Topic: %r, Headers: %r, Message: %r", topic, headers, message)
+            "Peer: %r, Sender: %r:, Bus: %r, Topic: %r, Headers: %r, "
+            "Message: %r", peer, sender, bus, topic, headers, message)
 
     # Demonstrate periodic decorator and settings access
     @Core.periodic(settings.HEARTBEAT_PERIOD)
