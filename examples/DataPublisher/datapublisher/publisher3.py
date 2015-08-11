@@ -54,6 +54,7 @@
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
+import csv
 import datetime
 from dateutil import parser
 import logging
@@ -88,7 +89,7 @@ def DataPub(config_path, **kwargs):
     '''
     conf = utils.load_config(config_path)
     custom_topic = conf.get('custom_topic', 0)
-    pub_interval = float(conf.get('publish_interval'))
+    pub_interval = float(conf.get('publish_interval'), 10)
     if not custom_topic:
         device_path = (
             ''.join([conf.get('campus'), '/', conf.get('building'), '/']))
@@ -98,6 +99,13 @@ def DataPub(config_path, **kwargs):
     path = conf.get('input_file')
     if not os.path.exists(path):
         raise ValueError('Invalid input file specified.')
+    
+    # Enable subdevices if unit is a dictionary
+    unit = conf.get('unit')
+    if isinstance(unit, dict):
+        subdevices = True
+    else:
+        subdevices = False
 
     class Agent(PublishMixin, BaseAgent):
         '''Simulate real device.  Publish csv data to message bus.
@@ -109,9 +117,14 @@ def DataPub(config_path, **kwargs):
             super(Agent, self).__init__(**kwargs)
 
             self._agent_id = conf.get('publisherid')
-            self._src_file_handle = open(path)
-            header_line = self._src_file_handle.readline().strip()
-            self._headers = header_line.split(',')
+            self._src_file_handle = open(path, 'rb')
+            
+            # Uses dictreader so that thee first line in the file is auto
+            # ingested and becaums the headers for the dictionary.  Use the
+            # fieldnames property to get the names of the fields available.
+            self._reader = csv.DictReader(self._src_file_handle,
+                                          delimiter=',')
+                        
             self.end_time = None
             self.start_time = None
             self.task_id = None
