@@ -55,9 +55,11 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 import datetime
-import sys
-import logging
 from dateutil import parser
+import logging
+import os
+import sys
+
 
 from volttron.platform.agent import BaseAgent, PublishMixin, periodic
 from volttron.platform.agent import matching, utils, sched
@@ -92,7 +94,10 @@ def DataPub(config_path, **kwargs):
             ''.join([conf.get('campus'), '/', conf.get('building'), '/']))
         BASETOPIC = conf.get('basetopic')
         dev_list = conf['unit']
+        
     path = conf.get('input_file')
+    if not os.path.exists(path):
+        raise ValueError('Invalid input file specified.')
 
     class Agent(PublishMixin, BaseAgent):
         '''Simulate real device.  Publish csv data to message bus.
