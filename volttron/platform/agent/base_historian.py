@@ -210,6 +210,12 @@ class BaseHistorianAgent(Agent):
         if not ALL_REX.match(topic):
             _log.debug("Unmatched topic: {}".format(topic))
             return
+        
+        # Because of the above if we know that all is in the topic so
+        # we strip it off to get the base device
+        parts = topic.split('/')
+        device = '/'.join(parts[1:-1]) #'/'.join(reversed(parts[2:]))
+        
         _log.debug("found topic {}".format(topic))
         #peer, sender, bus, topic, headers, message
         timestamp_string = headers.get(headers_mod.DATE)
@@ -229,8 +235,7 @@ class BaseHistorianAgent(Agent):
         else:
             timestamp = timestamp.astimezone(pytz.UTC)
 
-        parts = topic.split('/')
-        device = '/'.join(reversed(parts[2:]))
+        
 
         try:
             # 2.0 agents compatability layer makes sender == pubsub.compat so 
