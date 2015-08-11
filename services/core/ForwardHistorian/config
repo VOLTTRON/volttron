@@ -1,5 +1,5 @@
 {
 
     "agentid": "listener1",
-    "destination-vip": "ipc//@/home/volttron/.volttron2/run/vip.socket"    
+    "destination-vip": "ipc://@/home/volttron/.volttron2/run/vip.socket"    
 }

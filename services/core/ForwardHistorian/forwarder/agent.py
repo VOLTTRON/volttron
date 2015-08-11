@@ -145,7 +145,7 @@ def historian(config_path, **kwargs):
                 datalog[topic] = {'Readings': value,
                                   'Units': meta['units']}
                 
-            base_topic = 'datalogger/log/devices/'
+            base_topic = 'datalogger/devices/'
             print("DATALOG",base_topic, datalog)
             print("WOULD_PUBLISH")
 
@@ -154,13 +154,15 @@ def historian(config_path, **kwargs):
             
             message = jsonapi.dumps(datalog)
             
-            agent = self._get_rpc_agent(destination_vip)
+#             agent = self._get_rpc_agent(destination_vip)
             _log.debug("about to publish to destination: {}".format(destination_vip))
 #                         agent.vip.publish()
 #             agent.vip.pubsub.publish(peer='pubsub',headers=headers,
 #                                         topic=topic,
 #                                         message=message)
-            agent.vip.pubsub.publish(peer='pubsub',
+            print("DESTINATION",self._target_platform.core.identity, 
+                  self._target_platform.core.address)
+            self._target_platform.vip.pubsub.publish(peer='pubsub',
                                     topic=base_topic,
                                     message=datalog)
 
@@ -183,7 +185,12 @@ def historian(config_path, **kwargs):
 
         def historian_setup(self):
             _log.debug("Setting up")
-            #TODO: check remote destination
+            agent = Agent(identity="target",address=destination_vip)
+            event = gevent.event.Event()
+            agent.core.onstart.connect(lambda *a, **kw: event.set(), event)
+            gevent.spawn(agent.core.run)
+            event.wait()
+            self._target_platform = agent
 
     ForwardHistorian.__name__ = 'ForwardHistorian'
     return ForwardHistorian(identity=identity, **kwargs)
