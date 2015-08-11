@@ -78,6 +78,7 @@ from volttron.platform.messaging import topics, headers as headers_mod
 _log = logging.getLogger(__name__)
 
 ACTUATOR_TOPIC_PREFIX_PARTS = len(topics.ACTUATOR_VALUE.split('/'))
+ALL_REX = re.compile('.*all$')
 
 class BaseHistorianAgent(Agent):
     '''This is the base agent for historian Agents.
@@ -130,16 +131,18 @@ class BaseHistorianAgent(Agent):
         '''
         _log.debug("Starting base historian")
 
-        driver_prefix = topics.DRIVER_TOPIC_BASE+'/'+topics.DRIVER_TOPIC_ALL
+        driver_prefix = topics.DRIVER_TOPIC_BASE
+        _log.debug("subscribing to {}".format(driver_prefix))
         self.vip.pubsub.subscribe(peer='pubsub',
                                prefix=driver_prefix,
                                callback=self.capture_device_data)
 
-        print('Subscribing to: ',topics.LOGGER_LOG)
+        _log.debug('Subscribing to: {}'.format(topics.LOGGER_BASE))
         self.vip.pubsub.subscribe(peer='pubsub',
-                               prefix=topics.LOGGER_LOG, #"datalogger",
+                               prefix=topics.LOGGER_BASE, #"datalogger",
                                callback=self.capture_log_data)
 
+        _log.debug('Subscribing to: '.format(topics.ACTUATOR))
         self.vip.pubsub.subscribe(peer='pubsub',
                                prefix=topics.ACTUATOR,  # actuators/*
                                callback=self.capture_actuator_data)
@@ -199,12 +202,21 @@ class BaseHistorianAgent(Agent):
                                    'meta':meta})
 
     def capture_device_data(self, peer, sender, bus, topic, headers, message):
-        '''Capture device data and submit it to be published by a historian.'''
+        '''Capture device data and submit it to be published by a historian.
+        
+        Filter out only the */all topics for publishing to the historian.
+        '''
+        
+        if not ALL_REX.match(topic):
+            _log.debug("Unmatched topic: {}".format(topic))
+            return
+        _log.debug("found topic {}".format(topic))
         #peer, sender, bus, topic, headers, message
         timestamp_string = headers.get(headers_mod.DATE)
         if timestamp_string is None:
             _log.error("message for {topic} missing timetamp".format(topic=topic))
             return
+        
         try:
             timestamp = parse(timestamp_string)
         except (ValueError, TypeError) as e:

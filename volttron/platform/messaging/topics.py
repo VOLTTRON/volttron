@@ -105,6 +105,7 @@ PLATFORM_SHUTDOWN = PLATFORM(subtopic='shutdown')
 AGENT_SHUTDOWN = _('agent/{agent}/shutdown')
 AGENT_PING = _('agent/ping/{}/{}/{{cookie}}'.format(os.uname()[1], os.getpid()))
 
+LOGGER_BASE =_('datalogger')
 LOGGER = _('datalogger/{subtopic}')
 LOGGER_LOG = LOGGER(subtopic='log')
 LOGGER_STATUS = LOGGER(subtopic='status')
