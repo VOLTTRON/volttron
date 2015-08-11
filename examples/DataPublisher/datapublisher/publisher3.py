@@ -61,9 +61,8 @@ import logging
 import os
 import sys
 
-
-from volttron.platform.agent import BaseAgent, PublishMixin, periodic
-from volttron.platform.agent import matching, utils, sched
+from volttron.platform.vip.agent import *
+from volttron.platform.agent import utils
 from volttron.platform.agent.utils import jsonapi
 from volttron.platform.messaging import topics
 from volttron.platform.messaging import headers as headers_mod
@@ -89,7 +88,7 @@ def DataPub(config_path, **kwargs):
     '''
     conf = utils.load_config(config_path)
     custom_topic = conf.get('custom_topic', 0)
-    pub_interval = float(conf.get('publish_interval'), 10)
+    pub_interval = float(conf.get('publish_interval', 10))
     if not custom_topic:
         device_path = (
             ''.join([conf.get('campus'), '/', conf.get('building'), '/']))
@@ -107,14 +106,14 @@ def DataPub(config_path, **kwargs):
     else:
         subdevices = False
 
-    class Agent(PublishMixin, BaseAgent):
+    class Publisher(Agent):
         '''Simulate real device.  Publish csv data to message bus.
 
         Configuration consists of csv file and publish topic
         '''
         def __init__(self, **kwargs):
             '''Initialize data publisher class attributes.'''
-            super(Agent, self).__init__(**kwargs)
+            super(Publisher, self).__init__(**kwargs)
 
             self._agent_id = conf.get('publisherid')
             self._src_file_handle = open(path, 'rb')
@@ -136,20 +135,30 @@ def DataPub(config_path, **kwargs):
                 format='%(asctime)s   %(levelname)-8s %(message)s',
                 datefmt='%m-%d-%y %H:%M:%S')
             self._log.info('DATA PUBLISHER ID is PUBLISHER')
-
-        def setup(self):
-            '''This function is called immediately after initialization'''
-            super(Agent, self).setup()
-
-        @periodic(pub_interval)
+        
+        
+        @Core.periodic(period=pub_interval, wait=pub_interval+pub_interval)
         def publish_data_or_heartbeat(self):
             '''Publish data from file to message bus.'''
             _data = {}
             now = datetime.datetime.now().isoformat(' ')
+            
             if not self._src_file_handle.closed:
-                line = self._src_file_handle.readline()
-                line = line.strip()
-                data = line.split(',')
+                data = self._reader.next()
+                
+                # break out if no data is left to be found.
+                if not data:
+                    self._src_file_handle.close()
+                    self._src_file_handle = None
+                    return
+                
+                headers = {HEADER_NAME_DATE: now}
+                mytopic = ''.join([BASETOPIC, '/', device_path, 'all'])
+                self.vip.pubsub.publish(peer='pubsub',
+                                        topic=mytopic,
+                                        message=[data],
+                                        headers=headers)                    
+                return
                 if line:
                     # Create 'all' message
                     for i in xrange(0, len(self._headers)):
@@ -160,6 +169,8 @@ def DataPub(config_path, **kwargs):
                             custom_topic,
                             {HEADER_NAME_DATE: now}, _data)
                         return
+                    
+                    
                     sub_dev = {}
                     device_dict = {}
                     for _k, _v in dev_list.items():
@@ -211,7 +222,8 @@ def DataPub(config_path, **kwargs):
                     },
                     now)
 
-        @matching.match_regex(topics.ACTUATOR_SET() + '/(.+)')
+        #def capture_log_data(self, peer, sender, bus, topic, headers, message):
+        #@matching.match_regex(topics.ACTUATOR_SET() + '/(.+)')
         def handle_set(self, topic, headers, message, match):
             '''Respond to ACTUATOR_SET topic.'''
             self._log.info('set actuator')
@@ -223,7 +235,7 @@ def DataPub(config_path, **kwargs):
             value_path = topic.replace('actuator/set', '')
             self.push_result_topic_pair(point_name, headers, value_path, value)
 
-        @matching.match_exact(topics.ACTUATOR_SCHEDULE_REQUEST())
+        #@matching.match_exact(topics.ACTUATOR_SCHEDULE_REQUEST())
         def handle_schedule_request(self, topic, headers, message, match):
             '''Handle device schedule request.'''
             self._log.info('request received')
@@ -317,17 +329,23 @@ def DataPub(config_path, **kwargs):
             event = sched.Event(self.announce)
             self.scheduled_event = event
             self.schedule(next_time, event)
+            
+        @Core.receiver('onfinish')
+        def finish(self):
+            if self._src_file_handle != None:
+                try:
+                    self._src_file_handle.close()
+                except Exception as e:
+                    self._log.error(e.message)
 
-    Agent.__name__ = 'DataPub'
-    return Agent(**kwargs)
+    Publisher.__name__ = 'DataPub'
+    return Publisher(**kwargs)
 
 
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
-    utils.default_main(DataPub,
-                       description='Data publisher',
-                       argv=argv)
-
+    utils.vip_main(DataPub)
+    
 if __name__ == '__main__':
     try:
         sys.exit(main())
