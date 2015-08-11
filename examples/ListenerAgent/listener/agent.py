@@ -59,7 +59,7 @@ from datetime import datetime
 import logging
 import sys
 
-from volttron.platform.vip.agent import Agent, Core, PubSub
+from volttron.platform.vip.agent import Agent, Core, PubSub, compat
 from volttron.platform.agent import utils
 from volttron.platform.messaging import headers as headers_mod
 
@@ -88,8 +88,11 @@ class ListenerAgent(Agent):
     @PubSub.subscribe('pubsub', '')
     def on_match(self, peer, sender, bus,  topic, headers, message):
         '''Use match_all to receive all messages and print them out.'''
+        if sender == 'pubsub.compat':
+            message = compat.unpack_legacy_message(headers, message)
         _log.debug(
-            "Topic: %r, Headers: %r, Message: %r", topic, headers, message)
+            "Peer: %r, Sender: %r:, Bus: %r, Topic: %r, Headers: %r, "
+            "Message: %r", peer, sender, bus, topic, headers, message)
 
     # Demonstrate periodic decorator and settings access
     @Core.periodic(settings.HEARTBEAT_PERIOD)

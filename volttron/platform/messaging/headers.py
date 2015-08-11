@@ -96,6 +96,8 @@ class Headers(dict):
                for key, value in dict(*args, **kwargs).iteritems()))
     def __contains__(self, key):
         return super(Headers, self).__contains__(str(key).lower())
+    def get(self, key, default=None):
+        return super(Headers, self).get(str(key).lower(), default)
     def __getitem__(self, key):
         return super(Headers, self).__getitem__(str(key).lower())
     def __setitem__(self, key, value):
