@@ -67,6 +67,7 @@ import stat
 import struct
 import sys
 import threading
+import uuid
 
 import gevent
 from zmq import curve_keypair
@@ -79,7 +80,7 @@ from . import config
 from . import vip
 from .vip.agent import Agent, Core
 from .vip.agent.compat import CompatPubSub
-from .vip.socket import encode_key
+from .vip.socket import encode_key, Address
 from .auth import AuthService
 from .control import ControlService
 from .agent import utils
@@ -239,8 +240,8 @@ class Router(vip.BaseRouter):
                  monitor=False):
         super(Router, self).__init__(
             context=context, default_user_id=default_user_id)
-        self.local_address = local_address
-        self.addresses = addresses
+        self.local_address = Address(local_address)
+        self.addresses = addresses = [Address(addr) for addr in addresses]
         self._secretkey = secretkey
         self.logger = logging.getLogger('vip.router')
         if self.logger.level == logging.NOTSET:
@@ -249,18 +250,28 @@ class Router(vip.BaseRouter):
 
     def setup(self):
         sock = self.socket
+        sock.identity = identity = str(uuid.uuid4())
         if self._monitor:
             Monitor(sock.get_monitor_socket()).start()
         sock.bind('inproc://vip')
+        _log.debug('In-process VIP router bound to inproc://vip')
         sock.zap_domain = 'vip'
-        sock.bind(self.local_address)
+        addr = self.local_address
+        if not addr.identity:
+            addr.identity = identity
+        if not addr.domain:
+            addr.domain = 'vip'
+        addr.bind(sock)
+        _log.debug('Local VIP router bound to %s' % addr)
         for address in self.addresses:
-            if address.startswith('tcp://') and self._secretkey:
-                sock.curve_server = True
-                sock.curve_secretkey = self._secretkey
-            else:
-                sock.curve_server = False
-            sock.bind(address)
+            if not address.identity:
+                address.identity = identity
+            if address.secretkey is None and address.method != 'PLAIN':
+                address.secretkey = self._secretkey
+            if not address.domain:
+                address.domain = 'vip'
+            address.bind(sock)
+            _log.debug('Additional VIP router bound to %s' % address)
 
     def log(self, level, message, frames):
         self.logger.log(level, '%s: %s', message,
@@ -287,13 +298,10 @@ class Router(vip.BaseRouter):
                 value = None
             else:
                 if name == b'addresses':
-                    _log.debug("ADDRESS {}".format(self.addresses))
-                    # #140
-#                     value = [addr.base for addr in self.addresses]
                     if self.addresses:
-                        value = self.addresses
+                        value = [addr.base for addr in self.addresses]
                     else:
-                        value = [self.local_address]
+                        value = [self.local_address.base]
                 else:
                     value = None
             frames[6:] = [b'', jsonapi.dumps(value)]
