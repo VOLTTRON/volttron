@@ -129,7 +129,6 @@ class AuthService(Agent):
                               entry, self.auth_file)
             self.auth_entries = entries
             _log.info('auth file %s loaded', self.auth_file)
-            print(entries)
 
     def _watch_auth_file(self):
         dirname, filename = os.path.split(self.auth_file)
