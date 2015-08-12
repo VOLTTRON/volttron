@@ -122,8 +122,10 @@ __all__.extend(name for name in dir() if name.startswith('IN_'))
 _libc = ctypes.CDLL(None)
 inotify_init = ctypes.CFUNCTYPE(c_int, c_int, use_errno=True)(
     ('inotify_init1', _libc), ((1, 'flags', 0),))
-inotify_add_watch = ctypes.CFUNCTYPE(c_int, c_int, c_char_p, c_uint32, use_errno=True)(
-    ('inotify_add_watch', _libc), ((1, 'fd'), (1, 'pathname'), (1, 'mask', IN_ALL_EVENTS)))
+inotify_add_watch = ctypes.CFUNCTYPE(
+    c_int, c_int, c_char_p, c_uint32, use_errno=True)(
+        ('inotify_add_watch', _libc),
+        ((1, 'fd'), (1, 'pathname'), (1, 'mask', IN_ALL_EVENTS)))
 inotify_rm_watch = ctypes.CFUNCTYPE(c_int, c_int, c_int, use_errno=True)(
     ('inotify_rm_watch', _libc), ((1, 'fd'), (1, 'wd')))
 
@@ -182,15 +184,14 @@ class _inotify(object):
             with self._lock:
                 try:
                     pathname, masked = self._watch_wds[wd]
-                except KeyError as exc:
-                    # XXX: remove this print statement, maybe remove watch?
-                    print(exc, wd, mask, cookie, name)
+                except KeyError:
+                    inotify_rm_watch(self.fileno(), wd)
                     continue
                 if mask & IN_IGNORED:
                     self._watch_wds.pop(wd)
-                    rmwd = self._watch_names.pop(filename, None)
+                    rmwd = self._watch_names.pop(pathname, None)
                     if wd != rmwd:
-                        self._watch_names[filename] = rmwd
+                        self._watch_names[pathname] = rmwd
                     if not mask & masked:
                         continue
             break
@@ -200,7 +201,7 @@ class _inotify(object):
         if self._fd is None:
             raise ValueError('I/O operation on closed file')
         return self._fd
-    
+
     def __enter__(self):
         return self
 
@@ -220,9 +221,9 @@ class inotify(_inotify):
 
 def _main(argv, inotify_cls):
     masks = sorted((name[3:], value) for name, value in globals().iteritems()
-             if name.startswith('IN_') and name not in [
-                 'IN_NONBLOCK', 'IN_CLOEXEC', 'IN_ALL_EVENTS',
-                 'IN_CLOSE', 'IN_MOVE'])
+                   if name.startswith('IN_') and
+                   name not in ['IN_NONBLOCK', 'IN_CLOEXEC', 'IN_ALL_EVENTS',
+                                'IN_CLOSE', 'IN_MOVE'])
     with inotify_cls() as inot:
         for pathname in argv[1:]:
             try:
