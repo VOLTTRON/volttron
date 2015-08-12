@@ -108,7 +108,6 @@ def historian(config_path, **kwargs):
         def publish_to_historian(self, to_publish_list):
             _log.debug("publish_to_historian number of items: {}"
                        .format(len(to_publish_list)))
-            print ("publishlist",to_publish_list)
             
             # load a topic map if there isn't one yet.
 #             try:
@@ -127,7 +126,6 @@ def historian(config_path, **kwargs):
                 # look at the topics that are stored in the database already
                 # to see if this topic has a value
                 if topic.startswith('datalogger'):
-                    print("skipping",topic)
                     continue
                 topic_id = self.topic_map.get(topic)
 
@@ -141,13 +139,10 @@ def historian(config_path, **kwargs):
 #                 all_topic = '/'.join(reversed(parts[2:]))
 
                 
-                print("WOULD_WRITE",ts,topic, value)
                 datalog[topic] = {'Readings': value,
                                   'Units': meta['units']}
                 
-            base_topic = 'datalogger/devices/'
-            print("DATALOG",base_topic, datalog)
-            print("WOULD_PUBLISH")
+            base_topic = 'datalogger/devices'
 
 
 
@@ -160,14 +155,12 @@ def historian(config_path, **kwargs):
 #             agent.vip.pubsub.publish(peer='pubsub',headers=headers,
 #                                         topic=topic,
 #                                         message=message)
-            print("DESTINATION",self._target_platform.core.identity, 
-                  self._target_platform.core.address)
+
             self._target_platform.vip.pubsub.publish(peer='pubsub',
                                     topic=base_topic,
                                     message=datalog)
 
 
-            print('published {} data values:'.format(len(to_publish_list)))
             self.report_all_published()
 
         def query_topic_list(self):
