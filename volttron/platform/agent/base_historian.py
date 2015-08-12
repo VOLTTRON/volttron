@@ -168,7 +168,12 @@ class BaseHistorianAgent(Agent):
 #         location = '/'.join(reversed(parts[2:]))
 
         try:
-            data = message # jsonapi.loads(message[0])
+            # 2.0 agents compatability layer makes sender == pubsub.compat so 
+            # we can do the proper thing when it is here
+            if sender == 'pubsub.compat':
+                data = jsonapi.loads(message)
+            else:
+                data = message
         except ValueError as e:
             _log.error("message for {topic} bad message string: {message_string}".format(topic=topic,
                                                                                      message_string=message[0]))
@@ -210,6 +215,12 @@ class BaseHistorianAgent(Agent):
         if not ALL_REX.match(topic):
             _log.debug("Unmatched topic: {}".format(topic))
             return
+        
+        # Because of the above if we know that all is in the topic so
+        # we strip it off to get the base device
+        parts = topic.split('/')
+        device = '/'.join(parts[1:-1]) #'/'.join(reversed(parts[2:]))
+        
         _log.debug("found topic {}".format(topic))
         #peer, sender, bus, topic, headers, message
         timestamp_string = headers.get(headers_mod.DATE)
@@ -229,11 +240,15 @@ class BaseHistorianAgent(Agent):
         else:
             timestamp = timestamp.astimezone(pytz.UTC)
 
-        parts = topic.split('/')
-        device = '/'.join(reversed(parts[2:]))
+        
 
         try:
-            values = message[0]
+            # 2.0 agents compatability layer makes sender == pubsub.compat so 
+            # we can do the proper thing when it is here
+            if sender == 'pubsub.compat':
+                values = jsonapi.loads(message[0])
+            else:
+                values = message[0]
         except ValueError as e:
             _log.error("message for {topic} bad message string: {message_string}".format(topic=topic,
                                                                                      message_string=message[0]))
@@ -244,7 +259,12 @@ class BaseHistorianAgent(Agent):
 
         meta = {}
         try:
-            meta = message[1]
+            # 2.0 agents compatability layer makes sender == pubsub.compat so 
+            # we can do the proper thing when it is here
+            if sender == 'pubsub.compat':
+                meta = jsonapi.loads(message[1])
+            else:
+                meta = message[1]
         except ValueError as e:
             _log.warning("meta data for {topic} bad message string: {message_string}".format(topic=topic,
                                                                                      message_string=message[0]))
