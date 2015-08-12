@@ -37,21 +37,21 @@ echo "VOLTTRON_HOME=$VOLTTRON_HOME"
 COMMAND_ARGS=""
 
 if [ ! -z "$VIP_ADDRESS" ]; then
-  COMMAND_ARGS=$COMMAND_ARGS --vip-addres $VIP_ADDRESS
+  COMMAND_ARGS="$COMMAND_ARGS --vip-address '$VIP_ADDRESS'"
   echo "Using VIP_ADDRESS: $VIP_ADDRESS";
 fi
 
 
 # volttron-pkg package $1
 
-WHEEL=$(volttron-pkg $COMMAND_ARGS package $1 | awk -F": " '{ print $2 }')
+WHEEL=$(volttron-pkg package $1 | awk -F": " '{ print $2 }')
 
 if [ ! -e "$WHEEL" ]; then
   echo "$WHEEL doesn't exist"
   exit 0
 fi
 
-VOLTTRON_HOME=$VOLTTRON_HOME volttron-pkg $COMMAND_ARGS configure "$WHEEL" "$2"
+VOLTTRON_HOME=$VOLTTRON_HOME volttron-pkg configure "$WHEEL" "$2"
 
 VOLTTRON_HOME=$VOLTTRON_HOME volttron-ctl $COMMAND_ARGS install "$3=$WHEEL"
 
