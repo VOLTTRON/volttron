@@ -561,7 +561,8 @@ def main(argv=sys.argv):
     address = 'inproc://vip'
     try:
         # Ensure auth service is running before router
-        auth = AuthService(address=address, identity='auth')
+        auth_file = os.path.join(volttron_home, 'auth.json')
+        auth = AuthService(auth_file, address=address, identity='auth')
         event = gevent.event.Event()
         auth_task = gevent.spawn(auth.core.run, event)
         event.wait()
