@@ -83,6 +83,7 @@ from .vip.socket import encode_key
 from .auth import AuthService
 from .control import ControlService
 from .agent import utils
+from .lib import rlimit
 
 try:
     import volttron.restricted
@@ -463,6 +464,7 @@ def main(argv=sys.argv):
         args = ['--config', conf] + args
     logging.getLogger().setLevel(logging.NOTSET)
     opts = parser.parse_args(args)
+
     if opts.log:
         opts.log = config.expandall(opts.log)
     if opts.log_config:
@@ -491,6 +493,22 @@ def main(argv=sys.argv):
         error = configure_logging(opts.log_config)
         if error:
             parser.error('{}: {}'.format(*error))
+
+    # Increase open files resource limit to max or 8192 if unlimited
+    try:
+        limit = rlimit.getrlimit(rlimit.RLIMIT_NOFILE)
+    except OSError:
+        _log.exception('error getting open file limits')
+    else:
+        if limit.cur != limit.max and limit.cur != rlimit.RLIM_INFINITY:
+            try:
+                value = 8192 if limit.max == rlimit.RLIM_INFINITY else limit.max
+                rlimit.setrlimit(rlimit.RLIMIT_NOFILE, (value, limit.max))
+            except OSError:
+                _log.exception('error setting open file limits')
+            else:
+                _log.debug('open file resource limit increased from %d to %d',
+                           limit.cur, value)
 
     # Set configuration
     if HAVE_RESTRICTED:
