@@ -66,7 +66,7 @@ from __future__ import absolute_import, print_function
 
 from collections import namedtuple
 import ctypes
-from ctypes import c_int, c_ulong, POINTER
+from ctypes import c_int, c_long, POINTER
 import os
 
 
@@ -118,9 +118,9 @@ __all__.extend(name for name in dir() if name.startswith('RLIM'))
 
 
 _libc = ctypes.CDLL(None)
-_getrlimit = ctypes.CFUNCTYPE(c_int, c_int, POINTER(c_ulong*2), use_errno=True)(
+_getrlimit = ctypes.CFUNCTYPE(c_int, c_int, POINTER(c_long*2), use_errno=True)(
     ('getrlimit', _libc), ((1, 'resource'), (2, 'rlimit')))
-_setrlimit = ctypes.CFUNCTYPE(c_int, c_int, POINTER(c_ulong*2), use_errno=True)(
+_setrlimit = ctypes.CFUNCTYPE(c_int, c_int, POINTER(c_long*2), use_errno=True)(
     ('setrlimit', _libc), ((1, 'resource'), (1, 'rlimit')))
 
 def _errcheck(result, func, args):
@@ -134,7 +134,7 @@ _getrlimit.errcheck = _errcheck
 _setrlimit.errcheck = _errcheck
 
 
-rlimit = namedtuple('rlimit', 'soft hard')
+rlimit = namedtuple('rlimit', 'cur max')
 
 
 def getrlimit(resource):
@@ -143,14 +143,14 @@ def getrlimit(resource):
     The only argument, resource, should be one of the RLIMIT_* constants
     defined in this module (or an integer equivalent) or a string
     containing the name of the constant, minus the RLIMIT_ (and
-    case-insensitive). A named 2-tuple is returned containing the soft
-    limit followed by the hard limit.
+    case-insensitive). A named 2-tuple is returned containing the
+    current soft (cur) limit followed by the hard maximum (max) limit.
 
     Example:
         >>> getrlimit(RLIMIT_NOFILE)
-        rlimit(soft=1024L, hard=4096L)
+        rlimit(cur=1024L, max=4096L)
         >>> getrlimit('nofile')
-        rlimit(soft=1024L, hard=4096L)
+        rlimit(cur=1024L, max=4096L)
 
     See the getrlimit(3P) man page for more information
     '''
@@ -166,8 +166,8 @@ def setrlimit(resource, (soft, hard)):
     constants defined in this module (or an integer equivalent) or a
     string containing the name of the constant, minus the RLIMIT_ (and
     case-insensitive). The second argument must be a 2-tuple containing
-    the soft and hard limits to set, in that order. An rlimit named
-    tuple may be used.
+    the soft (current) and hard (maximum) limits to set, in that order.
+    An rlimit named tuple may be used.
 
     Example:
         >>> setrlimit(RLIMIT_NOFILE, (2048, 4096))
@@ -177,5 +177,5 @@ def setrlimit(resource, (soft, hard)):
     '''
     if isinstance(resource, basestring):
         resource = globals()['RLIMIT_' + resource.upper()]
-    rlp = (c_ulong*2)(soft, hard)
+    rlp = (c_long*2)(soft, hard)
     _setrlimit(resource, rlp)
