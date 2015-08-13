@@ -534,8 +534,8 @@ def main(argv=sys.argv):
                          'potential damage.\n' % os.path.basename(argv[0]))
         sys.exit(77)
 
-    volttron_home = config.expandall(
-            os.environ.get('VOLTTRON_HOME', '~/.volttron'))
+    volttron_home = os.path.normpath(config.expandall(
+            os.environ.get('VOLTTRON_HOME', '~/.volttron')))
     os.environ['VOLTTRON_HOME'] = volttron_home
 
     global_args = config.ArgumentParser(description='global options', add_help=False)

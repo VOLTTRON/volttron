@@ -32,6 +32,16 @@ if [ -z "$VOLTTRON_HOME" ]; then
   echo "VOLTTRON_HOME UNSET setting to $VOLTTRON_HOME";
 fi
 
+echo "VOLTTRON_HOME=$VOLTTRON_HOME"
+
+COMMAND_ARGS=""
+
+if [ ! -z "$VIP_ADDRESS" ]; then
+  COMMAND_ARGS="$COMMAND_ARGS --vip-address '$VIP_ADDRESS'"
+  echo "Using VIP_ADDRESS: $VIP_ADDRESS";
+fi
+
+
 # volttron-pkg package $1
 
 WHEEL=$(volttron-pkg package $1 | awk -F": " '{ print $2 }')
@@ -43,7 +53,7 @@ fi
 
 VOLTTRON_HOME=$VOLTTRON_HOME volttron-pkg configure "$WHEEL" "$2"
 
-VOLTTRON_HOME=$VOLTTRON_HOME volttron-ctl install "$3=$WHEEL"
+VOLTTRON_HOME=$VOLTTRON_HOME volttron-ctl $COMMAND_ARGS install "$3=$WHEEL"
 
 
 
