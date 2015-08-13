@@ -1015,8 +1015,8 @@ class SupplyTempRcx(object):
                                       self.sa_temp_values)]
 
             set_point_tracking = (sum(set_point_tracking) /
-                                  len(set_point_tracking) *
-                                  avg_sat_stpt) * 100
+                                  (len(set_point_tracking) *
+                                  avg_sat_stpt)) * 100
 
             if set_point_tracking > self.setpoint_allowable_deviation:
                 msg = ('Supply-air temperature is deviating significantly '
