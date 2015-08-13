@@ -63,6 +63,7 @@ import logging
 from logging import handlers
 import logging.config
 import os
+import resource
 import stat
 import struct
 import sys
@@ -83,7 +84,6 @@ from .vip.socket import encode_key
 from .auth import AuthService
 from .control import ControlService
 from .agent import utils
-from .lib import rlimit
 
 try:
     import volttron.restricted
@@ -496,19 +496,19 @@ def main(argv=sys.argv):
 
     # Increase open files resource limit to max or 8192 if unlimited
     try:
-        limit = rlimit.getrlimit(rlimit.RLIMIT_NOFILE)
+        soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
     except OSError:
         _log.exception('error getting open file limits')
     else:
-        if limit.cur != limit.max and limit.cur != rlimit.RLIM_INFINITY:
+        if soft != hard and soft != resource.RLIM_INFINITY:
             try:
-                value = 8192 if limit.max == rlimit.RLIM_INFINITY else limit.max
-                rlimit.setrlimit(rlimit.RLIMIT_NOFILE, (value, limit.max))
+                limit = 8192 if hard == resource.RLIM_INFINITY else hard
+                resource.setrlimit(resource.RLIMIT_NOFILE, (limit, hard))
             except OSError:
                 _log.exception('error setting open file limits')
             else:
                 _log.debug('open file resource limit increased from %d to %d',
-                           limit.cur, value)
+                           soft, limit)
 
     # Set configuration
     if HAVE_RESTRICTED:
