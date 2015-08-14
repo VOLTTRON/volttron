@@ -76,3 +76,10 @@ class Agent(object):
         self.core = Core(
             self, identity=identity, address=address, context=context)
         self.vip = Agent.Subsystems(self, self.core)
+
+
+class BasicAgent(object):
+    def __init__(self, **kwargs):
+        kwargs.pop('identity', None)
+        super(BasicAgent, self).__init__(**kwargs)
+        self.core = BasicCore(self)

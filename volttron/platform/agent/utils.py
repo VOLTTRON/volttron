@@ -201,9 +201,10 @@ def vip_main(agent_class, **kwargs):
             run = agent.run
         except AttributeError:
             run = agent.core.run
-        gevent.spawn(run).join()
+        task = gevent.spawn(run)
+        task.join()
     except KeyboardInterrupt:
-        pass
+        task.kill()
 
 
 class SyslogFormatter(logging.Formatter):

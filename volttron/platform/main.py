@@ -632,7 +632,14 @@ def main(argv=sys.argv):
             for name, error in opts.aip.autostart():
                 _log.error('error starting {!r}: {}\n'.format(name, error))
         # Wait for any service to stop, signaling exit
-        gevent.wait(tasks, count=1)
+        try:
+            gevent.wait(tasks, count=1)
+        except KeyboardInterrupt:
+            _log.info('SIGINT received; shutting down')
+            sys.stderr.write('Shutting down.\n')
+            for task in tasks:
+                task.kill(block=False)
+            gevent.wait(tasks)
     finally:
         opts.aip.finish()
 
