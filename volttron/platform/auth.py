@@ -60,6 +60,7 @@
 from __future__ import absolute_import, print_function
 
 import bisect
+import errno
 import logging
 import os
 import random
@@ -70,6 +71,7 @@ from gevent.fileobject import FileObject
 from zmq import green as zmq
 from zmq.utils import jsonapi
 
+from .agent.utils import strip_comments
 from .lib.inotify.green import inotify, IN_MODIFY
 from .vip.agent import Agent, Core, RPC
 from .vip.socket import encode_key
@@ -77,6 +79,13 @@ from .vip.socket import encode_key
 
 _log = logging.getLogger(__name__)
 
+
+_SAMPLE_AUTH_FILE = '''{
+    "allow": [
+        # {"credentials": "CURVE:wk2BXQdHkAlMIoXthOPhFOqWpapD1eWsBQYY7h4-bXw", "domain": "vip", "address": "/192\\.168\\.1\\..*/"}
+    ]
+}
+'''
 
 _dump_re = re.compile(r'([,\\])')
 _load_re = re.compile(r'\\(.)|,')
@@ -108,9 +117,22 @@ class AuthService(Agent):
     def read_auth_file(self):
         _log.info('loading auth file %s', self.auth_file)
         try:
+            try:
+                fil = open(self.auth_file)
+            except IOError as exc:
+                if exc.errno != errno.ENOENT:
+                    raise
+                _log.debug('missing auth file %s', self.auth_file)
+                _log.info('creating auth file %s', self.auth_file)
+                fd = os.open(self.auth_file, os.O_CREAT|os.O_WRONLY, 0o660)
+                try:
+                    os.write(fd, _SAMPLE_AUTH_FILE)
+                finally:
+                    os.close(fd)
+                self.auth_entries = []
             with open(self.auth_file) as fil:
                 # Use gevent FileObject to avoid blocking the thread
-                data = FileObject(fil, close=False).read()
+                data = strip_comments(FileObject(fil, close=False).read())
                 auth_data = jsonapi.loads(data)
         except Exception:
             _log.exception('error loading %s', self.auth_file)
