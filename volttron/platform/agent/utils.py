@@ -194,8 +194,9 @@ def vip_main(agent_class, **kwargs):
             stdout = sys.stdout
             sys.stdout = os.fdopen(stdout.fileno(), 'w', 1)
 
+        agent_uuid = os.environ.get('AGENT_UUID')
         config = os.environ.get('AGENT_CONFIG')
-        agent = agent_class(config_path=config, **kwargs)
+        agent = agent_class(config_path=config, identity=agent_uuid, **kwargs)
         try:
             run = agent.run
         except AttributeError:

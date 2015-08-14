@@ -73,5 +73,5 @@ def get_home():
     If the VOLTTRON_HOME environment variable is set, it used.
     Otherwise, the default value of '~/.volttron' is used.
     '''
-    return os.path.expanduser(os.path.expandvars(
-        os.environ.get('VOLTTRON_HOME', '~/.volttron')))
+    return os.path.normpath(os.path.expanduser(os.path.expandvars(
+        os.environ.get('VOLTTRON_HOME', '~/.volttron'))))

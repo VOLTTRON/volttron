@@ -112,7 +112,7 @@ LOGGER_STATUS = LOGGER(subtopic='status')
 
 DRIVER_TOPIC_BASE = 'devices'
 DRIVER_TOPIC_ALL = 'all'
-DEVICES_PATH = _('{base}//{node}//{campus}//{building}//{unit}//{path}//{point}')
+DEVICES_PATH = _('{base}//{node}//{campus}//{building}//{unit}//{path!S}//{point}')
 _DEVICES_VALUE = _(DEVICES_PATH.replace('{base}',DRIVER_TOPIC_BASE))
 DEVICES_VALUE = _(_DEVICES_VALUE.replace('{node}/', ''))
 
