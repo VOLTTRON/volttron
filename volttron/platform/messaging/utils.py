@@ -111,6 +111,7 @@ class TopicFormatter(Formatter):
         if recursion_depth < 0:
             raise ValueError('maximum string recursion exceeded')
         result = []
+
         for platformral, name, format_spec, conversion in self.parse(format_string):
             if platformral:
                 result.append(platformral)
@@ -126,7 +127,7 @@ class TopicFormatter(Formatter):
                         pass
                     else:
                         result[-1] = platformral
-                        break
+                        continue
                 raise e
             used_args.add(arg_used)
             if obj is None:
