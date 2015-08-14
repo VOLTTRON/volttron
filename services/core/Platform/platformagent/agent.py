@@ -106,7 +106,7 @@ def platform_agent(config_path, **kwargs):
 
         def __init__(self, vc_vip_address=vc_vip_address,
                      vc_vip_identity=vc_vip_address, **kwargs):
-            super(PlatformAgent, self).__init__(identity, **kwargs)
+            super(PlatformAgent, self).__init__(**kwargs)
             self.vc_vip_identity = vc_vip_identity
             self.vc_vip_address = vc_vip_address
 
