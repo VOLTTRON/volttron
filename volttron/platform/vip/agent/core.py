@@ -229,11 +229,9 @@ class BasicCore(object):
 
         looper = self.loop()
         looper.next()
-        _log.debug('setup')
         self.onsetup.send(self)
 
         loop = looper.next()
-        _log.debug('start')
         if loop:
             current.link(lambda glt: loop.kill())
         scheduler = gevent.spawn(schedule_loop)
@@ -251,11 +249,9 @@ class BasicCore(object):
             pass
         scheduler.kill()
         looper.next()
-        _log.debug('stop')
         receivers = self.onstop.sendby(link_receiver, self)
         gevent.wait(receivers)
         looper.next()
-        _log.debug('finish')
         self.onfinish.send(self)
 
     def stop(self, timeout=None):
