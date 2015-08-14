@@ -104,6 +104,11 @@ class TopicFormatter(Formatter):
     truncated at the final double slash (//), and all the processed
     components are concatenated and the result returned.
 
+    Another addition is the optional conversion specifiers. These are
+    the standard conversion specifiers 's' and 'r', but upper-cased as
+    'S' or 'R'.  When one of these conversion specifiers is given, the
+    component will be skipped if a value is not provided for that field.
+
     See the Formatter documentation for the built-in string module for
     more information on formatters and the role of each method.
     '''
@@ -111,8 +116,12 @@ class TopicFormatter(Formatter):
         if recursion_depth < 0:
             raise ValueError('maximum string recursion exceeded')
         result = []
-
         for platformral, name, format_spec, conversion in self.parse(format_string):
+            if conversion in ['S', 'R']:
+                optional = True
+                conversion = conversion.lower()
+            else:
+                optional = False
             if platformral:
                 result.append(platformral)
             if name is None:
@@ -127,7 +136,9 @@ class TopicFormatter(Formatter):
                         pass
                     else:
                         result[-1] = platformral
-                        continue
+                        if optional:
+                            continue
+                        break
                 raise e
             used_args.add(arg_used)
             if obj is None:
