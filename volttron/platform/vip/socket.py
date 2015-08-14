@@ -142,7 +142,7 @@ class Address(object):
     '''
 
     _KEYS = ('domain', 'server', 'secretkey', 'publickey',
-             'serverkey', 'ipv6', 'username', 'password', 'method')
+             'serverkey', 'ipv6', 'username', 'password')
     _MASK_KEYS = ('secretkey', 'password')
 
     def __init__(self, address, **defaults):
@@ -165,11 +165,11 @@ class Address(object):
             if name in self._KEYS:
                 if value and name.endswith('key'):
                     value = decode_key(value)
-                elif name == 'method':
+                elif name == 'server':
                     value = value.upper().strip()
                     if value not in ['NULL', 'PLAIN', 'CURVE']:
-                        raise ValueError('bad value for method parameter: %r' %
-                                         value)
+                        raise ValueError(
+                            'bad value for server parameter: %r' % value)
                 elif name == 'ipv6':
                     value = bool(re.sub(
                         r'\s*(0|false|no|off)\s*', r'', value, flags=re.I))
@@ -199,11 +199,11 @@ class Address(object):
         '''Extended zmq.Socket.bind() to include options in the address.'''
         if not self.domain:
             raise ValueError('Address domain must be set')
+        sock.zap_domain = self.domain or ''
         if self.identity:
             sock.identity = self.identity
         elif not sock.identity:
             sock.identity = self.identity = bytes(uuid.uuid4())
-        sock.zap_domain = self.domain or ''
         sock.ipv6 = self.ipv6 or False
         if self.server == 'CURVE':
             if not self.secretkey:
@@ -217,16 +217,17 @@ class Address(object):
             sock.plain_server = False
             if self.serverkey:
                 sock.curve_serverkey = self.serverkey
-                if self.publickey and self.secretkey:
-                    sock.curve_publickey = self.publickey
-                    sock.curve_secretkey = self.secretkey
+                if not (self.publickey and self.secretkey):
+                    self.publickey, self.secretkey = curve_keypair()
+                sock.curve_secretkey = self.secretkey
+                sock.curve_publickey = self.publickey
             elif self.username:
                 sock.plain_username = self.username
                 sock.plain_password = self.password or b''
         (bind_fn or sock.bind)(self.base)
         self.base = sock.last_endpoint
 
-    def connect(self, sock, connect_fn):
+    def connect(self, sock, connect_fn=None):
         '''Extended zmq.Socket.connect() to include options in the address.'''
         if self.identity:
             sock.identity = self.identity
@@ -234,10 +235,11 @@ class Address(object):
             sock.identity = self.identity = bytes(uuid.uuid4())
         sock.ipv6 = self.ipv6 or False
         if self.serverkey:
-            sock.curve_serverkey = self.secretkey
-            if self.publickey and self.secretkey:
-                sock.curve_secretkey = self.secretkey
-                sock.curve_publickey = self.publickey
+            sock.curve_serverkey = self.serverkey
+            if not (self.publickey and self.secretkey):
+                self.publickey, self.secretkey = curve_keypair()
+            sock.curve_secretkey = self.secretkey
+            sock.curve_publickey = self.publickey
         elif self.username and self.password is not None:
             sock.plain_username = self.username
             sock.plain_password = self.password

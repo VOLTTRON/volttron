@@ -267,7 +267,8 @@ class Router(vip.BaseRouter):
         for address in self.addresses:
             if not address.identity:
                 address.identity = identity
-            if address.secretkey is None and address.method != 'PLAIN':
+            if address.secretkey is None and address.server != 'PLAIN':
+                address.server = 'CURVE'
                 address.secretkey = self._secretkey
             if not address.domain:
                 address.domain = 'vip'
@@ -575,7 +576,7 @@ def main(argv=sys.argv):
                     key = infile.read(80)
         publickey = key[:40]
         if publickey:
-            _log.info('public key: %r (%s)', publickey, encode_key(publickey))
+            _log.info('public key: %s', encode_key(publickey))
         secretkey = key[40:]
 
     # The following line doesn't appear to do anything, but it creates
