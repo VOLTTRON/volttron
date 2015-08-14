@@ -91,7 +91,7 @@ def historian(config_path, **kwargs):
     assert databaseType is not None
     params = connection.get('params', None)
     assert params is not None
-    identity = config.get('identity', kwargs.get('identity'))
+    identity = config.get('identity', kwargs.pop('identity'))
 
     if databaseType == 'sqlite':
         from .db.sqlitefuncts import SqlLiteFuncts as DbFuncts
@@ -198,7 +198,7 @@ def historian(config_path, **kwargs):
                 self.core.stop()
 
     SQLHistorian.__name__ = 'SQLHistorian'
-    return SQLHistorian(**kwargs)
+    return SQLHistorian(identity=identity, **kwargs)
 
 
 
