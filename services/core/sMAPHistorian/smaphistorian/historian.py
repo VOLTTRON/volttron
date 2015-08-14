@@ -124,6 +124,7 @@ def SMAPHistorianAgent(config_path, **kwargs):
 
             # add items to global topic and uuid lists if they don't exist
             for item in to_publish_list:
+                
                 if 'topic' not in item.keys():
                     _log.error('topic or uuid not found in {}'.format(item))
                     continue
@@ -164,16 +165,34 @@ def SMAPHistorianAgent(config_path, **kwargs):
 
                 meta['SourceName'] = _config['source']
 
-                if 'timestamp' not in item or 'tz' not in item:
-                    _log.error('Invalid timestamp specified for item: {}'
+                if item['source'] == 'scrape':
+                    if ('timestamp' not in item or 'tz' not in meta):
+                        _log.error('Invalid timestamp specified for item: {}'
                                .format(item))
-                    self.report_published(item)
-                    continue
+                        self.report_published(item)
+                        continue
+                    utc = item['timestamp']
+                    mytz = timezone(meta['tz'])
+                    mydt = utc.astimezone(mytz)
 
 
-                utc = item['timestamp']
-                mytz = timezone(meta['tz'])
-                mydt = utc.astimezone(mytz)
+                if item['source'] == 'log':
+                    mydt = item['timestamp']
+                    if 'tz' not in meta:
+                        
+                        if mydt.tzinfo is None:
+                            mydt = mydt.astimezone(pytz.UTC)
+                        meta['tz'] = str(mydt.tzinfo)
+                    else:
+                       mytz = timezone(meta['tz'])
+                       mydt = mydt.astimezone(mytz)
+
+
+                        
+                
+            #    utc = item['timestamp']
+            #    mytz = timezone(meta['tz'])
+            #    mydt = utc.astimezone(mytz)
 
                 publish[topic] = \
                 {'Metadata': meta,
@@ -184,9 +203,9 @@ def SMAPHistorianAgent(config_path, **kwargs):
                  'Readings': [[int(mydt.strftime("%s000")), item['value']]],
                  'uuid': item_uuid
                 }
-
-            response = requests.post(_add_url, data=jsonapi.dumps(publish))
-
+            
+            response = requests.post(_add_url, data=jsonapi.dumps(publish),verify=False)
+            
             if response.ok:
                 for topic in publish.keys():
                     if topic not in self._topic_to_uuid.keys():
@@ -209,7 +228,7 @@ def SMAPHistorianAgent(config_path, **kwargs):
                        .format(source=source))
 
             resp = requests.post("{url}/backend/api/query"
-                                 .format(url=archiver_url), data=payload)
+                                 .format(url=archiver_url), data=payload,verify=False)
 
             # get dictionary of response
             response = jsonapi.loads(resp.text)

@@ -63,6 +63,7 @@ import logging
 from logging import handlers
 import logging.config
 import os
+import resource
 import stat
 import struct
 import sys
@@ -322,8 +323,8 @@ def main(argv=sys.argv):
                          'potential damage.\n' % os.path.basename(argv[0]))
         sys.exit(77)
 
-    volttron_home = config.expandall(
-        os.environ.get('VOLTTRON_HOME', '~/.volttron'))
+    volttron_home = os.path.normpath(config.expandall(
+        os.environ.get('VOLTTRON_HOME', '~/.volttron')))
     os.environ['VOLTTRON_HOME'] = volttron_home
 
     # Setup option parser
@@ -471,6 +472,7 @@ def main(argv=sys.argv):
         args = ['--config', conf] + args
     logging.getLogger().setLevel(logging.NOTSET)
     opts = parser.parse_args(args)
+
     if opts.log:
         opts.log = config.expandall(opts.log)
     if opts.log_config:
@@ -499,6 +501,22 @@ def main(argv=sys.argv):
         error = configure_logging(opts.log_config)
         if error:
             parser.error('{}: {}'.format(*error))
+
+    # Increase open files resource limit to max or 8192 if unlimited
+    try:
+        soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+    except OSError:
+        _log.exception('error getting open file limits')
+    else:
+        if soft != hard and soft != resource.RLIM_INFINITY:
+            try:
+                limit = 8192 if hard == resource.RLIM_INFINITY else hard
+                resource.setrlimit(resource.RLIMIT_NOFILE, (limit, hard))
+            except OSError:
+                _log.exception('error setting open file limits')
+            else:
+                _log.debug('open file resource limit increased from %d to %d',
+                           soft, limit)
 
     # Set configuration
     if HAVE_RESTRICTED:
