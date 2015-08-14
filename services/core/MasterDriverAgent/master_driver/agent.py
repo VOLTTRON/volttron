@@ -57,21 +57,28 @@ import logging
 import sys
 import os
 import gevent
+from gevent.fileobject import FileObject
+import signal
 from volttron.platform.vip.agent import Agent, Core, RPC
 from volttron.platform.agent import utils
-from driver import DriverAgent
+#from driver import DriverAgent
+from subprocess import PIPE, Popen
 
+from volttron.platform.lib import prctl
+
+def setup_close_with_parent():
+    prctl.set_pdeathsig(signal.SIGINT)
+    
+    
+def log_stream(stream):
+    fobj = FileObject(stream, 'r', 1, close=False)
+    for line in fobj:
+        sys.stderr.write(line)
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
 def master_driver_agent(config_path, **kwargs):
-
-#     home = os.path.expanduser(os.path.expandvars(
-#                  os.environ.get('VOLTTRON_HOME', '~/.volttron')))
-#     vip_address = 'ipc://@{}/run/vip.socket'.format(home)
-
-    print(sys.path)
 
     config = utils.load_config(config_path)
 
@@ -87,33 +94,50 @@ def master_driver_agent(config_path, **kwargs):
     class MasterDriverAgent(Agent):
         def __init__(self, **kwargs):
             super(MasterDriverAgent, self).__init__(identity=vip_identity, **kwargs)
-            self.instances = {}
+            self.driver_peers = {}
             
         @Core.receiver('onstart')
         def starting(self, sender, **kwargs):
+            env = os.environ.copy()
             for config_name in driver_config_list:
-                driver = DriverAgent(self, identity=config_name)
-                gevent.spawn(driver.core.run)   
-                #driver.core.stop to kill an agent.    
-                
-        def device_startup_callback(self, topic, driver):
-            _log.debug("Driver hooked up for "+topic)
+                #driver = DriverAgent(identity=config_name)
+                #gevent.spawn(driver.core.run)   
+                #driver.core.stop to kill an agent. 
+                _log.debug("Launching driver for config "+config_name)
+                env['AGENT_CONFIG'] = config_name
+                argv = [sys.executable, '-m', "master_driver.driver"]
+                process = Popen(argv, env=env, close_fds=True, preexec_fn = setup_close_with_parent,
+                                stdin=open(os.devnull), stderr=PIPE)
+                gevent.spawn(log_stream, process.stderr)
+                   
+        
+        @RPC.export        
+        def device_startup_callback(self, topic):
+            peer = bytes(self.vip.rpc.context.vip_message.peer)
+            _log.debug("Driver hooked up for "+topic+" at "+peer)
             topic = topic.strip('/')
-            self.instances[topic] = driver
+            self.driver_peers[topic] = peer
             
         @RPC.export
         def get_point(self, path, point_name):
-            return self.instances[path].get_point(point_name)
+            peer = self.driver_peers[path]
+            result = self.vip.rpc.call(peer, 'get_point', point_name).get()
+            return result
         
         @RPC.export
         def set_point(self, path, point_name, value):
-            return self.instances[path].set_point(point_name, value)
+            peer = self.driver_peers[path]
+            result = self.vip.rpc.call(peer, 'set_point', point_name, value).get()
+            return result
         
         @RPC.export
         def heart_beat(self):
             _log.debug("sending heartbeat")
-            for device in self.instances.values():
-                device.heart_beat()
+            for peer in self.driver_peers.values():
+                self.vip.rpc.call(peer, 'heart_beat')
+                
+        def start_driver(self, config_name):
+            pass
                 
             
     return MasterDriverAgent(**kwargs)
