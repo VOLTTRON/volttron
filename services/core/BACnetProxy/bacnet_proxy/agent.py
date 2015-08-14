@@ -289,6 +289,8 @@ _log = logging.getLogger(__name__)
 def bacnet_proxy_agent(config_path, **kwargs):
     config = utils.load_config(config_path)
     vip_identity = config.get("vip_identity", "platform.bacnet_proxy")
+    #pop off the uuid based identity
+    kwargs.pop('identity', None)
 
     class BACnetProxyAgent(Agent):
         '''This agent creates a virtual bacnet device that is used by

@@ -186,7 +186,7 @@ def historian(config_path, **kwargs):
             self._target_platform = agent
 
     ForwardHistorian.__name__ = 'ForwardHistorian'
-    return ForwardHistorian(identity=identity, **kwargs)
+    return ForwardHistorian(**kwargs)
 
 
 
