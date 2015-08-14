@@ -100,9 +100,10 @@ def load_user(string):
 
 
 class AuthService(Agent):
-    def __init__(self, auth_file, *args, **kwargs):
+    def __init__(self, auth_file, aip, *args, **kwargs):
         super(AuthService, self).__init__(*args, **kwargs)
         self.auth_file = os.path.abspath(auth_file)
+        self.aip = aip
         self.zap_socket = None
         self._zap_greenlet = None
         self.auth_entries = []
@@ -238,7 +239,14 @@ class AuthService(Agent):
                 return entry.user_id or dump_user(
                     domain, address, mechanism, *credentials[:1])
         if mechanism == 'NULL' and address.startswith('localhost:'):
-            if int(address.split(':', 2)[1]) == os.getuid():
+            parts = address.split(':')[1:]
+            if len(parts) > 2:
+                pid = int(parts[2])
+                agent_uuid = self.aip.agent_uuid_from_pid(pid)
+                if agent_uuid:
+                    return dump_user(domain, address, 'AGENT', agent_uuid)
+            uid = int(parts[0])
+            if uid == os.getuid():
                 return dump_user(domain, address, mechanism, *credentials[:1])
 
 

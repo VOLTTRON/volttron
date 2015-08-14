@@ -588,7 +588,8 @@ def main(argv=sys.argv):
     try:
         # Ensure auth service is running before router
         auth_file = os.path.join(volttron_home, 'auth.json')
-        auth = AuthService(auth_file, address=address, identity='auth')
+        auth = AuthService(
+            auth_file, opts.aip, address=address, identity='auth')
         event = gevent.event.Event()
         auth_task = gevent.spawn(auth.core.run, event)
         event.wait()
