@@ -101,6 +101,7 @@ def load_user(string):
 
 class AuthService(Agent):
     def __init__(self, auth_file, aip, *args, **kwargs):
+        self.allow_any = kwargs.pop('allow_any', False)
         super(AuthService, self).__init__(*args, **kwargs)
         self.auth_file = os.path.abspath(auth_file)
         self.aip = aip
@@ -112,6 +113,8 @@ class AuthService(Agent):
     def setup_zap(self, sender, **kwargs):
         self.zap_socket = zmq.Socket(zmq.Context.instance(), zmq.ROUTER)
         self.zap_socket.bind('inproc://zeromq.zap.01')
+        if self.allow_any:
+            _log.warn('insecure permissive authentication enabled')
         self.read_auth_file()
         self.core.spawn(self._watch_auth_file)
 
@@ -248,6 +251,8 @@ class AuthService(Agent):
             uid = int(parts[0])
             if uid == os.getuid():
                 return dump_user(domain, address, mechanism, *credentials[:1])
+        if self.allow_any:
+            return dump_user(domain, address, mechanism, *credentials[:1])
 
 
 class String(unicode):

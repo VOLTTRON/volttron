@@ -342,6 +342,9 @@ def main(argv=sys.argv):
         ignore_unknown=True, sections=[None, 'volttron'],
         help='read configuration from FILE')
     parser.add_argument(
+        '--developer-mode', action='store_true',
+        help='run in insecure developer mode')
+    parser.add_argument(
         '-l', '--log', metavar='FILE', default=None,
         help='send log output to FILE instead of stderr')
     parser.add_argument(
@@ -463,6 +466,7 @@ def main(argv=sys.argv):
         verify_agents=True,
         resource_monitor=True,
         #mobility=True,
+        developer_mode=False,
     )
 
     # Parse and expand options
@@ -533,41 +537,46 @@ def main(argv=sys.argv):
     if mode & (stat.S_IWGRP | stat.S_IWOTH):
         _log.warning('insecure mode on directory: %s', volttron_home)
     # Get or generate encryption key
-    keyfile = os.path.join(volttron_home, 'curve.key')
-    _log.debug('using key file %s', keyfile)
-    try:
-        st = os.stat(keyfile)
-    except OSError as exc:
-        if exc.errno != errno.ENOENT:
-            parser.error(str(exc))
-        # Key doesn't exist, so create it securely
-        _log.info('generating missing key file')
-        try:
-            fd = os.open(keyfile, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
-        except OSError as exc:
-            parser.error(str(exc))
-        try:
-            key = ''.join(curve_keypair())
-            os.write(fd, key)
-        finally:
-            os.close(fd)
+    if opts.developer_mode:
+        secretkey = None
+        _log.warning('developer mode enabled; '
+                     'authentication and encryption are disabled!')
     else:
-        if st.st_mode & (stat.S_IRWXG | stat.S_IRWXO):
-            _log.warning('insecure mode on key file')
-        if not st.st_size:
-            _log.warning('empty key file; VIP encryption is disabled!')
-            key = ''
+        keyfile = os.path.join(volttron_home, 'curve.key')
+        _log.debug('using key file %s', keyfile)
+        try:
+            st = os.stat(keyfile)
+        except OSError as exc:
+            if exc.errno != errno.ENOENT:
+                parser.error(str(exc))
+            # Key doesn't exist, so create it securely
+            _log.info('generating missing key file')
+            try:
+                fd = os.open(keyfile, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+            except OSError as exc:
+                parser.error(str(exc))
+            try:
+                key = ''.join(curve_keypair())
+                os.write(fd, key)
+            finally:
+                os.close(fd)
         else:
-            # Allow two extra bytes in case someone opened the file with
-            # a text editor and it appended '\n' or '\r\n'.
-            if not 80 <= st.st_size <= 82:
-                _log.warning('key file is wrong size; connections may fail')
-            with open(keyfile) as infile:
-                key = infile.read(80)
-    publickey = key[:40]
-    if publickey:
-        _log.info('public key: %r (%s)', publickey, encode_key(publickey))
-    secretkey = key[40:]
+            if st.st_mode & (stat.S_IRWXG | stat.S_IRWXO):
+                _log.warning('insecure mode on key file')
+            if not st.st_size:
+                _log.warning('empty key file; VIP encryption is disabled!')
+                key = ''
+            else:
+                # Allow two extra bytes in case someone opened the file with
+                # a text editor and it appended '\n' or '\r\n'.
+                if not 80 <= st.st_size <= 82:
+                    _log.warning('key file is wrong size; connections may fail')
+                with open(keyfile) as infile:
+                    key = infile.read(80)
+        publickey = key[:40]
+        if publickey:
+            _log.info('public key: %r (%s)', publickey, encode_key(publickey))
+        secretkey = key[40:]
 
     # The following line doesn't appear to do anything, but it creates
     # a context common to the green and non-green zmq modules.
@@ -589,7 +598,8 @@ def main(argv=sys.argv):
         # Ensure auth service is running before router
         auth_file = os.path.join(volttron_home, 'auth.json')
         auth = AuthService(
-            auth_file, opts.aip, address=address, identity='auth')
+            auth_file, opts.aip, address=address, identity='auth',
+            allow_any=opts.developer_mode)
         event = gevent.event.Event()
         auth_task = gevent.spawn(auth.core.run, event)
         event.wait()
