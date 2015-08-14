@@ -74,11 +74,12 @@ from zmq.green import ZMQError, EAGAIN
 from .decorators import annotate, annotations, dualmethod
 from .dispatch import Signal
 from .errors import VIPError
-from ...vip import green as vip
+from .. import green as vip
+from .. import router
 from .... import platform
 
 
-__all__ = ['Core', 'killing']
+__all__ = ['BasicCore', 'Core', 'killing']
 
 
 _log = logging.getLogger(__name__)
@@ -137,20 +138,9 @@ class ScheduledEvent(object):
         self.finished = True
 
 
-class Core(object):
-    def __init__(self, owner, address=None, identity=None, context=None):
-        if not address:
-            address = os.environ.get('VOLTTRON_VIP_ADDR')
-            if not address:
-                home = os.path.abspath(platform.get_home())
-                abstract = '@' if sys.platform.startswith('linux') else ''
-                address = 'ipc://%s%s/run/vip.socket' % (abstract, home)
-        self.context = context or zmq.Context.instance()
-        self.address = address
-        self.identity = identity
-        self.socket = None
+class BasicCore(object):
+    def __init__(self, owner):
         self.greenlet = None
-        self.subsystems = {'error': self.handle_error}
         self._async = None
         self._async_calls = []
         self._stop_event = None
@@ -160,7 +150,6 @@ class Core(object):
         self.onstart = Signal()
         self.onstop = Signal()
         self.onfinish = Signal()
-        self.onviperror = Signal()
 
         periodics = []
         def setup(member):   # pylint: disable=redefined-outer-name
@@ -185,21 +174,15 @@ class Core(object):
             del periodics[:]
         self.onstart.connect(start_periodics)
 
-    def register(self, name, handler, error_handler=None):
-        self.subsystems[name] = handler
-        if error_handler:
-            def onerror(sender, error, **kwargs):
-                if error.subsystem == name:
-                    error_handler(sender, error=error, **kwargs)
-            self.onviperror.connect(onerror)
-
-    def handle_error(self, message):
-        if len(message.args) < 4:
-            _log.debug('unhandled VIP error %s', message)
-        elif self.onviperror:
-            args = [bytes(arg) for arg in message.args]
-            error = VIPError.from_errno(*args)
-            self.onviperror.send(self, error=error, message=message)
+    def loop(self):
+        # pre-setup
+        yield
+        # pre-start
+        yield
+        # pre-stop
+        yield
+        # pre-finish
+        yield
 
     def run(self, running_event=None):   # pylint: disable=method-hidden
         '''Entry point for running agent.'''
@@ -213,30 +196,6 @@ class Core(object):
                 func, args, kwargs = calls.pop()
                 greenlet = gevent.spawn(func, *args, **kwargs)
                 current.link(lambda glt: greenlet.kill())
-
-        def vip_loop():
-            socket = self.socket
-            while True:
-                try:
-                    message = socket.recv_vip_object(copy=False)
-                except ZMQError as exc:
-                    if exc.errno == EAGAIN:
-                        continue
-                    raise
-
-                subsystem = bytes(message.subsystem)
-                try:
-                    handle = self.subsystems[subsystem]
-                except KeyError:
-                    _log.error('peer %r requested unknown subsystem %r',
-                               bytes(message.peer), subsystem)
-                    message.user = b''
-                    message.args = list(vip._INVALID_SUBSYSTEM)
-                    message.args.append(message.subsystem)
-                    message.subsystem = b'error'
-                    socket.send_vip_object(message, copy=False)
-                else:
-                    handle(message)
 
         def schedule_loop():
             heap = self._schedule
@@ -268,31 +227,35 @@ class Core(object):
         self._async.start(handle_async)
         current.link(lambda glt: self._async.stop())
 
-        self.socket = vip.Socket(self.context)
-        if self.identity:
-            self.socket.identity = self.identity
+        looper = self.loop()
+        looper.next()
+        _log.debug('setup')
         self.onsetup.send(self)
-        self.socket.connect(self.address)
 
-        loop = gevent.spawn(vip_loop)
-        current.link(lambda glt: loop.kill())
+        loop = looper.next()
+        _log.debug('start')
+        if loop:
+            current.link(lambda glt: loop.kill())
         scheduler = gevent.spawn(schedule_loop)
-        loop.link(lambda glt: scheduler.kill())
+        if loop:
+            loop.link(lambda glt: scheduler.kill())
         self.onstart.sendby(link_receiver, self)
         if running_event:
             running_event.set()
             del running_event
-        if loop in gevent.wait([loop, stop], count=1):
-            raise RuntimeError('VIP loop ended prematurely')
-        stop.wait()
+        try:
+            if loop and loop in gevent.wait([loop, stop], count=1):
+                raise RuntimeError('VIP loop ended prematurely')
+            stop.wait()
+        except (gevent.GreenletExit, KeyboardInterrupt):
+            pass
         scheduler.kill()
+        looper.next()
+        _log.debug('stop')
         receivers = self.onstop.sendby(link_receiver, self)
         gevent.wait(receivers)
-        try:
-            self.socket.disconnect(self.address)
-        except ZMQError as exc:
-            if exc.errno != ENOENT:
-                _log.exception('disconnect error')
+        looper.next()
+        _log.debug('finish')
         self.onfinish.send(self)
 
     def stop(self, timeout=None):
@@ -381,6 +344,81 @@ class Core(object):
             annotate(method, list, 'core.schedule', (deadline, args, kwargs))
             return method
         return decorate
+
+
+class Core(BasicCore):
+    def __init__(self, owner, address=None, identity=None, context=None):
+        if not address:
+            address = os.environ.get('VOLTTRON_VIP_ADDR')
+            if not address:
+                home = os.path.abspath(platform.get_home())
+                abstract = '@' if sys.platform.startswith('linux') else ''
+                address = 'ipc://%s%s/run/vip.socket' % (abstract, home)
+        super(Core, self).__init__(owner)
+        self.context = context or zmq.Context.instance()
+        self.address = address
+        self.identity = identity
+        self.socket = None
+        self.subsystems = {'error': self.handle_error}
+        self.onviperror = Signal()
+
+    def register(self, name, handler, error_handler=None):
+        self.subsystems[name] = handler
+        if error_handler:
+            def onerror(sender, error, **kwargs):
+                if error.subsystem == name:
+                    error_handler(sender, error=error, **kwargs)
+            self.onviperror.connect(onerror)
+
+    def handle_error(self, message):
+        if len(message.args) < 4:
+            _log.debug('unhandled VIP error %s', message)
+        elif self.onviperror:
+            args = [bytes(arg) for arg in message.args]
+            error = VIPError.from_errno(*args)
+            self.onviperror.send(self, error=error, message=message)
+
+    def loop(self):
+        # pre-setup
+        self.socket = vip.Socket(self.context)
+        if self.identity:
+            self.socket.identity = self.identity
+        yield
+        # pre-start
+        self.socket.connect(self.address)
+        def vip_loop():
+            socket = self.socket
+            while True:
+                try:
+                    message = socket.recv_vip_object(copy=False)
+                except ZMQError as exc:
+                    if exc.errno == EAGAIN:
+                        continue
+                    raise
+
+                subsystem = bytes(message.subsystem)
+                try:
+                    handle = self.subsystems[subsystem]
+                except KeyError:
+                    _log.error('peer %r requested unknown subsystem %r',
+                               bytes(message.peer), subsystem)
+                    message.user = b''
+                    message.args = list(router._INVALID_SUBSYSTEM)
+                    message.args.append(message.subsystem)
+                    message.subsystem = b'error'
+                    socket.send_vip_object(message, copy=False)
+                else:
+                    handle(message)
+        yield gevent.spawn(vip_loop)
+        # pre-stop
+        yield
+        # pre-finish
+        try:
+            self.socket.disconnect(self.address)
+        except ZMQError as exc:
+            if exc.errno != ENOENT:
+                _log.exception('disconnect error')
+        yield
 
 
 @contextmanager
