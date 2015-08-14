@@ -249,8 +249,6 @@ def actuator_agent(config_path, **kwargs):
             self.vip.rpc.call(driver_vip_identity, 'set_point', path, point_name, value)
             
             headers = self.get_headers(requester_id)
-            self.push_result_topic_pair(WRITE_ATTEMPT_PREFIX,
-                                        topic, headers, value)
             
             if self.check_lock(path, requester_id):
                 result = self.vip.rpc.call(driver_vip_identity, 'set_point', path, point_name, value).get()
