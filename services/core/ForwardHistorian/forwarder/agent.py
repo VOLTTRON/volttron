@@ -86,7 +86,7 @@ def historian(config_path, **kwargs):
     config = utils.load_config(config_path)
     
     destination_vip = config.get('destination-vip')
-    identity = config.get('identity', None)
+    identity = config.get('identity', kwargs.pop('identity', None))
             
     class ForwardHistorian(BaseHistorian):
         '''This historian forwards data to another platform.
