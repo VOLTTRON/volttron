@@ -71,6 +71,7 @@ from volttron.platform.vip.agent import *
 from volttron.platform.agent.base_historian import BaseHistorian
 from volttron.platform.agent import utils
 from volttron.platform.messaging import topics, headers as headers_mod
+from twisted.spread.pb import respond
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -90,16 +91,23 @@ def historian(config_path, **kwargs):
     
     uri = params.get('uri')
     assert uri
+    login_path = params.get('login_path')
+    assert login_path    
+    login_uri = uri + login_path
+    
     login = params.get('login')
     assert login
     password = params.get('login')
     assert password
+    # Auth will get passed to the server through the requests python framework.
+    auth = (login, password)
     
     datasets = config.get("dataset_definitions")
     assert datasets
     assert len(datasets) > 0
     
     identity = config.get('identity', None)
+    headers = {'content-type': 'application/json'}
         
     class OpenEISHistorian(BaseHistorian):
         '''This is a simple example of a historian agent that writes stuff
@@ -110,14 +118,78 @@ def historian(config_path, **kwargs):
         @Core.receiver("onstart")
         def starting(self, sender, **kwargs):
             
-            print('Starting address: {} identity: {}'.format(self.core.address, self.core.identity))
-                        
+            print('Starting address: {} identity: {}'.format(self.core.address, 
+                                                             self.core.identity))
+            auth = (login, password)
+            project_payload = {'name': 'resttest'}
+            response = requests.post('{host}/api/projects'.format(host=uri), data=project_payload,
+                         auth=auth)
+            pprint(response)
+            data = {"TimeStamp":"5/19/2012 5:25",
+                    "OutsideAirTemp": 48.78}
+            
+            print(dataset_uri)
+            response = requests.put(dataset_uri+'/2', data=data, auth=auth)
+            #resp = requests.post(login_uri, data=data)
+            pprint(response)
             # TODO construct topic map from dataset dictionary.
             #self.topic_map = self.reader.get_topic_map()
 
         def publish_to_historian(self, to_publish_list):
             _log.debug("publish_to_historian number of items: {}"
                        .format(len(to_publish_list)))
+            
+            payload={'username': login, 'password': password}
+            resp = requests.post(login_uri, auth=auth, headers=headers, 
+                                 data=jsonapi.dumps(payload), verify=False)
+            
+            dataset_uri = uri + "/api/datasets/append"
+            
+            # Build a paylooad for each of the points in each of the dataset
+            # definitions.
+            for dsk, dsv in datasets.items():
+                ds_id = dsv["dataset_id"]
+                ds_points = dsv['points'] #[unicode(p) for p in dsv['points']] 
+                
+                point_map = {}
+                for to_pub in to_publish_list:
+                    #print("to_pub['topic'] in ds_points: ",to_pub['topic'] in ds_points) 
+                    pprint(ds_points)
+                    
+                    for k in ds_points:
+                        if to_pub['topic'] in k.keys():
+                            openeis_sensor = k[to_pub['topic']]
+                            if not openeis_sensor in point_map:
+                                point_map[openeis_sensor] = []
+                                
+                            point_map[openeis_sensor].append([to_pub['timestamp'],
+                                                               to_pub['value']])
+                        
+                payload = { 'dataset_id': ds_id,
+                           'point_map': point_map}
+                payload = jsonapi.dumps(payload, 
+                                        default=datetime.datetime.isoformat)
+                print(payload)
+                #resp = requests.post(login_uri, auth=auth)
+                resp = requests.put(dataset_uri, verify=False, headers=headers, 
+                                    data=payload)
+                pprint(payload)
+                
+                
+            
+            pprint(to_publish_list)
+            '''
+            Transform the to_publish_list into a dictionary like the following
+            
+            dataset_extension = {
+                "dataset_id": dataset_id,
+                "point_map": 
+                {
+                    "New building/WholeBuildingPower": [["2/5/2014 10:00",48.78], ["2/5/2014 10:05",50.12], ["2/5/2014 10:10",48.54]],
+                    "New building/OutdoorAirTemperature": [["2/5/2014 10:00",48.78], ["2/5/2014 10:05",10.12], ["2/5/2014 10:10",48.54]]
+                }
+            }
+            '''
             
             # load a topic map if there isn't one yet.
 #             try:
