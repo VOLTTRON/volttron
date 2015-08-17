@@ -8,7 +8,7 @@ fi
 COMMAND_ARGS=""
 
 if [ ! -z "$VIP_ADDRESS" ]; then
-  COMMAND_ARGS="$COMMAND_ARGS --vip-addres $VIP_ADDRESS"
+  COMMAND_ARGS="$COMMAND_ARGS --vip-address $VIP_ADDRESS"
   echo "Using VIP_ADDRESS: $VIP_ADDRESS";
 fi
 
