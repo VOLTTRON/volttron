@@ -1,4 +1,9 @@
-#!/usr/bin/env bash
+# Requrie the TAG variable to be set.
+if [ -z "$TAG" ]; then
+  echo "The agent tag must be set.";
+  exit 0
+fi
+
 
 COMMAND_ARGS=""
 
@@ -7,13 +12,13 @@ if [ ! -z "$VIP_ADDRESS" ]; then
   echo "Using VIP_ADDRESS: $VIP_ADDRESS";
 fi
 
-COMMAND="volttron-ctl $COMMAND_ARGS"
+COMMAND="volttron-ctl"
 
-START="$COMMAND start"
-STOP="$COMMAND stop"
-REMOVE="$COMMAND remove"
-ENABLE="$COMMAND enable"
-DISABLE="$COMMAND disable"
+START="$COMMAND start --tag $TAG $COMMAND_ARGS"
+STOP="$COMMAND stop --tag $TAG $COMMAND_ARGS"
+REMOVE="$COMMAND remove $COMMAND_ARGS"
+ENABLE="$COMMAND enable $COMMAND_ARGS"
+DISABLE="$COMMAND disable $COMMAND_ARGS"
 
 
 
@@ -41,11 +46,6 @@ if [ -z "$CONFIG" ]; then
   exit 0
 fi
 
-# Allow the TAG variable to be set.
-if [ -z "$TAG" ]; then
-  echo "The agent tag must be set.";
-  exit 0
-fi
 
 # Attempt to remove the agent by the tag.
 SCRIPTS_CORE="./scripts/core"
@@ -53,7 +53,7 @@ SCRIPTS_CORE="./scripts/core"
 
 #TODO: put this into a script on its own
 
-$STOP --tag $TAG
+$STOP
 $DISABLE --tag $TAG
 $REMOVE --tag $TAG
 
@@ -63,10 +63,11 @@ PACK="$SCRIPTS_CORE/pack_install.sh"
 echo $PACK $SOURCE $CONFIG $TAG
 # Install and start HIST.
 $PACK $SOURCE $CONFIG $TAG
-$START --tag $TAG
+
+echo "$START --tag $TAG"
+$START
 
 if [ "$1" = "enable" ]
 then
     $ENABLE --tag $TAG
 fi
-
