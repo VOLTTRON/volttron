@@ -368,7 +368,13 @@ class BaseHistorianAgent(Agent):
                 if not to_publish_list:
                     break
                 
-                self.publish_to_historian(to_publish_list)
+                try:
+                    self.publish_to_historian(to_publish_list)
+                except Exception as exp:
+                    _log.error("An unhandled exception has occured while " \
+                               "publishing to historian.")
+                    _log.exception(exp)
+                
                 if not self._any_sucessfull_publishes():
                     break
                 self._cleanup_successful_publishes()
@@ -513,7 +519,11 @@ class BaseHistorianAgent(Agent):
         self._connection.commit()
 
     def report_published(self, record):
-        self._successful_published.add(record['_id'])
+        if isinstance(record, list):
+            for x in record:
+                self._successful_published.add(x['_id'])
+        else:
+            self._successful_published.add(record['_id'])
 
     def report_all_published(self):
         self._successful_published.add(None)
