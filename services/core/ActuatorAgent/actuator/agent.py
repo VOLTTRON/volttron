@@ -101,12 +101,14 @@ def actuator_agent(config_path, **kwargs):
     preempt_grace_time = config.get('preempt_grace_time', 60)
     driver_vip_identity=config.get('driver_vip_identity', 'platform.driver')
     vip_identity = config.get('vip_identity', 'platform.actuator')
+    #This agent needs to be named platform.actuator. Pop the uuid id off the kwargs
+    kwargs.pop('identity', None)
     
     class ActuatorAgent(Agent):
         '''Agent to listen for requests to talk to the sMAP driver.'''
 
         def __init__(self, **kwargs):
-            super(ActuatorAgent, self).__init__(identity=vip_identity, **kwargs)
+            super(ActuatorAgent, self).__init__(**kwargs)
             _log.debug("vip_identity: "+vip_identity)
             
             self._update_event = None
@@ -395,7 +397,7 @@ def actuator_agent(config_path, **kwargs):
             topic = normtopic('/'.join([prefix, point]))
             self.vip.pubsub.publish('pubsub', topic, headers, message = args)
 
-    return ActuatorAgent(**kwargs)
+    return ActuatorAgent(identity=vip_identity,**kwargs)
 
 
 def main(argv=sys.argv):

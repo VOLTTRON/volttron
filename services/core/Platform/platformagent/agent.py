@@ -100,12 +100,13 @@ def platform_agent(config_path, **kwargs):
     vc_vip_identity = config.get('volttron_central_vip_identity',
                                  "volttron.central")
     vip_identity = config.get('vip_identity', 'platform.agent')
+    kwargs.pop('identity',None)
 
     class PlatformAgent(Agent):
 
-        def __init__(self, identity=vip_identity, vc_vip_address=vc_vip_address,
+        def __init__(self, vc_vip_address=vc_vip_address,
                      vc_vip_identity=vc_vip_address, **kwargs):
-            super(PlatformAgent, self).__init__(identity, **kwargs)
+            super(PlatformAgent, self).__init__(**kwargs)
             self.vc_vip_identity = vc_vip_identity
             self.vc_vip_address = vc_vip_address
 

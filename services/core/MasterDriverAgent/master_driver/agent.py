@@ -89,11 +89,13 @@ def master_driver_agent(config_path, **kwargs):
             return config.get(name, default)
 
     vip_identity = get_config('vip_identity', 'platform.driver')
+    #pop the uuid based id
+    kwargs.pop('identity', None)
     driver_config_list = get_config('driver_config_list')
 
     class MasterDriverAgent(Agent):
         def __init__(self, **kwargs):
-            super(MasterDriverAgent, self).__init__(identity=vip_identity, **kwargs)
+            super(MasterDriverAgent, self).__init__(**kwargs)
             self.driver_peers = {}
             
         @Core.receiver('onstart')
@@ -140,7 +142,7 @@ def master_driver_agent(config_path, **kwargs):
             pass
                 
             
-    return MasterDriverAgent(**kwargs)
+    return MasterDriverAgent(identity=vip_identity, **kwargs)
 
 
 

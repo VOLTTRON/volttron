@@ -91,7 +91,7 @@ def historian(config_path, **kwargs):
     assert databaseType is not None
     params = connection.get('params', None)
     assert params is not None
-    identity = config.get('identity', None)
+    identity = config.get('identity', kwargs.pop('identity', None))
 
     if databaseType == 'sqlite':
         from .db.sqlitefuncts import SqlLiteFuncts as DbFuncts
@@ -169,7 +169,7 @@ def historian(config_path, **kwargs):
 
                 self.writer.insert_data(ts,topic_id, value)
 
-            print('published {} data values:'.format(len(to_publish_list)))
+            _log.debug('published {} data values:'.format(len(to_publish_list)))
             self.report_all_published()
 
         def query_topic_list(self):
