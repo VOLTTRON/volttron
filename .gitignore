@@ -13,3 +13,4 @@
 /twistd.pid
 /.settings
 /build
+/configs/
