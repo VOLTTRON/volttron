@@ -59,7 +59,6 @@
 from setuptools import setup, find_packages
 
 packages = find_packages('.')
-print packages
 package = packages[0]
 
 setup(
@@ -69,7 +68,7 @@ setup(
     packages = packages,
     entry_points = {
         'setuptools.installation': [
-            'eggsecutable = ' + package + '.publisher:main',
+            'eggsecutable = ' + package + '.publisher3:main',
         ]
     }
 )
