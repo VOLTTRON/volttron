@@ -91,13 +91,11 @@ def historian(config_path, **kwargs):
     
     uri = params.get('uri')
     assert uri
-    login_path = params.get('login_path')
-    assert login_path    
-    login_uri = uri + login_path
-    
+       
     login = params.get('login')
     assert login
-    password = params.get('login')
+
+    password = params.get('password')
     assert password
     # Auth will get passed to the server through the requests python framework.
     auth = (login, password)
@@ -106,7 +104,11 @@ def historian(config_path, **kwargs):
     assert datasets
     assert len(datasets) > 0
     
+    # This allows us to switch the identity based upon the param in the config
+    # file.
     identity = config.get('identity', None)
+    if identity:
+        kwargs['identity'] = identity
     headers = {'content-type': 'application/json'}
         
     class OpenEISHistorian(BaseHistorian):
