@@ -112,39 +112,34 @@ def historian(config_path, **kwargs):
     headers = {'content-type': 'application/json'}
         
     class OpenEISHistorian(BaseHistorian):
-        '''This is a simple example of a historian agent that writes stuff
-        to a SQLite database. It is designed to test some of the functionality
-        of the BaseHistorianAgent.
+        '''An OpenEIS historian which allows the publishing of dynamic.
+        
+        This historian publishes to an openeis instance with the following 
+        example json payload:
+        
+        dataset_extension = {
+            "dataset_id": dataset_id,
+            "point_map": 
+            {
+                "New building/WholeBuildingPower": [["2/5/2014 10:00",48.78], ["2/5/2014 10:05",50.12], ["2/5/2014 10:10",48.54]],
+                "New building/OutdoorAirTemperature": [["2/5/2014 10:00",48.78], ["2/5/2014 10:05",10.12], ["2/5/2014 10:10",48.54]]
+            }
+        }
+        
+        The dataset must exist on the openeis webserver.  The mapping (defined)
+        in the configuration file must include both the input (from device)
+        topic and output (openeis schema topic).  See openeis.historian.config
+        for a full description of how those are specified in the coniguration
+        file.
+        
+        This service will publish to server/api/datasets/append endpoint.
         '''
-
-        @Core.receiver("onstart")
-        def starting(self, sender, **kwargs):
-            
-            print('Starting address: {} identity: {}'.format(self.core.address, 
-                                                             self.core.identity))
-            auth = (login, password)
-            project_payload = {'name': 'resttest'}
-            response = requests.post('{host}/api/projects'.format(host=uri), data=project_payload,
-                         auth=auth)
-            pprint(response)
-            data = {"TimeStamp":"5/19/2012 5:25",
-                    "OutsideAirTemp": 48.78}
-            
-            print(dataset_uri)
-            response = requests.put(dataset_uri+'/2', data=data, auth=auth)
-            #resp = requests.post(login_uri, data=data)
-            pprint(response)
-            # TODO construct topic map from dataset dictionary.
-            #self.topic_map = self.reader.get_topic_map()
-
+        
         def publish_to_historian(self, to_publish_list):
             _log.debug("publish_to_historian number of items: {}"
                        .format(len(to_publish_list)))
             
-            payload={'username': login, 'password': password}
-            resp = requests.post(login_uri, auth=auth, headers=headers, 
-                                 data=jsonapi.dumps(payload), verify=False)
-            
+            #pprint(to_publish_list)
             dataset_uri = uri + "/api/datasets/append"
             
             # Build a paylooad for each of the points in each of the dataset
@@ -154,32 +149,35 @@ def historian(config_path, **kwargs):
                 ds_points = dsv['points'] #[unicode(p) for p in dsv['points']] 
                 
                 point_map = {}
+                try_publish = []
                 for to_pub in to_publish_list:
-                    #print("to_pub['topic'] in ds_points: ",to_pub['topic'] in ds_points) 
-                    pprint(ds_points)
-                    
                     for k in ds_points:
                         if to_pub['topic'] in k.keys():
+                            try_publish.append(to_pub)
                             openeis_sensor = k[to_pub['topic']]
                             if not openeis_sensor in point_map:
                                 point_map[openeis_sensor] = []
                                 
                             point_map[openeis_sensor].append([to_pub['timestamp'],
                                                                to_pub['value']])
+                        else:
+                            err = 'Point {topic} was not found in point map.' \
+                                    .format(**to_pub)
+                            _log.error(err)
                         
-                payload = { 'dataset_id': ds_id,
-                           'point_map': point_map}
-                payload = jsonapi.dumps(payload, 
-                                        default=datetime.datetime.isoformat)
-                print(payload)
-                #resp = requests.post(login_uri, auth=auth)
-                resp = requests.put(dataset_uri, verify=False, headers=headers, 
-                                    data=payload)
-                pprint(payload)
-                
-                
-            
-            pprint(to_publish_list)
+                    if len(point_map) > 0:
+                        payload = { 'dataset_id': ds_id,
+                                   'point_map': point_map}
+                        payload = jsonapi.dumps(payload, 
+                                                default=datetime.datetime.isoformat)
+                        print(payload)
+                        #resp = requests.post(login_uri, auth=auth)
+                        resp = requests.put(dataset_uri, verify=False, headers=headers, 
+                                            data=payload)
+                        if resp.status_code == requests.codes.ok:
+                            
+                            self.report_published(try_publish)
+                        
             '''
             Transform the to_publish_list into a dictionary like the following
             
@@ -191,38 +189,7 @@ def historian(config_path, **kwargs):
                     "New building/OutdoorAirTemperature": [["2/5/2014 10:00",48.78], ["2/5/2014 10:05",10.12], ["2/5/2014 10:10",48.54]]
                 }
             }
-            '''
-            
-            # load a topic map if there isn't one yet.
-#             try:
-#                 self.topic_map.items()
-#             except:
-#                 self.topic_map = self.reader.get_topic_map()
-# 
-#             for x in to_publish_list:
-#                 ts = x['timestamp']
-#                 topic = x['topic']
-#                 value = x['value']
-#                 # look at the topics that are stored in the database already
-#                 # to see if this topic has a value
-#                 topic_id = self.topic_map.get(topic)
-# 
-#                 if topic_id is None:
-#                     row  = self.writer.insert_topic(topic)
-#                     topic_id = row[0]
-#                     self.topic_map[topic] = topic_id
-# 
-#                 self.writer.insert_data(ts,topic_id, value)
-# 
-#             print('published {} data values:'.format(len(to_publish_list)))
-#             self.report_all_published()
-
-#         def query_topic_list(self):
-#             if len(self.topic_map) > 0:
-#                 return self.topic_map.keys()
-#             else:
-#                 # No topics present.
-#                 return []
+            '''           
 
         def query_historian(self, topic, start=None, end=None, skip=0,
                             count=None, order="FIRST_TO_LAST"):
@@ -233,7 +200,7 @@ def historian(config_path, **kwargs):
             pass
 
     OpenEISHistorian.__name__ = 'OpenEISHistorian'
-    return OpenEISHistorian(identity=identity, **kwargs)
+    return OpenEISHistorian(**kwargs)
 
 
 
