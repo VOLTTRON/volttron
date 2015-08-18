@@ -513,7 +513,11 @@ class BaseHistorianAgent(Agent):
         self._connection.commit()
 
     def report_published(self, record):
-        self._successful_published.add(record['_id'])
+        if isinstance(record, list):
+            for x in record:
+                self._successful_published.add(x['_id'])
+        else:
+            self._successful_published.add(record['_id'])
 
     def report_all_published(self):
         self._successful_published.add(None)
