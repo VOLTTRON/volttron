@@ -473,7 +473,6 @@ class BaseHistorianAgent(Agent):
         else:
             temp = list(self._successful_published)
             temp.sort()
-            pprint(temp)
             c.executemany('''DELETE FROM outstanding
                             WHERE id = ?''',
                             ((_id,) for _id in
