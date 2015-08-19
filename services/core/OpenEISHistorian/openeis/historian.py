@@ -65,6 +65,7 @@ import uuid
 
 import gevent
 import requests
+from requests import ConnectionError
 from zmq.utils import jsonapi
 
 from volttron.platform.vip.agent import *
@@ -146,37 +147,47 @@ def historian(config_path, **kwargs):
             # definitions.
             for dsk, dsv in datasets.items():
                 ds_id = dsv["dataset_id"]
-                ds_points = dsv['points'] #[unicode(p) for p in dsv['points']] 
+                ds_points = dsv['points'] #[unicode(p) for p in dsv['points']]
+                ignore_unmapped = dsv.get('ignore_unmapped_points', 0) 
                 
                 point_map = {}
                 try_publish = []
                 for to_pub in to_publish_list:
-                    for k in ds_points:
-                        if to_pub['topic'] in k.keys():
+                    for point in ds_points:                      
+                        if to_pub['topic'] in point.keys():
                             try_publish.append(to_pub)
-                            openeis_sensor = k[to_pub['topic']]
+                            # gets the value of the sensor for publishing.
+                            openeis_sensor = point[to_pub['topic']]
                             if not openeis_sensor in point_map:
                                 point_map[openeis_sensor] = []
                                 
                             point_map[openeis_sensor].append([to_pub['timestamp'],
                                                                to_pub['value']])
                         else:
-                            err = 'Point {topic} was not found in point map.' \
+                            if ignore_unmapped:
+                                self.report_published(to_pub)
+                            else:
+                                err = 'Point {topic} was not found in point map.' \
                                     .format(**to_pub)
-                            _log.error(err)
+                                _log.error(err)
+                                
+                    #pprint(point_map)
                         
-                    if len(point_map) > 0:
-                        payload = { 'dataset_id': ds_id,
-                                   'point_map': point_map}
-                        payload = jsonapi.dumps(payload, 
-                                                default=datetime.datetime.isoformat)
-                        print(payload)
+                if len(point_map) > 0:
+                    payload = { 'dataset_id': ds_id,
+                               'point_map': point_map}
+                    payload = jsonapi.dumps(payload, 
+                                            default=datetime.datetime.isoformat)
+                    try:
                         #resp = requests.post(login_uri, auth=auth)
                         resp = requests.put(dataset_uri, verify=False, headers=headers, 
                                             data=payload)
-                        if resp.status_code == requests.codes.ok:
-                            
+                        if resp.status_code == requests.codes.ok:                       
                             self.report_published(try_publish)
+                    except ConnectionError:
+                        _log.error('Unable to connect to openeis at {}'.format(uri))
+                        return
+                        
                         
             '''
             Transform the to_publish_list into a dictionary like the following
