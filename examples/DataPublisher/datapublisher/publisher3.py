@@ -160,7 +160,12 @@ def DataPub(config_path, **kwargs):
             now = datetime.datetime.now().isoformat(' ')
             
             if not self._src_file_handle.closed:
-                data = self._reader.next()
+                try:
+                    data = self._reader.next()
+                except StopIteration:
+                    self._src_file_handle.close()
+                    self._src_file_handle = None
+                    return
                 
                 # break out if no data is left to be found.
                 if not data:
