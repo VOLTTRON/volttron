@@ -85,15 +85,30 @@ __license__ = 'FreeBSD'
 
 def DataPub(config_path, **kwargs):
     '''Emulate device driver to publish data and Actuatoragent for testing.
+    
+    The first column in the data file must be the timestamp and it is not 
+    published to the bus unless the config option: 
+        'maintain_timestamp' - True will allow the publishing of specified 
+                                   timestamps.
+                               False will use the current now time and publish 
+                                   using it.
+                                
     '''
     conf = utils.load_config(config_path)
+    has_timestamp = conf.get('has_timestamp', 1)
+    maintain_timestamp = conf.get('maintain_timestamp', 0)
+    if maintain_timestamp and not has_timestamp:
+        raise ValueError(
+            'If no timestamp is specified then maintain_timestamp cannot be specified.')
     custom_topic = conf.get('custom_topic', 0)
     pub_interval = float(conf.get('publish_interval', 10))
+    dev_list = None
     if not custom_topic:
         device_path = (
             ''.join([conf.get('campus'), '/', conf.get('building'), '/']))
         BASETOPIC = conf.get('basetopic')
         dev_list = conf['unit']
+        
         
     path = conf.get('input_file')
     if not os.path.exists(path):
@@ -105,6 +120,7 @@ def DataPub(config_path, **kwargs):
         subdevices = True
     else:
         subdevices = False
+        
 
     class Publisher(Agent):
         '''Simulate real device.  Publish csv data to message bus.
@@ -144,7 +160,12 @@ def DataPub(config_path, **kwargs):
             now = datetime.datetime.now().isoformat(' ')
             
             if not self._src_file_handle.closed:
-                data = self._reader.next()
+                try:
+                    data = self._reader.next()
+                except StopIteration:
+                    self._src_file_handle.close()
+                    self._src_file_handle = None
+                    return
                 
                 # break out if no data is left to be found.
                 if not data:
@@ -152,7 +173,14 @@ def DataPub(config_path, **kwargs):
                     self._src_file_handle = None
                     return
                 
-                headers = {HEADER_NAME_DATE: now}
+                if maintain_timestamp:
+                    headers = {HEADER_NAME_DATE: data[0]}
+                else:
+                    headers = {HEADER_NAME_DATE: now}
+                
+                if has_timestamp:
+                    del data[self._reader._fieldnames[0]]
+                
                 mytopic = ''.join([BASETOPIC, '/', device_path, 'all'])
                 self.vip.pubsub.publish(peer='pubsub',
                                         topic=mytopic,
