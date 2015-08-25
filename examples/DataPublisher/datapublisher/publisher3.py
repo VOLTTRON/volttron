@@ -106,7 +106,10 @@ def DataPub(config_path, **kwargs):
     if not custom_topic:
         device_path = (
             ''.join([conf.get('campus'), '/', conf.get('building'), '/']))
+        
         BASETOPIC = conf.get('basetopic')
+        # device root is the root of the publishing tree.
+        device_root = ''.join([BASETOPIC, '/', device_path])
         dev_list = conf['unit']
         
         
@@ -114,13 +117,28 @@ def DataPub(config_path, **kwargs):
     if not os.path.exists(path):
         raise ValueError('Invalid input file specified.')
     
-    # Enable subdevices if unit is a dictionary
+    # if unit is a string then there aren't any subdevices and we
+    # just use the name of the device as is.
     unit = conf.get('unit')
+    
+    # If thie unit is a dictionary then the device
     if isinstance(unit, dict):
-        subdevices = True
-    else:
-        subdevices = False
-        
+        # header point map maps the prefix of a column in the csv file to 
+        # the relative container.  For example if the csv file column in
+        # question is FCU13259_Heating and FCU13259 is under an rtu5 then
+        # the key FCU13259 would map to rtu5/FCU13259.  This will make it
+        # trivial later to append the sensor_name Heating to the relative
+        # point to publish the value.
+        header_point_map = {}        
+        for prefix, v in unit.items():
+            # will allow publishing under root level items such
+            # as rtu5_Compensator to rtu5/Compensator
+            header_point_map[prefix] = prefix
+            
+            for prefix2 in v['subdevices']:
+                # will allow publishing to subdevices such as
+                # FCU13259_HeatingSignal to rtu5/FCU13259/HeatingSignal
+                header_point_map[prefix2] = '/'.join([prefix, prefix2])       
 
     class Publisher(Agent):
         '''Simulate real device.  Publish csv data to message bus.
@@ -159,7 +177,9 @@ def DataPub(config_path, **kwargs):
             _data = {}
             now = datetime.datetime.now().isoformat(' ')
             
-            if not self._src_file_handle.closed:
+            if self._src_file_handle != None \
+                and not self._src_file_handle.closed:
+                
                 try:
                     data = self._reader.next()
                 except StopIteration:
@@ -181,74 +201,58 @@ def DataPub(config_path, **kwargs):
                 if has_timestamp:
                     del data[self._reader._fieldnames[0]]
                 
-                mytopic = ''.join([BASETOPIC, '/', device_path, 'all'])
-                self.vip.pubsub.publish(peer='pubsub',
-                                        topic=mytopic,
-                                        message=[data],
-                                        headers=headers)                    
-                return
-                if line:
-                    # Create 'all' message
-                    for i in xrange(0, len(self._headers)):
-                        _data[self._headers[i]] = data[i]
-                    if custom_topic:
-                        # data_dict = jsonapi.dumps(_data)
-                        self.publish_json(
-                            custom_topic,
-                            {HEADER_NAME_DATE: now}, _data)
-                        return
+                # internal method to simply publish a point at a given level.
+                def publish_point(topic, point, data):
+                    # makesure topic+point gives a true value.
+                    if not topic.endswith('/') and not point.startswith('/'):
+                        topic += '/'
+                        
+                    self.vip.pubsub.publish(peer='pubsub',
+                                            topic=topic+point,
+                                            message=data,
+                                            headers=headers)
                     
+                # if a string then topics are straing path using device path and
+                # the data point.
+                if isinstance(unit, str):
+                    # publish the individual points
+                    for k, v in data.items():
+                        publish_point(device_root, k, v)
                     
-                    sub_dev = {}
-                    device_dict = {}
-                    for _k, _v in dev_list.items():
-                        for k, val in _data.items():
-                            if k.startswith(_k):
-                                pub_k = k[len(_k):]
-                                device_dict.update({pub_k.split('_')[1]: val})
-                                cur_top = (''.join([BASETOPIC, '/',
-                                                    device_path,
-                                                    _k, '/',
-                                                    pub_k.split('_')[1]]))
-                                self.publish_json(
-                                    cur_top,
-                                    {HEADER_NAME_DATE: now}, val)
-                    # device_dict = jsonapi.dumps(device_dict)
-                        if device_dict:
-                            self.publish_json(
-                                BASETOPIC + '/' + device_path + _k + '/all',
-                                {HEADER_NAME_DATE: now}, device_dict)
-                        for sub in dev_list[_k][dev_list[_k].keys()[0]]:
-                            for k, val in _data.items():
-                                if k.startswith(sub):
-                                    pub_k = k[len(sub):]
-                                    sub_dev.update({pub_k.split('_')[1]: val})
-                                    cur_top = (''.join([BASETOPIC, '/',
-                                                        device_path,
-                                                        _k, '/', sub, '/',
-                                                        pub_k.split('_')[1]]))
-                                    self.publish_json(
-                                        cur_top,
-                                        {HEADER_NAME_DATE: now}, val)
-                                    # device_dict = jsonapi.dumps(device_dict)
-                            if sub_dev:
-                                topic = (''.join([BASETOPIC, '/', device_path,
-                                                  _k, '/', sub, '/all']))
-                                self.publish_json(
-                                    topic,
-                                    {HEADER_NAME_DATE: now}, sub_dev)
-                                sub_dev = {}
-                        device_dict = {}
+                    # publish the all point
+                    publish_point(device_root, 'all', [data])
+                   
+                     
                 else:
-                    self._src_file_handle.close()
+                    # dictionary of "all" level containers.
+                    all_publish = {}
+                    # Loop over data from the csv file.
+                    for sensor, value in data.items():
+                        # Loop over mapping from the config file
+                        for prefix, container in header_point_map.items():
+                            if sensor.startswith(prefix):
+                                sensor_prefix, sensor_name = sensor.split('_')
+                                publish_point(device_root+container, sensor_name, value)
+                                                               
+                                if not container in all_publish.keys():
+                                    all_publish[container] = []
+                                all_publish[container].append({sensor_name: value})
+                                
+                                # move on to the next data point in the file.
+                                break
+                                
+                    
+                    for all, values in all_publish.items():
+                        publish_point(device_root, all+"/all", values)
+        
+                
             else:
-                self.publish_json(
-                    'heartbeat/DataPublisher',
-                    {
-                        'AgentID': self._agent_id,
-                        HEADER_NAME_DATE: now,
-                    },
-                    now)
+                # Publish heartbeat on a topic.
+                self.vip.pubsub.publish(peer='pubsub', 
+                                        topic= 'heartbeat/DataPublisherv3',
+                                        headers= {'AgentID': self._agent_id,
+                                                  HEADER_NAME_DATE: now},
+                                        message = now)
 
         #def capture_log_data(self, peer, sender, bus, topic, headers, message):
         #@matching.match_regex(topics.ACTUATOR_SET() + '/(.+)')
