@@ -54,7 +54,7 @@
 
 #}}}
 
-
+import calendar
 import datetime
 import logging
 import requests
@@ -137,7 +137,7 @@ def SMAPHistorianAgent(config_path, **kwargs):
 
                 meta = item['meta']
 
-                if meta['type'] not in ('float', 'double', 'bool', 'integer'):
+                if meta['type'] not in ('float', 'double', 'boolean', 'integer'):
                     _log.warn('Ignoring point due to invalid type: {}'
                               .format(item))
 
@@ -147,7 +147,7 @@ def SMAPHistorianAgent(config_path, **kwargs):
                     continue
 
                 # Auto convert bools to ints for smap.
-                if meta['type'] == 'bool':
+                if meta['type'] == 'boolean':
                     item['value'] = int(item['value'])
                     meta['type'] = 'integer'
 
@@ -185,25 +185,27 @@ def SMAPHistorianAgent(config_path, **kwargs):
                         meta['tz'] = str(mydt.tzinfo)
                     else:
                        mytz = timezone(meta['tz'])
-                       mydt = mydt.astimezone(mytz)
-
+                       mydt = mydt.astimezone(pytz.UTC)
+#                        mydt = mydt.astimezone(mytz)
+                #Smap wants UTC. Take date to UTC and we should have saved original TZ
+                
 
                         
                 
             #    utc = item['timestamp']
             #    mytz = timezone(meta['tz'])
             #    mydt = utc.astimezone(mytz)
-
+#                 meta.pop('tz',None)
                 publish[topic] = \
                 {'Metadata': meta,
                  'Properties': {'Timezone': meta['tz'],
                                 'UnitofMeasure': meta['units'],
                                 'ReadingType': meta['type']
                                },
-                 'Readings': [[int(mydt.strftime("%s000")), item['value']]],
+                 'Readings': [[calendar.timegm(mydt.utctimetuple())*1000, item['value']]],
                  'uuid': item_uuid
                 }
-            
+                
             response = requests.post(_add_url, data=jsonapi.dumps(publish),verify=False)
             
             if response.ok:
@@ -227,8 +229,8 @@ def SMAPHistorianAgent(config_path, **kwargs):
             payload = ('select uuid where Metadata/SourceName="{source}"'
                        .format(source=source))
 
-            resp = requests.post("{url}/backend/api/query"
-                                 .format(url=archiver_url), data=payload,verify=False)
+            resp = requests.post("{url}/backend/api/query?key={key}"
+                                 .format(url=archiver_url, key=_config['key']), data=payload,verify=False)
 
             # get dictionary of response
             response = jsonapi.loads(resp.text)
