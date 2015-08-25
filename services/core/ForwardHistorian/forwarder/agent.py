@@ -158,12 +158,15 @@ def historian(config_path, **kwargs):
 #                                         topic=topic,
 #                                         message=message)
 
-            self._target_platform.vip.pubsub.publish(peer='pubsub',
+            with gevent.Timeout(30):
+                try:
+                    self._target_platform.vip.pubsub.publish(peer='pubsub',
                                     topic=base_topic,
-                                    message=datalog)
-
-
-            self.report_all_published()
+                                    message=datalog).get()
+                except gevent.Timeout:
+                    pass
+                else: 
+                    self.report_all_published()
 
         def query_topic_list(self):
             if len(self.topic_map) > 0:
