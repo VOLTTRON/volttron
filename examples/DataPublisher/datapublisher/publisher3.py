@@ -220,9 +220,7 @@ def DataPub(config_path, **kwargs):
                         publish_point(device_root, k, v)
                     
                     # publish the all point
-                    publish_point(device_root, 'all', [data])
-                   
-                     
+                    publish_point(device_root, 'all', [data])                     
                 else:
                     # dictionary of "all" level containers.
                     all_publish = {}
@@ -235,15 +233,15 @@ def DataPub(config_path, **kwargs):
                                 publish_point(device_root+container, sensor_name, value)
                                                                
                                 if not container in all_publish.keys():
-                                    all_publish[container] = []
-                                all_publish[container].append({sensor_name: value})
+                                    all_publish[container] = {}
+                                all_publish[container][sensor_name] = value
                                 
                                 # move on to the next data point in the file.
                                 break
                                 
                     
                     for all, values in all_publish.items():
-                        publish_point(device_root, all+"/all", values)
+                        publish_point(device_root, all+"/all", [values])
         
                 
             else:
