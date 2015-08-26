@@ -78,7 +78,7 @@ from volttron.platform.messaging import topics, headers as headers_mod
 _log = logging.getLogger(__name__)
 
 ACTUATOR_TOPIC_PREFIX_PARTS = len(topics.ACTUATOR_VALUE.split('/'))
-ALL_REX = re.compile('.*all$')
+ALL_REX = re.compile('.*/all$')
 
 class BaseHistorianAgent(Agent):
     '''This is the base agent for historian Agents.
@@ -192,14 +192,23 @@ class BaseHistorianAgent(Agent):
                 continue
             units = item['Units']
             dtype = item.get('data_type', 'float')
+            tz = item.get('tz', None)
             if dtype == 'double':
                 dtype = 'float'
 
             meta = {'units': units, 'type': dtype}
 
             readings = item['Readings']
+
             if not isinstance(readings, list):
                 readings = [(datetime.utcnow(), readings)]
+            elif isinstance(readings[0],str):
+                my_ts, my_tz = process_timestamp(readings[0])
+                readings = [(my_ts,readings[1])]
+                if tz:
+                    meta['tz'] = tz
+                elif my_tz:
+                    meta['tz'] = my_tz
 
             self._event_queue.put({'source': source,
                                    'topic': topic+'/'+point,
@@ -213,7 +222,7 @@ class BaseHistorianAgent(Agent):
         '''
         
         if not ALL_REX.match(topic):
-            _log.debug("Unmatched topic: {}".format(topic))
+#             _log.debug("Unmatched topic: {}".format(topic))
             return
         
         # Because of the above if we know that all is in the topic so
@@ -224,22 +233,7 @@ class BaseHistorianAgent(Agent):
         _log.debug("found topic {}".format(topic))
         #peer, sender, bus, topic, headers, message
         timestamp_string = headers.get(headers_mod.DATE)
-        if timestamp_string is None:
-            _log.error("message for {topic} missing timetamp".format(topic=topic))
-            return
-        
-        try:
-            timestamp = parse(timestamp_string)
-        except (ValueError, TypeError) as e:
-            _log.error("message for {topic} bad timetamp string: {ts_string}".format(topic=topic,
-                                                                                     ts_string=timestamp_string))
-            return
-
-        if timestamp.tzinfo is None:
-            timestamp.replace(tzinfo=pytz.UTC)
-        else:
-            timestamp = timestamp.astimezone(pytz.UTC)
-
+        timestamp, my_tz = process_timestamp(timestamp_string)
         
 
         try:
@@ -505,12 +499,13 @@ class BaseHistorianAgent(Agent):
                 self._backup_cache[topic_id] = topic
                 self._backup_cache[topic] = topic_id
 
-            #update meta data
             for name, value in meta.iteritems():
                 c.execute('''INSERT OR REPLACE INTO metadata values(?, ?, ?, ?)''',
                             (source,topic_id,name,value))
                 self._meta_data[(source,topic_id)][name] = value
 
+
+            
             for timestamp, value in values:
                 c.execute('''INSERT OR REPLACE INTO outstanding values(NULL, ?, ?, ?, ?)''',
                           (timestamp,source,topic_id,jsonapi.dumps(value)))
@@ -595,6 +590,28 @@ class BaseQueryHistorianAgent(Agent):
 
 class BaseHistorian(BaseHistorianAgent, BaseQueryHistorianAgent):
     pass
+
+
+def process_timestamp(timestamp_string):
+    if timestamp_string is None:
+        _log.error("message for {topic} missing timetamp".format(topic=topic))
+        return
+    
+    try:
+        timestamp = parse(timestamp_string)
+    except (ValueError, TypeError) as e:
+        _log.error("message for {topic} bad timetamp string: {ts_string}".format(topic=topic,
+                                                                                 ts_string=timestamp_string))
+        return
+
+    if timestamp.tzinfo is None:
+        timestamp.replace(tzinfo=pytz.UTC)
+        original_tz = None
+    else:
+        original_tz = timestamp.tzinfo
+        timestamp = timestamp.astimezone(pytz.UTC)
+    return timestamp, original_tz
+
 
 #The following code is
 #Copyright (c) 2011, 2012, Regents of the University of California
@@ -690,6 +707,7 @@ TIMEZONE_PATTERNS = [
     "%m/%d/%Y",
     "%m/%d/%Y %H:%M",
     "%Y-%m-%dT%H:%M:%S",
+    "%Y-%m-%dT%H:%M:%S.%f",
     ]
 def parse_time(ts):
     for pat in TIMEZONE_PATTERNS:

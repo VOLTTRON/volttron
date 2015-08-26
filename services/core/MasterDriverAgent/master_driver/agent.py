@@ -101,6 +101,7 @@ def master_driver_agent(config_path, **kwargs):
         @Core.receiver('onstart')
         def starting(self, sender, **kwargs):
             env = os.environ.copy()
+            env.pop('AGENT_UUID', None)
             for config_name in driver_config_list:
                 #driver = DriverAgent(identity=config_name)
                 #gevent.spawn(driver.core.run)   

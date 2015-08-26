@@ -127,7 +127,7 @@ def historian(config_path, **kwargs):
                 # to see if this topic has a value
                 if topic.startswith('datalogger'):
                     continue
-                topic_id = self.topic_map.get(topic)
+#                 topic_id = self.topic_map.get(topic)
 
 #                 if topic_id is None:
 #                     row  = self.writer.insert_topic(topic)
@@ -138,9 +138,11 @@ def historian(config_path, **kwargs):
 #                 parts = topic.split('/')
 #                 all_topic = '/'.join(reversed(parts[2:]))
 
-                
-                datalog[topic] = {'Readings': value,
-                                  'Units': meta['units']}
+                #Device data is UTC
+                #.replace(tzinfo=None)
+                datalog[topic] = {'Readings': [str(ts),value],
+                                  'Units': meta['units'],'data_type': meta['type'], 
+                                  'tz':meta['tz']}
                 
             base_topic = 'datalogger/devices'
 
@@ -156,12 +158,15 @@ def historian(config_path, **kwargs):
 #                                         topic=topic,
 #                                         message=message)
 
-            self._target_platform.vip.pubsub.publish(peer='pubsub',
+            with gevent.Timeout(30):
+                try:
+                    self._target_platform.vip.pubsub.publish(peer='pubsub',
                                     topic=base_topic,
-                                    message=datalog)
-
-
-            self.report_all_published()
+                                    message=datalog).get()
+                except gevent.Timeout:
+                    pass
+                else: 
+                    self.report_all_published()
 
         def query_topic_list(self):
             if len(self.topic_map) > 0:
