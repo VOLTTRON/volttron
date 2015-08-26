@@ -85,60 +85,57 @@ __license__ = 'FreeBSD'
 
 def DataPub(config_path, **kwargs):
     '''Emulate device driver to publish data and Actuatoragent for testing.
-    
-    The first column in the data file must be the timestamp and it is not 
-    published to the bus unless the config option: 
-        'maintain_timestamp' - True will allow the publishing of specified 
+
+    The first column in the data file must be the timestamp and it is not
+    published to the bus unless the config option:
+        'maintain_timestamp' - True will allow the publishing of specified
                                    timestamps.
-                               False will use the current now time and publish 
+                               False will use the current now time and publish
                                    using it.
-                                
     '''
     conf = utils.load_config(config_path)
     has_timestamp = conf.get('has_timestamp', 1)
     maintain_timestamp = conf.get('maintain_timestamp', 0)
     if maintain_timestamp and not has_timestamp:
         raise ValueError(
-            'If no timestamp is specified then maintain_timestamp cannot be specified.')
+            'If no timestamp is specified then '
+            'maintain_timestamp cannot be specified.')
     custom_topic = conf.get('custom_topic', 0)
     pub_interval = float(conf.get('publish_interval', 10))
-    dev_list = None
     if not custom_topic:
         device_path = (
             ''.join([conf.get('campus'), '/', conf.get('building'), '/']))
-        
+
         BASETOPIC = conf.get('basetopic')
         # device root is the root of the publishing tree.
         device_root = ''.join([BASETOPIC, '/', device_path])
-        dev_list = conf['unit']
-        
-        
+
     path = conf.get('input_file')
     if not os.path.exists(path):
         raise ValueError('Invalid input file specified.')
-    
+
     # if unit is a string then there aren't any subdevices and we
     # just use the name of the device as is.
     unit = conf.get('unit')
-    
+
     # If thie unit is a dictionary then the device
     if isinstance(unit, dict):
-        # header point map maps the prefix of a column in the csv file to 
+        # header point map maps the prefix of a column in the csv file to
         # the relative container.  For example if the csv file column in
         # question is FCU13259_Heating and FCU13259 is under an rtu5 then
         # the key FCU13259 would map to rtu5/FCU13259.  This will make it
         # trivial later to append the sensor_name Heating to the relative
         # point to publish the value.
-        header_point_map = {}        
+        header_point_map = {}
         for prefix, v in unit.items():
             # will allow publishing under root level items such
             # as rtu5_Compensator to rtu5/Compensator
             header_point_map[prefix] = prefix
-            
+
             for prefix2 in v['subdevices']:
                 # will allow publishing to subdevices such as
                 # FCU13259_HeatingSignal to rtu5/FCU13259/HeatingSignal
-                header_point_map[prefix2] = '/'.join([prefix, prefix2])       
+                header_point_map[prefix2] = '/'.join([prefix, prefix2])
 
     class Publisher(Agent):
         '''Simulate real device.  Publish csv data to message bus.
@@ -151,13 +148,13 @@ def DataPub(config_path, **kwargs):
 
             self._agent_id = conf.get('publisherid')
             self._src_file_handle = open(path, 'rb')
-            
+
             # Uses dictreader so that thee first line in the file is auto
             # ingested and becaums the headers for the dictionary.  Use the
             # fieldnames property to get the names of the fields available.
             self._reader = csv.DictReader(self._src_file_handle,
                                           delimiter=',')
-                        
+
             self.end_time = None
             self.start_time = None
             self.task_id = None
@@ -169,58 +166,56 @@ def DataPub(config_path, **kwargs):
                 format='%(asctime)s   %(levelname)-8s %(message)s',
                 datefmt='%m-%d-%y %H:%M:%S')
             self._log.info('DATA PUBLISHER ID is PUBLISHER')
-        
-        
+
         @Core.periodic(period=pub_interval, wait=pub_interval+pub_interval)
         def publish_data_or_heartbeat(self):
             '''Publish data from file to message bus.'''
             _data = {}
             now = datetime.datetime.now().isoformat(' ')
-            
-            if self._src_file_handle != None \
-                and not self._src_file_handle.closed:
-                
+
+            if self._src_file_handle is not None \
+                    and not self._src_file_handle.closed:
+
                 try:
                     data = self._reader.next()
                 except StopIteration:
                     self._src_file_handle.close()
                     self._src_file_handle = None
                     return
-                
                 # break out if no data is left to be found.
                 if not data:
                     self._src_file_handle.close()
                     self._src_file_handle = None
                     return
-                
+
                 if maintain_timestamp:
                     headers = {HEADER_NAME_DATE: data[0]}
                 else:
                     headers = {HEADER_NAME_DATE: now}
-                
+
                 if has_timestamp:
                     del data[self._reader._fieldnames[0]]
-                
+
                 # internal method to simply publish a point at a given level.
                 def publish_point(topic, point, data):
                     # makesure topic+point gives a true value.
                     if not topic.endswith('/') and not point.startswith('/'):
                         topic += '/'
-                        
+
                     self.vip.pubsub.publish(peer='pubsub',
                                             topic=topic+point,
                                             message=data,
                                             headers=headers)
-                    
-                # if a string then topics are straing path using device path and
-                # the data point.
+
+                # if a string then topics are straing path
+                # using device path and the data point.
                 if isinstance(unit, str):
                     # publish the individual points
                     for k, v in data.items():
                         publish_point(device_root, k, v)
-                    
+
                     # publish the all point
-                    publish_point(device_root, 'all', [data])                     
+                    publish_point(device_root, 'all', [data])
                 else:
                     # dictionary of "all" level containers.
                     all_publish = {}
@@ -229,31 +224,30 @@ def DataPub(config_path, **kwargs):
                         # Loop over mapping from the config file
                         for prefix, container in header_point_map.items():
                             if sensor.startswith(prefix):
-                                sensor_prefix, sensor_name = sensor.split('_')
-                                publish_point(device_root+container, sensor_name, value)
-                                                               
-                                if not container in all_publish.keys():
+                                _, sensor_name = sensor.split('_')
+                                publish_point(device_root+container,
+                                              sensor_name, value)
+
+                                if container not in all_publish.keys():
                                     all_publish[container] = {}
                                 all_publish[container][sensor_name] = value
-                                
+
                                 # move on to the next data point in the file.
                                 break
-                                
-                    
-                    for all, values in all_publish.items():
-                        publish_point(device_root, all+"/all", [values])
-        
-                
+
+                    for _all, values in all_publish.items():
+                        publish_point(device_root, _all+"/all", [values])
+
             else:
                 # Publish heartbeat on a topic.
-                self.vip.pubsub.publish(peer='pubsub', 
-                                        topic= 'heartbeat/DataPublisherv3',
-                                        headers= {'AgentID': self._agent_id,
-                                                  HEADER_NAME_DATE: now},
-                                        message = now)
+                self.vip.pubsub.publish(peer='pubsub',
+                                        topic='heartbeat/DataPublisherv3',
+                                        headers={'AgentID': self._agent_id,
+                                                 HEADER_NAME_DATE: now},
+                                        message=now)
 
-        #def capture_log_data(self, peer, sender, bus, topic, headers, message):
-        #@matching.match_regex(topics.ACTUATOR_SET() + '/(.+)')
+        # def capture_log_data(self, peer, sender, bus, topic, headers, message):
+        # @matching.match_regex(topics.ACTUATOR_SET() + '/(.+)')
         def handle_set(self, topic, headers, message, match):
             '''Respond to ACTUATOR_SET topic.'''
             self._log.info('set actuator')
@@ -265,7 +259,7 @@ def DataPub(config_path, **kwargs):
             value_path = topic.replace('actuator/set', '')
             self.push_result_topic_pair(point_name, headers, value_path, value)
 
-        #@matching.match_exact(topics.ACTUATOR_SCHEDULE_REQUEST())
+        # @matching.match_exact(topics.ACTUATOR_SCHEDULE_REQUEST())
         def handle_schedule_request(self, topic, headers, message, match):
             '''Handle device schedule request.'''
             self._log.info('request received')
@@ -359,10 +353,10 @@ def DataPub(config_path, **kwargs):
             event = sched.Event(self.announce)
             self.scheduled_event = event
             self.schedule(next_time, event)
-            
+
         @Core.receiver('onfinish')
         def finish(self):
-            if self._src_file_handle != None:
+            if self._src_file_handle is not None:
                 try:
                     self._src_file_handle.close()
                 except Exception as e:
@@ -375,7 +369,7 @@ def DataPub(config_path, **kwargs):
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
     utils.vip_main(DataPub)
-    
+
 if __name__ == '__main__':
     try:
         sys.exit(main())
