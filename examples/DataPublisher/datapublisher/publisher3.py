@@ -215,7 +215,7 @@ def DataPub(config_path, **kwargs):
                         publish_point(device_root, k, v)
 
                     # publish the all point
-                    publish_point(device_root, 'all', [data])
+                    publish_point(device_root, 'all', data)                     
                 else:
                     # dictionary of "all" level containers.
                     all_publish = {}
