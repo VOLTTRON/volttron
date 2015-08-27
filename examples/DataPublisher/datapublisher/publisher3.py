@@ -236,7 +236,7 @@ def DataPub(config_path, **kwargs):
                                 break
 
                     for _all, values in all_publish.items():
-                        publish_point(device_root, _all+"/all", [values])
+                        publish_point(device_root, _all+"/all", values)
 
             else:
                 # Publish heartbeat on a topic.
