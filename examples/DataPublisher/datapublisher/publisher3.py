@@ -189,12 +189,12 @@ def DataPub(config_path, **kwargs):
                     return
 
                 if maintain_timestamp:
-                    headers = {HEADER_NAME_DATE: data[0]}
+                    headers = {HEADER_NAME_DATE: data['Timestamp']}
                 else:
                     headers = {HEADER_NAME_DATE: now}
 
                 if has_timestamp:
-                    del data[self._reader._fieldnames[0]]
+                    data.pop('Timestamp')
 
                 # internal method to simply publish a point at a given level.
                 def publish_point(topic, point, data):
@@ -215,7 +215,7 @@ def DataPub(config_path, **kwargs):
                         publish_point(device_root, k, v)
 
                     # publish the all point
-                    publish_point(device_root, 'all', [data])
+                    publish_point(device_root, 'all', data)                     
                 else:
                     # dictionary of "all" level containers.
                     all_publish = {}
@@ -236,7 +236,7 @@ def DataPub(config_path, **kwargs):
                                 break
 
                     for _all, values in all_publish.items():
-                        publish_point(device_root, _all+"/all", [values])
+                        publish_point(device_root, _all+"/all", values)
 
             else:
                 # Publish heartbeat on a topic.
