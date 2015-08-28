@@ -58,6 +58,7 @@ from pymodbus.client.sync import ModbusTcpClient as SyncModbusClient
 from pymodbus.exceptions import ConnectionException, ModbusIOException, ModbusException
 from pymodbus.pdu import ExceptionResponse
 from pymodbus.constants import Defaults
+from volttron.platform.agent import utils
 
 from master_driver.interfaces import BaseInterface, BaseRegister
 
@@ -67,8 +68,20 @@ from csv import DictReader
 from StringIO import StringIO
 import os.path
 
+from contextlib import contextmanager, closing
+from master_driver.socket_lock import socket_lock
+
+@contextmanager
+def modbus_client(address, port):
+    with socket_lock():
+        with closing(SyncModbusClient(address, port)) as client:
+            yield client
+
 modbus_logger = logging.getLogger("pymodbus")
 modbus_logger.setLevel(logging.WARNING)
+
+utils.setup_logging()
+_log = logging.getLogger(__name__)
 
 MODBUS_REGISTER_SIZE = 2
 MODBUS_READ_MAX = 100
@@ -209,25 +222,20 @@ class Interface(BaseInterface):
         
     def get_point(self, point_name):    
         register = self.get_register_by_name(point_name)
-        client = SyncModbusClient(self.ip_address, port=self.port)
-        try:
-            result = register.get_state(client)
-        except (ConnectionException, ModbusIOException, ModbusInterfaceException):
-            result = None
-        finally:
-            client.close()
+        with modbus_client(self.ip_address, self.port) as client:
+            try:
+                result = register.get_state(client)
+            except (ConnectionException, ModbusIOException, ModbusInterfaceException):
+                result = None
         return result
     
     def set_point(self, point_name, value):    
         register = self.get_register_by_name(point_name)
-        client = SyncModbusClient(self.ip_address, port=self.port)
-        result = None
-        try:
-            result = register.set_state(client, value)
-        except (ConnectionException, ModbusIOException, ModbusInterfaceException):
-            result = None
-        finally:
-            client.close()
+        with modbus_client(self.ip_address, self.port) as client:
+            try:
+                result = register.set_state(client, value)
+            except (ConnectionException, ModbusIOException, ModbusInterfaceException):
+                result = None
         return result
     
     def scrape_byte_registers(self, client, read_only):
@@ -281,21 +289,19 @@ class Interface(BaseInterface):
         
     def scrape_all(self):
         result_dict={}
-        try:
-            client = SyncModbusClient(self.ip_address, port=self.port)
-            
-            result_dict.update(self.scrape_byte_registers(client, True))
-            result_dict.update(self.scrape_byte_registers(client, False))
-            
-            result_dict.update(self.scrape_bit_registers(client, True))
-            result_dict.update(self.scrape_bit_registers(client, False))
-        except (ConnectionException, ModbusIOException, ModbusInterfaceException) as e:
-            print ("ERROR: Failed to scrape device at " + 
-                   self.ip_address + ":" + str(self.port) + " " + 
-                   "ID: " + str(self.slave_id) + str(e))
-            return None
-        finally:
-            client.close()
+        with modbus_client(self.ip_address, self.port) as client:
+            try:
+                
+                result_dict.update(self.scrape_byte_registers(client, True))
+                result_dict.update(self.scrape_byte_registers(client, False))
+                
+                result_dict.update(self.scrape_bit_registers(client, True))
+                result_dict.update(self.scrape_bit_registers(client, False))
+            except (ConnectionException, ModbusIOException, ModbusInterfaceException) as e:
+                _log.error ("Failed to scrape device at " + 
+                           self.ip_address + ":" + str(self.port) + " " + 
+                           "ID: " + str(self.slave_id) + str(e))
+                return None
         
         return result_dict
     
