@@ -53,7 +53,6 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-
 # }}}
 import csv
 from datetime import datetime, timedelta as td
@@ -61,7 +60,7 @@ import logging
 import sys
 # import time
 import re
-# import dateutil.parser
+from dateutil.parser import parse
 
 from volttron.platform.agent import BaseAgent, PublishMixin, matching, utils
 from volttron.platform.agent.driven import ConversionMapper
@@ -78,6 +77,7 @@ __license__ = 'FreeBSD'
 def DrivenAgent(config_path, **kwargs):
     '''Driven harness for deployment of OpenEIS applications in VOLTTRON.'''
     config = utils.load_config(config_path)
+    from_file = bool(config.get('From File', False))
     mode = True if config.get('mode', 'PASSIVE') == 'ACTIVE' else False
     validation_error = ''
     device = dict((key, config['device'][key])
@@ -221,10 +221,15 @@ def DrivenAgent(config_path, **kwargs):
                         map_names,
                         field_names
                     )
+                if from_file:
+                    _timestamp = parse(headers.get('Timestamp'), fuzzy=True)
+                    self.received_input_datetime = _timestamp
+                else:
+                    _timestamp = datetime.datetime.now()
+                    self.received_input_datetime = datetime.utcnow()
+
                 obj = converter.process_row(field_names)
-                results = app_instance.run(datetime.now(),
-                                           obj)
-                self.received_input_datetime = datetime.utcnow()
+                results = app_instance.run(_timestamp, obj)
                 # results = app_instance.run(
                 # dateutil.parser.parse(self._subdevice_values['Timestamp'],
                 #                       fuzzy=True), self._subdevice_values)
@@ -277,7 +282,8 @@ def DrivenAgent(config_path, **kwargs):
                                 _analysis['unit'] = item
                                 analysis_topic = topics.ANALYSIS_VALUE(
                                     point=key, **_analysis)
-                                self.publish_json(analysis_topic, headers, value)
+                                self.publish_json(analysis_topic,
+                                                  headers, value)
 #                                 mytime = int(time.time())
 #                                 content = {
 #                                     analysis_topic: {
