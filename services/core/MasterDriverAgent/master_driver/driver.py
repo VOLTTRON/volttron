@@ -160,7 +160,11 @@ class DriverAgent(BasicAgent):
     def periodic_read(self):
         _log.debug("scraping device: " + self.device_name)
         
-        results = self.interface.scrape_all()
+        try:
+            results = self.interface.scrape_all()
+        except Exception as ex:
+            _log.exception(ex)
+            return
         
         # XXX: Does a warning need to be printed?
         if not results:
