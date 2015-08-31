@@ -114,9 +114,13 @@ class BaseRouter(object):
         The socket is save in the socket attribute. The setup() method
         is called at the end of the method to perform additional setup.
         '''
-        self.socket = self._socket_class(self.context, zmq.ROUTER)
-        self.socket.router_mandatory = True
-        self.socket.sndtimeo = 0
+        self.socket = sock = self._socket_class(self.context, zmq.ROUTER)
+        sock.router_mandatory = True
+        sock.sndtimeo = 0
+        sock.tcp_keepalive = True
+        sock.tcp_keepalive_idle = 600
+        sock.tcp_keepalive_intvl = 60
+        sock.tcp_keepalive_cnt = 10
         self.setup()
 
     def stop(self, linger=1):
