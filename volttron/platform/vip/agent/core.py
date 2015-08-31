@@ -292,6 +292,7 @@ class BasicCore(object):
         assert self.greenlet is not None
         greenlet = gevent.spawn(func, *args, **kwargs)
         self.greenlet.link(lambda glt: greenlet.kill())
+        return greenlet
 
     def spawn_in_thread(self, func, *args, **kwargs):
         result = gevent.event.AsyncResult()
