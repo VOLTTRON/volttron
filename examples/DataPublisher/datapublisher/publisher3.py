@@ -207,7 +207,7 @@ def DataPub(config_path, **kwargs):
                                             message=data,
                                             headers=headers)
 
-                # if a string then topics are straing path
+                # if a string then topics are string path
                 # using device path and the data point.
                 if isinstance(unit, str):
                     # publish the individual points
@@ -224,7 +224,10 @@ def DataPub(config_path, **kwargs):
                         # Loop over mapping from the config file
                         for prefix, container in header_point_map.items():
                             if sensor.startswith(prefix):
-                                _, sensor_name = sensor.split('_')
+                                try:
+                                    _, sensor_name = sensor.split('_')
+                                except:
+                                    sensor_name = sensor
                                 publish_point(device_root+container,
                                               sensor_name, value)
 
