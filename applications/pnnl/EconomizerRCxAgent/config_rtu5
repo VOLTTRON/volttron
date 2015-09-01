@@ -3,8 +3,8 @@
     "application": "economizer.economizer_rcx.Application",
 
     "device": {
-        "campus": "campus",
-        "building": "building",
+        "campus": "campus1",
+        "building": "building1",
         "unit": {
             "rtu5": {
                 "subdevices": []
@@ -25,7 +25,7 @@
         "damper_signal": "outsidedampercommand",
         "cool_call": "coolingvalveposition",
         "fan_speedcmd": "supplyfanspeed",
-        "From File": True,
+        "From File": true,
         "data_window": 15,
         "no_required_data": 15,
         "open_damper_time": 5,

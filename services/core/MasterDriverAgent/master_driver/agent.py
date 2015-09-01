@@ -57,23 +57,12 @@ import logging
 import sys
 import os
 import gevent
-from gevent.fileobject import FileObject
-import signal
 from volttron.platform.vip.agent import Agent, Core, RPC
 from volttron.platform.agent import utils
-#from driver import DriverAgent
-from subprocess import PIPE, Popen
+from driver import DriverAgent
+import resource
 
-from volttron.platform.lib import prctl
-
-def setup_close_with_parent():
-    prctl.set_pdeathsig(signal.SIGINT)
-    
-    
-def log_stream(stream):
-    fobj = FileObject(stream, 'r', 1, close=False)
-    for line in fobj:
-        sys.stderr.write(line)
+from socket_lock import configure_socket_lock
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -87,6 +76,40 @@ def master_driver_agent(config_path, **kwargs):
             return kwargs.pop(name)
         except KeyError:
             return config.get(name, default)
+        
+    max_open_sockets = get_config('max_open_sockets', None)
+    # Increase open files resource limit to max or 8192 if unlimited
+    limit = None
+    
+    try:
+        soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+    except OSError:
+        _log.exception('error getting open file limits')
+    else:
+        if soft != hard and soft != resource.RLIM_INFINITY:
+            try:
+                limit = 8192 if hard == resource.RLIM_INFINITY else hard
+                resource.setrlimit(resource.RLIMIT_NOFILE, (limit, hard))
+            except OSError:
+                _log.exception('error setting open file limits')
+            else:
+                _log.debug('open file resource limit increased from %d to %d',
+                           soft, limit)
+        if soft == hard:
+            limit = soft
+                
+    if max_open_sockets is not None:
+        configure_socket_lock(max_open_sockets)
+        _log.info("maximum concurrently open sockets limited to " + str(max_open_sockets))
+    elif limit is not None:
+        max_open_sockets = int(limit*0.8)
+        _log.info("maximum concurrently open sockets limited to " + str(max_open_sockets) + 
+                  " (derived from system limits)")
+        configure_socket_lock(max_open_sockets)
+    else:
+        configure_socket_lock()
+        _log.warn("No limit set on the maximum number of concurrently open sockets. "
+                  "Consider setting max_open_sockets if you plan to work with 800+ modbus devices.")
 
     vip_identity = get_config('vip_identity', 'platform.driver')
     #pop the uuid based id
@@ -96,51 +119,37 @@ def master_driver_agent(config_path, **kwargs):
     class MasterDriverAgent(Agent):
         def __init__(self, **kwargs):
             super(MasterDriverAgent, self).__init__(**kwargs)
-            self.driver_peers = {}
+            self.instances = {}
             
         @Core.receiver('onstart')
         def starting(self, sender, **kwargs):
             env = os.environ.copy()
             env.pop('AGENT_UUID', None)
             for config_name in driver_config_list:
-                #driver = DriverAgent(identity=config_name)
-                #gevent.spawn(driver.core.run)   
-                #driver.core.stop to kill an agent. 
                 _log.debug("Launching driver for config "+config_name)
-                env['AGENT_CONFIG'] = config_name
-                argv = [sys.executable, '-m', "master_driver.driver"]
-                process = Popen(argv, env=env, close_fds=True, preexec_fn = setup_close_with_parent,
-                                stdin=open(os.devnull), stderr=PIPE)
-                gevent.spawn(log_stream, process.stderr)
+                driver = DriverAgent(self, config_name)
+                gevent.spawn(driver.core.run)   
+                #driver.core.stop to kill an agent. 
                    
         
-        @RPC.export        
-        def device_startup_callback(self, topic):
-            peer = bytes(self.vip.rpc.context.vip_message.peer)
-            _log.debug("Driver hooked up for "+topic+" at "+peer)
+        def device_startup_callback(self, topic, driver):
+            _log.debug("Driver hooked up for "+topic)
             topic = topic.strip('/')
-            self.driver_peers[topic] = peer
+            self.instances[topic] = driver
             
         @RPC.export
         def get_point(self, path, point_name):
-            peer = self.driver_peers[path]
-            result = self.vip.rpc.call(peer, 'get_point', point_name).get()
-            return result
+            return self.instances[path].get_point(point_name)
         
         @RPC.export
         def set_point(self, path, point_name, value):
-            peer = self.driver_peers[path]
-            result = self.vip.rpc.call(peer, 'set_point', point_name, value).get()
-            return result
+            return self.instances[path].set_point(point_name, value)
         
         @RPC.export
         def heart_beat(self):
             _log.debug("sending heartbeat")
-            for peer in self.driver_peers.values():
-                self.vip.rpc.call(peer, 'heart_beat')
-                
-        def start_driver(self, config_name):
-            pass
+            for device in self.instances.values():
+                device.heart_beat()
                 
             
     return MasterDriverAgent(identity=vip_identity, **kwargs)
