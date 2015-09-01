@@ -271,7 +271,7 @@ class BaseRouter(object):
                 log(CRITICAL, 'unhandled exception: {}'.format(exc), frames)
                 raise exc
             log(ERROR, 'send failure: {}'.format(errmsg.bytes), frames)
-            if sender is not frames[0]:
+            if exc.errno != zmq.EHOSTUNREACH or sender is not frames[0]:
                 # Only send errors if the sender and recipient differ
                 frames = [sender, b'', proto, user_id, msg_id,
                           b'error', errnum, errmsg, recipient, subsystem]
