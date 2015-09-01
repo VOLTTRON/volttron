@@ -320,6 +320,12 @@ class _Socket(object):
         object.__setattr__(self, '_recv_state', state)
         object.__setattr__(self, '_Socket__local', self._local_class())
         self.immediate = True
+        # Enable TCP keepalive with idle time of 10 minutes and 10
+        # retries spaced 60 seconds apart, for a total of ~20 minutes.
+        self.tcp_keepalive = True
+        self.tcp_keepalive_idle = 600
+        self.tcp_keepalive_intvl = 60
+        self.tcp_keepalive_cnt = 10
 
     def reset_send(self):
         '''Clear send buffer and reset send state machine.
