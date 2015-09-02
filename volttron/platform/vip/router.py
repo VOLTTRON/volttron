@@ -118,9 +118,9 @@ class BaseRouter(object):
         sock.router_mandatory = True
         sock.sndtimeo = 0
         sock.tcp_keepalive = True
-        sock.tcp_keepalive_idle = 600
-        sock.tcp_keepalive_intvl = 60
-        sock.tcp_keepalive_cnt = 10
+        sock.tcp_keepalive_idle = 180
+        sock.tcp_keepalive_intvl = 20
+        sock.tcp_keepalive_cnt = 6
         self.setup()
 
     def stop(self, linger=1):
