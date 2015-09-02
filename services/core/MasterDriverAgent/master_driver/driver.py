@@ -162,8 +162,8 @@ class DriverAgent(BasicAgent):
         
         try:
             results = self.interface.scrape_all()
-        except Exception as ex:
-            _log.exception(ex)
+        except Exception:
+            _log.exception('unhandled exception')
             return
         
         # XXX: Does a warning need to be printed?
