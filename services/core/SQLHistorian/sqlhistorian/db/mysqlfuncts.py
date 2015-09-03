@@ -195,7 +195,7 @@ class MySqlFuncts(object):
         conn = self.__connect()
         
         cur = conn.cursor()
-        cur.execute('''INSERT INTO data values(%s, %s, %s)''',
+        cur.execute('''REPLACE INTO data values(%s, %s, %s)''',
                                   (ts,topic_id,jsonapi.dumps(data)))
         conn.commit()
         cur.close()
