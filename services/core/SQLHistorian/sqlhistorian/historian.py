@@ -113,8 +113,8 @@ def historian(config_path, **kwargs):
             print('Starting address: {} identity: {}'.format(self.core.address, self.core.identity))
             try:
                 self.reader = DbFuncts(**connection['params'])
-            except AttributeError as exc:
-                _log.exception(exp)
+            except AttributeError:
+                _log.exception('bad connection parameters')
                 self.core.stop()
                 return
                         
