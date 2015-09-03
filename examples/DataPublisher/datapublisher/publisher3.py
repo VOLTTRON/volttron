@@ -228,12 +228,22 @@ def DataPub(config_path, **kwargs):
                                     _, sensor_name = sensor.split('_')
                                 except:
                                     sensor_name = sensor
-                                publish_point(device_root+container,
-                                              sensor_name, value)
-
-                                if container not in all_publish.keys():
-                                    all_publish[container] = {}
-                                all_publish[container][sensor_name] = value
+                                
+                                # make sure that there is an actual value not
+                                # just an empty string.
+                                if value:
+                                    # Attempt to publish as a float.
+                                    try:
+                                        value = float(value)
+                                    except:
+                                        pass
+                                    
+                                    publish_point(device_root+container,
+                                                  sensor_name, value)
+    
+                                    if container not in all_publish.keys():
+                                        all_publish[container] = {}
+                                    all_publish[container][sensor_name] = value
 
                                 # move on to the next data point in the file.
                                 break
