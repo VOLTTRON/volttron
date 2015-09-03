@@ -60,6 +60,7 @@ import logging
 import sys
 # import time
 import re
+
 from dateutil.parser import parse
 
 from volttron.platform.agent import BaseAgent, PublishMixin, matching, utils
@@ -77,7 +78,9 @@ __license__ = 'FreeBSD'
 def DrivenAgent(config_path, **kwargs):
     '''Driven harness for deployment of OpenEIS applications in VOLTTRON.'''
     config = utils.load_config(config_path)
-    from_file = bool(config.get('From File', False))
+    arguments = config.get('arguments', None)
+    assert arguments
+    from_file = arguments.get('From File', False)
     mode = True if config.get('mode', 'PASSIVE') == 'ACTIVE' else False
     validation_error = ''
     device = dict((key, config['device'][key])
@@ -118,6 +121,8 @@ def DrivenAgent(config_path, **kwargs):
     if validation_error:
         _log.error(validation_error)
         raise ValueError(validation_error)
+    
+    # Collapse the arguments on top of the config file.
     config.update(config.get('arguments'))
     converter = ConversionMapper()
     output_file = config.get('output_file')
@@ -222,10 +227,10 @@ def DrivenAgent(config_path, **kwargs):
                         field_names
                     )
                 if from_file:
-                    _timestamp = parse(headers.get('Timestamp'), fuzzy=True)
+                    _timestamp = parse(headers.get('Date'), fuzzy=True)
                     self.received_input_datetime = _timestamp
                 else:
-                    _timestamp = datetime.datetime.now()
+                    _timestamp = datetime.now()
                     self.received_input_datetime = datetime.utcnow()
 
                 obj = converter.process_row(field_names)
