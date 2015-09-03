@@ -181,7 +181,7 @@ def DrivenAgent(config_path, **kwargs):
         def on_rec_analysis_message(self, topic, headers, message, matched):
             # Do the analysis based upon the data passed (the old code).
             # print self._subdevice_values, self._device_values
-            obj = jsonapi.loads(message[0])
+            obj = jsonapi.loads(message[0])[0]
             dev_list = topic.split('/')
             device_or_subdevice = dev_list[-2]
             device_id = [dev for dev in self._master_devices
@@ -287,18 +287,12 @@ def DrivenAgent(config_path, **kwargs):
                                 _analysis['unit'] = item
                                 analysis_topic = topics.ANALYSIS_VALUE(
                                     point=key, **_analysis)
+                                if isinstance(value, datetime):
+                                    value = value.isoformat()
+                                    
                                 self.publish_json(analysis_topic,
                                                   headers, value)
-#                                 mytime = int(time.time())
-#                                 content = {
-#                                     analysis_topic: {
-#                                         "Readings": [[mytime, value]],
-#                                         "Units": "TU",
-#                                         "data_type": "double"
-#                                     }
-#                                 }
-#                                 self.publish_json(topics.LOGGER_LOG, headers,
-#                                                   content)
+
             if results.commands and mode:
                 self.commands = results.commands
                 if self.keys is None:
