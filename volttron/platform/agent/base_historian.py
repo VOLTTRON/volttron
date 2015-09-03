@@ -364,10 +364,9 @@ class BaseHistorianAgent(Agent):
                 
                 try:
                     self.publish_to_historian(to_publish_list)
-                except Exception as exp:
-                    _log.error("An unhandled exception has occured while " \
-                               "publishing to historian.")
-                    _log.exception(exp)
+                except Exception:
+                    _log.exception("An unhandled exception occured while " \
+                               "publishing to the historian.")
                 
                 if not self._any_sucessfull_publishes():
                     break
