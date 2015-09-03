@@ -204,7 +204,7 @@ def DataPub(config_path, **kwargs):
 
                     self.vip.pubsub.publish(peer='pubsub',
                                             topic=topic+point,
-                                            message=data,
+                                            message=[data, {'source': 'publisher3'}],
                                             headers=headers)
 
                 # if a string then topics are string path
