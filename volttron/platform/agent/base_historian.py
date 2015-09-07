@@ -71,6 +71,7 @@ import gevent
 import pytz
 from zmq.utils import jsonapi
 
+from volttron.platform.agent.utils import process_timestamp
 from volttron.platform.vip.agent import *
 from volttron.platform.messaging import topics, headers as headers_mod
 
@@ -136,16 +137,21 @@ class BaseHistorianAgent(Agent):
         self.vip.pubsub.subscribe(peer='pubsub',
                                prefix=driver_prefix,
                                callback=self.capture_device_data)
-
+ 
         _log.debug('Subscribing to: {}'.format(topics.LOGGER_BASE))
         self.vip.pubsub.subscribe(peer='pubsub',
                                prefix=topics.LOGGER_BASE, #"datalogger",
                                callback=self.capture_log_data)
-
+ 
         _log.debug('Subscribing to: '.format(topics.ACTUATOR))
         self.vip.pubsub.subscribe(peer='pubsub',
                                prefix=topics.ACTUATOR,  # actuators/*
                                callback=self.capture_actuator_data)
+
+        _log.debug('Subscribing to: {}'.format(topics.ANALYSIS_TOPIC_BASE))
+        self.vip.pubsub.subscribe(peer='pubsub',
+                               prefix=topics.ANALYSIS_TOPIC_BASE,  # anaysis/*
+                               callback=self.capture_analysis_data)
 
     @Core.receiver("onstop")
     def stopping(self, sender, **kwargs):
@@ -231,11 +237,49 @@ class BaseHistorianAgent(Agent):
         device = '/'.join(parts[1:-1]) #'/'.join(reversed(parts[2:]))
         
         _log.debug("found topic {}".format(topic))
+        
+        self.capture_data(peer, sender, bus, topic, headers, message, device)
+        
+    def capture_analysis_data(self, peer, sender, bus, topic, headers, message):
+        '''Capture device data and submit it to be published by a historian.
+        
+        Filter out only the */all topics for publishing to the historian.
+        '''
+        
+        if topic.endswith("/all") or '/all/' in topic:
+#             _log.debug("Unmatched topic: {}".format(topic))
+            return
+        
+        # Because of the above if we know that all is in the topic so
+        # we strip it off to get the base device
+#         parts = topic.split('/')
+        parts = topic.split('/')
+        device = '/'.join(parts[1:-1]) #'/'.join(reversed(parts[2:]))
+        
+        _log.debug("found topic {}".format(topic))
+        
+        if topic.endswith('Timestamp'):
+            pass
+        
+        try:
+            value = float(message[0])
+        except:
+            value = message[0]
+        # Because message is a single point we need to have the point in the
+        # message
+        real_message = {parts[-1]: value}
+        real_message = [jsonapi.dumps(real_message), jsonapi.dumps({})]
+        
+        self.capture_data(peer, sender, bus, topic, headers, real_message, device)
+        
+    def capture_data(self, peer, sender, bus, topic, headers, message, device):
+        
+        if topic.startswith('analysis'):
+            pass
         #peer, sender, bus, topic, headers, message
         timestamp_string = headers.get(headers_mod.DATE)
         timestamp, my_tz = process_timestamp(timestamp_string)
         
-
         try:
             # 2.0 agents compatability layer makes sender == pubsub.compat so 
             # we can do the proper thing when it is here
@@ -249,6 +293,9 @@ class BaseHistorianAgent(Agent):
             return
         except IndexError as e:
             _log.error("message for {topic} missing message string".format(topic=topic))
+            return
+        except Exception as e:
+            _log.error(e)
             return
 
         meta = {}
@@ -265,8 +312,10 @@ class BaseHistorianAgent(Agent):
         except IndexError as e:
             _log.warning("meta data for {topic} missing message string".format(topic=topic))
 
-
-        source = 'scrape'
+        if topic.startswith('analysis'):
+            source = 'analysis'
+        else:
+            source = 'scrape'
         _log.debug("Queuing {topic} from {source} for publish".format(topic=topic,
                                                                       source=source))
 
@@ -364,8 +413,8 @@ class BaseHistorianAgent(Agent):
                 
                 try:
                     self.publish_to_historian(to_publish_list)
-                except Exception:
-                    _log.exception("An unhandled exception occured while " \
+                except Exception as exp:
+                     _log.exception("An unhandled exception occured while " \
                                "publishing to the historian.")
                 
                 if not self._any_sucessfull_publishes():
@@ -589,28 +638,6 @@ class BaseQueryHistorianAgent(Agent):
 
 class BaseHistorian(BaseHistorianAgent, BaseQueryHistorianAgent):
     pass
-
-
-def process_timestamp(timestamp_string):
-    if timestamp_string is None:
-        _log.error("message for {topic} missing timetamp".format(topic=topic))
-        return
-    
-    try:
-        timestamp = parse(timestamp_string)
-    except (ValueError, TypeError) as e:
-        _log.error("message for {topic} bad timetamp string: {ts_string}".format(topic=topic,
-                                                                                 ts_string=timestamp_string))
-        return
-
-    if timestamp.tzinfo is None:
-        timestamp.replace(tzinfo=pytz.UTC)
-        original_tz = None
-    else:
-        original_tz = timestamp.tzinfo
-        timestamp = timestamp.astimezone(pytz.UTC)
-    return timestamp, original_tz
-
 
 #The following code is
 #Copyright (c) 2011, 2012, Regents of the University of California

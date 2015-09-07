@@ -66,7 +66,6 @@ DX = '/diagnostic message'
 EI = '/energy impact'
 DATA = '/data/'
 
-TS = 'Timestamp'
 RAT = 'ReturnAirTemperature'
 MAT = 'MixedAirTemperature'
 OAT = 'OutsideAirTemperature'
@@ -420,7 +419,6 @@ class TempSensorDx(object):
                                            {ECON1 + DX: 3.2})
                 dx_result = self.clear_data(dx_result)
                 data = {
-                    ECON1 + DATA + TS: cur_time,
                     ECON1 + DATA + RAT: ratemp,
                     ECON1 + DATA + MAT: matemp,
                     ECON1 + DATA + OAT: oatemp,
@@ -431,7 +429,6 @@ class TempSensorDx(object):
                 return dx_result
             dx_result = self.temperature_sensor_dx(dx_result, cur_time)
             data = {
-                ECON1 + DATA + TS: cur_time,
                 ECON1 + DATA + RAT: ratemp,
                 ECON1 + DATA + MAT: matemp,
                 ECON1 + DATA + OAT: oatemp,
@@ -440,7 +437,6 @@ class TempSensorDx(object):
             }
         else:
             data = {
-                ECON1 + DATA + TS: cur_time,
                 ECON1 + DATA + RAT: ratemp,
                 ECON1 + DATA + MAT: matemp,
                 ECON1 + DATA + OAT: oatemp,
@@ -649,7 +645,6 @@ class EconCorrectlyOn(object):
                                            {ECON2 + DX: 13.2})
                 dx_result = self.clear_data(dx_result)
                 data = {
-                    ECON2 + DATA + TS: cur_time,
                     ECON2 + DATA + RAT: ratemp,
                     ECON2 + DATA + MAT: matemp,
                     ECON2 + DATA + OAT: oatemp,
@@ -664,7 +659,6 @@ class EconCorrectlyOn(object):
             dx_result = \
                 self.not_economizing_when_needed(dx_result, cur_time)
             data = {
-                ECON2 + DATA + TS: cur_time,
                 ECON2 + DATA + RAT: ratemp,
                 ECON2 + DATA + MAT: matemp,
                 ECON2 + DATA + OAT: oatemp,
@@ -676,7 +670,6 @@ class EconCorrectlyOn(object):
             }
         else:
             data = {
-                ECON2 + DATA + TS: cur_time,
                 ECON2 + DATA + RAT: ratemp,
                 ECON2 + DATA + MAT: matemp,
                 ECON2 + DATA + OAT: oatemp,
@@ -820,7 +813,6 @@ class EconCorrectlyOff(object):
                                            {ECON3 + DX: 23.2})
                 dx_result = self.clear_data(dx_result)
                 data = {
-                    ECON3 + DATA + TS: cur_time,
                     ECON3 + DATA + RAT: ratemp,
                     ECON3 + DATA + MAT: matemp,
                     ECON3 + DATA + OAT: oatemp,
@@ -834,7 +826,6 @@ class EconCorrectlyOff(object):
                 return dx_result
             dx_result = self.economizing_when_not_needed(dx_result, cur_time)
             data = {
-                ECON3 + DATA + TS: cur_time,
                 ECON3 + DATA + RAT: ratemp,
                 ECON3 + DATA + MAT: matemp,
                 ECON3 + DATA + OAT: oatemp,
@@ -846,7 +837,6 @@ class EconCorrectlyOff(object):
             }
         else:
             data = {
-                ECON3 + DATA + TS: cur_time,
                 ECON3 + DATA + RAT: ratemp,
                 ECON3 + DATA + MAT: matemp,
                 ECON3 + DATA + OAT: oatemp,
@@ -977,7 +967,6 @@ class ExcessOA(object):
                                            {ECON4 + DX: 35.2})
                 dx_result = self.clear_data(dx_result)
                 data = {
-                    ECON4 + DATA + TS: cur_time,
                     ECON4 + DATA + RAT: ratemp,
                     ECON4 + DATA + MAT: matemp,
                     ECON4 + DATA + OAT: oatemp,
@@ -991,7 +980,6 @@ class ExcessOA(object):
                 return dx_result
             dx_result = self.excess_oa(dx_result, cur_time)
             data = {
-                ECON4 + DATA + TS: cur_time,
                 ECON4 + DATA + RAT: ratemp,
                 ECON4 + DATA + MAT: matemp,
                 ECON4 + DATA + OAT: oatemp,
@@ -1003,7 +991,6 @@ class ExcessOA(object):
             }
         else:
             data = {
-                ECON4 + DATA + TS: cur_time,
                 ECON4 + DATA + RAT: ratemp,
                 ECON4 + DATA + MAT: matemp,
                 ECON4 + DATA + OAT: oatemp,
@@ -1167,7 +1154,6 @@ class InsufficientOA(object):
                                            {ECON5 + DX: 44.2})
                 dx_result = self.clear_data(dx_result)
                 data = {
-                    ECON5 + DATA + TS: cur_time,
                     ECON5 + DATA + RAT: ratemp,
                     ECON5 + DATA + MAT: matemp,
                     ECON5 + DATA + OAT: oatemp,
@@ -1181,7 +1167,6 @@ class InsufficientOA(object):
             dx_result = self.insufficient_oa(
                 dx_result, cur_time)
             data = {
-                ECON5 + DATA + TS: cur_time,
                 ECON5 + DATA + RAT: ratemp,
                 ECON5 + DATA + MAT: matemp,
                 ECON5 + DATA + OAT: oatemp,
@@ -1192,7 +1177,6 @@ class InsufficientOA(object):
             }
         else:
             data = {
-                ECON5 + DATA + TS: cur_time,
                 ECON5 + DATA + RAT: ratemp,
                 ECON5 + DATA + MAT: matemp,
                 ECON5 + DATA + OAT: oatemp,

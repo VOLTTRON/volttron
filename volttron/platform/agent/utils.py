@@ -58,8 +58,10 @@
 '''VOLTTRON platform™ agent helper classes/functions.'''
 
 import argparse
+from dateutil.parser import parse
 import logging
 import os
+import pytz
 import re
 import stat
 import sys
@@ -265,3 +267,23 @@ def setup_logging(level=logging.DEBUG):
                     '%(asctime)s %(name)s %(levelname)s: %(message)s'))
         root.addHandler(handler)
     root.setLevel(level)
+    
+def process_timestamp(timestamp_string):
+    if timestamp_string is None:
+        _log.error("message for {topic} missing timetamp".format(topic=topic))
+        return
+    
+    try:
+        timestamp = parse(timestamp_string)
+    except (ValueError, TypeError) as e:
+        _log.error("message for {topic} bad timetamp string: {ts_string}".format(topic=topic,
+                                                                                 ts_string=timestamp_string))
+        return
+
+    if timestamp.tzinfo is None:
+        timestamp.replace(tzinfo=pytz.UTC)
+        original_tz = None
+    else:
+        original_tz = timestamp.tzinfo
+        timestamp = timestamp.astimezone(pytz.UTC)
+    return timestamp, original_tz
