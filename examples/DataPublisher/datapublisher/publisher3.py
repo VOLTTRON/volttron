@@ -204,10 +204,10 @@ def DataPub(config_path, **kwargs):
 
                     self.vip.pubsub.publish(peer='pubsub',
                                             topic=topic+point,
-                                            message=data,
+                                            message=[data, {'source': 'publisher3'}],
                                             headers=headers)
 
-                # if a string then topics are straing path
+                # if a string then topics are string path
                 # using device path and the data point.
                 if isinstance(unit, str):
                     # publish the individual points
@@ -224,13 +224,26 @@ def DataPub(config_path, **kwargs):
                         # Loop over mapping from the config file
                         for prefix, container in header_point_map.items():
                             if sensor.startswith(prefix):
-                                _, sensor_name = sensor.split('_')
-                                publish_point(device_root+container,
-                                              sensor_name, value)
-
-                                if container not in all_publish.keys():
-                                    all_publish[container] = {}
-                                all_publish[container][sensor_name] = value
+                                try:
+                                    _, sensor_name = sensor.split('_')
+                                except:
+                                    sensor_name = sensor
+                                
+                                # make sure that there is an actual value not
+                                # just an empty string.
+                                if value:
+                                    # Attempt to publish as a float.
+                                    try:
+                                        value = float(value)
+                                    except:
+                                        pass
+                                    
+                                    publish_point(device_root+container,
+                                                  sensor_name, value)
+    
+                                    if container not in all_publish.keys():
+                                        all_publish[container] = {}
+                                    all_publish[container][sensor_name] = value
 
                                 # move on to the next data point in the file.
                                 break
