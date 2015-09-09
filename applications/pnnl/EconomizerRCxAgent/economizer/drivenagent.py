@@ -77,65 +77,65 @@ __license__ = 'FreeBSD'
 
 def DrivenAgent(config_path, **kwargs):
     '''Driven harness for deployment of OpenEIS applications in VOLTTRON.'''
-    config = utils.load_config(config_path)
-    arguments = config.get('arguments', None)
+    conf = utils.load_config(config_path)
+    arguments = conf.get('arguments', None)
     assert arguments
     from_file = arguments.get('From File', False)
-    mode = True if config.get('mode', 'PASSIVE') == 'ACTIVE' else False
-    validation_error = ''
-    device = dict((key, config['device'][key])
-                  for key in ['campus', 'building'])
-    subdevices = []
-    conv_map = config.get('conversion_map')
-    map_names = {}
-    for key, value in conv_map.items():
-        map_names[key.lower() if isinstance(key, str) else key] = value
-    # this implies a sub-device listing
-    multiple_dev = isinstance(config['device']['unit'], dict)
-    if multiple_dev:
-        # Assumption that there will be only one entry in the dictionary.
-        units = config['device']['unit'].keys()
-    for item in units:
-        subdevices.extend(config['device']['unit'][item]['subdevices'])
-        # modify the device dict so that unit is now pointing to unit_name
-    agent_id = config.get('agentid')
-    device.update({'unit': units})
-    _analysis = deepcopy(device)
-    _analysis_name = config.get('device').get('analysis_name', 'analysis_name')
-    _analysis.update({'analysis_name': _analysis_name})
-    if not device:
-        validation_error += 'Invalid agent_id specified in config\n'
-    if not device:
-        validation_error += 'Invalid device path specified in config\n'
-    actuator_id = (
-        agent_id + '_' + "{campus}/{building}/{unit}".format(**device)
-    )
-    application = config.get('application')
-    if not application:
-        validation_error += 'Invalid application specified in config\n'
     utils.setup_logging()
     _log = logging.getLogger(__name__)
     logging.basicConfig(level=logging.debug,
                         format='%(asctime)s   %(levelname)-8s %(message)s',
                         datefmt='%m-%d-%y %H:%M:%S')
+    mode = True if conf.get('mode', 'PASSIVE') == 'ACTIVE' else False
+    validation_error = ''
+    device = dict((key, conf['device'][key]) for key in ['campus', 'building'])
+    subdevices = []
+    conv_map = conf.get('conversion_map')
+    map_names = {}
+    for key, value in conv_map.items():
+        map_names[key.lower() if isinstance(key, str) else key] = value
+
+    # this implies a sub-device listing
+    multiple_dev = isinstance(conf['device']['unit'], dict)
+    if multiple_dev:
+        units = conf['device']['unit'].keys()
+
+    for item in units:
+        # modify the device dict so that unit is now pointing to unit_name
+        subdevices.extend(conf['device']['unit'][item]['subdevices'])
+
+    agent_id = conf.get('agentid')
+    device.update({'unit': units})
+    _analysis = deepcopy(device)
+    _analysis_name = conf.get('device').get('analysis_name', 'analysis_name')
+    _analysis.update({'analysis_name': _analysis_name})
+
+    if not device:
+        validation_error += 'Invalid agent_id specified in config\n'
+    if not device:
+        validation_error += 'Invalid device path specified in config\n'
+    actuator_id = (
+        agent_id + '_' + "{campus}/{building}/{unit}".format(**device))
+
+    application = conf.get('application')
+    if not application:
+        validation_error += 'Invalid application specified in conf\n'
     if validation_error:
         _log.error(validation_error)
         raise ValueError(validation_error)
-    
-    # Collapse the arguments on top of the config file.
-    config.update(config.get('arguments'))
+
+    conf.update(conf.get('arguments'))
     converter = ConversionMapper()
-    output_file = config.get('output_file')
+    output_file = conf.get('output_file')
     base_dev = "devices/{campus}/{building}/".format(**device)
     devices_topic = (
-        base_dev + '({})(/.*)?/all$'
-        .format('|'.join(re.escape(p) for p in units)))
+        base_dev + '({})(/.*)?/all$'.format('|'.join(re.escape(p) for p in units)))
     klass = _get_class(application)
     # This instances is used to call the applications run method when
     # data comes in on the message bus.  It is constructed here
     # so that_process_results each time run is called the application
     # can keep it state.
-    app_instance = klass(**config)
+    app_instance = klass(**conf)
 
     class Agent(PublishMixin, BaseAgent):
         '''Agent listens to message bus device and runs when data is published.
@@ -145,8 +145,9 @@ def DrivenAgent(config_path, **kwargs):
             self._update_event = None
             self._update_event_time = None
             self.keys = None
-            # master is where we copy from to get a poppable list of
-            # subdevices that should be present before we run the analysis.
+            self.current_point = None
+            self.current_key = None
+            self.received_input_datetime = None
             self._master_subdevices = subdevices
             self._needed_subdevices = []
             self._master_devices = units
@@ -157,8 +158,7 @@ def DrivenAgent(config_path, **kwargs):
             self.received_input_datetime = None
             self._kwargs = kwargs
             self.commands = {}
-            self.current_point = None
-            self.current_key = None
+
             if output_file is not None:
                 with open(output_file, 'w') as writer:
                     writer.close()
@@ -179,21 +179,19 @@ def DrivenAgent(config_path, **kwargs):
 
         @matching.match_regex(devices_topic)
         def on_rec_analysis_message(self, topic, headers, message, matched):
-            # Do the analysis based upon the data passed (the old code).
-            # print self._subdevice_values, self._device_values
+            '''Subscribe to device data and assemble data set to pass
+
+            to applications.
+            '''
             obj = jsonapi.loads(message[0])
             dev_list = topic.split('/')
             device_or_subdevice = dev_list[-2]
-            device_id = [dev for dev in self._master_devices
-                         if dev == device_or_subdevice]
-            subdevice_id = [dev for dev in self._master_subdevices
-                            if dev == device_or_subdevice]
+            device_id = [dev for dev in self._master_devices if dev == device_or_subdevice]
+            subdevice_id = [dev for dev in self._master_subdevices if dev == device_or_subdevice]
             if not device_id and not subdevice_id:
                 return
             if isinstance(device_or_subdevice, unicode):
-                device_or_subdevice = (
-                    device_or_subdevice.decode('utf-8').encode('ascii')
-                )
+                device_or_subdevice = (device_or_subdevice.decode('utf-8').encode('ascii'))
 
             def agg_subdevice(obj):
                 sub_obj = {}
@@ -215,6 +213,7 @@ def DrivenAgent(config_path, **kwargs):
                            "reinitializing")
                 self._initialize_devices()
             agg_subdevice(obj)
+
             if self._should_run_now():
                 field_names = {}
                 self._device_values.update(self._subdevice_values)
