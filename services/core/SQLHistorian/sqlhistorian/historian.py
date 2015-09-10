@@ -100,8 +100,8 @@ def historian(config_path, **kwargs):
     loaded_mod = __import__(mod_name_path, fromlist=[mod_name])
     
     for name, cls in inspect.getmembers(loaded_mod):
-        # assumes only single class per module.
-        if inspect.isclass(cls):
+        # assume class is not the root dbdriver
+        if inspect.isclass(cls) and name != 'DbDriver':
             DbFuncts = cls
             break
     try:
