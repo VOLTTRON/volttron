@@ -110,6 +110,7 @@ class BaseHistorianAgent(Agent):
                  max_time_publishing=30,
                  **kwargs):
         super(BaseHistorianAgent, self).__init__(**kwargs)
+        self._started = False
         self._retry_period = retry_period
         self._submit_size_limit = submit_size_limit
         self._max_time_publishing = timedelta(seconds=max_time_publishing)
@@ -152,7 +153,8 @@ class BaseHistorianAgent(Agent):
         self.vip.pubsub.subscribe(peer='pubsub',
                                prefix=topics.ANALYSIS_TOPIC_BASE,  # anaysis/*
                                callback=self.capture_analysis_data)
-
+        self._started = True
+        
     @Core.receiver("onstop")
     def stopping(self, sender, **kwargs):
         '''
@@ -408,7 +410,7 @@ class BaseHistorianAgent(Agent):
             _log.debug("Calling publish_to_historian.")
             while True:
                 to_publish_list = self._get_outstanding_to_publish()
-                if not to_publish_list:
+                if not to_publish_list or not self._started:
                     break
                 
                 try:
