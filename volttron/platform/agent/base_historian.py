@@ -288,7 +288,10 @@ class BaseHistorianAgent(Agent):
             if sender == 'pubsub.compat':
                 values = jsonapi.loads(message[0])
             else:
-                values = message[0]
+                if isinstance(message, dict):
+                    values = message
+                else:
+                    values = message[0]
         except ValueError as e:
             _log.error("message for {topic} bad message string: {message_string}".format(topic=topic,
                                                                                      message_string=message[0]))
@@ -297,7 +300,7 @@ class BaseHistorianAgent(Agent):
             _log.error("message for {topic} missing message string".format(topic=topic))
             return
         except Exception as e:
-            _log.error(e)
+            _log.exception(e)
             return
 
         meta = {}
@@ -307,7 +310,8 @@ class BaseHistorianAgent(Agent):
             if sender == 'pubsub.compat':
                 meta = jsonapi.loads(message[1])
             else:
-                meta = message[1]
+                if not isinstance(message, dict):
+                    meta = message[1]
         except ValueError as e:
             _log.warning("meta data for {topic} bad message string: {message_string}".format(topic=topic,
                                                                                      message_string=message[0]))
