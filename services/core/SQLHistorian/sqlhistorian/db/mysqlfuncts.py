@@ -72,7 +72,7 @@ class MySqlFuncts(DbDriver):
 
     def __init__(self, **kwargs):
         _log.debug("Constructing MySqlFuncts")
-        super(DbDriver, self).__init__(**kwargs)
+        super(DbDriver, self).__init__()#**kwargs)
         self.__connect_params = kwargs
         
         if not kwargs.get('user', None):
