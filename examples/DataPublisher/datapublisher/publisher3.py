@@ -183,6 +183,9 @@ def DataPub(config_path, **kwargs):
                 except StopIteration:
                     self._src_file_handle.close()
                     self._src_file_handle = None
+                    _log.debug("Completed publishing all records for file!")
+                    self.core.stop()
+                                        
                     return
                 # break out if no data is left to be found.
                 if not data:
