@@ -62,12 +62,13 @@ import sqlite3
 
 from zmq.utils import jsonapi
 
+from basedb import DbDriver
 from volttron.platform.agent import utils
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
-class SqlLiteFuncts(object):
+class SqlLiteFuncts(DbDriver):
 
     def __init__(self, database,
                  detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES):

@@ -58,8 +58,9 @@ import csv
 from datetime import datetime, timedelta as td
 import logging
 import sys
-# import time
+import datetime
 import re
+
 from dateutil.parser import parse
 
 from volttron.platform.agent import BaseAgent, PublishMixin, matching, utils
@@ -77,7 +78,9 @@ __license__ = 'FreeBSD'
 def DrivenAgent(config_path, **kwargs):
     '''Driven harness for deployment of OpenEIS applications in VOLTTRON.'''
     config = utils.load_config(config_path)
-    from_file = bool(config.get('From File', False))
+    arguments = config.get('arguments', None)
+    assert arguments
+    from_file = arguments.get('From File', False)
     mode = True if config.get('mode', 'PASSIVE') == 'ACTIVE' else False
     validation_error = ''
     device = dict((key, config['device'][key])
@@ -118,6 +121,8 @@ def DrivenAgent(config_path, **kwargs):
     if validation_error:
         _log.error(validation_error)
         raise ValueError(validation_error)
+    
+    # Collapse the arguments on top of the config file.
     config.update(config.get('arguments'))
     converter = ConversionMapper()
     output_file = config.get('output_file')
@@ -222,11 +227,11 @@ def DrivenAgent(config_path, **kwargs):
                         field_names
                     )
                 if from_file:
-                    _timestamp = parse(headers.get('Timestamp'), fuzzy=True)
+                    _timestamp = parse(headers.get('Date'), fuzzy=True)
                     self.received_input_datetime = _timestamp
                 else:
                     _timestamp = datetime.datetime.now()
-                    self.received_input_datetime = datetime.utcnow()
+                    self.received_input_datetime = datetime.datetime.utcnow()
 
                 obj = converter.process_row(field_names)
                 results = app_instance.run(_timestamp, obj)
@@ -282,18 +287,10 @@ def DrivenAgent(config_path, **kwargs):
                                 _analysis['unit'] = item
                                 analysis_topic = topics.ANALYSIS_VALUE(
                                     point=key, **_analysis)
+
                                 self.publish_json(analysis_topic,
                                                   headers, value)
-#                                 mytime = int(time.time())
-#                                 content = {
-#                                     analysis_topic: {
-#                                         "Readings": [[mytime, value]],
-#                                         "Units": "TU",
-#                                         "data_type": "double"
-#                                     }
-#                                 }
-#                                 self.publish_json(topics.LOGGER_LOG, headers,
-#                                                   content)
+
             if results.commands and mode:
                 self.commands = results.commands
                 if self.keys is None:
@@ -309,7 +306,7 @@ def DrivenAgent(config_path, **kwargs):
                 'taskID': actuator_id,
                 'priority': 'LOW'
                 }
-            start = datetime.now()
+            start = datetime.datetime.now()
             end = start + td(seconds=30)
             start = str(start)
             end = str(end)

@@ -110,7 +110,10 @@ class Periodic(object):   # pylint: disable=invalid-name
         if self.timeout != 0:
             gevent.sleep(self.timeout or self.period)
         while True:
-            method(*self.args, **self.kwargs)
+            try:
+                method(*self.args, **self.kwargs)
+            except Exception:
+                _log.exception('unhandled exception in periodic callback')
             gevent.sleep(self.period)
 
     def get(self, method):
@@ -292,6 +295,7 @@ class BasicCore(object):
         assert self.greenlet is not None
         greenlet = gevent.spawn(func, *args, **kwargs)
         self.greenlet.link(lambda glt: greenlet.kill())
+        return greenlet
 
     def spawn_in_thread(self, func, *args, **kwargs):
         result = gevent.event.AsyncResult()

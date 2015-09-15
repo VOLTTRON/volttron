@@ -56,6 +56,7 @@ from __future__ import absolute_import, print_function
 
 import datetime
 import errno
+import inspect
 import logging
 import os, os.path
 from pprint import pprint
@@ -93,14 +94,22 @@ def historian(config_path, **kwargs):
     assert params is not None
     identity = config.get('identity', kwargs.pop('identity', None))
 
-    if databaseType == 'sqlite':
-        from .db.sqlitefuncts import SqlLiteFuncts as DbFuncts
-    elif databaseType == 'mysql':
-        from .db.mysqlfuncts import MySqlFuncts as DbFuncts
-    else:
-        _log.error("Unknown database type specified!")
-        raise Exception("Unkown database type specified!")
-        
+    
+    mod_name = databaseType+"functs"
+    mod_name_path = "sqlhistorian.db."+mod_name
+    loaded_mod = __import__(mod_name_path, fromlist=[mod_name])
+    
+    for name, cls in inspect.getmembers(loaded_mod):
+        # assume class is not the root dbdriver
+        if inspect.isclass(cls) and name != 'DbDriver':
+            DbFuncts = cls
+            break
+    try:
+        _log.debug('Historian using module: '+DbFuncts.__name__)
+    except NameError:
+        functerror = 'Invalid module named '+mod_name_path+ "."
+        raise Exception(functerror)
+            
     class SQLHistorian(BaseHistorian):
         '''This is a simple example of a historian agent that writes stuff
         to a SQLite database. It is designed to test some of the functionality
@@ -113,8 +122,8 @@ def historian(config_path, **kwargs):
             print('Starting address: {} identity: {}'.format(self.core.address, self.core.identity))
             try:
                 self.reader = DbFuncts(**connection['params'])
-            except AttributeError as exc:
-                _log.exception(exp)
+            except AttributeError:
+                _log.exception('bad connection parameters')
                 self.core.stop()
                 return
                         

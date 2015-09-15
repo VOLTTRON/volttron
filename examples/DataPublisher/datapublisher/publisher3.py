@@ -67,6 +67,8 @@ from volttron.platform.agent.utils import jsonapi
 from volttron.platform.messaging import topics
 from volttron.platform.messaging import headers as headers_mod
 
+_log = logging.getLogger(__name__)
+
 HEADER_NAME_DATE = headers_mod.DATE
 HEADER_NAME_CONTENT_TYPE = headers_mod.CONTENT_TYPE
 VALUE_RESPONSE_PREFIX = topics.ACTUATOR_VALUE()
@@ -201,13 +203,21 @@ def DataPub(config_path, **kwargs):
                     # makesure topic+point gives a true value.
                     if not topic.endswith('/') and not point.startswith('/'):
                         topic += '/'
+                    
+                    # if the point is the all then publish the dictionary if
+                    # not then make the data an array for the 2.0 agents to
+                    # be able to deal with the data.    
+                    if point.endswith('/all'):
+                        message = data
+                    else:
+                        message = [data]
 
                     self.vip.pubsub.publish(peer='pubsub',
                                             topic=topic+point,
-                                            message=data,
+                                            message=message, #[data, {'source': 'publisher3'}],
                                             headers=headers)
 
-                # if a string then topics are straing path
+                # if a string then topics are string path
                 # using device path and the data point.
                 if isinstance(unit, str):
                     # publish the individual points
@@ -224,13 +234,26 @@ def DataPub(config_path, **kwargs):
                         # Loop over mapping from the config file
                         for prefix, container in header_point_map.items():
                             if sensor.startswith(prefix):
-                                _, sensor_name = sensor.split('_')
-                                publish_point(device_root+container,
-                                              sensor_name, value)
-
-                                if container not in all_publish.keys():
-                                    all_publish[container] = {}
-                                all_publish[container][sensor_name] = value
+                                try:
+                                    _, sensor_name = sensor.split('_')
+                                except:
+                                    sensor_name = sensor
+                                
+                                # make sure that there is an actual value not
+                                # just an empty string.
+                                if value:
+                                    # Attempt to publish as a float.
+                                    try:
+                                        value = float(value)
+                                    except:
+                                        pass
+                                    
+                                    publish_point(device_root+container,
+                                                  sensor_name, value)
+    
+                                    if container not in all_publish.keys():
+                                        all_publish[container] = {}
+                                    all_publish[container][sensor_name] = value
 
                                 # move on to the next data point in the file.
                                 break
@@ -355,7 +378,7 @@ def DataPub(config_path, **kwargs):
             self.schedule(next_time, event)
 
         @Core.receiver('onfinish')
-        def finish(self):
+        def finish(self, sender):
             if self._src_file_handle is not None:
                 try:
                     self._src_file_handle.close()
