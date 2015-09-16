@@ -107,14 +107,25 @@ class Periodic(object):   # pylint: disable=invalid-name
 
     def _loop(self, method):
         # pylint: disable=missing-docstring
+        now = gevent.get_hub().loop.now
+        period = self.period
+        deadline = now()
         if self.timeout != 0:
-            gevent.sleep(self.timeout or self.period)
+            timeout = self.timeout or period
+            deadline += timeout
+            gevent.sleep(timeout)
         while True:
             try:
                 method(*self.args, **self.kwargs)
             except Exception:
                 _log.exception('unhandled exception in periodic callback')
-            gevent.sleep(self.period)
+            deadline += period
+            timeout = deadline - now()
+            if timeout > 0:
+                gevent.sleep(timeout)
+            else:
+                # Prevent catching up.
+                deadline -= timeout
 
     def get(self, method):
         '''Return a Greenlet for the given method.'''
