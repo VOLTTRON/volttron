@@ -67,6 +67,8 @@ from volttron.platform.agent.utils import jsonapi
 from volttron.platform.messaging import topics
 from volttron.platform.messaging import headers as headers_mod
 
+_log = logging.getLogger(__name__)
+
 HEADER_NAME_DATE = headers_mod.DATE
 HEADER_NAME_CONTENT_TYPE = headers_mod.CONTENT_TYPE
 VALUE_RESPONSE_PREFIX = topics.ACTUATOR_VALUE()
@@ -201,10 +203,18 @@ def DataPub(config_path, **kwargs):
                     # makesure topic+point gives a true value.
                     if not topic.endswith('/') and not point.startswith('/'):
                         topic += '/'
+                    
+                    # if the point is the all then publish the dictionary if
+                    # not then make the data an array for the 2.0 agents to
+                    # be able to deal with the data.    
+                    if point.endswith('/all'):
+                        message = data
+                    else:
+                        message = [data]
 
                     self.vip.pubsub.publish(peer='pubsub',
                                             topic=topic+point,
-                                            message=[data, {'source': 'publisher3'}],
+                                            message=message, #[data, {'source': 'publisher3'}],
                                             headers=headers)
 
                 # if a string then topics are string path
@@ -368,7 +378,7 @@ def DataPub(config_path, **kwargs):
             self.schedule(next_time, event)
 
         @Core.receiver('onfinish')
-        def finish(self):
+        def finish(self, sender):
             if self._src_file_handle is not None:
                 try:
                     self._src_file_handle.close()

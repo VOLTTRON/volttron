@@ -165,7 +165,7 @@ def historian(config_path, **kwargs):
                                                                to_pub['value']])
                         else:
                             if ignore_unmapped:
-                                self.report_published(to_pub)
+                                self.report_handled(to_pub)
                             else:
                                 err = 'Point {topic} was not found in point map.' \
                                     .format(**to_pub)
@@ -183,7 +183,7 @@ def historian(config_path, **kwargs):
                         resp = requests.put(dataset_uri, verify=False, headers=headers, 
                                             data=payload)
                         if resp.status_code == requests.codes.ok:                       
-                            self.report_published(try_publish)
+                            self.report_handled(try_publish)
                     except ConnectionError:
                         _log.error('Unable to connect to openeis at {}'.format(uri))
                         return

@@ -62,15 +62,17 @@ import os
 from mysql import connector
 from zmq.utils import jsonapi
 
+from basedb import DbDriver
 from volttron.platform.agent import utils
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
-class MySqlFuncts(object):
+class MySqlFuncts(DbDriver):
 
     def __init__(self, **kwargs):
         _log.debug("Constructing MySqlFuncts")
+        super(DbDriver, self).__init__()#**kwargs)
         self.__connect_params = kwargs
         
         if not kwargs.get('user', None):

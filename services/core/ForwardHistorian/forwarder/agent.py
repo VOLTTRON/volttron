@@ -166,7 +166,7 @@ def historian(config_path, **kwargs):
                 except gevent.Timeout:
                     pass
                 else: 
-                    self.report_all_published()
+                    self.report_all_handled()
 
         def query_topic_list(self):
             if len(self.topic_map) > 0:

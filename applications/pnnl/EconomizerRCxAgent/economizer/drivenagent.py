@@ -58,7 +58,7 @@ import csv
 from datetime import datetime, timedelta as td
 import logging
 import sys
-# import time
+import datetime
 import re
 
 from dateutil.parser import parse
@@ -181,7 +181,7 @@ def DrivenAgent(config_path, **kwargs):
         def on_rec_analysis_message(self, topic, headers, message, matched):
             # Do the analysis based upon the data passed (the old code).
             # print self._subdevice_values, self._device_values
-            obj = jsonapi.loads(message[0])[0]
+            obj = jsonapi.loads(message[0])
             dev_list = topic.split('/')
             device_or_subdevice = dev_list[-2]
             device_id = [dev for dev in self._master_devices
@@ -230,8 +230,8 @@ def DrivenAgent(config_path, **kwargs):
                     _timestamp = parse(headers.get('Date'), fuzzy=True)
                     self.received_input_datetime = _timestamp
                 else:
-                    _timestamp = datetime.now()
-                    self.received_input_datetime = datetime.utcnow()
+                    _timestamp = datetime.datetime.now()
+                    self.received_input_datetime = datetime.datetime.utcnow()
 
                 obj = converter.process_row(field_names)
                 results = app_instance.run(_timestamp, obj)
@@ -287,9 +287,7 @@ def DrivenAgent(config_path, **kwargs):
                                 _analysis['unit'] = item
                                 analysis_topic = topics.ANALYSIS_VALUE(
                                     point=key, **_analysis)
-                                if isinstance(value, datetime):
-                                    value = value.isoformat()
-                                    
+
                                 self.publish_json(analysis_topic,
                                                   headers, value)
 
@@ -308,7 +306,7 @@ def DrivenAgent(config_path, **kwargs):
                 'taskID': actuator_id,
                 'priority': 'LOW'
                 }
-            start = datetime.now()
+            start = datetime.datetime.now()
             end = start + td(seconds=30)
             start = str(start)
             end = str(end)
