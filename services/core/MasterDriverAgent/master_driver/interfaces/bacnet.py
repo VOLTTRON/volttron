@@ -77,7 +77,7 @@ class Interface(BaseInterface):
         #Some devices (mostly RemoteStation addresses behind routers) will not be reachable without 
         # first establishing the route to the device. Sending a directed WhoIsRequest is will
         # settle that for us when the response comes back. 
-        return self.vip.rpc.call(self.proxy_address, 'ping_device', self.target_address).get()
+        return self.vip.rpc.call(self.proxy_address, 'ping_device', self.target_address).get(timeout=10.0)
         
     def get_point(self, point_name): 
         register = self.get_register_by_name(point_name)   
@@ -85,7 +85,7 @@ class Interface(BaseInterface):
                                  register.instance_number, 
                                  register.property]}
         result = self.vip.rpc.call(self.proxy_address, 'read_properties', 
-                                       self.target_address, point_map).get()
+                                       self.target_address, point_map).get(timeout=10.0)
         return result[point_name]
     
     def set_point(self, point_name, value):    
@@ -96,7 +96,7 @@ class Interface(BaseInterface):
                 register.object_type, 
                 register.instance_number, 
                 register.property]
-        result = self.vip.rpc.call(self.proxy_address, 'write_property', *args).get()
+        result = self.vip.rpc.call(self.proxy_address, 'write_property', *args).get(timeout=10.0)
         return result
         
     def scrape_all(self):
@@ -109,7 +109,7 @@ class Interface(BaseInterface):
                                               register.property]
         
         result = self.vip.rpc.call(self.proxy_address, 'read_properties', 
-                                       self.target_address, point_map).get()
+                                       self.target_address, point_map).get(timeout=10.0)
         return result
     
     def parse_config(self, config_string):
