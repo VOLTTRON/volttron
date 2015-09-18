@@ -65,6 +65,10 @@ from volttron.platform.messaging.topics import (DRIVER_TOPIC_BASE,
                                                 DEVICES_VALUE,
                                                 DEVICES_PATH)
 
+from volttron.platform.vip.agent.errors import VIPError
+
+from driver_locks import publish_lock
+
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
@@ -163,7 +167,7 @@ class DriverAgent(BasicAgent):
         try:
             results = self.interface.scrape_all()
         except Exception:
-            _log.exception('unhandled exception')
+            _log.exception('Error:' + str(sys.exc_info()[0]))
             return
         
         # XXX: Does a warning need to be printed?
@@ -181,20 +185,30 @@ class DriverAgent(BasicAgent):
             topics = self.get_paths_for_point(point)
             for topic in topics:
                 message = [value, self.meta_data[point]] 
-                self.vip.pubsub.publish('pubsub', topic, 
-                                        headers=headers, 
-                                        message=message)
+                self._publish_wrapper(topic, 
+                                      headers=headers, 
+                                      message=message)
          
         message = [results, self.meta_data] 
-        self.vip.pubsub.publish('pubsub', 
-                                self.all_path_depth, 
-                                headers=headers, 
-                                message=message)
+        self._publish_wrapper(self.all_path_depth, 
+                              headers=headers, 
+                              message=message)
          
-        self.vip.pubsub.publish('pubsub', 
-                                self.all_path_breadth, 
-                                headers=headers, 
-                                message=message)
+        self._publish_wrapper(self.all_path_breadth, 
+                              headers=headers, 
+                              message=message)
+        
+        
+    def _publish_wrapper(self, topic, headers, message):
+        try:
+            with publish_lock():
+                self.vip.pubsub.publish('pubsub', 
+                                    topic, 
+                                    headers=headers, 
+                                    message=message).get()
+        except VIPError as ex:
+            _log.warn("driver failed to publish " + topic + ": " + str(ex))
+            
     
     def heart_beat(self):
         if self.heart_beat_point is None:

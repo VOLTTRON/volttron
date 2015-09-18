@@ -69,7 +69,7 @@ from StringIO import StringIO
 import os.path
 
 from contextlib import contextmanager, closing
-from master_driver.socket_lock import socket_lock
+from master_driver.driver_locks import socket_lock
 
 @contextmanager
 def modbus_client(address, port):
