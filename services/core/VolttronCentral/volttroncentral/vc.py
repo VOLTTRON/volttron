@@ -111,6 +111,10 @@ def volttron_central_agent(config_path, **kwargs):
     config = utils.load_config(config_path)
 
     vip_identity = config.get('vip_identity', 'volttron.central')
+    
+    kwargs.pop('identity',None)
+
+    
 
     agent_id = config.get('agentid', 'Volttron Central')
     server_conf = config.get('server', {})
