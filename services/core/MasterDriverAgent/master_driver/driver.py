@@ -166,8 +166,8 @@ class DriverAgent(BasicAgent):
         
         try:
             results = self.interface.scrape_all()
-        except Exception:
-            _log.exception('Error:' + str(sys.exc_info()[0]))
+        except Exception as ex:
+            _log.error('Failed to scrape ' + self.device_name + ': ' + str(ex))
             return
         
         # XXX: Does a warning need to be printed?
