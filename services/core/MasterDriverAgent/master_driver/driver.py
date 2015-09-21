@@ -59,14 +59,15 @@ from volttron.platform.agent import utils
 from zmq.utils import jsonapi
 import logging
 import sys
+import random
+import gevent
 from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.messaging.topics import (DRIVER_TOPIC_BASE, 
                                                 DRIVER_TOPIC_ALL, 
                                                 DEVICES_VALUE,
                                                 DEVICES_PATH)
 
-from volttron.platform.vip.agent.errors import VIPError
-
+from volttron.platform.vip.agent.errors import VIPError, Again
 from driver_locks import publish_lock
 
 utils.setup_logging()
@@ -200,14 +201,22 @@ class DriverAgent(BasicAgent):
         
         
     def _publish_wrapper(self, topic, headers, message):
-        try:
-            with publish_lock():
-                self.vip.pubsub.publish('pubsub', 
-                                    topic, 
-                                    headers=headers, 
-                                    message=message).get()
-        except VIPError as ex:
-            _log.warn("driver failed to publish " + topic + ": " + str(ex))
+        while True:
+            try:
+                with publish_lock():
+                    self.vip.pubsub.publish('pubsub', 
+                                        topic, 
+                                        headers=headers, 
+                                        message=message).get(timeout=10.0)
+                                        
+            except Again:
+                _log.warn("publish delayed: " + topic + " pubsub is busy")
+                gevent.sleep(random.random())
+            except VIPError as ex:
+                _log.warn("driver failed to publish " + topic + ": " + str(ex))
+                break
+            else:
+                break
             
     
     def heart_beat(self):
