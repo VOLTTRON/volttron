@@ -398,10 +398,10 @@ class Core(BasicCore):
         # pre-start
         self.socket.connect(self.address)
         def vip_loop():
-            socket = self.socket
+            sock = self.socket
             while True:
                 try:
-                    message = socket.recv_vip_object(copy=False)
+                    message = sock.recv_vip_object(copy=False)
                 except ZMQError as exc:
                     if exc.errno == EAGAIN:
                         continue
@@ -417,7 +417,7 @@ class Core(BasicCore):
                     message.args = list(router._INVALID_SUBSYSTEM)
                     message.args.append(message.subsystem)
                     message.subsystem = b'error'
-                    socket.send_vip_object(message, copy=False)
+                    sock.send_vip_object(message, copy=False)
                 else:
                     handle(message)
         yield gevent.spawn(vip_loop)
