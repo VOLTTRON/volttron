@@ -63,6 +63,7 @@ import heapq
 import inspect
 import logging
 import os
+import struct
 import sys
 import threading
 import time
@@ -365,13 +366,15 @@ class Core(BasicCore):
                 home = os.path.abspath(platform.get_home())
                 abstract = '@' if sys.platform.startswith('linux') else ''
                 address = 'ipc://%s%s/run/vip.socket' % (abstract, home)
+        # These signals need to exist before calling super().__init__()
+        self.onviperror = Signal()
+        self.onsockevent = Signal()
         super(Core, self).__init__(owner)
         self.context = context or zmq.Context.instance()
         self.address = address
         self.identity = identity
         self.socket = None
         self.subsystems = {'error': self.handle_error}
-        self.onviperror = Signal()
 
     def register(self, name, handler, error_handler=None):
         self.subsystems[name] = handler
@@ -396,6 +399,23 @@ class Core(BasicCore):
             self.socket.identity = self.identity
         yield
         # pre-start
+        def monitor():
+            # Call socket.monitor() directly rather than use
+            # get_monitor_socket() so we can use green sockets with
+            # regular contexts (get_monitor_socket() uses
+            # self.context.socket()).
+            addr = 'inproc://monitor.v-%d' % (id(self.socket),)
+            self.socket.monitor(addr, zmq.EVENT_ALL)
+            try:
+                sock = zmq.Socket(self.context, zmq.PAIR)
+                sock.connect(addr)
+                while True:
+                    event, endpoint = sock.recv_multipart()
+                    ident, value = struct.unpack('=HI', event)
+                    self.onsockevent.send(self, event=(ident, value, endpoint))
+            finally:
+                self.socket.monitor(None, 0)
+        self.spawn(monitor).join(0)
         self.socket.connect(self.address)
         def vip_loop():
             sock = self.socket
