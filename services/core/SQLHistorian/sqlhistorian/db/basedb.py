@@ -25,7 +25,8 @@ class DbDriver(object):
                 raise AttributeError(
                         "Couldn't connect using specified configuration" 
                         " credentials")
-        except connector.errors.ProgrammingError:
+        except Exception as e:
+            _log.exception(e)
             raise AttributeError("Couldn't connect using specified " 
                         "configuration credentials")
             
