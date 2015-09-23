@@ -164,25 +164,30 @@ def historian(config_path, **kwargs):
             except:
                 self.topic_map = self.reader.get_topic_map()
 
-            for x in to_publish_list:
-                ts = x['timestamp']
-                topic = x['topic']
-                value = x['value']
-                # look at the topics that are stored in the database already
-                # to see if this topic has a value
-                topic_id = self.topic_map.get(topic)
-
-                if topic_id is None:
-                    row  = self.writer.insert_topic(topic)
-                    topic_id = row[0]
-                    self.topic_map[topic] = topic_id
-
-                self.writer.insert_data(ts,topic_id, value)
+            try:
+                for x in to_publish_list:
+                    ts = x['timestamp']
+                    topic = x['topic']
+                    value = x['value']
+                    # look at the topics that are stored in the database already
+                    # to see if this topic has a value
+                    topic_id = self.topic_map.get(topic)
+    
+                    if topic_id is None:
+                        row  = self.writer.insert_topic(topic)
+                        topic_id = row[0]
+                        self.topic_map[topic] = topic_id
+    
+                    self.writer.insert_data(ts,topic_id, value)
                 
-            self.writer.commit()
+                self.writer.commit()
+                _log.debug('published {} data values:'.format(len(to_publish_list)))
+                self.report_all_handled()
+            except Exception as e:
+                self.writer.rollback()
+                _log.exception(e)
 
-            _log.debug('published {} data values:'.format(len(to_publish_list)))
-            self.report_all_handled()
+            
 
         def query_topic_list(self):
             if len(self.topic_map) > 0:

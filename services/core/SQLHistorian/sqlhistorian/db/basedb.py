@@ -97,6 +97,13 @@ class DbDriver(object):
     def commit(self):
         self.__connection.commit()
         self.__cursor = None
+        self.__connection.close()
+        self.__connection = None
+    
+    def rollback(self):
+        self.__connection.rollback()
+        self.__cursor = None
+        self.__connection.close()
         self.__connection = None      
     
     def select(self, query, args):
