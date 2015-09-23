@@ -143,7 +143,7 @@ def SMAPHistorianAgent(config_path, **kwargs):
 
                     # Clear the bad point from the publish list so it doesn't
                     # stay around.
-                    self.report_published(item)
+                    self.report_handled(item)
                     continue
 
                 # Auto convert bools to ints for smap.
@@ -169,7 +169,7 @@ def SMAPHistorianAgent(config_path, **kwargs):
                     if ('timestamp' not in item or 'tz' not in meta):
                         _log.error('Invalid timestamp specified for item: {}'
                                .format(item))
-                        self.report_published(item)
+                        self.report_handled(item)
                         continue
                     utc = item['timestamp']
                     mytz = timezone(meta['tz'])
@@ -214,7 +214,7 @@ def SMAPHistorianAgent(config_path, **kwargs):
                         _log.info('Adding new topic: {}'.format(topic))
                         self._topic_to_uuid[topic] = publish[topic]['uuid']
 
-                self.report_all_published()
+                self.report_all_handled()
             else:
                 _log.error('Invalid response from server for {}'
                            .format(jsonapi.dumps(publish)))

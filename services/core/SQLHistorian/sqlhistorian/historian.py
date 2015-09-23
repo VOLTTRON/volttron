@@ -182,7 +182,7 @@ def historian(config_path, **kwargs):
             self.writer.commit()
 
             _log.debug('published {} data values:'.format(len(to_publish_list)))
-            self.report_all_published()
+            self.report_all_handled()
 
         def query_topic_list(self):
             if len(self.topic_map) > 0:
