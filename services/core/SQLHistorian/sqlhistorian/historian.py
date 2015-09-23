@@ -178,6 +178,8 @@ def historian(config_path, **kwargs):
                     self.topic_map[topic] = topic_id
 
                 self.writer.insert_data(ts,topic_id, value)
+                
+            self.writer.commit()
 
             _log.debug('published {} data values:'.format(len(to_publish_list)))
             self.report_all_published()
