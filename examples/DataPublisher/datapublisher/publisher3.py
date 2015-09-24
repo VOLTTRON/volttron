@@ -208,9 +208,7 @@ def DataPub(config_path, **kwargs):
                         topic += '/'
                     
                     # Transform the values into floats rather than the read strings.
-                    if isinstance(data, dict):
-                        data = dict([(k, float(v)) for k, v in data.items() if v])
-                    else:
+                    if not isinstance(data, dict):
                         data = float(data)
                         
                     # Create metadata with the type, tz ... in it.
@@ -259,6 +257,8 @@ def DataPub(config_path, **kwargs):
                                 # make sure that there is an actual value not
                                 # just an empty string.
                                 if value:
+                                    if value == '0.0':
+                                        pass
                                     # Attempt to publish as a float.
                                     try:
                                         value = float(value)
