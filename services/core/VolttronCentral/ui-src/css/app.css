@@ -263,6 +263,15 @@ br + .form__control-help {
     position: absolute;
 }
 
+.logo__beta {
+    font-family: "Montserrat";
+    font-weight: bold;
+    letter-spacing: 0.1em;
+    margin-left: 1em;
+    margin-right: -0.1em;
+    color: #456;
+}
+
 .navigation__item {
     display: inline-block;
     margin-left: 1.5rem;
