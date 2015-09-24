@@ -182,6 +182,8 @@ def DrivenAgent(config_path, **kwargs):
             # Do the analysis based upon the data passed (the old code).
             # print self._subdevice_values, self._device_values
             obj = jsonapi.loads(message[0])
+            if isinstance(obj, list):
+                obj = obj[0]
             dev_list = topic.split('/')
             device_or_subdevice = dev_list[-2]
             device_id = [dev for dev in self._master_devices
