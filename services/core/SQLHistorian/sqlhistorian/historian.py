@@ -184,11 +184,9 @@ def historian(config_path, **kwargs):
                 _log.debug('published {} data values:'.format(len(to_publish_list)))
                 self.report_all_handled()
             except Exception as e:
-                self.writer.rollback()
                 _log.exception(e)
-
-            
-
+                self.writer.rollback()
+                
         def query_topic_list(self):
             if len(self.topic_map) > 0:
                 return self.topic_map.keys()
