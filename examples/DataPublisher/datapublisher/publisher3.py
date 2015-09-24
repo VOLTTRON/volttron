@@ -232,7 +232,7 @@ def DataPub(config_path, **kwargs):
                     self.vip.pubsub.publish(peer='pubsub',
                                             topic=topic_point,
                                             message=message, #[data, {'source': 'publisher3'}],
-                                            headers=headers)
+                                            headers=headers).get(timeout=2)
 
                 # if a string then topics are string path
                 # using device path and the data point.
