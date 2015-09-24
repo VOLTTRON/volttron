@@ -101,13 +101,17 @@ class DbDriver(object):
             self.__cursor = None
             self.__connection.close()
             self.__connection = None
+        else:
+            _log.warn('connection was null during commit phase.')
     
     def rollback(self):
         if self.__connection is not None:
             self.__connection.rollback()
             self.__cursor = None
             self.__connection.close()
-            self.__connection = None      
+            self.__connection = None
+        else:
+            _log.warn('connection was null during rollback phase.')
     
     def select(self, query, args):
         conn = self.__connect(True)
