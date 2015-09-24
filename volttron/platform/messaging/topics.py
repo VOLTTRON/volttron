@@ -179,4 +179,5 @@ DRIVER_CONFIG_ADD = _(_CONFIG_VALUE.replace('{category}', 'driver'))
 DRIVER_CONFIG_REMOVE = _(_CONFIG_VALUE.replace('{category}', 'driver'))
 DRIVER_CONFIG_UPDATE = _(_CONFIG_VALUE.replace('{category}', 'driver'))
 
-
+WEATHER_BASE = 'weather'
+WEATHER_REQUEST = 'weather/request'
