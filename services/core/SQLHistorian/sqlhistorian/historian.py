@@ -183,13 +183,16 @@ def historian(config_path, **kwargs):
                         real_published.append(x)
                 if len(real_published) > 0:            
                     if self.writer.commit():
-                        _log.debug('published {} data values:'.format(len(to_publish_list)))
+                        _log.debug('published {} data values'.format(len(to_publish_list)))
                         self.report_all_handled()
+                    else:
+                        _log.debug('failed to commit so rolling back {} data values'.format(len(to_publish_list)))
+                        self.writer.rollback()
                 else:
                     _log.debug('Unable to publish {}'.format(len(to_publish_list)))
-            except Exception as e:
+            except:
                 self.writer.rollback()
-                _log.error(e.message)
+                # Raise to the platform so it is logged properly.
                 raise
                 
                 
