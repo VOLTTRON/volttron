@@ -369,6 +369,7 @@ class Core(BasicCore):
         # These signals need to exist before calling super().__init__()
         self.onviperror = Signal()
         self.onsockevent = Signal()
+        self.onconnected = Signal()
         super(Core, self).__init__(owner)
         self.context = context or zmq.Context.instance()
         self.address = address
@@ -398,7 +399,15 @@ class Core(BasicCore):
         if self.identity:
             self.socket.identity = self.identity
         yield
+
         # pre-start
+        state = type('HelloState', (), {'count': 0, 'ident': None})
+        def hello():
+            state.ident = ident = b'connect.hello.%d' % state.count
+            state.count += 1
+            self.spawn(self.socket.send_vip,
+                       b'', b'hello', [b'hello'], msg_id=ident)
+
         def monitor():
             # Call socket.monitor() directly rather than use
             # get_monitor_socket() so we can use green sockets with
@@ -413,10 +422,14 @@ class Core(BasicCore):
                     event, endpoint = sock.recv_multipart()
                     ident, value = struct.unpack('=HI', event)
                     self.onsockevent.send(self, event=(ident, value, endpoint))
+                    if ident & zmq.EVENT_CONNECTED:
+                        hello()
             finally:
                 self.socket.monitor(None, 0)
+
         self.spawn(monitor).join(0)
         self.socket.connect(self.address)
+
         def vip_loop():
             sock = self.socket
             while True:
@@ -428,6 +441,16 @@ class Core(BasicCore):
                     raise
 
                 subsystem = bytes(message.subsystem)
+                # Handle hellos sent by CONNECTED event
+                if (subsystem == b'hello' and
+                        bytes(message.id) == state.ident and
+                        len(message.args) > 3 and
+                        bytes(message.args[0]) == b'welcome'):
+                    version, router, identity = [
+                        bytes(x) for x in message.args[1:4]]
+                    self.onconnected.send(self, version=version,
+                                          router=router, identity=identity)
+
                 try:
                     handle = self.subsystems[subsystem]
                 except KeyError:
@@ -440,6 +463,7 @@ class Core(BasicCore):
                     sock.send_vip_object(message, copy=False)
                 else:
                     handle(message)
+
         yield gevent.spawn(vip_loop)
         # pre-stop
         yield
