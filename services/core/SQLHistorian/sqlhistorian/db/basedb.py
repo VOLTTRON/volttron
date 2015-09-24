@@ -96,16 +96,18 @@ class DbDriver(object):
         return row
     
     def commit(self):
-        self.__connection.commit()
-        self.__cursor = None
-        self.__connection.close()
-        self.__connection = None
+        if self.__connection is not None:
+            self.__connection.commit()
+            self.__cursor = None
+            self.__connection.close()
+            self.__connection = None
     
     def rollback(self):
-        self.__connection.rollback()
-        self.__cursor = None
-        self.__connection.close()
-        self.__connection = None      
+        if self.__connection is not None:
+            self.__connection.rollback()
+            self.__cursor = None
+            self.__connection.close()
+            self.__connection = None      
     
     def select(self, query, args):
         conn = self.__connect(True)
