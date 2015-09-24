@@ -67,6 +67,8 @@ from volttron.platform.agent.utils import jsonapi
 from volttron.platform.messaging import topics
 from volttron.platform.messaging import headers as headers_mod
 
+_log = logging.getLogger(__name__)
+
 HEADER_NAME_DATE = headers_mod.DATE
 HEADER_NAME_CONTENT_TYPE = headers_mod.CONTENT_TYPE
 VALUE_RESPONSE_PREFIX = topics.ACTUATOR_VALUE()
@@ -181,6 +183,9 @@ def DataPub(config_path, **kwargs):
                 except StopIteration:
                     self._src_file_handle.close()
                     self._src_file_handle = None
+                    _log.debug("Completed publishing all records for file!")
+                    self.core.stop()
+                                        
                     return
                 # break out if no data is left to be found.
                 if not data:
@@ -201,11 +206,33 @@ def DataPub(config_path, **kwargs):
                     # makesure topic+point gives a true value.
                     if not topic.endswith('/') and not point.startswith('/'):
                         topic += '/'
-
+                    
+                    # Transform the values into floats rather than the read strings.
+                    if isinstance(data, dict):
+                        data = dict([(k, float(v)) for k, v in data.items() if v])
+                    else:
+                        data = float(data)
+                        
+                    # Create metadata with the type, tz ... in it.
+                    meta = {}
+                    topic_point = topic+point
+                    if topic_point.endswith('/all'):
+                        root=point[:-3]
+                        for p, v in data.items():
+                            meta[p] = {'type': 'float', 'tz': 'US/Pacific'}
+                    else:
+                        meta[point] = {'type': 'float', 'tz': 'US/Pacific'}
+                    
+                    # Message will always be a list of two elements.  The first element
+                    # is set with the data to be published.  The second element is meta
+                    # data.  The meta data must hold a type element in order for the 
+                    # historians to work properly. 
+                    message = [data, meta]
+                    
                     self.vip.pubsub.publish(peer='pubsub',
-                                            topic=topic+point,
-                                            message=[data, {'source': 'publisher3'}],
-                                            headers=headers)
+                                            topic=topic_point,
+                                            message=message, #[data, {'source': 'publisher3'}],
+                                            headers=headers).get(timeout=2)
 
                 # if a string then topics are string path
                 # using device path and the data point.
@@ -368,7 +395,7 @@ def DataPub(config_path, **kwargs):
             self.schedule(next_time, event)
 
         @Core.receiver('onfinish')
-        def finish(self):
+        def finish(self, sender):
             if self._src_file_handle is not None:
                 try:
                     self._src_file_handle.close()

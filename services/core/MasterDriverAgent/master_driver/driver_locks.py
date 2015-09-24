@@ -77,4 +77,26 @@ def socket_lock():
         yield 
     finally:
         _socket_lock.release()
+        
+_publish_lock = None
+
+def configure_publish_lock(max_connections=0):
+    global _publish_lock
+    if _publish_lock is not None:
+        raise RuntimeError("socket_lock already configured!")
+    if max_connections < 1:
+        _publish_lock = DummySemaphore()
+    else:
+        _publish_lock = BoundedSemaphore(max_connections)
+
+@contextmanager        
+def publish_lock():
+    global _publish_lock
+    if _publish_lock is None:
+        raise RuntimeError("socket_lock not configured!")
+    _publish_lock.acquire()
+    try:        
+        yield 
+    finally:
+        _publish_lock.release()
     

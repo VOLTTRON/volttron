@@ -56,10 +56,10 @@ from __future__ import absolute_import, print_function
 
 import datetime
 import errno
+import inspect
 import logging
 import os, os.path
 from pprint import pprint
-import sqlite3
 import sys
 import uuid
 
@@ -93,14 +93,22 @@ def historian(config_path, **kwargs):
     assert params is not None
     identity = config.get('identity', kwargs.pop('identity', None))
 
-    if databaseType == 'sqlite':
-        from .db.sqlitefuncts import SqlLiteFuncts as DbFuncts
-    elif databaseType == 'mysql':
-        from .db.mysqlfuncts import MySqlFuncts as DbFuncts
-    else:
-        _log.error("Unknown database type specified!")
-        raise Exception("Unkown database type specified!")
-        
+    
+    mod_name = databaseType+"functs"
+    mod_name_path = "sqlhistorian.db."+mod_name
+    loaded_mod = __import__(mod_name_path, fromlist=[mod_name])
+    
+    for name, cls in inspect.getmembers(loaded_mod):
+        # assume class is not the root dbdriver
+        if inspect.isclass(cls) and name != 'DbDriver':
+            DbFuncts = cls
+            break
+    try:
+        _log.debug('Historian using module: '+DbFuncts.__name__)
+    except NameError:
+        functerror = 'Invalid module named '+mod_name_path+ "."
+        raise Exception(functerror)
+            
     class SQLHistorian(BaseHistorian):
         '''This is a simple example of a historian agent that writes stuff
         to a SQLite database. It is designed to test some of the functionality
@@ -155,24 +163,39 @@ def historian(config_path, **kwargs):
             except:
                 self.topic_map = self.reader.get_topic_map()
 
-            for x in to_publish_list:
-                ts = x['timestamp']
-                topic = x['topic']
-                value = x['value']
-                # look at the topics that are stored in the database already
-                # to see if this topic has a value
-                topic_id = self.topic_map.get(topic)
-
-                if topic_id is None:
-                    row  = self.writer.insert_topic(topic)
-                    topic_id = row[0]
-                    self.topic_map[topic] = topic_id
-
-                self.writer.insert_data(ts,topic_id, value)
-
-            _log.debug('published {} data values:'.format(len(to_publish_list)))
-            self.report_all_published()
-
+            try:
+                real_published = []
+                for x in to_publish_list:
+                    ts = x['timestamp']
+                    topic = x['topic']
+                    value = x['value']
+                    # look at the topics that are stored in the database already
+                    # to see if this topic has a value
+                    topic_id = self.topic_map.get(topic)
+    
+                    if topic_id is None:
+                        row  = self.writer.insert_topic(topic)
+                        topic_id = row[0]
+                        self.topic_map[topic] = topic_id
+                    
+                    if self.writer.insert_data(ts,topic_id, value):
+                        #_log.debug('item was inserted')
+                        real_published.append(x)
+                if len(real_published) > 0:            
+                    if self.writer.commit():
+                        _log.debug('published {} data values'.format(len(to_publish_list)))
+                        self.report_all_handled()
+                    else:
+                        _log.debug('failed to commit so rolling back {} data values'.format(len(to_publish_list)))
+                        self.writer.rollback()
+                else:
+                    _log.debug('Unable to publish {}'.format(len(to_publish_list)))
+            except:
+                self.writer.rollback()
+                # Raise to the platform so it is logged properly.
+                raise
+                
+                
         def query_topic_list(self):
             if len(self.topic_map) > 0:
                 return self.topic_map.keys()

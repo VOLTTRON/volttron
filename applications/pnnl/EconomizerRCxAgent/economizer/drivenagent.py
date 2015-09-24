@@ -290,8 +290,7 @@ def DrivenAgent(config_path, **kwargs):
                                 _analysis['unit'] = item
                                 analysis_topic = topics.ANALYSIS_VALUE(
                                     point=key, **_analysis)
-                                if isinstance(value, datetime.datetime):
-                                    value = value.isoformat()
+
                                 self.publish_json(analysis_topic,
                                                   headers, value)
 
