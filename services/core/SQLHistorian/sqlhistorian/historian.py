@@ -60,7 +60,6 @@ import inspect
 import logging
 import os, os.path
 from pprint import pprint
-import sqlite3
 import sys
 import uuid
 
@@ -165,6 +164,7 @@ def historian(config_path, **kwargs):
                 self.topic_map = self.reader.get_topic_map()
 
             try:
+                real_published = []
                 for x in to_publish_list:
                     ts = x['timestamp']
                     topic = x['topic']
@@ -177,15 +177,21 @@ def historian(config_path, **kwargs):
                         row  = self.writer.insert_topic(topic)
                         topic_id = row[0]
                         self.topic_map[topic] = topic_id
-    
-                    self.writer.insert_data(ts,topic_id, value)
-                
-                self.writer.commit()
-                _log.debug('published {} data values:'.format(len(to_publish_list)))
-                self.report_all_handled()
+                    
+                    if self.writer.insert_data(ts,topic_id, value):
+                        #_log.debug('item was inserted')
+                        real_published.append(x)
+                if len(real_published) > 0:            
+                    if self.writer.commit():
+                        _log.debug('published {} data values:'.format(len(to_publish_list)))
+                        self.report_all_handled()
+                else:
+                    _log.debug('Unable to publish {}'.format(len(to_publish_list)))
             except Exception as e:
-                _log.exception(e)
                 self.writer.rollback()
+                _log.error(e.message)
+                raise
+                
                 
         def query_topic_list(self):
             if len(self.topic_map) > 0:
