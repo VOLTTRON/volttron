@@ -36,7 +36,7 @@ class DbDriver(object):
         conn = self.__dbmodule.connect(**self.__connect_params)
         
         if conn:
-            can_connect = conn.is_connected()        
+            can_connect = True        
         else:
             raise AttributeError("Could not connect to specified mysql " 
                                  "instance.")
@@ -50,12 +50,9 @@ class DbDriver(object):
         if return_val:
             return self.__dbmodule.connect(**self.__connect_params)
         
-        if self.__connection == None or not self.__connection.is_connected():
+        if self.__connection == None:
             self.__connection = self.__dbmodule.connect(**self.__connect_params)        
             
-            # enable transactions here.
-            self.__connection.autocommit=False
-    
     @abstractmethod
     def get_topic_map(self):
         '''
@@ -140,8 +137,10 @@ class DbDriver(object):
     def select(self, query, args):
         conn = self.__connect(True)
         cursor = conn.cursor()
-        
-        cursor.execute(query, args)
+        if args is not None:
+            cursor.execute(query, args)
+        else:
+            cursor.execute(query)
         rows = cursor.fetchall()
         conn.close()
         return rows
