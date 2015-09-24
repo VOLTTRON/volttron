@@ -184,6 +184,10 @@ def DrivenAgent(config_path, **kwargs):
             to applications.
             '''
             obj = jsonapi.loads(message[0])
+            
+            # protect against a list being published from the data publisher.
+            if isinstance(obj, list):
+                obj = obj[0]
             dev_list = topic.split('/')
             device_or_subdevice = dev_list[-2]
             device_id = [dev for dev in self._master_devices if dev == device_or_subdevice]
