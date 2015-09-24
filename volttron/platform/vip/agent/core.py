@@ -108,6 +108,7 @@ class Periodic(object):   # pylint: disable=invalid-name
 
     def _loop(self, method):
         # pylint: disable=missing-docstring
+        # Use monotonic clock provided on hub's loop instance.
         now = gevent.get_hub().loop.now
         period = self.period
         deadline = now()
