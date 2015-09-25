@@ -183,6 +183,9 @@ def DataPub(config_path, **kwargs):
                 except StopIteration:
                     self._src_file_handle.close()
                     self._src_file_handle = None
+                    _log.debug("Completed publishing all records for file!")
+                    self.core.stop()
+                                        
                     return
                 # break out if no data is left to be found.
                 if not data:
@@ -204,16 +207,30 @@ def DataPub(config_path, **kwargs):
                     if not topic.endswith('/') and not point.startswith('/'):
                         topic += '/'
                     
-                    # if the point is the all then publish the dictionary if
-                    # not then make the data an array for the 2.0 agents to
-                    # be able to deal with the data.    
-                    if point.endswith('/all'):
-                        message = data
+                    # Transform the values into floats rather than the read strings.
+                    if isinstance(data, dict):
+                        data = dict([(k, float(v)) for k, v in data.items() if v])
                     else:
-                        message = [data]
-
+                        data = float(data)
+                        
+                    # Create metadata with the type, tz ... in it.
+                    meta = {}
+                    topic_point = topic+point
+                    if topic_point.endswith('/all'):
+                        root=point[:-3]
+                        for p, v in data.items():
+                            meta[p] = {'type': 'float', 'tz': 'US/Pacific'}
+                    else:
+                        meta[point] = {'type': 'float', 'tz': 'US/Pacific'}
+                    
+                    # Message will always be a list of two elements.  The first element
+                    # is set with the data to be published.  The second element is meta
+                    # data.  The meta data must hold a type element in order for the 
+                    # historians to work properly. 
+                    message = [data, meta]
+                    
                     self.vip.pubsub.publish(peer='pubsub',
-                                            topic=topic+point,
+                                            topic=topic_point,
                                             message=message, #[data, {'source': 'publisher3'}],
                                             headers=headers)
 
