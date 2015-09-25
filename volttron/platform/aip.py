@@ -551,3 +551,8 @@ class AIPplatform(object):
             except gevent.Timeout:
                 raise ValueError('process is unresponsive')
         return execenv.process.poll()
+
+    def agent_uuid_from_pid(self, pid):
+        for agent_uuid, execenv in self.agents.iteritems():
+            if execenv.process.pid == pid:
+                return agent_uuid if execenv.process.poll() is None else None

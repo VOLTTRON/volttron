@@ -71,9 +71,11 @@ import traceback
 
 import gevent
 import gevent.event
+from zmq import curve_keypair
 
 from .agent import utils
 from .vip.agent import Agent as BaseAgent, RPC
+from .vip.socket import encode_key
 from . import aip as aipmod
 from . import config
 from .jsonrpc import RemoteError
@@ -468,6 +470,12 @@ def send_agent(opts):
         connection.call('start_agent', uuid)
         _stdout.write('Agent {} started as {}\n'.format(wheel, uuid))
 
+def print_keypair(opts):
+    public, secret = curve_keypair()
+    _stdout.write('public: %s\nsecret: %s\n' % (
+        encode_key(public), encode_key(secret)))
+
+
 # XXX: reimplement over VIP
 #def send_agent(opts):
 #    _log.debug("send_agent: "+ str(opts))
@@ -693,6 +701,10 @@ def main(argv=sys.argv):
         help='send agent and start on a remote platform')
     send.add_argument('wheel', nargs='+', help='agent package to send')
     send.set_defaults(func=send_agent)
+
+    keypair = add_parser('keypair',
+        help='generate CurveMQ keys for encrypting VIP connections')
+    keypair.set_defaults(func=print_keypair)
 
     if HAVE_RESTRICTED:
         cgroup = add_parser('create-cgroups',
