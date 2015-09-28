@@ -567,6 +567,15 @@ def main(argv=sys.argv):
         timeout=30,
     )
 
+    filterable = config.ArgumentParser(add_help=False)
+    filterable.add_argument('--name', dest='by_name', action='store_true',
+        help='filter/search by agent name')
+    filterable.add_argument('--tag', dest='by_tag', action='store_true',
+        help='filter/search by tag name')
+    filterable.add_argument('--uuid', dest='by_uuid', action='store_true',
+        help='filter/search by UUID (default)')
+    filterable.set_defaults(by_name=False, by_tag=False, by_uuid=False)
+
     parser = config.ArgumentParser(
         prog=os.path.basename(argv[0]), add_help=False,
         description='Manage and control VOLTTRON agents.',
@@ -588,15 +597,6 @@ def main(argv=sys.argv):
     parser.add_argument(
         '--show-config', action='store_true',
         help=argparse.SUPPRESS)
-
-    filterable = config.ArgumentParser(add_help=False)
-    filterable.add_argument('--name', dest='by_name', action='store_true',
-        help='filter/search by agent name')
-    filterable.add_argument('--tag', dest='by_tag', action='store_true',
-        help='filter/search by tag name')
-    filterable.add_argument('--uuid', dest='by_uuid', action='store_true',
-        help='filter/search by UUID (default)')
-    filterable.set_defaults(by_name=False, by_tag=False, by_uuid=False)
 
     parser.add_help_argument()
     parser.set_defaults(
