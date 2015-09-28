@@ -56,6 +56,7 @@ var Navigation = React.createClass({
                 <h1 className="logo">
                     <span className="logo__name">VOLTTRON</span>
                     <span className="logo__tm">&trade;</span>
+                    <span className="logo__beta">BETA</span>
                 </h1>
                 {navItems}
             </nav>

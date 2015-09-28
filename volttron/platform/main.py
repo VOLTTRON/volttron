@@ -246,7 +246,7 @@ class Router(vip.BaseRouter):
         self._secretkey = secretkey
         self.logger = logging.getLogger('vip.router')
         if self.logger.level == logging.NOTSET:
-            self.logger.setLevel(logging.INFO)
+            self.logger.setLevel(logging.WARNING)
         self._monitor = monitor
 
     def setup(self):
