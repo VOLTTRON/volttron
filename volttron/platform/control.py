@@ -546,6 +546,10 @@ def main(argv=sys.argv):
             os.environ.get('VOLTTRON_HOME', '~/.volttron')))
     os.environ['VOLTTRON_HOME'] = volttron_home
 
+    vip_path = '$VOLTTRON_HOME/run/vip.socket'
+    if sys.platform.startswith('linux'):
+        vip_path = '@' + vip_path
+
     global_args = config.ArgumentParser(description='global options', add_help=False)
     global_args.add_argument('-c', '--config', metavar='FILE',
         action='parse_config', ignore_unknown=True,
@@ -558,6 +562,10 @@ def main(argv=sys.argv):
     global_args.add_argument(
         '--vip-address', metavar='ZMQADDR',
         help='ZeroMQ URL to bind for VIP connections')
+    global_args.set_defaults(
+        vip_address='ipc://' + vip_path,
+        timeout=30,
+    )
 
     parser = config.ArgumentParser(
         prog=os.path.basename(argv[0]), add_help=False,
@@ -591,15 +599,9 @@ def main(argv=sys.argv):
     filterable.set_defaults(by_name=False, by_tag=False, by_uuid=False)
 
     parser.add_help_argument()
-
-    vip_path = '$VOLTTRON_HOME/run/vip.socket'
-    if sys.platform.startswith('linux'):
-        vip_path = '@' + vip_path
     parser.set_defaults(
         log_config=None,
         volttron_home=volttron_home,
-        vip_address='ipc://' + vip_path,
-        timeout=30,
     )
 
     subparsers = parser.add_subparsers(title='commands', metavar='', dest='command')
