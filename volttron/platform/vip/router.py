@@ -58,7 +58,7 @@
 
 from __future__ import absolute_import
 
-from logging import CRITICAL, DEBUG, ERROR, WARNING
+from logging import CRITICAL, INFO, DEBUG
 import os
 
 import zmq
@@ -219,16 +219,16 @@ class BaseRouter(object):
             if len(frames) == 2 and frames[0] and not frames[1]:
                 log(DEBUG, 'router probe', frames)
             else:
-                log(ERROR, 'unroutable message', frames)
+                log(DEBUG, 'unroutable message', frames)
             return
         sender, recipient, proto, auth_token, msg_id = frames[:5]
         if proto.bytes != b'VIP1':
             # Peer is not talking a protocol we understand
-            log(ERROR, 'invalid protocol signature', frames)
+            log(DEBUG, 'invalid protocol signature', frames)
             return
         user_id = self.lookup_user_id(sender, recipient, auth_token)
         if user_id is None:
-            log(WARNING, 'missing user ID', frames)
+            log(DEBUG, 'missing user ID', frames)
             user_id = b''
 
         subsystem = frames[5]
@@ -245,7 +245,7 @@ class BaseRouter(object):
                 response = self.handle_subsystem(frames, user_id)
                 if response is None:
                     # Handler does not know of the subsystem
-                    log(ERROR, 'unknown subsystem', frames)
+                    log(DEBUG, 'unknown subsystem', frames)
                     errnum, errmsg = _INVALID_SUBSYSTEM
                     frames = [sender, recipient, proto, b'', msg_id,
                               b'error', errnum, errmsg, b'', subsystem]
@@ -270,14 +270,14 @@ class BaseRouter(object):
             except KeyError:
                 log(CRITICAL, 'unhandled exception: {}'.format(exc), frames)
                 raise exc
-            log(ERROR, 'send failure: {}'.format(errmsg.bytes), frames)
+            log(INFO, 'send failure: {}'.format(errmsg.bytes), frames)
             if exc.errno != zmq.EHOSTUNREACH or sender is not frames[0]:
                 # Only send errors if the sender and recipient differ
                 frames = [sender, b'', proto, user_id, msg_id,
                           b'error', errnum, errmsg, recipient, subsystem]
                 try:
                     socket.send_multipart(frames, flags=NOBLOCK, copy=False)
-                    log(DEBUG, 'outgoing error', frames)
+                    log(INFO, 'outgoing error', frames)
                 except ZMQError as exc:
                     # Be silent about most errors when sending errors
                     if exc.errno not in _ROUTE_ERRORS:
