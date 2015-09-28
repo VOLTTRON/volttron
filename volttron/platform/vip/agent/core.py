@@ -371,12 +371,18 @@ class Core(BasicCore):
         self.onviperror = Signal()
         self.onsockevent = Signal()
         self.onconnected = Signal()
+        self.ondisconnected = Signal()
         super(Core, self).__init__(owner)
         self.context = context or zmq.Context.instance()
         self.address = address
         self.identity = identity
         self.socket = None
         self.subsystems = {'error': self.handle_error}
+        self.__connected = False
+
+    @property
+    def connected(self):
+        return self.__connected
 
     def register(self, name, handler, error_handler=None):
         self.subsystems[name] = handler
@@ -422,9 +428,13 @@ class Core(BasicCore):
                 while True:
                     event, endpoint = sock.recv_multipart()
                     ident, value = struct.unpack('=HI', event)
-                    self.onsockevent.send(self, event=(ident, value, endpoint))
+                    self.onsockevent.send(
+                        self, event=ident, value=value, endpoint=endpoint)
                     if ident & zmq.EVENT_CONNECTED:
                         hello()
+                    elif ident & zmq.EVENT_DISCONNECTED:
+                        self.__connected = False
+                        self.ondisconnected.send(self)
             finally:
                 self.socket.monitor(None, 0)
 
@@ -449,6 +459,7 @@ class Core(BasicCore):
                         bytes(message.args[0]) == b'welcome'):
                     version, router, identity = [
                         bytes(x) for x in message.args[1:4]]
+                    self.__connected = True
                     self.onconnected.send(self, version=version,
                                           router=router, identity=identity)
 
