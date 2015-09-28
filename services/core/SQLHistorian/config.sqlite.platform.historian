@@ -4,8 +4,7 @@
     "connection": {
         "type": "sqlite",
         "params": {
-            "database": "~/.volttron/data/platform.historian.sqlite",
-            "detect_types": "sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES"
+            "database": "~/.volttron/data/platform.historian.sqlite"
         }
     }
 }
