@@ -5,7 +5,7 @@ var React = require('react');
 var Router = require('react-router');
 
 var authorizationStore = require('./stores/authorization-store');
-var Dashboard = require('./components/Dashboard');
+var Dashboard = require('./components/dashboard');
 var LoginForm = require('./components/login-form');
 var PageNotFound = require('./components/page-not-found');
 var Platform = require('./components/platform');
@@ -75,7 +75,7 @@ router.run(function (Handler) {
 });
 
 
-},{"./components/Dashboard":6,"./components/login-form":17,"./components/page-not-found":20,"./components/platform":22,"./components/platform-manager":21,"./components/platforms":23,"./stores/authorization-store":34,"react":undefined,"react-router":undefined}],2:[function(require,module,exports){
+},{"./components/dashboard":12,"./components/login-form":17,"./components/page-not-found":20,"./components/platform":22,"./components/platform-manager":21,"./components/platforms":23,"./stores/authorization-store":34,"react":undefined,"react-router":undefined}],2:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -570,6 +570,315 @@ module.exports = platformManagerActionCreators;
 'use strict';
 
 var React = require('react');
+
+var platformActionCreators = require('../action-creators/platform-action-creators');
+
+var AgentRow = React.createClass({displayName: "AgentRow",
+    _onStop: function () {
+        platformActionCreators.stopAgent(this.props.platform, this.props.agent);
+    },
+    _onStart: function () {
+        platformActionCreators.startAgent(this.props.platform, this.props.agent);
+    },
+    render: function () {
+        var agent = this.props.agent, status, action;
+
+        if (agent.actionPending === undefined) {
+            status = 'Retrieving status...';
+        } else if (agent.actionPending) {
+            if (agent.process_id === null || agent.return_code !== null) {
+                status = 'Starting...';
+                action = (
+                    React.createElement("input", {className: "button", type: "button", value: "Start", disabled: true})
+                );
+            } else {
+                status = 'Stopping...';
+                action = (
+                    React.createElement("input", {className: "button", type: "button", value: "Stop", disabled: true})
+                );
+            }
+        } else {
+            if (agent.process_id === null) {
+                status = 'Never started';
+                action = (
+                    React.createElement("input", {className: "button", type: "button", value: "Start", onClick: this._onStart})
+                );
+            } else if (agent.return_code === null) {
+                status = 'Running (PID ' + agent.process_id + ')';
+                action = (
+                    React.createElement("input", {className: "button", type: "button", value: "Stop", onClick: this._onStop})
+                );
+            } else {
+                status = 'Stopped (returned ' + agent.return_code + ')';
+                action = (
+                    React.createElement("input", {className: "button", type: "button", value: "Start", onClick: this._onStart})
+                );
+            }
+        }
+
+        return (
+            React.createElement("tr", null, 
+                React.createElement("td", null, agent.name), 
+                React.createElement("td", null, agent.uuid), 
+                React.createElement("td", null, status), 
+                React.createElement("td", null, action)
+            )
+        );
+    },
+});
+
+module.exports = AgentRow;
+
+
+},{"../action-creators/platform-action-creators":4,"react":undefined}],7:[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+
+var topicDataStore = require('../stores/topic-data-store');
+var platformActionCreators = require('../action-creators/platform-action-creators');
+var LineChart = require('./line-chart');
+
+var chartTypes = {
+    'line': LineChart,
+};
+
+var Chart = React.createClass({displayName: "Chart",
+    getInitialState: function () {
+        return getStateFromStores(this.props.platform, this.props.chart);
+    },
+    componentDidMount: function () {
+        topicDataStore.addChangeListener(this._onStoreChange);
+
+        if (!this._getTopicDataTimeout) {
+            this._getTopicDataTimeout = setTimeout(this._getTopicData, 0);
+        }
+    },
+    componentWillUnmount: function () {
+        topicDataStore.removeChangeListener(this._onStoreChange);
+        clearTimeout(this._getTopicDataTimeout);
+    },
+    _initTopicData: function () {
+
+    },
+    _onStoreChange: function () {
+        this.setState(getStateFromStores(this.props.platform, this.props.chart));
+    },
+    _getTopicData: function () {
+        platformActionCreators.getTopicData(
+            this.props.platform,
+            this.props.chart.topic
+        );
+
+        if (this.props.chart.refreshInterval) {
+            this._getTopicDataTimeout = setTimeout(this._getTopicData, this.props.chart.refreshInterval);
+        }
+    },
+    render: function () {
+        var ChartClass = chartTypes[this.props.chart.type];
+
+        return (
+            React.createElement(ChartClass, {
+                className: "chart", 
+                chart: this.props.chart, 
+                data: this.state.data || []}
+            )
+        );
+    },
+});
+
+function getStateFromStores(platform, chart) {
+    return { data: topicDataStore.getTopicData(platform, chart.topic) };
+}
+
+module.exports = Chart;
+
+
+},{"../action-creators/platform-action-creators":4,"../stores/topic-data-store":40,"./line-chart":16,"react":undefined}],8:[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+
+var consoleActionCreators = require('../action-creators/console-action-creators');
+var consoleStore = require('../stores/console-store');
+
+var Composer = React.createClass({displayName: "Composer",
+    getInitialState: getStateFromStores,
+    componentDidMount: function () {
+        consoleStore.addChangeListener(this._onChange);
+    },
+    componentWillUnmount: function () {
+        consoleStore.removeChangeListener(this._onChange);
+    },
+    _onChange: function () {
+        this.replaceState(getStateFromStores());
+    },
+    _onSendClick: function () {
+        consoleActionCreators.makeRequest(JSON.parse(this.state.composerValue));
+    },
+    _onTextareaChange: function (e) {
+        consoleActionCreators.updateComposerValue(e.target.value);
+    },
+    render: function () {
+        return (
+            React.createElement("div", {className: "composer"}, 
+                React.createElement("textarea", {
+                    key: this.state.composerId, 
+                    onChange: this._onTextareaChange, 
+                    defaultValue: this.state.composerValue}
+                ), 
+                React.createElement("input", {
+                    className: "button", 
+                    ref: "send", 
+                    type: "button", 
+                    value: "Send", 
+                    disabled: !this.state.valid, 
+                    onClick: this._onSendClick}
+                )
+            )
+        );
+    },
+});
+
+function getStateFromStores() {
+    var composerValue = consoleStore.getComposerValue();
+    var valid = true;
+
+    try {
+        JSON.parse(composerValue);
+    } catch (ex) {
+        if (ex instanceof SyntaxError) {
+            valid = false;
+        } else {
+            throw ex;
+        }
+    }
+
+    return {
+        composerId: consoleStore.getComposerId(),
+        composerValue: composerValue,
+        valid: valid,
+    };
+}
+
+module.exports = Composer;
+
+
+},{"../action-creators/console-action-creators":2,"../stores/console-store":35,"react":undefined}],9:[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+
+var modalActionCreators = require('../action-creators/modal-action-creators');
+
+var ConfirmForm = React.createClass({displayName: "ConfirmForm",
+    _onCancelClick: modalActionCreators.closeModal,
+    _onSubmit: function () {
+        this.props.onConfirm();
+    },
+    render: function () {
+        return (
+            React.createElement("form", {className: "confirmation-form", onSubmit: this._onSubmit}, 
+                React.createElement("h1", null, this.props.promptTitle), 
+                React.createElement("p", null, 
+                    this.props.promptText
+                ), 
+                React.createElement("div", {className: "form__actions"}, 
+                    React.createElement("button", {
+                        className: "button button--secondary", 
+                        type: "button", 
+                        onClick: this._onCancelClick, 
+                        autoFocus: true
+                    }, 
+                        "Cancel"
+                    ), 
+                    React.createElement("button", {className: "button"}, this.props.confirmText)
+                )
+            )
+        );
+    },
+});
+
+module.exports = ConfirmForm;
+
+
+},{"../action-creators/modal-action-creators":3,"react":undefined}],10:[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+
+var Composer = require('./composer');
+var Conversation = require('./conversation');
+
+var Console = React.createClass({displayName: "Console",
+    render: function () {
+        return (
+            React.createElement("div", {className: "console"}, 
+                React.createElement(Conversation, null), 
+                React.createElement(Composer, null)
+            )
+        );
+    }
+});
+
+module.exports = Console;
+
+
+},{"./composer":8,"./conversation":11,"react":undefined}],11:[function(require,module,exports){
+'use strict';
+
+var $ = require('jquery');
+var React = require('react');
+
+var Exchange = require('./exchange');
+var consoleStore = require('../stores/console-store');
+
+var Conversation = React.createClass({displayName: "Conversation",
+    getInitialState: getStateFromStores,
+    componentDidMount: function () {
+        var $conversation = $(this.refs.conversation.getDOMNode());
+
+        if ($conversation.prop('scrollHeight') > $conversation.height()) {
+            $conversation.scrollTop($conversation.prop('scrollHeight'));
+        }
+
+        consoleStore.addChangeListener(this._onChange);
+    },
+    componentDidUpdate: function () {
+        var $conversation = $(this.refs.conversation.getDOMNode());
+
+        $conversation.stop().animate({ scrollTop: $conversation.prop('scrollHeight') }, 500);
+    },
+    componentWillUnmount: function () {
+        consoleStore.removeChangeListener(this._onChange);
+    },
+    _onChange: function () {
+        this.setState(getStateFromStores());
+    },
+    render: function () {
+        return (
+            React.createElement("div", {ref: "conversation", className: "conversation"}, 
+                this.state.exchanges.map(function (exchange, index) {
+                    return (
+                        React.createElement(Exchange, {key: index, exchange: exchange})
+                    );
+                })
+            )
+        );
+    }
+});
+
+function getStateFromStores() {
+    return { exchanges: consoleStore.getExchanges() };
+}
+
+module.exports = Conversation;
+
+
+},{"../stores/console-store":35,"./exchange":15,"jquery":undefined,"react":undefined}],12:[function(require,module,exports){
+'use strict';
+
+var React = require('react');
 var Router = require('react-router');
 
 var platformsStore = require('../stores/platforms-store');
@@ -672,316 +981,7 @@ function getStateFromStores() {
 module.exports = Dashboard;
 
 
-},{"../action-creators/modal-action-creators":3,"../stores/platforms-store":39,"./chart":8,"./edit-chart-form":14,"react":undefined,"react-router":undefined}],7:[function(require,module,exports){
-'use strict';
-
-var React = require('react');
-
-var platformActionCreators = require('../action-creators/platform-action-creators');
-
-var AgentRow = React.createClass({displayName: "AgentRow",
-    _onStop: function () {
-        platformActionCreators.stopAgent(this.props.platform, this.props.agent);
-    },
-    _onStart: function () {
-        platformActionCreators.startAgent(this.props.platform, this.props.agent);
-    },
-    render: function () {
-        var agent = this.props.agent, status, action;
-
-        if (agent.actionPending === undefined) {
-            status = 'Retrieving status...';
-        } else if (agent.actionPending) {
-            if (agent.process_id === null || agent.return_code !== null) {
-                status = 'Starting...';
-                action = (
-                    React.createElement("input", {className: "button", type: "button", value: "Start", disabled: true})
-                );
-            } else {
-                status = 'Stopping...';
-                action = (
-                    React.createElement("input", {className: "button", type: "button", value: "Stop", disabled: true})
-                );
-            }
-        } else {
-            if (agent.process_id === null) {
-                status = 'Never started';
-                action = (
-                    React.createElement("input", {className: "button", type: "button", value: "Start", onClick: this._onStart})
-                );
-            } else if (agent.return_code === null) {
-                status = 'Running (PID ' + agent.process_id + ')';
-                action = (
-                    React.createElement("input", {className: "button", type: "button", value: "Stop", onClick: this._onStop})
-                );
-            } else {
-                status = 'Stopped (returned ' + agent.return_code + ')';
-                action = (
-                    React.createElement("input", {className: "button", type: "button", value: "Start", onClick: this._onStart})
-                );
-            }
-        }
-
-        return (
-            React.createElement("tr", null, 
-                React.createElement("td", null, agent.name), 
-                React.createElement("td", null, agent.uuid), 
-                React.createElement("td", null, status), 
-                React.createElement("td", null, action)
-            )
-        );
-    },
-});
-
-module.exports = AgentRow;
-
-
-},{"../action-creators/platform-action-creators":4,"react":undefined}],8:[function(require,module,exports){
-'use strict';
-
-var React = require('react');
-
-var topicDataStore = require('../stores/topic-data-store');
-var platformActionCreators = require('../action-creators/platform-action-creators');
-var LineChart = require('./line-chart');
-
-var chartTypes = {
-    'line': LineChart,
-};
-
-var Chart = React.createClass({displayName: "Chart",
-    getInitialState: function () {
-        return getStateFromStores(this.props.platform, this.props.chart);
-    },
-    componentDidMount: function () {
-        topicDataStore.addChangeListener(this._onStoreChange);
-
-        if (!this._getTopicDataTimeout) {
-            this._getTopicDataTimeout = setTimeout(this._getTopicData, 0);
-        }
-    },
-    componentWillUnmount: function () {
-        topicDataStore.removeChangeListener(this._onStoreChange);
-        clearTimeout(this._getTopicDataTimeout);
-    },
-    _initTopicData: function () {
-
-    },
-    _onStoreChange: function () {
-        this.setState(getStateFromStores(this.props.platform, this.props.chart));
-    },
-    _getTopicData: function () {
-        platformActionCreators.getTopicData(
-            this.props.platform,
-            this.props.chart.topic
-        );
-
-        if (this.props.chart.refreshInterval) {
-            this._getTopicDataTimeout = setTimeout(this._getTopicData, this.props.chart.refreshInterval);
-        }
-    },
-    render: function () {
-        var ChartClass = chartTypes[this.props.chart.type];
-
-        return (
-            React.createElement(ChartClass, {
-                className: "chart", 
-                chart: this.props.chart, 
-                data: this.state.data || []}
-            )
-        );
-    },
-});
-
-function getStateFromStores(platform, chart) {
-    return { data: topicDataStore.getTopicData(platform, chart.topic) };
-}
-
-module.exports = Chart;
-
-
-},{"../action-creators/platform-action-creators":4,"../stores/topic-data-store":40,"./line-chart":16,"react":undefined}],9:[function(require,module,exports){
-'use strict';
-
-var React = require('react');
-
-var consoleActionCreators = require('../action-creators/console-action-creators');
-var consoleStore = require('../stores/console-store');
-
-var Composer = React.createClass({displayName: "Composer",
-    getInitialState: getStateFromStores,
-    componentDidMount: function () {
-        consoleStore.addChangeListener(this._onChange);
-    },
-    componentWillUnmount: function () {
-        consoleStore.removeChangeListener(this._onChange);
-    },
-    _onChange: function () {
-        this.replaceState(getStateFromStores());
-    },
-    _onSendClick: function () {
-        consoleActionCreators.makeRequest(JSON.parse(this.state.composerValue));
-    },
-    _onTextareaChange: function (e) {
-        consoleActionCreators.updateComposerValue(e.target.value);
-    },
-    render: function () {
-        return (
-            React.createElement("div", {className: "composer"}, 
-                React.createElement("textarea", {
-                    key: this.state.composerId, 
-                    onChange: this._onTextareaChange, 
-                    defaultValue: this.state.composerValue}
-                ), 
-                React.createElement("input", {
-                    className: "button", 
-                    ref: "send", 
-                    type: "button", 
-                    value: "Send", 
-                    disabled: !this.state.valid, 
-                    onClick: this._onSendClick}
-                )
-            )
-        );
-    },
-});
-
-function getStateFromStores() {
-    var composerValue = consoleStore.getComposerValue();
-    var valid = true;
-
-    try {
-        JSON.parse(composerValue);
-    } catch (ex) {
-        if (ex instanceof SyntaxError) {
-            valid = false;
-        } else {
-            throw ex;
-        }
-    }
-
-    return {
-        composerId: consoleStore.getComposerId(),
-        composerValue: composerValue,
-        valid: valid,
-    };
-}
-
-module.exports = Composer;
-
-
-},{"../action-creators/console-action-creators":2,"../stores/console-store":35,"react":undefined}],10:[function(require,module,exports){
-'use strict';
-
-var React = require('react');
-
-var modalActionCreators = require('../action-creators/modal-action-creators');
-
-var ConfirmForm = React.createClass({displayName: "ConfirmForm",
-    _onCancelClick: modalActionCreators.closeModal,
-    _onSubmit: function () {
-        this.props.onConfirm();
-    },
-    render: function () {
-        return (
-            React.createElement("form", {className: "confirmation-form", onSubmit: this._onSubmit}, 
-                React.createElement("h1", null, this.props.promptTitle), 
-                React.createElement("p", null, 
-                    this.props.promptText
-                ), 
-                React.createElement("div", {className: "form__actions"}, 
-                    React.createElement("button", {
-                        className: "button button--secondary", 
-                        type: "button", 
-                        onClick: this._onCancelClick, 
-                        autoFocus: true
-                    }, 
-                        "Cancel"
-                    ), 
-                    React.createElement("button", {className: "button"}, this.props.confirmText)
-                )
-            )
-        );
-    },
-});
-
-module.exports = ConfirmForm;
-
-
-},{"../action-creators/modal-action-creators":3,"react":undefined}],11:[function(require,module,exports){
-'use strict';
-
-var React = require('react');
-
-var Composer = require('./composer');
-var Conversation = require('./conversation');
-
-var Console = React.createClass({displayName: "Console",
-    render: function () {
-        return (
-            React.createElement("div", {className: "console"}, 
-                React.createElement(Conversation, null), 
-                React.createElement(Composer, null)
-            )
-        );
-    }
-});
-
-module.exports = Console;
-
-
-},{"./composer":9,"./conversation":12,"react":undefined}],12:[function(require,module,exports){
-'use strict';
-
-var $ = require('jquery');
-var React = require('react');
-
-var Exchange = require('./exchange');
-var consoleStore = require('../stores/console-store');
-
-var Conversation = React.createClass({displayName: "Conversation",
-    getInitialState: getStateFromStores,
-    componentDidMount: function () {
-        var $conversation = $(this.refs.conversation.getDOMNode());
-
-        if ($conversation.prop('scrollHeight') > $conversation.height()) {
-            $conversation.scrollTop($conversation.prop('scrollHeight'));
-        }
-
-        consoleStore.addChangeListener(this._onChange);
-    },
-    componentDidUpdate: function () {
-        var $conversation = $(this.refs.conversation.getDOMNode());
-
-        $conversation.stop().animate({ scrollTop: $conversation.prop('scrollHeight') }, 500);
-    },
-    componentWillUnmount: function () {
-        consoleStore.removeChangeListener(this._onChange);
-    },
-    _onChange: function () {
-        this.setState(getStateFromStores());
-    },
-    render: function () {
-        return (
-            React.createElement("div", {ref: "conversation", className: "conversation"}, 
-                this.state.exchanges.map(function (exchange, index) {
-                    return (
-                        React.createElement(Exchange, {key: index, exchange: exchange})
-                    );
-                })
-            )
-        );
-    }
-});
-
-function getStateFromStores() {
-    return { exchanges: consoleStore.getExchanges() };
-}
-
-module.exports = Conversation;
-
-
-},{"../stores/console-store":35,"./exchange":15,"jquery":undefined,"react":undefined}],13:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../stores/platforms-store":39,"./chart":7,"./edit-chart-form":14,"react":undefined,"react-router":undefined}],13:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1599,7 +1599,8 @@ var Navigation = React.createClass({displayName: "Navigation",
             React.createElement("nav", {className: "navigation"}, 
                 React.createElement("h1", {className: "logo"}, 
                     React.createElement("span", {className: "logo__name"}, "VOLTTRON"), 
-                    React.createElement("span", {className: "logo__tm"}, "™")
+                    React.createElement("span", {className: "logo__tm"}, "™"), 
+                    React.createElement("span", {className: "logo__beta"}, "BETA")
                 ), 
                 navItems
             )
@@ -1743,7 +1744,7 @@ function getStateFromStores() {
 module.exports = PlatformManager;
 
 
-},{"../action-creators/console-action-creators":2,"../action-creators/modal-action-creators":3,"../action-creators/platform-manager-action-creators":5,"../stores/authorization-store":34,"../stores/console-store":35,"../stores/modal-store":37,"./console":11,"./modal":18,"./navigation":19,"jquery":undefined,"react":undefined,"react-router":undefined}],22:[function(require,module,exports){
+},{"../action-creators/console-action-creators":2,"../action-creators/modal-action-creators":3,"../action-creators/platform-manager-action-creators":5,"../stores/authorization-store":34,"../stores/console-store":35,"../stores/modal-store":37,"./console":10,"./modal":18,"./navigation":19,"jquery":undefined,"react":undefined,"react-router":undefined}],22:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1947,7 +1948,7 @@ function getStateFromStores(component) {
 module.exports = Platform;
 
 
-},{"../action-creators/modal-action-creators":3,"../action-creators/platform-action-creators":4,"../stores/platforms-store":39,"./agent-row":7,"./chart":8,"./confirm-form":10,"./edit-chart-form":14,"react":undefined,"react-router":undefined}],23:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../action-creators/platform-action-creators":4,"../stores/platforms-store":39,"./agent-row":6,"./chart":7,"./confirm-form":9,"./edit-chart-form":14,"react":undefined,"react-router":undefined}],23:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
