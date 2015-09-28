@@ -577,6 +577,9 @@ def main(argv=sys.argv):
     parser.add_argument('--verboseness', type=int, metavar='LEVEL',
         default=logging.WARNING,
         help='set logger verboseness')
+    parser.add_argument(
+        '--show-config', action='store_true',
+        help=argparse.SUPPRESS)
 
     filterable = config.ArgumentParser(add_help=False)
     filterable.add_argument('--name', dest='by_name', action='store_true',
@@ -715,11 +718,23 @@ def main(argv=sys.argv):
             help='owning group name or ID')
         cgroup.set_defaults(func=create_cgroups, user=None, group=None)
 
+    # Parse and expand options
     args = argv[1:]
     conf = os.path.join(volttron_home, 'config')
     if os.path.exists(conf) and 'SKIP_VOLTTRON_CONFIG' not in os.environ:
         args = ['--config', conf] + args
     opts = parser.parse_args(args)
+
+    if opts.log:
+        opts.log = config.expandall(opts.log)
+    if opts.log_config:
+        opts.log_config = config.expandall(opts.log_config)
+    opts.vip_address = config.expandall(opts.vip_address)
+    if getattr(opts, 'show_config', False):
+        for name, value in sorted(vars(opts).iteritems()):
+            print(name, repr(value))
+        return
+
     # Configure logging
     level = max(1, opts.verboseness)
     if opts.log is None:
@@ -734,7 +749,6 @@ def main(argv=sys.argv):
     if opts.log_config:
         logging.config.fileConfig(opts.log_config)
 
-    opts.vip_address = config.expandall(opts.vip_address)
     opts.aip = aipmod.AIPplatform(opts)
     opts.aip.setup()
     opts.connection = Connection(opts.vip_address)
