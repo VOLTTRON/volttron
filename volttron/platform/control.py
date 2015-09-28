@@ -546,6 +546,10 @@ def main(argv=sys.argv):
             os.environ.get('VOLTTRON_HOME', '~/.volttron')))
     os.environ['VOLTTRON_HOME'] = volttron_home
 
+    vip_path = '$VOLTTRON_HOME/run/vip.socket'
+    if sys.platform.startswith('linux'):
+        vip_path = '@' + vip_path
+
     global_args = config.ArgumentParser(description='global options', add_help=False)
     global_args.add_argument('-c', '--config', metavar='FILE',
         action='parse_config', ignore_unknown=True,
@@ -558,6 +562,19 @@ def main(argv=sys.argv):
     global_args.add_argument(
         '--vip-address', metavar='ZMQADDR',
         help='ZeroMQ URL to bind for VIP connections')
+    global_args.set_defaults(
+        vip_address='ipc://' + vip_path,
+        timeout=30,
+    )
+
+    filterable = config.ArgumentParser(add_help=False)
+    filterable.add_argument('--name', dest='by_name', action='store_true',
+        help='filter/search by agent name')
+    filterable.add_argument('--tag', dest='by_tag', action='store_true',
+        help='filter/search by tag name')
+    filterable.add_argument('--uuid', dest='by_uuid', action='store_true',
+        help='filter/search by UUID (default)')
+    filterable.set_defaults(by_name=False, by_tag=False, by_uuid=False)
 
     parser = config.ArgumentParser(
         prog=os.path.basename(argv[0]), add_help=False,
@@ -577,26 +594,14 @@ def main(argv=sys.argv):
     parser.add_argument('--verboseness', type=int, metavar='LEVEL',
         default=logging.WARNING,
         help='set logger verboseness')
-
-    filterable = config.ArgumentParser(add_help=False)
-    filterable.add_argument('--name', dest='by_name', action='store_true',
-        help='filter/search by agent name')
-    filterable.add_argument('--tag', dest='by_tag', action='store_true',
-        help='filter/search by tag name')
-    filterable.add_argument('--uuid', dest='by_uuid', action='store_true',
-        help='filter/search by UUID (default)')
-    filterable.set_defaults(by_name=False, by_tag=False, by_uuid=False)
+    parser.add_argument(
+        '--show-config', action='store_true',
+        help=argparse.SUPPRESS)
 
     parser.add_help_argument()
-
-    vip_path = '$VOLTTRON_HOME/run/vip.socket'
-    if sys.platform.startswith('linux'):
-        vip_path = '@' + vip_path
     parser.set_defaults(
         log_config=None,
         volttron_home=volttron_home,
-        vip_address='ipc://' + vip_path,
-        timeout=30,
     )
 
     subparsers = parser.add_subparsers(title='commands', metavar='', dest='command')
@@ -715,11 +720,23 @@ def main(argv=sys.argv):
             help='owning group name or ID')
         cgroup.set_defaults(func=create_cgroups, user=None, group=None)
 
+    # Parse and expand options
     args = argv[1:]
     conf = os.path.join(volttron_home, 'config')
     if os.path.exists(conf) and 'SKIP_VOLTTRON_CONFIG' not in os.environ:
         args = ['--config', conf] + args
     opts = parser.parse_args(args)
+
+    if opts.log:
+        opts.log = config.expandall(opts.log)
+    if opts.log_config:
+        opts.log_config = config.expandall(opts.log_config)
+    opts.vip_address = config.expandall(opts.vip_address)
+    if getattr(opts, 'show_config', False):
+        for name, value in sorted(vars(opts).iteritems()):
+            print(name, repr(value))
+        return
+
     # Configure logging
     level = max(1, opts.verboseness)
     if opts.log is None:
@@ -734,7 +751,6 @@ def main(argv=sys.argv):
     if opts.log_config:
         logging.config.fileConfig(opts.log_config)
 
-    opts.vip_address = config.expandall(opts.vip_address)
     opts.aip = aipmod.AIPplatform(opts)
     opts.aip.setup()
     opts.connection = Connection(opts.vip_address)

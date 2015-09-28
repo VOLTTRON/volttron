@@ -121,7 +121,4 @@ def main(argv=sys.argv):
 
 if __name__ == '__main__':
     # Entry point for script
-    try:
-        sys.exit(main())
-    except KeyboardInterrupt:
-        pass
+    sys.exit(main())
