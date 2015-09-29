@@ -151,9 +151,9 @@ class PubSub(SubsystemBase):
     def _peer_list(self, prefix='', bus='', subscribed=True, reverse=False):
         peer = bytes(self.rpc().context.vip_message.peer)
         if bus is None:
-            buses = [(bus, self._peer_subscriptions[bus])]
-        else:
             buses = self._peer_subscriptions.iteritems()
+        else:
+            buses = [(bus, self._peer_subscriptions[bus])]
         if reverse:
             test = prefix.startswith
         else:
