@@ -319,14 +319,14 @@ class BaseHistorianAgent(Agent):
         '''Capture actuation data and submit it to be published by a historian.
         '''
         timestamp_string = headers.get('time')
+        _log.debug("TIMESTMAMP_STRING: {}".format(timestamp_string))
         if timestamp_string is None:
             _log.error("message for {topic} missing timetamp".format(topic=topic))
             return
         try:
             timestamp = parse(timestamp_string)
         except (ValueError, TypeError) as e:
-            _log.error("message for {topic} bad timetamp string: {ts_string}".format(topic=topic,
-                                                                                     ts_string=timestamp_string))
+            _log.error("message for {} bad timetamp string: {}".format(topic, timestamp_string))
             return
 
         parts = topic.split('/')
@@ -349,7 +349,8 @@ class BaseHistorianAgent(Agent):
 
         self._event_queue.put({'source': source,
                                'topic': topic,
-                               'readings': [timestamp,value]})
+                               'readings': [timestamp, value],
+                               'meta': meta.get(key,{})})
 
 
     def _process_loop(self):
