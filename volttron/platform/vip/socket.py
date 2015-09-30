@@ -326,6 +326,7 @@ class _Socket(object):
         self.tcp_keepalive_idle = 180
         self.tcp_keepalive_intvl = 20
         self.tcp_keepalive_cnt = 6
+        self.probe_router = True
 
     def reset_send(self):
         '''Clear send buffer and reset send state machine.
