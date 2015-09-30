@@ -78,6 +78,7 @@ class ListenerAgent(Agent):
     def __init__(self, config_path, **kwargs):
         super(ListenerAgent, self).__init__(**kwargs)
         self.config = utils.load_config(config_path)
+        self._agent_id = self.config['agentid']
 
     @Core.receiver('onsetup')
     def setup(self, sender, **kwargs):
