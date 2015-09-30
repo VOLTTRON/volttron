@@ -73,7 +73,6 @@ from threading import local as _local
 
 import zmq as _zmq
 
-from .router import *
 from .socket import *
 from .socket import _Socket
 

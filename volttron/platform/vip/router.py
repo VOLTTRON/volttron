@@ -58,14 +58,13 @@
 
 from __future__ import absolute_import
 
-from logging import CRITICAL, INFO, DEBUG
 import os
 
 import zmq
 from zmq import NOBLOCK, ZMQError, EINVAL, EHOSTUNREACH
 
 
-__all__ = ['BaseRouter']
+__all__ = ['BaseRouter', 'OUTGOING', 'INCOMING', 'UNROUTABLE', 'ERROR']
 
 
 OUTGOING = 0
@@ -95,8 +94,8 @@ class BaseRouter(object):
     start() method, which will then call the setup() method.  Once
     started, the socket may be polled for incoming messages and those
     messages are handled/routed by calling the route() method.  During
-    routing, the log() method, which may be implemented, will be called
-    to allow for debugging and logging. Custom subsystems may be
+    routing, the issue() method, which may be implemented, will be
+    called to allow for debugging and logging. Custom subsystems may be
     implemented in the handle_subsystem() method. The socket will be
     closed when the stop() method is called.
     '''
@@ -167,26 +166,8 @@ class BaseRouter(object):
         '''
         pass
 
-    def log(self, level, message, frames):
-        '''Log what is happening in the router.
-
-        This method does nothing by default and is meant to be
-        overridden by router implementers. level is the same as in the
-        standard library logging module, message is a brief description,
-        and frames, if not None, is a list of frames as received from
-        the sending peer.
-        '''
-        pass
-
     def issue(self, topic, frames, extra=None):
-        frames = [bytes(f) for f in frames]
-        if topic == ERROR:
-            errnum, errmsg = extra
-            self.log(DEBUG, '%s (%s)' % (errmsg, errnum), frames)
-        elif topic == UNROUTABLE:
-            self.log(DEBUG, 'unroutable: %s' % (extra,), frames)
-        else:
-            self.log(DEBUG, 'incoming' if topic else 'outgoing', frames)
+        pass
 
     if zmq.zmq_version_info() >= (4, 1, 0):
         def lookup_user_id(self, sender, recipient, auth_token):
