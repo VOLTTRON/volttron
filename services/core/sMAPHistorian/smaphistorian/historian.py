@@ -137,7 +137,7 @@ def SMAPHistorianAgent(config_path, **kwargs):
 
                 meta = item['meta']
 
-                if meta['type'] not in ('float', 'double', 'boolean', 'integer'):
+                if meta['type'] not in ('float', 'double', 'boolean', 'integer', 'int'):
                     _log.warn('Ignoring point due to invalid type: {}'
                               .format(item))
 
@@ -149,6 +149,9 @@ def SMAPHistorianAgent(config_path, **kwargs):
                 # Auto convert bools to ints for smap.
                 if meta['type'] == 'boolean':
                     item['value'] = int(item['value'])
+                    meta['type'] = 'integer'
+                # handle int as well as integer types.
+                if meta['type'] == 'int':
                     meta['type'] = 'integer'
 
                 item_uuid = self._topic_to_uuid.get(topic, None)
@@ -165,7 +168,7 @@ def SMAPHistorianAgent(config_path, **kwargs):
 
                 meta['SourceName'] = _config['source']
                 # Default to utc.               
-                if item['source'] == 'scrape':
+                if item['source'] in ('scrape', 'analysis'):
                     if ('timestamp' not in item or 'tz' not in meta):
                         _log.error('Invalid timestamp specified for item: {}'
                                .format(item))
