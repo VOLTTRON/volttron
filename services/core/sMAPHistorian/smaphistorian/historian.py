@@ -164,7 +164,8 @@ def SMAPHistorianAgent(config_path, **kwargs):
                     meta['OldSourceName'] = meta['SourceName']
 
                 meta['SourceName'] = _config['source']
-
+                # Default to utc.
+                mydt = utc.astimezone(pytz.UTC)
                 if item['source'] == 'scrape':
                     if ('timestamp' not in item or 'tz' not in meta):
                         _log.error('Invalid timestamp specified for item: {}'
