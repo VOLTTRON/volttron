@@ -295,6 +295,10 @@ class BaseRouter(object):
                     socket.send_multipart(frames, flags=NOBLOCK, copy=False)
                     issue(OUTGOING, frames)
                 except ZMQError as exc:
-                    # Be silent about most errors when sending errors
-                    if exc.errno not in _ROUTE_ERRORS:
+                    try:
+                        errnum, errmsg = error = _ROUTE_ERRORS[exc.errno]
+                    except KeyError:
+                        error = None
+                    if error is None:
                         raise
+                    issue(ERROR, frames, error)
