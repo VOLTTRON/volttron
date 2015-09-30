@@ -62,7 +62,7 @@ from logging import CRITICAL, INFO, DEBUG
 import os
 
 import zmq
-from zmq import NOBLOCK, ZMQError, EINVAL
+from zmq import NOBLOCK, ZMQError, EINVAL, EHOSTUNREACH
 
 
 __all__ = ['BaseRouter']
@@ -287,7 +287,7 @@ class BaseRouter(object):
             if error is None:
                 raise
             issue(ERROR, frames, error)
-            if exc.errno != zmq.EHOSTUNREACH or sender is not frames[0]:
+            if exc.errno != EHOSTUNREACH or sender is not frames[0]:
                 # Only send errors if the sender and recipient differ
                 frames = [sender, b'', proto, user_id, msg_id,
                           b'error', errnum, errmsg, recipient, subsystem]
