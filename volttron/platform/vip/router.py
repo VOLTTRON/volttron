@@ -68,6 +68,12 @@ from zmq import NOBLOCK, ZMQError, EINVAL
 __all__ = ['BaseRouter']
 
 
+OUTGOING = 0
+INCOMING = 1
+UNROUTABLE = 2
+ERROR = 3
+
+
 # Optimizing by pre-creating frames
 _ROUTE_ERRORS = {
     errnum: (zmq.Frame(str(errnum).encode('ascii')),
@@ -172,6 +178,16 @@ class BaseRouter(object):
         '''
         pass
 
+    def issue(self, topic, frames, extra=None):
+        frames = [bytes(f) for f in frames]
+        if topic == ERROR:
+            errnum, errmsg = extra
+            self.log(DEBUG, '%s (%s)' % (errmsg, errnum), frames)
+        elif topic == UNROUTABLE:
+            self.log(DEBUG, 'unroutable: %s' % (extra,), frames)
+        else:
+            self.log(DEBUG, 'incoming' if topic else 'outgoing', frames)
+
     if zmq.zmq_version_info() >= (4, 1, 0):
         def lookup_user_id(self, sender, recipient, auth_token):
             '''Find and return a user identifier.
@@ -208,27 +224,26 @@ class BaseRouter(object):
         entities are routed appropriately.
         '''
         socket = self.socket
-        log = self.log
+        issue = self.issue
         # Expecting incoming frames:
         #   [SENDER, RECIPIENT, PROTO, USER_ID, MSG_ID, SUBSYS, ...]
         frames = socket.recv_multipart(copy=False)
-        log(DEBUG, 'incoming message', frames)
+        issue(INCOMING, frames)
         if len(frames) < 6:
             # Cannot route if there are insufficient frames, such as
             # might happen with a router probe.
             if len(frames) == 2 and frames[0] and not frames[1]:
-                log(DEBUG, 'router probe', frames)
+                issue(UNROUTABLE, frames, 'router probe')
             else:
-                log(DEBUG, 'unroutable message', frames)
+                issue(UNROUTABLE, frames, 'too few frames')
             return
         sender, recipient, proto, auth_token, msg_id = frames[:5]
         if proto.bytes != b'VIP1':
             # Peer is not talking a protocol we understand
-            log(DEBUG, 'invalid protocol signature', frames)
+            issue(UNROUTABLE, frames, 'bad VIP signature')
             return
         user_id = self.lookup_user_id(sender, recipient, auth_token)
         if user_id is None:
-            log(DEBUG, 'missing user ID', frames)
             user_id = b''
 
         subsystem = frames[5]
@@ -245,8 +260,8 @@ class BaseRouter(object):
                 response = self.handle_subsystem(frames, user_id)
                 if response is None:
                     # Handler does not know of the subsystem
-                    log(DEBUG, 'unknown subsystem', frames)
-                    errnum, errmsg = _INVALID_SUBSYSTEM
+                    errnum, errmsg = error = _INVALID_SUBSYSTEM
+                    issue(ERROR, frames, error)
                     frames = [sender, recipient, proto, b'', msg_id,
                               b'error', errnum, errmsg, b'', subsystem]
                 elif not response:
@@ -263,24 +278,23 @@ class BaseRouter(object):
         try:
             # Try sending the message to its recipient
             socket.send_multipart(frames, flags=NOBLOCK, copy=False)
-            log(DEBUG, 'outgoing message', frames)
+            issue(OUTGOING, frames)
         except ZMQError as exc:
             try:
-                errnum, errmsg = _ROUTE_ERRORS[exc.errno]
+                errnum, errmsg = error = _ROUTE_ERRORS[exc.errno]
             except KeyError:
-                log(CRITICAL, 'unhandled exception: {}'.format(exc), frames)
-                raise exc
-            log(INFO, 'send failure: {}'.format(errmsg.bytes), frames)
+                error = None
+            if error is None:
+                raise
+            issue(ERROR, frames, error)
             if exc.errno != zmq.EHOSTUNREACH or sender is not frames[0]:
                 # Only send errors if the sender and recipient differ
                 frames = [sender, b'', proto, user_id, msg_id,
                           b'error', errnum, errmsg, recipient, subsystem]
                 try:
                     socket.send_multipart(frames, flags=NOBLOCK, copy=False)
-                    log(INFO, 'outgoing error', frames)
+                    issue(OUTGOING, frames)
                 except ZMQError as exc:
                     # Be silent about most errors when sending errors
                     if exc.errno not in _ROUTE_ERRORS:
-                        log(CRITICAL,
-                            'unhandled exception: {}'.format(exc), frames)
                         raise
