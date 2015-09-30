@@ -60,6 +60,7 @@ import inspect
 import logging
 import os, os.path
 from pprint import pprint
+import re
 import sys
 import uuid
 
@@ -70,6 +71,8 @@ from volttron.platform.vip.agent import *
 from volttron.platform.agent.base_historian import BaseHistorian
 from volttron.platform.agent import utils
 from volttron.platform.messaging import topics, headers as headers_mod
+from gevent.core import callback
+from __builtin__ import list
 
 #import sqlhistorian
 #import sqlhistorian.settings
@@ -88,7 +91,12 @@ def simpleforwarder(config_path, **kwargs):
 
     destination_vip = config.get('destination-vip')
     identity = config.get('identity', kwargs.pop('identity', None))
+    forward_identity = config.get('forward_identity', None)
+    forward_points = config.get('forward_points', [])
     
+    point_ex = [re.compile(v) for v in forward_points]
+    has_point_ex = len(point_ex) > 0
+        
     assert destination_vip
                 
     class SimpleForwarder(Agent):
@@ -106,7 +114,7 @@ def simpleforwarder(config_path, **kwargs):
             '''
             _log.info('Starting forwarder to {}'.format(destination_vip))
             #_log.debug("Starting Forwarder")
-            agent = Agent(identity="target_from_superfly",address=destination_vip)
+            agent = Agent(identity=forward_identity, address=destination_vip)
             event = gevent.event.Event()
             agent.core.onstart.connect(lambda *a, **kw: event.set(), event)
             gevent.spawn(agent.core.run)
@@ -114,48 +122,66 @@ def simpleforwarder(config_path, **kwargs):
 #             _, _, my_id = agent.vip.hello().get(timeout=30)
 #             print('I am', my_id)
             self._target_platform = agent
+            
+            #subscribe to everything on the bus
+            self.vip.pubsub.subscribe(peer='pubsub', prefix='', 
+                                     callback=self.data_received)
     
-            driver_prefix = topics.DRIVER_TOPIC_BASE
-            _log.debug("subscribing to {}".format(driver_prefix))
-            self.vip.pubsub.subscribe(peer='pubsub',
-                                   prefix=driver_prefix,
-                                   callback=self.capture_data)
-     
-            _log.debug('Subscribing to: {}'.format(topics.LOGGER_BASE))
-            self.vip.pubsub.subscribe(peer='pubsub',
-                                   prefix=topics.LOGGER_BASE, #"datalogger",
-                                   callback=self.capture_data)
-     
-            _log.debug('Subscribing to: '.format(topics.ACTUATOR))
-            self.vip.pubsub.subscribe(peer='pubsub',
-                                   prefix=topics.ACTUATOR,  # actuators/*
-                                   callback=self.capture_data)
-    
-            _log.debug('Subscribing to: {}'.format(topics.ANALYSIS_TOPIC_BASE))
-            self.vip.pubsub.subscribe(peer='pubsub',
-                                   prefix=topics.ANALYSIS_TOPIC_BASE,  # anaysis/*
-                                   callback=self.capture_data)
+#             driver_prefix = topics.DRIVER_TOPIC_BASE
+#             _log.debug("subscribing to {}".format(driver_prefix))
+#             self.vip.pubsub.subscribe(peer='pubsub',
+#                                    prefix=driver_prefix,
+#                                    callback=self.capture_data)
+#      
+#             _log.debug('Subscribing to: {}'.format(topics.LOGGER_BASE))
+#             self.vip.pubsub.subscribe(peer='pubsub',
+#                                    prefix=topics.LOGGER_BASE, #"datalogger",
+#                                    callback=self.capture_data)
+#      
+#             _log.debug('Subscribing to: '.format(topics.ACTUATOR))
+#             self.vip.pubsub.subscribe(peer='pubsub',
+#                                    prefix=topics.ACTUATOR,  # actuators/*
+#                                    callback=self.capture_data)
+#     
+#             _log.debug('Subscribing to: {}'.format(topics.ANALYSIS_TOPIC_BASE))
+#             self.vip.pubsub.subscribe(peer='pubsub',
+#                                    prefix=topics.ANALYSIS_TOPIC_BASE,  # anaysis/*
+#                                    callback=self.capture_data)
 
-        def capture_data(self, peer, sender, bus, topic, headers, message):
-            #_, _, my_id = self._target_platform.vip.hello().get(timeout=3)           
-            #print('I am', my_id, self._target_platform.core.address, self._target_platform.core.identity)
-            #with gevent.Timeout(1):
-                #try:
-            try:
-                _log.debug('Attempting to publish remotely {}, {}, {}'.format(topic, headers, message))
-                self._target_platform.vip.pubsub.publish(peer='pubsub',
+        def data_received(self, peer, sender, bus, topic, headers, message):
+            
+            def publish_external(agent, topic, headers, message):
+                try:
+                    _log.debug('Attempting to publish remotely {}, {}, {}'.format(topic, headers, message))
+                    agent.vip.pubsub.publish(peer='pubsub',
                                 topic=topic,
                                 headers=headers,
                                 message=message).get(timeout=30)
-            except:
-                _log.debug('Data dropped {}, {}, {}'.format(topic, headers, message))
-#                 except gevent.Timeout:
-#                     pass
-#                 except:
-#                     raise
-#                 else: 
-#                     _log.error('could not publish {}, {}, {}'.format(topic, headers, message))
+                except:
+                    _log.debug('Data dropped {}, {}, {}'.format(topic, headers, message))
 
+            if sender == 'pubsub.compat':
+                message = jsonapi.loads(message[0])
+                del(headers[headers_mod.CONTENT_TYPE])
+                assert isinstance(message, list)
+                assert isinstance(message[0], dict)
+                assert isinstance(message[1], dict)
+                print("MESSAGE VALUES ARE: {}".format(message[0]))
+                print("DATA VALUES ARE: {}".format(message[1]))
+                for v in message[1].values():
+                    assert 'tz' in v.keys()
+                    assert 'units' in v.keys()
+                    assert 'type' in v.keys()
+                #message = [jsonapi.loads(message[0]), jsonapi.loads(message[1])]
+                                            
+            if has_point_ex:
+                for rex in point_ex:
+                    if rex.match(topic):
+                        publish_external(self._target_platform, topic, headers, message)
+            else:
+                publish_external(self._target_platform, topic, headers, message)
+                    
+            
         @Core.receiver("onstop")
         def stopping(self, sender, **kwargs):
             '''
