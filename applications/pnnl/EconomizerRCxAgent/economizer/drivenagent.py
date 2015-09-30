@@ -289,9 +289,16 @@ def DrivenAgent(config_path, **kwargs):
                                 _analysis['unit'] = item
                                 analysis_topic = topics.ANALYSIS_VALUE(
                                     point=key, **_analysis)
-
+                                
+                                datatype = 'float'
+                                if isinstance(value, int):
+                                    datatype='int'
+                                    
+                                kbase = key[key.rfind('/')+1:]
+                                message = [{kbase:value}, {kbase: {'tz': 'US/Pacific', 'type': datatype}}]
+                                _log.debug('Publishing {}'.format(message))
                                 self.publish_json(analysis_topic,
-                                                  headers, value)
+                                                  headers, message)
 
             if results.commands and mode:
                 self.commands = results.commands
