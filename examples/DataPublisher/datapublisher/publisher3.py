@@ -59,6 +59,7 @@ import datetime
 from dateutil import parser
 import logging
 import os
+import re
 import sys
 
 from volttron.platform.vip.agent import *
@@ -119,6 +120,10 @@ def DataPub(config_path, **kwargs):
     # if unit is a string then there aren't any subdevices and we
     # just use the name of the device as is.
     unit = conf.get('unit')
+    
+    unittype_map = conf.get('unittype_map')
+    
+    assert unittype_map
 
     # If thie unit is a dictionary then the device
     if isinstance(unit, dict):
@@ -168,6 +173,7 @@ def DataPub(config_path, **kwargs):
                 format='%(asctime)s   %(levelname)-8s %(message)s',
                 datefmt='%m-%d-%y %H:%M:%S')
             self._log.info('DATA PUBLISHER ID is PUBLISHER')
+        
 
         @Core.periodic(period=pub_interval, wait=pub_interval+pub_interval)
         def publish_data_or_heartbeat(self):
@@ -200,6 +206,17 @@ def DataPub(config_path, **kwargs):
 
                 if has_timestamp:
                     data.pop('Timestamp')
+                    
+                def get_unit(point):
+                    ''' Get a unit type based upon the regular expression in the config file.
+                    
+                        if NOT found returns percent as a default unit.
+                    '''
+                    for k, v in unittype_map.items():
+                        if re.match(k, point):
+                            return v
+                    return 'percent'
+                    
 
                 # internal method to simply publish a point at a given level.
                 def publish_point(topic, point, data):
@@ -209,7 +226,7 @@ def DataPub(config_path, **kwargs):
                     
                     # Transform the values into floats rather than the read strings.
                     if not isinstance(data, dict):
-                        data = float(data)
+                        data = {point: float(data)}
                         
                     # Create metadata with the type, tz ... in it.
                     meta = {}
@@ -217,9 +234,9 @@ def DataPub(config_path, **kwargs):
                     if topic_point.endswith('/all'):
                         root=point[:-3]
                         for p, v in data.items():
-                            meta[p] = {'type': 'float', 'tz': 'US/Pacific'}
+                            meta[p] = {'type': 'float', 'tz': 'US/Pacific', 'units': get_unit(p)}
                     else:
-                        meta[point] = {'type': 'float', 'tz': 'US/Pacific'}
+                        meta[point] = {'type': 'float', 'tz': 'US/Pacific', 'units': get_unit(point)}
                     
                     # Message will always be a list of two elements.  The first element
                     # is set with the data to be published.  The second element is meta
