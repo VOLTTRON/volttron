@@ -113,6 +113,15 @@ class BaseRouter(object):
         self.default_user_id = default_user_id
         self.socket = None
 
+    def run(self):
+        '''Main router loop.'''
+        self.start()
+        try:
+            while self.poll():
+                self.route()
+        finally:
+            self.stop()
+
     def start(self):
         '''Create the socket and call setup().
 

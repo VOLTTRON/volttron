@@ -296,14 +296,6 @@ class Router(BaseRouter):
         else:
             log('%s: %s', 'incoming' if topic else 'outgoing', formatter)
 
-    def run(self):
-        self.start()
-        try:
-            while self.poll():
-                self.route()
-        finally:
-            self.stop()
-
     def handle_subsystem(self, frames, user_id):
         subsystem = bytes(frames[5])
         if subsystem == b'quit':
