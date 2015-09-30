@@ -130,6 +130,10 @@ def DrivenAgent(config_path, **kwargs):
     devices_topic = (
         base_dev + '({})(/.*)?/all$'
         .format('|'.join(re.escape(p) for p in units)))
+    
+    unittype_map = config.get('unittype_map', None)
+    assert unittype_map
+    
     klass = _get_class(application)
     # This instances is used to call the applications run method when
     # data comes in on the message bus.  It is constructed here
@@ -274,6 +278,17 @@ def DrivenAgent(config_path, **kwargs):
                                     # fout.writerow(keys)
                                 fout.writerow(r)
                                 f.close()
+                                
+            def get_unit(point):
+                ''' Get a unit type based upon the regular expression in the config file.
+                
+                    if NOT found returns percent as a default unit.
+                '''
+                for k, v in unittype_map.items():
+                    if re.match(k, point):
+                        return v
+                return 'percent'
+            
             # publish to message bus.
             if len(results.table_output.keys()) > 0:
                 headers = {
@@ -295,8 +310,12 @@ def DrivenAgent(config_path, **kwargs):
                                     datatype='int'
                                     
                                 kbase = key[key.rfind('/')+1:]
-                                message = [{kbase:value}, {kbase: {'tz': 'US/Pacific', 'type': datatype}}]
-                                _log.debug('Publishing {}'.format(message))
+                                message = [{kbase:value}, 
+                                           {kbase: {'tz': 'US/Pacific', 
+                                                    'type': datatype, 
+                                                    'units': get_unit(kbase)
+                                                    }
+                                            }]
                                 self.publish_json(analysis_topic,
                                                   headers, message)
 
