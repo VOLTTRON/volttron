@@ -457,11 +457,11 @@ class Core(BasicCore):
                         bytes(message.id) == state.ident and
                         len(message.args) > 3 and
                         bytes(message.args[0]) == b'welcome'):
-                    version, router, identity = [
+                    version, server, identity = [
                         bytes(x) for x in message.args[1:4]]
                     self.__connected = True
                     self.onconnected.send(self, version=version,
-                                          router=router, identity=identity)
+                                          router=server, identity=identity)
 
                 try:
                     handle = self.subsystems[subsystem]
