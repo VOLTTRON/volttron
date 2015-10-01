@@ -99,6 +99,8 @@ def DataPub(config_path, **kwargs):
     conf = utils.load_config(config_path)
     has_timestamp = conf.get('has_timestamp', 1)
     maintain_timestamp = conf.get('maintain_timestamp', 0)
+    remember_playback = conf.get('remember_playback', 0)
+    
     if maintain_timestamp and not has_timestamp:
         raise ValueError(
             'If no timestamp is specified then '
@@ -172,9 +174,44 @@ def DataPub(config_path, **kwargs):
                 level=logging.debug,
                 format='%(asctime)s   %(levelname)-8s %(message)s',
                 datefmt='%m-%d-%y %H:%M:%S')
-            self._log.info('DATA PUBLISHER ID is PUBLISHER')
+            if remember_playback:
+                self._log.info('Keeping track of line being played in case of interuption.')
+            else:
+                self._log.warn('Not storing line being played (enable by setting remember_playback=1 in config file')
+            self._log.info('Publishing Starting')
+            self._line_on = 0
+            start_line = self.get_start_line()
+            if remember_playback:
+                while self._line_on < start_line:
+                    self._reader.next()
+                    self._line_on+=1
+                
+                
+            
+        def store_line_on(self):
+            basename = os.path.basename(path)+'.count'
+            with open(basename, 'wb') as fd:
+                fd.write(self._line_on)
+                fd.close()
         
-
+        def get_start_line(self):
+            basename = os.path.basename(path)+'.count'
+            with open(basename, 'rb') as fd:
+                count = fd.readall()
+                fd.close()
+            try:
+                return int(count)
+            except:
+                return 0
+            
+        def remove_store_line(self):
+            basename = os.path.basename(path)+'.count'
+            if os.path.exists(basename):
+                try:
+                    os.remove(basename)
+                except:
+                    self._log.info('Unable to remove line store.')
+                    
         @Core.periodic(period=pub_interval, wait=pub_interval+pub_interval)
         def publish_data_or_heartbeat(self):
             '''Publish data from file to message bus.'''
@@ -184,8 +221,11 @@ def DataPub(config_path, **kwargs):
             if self._src_file_handle is not None \
                     and not self._src_file_handle.closed:
 
-                try:
+                try:                    
                     data = self._reader.next()
+                    self._line_on+=1
+                    if remember_playback:
+                        self.store_line_on()
                 except StopIteration:
                     self._src_file_handle.close()
                     self._src_file_handle = None
