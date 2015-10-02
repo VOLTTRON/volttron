@@ -59,6 +59,7 @@ import datetime
 from dateutil import parser
 import logging
 import os
+import re
 import sys
 
 from volttron.platform.vip.agent import *
@@ -98,6 +99,9 @@ def DataPub(config_path, **kwargs):
     conf = utils.load_config(config_path)
     has_timestamp = conf.get('has_timestamp', 1)
     maintain_timestamp = conf.get('maintain_timestamp', 0)
+    remember_playback = conf.get('remember_playback', 0)
+    reset_playback = conf.get('reset_playback', 0)
+    
     if maintain_timestamp and not has_timestamp:
         raise ValueError(
             'If no timestamp is specified then '
@@ -119,6 +123,10 @@ def DataPub(config_path, **kwargs):
     # if unit is a string then there aren't any subdevices and we
     # just use the name of the device as is.
     unit = conf.get('unit')
+    
+    unittype_map = conf.get('unittype_map')
+    
+    assert unittype_map
 
     # If thie unit is a dictionary then the device
     if isinstance(unit, dict):
@@ -167,8 +175,52 @@ def DataPub(config_path, **kwargs):
                 level=logging.debug,
                 format='%(asctime)s   %(levelname)-8s %(message)s',
                 datefmt='%m-%d-%y %H:%M:%S')
-            self._log.info('DATA PUBLISHER ID is PUBLISHER')
-
+            if remember_playback:
+                self._log.info('Keeping track of line being played in case of interuption.')
+            else:
+                self._log.info('Not storing line being played (enable by setting remember_playback=1 in config file')
+            self._log.info('Publishing Starting')
+            self._line_on = 0
+            start_line = self.get_start_line()
+            
+            # Only move the start_line if the reset_playback switch is off and
+            # the remember_playback switch is on.
+            if not reset_playback and remember_playback:                        
+                while self._line_on - 1 < start_line:
+                    self._reader.next()
+                    self._line_on+=1
+                        
+            self._log.info('Playback starting on line: {}'.format(self._line_on))
+                    
+                
+            
+        def store_line_on(self):
+            basename = os.path.basename(path)+'.count'
+            with open(basename, 'wb') as fd:
+                fd.write(str(self._line_on))
+                fd.close()
+        
+        def get_start_line(self):
+            basename = os.path.basename(path)+'.count'
+            try:
+                with open(basename, 'rb') as fd:
+                    count = fd.read()
+                    fd.close()
+                
+                return int(count)
+            except Exception as e:
+                print(e.message)
+                
+                return 0
+            
+        def remove_store_line(self):
+            basename = os.path.basename(path)+'.count'
+            if os.path.exists(basename):
+                try:
+                    os.remove(basename)
+                except:
+                    self._log.info('Unable to remove line store.')
+                    
         @Core.periodic(period=pub_interval, wait=pub_interval+pub_interval)
         def publish_data_or_heartbeat(self):
             '''Publish data from file to message bus.'''
@@ -178,8 +230,11 @@ def DataPub(config_path, **kwargs):
             if self._src_file_handle is not None \
                     and not self._src_file_handle.closed:
 
-                try:
+                try:                    
                     data = self._reader.next()
+                    self._line_on+=1
+                    if remember_playback:
+                        self.store_line_on()
                 except StopIteration:
                     self._src_file_handle.close()
                     self._src_file_handle = None
@@ -200,6 +255,17 @@ def DataPub(config_path, **kwargs):
 
                 if has_timestamp:
                     data.pop('Timestamp')
+                    
+                def get_unit(point):
+                    ''' Get a unit type based upon the regular expression in the config file.
+                    
+                        if NOT found returns percent as a default unit.
+                    '''
+                    for k, v in unittype_map.items():
+                        if re.match(k, point):
+                            return v
+                    return 'percent'
+                    
 
                 # internal method to simply publish a point at a given level.
                 def publish_point(topic, point, data):
@@ -209,7 +275,7 @@ def DataPub(config_path, **kwargs):
                     
                     # Transform the values into floats rather than the read strings.
                     if not isinstance(data, dict):
-                        data = float(data)
+                        data = {point: float(data)}
                         
                     # Create metadata with the type, tz ... in it.
                     meta = {}
@@ -217,9 +283,9 @@ def DataPub(config_path, **kwargs):
                     if topic_point.endswith('/all'):
                         root=point[:-3]
                         for p, v in data.items():
-                            meta[p] = {'type': 'float', 'tz': 'US/Pacific'}
+                            meta[p] = {'type': 'float', 'tz': 'US/Pacific', 'units': get_unit(p)}
                     else:
-                        meta[point] = {'type': 'float', 'tz': 'US/Pacific'}
+                        meta[point] = {'type': 'float', 'tz': 'US/Pacific', 'units': get_unit(point)}
                     
                     # Message will always be a list of two elements.  The first element
                     # is set with the data to be published.  The second element is meta
