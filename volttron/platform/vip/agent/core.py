@@ -154,6 +154,18 @@ class ScheduledEvent(object):
         self.finished = True
 
 
+def findsignal(obj, owner, name):
+    parts = name.split('.')
+    if len(parts) == 1:
+        signal = getattr(obj, name)
+    else:
+        signal = owner
+        for part in parts:
+            signal = getattr(signal, part)
+    assert isinstance(signal, Signal), 'bad signal name %r' % (name,)
+    return signal
+
+
 class BasicCore(object):
     def __init__(self, owner):
         self.greenlet = None
@@ -166,7 +178,16 @@ class BasicCore(object):
         self.onstart = Signal()
         self.onstop = Signal()
         self.onfinish = Signal()
+        self._owner = owner
 
+    def setup(self):
+        # Split out setup from __init__ to give oportunity to add
+        # subsystems with signals
+        try:
+            owner = self._owner
+        except AttributeError:
+            return
+        del self._owner
         periodics = []
         def setup(member):   # pylint: disable=redefined-outer-name
             periodics.extend(
@@ -177,9 +198,7 @@ class BasicCore(object):
                 for deadline, args, kwargs in
                 annotations(member, list, 'core.schedule'))
             for name in annotations(member, set, 'core.signals'):
-                signal = getattr(self, name)
-                assert isinstance(signal, Signal)
-                signal.connect(member, owner)
+                findsignal(self, owner, name).connect(member, owner)
         inspect.getmembers(owner, setup)
         heapq.heapify(self._schedule)
 
@@ -203,6 +222,7 @@ class BasicCore(object):
     def run(self, running_event=None):   # pylint: disable=method-hidden
         '''Entry point for running agent.'''
 
+        self.setup()
         self.greenlet = current = gevent.getcurrent()
 
         def handle_async():
