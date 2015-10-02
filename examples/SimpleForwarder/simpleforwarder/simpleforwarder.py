@@ -67,7 +67,7 @@ import uuid
 import gevent
 from zmq.utils import jsonapi
 
-from volttron.platform.vip.agent import *
+from volttron.platform.vip.agent import Core, Agent
 from volttron.platform.agent.base_historian import BaseHistorian
 from volttron.platform.agent import utils
 from volttron.platform.messaging import topics, headers as headers_mod
@@ -113,40 +113,24 @@ def simpleforwarder(config_path, **kwargs):
             datalogger, and device topics to capture data.
             '''
             _log.info('Starting forwarder to {}'.format(destination_vip))
-            #_log.debug("Starting Forwarder")
+            
+            
             agent = Agent(identity=forward_identity, address=destination_vip)
             event = gevent.event.Event()
-            agent.core.onstart.connect(lambda *a, **kw: event.set(), event)
-            gevent.spawn(agent.core.run)
+            
+            # agent.core.run set the event flag to true when agent is running
+            gevent.spawn(agent.core.run, event)
+            
+            # Wait until the agent is fully initialized and ready to 
+            # send and receive messages.
             event.wait()
-#             _, _, my_id = agent.vip.hello().get(timeout=30)
-#             print('I am', my_id)
+
             self._target_platform = agent
             
-            #subscribe to everything on the bus
+            #subscribe to everything on the local bus.
             self.vip.pubsub.subscribe(peer='pubsub', prefix='', 
                                      callback=self.data_received)
     
-#             driver_prefix = topics.DRIVER_TOPIC_BASE
-#             _log.debug("subscribing to {}".format(driver_prefix))
-#             self.vip.pubsub.subscribe(peer='pubsub',
-#                                    prefix=driver_prefix,
-#                                    callback=self.capture_data)
-#      
-#             _log.debug('Subscribing to: {}'.format(topics.LOGGER_BASE))
-#             self.vip.pubsub.subscribe(peer='pubsub',
-#                                    prefix=topics.LOGGER_BASE, #"datalogger",
-#                                    callback=self.capture_data)
-#      
-#             _log.debug('Subscribing to: '.format(topics.ACTUATOR))
-#             self.vip.pubsub.subscribe(peer='pubsub',
-#                                    prefix=topics.ACTUATOR,  # actuators/*
-#                                    callback=self.capture_data)
-#     
-#             _log.debug('Subscribing to: {}'.format(topics.ANALYSIS_TOPIC_BASE))
-#             self.vip.pubsub.subscribe(peer='pubsub',
-#                                    prefix=topics.ANALYSIS_TOPIC_BASE,  # anaysis/*
-#                                    callback=self.capture_data)
 
         def data_received(self, peer, sender, bus, topic, headers, message):
             
