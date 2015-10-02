@@ -1,3 +1,4 @@
+
 before_install:
   - sudo apt-get update -qq
   - sudo apt-get install -y build-essential python-dev openssl libssl-dev libevent-dev git
@@ -9,4 +10,34 @@ install: bootstrap.py
 #  include:
 #    - python: "2.7"
 #      env: TEST_SUITE=suite_2_7
+
+=======
+language: python
+
+#sudo: false
+
+#addons:
+#  apt:
+#    packages:
+#    - build-essential 
+#    - python-dev 
+#    - openssl 
+#    - libssl-dev 
+#    - libevent-dev
+
+before_install:
+  - sudo apt-get update -qq
+  - sudo apt-get install -y build-essential python-dev openssl libssl-dev libevent-dev
+
+install: 
+  - python2 bootstrap.py
+
+script: scripts/run-tests.sh
+
+#language: python
+#matrix:
+#  include:
+#    - python: "2.7"
+#      env: TEST_SUITE=suite_2_7
+# script: env/bin/python 
 
