@@ -62,64 +62,51 @@ import sqlite3
 
 from zmq.utils import jsonapi
 
-from basedb import DbDriver
 from volttron.platform.agent import utils
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
-class SqlLiteFuncts(DbDriver):
+class SqlLiteFuncts(object):
 
-    def __init__(self, database, **kwargs):
+    def __init__(self, database,
+                 detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES):
 
         if database == ':memory:':
             self.__database = database
         else:
-            self.__database = os.path.expandvars(os.path.expanduser(database))
+            self.__database = os.path.expanduser(database)
             db_dir  = os.path.dirname(self.__database)
 
             #If the db does not exist create it
             # in case we are started before the historian.
             try:
-                if db_dir == '':
-                    db_dir = './data'
-                    self.__database=os.path.join(db_dir, self.__database)
-                    
                 os.makedirs(db_dir)
             except OSError as exc:
                 if exc.errno != errno.EEXIST or not os.path.isdir(db_dir):
                     raise
-            
-        conn = sqlite3.connect(self.__database)
-        cursor = conn.cursor()
-        cursor.execute('''CREATE TABLE IF NOT EXISTS data
+            try:
+                self.__detect_types = eval(detect_types)
+            except TypeError:
+                self.__detect_types = detect_types
+
+        self.conn = self.connect()
+        self.execute('''CREATE TABLE IF NOT EXISTS data
                                 (ts timestamp NOT NULL,
                                  topic_id INTEGER NOT NULL,
                                  value_string TEXT NOT NULL,
-                                 UNIQUE(ts, topic_id))''')
+                                 UNIQUE(ts, topic_id))''',
+                False)
 
-        cursor.execute('''CREATE INDEX IF NOT EXISTS data_idx
-                                ON data (ts ASC)''')
+        self.execute('''CREATE INDEX IF NOT EXISTS data_idx
+                                ON data (ts ASC)''',
+                False)
 
-        cursor.execute('''CREATE TABLE IF NOT EXISTS topics
+        self.execute('''CREATE TABLE IF NOT EXISTS topics
                                 (topic_id INTEGER PRIMARY KEY,
                                  topic_name TEXT NOT NULL,
-                                 UNIQUE(topic_name))''')
-        conn.commit()
-        conn.close()
-        
-        try:
-            kwargs.pop('database')
-        except:
-            pass
-        finally:
-            kwargs['database'] = self.__database
-        
-        if 'detect_types' not in kwargs.keys():
-            kwargs['detect_types'] = sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES
-                
-        super(SqlLiteFuncts, self).__init__('sqlite3', **kwargs)
-        
+                                 UNIQUE(topic_name))''',
+                True)
 
 
     def query(self, topic, start=None, end=None, skip=0,
@@ -127,7 +114,6 @@ class SqlLiteFuncts(DbDriver):
         """This function should return the results of a query in the form:
         {"values": [(timestamp1, value1), (timestamp2, value2), ...],
          "metadata": {"key1": value1, "key2": value2, ...}}
-
          metadata is not required (The caller will normalize this to {} for you)
         """
         query = '''SELECT data.ts, data.value_string
@@ -183,13 +169,57 @@ class SqlLiteFuncts(DbDriver):
         _log.debug("QueryResults: " + str(values))
         return {'values':values}
 
-    def insert_data_query(self):
-        return '''INSERT OR REPLACE INTO data values(?, ?, ?)'''
-    
-    def insert_topic_query(self):
-        return '''INSERT INTO topics (topic_name) values (?)'''
+    def execute(self, query, commit=True):
+        if not self.conn:
+            self.conn = connect()
+        self.conn.execute(query)
+        if commit:
+            self.conn.commit()
+
+    def connect(self):
+        if self.__database is None:
+            raise AttributeError
+        if self.__detect_types:
+            return sqlite3.connect(self.__database,
+                                   detect_types=self.__detect_types)
+        return sqlite3.connect(self.__database)
+
+    def insert_data(self, ts, topic_id, data):
+        if not self.conn:
+            self.conn = self.connect()
+
+        c = self.conn.cursor()
+        c.execute('''INSERT OR REPLACE INTO data values(?, ?, ?)''',
+                                  (ts,topic_id,jsonapi.dumps(data)))
+        self.conn.commit()
+
+    def insert_topic(self, topic, commit=True):
+        if not self.conn:
+            self.conn = self.connect()
+
+        c = self.conn.cursor()
+        c.execute('''INSERT INTO topics values (?,?)''', (None, topic))
+        c.execute('''SELECT last_insert_rowid()''')
+        row = c.fetchone()
+
+        if commit:
+            self.conn.commit()
+
+        return row
 
     def get_topic_map(self):
-        q = "SELECT topic_id, topic_name FROM topics"
-        rows = self.select(q, None)
-        return dict([(n, t) for t, n in rows])
+        if not self.conn:
+            self.conn = self.connect()
+
+        c = self.conn.cursor()
+        c.execute("SELECT * FROM topics")
+        tm = {}
+
+        while True:
+            results = c.fetchmany(1000)
+            if not results:
+                break
+            for result in results:
+                tm[result[1]] = result[0]
+
+        return tm
