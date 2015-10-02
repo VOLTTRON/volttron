@@ -100,6 +100,7 @@ def DataPub(config_path, **kwargs):
     has_timestamp = conf.get('has_timestamp', 1)
     maintain_timestamp = conf.get('maintain_timestamp', 0)
     remember_playback = conf.get('remember_playback', 0)
+    reset_playback = conf.get('reset_playback', 0)
     
     if maintain_timestamp and not has_timestamp:
         raise ValueError(
@@ -177,31 +178,39 @@ def DataPub(config_path, **kwargs):
             if remember_playback:
                 self._log.info('Keeping track of line being played in case of interuption.')
             else:
-                self._log.warn('Not storing line being played (enable by setting remember_playback=1 in config file')
+                self._log.info('Not storing line being played (enable by setting remember_playback=1 in config file')
             self._log.info('Publishing Starting')
             self._line_on = 0
             start_line = self.get_start_line()
-            if remember_playback:
-                while self._line_on < start_line:
+            
+            # Only move the start_line if the reset_playback switch is off and
+            # the remember_playback switch is on.
+            if not reset_playback and remember_playback:                        
+                while self._line_on - 1 < start_line:
                     self._reader.next()
                     self._line_on+=1
-                
+                        
+            self._log.info('Playback starting on line: {}'.format(self._line_on))
+                    
                 
             
         def store_line_on(self):
             basename = os.path.basename(path)+'.count'
             with open(basename, 'wb') as fd:
-                fd.write(self._line_on)
+                fd.write(str(self._line_on))
                 fd.close()
         
         def get_start_line(self):
             basename = os.path.basename(path)+'.count'
-            with open(basename, 'rb') as fd:
-                count = fd.readall()
-                fd.close()
             try:
+                with open(basename, 'rb') as fd:
+                    count = fd.read()
+                    fd.close()
+                
                 return int(count)
-            except:
+            except Exception as e:
+                print(e.message)
+                
                 return 0
             
         def remove_store_line(self):
