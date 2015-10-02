@@ -61,7 +61,7 @@ from __future__ import absolute_import
 import os
 
 import zmq
-from zmq import NOBLOCK, ZMQError, EINVAL, EHOSTUNREACH
+from zmq import Frame, NOBLOCK, ZMQError, EINVAL, EHOSTUNREACH
 
 
 __all__ = ['BaseRouter', 'OUTGOING', 'INCOMING', 'UNROUTABLE', 'ERROR']
@@ -112,6 +112,7 @@ class BaseRouter(object):
         self.context = context or self._context_class.instance()
         self.default_user_id = default_user_id
         self.socket = None
+        self._peers = set()
 
     def run(self):
         '''Main router loop.'''
@@ -204,6 +205,30 @@ class BaseRouter(object):
             '''
             return self.default_user_id
 
+    def _distribute(self, *parts):
+        drop = set()
+        empty = Frame(b'')
+        frames = [empty, empty, Frame(b'VIP1'), empty, empty]
+        frames.extend(Frame(f) for f in parts)
+        for peer in self._peers:
+            frames[0] = peer
+            drop.update(self._send(frames))
+        for peer in drop:
+            self._drop_peer(peer)
+
+    def _add_peer(self, peer):
+        if peer in self._peers:
+            return
+        self._distribute(b'peer', b'add', peer)
+        self._peers.add(peer)
+
+    def _drop_peer(self, peer):
+        try:
+            self._peers.remove(peer)
+        except KeyError:
+            return
+        self._distribute(b'peer', b'drop', peer)
+
     def route(self):
         '''Route one message and return.
 
@@ -224,6 +249,7 @@ class BaseRouter(object):
             # might happen with a router probe.
             if len(frames) == 2 and frames[0] and not frames[1]:
                 issue(UNROUTABLE, frames, 'router probe')
+                self._add_peer(frames[0].bytes)
             else:
                 issue(UNROUTABLE, frames, 'too few frames')
             return
@@ -236,6 +262,7 @@ class BaseRouter(object):
         if user_id is None:
             user_id = b''
 
+        self._add_peer(sender.bytes)
         subsystem = frames[5]
         if not recipient.bytes:
             # Handle requests directed at the router
@@ -246,6 +273,20 @@ class BaseRouter(object):
             elif name == b'ping':
                 frames[:7] = [
                     sender, recipient, proto, user_id, msg_id, b'ping', b'pong']
+            elif name == b'peer':
+                try:
+                    op = frames[6].bytes
+                except IndexError:
+                    op = None
+                frames = [sender, recipient, proto, b'', msg_id, subsystem]
+                if op == b'list':
+                    frames.append(b'listing')
+                    frames.extend(self._peers)
+                else:
+                    error = (b'unknown' if op else b'missing') + b' operation'
+                    frames.extend([b'error', error])
+            elif name == b'error':
+                return
             else:
                 response = self.handle_subsystem(frames, user_id)
                 if response is None:
@@ -262,7 +303,14 @@ class BaseRouter(object):
         else:
             # Route all other requests to the recipient
             frames[:4] = [recipient, sender, proto, user_id]
+        for peer in self._send(frames):
+            self._drop_peer(peer)
 
+    def _send(self, frames):
+        issue = self.issue
+        socket = self.socket
+        drop = []
+        recipient, sender = frames[:2]
         # Expecting outgoing frames:
         #   [RECIPIENT, SENDER, PROTO, USER_ID, MSG_ID, SUBSYS, ...]
         try:
@@ -277,8 +325,11 @@ class BaseRouter(object):
             if error is None:
                 raise
             issue(ERROR, frames, error)
+            if exc.errno == EHOSTUNREACH:
+                drop.append(bytes(recipient))
             if exc.errno != EHOSTUNREACH or sender is not frames[0]:
                 # Only send errors if the sender and recipient differ
+                proto, user_id, msg_id, subsystem = frames[2:6]
                 frames = [sender, b'', proto, user_id, msg_id,
                           b'error', errnum, errmsg, recipient, subsystem]
                 try:
@@ -292,3 +343,6 @@ class BaseRouter(object):
                     if error is None:
                         raise
                     issue(ERROR, frames, error)
+                    if exc.errno == EHOSTUNREACH:
+                        drop.append(bytes(sender))
+        return drop
