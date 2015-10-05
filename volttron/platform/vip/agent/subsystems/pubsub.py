@@ -141,32 +141,38 @@ class PubSub(SubsystemBase):
         remove = []
         for bus, subscriptions in self._peer_subscriptions.iteritems():
             for prefix, subscribers in subscriptions.iteritems():
-                if (bus, prefix) in items:
-                    subscribers.add(peer)
-                else:
+                item = bus, prefix
+                try:
+                    items.remove(item)
+                except KeyError:
                     subscribers.discard(peer)
                     if not subscribers:
-                        remove.append((bus, prefix))
+                        remove.append(item)
+                else:
+                    subscribers.add(peer)
         for bus, prefix in remove:
             subscriptions = self._peer_subscriptions[bus]
             assert not subscriptions.pop(prefix)
-            if not subscriptions:
-                del self._peer_subscriptions[bus]
+        for bus, prefix in items:
+            self._add_peer_subscription(peer, bus, prefix)
 
     def _peer_sync(self, items):
         peer = bytes(self.rpc().context.vip_message.peer)
         assert isinstance(items, dict)
         self._sync(peer, items)
 
+    def _add_peer_subscription(self, peer, bus, prefix):
+        subscriptions = self._peer_subscriptions[bus]
+        try:
+            subscribers = subscriptions[prefix]
+        except KeyError:
+            subscriptions[prefix] = subscribers = set()
+        subscribers.add(peer)
+
     def _peer_subscribe(self, prefix, bus=''):
         peer = bytes(self.rpc().context.vip_message.peer)
-        subscriptions = self._peer_subscriptions[bus]
         for prefix in prefix if isinstance(prefix, list) else [prefix]:
-            try:
-                subscribers = subscriptions[prefix]
-            except KeyError:
-                subscriptions[prefix] = subscribers = set()
-            subscribers.add(peer)
+            self._add_peer_subscription(peer, bus, prefix)
 
     def _peer_unsubscribe(self, prefix, bus=''):
         peer = bytes(self.rpc().context.vip_message.peer)
