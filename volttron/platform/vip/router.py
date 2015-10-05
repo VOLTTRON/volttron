@@ -219,7 +219,7 @@ class BaseRouter(object):
     def _add_peer(self, peer):
         if peer in self._peers:
             return
-        self._distribute(b'peer', b'add', peer)
+        self._distribute(b'peerlist', b'add', peer)
         self._peers.add(peer)
 
     def _drop_peer(self, peer):
@@ -227,7 +227,7 @@ class BaseRouter(object):
             self._peers.remove(peer)
         except KeyError:
             return
-        self._distribute(b'peer', b'drop', peer)
+        self._distribute(b'peerlist', b'drop', peer)
 
     def route(self):
         '''Route one message and return.
@@ -273,7 +273,7 @@ class BaseRouter(object):
             elif name == b'ping':
                 frames[:7] = [
                     sender, recipient, proto, user_id, msg_id, b'ping', b'pong']
-            elif name == b'peer':
+            elif name == b'peerlist':
                 try:
                     op = frames[6].bytes
                 except IndexError:

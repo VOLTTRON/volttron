@@ -59,10 +59,10 @@ from __future__ import absolute_import
 
 from .channel import Channel
 from .hello import Hello
-from .peer import Peer
+from .peerlist import PeerList
 from .ping import Ping
 from .pubsub import PubSub
 from .rpc import RPC
 
 
-__all__ = ['Peer', 'Ping', 'RPC', 'Hello', 'PubSub', 'Channel']
+__all__ = ['PeerList', 'Ping', 'RPC', 'Hello', 'PubSub', 'Channel']

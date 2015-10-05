@@ -66,7 +66,7 @@ from .subsystems import *
 class Agent(object):
     class Subsystems(object):
         def __init__(self, owner, core):
-            self.peer = Peer(core)
+            self.peerlist = PeerList(core)
             self.ping = Ping(core)
             self.rpc = RPC(core, owner)
             self.hello = Hello(core)

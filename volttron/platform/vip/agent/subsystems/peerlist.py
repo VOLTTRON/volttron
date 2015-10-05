@@ -65,24 +65,24 @@ from ..dispatch import Signal
 from ..results import ResultsDictionary
 
 
-__all__ = ['Peer']
+__all__ = ['PeerList']
 
 
 _log = logging.getLogger(__name__)
 
 
-class Peer(SubsystemBase):
+class PeerList(SubsystemBase):
     def __init__(self, core):
         self.core = weakref.ref(core)
         self._results = ResultsDictionary()
-        core.register('peer', self._handle_subsystem, self._handle_error)
+        core.register('peerlist', self._handle_subsystem, self._handle_error)
         self.onadd = Signal()
         self.ondrop = Signal()
 
     def list(self):
         socket = self.core().socket
         result = next(self._results)
-        socket.send_vip(b'', b'peer', [b'list'], result.ident)
+        socket.send_vip(b'', b'peerlist', [b'list'], result.ident)
         return result
 
     __call__ = list
@@ -91,13 +91,13 @@ class Peer(SubsystemBase):
         try:
             op = bytes(message.args[0])
         except IndexError:
-            _log.error('missing peer subsystem operation')
+            _log.error('missing peerlist subsystem operation')
             return
         if op in [b'add', b'drop']:
             try:
                 peer = bytes(message.args[1])
             except IndexError:
-                _log.error('missing peer identity in %s operation', op)
+                _log.error('missing peerlist identity in %s operation', op)
                 return
             getattr(self, 'on' + op).send(self, peer=peer)
         elif op == b'listing':
@@ -107,7 +107,7 @@ class Peer(SubsystemBase):
                 return
             result.set([bytes(arg) for arg in message.args[1:]])
         else:
-            _log.error('unknown peer subsystem operation')
+            _log.error('unknown peerlist subsystem operation')
 
     def _handle_error(self, sender, message, error, **kwargs):
         try:
