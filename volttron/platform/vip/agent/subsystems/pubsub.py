@@ -67,6 +67,7 @@ from zmq.utils import jsonapi
 
 from .base import SubsystemBase
 from ..decorators import annotate, annotations, dualmethod, spawn
+from ..errors import Unreachable
 from .... import jsonrpc
 
 
@@ -85,36 +86,77 @@ def decode_peer(peer):
 
 
 class PubSub(SubsystemBase):
-    def __init__(self, core, rpc, owner):
+    def __init__(self, core, rpc_subsys, peerlist_subsys, owner):
         self.core = weakref.ref(core)
-        self.rpc = weakref.ref(rpc)
+        self.rpc = weakref.ref(rpc_subsys)
+        self.peerlist = weakref.ref(peerlist_subsys)
         self._peer_subscriptions = {}
         self._my_subscriptions = {}
-        self._synchronizing = 0
 
         def setup(sender, **kwargs):
             # pylint: disable=unused-argument
-            rpc.export(self._peer_subscribe, 'pubsub.subscribe')
-            rpc.export(self._peer_unsubscribe, 'pubsub.unsubscribe')
-            rpc.export(self._peer_list, 'pubsub.list')
-            rpc.export(self._peer_publish, 'pubsub.publish')
-            rpc.export(self._peer_push, 'pubsub.push')
-        core.onsetup.connect(setup, self)
+            rpc_subsys.export(self._peer_sync, 'pubsub.sync')
+            rpc_subsys.export(self._peer_subscribe, 'pubsub.subscribe')
+            rpc_subsys.export(self._peer_unsubscribe, 'pubsub.unsubscribe')
+            rpc_subsys.export(self._peer_list, 'pubsub.list')
+            rpc_subsys.export(self._peer_publish, 'pubsub.publish')
+            rpc_subsys.export(self._peer_push, 'pubsub.push')
+            core.onconnected.connect(self._connected)
+            core.onviperror.connect(self._viperror)
+            peerlist_subsys.onadd.connect(self._peer_add)
+            peerlist_subsys.ondrop.connect(self._peer_drop)
 
-        def start(sender, **kwargs):
             def subscribe(member):   # pylint: disable=redefined-outer-name
                 for peer, bus, prefix in annotations(
                         member, set, 'pubsub.subscriptions'):
-                    self.subscribe(peer, prefix, member, bus)
+                    # XXX: needs updated in light of onconnected signal
+                    self.add_subscription(peer, prefix, member, bus)
             inspect.getmembers(owner, subscribe)
-        core.onstart.connect(start, self)
+        core.onsetup.connect(setup, self)
 
     def add_bus(self, name):
         self._peer_subscriptions.setdefault(name, {})
 
     def remove_bus(self, name):
-        subscriptions = self._peer_subscriptions.pop(name, {})
+        del self._peer_subscriptions[name]
         # XXX: notify subscribers of removed bus
+        #      or disallow removal of non-empty bus?
+
+    def _connected(self, sender, **kwargs):
+        self.synchronize(None)
+
+    def _viperror(self, sender, error, **kwargs):
+        if isinstance(error, Unreachable):
+            self._peer_drop(self, error.peer)
+
+    def _peer_add(self, sender, peer, **kwargs):
+        self.synchronize(peer)
+
+    def _peer_drop(self, sender, peer, **kwargs):
+        self._sync(peer, {})
+
+    def _sync(self, peer, items):
+        items = {(bus, prefix) for bus, topics in items.iteritems()
+                 for prefix in topics}
+        remove = []
+        for bus, subscriptions in self._peer_subscriptions.iteritems():
+            for prefix, subscribers in subscriptions.iteritems():
+                if (bus, prefix) in items:
+                    subscribers.add(peer)
+                else:
+                    subscribers.discard(peer)
+                    if not subscribers:
+                        remove.append((bus, prefix))
+        for bus, prefix in remove:
+            subscriptions = self._peer_subscriptions[bus]
+            assert not subscriptions.pop(prefix)
+            if not subscriptions:
+                del self._peer_subscriptions[bus]
+
+    def _peer_sync(self, items):
+        peer = bytes(self.rpc().context.vip_message.peer)
+        assert isinstance(items, dict)
+        self._sync(peer, items)
 
     def _peer_subscribe(self, prefix, bus=''):
         peer = bytes(self.rpc().context.vip_message.peer)
@@ -130,23 +172,19 @@ class PubSub(SubsystemBase):
         peer = bytes(self.rpc().context.vip_message.peer)
         subscriptions = self._peer_subscriptions[bus]
         if prefix is None:
-            empty = []
+            remove = []
             for topic, subscribers in subscriptions.iteritems():
                 subscribers.discard(peer)
                 if not subscribers:
-                    empty.append(topic)
-            for topic in empty:
-                subscriptions.pop(topic, None)
+                    remove.append(topic)
+            for topic in remove:
+                del subscriptions[topic]
         else:
             for prefix in prefix if isinstance(prefix, list) else [prefix]:
-                try:
-                    subscribers = subscriptions[prefix]
-                except KeyError:
-                    pass
-                else:
-                    subscribers.discard(peer)
-                    if not subscribers:
-                        subscriptions.pop(prefix, None)
+                subscribers = subscriptions[prefix]
+                subscribers.discard(peer)
+                if not subscribers:
+                    del subscriptions[prefix]
 
     def _peer_list(self, prefix='', bus='', subscribed=True, reverse=False):
         peer = bytes(self.rpc().context.vip_message.peer)
@@ -159,7 +197,7 @@ class PubSub(SubsystemBase):
         else:
             test = lambda t: t.startswith(prefix)
         results = []
-        for _, subscriptions in buses:
+        for bus, subscriptions in buses:
             for topic, subscribers in subscriptions.iteritems():
                 if test(topic):
                     member = peer in subscribers
@@ -172,10 +210,7 @@ class PubSub(SubsystemBase):
         self._distribute(peer, topic, headers, message, bus)
 
     def _distribute(self, peer, topic, headers, message=None, bus=''):
-        try:
-            subscriptions = self._peer_subscriptions[bus]
-        except KeyError:
-            return 0
+        subscriptions = self._peer_subscriptions[bus]
         subscribers = set()
         for prefix, subscription in subscriptions.iteritems():
             if subscription and topic.startswith(prefix):
@@ -194,11 +229,11 @@ class PubSub(SubsystemBase):
         return len(subscribers)
 
     def _peer_push(self, sender, bus, topic, headers, message):
-        '''Handle incoming subscriptions from peers.'''
+        '''Handle incoming subscription pushes from peers.'''
         peer = bytes(self.rpc().context.vip_message.peer)
         handled = 0
         try:
-            subscriptions = self._my_subscriptions[(peer, bus)]
+            subscriptions = self._my_subscriptions[peer][bus]
         except KeyError:
             pass
         else:
@@ -209,58 +244,42 @@ class PubSub(SubsystemBase):
                     for callback in callbacks:
                         callback(peer, sender, bus, topic, headers, message)
         if not handled:
-            self.synchronize(peer).get(timeout=15)   # pylint: disable=no-member
+            # No callbacks for topic; synchronize with sender
+            self.synchronize(peer)
 
-    @spawn
-    def synchronize(self, peer, force=False):
+    def synchronize(self, peer):
         '''Unsubscribe from stale/forgotten/unsolicited subscriptions.'''
-        # Limit to one cleanup operation at a time unless force is True.
-        # There is no race condition setting _synchronizing
-        # because the method is running in the context of gevent.
-        if self._synchronizing and not force:
-            return False
-        self._synchronizing += 1
-        try:
-            rpc = self.rpc()
-            topics = self.list(peer).get()
-            unsubscribe = {}
-            for bus, prefix, _ in topics:
-                try:
-                    unsubscribe[bus].add(prefix)
-                except KeyError:
-                    unsubscribe[bus] = set([prefix])
-            subscribe = {}
-            for (ident, bus), subscriptions \
-                    in self._my_subscriptions.iteritems():
-                if peer != ident:
-                    continue
-                for prefix in subscriptions:
-                    try:
-                        topics = unsubscribe[bus]
-                        topics.remove(prefix)
-                    except KeyError:
-                        try:
-                            subscribe[bus].add(prefix)
-                        except KeyError:
-                            subscribe[bus] = set([prefix])
-                    else:
-                        if not topics:
-                            del unsubscribe[bus]
-            if unsubscribe:
-                rpc.batch(
-                    peer, ((True, 'pubsub.unsubscribe', (list(topics), bus), {})
-                           for bus, topics in unsubscribe.iteritems()))
-            if subscribe:
-                rpc.batch(
-                    peer, ((True, 'pubsub.subscribe', (list(topics), bus), {})
-                           for bus, topics in subscribe.iteritems()))
-        finally:
-            self._synchronizing -= 1
-        return True
+        if peer is None:
+            items = [(peer, {bus: subscriptions.keys()
+                             for bus, subscriptions in buses.iteritems()})
+                     for peer, buses in self._my_subscriptions.iteritems()]
+        else:
+            buses = self._my_subscriptions.get(peer) or {}
+            items = [(peer, {bus: subscriptions.keys()
+                             for bus, subscriptions in buses.iteritems()})]
+        for (peer, subscriptions) in items:
+            self.rpc().notify(peer, 'pubsub.sync', subscriptions)
 
     def list(self, peer, prefix='', bus='', subscribed=True, reverse=False):
         return self.rpc().call(peer, 'pubsub.list', prefix,
                                bus, subscribed, reverse)
+
+    def add_subscription(self, peer, prefix, callback, bus=''):
+        if not callable(callback):
+            raise ValueError('callback %r is not callable' % (callback,))
+        try:
+            buses = self._my_subscriptions[peer]
+        except KeyError:
+            self._my_subscriptions[peer] = buses = {}
+        try:
+            subscriptions = buses[bus]
+        except KeyError:
+            buses[bus] = subscriptions = {}
+        try:
+            callbacks = subscriptions[prefix]
+        except KeyError:
+            subscriptions[prefix] = callbacks = set()
+        callbacks.add(callback)
 
     @dualmethod
     @spawn
@@ -275,18 +294,8 @@ class PubSub(SubsystemBase):
         case-insensitive dictionary (mapping) of message headers, and
         message is a possibly empty list of message parts.
         '''
-        if not callable(callback):
-            raise ValueError('callback %r is not callable' % (callback,))
-        self.rpc().call(peer, 'pubsub.subscribe', prefix, bus=bus).get()
-        try:
-            subscriptions = self._my_subscriptions[(peer, bus)]
-        except KeyError:
-            self._my_subscriptions[(peer, bus)] = subscriptions = {}
-        try:
-            callbacks = subscriptions[prefix]
-        except KeyError:
-            subscriptions[prefix] = callbacks = set()
-        callbacks.add(callback)
+        self.add_subscription(peer, prefix, callback, bus)
+        return self.rpc().call(peer, 'pubsub.subscribe', prefix, bus=bus)
     
     @subscribe.classmethod
     def subscribe(cls, peer, prefix, bus=''):
@@ -295,18 +304,14 @@ class PubSub(SubsystemBase):
             return method
         return decorate
 
-    def unsubscribe(self, peer, prefix, callback, bus=''):
-        '''Unsubscribe and remove callback(s).
-
-        Remove all handlers matching the given handler ID, which is the
-        ID returned by the subscribe method. If all handlers for a
-        topic prefix are removed, the topic is also unsubscribed.
-        '''
+    def drop_subscription(self, peer, prefix, callback, bus=''):
+        buses = self._my_subscriptions[peer]
         if prefix is None:
             if callback is None:
-                topics = self._my_subscriptions.pop((peer, bus)).keys()
+                subscriptions = buses.pop(bus)
+                topics = subscriptions.keys()
             else:
-                subscriptions = self._my_subscriptions[(peer, bus)]
+                subscriptions = buses[bus]
                 topics = []
                 remove = []
                 for topic, callbacks in subscriptions.iteritems():
@@ -320,19 +325,35 @@ class PubSub(SubsystemBase):
                         remove.append(topic)
                 for topic in remove:
                     del subscriptions[topic]
+                if not subscriptions:
+                    del buses[bus]
+            if not topics:
+                raise KeyError('no such subscription')
         else:
-            subscriptions = self._my_subscriptions[(peer, bus)]
+            subscriptions = buses[bus]
             if callback is None:
-                subscriptions.pop(prefix)
+                del subscriptions[prefix]
             else:
                 callbacks = subscriptions[prefix]
-                callbacks.discard(callback)
-                if callbacks:
-                    return
-                del subscriptions[prefix]
+                callbacks.remove(callback)
+                if not callbacks:
+                    del subscriptions[prefix]
             topics = [prefix]
-        return self.rpc().call(peer, 'pubsub.unsubscribe', topics, bus=bus)
+            if not subscriptions:
+                del buses[bus]
+        if not buses:
+            del self._my_subscriptions[peer]
+        return topics
 
+    def unsubscribe(self, peer, prefix, callback, bus=''):
+        '''Unsubscribe and remove callback(s).
+
+        Remove all handlers matching the given handler ID, which is the
+        ID returned by the subscribe method. If all handlers for a
+        topic prefix are removed, the topic is also unsubscribed.
+        '''
+        topics = self.drop_subscription(peer, prefix, callback, bus)
+        return self.rpc().call(peer, 'pubsub.unsubscribe', topics, bus=bus)
 
     def publish(self, peer, topic, headers=None, message=None, bus=''):
         '''Publish a message to a given topic via a peer.
