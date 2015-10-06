@@ -463,8 +463,11 @@ class Core(BasicCore):
             finally:
                 self.socket.monitor(None, 0)
 
-        self.spawn(monitor).join(0)
+        if self.address[:4] in ['tcp:', 'ipc:']:
+            self.spawn(monitor).join(0)
         self.socket.connect(self.address)
+        if self.address.startswith('inproc:'):
+            hello()
 
         def vip_loop():
             sock = self.socket
@@ -487,6 +490,7 @@ class Core(BasicCore):
                     self.__connected = True
                     self.onconnected.send(self, version=version,
                                           router=server, identity=identity)
+                    continue
 
                 try:
                     handle = self.subsystems[subsystem]
