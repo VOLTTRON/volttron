@@ -63,7 +63,6 @@ import heapq
 import inspect
 import logging
 import os
-import struct
 import sys
 import threading
 import time
@@ -71,6 +70,7 @@ import time
 import gevent.event
 from zmq import green as zmq
 from zmq.green import ZMQError, EAGAIN
+from zmq.utils.monitor import recv_monitor_message
 
 from .decorators import annotate, annotations, dualmethod
 from .dispatch import Signal
@@ -447,18 +447,17 @@ class Core(BasicCore):
             # regular contexts (get_monitor_socket() uses
             # self.context.socket()).
             addr = 'inproc://monitor.v-%d' % (id(self.socket),)
-            self.socket.monitor(addr, zmq.EVENT_ALL)
+            self.socket.monitor(addr)
             try:
                 sock = zmq.Socket(self.context, zmq.PAIR)
                 sock.connect(addr)
                 while True:
-                    event, endpoint = sock.recv_multipart()
-                    ident, value = struct.unpack('=HI', event)
-                    self.onsockevent.send(
-                        self, event=ident, value=value, endpoint=endpoint)
-                    if ident & zmq.EVENT_CONNECTED:
+                    message = recv_monitor_message(sock)
+                    self.onsockevent.send(self, **message)
+                    event = message['event']
+                    if event & zmq.EVENT_CONNECTED:
                         hello()
-                    elif ident & zmq.EVENT_DISCONNECTED:
+                    elif event & zmq.EVENT_DISCONNECTED:
                         self.__connected = False
                         self.ondisconnected.send(self)
             finally:
