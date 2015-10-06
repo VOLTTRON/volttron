@@ -59,6 +59,7 @@ from __future__ import absolute_import
 
 from base64 import b64encode, b64decode
 import inspect
+import random
 import weakref
 
 from zmq import green as zmq
@@ -130,7 +131,9 @@ class PubSub(SubsystemBase):
             self._peer_drop(self, error.peer)
 
     def _peer_add(self, sender, peer, **kwargs):
-        self.synchronize(peer)
+        # Delay sync by some random amount to prevent reply storm.
+        delay = random.random()
+        self.core().spawn_later(delay, self.synchronize, peer)
 
     def _peer_drop(self, sender, peer, **kwargs):
         self._sync(peer, {})
