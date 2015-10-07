@@ -267,7 +267,8 @@ class Router(vip.BaseRouter):
         for address in self.addresses:
             if not address.identity:
                 address.identity = identity
-            if (address.secretkey is None and address.server != 'PLAIN' and
+            if (address.secretkey is None and
+                    address.server not in ['NULL', 'PLAIN'] and
                     self._secretkey):
                 address.server = 'CURVE'
                 address.secretkey = self._secretkey
