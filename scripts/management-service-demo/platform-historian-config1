@@ -4,8 +4,7 @@
     "connection": {
         "type": "sqlite",
         "params": {
-            "database": "/tmp/v1home/data/platform.historian.sqlite",
-            "detect_types": "sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES"
+            "database": "/tmp/v1home/data/platform.historian.sqlite"
         }
     }
 }

@@ -244,6 +244,7 @@ br + .form__control-help {
     float: left;
     line-height: 1;
     margin: 0;
+    white-space: nowrap;
 }
 
 .logo__name {
@@ -258,9 +259,35 @@ br + .form__control-help {
     font-family: "Helvetica Neue", "Helvetica", "Arial", sans-serif;
     font-size: 0.5em;
     font-weight: normal;
-    margin: 0.3em 0 0 0.15em;
     color: #999;
+}
+
+.platform-manager--not-logged-in .logo__tm {
     position: absolute;
+    margin: 0.3em 0 0 0.15em;
+}
+
+.platform-manager--logged-in .logo__tm {
+    vertical-align: top;
+    position: relative;
+    top: 0.3em;
+    left: 0.15em;
+}
+
+.logo__beta {
+    font-family: "Montserrat";
+    font-weight: bold;
+    letter-spacing: 0.1em;
+    margin-right: -0.1em;
+    color: #bbb;
+}
+
+.platform-manager--not-logged-in .logo__beta {
+    display: block;
+}
+
+.platform-manager--logged-in .logo__beta::before {
+    content: " ";
 }
 
 .navigation__item {
@@ -308,7 +335,7 @@ br + .form__control-help {
     left: 0;
     right: 0;
     height: 16rem;
-    margin-top: -4rem;
+    margin-top: -1.5rem;
     text-align: center;
 }
 

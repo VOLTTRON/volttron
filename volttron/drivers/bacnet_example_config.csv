@@ -1,4 +1,4 @@
-Point Name,PNNL Point Name,Units,Unit Details,BACnet Object Type,Property,Writable,Index,Notes
+Point Name,Volttron Point Name,Units,Unit Details,BACnet Object Type,Property,Writable,Index,Notes
 2400Stevens/FCB.Local Application.DA1-P,DischargeAirStaticPressure,inchesOfWater,-0.20 to 5.00,analogInput,presentValue,FALSE,3000108,Resolution: 0.001
 2400Stevens/FCB.Local Application.DA-T,DischargeAirTemperature,degreesFahrenheit,-50.00 to 250.00,analogInput,presentValue,FALSE,3000109,Resolution: 0.1
 2400Stevens/FCB.Local Application.MA-T,MixedAirTemperature,degreesFahrenheit,-50.00 to 250.00,analogInput,presentValue,FALSE,3000116,Resolution: 0.1

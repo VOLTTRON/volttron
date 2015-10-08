@@ -36,7 +36,7 @@ class DbDriver(object):
         conn = self.__dbmodule.connect(**self.__connect_params)
         
         if conn:
-            can_connect = conn.is_connected()        
+            can_connect = True        
         else:
             raise AttributeError("Could not connect to specified mysql " 
                                  "instance.")
@@ -50,14 +50,9 @@ class DbDriver(object):
         if return_val:
             return self.__dbmodule.connect(**self.__connect_params)
         
-        if self.__connection == None or not self.__connection.is_connected():       
+        if self.__connection == None:
             self.__connection = self.__dbmodule.connect(**self.__connect_params)        
             
-            # enable transactions here.
-            self.__connection.autocommit=False
-        
-        
-    
     @abstractmethod
     def get_topic_map(self):
         '''
@@ -76,15 +71,22 @@ class DbDriver(object):
     def insert_data(self, ts, topic_id, data):
         
         self.__connect()
+
+        if self.__connection is None:
+            return False
         
         if self.__cursor == None:
             self.__cursor = self.__connection.cursor()
         
         self.__cursor.execute(self.insert_data_query(), (ts,topic_id,jsonapi.dumps(data)))
+        return True
 
     def insert_topic(self, topic):
         
         self.__connect()
+        
+        if self.__connection is None:
+            return False
         
         if self.__cursor == None:
             self.__cursor = self.__connection.cursor()
@@ -96,22 +98,49 @@ class DbDriver(object):
         return row
     
     def commit(self):
-        self.__connection.commit()
-        self.__cursor = None
-        self.__connection.close()
-        self.__connection = None
-    
+        try:
+            retValue = False
+            if self.__connection is not None:
+                self.__connection.commit()
+                retValue = True
+            else:
+                _log.warn('connection was null during commit phase.')
+        finally:
+            if self.__connection is not None:
+                try:
+                    self.__connection.close()
+                except:
+                    pass
+                                                            
+            self.__cursor = None
+            self.__connection = None
+        return retValue
     def rollback(self):
-        self.__connection.rollback()
-        self.__cursor = None
-        self.__connection.close()
-        self.__connection = None      
+        try:
+            retValue = False
+            if self.__connection is not None:
+                self.__connection.rollback()
+                retValue = True
+            else:
+                _log.warn('connection was null during rollback phase.')
+        finally:
+            if self.__connection is not None:
+                try:
+                    self.__connection.close()
+                except:
+                    pass
+                                                            
+            self.__cursor = None
+            self.__connection = None
+        return retValue
     
     def select(self, query, args):
         conn = self.__connect(True)
         cursor = conn.cursor()
-        
-        cursor.execute(query, args)
+        if args is not None:
+            cursor.execute(query, args)
+        else:
+            cursor.execute(query)
         rows = cursor.fetchall()
         conn.close()
         return rows
