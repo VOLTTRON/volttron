@@ -81,6 +81,7 @@ from . import config
 from . import vip
 from .vip.agent import Agent, Core
 from .vip.agent.compat import CompatPubSub
+from .vip.router import *
 from .vip.socket import encode_key, Address
 from .auth import AuthService
 from .control import ControlService
@@ -233,7 +234,15 @@ class Monitor(threading.Thread):
             log.info('%s %s %s', event_name, event_value, endpoint)
 
 
-class Router(vip.BaseRouter):
+class FramesFormatter(object):
+    def __init__(self, frames):
+        self.frames = frames
+    def __repr__(self):
+        return str([bytes(f) for f in self.frames])
+    __str__ = __repr__
+
+
+class Router(BaseRouter):
     '''Concrete VIP router.'''
 
     def __init__(self, local_address, addresses=(),
@@ -267,7 +276,8 @@ class Router(vip.BaseRouter):
         for address in self.addresses:
             if not address.identity:
                 address.identity = identity
-            if (address.secretkey is None and address.server != 'PLAIN' and
+            if (address.secretkey is None and
+                    address.server not in ['NULL', 'PLAIN'] and
                     self._secretkey):
                 address.server = 'CURVE'
                 address.secretkey = self._secretkey
@@ -276,17 +286,16 @@ class Router(vip.BaseRouter):
             address.bind(sock)
             _log.debug('Additional VIP router bound to %s' % address)
 
-    def log(self, level, message, frames):
-        self.logger.log(level, '%s: %s', message,
-                        frames and [bytes(f) for f in frames])
-
-    def run(self):
-        self.start()
-        try:
-            while self.poll():
-                self.route()
-        finally:
-            self.stop()
+    def issue(self, topic, frames, extra=None):
+        log = self.logger.debug
+        formatter = FramesFormatter(frames)
+        if topic == ERROR:
+            errnum, errmsg = extra
+            log('%s (%s): %s', errmsg, errnum, formatter)
+        elif topic == UNROUTABLE:
+            log('unroutable: %s: %s', extra, formatter)
+        else:
+            log('%s: %s', 'incoming' if topic else 'outgoing', formatter)
 
     def handle_subsystem(self, frames, user_id):
         subsystem = bytes(frames[5])

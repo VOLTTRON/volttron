@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2013, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -55,28 +55,63 @@
 # under Contract DE-AC05-76RL01830
 #}}}
 
-'''VIP - VOLTTRON™ Interconnect Protocol implementation
+from __future__ import absolute_import
 
-See https://github.com/VOLTTRON/volttron/wiki/VIP for protocol
-specification.
+import logging
+import weakref
 
-This module is useful for using VIP outside of gevent. Please understand
-that ZeroMQ sockets are not thread-safe and care must be used when using
-across threads (or avoided all together). There is no locking around the
-state as there is with the gevent version in the green sub-module.
-'''
+from .base import SubsystemBase
+from ..dispatch import Signal
+from ..results import ResultsDictionary
 
 
-from __future__ import absolute_import, print_function
-
-from threading import local as _local
-
-import zmq as _zmq
-
-from .socket import *
-from .socket import _Socket
+__all__ = ['PeerList']
 
 
-class Socket(_Socket, _zmq.Socket):
-    _context_class = _zmq.Context
-    _local_class = _local
+_log = logging.getLogger(__name__)
+
+
+class PeerList(SubsystemBase):
+    def __init__(self, core):
+        self.core = weakref.ref(core)
+        self._results = ResultsDictionary()
+        core.register('peerlist', self._handle_subsystem, self._handle_error)
+        self.onadd = Signal()
+        self.ondrop = Signal()
+
+    def list(self):
+        socket = self.core().socket
+        result = next(self._results)
+        socket.send_vip(b'', b'peerlist', [b'list'], result.ident)
+        return result
+
+    __call__ = list
+
+    def _handle_subsystem(self, message):
+        try:
+            op = bytes(message.args[0])
+        except IndexError:
+            _log.error('missing peerlist subsystem operation')
+            return
+        if op in [b'add', b'drop']:
+            try:
+                peer = bytes(message.args[1])
+            except IndexError:
+                _log.error('missing peerlist identity in %s operation', op)
+                return
+            getattr(self, 'on' + op).send(self, peer=peer)
+        elif op == b'listing':
+            try:
+                result = self._results.pop(bytes(message.id))
+            except KeyError:
+                return
+            result.set([bytes(arg) for arg in message.args[1:]])
+        else:
+            _log.error('unknown peerlist subsystem operation')
+
+    def _handle_error(self, sender, message, error, **kwargs):
+        try:
+            result = self._results.pop(bytes(message.id))
+        except KeyError:
+            return
+        result.set_exception(error)

@@ -70,6 +70,7 @@ import time
 import gevent.event
 from zmq import green as zmq
 from zmq.green import ZMQError, EAGAIN
+from zmq.utils.monitor import recv_monitor_message
 
 from .decorators import annotate, annotations, dualmethod
 from .dispatch import Signal
@@ -153,6 +154,18 @@ class ScheduledEvent(object):
         self.finished = True
 
 
+def findsignal(obj, owner, name):
+    parts = name.split('.')
+    if len(parts) == 1:
+        signal = getattr(obj, name)
+    else:
+        signal = owner
+        for part in parts:
+            signal = getattr(signal, part)
+    assert isinstance(signal, Signal), 'bad signal name %r' % (name,)
+    return signal
+
+
 class BasicCore(object):
     def __init__(self, owner):
         self.greenlet = None
@@ -165,7 +178,16 @@ class BasicCore(object):
         self.onstart = Signal()
         self.onstop = Signal()
         self.onfinish = Signal()
+        self._owner = owner
 
+    def setup(self):
+        # Split out setup from __init__ to give oportunity to add
+        # subsystems with signals
+        try:
+            owner = self._owner
+        except AttributeError:
+            return
+        del self._owner
         periodics = []
         def setup(member):   # pylint: disable=redefined-outer-name
             periodics.extend(
@@ -176,9 +198,7 @@ class BasicCore(object):
                 for deadline, args, kwargs in
                 annotations(member, list, 'core.schedule'))
             for name in annotations(member, set, 'core.signals'):
-                signal = getattr(self, name)
-                assert isinstance(signal, Signal)
-                signal.connect(member, owner)
+                findsignal(self, owner, name).connect(member, owner)
         inspect.getmembers(owner, setup)
         heapq.heapify(self._schedule)
 
@@ -202,6 +222,7 @@ class BasicCore(object):
     def run(self, running_event=None):   # pylint: disable=method-hidden
         '''Entry point for running agent.'''
 
+        self.setup()
         self.greenlet = current = gevent.getcurrent()
 
         def handle_async():
@@ -309,6 +330,12 @@ class BasicCore(object):
         self.greenlet.link(lambda glt: greenlet.kill())
         return greenlet
 
+    def spawn_later(self, seconds, func, *args, **kwargs):
+        assert self.greenlet is not None
+        greenlet = gevent.spawn_later(seconds, func, *args, **kwargs)
+        self.greenlet.link(lambda glt: greenlet.kill())
+        return greenlet
+
     def spawn_in_thread(self, func, *args, **kwargs):
         result = gevent.event.AsyncResult()
         def wrapper():
@@ -366,13 +393,22 @@ class Core(BasicCore):
                 home = os.path.abspath(platform.get_home())
                 abstract = '@' if sys.platform.startswith('linux') else ''
                 address = 'ipc://%s%s/run/vip.socket' % (abstract, home)
+        # These signals need to exist before calling super().__init__()
+        self.onviperror = Signal()
+        self.onsockevent = Signal()
+        self.onconnected = Signal()
+        self.ondisconnected = Signal()
         super(Core, self).__init__(owner)
         self.context = context or zmq.Context.instance()
         self.address = address
         self.identity = identity
         self.socket = None
         self.subsystems = {'error': self.handle_error}
-        self.onviperror = Signal()
+        self.__connected = False
+
+    @property
+    def connected(self):
+        return self.__connected
 
     def register(self, name, handler, error_handler=None):
         self.subsystems[name] = handler
@@ -396,19 +432,66 @@ class Core(BasicCore):
         if self.identity:
             self.socket.identity = self.identity
         yield
+
         # pre-start
+        state = type('HelloState', (), {'count': 0, 'ident': None})
+        def hello():
+            state.ident = ident = b'connect.hello.%d' % state.count
+            state.count += 1
+            self.spawn(self.socket.send_vip,
+                       b'', b'hello', [b'hello'], msg_id=ident)
+
+        def monitor():
+            # Call socket.monitor() directly rather than use
+            # get_monitor_socket() so we can use green sockets with
+            # regular contexts (get_monitor_socket() uses
+            # self.context.socket()).
+            addr = 'inproc://monitor.v-%d' % (id(self.socket),)
+            self.socket.monitor(addr)
+            try:
+                sock = zmq.Socket(self.context, zmq.PAIR)
+                sock.connect(addr)
+                while True:
+                    message = recv_monitor_message(sock)
+                    self.onsockevent.send(self, **message)
+                    event = message['event']
+                    if event & zmq.EVENT_CONNECTED:
+                        hello()
+                    elif event & zmq.EVENT_DISCONNECTED:
+                        self.__connected = False
+                        self.ondisconnected.send(self)
+            finally:
+                self.socket.monitor(None, 0)
+
+        if self.address[:4] in ['tcp:', 'ipc:']:
+            self.spawn(monitor).join(0)
         self.socket.connect(self.address)
+        if self.address.startswith('inproc:'):
+            hello()
+
         def vip_loop():
-            socket = self.socket
+            sock = self.socket
             while True:
                 try:
-                    message = socket.recv_vip_object(copy=False)
+                    message = sock.recv_vip_object(copy=False)
                 except ZMQError as exc:
                     if exc.errno == EAGAIN:
                         continue
                     raise
 
                 subsystem = bytes(message.subsystem)
+                # Handle hellos sent by CONNECTED event
+                if (subsystem == b'hello' and
+                        bytes(message.id) == state.ident and
+                        len(message.args) > 3 and
+                        bytes(message.args[0]) == b'welcome'):
+                    version, server, identity = [
+                        bytes(x) for x in message.args[1:4]]
+                    self.__connected = True
+                    self.onconnected.send(self, version=version,
+                                          router=server, identity=identity)
+                    continue
+
                 try:
                     handle = self.subsystems[subsystem]
                 except KeyError:
@@ -418,9 +501,10 @@ class Core(BasicCore):
                     message.args = list(router._INVALID_SUBSYSTEM)
                     message.args.append(message.subsystem)
                     message.subsystem = b'error'
-                    socket.send_vip_object(message, copy=False)
+                    sock.send_vip_object(message, copy=False)
                 else:
                     handle(message)
+
         yield gevent.spawn(vip_loop)
         # pre-stop
         yield
