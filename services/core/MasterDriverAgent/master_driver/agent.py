@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright (c) 2013, Battelle Memorial Institute
+# Copyright (c) 2015, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -62,7 +62,7 @@ from volttron.platform.agent import utils
 from driver import DriverAgent
 import resource
 
-from socket_lock import configure_socket_lock
+from driver_locks import configure_socket_lock, configure_publish_lock
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -110,6 +110,16 @@ def master_driver_agent(config_path, **kwargs):
         configure_socket_lock()
         _log.warn("No limit set on the maximum number of concurrently open sockets. "
                   "Consider setting max_open_sockets if you plan to work with 800+ modbus devices.")
+        
+    
+    #TODO: update the default after scalability testing.
+    max_concurrent_publishes = get_config('max_concurrent_publishes', 10000)
+    if max_concurrent_publishes < 1:
+        _log.warn("No limit set on the maximum number of concurrent driver publishes. "
+                  "Consider setting max_concurrent_publishes if you plan to work with many devices.")
+    else:
+        _log.info("maximum concurrent driver publishes limited to " + str(max_concurrent_publishes))
+    configure_publish_lock(max_concurrent_publishes)
 
     vip_identity = get_config('vip_identity', 'platform.driver')
     #pop the uuid based id

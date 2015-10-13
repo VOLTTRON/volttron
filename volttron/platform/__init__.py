@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2013, Battelle Memorial Institute
+# Copyright (c) 2015, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -60,9 +60,6 @@
 
 
 import os
-
-__import__('warnings').filterwarnings(
-    'default', r'.*vip\.?agent.*', DeprecationWarning)
 
 __version__ = '2.0'
 

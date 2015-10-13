@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2013, Battelle Memorial Institute
+# Copyright (c) 2015, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -68,6 +68,7 @@ import stat
 import struct
 import sys
 import threading
+import uuid
 
 import gevent
 from zmq import curve_keypair
@@ -80,7 +81,8 @@ from . import config
 from . import vip
 from .vip.agent import Agent, Core
 from .vip.agent.compat import CompatPubSub
-from .vip.socket import encode_key
+from .vip.router import *
+from .vip.socket import encode_key, Address
 from .auth import AuthService
 from .control import ControlService
 from .agent import utils
@@ -232,7 +234,15 @@ class Monitor(threading.Thread):
             log.info('%s %s %s', event_name, event_value, endpoint)
 
 
-class Router(vip.BaseRouter):
+class FramesFormatter(object):
+    def __init__(self, frames):
+        self.frames = frames
+    def __repr__(self):
+        return str([bytes(f) for f in self.frames])
+    __str__ = __repr__
+
+
+class Router(BaseRouter):
     '''Concrete VIP router.'''
 
     def __init__(self, local_address, addresses=(),
@@ -240,40 +250,52 @@ class Router(vip.BaseRouter):
                  monitor=False):
         super(Router, self).__init__(
             context=context, default_user_id=default_user_id)
-        self.local_address = local_address
-        self.addresses = addresses
+        self.local_address = Address(local_address)
+        self.addresses = addresses = [Address(addr) for addr in addresses]
         self._secretkey = secretkey
         self.logger = logging.getLogger('vip.router')
         if self.logger.level == logging.NOTSET:
-            self.logger.setLevel(logging.INFO)
+            self.logger.setLevel(logging.WARNING)
         self._monitor = monitor
 
     def setup(self):
         sock = self.socket
+        sock.identity = identity = str(uuid.uuid4())
         if self._monitor:
             Monitor(sock.get_monitor_socket()).start()
         sock.bind('inproc://vip')
+        _log.debug('In-process VIP router bound to inproc://vip')
         sock.zap_domain = 'vip'
-        sock.bind(self.local_address)
+        addr = self.local_address
+        if not addr.identity:
+            addr.identity = identity
+        if not addr.domain:
+            addr.domain = 'vip'
+        addr.bind(sock)
+        _log.debug('Local VIP router bound to %s' % addr)
         for address in self.addresses:
-            if address.startswith('tcp://') and self._secretkey:
-                sock.curve_server = True
-                sock.curve_secretkey = self._secretkey
-            else:
-                sock.curve_server = False
-            sock.bind(address)
+            if not address.identity:
+                address.identity = identity
+            if (address.secretkey is None and
+                    address.server not in ['NULL', 'PLAIN'] and
+                    self._secretkey):
+                address.server = 'CURVE'
+                address.secretkey = self._secretkey
+            if not address.domain:
+                address.domain = 'vip'
+            address.bind(sock)
+            _log.debug('Additional VIP router bound to %s' % address)
 
-    def log(self, level, message, frames):
-        self.logger.log(level, '%s: %s', message,
-                        frames and [bytes(f) for f in frames])
-
-    def run(self):
-        self.start()
-        try:
-            while self.poll():
-                self.route()
-        finally:
-            self.stop()
+    def issue(self, topic, frames, extra=None):
+        log = self.logger.debug
+        formatter = FramesFormatter(frames)
+        if topic == ERROR:
+            errnum, errmsg = extra
+            log('%s (%s): %s', errmsg, errnum, formatter)
+        elif topic == UNROUTABLE:
+            log('unroutable: %s: %s', extra, formatter)
+        else:
+            log('%s: %s', 'incoming' if topic else 'outgoing', formatter)
 
     def handle_subsystem(self, frames, user_id):
         subsystem = bytes(frames[5])
@@ -288,13 +310,10 @@ class Router(vip.BaseRouter):
                 value = None
             else:
                 if name == b'addresses':
-                    _log.debug("ADDRESS {}".format(self.addresses))
-                    # #140
-#                     value = [addr.base for addr in self.addresses]
                     if self.addresses:
-                        value = self.addresses
+                        value = [addr.base for addr in self.addresses]
                     else:
-                        value = [self.local_address]
+                        value = [self.local_address.base]
                 else:
                     value = None
             frames[6:] = [b'', jsonapi.dumps(value)]
@@ -333,6 +352,9 @@ def main(argv=sys.argv):
         '-c', '--config', metavar='FILE', action='parse_config',
         ignore_unknown=True, sections=[None, 'volttron'],
         help='read configuration from FILE')
+    parser.add_argument(
+        '--developer-mode', action='store_true',
+        help='run in insecure developer mode')
     parser.add_argument(
         '-l', '--log', metavar='FILE', default=None,
         help='send log output to FILE instead of stderr')
@@ -455,6 +477,7 @@ def main(argv=sys.argv):
         verify_agents=True,
         resource_monitor=True,
         #mobility=True,
+        developer_mode=False,
     )
 
     # Parse and expand options
@@ -525,41 +548,46 @@ def main(argv=sys.argv):
     if mode & (stat.S_IWGRP | stat.S_IWOTH):
         _log.warning('insecure mode on directory: %s', volttron_home)
     # Get or generate encryption key
-    keyfile = os.path.join(volttron_home, 'curve.key')
-    _log.debug('using key file %s', keyfile)
-    try:
-        st = os.stat(keyfile)
-    except OSError as exc:
-        if exc.errno != errno.ENOENT:
-            parser.error(str(exc))
-        # Key doesn't exist, so create it securely
-        _log.info('generating missing key file')
-        try:
-            fd = os.open(keyfile, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
-        except OSError as exc:
-            parser.error(str(exc))
-        try:
-            key = ''.join(curve_keypair())
-            os.write(fd, key)
-        finally:
-            os.close(fd)
+    if opts.developer_mode:
+        secretkey = None
+        _log.warning('developer mode enabled; '
+                     'authentication and encryption are disabled!')
     else:
-        if st.st_mode & (stat.S_IRWXG | stat.S_IRWXO):
-            _log.warning('insecure mode on key file')
-        if not st.st_size:
-            _log.warning('empty key file; VIP encryption is disabled!')
-            key = ''
+        keyfile = os.path.join(volttron_home, 'curve.key')
+        _log.debug('using key file %s', keyfile)
+        try:
+            st = os.stat(keyfile)
+        except OSError as exc:
+            if exc.errno != errno.ENOENT:
+                parser.error(str(exc))
+            # Key doesn't exist, so create it securely
+            _log.info('generating missing key file')
+            try:
+                fd = os.open(keyfile, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+            except OSError as exc:
+                parser.error(str(exc))
+            try:
+                key = ''.join(curve_keypair())
+                os.write(fd, key)
+            finally:
+                os.close(fd)
         else:
-            # Allow two extra bytes in case someone opened the file with
-            # a text editor and it appended '\n' or '\r\n'.
-            if not 80 <= st.st_size <= 82:
-                _log.warning('key file is wrong size; connections may fail')
-            with open(keyfile) as infile:
-                key = infile.read(80)
-    publickey = key[:40]
-    if publickey:
-        _log.info('public key: %r (%s)', publickey, encode_key(publickey))
-    secretkey = key[40:]
+            if st.st_mode & (stat.S_IRWXG | stat.S_IRWXO):
+                _log.warning('insecure mode on key file')
+            if not st.st_size:
+                _log.warning('empty key file; VIP encryption is disabled!')
+                key = ''
+            else:
+                # Allow two extra bytes in case someone opened the file with
+                # a text editor and it appended '\n' or '\r\n'.
+                if not 80 <= st.st_size <= 82:
+                    _log.warning('key file is wrong size; connections may fail')
+                with open(keyfile) as infile:
+                    key = infile.read(80)
+        publickey = key[:40]
+        if publickey:
+            _log.info('public key: %s', encode_key(publickey))
+        secretkey = key[40:]
 
     # The following line doesn't appear to do anything, but it creates
     # a context common to the green and non-green zmq modules.
@@ -579,7 +607,10 @@ def main(argv=sys.argv):
     address = 'inproc://vip'
     try:
         # Ensure auth service is running before router
-        auth = AuthService(address=address, identity='auth')
+        auth_file = os.path.join(volttron_home, 'auth.json')
+        auth = AuthService(
+            auth_file, opts.aip, address=address, identity='auth',
+            allow_any=opts.developer_mode)
         event = gevent.event.Event()
         auth_task = gevent.spawn(auth.core.run, event)
         event.wait()

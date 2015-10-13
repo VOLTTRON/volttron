@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright (c) 2013, Battelle Memorial Institute
+# Copyright (c) 2015, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -78,6 +78,7 @@ class ListenerAgent(Agent):
     def __init__(self, config_path, **kwargs):
         super(ListenerAgent, self).__init__(**kwargs)
         self.config = utils.load_config(config_path)
+        self._agent_id = self.config['agentid']
 
     @Core.receiver('onsetup')
     def setup(self, sender, **kwargs):
@@ -121,7 +122,4 @@ def main(argv=sys.argv):
 
 if __name__ == '__main__':
     # Entry point for script
-    try:
-        sys.exit(main())
-    except KeyboardInterrupt:
-        pass
+    sys.exit(main())

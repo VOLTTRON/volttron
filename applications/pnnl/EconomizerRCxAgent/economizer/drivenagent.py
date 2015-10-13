@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2013, Battelle Memorial Institute
+# Copyright (c) 2015, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -58,7 +58,7 @@ import csv
 from datetime import datetime, timedelta as td
 import logging
 import sys
-# import time
+import datetime
 import re
 
 from dateutil.parser import parse
@@ -130,6 +130,10 @@ def DrivenAgent(config_path, **kwargs):
     devices_topic = (
         base_dev + '({})(/.*)?/all$'
         .format('|'.join(re.escape(p) for p in units)))
+    
+    unittype_map = config.get('unittype_map', None)
+    assert unittype_map
+    
     klass = _get_class(application)
     # This instances is used to call the applications run method when
     # data comes in on the message bus.  It is constructed here
@@ -181,7 +185,9 @@ def DrivenAgent(config_path, **kwargs):
         def on_rec_analysis_message(self, topic, headers, message, matched):
             # Do the analysis based upon the data passed (the old code).
             # print self._subdevice_values, self._device_values
-            obj = jsonapi.loads(message[0])[0]
+            obj = jsonapi.loads(message[0])
+            if isinstance(obj, list):
+                obj = obj[0]
             dev_list = topic.split('/')
             device_or_subdevice = dev_list[-2]
             device_id = [dev for dev in self._master_devices
@@ -230,8 +236,8 @@ def DrivenAgent(config_path, **kwargs):
                     _timestamp = parse(headers.get('Date'), fuzzy=True)
                     self.received_input_datetime = _timestamp
                 else:
-                    _timestamp = datetime.now()
-                    self.received_input_datetime = datetime.utcnow()
+                    _timestamp = datetime.datetime.now()
+                    self.received_input_datetime = datetime.datetime.utcnow()
 
                 obj = converter.process_row(field_names)
                 results = app_instance.run(_timestamp, obj)
@@ -272,6 +278,17 @@ def DrivenAgent(config_path, **kwargs):
                                     # fout.writerow(keys)
                                 fout.writerow(r)
                                 f.close()
+                                
+            def get_unit(point):
+                ''' Get a unit type based upon the regular expression in the config file.
+                
+                    if NOT found returns percent as a default unit.
+                '''
+                for k, v in unittype_map.items():
+                    if re.match(k, point):
+                        return v
+                return 'percent'
+            
             # publish to message bus.
             if len(results.table_output.keys()) > 0:
                 headers = {
@@ -287,11 +304,20 @@ def DrivenAgent(config_path, **kwargs):
                                 _analysis['unit'] = item
                                 analysis_topic = topics.ANALYSIS_VALUE(
                                     point=key, **_analysis)
-                                if isinstance(value, datetime):
-                                    value = value.isoformat()
+                                
+                                datatype = 'float'
+                                if isinstance(value, int):
+                                    datatype='int'
                                     
+                                kbase = key[key.rfind('/')+1:]
+                                message = [{kbase:value}, 
+                                           {kbase: {'tz': 'US/Pacific', 
+                                                    'type': datatype, 
+                                                    'units': get_unit(kbase)
+                                                    }
+                                            }]
                                 self.publish_json(analysis_topic,
-                                                  headers, value)
+                                                  headers, message)
 
             if results.commands and mode:
                 self.commands = results.commands
@@ -308,7 +334,7 @@ def DrivenAgent(config_path, **kwargs):
                 'taskID': actuator_id,
                 'priority': 'LOW'
                 }
-            start = datetime.now()
+            start = datetime.datetime.now()
             end = start + td(seconds=30)
             start = str(start)
             end = str(end)

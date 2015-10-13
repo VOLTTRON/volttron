@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright (c) 2013, Battelle Memorial Institute
+# Copyright (c) 2015, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -59,11 +59,16 @@ from volttron.platform.agent import utils
 from zmq.utils import jsonapi
 import logging
 import sys
+import random
+import gevent
 from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.messaging.topics import (DRIVER_TOPIC_BASE, 
                                                 DRIVER_TOPIC_ALL, 
                                                 DEVICES_VALUE,
                                                 DEVICES_PATH)
+
+from volttron.platform.vip.agent.errors import VIPError, Again
+from driver_locks import publish_lock
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -162,8 +167,8 @@ class DriverAgent(BasicAgent):
         
         try:
             results = self.interface.scrape_all()
-        except Exception:
-            _log.exception('unhandled exception')
+        except Exception as ex:
+            _log.error('Failed to scrape ' + self.device_name + ': ' + str(ex))
             return
         
         # XXX: Does a warning need to be printed?
@@ -181,20 +186,38 @@ class DriverAgent(BasicAgent):
             topics = self.get_paths_for_point(point)
             for topic in topics:
                 message = [value, self.meta_data[point]] 
-                self.vip.pubsub.publish('pubsub', topic, 
-                                        headers=headers, 
-                                        message=message)
+                self._publish_wrapper(topic, 
+                                      headers=headers, 
+                                      message=message)
          
         message = [results, self.meta_data] 
-        self.vip.pubsub.publish('pubsub', 
-                                self.all_path_depth, 
-                                headers=headers, 
-                                message=message)
+        self._publish_wrapper(self.all_path_depth, 
+                              headers=headers, 
+                              message=message)
          
-        self.vip.pubsub.publish('pubsub', 
-                                self.all_path_breadth, 
-                                headers=headers, 
-                                message=message)
+        self._publish_wrapper(self.all_path_breadth, 
+                              headers=headers, 
+                              message=message)
+        
+        
+    def _publish_wrapper(self, topic, headers, message):
+        while True:
+            try:
+                with publish_lock():
+                    self.vip.pubsub.publish('pubsub', 
+                                        topic, 
+                                        headers=headers, 
+                                        message=message).get(timeout=10.0)
+                                        
+            except Again:
+                _log.warn("publish delayed: " + topic + " pubsub is busy")
+                gevent.sleep(random.random())
+            except VIPError as ex:
+                _log.warn("driver failed to publish " + topic + ": " + str(ex))
+                break
+            else:
+                break
+            
     
     def heart_beat(self):
         if self.heart_beat_point is None:

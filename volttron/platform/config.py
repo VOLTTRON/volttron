@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2013, Battelle Memorial Institute
+# Copyright (c) 2015, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -269,6 +269,41 @@ def CaseInsensitiveConfigFileAction(ConfigFileAction):
             yield section, key, value, lineno
 
 
+# Revert _SubParsersAction due to Python revision 1a3143752db2 
+# (https://hg.python.org/cpython/rev/1a3143752db2) which introduced
+# a backward-incompatible bug and broke parsing of global options.
+# See Python issue #9351 (https://bugs.python.org/issue9351) for the bug
+# report which spurred the change and issue 24251
+# (https://bugs.python.org/issue24251) for the issue reporting the
+# unintended side effect. Then override its registration below.
+
+class SubParsersAction(_argparse._SubParsersAction):
+    def __call__(self, parser, namespace, values, option_string=None):
+        parser_name = values[0]
+        arg_strings = values[1:]
+
+        # set the parser name if requested
+        if self.dest is not _argparse.SUPPRESS:
+            setattr(namespace, self.dest, parser_name)
+
+        # select the parser
+        try:
+            parser = self._name_parser_map[parser_name]
+        except KeyError:
+            tup = parser_name, ', '.join(self._name_parser_map)
+            msg = _('unknown parser %r (choices: %s)') % tup
+            raise ArgumentError(self, msg)
+
+        # parse all the remaining options into the namespace
+        # store any unrecognized options on the object, so that the top
+        # level parser can decide what to do with them
+        namespace, arg_strings = parser.parse_known_args(arg_strings, namespace)
+
+        if arg_strings:
+            vars(namespace).setdefault(_argparse._UNRECOGNIZED_ARGS_ATTR, [])
+            getattr(namespace, _argparse._UNRECOGNIZED_ARGS_ATTR).extend(arg_strings)
+
+
 def env_var_formatter(formatter_class=_argparse.HelpFormatter):
     '''Decorator to automatically add env_var documentation to help.'''
     class EnvHelpFormatter(formatter_class):
@@ -293,6 +328,7 @@ class ArgumentParser(_argparse.ArgumentParser):
         self.register('action', 'add_const', AddConstAction)
         self.register('action', 'store_list', ListAction)
         self.register('action', 'parse_config', ConfigFileAction)
+        self.register('action', 'parsers', SubParsersAction)
 
     def _parse_known_args(self, arg_strings, namespace):
         # replace arg strings that are file references

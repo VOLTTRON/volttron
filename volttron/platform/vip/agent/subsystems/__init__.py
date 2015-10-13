@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2013, Battelle Memorial Institute
+# Copyright (c) 2015, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -59,9 +59,10 @@ from __future__ import absolute_import
 
 from .channel import Channel
 from .hello import Hello
+from .peerlist import PeerList
 from .ping import Ping
 from .pubsub import PubSub
 from .rpc import RPC
 
 
-__all__ = ['Ping', 'RPC', 'Hello', 'PubSub', 'Channel']
+__all__ = ['PeerList', 'Ping', 'RPC', 'Hello', 'PubSub', 'Channel']

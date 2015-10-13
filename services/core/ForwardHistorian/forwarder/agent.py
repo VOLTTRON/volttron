@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright (c) 2013, Battelle Memorial Institute
+# Copyright (c) 2015, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -138,6 +138,10 @@ def historian(config_path, **kwargs):
 #                 parts = topic.split('/')
 #                 all_topic = '/'.join(reversed(parts[2:]))
 
+                if not 'units' in meta.keys():
+                    #print('unit for topic {} is now {}'.format(topic, 'percent'))
+                    meta['units'] = 'percent'
+
                 #Device data is UTC
                 #.replace(tzinfo=None)
                 datalog[topic] = {'Readings': [str(ts),value],
@@ -166,7 +170,7 @@ def historian(config_path, **kwargs):
                 except gevent.Timeout:
                     pass
                 else: 
-                    self.report_all_published()
+                    self.report_all_handled()
 
         def query_topic_list(self):
             if len(self.topic_map) > 0:

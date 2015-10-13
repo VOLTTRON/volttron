@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2013, Battelle Memorial Institute
+# Copyright (c) 2015, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -59,59 +59,21 @@ import errno
 import logging
 import os
 
-from mysql import connector
+#from mysql import connector
 from zmq.utils import jsonapi
 
+from basedb import DbDriver
 from volttron.platform.agent import utils
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
-class MySqlFuncts(object):
+class MySqlFuncts(DbDriver):
 
     def __init__(self, **kwargs):
-        _log.debug("Constructing MySqlFuncts")
-        self.__connect_params = kwargs
+        #kwargs['dbapimodule'] = 'mysql.connector'
+        super(MySqlFuncts, self).__init__('mysql.connector', **kwargs)
         
-        if not kwargs.get('user', None):
-            raise AttributeError('Invalid parameter for "user" specified!')
-        if not kwargs.get('passwd', None):
-            raise AttributeError('Invalid parameter for "passwd" specified!')
-        if not kwargs.get('database', None):
-            raise AttributeError('Invalid "database" specified!')
-        
-        try:
-            if not self.__check_connection():
-                raise AttributeError(
-                        "Couldn't connect using specified configuration" 
-                        " credentials")
-        except connector.errors.ProgrammingError:
-            raise AttributeError("Couldn't connect using specified " 
-                        "configuration credentials")
-            
-    def __check_connection(self):
-        can_connect = False
-        
-        conn = connector.connect(**self.__connect_params)
-        
-        if conn:
-            can_connect = conn.is_connected()        
-        else:
-            raise AttributeError("Could not connect to specified mysql " 
-                                 "instance.")
-        if can_connect:
-            conn.close()
-        
-        return can_connect
-
-    def __connect(self):
-        
-        conn = connector.connect(**self.__connect_params)
-        # enable transactions here.
-        conn.autocommit=False
-        
-        return conn
-    
     def query(self, topic, start=None, end=None, skip=0,
                             count=None, order="FIRST_TO_LAST"):
         """This function should return the results of a query in the form:
@@ -168,64 +130,22 @@ class MySqlFuncts(object):
         _log.debug("Real Query: " + real_query)
         _log.debug("args: "+str(args))
 
-        conn = self.connect()
-        cur = conn.cursor()
-        cur.execute(real_query, args)
-        rows = cur.fetchall()
+        rows = self.select(real_query)
+        
         if rows:
             values = [(ts.isoformat(), jsonapi.loads(value)) for ts, value in rows]
         else:
             values = {}
-        cur.close()
-        conn.close()
+        
         return {'values':values}
-
-    def execute(self, query, commit=True):
-        conn = self.__connect()
-        cur = conn.cursor()
-        cur.execute(query)
-        conn.commit()
-        cur.close()
-        conn.close()
-
-    def connect(self):
-        return self.__connect()
-
-    def insert_data(self, ts, topic_id, data):
-        conn = self.__connect()
+    
+    def insert_data_query(self):
+        return '''REPLACE INTO data values(%s, %s, %s)'''
         
-        cur = conn.cursor()
-        cur.execute('''REPLACE INTO data values(%s, %s, %s)''',
-                                  (ts,topic_id,jsonapi.dumps(data)))
-        conn.commit()
-        cur.close()
-        conn.close()
-        
-    def insert_topic(self, topic, commit=True):
-        conn = self.__connect()
-        
-        cur = conn.cursor()
-        cur.execute('''INSERT INTO topics (topic_name) values (%s)''', (topic,))
-        row = [cur.lastrowid]
-        conn.commit()
-        cur.close()
-        conn.close()
-
-        return row
-
-    def get_topic_map(self):        
-        conn = self.__connect()
-        cur = conn.cursor()
-        cur.execute("SELECT * FROM topics")
-        tm = {}
-
-        while True:
-            results = cur.fetchmany(1000)
-            if not results:
-                break
-            for result in results:
-                tm[result[1]] = result[0]
-
-        cur.close()
-        conn.close()
-        return tm
+    def insert_topic_query(self):
+        return '''INSERT INTO topics (topic_name) values (%s)'''
+    
+    def get_topic_map(self):
+        q = "SELECT topic_id, topic_name FROM topics;"
+        rows = self.select(q, None)
+        return dict([(n, t) for t, n in rows])
