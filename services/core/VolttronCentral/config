@@ -1,11 +1,22 @@
 {
+    # The agentid is used during display on the VOLTTRON central platform
+    # it does not need to be unique.
     "agentid": "volttron central",
+    
+    # Must be unique on a given instance of VOLTTRON
     "vip_identity": "volttron.central",
+    
+    # Tornado server settings.  These options are passed to the
+    # tornado webserver during agent start up.
     "server" : {
         "host": "127.0.0.1",
         "port": 8080,
         "debug": "False"
     },
+    
+    # Authentication for users is handled through a naive password algorithm
+    # import hashlib
+    # hashlib.sha512(password).hexdigest() where password is the plain text password.
     "users" : {
         "reader" : {
             "password" : "2d7349c51a3914cd6f5dc28e23c417ace074400d7c3e176bcf5da72fdbeb6ce7ed767ca00c6c1fb754b8df5114fc0b903960e7f3befe3a338d4a640c05dfaf2d",

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2013, Battelle Memorial Institute
+# Copyright (c) 2015, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -66,16 +66,18 @@ from .subsystems import *
 class Agent(object):
     class Subsystems(object):
         def __init__(self, owner, core):
+            self.peerlist = PeerList(core)
             self.ping = Ping(core)
             self.rpc = RPC(core, owner)
             self.hello = Hello(core)
-            self.pubsub = PubSub(core, self.rpc, owner)
+            self.pubsub = PubSub(core, self.rpc, self.peerlist, owner)
             self.channel = Channel(core)
 
     def __init__(self, identity=None, address=None, context=None):
         self.core = Core(
             self, identity=identity, address=address, context=context)
         self.vip = Agent.Subsystems(self, self.core)
+        self.core.setup()
 
 
 class BasicAgent(object):

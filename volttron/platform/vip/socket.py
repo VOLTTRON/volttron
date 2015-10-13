@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2013, Battelle Memorial Institute
+# Copyright (c) 2015, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -72,7 +72,9 @@ from __future__ import absolute_import
 import base64
 import binascii
 from contextlib import contextmanager
+import urllib
 import urlparse
+import uuid
 
 from zmq import (SNDMORE, RCVMORE, NOBLOCK, POLLOUT, DEALER, ROUTER,
                  curve_keypair)
@@ -80,7 +82,7 @@ from zmq.error import Again
 from zmq.utils import z85
 
 
-__all__ = ['ProtocolError', 'Message', 'nonblocking']
+__all__ = ['Address', 'ProtocolError', 'Message', 'nonblocking']
 
 
 @contextmanager
@@ -118,6 +120,136 @@ def decode_key(key):
     elif length == 80:
         return binascii.unhexlify(key)
     raise ValueError('unknown key encoding')
+
+
+class Address(object):
+    '''Parse and hold a URL-style address.
+
+    The URL given by address may contain optional query string
+    parameters and a URL fragment which, if given, will be interpreted
+    as the socket identity for the given address.
+
+    Valid parameters:
+        server:    Server authentication method; must be one of NULL,
+                   PLAIN, or CURVE.
+        domain:    ZAP domain for server authentication.
+        serverkey: Encoded CURVE server public key.
+        secretkey: Encoded CURVE secret key.
+        publickey: Encoded CURVE public key.
+        ipv6:      Boolean value indicating use of IPv6.
+        username:  Username to use with PLAIN authentication.
+        password:  Password to use with PLAIN authentication.
+    '''
+
+    _KEYS = ('domain', 'server', 'secretkey', 'publickey',
+             'serverkey', 'ipv6', 'username', 'password')
+    _MASK_KEYS = ('secretkey', 'password')
+
+    def __init__(self, address, **defaults):
+        for name in self._KEYS:
+            setattr(self, name, None)
+        for name, value in defaults.iteritems():
+            setattr(self, name, value)
+        url = urlparse.urlparse(address, 'tcp')
+        self.base = '%s://%s%s' % url[:3]
+        if url.fragment:
+            self.identity = url.fragment
+        elif address.endswith('#'):
+            self.identity = ''
+        else:
+            self.identity = defaults.get('identity')
+        if url.scheme not in ['tcp', 'ipc', 'inproc']:
+            raise ValueError('unknown address scheme: %s' % url.scheme)
+        for name, value in urlparse.parse_qsl(url.query, True):
+            name = name.lower()
+            if name in self._KEYS:
+                if value and name.endswith('key'):
+                    value = decode_key(value)
+                elif name == 'server':
+                    value = value.upper().strip()
+                    if value not in ['NULL', 'PLAIN', 'CURVE']:
+                        raise ValueError(
+                            'bad value for server parameter: %r' % value)
+                elif name == 'ipv6':
+                    value = bool(re.sub(
+                        r'\s*(0|false|no|off)\s*', r'', value, flags=re.I))
+                setattr(self, name, value)
+
+    @property
+    def qs(self):
+        params = ((name, getattr(self, name)) for name in self._KEYS)
+        return urllib.urlencode(
+            {name: ('XXXXX' if name in self._MASK_KEYS and value else value)
+             for name, value in params if value is not None})
+
+    def __str__(self):
+        parts = [self.base]
+        qs = self.qs
+        if qs:
+            parts.extend(['?', qs])
+        if self.identity is not None:
+            parts.extend(['#', urllib.quote(self.identity)])
+        return ''.join(parts)
+
+    def __repr__(self):
+        return '%s.%s(%r)' % (
+            self.__class__.__module__, self.__class__.__name__, str(self))
+
+    def bind(self, sock, bind_fn=None):
+        '''Extended zmq.Socket.bind() to include options in the address.'''
+        if not self.domain:
+            raise ValueError('Address domain must be set')
+        sock.zap_domain = self.domain or ''
+        if self.identity:
+            sock.identity = self.identity
+        elif not sock.identity:
+            sock.identity = self.identity = bytes(uuid.uuid4())
+        sock.ipv6 = self.ipv6 or False
+        if self.server == 'CURVE':
+            if not self.secretkey:
+                raise ValueError('CURVE server used without secretkey')
+            sock.curve_server = True
+            sock.curve_secretkey = self.secretkey
+        elif self.server == 'PLAIN':
+            sock.plain_server = True
+        else:
+            sock.curve_server = False
+            sock.plain_server = False
+            if self.serverkey:
+                sock.curve_serverkey = self.serverkey
+                if not (self.publickey and self.secretkey):
+                    self.publickey, self.secretkey = curve_keypair()
+                sock.curve_secretkey = self.secretkey
+                sock.curve_publickey = self.publickey
+            elif self.username:
+                sock.plain_username = self.username
+                sock.plain_password = self.password or b''
+        (bind_fn or sock.bind)(self.base)
+        self.base = sock.last_endpoint
+
+    def connect(self, sock, connect_fn=None):
+        '''Extended zmq.Socket.connect() to include options in the address.'''
+        if self.identity:
+            sock.identity = self.identity
+        elif not sock.identity:
+            sock.identity = self.identity = bytes(uuid.uuid4())
+        sock.ipv6 = self.ipv6 or False
+        if self.serverkey:
+            sock.curve_serverkey = self.serverkey
+            if not (self.publickey and self.secretkey):
+                self.publickey, self.secretkey = curve_keypair()
+            sock.curve_secretkey = self.secretkey
+            sock.curve_publickey = self.publickey
+        elif self.username and self.password is not None:
+            sock.plain_username = self.username
+            sock.plain_password = self.password
+        (connect_fn or sock.connect)(self.base)
+
+    def reset(self, sock):
+        sock.zap_domain = ''
+        sock.ipv6 = False
+        sock.curve_server = False
+        sock.plain_server = False
 
 
 class ProtocolError(Exception):
@@ -188,6 +320,12 @@ class _Socket(object):
         object.__setattr__(self, '_recv_state', state)
         object.__setattr__(self, '_Socket__local', self._local_class())
         self.immediate = True
+        # Enable TCP keepalive with idle time of 3 minutes and 6
+        # retries spaced 20 seconds apart, for a total of ~5 minutes.
+        self.tcp_keepalive = True
+        self.tcp_keepalive_idle = 180
+        self.tcp_keepalive_intvl = 20
+        self.tcp_keepalive_cnt = 6
 
     def reset_send(self):
         '''Clear send buffer and reset send state machine.
@@ -379,72 +517,13 @@ class _Socket(object):
         return msg
 
     def bind(self, addr):
-        '''Extended zmq.Socket.bind() to include options in addr.
-
-        The URL given by addr may optionally contain the query
-        parameters and a URL fragment. If given, the fragment will be
-        used as the socket identity.
-
-        Valid query parameters:
-            secretkey: curve secret key. If set, the socket
-                       ZMQ_CURVE_SERVER option will be set on the
-                       socket and ZMQ_CURVE_SECRETKEY will be set
-                       to the parameter value after it is decode
-                       by decode_key().
-
-        Note: subsequent binds will use the values of the previous bind
-              unless explicitly included in the address.
-        '''
-        url = urlparse.urlparse(addr)
-        if url.fragment:
-            self.identity = url.fragment
-        params = urlparse.parse_qs(url.query)
-        if url.scheme == 'tcp':
-            secretkey = params.get('secretkey')
-            if secretkey:
-                secretkey = decode_key(secretkey[0])
-                self.curve_server = True
-                self.curve_secretkey = secretkey
-        addr = '%s://%s%s' % url[:3]
-        super(_Socket, self).bind(addr)
+        '''Extended zmq.Socket.bind() to include options in addr.'''
+        if not isinstance(addr, Address):
+            addr = Address(addr)
+        addr.bind(self, super(_Socket, self).bind) 
 
     def connect(self, addr):
-        '''Extended zmq.Socket.connect() to include options in addr.
-
-        The URL given by addr may optionally contain the query
-        parameters and a URL fragment. If given, the fragment will be
-        used as the socket identity.
-
-        Valid query parameters:
-            serverkey: curve server public key (ZMQ_CURVE_SERVERKEY)
-            keypair: curve client key pair, concatenated
-                     (ZMQ_CURVE_PUBLICKEY, ZMQ_CURVE_SECRETKEY)
-
-        All keys are first parsed by decode_key() and then set on the
-        appropriate socket option. If serverkey is given but not
-        keypair, a key pair is automatically generated and used.
-
-        Note: subsequent connects will use the values of the previous
-              connect unless explicitly included in the address.
-        '''
-        url = urlparse.urlparse(addr)
-        if url.fragment:
-            self.identity = url.fragment
-        if url.scheme == 'tcp':
-            params = urlparse.parse_qs(url.query)
-            serverkey = params.get('serverkey')
-            if serverkey:
-                serverkey = decode_key(serverkey[0])
-                keypair = params.get('keypair')
-                if keypair:
-                    keypair = keypair[0]
-                    mid = len(keypair) // 2
-                    publickey = decode_key(keypair[:mid])
-                    secretkey = decode_key(keypair[mid:])
-                else:
-                    publickey, secretkey = keypair = curve_keypair()
-                self.curve_serverkey = serverkey
-                self.curve_secretkey = secretkey
-                self.curve_publickey = publickey
-        addr = '%s://%s%s' % url[:3]
-        super(_Socket, self).connect(addr)
+        '''Extended zmq.Socket.connect() to include options in addr.'''
+        if not isinstance(addr, Address):
+            addr = Address(addr)
+        addr.connect(self, super(_Socket, self).connect)

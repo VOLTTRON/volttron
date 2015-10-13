@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2013, Battelle Memorial Institute
+# Copyright (c) 2015, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -551,3 +551,8 @@ class AIPplatform(object):
             except gevent.Timeout:
                 raise ValueError('process is unresponsive')
         return execenv.process.poll()
+
+    def agent_uuid_from_pid(self, pid):
+        for agent_uuid, execenv in self.agents.iteritems():
+            if execenv.process.pid == pid:
+                return agent_uuid if execenv.process.poll() is None else None

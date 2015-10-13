@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2013, Battelle Memorial Institute
+# Copyright (c) 2015, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -129,7 +129,12 @@ def DrivenAgent(config_path, **kwargs):
     output_file = conf.get('output_file')
     base_dev = "devices/{campus}/{building}/".format(**device)
     devices_topic = (
-        base_dev + '({})(/.*)?/all$'.format('|'.join(re.escape(p) for p in units)))
+        base_dev + '({})(/.*)?/all$'
+        .format('|'.join(re.escape(p) for p in units)))
+    
+    unittype_map = config.get('unittype_map', None)
+    assert unittype_map
+
     klass = _get_class(application)
     # This instances is used to call the applications run method when
     # data comes in on the message bus.  It is constructed here
@@ -275,6 +280,17 @@ def DrivenAgent(config_path, **kwargs):
                                     # fout.writerow(keys)
                                 fout.writerow(r)
                                 f.close()
+                                
+            def get_unit(point):
+                ''' Get a unit type based upon the regular expression in the config file.
+                
+                    if NOT found returns percent as a default unit.
+                '''
+                for k, v in unittype_map.items():
+                    if re.match(k, point):
+                        return v
+                return 'percent'
+            
             # publish to message bus.
             if len(results.table_output.keys()) > 0:
                 headers = {
@@ -290,9 +306,20 @@ def DrivenAgent(config_path, **kwargs):
                                 _analysis['unit'] = item
                                 analysis_topic = topics.ANALYSIS_VALUE(
                                     point=key, **_analysis)
-
+                                
+                                datatype = 'float'
+                                if isinstance(value, int):
+                                    datatype='int'
+                                    
+                                kbase = key[key.rfind('/')+1:]
+                                message = [{kbase:value}, 
+                                           {kbase: {'tz': 'US/Pacific', 
+                                                    'type': datatype, 
+                                                    'units': get_unit(kbase)
+                                                    }
+                                            }]
                                 self.publish_json(analysis_topic,
-                                                  headers, value)
+                                                  headers, message)
 
             if results.commands and mode:
                 self.commands = results.commands
