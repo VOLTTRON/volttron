@@ -138,6 +138,10 @@ def historian(config_path, **kwargs):
 #                 parts = topic.split('/')
 #                 all_topic = '/'.join(reversed(parts[2:]))
 
+                if not 'units' in meta.keys():
+                    #print('unit for topic {} is now {}'.format(topic, 'percent'))
+                    meta['units'] = 'percent'
+
                 #Device data is UTC
                 #.replace(tzinfo=None)
                 datalog[topic] = {'Readings': [str(ts),value],
