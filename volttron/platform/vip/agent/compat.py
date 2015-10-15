@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2013, Battelle Memorial Institute
+# Copyright (c) 2015, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -62,7 +62,7 @@ from contextlib import closing
 from zmq import green as zmq
 from zmq.utils import jsonapi
 
-from . import Core, RPC, PubSub
+from . import Core, RPC, PeerList, PubSub
 from .subsystems.pubsub import encode_peer
 from volttron.platform.messaging.headers import Headers
 
@@ -93,7 +93,8 @@ class CompatPubSub(object):
         self.core = Core(
             self, identity=identity, address=address, context=context)
         self.rpc = RPC(self.core, self)
-        self.pubsub = PubSub(self.core, self.rpc, self)
+        self.peerlist = PeerList(self.core)
+        self.pubsub = PubSub(self.core, self.rpc, self.peerlist, self)
         self.peer = peer
         self.publish_address = publish_address
         self.subscribe_address = subscribe_address
