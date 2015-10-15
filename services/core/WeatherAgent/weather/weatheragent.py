@@ -87,12 +87,22 @@ http://www.wunderground.com/weather/api/
 
 TOPIC_DELIM = '/'
 
-temperature = ["temperature_string", "temp_f", "temp_c", "feelslike_c", "feelslike_f", "feelslike_string", "windchill_c", "windchill_f", "windchill_string", "heat_index_c", "heat_index_f", "heat_index_string"]
-wind = ["wind_gust_kph", "wind_string", "wind_mph", "wind_dir", "wind_degrees", "wind_kph", "wind_gust_mph", "pressure_in"]
-location = ["local_tz_long", "observation_location", "display_location", "station_id"]
-time_topics = ["local_time_rfc822", "local_tz_short", "local_tz_offset", "local_epoch", "observation_time", "observation_time_rfc822", "observation_epoch"]
-cloud_cover = ["weather", "solarradiation", "visibility_mi", "visibility_km", "UV"]
-precipitation = ["dewpoint_string", "precip_today_string", "dewpoint_f", "dewpoint_c", "precip_today_metric", "precip_today_in", "precip_1hr_in", "precip_1hr_metric", "precip_1hr_string"]
+temperature = ["temperature_string", "temp_f", "temp_c", "feelslike_c", 
+               "feelslike_f", "feelslike_string", "windchill_c", 
+               "windchill_f", "windchill_string", "heat_index_c", 
+               "heat_index_f", "heat_index_string"]
+wind = ["wind_gust_kph", "wind_string", "wind_mph", "wind_dir", 
+        "wind_degrees", "wind_kph", "wind_gust_mph", "pressure_in"]
+location = ["local_tz_long", "observation_location", "display_location", 
+            "station_id"]
+time_topics = ["local_time_rfc822", "local_tz_short", "local_tz_offset", 
+               "local_epoch", "observation_time", "observation_time_rfc822", 
+               "observation_epoch"]
+cloud_cover = ["weather", "solarradiation", "visibility_mi", "visibility_km", 
+               "UV"]
+precipitation = ["dewpoint_string", "precip_today_string", "dewpoint_f", 
+                 "dewpoint_c", "precip_today_metric", "precip_today_in", 
+                 "precip_1hr_in", "precip_1hr_metric", "precip_1hr_string"]
 pressure_humidity = ["pressure_trend", "pressure_mb", "relative_humidity"]
 
 categories = {'temperature': temperature, 'wind': wind,
@@ -269,6 +279,7 @@ def weather_service(config_path, **kwargs):
             '''
             Function called on periodic or request for weather information.
             '''
+            _log.debug("Requesting url: "+self.requestUrl)
             (valid_data, observation) = self.request_data(self.requestUrl)
             if valid_data:
                 now = datetime.datetime.now()
