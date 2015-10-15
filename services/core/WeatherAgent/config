@@ -3,5 +3,6 @@
     "poll_time": 3600,
     "minute_threshold" : 5,
     "daily_threshold" : 500,
-    "zip" : "37918"
+    "zip" : "37918",
+    "on_request_only": false
 }
