@@ -290,7 +290,12 @@ def weather_service(config_path, **kwargs):
                 _log.error("Invalid data, not publishing")
 
         def handle_request(self, peer, sender, bus, topic, headers, message):
-            msg = jsonapi.loads(message[0])
+            
+            if sender == 'pubsub.compat':
+                msg = jsonapi.loads(message[0])
+            else:
+                msg = message
+                
             request_url = self.baseUrl
 
             # Identify if a zipcode or region/city was sent
