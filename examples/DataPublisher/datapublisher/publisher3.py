@@ -115,6 +115,8 @@ def DataPub(config_path, **kwargs):
         BASETOPIC = conf.get('basetopic')
         # device root is the root of the publishing tree.
         device_root = ''.join([BASETOPIC, '/', device_path])
+    else:
+        device_root = custom_topic
 
     path = conf.get('input_file')
     if not os.path.exists(path):
@@ -124,10 +126,10 @@ def DataPub(config_path, **kwargs):
     # just use the name of the device as is.
     unit = conf.get('unit')
     
-    unittype_map = conf.get('unittype_map')
+    # unittype_map maps the point name to the proper units.
+    unittype_map = conf.get('unittype_map', {})
     
-    assert unittype_map
-
+    header_point_map = {}
     # If thie unit is a dictionary then the device
     if isinstance(unit, dict):
         # header point map maps the prefix of a column in the csv file to
@@ -136,7 +138,6 @@ def DataPub(config_path, **kwargs):
         # the key FCU13259 would map to rtu5/FCU13259.  This will make it
         # trivial later to append the sensor_name Heating to the relative
         # point to publish the value.
-        header_point_map = {}
         for prefix, v in unit.items():
             # will allow publishing under root level items such
             # as rtu5_Compensator to rtu5/Compensator
@@ -312,34 +313,48 @@ def DataPub(config_path, **kwargs):
                     all_publish = {}
                     # Loop over data from the csv file.
                     for sensor, value in data.items():
-                        # Loop over mapping from the config file
-                        for prefix, container in header_point_map.items():
-                            if sensor.startswith(prefix):
-                                try:
-                                    _, sensor_name = sensor.split('_')
-                                except:
-                                    sensor_name = sensor
+                        # if header_point_map isn't described then
+                        # we are going to attempt to publish all of hte
+                        # points based upon the column headings.
+                        if not header_point_map:
+                            if value:
+                                sensor_name = sensor.split('/')[-1]
+                                container = '/'.join(sensor.split('/')[:-1])
                                 
-                                # make sure that there is an actual value not
-                                # just an empty string.
-                                if value:
-                                    if value == '0.0':
-                                        pass
-                                    # Attempt to publish as a float.
+                                publish_point(device_root+container,
+                                                      sensor_name, value)
+                                if container not in all_publish.keys():
+                                    all_publish[container] = {}
+                                all_publish[container][sensor_name] = value
+                        else:
+                            # Loop over mapping from the config file
+                            for prefix, container in header_point_map.items():
+                                if sensor.startswith(prefix):
                                     try:
-                                        value = float(value)
+                                        _, sensor_name = sensor.split('_')
                                     except:
-                                        pass
+                                        sensor_name = sensor
                                     
-                                    publish_point(device_root+container,
-                                                  sensor_name, value)
+                                    # make sure that there is an actual value not
+                                    # just an empty string.
+                                    if value:
+                                        if value == '0.0':
+                                            pass
+                                        # Attempt to publish as a float.
+                                        try:
+                                            value = float(value)
+                                        except:
+                                            pass
+                                        
+                                        publish_point(device_root+container,
+                                                      sensor_name, value)
+        
+                                        if container not in all_publish.keys():
+                                            all_publish[container] = {}
+                                        all_publish[container][sensor_name] = value
     
-                                    if container not in all_publish.keys():
-                                        all_publish[container] = {}
-                                    all_publish[container][sensor_name] = value
-
-                                # move on to the next data point in the file.
-                                break
+                                    # move on to the next data point in the file.
+                                    break
 
                     for _all, values in all_publish.items():
                         publish_point(device_root, _all+"/all", values)
