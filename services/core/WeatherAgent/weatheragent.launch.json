@@ -1,7 +1,0 @@
-{
-    "agentid": "Weather1",
-    "poll_time": 3600,
-    "minute_threshold" : 5,
-    "daily_threshold" : 200,
-    "zip" : "37918"
-}
