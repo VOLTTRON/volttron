@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright (c) 2013, Battelle Memorial Institute
+# Copyright (c) 2015, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -137,6 +137,10 @@ def historian(config_path, **kwargs):
 #                 self.writer.insert_data(ts,topic_id, value)
 #                 parts = topic.split('/')
 #                 all_topic = '/'.join(reversed(parts[2:]))
+
+                if not 'units' in meta.keys():
+                    #print('unit for topic {} is now {}'.format(topic, 'percent'))
+                    meta['units'] = 'percent'
 
                 #Device data is UTC
                 #.replace(tzinfo=None)
