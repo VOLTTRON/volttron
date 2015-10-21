@@ -63,13 +63,14 @@ packages = find_packages('.')
 package = packages[0]
 
 setup(
-    name = package + 'historian',
+    name = package,
     version = "3.0",
-    install_requires = ['volttron', 'requests'],
+    install_requires = ['volttron'],
     packages = packages,
     entry_points = {
         'setuptools.installation': [
-            'eggsecutable = ' + package + '.historian:main',
+            'eggsecutable = ' + package + '.subscriber_agent:main',
         ]
     }
 )
+

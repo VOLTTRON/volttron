@@ -58,7 +58,7 @@ package = packages[0]
 
 setup(
     name=package + "agent",
-    version="0.1",
+    version="3.0",
     packages=packages,
     install_requires=['volttron'],
     entry_points={
