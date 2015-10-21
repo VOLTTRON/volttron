@@ -83,6 +83,7 @@ from .vip.agent import Agent, Core
 from .vip.agent.compat import CompatPubSub
 from .vip.router import *
 from .vip.socket import encode_key, Address
+from .vip.tracking import Tracker
 from .auth import AuthService
 from .control import ControlService
 from .agent import utils
@@ -247,7 +248,7 @@ class Router(BaseRouter):
 
     def __init__(self, local_address, addresses=(),
                  context=None, secretkey=None, default_user_id=None,
-                 monitor=False):
+                 monitor=False, tracker=None):
         super(Router, self).__init__(
             context=context, default_user_id=default_user_id)
         self.local_address = Address(local_address)
@@ -257,6 +258,7 @@ class Router(BaseRouter):
         if self.logger.level == logging.NOTSET:
             self.logger.setLevel(logging.WARNING)
         self._monitor = monitor
+        self._tracker = tracker
 
     def setup(self):
         sock = self.socket
@@ -297,6 +299,8 @@ class Router(BaseRouter):
         else:
             log('%s: %s',
                 ('incoming' if topic == INCOMING else 'outgoing'), formatter)
+        if self._tracker:
+            self._tracker.hit(topic, frames, extra)
 
     def handle_subsystem(self, frames, user_id):
         subsystem = bytes(frames[5])
@@ -594,12 +598,13 @@ def main(argv=sys.argv):
     # a context common to the green and non-green zmq modules.
     zmq.Context.instance()   # DO NOT REMOVE LINE!!
 
+    tracker = Tracker()
     # Main loops
     def router(stop):
         try:
             Router(opts.vip_local_address, opts.vip_address,
                    secretkey=secretkey, default_user_id=b'vip.service',
-                   monitor=opts.monitor).run()
+                   monitor=opts.monitor, tracker=tracker).run()
         except Exception:
             _log.exception('Unhandled exception in router loop')
         finally:
@@ -625,7 +630,7 @@ def main(argv=sys.argv):
         # Launch additional services and wait for them to start before
         # auto-starting agents
         services = [
-            ControlService(opts.aip, address=address, identity='control'),
+            ControlService(opts.aip, address=address, identity='control', tracker=tracker),
             PubSubService(address=address, identity='pubsub'),
             CompatPubSub(address=address, identity='pubsub.compat',
                          publish_address=opts.publish_address,
