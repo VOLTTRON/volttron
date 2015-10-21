@@ -257,20 +257,6 @@ class Router(BaseRouter):
         if self.logger.level == logging.NOTSET:
             self.logger.setLevel(logging.WARNING)
         self._monitor = monitor
-        self.stats = {
-            'error': {},
-            'unroutable': {},
-            'incoming': {'peer': {}, 'user': {}, 'subsystem': {}},
-            'outgoing': {'peer': {}, 'user': {}, 'subsystem': {}},
-        }
-        self.track = False
-
-    @staticmethod
-    def increment(prop, key):
-        try:
-            prop[key] += 1
-        except KeyError:
-            prop[key] = 1
 
     def setup(self):
         sock = self.socket
@@ -302,28 +288,15 @@ class Router(BaseRouter):
 
     def issue(self, topic, frames, extra=None):
         log = self.logger.debug
-        stats = self.stats
         formatter = FramesFormatter(frames)
         if topic == ERROR:
             errnum, errmsg = extra
             log('%s (%s): %s', errmsg, errnum, formatter)
-            if self.track:
-                self.increment(stats['error'], bytes(errnum))
         elif topic == UNROUTABLE:
             log('unroutable: %s: %s', extra, formatter)
-            if self.track:
-                self.increment(stats['unroutable'], extra)
         else:
-            name = 'incoming' if topic == INCOMING else 'outgoing'
-            log('%s: %s', name, formatter)
-            if self.track:
-                stat = stats[name]
-                peer = bytes(frames[0])
-                self.increment(stat['peer'], peer)
-                user = bytes(frames[3])
-                self.increment(stat['user'], user)
-                subsystem = bytes(frames[5])
-                self.increment(stat['subsystem'], subsystem)
+            log('%s: %s',
+                ('incoming' if topic == INCOMING else 'outgoing'), formatter)
 
     def handle_subsystem(self, frames, user_id):
         subsystem = bytes(frames[5])
@@ -346,21 +319,6 @@ class Router(BaseRouter):
                     value = None
             frames[6:] = [b'', jsonapi.dumps(value)]
             frames[3] = b''
-            return frames
-        elif subsystem == b'stats':
-            try:
-                op = bytes(frames[6])
-            except IndexError:
-                frames[6:] = [b'error', b'missing op']
-            else:
-                if op == b'get':
-                    print(self.stats)
-                    stats = jsonapi.dumps(self.stats)
-                    frames[6:] = [b'stats', stats]
-                    return frames
-                else:
-                    frames[6:] = [b'error', b'unknown op: %s' % op]
-            frames[3]
             return frames
 
 
