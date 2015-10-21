@@ -91,16 +91,13 @@ install_requires = (
 if __name__ == '__main__':
     setup(
         name = 'volttron',
-        version = '2.0',
+        version = '3.0',
         description = 'Agent Execution Platform',
         author = 'Volttron Team',
         author_email = 'volttron@pnnl.gov',
         url = 'https://github.com/VOLTTRON/volttron',
         packages = find_packages('.'),
         install_requires = install_requires,
-        extras_require = {
-            'webserver': ['cherrypy']
-        },
         entry_points = {
             'console_scripts': [
                 'volttron = volttron.platform.main:_main',

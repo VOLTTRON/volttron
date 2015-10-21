@@ -1,0 +1,11 @@
+{
+
+    "agentid": "ExampleSubscriber",
+    "message": "hello",
+    "oat_point": "devices/Building/LAB/Device/OutsideAirTemperature",
+    "mixed_point": "devices/Building/LAB/Device/MixedAirTemperature",
+    "damper_point": "devices/Building/LAB/Device/DamperSignal",
+    "all_topic": "devices/Building/LAB/Device/all",
+    "query_point": "Building/LAB/Device/OutsideAirTemperature"
+ 
+}
