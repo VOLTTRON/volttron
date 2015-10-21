@@ -129,6 +129,9 @@ def DataPub(config_path, **kwargs):
     # unittype_map maps the point name to the proper units.
     unittype_map = conf.get('unittype_map', {})
     
+    # should we keep playing the file over and over again.
+    replay_data = conf.get('replay_data', False)
+    
     header_point_map = {}
     # If thie unit is a dictionary then the device
     if isinstance(unit, dict):
@@ -225,24 +228,31 @@ def DataPub(config_path, **kwargs):
         @Core.periodic(period=pub_interval, wait=pub_interval+pub_interval)
         def publish_data_or_heartbeat(self):
             '''Publish data from file to message bus.'''
-            _data = {}
+            data = {}
             now = datetime.datetime.now().isoformat(' ')
 
             if self._src_file_handle is not None \
                     and not self._src_file_handle.closed:
-
+                
                 try:                    
                     data = self._reader.next()
                     self._line_on+=1
                     if remember_playback:
                         self.store_line_on()
                 except StopIteration:
-                    self._src_file_handle.close()
-                    self._src_file_handle = None
-                    _log.info("Completed publishing all records for file!")
-                    self.core.stop()
-                                        
-                    return
+                    if replay_data:
+                        _log.info('Restarting player at the begining of the file.')
+                        self._src_file_handle.seek(0)
+                        self._line_on = 0
+                        if remember_playback:
+                            self.store_line_on()
+                    else:                        
+                        self._src_file_handle.close()
+                        self._src_file_handle = None
+                        _log.info("Completed publishing all records for file!")
+                        self.core.stop()
+                                            
+                        return
                 # break out if no data is left to be found.
                 if not data:
                     self._src_file_handle.close()
