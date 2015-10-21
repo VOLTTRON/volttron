@@ -64,7 +64,7 @@ package = packages[0]
 
 setup(
     name = package + 'historian',
-    version = "0.1",
+    version = "3.0",
     install_requires = ['volttron', 'requests'],
     packages = packages,
     entry_points = {
