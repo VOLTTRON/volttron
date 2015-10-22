@@ -71,8 +71,10 @@ import threading
 import uuid
 
 import gevent
-from zmq import curve_keypair
 import zmq
+from zmq import curve_keypair, green
+# Create a context common to the green and non-green zmq modules.
+green.Context._instance = green.Context.shadow(zmq.Context.instance().underlying)
 from zmq.utils import jsonapi
 
 from . import aip
@@ -588,10 +590,6 @@ def main(argv=sys.argv):
         if publickey:
             _log.info('public key: %s', encode_key(publickey))
         secretkey = key[40:]
-
-    # The following line doesn't appear to do anything, but it creates
-    # a context common to the green and non-green zmq modules.
-    zmq.Context.instance()   # DO NOT REMOVE LINE!!
 
     # Main loops
     def router(stop):

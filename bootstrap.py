@@ -211,6 +211,8 @@ def pip(operation, args, verbose=None, upgrade=False, offline=False):
     cmd = ['pip', operation]
     if verbose is not None:
         cmd.append('--verbose' if verbose else '--quiet')
+    if upgrade and operation == 'install':
+        cmd.append('--upgrade')
     if offline:
         cmd.extend(['--retries', '0', '--timeout', '1'])
     cmd.extend(args)
