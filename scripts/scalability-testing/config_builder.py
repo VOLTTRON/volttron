@@ -59,6 +59,7 @@ import json
 import os
 import abc
 import argparse
+import itertools
 
 class DeviceConfig(object):
     __metaclass__ = abc.ABCMeta
@@ -78,14 +79,13 @@ class DeviceConfig(object):
     def device_type(self):
         pass
 
-    @abc.abstractmethod
     @staticmethod
+    @abc.abstractmethod
     def get_driver_config(host_address, instance_number):
         pass
     
     @abc.abstractmethod
-    @staticmethod
-    def get_virtual_driver_commandline(host_address, instance_number, config):
+    def get_virtual_driver_commandline(self):
         pass
 
 class BACnetConfig(DeviceConfig):
@@ -93,72 +93,86 @@ class BACnetConfig(DeviceConfig):
     def __init__(self, host_address, instance_number, registry_config, interval=60):
         super(BACnetConfig, self).__init__(host_address, instance_number, registry_config, interval=interval)
         
-    @abc.abstractmethod
     def device_type(self):
-        "bacnet"
+        return "bacnet"
         
     @staticmethod
     def get_driver_config(host_address, instance_number):
         return {"device_address": host_address + ":" + str(BACnetConfig.starting_port + instance_number)}
     
-    @staticmethod
-    def get_virtual_driver_commandline(host_address, instance_number, config):
-        pass
+
+    def get_virtual_driver_commandline(self):
+        config_file = os.path.basename(self.configuration["registry_config"])
+        interface = self.configuration["driver_config"]["device_address"]
+        return "bacnet.py {config} {interface}".format(config=config_file, interface=interface)
 
 class ModbusConfig(DeviceConfig):
     starting_port = 5020
     def __init__(self, host_address, instance_number, registry_config, interval=60):
-        super(BACnetConfig, self).__init__(instance_number, registry_config, interval=interval)
+        super(ModbusConfig, self).__init__(host_address, instance_number, registry_config, interval=interval)
         
-    @abc.abstractmethod
     def device_type(self):
-        "modbus"
+        return "modbus"
         
     @staticmethod
     def get_driver_config(host_address, instance_number):
         return {"device_address": host_address,
                 "port": ModbusConfig.starting_port + instance_number}
     
-    @staticmethod
-    def get_virtual_driver_commandline(host_address, instance_number):
-        pass
+    def get_virtual_driver_commandline(self):
+        config_file = os.path.basename(self.configuration["registry_config"])
+        port = self.configuration["driver_config"]["port"]
+        return "modbus.py {config} --port={port}".format(config=config_file, port=port)
 
 device_config_classes = {"bacnet":BACnetConfig,
                          "modbus":ModbusConfig}
 
 def build_device_configs(device_type, host_address, count, reg_config, config_dir):    
     config_paths = []
+    #command line to start virtual devices.
+    command_lines = []
     
     klass = device_config_classes[device_type]
     for i in range(count):
         config_instance = klass(host_address, i, reg_config)
         
-        file_name = device_type + str(i)
+        file_name = device_type + str(i) + ".config"
         file_path = os.path.join(config_dir, file_name)
         
-        with(file_path, 'w') as f:
-            f.write(config_instance)
+        with open(file_path, 'w') as f:
+            f.write(str(config_instance)+'\n')
             
         config_paths.append(file_path)
+        command_lines.append(config_instance.get_virtual_driver_commandline())
         
-    return config_paths
+    return config_paths, command_lines
 
 def build_all_configs(agent_config, device_type, host_address, count, reg_config, config_dir):
+    '''For command line interface'''
     try:
         os.makedirs(config_dir)
     except os.error:
         pass
     
     config_dir = os.path.abspath(config_dir)
+    reg_config = os.path.abspath(reg_config)
     
-    config_list = build_device_configs(device_type, host_address, count, reg_config, config_dir)
+    config_list, command_lines = build_device_configs(device_type, host_address, count, reg_config, config_dir)
     
+    build_master_config(agent_config, config_dir, config_list)
+        
+    print command_lines
+    
+def build_master_config(agent_config, config_dir, config_list):
+    """Takes the input from multiple called to build_device_configs and create the master config."""
     configuration = {"driver_config_list": config_list}
     
-    config_str = json.dumps(self.configuration, indent=4, separators=(',', ': '))
+    config_str = json.dumps(configuration, indent=4, separators=(',', ': '))
     
-    with(agent_config, 'w') as f:
-        f.write(config_str)
+    agent_config = os.path.join(config_dir, agent_config)
+    
+    with open(agent_config, 'w') as f:
+        f.write(config_str+'\n')
         
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Create driver configuration files for scalability test.")
@@ -167,14 +181,18 @@ if __name__ == "__main__":
     
     parser.add_argument('--count', type=int, default=1, help='number of devices to configure')
     
-    parser.add_argument('device-type', choices=['bacnet', 'modbus'], 
+    parser.add_argument('device_type', choices=['bacnet', 'modbus'], 
                         help='type of device to use for testing')
     
-    parser.add_argument('host-address', help='host of the test devices')
+    parser.add_argument('host_address', help='host of the test devices')
     
-    parser.add_argument('registry-config', help='registry configuration to use for test devices')
+    parser.add_argument('registry_config', help='registry configuration to use for test devices')
     
-    parser.add_argument('config-dir', help='output directory for configurations')
+    parser.add_argument('config_dir', help='output directory for configurations')
+    
+    args = parser.parse_args()
+    
+    build_all_configs(args.agent_config, args.device_type, args.host_address, args.count, args.registry_config, args.config_dir)
     
     
     
