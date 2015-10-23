@@ -53,52 +53,24 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
+
 #}}}
 
-import socket
+from setuptools import setup, find_packages
 
-from flexjsonrpc.framing import chunked
+#get environ for agent name/identifier
+packages = find_packages('.')
+package = packages[0]
 
-
-class TestChunkedModule(object):
-    _chunks = ['This is a test', 'of the chunked module.', '']
-    _encoded = 'e\r\n{}\r\n16\r\n{}\r\n0\r\n\r\n'.format(*_chunks)
-
-    def setup(self):
-        self.rsock, self.wsock = (r, w) = socket.socketpair()
-        self.decoder = chunked.Decoder(r.makefile('rb'))
-        self.encoder = chunked.Encoder(w.makefile('wb'))
-
-    def test_encode(self):
-        map(self.encoder.write_chunk, self._chunks)
-        assert self.rsock.recv(1024) == self._encoded
-
-    def test_decode(self):
-        self.wsock.sendall(self._encoded)
-        for chunk in self._chunks:
-            assert self.decoder.read_chunk() == chunk
-
-    def test_long_chunk_length_line(self):
-        data = self._encoded[0:1] + ' '*1022 + self._encoded[1:]
-        self.wsock.sendall(data)
-        try:
-            self.decoder.read_chunk()
-        except chunked.Error as e:
-            pass
-        else:
-            assert False
-
-    def test_invalid_chunk_length(self):
-        self.wsock.sendall('get\r\na bogus message\r\n')
-        try:
-            self.decoder.read_chunk()
-        except chunked.Error as e:
-            pass
-        else:
-            assert False
-
-    def test_chunk_length_with_extension(self):
-        data = self._encoded[0:1] + '  ;  some extension  ' + self._encoded[1:]
-        self.wsock.sendall(data)
-        assert self.decoder.read_chunk() == self._chunks[0]
+setup(
+    name = package,
+    version = "3.0",
+    install_requires = ['volttron'],
+    packages = packages,
+    entry_points = {
+        'setuptools.installation': [
+            'eggsecutable = ' + package + '.subscriber_agent:main',
+        ]
+    }
+)
 

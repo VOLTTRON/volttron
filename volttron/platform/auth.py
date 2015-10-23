@@ -80,7 +80,7 @@ from .vip.socket import encode_key
 _log = logging.getLogger(__name__)
 
 
-_SAMPLE_AUTH_FILE = '''{
+_SAMPLE_AUTH_FILE = r'''{
     "allow": [
         # {"credentials": "CURVE:wk2BXQdHkAlMIoXthOPhFOqWpapD1eWsBQYY7h4-bXw", "domain": "vip", "address": "/192\\.168\\.1\\..*/"}
     ]

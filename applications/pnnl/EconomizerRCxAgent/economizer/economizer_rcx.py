@@ -57,6 +57,8 @@ from zmq.utils import jsonapi
 from volttron.platform.agent import utils
 from volttron.platform.messaging import headers as headers_mod, topics
 
+__version__ = '3.1'
+
 ECON1 = 'Temperature Sensor Dx'
 ECON2 = 'Not Economizing When Unit Should Dx'
 ECON3 = 'Economizing When Unit Should Not Dx'
