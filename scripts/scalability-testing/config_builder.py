@@ -60,6 +60,9 @@ import os
 import abc
 import argparse
 import itertools
+from test_settings import (virtual_device_host, device_types, config_dir, 
+                           volttron_install, master_driver_file,
+                           host_config_location)
 
 class DeviceConfig(object):
     __metaclass__ = abc.ABCMeta
@@ -132,9 +135,14 @@ def build_device_configs(device_type, host_address, count, reg_config, config_di
     #command line to start virtual devices.
     command_lines = []
     
+    try:
+        os.makedirs(config_dir)
+    except os.error:
+        pass
+    
     klass = device_config_classes[device_type]
     for i in range(count):
-        config_instance = klass(host_address, i, reg_config)
+        config_instance = klass(host_address, i, os.path.join(config_dir, reg_config))
         
         file_name = device_type + str(i) + ".config"
         file_path = os.path.join(config_dir, file_name)
@@ -176,23 +184,30 @@ def build_master_config(agent_config, config_dir, config_list):
         
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Create driver configuration files for scalability test.")
-    parser.add_argument('--agent-config', metavar='CONFIG_NAME', help='name of the master driver config file',
-                        default='master-driver.agent')
+    parser.add_argument('--agent-config', metavar='CONFIG_NAME', 
+                        help='name of the master driver config file',
+                        default=master_driver_file)
     
-    parser.add_argument('--count', type=int, default=1, help='number of devices to configure')
+    parser.add_argument('--count', type=int, default=1, 
+                        help='number of devices to configure')
     
     parser.add_argument('device_type', choices=['bacnet', 'modbus'], 
                         help='type of device to use for testing')
     
-    parser.add_argument('host_address', help='host of the test devices')
+    parser.add_argument('registry_config', 
+                        help='registry configuration to use for test devices')
     
-    parser.add_argument('registry_config', help='registry configuration to use for test devices')
+    parser.add_argument('virtual_device_host', 
+                        help='host of the test devices',
+                        default=virtual_device_host)
     
-    parser.add_argument('config_dir', help='output directory for configurations')
+    parser.add_argument('config_dir', help='output directory for configurations',
+                        default=config_dir)
     
     args = parser.parse_args()
-    
-    build_all_configs(args.agent_config, args.device_type, args.host_address, args.count, args.registry_config, args.config_dir)
+    build_all_configs(args.agent_config, args.device_type, 
+                      args.virtual_device_host, args.count, args.registry_config, 
+                      args.config_dir)
     
     
     
