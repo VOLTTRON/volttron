@@ -51,6 +51,9 @@ if [ ! -e "$WHEEL" ]; then
   exit 0
 fi
 
+# Clear the old agents out.
+VOLTTRON_HOME=$VOLTTRON_HOME volttron-ctl clear
+
 VOLTTRON_HOME=$VOLTTRON_HOME volttron-pkg configure "$WHEEL" "$2"
 
 VOLTTRON_HOME=$VOLTTRON_HOME volttron-ctl $COMMAND_ARGS install "$3=$WHEEL"
