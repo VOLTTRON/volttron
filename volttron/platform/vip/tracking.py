@@ -53,52 +53,85 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
+
 #}}}
 
-import socket
-
-from flexjsonrpc.framing import chunked
+'''Utilities for tracking VIP message statistics at the router.'''
 
 
-class TestChunkedModule(object):
-    _chunks = ['This is a test', 'of the chunked module.', '']
-    _encoded = 'e\r\n{}\r\n16\r\n{}\r\n0\r\n\r\n'.format(*_chunks)
+from __future__ import absolute_import, print_function
 
-    def setup(self):
-        self.rsock, self.wsock = (r, w) = socket.socketpair()
-        self.decoder = chunked.Decoder(r.makefile('rb'))
-        self.encoder = chunked.Encoder(w.makefile('wb'))
+import gevent
 
-    def test_encode(self):
-        map(self.encoder.write_chunk, self._chunks)
-        assert self.rsock.recv(1024) == self._encoded
+from .router import UNROUTABLE, ERROR, INCOMING
 
-    def test_decode(self):
-        self.wsock.sendall(self._encoded)
-        for chunk in self._chunks:
-            assert self.decoder.read_chunk() == chunk
+__all__ = ['Tracker']
 
-    def test_long_chunk_length_line(self):
-        data = self._encoded[0:1] + ' '*1022 + self._encoded[1:]
-        self.wsock.sendall(data)
-        try:
-            self.decoder.read_chunk()
-        except chunked.Error as e:
-            pass
-        else:
-            assert False
 
-    def test_invalid_chunk_length(self):
-        self.wsock.sendall('get\r\na bogus message\r\n')
-        try:
-            self.decoder.read_chunk()
-        except chunked.Error as e:
-            pass
-        else:
-            assert False
+def pick(frames, index):
+    '''Return the frame at index, converted to bytes, or None.'''
+    try:
+        return bytes(frames[index])
+    except IndexError:
+        return None
 
-    def test_chunk_length_with_extension(self):
-        data = self._encoded[0:1] + '  ;  some extension  ' + self._encoded[1:]
-        self.wsock.sendall(data)
-        assert self.decoder.read_chunk() == self._chunks[0]
 
+def increment(prop, key):
+    '''Increment or set to 1 the value in prop[key].'''
+    try:
+        prop[key] += 1
+    except KeyError:
+        prop[key] = 1
+
+
+class Tracker(object):
+    '''Object for sharing data between the router and control objects.'''
+
+    def __init__(self):
+        self._reset()
+        self.enabled = False
+
+    def reset(self):
+        '''Reset all counters to default values and set start time.'''
+        self._reset()
+        self.stats['start'] = gevent.get_hub().loop.now()
+
+    def _reset(self):
+        '''Initialize statistics counters.'''
+        self.stats = {
+            'error': {'error': {}, 'peer': {}, 'user': {}, 'subsystem': {}},
+            'unroutable': {'error': {}, 'peer': {}},
+            'incoming': {'peer': {}, 'user': {}, 'subsystem': {}},
+            'outgoing': {'peer': {}, 'user': {}, 'subsystem': {}},
+        }
+
+    def hit(self, topic, frames, extra):
+        '''Increment counters for given topic and frames.'''
+        if self.enabled:
+            if topic == UNROUTABLE:
+                stat = self.stats['unroutable']
+                increment(stat['error'], extra)
+            else:
+                user = pick(frames, 3)
+                subsystem = pick(frames, 5)
+                if topic == ERROR:
+                    stat = self.stats['error']
+                    increment(stat['error'], bytes(extra[0]))
+                else:
+                    stat = self.stats[
+                        'incoming' if topic == INCOMING else 'outgoing']
+                increment(stat['user'], user)
+                increment(stat['subsystem'], subsystem)
+            increment(stat['peer'], pick(frames, 0))
+
+    def enable(self):
+        '''Enable tracking.'''
+        if not self.enabled:
+            self.reset()
+            self.enabled = True
+
+    def disable(self):
+        '''Disable tracking.'''
+        if self.enabled:
+            self.enabled = False
+            self.stats['end'] = gevent.get_hub().loop.now()
