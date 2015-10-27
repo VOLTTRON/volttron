@@ -70,23 +70,26 @@ def build_configs():
     command_lines = []
     config_paths = []
     reg_config_files = []
+    config_full_path = os.path.abspath(test_settings.config_dir)
     for device_type, settings in test_settings.device_types.items():
         count, reg_config = settings
         
-        reg_config_files.append(reg_config)
+        reg_path = os.path.abspath(reg_config)
+        reg_config_files.append(reg_path)
         
         configs, commands = config_builder.build_device_configs(device_type, 
                                                                 env.host,
                                                                 count,
-                                                                reg_config,
-                                                                test_settings.config_dir)
+                                                                reg_path,
+                                                                config_full_path)
         
         
         config_paths.extend(configs)
         command_lines.extend(commands)
         
+    #config_builder.build_master_config(test_settings.master_driver_file, config_dir, config_paths)
     config_builder.build_master_config(test_settings.master_driver_file,
-                                       test_settings.config_dir,
+                                       config_full_path,
                                        config_paths)
 
 def get_command_lines():
@@ -125,7 +128,6 @@ def deploy_virtual_drivers():
                                    exe_script, 
                                    reg_config, 
                                    port])
-            print('Runscript: '+ run_script)
             run(run_script)
             #run ('nohup /home/volttron/volttron/env/bin/python /home/volttron/volttron/scripts/scalability-testing/virtual-drivers/bacnet.py /home/volttron/device-configs/bacnet_lab.csv 130.20.173.167:47808 &> /home/volttron/volttron/testoutput.txt < /dev/null &')
 
