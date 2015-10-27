@@ -150,13 +150,19 @@ def deploy_virtual_devices():
     
     # Assume working from root volttron folder
     for cmd in get_command_lines():
+        print(cmd)
         # Translate commands into the remote context for execution of the scripts.
-        script_name, reg_filename, port = cmd.split(' ')
+        parts = cmd.split(' ')
+        script_name, reg_filename, address = parts[0], parts[1], parts[2]
+        port = ''
+        if len(parts) > 3:
+            port = parts[3]
         reg_filename = os.path.join(remote_device_configs, reg_filename)
         script_name = os.path.join(virtual_driver_dir, script_name)
         run_script = ' '.join([python_exe, 
                                 script_name, 
-                                reg_filename, 
+                                reg_filename,
+                                address, 
                                 port])
         
         # Execute the virtual devices.

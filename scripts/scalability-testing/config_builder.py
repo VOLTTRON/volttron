@@ -126,6 +126,7 @@ class ModbusConfig(DeviceConfig):
     def get_virtual_driver_commandline(self):
         config_file = os.path.basename(self.configuration["registry_config"])
         port = self.configuration["driver_config"]["port"]
+        host_address = self.configuration["driver_config"]["device_address"]
         return "modbus.py {config} {interface} --port={port}".format(config=config_file, 
                                                                      interface=host_address, 
                                                                      port=port)
