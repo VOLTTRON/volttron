@@ -125,7 +125,9 @@ class ModbusConfig(DeviceConfig):
     def get_virtual_driver_commandline(self):
         config_file = os.path.basename(self.configuration["registry_config"])
         port = self.configuration["driver_config"]["port"]
-        return "modbus.py {config} --port={port}".format(config=config_file, port=port)
+        return "modbus.py {config} {interface} --port={port}".format(config=config_file, 
+                                                                     interface=host_address, 
+                                                                     port=port)
 
 device_config_classes = {"bacnet":BACnetConfig,
                          "modbus":ModbusConfig}
