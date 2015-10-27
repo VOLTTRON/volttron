@@ -1,5 +1,5 @@
 pushd ../../
-export SOURCE=applications/MasterNode-and-ModelNode-Agents/ModelNode
+export SOURCE=applications/ornl/MasterNode-and-ModelNode-Agents/ModelNode
 export CONFIG=scripts/scalability-testing/master-model-configs/model-config
 export TAG=modelnode
 
