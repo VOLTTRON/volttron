@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright (c) 2013, Battelle Memorial Institute
+# Copyright (c) 2015, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -171,12 +171,14 @@ def historian(config_path, **kwargs):
                     value = x['value']
                     # look at the topics that are stored in the database already
                     # to see if this topic has a value
-                    topic_id = self.topic_map.get(topic)
+                    topic_id = self.topic_map.get(topic, None)
     
                     if topic_id is None:
+                        _log.debug('Inserting topic: {}'.format(topic))
                         row  = self.writer.insert_topic(topic)
                         topic_id = row[0]
                         self.topic_map[topic] = topic_id
+                        _log.debug('TopicId: {} => {}'.format(topic_id, topic))
                     
                     if self.writer.insert_data(ts,topic_id, value):
                         #_log.debug('item was inserted')

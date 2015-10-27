@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2013, Battelle Memorial Institute
+# Copyright (c) 2015, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -90,7 +90,7 @@ class SqlLiteFuncts(DbDriver):
                 if exc.errno != errno.EEXIST or not os.path.isdir(db_dir):
                     raise
             
-        conn = sqlite3.connect(self.__database)
+        conn = sqlite3.connect(self.__database, detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
         cursor = conn.cursor()
         cursor.execute('''CREATE TABLE IF NOT EXISTS data
                                 (ts timestamp NOT NULL,
@@ -117,7 +117,8 @@ class SqlLiteFuncts(DbDriver):
         
         if 'detect_types' not in kwargs.keys():
             kwargs['detect_types'] = sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES
-                
+        
+        print (kwargs)    
         super(SqlLiteFuncts, self).__init__('sqlite3', **kwargs)
         
 
@@ -177,8 +178,9 @@ class SqlLiteFuncts(DbDriver):
         _log.debug("Real Query: " + real_query)
         _log.debug("args: "+str(args))
 
-        c = self.connect()
+        c = sqlite3.connect(self.__database, detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
         rows = c.execute(real_query,args)
+
         values = [(ts.isoformat(), jsonapi.loads(value)) for ts, value in rows]
         _log.debug("QueryResults: " + str(values))
         return {'values':values}

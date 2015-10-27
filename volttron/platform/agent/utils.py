@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2013, Battelle Memorial Institute
+# Copyright (c) 2015, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -76,7 +76,7 @@ from zmq.utils import jsonapi
 __all__ = ['load_config', 'run_agent', 'start_agent_thread']
 
 __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
-__copyright__ = 'Copyright (c) 2013, Battelle Memorial Institute'
+__copyright__ = 'Copyright (c) 2015, Battelle Memorial Institute'
 __license__ = 'FreeBSD'
 
 
@@ -188,25 +188,32 @@ def default_main(agent_class, description=None, argv=sys.argv,
 
 def vip_main(agent_class, **kwargs):
     '''Default main entry point implementation for VIP agents.'''
-    # If stdout is a pipe, re-open it line buffered
-    if isapipe(sys.stdout):
-        # Hold a reference to the previous file object so it doesn't
-        # get garbage collected and close the underlying descriptor.
-        stdout = sys.stdout
-        sys.stdout = os.fdopen(stdout.fileno(), 'w', 1)
+    try:
+        # If stdout is a pipe, re-open it line buffered
+        if isapipe(sys.stdout):
+            # Hold a reference to the previous file object so it doesn't
+            # get garbage collected and close the underlying descriptor.
+            stdout = sys.stdout
+            sys.stdout = os.fdopen(stdout.fileno(), 'w', 1)
 
-    agent_uuid = os.environ.get('AGENT_UUID')
-    config = os.environ.get('AGENT_CONFIG')
-    agent = agent_class(config_path=config, identity=agent_uuid, **kwargs)
-    try:
-        run = agent.run
-    except AttributeError:
-        run = agent.core.run
-    task = gevent.spawn(run)
-    try:
-        task.join()
-    finally:
-        task.kill()
+        # Quiet printing of KeyboardInterrupt by greenlets
+        Hub = gevent.hub.Hub
+        Hub.NOT_ERROR = Hub.NOT_ERROR + (KeyboardInterrupt,)
+
+        agent_uuid = os.environ.get('AGENT_UUID')
+        config = os.environ.get('AGENT_CONFIG')
+        agent = agent_class(config_path=config, identity=agent_uuid, **kwargs)
+        try:
+            run = agent.run
+        except AttributeError:
+            run = agent.core.run
+        task = gevent.spawn(run)
+        try:
+            task.join()
+        finally:
+            task.kill()
+    except KeyboardInterrupt:
+        pass
 
 
 class SyslogFormatter(logging.Formatter):

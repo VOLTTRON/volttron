@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright (c) 2013, Battelle Memorial Institute
+# Copyright (c) 2015, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -137,7 +137,7 @@ def SMAPHistorianAgent(config_path, **kwargs):
 
                 meta = item['meta']
 
-                if meta['type'] not in ('float', 'double', 'boolean', 'integer'):
+                if meta['type'] not in ('float', 'double', 'boolean', 'integer', 'int'):
                     _log.warn('Ignoring point due to invalid type: {}'
                               .format(item))
 
@@ -149,6 +149,9 @@ def SMAPHistorianAgent(config_path, **kwargs):
                 # Auto convert bools to ints for smap.
                 if meta['type'] == 'boolean':
                     item['value'] = int(item['value'])
+                    meta['type'] = 'integer'
+                # handle int as well as integer types.
+                if meta['type'] == 'int':
                     meta['type'] = 'integer'
 
                 item_uuid = self._topic_to_uuid.get(topic, None)
@@ -164,8 +167,8 @@ def SMAPHistorianAgent(config_path, **kwargs):
                     meta['OldSourceName'] = meta['SourceName']
 
                 meta['SourceName'] = _config['source']
-
-                if item['source'] == 'scrape':
+                # Default to utc.               
+                if item['source'] in ('scrape', 'analysis'):
                     if ('timestamp' not in item or 'tz' not in meta):
                         _log.error('Invalid timestamp specified for item: {}'
                                .format(item))
