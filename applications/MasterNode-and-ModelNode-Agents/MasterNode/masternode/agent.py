@@ -18,6 +18,7 @@ import logging
 import sys
 import numpy
 import os
+import os.path as p
 import time
 import json
 
@@ -40,6 +41,7 @@ class MasterNode(Agent):
     def __init__(self, config_path, **kwargs):
         super(MasterNode, self).__init__(**kwargs)
         self.Config = utils.load_config(config_path)
+        
         self.AgentStatesEnum = enum(
             OFF = 0,
             HEATING_STAGE_ONE =  6,
@@ -67,9 +69,12 @@ class MasterNode(Agent):
         self.Nsim = 144
 
         print "DIRECTORY :::", os.path.abspath(os.curdir)
-
+        base_dir = p.abspath(p.dirname(__file__))
+        numpy_file = p.join(base_dir,self.Config['data_file'])
+        u_file = p.join(base_dir,self.Config['u_file'])
+        d1_file = p.join(base_dir,self.Config['d1_file'])
         # read regulation signal and downsample to 10 mins
-        Sig = numpy.loadtxt(open("reg-data-external-may-2014.csv","rb"),delimiter=",",skiprows=1)
+        Sig = numpy.loadtxt(open(numpy_file,"rb"),delimiter=",",skiprows=1)
 
         # downsample, 150 steps is 10 mins in this file
         self.Reg = []
@@ -77,8 +82,8 @@ class MasterNode(Agent):
             self.Reg.append(Sig[i, 0])
 
         # load outside air temp, u and d1 variables
-        self.u = numpy.loadtxt(open("u.csv","rb"),delimiter=",",skiprows=0)
-        self.d1 = numpy.loadtxt(open("d1.csv","rb"),delimiter=",",skiprows=0)
+        self.u = numpy.loadtxt(open(u_file,"rb"),delimiter=",",skiprows=0)
+        self.d1 = numpy.loadtxt(open(d1_file,"rb"),delimiter=",",skiprows=0)
 
         # Scaling regulation signal to number of expected registered buildings
         self.Reg = numpy.multiply(self.Bld, self.Reg)

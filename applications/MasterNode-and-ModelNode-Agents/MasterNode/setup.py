@@ -10,6 +10,9 @@ setup(
     version = "0.1",
     install_requires = ['volttron'],
     packages = packages,
+    package_data = {
+        package: ['*.csv']
+    },
     entry_points = {
         'setuptools.installation': [
             'eggsecutable = ' + package + '.agent:main',
