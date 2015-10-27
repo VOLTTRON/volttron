@@ -70,23 +70,26 @@ def build_configs():
     command_lines = []
     config_paths = []
     reg_config_files = []
+    config_full_path = os.path.abspath(test_settings.config_dir)
     for device_type, settings in test_settings.device_types.items():
         count, reg_config = settings
         
-        reg_config_files.append(reg_config)
+        reg_path = os.path.abspath(reg_config)
+        reg_config_files.append(reg_path)
         
         configs, commands = config_builder.build_device_configs(device_type, 
                                                                 env.host,
                                                                 count,
-                                                                reg_config,
-                                                                test_settings.config_dir)
+                                                                reg_path,
+                                                                config_full_path)
         
         
         config_paths.extend(configs)
         command_lines.extend(commands)
         
+    #config_builder.build_master_config(test_settings.master_driver_file, config_dir, config_paths)
     config_builder.build_master_config(test_settings.master_driver_file,
-                                       test_settings.config_dir,
+                                       config_full_path,
                                        config_paths)
 
 def get_command_lines():
@@ -103,36 +106,68 @@ def get_reg_configs():
         
     return reg_config_files
 
-@task
-def deploy_virtual_drivers():
-    
-    user_home = '/home/volttron'
-    volttron_root = os.path.join(user_home, 'volttron')
-    scalability_dir = os.path.join(volttron_root, 'scripts/scalability-testing')
-    virtual_driver_dir = os.path.join(scalability_dir, 'virtual-drivers')
-    
-    device_reg_dir = os.path.join(scalability_dir, 'device-configs')
-    
-    python_exe = os.path.join(volttron_root, 'env/bin/python')
-    
-    # Assume working from root volttron folder
-    with (cd('~/volttron')):
-        for cmd in get_command_lines():
-            script_name, reg_filename, port = cmd.split(' ')
-            exe_script = os.path.join(virtual_driver_dir, script_name)
-            reg_config = os.path.join(device_reg_dir, reg_filename)
-            run_script = ' '.join([python_exe, 
-                                   exe_script, 
-                                   reg_config, 
-                                   port])
-            print('Runscript: '+ run_script)
-            run(run_script)
-            #run ('nohup /home/volttron/volttron/env/bin/python /home/volttron/volttron/scripts/scalability-testing/virtual-drivers/bacnet.py /home/volttron/device-configs/bacnet_lab.csv 130.20.173.167:47808 &> /home/volttron/volttron/testoutput.txt < /dev/null &')
+def get_remote_path(path):
+    # command to find the path to the remote volttron.
+    path_template = 'python -c "import os; print(os.path.expanduser(\'{}\'))"'
+    # Get the remote volttron
+    return run(path_template.format(path))
 
 @task
-def stop_virtual_drivers():
-    python_exe = 'env/bin/python'
-    with (cd('~/volttron')):
-        shutdown_script = 'scripts/scalability-testing/virtual-drivers/shutdown.py'
-        run(python_exe + ' ' + shutdown_script)
+def deploy_virtual_devices():
+ 
+    
+    volttron_path = 'python -c "import os; print(os.path.expanduser(\'' \
+                                + test_settings.volttron_install + '\'))"'
+    
+    remote_volttron = get_remote_path(test_settings.volttron_install)
+    # Get the remote config location to put the registry configs for the
+    # virtual drivers to use.
+    remote_device_configs = get_remote_path(test_settings.host_config_location)
+    python_exe = os.path.join(remote_volttron, 'env/bin/python')
+    
+    # The volttron scalabiility-testing directory that is located on the
+    # remote host in the remote volttron directory.
+    scalability_dir = os.path.join(remote_volttron, 'scripts/scalability-testing')
+    # location of the bacnet.py and modbus.py folders and the shutdown.py script
+    virtual_driver_dir = os.path.join(scalability_dir, 'virtual-drivers')
+    
+    
+    local_device_configs = os.path.abspath('device-configs')
+    
+    try:
+        # Remove remote directory 
+        run('rm -rf {}'.format(remote_device_configs))
+    except:
+        pass
+    
+    # Make remote directory for configs.
+    run('mkdir -p {}'.format(remote_device_configs))
+    
+    # move the files to the remote configuration directory. Only
+    # move files in the top level and then all directories (though
+    # none are currently used).
+    put(local_device_configs+'/*', remote_device_configs)
+    
+    # Assume working from root volttron folder
+    for cmd in get_command_lines():
+        # Translate commands into the remote context for execution of the scripts.
+        script_name, reg_filename, port = cmd.split(' ')
+        reg_filename = os.path.join(remote_device_configs, reg_filename)
+        script_name = os.path.join(virtual_driver_dir, script_name)
+        run_script = ' '.join([python_exe, 
+                                script_name, 
+                                reg_filename, 
+                                port])
+        
+        # Execute the virtual devices.
+        result = run(run_script)
+        print('result: {}'.format(result))
+
+@task
+def stop_virtual_devices():
+    
+    volttron = get_remote_path(test_settings.volttron_install)
+    python_exe = os.path.join(volttron, 'env/bin/python')
+    shutdown_script = os.path.join(volttron, 'scripts/scalability-testing/virtual-drivers/shutdown.py')
+    run(python_exe + ' ' + shutdown_script)
         

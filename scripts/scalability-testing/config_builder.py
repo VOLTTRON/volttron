@@ -70,7 +70,8 @@ class DeviceConfig(object):
         self.configuration = {"registry_config": registry_config,
                               "interval": interval,
                               "driver_type": self.device_type(),
-                              "unit": self.device_type() + str(instance_number)}
+                              "unit": self.device_type() + str(instance_number),
+                              "timezone": 'US/Pacific'}
         
         self.configuration["driver_config"] = self.get_driver_config(host_address, instance_number)
         
@@ -110,7 +111,7 @@ class BACnetConfig(DeviceConfig):
         return "bacnet.py {config} {interface}".format(config=config_file, interface=interface)
 
 class ModbusConfig(DeviceConfig):
-    starting_port = 5020
+    starting_port = 50200
     def __init__(self, host_address, instance_number, registry_config, interval=60):
         super(ModbusConfig, self).__init__(host_address, instance_number, registry_config, interval=interval)
         
@@ -144,7 +145,7 @@ def build_device_configs(device_type, host_address, count, reg_config, config_di
     
     klass = device_config_classes[device_type]
     for i in range(count):
-        config_instance = klass(host_address, i, os.path.join(config_dir, reg_config))
+        config_instance = klass(host_address, i, reg_config)
         
         file_name = device_type + str(i) + ".config"
         file_path = os.path.join(config_dir, file_name)
@@ -159,6 +160,7 @@ def build_device_configs(device_type, host_address, count, reg_config, config_di
 
 def build_all_configs(agent_config, device_type, host_address, count, reg_config, config_dir):
     '''For command line interface'''
+        
     try:
         os.makedirs(config_dir)
     except os.error:
