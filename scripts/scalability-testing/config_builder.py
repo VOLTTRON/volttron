@@ -111,7 +111,7 @@ class BACnetConfig(DeviceConfig):
         return "bacnet.py {config} {interface}".format(config=config_file, interface=interface)
 
 class ModbusConfig(DeviceConfig):
-    starting_port = 5020
+    starting_port = 50200
     def __init__(self, host_address, instance_number, registry_config, interval=60):
         super(ModbusConfig, self).__init__(host_address, instance_number, registry_config, interval=interval)
         
