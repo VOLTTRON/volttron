@@ -59,6 +59,7 @@
 
 import argparse
 from dateutil.parser import parse
+from datetime import timedelta
 import logging
 import os
 import pytz
@@ -84,6 +85,8 @@ _comment_re = re.compile(
         r'((["\'])(?:\\?.)*?\2)|(/\*.*?\*/)|((?:#|//).*?(?=\n|$))',
         re.MULTILINE | re.DOTALL)
 
+
+_log = logging.getLogger(__name__)
 
 def _repl(match):
     '''Replace the matched group with an appropriate string.'''
@@ -282,6 +285,11 @@ def process_timestamp(timestamp_string):
     
     try:
         timestamp = parse(timestamp_string)
+        
+        #The following addresses #174: error with dbapi2
+        if not timestamp.microsecond:
+            _log.warn("No microsecond in timestamp. Adding 1 to prevent dbapi2 bug.")
+            timestamp = timestamp + timedelta(microseconds = 1)
     except (ValueError, TypeError) as e:
         _log.error("message for {topic} bad timetamp string: {ts_string}".format(topic=topic,
                                                                                  ts_string=timestamp_string))
