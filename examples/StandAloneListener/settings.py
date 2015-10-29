@@ -2,6 +2,8 @@
 # standard out.
 topics_prefixes_to_watch = (
 	'devices',
+	'heartbeat/standalonelistener',
+	'heartbeat/admin_only',
 	#'datalogger'
 )
 
@@ -11,7 +13,7 @@ heartbeat_period = 10
 # remote vip address.
 _params = {
 	# The root of the address.
-	'vip_address': 'tcp://127.0.0.2',
+	'vip_address': 'tcp://127.0.0.1',
 	'port': 55055,
 	
 	# public and secret key for the standalonelistener agent.
@@ -22,7 +24,8 @@ _params = {
 	# Public server key from the remote platform.  This can be
 	# obtained from the starting of the platform volttron -v.
 	# The output will include public key: ....
-	'server_key': 'kHTZvPwnAZ8weZXOZVR8p2Ef82WHh-EN6OxwKg9GST8'  
+	#'server_key': 'kHTZvPwnAZ8weZXOZVR8p2Ef82WHh-EN6OxwKg9GST8'  
+	'server_key': 'A2-FQOw0akY67yQqv2dd7Ls-so90hy2k6LgMcgxTwUg'
 }
 
 def remote_url():

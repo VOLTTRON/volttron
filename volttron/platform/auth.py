@@ -87,6 +87,12 @@ _SAMPLE_AUTH_FILE = r'''{
 }
 '''
 
+def arglog(func):
+    def inner(*args, **kwargs):
+        _log.debug("%s: %s, %s", func.__name__, args, kwargs)
+        return func(*args, **kwargs)
+    return inner
+
 _dump_re = re.compile(r'([,\\])')
 _load_re = re.compile(r'\\(.)|,')
 
@@ -239,6 +245,9 @@ class AuthService(Agent):
     def authenticate(self, domain, address, mechanism, credentials):
         for entry in self.auth_entries:
             if entry.match(domain, address, mechanism, credentials):
+                _log.debug('entry.user_id: %s', entry.user_id)
+                _log.debug('dump_user: %s', dump_user(
+                    domain, address, mechanism, *credentials[:1]))
                 return entry.user_id or dump_user(
                     domain, address, mechanism, *credentials[:1])
         if mechanism == 'NULL' and address.startswith('localhost:'):
@@ -254,6 +263,16 @@ class AuthService(Agent):
         if self.allow_any:
             return dump_user(domain, address, mechanism, *credentials[:1])
 
+    @RPC.export
+    def capabilities(self, user):
+        try:
+            domain, address, mechanism, credentials = load_user(user)
+        except ValueError:
+            pass
+        else:
+            for entry in self.auth_entries:
+                if entry.match(domain, address, mechanism, credentials):
+                    return entry.capabilities
 
 class String(unicode):
     def __new__(cls, value):

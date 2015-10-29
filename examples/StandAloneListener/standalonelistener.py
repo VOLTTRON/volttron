@@ -95,6 +95,11 @@ class StandAloneListener(Agent):
             'pubsub', 'heartbeat/standalonelistener', headers, 
             now).get(timeout=5)
 
+        msg = 'must have "admin" capability to see this' 
+        self.vip.pubsub.publish(
+            'pubsub', 'heartbeat/admin_only', headers, msg, 
+            required_capabilities=['admin']).get(timeout=5)
+
     
 if  __name__ == '__main__':
     try:

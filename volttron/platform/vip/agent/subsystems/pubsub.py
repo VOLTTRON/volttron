@@ -74,6 +74,8 @@ from .... import jsonrpc
 
 __all__ = ['PubSub']
 
+import logging
+_log = logging.getLogger(__name__)
 
 def encode_peer(peer):
     if peer.startswith('\x00'):
@@ -214,11 +216,23 @@ class PubSub(SubsystemBase):
                         results.append((bus, topic, member))
         return results
 
-    def _peer_publish(self, topic, headers, message=None, bus=''):
+    def _peer_publish(self, topic, headers, message=None, bus='',
+            required_capabilities=[]):
+        _log.debug('vip_message type: %s', type(self.rpc().context.vip_message))
+        _log.debug('args: %s', self.rpc().context.vip_message.args)
+        _log.debug('id: %s', self.rpc().context.vip_message.id)
+        _log.debug('peer: %s', self.rpc().context.vip_message.peer)
+        _log.debug('subsystem: %s', self.rpc().context.vip_message.subsystem)
+        _log.debug('user: %s', self.rpc().context.vip_message.user)
         peer = bytes(self.rpc().context.vip_message.peer)
-        self._distribute(peer, topic, headers, message, bus)
+        self._distribute(peer, topic, headers, message, bus,
+                required_capabilities)
 
-    def _distribute(self, peer, topic, headers, message=None, bus=''):
+    def _distribute(self, peer, topic, headers, message=None, bus='',
+            required_capabilities=[]):
+        _log.info('topic %s', topic)
+        _log.info('peer: %s', peer)
+        _log.info('required_capabilities: %s', required_capabilities)
         subscriptions = self._peer_subscriptions[bus]
         subscribers = set()
         for prefix, subscription in subscriptions.iteritems():
@@ -233,6 +247,7 @@ class PubSub(SubsystemBase):
                       zmq.Frame(b'RPC'), zmq.Frame(json_msg)]
             socket = self.core().socket
             for subscriber in subscribers:
+                _log.info('subscriber: %s', subscriber)
                 socket.send(subscriber, flags=SNDMORE)
                 socket.send_multipart(frames, copy=False)
         return len(subscribers)
@@ -364,7 +379,8 @@ class PubSub(SubsystemBase):
         topics = self.drop_subscription(peer, prefix, callback, bus)
         return self.rpc().call(peer, 'pubsub.unsubscribe', topics, bus=bus)
 
-    def publish(self, peer, topic, headers=None, message=None, bus=''):
+    def publish(self, peer, topic, headers=None, message=None, bus='',
+            required_capabilities=[]):
         '''Publish a message to a given topic via a peer.
 
         Publish headers and message to all subscribers of topic on bus
@@ -374,8 +390,10 @@ class PubSub(SubsystemBase):
             headers = {}
         if peer is None:
             self._distribute(self.core().socket.identity,
-                             topic, headers, message, bus)
+                             topic, headers, message, bus,
+                             required_capabilities)
         else:
             return self.rpc().call(
                 peer, 'pubsub.publish', topic=topic, headers=headers,
-                message=message, bus=bus)
+                message=message, bus=bus,
+                required_capabilities=required_capabilities)
