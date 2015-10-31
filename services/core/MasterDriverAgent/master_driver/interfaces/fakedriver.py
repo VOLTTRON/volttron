@@ -57,8 +57,13 @@ from master_driver.interfaces import BaseInterface, BaseRegister
 from csv import DictReader
 from StringIO import StringIO
 
-class Register(BaseRegister):
-        super(Register, self).__init__("byte", read_only, pointName, units, description = '')
+print ('hi')
+
+
+class FakeRegister(BaseRegister):
+    def __init__(self,read_only, pointName, units, description = ''):
+#     register_type, read_only, pointName, units, description = ''):
+        super(FakeRegister, self).__init__("byte", read_only, pointName, units, description = '')
         self._value = random.uniform(0,100)
 
         
@@ -71,33 +76,28 @@ class Interface(BaseInterface):
         
     def get_point(self, point_name): 
         register = self.get_register_by_name(point_name)   
-        point_map = {point_name:[register.object_type, 
-                                 register.property]}
-        result = self.vip.rpc.call(self.proxy_address, 'read_properties', 
-                                       self.target_address, point_map).get(timeout=10.0)
-        return result[point_name]
+        
+        return register._value
     
     def set_point(self, point_name, value):    
         register = self.get_register_by_name(point_name)  
         if register.read_only:
             raise  IOError("Trying to write to a point configured read only: "+point_name)
-        args = [self.target_address, value,
-                register.object_type, 
-                register.property]
-        self._value = value
+       
+        register._value = value
         result = value
         return result
         
     def scrape_all(self):
-        point_map = {}
+        result = {}
         read_registers = self.get_registers_by_type("byte", True)
         write_registers = self.get_registers_by_type("byte", False) 
-        for register in read_registers + write_registers:             
-            point_map[register.point_name] = [register.object_type, 
-                                              register.property]
+        for register in read_registers + write_registers:  
+            result[register.point_name] = register._value 
+#             point_map[register.point_name] = [register.object_type, 
+#                                               register.property]
         
-        result = self.vip.rpc.call(self.proxy_address, 'read_properties', 
-                                       self.target_address, point_map).get(timeout=10.0)
+        
         return result
     
     def parse_config(self, config_string):
@@ -106,25 +106,25 @@ class Interface(BaseInterface):
         
         f = StringIO(config_string)
         
-#         configDict = DictReader(f)
+        configDict = DictReader(f)
         
         for regDef in configDict:
             #Skip lines that have no address yet.
             if not regDef['Point Name']:
                 continue
             
-            io_type = regDef['BACnet Object Type']
+#             io_type = regDef['BACnet Object Type']
             read_only = regDef['Writable'].lower() != 'true'
             point_name = regDef['Volttron Point Name']        
-            index = int(regDef['Index'])        
+#             index = int(regDef['Index'])        
             description = regDef['Notes']                 
             units = regDef['Units']       
-            property_name = regDef['Property']       
+#             property_name = regDef['Property']       
                         
                         
 # "byte", read_only, pointName, units, description = ''
-            register = Register(io_type, 
-                                property_name, 
+            register = FakeRegister( 
+#                                 property_name, 
                                 read_only, 
                                 point_name,
                                 units, 
