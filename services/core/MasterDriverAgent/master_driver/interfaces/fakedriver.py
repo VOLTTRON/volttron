@@ -57,9 +57,6 @@ from master_driver.interfaces import BaseInterface, BaseRegister
 from csv import DictReader
 from StringIO import StringIO
 
-print ('hi')
-
-
 class FakeRegister(BaseRegister):
     def __init__(self,read_only, pointName, units, description = ''):
 #     register_type, read_only, pointName, units, description = ''):
@@ -94,9 +91,6 @@ class Interface(BaseInterface):
         write_registers = self.get_registers_by_type("byte", False) 
         for register in read_registers + write_registers:  
             result[register.point_name] = register._value 
-#             point_map[register.point_name] = [register.object_type, 
-#                                               register.property]
-        
         
         return result
     
@@ -113,18 +107,11 @@ class Interface(BaseInterface):
             if not regDef['Point Name']:
                 continue
             
-#             io_type = regDef['BACnet Object Type']
             read_only = regDef['Writable'].lower() != 'true'
             point_name = regDef['Volttron Point Name']        
-#             index = int(regDef['Index'])        
             description = regDef['Notes']                 
             units = regDef['Units']       
-#             property_name = regDef['Property']       
-                        
-                        
-# "byte", read_only, pointName, units, description = ''
             register = FakeRegister( 
-#                                 property_name, 
                                 read_only, 
                                 point_name,
                                 units, 
