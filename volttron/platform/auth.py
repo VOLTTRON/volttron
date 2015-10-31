@@ -87,12 +87,6 @@ _SAMPLE_AUTH_FILE = r'''{
 }
 '''
 
-def arglog(func):
-    def inner(*args, **kwargs):
-        _log.debug("%s: %s, %s", func.__name__, args, kwargs)
-        return func(*args, **kwargs)
-    return inner
-
 _dump_re = re.compile(r'([,\\])')
 _load_re = re.compile(r'\\(.)|,')
 
@@ -264,15 +258,33 @@ class AuthService(Agent):
             return dump_user(domain, address, mechanism, *credentials[:1])
 
     @RPC.export
-    def capabilities(self, user):
+    def get_authorizations(self, user_id):
         try:
-            domain, address, mechanism, credentials = load_user(user)
+            domain, address, mechanism, credentials = load_user(user_id)
         except ValueError:
-            pass
-        else:
-            for entry in self.auth_entries:
-                if entry.match(domain, address, mechanism, credentials):
-                    return entry.capabilities
+            domain = address = mechanism = credentials = None
+        for entry in self.auth_entries:
+            if (entry.user_id == user_id or
+                entry.match(domain, address, mechanism, credentials)):
+                return [entry.capabilities, entry.groups, entry.roles]
+
+    def _get_authorizations(self, user_id, index):
+        '''Convenience method for getting authorization component by index'''
+        auths = get_authorizations(user_id)
+        if auths:
+            return auths[index]
+
+    @RPC.export
+    def get_capabilities(self, user_id):
+        return _get_authorizatons(user_id, 0)
+
+    @RPC.export
+    def get_groups(self, user_id):
+        return _get_authorizatons(user_id, 1)
+
+    @RPC.export
+    def get_roles(self, user_id):
+        return _get_authorizatons(user_id, 2)
 
 class String(unicode):
     def __new__(cls, value):

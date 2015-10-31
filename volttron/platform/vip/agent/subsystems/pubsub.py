@@ -230,9 +230,9 @@ class PubSub(SubsystemBase):
 
     def _distribute(self, peer, topic, headers, message=None, bus='',
             required_capabilities=[]):
-        _log.info('topic %s', topic)
-        _log.info('peer: %s', peer)
-        _log.info('required_capabilities: %s', required_capabilities)
+        _log.debug('topic %s', topic)
+        _log.debug('peer: %s', peer)
+        _log.debug('required_capabilities: %s', required_capabilities)
         subscriptions = self._peer_subscriptions[bus]
         subscribers = set()
         for prefix, subscription in subscriptions.iteritems():
@@ -247,7 +247,7 @@ class PubSub(SubsystemBase):
                       zmq.Frame(b'RPC'), zmq.Frame(json_msg)]
             socket = self.core().socket
             for subscriber in subscribers:
-                _log.info('subscriber: %s', subscriber)
+                _log.debug('subscriber: %s', subscriber)
                 socket.send(subscriber, flags=SNDMORE)
                 socket.send_multipart(frames, copy=False)
         return len(subscribers)
