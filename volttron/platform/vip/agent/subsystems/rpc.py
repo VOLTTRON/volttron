@@ -164,6 +164,12 @@ class Dispatcher(jsonrpc.Dispatcher):
         local.vip_message = context
         local.request = request
         local.batch = batch
+
+        # TODO: this might be a place to check if the user_id has
+        # the required capabilities to call a method via RPC.
+        user_id=local.vip_message.user
+        required_caps = annotations(method, set, 'rpc.allow_capabilities')
+
         try:
             return method(*args, **kwargs)
         except Exception as exc:   # pylint: disable=broad-except
@@ -285,3 +291,10 @@ class RPC(SubsystemBase):
     def notify(self, peer, method, *args, **kwargs):
         request = self._dispatcher.notify(method, args, kwargs)
         self.core().socket.send_vip(peer, 'RPC', [request])
+
+    @classmethod
+    def allow(cls, capabilities):
+        def decorate(method):
+            annotate(method, set, 'rpc.allow_capabilities', capabilities)
+            return method
+        return decorate

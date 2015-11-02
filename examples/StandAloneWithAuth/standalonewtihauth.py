@@ -1,7 +1,10 @@
 '''
-    This python script is copied from the StandAloneListener agent, and it
-    demonstrates how to publish messages that can only be read by agents
-    that have a certain capability.
+    This python script is copied from the StandAloneListener agent.
+    It demonstrates how to how to use two forms of agent authorization:
+      1. publishing messages via PubSub that can only be read by agents
+         that have specified capabilities
+      2. limiting which agents can call an exported method (via RPC) based
+         on capabilities
 
     With a volttron activated shell this script can be run like:
 
@@ -18,7 +21,7 @@ import logging
 from gevent.core import callback
 
 from volttron.platform.messaging import headers as headers_mod
-from volttron.platform.vip.agent import Agent, PubSub, Core
+from volttron.platform.vip.agent import Agent, PubSub, Core, RPC
 from volttron.platform.agent import utils
 
 # These are the options that can be set from the settings module.
@@ -32,8 +35,10 @@ logging.basicConfig(
                 format='%(asctime)s   %(levelname)-8s %(message)s',
                 datefmt='%m-%d-%y %H:%M:%S')
 
+IDENTITY = 'Standalone With Authorization'
+
 class StandAloneWithAuth(Agent):
-    ''' A standalone version of the ListenerAgent'''
+    ''' A standalone agent that demonstrates how to use agent authorization'''
 
     def onmessage(self, peer, sender, bus, topic, headers, message):
         '''Handle incoming messages on the bus.'''
@@ -78,6 +83,22 @@ class StandAloneWithAuth(Agent):
             'must have admin capability to see this',
             required_capabilities=['admin']).get(timeout=5)
 
+    # Demonstrate calling methods via RPC
+    @Core.periodic(heartbeat_period)
+    def call_foo_and_bar(self):
+        foo_result = self.vip.rpc.call(IDENTITY, 'foo').get(timeout=5)
+        sys.stdout.write('foo returned: {}\n'.format(foo_result))
+        bar_result = self.vip.rpc.call(IDENTITY, 'bar').get(timeout=5)
+        sys.stdout.write('bar returned: {}\n'.format(bar_result))
+
+    @RPC.export
+    def foo(self):
+        return 'Anybody can call this function via RPC'
+
+    @RPC.allow('admin') # TODO: this decorator is a work in progress
+    @RPC.export
+    def bar(self):
+        return 'If you can see this, then you have the admin capability'
 
 if  __name__ == '__main__':
     try:
@@ -90,8 +111,10 @@ if  __name__ == '__main__':
 
         print(remote_url())
         agent = StandAloneWithAuth(address=remote_url(),
-                                   identity='Standalone With Authorization')
+                                   identity=IDENTITY)
+
         task = gevent.spawn(agent.core.run)
+
         try:
             task.join()
         finally:
