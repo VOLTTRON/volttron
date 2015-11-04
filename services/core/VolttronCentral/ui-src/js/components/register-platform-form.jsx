@@ -10,8 +10,10 @@ var RegisterPlatformForm = React.createClass({
     getInitialState: function () {
         var state = getStateFromStores();
 
-        state.name = state.address = state.protocol =
+        state.name = state.address = state.ipaddress = state.protocol =
          state.serverKey = state.publicKey = state.secretKey = '';
+
+        state.hidePreview = "preview-hidden";
 
         return state;
     },
@@ -28,7 +30,7 @@ var RegisterPlatformForm = React.createClass({
         this.setState({ name: e.target.value });
     },
     _onAddressChange: function (e) {
-        this.setState({ address: e.target.value });
+        this.setState({ ipaddress: e.target.value });
     },
     _onProtocolChange: function (e) {
         this.setState({ protocol: e.target.value });
@@ -43,6 +45,19 @@ var RegisterPlatformForm = React.createClass({
         this.setState({ secretKey: e.target.value });
     },
     _onCancelClick: modalActionCreators.closeModal,
+    _onPreviewClick: function () {
+        var full_address = this.state.protocol + "://" + this.state.ipaddress;
+
+        if (this.state.serverKey && this.state.publicKey && this.state.secretKey)
+        {
+            full_address = full_address + "?serverkey=" + this.state.serverKey + "&publickey=" + 
+                this.state.publicKey + "&secretkey=" + this.state.secretKey;
+        }
+
+        this.state.hidePreview = "form__control-group"
+
+        this.setState({address: full_address});
+    },
     _onSubmit: function () {
         platformManagerActionCreators.registerPlatform(
             this.state.name, 
@@ -73,7 +88,8 @@ var RegisterPlatformForm = React.createClass({
                         onChange={this._onProtocolChange}
                         value={this.state.protocol}
                         required
-                    >                    
+                    >   
+                        <option value="">-- Select type --</option>
                         <option value="tcp">TCP</option>
                         <option value="ipc">IPC</option>
                     </select>
@@ -84,7 +100,7 @@ var RegisterPlatformForm = React.createClass({
                         className="form__control form__control--block"
                         type="text"
                         onChange={this._onAddressChange}
-                        value={this.state.address}
+                        value={this.state.ipaddress}
                         required
                     />
                 </div>
@@ -115,6 +131,13 @@ var RegisterPlatformForm = React.createClass({
                         value={this.state.secretKey}
                     />
                 </div>
+                <div className={this.state.hidePreview}>
+                    <label>Preview</label>
+                    <textarea
+                        className="form__control form__control--block"
+                        value={this.state.address}
+                    />
+                </div>
                 <div className="form__actions">
                     <button
                         className="button button--secondary"
@@ -124,8 +147,15 @@ var RegisterPlatformForm = React.createClass({
                         Cancel
                     </button>
                     <button
+                        className="button button--secondary"
+                        type="button"
+                        onClick={this._onPreviewClick}
+                    >
+                        Preview
+                    </button>
+                    <button
                         className="button"
-                        disabled={!this.state.name || !this.state.address}
+                        disabled={!this.state.name || !this.state.protocol || !this.state.address}
                     >
                         Register
                     </button>
