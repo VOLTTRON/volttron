@@ -390,6 +390,14 @@ def bacnet_proxy_agent(config_path, **kwargs):
                 
             request.pduDestination = Address(target_address)
             
+            #Optional index
+            if index is not None:
+                request.propertyArrayIndex = index
+            
+            #Optional priority
+            if priority is not None:
+                request.priority = priority
+            
             iocb = IOCB(request, self.async_call)
             self.this_application.submit_request(iocb)
             result = iocb.ioResult.wait()
