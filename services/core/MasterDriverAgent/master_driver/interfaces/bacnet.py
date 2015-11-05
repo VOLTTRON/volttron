@@ -138,21 +138,21 @@ class Interface(BaseInterface):
             point_name = regDef['Volttron Point Name']        
             index = int(regDef['Index'])   
                 
-            list_index = regDef.get('List Index', '')
+            list_index = regDef.get('Array Index', '')
             list_index = list_index.strip()
             if not list_index:
                 list_index = None
             else:
                 list_index = int(list_index) 
                 
-            priority = regDef.get('Priority', '')
+            priority = regDef.get('Write Priority', '')
             priority = priority.strip()
             if not priority:
                 priority = None
             else:
-                priority = int(list_index) 
+                priority = int(priority) 
                 
-            description = regDef['Notes']                 
+            description = regDef.get('Notes', '')                 
             units = regDef['Units']       
             property_name = regDef['Property']       
                         
@@ -164,6 +164,6 @@ class Interface(BaseInterface):
                                 units, 
                                 description = description,
                                 priority = priority,
-                                index = list_index)
+                                list_index = list_index)
                 
             self.insert_register(register)
