@@ -413,6 +413,8 @@ def bacnet_proxy_agent(config_path, **kwargs):
             # back on the the names
             reverse_point_map = {}
             
+            #TODO Support rading an index of an Array.
+            
             #Used to group properties together for the request.
             object_property_map = defaultdict(list)
             
