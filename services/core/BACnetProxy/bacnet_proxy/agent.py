@@ -365,7 +365,7 @@ def bacnet_proxy_agent(config_path, **kwargs):
                 propertyIdentifier=property_name)
             
             datatype = get_datatype(object_type, property_name)
-            if (value == 'null'):
+            if (value is None or value == 'null'):
                 bac_value = Null()
             elif issubclass(datatype, Atomic):
                 if datatype is Integer:
