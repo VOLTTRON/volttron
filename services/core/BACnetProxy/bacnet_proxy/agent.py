@@ -365,7 +365,7 @@ def bacnet_proxy_agent(config_path, **kwargs):
                 propertyIdentifier=property_name)
             
             datatype = get_datatype(object_type, property_name)
-            if (value == 'null'):
+            if (value is None or value == 'null'):
                 bac_value = Null()
             elif issubclass(datatype, Atomic):
                 if datatype is Integer:
@@ -390,6 +390,14 @@ def bacnet_proxy_agent(config_path, **kwargs):
                 
             request.pduDestination = Address(target_address)
             
+            #Optional index
+            if index is not None:
+                request.propertyArrayIndex = index
+            
+            #Optional priority
+            if priority is not None:
+                request.priority = priority
+            
             iocb = IOCB(request, self.async_call)
             self.this_application.submit_request(iocb)
             result = iocb.ioResult.wait()
@@ -404,6 +412,8 @@ def bacnet_proxy_agent(config_path, **kwargs):
             #This will be used to get the results mapped
             # back on the the names
             reverse_point_map = {}
+            
+            #TODO Support rading an index of an Array.
             
             #Used to group properties together for the request.
             object_property_map = defaultdict(list)

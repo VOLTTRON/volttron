@@ -56,11 +56,16 @@ from csv import DictReader
 from StringIO import StringIO
 
 class Register(BaseRegister):
-    def __init__(self, instance_number, object_type, property_name, read_only, pointName, units, description = ''):
+    def __init__(self, instance_number, object_type, property_name, read_only, pointName, units, 
+                 description = '',
+                 priority = None,
+                 list_index = None):
         super(Register, self).__init__("byte", read_only, pointName, units, description = '')
         self.instance_number = int(instance_number)
         self.object_type = object_type
         self.property = property_name
+        self.priority = priority
+        self.index = list_index
 
         
 class Interface(BaseInterface):
@@ -89,17 +94,20 @@ class Interface(BaseInterface):
         return result[point_name]
     
     def set_point(self, point_name, value):    
+        #TODO: support writing from an array.
         register = self.get_register_by_name(point_name)  
         if register.read_only:
             raise  IOError("Trying to write to a point configured read only: "+point_name)
         args = [self.target_address, value,
                 register.object_type, 
                 register.instance_number, 
-                register.property]
+                register.property,
+                register.priority]
         result = self.vip.rpc.call(self.proxy_address, 'write_property', *args).get(timeout=10.0)
         return result
         
     def scrape_all(self):
+        #TODO: support reading from an array.
         point_map = {}
         read_registers = self.get_registers_by_type("byte", True)
         write_registers = self.get_registers_by_type("byte", False) 
@@ -122,14 +130,29 @@ class Interface(BaseInterface):
         
         for regDef in configDict:
             #Skip lines that have no address yet.
-            if not regDef['Point Name']:
-                continue
+#             if not regDef['Point Name']:
+#                 continue
             
             io_type = regDef['BACnet Object Type']
             read_only = regDef['Writable'].lower() != 'true'
             point_name = regDef['Volttron Point Name']        
-            index = int(regDef['Index'])        
-            description = regDef['Notes']                 
+            index = int(regDef['Index'])   
+                
+            list_index = regDef.get('Array Index', '')
+            list_index = list_index.strip()
+            if not list_index:
+                list_index = None
+            else:
+                list_index = int(list_index) 
+                
+            priority = regDef.get('Write Priority', '')
+            priority = priority.strip()
+            if not priority:
+                priority = None
+            else:
+                priority = int(priority) 
+                
+            description = regDef.get('Notes', '')                 
             units = regDef['Units']       
             property_name = regDef['Property']       
                         
@@ -139,6 +162,8 @@ class Interface(BaseInterface):
                                 read_only, 
                                 point_name,
                                 units, 
-                                description = description)
+                                description = description,
+                                priority = priority,
+                                list_index = list_index)
                 
             self.insert_register(register)
