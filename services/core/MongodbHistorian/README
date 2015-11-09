@@ -1,0 +1,6 @@
+In order to use mongodb one must install the pymongo connector
+
+From an activated shell execute
+
+  pip install pymongo
+
