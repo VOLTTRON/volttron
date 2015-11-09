@@ -121,6 +121,9 @@ var platformActionCreators = {
                 });
             });
     },
+    removeAgent: function () {
+
+    },
     installAgents: function (platform, files) {
         platformActionCreators.clearPlatformError(platform);
 
