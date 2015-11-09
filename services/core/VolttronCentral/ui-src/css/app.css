@@ -383,6 +383,10 @@ br + .form__control-help {
     margin-top: 1.5em;
 }
 
+.preview-hidden {
+    display: none;
+}
+
 .edit-chart-form {
     width: 400px;
 }

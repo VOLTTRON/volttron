@@ -3,6 +3,9 @@
 var React = require('react');
 
 var platformActionCreators = require('../action-creators/platform-action-creators');
+var modalActionCreators = require('../action-creators/modal-action-creators');
+
+var RemoveAgentForm = require('./remove-agent-form');
 
 var AgentRow = React.createClass({
     _onStop: function () {
@@ -11,8 +14,11 @@ var AgentRow = React.createClass({
     _onStart: function () {
         platformActionCreators.startAgent(this.props.platform, this.props.agent);
     },
+    _onRemove: function () {
+        modalActionCreators.openModal(<RemoveAgentForm platform={this.props.platform} agent={this.props.agent} />);
+    },
     render: function () {
-        var agent = this.props.agent, status, action;
+        var agent = this.props.agent, status, action, remove;
 
         if (agent.actionPending === undefined) {
             status = 'Retrieving status...';
@@ -47,12 +53,14 @@ var AgentRow = React.createClass({
             }
         }
 
+        remove = ( <input className="button" type="button" value="Remove" onClick={this._onRemove} /> );
+
         return (
             <tr>
                 <td>{agent.name}</td>
                 <td>{agent.uuid}</td>
                 <td>{status}</td>
-                <td>{action}</td>
+                <td>{action} {remove}</td>
             </tr>
         );
     },
