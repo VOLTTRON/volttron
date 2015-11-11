@@ -76,6 +76,7 @@ class Interface(BaseInterface):
         self.parse_config(registry_config_str)         
         self.target_address = config_dict["device_address"]
         self.proxy_address = config_dict.get("proxy_address", "platform.bacnet_proxy")
+        self.max_per_request = config_dict.get("max_per_request")
         self.ping_target(self.target_address)
                                          
     def ping_target(self, address):    
@@ -117,7 +118,8 @@ class Interface(BaseInterface):
                                               register.property]
         
         result = self.vip.rpc.call(self.proxy_address, 'read_properties', 
-                                       self.target_address, point_map).get(timeout=10.0)
+                                       self.target_address, point_map,
+                                       self.max_per_request).get(timeout=10.0)
         return result
     
     def parse_config(self, config_string):

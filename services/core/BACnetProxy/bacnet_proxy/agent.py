@@ -60,6 +60,14 @@ import sqlite3
 from volttron.platform.vip.agent import Agent, Core, RPC
 from volttron.platform.async import AsyncCall
 from volttron.platform.agent import utils
+
+utils.setup_logging()
+_log = logging.getLogger(__name__)
+
+bacnet_logger = logging.getLogger("bacpypes")
+bacnet_logger.setLevel(logging.WARNING)
+
+
 import os.path
 import errno
 from zmq.utils import jsonapi
@@ -67,7 +75,6 @@ from collections import defaultdict
 
 from Queue import Queue, Empty
 
-from bacpypes.debugging import class_debugging, ModuleLogger
 from bacpypes.task import RecurringTask
 from bacpypes.apdu import ConfirmedRequestSequence, WhoIsRequest
 
@@ -121,7 +128,6 @@ class IOCB:
     def set_exception(self, exception):
         self.ioCall.send(None, self.ioResult.set_exception, exception)
 
-@class_debugging
 class BACnet_application(BIPSimpleApplication, RecurringTask):
     def __init__(self, *args):
         BIPSimpleApplication.__init__(self, *args)
@@ -282,8 +288,7 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
 
 
 
-utils.setup_logging()
-_log = logging.getLogger(__name__)
+write_debug_str = "Writing: {target} {type} {instance} {property} (Priority: {priority}, Index: {index}): {value}"
 
 
 def bacnet_proxy_agent(config_path, **kwargs):
@@ -316,11 +321,11 @@ def bacnet_proxy_agent(config_path, **kwargs):
                          obj_name='sMap BACnet driver', 
                          ven_id=15): 
                         
-            print 'seg_supported', seg_supported
-            print 'max_apdu_len', max_apdu_len
-            print 'obj_id', obj_id
-            print 'obj_name', obj_name
-            print 'ven_id', ven_id
+            _log.info('seg_supported '+str(seg_supported))
+            _log.info('max_apdu_len '+str(max_apdu_len))
+            _log.info('obj_id '+str(obj_id))
+            _log.info('obj_name '+str(obj_name))
+            _log.info('ven_id '+str(ven_id))
             
             #Check to see if they gave a valid apdu length.
             if encode_max_apdu_response(max_apdu_len) is None:
@@ -351,6 +356,7 @@ def bacnet_proxy_agent(config_path, **kwargs):
         @RPC.export
         def ping_device(self, target_address):
             """Ping a device with a whois to potentially setup routing."""
+            _log.debug("Pinging "+target_address)
             request = WhoIsRequest()
             request.pduDestination = Address(target_address)
             
@@ -360,6 +366,15 @@ def bacnet_proxy_agent(config_path, **kwargs):
         @RPC.export
         def write_property(self, target_address, value, object_type, instance_number, property_name, priority=None, index=None):
             """Write to a property."""
+            
+            _log.debug(write_debug_str.format(target=target_address,
+                                              type=object_type,
+                                              instance=instance_number,
+                                              property=property_name,
+                                              priority=priority,
+                                              index=index,
+                                              value=value))
+            
             request = WritePropertyRequest(
                 objectIdentifier=(object_type, instance_number),
                 propertyIdentifier=property_name)
@@ -409,6 +424,15 @@ def bacnet_proxy_agent(config_path, **kwargs):
         @RPC.export
         def read_properties(self, target_address, point_map, max_per_request=None):
             """Read a set of points and return the results"""
+            
+            #Set max_per_request really high if not set.
+            if max_per_request is None:
+                max_per_request = 1000000
+                
+            _log.debug("Reading {count} points on {target}, max per scrape: {max}".format(count=len(point_map),
+                                                                                          target=target_address,
+                                                                                          max=max_per_request))
+            
             #This will be used to get the results mapped
             # back on the the names
             reverse_point_map = {}
@@ -427,29 +451,44 @@ def bacnet_proxy_agent(config_path, **kwargs):
                 object_property_map[object_type,
                                     instance_number].append(property_name)
                                     
-            read_access_spec_list = []
-            for obj_data, properties in object_property_map.iteritems():
-                obj_type, obj_inst = obj_data
-                prop_ref_list = []
-                for prop in properties:
-                    prop_ref = PropertyReference(propertyIdentifier=prop)
-                    prop_ref_list.append(prop_ref)
-                read_access_spec = ReadAccessSpecification(objectIdentifier=(obj_type, obj_inst),
-                                                           listOfPropertyReferences=prop_ref_list)
-                read_access_spec_list.append(read_access_spec)    
-                
-            request = ReadPropertyMultipleRequest(listOfReadAccessSpecs=read_access_spec_list)
-            request.pduDestination = Address(target_address)
-            
-            iocb = IOCB(request, self.async_call)
-            self.this_application.submit_request(iocb)   
-            bacnet_results = iocb.ioResult.get(10)
-            
             result_dict={}
-        
-            for prop_tuple, value in bacnet_results.iteritems():
-                name = reverse_point_map[prop_tuple]
-                result_dict[name] = value        
+            finished = False
+                            
+            while not finished:        
+                read_access_spec_list = []
+                count = 0
+                for _ in xrange(max_per_request):
+                    try:
+                        obj_data, properties = object_property_map.popitem()
+                    except KeyError:
+                        finished = True
+                        break
+                    obj_type, obj_inst = obj_data
+                    prop_ref_list = []
+                    for prop in properties:
+                        prop_ref = PropertyReference(propertyIdentifier=prop)
+                        prop_ref_list.append(prop_ref)
+                        count += 1
+                    read_access_spec = ReadAccessSpecification(objectIdentifier=(obj_type, obj_inst),
+                                                               listOfPropertyReferences=prop_ref_list)
+                    read_access_spec_list.append(read_access_spec)    
+                    
+                if read_access_spec_list:
+                    _log.debug("Requesting {count} properties from {target}".format(count=count,
+                                                                                    target=target_address))
+                    request = ReadPropertyMultipleRequest(listOfReadAccessSpecs=read_access_spec_list)
+                    request.pduDestination = Address(target_address)
+                    
+                    iocb = IOCB(request, self.async_call)
+                    self.this_application.submit_request(iocb)   
+                    bacnet_results = iocb.ioResult.get(10)
+                    
+                    _log.debug("Received read response from {target}".format(count=count,
+                                                                             target=target_address))
+                
+                    for prop_tuple, value in bacnet_results.iteritems():
+                        name = reverse_point_map[prop_tuple]
+                        result_dict[name] = value        
             
             return result_dict
         
