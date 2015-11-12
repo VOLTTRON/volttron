@@ -77,6 +77,8 @@ from bacpypes.errors import ExecutionError
 from csv import DictReader
 import logging
 
+from utils import createDaemon
+
 #---------------------------------------------------------------------------# 
 # configure the service logging
 #---------------------------------------------------------------------------# 
@@ -384,6 +386,10 @@ class ReadPropertyMultipleApplication(BIPSimpleApplication):
 
 try:
     abstraction = DeviceAbstraction(args.interface, args.config)
+    
+    #Create the deamon as soon as we've loaded the device configuration.
+    createDaemon()
+    
     application = abstraction.get_server_application()
 
     _log.debug("running")

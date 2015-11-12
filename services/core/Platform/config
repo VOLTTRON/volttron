@@ -8,6 +8,6 @@
     # platform.historian.
     #
     # Default "report_status_period": 30
-    "report_status_period": 1
+    "report_status_period": 15
     
 }

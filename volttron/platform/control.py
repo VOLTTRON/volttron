@@ -74,7 +74,7 @@ import gevent.event
 from zmq import curve_keypair
 
 from .agent import utils
-from .vip.agent import Agent as BaseAgent, RPC
+from .vip.agent import Agent as BaseAgent, Core, RPC
 from .vip.socket import encode_key
 from . import aip as aipmod
 from . import config
@@ -97,8 +97,19 @@ _log = logging.getLogger(os.path.basename(sys.argv[0])
 
 class ControlService(BaseAgent):
     def __init__(self, aip, *args, **kwargs):
+        tracker = kwargs.pop('tracker', None)
         super(ControlService, self).__init__(*args, **kwargs)
         self._aip = aip
+        self._tracker = tracker
+
+    @Core.receiver('onsetup')
+    def _setup(self, sender, **kwargs):
+        if not self._tracker:
+            return
+        self.vip.rpc.export(lambda: self._tracker.enabled, 'stats.enabled')
+        self.vip.rpc.export(self._tracker.enable, 'stats.enable')
+        self.vip.rpc.export(self._tracker.disable, 'stats.disable')
+        self.vip.rpc.export(lambda: self._tracker.stats, 'stats.get')
 
     @RPC.export
     def clear_status(self, clear_all=False):
@@ -475,6 +486,21 @@ def print_keypair(opts):
     _stdout.write('public: %s\nsecret: %s\n' % (
         encode_key(public), encode_key(secret)))
 
+def do_stats(opts):
+    call = opts.connection.call
+    if opts.op == 'status':
+        _stdout.write('%sabled\n' % ('en' if call('stats.enabled') else 'dis'))
+    elif opts.op in ['dump', 'pprint']:
+        stats = call('stats.get')
+        if opts.op == 'pprint':
+            import pprint
+            pprint.pprint(stats, _stdout)
+        else:
+            _stdout.writelines([str(stats), '\n'])
+    else:
+        call('stats.' + opts.op)
+        _stdout.write('%sabled\n' % ('en' if call('stats.enabled') else 'dis'))
+
 
 # XXX: reimplement over VIP
 #def send_agent(opts):
@@ -710,6 +736,12 @@ def main(argv=sys.argv):
     keypair = add_parser('keypair',
         help='generate CurveMQ keys for encrypting VIP connections')
     keypair.set_defaults(func=print_keypair)
+
+    stats = add_parser('stats',
+        help='manage router message statistics tracking')
+    op = stats.add_argument(
+        'op', choices=['status', 'enable', 'disable', 'dump', 'pprint'], nargs='?')
+    stats.set_defaults(func=do_stats, op='status')
 
     if HAVE_RESTRICTED:
         cgroup = add_parser('create-cgroups',

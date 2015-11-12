@@ -329,7 +329,8 @@ def DataPub(config_path, **kwargs):
                         if not header_point_map:
                             if value:
                                 sensor_name = sensor.split('/')[-1]
-                                container = '/'.join(sensor.split('/')[:-1])
+                                # container should start with a /
+                                container = '/' + '/'.join(sensor.split('/')[:-1])                               
                                 
                                 publish_point(device_root+container,
                                                       sensor_name, value)
