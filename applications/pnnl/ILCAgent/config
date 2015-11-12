@@ -36,6 +36,10 @@
 						"minimum": 0,
 						"maximum": 1.0
 					}
+					"curtail": {
+						"point": "CoolingTemperatureSetPoint",
+						"value": "78"
+					}
 				},
 				"CoolingCommand2": { 
 					"criterion1":{

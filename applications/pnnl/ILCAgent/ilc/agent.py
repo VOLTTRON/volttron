@@ -125,7 +125,7 @@ def ahp(config_path, **kwargs):
                         self.off_dev[key].append(sub_dev)
                         
         def construct_input(self, key, sub_dev, criteria, data):
-            builder.update{key+sub_dev:{}}
+            self.builder.update({key+sub_dev:{}})
             for item in criteria:
                 _name = criteria['name']
                 op_type = criteria['operation_type']
@@ -136,15 +136,15 @@ def ahp(config_path, **kwargs):
                         val = criteria['minimum']
                     if val > criteria['maximum']:
                         val = criteria['maximum']
-                    builder[key+sub_dev].update({_name: val})
+                    self.builder[key+sub_dev].update({_name: val})
                     continue
                 if isinstance(op_type, list) and op_type and op_type[0] == 'mapper':
-                    val = conf['mapper-" + op_type[1]][operation]
+                    val = conf['mapper-' + op_type[1]][operation]
                     if val < criteria['minimum']:
                         val = criteria['minimum']
                     if val > criteria['maximum']:
                         val = criteria['maximum']
-                    builder[key+sub_dev].update({_name: val})
+                    self.builder[key+sub_dev].update({_name: val})
                     continue
                 if isinstance(op_type, list) and op_type and op_type[0] == 'status':
                     if data[op_type[1]]:
@@ -156,13 +156,13 @@ def ahp(config_path, **kwargs):
                 if isinstance(op_type, list) and op_type and op_type[0][0] == 'staged':
                     val = 0
                     for i in range(1, op_type[0][1]+1):
-                        if data[op_type[i][0]]]:
+                        if data[op_type[i][0]]:
                             val += op_type[i][1]
                     if val < criteria['minimum']:
                         val = criteria['minimum']
                     if val > criteria['maximum']:
                         val = criteria['maximum']
-                    builder[key+sub_dev].update({_name: val})
+                    self.builder[key+sub_dev].update({_name: val})
                     continue
                 if isinstance(op_type, list) and op_type and op_type[0] == 'formula':
                     _points = op_type[1].split(" ")
@@ -176,7 +176,7 @@ def ahp(config_path, **kwargs):
                         val = criteria['minimum']
                     if val > criteria['maximum']:
                         val = criteria['maximum']
-                    builder[key+sub_dev].update({_name: val})
+                    self.builder[key+sub_dev].update({_name: val})
                     continue
 
         def check_load(self, headers, message):
@@ -190,9 +190,9 @@ def ahp(config_path, **kwargs):
     return AHP(**kwargs)               
                     
                     
- def main(argv=sys.argv):
-    '''Main method called to start the agent.'''
-    utils.vip_main(bacnet_proxy_agent)
+def main(argv=sys.argv):
+   '''Main method called to start the agent.'''
+   utils.vip_main(bacnet_proxy_agent)
 
 
 if __name__ == '__main__':
