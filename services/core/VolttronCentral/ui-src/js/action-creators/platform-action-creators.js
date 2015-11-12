@@ -121,8 +121,43 @@ var platformActionCreators = {
                 });
             });
     },
-    removeAgent: function () {
+    removeAgent: function (platform, agent) {
+        var authorization = authorizationStore.getAuthorization();
 
+        agent.actionPending = true;
+
+        dispatcher.dispatch({
+            type: ACTION_TYPES.CLOSE_MODAL,
+        });
+
+        dispatcher.dispatch({
+            type: ACTION_TYPES.RECEIVE_PLATFORM,
+            platform: platform,
+        });
+
+        var methodStr = 'platforms.uuid.' + platform.uuid + '.remove_agent';
+        var agentId = [agent.uuid];
+        
+        new rpc.Exchange({
+            method: methodStr,
+            params: agentId,
+            authorization: authorization,
+        }).promise
+            .then(function (result) {
+                
+                if (result.error) {
+                    dispatcher.dispatch({
+                        type: ACTION_TYPES.RECEIVE_PLATFORM_ERROR,
+                        platform: platform,
+                        error: result.error,
+                    });
+                }
+                else
+                {
+                    platformActionCreators.loadPlatform(platform);
+                }
+            })
+            .catch(rpc.Error, handle401);
     },
     installAgents: function (platform, files) {
         platformActionCreators.clearPlatformError(platform);

@@ -22,23 +22,25 @@ var RemoveAgentForm = React.createClass({
     },
     _onCancelClick: modalActionCreators.closeModal,
     _onSubmit: function () {
-        platformActionCreators.removeAgent(/*this.props.platform, this.props.chart, this.state*/);
+        platformActionCreators.removeAgent(this.props.platform, this.props.agent);
     },
     render: function () {
-        var agentInfo = {
-            method: 'platforms.uuid.' + this.props.platform.uuid + '.remove_agent',
-            params: [this.props.agent.uuid],
-            authorization: 'someAuthorizationToken',
-        };
+        // var agentInfo = {
+        //     method: 'platforms.uuid.' + this.props.platform.uuid + '.remove_agent',
+        //     params: [this.props.agent.uuid],
+        //     authorization: 'someAuthorizationToken',
+        // };
 
-        var agentInfoString = '{method: ' + agentInfo.method + ',  params: [' + agentInfo.params + '] , authorization: ' + 
-            agentInfo.authorization + '}';
+        // var agentInfoString = '{method: ' + agentInfo.method + ',  params: [' + agentInfo.params + '] , authorization: ' + 
+        //     agentInfo.authorization + '}';
 
+        var removeMsg = 'Remove agent ' + this.props.agent.uuid + ' (' + this.props.agent.name + 
+            ', ' + this.props.agent.tag + ')?';
         
 
         return (
             <form className="remove-agent-form" onSubmit={this._onSubmit}>
-                <div >{agentInfoString}</div>
+                <div >{removeMsg}</div>
                 <div className="form__actions">
                     <button
                         className="button button--secondary"
@@ -49,9 +51,10 @@ var RemoveAgentForm = React.createClass({
                     </button>
                     <button
                         className="button"
-                        disabled={!this.state.topic || !this.state.type}
+                        type="submit"
+                        disabled={!this.props.agent.uuid}
                     >
-                        Save
+                        Remove
                     </button>
                 </div>
             </form>
