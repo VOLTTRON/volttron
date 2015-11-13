@@ -131,9 +131,9 @@ def DrivenAgent(config_path, **kwargs):
         base_dev + '({})(/.*)?/all$'
         .format('|'.join(re.escape(p) for p in units)))
     
-    unittype_map = config.get('unittype_map', None)
+    unittype_map = conf.get('unittype_map', None)
     assert unittype_map
-    
+
     klass = _get_class(application)
     # This instances is used to call the applications run method when
     # data comes in on the message bus.  It is constructed here
@@ -186,6 +186,9 @@ def DrivenAgent(config_path, **kwargs):
             # Do the analysis based upon the data passed (the old code).
             # print self._subdevice_values, self._device_values
             obj = jsonapi.loads(message[0])
+    
+            # protect against a list being published from the data publisher.
+
             if isinstance(obj, list):
                 obj = obj[0]
             dev_list = topic.split('/')
