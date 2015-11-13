@@ -26,9 +26,7 @@ Agent UUID: <input type="text" id="agent" placeholder="Enter the agent's UUID" /
                  jsonrpc: '2.0',
                  method:  "platforms.uuid." + platform + ".remove_agent",
                  authorization: token,
-                 params: {
-                    agents: [agent],
-                 },
+                 params: [agent],
                  id: '72581-4'
          };
          $.ajax({
@@ -37,9 +35,9 @@ Agent UUID: <input type="text" id="agent" placeholder="Enter the agent's UUID" /
              data: JSON.stringify(pdata),
              dataType: 'json',
              success: function(data){
-                 $('#results').text('Success ' + data.result.toString());},
+                 $('#results').text('Success ' + data.result.toString() + '\n' + JSON.stringify(pdata));},
              failure: function(data){
-                 $('#results').text('failure ' + data.toString());}
+                 $('#results').text('failure ' + data.toString() + '\n' + JSON.stringify(pdata));}
 
          });
     });
