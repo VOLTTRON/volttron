@@ -125,6 +125,7 @@ var platformActionCreators = {
         var authorization = authorizationStore.getAuthorization();
 
         agent.actionPending = true;
+        
 
         dispatcher.dispatch({
             type: ACTION_TYPES.CLOSE_MODAL,
@@ -206,41 +207,41 @@ var platformActionCreators = {
                 } else {
                     // Provide default set of charts if none are configured
                     platform.charts = [
-                        {
-                          "topic": "datalogger/log/platform/status/cpu/percent",
-                          "refreshInterval": 15000,
-                          "type": "line",
-                          "min": 0,
-                          "max": 100
-                        },
-                        {
-                          "topic": "datalogger/log/platform/status/cpu/times_percent/idle",
-                          "refreshInterval": 15000,
-                          "type": "line",
-                          "min": 0,
-                          "max": 100
-                        },
-                        {
-                          "topic": "datalogger/log/platform/status/cpu/times_percent/nice",
-                          "refreshInterval": 15000,
-                          "type": "line",
-                          "min": 0,
-                          "max": 100
-                        },
-                        {
-                          "topic": "datalogger/log/platform/status/cpu/times_percent/system",
-                          "refreshInterval": 15000,
-                          "type": "line",
-                          "min": 0,
-                          "max": 100
-                        },
-                        {
-                          "topic": "datalogger/log/platform/status/cpu/times_percent/user",
-                          "refreshInterval": 15000,
-                          "type": "line",
-                          "min": 0,
-                          "max": 100
-                        },
+//                        {
+//                          "topic": "datalogger/log/platform/status/cpu/percent",
+//                          "refreshInterval": 15000,
+//                          "type": "line",
+//                          "min": 0,
+//                          "max": 100
+//                        },
+//                        {
+//                          "topic": "datalogger/log/platform/status/cpu/times_percent/idle",
+//                          "refreshInterval": 15000,
+//                          "type": "line",
+//                          "min": 0,
+//                          "max": 100
+//                        },
+//                        {
+//                          "topic": "datalogger/log/platform/status/cpu/times_percent/nice",
+//                          "refreshInterval": 15000,
+//                          "type": "line",
+//                          "min": 0,
+//                          "max": 100
+//                        },
+//                        {
+//                          "topic": "datalogger/log/platform/status/cpu/times_percent/system",
+//                          "refreshInterval": 15000,
+//                          "type": "line",
+//                          "min": 0,
+//                          "max": 100
+//                        },
+//                        {
+//                          "topic": "datalogger/log/platform/status/cpu/times_percent/user",
+//                          "refreshInterval": 15000,
+//                          "type": "line",
+//                          "min": 0,
+//                          "max": 100
+//                        },
                     ];
                 }
 
