@@ -81,6 +81,8 @@ _log = logging.getLogger(__name__)
 ACTUATOR_TOPIC_PREFIX_PARTS = len(topics.ACTUATOR_VALUE.split('/'))
 ALL_REX = re.compile('.*/all$')
 
+
+
 class BaseHistorianAgent(Agent):
     '''This is the base agent for historian Agents.
     It automatically subscribes to all device publish topics.
@@ -114,17 +116,13 @@ class BaseHistorianAgent(Agent):
         self._retry_period = retry_period
         self._submit_size_limit = submit_size_limit
         self._max_time_publishing = timedelta(seconds=max_time_publishing)
-        self._successful_published = set()
-        self._meta_data = defaultdict(dict)
-
+    
+        self._success_queue = Queue()
         self._event_queue = Queue()
         self._process_thread = Thread(target = self._process_loop)
         self._process_thread.daemon = True  # Don't wait on thread to exit.
         self._process_thread.start()
-        # The topic cache is only meant as a local lookup and should not be
-        # accessed via the implemented historians.
-        self._backup_cache = {}
-    
+        
     def _create_subscriptions(self):
         
         subscriptions = [
@@ -195,6 +193,7 @@ class BaseHistorianAgent(Agent):
         source = 'log'
         _log.debug("Queuing {topic} from {source} for publish".format(topic=topic,
                                                                       source=source))
+        _log.debug(data)
         for point, item in data.iteritems():
 #             ts_path = location + '/' + point
             if 'Readings' not in item or 'Units' not in item:
@@ -362,7 +361,10 @@ class BaseHistorianAgent(Agent):
         '''
 
         _log.debug("Starting process loop.")
-        self._setup_backup_db()
+        
+        backupdb = BackupDatabase(self._success_queue)
+    
+        # Sets up the concrete historian
         self.historian_setup()
 
         # now that everything is setup we need to make sure that the topics
@@ -374,7 +376,7 @@ class BaseHistorianAgent(Agent):
         #we may or may not want to wait on the event queue for more input
         #before proceeding with the rest of the loop.
         #wait_for_input = not bool(self._get_outstanding_to_publish())
-        wait_for_input = not bool(self._get_outstanding_to_publish())
+        wait_for_input = not bool(backupdb.get_outstanding_to_publish(self._submit_size_limit))
 
         while True:
             try:
@@ -391,15 +393,15 @@ class BaseHistorianAgent(Agent):
                         new_to_publish.append(self._event_queue.get_nowait())
                     except Empty:
                         break
-
-            self._backup_new_to_publish(new_to_publish)
+            
+            backupdb.backup_new_data(new_to_publish)
 
             wait_for_input = True
             start_time = datetime.utcnow()
             
             _log.debug("Calling publish_to_historian.")
             while True:
-                to_publish_list = self._get_outstanding_to_publish()
+                to_publish_list = backupdb.get_outstanding_to_publish(self._submit_size_limit)
                 if not to_publish_list or not self._started:
                     break
                 
@@ -409,17 +411,135 @@ class BaseHistorianAgent(Agent):
                      _log.exception("An unhandled exception occured while " \
                                "publishing to the historian.")
                 
-                if not self._any_sucessfull_publishes():
+                # if the successfule queue is empty then we need not remove them from the database.
+                if self._success_queue.empty():
                     break
-                self._cleanup_successful_publishes()
+                
+                backupdb.remove_successfully_published(self._submit_size_limit)
 
                 now = datetime.utcnow()
                 if now - start_time > self._max_time_publishing:
                     wait_for_input = False
                     break
         _log.debug("Finished processing")
+        
+    def report_handled(self, record):
+        self._success_queue.put(record)        
 
-    def _setup_backup_db(self):
+    def report_all_handled(self):
+        self._success_queue.put(None)
+
+    @abstractmethod
+    def publish_to_historian(self, to_publish_list):
+        '''Main publishing method for historian Agents.'''
+
+    def historian_setup(self):
+        '''Optional setup routine, run in the processing thread before
+           main processing loop starts.'''
+
+class BackupDatabase:
+    def __init__(self, success_queue):
+        # The topic cache is only meant as a local lookup and should not be
+        # accessed via the implemented historians.
+        self._backup_cache = {}
+        self._meta_data = defaultdict(dict)
+        self._success_queue = success_queue
+        self._setupdb()
+    
+    def backup_new_data(self, new_publish_list):
+        _log.debug("Backing up unpublished values.")
+        c = self._connection.cursor()
+
+        for item in new_publish_list:
+            source = item['source']
+            topic = item['topic']
+            meta = item.get('meta', {})
+            values = item['readings']
+
+            topic_id = self._backup_cache.get(topic)
+
+            if topic_id is None:
+                c.execute('''INSERT INTO topics values (?,?)''', (None, topic))
+                c.execute('''SELECT last_insert_rowid()''')
+                row = c.fetchone()
+                topic_id = row[0]
+                self._backup_cache[topic_id] = topic
+                self._backup_cache[topic] = topic_id
+
+            for name, value in meta.iteritems():
+                c.execute('''INSERT OR REPLACE INTO metadata values(?, ?, ?, ?)''',
+                            (source,topic_id,name,value))
+                self._meta_data[(source,topic_id)][name] = value
+
+            for timestamp, value in values:
+                c.execute('''INSERT OR REPLACE INTO outstanding values(NULL, ?, ?, ?, ?)''',
+                          (timestamp,source,topic_id,jsonapi.dumps(value)))
+
+        self._connection.commit()
+    
+    def _get_reported_success_from_queue(self):
+        successids = []
+        while True:
+            try:        
+                record = self._success_queue.get()
+                
+                if record == None:
+                    return [None]
+                
+                if isinstance(record, list):
+                    for x in record:
+                        successids.add(x['_id'])
+                else:
+                    successids.add(record['_id'])
+            except Empty:
+                return successids
+        
+    def remove_successfully_published(self, submit_size):
+        _log.debug("Cleaning up successfully published values.")
+        c = self._connection.cursor()
+        
+        reported_success = self._get_reported_success_from_queue()
+        if None in reported_success:
+            c.execute('''DELETE FROM outstanding
+                        WHERE ROWID IN
+                        (SELECT ROWID FROM outstanding
+                          ORDER BY ts LIMIT ?)''', (submit_size,))
+        else:
+            temp = list(self._successful_published)
+            temp.sort()
+            c.executemany('''DELETE FROM outstanding
+                            WHERE id = ?''',
+                            ((_id,) for _id in
+                             reported_success))
+
+        self._connection.commit()
+
+
+    
+    def get_outstanding_to_publish(self, size_limit):
+        _log.debug("Getting oldest outstanding to publish.")
+        c = self._connection.cursor()
+        c.execute('select * from outstanding order by ts limit ?', (size_limit,))
+
+        results = []
+        for row in c:
+            _id = row[0]
+            timestamp = row[1]
+            source = row[2]
+            topic_id = row[3]
+            value = jsonapi.loads(row[4])
+            meta = self._meta_data[(source, topic_id)].copy()
+            results.append({'_id':_id,
+                            'timestamp': timestamp.replace(tzinfo=pytz.UTC),
+                            'source': source,
+                            'topic': self._backup_cache[topic_id],
+                            'value': value,
+                            'meta': meta})
+
+        c.close()
+        return results
+
+    def _setupdb(self):
         ''' Creates a backup database for the historian if doesn't exist.'''
 
         _log.debug("Setting up backup DB.")
@@ -471,105 +591,6 @@ class BaseHistorianAgent(Agent):
 
         self._connection.commit()
 
-    def _get_outstanding_to_publish(self):
-        _log.debug("Getting oldest outstanding to publish.")
-        c = self._connection.cursor()
-        c.execute('select * from outstanding order by ts limit ?', (self._submit_size_limit,))
-
-        results = []
-        for row in c:
-            _id = row[0]
-            timestamp = row[1]
-            source = row[2]
-            topic_id = row[3]
-            value = jsonapi.loads(row[4])
-            meta = self._meta_data[(source, topic_id)].copy()
-            results.append({'_id':_id,
-                            'timestamp': timestamp.replace(tzinfo=pytz.UTC),
-                            'source': source,
-                            'topic': self._backup_cache[topic_id],
-                            'value': value,
-                            'meta': meta})
-
-        c.close()
-
-        return results
-
-    def _cleanup_successful_publishes(self):
-        _log.debug("Cleaning up successfully published values.")
-        c = self._connection.cursor()
-
-        if None in self._successful_published:
-            c.execute('''DELETE FROM outstanding
-                        WHERE ROWID IN
-                        (SELECT ROWID FROM outstanding
-                          ORDER BY ts LIMIT ?)''', (self._submit_size_limit,))
-        else:
-            temp = list(self._successful_published)
-            temp.sort()
-            c.executemany('''DELETE FROM outstanding
-                            WHERE id = ?''',
-                            ((_id,) for _id in
-                             self._successful_published))
-
-        self._connection.commit()
-
-        self._successful_published = set()
-
-    def _any_sucessfull_publishes(self):
-        return bool(self._successful_published)
-
-    def _backup_new_to_publish(self, new_publish_list):
-        _log.debug("Backing up unpublished values.")
-        c = self._connection.cursor()
-
-        for item in new_publish_list:
-            source = item['source']
-            topic = item['topic']
-            meta = item.get('meta', {})
-            values = item['readings']
-
-            topic_id = self._backup_cache.get(topic)
-
-            if topic_id is None:
-                c.execute('''INSERT INTO topics values (?,?)''', (None, topic))
-                c.execute('''SELECT last_insert_rowid()''')
-                row = c.fetchone()
-                topic_id = row[0]
-                self._backup_cache[topic_id] = topic
-                self._backup_cache[topic] = topic_id
-
-            for name, value in meta.iteritems():
-                c.execute('''INSERT OR REPLACE INTO metadata values(?, ?, ?, ?)''',
-                            (source,topic_id,name,value))
-                self._meta_data[(source,topic_id)][name] = value
-
-
-            
-            for timestamp, value in values:
-                c.execute('''INSERT OR REPLACE INTO outstanding values(NULL, ?, ?, ?, ?)''',
-                          (timestamp,source,topic_id,jsonapi.dumps(value)))
-
-        self._connection.commit()
-
-    def report_handled(self, record):
-        if isinstance(record, list):
-            for x in record:
-                self._successful_published.add(x['_id'])
-        else:
-            self._successful_published.add(record['_id'])
-
-    def report_all_handled(self):
-        self._successful_published.add(None)
-
-    @abstractmethod
-    def publish_to_historian(self, to_publish_list):
-        '''Main publishing method for historian Agents.'''
-
-    def historian_setup(self):
-        '''Optional setup routine, run in the processing thread before
-           main processing loop starts.'''
-
 
 class BaseQueryHistorianAgent(Agent):
     '''This is the base agent for query historian Agents.
@@ -599,8 +620,6 @@ class BaseQueryHistorianAgent(Agent):
                 end = parse(end)
             except TypeError:
                 end = time_parser.parse(end)
-
-        _log.debug("In base query")
 
         if start:
             _log.debug("start={}".format(start))
