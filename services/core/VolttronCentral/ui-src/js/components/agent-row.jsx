@@ -5,7 +5,7 @@ var React = require('react');
 var platformActionCreators = require('../action-creators/platform-action-creators');
 var modalActionCreators = require('../action-creators/modal-action-creators');
 
-// var RemoveAgentForm = require('./remove-agent-form');
+var RemoveAgentForm = require('./remove-agent-form');
 
 var AgentRow = React.createClass({
     _onStop: function () {
@@ -15,7 +15,7 @@ var AgentRow = React.createClass({
         platformActionCreators.startAgent(this.props.platform, this.props.agent);
     },
     _onRemove: function () {
-        // modalActionCreators.openModal(<RemoveAgentForm platform={this.props.platform} agent={this.props.agent} />);
+        modalActionCreators.openModal(<RemoveAgentForm platform={this.props.platform} agent={this.props.agent} />);
     },
     render: function () {
         var agent = this.props.agent, status, action, remove;

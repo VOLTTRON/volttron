@@ -5,7 +5,7 @@ var Router = require('react-router');
 
 var modalActionCreators = require('../action-creators/modal-action-creators');
 var platformsStore = require('../stores/platforms-store');
-//var RegisterPlatformForm = require('../components/register-platform-form');
+var RegisterPlatformForm = require('../components/register-platform-form');
 var DeregisterPlatformConfirmation = require('../components/deregister-platform-confirmation');
 
 var Platforms = React.createClass({
