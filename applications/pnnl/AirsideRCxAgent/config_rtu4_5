@@ -2,8 +2,8 @@
     "agentid": "airside_rcx",
     "application": "airside.airside_retuning_rcx.Application",
     "device": {
-        "campus": "campus1",
-        "building": "building1",
+        "campus": "campus",
+        "building": "building",
         "unit": {
             "rtu4": {
                 "subdevices": []

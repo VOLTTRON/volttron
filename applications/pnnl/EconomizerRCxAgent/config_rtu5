@@ -3,8 +3,8 @@
     "application": "economizer.economizer_rcx.Application",
 
     "device": {
-        "campus": "campus1",
-        "building": "building1",
+        "campus": "campus",
+        "building": "building",
         "unit": {
             "rtu5": {
                 "subdevices": []
