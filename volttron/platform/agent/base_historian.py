@@ -124,7 +124,23 @@ class BaseHistorianAgent(Agent):
         # The topic cache is only meant as a local lookup and should not be
         # accessed via the implemented historians.
         self._backup_cache = {}
-
+    
+    def _create_subscriptions(self):
+        
+        subscriptions = [
+                         (topics.DRIVER_TOPIC_BASE, self._capture_device_data),
+                         (topics.LOGGER_BASE, self._capture_log_data),
+                         (topics.ACTUATOR, self._capture_actuator_data),
+                         (topics.ANALYSIS_TOPIC_BASE, self._capture_analysis_data),
+                         (topics.RECORD, self._capture_record_data)
+        ]
+        
+        for prefix, cb in subscriptions:
+            _log.debug("subscribing to {}".format(prefix))
+            self.vip.pubsub.subscribe(peer='pubsub',
+                                      prefix=prefix,
+                                      callback=cb)
+            
     @Core.receiver("onstart")
     def starting_base(self, sender, **kwargs):
         '''
@@ -132,27 +148,9 @@ class BaseHistorianAgent(Agent):
         datalogger, and device topics to capture data.
         '''
         _log.debug("Starting base historian")
-
-        driver_prefix = topics.DRIVER_TOPIC_BASE
-        _log.debug("subscribing to {}".format(driver_prefix))
-        self.vip.pubsub.subscribe(peer='pubsub',
-                               prefix=driver_prefix,
-                               callback=self.capture_device_data)
- 
-        _log.debug('Subscribing to: {}'.format(topics.LOGGER_BASE))
-        self.vip.pubsub.subscribe(peer='pubsub',
-                               prefix=topics.LOGGER_BASE, #"datalogger",
-                               callback=self.capture_log_data)
- 
-        _log.debug('Subscribing to: '.format(topics.ACTUATOR))
-        self.vip.pubsub.subscribe(peer='pubsub',
-                               prefix=topics.ACTUATOR,  # actuators/*
-                               callback=self.capture_actuator_data)
-
-        _log.debug('Subscribing to: {}'.format(topics.ANALYSIS_TOPIC_BASE))
-        self.vip.pubsub.subscribe(peer='pubsub',
-                               prefix=topics.ANALYSIS_TOPIC_BASE,  # anaysis/*
-                               callback=self.capture_analysis_data)
+        
+        self._create_subscriptions()
+        
         self._started = True
         
     @Core.receiver("onstop")
@@ -168,8 +166,12 @@ class BaseHistorianAgent(Agent):
             # means that the agent didn't start up properly so the pubsub
             # subscriptions never got finished.
             pass
-
-    def capture_log_data(self, peer, sender, bus, topic, headers, message):
+    
+    def _capture_record_data(self, peer, sender, bus, topic, headers, message):
+        _log.debug('Capture record data {}'.format(message))
+        
+        
+    def _capture_log_data(self, peer, sender, bus, topic, headers, message):
         '''Capture log data and submit it to be published by a historian.'''
 
 #         parts = topic.split('/')
@@ -223,7 +225,7 @@ class BaseHistorianAgent(Agent):
                                    'readings': readings,
                                    'meta':meta})
 
-    def capture_device_data(self, peer, sender, bus, topic, headers, message):
+    def _capture_device_data(self, peer, sender, bus, topic, headers, message):
         '''Capture device data and submit it to be published by a historian.
         
         Filter out only the */all topics for publishing to the historian.
@@ -240,9 +242,9 @@ class BaseHistorianAgent(Agent):
         
         _log.debug("found topic {}".format(topic))
         
-        self.capture_data(peer, sender, bus, topic, headers, message, device)
+        self._capture_data(peer, sender, bus, topic, headers, message, device)
         
-    def capture_analysis_data(self, peer, sender, bus, topic, headers, message):
+    def _capture_analysis_data(self, peer, sender, bus, topic, headers, message):
         '''Capture analaysis data and submit it to be published by a historian.
         
         Filter out all but the all topics
@@ -255,9 +257,9 @@ class BaseHistorianAgent(Agent):
         # strip off the first part of the topic.
         device = '/'.join(parts[1:-1])
                 
-        self.capture_data(peer, sender, bus, topic, headers, message, device)
+        self._capture_data(peer, sender, bus, topic, headers, message, device)
         
-    def capture_data(self, peer, sender, bus, topic, headers, message, device):
+    def _capture_data(self, peer, sender, bus, topic, headers, message, device):
         
         timestamp_string = headers.get(headers_mod.DATE)
         timestamp, my_tz = process_timestamp(timestamp_string)
@@ -315,7 +317,7 @@ class BaseHistorianAgent(Agent):
                                    'readings': [(timestamp,value)],
                                    'meta': meta.get(key,{})})
 
-    def capture_actuator_data(self, topic, headers, message, match):
+    def _capture_actuator_data(self, topic, headers, message, match):
         '''Capture actuation data and submit it to be published by a historian.
         '''
         timestamp_string = headers.get('time')
