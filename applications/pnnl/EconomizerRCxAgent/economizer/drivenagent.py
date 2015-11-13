@@ -131,7 +131,7 @@ def DrivenAgent(config_path, **kwargs):
         base_dev + '({})(/.*)?/all$'
         .format('|'.join(re.escape(p) for p in units)))
     
-    unittype_map = conf.get('unittype_map', None)
+    unittype_map = config.get('unittype_map', None)
     assert unittype_map
 
     klass = _get_class(application)
