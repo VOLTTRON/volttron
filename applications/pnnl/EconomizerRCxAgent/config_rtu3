@@ -60,5 +60,16 @@
         "SupplyFanStatus": "int",
         "Cooling.*": "float",
         "SupplyFanSpeed": "int"
+    },
+    "unittype_map": {
+        ".*Temperature": "Farenheit",
+        ".*SetPoint": "Farenheit",
+        "OutdoorDamperSignal": "On/Off",
+        "SupplyFanStatus": "On/Off",
+        "CoolingCall": "On/Off",
+        "SupplyFanSpeed": "RPM",
+        "Damper*.": "On/Off",
+        "Heating*.": "On/Off",
+        "DuctStatic*.": "On/Off"
     }
 }
