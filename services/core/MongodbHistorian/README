@@ -1,6 +1,11 @@
 In order to use mongodb one must install the pymongo connector
 
 From an activated shell execute
-
   pip install pymongo
 
+You also need to pre-create your database in MongoDB before running this historian
+For example, to create a local MongoDB, do the followings in Mongo shell:
+    - Switch to the new database "volttron_guide":
+        use volttron_guide
+    - Create a new user for "volttron_guide":
+        db.createUser({user: "admin", pwd: "admin", roles: ["readWrite"] })
