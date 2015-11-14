@@ -248,7 +248,6 @@ def actuator_agent(config_path, **kwargs):
                        format(topic=topic, requester_id=requester_id, value=value))
             
             path, point_name = topic.rsplit('/', 1)
-            self.vip.rpc.call(driver_vip_identity, 'set_point', path, point_name, value)
             
             headers = self.get_headers(requester_id)
             
