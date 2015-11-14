@@ -45,6 +45,13 @@ var RegisterPlatformForm = React.createClass({
     _onCancelClick: modalActionCreators.closeModal,
     _onSubmit: function () {
 
+        platformManagerActionCreators.registerPlatform(
+            this.state.name, 
+            this._formatAddress());
+        
+    },
+    _formatAddress: function () {
+
         var fullAddress = this.state.protocol + "://" + this.state.ipaddress;
 
         if (this.state.serverKey)
@@ -62,29 +69,12 @@ var RegisterPlatformForm = React.createClass({
             fullAddress = fullAddress + "&secretkey=" + this.state.secretKey;
         }
 
-        platformManagerActionCreators.registerPlatform(
-            this.state.name, 
-            fullAddress);
+        return fullAddress;
     },
     render: function () {
         
-        var fullAddress = this.state.protocol + "://" + this.state.ipaddress;
-
-        if (this.state.serverKey)
-        {
-            fullAddress = fullAddress + "?serverkey=" + this.state.serverKey;
-        }
-
-        if (this.state.publicKey)
-        {
-            fullAddress = fullAddress + "&publickey=" + this.state.publicKey;
-        }
-
-        if (this.state.secretKey)
-        {
-            fullAddress = fullAddress + "&secretkey=" + this.state.secretKey;
-        }
-
+        var fullAddress = this._formatAddress();
+        
         return (
             <form className="register-platform-form" onSubmit={this._onSubmit}>
                 <h1>Register platform</h1>
