@@ -109,6 +109,10 @@ td:not(:first-child) {
     box-shadow: 0 0 0.0833rem 0.1667rem rgba(128,128,255,0.5), 0 0.3333rem #bbb;
 }
 
+.button--agent-action {
+    min-width: 6em;
+}
+
 .form__control-group {
     margin-top: 1.5em;
 }

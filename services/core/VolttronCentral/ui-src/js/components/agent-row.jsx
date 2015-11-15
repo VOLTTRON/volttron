@@ -26,34 +26,34 @@ var AgentRow = React.createClass({
             if (agent.process_id === null || agent.return_code !== null) {
                 status = 'Starting...';
                 action = (
-                    <input className="button" type="button" value="Start" disabled />
+                    <input className="button button--agent-action" type="button" value="Start" disabled />
                 );
             } else {
                 status = 'Stopping...';
                 action = (
-                    <input className="button" type="button" value="Stop" disabled />
+                    <input className="button button--agent-action" type="button" value="Stop" disabled />
                 );
             }
         } else {
             if (agent.process_id === null) {
                 status = 'Never started';
                 action = (
-                    <input className="button" type="button" value="Start" onClick={this._onStart} />
+                    <input className="button button--agent-action" type="button" value="Start" onClick={this._onStart} />
                 );
             } else if (agent.return_code === null) {
                 status = 'Running (PID ' + agent.process_id + ')';
                 action = (
-                    <input className="button" type="button" value="Stop" onClick={this._onStop} />
+                    <input className="button button--agent-action" type="button" value="Stop" onClick={this._onStop} />
                 );
             } else {
                 status = 'Stopped (returned ' + agent.return_code + ')';
                 action = (
-                    <input className="button" type="button" value="Start" onClick={this._onStart} />
+                    <input className="button button--agent-action" type="button" value="Start" onClick={this._onStart} />
                 );
             }
         }
 
-        remove = ( <input className="button" type="button" value="Remove" onClick={this._onRemove} /> );
+        remove = ( <input className="button button--agent-action" type="button" value="Remove" onClick={this._onRemove} /> );
 
         return (
             <tr>
