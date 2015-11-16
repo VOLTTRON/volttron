@@ -54,6 +54,12 @@ under Contract DE-AC05-76RL01830
 from master_driver.interfaces import BaseInterface, BaseRegister
 from csv import DictReader
 from StringIO import StringIO
+import logging
+
+from master_driver.driver_exceptions import DriverConfigError
+
+#Logging is completely configured by now.
+_log = logging.getLogger(__name__)
 
 class Register(BaseRegister):
     def __init__(self, instance_number, object_type, property_name, read_only, pointName, units, 
@@ -73,10 +79,11 @@ class Interface(BaseInterface):
         super(Interface, self).__init__(**kwargs)
         
     def configure(self, config_dict, registry_config_str):
+        self.min_priority = config_dict.get("min_priority", 8)
         self.parse_config(registry_config_str)         
         self.target_address = config_dict["device_address"]
         self.proxy_address = config_dict.get("proxy_address", "platform.bacnet_proxy")
-        self.max_per_request = config_dict.get("max_per_request")
+        self.max_per_request = config_dict.get("max_per_request")        
         self.ping_target(self.target_address)
                                          
     def ping_target(self, address):    
@@ -94,16 +101,21 @@ class Interface(BaseInterface):
                                        self.target_address, point_map).get(timeout=10.0)
         return result[point_name]
     
-    def set_point(self, point_name, value):    
+    def set_point(self, point_name, value, priority=None):    
         #TODO: support writing from an array.
         register = self.get_register_by_name(point_name)  
         if register.read_only:
             raise  IOError("Trying to write to a point configured read only: "+point_name)
+        
+        if priority is not None and priority < self.min_priority:
+            raise  IOError("Trying to write with a priority lower than the minimum of "+str(self.min_priority))
+        
+        #We've already validated the register priority against the min priority.
         args = [self.target_address, value,
                 register.object_type, 
                 register.instance_number, 
                 register.property,
-                register.priority]
+                priority if priority is not None else register.priority]
         result = self.vip.rpc.call(self.proxy_address, 'write_property', *args).get(timeout=10.0)
         return result
         
@@ -153,6 +165,12 @@ class Interface(BaseInterface):
                 priority = None
             else:
                 priority = int(priority) 
+                
+                if priority < self.min_priority:
+                    message = "{point} configured with a priority {priority} which is lower than than minimum {min}."
+                    raise DriverConfigError(message.format(point=point_name,
+                                                           priority=priority,
+                                                           min=self.min_priority))
                 
             description = regDef.get('Notes', '')                 
             units = regDef['Units']       
