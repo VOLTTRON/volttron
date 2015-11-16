@@ -214,32 +214,28 @@ class Application(AbstractDrivenAgent):
 
         # Verify data availability and map to correct array
         for key, value in device_dict.items():
+            parts = key.split('_')
+            tag = ''.join([parts[1], '/', parts[0], '/'])
             if key.startswith(self.duct_stp_stpt_name) and value is not None:
-                tag = ''.join([key.split[1], '/', key.split[0], '/'])
                 validate.update({tag: value})
                 sched_val.update(validate)
                 stcpr_sp_data.append(value)
             elif key.startswith(self.duct_stp_name) and value is not None:
-                tag = ''.join([key.split[1], '/', key.split[0], '/'])
                 validate.update({tag: value})
                 sched_val.update(validate)
                 stc_pr_data.append(value)
             elif key.startswith(self.zone_damper_name) and value is not None:
-                tag = ''.join([key.split[1], '/', key.split[0], '/'])
                 validate.update({tag: value})
                 zn_dmpr_data.append(value)
             elif key.startswith(self.sat_stpt_name) and value is not None:
-                tag = ''.join([key.split[1], '/', key.split[0], '/'])
                 validate.update({tag: value})
                 sched_val.update(validate)
                 sat_stpt_data.append(value)
             elif key.startswith(self.sa_temp_name) and value is not None:
-                tag = ''.join([key.split[1], '/', key.split[0], '/'])
                 validate.update({tag: value})
                 sched_val.update(validate)
                 satemp_data.append(value)
             elif key.startswith(self.zone_reheat_name) and value is not None:
-                tag = ''.join([key.split[1], '/', key.split[0], '/'])
                 validate.update({tag: value})
                 rht_data.append(value)
 
