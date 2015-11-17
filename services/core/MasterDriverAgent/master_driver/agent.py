@@ -148,12 +148,12 @@ def master_driver_agent(config_path, **kwargs):
             self.instances[topic] = driver
             
         @RPC.export
-        def get_point(self, path, point_name):
-            return self.instances[path].get_point(point_name)
+        def get_point(self, path, point_name, **kwargs):
+            return self.instances[path].get_point(point_name, **kwargs)
         
         @RPC.export
-        def set_point(self, path, point_name, value):
-            return self.instances[path].set_point(point_name, value)
+        def set_point(self, path, point_name, value, **kwargs):
+            return self.instances[path].set_point(point_name, value, **kwargs)
         
         @RPC.export
         def heart_beat(self):
