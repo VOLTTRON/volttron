@@ -62,8 +62,6 @@ MATRIX_ROWSTRING = "%20s\t%12.2f%12.2f%12.2f%12.2f%12.2f"
 CRITERIA_LABELSTRING = "\t\t\t%12s%12s%12s%12s%12s"
 DEVICE_ROWSTRING = "%20s%15.2f%12.2f%12.2f%12.2f%12.2f%12.2f%12.2f"
 DEVICE_LABELSTRING = "\t\t\t%12s%12s%12s%12s%12s%12s%12s"
-LABELS = ['NO_curtailing', 'deltaT_zone_delta', 'Room_rtu',
-          'Power_rtu', 'deltaT_zone_sp']
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -117,13 +115,11 @@ def extract_criteria_matrix(excel_file, sheet):
     for row in range(3, sheet.nrows):
         if(sheet.cell(row, 0).value == ""):
             break
-
         criteria_labels.append(sheet.cell(row, 0).value)
     criteria_labels.pop()
     # NOTE: the number of rows and number of columns should match
     # Iterate over the rows and columns of the spreadsheet loading
     # the numbers as floating point values into a list of lists.
-
     for row in range(3, 3 + len(criteria_labels)):
         temp_row = []
         for col in range(1, 1 + len(criteria_labels)):
@@ -162,12 +158,10 @@ def normalize_matrix(criteria_matrix, col_sums):
                                        else 1))
             j += 1
         rowsum = sum(norm_row)
-        # norm_row.append(rowsum/j)
+        norm_row.append(rowsum/j)
         rowsums.append(rowsum/j)
         normalized_matrix.append(norm_row)
         i += 1
-    # display_matrix([rowsums,], CRITERIA_LABELSTRING, criteria_LABELS,
-    # ['Priority vector'], MATRIX_ROWSTRING)
     return normalized_matrix, rowsums
 
 
@@ -191,7 +185,6 @@ def validate_input(pairwise_matrix, col_sums, display=False,
                    criteria_LABELS, ['5th root of product'],
                    MATRIX_ROWSTRING, display_dest) \
         if display else ""
-
     # Sum the vector of products
     root_sum = sum(roots)
     # Calculate the priority vector
@@ -203,7 +196,6 @@ def validate_input(pairwise_matrix, col_sums, display=False,
                    criteria_LABELS, ['Priority Vector'],
                    MATRIX_ROWSTRING, display_dest) \
         if display else ""
-
     # Calculate the priority row
     priority_row = []
     for i in range(0, len(col_sums)):
@@ -234,54 +226,20 @@ def validate_input(pairwise_matrix, col_sums, display=False,
     return consistency_ratio < 0.2
 
 
-def input_rtu(zn_temp, zn_tempsp, prev_temp, rtu_pwr,
-              zn_type, stg_val, rtu_labels):
-    i = 0
-    csum = []
-    data = []
-    zone_dt = [round(1/max((a - b), 0.1), 2) for a, b in
-               zip(zn_temp, zn_tempsp)]
-    zn_dtsp = [round(max(a - b, 0), 2) for a, b in
-               zip(prev_temp, zn_temp)]
-    data.append(
-        [val/sum(zone_dt) if sum(zone_dt) != 0 else 0 for val in zone_dt])
-    data.append(
-        [val/sum(zn_dtsp) if sum(zn_dtsp) != 0 else 0 for val in zn_dtsp])
-    data.append(
-        [val/sum(rtu_pwr) if sum(rtu_pwr) != 0 else 0 for val in rtu_pwr])
-    data.append(
-        [val/sum(zn_type) if sum(zn_type) != 0 else 0 for val in zn_type])
-    data.append(
-        [val/sum(stg_val) if sum(stg_val) != 0 else 0 for val in stg_val])
-    print data
-    while i < len(data[0]):
-        row = [float(col[i]) for col in data]
-        csum.append(row)
-        i += 1
-    input_rtus = csum
-
-    # display_devicematrix(in_matrix, DEVICE_LABELSTRING, rtu_LABELS,
-    # DEVICE_ROWSTRING)
-    return input_rtus
-
-
-def build_score(_matrix, weight, LABELS):
+def build_score(_matrix, weight):
     '''Calculates the curtailment score using the normalized matrix m,
 
     and the weights vector returns a sorted vector of weights for each
     device that is a candidate for curtailment.
     '''
-    score_matrix = []
+    input_keys, input_values = _matrix.keys(), _matrix.values()
     scores = []
-    for i in range(0, len(_matrix) - 1):
+    for i in range(0, len(input_values) - 1):
         criteria_sum = 0
         for j in range(0, len(weight) - 1):
-            criteria_sum += _matrix[i][j] * weight[j]
-        score_matrix.append([LABELS[i], criteria_sum])
+            criteria_sum += input_values[i][j] * weight[j]
         scores.append(criteria_sum)
-    # display_matrix([scores,], DEVICE_LABELSTRING, RTU_LABELS,
-    # ['Priority RTU'], DEVICE_ROWSTRING)
-    return scores, sorted(score_matrix, key=lambda l: l[1], reverse=True)
+    return scores, input_keys
 
 
 def display_matrix(_matrix, LABELString, xLABELS, yLABELS,
@@ -289,31 +247,48 @@ def display_matrix(_matrix, LABELString, xLABELS, yLABELS,
     '''Function to diplay the critieria matrix.'''
     # Display header
     xLABELS = [item.encode('utf-8') for item in xLABELS]
-
     print >> display_func, LABELString % tuple(xLABELS)
     i = 0
     while i < len(yLABELS):
         print >> display_func, \
                  rowstring % ((yLABELS[i],) + tuple(_matrix[i]))
         i += 1
+# def rtus_scores(scores, P_blg, p_tg, p_rtu):
+#     scores[p_rtu < 1.0] = 0   # exclude off-RTUs from priority order
+#     priority = map(lambda x: x + 1,
+#                    sorted(range(len(scores)),
+#                           key=lambda k: scores[k],
+#                           reverse=True))
+#     curtail = np.size(np.nonzero(np.cumsum(p_rtu) < (P_blg - p_rtu))) + 1
+#     print >> sys.stdout, "Curtailed RTU list :",  priority[0:curtail]
+#     return priority[0:curtail]
+# 
+# 
+# def rtus_ctrl(scores, p_blg, p_tag, ctrl_t, ctrl_tsp, hdb, p_rtu):
+#     p_tg = (p_tag * 3 - p_blg) / 2   # depend on AHP running periods
+#     priority = False
+#     if (p_blg > p_tag):
+#         p_cur = p_blg - p_tag
+#         print >> sys.stdout, "Curtailed demand control: ", p_cur
+#         priority = rtus_scores(scores, p_blg, p_tg, p_rtu)
+#     return priority
 
 
-def rtus_scores(scores, P_blg, p_tg, p_rtu):
-    scores[p_rtu < 1.0] = 0   # exclude off-RTUs from priority order
-    priority = map(lambda x: x + 1,
-                   sorted(range(len(scores)),
-                          key=lambda k: scores[k],
-                          reverse=True))
-    curtail = np.size(np.nonzero(np.cumsum(p_rtu) < (P_blg - p_rtu))) + 1
-    print >> sys.stdout, "Curtailed RTU list :",  priority[0:curtail]
-    return priority[0:curtail]
-
-
-def rtus_ctrl(scores, p_blg, p_tag, ctrl_t, ctrl_tsp, hdb, p_rtu):
-    p_tg = (p_tag * 3 - p_blg) / 2   # depend on AHP running periods
-    priority = False
-    if (p_blg > p_tag):
-        p_cur = p_blg - p_tag
-        print >> sys.stdout, "Curtailed demand control: ", p_cur
-        priority = rtus_scores(scores, p_blg, p_tg, p_rtu)
-    return priority
+def input_matrix(builder, criteria_labels):
+    sum_mat = {}
+    _sumdict = builder.values()
+    inp_mat = {}
+    for items in _sumdict:
+        for k, v in items.items():
+            sum_mat[items] = v if k not in sum_mat else sum_mat[k] + v
+    for key, val in builder.items():
+        lister = []
+        labels = []
+        for k in val:
+            labels.append(k)
+            lister.append(val[k]/sum_mat[k])
+        if criteria_labels and criteria_labels != labels:
+            _index = [labels.index(item) for item in criteria_labels]
+            lister = [lister[item] for item in _index]
+        inp_mat[key] = lister
+    return inp_mat

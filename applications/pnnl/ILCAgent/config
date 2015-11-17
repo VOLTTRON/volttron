@@ -179,6 +179,7 @@
         "Points": "BuildingPower"
     },
 	"agent_id": "ahp",
-	"Demand Limit": 30.0
+	"Demand Limit": 30.0,
+	"Curtailment Time": 15.0
  }
 

@@ -2,8 +2,8 @@ import re
 import sys
 import logging
 import datetime
-import pandas as pd
-from pandas import DataFrame as df
+# import pandas as pd
+# from pandas import DataFrame as df
 import numpy as np
 from dateutil.parser import parse
 from datetime import timedelta as td, datetime as dt
@@ -11,12 +11,11 @@ from copy import deepcopy
 from _ast import comprehension
 from sympy import *
 from sympy.parsing.sympy_parser import parse_expr
-import fnmatch
 from collections import defaultdict
-from ahp import (open_file, extract_criteria_matrix,
+from ilc_matrices import (open_file, extract_criteria_matrix,
                           calc_column_sums, normalize_matrix,
-                          validate_input, input_rtu, build_score,
-                          rtus_ctrl)
+                          validate_input, build_score,
+                          rtus_ctrl, input_matrix)
  
 from volttron.platform.agent import utils, matching, sched
 from volttron.platform.messaging import headers as headers_mod, topics
@@ -24,6 +23,9 @@ from volttron.platform.agent.utils import jsonapi, setup_logging
  
 from volttron.platform.vip.agent import *
 
+MATRIX_ROWSTRING = "%20s\t%12.2f%12.2f%12.2f%12.2f%12.2f"
+CRITERIA_LABELSTRING = "\t\t\t%12s%12s%12s%12s%12s"
+DATE_FORMAT='%m-%d-%y %H:%M:%S'
 setup_logging()
 _log = logging.getLogger(__name__)
 
@@ -38,6 +40,7 @@ def ahp(config_path, **kwargs):
     devices = config['device']['unit']
     agent_id = config.get('agent_id')
     base_device = "devices/{campus}/{building}/".format(**location)
+    power_meter = "PowerMeter"
     units = devices.keys()
     devices_topic = (
         base_device + '({})(/.*)?/all$'
@@ -48,6 +51,9 @@ def ahp(config_path, **kwargs):
     BUILDING_TOPIC = re.compile(bld_pwr_topic)
     ALL_DEV = re.compile(devices_topic)
     static_config = config['device']
+    all_devices = static_config.keys()
+    demand_limit = float(config.get("Demand Limit"))
+    curtail_time = float(config.get("Curtailment Time", 15.0))
 
     class AHP(Agent):
         def __init__(self, **kwargs):
@@ -55,20 +61,23 @@ def ahp(config_path, **kwargs):
             self.off_dev = defaultdict(list)
             self.running_ahp = False
             self.builder = defaultdict(dict)
+            self.criteria_labels = None
+            self.row_average = None
+            self.failed_control
 
         @Core.receiver("onstart")
         def starting_base(self, sender, **kwargs):
             self.excel_file = config.get('excel_file', None)
             
             if self.excel_file is not None:
-                criteria_labels, criteria_matrix = \
+                self.criteria_labels, criteria_matrix = \
                     extract_criteria_matrix(self.excel_file, "CriteriaMatrix")
                 col_sums = calc_column_sums(criteria_matrix)
                 _, self.row_average = \
                     normalize_matrix(criteria_matrix, col_sums)
-                print criteria_labels, criteria_matrix
+                print self.criteria_labels, criteria_matrix
             if not (validate_input(criteria_matrix, col_sums, True,
-                                   criteria_labels, CRITERIA_LABELSTRING,
+                                   self.criteria_labels, CRITERIA_LABELSTRING,
                                    MATRIX_ROWSTRING)):
                 _log.info('Inconsistent criteria matrix. Check configuration '
                           'in ahp.xls file')
@@ -94,15 +103,19 @@ def ahp(config_path, **kwargs):
                 return
             if not self.running_ahp:
                 return
-            device = split(topic, '/')[3]
+            device = topic.split('/')[3]
             if device not in self.off_dev.keys():
                 return
                     
         def query_device(self):
+            '''Query Actuator agent for current state of pertinent points on
+
+            curtailable device.
+            '''
             for key, value in static_config.items():
                 config = static_config[key]
-                device is None
-                data is None
+                device = None
+                data = {}
                 for dev, stat in config['by_mode'].items():
                     check_status = self.vip.rpc.call(
                         'platform.actuator', 'get_point',
@@ -125,6 +138,7 @@ def ahp(config_path, **kwargs):
                         self.off_dev[key].append(sub_dev)
                         
         def construct_input(self, key, sub_dev, criteria, data):
+            '''Declare and construct data matrix for device.'''
             self.builder.update({key+sub_dev:{}})
             for item in criteria:
                 _name = criteria['name']
@@ -139,7 +153,7 @@ def ahp(config_path, **kwargs):
                     self.builder[key+sub_dev].update({_name: val})
                     continue
                 if isinstance(op_type, list) and op_type and op_type[0] == 'mapper':
-                    val = conf['mapper-' + op_type[1]][operation]
+                    val = config['mapper-' + op_type[1]][_operation]
                     if val < criteria['minimum']:
                         val = criteria['minimum']
                     if val > criteria['maximum']:
@@ -151,7 +165,7 @@ def ahp(config_path, **kwargs):
                         val = _operation
                     else:
                         val = 0
-                    builder[key+sub_dev].update({_name: val})
+                    self.builder[key+sub_dev].update({_name: val})
                     continue
                 if isinstance(op_type, list) and op_type and op_type[0][0] == 'staged':
                     val = 0
@@ -178,6 +192,7 @@ def ahp(config_path, **kwargs):
                         val = criteria['maximum']
                     self.builder[key+sub_dev].update({_name: val})
                     continue
+                
 
         def check_load(self, headers, message):
             '''Check whole building power and if the value is above the
@@ -185,14 +200,40 @@ def ahp(config_path, **kwargs):
             the demand limit (demand_limit) then initiate the AHP sequence.
             '''
             obj = jsonapi.loads(message[0])
-            blg_power = (float(obj[bldg_pwr]))        
-                
+            blg_power = float(obj[power_meter])
+            if blg_power > demand_limit:
+                self.running_ahp = True
+                self.query_device()
+                if self.builder is not None:
+                    input_arr = input_matrix(self.builder, self.criteria_labels)
+                if input is not None:
+                    scores, score_order = build_score(input_arr, self.row_average)
+                now = dt.now()
+                str_now = now.strftime(DATE_FORMAT)
+                end = now + td(minutes=curtail_time)
+                str_end = end.strftime(DATE_FORMAT)
+                schedule_request = []
+                for dev in all_devices:
+                    curt_dev = ''.join([base_device, dev])
+                    schedule_request = [[curt_dev, str_now, str_end]]
+                    result = self.vip.rpc.call('platform.actuator',
+                                                'request_new_schedule',
+                                                agent_id,              
+                                                agent_id,            
+                                                'HIGH',                  
+                                                schedule_request        
+                                                ).get(timeout=10)
+                    if result['result'] == 'FAILURE':
+                        self.failed_control.append(dev)
+                                            
+
+      
     return AHP(**kwargs)               
                     
                     
 def main(argv=sys.argv):
-   '''Main method called to start the agent.'''
-   utils.vip_main(bacnet_proxy_agent)
+    '''Main method called to start the agent.'''  
+    utils.vip_main(ahp)
 
 
 if __name__ == '__main__':
@@ -201,6 +242,4 @@ if __name__ == '__main__':
         sys.exit(main())
     except KeyboardInterrupt:
         pass                   
-                    
-                    
                     
