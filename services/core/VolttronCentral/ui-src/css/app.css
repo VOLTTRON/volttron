@@ -380,7 +380,7 @@ br + .form__control-help {
 }
 
 .register-platform-form {
-    width: 300px;
+    width: 400px;
 }
 
 .register-platform-form .error {
@@ -471,6 +471,13 @@ br + .form__control-help {
     width: 100%;
     display: inline-block;
     vertical-align: top;
+}
+
+.preview {
+    width: 100%;
+    border: #A3A3A3 1px solid;
+    height: 5em;
+    word-wrap: break-word;
 }
 
 @media (min-width: 1220px) and (max-width: 1859px) {

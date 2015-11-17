@@ -1645,7 +1645,7 @@ var Navigation = React.createClass({displayName: "Navigation",
         return (
             React.createElement("nav", {className: "navigation"}, 
                 React.createElement("h1", {className: "logo"}, 
-                    React.createElement("span", {className: "logo__name"}, "VOLTTRON"), 
+                    React.createElement("span", {className: "logo__name"}, "VOLTTRON Central"), 
                     React.createElement("span", {className: "logo__tm"}, "™"), 
                     React.createElement("span", {className: "logo__beta"}, "BETA")
                 ), 
@@ -2187,7 +2187,7 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
     render: function () {
         
         var fullAddress = this._formatAddress();
-        
+
         return (
             React.createElement("form", {className: "register-platform-form", onSubmit: this._onSubmit}, 
                 React.createElement("h1", null, "Register platform"), 
@@ -2208,7 +2208,7 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
                 React.createElement("div", {className: "form__control-group"}, 
                     React.createElement("label", null, "Protocol"), 
                     React.createElement("select", {
-                        className: "form__control form__control--block", 
+                        className: "form__control", 
                         onChange: this._onProtocolChange, 
                         value: this.state.protocol, 
                         required: true
@@ -2256,9 +2256,9 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
                 ), 
                 React.createElement("div", {className: "form__control-group"}, 
                     React.createElement("label", null, "Preview"), 
-                    React.createElement("textarea", {
-                        className: "form__control form__control--block", 
-                        value: fullAddress}
+                    React.createElement("div", {
+                        className: "preview"}, 
+                        fullAddress
                     )
                 ), 
                 React.createElement("div", {className: "form__actions"}, 

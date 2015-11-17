@@ -74,7 +74,7 @@ var RegisterPlatformForm = React.createClass({
     render: function () {
         
         var fullAddress = this._formatAddress();
-        
+
         return (
             <form className="register-platform-form" onSubmit={this._onSubmit}>
                 <h1>Register platform</h1>
@@ -95,7 +95,7 @@ var RegisterPlatformForm = React.createClass({
                 <div className="form__control-group">
                     <label>Protocol</label>
                     <select
-                        className="form__control form__control--block"
+                        className="form__control"
                         onChange={this._onProtocolChange}
                         value={this.state.protocol}
                         required
@@ -143,10 +143,10 @@ var RegisterPlatformForm = React.createClass({
                 </div>
                 <div className="form__control-group">
                     <label>Preview</label>
-                    <textarea
-                        className="form__control form__control--block"
-                        value={fullAddress}
-                    />
+                    <div
+                        className="preview">
+                        {fullAddress}
+                    </div>
                 </div>
                 <div className="form__actions">
                     <button
