@@ -92,11 +92,12 @@ class Interface(BaseInterface):
         # settle that for us when the response comes back. 
         return self.vip.rpc.call(self.proxy_address, 'ping_device', self.target_address).get(timeout=10.0)
         
-    def get_point(self, point_name): 
+    def get_point(self, point_name, get_priority_array=False): 
         register = self.get_register_by_name(point_name)   
+        my_property = "priorityArray" if get_priority_array else register.property
         point_map = {point_name:[register.object_type, 
                                  register.instance_number, 
-                                 register.property]}
+                                 my_property]}
         result = self.vip.rpc.call(self.proxy_address, 'read_properties', 
                                        self.target_address, point_map).get(timeout=10.0)
         return result[point_name]
