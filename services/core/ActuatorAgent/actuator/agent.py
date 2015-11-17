@@ -143,7 +143,7 @@ def actuator_agent(config_path, **kwargs):
             self.update_device_state_and_schedule(now)
             
         def update_device_state_and_schedule(self, now):
-            _log.debug("update_device_state_and schedule")
+            _log.debug("update_device_state_and_schedule")
             #Sanity check now.
             #This is specifically for when this is running in a VM that gets suspeded and then resumed.
             #If we don't make this check a resumed VM will publish one event per minute of 
