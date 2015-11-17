@@ -143,7 +143,7 @@ def actuator_agent(config_path, **kwargs):
             self.update_device_state_and_schedule(now)
             
         def update_device_state_and_schedule(self, now):
-            _log.debug("update_device_state_and schedule")
+            _log.debug("update_device_state_and_schedule")
             #Sanity check now.
             #This is specifically for when this is running in a VM that gets suspeded and then resumed.
             #If we don't make this check a resumed VM will publish one event per minute of 
@@ -235,14 +235,14 @@ def actuator_agent(config_path, **kwargs):
                 
                 
         @RPC.export        
-        def get_point(self, topic):
+        def get_point(self, topic, **kwargs):
             topic = topic.strip('/')
             _log.debug('handle_get: {topic}'.format(topic=topic))
             path, point_name = topic.rsplit('/', 1)
-            return self.vip.rpc.call(driver_vip_identity, 'get_point', path, point_name).get()
+            return self.vip.rpc.call(driver_vip_identity, 'get_point', path, point_name, **kwargs).get()
         
         @RPC.export
-        def set_point(self, requester_id, topic, value):  
+        def set_point(self, requester_id, topic, value, **kwargs):  
             topic = topic.strip('/')
             _log.debug('handle_set: {topic},{requester_id}, {value}'.
                        format(topic=topic, requester_id=requester_id, value=value))
@@ -252,7 +252,7 @@ def actuator_agent(config_path, **kwargs):
             headers = self.get_headers(requester_id)
             
             if self.check_lock(path, requester_id):
-                result = self.vip.rpc.call(driver_vip_identity, 'set_point', path, point_name, value).get()
+                result = self.vip.rpc.call(driver_vip_identity, 'set_point', path, point_name, value, **kwargs).get()
         
                 headers = self.get_headers(requester_id)
                 self.push_result_topic_pair(WRITE_ATTEMPT_PREFIX,

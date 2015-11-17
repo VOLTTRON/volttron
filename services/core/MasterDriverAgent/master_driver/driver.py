@@ -240,9 +240,9 @@ class DriverAgent(BasicAgent):
          
         return depth_first, breadth_first 
     
-    def get_point(self, point_name):
-        return self.interface.get_point(point_name)
+    def get_point(self, point_name, **kwargs):
+        return self.interface.get_point(point_name, **kwargs)
     
-    def set_point(self, point_name, value):
-        return self.interface.set_point(point_name, value)
+    def set_point(self, point_name, value, **kwargs):
+        return self.interface.set_point(point_name, value, **kwargs)
         
