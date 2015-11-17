@@ -58,7 +58,6 @@ import csv
 from datetime import datetime, timedelta as td
 import logging
 import sys
-import datetime
 import re
 
 from dateutil.parser import parse
@@ -81,6 +80,7 @@ def DrivenAgent(config_path, **kwargs):
     arguments = conf.get('arguments', None)
     assert arguments
     from_file = arguments.get('From File', False)
+    mode = True if conf.get('mode', 'PASSIVE') == 'ACTIVE' else False
     utils.setup_logging()
     _log = logging.getLogger(__name__)
     logging.basicConfig(level=logging.debug,
@@ -88,7 +88,8 @@ def DrivenAgent(config_path, **kwargs):
                         datefmt='%m-%d-%y %H:%M:%S')
     mode = True if conf.get('mode', 'PASSIVE') == 'ACTIVE' else False
     validation_error = ''
-    device = dict((key, conf['device'][key]) for key in ['campus', 'building'])
+    device = dict((key, conf['device'][key])
+                  for key in ['campus', 'building'])
     subdevices = []
     conv_map = conf.get('conversion_map')
     map_names = {}
@@ -101,6 +102,7 @@ def DrivenAgent(config_path, **kwargs):
         units = conf['device']['unit'].keys()
 
     for item in units:
+
         # modify the device dict so that unit is now pointing to unit_name
         subdevices.extend(conf['device']['unit'][item]['subdevices'])
 
@@ -119,7 +121,7 @@ def DrivenAgent(config_path, **kwargs):
 
     application = conf.get('application')
     if not application:
-        validation_error += 'Invalid application specified in conf\n'
+        validation_error += 'Invalid application specified in config\n'
     if validation_error:
         _log.error(validation_error)
         raise ValueError(validation_error)
@@ -130,6 +132,10 @@ def DrivenAgent(config_path, **kwargs):
     base_dev = "devices/{campus}/{building}/".format(**device)
     devices_topic = (
         base_dev + '({})(/.*)?/all$'.format('|'.join(re.escape(p) for p in units)))
+
+    unittype_map = conf.get('unittype_map', None)
+    assert unittype_map
+
     klass = _get_class(application)
     # This instances is used to call the applications run method when
     # data comes in on the message bus.  It is constructed here
@@ -145,9 +151,8 @@ def DrivenAgent(config_path, **kwargs):
             self._update_event = None
             self._update_event_time = None
             self.keys = None
-            self.current_point = None
-            self.current_key = None
-            self.received_input_datetime = None
+            # master is where we copy from to get a poppable list of
+            # subdevices that should be present before we run the analysis.
             self._master_subdevices = subdevices
             self._needed_subdevices = []
             self._master_devices = units
@@ -158,7 +163,8 @@ def DrivenAgent(config_path, **kwargs):
             self.received_input_datetime = None
             self._kwargs = kwargs
             self.commands = {}
-
+            self.current_point = None
+            self.current_key = None
             if output_file is not None:
                 with open(output_file, 'w') as writer:
                     writer.close()
@@ -193,7 +199,8 @@ def DrivenAgent(config_path, **kwargs):
             if not device_id and not subdevice_id:
                 return
             if isinstance(device_or_subdevice, unicode):
-                device_or_subdevice = (device_or_subdevice.decode('utf-8').encode('ascii'))
+                device_or_subdevice = (
+                    device_or_subdevice.decode('utf-8').encode('ascii'))
 
             def agg_subdevice(obj):
                 sub_obj = {}
@@ -273,6 +280,17 @@ def DrivenAgent(config_path, **kwargs):
                                     # fout.writerow(keys)
                                 fout.writerow(r)
                                 f.close()
+
+            def get_unit(point):
+                ''' Get a unit type based upon the regular expression in the config file.
+
+                    if NOT found returns percent as a default unit.
+                '''
+                for k, v in unittype_map.items():
+                    if re.match(k, point):
+                        return v
+                return 'percent'
+
             # publish to message bus.
             if len(results.table_output.keys()) > 0:
                 headers = {
@@ -288,10 +306,19 @@ def DrivenAgent(config_path, **kwargs):
                                 _analysis['unit'] = item
                                 analysis_topic = topics.ANALYSIS_VALUE(
                                     point=key, **_analysis)
-                                if isinstance(value, datetime.datetime):
-                                    value = value.isoformat()
+
+                                datatype = 'float'
+                                if isinstance(value, int):
+                                    datatype = 'int'
+                                kbase = key[key.rfind('/')+1:]
+                                message = [{kbase: value},
+                                           {kbase: {'tz': 'US/Pacific',
+                                                    'type': datatype,
+                                                    'units': 'float',
+                                                    }
+                                            }]
                                 self.publish_json(analysis_topic,
-                                                  headers, value)
+                                                  headers, message)
 
             if results.commands and mode:
                 self.commands = results.commands
@@ -406,7 +433,7 @@ def _get_class(kls):
 def main(argv=sys.argv):
     ''' Main method.'''
     utils.default_main(DrivenAgent,
-                       description='Example VOLTTRON platform™ driven agent',
+                       description='driven agent',
                        argv=argv)
 
 
