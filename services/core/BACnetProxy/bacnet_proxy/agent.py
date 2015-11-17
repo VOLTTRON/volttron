@@ -102,7 +102,7 @@ from bacpypes.apdu import (ReadPropertyRequest,
                            ReadAccessSpecification,
                            encode_max_apdu_response)
 from bacpypes.primitivedata import Null, Atomic, Enumerated, Integer, Unsigned, Real
-from bacpypes.constructeddata import Array, Any
+from bacpypes.constructeddata import Array, Any, Choice
 from bacpypes.basetypes import ServicesSupported
 from bacpypes.task import TaskManager
 from gevent.event import AsyncResult
@@ -278,6 +278,19 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
                             value = propertyValue.cast_out(datatype)
                             if issubclass(datatype, Enumerated):
                                 value = datatype(value).get_long()
+                                
+                            if issubclass(datatype, Array):
+                                if issubclass(datatype.subtype, Choice):
+                                    new_value = []
+                                    for item in value.value[1:]:
+                                        result = item.dict_contents().values()
+                                        if result[0] != ():
+                                            new_value.append(result[0])
+                                        else:
+                                            new_value.append(None)
+                                    value = new_value
+                                else:
+                                    value = [x.cast_out(datatype.subtype) for x in value.value[1:]]
                         
                         result_dict[objectIdentifier[0], objectIdentifier[1], propertyIdentifier] = value
             
