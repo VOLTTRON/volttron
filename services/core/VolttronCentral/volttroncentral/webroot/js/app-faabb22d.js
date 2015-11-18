@@ -1645,8 +1645,9 @@ var Navigation = React.createClass({displayName: "Navigation",
         return (
             React.createElement("nav", {className: "navigation"}, 
                 React.createElement("h1", {className: "logo"}, 
-                    React.createElement("span", {className: "logo__name"}, "VOLTTRON Central"), 
+                    React.createElement("span", {className: "logo__name"}, "VOLTTRON"), 
                     React.createElement("span", {className: "logo__tm"}, "™"), 
+                    React.createElement("span", {className: "logo__central"}, " Central"), 
                     React.createElement("span", {className: "logo__beta"}, "BETA")
                 ), 
                 navItems
@@ -2194,71 +2195,107 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
                 this.state.error && (
                     React.createElement("div", {className: "error"}, this.state.error.message)
                 ), 
-                React.createElement("div", {className: "form__control-group"}, 
-                    React.createElement("label", null, "Name"), 
-                    React.createElement("input", {
-                        className: "form__control form__control--block", 
-                        type: "text", 
-                        onChange: this._onNameChange, 
-                        value: this.state.name, 
-                        autoFocus: true, 
-                        required: true}
-                    )
-                ), 
-                React.createElement("div", {className: "form__control-group"}, 
-                    React.createElement("label", null, "Protocol"), 
-                    React.createElement("select", {
-                        className: "form__control", 
-                        onChange: this._onProtocolChange, 
-                        value: this.state.protocol, 
-                        required: true
-                    }, 
-                        React.createElement("option", {value: "tcp"}, "TCP"), 
-                        React.createElement("option", {value: "ipc"}, "IPC")
-                    )
-                ), 
-                React.createElement("div", {className: "form__control-group"}, 
-                    React.createElement("label", null, "VIP address"), 
-                    React.createElement("input", {
-                        className: "form__control form__control--block", 
-                        type: "text", 
-                        onChange: this._onAddressChange, 
-                        value: this.state.ipaddress, 
-                        required: true}
-                    )
-                ), 
-                React.createElement("div", {className: "form__control-group"}, 
-                    React.createElement("label", null, "Server Key"), 
-                    React.createElement("input", {
-                        className: "form__control form__control--block", 
-                        type: "text", 
-                        onChange: this._onServerKeyChange, 
-                        value: this.state.serverKey}
-                    )
-                ), 
-                React.createElement("div", {className: "form__control-group"}, 
-                    React.createElement("label", null, "Public Key"), 
-                    React.createElement("input", {
-                        className: "form__control form__control--block", 
-                        type: "text", 
-                        onChange: this._onPublicKeyChange, 
-                        value: this.state.publicKey}
-                    )
-                ), 
-                React.createElement("div", {className: "form__control-group"}, 
-                    React.createElement("label", null, "Secret Key"), 
-                    React.createElement("input", {
-                        className: "form__control form__control--block", 
-                        type: "text", 
-                        onChange: this._onSecretKeyChange, 
-                        value: this.state.secretKey}
-                    )
-                ), 
-                React.createElement("div", {className: "form__control-group"}, 
-                    React.createElement("label", null, "Preview"), 
-                    React.createElement("div", {
-                        className: "preview"}, 
-                        fullAddress
+                React.createElement("table", null, 
+                    React.createElement("tr", null, 
+                        React.createElement("td", null, 
+                            React.createElement("label", null, "Name")
+                        ), 
+                        React.createElement("td", null
+                        )
+                    ), 
+                    React.createElement("tr", null, 
+                        React.createElement("td", {colSpan: "2"}, 
+                            React.createElement("input", {
+                                className: "form__control form__control--block", 
+                                type: "text", 
+                                onChange: this._onNameChange, 
+                                value: this.state.name, 
+                                autoFocus: true, 
+                                required: true}
+                            )
+                        )
+                    ), 
+                
+                    React.createElement("tr", null, 
+                        React.createElement("td", null, "Protocol"), 
+                        React.createElement("td", null, "VIP address")
+                    ), 
+                    React.createElement("tr", null, 
+                        React.createElement("td", null, 
+                            React.createElement("select", {
+                                className: "form__control", 
+                                onChange: this._onProtocolChange, 
+                                value: this.state.protocol, 
+                                required: true
+                            }, 
+                                React.createElement("option", {value: "tcp"}, "TCP"), 
+                                React.createElement("option", {value: "ipc"}, "IPC")
+                            )
+                        ), 
+                        React.createElement("td", null, 
+                            React.createElement("input", {
+                                className: "form__control ", 
+                                type: "text", 
+                                onChange: this._onAddressChange, 
+                                value: this.state.ipaddress, 
+                                required: true}
+                            )
+                        )
+                    ), 
+                
+                    React.createElement("tr", null, 
+                        React.createElement("td", null, 
+                            React.createElement("label", null, "Server Key")
+                        ), 
+                        React.createElement("td", null
+                        )
+                    ), 
+                    React.createElement("tr", null, 
+                        React.createElement("td", null, 
+                            React.createElement("input", {
+                                className: "form__control form__control--block", 
+                                type: "text", 
+                                onChange: this._onServerKeyChange, 
+                                value: this.state.serverKey}
+                            )
+                        )
+                    ), 
+                    React.createElement("tr", null, 
+                        React.createElement("td", null, "Public Key"), 
+                        React.createElement("td", null, "Secret Key")
+                    ), 
+                    React.createElement("tr", null, 
+                        React.createElement("td", null, 
+                            React.createElement("input", {
+                                className: "form__control form__control--block", 
+                                type: "text", 
+                                onChange: this._onPublicKeyChange, 
+                                value: this.state.publicKey}
+                            )
+                        ), 
+                        React.createElement("td", null, 
+                            React.createElement("input", {
+                                className: "form__control form__control--block", 
+                                type: "text", 
+                                onChange: this._onSecretKeyChange, 
+                                value: this.state.secretKey}
+                            )
+                        )
+                    ), 
+                    React.createElement("tr", null, 
+                        React.createElement("td", null, 
+                            React.createElement("label", null, "Preview")
+                        ), 
+                        React.createElement("td", null
+                        )
+                    ), 
+                    React.createElement("tr", null, 
+                        React.createElement("td", {colSpan: "2"}, 
+                            React.createElement("div", {
+                                className: "preview"}, 
+                                fullAddress
+                            )
+                        )
                     )
                 ), 
                 React.createElement("div", {className: "form__actions"}, 
@@ -2272,8 +2309,8 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
                     React.createElement("button", {
                         className: "button", 
                         disabled: !this.state.name || !this.state.protocol || !this.state.ipaddress 
-                            || !((this.state.serverKey && this.state.publicKey && this.state.secretKey) 
-                                    || (!this.state.serverKey && !this.state.publicKey && !this.state.secretKey))
+                            || !((this.state.publicKey && this.state.secretKey) 
+                                    || (!this.state.publicKey && !this.state.secretKey))
                     }, 
                         "Register"
                     )

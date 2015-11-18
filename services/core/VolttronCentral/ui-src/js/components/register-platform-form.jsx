@@ -81,73 +81,109 @@ var RegisterPlatformForm = React.createClass({
                 {this.state.error && (
                     <div className="error">{this.state.error.message}</div>
                 )}
-                <div className="form__control-group">
-                    <label>Name</label>
-                    <input
-                        className="form__control form__control--block"
-                        type="text"
-                        onChange={this._onNameChange}
-                        value={this.state.name}
-                        autoFocus
-                        required
-                    />
-                </div>
-                <div className="form__control-group">
-                    <label>Protocol</label>
-                    <select
-                        className="form__control"
-                        onChange={this._onProtocolChange}
-                        value={this.state.protocol}
-                        required
-                    >   
-                        <option value="tcp">TCP</option>
-                        <option value="ipc">IPC</option>
-                    </select>
-                </div>
-                <div className="form__control-group">
-                    <label>VIP address</label>
-                    <input
-                        className="form__control form__control--block"
-                        type="text"
-                        onChange={this._onAddressChange}
-                        value={this.state.ipaddress}
-                        required
-                    />
-                </div>
-                <div className="form__control-group">
-                    <label>Server Key</label>
-                    <input
-                        className="form__control form__control--block"
-                        type="text"
-                        onChange={this._onServerKeyChange}
-                        value={this.state.serverKey}
-                    />
-                </div>
-                <div className="form__control-group">
-                    <label>Public Key</label>
-                    <input
-                        className="form__control form__control--block"
-                        type="text"
-                        onChange={this._onPublicKeyChange}
-                        value={this.state.publicKey}
-                    />
-                </div>
-                <div className="form__control-group">
-                    <label>Secret Key</label>
-                    <input
-                        className="form__control form__control--block"
-                        type="text"
-                        onChange={this._onSecretKeyChange}
-                        value={this.state.secretKey}
-                    />
-                </div>
-                <div className="form__control-group">
-                    <label>Preview</label>
-                    <div
-                        className="preview">
-                        {fullAddress}
-                    </div>
-                </div>
+                <table>
+                    <tr>
+                        <td>
+                            <label>Name</label>
+                        </td>
+                        <td>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colSpan="2">
+                            <input
+                                className="form__control form__control--block"
+                                type="text"
+                                onChange={this._onNameChange}
+                                value={this.state.name}
+                                autoFocus
+                                required
+                            />
+                        </td>                        
+                    </tr>
+                
+                    <tr>
+                        <td>Protocol</td>
+                        <td>VIP address</td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <select
+                                className="form__control"
+                                onChange={this._onProtocolChange}
+                                value={this.state.protocol}
+                                required
+                            >   
+                                <option value="tcp">TCP</option>
+                                <option value="ipc">IPC</option>
+                            </select>
+                        </td>
+                        <td>
+                            <input
+                                className="form__control "
+                                type="text"
+                                onChange={this._onAddressChange}
+                                value={this.state.ipaddress}
+                                required
+                            />
+                        </td>
+                    </tr>
+                
+                    <tr>
+                        <td>
+                            <label>Server Key</label>
+                        </td>
+                        <td>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <input
+                                className="form__control form__control--block"
+                                type="text"
+                                onChange={this._onServerKeyChange}
+                                value={this.state.serverKey}
+                            />
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Public Key</td>
+                        <td>Secret Key</td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <input
+                                className="form__control form__control--block"
+                                type="text"
+                                onChange={this._onPublicKeyChange}
+                                value={this.state.publicKey}
+                            />
+                        </td>
+                        <td>
+                            <input
+                                className="form__control form__control--block"
+                                type="text"
+                                onChange={this._onSecretKeyChange}
+                                value={this.state.secretKey}
+                            />
+                        </td>
+                    </tr>
+                    <tr>
+                        <td> 
+                            <label>Preview</label>
+                        </td>
+                        <td>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colSpan="2">                    
+                            <div
+                                className="preview">
+                                {fullAddress}
+                            </div>
+                        </td>
+                    </tr>
+                </table>
                 <div className="form__actions">
                     <button
                         className="button button--secondary"
@@ -159,8 +195,8 @@ var RegisterPlatformForm = React.createClass({
                     <button
                         className="button"
                         disabled={!this.state.name || !this.state.protocol || !this.state.ipaddress 
-                            || !((this.state.serverKey && this.state.publicKey && this.state.secretKey) 
-                                    || (!this.state.serverKey && !this.state.publicKey && !this.state.secretKey))}
+                            || !((this.state.publicKey && this.state.secretKey) 
+                                    || (!this.state.publicKey && !this.state.secretKey))}
                     >
                         Register
                     </button>
