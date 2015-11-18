@@ -397,7 +397,7 @@ br + .form__control-help {
 }
 
 .register-platform-form {
-    width: 500px;
+    width: 600px;
 }
 
 .register-platform-form .error {
@@ -491,7 +491,48 @@ br + .form__control-help {
     border: #A3A3A3 1px solid;
     height: 5em;
     word-wrap: break-word;
-    overflow-y: scroll;
+}
+
+.no-border {
+    border: 0px solid white;
+}
+
+.tableDiv {
+    display: table;
+    margin: 0.15em 0.15em;
+    width: 100%;
+}
+
+.wideTableDiv {
+    display: table;
+    margin: 0.15em 0.15em;
+    width: 100%;
+}
+
+.rowDiv {
+    display: table-row;
+    margin: 0.15em 0.15em;
+    padding: 0 0 10px 0;
+
+}
+
+.cellDiv {
+    display: table-cell;
+    width: 33%;
+    padding: 0 10px 10px 0;
+}
+
+.singleCellDiv {
+    display: table-cell;
+    width: 100%;
+    margin: 0em 0.15em;
+}
+
+.formLabel {
+    text-transform: uppercase;
+    font-weight: bold;
+    font-size: 0.83333em;
+    margin-bottom: 0.5em;
 }
 
 @media (min-width: 1220px) and (max-width: 1859px) {

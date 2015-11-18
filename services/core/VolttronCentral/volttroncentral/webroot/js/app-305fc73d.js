@@ -2195,16 +2195,10 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
                 this.state.error && (
                     React.createElement("div", {className: "error"}, this.state.error.message)
                 ), 
-                React.createElement("table", null, 
-                    React.createElement("tr", null, 
-                        React.createElement("td", null, 
-                            React.createElement("label", null, "Name")
-                        ), 
-                        React.createElement("td", null
-                        )
-                    ), 
-                    React.createElement("tr", null, 
-                        React.createElement("td", {colSpan: "2"}, 
+                React.createElement("div", {className: "tableDiv"}, 
+                    React.createElement("div", {className: "rowDiv"}, 
+                        React.createElement("div", {className: "cellDiv"}, 
+                            React.createElement("label", {className: "formLabel"}, "Name"), 
                             React.createElement("input", {
                                 className: "form__control form__control--block", 
                                 type: "text", 
@@ -2213,15 +2207,9 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
                                 autoFocus: true, 
                                 required: true}
                             )
-                        )
-                    ), 
-                
-                    React.createElement("tr", null, 
-                        React.createElement("td", null, "Protocol"), 
-                        React.createElement("td", null, "VIP address")
-                    ), 
-                    React.createElement("tr", null, 
-                        React.createElement("td", null, 
+                        ), 
+                        React.createElement("div", {className: "cellDiv"}, 
+                            React.createElement("label", {className: "formLabel"}, "Protocol"), React.createElement("br", null), 
                             React.createElement("select", {
                                 className: "form__control", 
                                 onChange: this._onProtocolChange, 
@@ -2232,9 +2220,10 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
                                 React.createElement("option", {value: "ipc"}, "IPC")
                             )
                         ), 
-                        React.createElement("td", null, 
+                        React.createElement("div", {className: "cellDiv"}, 
+                            React.createElement("label", {className: "formLabel"}, "VIP address"), 
                             React.createElement("input", {
-                                className: "form__control ", 
+                                className: "form__control form__control--block", 
                                 type: "text", 
                                 onChange: this._onAddressChange, 
                                 value: this.state.ipaddress, 
@@ -2242,30 +2231,18 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
                             )
                         )
                     ), 
-                
-                    React.createElement("tr", null, 
-                        React.createElement("td", null, 
-                            React.createElement("label", null, "Server Key")
-                        ), 
-                        React.createElement("td", null
-                        )
-                    ), 
-                    React.createElement("tr", null, 
-                        React.createElement("td", null, 
+                    React.createElement("div", {className: "rowDiv"}, 
+                        React.createElement("div", {className: "cellDiv"}, 
+                            React.createElement("label", {className: "formLabel"}, "Server Key"), 
                             React.createElement("input", {
                                 className: "form__control form__control--block", 
                                 type: "text", 
                                 onChange: this._onServerKeyChange, 
                                 value: this.state.serverKey}
                             )
-                        )
-                    ), 
-                    React.createElement("tr", null, 
-                        React.createElement("td", null, "Public Key"), 
-                        React.createElement("td", null, "Secret Key")
-                    ), 
-                    React.createElement("tr", null, 
-                        React.createElement("td", null, 
+                        ), 
+                        React.createElement("div", {className: "cellDiv"}, 
+                            React.createElement("label", {className: "formLabel"}, "Public Key"), 
                             React.createElement("input", {
                                 className: "form__control form__control--block", 
                                 type: "text", 
@@ -2273,7 +2250,8 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
                                 value: this.state.publicKey}
                             )
                         ), 
-                        React.createElement("td", null, 
+                        React.createElement("div", {className: "cellDiv"}, 
+                            React.createElement("label", {className: "formLabel"}, "Secret Key"), 
                             React.createElement("input", {
                                 className: "form__control form__control--block", 
                                 type: "text", 
@@ -2281,16 +2259,12 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
                                 value: this.state.secretKey}
                             )
                         )
-                    ), 
-                    React.createElement("tr", null, 
-                        React.createElement("td", null, 
-                            React.createElement("label", null, "Preview")
-                        ), 
-                        React.createElement("td", null
-                        )
-                    ), 
-                    React.createElement("tr", null, 
-                        React.createElement("td", {colSpan: "2"}, 
+                    )
+                ), 
+                React.createElement("div", {className: "wideTableDiv"}, 
+                    React.createElement("div", {className: "rowDiv"}, 
+                        React.createElement("div", {className: "singleCellDiv"}, 
+                            React.createElement("label", {className: "formLabel"}, "Preview"), 
                             React.createElement("div", {
                                 className: "preview"}, 
                                 fullAddress

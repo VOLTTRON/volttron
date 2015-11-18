@@ -81,16 +81,10 @@ var RegisterPlatformForm = React.createClass({
                 {this.state.error && (
                     <div className="error">{this.state.error.message}</div>
                 )}
-                <table>
-                    <tr>
-                        <td>
-                            <label>Name</label>
-                        </td>
-                        <td>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td colSpan="2">
+                <div className="tableDiv">
+                    <div className="rowDiv">
+                        <div className="cellDiv">
+                            <label className="formLabel">Name</label>
                             <input
                                 className="form__control form__control--block"
                                 type="text"
@@ -99,15 +93,9 @@ var RegisterPlatformForm = React.createClass({
                                 autoFocus
                                 required
                             />
-                        </td>                        
-                    </tr>
-                
-                    <tr>
-                        <td>Protocol</td>
-                        <td>VIP address</td>
-                    </tr>
-                    <tr>
-                        <td>
+                        </div>   
+                        <div className="cellDiv">
+                            <label className="formLabel">Protocol</label><br/>
                             <select
                                 className="form__control"
                                 onChange={this._onProtocolChange}
@@ -117,73 +105,59 @@ var RegisterPlatformForm = React.createClass({
                                 <option value="tcp">TCP</option>
                                 <option value="ipc">IPC</option>
                             </select>
-                        </td>
-                        <td>
+                        </div>
+                        <div className="cellDiv">
+                            <label className="formLabel">VIP address</label>
                             <input
-                                className="form__control "
+                                className="form__control form__control--block"
                                 type="text"
                                 onChange={this._onAddressChange}
                                 value={this.state.ipaddress}
                                 required
                             />
-                        </td>
-                    </tr>
-                
-                    <tr>
-                        <td>
-                            <label>Server Key</label>
-                        </td>
-                        <td>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
+                        </div>                     
+                    </div>   
+                    <div className="rowDiv">
+                        <div className="cellDiv">                        
+                            <label className="formLabel">Server Key</label>
                             <input
                                 className="form__control form__control--block"
                                 type="text"
                                 onChange={this._onServerKeyChange}
                                 value={this.state.serverKey}
                             />
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>Public Key</td>
-                        <td>Secret Key</td>
-                    </tr>
-                    <tr>
-                        <td>
+                        </div>
+                        <div className="cellDiv">
+                            <label className="formLabel">Public Key</label>
                             <input
                                 className="form__control form__control--block"
                                 type="text"
                                 onChange={this._onPublicKeyChange}
                                 value={this.state.publicKey}
                             />
-                        </td>
-                        <td>
+                        </div>
+                        <div className="cellDiv">
+                            <label className="formLabel">Secret Key</label>
                             <input
                                 className="form__control form__control--block"
                                 type="text"
                                 onChange={this._onSecretKeyChange}
                                 value={this.state.secretKey}
                             />
-                        </td>
-                    </tr>
-                    <tr>
-                        <td> 
-                            <label>Preview</label>
-                        </td>
-                        <td>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td colSpan="2">                    
+                        </div>
+                    </div>
+                </div>
+                <div className="wideTableDiv">
+                    <div className="rowDiv">
+                        <div className="singleCellDiv"> 
+                            <label className="formLabel">Preview</label>                   
                             <div
                                 className="preview">
                                 {fullAddress}
                             </div>
-                        </td>
-                    </tr>
-                </table>
+                        </div>
+                    </div>
+                </div>
                 <div className="form__actions">
                     <button
                         className="button button--secondary"
