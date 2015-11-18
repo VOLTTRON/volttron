@@ -68,7 +68,7 @@ class SchedResetRcx(object):
     def __init__(self, unocc_time_threshold, unocc_stp_threshold,
                  monday_sch, tuesday_sch, wednesday_sch, thursday_sch,
                  friday_sch, saturday_sch, sunday_sch, data_window,
-                 no_required_data, stpr_reset_threshold, sat_reset_threshold,
+                 no_req_data, stpr_reset_threshold, sat_reset_threshold,
                  analysis):
 
         self.act_sch = []
@@ -103,7 +103,7 @@ class SchedResetRcx(object):
 
         # Application thresholds (Configurable)
         self.data_window = float(data_window)
-        self.no_required_data = no_required_data
+        self.no_req_data = no_req_data
         self.unocc_time_threshold = float(unocc_time_threshold)
         self.unocc_stp_threshold = float(unocc_stp_threshold)
         self.stpr_reset_threshold = float(stpr_reset_threshold)

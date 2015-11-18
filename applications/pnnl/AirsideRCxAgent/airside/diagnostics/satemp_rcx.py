@@ -57,7 +57,7 @@ SA_TEMP_RCX = 'Supply-air Temperature Control Loop Dx'
 SA_TEMP_RCX1 = 'Low Supply-air Temperature Dx'
 SA_TEMP_RCX2 = 'High Supply-air Temperature Dx'
 DX = '/diagnostic message'
-ST = 'state'
+ST = 'State'
 CORRECT_SAT = 'Suggested SAT setpoint'
 DATA = '/data/'
 
