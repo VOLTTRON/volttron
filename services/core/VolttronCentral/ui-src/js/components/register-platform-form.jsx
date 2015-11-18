@@ -83,7 +83,7 @@ var RegisterPlatformForm = React.createClass({
                 )}
                 <div className="tableDiv">
                     <div className="rowDiv">
-                        <div className="cellDiv">
+                        <div className="cellDiv firstCell">
                             <label className="formLabel">Name</label>
                             <input
                                 className="form__control form__control--block"
@@ -94,7 +94,8 @@ var RegisterPlatformForm = React.createClass({
                                 required
                             />
                         </div>   
-                        <div className="cellDiv">
+                        <div className="cellDiv"
+                            width="10%">
                             <label className="formLabel">Protocol</label><br/>
                             <select
                                 className="form__control"
@@ -106,7 +107,8 @@ var RegisterPlatformForm = React.createClass({
                                 <option value="ipc">IPC</option>
                             </select>
                         </div>
-                        <div className="cellDiv">
+                        <div className="cellDiv"
+                            width="56%">
                             <label className="formLabel">VIP address</label>
                             <input
                                 className="form__control form__control--block"
@@ -116,9 +118,12 @@ var RegisterPlatformForm = React.createClass({
                                 required
                             />
                         </div>                     
-                    </div>   
+                    </div>  
+                </div> 
+                <div className="tableDiv">
                     <div className="rowDiv">
-                        <div className="cellDiv">                        
+                        <div className="cellDiv"
+                            width="80%">                        
                             <label className="formLabel">Server Key</label>
                             <input
                                 className="form__control form__control--block"
@@ -127,7 +132,12 @@ var RegisterPlatformForm = React.createClass({
                                 value={this.state.serverKey}
                             />
                         </div>
-                        <div className="cellDiv">
+                    </div>
+                </div>
+                <div className="tableDiv">
+                    <div className="rowDiv">
+                        <div className="cellDiv"
+                            width="80%">
                             <label className="formLabel">Public Key</label>
                             <input
                                 className="form__control form__control--block"
@@ -136,7 +146,12 @@ var RegisterPlatformForm = React.createClass({
                                 value={this.state.publicKey}
                             />
                         </div>
-                        <div className="cellDiv">
+                    </div>
+                </div>
+                <div className="tableDiv">
+                    <div className="rowDiv">
+                        <div className="cellDiv"
+                            width="80%">
                             <label className="formLabel">Secret Key</label>
                             <input
                                 className="form__control form__control--block"
@@ -147,9 +162,10 @@ var RegisterPlatformForm = React.createClass({
                         </div>
                     </div>
                 </div>
-                <div className="wideTableDiv">
+                <div className="tableDiv">
                     <div className="rowDiv">
-                        <div className="singleCellDiv"> 
+                        <div className="cellDiv"
+                            width="100%"> 
                             <label className="formLabel">Preview</label>                   
                             <div
                                 className="preview">
@@ -169,7 +185,7 @@ var RegisterPlatformForm = React.createClass({
                     <button
                         className="button"
                         disabled={!this.state.name || !this.state.protocol || !this.state.ipaddress 
-                            || !((this.state.publicKey && this.state.secretKey) 
+                            || !((this.state.serverKey && this.state.publicKey && this.state.secretKey) 
                                     || (!this.state.publicKey && !this.state.secretKey))}
                     >
                         Register

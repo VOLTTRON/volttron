@@ -2197,7 +2197,7 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
                 ), 
                 React.createElement("div", {className: "tableDiv"}, 
                     React.createElement("div", {className: "rowDiv"}, 
-                        React.createElement("div", {className: "cellDiv"}, 
+                        React.createElement("div", {className: "cellDiv firstCell"}, 
                             React.createElement("label", {className: "formLabel"}, "Name"), 
                             React.createElement("input", {
                                 className: "form__control form__control--block", 
@@ -2208,7 +2208,8 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
                                 required: true}
                             )
                         ), 
-                        React.createElement("div", {className: "cellDiv"}, 
+                        React.createElement("div", {className: "cellDiv", 
+                            width: "10%"}, 
                             React.createElement("label", {className: "formLabel"}, "Protocol"), React.createElement("br", null), 
                             React.createElement("select", {
                                 className: "form__control", 
@@ -2220,7 +2221,8 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
                                 React.createElement("option", {value: "ipc"}, "IPC")
                             )
                         ), 
-                        React.createElement("div", {className: "cellDiv"}, 
+                        React.createElement("div", {className: "cellDiv", 
+                            width: "56%"}, 
                             React.createElement("label", {className: "formLabel"}, "VIP address"), 
                             React.createElement("input", {
                                 className: "form__control form__control--block", 
@@ -2230,9 +2232,12 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
                                 required: true}
                             )
                         )
-                    ), 
+                    )
+                ), 
+                React.createElement("div", {className: "tableDiv"}, 
                     React.createElement("div", {className: "rowDiv"}, 
-                        React.createElement("div", {className: "cellDiv"}, 
+                        React.createElement("div", {className: "cellDiv", 
+                            width: "80%"}, 
                             React.createElement("label", {className: "formLabel"}, "Server Key"), 
                             React.createElement("input", {
                                 className: "form__control form__control--block", 
@@ -2240,8 +2245,13 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
                                 onChange: this._onServerKeyChange, 
                                 value: this.state.serverKey}
                             )
-                        ), 
-                        React.createElement("div", {className: "cellDiv"}, 
+                        )
+                    )
+                ), 
+                React.createElement("div", {className: "tableDiv"}, 
+                    React.createElement("div", {className: "rowDiv"}, 
+                        React.createElement("div", {className: "cellDiv", 
+                            width: "80%"}, 
                             React.createElement("label", {className: "formLabel"}, "Public Key"), 
                             React.createElement("input", {
                                 className: "form__control form__control--block", 
@@ -2249,8 +2259,13 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
                                 onChange: this._onPublicKeyChange, 
                                 value: this.state.publicKey}
                             )
-                        ), 
-                        React.createElement("div", {className: "cellDiv"}, 
+                        )
+                    )
+                ), 
+                React.createElement("div", {className: "tableDiv"}, 
+                    React.createElement("div", {className: "rowDiv"}, 
+                        React.createElement("div", {className: "cellDiv", 
+                            width: "80%"}, 
                             React.createElement("label", {className: "formLabel"}, "Secret Key"), 
                             React.createElement("input", {
                                 className: "form__control form__control--block", 
@@ -2261,9 +2276,10 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
                         )
                     )
                 ), 
-                React.createElement("div", {className: "wideTableDiv"}, 
+                React.createElement("div", {className: "tableDiv"}, 
                     React.createElement("div", {className: "rowDiv"}, 
-                        React.createElement("div", {className: "singleCellDiv"}, 
+                        React.createElement("div", {className: "cellDiv", 
+                            width: "100%"}, 
                             React.createElement("label", {className: "formLabel"}, "Preview"), 
                             React.createElement("div", {
                                 className: "preview"}, 
@@ -2283,7 +2299,7 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
                     React.createElement("button", {
                         className: "button", 
                         disabled: !this.state.name || !this.state.protocol || !this.state.ipaddress 
-                            || !((this.state.publicKey && this.state.secretKey) 
+                            || !((this.state.serverKey && this.state.publicKey && this.state.secretKey) 
                                     || (!this.state.publicKey && !this.state.secretKey))
                     }, 
                         "Register"
