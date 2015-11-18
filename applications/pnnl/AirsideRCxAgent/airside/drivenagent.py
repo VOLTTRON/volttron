@@ -238,8 +238,8 @@ def DrivenAgent(config_path, **kwargs):
                     _timestamp = parse(headers.get('Date'), fuzzy=True)
                     self.received_input_datetime = _timestamp
                 else:
-                    _timestamp = datetime.datetime.now()
-                    self.received_input_datetime = datetime.datetime.utcnow()
+                    _timestamp = datetime.now()
+                    self.received_input_datetime = datetime.utcnow()
 
                 obj = converter.process_row(field_names)
                 results = app_instance.run(_timestamp, obj)
@@ -335,7 +335,7 @@ def DrivenAgent(config_path, **kwargs):
                 'taskID': actuator_id,
                 'priority': 'LOW'
                 }
-            start = datetime.datetime.now()
+            start = datetime.now()
             end = start + td(seconds=30)
             start = str(start)
             end = str(end)
