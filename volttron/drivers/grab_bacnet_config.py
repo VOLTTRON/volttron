@@ -201,6 +201,7 @@ try:
                                 'Property',
                                 'Writable',
                                 'Index',
+                                'Write Priority',
                                 'Notes'))
     
     config_writer.writeheader()
