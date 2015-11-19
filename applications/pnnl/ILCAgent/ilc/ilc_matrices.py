@@ -97,7 +97,7 @@ def open_file():
     return file_path
 
 
-def extract_criteria_matrix(excel_file, sheet):
+def extract_criteria(excel_file, sheet):
     '''Function to extract the criteria matrix from
 
     the CriteriaMatrix sheet of the excel spreadsheet
@@ -280,7 +280,7 @@ def input_matrix(builder, criteria_labels):
     inp_mat = {}
     for items in _sumdict:
         for k, v in items.items():
-            sum_mat[items] = v if k not in sum_mat else sum_mat[k] + v
+            sum_mat[k] = v if k not in sum_mat else sum_mat[k] + v
     for key, val in builder.items():
         lister = []
         labels = []

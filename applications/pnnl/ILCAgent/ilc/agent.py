@@ -12,7 +12,7 @@ from _ast import comprehension
 from sympy import *
 from sympy.parsing.sympy_parser import parse_expr
 from collections import defaultdict
-from ilc_matrices import (open_file, extract_criteria_matrix,
+from ilc_matrices import (open_file, extract_criteria,
                           calc_column_sums, normalize_matrix,
                           validate_input, build_score,
                           rtus_ctrl, input_matrix)
@@ -61,23 +61,23 @@ def ahp(config_path, **kwargs):
             self.off_dev = defaultdict(list)
             self.running_ahp = False
             self.builder = defaultdict(dict)
-            self.criteria_labels = None
+            self.crit_labels = None
             self.row_average = None
-            self.failed_control
+            self.failed_control = []
 
         @Core.receiver("onstart")
         def starting_base(self, sender, **kwargs):
-            self.excel_file = config.get('excel_file', None)
+            excel_file = config.get('excel_file', None)
             
             if self.excel_file is not None:
-                self.criteria_labels, criteria_matrix = \
-                    extract_criteria_matrix(self.excel_file, "CriteriaMatrix")
-                col_sums = calc_column_sums(criteria_matrix)
+                self.crit_labels, criteria_arr = extract_criteria(excel_file,
+                                                                  "CriteriaMatrix")
+                col_sums = calc_column_sums(criteria_arr)
                 _, self.row_average = \
-                    normalize_matrix(criteria_matrix, col_sums)
-                print self.criteria_labels, criteria_matrix
-            if not (validate_input(criteria_matrix, col_sums, True,
-                                   self.criteria_labels, CRITERIA_LABELSTRING,
+                    normalize_matrix(criteria_arr, col_sums)
+                print self.crit_labels, criteria_arr
+            if not (validate_input(criteria_arr, col_sums, True,
+                                   self.crit_labels, CRITERIA_LABELSTRING,
                                    MATRIX_ROWSTRING)):
                 _log.info('Inconsistent criteria matrix. Check configuration '
                           'in ahp.xls file')
@@ -120,7 +120,7 @@ def ahp(config_path, **kwargs):
                     check_status = self.vip.rpc.call(
                         'platform.actuator', 'get_point',
                         ''.join([location, key, stat])).get(timeout=10)
-                    if int(check_status):
+                    if int(check_status[stat]):
                         device = config[dev]
                         break
                 if device is None:
@@ -139,7 +139,8 @@ def ahp(config_path, **kwargs):
                         
         def construct_input(self, key, sub_dev, criteria, data):
             '''Declare and construct data matrix for device.'''
-            self.builder.update({key+sub_dev:{}})
+            dev_key = ''.join([key, '_', sub_dev])
+            self.builder.update({dev_key:{}})
             for item in criteria:
                 _name = criteria['name']
                 op_type = criteria['operation_type']
@@ -150,7 +151,7 @@ def ahp(config_path, **kwargs):
                         val = criteria['minimum']
                     if val > criteria['maximum']:
                         val = criteria['maximum']
-                    self.builder[key+sub_dev].update({_name: val})
+                    self.builder[dev_key].update({_name: val})
                     continue
                 if isinstance(op_type, list) and op_type and op_type[0] == 'mapper':
                     val = config['mapper-' + op_type[1]][_operation]
@@ -158,14 +159,14 @@ def ahp(config_path, **kwargs):
                         val = criteria['minimum']
                     if val > criteria['maximum']:
                         val = criteria['maximum']
-                    self.builder[key+sub_dev].update({_name: val})
+                    self.builder[dev_key].update({_name: val})
                     continue
                 if isinstance(op_type, list) and op_type and op_type[0] == 'status':
                     if data[op_type[1]]:
                         val = _operation
                     else:
                         val = 0
-                    self.builder[key+sub_dev].update({_name: val})
+                    self.builder[dev_key].update({_name: val})
                     continue
                 if isinstance(op_type, list) and op_type and op_type[0][0] == 'staged':
                     val = 0
@@ -176,7 +177,7 @@ def ahp(config_path, **kwargs):
                         val = criteria['minimum']
                     if val > criteria['maximum']:
                         val = criteria['maximum']
-                    self.builder[key+sub_dev].update({_name: val})
+                    self.builder[dev_key].update({_name: val})
                     continue
                 if isinstance(op_type, list) and op_type and op_type[0] == 'formula':
                     _points = op_type[1].split(" ")
@@ -190,12 +191,12 @@ def ahp(config_path, **kwargs):
                         val = criteria['minimum']
                     if val > criteria['maximum']:
                         val = criteria['maximum']
-                    self.builder[key+sub_dev].update({_name: val})
+                    self.builder[dev_key].update({_name: val})
                     continue
                 
 
         def check_load(self, headers, message):
-            '''Check whole building power and if the value is above the
+            '''Check whole building power and if the value is above thenano
  
             the demand limit (demand_limit) then initiate the AHP sequence.
             '''
@@ -205,15 +206,18 @@ def ahp(config_path, **kwargs):
                 self.running_ahp = True
                 self.query_device()
                 if self.builder is not None:
-                    input_arr = input_matrix(self.builder, self.criteria_labels)
+                    input_arr = input_matrix(self.builder, self.crit_labels)
                 if input is not None:
                     scores, score_order = build_score(input_arr, self.row_average)
+                self.actuator_request(score_order)
+
+        def actuator_request(self, score_order):
                 now = dt.now()
                 str_now = now.strftime(DATE_FORMAT)
                 end = now + td(minutes=curtail_time)
                 str_end = end.strftime(DATE_FORMAT)
                 schedule_request = []
-                for dev in all_devices:
+                for dev in score_order:
                     curt_dev = ''.join([base_device, dev])
                     schedule_request = [[curt_dev, str_now, str_end]]
                     result = self.vip.rpc.call('platform.actuator',
