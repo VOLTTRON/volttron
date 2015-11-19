@@ -130,9 +130,24 @@ class ModbusConfig(DeviceConfig):
         return "modbus.py {config} {interface} --port={port}".format(config=config_file, 
                                                                      interface=host_address, 
                                                                      port=port)
+        
+class FakeConfig(DeviceConfig):
+    def __init__(self, host_address, instance_number, registry_config, interval=60):
+        super(FakeConfig, self).__init__(host_address, instance_number, registry_config, interval=interval)
+        
+    def device_type(self):
+        return "fakedriver"
+        
+    @staticmethod
+    def get_driver_config(host_address, instance_number):
+        return {}    
+
+    def get_virtual_driver_commandline(self):
+        return ""
 
 device_config_classes = {"bacnet":BACnetConfig,
-                         "modbus":ModbusConfig}
+                         "modbus":ModbusConfig,
+                         "fake":FakeConfig}
 
 def build_device_configs(device_type, host_address, count, reg_config, config_dir):    
     config_paths = []
@@ -196,7 +211,7 @@ if __name__ == "__main__":
     parser.add_argument('--count', type=int, default=1, 
                         help='number of devices to configure')
     
-    parser.add_argument('device_type', choices=['bacnet', 'modbus'], 
+    parser.add_argument('device_type', choices=['bacnet', 'modbus', 'fake'], 
                         help='type of device to use for testing')
     
     parser.add_argument('registry_config', 
