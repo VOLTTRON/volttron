@@ -182,33 +182,38 @@ class DriverAgent(BasicAgent):
         }
             
 
-        for point, value in results.iteritems():
-            topics = self.get_paths_for_point(point)
-            for topic in topics:
-                message = [value, self.meta_data[point]] 
-                self._publish_wrapper(topic, 
-                                      headers=headers, 
-                                      message=message)
+#         for point, value in results.iteritems():
+#             topics = self.get_paths_for_point(point)
+#             for topic in topics:
+#                 message = [value, self.meta_data[point]] 
+#                 self._publish_wrapper(topic, 
+#                                       headers=headers, 
+#                                       message=message)
          
         message = [results, self.meta_data] 
         self._publish_wrapper(self.all_path_depth, 
                               headers=headers, 
                               message=message)
          
-        self._publish_wrapper(self.all_path_breadth, 
-                              headers=headers, 
-                              message=message)
+#         self._publish_wrapper(self.all_path_breadth, 
+#                               headers=headers, 
+#                               message=message)
         
         
     def _publish_wrapper(self, topic, headers, message):
         while True:
             try:
                 with publish_lock():
+                    _log.debug("publishing: " + topic)
                     self.vip.pubsub.publish('pubsub', 
                                         topic, 
                                         headers=headers, 
                                         message=message).get(timeout=10.0)
                                         
+                    _log.debug("finish publishing: " + topic)
+            except gevent.Timeout:
+                _log.warn("Did not receive confirmation of publish to "+topic)
+                break                           
             except Again:
                 _log.warn("publish delayed: " + topic + " pubsub is busy")
                 gevent.sleep(random.random())
