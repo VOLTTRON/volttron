@@ -148,9 +148,13 @@ def ahp(config_path, **kwargs):
             dev_key = ''.join([key, '_', sub_dev])
             self.builder.update({dev_key:{}})
             for item in criteria:
-                _name = criteria['name']
-                op_type = criteria['operation_type']
-                _operation = criteria['operation']
+                if item == 'curtail':
+                    continue
+                _name = criteria.get('name', None)
+                op_type = criteria.get('operation_type', None)
+                _operation = criteria.get('operation', None)
+                if _name is None or op_type is None or _operation is None:
+                    _log.error('{} is misconfigured.'.format(item))
                 if isinstance(op_type, str) and op_type == "constant":
                     val = criteria['operation']
                     if val < criteria['minimum']:
