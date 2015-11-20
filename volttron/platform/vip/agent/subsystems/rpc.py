@@ -165,10 +165,21 @@ class Dispatcher(jsonrpc.Dispatcher):
         local.request = request
         local.batch = batch
 
-        # TODO: this might be a place to check if the user_id has
-        # the required capabilities to call a method via RPC.
-        user_id=local.vip_message.user
+        user_id = local.vip_message.user
         required_caps = annotations(method, set, 'rpc.allow_capabilities')
+
+        # TODO: this might be a place to check if the user_id has
+        # the required capabilities to call a method via RPC, but
+        # I'm not sure how to call auth.get_authorizations from here.
+
+        _log.debug('USER_ID: {}'.format(user_id))
+        _log.debug('REQUIRED CAPS: {}'.format(required_caps))
+        _log.debug('request: {}'.format(request))
+        _log.debug('ident: {}'.format(ident))
+        _log.debug('name: {}'.format(name))
+        _log.debug('args: {}'.format(args))
+        _log.debug('kwargs: {}'.format(kwargs))
+        _log.debug('method.__name__: {}'.format(method.__name__))
 
         try:
             return method(*args, **kwargs)
@@ -233,6 +244,12 @@ class RPC(SubsystemBase):
 
     @spawn
     def _handle_subsystem(self, message):
+
+        _log.debug('message: {}'.format(message))
+        _log.debug('message.args: {}'.format(message.args))
+        _log.debug('dir(message): {}'.format(dir(message)))
+        _log.debug('type(message): {}'.format(type(message)))
+
         dispatch = self._dispatcher.dispatch
         responses = [response for response in (
             dispatch(bytes(msg), message) for msg in message.args) if response]
