@@ -38,7 +38,8 @@
 					}
 					"curtail": {
 						"point": "CoolingTemperatureSetPoint",
-						"value": "78"
+						"value": 78.0,
+						"load": 10
 					}
 				},
 				"CoolingCommand2": { 
@@ -84,9 +85,9 @@
 					"criterion2": {
 						"name": "rated-power",
 					    "operation": 20.0,
-						"operation_type": [("staged", 2), ("CoolingCommand1", 1), ("CoolingCommand2", 4)],
+						"operation_type": ["status", "HeatCommand1"]
 						"minimum": 0,
-						"maximum": 20.0
+						"maximum":20.0
 					},
 					"criterion3": {
 						"name": "room-type",
@@ -127,7 +128,7 @@
 					},
 					"criterion4": {
 						"name": "stage",
-						"operation": 2,
+						"operation": 9,
 						"operation_type": "constant",
 						"minimum": 0,
 						"maximum": 1.0

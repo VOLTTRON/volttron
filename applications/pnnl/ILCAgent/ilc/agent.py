@@ -12,6 +12,7 @@ from _ast import comprehension
 from sympy import *
 from sympy.parsing.sympy_parser import parse_expr
 from collections import defaultdict
+from copy import deepcopy
 from ilc_matrices import (open_file, extract_criteria,
                           calc_column_sums, normalize_matrix,
                           validate_input, build_score,
@@ -64,6 +65,8 @@ def ahp(config_path, **kwargs):
             self.crit_labels = None
             self.row_average = None
             self.failed_control = []
+            self.bldg_power = None
+            self.transition = False
 
         @Core.receiver("onstart")
         def starting_base(self, sender, **kwargs):
@@ -95,15 +98,16 @@ def ahp(config_path, **kwargs):
         def new_data(self, peer, sender, bus, topic, headers, message):
             '''Generate static configuration inputs for priority calculation.
             '''
+            if self.transition:
+                return
             _log.info('Data Received')
-            if BUILDING_TOPIC.match(topic):
+            if BUILDING_TOPIC.match(topic) and not self.running_ahp:
                 _log.debug('Reading building power data.')
                 self.check_load(headers, message)
             if not ALL_DEV.match(topic):
                 return
-            if not self.running_ahp:
-                return
-            device = topic.split('/')[3]
+            if self.running_ahp:
+                device = topic.split('/')[3]
             if device not in self.off_dev.keys():
                 return
                     
@@ -116,15 +120,17 @@ def ahp(config_path, **kwargs):
                 config = static_config[key]
                 device = None
                 data = {}
-                for dev, stat in config['by_mode'].items():
+                by_mode = deepcopy(config.get('by_mode', None))
+                assert by_mode
+                for dev, stat in by_mode.items():
                     check_status = self.vip.rpc.call(
                         'platform.actuator', 'get_point',
                         ''.join([location, key, stat])).get(timeout=10)
                     if int(check_status[stat]):
-                        device = config[dev]
+                        device = deepcopy(config[dev])
                         break
                 if device is None:
-                    self.off_dev.update({key: config['by_mode'].values()})
+                    self.off_dev.update({key: by_mode.values()})
                     continue
                 for point in config['points']:
                     value = self.vip.rpc.call(
@@ -201,15 +207,17 @@ def ahp(config_path, **kwargs):
             the demand limit (demand_limit) then initiate the AHP sequence.
             '''
             obj = jsonapi.loads(message[0])
-            blg_power = float(obj[power_meter])
-            if blg_power > demand_limit:
+            bldg_power = float(obj[power_meter])
+            if bldg_power > demand_limit:
+                self.bldg_power = bldg_power
                 self.running_ahp = True
                 self.query_device()
                 if self.builder is not None:
                     input_arr = input_matrix(self.builder, self.crit_labels)
                 if input is not None:
                     scores, score_order = build_score(input_arr, self.row_average)
-                self.actuator_request(score_order)
+                ctrl_dev = self.actuator_request(score_order)
+                self.curtail(ctrl_dev, scores, score_order)
 
         def actuator_request(self, score_order):
                 now = dt.now()
@@ -229,6 +237,30 @@ def ahp(config_path, **kwargs):
                                                 ).get(timeout=10)
                     if result['result'] == 'FAILURE':
                         self.failed_control.append(dev)
+                ctrl_dev = [dev for dev in score_order if dev not in self.failed_control]
+                return ctrl_dev
+        
+        def curtail(self, ctrl_dev, scores, score_order):
+            dev_keys = self.builder.keys()
+            dev_keys = [(item.split('_')[0], item.split('_')[-1]) for item in dev_keys]
+            dev_keys = [(item[0], item[-1]) for item in dev_keys if item[0] in ctrl_dev]
+            for item in dev_keys:
+                pt = static_config[item[0]][item[-1]]
+                pt = pt.get('curtail', None)
+                if pt is None:
+                    _log.error('The "curtail" section of device configuration '
+                               'is missing or configured incorrectly')
+                curtail_pt = pt.get('point', None)
+                curtail_val = pt.get('value', None)
+                curtail_load = pt.get('load', None)
+                curtail_path = ''.join([location, item[0], curtail_pt])
+                result = self.vip.rpc.call('platforlsm.actuator', 'set_point',                        
+                                           agent_id, curtail_path,  
+                                           curtail_val                                
+                                           ).get(timeout=10)
+
+                self.transition == True
+                    
                                             
 
       
