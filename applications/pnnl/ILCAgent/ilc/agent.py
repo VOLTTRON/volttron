@@ -41,14 +41,19 @@ def ahp(config_path, **kwargs):
     devices = config['device']['unit']
     agent_id = config.get('agent_id')
     base_device = "devices/{campus}/{building}/".format(**location)
-    power_meter = "PowerMeter"
+    power_token = config.get('PowerMeter', None)
+    assert power_token
+    power_dev = power_token.get('device', None)
+    power_pt = power_token.get('point', None)
+    if power_token is None or power_pt is None:
+        raise Exception('PowerMeter section of configuration file is not configured correctly.')
     units = devices.keys()
     devices_topic = (
         base_device + '({})(/.*)?/all$'
         .format('|'.join(re.escape(p) for p in units)))
     bld_pwr_topic = (
         base_device + '({})(/.*)?/all$'
-        .format('|'.join(re.escape(p) for p in [power_meter])))
+        .format('|'.join(re.escape(p) for p in [power_dev])))
     BUILDING_TOPIC = re.compile(bld_pwr_topic)
     ALL_DEV = re.compile(devices_topic)
     static_config = config['device']
@@ -155,6 +160,7 @@ def ahp(config_path, **kwargs):
                 _operation = criteria.get('operation', None)
                 if _name is None or op_type is None or _operation is None:
                     _log.error('{} is misconfigured.'.format(item))
+                    raise Exception('{} is misconfigured'.format(item))
                 if isinstance(op_type, str) and op_type == "constant":
                     val = criteria['operation']
                     if val < criteria['minimum']:
@@ -211,7 +217,7 @@ def ahp(config_path, **kwargs):
             the demand limit (demand_limit) then initiate the AHP sequence.
             '''
             obj = jsonapi.loads(message[0])
-            bldg_power = float(obj[power_meter])
+            bldg_power = float(obj[power_pt])
             if bldg_power > demand_limit:
                 self.bldg_power = bldg_power
                 self.running_ahp = True
@@ -226,7 +232,7 @@ def ahp(config_path, **kwargs):
         def actuator_request(self, score_order):
                 now = dt.now()
                 str_now = now.strftime(DATE_FORMAT)
-                end = now + td(minutes=curtail_time)
+                end = now + td(minutes=curtail_time + 5)
                 str_end = end.strftime(DATE_FORMAT)
                 schedule_request = []
                 for dev in score_order:
@@ -238,7 +244,7 @@ def ahp(config_path, **kwargs):
                                                 agent_id,            
                                                 'HIGH',                  
                                                 schedule_request        
-                                                ).get(timeout=10)
+                                                ).get(timeout=10) 
                     if result['result'] == 'FAILURE':
                         self.failed_control.append(dev)
                 ctrl_dev = [dev for dev in score_order if dev not in self.failed_control]
@@ -248,12 +254,16 @@ def ahp(config_path, **kwargs):
             dev_keys = self.builder.keys()
             dev_keys = [(item.split('_')[0], item.split('_')[-1]) for item in dev_keys]
             dev_keys = [(item[0], item[-1]) for item in dev_keys if item[0] in ctrl_dev]
+            need_curtailed = self.bldg_power - demand_limit
+            est_curtailed = 0.0
             for item in dev_keys:
                 pt = static_config[item[0]][item[-1]]
                 pt = pt.get('curtail', None)
                 if pt is None:
                     _log.error('The "curtail" section of device configuration '
                                'is missing or configured incorrectly')
+                    raise Exception('The curtail section for {} is missing or '
+                                    'or configured incorrectly.'.format(item))
                 curtail_pt = pt.get('point', None)
                 curtail_val = pt.get('value', None)
                 curtail_load = pt.get('load', None)
@@ -262,9 +272,19 @@ def ahp(config_path, **kwargs):
                                            agent_id, curtail_path,  
                                            curtail_val                                
                                            ).get(timeout=10)
+                                           
+                est_curtailed += curtail_load
+                if est_curtailed >= need_curtailed:
+                    break
+            self.transition == True
+            _chk_time = dt.now() + td(minutes=5)
+            self.core.schedule(_chk_time, self.curtailed_power)
 
-                self.transition == True
-                    
+        def curtailed_power(self):
+            pwr_mtr = ''.join([location, power_dev, power_pt])
+            value = self.vip.rpc.call('platform.actuator', 'get_point',
+                                      pwr_mtr).get(timeout=10)
+            if 
                                             
 
       

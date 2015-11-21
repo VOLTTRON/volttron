@@ -177,7 +177,8 @@
 		"Kitchen": 3
 	},
     "PowerMeter": {
-        "Points": "BuildingPower"
+    		"device": "PowerMeter",
+    	    "point": "BuildingPower"
     },
 	"agent_id": "ahp",
 	"Demand Limit": 30.0,
