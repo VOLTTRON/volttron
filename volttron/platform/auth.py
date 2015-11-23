@@ -287,9 +287,6 @@ class AuthService(Agent):
     def get_roles(self, user_id):
         return self._get_authorizations(user_id, 2)
 
-    @RPC.export
-    def test(self):
-        return "test123"
 
 class String(unicode):
     def __new__(cls, value):
