@@ -239,9 +239,6 @@ class AuthService(Agent):
     def authenticate(self, domain, address, mechanism, credentials):
         for entry in self.auth_entries:
             if entry.match(domain, address, mechanism, credentials):
-                _log.debug('entry.user_id: %s', entry.user_id)
-                _log.debug('dump_user: %s', dump_user(
-                    domain, address, mechanism, *credentials[:1]))
                 return entry.user_id or dump_user(
                     domain, address, mechanism, *credentials[:1])
         if mechanism == 'NULL' and address.startswith('localhost:'):
@@ -289,6 +286,10 @@ class AuthService(Agent):
     @RPC.export
     def get_roles(self, user_id):
         return self._get_authorizations(user_id, 2)
+
+    @RPC.export
+    def test(self):
+        return "test123"
 
 class String(unicode):
     def __new__(cls, value):

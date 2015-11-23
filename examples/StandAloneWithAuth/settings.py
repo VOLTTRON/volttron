@@ -17,16 +17,17 @@ _params = {
 
 	# public and secret key for the standalonelistener agent.
 	# These can be created from the volttron-ctl keypair command.
-	'agent_public': 'PCkAasrFk9ce5d8NWbgaWR5qc1HWncExaQHG0apkKTI',
-	'agent_secret': 'D5wv-LjXFBLlQt7PmXMUQsSSW1919zzDh4-fJu_0MTM',
+	'agent_public': 'XR-l7nMBB1zDRsUS2Mjb9lePkcNsgoosHKpCDm6D9TI',
+	'agent_secret': '3cjyXbfFrdV04khkIWj9SFeLDWY8_4V1DCuVz0w8A4c',
 
 	# Public server key from the remote platform.  This can be
 	# obtained from the starting of the platform volttron -v.
 	# The output will include public key: ....
-	'server_key': 'WrbU-pssDxmXwGpnMeDlFD71xOYyp7Q9kDAhsvFLKXo'
+	'server_key': '4vn5_n_zMlk9K_p5RKcX48-8xdzWrnUgjB0IW-xEJDE'
 }
 
 def remote_url():
 	return "{vip_address}:{port}?serverkey={server_key}" \
 		"&publickey={agent_public}&" \
 		"secretkey={agent_secret}".format(**_params)
+

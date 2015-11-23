@@ -164,23 +164,6 @@ class Dispatcher(jsonrpc.Dispatcher):
         local.vip_message = context
         local.request = request
         local.batch = batch
-
-        user_id = local.vip_message.user
-        required_caps = annotations(method, set, 'rpc.allow_capabilities')
-
-        # TODO: this might be a place to check if the user_id has
-        # the required capabilities to call a method via RPC, but
-        # I'm not sure how to call auth.get_authorizations from here.
-
-        _log.debug('USER_ID: {}'.format(user_id))
-        _log.debug('REQUIRED CAPS: {}'.format(required_caps))
-        _log.debug('request: {}'.format(request))
-        _log.debug('ident: {}'.format(ident))
-        _log.debug('name: {}'.format(name))
-        _log.debug('args: {}'.format(args))
-        _log.debug('kwargs: {}'.format(kwargs))
-        _log.debug('method.__name__: {}'.format(method.__name__))
-
         try:
             return method(*args, **kwargs)
         except Exception as exc:   # pylint: disable=broad-except
@@ -241,15 +224,35 @@ class RPC(SubsystemBase):
             self.context = gevent.local.local()
             self._dispatcher = Dispatcher(self._exports, self.context)
         core.onsetup.connect(setup, self)
+        self._iterate_exports()
+
+    def _iterate_exports(self):
+        '''Iterates over exported methods and adds authorization checks
+        as necessary
+        '''
+        for method_name in self._exports:
+            method = self._exports[method_name]
+            caps = annotations(method, set, 'rpc.allow_capabilities')
+            if caps:
+                self._exports[method_name] = self._add_auth_check(method, caps)
+
+    def _add_auth_check(self, method, required_caps):
+        '''Adds an authorization check to verify the calling agent has the
+        required capabilities.
+        '''
+        def checked_method(*args, **kwargs):
+            user = str(self.context.vip_message.user)
+            caps = self.call('auth', 'get_capabilities', user_id=user).get(timeout=5)
+            if not required_caps <= set(caps):
+                msg = ('method "{}" requires capabilities {},'
+                      ' but capability list {} was'
+                      ' provided').format(method.__name__, required_caps, caps)
+                raise jsonrpc.exception_from_json(jsonrpc.UNAUTHORIZED, msg)
+            return method(*args, **kwargs)
+        return checked_method
 
     @spawn
     def _handle_subsystem(self, message):
-
-        _log.debug('message: {}'.format(message))
-        _log.debug('message.args: {}'.format(message.args))
-        _log.debug('dir(message): {}'.format(dir(message)))
-        _log.debug('type(message): {}'.format(type(message)))
-
         dispatch = self._dispatcher.dispatch
         responses = [response for response in (
             dispatch(bytes(msg), message) for msg in message.args) if response]
@@ -311,7 +314,23 @@ class RPC(SubsystemBase):
 
     @classmethod
     def allow(cls, capabilities):
+        '''Decorator specifies required agent capabilities to call a method.
+     
+        This is designed to be used with the export decorator:
+
+        @RPC.export
+        @RPC.allow('can_read_status')
+        def get_status():
+            ...
+
+        Multiple capabilies can be provided in a list:
+        @RPC.allow(['can_read_status', 'can_call_my_methods'])
+        '''
         def decorate(method):
-            annotate(method, set, 'rpc.allow_capabilities', capabilities)
+            if isinstance(capabilities, basestring):
+                annotate(method, set, 'rpc.allow_capabilities', capabilities)
+            else:
+                for cap in capabilities:
+                    annotate(method, set, 'rpc.allow_capabilities', cap)
             return method
         return decorate

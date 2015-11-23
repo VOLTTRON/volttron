@@ -74,8 +74,6 @@ from .... import jsonrpc
 
 __all__ = ['PubSub']
 
-import logging
-_log = logging.getLogger(__name__)
 
 def encode_peer(peer):
     if peer.startswith('\x00'):
@@ -216,14 +214,11 @@ class PubSub(SubsystemBase):
                         results.append((bus, topic, member))
         return results
 
-    def _peer_publish(self, topic, headers, message=None, bus='',
-            required_capabilities=[]):
+    def _peer_publish(self, topic, headers, message=None, bus=''):
         peer = bytes(self.rpc().context.vip_message.peer)
-        self._distribute(peer, topic, headers, message, bus,
-                required_capabilities)
+        self._distribute(peer, topic, headers, message, bus)
 
-    def _distribute(self, peer, topic, headers, message=None, bus='',
-            required_capabilities=[]):
+    def _distribute(self, peer, topic, headers, message=None, bus=''):
         subscriptions = self._peer_subscriptions[bus]
         subscribers = set()
         for prefix, subscription in subscriptions.iteritems():
@@ -369,8 +364,7 @@ class PubSub(SubsystemBase):
         topics = self.drop_subscription(peer, prefix, callback, bus)
         return self.rpc().call(peer, 'pubsub.unsubscribe', topics, bus=bus)
 
-    def publish(self, peer, topic, headers=None, message=None, bus='',
-            required_capabilities=[]):
+    def publish(self, peer, topic, headers=None, message=None, bus=''):
         '''Publish a message to a given topic via a peer.
 
         Publish headers and message to all subscribers of topic on bus
@@ -380,10 +374,8 @@ class PubSub(SubsystemBase):
             headers = {}
         if peer is None:
             self._distribute(self.core().socket.identity,
-                             topic, headers, message, bus,
-                             required_capabilities)
+                             topic, headers, message, bus)
         else:
             return self.rpc().call(
                 peer, 'pubsub.publish', topic=topic, headers=headers,
-                message=message, bus=bus,
-                required_capabilities=required_capabilities)
+                message=message, bus=bus)
