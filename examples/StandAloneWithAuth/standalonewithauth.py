@@ -8,7 +8,7 @@
         python standalonewithauth.py
 
     You will need to modify settings.py to have the correct agent_public and 
-    agent_secret values or you can modify VOLTRON_HOME/auth.json to match 
+    agent_secret values or you can modify VOLTTRON_HOME/auth.json to match 
     the following:
 
 {
