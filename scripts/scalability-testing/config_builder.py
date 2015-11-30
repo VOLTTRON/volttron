@@ -232,7 +232,7 @@ if __name__ == "__main__":
                         help='host of the test devices',
                         default=virtual_device_host)
     
-    parser.add_argument('config_dir', help='output directory for configurations',
+    parser.add_argument('--config-dir', help='output directory for configurations',
                         default=config_dir)
     
     args = parser.parse_args()
