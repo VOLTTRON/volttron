@@ -74,7 +74,6 @@ utils.setup_logging()
 _log = logging.getLogger(__name__)
 
 
-
 class DriverAgent(BasicAgent): 
     def __init__(self, parent, config_name, **kwargs):             
         super(DriverAgent, self).__init__(**kwargs)
@@ -165,6 +164,8 @@ class DriverAgent(BasicAgent):
     def periodic_read(self):
         _log.debug("scraping device: " + self.device_name)
         
+        self.parent.scrape_starting(self.device_name)
+        
         try:
             results = self.interface.scrape_all()
         except Exception as ex:
@@ -198,6 +199,8 @@ class DriverAgent(BasicAgent):
 #         self._publish_wrapper(self.all_path_breadth, 
 #                               headers=headers, 
 #                               message=message)
+
+        self.parent.scrape_ending(self.device_name)
         
         
     def _publish_wrapper(self, topic, headers, message):

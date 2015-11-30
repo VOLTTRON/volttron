@@ -174,7 +174,8 @@ def build_device_configs(device_type, host_address, count, reg_config, config_di
         
     return config_paths, command_lines
 
-def build_all_configs(agent_config, device_type, host_address, count, reg_config, config_dir):
+def build_all_configs(agent_config, device_type, host_address, count, reg_config, config_dir, 
+                      scalability_test, scalability_test_iterations):
     '''For command line interface'''
         
     try:
@@ -187,13 +188,17 @@ def build_all_configs(agent_config, device_type, host_address, count, reg_config
     
     config_list, command_lines = build_device_configs(device_type, host_address, count, reg_config, config_dir)
     
-    build_master_config(agent_config, config_dir, config_list)
+    build_master_config(agent_config, config_dir, config_list, 
+                        scalability_test, scalability_test_iterations)
         
     print command_lines
     
-def build_master_config(agent_config, config_dir, config_list):
+def build_master_config(agent_config, config_dir, config_list, 
+                        scalability_test, scalability_test_iterations):
     """Takes the input from multiple called to build_device_configs and create the master config."""
     configuration = {"driver_config_list": config_list}
+    configuration['scalability_test'] = scalability_test
+    configuration['scalability_test_iterations'] = scalability_test_iterations
     
     config_str = json.dumps(configuration, indent=4, separators=(',', ': '))
     
@@ -211,6 +216,12 @@ if __name__ == "__main__":
     parser.add_argument('--count', type=int, default=1, 
                         help='number of devices to configure')
     
+    parser.add_argument('--scalability-test', action='store_true', 
+                        help='Configure master driver for a scalability test')
+    
+    parser.add_argument('--scalability-test-iterations', type=int, default=5, 
+                        help='Scalability test iterations')
+    
     parser.add_argument('device_type', choices=['bacnet', 'modbus', 'fake'], 
                         help='type of device to use for testing')
     
@@ -227,7 +238,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     build_all_configs(args.agent_config, args.device_type, 
                       args.virtual_device_host, args.count, args.registry_config, 
-                      args.config_dir)
+                      args.config_dir, args.scalability_test, args.scalability_test_iterations)
     
     
     
