@@ -13,6 +13,9 @@ var modalActionCreators = require('../action-creators/modal-action-creators');
 var modalStore = require('../stores/modal-store');
 var Navigation = require('./navigation');
 var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
+var StatusIndicator = require('./status-indicator');
+var statusIndicatorCreators = require('../action-creators/status-indicator-action-creators');
+var statusIndicatorStore = require('../stores/status-indicator-store');
 
 var PlatformManager = React.createClass({
     mixins: [Router.Navigation, Router.State],
@@ -24,6 +27,7 @@ var PlatformManager = React.createClass({
         authorizationStore.addChangeListener(this._onStoreChange);
         consoleStore.addChangeListener(this._onStoreChange);
         modalStore.addChangeListener(this._onStoreChange);
+        statusIndicatorStore.addChangeListener(this._onStoreChange);
         this._doModalBindings();
     },
     componentDidUpdate: function () {
@@ -45,6 +49,7 @@ var PlatformManager = React.createClass({
         authorizationStore.removeChangeListener(this._onStoreChange);
         consoleStore.removeChangeListener(this._onStoreChange);
         modalStore.removeChangeListener(this._onStoreChange);
+        statusIndicatorStore.removeChangeListener(this._onStoreChange);
         this._modalCleanup();
     },
     _onStoreChange: function () {
@@ -58,9 +63,15 @@ var PlatformManager = React.createClass({
             modalActionCreators.closeModal();
         }
     },
+    _closeStatusIndicator: function (e) {
+        if (e.keyCode === 27) {
+            statusIndicatorCreators.closeStatusIndicator();
+        }
+    },
     render: function () {
         var classes = ['platform-manager'];
         var modal;
+        var statusIndicator;
 
         if (this.state.consoleShown) {
             classes.push('platform-manager--console-open');
@@ -76,8 +87,16 @@ var PlatformManager = React.createClass({
             );
         }
 
+        if (this.state.statusIndicatorContent) {
+            // classes.push('platform-manager--modal-open');
+            statusIndicator = (
+                <StatusIndicator>{this.state.statusIndicatorContent}</StatusIndicator>
+            );
+        }
+
         return (
             <div className={classes.join(' ')}>
+                {statusIndicator}
                 {modal}
                 <div ref="main" className="main">
                     <Navigation />
@@ -100,6 +119,7 @@ function getStateFromStores() {
         consoleShown: consoleStore.getConsoleShown(),
         loggedIn: !!authorizationStore.getAuthorization(),
         modalContent: modalStore.getModalContent(),
+        statusIndicatorContent: statusIndicatorStore.getStatusIndicatorContent(),
     };
 }
 

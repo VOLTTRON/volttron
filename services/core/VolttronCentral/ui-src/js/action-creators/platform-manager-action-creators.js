@@ -58,6 +58,15 @@ var platformManagerActionCreators = {
     registerPlatform: function (name, address) {
         var authorization = authorizationStore.getAuthorization();
 
+        dispatcher.dispatch({
+            type: ACTION_TYPES.CLOSE_MODAL,
+        });
+
+        dispatcher.dispatch({
+            type: ACTION_TYPES.OPEN_STATUS,
+            content: "Registering platform " + name + "...",
+        });
+
         new rpc.Exchange({
             method: 'register_platform',
             authorization: authorization,
@@ -67,9 +76,9 @@ var platformManagerActionCreators = {
                 address: address,
             },
         }).promise
-            .then(function () {
+            .then(function (result) {
                 dispatcher.dispatch({
-                    type: ACTION_TYPES.CLOSE_MODAL,
+                    type: ACTION_TYPES.CLOSE_STATUS,
                 });
 
                 platformManagerActionCreators.loadPlatforms();
@@ -82,6 +91,10 @@ var platformManagerActionCreators = {
 
                 handle401(error);
             });
+
+            // dispatcher.dispatch({
+            //     type: ACTION_TYPES.CLOSE_STATUS,
+            // });
     },
     deregisterPlatform: function (platform) {
         var authorization = authorizationStore.getAuthorization();

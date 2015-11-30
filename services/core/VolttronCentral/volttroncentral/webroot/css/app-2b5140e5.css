@@ -218,6 +218,30 @@ br + .form__control-help {
     font-size: 1.5em;
 }
 
+.status-indicator {
+    display: inline-block;
+    vertical-align: top;
+    position: absolute;
+    top: 0px;
+    left: 40%;
+    right: 40%;
+    width: 20%;
+    padding: 1.5rem;
+    max-height: 75%;
+    box-sizing: border-box;
+    overflow: auto;
+    text-align: center;
+    border-radius: 0.3333rem;
+    background-color: #fff;
+    box-shadow: 0 0.1rem 0.2rem rgba(0,0,0,0.3);
+    z-index: 100;
+}
+
+.status-indicator.hide-slow {
+  opacity: 0.01;
+  transition: opacity 300ms ease-in;
+}
+
 .main {
     position: relative;
     height: 100%;
