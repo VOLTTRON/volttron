@@ -1,0 +1,10 @@
+{
+    "--vc": {
+        "help": "Installs requirements for volttron central",
+        "packages": ["tornado>4", "ply"]
+    },
+    "--pandas": {
+        "help": "Installs numpy and pandas for applications",
+        "packages": ["numpy>1.8<2", "pandas"]
+    }
+}
