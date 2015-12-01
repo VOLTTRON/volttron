@@ -58,8 +58,15 @@ def ahp(config_path, **kwargs):
     ALL_DEV = re.compile(devices_topic)
     static_config = config['device']
     all_devices = static_config.keys()
+    no_curt = {}
+    by_mode = static_config.get('by_mode')
+    if by_mode is None:
+        raise Exception('by_mode section of configuration file is missing.')
     demand_limit = float(config.get("Demand Limit"))
     curtail_time = float(config.get("Curtailment Time", 15.0))
+    for key in static_config:
+        for item in by_mode:
+            no_curt[''.join([key, '_', item])] = 0
 
     class AHP(Agent):
         def __init__(self, **kwargs):
@@ -72,6 +79,8 @@ def ahp(config_path, **kwargs):
             self.failed_control = []
             self.bldg_power = None
             self.transition = False
+            self.remaining_device = None
+            self.no_curtailed = no_curt
 
         @Core.receiver("onstart")
         def starting_base(self, sender, **kwargs):
@@ -209,10 +218,11 @@ def ahp(config_path, **kwargs):
                         val = criteria['maximum']
                     self.builder[dev_key].update({_name: val})
                     continue
+            self.builder[dev_key].update({'no_curtailed': self.no_curtailed[dev_key]})
                 
 
         def check_load(self, headers, message):
-            '''Check whole building power and if the value is above thenano
+            '''Check whole building power and if the value is above the
  
             the demand limit (demand_limit) then initiate the AHP sequence.
             '''
@@ -223,32 +233,35 @@ def ahp(config_path, **kwargs):
                 self.running_ahp = True
                 self.query_device()
                 if self.builder is not None:
+                    # error check
                     input_arr = input_matrix(self.builder, self.crit_labels)
                 if input is not None:
                     scores, score_order = build_score(input_arr, self.row_average)
                 ctrl_dev = self.actuator_request(score_order)
+                self.remaining_device = deepcopy(ctrl_dev)
                 self.curtail(ctrl_dev, scores, score_order)
 
         def actuator_request(self, score_order):
-                now = dt.now()
-                str_now = now.strftime(DATE_FORMAT)
-                end = now + td(minutes=curtail_time + 5)
-                str_end = end.strftime(DATE_FORMAT)
-                schedule_request = []
-                for dev in score_order:
-                    curt_dev = ''.join([base_device, dev])
-                    schedule_request = [[curt_dev, str_now, str_end]]
-                    result = self.vip.rpc.call('platform.actuator',
-                                                'request_new_schedule',
-                                                agent_id,              
-                                                agent_id,            
-                                                'HIGH',                  
-                                                schedule_request        
-                                                ).get(timeout=10) 
-                    if result['result'] == 'FAILURE':
-                        self.failed_control.append(dev)
-                ctrl_dev = [dev for dev in score_order if dev not in self.failed_control]
-                return ctrl_dev
+            '''request access to devices.'''
+            now = dt.now()
+            str_now = now.strftime(DATE_FORMAT)
+            end = now + td(minutes=curtail_time + 5)
+            str_end = end.strftime(DATE_FORMAT)
+            schedule_request = []
+            for dev in score_order:
+                curt_dev = ''.join([base_device, dev])
+                schedule_request = [[curt_dev, str_now, str_end]]
+                result = self.vip.rpc.call('platform.actuator',
+                                            'request_new_schedule',
+                                            agent_id,              
+                                            agent_id,            
+                                            'HIGH',                  
+                                            schedule_request        
+                                            ).get(timeout=10) 
+                if result['result'] == 'FAILURE':
+                    self.failed_control.append(dev)
+            ctrl_dev = [dev for dev in score_order if dev not in self.failed_control]
+            return ctrl_dev
         
         def curtail(self, ctrl_dev, scores, score_order):
             dev_keys = self.builder.keys()
@@ -268,12 +281,14 @@ def ahp(config_path, **kwargs):
                 curtail_val = pt.get('value', None)
                 curtail_load = pt.get('load', None)
                 curtail_path = ''.join([location, item[0], curtail_pt])
-                result = self.vip.rpc.call('platforlsm.actuator', 'set_point',                        
+                result = self.vip.rpc.call('platform.actuator', 'set_point',                        
                                            agent_id, curtail_path,  
                                            curtail_val                                
                                            ).get(timeout=10)
                                            
                 est_curtailed += curtail_load
+                self.no_curtailed[dev_keys] += 1.0
+                self.remaining_device.remove(item)
                 if est_curtailed >= need_curtailed:
                     break
             self.transition == True
@@ -284,8 +299,7 @@ def ahp(config_path, **kwargs):
             pwr_mtr = ''.join([location, power_dev, power_pt])
             value = self.vip.rpc.call('platform.actuator', 'get_point',
                                       pwr_mtr).get(timeout=10)
-            if 
-                                            
+            if power 
 
       
     return AHP(**kwargs)               
