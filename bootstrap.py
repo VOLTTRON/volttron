@@ -319,7 +319,7 @@ def main(argv=sys.argv):
     # to be passed on.
     optional_args = []
     if os.path.exists('optional_requirements.json'):
-        po = parser.add_argument_group('Estra packaging options')
+        po = parser.add_argument_group('Extra packaging options')
         with open('optional_requirements.json', 'r') as optional_arguments:
             data = json.load(optional_arguments)
             for arg, vals in data.items():
