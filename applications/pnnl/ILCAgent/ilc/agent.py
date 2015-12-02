@@ -26,9 +26,10 @@ from volttron.platform.vip.agent import *
 
 MATRIX_ROWSTRING = "%20s\t%12.2f%12.2f%12.2f%12.2f%12.2f"
 CRITERIA_LABELSTRING = "\t\t\t%12s%12s%12s%12s%12s"
-DATE_FORMAT='%m-%d-%y %H:%M:%S'
+DATE_FORMAT = '%m-%d-%y %H:%M:%S'
 setup_logging()
 _log = logging.getLogger(__name__)
+
 
 def ahp(config_path, **kwargs):
     _log = logging.getLogger(__name__)
@@ -37,7 +38,7 @@ def ahp(config_path, **kwargs):
                         datefmt='%m-%d-%y %H:%M:%S')
     config = utils.load_config(config_path)
     location = dict((key, config['device'][key])
-                     for key in ['campus', 'building'])
+                    for key in ['campus', 'building'])
     devices = config['device']['unit']
     agent_id = config.get('agent_id')
     base_device = "devices/{campus}/{building}/".format(**location)
@@ -46,7 +47,8 @@ def ahp(config_path, **kwargs):
     power_dev = power_token.get('device', None)
     power_pt = power_token.get('point', None)
     if power_token is None or power_pt is None:
-        raise Exception('PowerMeter section of configuration file is not configured correctly.')
+        raise Exception('PowerMeter section of configuration '
+                        'file is not configured correctly.')
     units = devices.keys()
     devices_topic = (
         base_device + '({})(/.*)?/all$'
@@ -85,13 +87,12 @@ def ahp(config_path, **kwargs):
         @Core.receiver("onstart")
         def starting_base(self, sender, **kwargs):
             excel_file = config.get('excel_file', None)
-            
+
             if self.excel_file is not None:
-                self.crit_labels, criteria_arr = extract_criteria(excel_file,
-                                                                  "CriteriaMatrix")
+                self.crit_labels, criteria_arr = \
+                    extract_criteria(excel_file, "CriteriaMatrix")
                 col_sums = calc_column_sums(criteria_arr)
-                _, self.row_average = \
-                    normalize_matrix(criteria_arr, col_sums)
+                _, self.row_average = normalize_matrix(criteria_arr, col_sums)
                 print self.crit_labels, criteria_arr
             if not (validate_input(criteria_arr, col_sums, True,
                                    self.crit_labels, CRITERIA_LABELSTRING,
@@ -104,11 +105,11 @@ def ahp(config_path, **kwargs):
             # Setup pubsub to listen to all devices being published.
             driver_prefix = topics.DRIVER_TOPIC_BASE
             _log.debug("subscribing to {}".format(driver_prefix))
-            
+
             self.vip.pubsub.subscribe(peer='pubsub',
                                       prefix=driver_prefix,
                                       callback=self.new_data)
-                                      
+
         def new_data(self, peer, sender, bus, topic, headers, message):
             '''Generate static configuration inputs for priority calculation.
             '''
@@ -124,7 +125,7 @@ def ahp(config_path, **kwargs):
                 device = topic.split('/')[3]
             if device not in self.off_dev.keys():
                 return
-                    
+
         def query_device(self):
             '''Query Actuator agent for current state of pertinent points on
 
@@ -141,7 +142,7 @@ def ahp(config_path, **kwargs):
                         'platform.actuator', 'get_point',
                         ''.join([location, key, stat])).get(timeout=10)
                     if int(check_status[stat]):
-                        device = deepcopy(config[dev])
+                        device = deepcopy(config.get(dev, None))
                         break
                 if device is None:
                     self.off_dev.update({key: by_mode.values()})
@@ -156,11 +157,11 @@ def ahp(config_path, **kwargs):
                         self.construct_input(key, sub_dev, device[sub_dev], data)
                     else:
                         self.off_dev[key].append(sub_dev)
-                        
+
         def construct_input(self, key, sub_dev, criteria, data):
             '''Declare and construct data matrix for device.'''
             dev_key = ''.join([key, '_', sub_dev])
-            self.builder.update({dev_key:{}})
+            self.builder.update({dev_key: {}})
             for item in criteria:
                 if item == 'curtail':
                     continue
@@ -208,7 +209,7 @@ def ahp(config_path, **kwargs):
                     _points = op_type[1].split(" ")
                     points = symbols(op_type[1])
                     expr = parse_expr[_operation]
-                    pt_lst =[]
+                    pt_lst = []
                     for item in _points:
                         pt_lst.append([(item, data[item])])
                     val = expr.subs([pt_lst])
@@ -219,11 +220,10 @@ def ahp(config_path, **kwargs):
                     self.builder[dev_key].update({_name: val})
                     continue
             self.builder[dev_key].update({'no_curtailed': self.no_curtailed[dev_key]})
-                
 
         def check_load(self, headers, message):
             '''Check whole building power and if the value is above the
- 
+
             the demand limit (demand_limit) then initiate the AHP sequence.
             '''
             obj = jsonapi.loads(message[0])
@@ -232,37 +232,30 @@ def ahp(config_path, **kwargs):
                 self.bldg_power = bldg_power
                 self.running_ahp = True
                 self.query_device()
-                if self.builder is not None:
-                    # error check
-                    input_arr = input_matrix(self.builder, self.crit_labels)
-                if input is not None:
-                    scores, score_order = build_score(input_arr, self.row_average)
+                input_arr = input_matrix(self.builder, self.crit_labels)
+                scores, score_order = build_score(input_arr, self.row_average)
                 ctrl_dev = self.actuator_request(score_order)
                 self.remaining_device = deepcopy(ctrl_dev)
                 self.curtail(ctrl_dev, scores, score_order)
 
         def actuator_request(self, score_order):
             '''request access to devices.'''
-            now = dt.now()
-            str_now = now.strftime(DATE_FORMAT)
-            end = now + td(minutes=curtail_time + 5)
-            str_end = end.strftime(DATE_FORMAT)
+            _now = dt.now()
+            str_now = _now.strftime(DATE_FORMAT)
+            _end = _now + td(minutes=curtail_time + 5)
+            str_end = _end.strftime(DATE_FORMAT)
             schedule_request = []
             for dev in score_order:
-                curt_dev = ''.join([base_device, dev])
-                schedule_request = [[curt_dev, str_now, str_end]]
-                result = self.vip.rpc.call('platform.actuator',
-                                            'request_new_schedule',
-                                            agent_id,              
-                                            agent_id,            
-                                            'HIGH',                  
-                                            schedule_request        
-                                            ).get(timeout=10) 
+                curtailed_device = ''.join([base_device, dev])
+                schedule_request = [[curtailed_device, str_now, str_end]]
+                result = self.vip.rpc.call(
+                    'platform.actuator', 'request_new_schedule', agent_id,
+                    agent_id, 'HIGH', schedule_request).get(timeout=10)
                 if result['result'] == 'FAILURE':
                     self.failed_control.append(dev)
             ctrl_dev = [dev for dev in score_order if dev not in self.failed_control]
             return ctrl_dev
-        
+
         def curtail(self, ctrl_dev, scores, score_order):
             dev_keys = self.builder.keys()
             dev_keys = [(item.split('_')[0], item.split('_')[-1]) for item in dev_keys]
@@ -281,11 +274,9 @@ def ahp(config_path, **kwargs):
                 curtail_val = pt.get('value', None)
                 curtail_load = pt.get('load', None)
                 curtail_path = ''.join([location, item[0], curtail_pt])
-                result = self.vip.rpc.call('platform.actuator', 'set_point',                        
-                                           agent_id, curtail_path,  
-                                           curtail_val                                
-                                           ).get(timeout=10)
-                                           
+                result = self.vip.rpc.call('platform.actuator', 'set_point',
+                                           agent_id, curtail_path,
+                                           curtail_val).get(timeout=10)
                 est_curtailed += curtail_load
                 self.no_curtailed[dev_keys] += 1.0
                 self.remaining_device.remove(item)
@@ -299,9 +290,9 @@ def ahp(config_path, **kwargs):
             pwr_mtr = ''.join([location, power_dev, power_pt])
             value = self.vip.rpc.call('platform.actuator', 'get_point',
                                       pwr_mtr).get(timeout=10)
-            if power 
+            cur_pwr = value[power_pt]
+            if value[cur_pwr] < demand_limit:
 
-      
     return AHP(**kwargs)               
                     
                     

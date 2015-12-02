@@ -275,20 +275,16 @@ def display_matrix(_matrix, LABELString, xLABELS, yLABELS,
 
 
 def input_matrix(builder, criteria_labels):
+    '''Construct input normalized input matrix.'''
     sum_mat = {}
-    _sumdict = builder.values()
     inp_mat = {}
-    for items in _sumdict:
-        for k, v in items.items():
+    label_check = builder.values()[-1].keys()
+    if set(label_check) != set(criteria_labels):
+        raise Exception('Input criteria and data criteria do not match.')
+    for device_data in builder.values():
+        for k,v in device_data.items():
             sum_mat[k] = v if k not in sum_mat else sum_mat[k] + v
-    for key, val in builder.items():
-        lister = []
-        labels = []
-        for k in val:
-            labels.append(k)
-            lister.append(val[k]/sum_mat[k])
-        if criteria_labels and criteria_labels != labels:
-            _index = [labels.index(item) for item in criteria_labels]
-            lister = [lister[item] for item in _index]
-        inp_mat[key] = lister
+    for key in builder:
+        inp_mat[key] = [builder[key][tag]/sum_mat[tag] for tag in criteria_labels]
+    
     return inp_mat
