@@ -126,11 +126,11 @@ class BaseHistorianAgent(Agent):
     def _create_subscriptions(self):
         
         subscriptions = [
-                         (topics.DRIVER_TOPIC_BASE, self._capture_device_data),
-                         (topics.LOGGER_BASE, self._capture_log_data),
-                         (topics.ACTUATOR, self._capture_actuator_data),
-                         (topics.ANALYSIS_TOPIC_BASE, self._capture_analysis_data),
-                         (topics.RECORD, self._capture_record_data)
+            (topics.DRIVER_TOPIC_BASE, self._capture_device_data),
+            (topics.LOGGER_BASE, self._capture_log_data),
+            (topics.ACTUATOR, self._capture_actuator_data),
+            (topics.ANALYSIS_TOPIC_BASE, self._capture_analysis_data),
+            (topics.RECORD, self._capture_record_data)
         ]
         
         for prefix, cb in subscriptions:
@@ -167,7 +167,11 @@ class BaseHistorianAgent(Agent):
     
     def _capture_record_data(self, peer, sender, bus, topic, headers, message):
         _log.debug('Capture record data {}'.format(message))
-        
+        self._event_queue.put(
+            {'source': 'record',
+             'topic': topic,
+             'readings': [(datetime.utcnow(), message)],
+             'meta':{}})
         
     def _capture_log_data(self, peer, sender, bus, topic, headers, message):
         '''Capture log data and submit it to be published by a historian.'''
