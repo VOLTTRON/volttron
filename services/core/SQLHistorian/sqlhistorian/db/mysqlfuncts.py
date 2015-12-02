@@ -143,7 +143,7 @@ class MySqlFuncts(DbDriver):
         return '''REPLACE INTO data values(%s, %s, %s)'''
         
     def insert_topic_query(self):
-        return '''INSERT INTO topics (topic_name) values (%s)'''
+        return '''REPLACE INTO topics (topic_name) values (%s)'''
     
     def get_topic_map(self):
         q = "SELECT topic_id, topic_name FROM topics;"
