@@ -116,8 +116,8 @@ class BaseHistorianAgent(Agent):
         self._retry_period = retry_period
         self._submit_size_limit = submit_size_limit
         self._max_time_publishing = timedelta(seconds=max_time_publishing)
+        self._successful_published = set()
     
-        self._success_queue = Queue()
         self._event_queue = Queue()
         self._process_thread = Thread(target = self._process_loop)
         self._process_thread.daemon = True  # Don't wait on thread to exit.
@@ -362,7 +362,7 @@ class BaseHistorianAgent(Agent):
 
         _log.debug("Starting process loop.")
         
-        backupdb = BackupDatabase(self._success_queue)
+        backupdb = BackupDatabase(self._event_queue)
     
         # Sets up the concrete historian
         self.historian_setup()
@@ -412,10 +412,11 @@ class BaseHistorianAgent(Agent):
                                "publishing to the historian.")
                 
                 # if the successfule queue is empty then we need not remove them from the database.
-                if self._success_queue.empty():
+                if not self._successful_published:
                     break
                 
-                backupdb.remove_successfully_published(self._submit_size_limit)
+                backupdb.remove_successfully_published(self._successful_published,
+                                                       self._submit_size_limit)
 
                 now = datetime.utcnow()
                 if now - start_time > self._max_time_publishing:
@@ -424,10 +425,14 @@ class BaseHistorianAgent(Agent):
         _log.debug("Finished processing")
         
     def report_handled(self, record):
-        self._success_queue.put(record)        
+        if isinstance(record, list):
+            for x in record:
+                self._successful_published.add(x['_id'])
+        else:
+            self._successful_published.add(record['_id'])        
 
     def report_all_handled(self):
-        self._success_queue.put(None)
+        self._successful_published.add(None)
 
     @abstractmethod
     def publish_to_historian(self, to_publish_list):
@@ -443,7 +448,6 @@ class BackupDatabase:
         # accessed via the implemented historians.
         self._backup_cache = {}
         self._meta_data = defaultdict(dict)
-        self._success_queue = success_queue
         self._setupdb()
     
     def backup_new_data(self, new_publish_list):
@@ -476,41 +480,26 @@ class BackupDatabase:
                           (timestamp,source,topic_id,jsonapi.dumps(value)))
 
         self._connection.commit()
-    
-    def _get_reported_success_from_queue(self):
-        successids = []
-        while True:
-            try:        
-                record = self._success_queue.get()
-                
-                if record == None:
-                    return [None]
-                
-                if isinstance(record, list):
-                    for x in record:
-                        successids.add(x['_id'])
-                else:
-                    successids.add(record['_id'])
-            except Empty:
-                return successids
         
-    def remove_successfully_published(self, submit_size):
+    def remove_successfully_published(self, successful_publishes, submit_size):
+        ''' Removes the reported successful publishes from the backup database.
+        '''
+        
         _log.debug("Cleaning up successfully published values.")
         c = self._connection.cursor()
         
-        reported_success = self._get_reported_success_from_queue()
-        if None in reported_success:
+        if None in successful_publishes:
             c.execute('''DELETE FROM outstanding
                         WHERE ROWID IN
                         (SELECT ROWID FROM outstanding
                           ORDER BY ts LIMIT ?)''', (submit_size,))
         else:
-            temp = list(self._successful_published)
+            temp = list(successful_publishes)
             temp.sort()
             c.executemany('''DELETE FROM outstanding
                             WHERE id = ?''',
                             ((_id,) for _id in
-                             reported_success))
+                             successful_publishes))
 
         self._connection.commit()
 
