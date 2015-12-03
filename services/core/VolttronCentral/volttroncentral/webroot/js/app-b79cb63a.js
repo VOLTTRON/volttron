@@ -544,7 +544,8 @@ var platformManagerActionCreators = {
 
         dispatcher.dispatch({
             type: ACTION_TYPES.OPEN_STATUS,
-            content: "Registering platform " + name + "...",
+            message: "Registering platform " + name + "...",
+            status: "success"
         });
 
         new rpc.Exchange({
@@ -625,10 +626,11 @@ var ACTION_TYPES = require('../constants/action-types');
 var dispatcher = require('../dispatcher');
 
 var actionStatusCreators = {
-	openStatusIndicator: function (content) {
+	openStatusIndicator: function (status, message) {
 		dispatcher.dispatch({
 			type: ACTION_TYPES.OPEN_STATUS,
-			content: content,
+			status: status,
+			message: message,
 		});
 	},
 	closeStatusIndicator: function () {
@@ -1736,7 +1738,7 @@ var modalStore = require('../stores/modal-store');
 var Navigation = require('./navigation');
 var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
 var StatusIndicator = require('./status-indicator');
-var statusIndicatorCreators = require('../action-creators/status-indicator-action-creators');
+// var statusIndicatorCreators = require('../action-creators/status-indicator-action-creators');
 var statusIndicatorStore = require('../stores/status-indicator-store');
 
 var PlatformManager = React.createClass({displayName: "PlatformManager",
@@ -1785,11 +1787,11 @@ var PlatformManager = React.createClass({displayName: "PlatformManager",
             modalActionCreators.closeModal();
         }
     },
-    _closeStatusIndicator: function (e) {
-        if (e.keyCode === 27) {
-            statusIndicatorCreators.closeStatusIndicator();
-        }
-    },
+    // _closeStatusIndicator: function (e) {
+    //     if (e.keyCode === 27) {
+    //         statusIndicatorCreators.closeStatusIndicator();
+    //     }
+    // },
     render: function () {
         var classes = ['platform-manager'];
         var modal;
@@ -1809,10 +1811,10 @@ var PlatformManager = React.createClass({displayName: "PlatformManager",
             );
         }
 
-        if (this.state.statusIndicatorContent) {
+        if (this.state.status) {
             // classes.push('platform-manager--modal-open');
             statusIndicator = (
-                React.createElement(StatusIndicator, null, this.state.statusIndicatorContent)
+                React.createElement(StatusIndicator, null)
             );
         }
 
@@ -1841,14 +1843,15 @@ function getStateFromStores() {
         consoleShown: consoleStore.getConsoleShown(),
         loggedIn: !!authorizationStore.getAuthorization(),
         modalContent: modalStore.getModalContent(),
-        statusIndicatorContent: statusIndicatorStore.getStatusIndicatorContent(),
+        status: statusIndicatorStore.getStatus(),
+        statusMessage: statusIndicatorStore.getStatusMessage(),
     };
 }
 
 module.exports = PlatformManager;
 
 
-},{"../action-creators/console-action-creators":2,"../action-creators/modal-action-creators":3,"../action-creators/platform-manager-action-creators":5,"../action-creators/status-indicator-action-creators":6,"../stores/authorization-store":37,"../stores/console-store":38,"../stores/modal-store":40,"../stores/status-indicator-store":43,"./console":11,"./modal":19,"./navigation":20,"./status-indicator":27,"jquery":undefined,"react":undefined,"react-router":undefined}],23:[function(require,module,exports){
+},{"../action-creators/console-action-creators":2,"../action-creators/modal-action-creators":3,"../action-creators/platform-manager-action-creators":5,"../stores/authorization-store":37,"../stores/console-store":38,"../stores/modal-store":40,"../stores/status-indicator-store":43,"./console":11,"./modal":19,"./navigation":20,"./status-indicator":27,"jquery":undefined,"react":undefined,"react-router":undefined}],23:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2059,8 +2062,10 @@ var React = require('react');
 var Router = require('react-router');
 
 var modalActionCreators = require('../action-creators/modal-action-creators');
+var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
 var platformsStore = require('../stores/platforms-store');
 var RegisterPlatformForm = require('../components/register-platform-form');
+var StatusForm = require('../components/status-indicator');
 var DeregisterPlatformConfirmation = require('../components/deregister-platform-confirmation');
 
 var Platforms = React.createClass({displayName: "Platforms",
@@ -2073,6 +2078,9 @@ var Platforms = React.createClass({displayName: "Platforms",
     },
     _onStoresChange: function () {
         this.setState(getStateFromStores());
+    },
+    _onStatusClick: function () {
+        statusIndicatorActionCreators.openStatusIndicator("success", "nothing happened");
     },
     _onRegisterClick: function () {
         modalActionCreators.openModal(React.createElement(RegisterPlatformForm, null));
@@ -2148,6 +2156,10 @@ var Platforms = React.createClass({displayName: "Platforms",
             React.createElement("div", {className: "view"}, 
                 React.createElement("h2", null, "Platforms"), 
                 React.createElement("div", {className: "view__actions"}, 
+                    React.createElement("button", {className: "button", onClick: this._onStatusClick}, 
+                        "Show Status"
+                    ), 
+                    " ", 
                     React.createElement("button", {className: "button", onClick: this._onRegisterClick}, 
                         "Register platform"
                     )
@@ -2167,7 +2179,7 @@ function getStateFromStores() {
 module.exports = Platforms;
 
 
-},{"../action-creators/modal-action-creators":3,"../components/deregister-platform-confirmation":14,"../components/register-platform-form":25,"../stores/platforms-store":42,"react":undefined,"react-router":undefined}],25:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../action-creators/status-indicator-action-creators":6,"../components/deregister-platform-confirmation":14,"../components/register-platform-form":25,"../components/status-indicator":27,"../stores/platforms-store":42,"react":undefined,"react-router":undefined}],25:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2439,15 +2451,113 @@ var React = require('react');
 // var ReactCSSTransitionGroup = require('react-addons-css-transition-group');
 
 var statusIndicatorCreators = require('../action-creators/status-indicator-action-creators');
+var statusIndicatorStore = require('../stores/status-indicator-store');
 
 var StatusIndicator = React.createClass({displayName: "StatusIndicator",
+
+	getInitialState: function () {
+        var state = getStateFromStores();
+
+        state.errors = (state.status === "error");
+        state.fadeOut = false;
+
+        return state;
+    },
+    componentDidMount: function () {        
+        if (!this.state.errors)
+        {   
+        	this.fadeTimer = setTimeout(this._fadeForClose, 4000);
+            this.closeTimer = setTimeout(this._autoCloseOnSuccess, 5000);
+        }
+    },
+    _fadeForClose: function () {
+    	this.setState({ fadeOut: true });
+    },
+    _keepVisible: function (evt) {
+    	if (this.fadeTimer)
+    	{
+    		this.setState({ fadeOut: false });
+
+    		clearTimeout(this.fadeTimer);
+    		clearTimeout(this.closeTimer);
+
+    		evt.currentTarget.addEventListener("mouseleave", this._closeOnMouseOut);
+    	}
+    },
+    _closeOnMouseOut: function () {
+    	if (!this.state.errors)
+        {   
+        	this.fadeTimer = setTimeout(this._fadeForClose, 0);
+            this.closeTimer = setTimeout(this._autoCloseOnSuccess, 1000);
+        }
+    },
+    _autoCloseOnSuccess: function () {
+    	statusIndicatorCreators.closeStatusIndicator();
+    },
+    _onCloseClick: function () {
+        statusIndicatorCreators.closeStatusIndicator();
+    },
+
 	render: function () {
+		var classes = ["status-indicator"];
+
+		var green = "#A1D490";
+		var red = "#CC5056";
+
+		var displayButton = "none";
+		var color = green;
+        
+        if (this.state.errors)
+        {
+			displayButton = "block";
+			color = red;
+        }
+        else if (this.state.fadeOut)
+        {
+        	classes.push("hide-slow");
+        }
+
+        var buttonStyle = {			
+			margin: "auto"
+		};
+
+		var colorStyle = {
+			background: color,
+			width: "100%",
+			height: "2rem",
+			margin: "0"
+		}
+
+		var buttonDivStyle = {
+			width: "100%",
+			height: "3rem",
+			display: displayButton
+		}
+
+		var spacerStyle = {
+			width: "100%",
+			height: "2rem"
+		}
+
 		return (
 		
-        	React.createElement("div", {className: "status-indicator"}, 
-				React.createElement("label", null, "Status Indicator"), 
+        	React.createElement("div", {
+        		className: classes.join(' '), 
+        		onMouseEnter: this._keepVisible
+        	}, 
+				React.createElement("div", {style: colorStyle}), 
 				React.createElement("br", null), 
-				this.props.children
+				this.state.statusMessage, 
+                React.createElement("div", {style: spacerStyle}), 
+                React.createElement("div", {style: buttonDivStyle}, 
+	                React.createElement("button", {
+	                    className: "button", 
+	                    style: buttonStyle, 
+	                    onClick: this._onCloseClick
+	                }, 
+	                    "Close"
+	                )
+                )
 			)
         
 			
@@ -2455,10 +2565,17 @@ var StatusIndicator = React.createClass({displayName: "StatusIndicator",
 	},
 });
 
+function getStateFromStores() {
+    return {
+        status: statusIndicatorStore.getStatus(),
+        statusMessage: statusIndicatorStore.getStatusMessage(),
+    };
+}
+
 module.exports = StatusIndicator;
 
 
-},{"../action-creators/status-indicator-action-creators":6,"react":undefined}],28:[function(require,module,exports){
+},{"../action-creators/status-indicator-action-creators":6,"../stores/status-indicator-store":43,"react":undefined}],28:[function(require,module,exports){
 'use strict';
 
 var keyMirror = require('react/lib/keyMirror');
@@ -3029,23 +3146,31 @@ var ACTION_TYPES = require('../constants/action-types');
 var dispatcher = require('../dispatcher');
 var Store = require('../lib/store');
 
-var _statusIndicatorContent = null;
+var _statusMessage = null;
+var _status = null;
 
 var statusIndicatorStore = new Store();
 
-statusIndicatorStore.getStatusIndicatorContent = function () {
-    return _statusIndicatorContent;
+statusIndicatorStore.getStatusMessage = function () {
+    return _statusMessage;
+};
+
+statusIndicatorStore.getStatus = function () {
+    return _status;
 };
 
 statusIndicatorStore.dispatchToken = dispatcher.register(function (action) {
     switch (action.type) {
         case ACTION_TYPES.OPEN_STATUS:
-            _statusIndicatorContent = action.content;
+            _statusMessage = action.message;
+            _status = action.status;
+
             statusIndicatorStore.emitChange();
             break;
 
         case ACTION_TYPES.CLOSE_STATUS:
-            _statusIndicatorContent = null;
+            _statusMessage = null;
+            _status = null;
             statusIndicatorStore.emitChange();
             break;
     }

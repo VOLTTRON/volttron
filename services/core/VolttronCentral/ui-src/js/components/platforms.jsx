@@ -4,8 +4,10 @@ var React = require('react');
 var Router = require('react-router');
 
 var modalActionCreators = require('../action-creators/modal-action-creators');
+var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
 var platformsStore = require('../stores/platforms-store');
 var RegisterPlatformForm = require('../components/register-platform-form');
+var StatusForm = require('../components/status-indicator');
 var DeregisterPlatformConfirmation = require('../components/deregister-platform-confirmation');
 
 var Platforms = React.createClass({
@@ -18,6 +20,9 @@ var Platforms = React.createClass({
     },
     _onStoresChange: function () {
         this.setState(getStateFromStores());
+    },
+    _onStatusClick: function () {
+        statusIndicatorActionCreators.openStatusIndicator("success", "nothing happened");
     },
     _onRegisterClick: function () {
         modalActionCreators.openModal(<RegisterPlatformForm />);
@@ -93,6 +98,10 @@ var Platforms = React.createClass({
             <div className="view">
                 <h2>Platforms</h2>
                 <div className="view__actions">
+                    <button className="button" onClick={this._onStatusClick}>
+                        Show Status
+                    </button>
+                    &nbsp;
                     <button className="button" onClick={this._onRegisterClick}>
                         Register platform
                     </button>

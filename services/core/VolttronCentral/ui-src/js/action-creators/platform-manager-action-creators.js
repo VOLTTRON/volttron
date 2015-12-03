@@ -64,7 +64,8 @@ var platformManagerActionCreators = {
 
         dispatcher.dispatch({
             type: ACTION_TYPES.OPEN_STATUS,
-            content: "Registering platform " + name + "...",
+            message: "Registering platform " + name + "...",
+            status: "success"
         });
 
         new rpc.Exchange({

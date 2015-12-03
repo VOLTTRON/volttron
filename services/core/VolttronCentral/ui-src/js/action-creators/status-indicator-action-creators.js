@@ -4,10 +4,11 @@ var ACTION_TYPES = require('../constants/action-types');
 var dispatcher = require('../dispatcher');
 
 var actionStatusCreators = {
-	openStatusIndicator: function (content) {
+	openStatusIndicator: function (status, message) {
 		dispatcher.dispatch({
 			type: ACTION_TYPES.OPEN_STATUS,
-			content: content,
+			status: status,
+			message: message,
 		});
 	},
 	closeStatusIndicator: function () {

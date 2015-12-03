@@ -14,7 +14,6 @@ var modalStore = require('../stores/modal-store');
 var Navigation = require('./navigation');
 var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
 var StatusIndicator = require('./status-indicator');
-var statusIndicatorCreators = require('../action-creators/status-indicator-action-creators');
 var statusIndicatorStore = require('../stores/status-indicator-store');
 
 var PlatformManager = React.createClass({
@@ -63,11 +62,6 @@ var PlatformManager = React.createClass({
             modalActionCreators.closeModal();
         }
     },
-    _closeStatusIndicator: function (e) {
-        if (e.keyCode === 27) {
-            statusIndicatorCreators.closeStatusIndicator();
-        }
-    },
     render: function () {
         var classes = ['platform-manager'];
         var modal;
@@ -87,10 +81,9 @@ var PlatformManager = React.createClass({
             );
         }
 
-        if (this.state.statusIndicatorContent) {
-            // classes.push('platform-manager--modal-open');
+        if (this.state.status) {
             statusIndicator = (
-                <StatusIndicator>{this.state.statusIndicatorContent}</StatusIndicator>
+                <StatusIndicator></StatusIndicator>
             );
         }
 
@@ -119,7 +112,8 @@ function getStateFromStores() {
         consoleShown: consoleStore.getConsoleShown(),
         loggedIn: !!authorizationStore.getAuthorization(),
         modalContent: modalStore.getModalContent(),
-        statusIndicatorContent: statusIndicatorStore.getStatusIndicatorContent(),
+        status: statusIndicatorStore.getStatus(),
+        statusMessage: statusIndicatorStore.getStatusMessage(),
     };
 }
 

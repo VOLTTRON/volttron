@@ -223,11 +223,12 @@ br + .form__control-help {
     vertical-align: top;
     position: absolute;
     top: 0px;
-    left: 40%;
-    right: 40%;
-    width: 20%;
-    padding: 1.5rem;
+    left: 30%;
+    right: 30%;
+    width: 40%;
+    min-height: 7rem;
     max-height: 75%;
+    padding: 0px;
     box-sizing: border-box;
     overflow: auto;
     text-align: center;
@@ -235,11 +236,17 @@ br + .form__control-help {
     background-color: #fff;
     box-shadow: 0 0.1rem 0.2rem rgba(0,0,0,0.3);
     z-index: 100;
+    opacity: .7;
 }
 
 .status-indicator.hide-slow {
-  opacity: 0.01;
-  transition: opacity 300ms ease-in;
+  animation-name: fade-out;
+  animation-duration: 1s;
+}
+
+@keyframes fade-out {
+    from {opacity: .7;}
+    to {opacity: 0;}
 }
 
 .main {
