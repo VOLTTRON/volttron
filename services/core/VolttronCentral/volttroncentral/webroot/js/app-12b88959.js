@@ -1738,7 +1738,6 @@ var modalStore = require('../stores/modal-store');
 var Navigation = require('./navigation');
 var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
 var StatusIndicator = require('./status-indicator');
-// var statusIndicatorCreators = require('../action-creators/status-indicator-action-creators');
 var statusIndicatorStore = require('../stores/status-indicator-store');
 
 var PlatformManager = React.createClass({displayName: "PlatformManager",
@@ -1787,11 +1786,6 @@ var PlatformManager = React.createClass({displayName: "PlatformManager",
             modalActionCreators.closeModal();
         }
     },
-    // _closeStatusIndicator: function (e) {
-    //     if (e.keyCode === 27) {
-    //         statusIndicatorCreators.closeStatusIndicator();
-    //     }
-    // },
     render: function () {
         var classes = ['platform-manager'];
         var modal;
@@ -1812,7 +1806,6 @@ var PlatformManager = React.createClass({displayName: "PlatformManager",
         }
 
         if (this.state.status) {
-            // classes.push('platform-manager--modal-open');
             statusIndicator = (
                 React.createElement(StatusIndicator, null)
             );
@@ -2079,8 +2072,11 @@ var Platforms = React.createClass({displayName: "Platforms",
     _onStoresChange: function () {
         this.setState(getStateFromStores());
     },
-    _onStatusClick: function () {
+    _onGoodStatusClick: function () {
         statusIndicatorActionCreators.openStatusIndicator("success", "nothing happened");
+    },
+    _onBadStatusClick: function () {
+        statusIndicatorActionCreators.openStatusIndicator("error", "nothing happened");
     },
     _onRegisterClick: function () {
         modalActionCreators.openModal(React.createElement(RegisterPlatformForm, null));
@@ -2156,8 +2152,12 @@ var Platforms = React.createClass({displayName: "Platforms",
             React.createElement("div", {className: "view"}, 
                 React.createElement("h2", null, "Platforms"), 
                 React.createElement("div", {className: "view__actions"}, 
-                    React.createElement("button", {className: "button", onClick: this._onStatusClick}, 
-                        "Show Status"
+                    React.createElement("button", {className: "button", onClick: this._onGoodStatusClick}, 
+                        "Show Good Status"
+                    ), 
+                    " ", 
+                    React.createElement("button", {className: "button", onClick: this._onBadStatusClick}, 
+                        "Show Bad Status"
                     ), 
                     " ", 
                     React.createElement("button", {className: "button", onClick: this._onRegisterClick}, 
@@ -2448,7 +2448,6 @@ module.exports = RemoveAgentForm;
 'use strict';
 
 var React = require('react');
-// var ReactCSSTransitionGroup = require('react-addons-css-transition-group');
 
 var statusIndicatorCreators = require('../action-creators/status-indicator-action-creators');
 var statusIndicatorStore = require('../stores/status-indicator-store');

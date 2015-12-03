@@ -223,9 +223,9 @@ br + .form__control-help {
     vertical-align: top;
     position: absolute;
     top: 0px;
-    left: 30%;
-    right: 30%;
-    width: 40%;
+    left: 35%;
+    right: 35%;
+    width: 30%;
     min-height: 7rem;
     max-height: 75%;
     padding: 0px;

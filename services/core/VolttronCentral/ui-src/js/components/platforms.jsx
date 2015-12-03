@@ -21,8 +21,11 @@ var Platforms = React.createClass({
     _onStoresChange: function () {
         this.setState(getStateFromStores());
     },
-    _onStatusClick: function () {
+    _onGoodStatusClick: function () {
         statusIndicatorActionCreators.openStatusIndicator("success", "nothing happened");
+    },
+    _onBadStatusClick: function () {
+        statusIndicatorActionCreators.openStatusIndicator("error", "nothing happened");
     },
     _onRegisterClick: function () {
         modalActionCreators.openModal(<RegisterPlatformForm />);
@@ -98,8 +101,12 @@ var Platforms = React.createClass({
             <div className="view">
                 <h2>Platforms</h2>
                 <div className="view__actions">
-                    <button className="button" onClick={this._onStatusClick}>
-                        Show Status
+                    <button className="button" onClick={this._onGoodStatusClick}>
+                        Show Good Status
+                    </button>
+                    &nbsp;
+                    <button className="button" onClick={this._onBadStatusClick}>
+                        Show Bad Status
                     </button>
                     &nbsp;
                     <button className="button" onClick={this._onRegisterClick}>
