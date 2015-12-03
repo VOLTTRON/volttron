@@ -35,7 +35,14 @@
 						"operation_type": "constant",
 						"minimum": 0,
 						"maximum": 1.0
-					}
+					},
+					"criterion5": {
+						"name": "previous-zonetemp-zonetemp",
+					    "operation": "inverse",
+						"operation_type": ["history", "ZoneTemperature", 15],
+						"minimum": 0,
+						"maximum": 10
+					},
 					"curtail": {
 						"point": "CoolingTemperatureSetPoint",
 						"value": 78.0,
@@ -167,7 +174,7 @@
 			}
 		}
 	},
-	"mapper-zone-type": {
+	"mapper-zone_type": {
 		"Directors office": 1,
 		"Office": 3,
 		"Empty Office": 7,
