@@ -91,21 +91,100 @@ def historian(config_path, **kwargs):
     class ForwardHistorian(BaseHistorian):
         '''This historian forwards data to another platform.
         '''
+        
+    @Core.receiver("onstart")
+    def starting(self, sender, **kwargs):
+        '''
+        Subscribes to the platform message bus on the actuator, record,
+        datalogger, and device topics to capture data.
+        '''
+        _log.debug("Starting base historian")
 
-        @Core.receiver("onstart")
-        def starting(self, sender, **kwargs):
-            
-            print('Starting address: {} identity: {}'.format(self.core.address, self.core.identity))
-            #TODO: Check that destination exists
-            self.topic_map = {}
+        driver_prefix = topics.DRIVER_TOPIC_BASE
+        _log.debug("subscribing to {}".format(driver_prefix))
+        self.vip.pubsub.subscribe(peer='pubsub',
+                               prefix=driver_prefix,
+                               callback=self.capture_data)
+ 
+        _log.debug('Subscribing to: {}'.format(topics.LOGGER_BASE))
+        self.vip.pubsub.subscribe(peer='pubsub',
+                               prefix=topics.LOGGER_BASE, #"datalogger",
+                               callback=self.capture_data)
+ 
+        _log.debug('Subscribing to: '.format(topics.ACTUATOR))
+        self.vip.pubsub.subscribe(peer='pubsub',
+                               prefix=topics.ACTUATOR,  # actuators/*
+                               callback=self.capture_data)
 
-            
+        _log.debug('Subscribing to: {}'.format(topics.ANALYSIS_TOPIC_BASE))
+        self.vip.pubsub.subscribe(peer='pubsub',
+                               prefix=topics.ANALYSIS_TOPIC_BASE,  # anaysis/*
+                               callback=self.capture_data)
+        self._started = True
+        
+        
+        
+    def capture_data(self, peer, sender, bus, topic, headers, message):
+        self.topic_map = {}
+        timestamp_string = headers.get(headers_mod.DATE)
+        timestamp, my_tz = process_timestamp(timestamp_string)
+        
+        try:
+            # 2.0 agents compatability layer makes sender == pubsub.compat so 
+            # we can do the proper thing when it is here
+            if sender == 'pubsub.compat':
+                message = jsonapi.loads(message[0])
+                
+            if isinstance(message, dict):
+                values = message
+            else:
+                values = message[0]
+                
+        except ValueError as e:
+            _log.error("message for {topic} bad message string: {message_string}".format(topic=topic,
+                                                                                     message_string=message[0]))
+            return
+        except IndexError as e:
+            _log.error("message for {topic} missing message string".format(topic=topic))
+            return
+        except Exception as e:
+            _log.exception(e)
+            return
 
+#         meta = {}
+#         try:
+#             # 2.0 agents compatability layer makes sender == pubsub.compat so 
+#             # we can do the proper thing when it is here
+#             if sender == 'pubsub.compat':
+#                 if isinstance(message[1], str):
+#                     meta = jsonapi.loads(message[1])
+#             
+#             if not isinstance(message, dict):
+#                 meta = message[1]
+#                 
+#         except ValueError as e:
+#             _log.warning("meta data for {topic} bad message string: {message_string}".format(topic=topic,
+#                                                                                      message_string=message[0]))
+#         except IndexError as e:
+#             _log.warning("meta data for {topic} missing message string".format(topic=topic))
+# 
+#         _log.debug("Queuing {topic} from {source} for publish".format(topic=topic,
+#                                                                       source=source))
+        
+        
+#         for key, value in values.iteritems():
+#             point_topic = device + '/' + key
+        self._event_queue.put({'source': "forwarded",
+                               'topic': point_topic,
+                               'readings': [(timestamp,message)]})
+
+  
         def __platform(self, peer, sender, bus, topic, headers, message):
             _log.debug('Platform is now: {}'.format(message))
             
 
         def publish_to_historian(self, to_publish_list):
+            print (to_publish_list)
             _log.debug("publish_to_historian number of items: {}"
                        .format(len(to_publish_list)))
             
@@ -115,62 +194,62 @@ def historian(config_path, **kwargs):
 #             except:
 #                 self.topic_map = self.reader.get_topic_map()
 
-            
-            datalog ={}
-
-            for x in to_publish_list:
-                ts = x['timestamp']
-                topic = x['topic']
-                value = x['value']
-                meta = x['meta']
-                # look at the topics that are stored in the database already
-                # to see if this topic has a value
-                if topic.startswith('datalogger'):
-                    continue
-#                 topic_id = self.topic_map.get(topic)
-
-#                 if topic_id is None:
-#                     row  = self.writer.insert_topic(topic)
-#                     topic_id = row[0]
-#                     self.topic_map[topic] = topic_id
-
-#                 self.writer.insert_data(ts,topic_id, value)
-#                 parts = topic.split('/')
-#                 all_topic = '/'.join(reversed(parts[2:]))
-
-                if not 'units' in meta.keys():
-                    #print('unit for topic {} is now {}'.format(topic, 'percent'))
-                    meta['units'] = 'percent'
-
-                #Device data is UTC
-                #.replace(tzinfo=None)
-                datalog[topic] = {'Readings': [str(ts),value],
-                                  'Units': meta['units'],'data_type': meta['type'], 
-                                  'tz':meta['tz']}
-                
-            base_topic = 'datalogger/devices'
-
-
-
-            
-            message = jsonapi.dumps(datalog)
-            
-#             agent = self._get_rpc_agent(destination_vip)
-            _log.debug("about to publish to destination: {}".format(destination_vip))
-#                         agent.vip.publish()
-#             agent.vip.pubsub.publish(peer='pubsub',headers=headers,
-#                                         topic=topic,
-#                                         message=message)
-
-            with gevent.Timeout(30):
-                try:
-                    self._target_platform.vip.pubsub.publish(peer='pubsub',
-                                    topic=base_topic,
-                                    message=datalog).get()
-                except gevent.Timeout:
-                    pass
-                else: 
-                    self.report_all_handled()
+#             
+#             datalog ={}
+# 
+#             for x in to_publish_list:
+#                 ts = x['timestamp']
+#                 topic = x['topic']
+#                 value = x['value']
+#                 meta = x['meta']
+#                 # look at the topics that are stored in the database already
+#                 # to see if this topic has a value
+#                 if topic.startswith('datalogger'):
+#                     continue
+# #                 topic_id = self.topic_map.get(topic)
+# 
+# #                 if topic_id is None:
+# #                     row  = self.writer.insert_topic(topic)
+# #                     topic_id = row[0]
+# #                     self.topic_map[topic] = topic_id
+# 
+# #                 self.writer.insert_data(ts,topic_id, value)
+# #                 parts = topic.split('/')
+# #                 all_topic = '/'.join(reversed(parts[2:]))
+# 
+#                 if not 'units' in meta.keys():
+#                     #print('unit for topic {} is now {}'.format(topic, 'percent'))
+#                     meta['units'] = 'percent'
+# 
+#                 #Device data is UTC
+#                 #.replace(tzinfo=None)
+#                 datalog[topic] = {'Readings': [str(ts),value],
+#                                   'Units': meta['units'],'data_type': meta['type'], 
+#                                   'tz':meta['tz']}
+#                 
+#             base_topic = 'datalogger/devices'
+# 
+# 
+# 
+#             
+#             message = jsonapi.dumps(datalog)
+#             
+# #             agent = self._get_rpc_agent(destination_vip)
+#             _log.debug("about to publish to destination: {}".format(destination_vip))
+# #                         agent.vip.publish()
+# #             agent.vip.pubsub.publish(peer='pubsub',headers=headers,
+# #                                         topic=topic,
+# #                                         message=message)
+# 
+#             with gevent.Timeout(30):
+#                 try:
+#                     self._target_platform.vip.pubsub.publish(peer='pubsub',
+#                                     topic=base_topic,
+#                                     message=datalog).get()
+#                 except gevent.Timeout:
+#                     pass
+#                 else: 
+#                     self.report_all_handled()
 
         def query_topic_list(self):
             if len(self.topic_map) > 0:
