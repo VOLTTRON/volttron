@@ -130,6 +130,8 @@ def master_driver_agent(config_path, **kwargs):
     
     scalability_test = get_config('scalability_test', False)
     scalability_test_iterations = get_config('scalability_test_iterations', 3)
+    
+    staggered_start = get_config('staggered_start', None)
 
     class MasterDriverAgent(Agent):
         def __init__(self, **kwargs):
@@ -145,10 +147,16 @@ def master_driver_agent(config_path, **kwargs):
         def starting(self, sender, **kwargs):
             env = os.environ.copy()
             env.pop('AGENT_UUID', None)
+            
+            start_delay = None
+            if staggered_start is not None:
+                start_delay = staggered_start / float(len(driver_config_list))
             for config_name in driver_config_list:
                 _log.debug("Launching driver for config "+config_name)
                 driver = DriverAgent(self, config_name)
                 gevent.spawn(driver.core.run)   
+                if start_delay is not None:
+                    gevent.sleep(start_delay)
                 #driver.core.stop to kill an agent. 
                    
         
