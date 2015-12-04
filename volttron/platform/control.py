@@ -482,7 +482,7 @@ def send_agent(opts):
         _stdout.write('Agent {} started as {}\n'.format(wheel, uuid))
 
 def gen_keypair(opts):
-    keystore = KeyStore(opts.keyfile)
+    keystore = KeyStore(opts.keystore_file)
     keystore.generate()
     _stdout.write('public: %s\nsecret: %s\n' % (
         keystore.public(), keystore.secret()))
@@ -561,12 +561,12 @@ def priority(value):
         raise ValueError('invalid priority (0 <= n < 100): {}'.format(n))
     return '{:02}'.format(n)
 
-def check_keystore(opts):
+def use_keystore(opts):
 
     def gen_param(query, name, value):
         return '{}{}={}'.format('&' if query else '', name, value)
 
-    keystore = KeyStore(opts.keyfile)
+    keystore = KeyStore(opts.keystore_file)
     url = list(urlparse.urlsplit(opts.vip_address))
     query_dict = urlparse.parse_qs(url[3])
 
@@ -604,12 +604,14 @@ def main(argv=sys.argv):
     global_args.add_argument(
         '--vip-address', metavar='ZMQADDR',
         help='ZeroMQ URL to bind for VIP connections')
-    global_args.add_argument('-k', '--keyfile', metavar='FILE', 
-        help='load keys from FILE')
+    global_args.add_argument('-k', '--keystore', action='store_true',
+        help='use public and secret keys from keystore')
+    global_args.add_argument('--keystore-file', metavar='FILE', 
+        help='use keystore from FILE')
     global_args.set_defaults(
         vip_address='ipc://' + vip_path,
         timeout=30,
-        keyfile=os.path.join(volttron_home, 'keystore'),
+        keystore_file=os.path.join(volttron_home, 'keystore'),
     )
 
     filterable = config.ArgumentParser(add_help=False)
@@ -788,8 +790,8 @@ def main(argv=sys.argv):
             print(name, repr(value))
         return
 
-    opts.vip_address = check_keystore(opts)
-    _stdout.write('opts.vip_address: {}\n'.format(opts.vip_address))
+    if opts.keystore:
+        opts.vip_address = use_keystore(opts)
     
     # Configure logging
     level = max(1, opts.verboseness)
