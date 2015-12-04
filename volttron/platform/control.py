@@ -68,17 +68,17 @@ import shutil
 import sys
 import tempfile
 import traceback
+import urlparse
 
 import gevent
 import gevent.event
-from zmq import curve_keypair
 
 from .agent import utils
 from .vip.agent import Agent as BaseAgent, Core, RPC
-from .vip.socket import encode_key
 from . import aip as aipmod
 from . import config
 from .jsonrpc import RemoteError
+from .keystore import KeyStore
 
 try:
     import volttron.restricted
@@ -481,10 +481,11 @@ def send_agent(opts):
         connection.call('start_agent', uuid)
         _stdout.write('Agent {} started as {}\n'.format(wheel, uuid))
 
-def print_keypair(opts):
-    public, secret = curve_keypair()
+def gen_keypair(opts):
+    keystore = KeyStore(opts.keyfile)
+    keystore.generate()
     _stdout.write('public: %s\nsecret: %s\n' % (
-        encode_key(public), encode_key(secret)))
+        keystore.public(), keystore.secret()))
 
 def do_stats(opts):
     call = opts.connection.call
@@ -560,6 +561,21 @@ def priority(value):
         raise ValueError('invalid priority (0 <= n < 100): {}'.format(n))
     return '{:02}'.format(n)
 
+def check_keystore(opts):
+
+    def gen_param(query, name, value):
+        return '{}{}={}'.format('&' if query else '', name, value)
+
+    keystore = KeyStore(opts.keyfile)
+    url = list(urlparse.urlsplit(opts.vip_address))
+    query_dict = urlparse.parse_qs(url[3])
+
+    if not 'publickey' in query_dict:
+        url[3] += gen_param(url[3], 'publickey', keystore.public()) 
+    if not 'secretkey' in query_dict: 
+        url[3] += gen_param(url[3], 'secretkey', keystore.secret())
+
+    return urlparse.urlunsplit(url)
 
 def main(argv=sys.argv):
     # Refuse to run as root
@@ -588,9 +604,12 @@ def main(argv=sys.argv):
     global_args.add_argument(
         '--vip-address', metavar='ZMQADDR',
         help='ZeroMQ URL to bind for VIP connections')
+    global_args.add_argument('-k', '--keyfile', metavar='FILE', 
+        help='load keys from FILE')
     global_args.set_defaults(
         vip_address='ipc://' + vip_path,
         timeout=30,
+        keyfile=os.path.join(volttron_home, 'keystore'),
     )
 
     filterable = config.ArgumentParser(add_help=False)
@@ -734,8 +753,8 @@ def main(argv=sys.argv):
     send.set_defaults(func=send_agent)
 
     keypair = add_parser('keypair',
-        help='generate CurveMQ keys for encrypting VIP connections')
-    keypair.set_defaults(func=print_keypair)
+        help='generate CurveMQ keys for encrypting VIP connections') 
+    keypair.set_defaults(func=gen_keypair)
 
     stats = add_parser('stats',
         help='manage router message statistics tracking')
@@ -769,6 +788,9 @@ def main(argv=sys.argv):
             print(name, repr(value))
         return
 
+    opts.vip_address = check_keystore(opts)
+    _stdout.write('opts.vip_address: {}\n'.format(opts.vip_address))
+    
     # Configure logging
     level = max(1, opts.verboseness)
     if opts.log is None:
