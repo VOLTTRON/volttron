@@ -109,6 +109,10 @@ td:not(:first-child) {
     box-shadow: 0 0 0.0833rem 0.1667rem rgba(128,128,255,0.5), 0 0.3333rem #bbb;
 }
 
+.button--agent-action {
+    min-width: 6em;
+}
+
 .form__control-group {
     margin-top: 1.5em;
 }
@@ -119,6 +123,19 @@ td:not(:first-child) {
     font-weight: bold;
     font-size: 0.83333em;
     margin-bottom: 0.5em;
+}
+
+.form__control-display-block {
+    display: block;
+}
+
+.group-left {
+    float: left;
+    margin: 1em 1.5em 1.5em 0;
+}
+
+.clear-left {
+    clear: left;
 }
 
 .form__control--block {
@@ -247,7 +264,7 @@ br + .form__control-help {
     white-space: nowrap;
 }
 
-.logo__name {
+.logo__name, .logo__central {
     font-family: "Montserrat";
     font-weight: bold;
     letter-spacing: 0.1em;
@@ -272,6 +289,10 @@ br + .form__control-help {
     position: relative;
     top: 0.3em;
     left: 0.15em;
+}
+
+.platform-manager--not-logged-in .logo__central {
+    margin: 0 0 0 0.35em;
 }
 
 .logo__beta {
@@ -376,7 +397,7 @@ br + .form__control-help {
 }
 
 .register-platform-form {
-    width: 300px;
+    width: 500px;
 }
 
 .register-platform-form .error {
@@ -463,6 +484,42 @@ br + .form__control-help {
     width: 100%;
     display: inline-block;
     vertical-align: top;
+}
+
+.preview {
+    width: 100%;
+    border: #A3A3A3 1px solid;
+    height: 7em;
+    word-wrap: break-word;
+    overflow-y: auto;
+}
+
+.tableDiv {
+    display: table;
+    width: 100%;
+}
+
+.rowDiv {
+    display: table-row;
+    margin: 0.15em 0.15em;
+    padding: 0 0 10px 0;
+
+}
+
+.cellDiv {
+    display: table-cell;
+    padding: 0 10px 10px 0;
+}
+
+.firstCell {
+    width: 30%;
+}
+
+.formLabel {
+    text-transform: uppercase;
+    font-weight: bold;
+    font-size: 0.83333em;
+    margin-bottom: 0.5em;
 }
 
 @media (min-width: 1220px) and (max-width: 1859px) {

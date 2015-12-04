@@ -149,7 +149,7 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
             except Empty:
                 break
             
-            self.request(iocb)
+            self.handle_request(iocb)
             
     def submit_request(self, iocb):
         self.request_queue.put(iocb)
@@ -172,7 +172,7 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
 
         return invokeID
 
-    def request(self, iocb):
+    def handle_request(self, iocb):
         apdu = iocb.ioRequest
         
         if isinstance(apdu, ConfirmedRequestSequence):
@@ -186,7 +186,7 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
             self.iocb[invoke_key] = iocb
         
         try:    
-            BIPSimpleApplication.request(self, apdu)
+            self.request(apdu)
         except StandardError as e:
             iocb.set_exception(e)
 
