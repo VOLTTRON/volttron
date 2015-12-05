@@ -483,9 +483,12 @@ def send_agent(opts):
 
 def gen_keypair(opts):
     keystore = KeyStore(opts.keystore_file)
-    keystore.generate()
-    _stdout.write('public: %s\nsecret: %s\n' % (
-        keystore.public(), keystore.secret()))
+    if os.path.isfile(opts.keystore_file):
+        _stdout.write('{} already exists.\n'.format(opts.keystore_file))
+        choice = raw_input('Overwrite (y/n)?')
+        if choice and choice.lower()[0] == 'y':
+            keystore.generate()
+            _stdout.write('keys written to {}\n'.format(opts.keystore_file))
 
 def do_stats(opts):
     call = opts.connection.call
