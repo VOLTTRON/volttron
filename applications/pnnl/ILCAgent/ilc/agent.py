@@ -1,25 +1,24 @@
 import re
 import sys
 import logging
-import pandas as pd
 from pandas import DataFrame as df
 import numpy as np
 from dateutil.parser import parse
-import datetime
 from datetime import timedelta as td, datetime as dt
 from copy import deepcopy
-from _ast import comprehension
+# from _ast import comprehension
 from sympy import *
 from sympy.parsing.sympy_parser import parse_expr
 from collections import defaultdict
-from ilc_matrices import (open_file, extract_criteria,
-                          calc_column_sums, normalize_matrix,
-                          validate_input, build_score, input_matrix)
- 
-from volttron.platform.agent import utils, matching, sched
-from volttron.platform.messaging import headers as headers_mod, topics
+# from volttron.platform.agent import utils, matching, sched
+# from volttron.platform.messaging import headers as headers_mod,
+from volttron.platform.messaging import topics
+from volttron.platform.agent import utils
 from volttron.platform.agent.utils import jsonapi, setup_logging
 from volttron.platform.vip.agent import *
+from ilc.ilc_matrices import (extract_criteria, calc_column_sums,
+                              normalize_matrix, validate_input,
+                              build_score, input_matrix)
 
 MATRIX_ROWSTRING = "%20s\t%12.2f%12.2f%12.2f%12.2f%12.2f"
 CRITERIA_LABELSTRING = "\t\t\t%12s%12s%12s%12s%12s"
@@ -27,6 +26,9 @@ DATE_FORMAT = '%m-%d-%y %H:%M:%S'
 TESTING = True
 setup_logging()
 _log = logging.getLogger(__name__)
+logging.basicConfig(level=logging.debug,
+                    format='%(asctime)s   %(levelname)-8s %(message)s',
+                    datefmt='%m-%d-%y %H:%M:%S')
 
 
 class DeviceTrender:
@@ -35,14 +37,18 @@ class DeviceTrender:
         self.data_arr = None
         self.pt_names = []
         self._master_devices = deepcopy(device_list)
+        self.needs_devices = deepcopy(device_list)
+        self.data_trender = None
+        self.ts = None
 
     def reinit(self):
+        '''Reinitialize all arrays daily (store results for one day).'''
         self.data_arr = None
         self.data = []
         self.pt_names = []
 
     def new_data(self, device, points, data):
-        '''Assemble dataframe containing device data'''
+        '''Assemble dataset containing device data.'''
         self.pt_names.extend([(device + '_' + pt) for pt in points])
         self.data.extend(data[device][pt] for pt in points)
 
@@ -57,34 +63,35 @@ class DeviceTrender:
         try:
             self.needs_devices.remove(device)
         except ValueError:
-            '''Deal with missing data'''
-            pass
+            # Deal with missing data.
+            _log.debug('Missing data.')
 
         if (self.frame_data() if not self.needs_devices else False):
             return
 
-        def frame_data(self):
-            data_arr = df([self.data], columns=self.p_names, index=[self.ts])
-            if self.data_arr is None:
-                self.data_arr = data_arr
-                self.needs_devices = deepcopy(self._master_devices)
-                self.p_names = []
-                self.data = []
-                self.ts = []
-                return 1
+    def frame_data(self):
+        '''Append Dataframe with current reading for all devices configured.'''
+        data_arr = df([self.data], columns=self.p_names, index=[self.ts])
+        if self.data_arr is None:
+            self.data_arr = data_arr
             self.needs_devices = deepcopy(self._master_devices)
-            self.data_arr = self.data_arr.append(data_arr)
             self.p_names = []
             self.data = []
             self.ts = []
-            return 0
+            return 1
+        self.needs_devices = deepcopy(self._master_devices)
+        self.data_arr = self.data_arr.append(data_arr)
+        self.p_names = []
+        self.data = []
+        self.ts = []
+        return 0
 
 
 def ahp(config_path, **kwargs):
-    _log = logging.getLogger(__name__)
-    logging.basicConfig(level=logging.debug,
-                        format='%(asctime)s   %(levelname)-8s %(message)s',
-                        datefmt='%m-%d-%y %H:%M:%S')
+    '''Intelligent Load Curtailment Algorithm'
+
+    using Analytical Hierarchical Process.
+    '''
     config = utils.load_config(config_path)
     location = dict((key, config['device'][key])
                     for key in ['campus', 'building'])
@@ -135,6 +142,10 @@ def ahp(config_path, **kwargs):
 
         @Core.receiver("onstart")
         def starting_base(self, sender, **kwargs):
+            '''startup method:
+             - Extract Criteria Matrix from excel file.
+             - Setup subscriptions to device and building power meter.
+            '''
             self.data_trender = DeviceTrender(all_devices)
             reset_time = dt.now().replace(minute=0, hour=0,
                                           second=0, microsecond=0)
@@ -142,7 +153,7 @@ def ahp(config_path, **kwargs):
             self.core.schedule(reset_time, self.data_trender.reinit)
             excel_file = config.get('excel_file', None)
 
-            if self.excel_file is not None:
+            if excel_file is not None:
                 self.crit_labels, criteria_arr = \
                     extract_criteria(excel_file, "CriteriaMatrix")
                 col_sums = calc_column_sums(criteria_arr)
@@ -165,7 +176,9 @@ def ahp(config_path, **kwargs):
                                       callback=self.new_data)
 
         def new_data(self, peer, sender, bus, topic, headers, message):
-            '''Generate static configuration inputs for priority calculation.
+            '''Generate static configuration inputs for
+
+            priority calculation.
             '''
             _log.info('Data Received')
             if ALL_DEV.match(topic):
@@ -186,13 +199,13 @@ def ahp(config_path, **kwargs):
                 return
             if BUILDING_TOPIC.match(topic) and not self.running_ahp:
                 _log.debug('Reading building power data.')
-                self.check_load(headers, message)
+                self.check_load(message)
             if self.running_ahp:
                 device = topic.split('/')[3]
             if device not in self.off_dev.keys():
                 return
 
-        def device_status(self):
+        def device_status(self, check_only=False):
             '''Query Actuator agent for current state of pertinent points on
 
             curtailable device.
@@ -221,15 +234,17 @@ def ahp(config_path, **kwargs):
                 if device is None:
                     self.off_dev.update({key: by_mode.values()})
                     continue
-                data = self.query_device(key, point_list)
-                for sub_dev in device:
-                    if data[sub_dev]:
-                        self.construct_input(key, sub_dev,
-                                             device[sub_dev], data)
-                    else:
-                        self.off_dev[key].append(sub_dev)
+                if not check_only:
+                    data = self.query_device(key, point_list)
+                    for sub_dev in device:
+                        if data[sub_dev]:
+                            self.construct_input(key, sub_dev,
+                                                 device[sub_dev], data)
+                        else:
+                            self.off_dev[key].append(sub_dev)
 
         def query_device(self, device, point_list):
+            '''Use RPC get method to obtain device data from Actuator agent.'''
             data = {}
             for point in point_list:
                 value = self.vip.rpc.call(
@@ -308,7 +323,11 @@ def ahp(config_path, **kwargs):
                     _now = dt.now().replace(second=0, microsecond=0)
                     comp_time = int(op_type[2])
                     prev = _now - td(minutes=comp_time)
-                    prev_val = self.data_trender.data_arr[dev_key].ix[prev]
+                    try:
+                        prev_val = self.data_trender.data_arr[dev_key].ix[prev]
+                    except:
+                        val = criteria['minimum']
+                        continue
                     cur_val = data[pt_name]
                     if _operation == 'direct':
                         val = abs(prev_val - cur_val)
@@ -323,7 +342,7 @@ def ahp(config_path, **kwargs):
             self.builder[dev_key].update(
                 {'no_curtailed': self.no_curtailed[dev_key]})
 
-        def check_load(self, headers, message):
+        def check_load(self, message):
             '''Check whole building power and if the value is above the
 
             the demand limit (demand_limit) then initiate the AHP sequence.
@@ -334,6 +353,9 @@ def ahp(config_path, **kwargs):
                 self.bldg_power = bldg_power
                 self.running_ahp = True
                 self.device_status()
+                if not self.builder:
+                    _log.info('All devices are off, nothing to curtail.')
+                    return
                 input_arr = input_matrix(self.builder, self.crit_labels)
                 scores, score_order = build_score(input_arr, self.row_average)
                 ctrl_dev = self.actuator_request(score_order)
@@ -358,7 +380,8 @@ def ahp(config_path, **kwargs):
             ctrl_dev = [dev for dev in score_order if dev not in self.failed_control]
             return ctrl_dev
 
-        def curtail(self, ctrl_dev, scores, score_order):
+        def curtail(self, ctrl_dev):
+            '''Curtail loads by turning off device (or device components'''
             dev_keys = self.builder.keys()
             dev_keys = [(item.split('_')[0], item.split('_')[-1]) for item in dev_keys]
             dev_keys = [(item[0], item[-1]) for item in dev_keys if item[0] in ctrl_dev]
@@ -368,8 +391,6 @@ def ahp(config_path, **kwargs):
                 pt = static_config[item[0]][item[-1]]
                 pt = pt.get('curtail', None)
                 if pt is None:
-                    _log.error('The "curtail" section of device configuration '
-                               'is missing or configured incorrectly')
                     raise Exception('The curtail section for {} is missing or '
                                     'or configured incorrectly.'.format(item))
                 curtail_pt = pt.get('point', None)
@@ -384,17 +405,29 @@ def ahp(config_path, **kwargs):
                 self.remaining_device.remove(item)
                 if est_curtailed >= need_curtailed:
                     break
-            self.transition == True
+            self.transition = True
             _chk_time = dt.now() + td(minutes=5)
-            self.core.schedule(_chk_time, self.curtailed_power)
+            self.core.schedule(_chk_time, self.curtail_confirm)
 
-        def curtailed_power(self):
+        def curtail_confirm(self):
+            '''Check if load shed goal is met.'''
             pwr_mtr = ''.join([location, power_dev, power_pt])
-            value = self.vip.rpc.call('platform.actuator', 'get_point',
+            cur_pwr = self.vip.rpc.call('platform.actuator', 'get_point',
                                       pwr_mtr).get(timeout=10)
-            cur_pwr = value[power_pt]
-            if value[cur_pwr] < demand_limit:
-                pass
+            self.transition = False
+            saved_off = deepcopy(self.off_dev)
+            if cur_pwr < demand_limit:
+                _log.info('Curtailment confirmation:  load reduction has met goal.')
+            else:
+                self.device_status(check_only=True)
+                if saved_off == self.off_dev and self.remaining_device:
+                    self.curtail(self.remaining_device)
+                elif saved_off == self.off_dev:
+                    _log.info('Did not meet load curtailment goal but there '
+                              'are no further available loads to curtail.')
+                else:
+                    self.check_load(cur_pwr)
+
     return AHP(**kwargs)
 
 

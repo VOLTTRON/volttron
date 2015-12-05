@@ -38,7 +38,7 @@
 					},
 					"criterion5": {
 						"name": "previous-zonetemp-zonetemp",
-					    "operation": "inverse",
+					    "operation": "direct",
 						"operation_type": ["history", "ZoneTemperature", 15],
 						"minimum": 0,
 						"maximum": 10
