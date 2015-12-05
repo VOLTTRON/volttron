@@ -99,6 +99,7 @@ def subscriber():
         print sub.recv_multipart()
 
 @pytest.mark.slow        
+@pytest.mark.zmq
 def test_broker():
     pub = zmq.Socket(ctx, zmq.PUB)
     pull = zmq.Socket(ctx, zmq.PULL)
