@@ -54,6 +54,7 @@ under Contract DE-AC05-76RL01830
 import sys
 import time
 
+import pytest
 import zmq
 
 
@@ -93,7 +94,8 @@ def subscriber():
     sub.subscribe = ''
     while True:
         print sub.recv_multipart()
-        
+
+@pytest.mark.slow      
 def test_broker(): #broker_test():
     pub = zmq.Socket(ctx, zmq.PUB)
     pull = zmq.Socket(ctx, zmq.PULL)

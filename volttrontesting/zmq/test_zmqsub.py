@@ -58,6 +58,7 @@
 import sys
 import time
 
+import pytest
 import zmq
 
 publish_address = 'ipc:///tmp/volttron-platform-agent-publish'
@@ -96,7 +97,8 @@ def subscriber():
     sub.subscribe = ''
     while True:
         print sub.recv_multipart()
-        
+
+@pytest.mark.slow        
 def test_broker():
     pub = zmq.Socket(ctx, zmq.PUB)
     pull = zmq.Socket(ctx, zmq.PULL)
