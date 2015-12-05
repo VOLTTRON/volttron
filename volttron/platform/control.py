@@ -566,10 +566,12 @@ def use_keystore(opts):
     def gen_param(query, name, value):
         return '{}{}={}'.format('&' if query else '', name, value)
 
-    keystore = KeyStore(opts.keystore_file)
     url = list(urlparse.urlsplit(opts.vip_address))
-    query_dict = urlparse.parse_qs(url[3])
+    if url[0] != 'tcp':
+        return opts.vip_address
 
+    keystore = KeyStore(opts.keystore_file)
+    query_dict = urlparse.parse_qs(url[3])
     if not 'publickey' in query_dict:
         url[3] += gen_param(url[3], 'publickey', keystore.public()) 
     if not 'secretkey' in query_dict: 
