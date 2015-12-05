@@ -97,7 +97,7 @@ def subscriber():
     while True:
         print sub.recv_multipart()
         
-def broker_test():
+def test_broker():
     pub = zmq.Socket(ctx, zmq.PUB)
     pull = zmq.Socket(ctx, zmq.PULL)
     pub.bind('ipc:///tmp/volttron-platform-agent-subscribe')
