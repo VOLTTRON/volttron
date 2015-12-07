@@ -1,3 +1,4 @@
+# VOLTTRON Testing
 Testing VOLTTRON requires the inclusion of several packages.
 
 Execute the following from a volttron activated console.
@@ -29,5 +30,7 @@ py.test -m zmq
 ```
 
 ## Notes
-In order for a test to pass the required dependencies for the agent
+ * Global configuration is located in the pytest.ini file at the root of the
+ volttron repository.
+ * In order for a test to pass the required dependencies for the agent
 under testing must be met.
