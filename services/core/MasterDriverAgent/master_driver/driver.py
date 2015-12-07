@@ -124,6 +124,11 @@ class DriverAgent(BasicAgent):
         registry_config = self.get_config(config["registry_config"]) 
         
         self.heart_beat_point = config.get("heart_beat_point") 
+        
+        self.publish_depth_first_all = config.get("publish_depth_first_all", True) 
+        self.publish_breadth_first_all = config.get("publish_breadth_first_all", True) 
+        self.publish_depth_first = config.get("publish_depth_first", True) 
+        self.publish_breadth_first = config.get("publish_breadth_first", True) 
                            
         self.interface = self.get_interface(driver_type, driver_config, registry_config)
         self.meta_data = {}
@@ -181,24 +186,34 @@ class DriverAgent(BasicAgent):
         headers = {
             headers_mod.DATE: now,
         }
+        
             
 
-#         for point, value in results.iteritems():
-#             topics = self.get_paths_for_point(point)
-#             for topic in topics:
-#                 message = [value, self.meta_data[point]] 
-#                 self._publish_wrapper(topic, 
-#                                       headers=headers, 
-#                                       message=message)
+        if self.publish_depth_first or self.publish_breadth_first:
+            for point, value in results.iteritems():
+                depth_first_topic, breadth_first_topic = self.get_paths_for_point(point)
+                message = [value, self.meta_data[point]]
+                   
+                if self.publish_depth_first:  
+                    self._publish_wrapper(depth_first_topic, 
+                                          headers=headers, 
+                                          message=message)
+                
+                if self.publish_breadth_first:
+                    self._publish_wrapper(breadth_first_topic, 
+                                          headers=headers, 
+                                          message=message)
          
         message = [results, self.meta_data] 
-        self._publish_wrapper(self.all_path_depth, 
-                              headers=headers, 
-                              message=message)
-         
-#         self._publish_wrapper(self.all_path_breadth, 
-#                               headers=headers, 
-#                               message=message)
+        if self.publish_depth_first_all:
+            self._publish_wrapper(self.all_path_depth, 
+                                  headers=headers, 
+                                  message=message)
+        
+        if self.publish_breadth_first_all: 
+            self._publish_wrapper(self.all_path_breadth, 
+                                  headers=headers, 
+                                  message=message)
 
         self.parent.scrape_ending(self.device_name)
         
