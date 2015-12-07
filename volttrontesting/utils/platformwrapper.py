@@ -14,7 +14,7 @@ from StringIO import StringIO
 import zmq
 
 from volttron.platform import aip
-from volttron.platform.control import client, server
+#from volttron.platform.control import client, server
 from volttron.platform import packaging
 
 
@@ -94,7 +94,7 @@ class PlatformWrapperError(Exception):
 
 class PlatformWrapper():
 
-    def __init__(self, volttron_home=None):
+    def __init__(self, volttron_home=None, vip_address=None, **kwargs):
         """Initializes the platform in a new temp directory.
 
         The function will setup a new temp directory for containing the files
@@ -116,15 +116,18 @@ class PlatformWrapper():
 
         self.env = os.environ.copy()
         self.env['VOLTTRON_HOME'] = self.tmpdir
-        self.env['AGENT_PUB_ADDR'] = "ipc://{}/{}".format(
-                                            self.env['VOLTTRON_HOME'],
-                                            PUBLISH_TO)
-        self.env['AGENT_SUB_ADDR'] = "ipc://{}/{}".format(
-                                            self.env['VOLTTRON_HOME'],
-                                            SUBSCRIBE_TO)
-        print ("Agent Home", self.env['VOLTTRON_HOME'])
-        print ("Agent Pub Addr", self.env['AGENT_PUB_ADDR'])
-        print ("Agent Sub Addr", self.env['AGENT_SUB_ADDR'])
+        if (vip_address != None):
+            self.env['VIP_ADDRESS'] = vip_address
+
+        #
+        # self.env['AGENT_PUB_ADDR'] = "ipc://{}/{}".format(
+        #                                     self.env['VOLTTRON_HOME'],
+        #                                     PUBLISH_TO)
+        # self.env['AGENT_SUB_ADDR'] = "ipc://{}/{}".format(
+        #                                     self.env['VOLTTRON_HOME'],
+        #                                     SUBSCRIBE_TO)
+        print ("Instance Home", self.env['VOLTTRON_HOME'])
+        print ("Instance Address", self.env.get('VIP_ADDRESS', None))
         self.p_process = None
         self.t_process = None
         self.zmq_context = None
@@ -225,8 +228,8 @@ class PlatformWrapper():
         while(not os.path.exists(path) and tries < max_tries):
             time.sleep(5)
             tries += 1
-
-        self.conn= server.ControlConnector(path)
+        assert True==False
+        #self.conn= `server`.ControlConnector(path)
 
 
 #         if self.mode == RESTRICTED:
