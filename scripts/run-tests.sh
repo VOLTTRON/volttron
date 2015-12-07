@@ -1,4 +1,6 @@
 #!/bin/sh
 
-echo "Running Tests"
+env/bin/activate
+pip install pytest pytest-bdd pytest-cov
 
+py.test
