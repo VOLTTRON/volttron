@@ -78,7 +78,7 @@ from .vip.agent import Agent as BaseAgent, Core, RPC
 from . import aip as aipmod
 from . import config
 from .jsonrpc import RemoteError
-from .keystore import KeyStore
+from .keystore import KeyStore, KnownHostsStore
 
 try:
     import volttron.restricted
@@ -489,7 +489,13 @@ def gen_keypair(opts):
         if not choice or choice.lower()[0] != 'y':
             return
     keystore.generate()
+    _stdout.write('public key: {}\n'.format(keystore.public()))
     _stdout.write('keys written to {}\n'.format(opts.keystore_file))
+
+def add_server_key(opts):
+    store = KnownHostsStore(opts.known_hosts_file)
+    store.add(opts.host, opts.server_key)
+    _stdout.write('server key written to {}\n'.format(opts.known_hosts_file))
 
 def do_stats(opts):
     call = opts.connection.call
@@ -565,7 +571,9 @@ def priority(value):
         raise ValueError('invalid priority (0 <= n < 100): {}'.format(n))
     return '{:02}'.format(n)
 
-def use_keystore(opts):
+def use_keystore_and_known_hosts(opts):
+    '''Updates vip-address with values from keystore and known-hosts store
+    as specified by given opts'''
 
     def gen_param(query, name, value):
         return '{}{}={}'.format('&' if query else '', name, value)
@@ -574,12 +582,19 @@ def use_keystore(opts):
     if url[0] != 'tcp':
         return opts.vip_address
 
-    keystore = KeyStore(opts.keystore_file)
     query_dict = urlparse.parse_qs(url[3])
-    if not 'publickey' in query_dict:
-        url[3] += gen_param(url[3], 'publickey', keystore.public()) 
-    if not 'secretkey' in query_dict: 
-        url[3] += gen_param(url[3], 'secretkey', keystore.secret())
+    def add_param(query_str, key, value):
+        if not value or key in query_dict:
+            return ''
+        return gen_param(query_str, key, value)
+
+    hosts = KnownHostsStore(opts.known_hosts_file)
+    url[3] += add_param(url[3], 'serverkey', hosts.serverkey(opts.vip_address))
+
+    if opts.keystore:
+        keys = KeyStore(opts.keystore_file)
+        url[3] += add_param(url[3], 'publickey', keys.public())
+        url[3] += add_param(url[3], 'secretkey', keys.secret())
 
     return urlparse.urlunsplit(url)
 
@@ -614,10 +629,13 @@ def main(argv=sys.argv):
         help='use public and secret keys from keystore')
     global_args.add_argument('--keystore-file', metavar='FILE', 
         help='use keystore from FILE')
+    global_args.add_argument('--known-hosts-file', metavar='FILE',
+        help='get known-host server keys from FILE')
     global_args.set_defaults(
         vip_address='ipc://' + vip_path,
         timeout=30,
         keystore_file=os.path.join(volttron_home, 'keystore'),
+        known_hosts_file=os.path.join(volttron_home, 'known_hosts')
     )
 
     filterable = config.ArgumentParser(add_help=False)
@@ -764,6 +782,13 @@ def main(argv=sys.argv):
         help='generate CurveMQ keys for encrypting VIP connections') 
     keypair.set_defaults(func=gen_keypair)
 
+    add_known_host = add_parser('add-known-host',
+        help='add server public key to known-hosts file')
+    add_known_host.add_argument('--host', required=True,
+        help='hostname or IP address with optional port')
+    add_known_host.add_argument('--server-key', required=True)
+    add_known_host.set_defaults(func=add_server_key)
+
     stats = add_parser('stats',
         help='manage router message statistics tracking')
     op = stats.add_argument(
@@ -796,9 +821,8 @@ def main(argv=sys.argv):
             print(name, repr(value))
         return
 
-    if opts.keystore:
-        opts.vip_address = use_keystore(opts)
-    
+    opts.vip_address = use_keystore_and_known_hosts(opts)
+
     # Configure logging
     level = max(1, opts.verboseness)
     if opts.log is None:

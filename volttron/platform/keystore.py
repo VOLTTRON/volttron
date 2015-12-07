@@ -57,32 +57,62 @@
 #}}}
 
 import json
+import urlparse
 
 from zmq import curve_keypair
 
 from .vip.socket import encode_key
 
-class KeyStore(object):
-    '''Handle generation, storage, and retrival of keys'''
-    
+class BaseJSONStore(object):
     def __init__(self, filename):
         self.filename = filename
 
+    def store(self, data):
+        with open(self.filename, 'w') as f:
+            f.write(json.dumps(data, indent=4))
+
+    def load(self):
+        try:
+            with open(self.filename, 'r') as f:
+                return json.load(f)
+        except IOError:
+            return {}
+        except ValueError:
+            return {}
+
+    def update(self, data):
+        d = self.load()
+        d.update(data)
+        self.store(d)
+
+class KeyStore(BaseJSONStore):
+    '''Handle generation, storage, and retrival of keys'''
+
     def generate(self):
         public, secret = curve_keypair()
-        self.store(encode_key(public), encode_key(secret))
-
-    def store(self, public, secret):
-        with open(self.filename, 'w') as f:
-            f.write(json.dumps({'public': public, 'secret': secret},
-                indent=4))
+        self.store({'public': encode_key(public), 
+                    'secret': encode_key(secret)})
 
     def public(self):
-        return self._load()['public']
+        return self.load().get('public', None)
 
     def secret(self):
-        return self._load()['secret']
+        return self.load().get('secret', None)
 
-    def _load(self):    
-        with open(self.filename, 'r') as f:
-            return json.load(f)
+
+class KnownHostsStore(BaseJSONStore):
+    '''Handle storage and retrival of known hosts'''
+
+    def add(self, addr, server_key):
+        self.update({self._parse_addr(addr): server_key})
+
+    def serverkey(self, addr):
+        return self.load().get(self._parse_addr(addr), None)
+
+    @staticmethod
+    def _parse_addr(addr):
+        url = urlparse.urlparse(addr)
+        if url.netloc:
+            return url.netloc
+        return url.path
+
