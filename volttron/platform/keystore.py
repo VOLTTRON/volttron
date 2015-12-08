@@ -56,6 +56,10 @@
 
 #}}}
 
+
+'''Module for storing local public and secret keys and remote public keys'''
+
+
 import json
 import urlparse
 
@@ -63,34 +67,38 @@ from zmq import curve_keypair
 
 from .vip.socket import encode_key
 
+
 class BaseJSONStore(object):
+    '''JSON-file-backed store for dictionaries'''
+
     def __init__(self, filename):
         self.filename = filename
 
     def store(self, data):
-        with open(self.filename, 'w') as f:
-            f.write(json.dumps(data, indent=4))
+        with open(self.filename, 'w') as json_file:
+            json_file.write(json.dumps(data, indent=4))
 
     def load(self):
         try:
-            with open(self.filename, 'r') as f:
-                return json.load(f)
+            with open(self.filename, 'r') as json_file:
+                return json.load(json_file)
         except IOError:
             return {}
         except ValueError:
             return {}
 
-    def update(self, data):
-        d = self.load()
-        d.update(data)
-        self.store(d)
+    def update(self, new_data):
+        data = self.load()
+        data.update(new_data)
+        self.store(data)
+
 
 class KeyStore(BaseJSONStore):
     '''Handle generation, storage, and retrival of keys'''
 
     def generate(self):
         public, secret = curve_keypair()
-        self.store({'public': encode_key(public), 
+        self.store({'public': encode_key(public),
                     'secret': encode_key(secret)})
 
     def public(self):
@@ -115,4 +123,3 @@ class KnownHostsStore(BaseJSONStore):
         if url.netloc:
             return url.netloc
         return url.path
-
