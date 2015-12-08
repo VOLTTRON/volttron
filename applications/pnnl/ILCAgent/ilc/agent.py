@@ -18,7 +18,7 @@ from volttron.platform.agent.utils import jsonapi, setup_logging
 from volttron.platform.vip.agent import *
 from ilc.ilc_matrices import (extract_criteria, calc_column_sums,
                               normalize_matrix, validate_input,
-                              build_score, input_matrix)
+                              history_data, build_score, input_matrix)
 
 MATRIX_ROWSTRING = "%20s\t%12.2f%12.2f%12.2f%12.2f%12.2f"
 CRITERIA_LABELSTRING = "\t\t\t%12s%12s%12s%12s%12s"
@@ -71,17 +71,17 @@ class DeviceTrender:
 
     def frame_data(self):
         '''Append Dataframe with current reading for all devices configured.'''
-        data_arr = df([self.data], columns=self.p_names, index=[self.ts])
+        data_arr = df([self.data], columns=self.pt_names, index=[self.ts])
         if self.data_arr is None:
             self.data_arr = data_arr
             self.needs_devices = deepcopy(self._master_devices)
-            self.p_names = []
+            self.pt_names = []
             self.data = []
             self.ts = []
             return 1
         self.needs_devices = deepcopy(self._master_devices)
         self.data_arr = self.data_arr.append(data_arr)
-        self.p_names = []
+        self.pt_names = []
         self.data = []
         self.ts = []
         return 0
@@ -139,6 +139,8 @@ def ahp(config_path, **kwargs):
             self.transition = False
             self.remaining_device = None
             self.no_curtailed = no_curt
+            # self.start_up = True
+            self.data_trender = None
 
         @Core.receiver("onstart")
         def starting_base(self, sender, **kwargs):
@@ -150,9 +152,9 @@ def ahp(config_path, **kwargs):
             reset_time = dt.now().replace(minute=0, hour=0,
                                           second=0, microsecond=0)
             reset_time = reset_time + td(days=1)
-            self.core.schedule(reset_time, self.data_trender.reinit)
-            excel_file = config.get('excel_file', None)
+            self.core.schedule(reset_time, self.sched_reinit)
 
+            excel_file = config.get('excel_file', None)
             if excel_file is not None:
                 self.crit_labels, criteria_arr = \
                     extract_criteria(excel_file, "CriteriaMatrix")
@@ -175,6 +177,12 @@ def ahp(config_path, **kwargs):
                                       prefix=driver_prefix,
                                       callback=self.new_data)
 
+        def sched_reinit(self):
+            '''Reinitialize data trends for historical data.'''
+            self.data_trender.reinit()
+            reset_time = dt.now() + td(days=1)
+            self.core.schedule(reset_time, self.sched_reinit)
+
         def new_data(self, peer, sender, bus, topic, headers, message):
             '''Generate static configuration inputs for
 
@@ -183,6 +191,9 @@ def ahp(config_path, **kwargs):
             _log.info('Data Received')
             if ALL_DEV.match(topic):
                 device = topic.split('/')[3]
+                device_data = jsonapi.loads(message[0])
+                if isinstance(device_data, list):
+                    device_data = device_data[0]
                 dev_config = static_config.get(device, None)
                 if dev_config is None:
                     raise Exception('device section of configuration file '
@@ -191,15 +202,17 @@ def ahp(config_path, **kwargs):
                 if point_list is None:
                     raise Exception('point_list section of configuration '
                                     'file for {} is missing.'.format(device))
-                data = self.query_device(device, point_list)
+                data = history_data(device, device_data, point_list)
                 self.data_trender.new_data(key, point_list, data)
+                return
             if self.transition:
                 return
-            if self.start_up:
-                return
+#             if self.start_up:
+#                 return
             if BUILDING_TOPIC.match(topic) and not self.running_ahp:
                 _log.debug('Reading building power data.')
                 self.check_load(message)
+            # TODO: Update below to verify on/off status
             if self.running_ahp:
                 device = topic.split('/')[3]
             if device not in self.off_dev.keys():
@@ -413,11 +426,11 @@ def ahp(config_path, **kwargs):
             '''Check if load shed goal is met.'''
             pwr_mtr = ''.join([location, power_dev, power_pt])
             cur_pwr = self.vip.rpc.call('platform.actuator', 'get_point',
-                                      pwr_mtr).get(timeout=10)
+                                        pwr_mtr).get(timeout=10)
             self.transition = False
             saved_off = deepcopy(self.off_dev)
             if cur_pwr < demand_limit:
-                _log.info('Curtailment confirmation:  load reduction has met goal.')
+                _log.info('Curtail goal for building load met.')
             else:
                 self.device_status(check_only=True)
                 if saved_off == self.off_dev and self.remaining_device:

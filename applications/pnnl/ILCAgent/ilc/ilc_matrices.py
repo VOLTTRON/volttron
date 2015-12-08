@@ -57,6 +57,7 @@ import logging
 import math
 from xlrd import open_workbook
 import numpy as np
+from datetime import datetime as dt
 from volttron.platform.agent import utils
 MATRIX_ROWSTRING = "%20s\t%12.2f%12.2f%12.2f%12.2f%12.2f"
 CRITERIA_LABELSTRING = "\t\t\t%12s%12s%12s%12s%12s"
@@ -253,26 +254,20 @@ def display_matrix(_matrix, LABELString, xLABELS, yLABELS,
         print >> display_func, \
                  rowstring % ((yLABELS[i],) + tuple(_matrix[i]))
         i += 1
-# def rtus_scores(scores, P_blg, p_tg, p_rtu):
-#     scores[p_rtu < 1.0] = 0   # exclude off-RTUs from priority order
-#     priority = map(lambda x: x + 1,
-#                    sorted(range(len(scores)),
-#                           key=lambda k: scores[k],
-#                           reverse=True))
-#     curtail = np.size(np.nonzero(np.cumsum(p_rtu) < (P_blg - p_rtu))) + 1
-#     print >> sys.stdout, "Curtailed RTU list :",  priority[0:curtail]
-#     return priority[0:curtail]
-# 
-# 
-# def rtus_ctrl(scores, p_blg, p_tag, ctrl_t, ctrl_tsp, hdb, p_rtu):
-#     p_tg = (p_tag * 3 - p_blg) / 2   # depend on AHP running periods
-#     priority = False
-#     if (p_blg > p_tag):
-#         p_cur = p_blg - p_tag
-#         print >> sys.stdout, "Curtailed demand control: ", p_cur
-#         priority = rtus_scores(scores, p_blg, p_tg, p_rtu)
-#     return priority
 
+def history_data(device, device_data, point_list):
+            '''Store historical data on devices for use in "Input Matrix."'''
+            data = {}
+            for point in point_list:
+                try:
+                    value = device_data[point]
+                except KeyError:
+                    _log.error('Data names in point_list in config file do '
+                               'not match available data published by device '
+                               'drivers.')
+                data.update({device: {point: value}})
+            data[device].update({'date': dt.now()})
+            return data
 
 def input_matrix(builder, criteria_labels):
     '''Construct input normalized input matrix.'''
