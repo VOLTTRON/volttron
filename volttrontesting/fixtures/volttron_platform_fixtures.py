@@ -18,10 +18,12 @@ def volttron_instance_1(request, instancce_1_config):
     if not os.path.exists(vh):
         os.makedirs(vh)
 
+    config_dir = os.path.join(vh, 'config')
     with open(os.path.join(vh, 'config'), 'w') as fout:
         fout.write(json.dumps(instancce_1_config))
 
     wrapper = PlatformWrapper("/tmp/instance1home")
+    wrapper.startup_platform(config_dir)
     def fin():
         wrapper.shutdown_platform(cleanup=True)
         print('teardown instance 1')
@@ -35,9 +37,11 @@ def volttron_instance_2(request, instancce_2_config):
     if not os.path.exists(vh):
         os.makedirs(vh)
 
-    with open(os.path.join(vh, 'config'), 'w') as fout:
+    config_dir = os.path.join(vh, 'config')
+    with open(config_dir, 'w') as fout:
         fout.write(json.dumps(instancce_2_config))
     wrapper = PlatformWrapper("/tmp/instance2home")
+    wrapper.startup_platform(config_dir)
     def fin():
         wrapper.shutdown_platform(cleanup=True)
         print ('teardown instance 2')

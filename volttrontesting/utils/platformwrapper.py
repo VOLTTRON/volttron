@@ -128,15 +128,20 @@ class PlatformWrapper():
         #                                     SUBSCRIBE_TO)
         print ("Instance Home", self.env['VOLTTRON_HOME'])
         print ("Instance Address", self.env.get('VIP_ADDRESS', None))
-        self.p_process = None
-        self.t_process = None
+        self._p_process = None
+        self._t_process = None
         self.zmq_context = None
         self.use_twistd = False
 
-        if volttron_home is not None:
+        if volttron_skel is not None:
             self.initialize_volttron_home(volttron_skel)
 
+    def is_running(self):
+        return self._p_process is not None
 
+    def twistd_is_running(self):
+        return self._t_process is not None
+        
     def initialize_volttron_home(self, volttron_skel):
         '''Copies the configuration of the passed "volttron_skel".
 
@@ -149,9 +154,9 @@ class PlatformWrapper():
         volttron_skel is the directory where the configurations will be copied
                       from into the VOLTTRON_HOME.
         '''
-        if not os.path.isdir(volttron_home):
+        if not os.path.isdir(volttron_skel):
             raise ValueError('Invalid directory specified\n{}'.format(
-                                                                volttron_home))
+                                                                volttron_skel))
         mergetree(volttron_skel, self.tmpdir)
 
 
@@ -171,7 +176,6 @@ class PlatformWrapper():
         assert config != None, 'Invalid configuration file passed {}'.format(
                                                                 platform_config)
 
-#         self.tmpdir = tempfile.mkdtemp()
         config['tmpdir'] = self.tmpdir
         pconfig = os.path.join(self.tmpdir, TMP_PLATFORM_CONFIG_FILENAME)
         self.mode = mode
@@ -216,20 +220,19 @@ class PlatformWrapper():
         pparams = [VSTART, "-c", pconfig, "-vv", "-l", lfile]
         print("PARAMS: ", pparams)
 
-        self.p_process = subprocess.Popen(pparams, env=self.env)
+        self._p_process = subprocess.Popen(pparams, env=self.env)
 
-
-        #Setup connector
-        path = '{}/run/control'.format(self.env['VOLTTRON_HOME'])
-
-        time.sleep(5)
-        tries = 0
-        max_tries = 5
-        while(not os.path.exists(path) and tries < max_tries):
-            time.sleep(5)
-            tries += 1
-        assert True==False
-        #self.conn= `server`.ControlConnector(path)
+        # #Setup connector
+        # path = '{}/run/control'.format(self.env['VOLTTRON_HOME'])
+        #
+        # time.sleep(5)
+        # tries = 0
+        # max_tries = 5
+        # while(not os.path.exists(path) and tries < max_tries):
+        #     time.sleep(5)
+        #     tries += 1
+        # assert True==False
+        # #self.conn= `server`.ControlConnector(path)
 
 
 #         if self.mode == RESTRICTED:
@@ -244,9 +247,9 @@ class PlatformWrapper():
                 cfg.write(TWISTED_CONFIG.format(**config))
 
             tparams = [TWISTED_START, "-n", "smap", tconfig]
-            self.t_process = subprocess.Popen(tparams, env=self.env)
+            self._t_process = subprocess.Popen(tparams, env=self.env)
             time.sleep(5)
-        #self.t_process = subprocess.Popen(["twistd", "-n", "smap", "test-smap.ini"])
+        #self._t_process = subprocess.Popen(["twistd", "-n", "smap", "test-smap.ini"])
 
 
     def publish(self, topic, data):
@@ -388,17 +391,17 @@ class PlatformWrapper():
 
     def shutdown_platform(self, cleanup_temp=True):
         '''Stop platform here'''
-        if self.p_process != None:
+        if self._p_process != None:
             if self.conn is not None:
                 self.conn.call.shutdown()
             time.sleep(3)
-            self.p_process.kill()
+            self._p_process.kill()
         else:
             print "platform process was null"
 
-        if self.use_twistd and self.t_process != None:
-            self.t_process.kill()
-            self.t_process.wait()
+        if self.use_twistd and self._t_process != None:
+            self._t_process.kill()
+            self._t_process.wait()
         elif self.use_twistd:
             print "twistd process was null"
         if cleanup_temp:
