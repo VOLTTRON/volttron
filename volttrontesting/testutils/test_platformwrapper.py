@@ -1,5 +1,10 @@
 import pytest
 
+@pytest.fixture
+def listener_agent_wheel():
+    '''Creates a wheel from the listener agent'''
+    pass
+
 def test_volttron_fixtures(volttron_instance_1, volttron_instance_2):
     assert volttron_instance_1 is not None
     assert volttron_instance_2 is not None
@@ -14,3 +19,6 @@ def test_platform_startup(volttron_instance_1, volttron_instance_2):
     assert volttron_instance_2.is_running()
     assert not volttron_instance_1.twistd_is_running()
     assert not volttron_instance_2.twistd_is_running()
+
+def test_install_listener(volttron_instance_1, listener_agent_wheel):
+    pass
