@@ -21,6 +21,7 @@ def volttron_instance_1(request, instancce_1_config):
     config_dir = os.path.join(vh, 'config')
     with open(os.path.join(vh, 'config'), 'w') as fout:
         fout.write(json.dumps(instancce_1_config))
+        fout.close()
 
     wrapper = PlatformWrapper("/tmp/instance1home")
     print("CONFIG DIR: ", config_dir)
@@ -42,6 +43,8 @@ def volttron_instance_2(request, instancce_2_config):
     config_dir = os.path.join(vh, 'config')
     with open(config_dir, 'w') as fout:
         fout.write(json.dumps(instancce_2_config))
+        fout.close()
+        
     wrapper = PlatformWrapper("/tmp/instance2home")
     wrapper.startup_platform(config_dir)
     def fin():
