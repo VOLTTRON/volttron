@@ -9,7 +9,7 @@ def instancce_1_config():
 
 @pytest.fixture(scope="module")
 def instancce_2_config():
-    return {"vip-address": "tcp://0.0.0.0:22917")
+    return {"vip-address": "tcp://0.0.0.0:22917"}
 
 @pytest.fixture(scope="module")
 def volttron_instance_1(request, instancce_1_config):
