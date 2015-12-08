@@ -219,6 +219,10 @@ class PlatformWrapper():
 
         pparams = [VSTART, "-c", pconfig, "-vv", "-l", lfile]
         print("PARAMS: ", pparams)
+        
+        print('FILES exist?')
+        print(os.path.exists(VSTART))
+        print(os.path.exists(pconfig))
 
         self._p_process = subprocess.Popen(pparams, env=self.env)
 
