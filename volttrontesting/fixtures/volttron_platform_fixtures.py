@@ -5,11 +5,11 @@ from volttrontesting.utils.platformwrapper import PlatformWrapper
 
 @pytest.fixture(scope="module")
 def instancce_1_config():
-    return {"vip-address": "tcp://127.0.0.1:22916"}
+    return {"vip-address": "tcp://0.0.0.0:22916"}
 
 @pytest.fixture(scope="module")
 def instancce_2_config():
-    return {"vip-address": "tcp://127.0.0.2:22916"}
+    return {"vip-address": "tcp://0.0.0.0:22917"}
 
 @pytest.fixture(scope="module")
 def volttron_instance_1(request, instancce_1_config):
