@@ -94,7 +94,7 @@ class PlatformWrapperError(Exception):
 
 class PlatformWrapper():
 
-    def __init__(self, volttron_home=None, vip_address=None, **kwargs):
+    def __init__(self, volttron_skel=None, vip_address=None, **kwargs):
         """Initializes the platform in a new temp directory.
 
         The function will setup a new temp directory for containing the files
@@ -104,7 +104,7 @@ class PlatformWrapper():
         volttron_home is set then all the files in that directory will be
         copied into VOLTTRON_HOME.
 
-        volttron_home - Files that should be copied into VOLTTRON_HOME before
+        volttron_skel - Files that should be copied into VOLTTRON_HOME before
                         the agent can be started. Ex. configuration files.
         """
 
@@ -134,25 +134,25 @@ class PlatformWrapper():
         self.use_twistd = False
 
         if volttron_home is not None:
-            self.initialize_volttron_home(volttron_home)
+            self.initialize_volttron_home(volttron_skel)
 
 
-    def initialize_volttron_home(self, volttron_home):
-        '''Copies the configuration of the passed "volttron_home".
+    def initialize_volttron_home(self, volttron_skel):
+        '''Copies the configuration of the passed "volttron_skel".
 
         The platform is actually being run in a temporary space that is
         dynamically created.  This function will copy the directory tree
-        recursively from volttron_home to the platforms true VOLTTRON_HOME.
+        recursively from volttron_skel to the platforms true VOLTTRON_HOME.
 
-        raises ValueError if volttron_home does not exist
+        raises ValueError if volttron_skel does not exist
 
-        volttron_home is the directory where the configurations will be copied
+        volttron_skel is the directory where the configurations will be copied
                       from into the VOLTTRON_HOME.
         '''
         if not os.path.isdir(volttron_home):
             raise ValueError('Invalid directory specified\n{}'.format(
                                                                 volttron_home))
-        mergetree(volttron_home, self.tmpdir)
+        mergetree(volttron_skel, self.tmpdir)
 
 
     def startup_platform(self, platform_config, use_twistd = False,
