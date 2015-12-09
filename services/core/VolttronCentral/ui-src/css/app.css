@@ -218,6 +218,37 @@ br + .form__control-help {
     font-size: 1.5em;
 }
 
+.status-indicator {
+    display: inline-block;
+    vertical-align: top;
+    position: absolute;
+    top: 0px;
+    left: 35%;
+    right: 35%;
+    width: 30%;
+    min-height: 7rem;
+    max-height: 75%;
+    padding: 0px;
+    box-sizing: border-box;
+    overflow: auto;
+    text-align: center;
+    border-radius: 0.3333rem;
+    background-color: #fff;
+    box-shadow: 0 0.1rem 0.2rem rgba(0,0,0,0.3);
+    z-index: 100;
+    opacity: .7;
+}
+
+.status-indicator.hide-slow {
+  animation-name: fade-out;
+  animation-duration: 1s;
+}
+
+@keyframes fade-out {
+    from {opacity: .7;}
+    to {opacity: 0;}
+}
+
 .main {
     position: relative;
     height: 100%;
@@ -342,6 +373,46 @@ br + .form__control-help {
     margin-top: -6.5rem;
 }
 
+.platform-statuses {
+    height: 90%;
+    float: left;
+    background-color: #ccc;
+    overflow: hidden;
+}
+
+.platform-collapsed {
+    width: 40px;
+}
+
+.platform-expanded {
+    width: 20%;
+}
+
+.slow-open {
+    animation-name: expand-panel;
+    animation-duration: .5s;
+}
+
+.slow-shut {
+    animation-name: collapse-panel;
+    animation-duration: .5s;
+}
+
+@keyframes expand-panel {
+    from {width: 40px;}
+    to {width: 20%;}
+}
+
+@keyframes collapse-panel {
+    from {width: 20%;}
+    to {width: 40px;}
+}
+
+.platform-view {
+    height: 100%;
+    width: 100%;
+}
+
 .error {
     border: 1px solid #faa;
     background-color: #fee;
@@ -386,6 +457,9 @@ br + .form__control-help {
     padding: 1.5em 2.5em;
     border-top: 1px solid #fff;
     position: relative;
+    height: 100%;
+    width: 70%;
+    float: left;
 }
 
 .view > * {

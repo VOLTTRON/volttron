@@ -13,6 +13,7 @@ var modalActionCreators = require('../action-creators/modal-action-creators');
 var modalStore = require('../stores/modal-store');
 var Navigation = require('./navigation');
 var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
+var PlatformsPanel = require('./platforms-panel');
 
 var PlatformManager = React.createClass({
     mixins: [Router.Navigation, Router.State],
@@ -80,7 +81,8 @@ var PlatformManager = React.createClass({
             <div className={classes.join(' ')}>
                 {modal}
                 <div ref="main" className="main">
-                    <Navigation />
+                    <Navigation />                
+                    <PlatformsPanel/>
                     <Router.RouteHandler />
                 </div>
                 <input
