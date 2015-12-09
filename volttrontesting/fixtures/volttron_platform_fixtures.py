@@ -19,9 +19,9 @@ def build_wrapper(platform_config, **kwargs):
 @pytest.fixture(scope="module")
 def volttron_instance_1(request, instance_1_config):
     wrapper = build_wrapper(instance_1_config)
-    
+
     def fin():
-        wrapper.shutdown_platform(cleanup_temp=True)
+        wrapper.shutdown_platform(True)
         print('teardown instance 1')
     return wrapper
 
@@ -30,8 +30,8 @@ def volttron_instance_1(request, instance_1_config):
 def volttron_instance_2(request, instance_2_config):
     print('getting instance 2')
     wrapper = build_wrapper(instance_2_config)
-    
+
     def fin():
-        wrapper.shutdown_platform(cleanup_temp=True)
+        wrapper.shutdown_platform(True)
         print('teardown instance 2')
     return wrapper
