@@ -21,4 +21,8 @@ def test_platform_startup(volttron_instance_1, volttron_instance_2):
     assert not volttron_instance_2.twistd_is_running()
 
 def test_install_listener(volttron_instance_1, listener_agent_wheel):
-    pass
+    uuid = volttron_instance_1.install_agent(agent_dir='examples/ListenerAgent')
+    assert uuid
+    status = volttron_instance_1.agent_status(uuid)
+    assert status != (None, None)
+    assert volttron_instance_1.confirm_agent_running("listeneragent-3.0")

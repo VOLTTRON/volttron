@@ -12,7 +12,9 @@ from contextlib import closing
 from StringIO import StringIO
 
 import zmq
+import gevent
 
+from volttron.platform.vip.agent import Agent
 from volttron.platform import aip
 #from volttron.platform.control import client, server
 from volttron.platform import packaging
@@ -41,8 +43,6 @@ PLATFORM_CONFIG_UNRESTRICTED = """
 no-resource-monitor
 no-verify
 no-mobility
-
-control-socket = {tmpdir}/run/control
 """
 
 
@@ -98,96 +98,43 @@ SUBSCRIBE_TO = RUN_DIR+'/subscribe'
 class PlatformWrapperError(Exception):
     pass
 
-class PlatformWrapper():
+class PlatformWrapper:
+    def __init__(self):
+        '''Initializes a new volttron environment
 
-    def __init__(self, volttron_skel=None, vip_address=None, **kwargs):
-        """Initializes the platform in a new temp directory.
-
-        The function will setup a new temp directory for containing the files
-        for the platform.  It will create a wheelhouse directory for
-        installation of agents.  It will setup an environment where
-        VOLTTRON_HOME, AGENT_PUB_ADDR and AGENT_SUB_ADDR are set.  If
-        volttron_home is set then all the files in that directory will be
-        copied into VOLTTRON_HOME.
-
-        volttron_skel - Files that should be copied into VOLTTRON_HOME before
-                        the agent can be started. Ex. configuration files.
-        """
-
-        self.tmpdir = tempfile.mkdtemp()
-        self.wheelhouse = '/'.join((self.tmpdir, 'wheelhouse'))
-        os.makedirs(self.wheelhouse)
-
-        os.makedirs(os.path.join(self.tmpdir, RUN_DIR))
-
+        Creates a temporary VOLTTRON_HOME direcctory with a packaged directory for
+        agents that are built.
+        '''
+        self.volttron_home = tempfile.mkdtemp()
+        self.packaged_dir = os.path.join(self.volttron_home, "packaged")
+        os.makedirs(self.packaged_dir)
         self.env = os.environ.copy()
-        self.env['VOLTTRON_HOME'] = self.tmpdir
-        if (vip_address != None):
-            self.env['VIP_ADDRESS'] = vip_address
+        self.env['VOLTTRON_HOME'] = self.volttron_home
 
-        #
-        # self.env['AGENT_PUB_ADDR'] = "ipc://{}/{}".format(
-        #                                     self.env['VOLTTRON_HOME'],
-        #                                     PUBLISH_TO)
-        # self.env['AGENT_SUB_ADDR'] = "ipc://{}/{}".format(
-        #                                     self.env['VOLTTRON_HOME'],
-        #                                     SUBSCRIBE_TO)
-        print ("Instance Home", self.env['VOLTTRON_HOME'])
-        print ("Instance Address", self.env.get('VIP_ADDRESS', None))
         self._p_process = None
         self._t_process = None
-        self.zmq_context = None
-        self.use_twistd = False
 
-        if volttron_skel is not None:
-            self.initialize_volttron_home(volttron_skel)
+    def startup_platform(self, vip_address, auth_dict=None, use_twistd=False,
+        mode=UNRESTRICTED):
+        if not isinstance(vip_address, list):
+            self.vip_address = [vip_address]
+        else:
+            self.vip_address = vip_address
 
-    def is_running(self):
-        return self._p_process is not None
-
-    def twistd_is_running(self):
-        return self._t_process is not None
-        
-    def initialize_volttron_home(self, volttron_skel):
-        '''Copies the configuration of the passed "volttron_skel".
-
-        The platform is actually being run in a temporary space that is
-        dynamically created.  This function will copy the directory tree
-        recursively from volttron_skel to the platforms true VOLTTRON_HOME.
-
-        raises ValueError if volttron_skel does not exist
-
-        volttron_skel is the directory where the configurations will be copied
-                      from into the VOLTTRON_HOME.
-        '''
-        if not os.path.isdir(volttron_skel):
-            raise ValueError('Invalid directory specified\n{}'.format(
-                                                                volttron_skel))
-        mergetree(volttron_skel, self.tmpdir)
-
-
-    def startup_platform(self, platform_config, use_twistd = False,
-                         mode=UNRESTRICTED):
-        """Start volttron in VOLTTRON_HOME.
-
-        platform_config is a json file like
-        """
-        try:
-            print("PLATFORM CONFIG: ", platform_config)
-            config = json.loads(open(platform_config, 'r').read())
-        except Exception as e:
-            config = None
-            sys.stderr.write (str(e))
-
-        assert config != None, 'Invalid configuration file passed {}'.format(
-                                                                platform_config)
-
-        config['tmpdir'] = self.tmpdir
-        pconfig = os.path.join(self.tmpdir, TMP_PLATFORM_CONFIG_FILENAME)
         self.mode = mode
 
         assert self.mode in MODES, 'Invalid platform mode set: '+str(mode)
         opts = None
+        pconfig = os.path.join(self.volttron_home, 'config')
+        config = {}
+        # see main.py for how we handle pub sub addresses.
+        ipc = 'ipc://{}{}/run/'.format(
+            '@' if sys.platform.startswith('linux') else '',
+            self.volttron_home)
+
+        # Remove connection encryption
+        with open(os.path.join(self.volttron_home, 'curve.key'), 'w'):
+            pass
 
         if self.mode == UNRESTRICTED:
             if RESTRICTED_AVAILABLE:
@@ -197,7 +144,11 @@ class PlatformWrapper():
             with closing(open(pconfig, 'w')) as cfg:
                 cfg.write(PLATFORM_CONFIG_UNRESTRICTED.format(**config))
             opts = type('Options', (), {'verify_agents': False,
-                                        'volttron_home': self.tmpdir})()
+                                        'volttron_home': self.volttron_home,
+                                        'vip_address': vip_address,
+                                        'publish_address': ipc + 'publish',
+                                        'subscribe_address': ipc + 'subscribe',
+                                        'developer_mode': True})()
         elif self.mode == RESTRICTED:
             if not RESTRICTED_AVAILABLE:
                 raise ValueError("restricted is not available.")
@@ -217,38 +168,20 @@ class PlatformWrapper():
         else:
             raise PlatformWrapperError("Invalid platform mode specified: {}".format(mode))
 
+        print("OPTS: ")
+        print( opts )
         self.test_aip = aip.AIPplatform(opts)
         self.test_aip.setup()
 
-        lfile = os.path.join(self.tmpdir, "volttron.log")
-        print("VOLTTRON_ROOT: ", VOLTTRON_ROOT)
+        lfile = os.path.join(self.volttron_home, "volttron.log")
 
         pparams = [VSTART, "-c", pconfig, "-vv", "-l", lfile]
         print("PARAMS: ", pparams)
-        
-        print('FILES exist?')
-        print(os.path.exists(VSTART))
-        print(os.path.exists(pconfig))
 
+        # start the process
         self._p_process = subprocess.Popen(pparams, env=self.env)
-
-        # #Setup connector
-        # path = '{}/run/control'.format(self.env['VOLTTRON_HOME'])
-        #
-        # time.sleep(5)
-        # tries = 0
-        # max_tries = 5
-        # while(not os.path.exists(path) and tries < max_tries):
-        #     time.sleep(5)
-        #     tries += 1
-        # assert True==False
-        # #self.conn= `server`.ControlConnector(path)
-
-
-#         if self.mode == RESTRICTED:
-#             self.conn.call.create_cgroups()
-
         self.use_twistd = use_twistd
+
         #TODO: Revise this to start twistd with platform.
         if self.use_twistd:
             tconfig = os.path.join(self.tmpdir, TMP_SMAP_CONFIG_FILENAME)
@@ -261,6 +194,12 @@ class PlatformWrapper():
             time.sleep(5)
         #self._t_process = subprocess.Popen(["twistd", "-n", "smap", "test-smap.ini"])
 
+
+    def is_running(self):
+        return self._p_process is not None
+
+    def twistd_is_running(self):
+        return self._t_process is not None
 
     def publish(self, topic, data):
         '''Publish data to a zmq context.
@@ -308,11 +247,87 @@ class PlatformWrapper():
         assert(auth.sign_as_initiator(package, 'initiator', files=files,
                                       certsobj=self.certsobj)), "Signing as {} failed.".format('initiator')
 
+    def _install_agent(self, wheel_file, start):
+        agent_uuid = self.test_aip.install_agent(wheel_file)
+        status = self.test_aip.agent_status(agent_uuid)
+        print('STATUS NOW:', status)
+        if start:
+            self.test_aip.start_agent(agent_uuid)
+            status = self.test_aip.agent_status(agent_uuid)
+            print('STATUS NOW:', status)
+        # control = Agent(address=self.vip_address[0])
+        # gevent.spawn(control.core.run)
+        # gevent.sleep(0)
+        # uuid = control.vip.rpc.call('control', 'install_agent', wheel_file,
+        #     os.path.basename(wheel_file))
+        # control.core.stop().get(timeout=2)
+        return agent_uuid
 
+
+
+    def install_agent(self, agent_wheel=None, agent_dir=None, config_file=None,
+        start=True):
+        '''Install and optionally start an agent on the platform.
+
+            This function allows installation from an agent wheel or an
+            agent directory (NOT BOTH).  If an agent_wheel is specified then
+            it is assumed to be ready for installation (has a config file).
+            If an agent_dir is specified then a config_file file must be
+            specified or if it is not specified then it is assumed that the
+            file agent_dir/config is to be used as the configuration file.  If
+            none of these exist then an assertion error will be thrown.
+        '''
+
+        assert self.is_running()
+        assert agent_wheel or agent_dir
+
+        if agent_wheel:
+            assert not agent_dir
+            assert not config_file
+            assert os.path.exists(agent_wheel)
+            wheel_file = agent_wheel
+
+        if agent_dir:
+            assert not agent_wheel
+            if not config_file:
+                assert os.path.exists(os.path.join(agent_dir, "config"))
+                config_file = os.path.join(agent_dir, "config")
+
+            wheel_file = self.build_agentpackage(agent_dir, config_file)
+            assert wheel_file
+
+        agent_uuid = self._install_agent(wheel_file, start)
+        #agent_uuid = self.test_aip.install_agent(wheel_file)
+        assert agent_uuid is not None
+        #if start:
+    #        self.start_agent(agent_uuid)
+
+        return agent_uuid
+
+    def start_agent(self, agent_uuid):
+        self.test_aip.start_agent(agent_uuid)
+        print(self.test_aip.agent_status(agent_uuid))
+
+    def agent_status(self, agent_uuid):
+        return self.test_aip.agent_status(agent_uuid)
+
+    def build_agentpackage(self, agent_dir, config_file):
+        print('AGENT_DIR: ', agent_dir)
+        print('CONFIG', config_file)
+        assert os.path.exists(agent_dir)
+        assert os.path.exists(config_file)
+        wheel_path = packaging.create_package(agent_dir,
+                                              self.packaged_dir)
+        packaging.add_files_to_package(wheel_path, {
+                'config_file':os.path.join('./', config_file)
+            })
+
+        return wheel_path
 
     def direct_build_agentpackage(self, agent_dir):
+        print("Building agent_directory ", agent_dir)
         wheel_path = packaging.create_package(os.path.join('./', agent_dir),
-                                              self.wheelhouse)
+                                              self.packaged_dir)
 
         return wheel_path
 
@@ -329,7 +344,7 @@ class PlatformWrapper():
 
 
 
-    def direct_buid_install_agent(self, agent_dir, config_file):
+    def direct_build_install_agent(self, agent_dir, config_file):
         agent_wheel = self.direct_build_agentpackage(agent_dir)
         self.direct_configure_agentpackage(agent_wheel, config_file)
         assert(agent_wheel is not None,"Agent wheel was not built")
@@ -343,7 +358,7 @@ class PlatformWrapper():
         uuid = self.test_aip.remove_agent(uuid)
 
     def direct_build_install_run_agent(self, agent_dir, config_file):
-        agent_uuid = self.direct_buid_install_agent(agent_dir, config_file)
+        agent_uuid = self.direct_build_install_agent(agent_dir, config_file)
         self.direct_start_agent(agent_uuid)
         return agent_uuid
 
@@ -354,22 +369,24 @@ class PlatformWrapper():
 
     def direct_start_agent(self, agent_uuid):
 
-        self.conn.call.start_agent(agent_uuid)
-        time.sleep(3)
+        self._cmd_agent.vip.rpc.call('control', 'start_agent', agent_uuid).get(timeout=3)
 
-        status = self.conn.call.status_agents()
-#         self.test_aip.status_agents()
-
+        status = self._cmd_agent.vip.rpc('control', 'status_agent', agent_uuid).get(timeout=3)
+        assert status is not None
+#
 #         status = self.conn.call.status_agents()
-#         self.assertEquals(len(status[0]), 4, 'Unexpected status message')
-        status_uuid = status[0][0]
-        assert status_uuid == agent_uuid
-
-        assert len(status[0][2]) == 2, 'Unexpected agent status message'
-        status_agent_status = status[0][2][1]
-        assert not isinstance(status_agent_status, int)
-#         self.assertIn("running",status_agent_status, "Agent status shows error")
-        print status
+# #         self.test_aip.status_agents()
+#
+# #         status = self.conn.call.status_agents()
+# #         self.assertEquals(len(status[0]), 4, 'Unexpected status message')
+#         status_uuid = status[0][0]
+#         assert status_uuid == agent_uuid
+#
+#         assert len(status[0][2]) == 2, 'Unexpected agent status message'
+#         status_agent_status = status[0][2][1]
+#         assert not isinstance(status_agent_status, int)
+# #         self.assertIn("running",status_agent_status, "Agent status shows error")
+#         print status
 
     def confirm_agent_running(self, agent_name, max_retries=5, timeout_seconds=2):
 
@@ -380,7 +397,7 @@ class PlatformWrapper():
         running = False
         retries = 0
         while (not running and retries < max_retries):
-            status = self.conn.call.status_agents()
+            status = self.test_aip.status_agents()
             print ("Status", status)
             if len(status) > 0:
                 status_name = status[0][1]
@@ -402,9 +419,7 @@ class PlatformWrapper():
     def shutdown_platform(self, cleanup_temp=True):
         '''Stop platform here'''
         if self._p_process != None:
-            if self.conn is not None:
-                self.conn.call.shutdown()
-            time.sleep(3)
+            self.test_aip.shutdown()
             self._p_process.kill()
         else:
             print "platform process was null"
