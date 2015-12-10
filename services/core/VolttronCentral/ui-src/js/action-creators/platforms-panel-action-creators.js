@@ -28,14 +28,17 @@ var platformsPanelActionCreators = {
         var platforms = [
             {
                 "uuid": "0987fedc-65ba-43fe-21dc-098765bafedc",
+                "name": "vc",
                 "status": "GOOD"
             },
             {
                 "uuid": "2291fedc-65ba-43fe-21dc-098765bafedc",
+                "name": "vc1",
                 "status": "BAD"
             },
             {
                 "uuid": "4837fedc-65ba-43fe-21dc-098765bafedc",
+                "name": "vc2",
                 "status": "UNKNOWN"
             }
         ];

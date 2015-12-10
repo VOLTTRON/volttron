@@ -376,12 +376,31 @@ br + .form__control-help {
 .platform-statuses {
     height: 90%;
     float: left;
-    background-color: #ccc;
-    overflow: hidden;
+    background-color: #f8f8f8;
+    overflow: auto;
+    border-right: 1px #ddd solid;
+}
+
+.platform-link {
+    float: left;
+    width: 20px;
+    height: 20px;
+}
+
+.platform-info {
+    display: block;
+    width: 100%;
+    display: inline-block;
+    padding: 5px;
+    box-sizing: border-box;
+}
+
+.platform-panel-list {
+    list-style-type: none;
 }
 
 .platform-collapsed {
-    width: 40px;
+    width: 30px;
 }
 
 .platform-expanded {
@@ -411,6 +430,49 @@ br + .form__control-help {
 .platform-view {
     height: 100%;
     width: 100%;
+}
+
+.extend-panel {
+    width: 100%;
+    font-size: 15px;
+    float: right;
+    margin-bottom: 20px;
+    cursor: pointer;
+    height: 20px;
+    padding: 5px;
+    text-align: right;
+    vertical-align: top;
+    line-height: 20px;
+    color: #707070;
+    border-bottom: 1px #ddd solid;;
+}
+
+.extend-panel:hover {
+    color: #A3A3A3;
+}
+
+.arrowButton:hover {
+    color: #A3A3A3;
+}
+
+.status-good {
+    background-color: #A1D490;
+}
+
+.status-bad {
+    background-color: #CC5056;
+}
+
+.status-unknown {
+    background-color: #BABABA;
+}
+
+.status-good, .status-bad, .status-unknown {
+    width: 20px;
+    height: 20px;
+    display: inline-block;
+    float: left;
+    margin-right: 10px;
 }
 
 .error {

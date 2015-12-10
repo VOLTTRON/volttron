@@ -636,14 +636,17 @@ var platformsPanelActionCreators = {
         var platforms = [
             {
                 "uuid": "0987fedc-65ba-43fe-21dc-098765bafedc",
+                "name": "vc",
                 "status": "GOOD"
             },
             {
                 "uuid": "2291fedc-65ba-43fe-21dc-098765bafedc",
+                "name": "vc1",
                 "status": "BAD"
             },
             {
                 "uuid": "4837fedc-65ba-43fe-21dc-098765bafedc",
+                "name": "vc2",
                 "status": "UNKNOWN"
             }
         ];
@@ -2081,9 +2084,7 @@ var platformsPanelActionCreators = require('../action-creators/platforms-panel-a
 var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
     getInitialState: function () {
         var state = getStateFromStores();   
-        state.expanded = false;
-
-        // this.expand = false; 
+        state.expanded = true;
 
         return state;
     },
@@ -2091,36 +2092,55 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
         platformsPanelActionCreators.loadPlatformsPanel();
     },
     componentDidMount: function () {
-        // platformsPanelStore.addChangeListener(this._onStoresChange);
+        platformsPanelStore.addChangeListener(this._onStoresChange);
     },
     componentWillUnmount: function () {
-        // platformsPanelStore.removeChangeListener(this._onStoresChange);
+        platformsPanelStore.removeChangeListener(this._onStoresChange);
+    },
+    _onStoresChange: function () {
+        this.setState(getStateFromStores());
+    },
+    _togglePanel: function () {
+        this.setState({expanded: !this.state.expanded});  
     },
     _expandPanel: function (evt) {
         if (!this.state.expanded)
         {
             this.setState({expanded: true});
         }
-        // evt.currentTarget.addEventListener("mouseleave", this._collapsePanel);
     },
     _collapsePanel: function () {
         if (this.state.expanded)
         {
             this.setState({expanded: false});
         }
-        
-        // evt.currentTarget.addEventListener("mouseenter", this._expandPanel);
-    },
-    _onStoresChange: function () {
-        this.setState(getStateFromStores());
     },
     render: function () {
         var platforms;
-        var classes = ["platform-statuses"];
+        var classes = (this.state.expanded ? 
+                        "platform-statuses slow-open platform-expanded" :
+                        "platform-statuses slow-shut platform-collapsed");
+
+        var contentsStyle = { 
+            display: (this.state.expanded ? "block" : "none"),
+            padding: "0px 20px 20px 10px",
+            clear: "right"
+        };
+
+        var labelColor = {
+            color: "#707070"
+        }
+
+        var arrowStyle = {
+            float: "left",
+            marginRight: "10px",
+            color: "#707070",
+            cursor: "pointer"
+        }
 
         if (!this.state.platforms) {
             platforms = (
-                React.createElement("p", null, "Loading platforms...")
+                React.createElement("p", null, "Loading platforms panel ...")
             );
         } else if (!this.state.platforms.length) {
             platforms = (
@@ -2129,8 +2149,8 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
         } else {
             platforms = this.state.platforms
                 .sort(function (a, b) {
-                    if (a > b) { return 1; }
-                    if (a < b) { return -1; }
+                    if (a.name.toUpperCase() > b.name.toUpperCase()) { return 1; }
+                    if (a.name.toUpperCase() < b.name.toUpperCase()) { return -1; }
                     return 0;
                 })
                 .map(function (platform) {
@@ -2140,36 +2160,39 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
                             key: platform.uuid, 
                             className: "panel-item"
                         }, 
-                            React.createElement("div", null, 
-                                React.createElement(Router.Link, {
-                                    to: "platform", 
-                                    params: {uuid: platform.uuid}
-                                }, 
-                                    platform.uuid
+                            React.createElement("div", {className: "platform-info"}, 
+                                React.createElement("div", {className: "arrowButton", 
+                                    style: arrowStyle}, "▶"), 
+                                React.createElement("div", {className: 
+                                        ( (platform.status === "GOOD") ? "status-good" :
+                                            ( (platform.status === "BAD") ? "status-bad" : 
+                                                "status-unknown") )
+                                    }
+                                ), 
+                                React.createElement("div", {className: "platform-link"}, 
+                                    React.createElement(Router.Link, {
+                                        to: "platform", 
+                                        params: {uuid: platform.uuid}
+                                    }, 
+                                    platform.name
+                                    )
                                 )
-                            ), 
-                            React.createElement("div", null, platform.status)
+                                
+                            )
                         )
                     );
                 }, this);
         }
 
-        if (this.state.expanded)
-        {
-            classes.push("slow-open");
-        }
-        else 
-        {
-            classes.push("slow-shut");
-        }
-
         return (
-            React.createElement("div", {className: classes.join(' '), 
-                onMouseEnter: this._expandPanel, 
-                onMouseLeave: this._collapsePanel}, 
-                React.createElement("h2", null, "Running ..."), 
-                React.createElement("ul", null, 
-                platforms
+            React.createElement("div", {className: classes}, 
+                React.createElement("div", {className: "extend-panel", 
+                    onClick: this._togglePanel},  this.state.expanded ? '\u25c0' : '\u25b6'), 
+                React.createElement("div", {style: contentsStyle}, 
+                    React.createElement("h4", {style: labelColor}, "Running ..."), 
+                    React.createElement("ul", {className: "platform-panel-list"}, 
+                    platforms
+                    )
                 )
             )
         );
@@ -3071,29 +3094,26 @@ var Store = require('../lib/store');
 var _platforms = [
             {
                 "uuid": "0987fedc-65ba-43fe-21dc-098765bafedc",
+                "name": "vc",
                 "status": "GOOD"
             },
             {
                 "uuid": "2291fedc-65ba-43fe-21dc-098765bafedc",
+                "name": "vc1",
                 "status": "BAD"
             },
             {
                 "uuid": "4837fedc-65ba-43fe-21dc-098765bafedc",
+                "name": "vc2",
                 "status": "UNKNOWN"
             }
         ];;
 
-var _panelAction;
-
 var platformsPanelStore = new Store();
 
 platformsPanelStore.getPlatforms = function () {
-    return _panelAction;
+    return _platforms;
 };
-
-// platformsPanelStore.getPanelAction = function () {
-//     return _panelAction;
-// };
 
 platformsPanelStore.dispatchToken = dispatcher.register(function (action) {
 
@@ -3103,14 +3123,6 @@ platformsPanelStore.dispatchToken = dispatcher.register(function (action) {
             _platforms = action.platforms;
             platformsPanelStore.emitChange();
             break;
-        // case ACTION_TYPES.CLOSE_PLATFORMS_PANEL:
-        //     _panelAction = "close";
-        //     platformsPanelStore.emitChange();
-        //     break;
-        // case ACTION_TYPES.OPEN_PLATFORMS_PANEL:
-        //     _panelAction = "open";
-        //     platformsPanelStore.emitChange();
-        //     break;
     }
 });
 

@@ -7,29 +7,26 @@ var Store = require('../lib/store');
 var _platforms = [
             {
                 "uuid": "0987fedc-65ba-43fe-21dc-098765bafedc",
+                "name": "vc",
                 "status": "GOOD"
             },
             {
                 "uuid": "2291fedc-65ba-43fe-21dc-098765bafedc",
+                "name": "vc1",
                 "status": "BAD"
             },
             {
                 "uuid": "4837fedc-65ba-43fe-21dc-098765bafedc",
+                "name": "vc2",
                 "status": "UNKNOWN"
             }
         ];;
 
-var _panelAction;
-
 var platformsPanelStore = new Store();
 
 platformsPanelStore.getPlatforms = function () {
-    return _panelAction;
+    return _platforms;
 };
-
-// platformsPanelStore.getPanelAction = function () {
-//     return _panelAction;
-// };
 
 platformsPanelStore.dispatchToken = dispatcher.register(function (action) {
 
@@ -39,14 +36,6 @@ platformsPanelStore.dispatchToken = dispatcher.register(function (action) {
             _platforms = action.platforms;
             platformsPanelStore.emitChange();
             break;
-        // case ACTION_TYPES.CLOSE_PLATFORMS_PANEL:
-        //     _panelAction = "close";
-        //     platformsPanelStore.emitChange();
-        //     break;
-        // case ACTION_TYPES.OPEN_PLATFORMS_PANEL:
-        //     _panelAction = "open";
-        //     platformsPanelStore.emitChange();
-        //     break;
     }
 });
 

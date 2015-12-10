@@ -9,9 +9,7 @@ var platformsPanelActionCreators = require('../action-creators/platforms-panel-a
 var PlatformsPanel = React.createClass({
     getInitialState: function () {
         var state = getStateFromStores();   
-        state.expanded = false;
-
-        // this.expand = false; 
+        state.expanded = true;
 
         return state;
     },
@@ -19,36 +17,55 @@ var PlatformsPanel = React.createClass({
         platformsPanelActionCreators.loadPlatformsPanel();
     },
     componentDidMount: function () {
-        // platformsPanelStore.addChangeListener(this._onStoresChange);
+        platformsPanelStore.addChangeListener(this._onStoresChange);
     },
     componentWillUnmount: function () {
-        // platformsPanelStore.removeChangeListener(this._onStoresChange);
+        platformsPanelStore.removeChangeListener(this._onStoresChange);
+    },
+    _onStoresChange: function () {
+        this.setState(getStateFromStores());
+    },
+    _togglePanel: function () {
+        this.setState({expanded: !this.state.expanded});  
     },
     _expandPanel: function (evt) {
         if (!this.state.expanded)
         {
             this.setState({expanded: true});
         }
-        // evt.currentTarget.addEventListener("mouseleave", this._collapsePanel);
     },
     _collapsePanel: function () {
         if (this.state.expanded)
         {
             this.setState({expanded: false});
         }
-        
-        // evt.currentTarget.addEventListener("mouseenter", this._expandPanel);
-    },
-    _onStoresChange: function () {
-        this.setState(getStateFromStores());
     },
     render: function () {
         var platforms;
-        var classes = ["platform-statuses"];
+        var classes = (this.state.expanded ? 
+                        "platform-statuses slow-open platform-expanded" :
+                        "platform-statuses slow-shut platform-collapsed");
+
+        var contentsStyle = { 
+            display: (this.state.expanded ? "block" : "none"),
+            padding: "0px 20px 20px 10px",
+            clear: "right"
+        };
+
+        var labelColor = {
+            color: "#707070"
+        }
+
+        var arrowStyle = {
+            float: "left",
+            marginRight: "10px",
+            color: "#707070",
+            cursor: "pointer"
+        }
 
         if (!this.state.platforms) {
             platforms = (
-                <p>Loading platforms...</p>
+                <p>Loading platforms panel ...</p>
             );
         } else if (!this.state.platforms.length) {
             platforms = (
@@ -57,8 +74,8 @@ var PlatformsPanel = React.createClass({
         } else {
             platforms = this.state.platforms
                 .sort(function (a, b) {
-                    if (a > b) { return 1; }
-                    if (a < b) { return -1; }
+                    if (a.name.toUpperCase() > b.name.toUpperCase()) { return 1; }
+                    if (a.name.toUpperCase() < b.name.toUpperCase()) { return -1; }
                     return 0;
                 })
                 .map(function (platform) {
@@ -68,37 +85,40 @@ var PlatformsPanel = React.createClass({
                             key={platform.uuid}
                             className="panel-item"
                         >
-                            <div>
-                                <Router.Link
-                                    to="platform"
-                                    params={{uuid: platform.uuid}}
-                                >
-                                    {platform.uuid}
-                                </Router.Link>
+                            <div className="platform-info">
+                                <div className="arrowButton"
+                                    style={arrowStyle}>&#9654;</div>
+                                <div className={
+                                        ( (platform.status === "GOOD") ? "status-good" :
+                                            ( (platform.status === "BAD") ? "status-bad" : 
+                                                "status-unknown") )
+                                    }>
+                                </div>
+                                <div className="platform-link">
+                                    <Router.Link
+                                        to="platform"
+                                        params={{uuid: platform.uuid}}
+                                    >
+                                    {platform.name}
+                                    </Router.Link>
+                                </div>
+                                
                             </div>
-                            <div>{platform.status}</div>
                         </li>
                     );
                 }, this);
         }
 
-        if (this.state.expanded)
-        {
-            classes.push("slow-open");
-        }
-        else 
-        {
-            classes.push("slow-shut");
-        }
-
         return (
-            <div className={classes.join(' ')}
-                onMouseEnter={this._expandPanel}
-                onMouseLeave={this._collapsePanel}>
-                <h2>Running ...</h2>
-                <ul>
-                {platforms}
-                </ul>
+            <div className={classes}>
+                <div className="extend-panel"
+                    onClick={this._togglePanel}>{ this.state.expanded ? '\u25c0' : '\u25b6' }</div>
+                <div style={contentsStyle}>
+                    <h4 style={labelColor}>Running ...</h4>
+                    <ul className="platform-panel-list">
+                    {platforms}
+                    </ul>
+                </div>
             </div>
         );
     },
