@@ -68,7 +68,6 @@ import shutil
 import sys
 import tempfile
 import traceback
-import urlparse
 
 import gevent
 import gevent.event
@@ -209,7 +208,6 @@ class ControlService(BaseAgent):
             return self._aip.install_agent(path)
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)
-
 
 
 def log_to_file(file, level=logging.WARNING,
@@ -538,10 +536,12 @@ def do_stats(opts):
 
 
 class Connection(object):
-    def __init__(self, address, peer='control'):
+    def __init__(self, address, peer='control', publickey=None, secretkey=None,
+            serverkey=None):
         self.address = address
         self.peer = peer
-        self._server = BaseAgent(address=self.address)
+        self._server = BaseAgent(address=self.address, publickey=publickey,
+                secretkey=secretkey, serverkey=serverkey)
         self._greenlet = None
 
     @property
@@ -571,32 +571,18 @@ def priority(value):
         raise ValueError('invalid priority (0 <= n < 100): {}'.format(n))
     return '{:02}'.format(n)
 
-def use_keystore_and_known_hosts(opts):
-    '''Updates vip-address with values from keystore and known-hosts store
-    as specified by given opts'''
-
-    def gen_param(query, name, value):
-        return '{}{}={}'.format('&' if query else '', name, value)
-
-    url = list(urlparse.urlsplit(opts.vip_address))
-    if url[0] != 'tcp':
-        return opts.vip_address
-
-    query_dict = urlparse.parse_qs(url[3])
-    def add_param(query_str, key, value):
-        if not value or key in query_dict:
-            return ''
-        return gen_param(query_str, key, value)
-
+def get_keys(opts):
+    '''Gets keys from keystore and known-hosts store'''
     hosts = KnownHostsStore(opts.known_hosts_file)
-    url[3] += add_param(url[3], 'serverkey', hosts.serverkey(opts.vip_address))
-
+    serverkey = hosts.serverkey(opts.vip_address)
+    publickey = None
+    secretkey = None
     if opts.keystore:
-        keys = KeyStore(opts.keystore_file)
-        url[3] += add_param(url[3], 'publickey', keys.public())
-        url[3] += add_param(url[3], 'secretkey', keys.secret())
-
-    return urlparse.urlunsplit(url)
+        key_store = KeyStore(opts.keystore_file)
+        publickey = key_store.public()
+        secretkey = key_store.secret()
+    return {'publickey': publickey, 'secretkey': secretkey,
+            'serverkey': serverkey}
 
 def main(argv=sys.argv):
     # Refuse to run as root
@@ -627,7 +613,7 @@ def main(argv=sys.argv):
         help='ZeroMQ URL to bind for VIP connections')
     global_args.add_argument('-k', '--keystore', action='store_true',
         help='use public and secret keys from keystore')
-    global_args.add_argument('--keystore-file', metavar='FILE', 
+    global_args.add_argument('--keystore-file', metavar='FILE',
         help='use keystore from FILE')
     global_args.add_argument('--known-hosts-file', metavar='FILE',
         help='get known-host server keys from FILE')
@@ -779,7 +765,7 @@ def main(argv=sys.argv):
     send.set_defaults(func=send_agent)
 
     keypair = add_parser('keypair',
-        help='generate CurveMQ keys for encrypting VIP connections') 
+        help='generate CurveMQ keys for encrypting VIP connections')
     keypair.set_defaults(func=gen_keypair)
 
     add_known_host = add_parser('add-known-host',
@@ -821,8 +807,6 @@ def main(argv=sys.argv):
             print(name, repr(value))
         return
 
-    opts.vip_address = use_keystore_and_known_hosts(opts)
-
     # Configure logging
     level = max(1, opts.verboseness)
     if opts.log is None:
@@ -839,7 +823,7 @@ def main(argv=sys.argv):
 
     opts.aip = aipmod.AIPplatform(opts)
     opts.aip.setup()
-    opts.connection = Connection(opts.vip_address)
+    opts.connection = Connection(opts.vip_address, **get_keys(opts))
 
     try:
         with gevent.Timeout(opts.timeout):
