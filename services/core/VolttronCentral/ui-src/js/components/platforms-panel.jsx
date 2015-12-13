@@ -10,7 +10,7 @@ var PlatformsPanel = React.createClass({
     getInitialState: function () {
         var state = {};
         state.platforms = getPlatformsFromStore();   
-        state.expanded = false;
+        state.expanded = getExpandedFromStore();
 
         return state;
     },
@@ -25,7 +25,7 @@ var PlatformsPanel = React.createClass({
         this.setState({expanded: getExpandedFromStore()});
     },
     _togglePanel: function () {
-        platformsPanelActionCreators.togglePanel(this.state.expanded);
+        platformsPanelActionCreators.togglePanel();
     },
     render: function () {
         var platforms;

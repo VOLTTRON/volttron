@@ -27,8 +27,7 @@ module.exports = keyMirror({
     CLEAR_PLATFORM_ERROR: null,
 
     RECEIVE_PLATFORM_STATUSES: null,
-    EXTEND_PLATFORMS_PANEL: null,
-    COLLAPSE_PLATFORMS_PANEL: null,
+    TOGGLE_PLATFORMS_PANEL: null,
 
     RECEIVE_PLATFORM_TOPIC_DATA: null,
 });

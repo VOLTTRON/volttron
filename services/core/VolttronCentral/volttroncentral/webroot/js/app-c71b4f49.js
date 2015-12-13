@@ -614,20 +614,11 @@ var dispatcher = require('../dispatcher');
 var rpc = require('../lib/rpc');
 
 var platformsPanelActionCreators = {    
-    togglePanel: function(expanded) {
+    togglePanel: function() {
 
-        if (expanded)
-        {            
-            dispatcher.dispatch({
-                type: ACTION_TYPES.COLLAPSE_PLATFORMS_PANEL,
-            });
-        }
-        else
-        {
-            dispatcher.dispatch({
-                type: ACTION_TYPES.EXTEND_PLATFORMS_PANEL,
-            });
-        }
+        dispatcher.dispatch({
+            type: ACTION_TYPES.TOGGLE_PLATFORMS_PANEL,
+        });
     },
 
     loadPlatformsPanel: function () {
@@ -2104,7 +2095,7 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
     getInitialState: function () {
         var state = {};
         state.platforms = getPlatformsFromStore();   
-        state.expanded = false;
+        state.expanded = getExpandedFromStore();
 
         return state;
     },
@@ -2119,7 +2110,7 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
         this.setState({expanded: getExpandedFromStore()});
     },
     _togglePanel: function () {
-        platformsPanelActionCreators.togglePanel(this.state.expanded);
+        platformsPanelActionCreators.togglePanel();
     },
     render: function () {
         var platforms;
@@ -2622,8 +2613,7 @@ module.exports = keyMirror({
     CLEAR_PLATFORM_ERROR: null,
 
     RECEIVE_PLATFORM_STATUSES: null,
-    EXTEND_PLATFORMS_PANEL: null,
-    COLLAPSE_PLATFORMS_PANEL: null,
+    TOGGLE_PLATFORMS_PANEL: null,
 
     RECEIVE_PLATFORM_TOPIC_DATA: null,
 });
@@ -3113,7 +3103,7 @@ var _platforms = [
             }
         ];;
 
-var _expanded;
+var _expanded = false;
 
 var platformsPanelStore = new Store();
 
@@ -3133,12 +3123,8 @@ platformsPanelStore.dispatchToken = dispatcher.register(function (action) {
             _platforms = action.platforms;
             platformsPanelStore.emitChange();
             break;
-        case ACTION_TYPES.EXTEND_PLATFORMS_PANEL:        
-            _expanded = true;
-            platformsPanelStore.emitChange();
-            break;
-        case ACTION_TYPES.COLLAPSE_PLATFORMS_PANEL:
-            _expanded = false;
+        case ACTION_TYPES.TOGGLE_PLATFORMS_PANEL:        
+            _expanded = !_expanded;
             platformsPanelStore.emitChange();
             break;
     }

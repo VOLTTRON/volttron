@@ -22,7 +22,7 @@ var _platforms = [
             }
         ];;
 
-var _expanded;
+var _expanded = false;
 
 var platformsPanelStore = new Store();
 
@@ -42,12 +42,8 @@ platformsPanelStore.dispatchToken = dispatcher.register(function (action) {
             _platforms = action.platforms;
             platformsPanelStore.emitChange();
             break;
-        case ACTION_TYPES.EXTEND_PLATFORMS_PANEL:        
-            _expanded = true;
-            platformsPanelStore.emitChange();
-            break;
-        case ACTION_TYPES.COLLAPSE_PLATFORMS_PANEL:
-            _expanded = false;
+        case ACTION_TYPES.TOGGLE_PLATFORMS_PANEL:        
+            _expanded = !_expanded;
             platformsPanelStore.emitChange();
             break;
     }

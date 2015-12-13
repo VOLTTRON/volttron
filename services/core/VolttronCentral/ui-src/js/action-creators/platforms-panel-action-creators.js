@@ -6,20 +6,11 @@ var dispatcher = require('../dispatcher');
 var rpc = require('../lib/rpc');
 
 var platformsPanelActionCreators = {    
-    togglePanel: function(expanded) {
+    togglePanel: function() {
 
-        if (expanded)
-        {            
-            dispatcher.dispatch({
-                type: ACTION_TYPES.COLLAPSE_PLATFORMS_PANEL,
-            });
-        }
-        else
-        {
-            dispatcher.dispatch({
-                type: ACTION_TYPES.EXTEND_PLATFORMS_PANEL,
-            });
-        }
+        dispatcher.dispatch({
+            type: ACTION_TYPES.TOGGLE_PLATFORMS_PANEL,
+        });
     },
 
     loadPlatformsPanel: function () {
