@@ -163,32 +163,29 @@ var Platform = React.createClass({
         }
 
         return (
-
-            <div className="view">  
-                <div className="platform-view">
-                    {this.state.error && (
-                        <div className="view__error error">{this.state.error}</div>
-                    )}
-                    <h2>
-                        <Router.Link to="platforms">Platforms</Router.Link>
-                        &nbsp;/&nbsp;
-                        {platform.name} ({platform.uuid})
-                    </h2>
-                    <h3>Charts</h3>
-                    {charts}
-                    <div>
-                        <button
-                            className="button"
-                            onClick={this._onAddChartClick.bind(null, this.state.platform)}
-                        >
-                            Add chart
-                        </button>
-                    </div>
-                    <h3>Agents</h3>
-                    {agents}
-                    <h3>Install agents</h3>
-                    <input type="file" multiple onChange={this._onFileChange} />
+            <div className="platform-view">
+                {this.state.error && (
+                    <div className="view__error error">{this.state.error}</div>
+                )}
+                <h2>
+                    <Router.Link to="platforms">Platforms</Router.Link>
+                    &nbsp;/&nbsp;
+                    {platform.name} ({platform.uuid})
+                </h2>
+                <h3>Charts</h3>
+                {charts}
+                <div>
+                    <button
+                        className="button"
+                        onClick={this._onAddChartClick.bind(null, this.state.platform)}
+                    >
+                        Add chart
+                    </button>
                 </div>
+                <h3>Agents</h3>
+                {agents}
+                <h3>Install agents</h3>
+                <input type="file" multiple onChange={this._onFileChange} />
             </div>
         );
     },

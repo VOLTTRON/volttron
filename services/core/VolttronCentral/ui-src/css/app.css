@@ -528,6 +528,46 @@ br + .form__control-help {
     margin: 0 0 1.5rem;
 }
 
+.panel-exterior {
+    padding: 1.5em 2.5em;
+    border-top: 1px solid #fff;
+    position: relative;
+    height: 100%;
+    float: left;
+}
+
+.narrow-exterior {
+    width: 70%;
+}
+
+.wide-exterior {
+    width: 90%;
+}
+
+.panel-exterior > * {
+    margin: 0 0 1.5rem;
+}
+
+.slow-narrow {
+    animation-name: make-view-narrow;
+    animation-duration: .5s;
+}
+
+.slow-wide {
+    animation-name: make-view-wide;
+    animation-duration: .5s;
+}
+
+@keyframes make-view-wide {
+    from {width: 70%;}
+    to {width: 90%;}
+}
+
+@keyframes make-view-narrow {
+    from {width: 90%;}
+    to {width: 70%;}
+}
+
 .view__error {
     white-space: pre;
 }

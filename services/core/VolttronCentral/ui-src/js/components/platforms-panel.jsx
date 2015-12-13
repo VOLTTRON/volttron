@@ -8,13 +8,11 @@ var platformsPanelActionCreators = require('../action-creators/platforms-panel-a
 
 var PlatformsPanel = React.createClass({
     getInitialState: function () {
-        var state = getStateFromStores();   
-        state.expanded = true;
+        var state = {};
+        state.platforms = getPlatformsFromStore();   
+        state.expanded = false;
 
         return state;
-    },
-    componentWillMount: function () {
-        platformsPanelActionCreators.loadPlatformsPanel();
     },
     componentDidMount: function () {
         platformsPanelStore.addChangeListener(this._onStoresChange);
@@ -23,22 +21,11 @@ var PlatformsPanel = React.createClass({
         platformsPanelStore.removeChangeListener(this._onStoresChange);
     },
     _onStoresChange: function () {
-        this.setState(getStateFromStores());
+        this.setState({platforms: getPlatformsFromStore()});
+        this.setState({expanded: getExpandedFromStore()});
     },
     _togglePanel: function () {
-        this.setState({expanded: !this.state.expanded});  
-    },
-    _expandPanel: function (evt) {
-        if (!this.state.expanded)
-        {
-            this.setState({expanded: true});
-        }
-    },
-    _collapsePanel: function () {
-        if (this.state.expanded)
-        {
-            this.setState({expanded: false});
-        }
+        platformsPanelActionCreators.togglePanel(this.state.expanded);
     },
     render: function () {
         var platforms;
@@ -51,10 +38,6 @@ var PlatformsPanel = React.createClass({
             padding: "0px 20px 20px 10px",
             clear: "right"
         };
-
-        var labelColor = {
-            color: "#707070"
-        }
 
         var arrowStyle = {
             float: "left",
@@ -114,7 +97,7 @@ var PlatformsPanel = React.createClass({
                 <div className="extend-panel"
                     onClick={this._togglePanel}>{ this.state.expanded ? '\u25c0' : '\u25b6' }</div>
                 <div style={contentsStyle}>
-                    <h4 style={labelColor}>Running ...</h4>
+                    <h4>Running ...</h4>
                     <ul className="platform-panel-list">
                     {platforms}
                     </ul>
@@ -124,10 +107,12 @@ var PlatformsPanel = React.createClass({
     },
 });
 
-function getStateFromStores() {
-    return {
-        platforms: platformsPanelStore.getPlatforms(),
-    };
-}
+function getPlatformsFromStore() {
+    return platformsPanelStore.getPlatforms();
+};
+
+function getExpandedFromStore() {
+    return platformsPanelStore.getExpanded();
+};
 
 module.exports = PlatformsPanel;

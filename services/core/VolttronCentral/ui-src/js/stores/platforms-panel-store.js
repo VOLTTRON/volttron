@@ -22,10 +22,16 @@ var _platforms = [
             }
         ];;
 
+var _expanded;
+
 var platformsPanelStore = new Store();
 
 platformsPanelStore.getPlatforms = function () {
     return _platforms;
+};
+
+platformsPanelStore.getExpanded = function () {
+    return _expanded;
 };
 
 platformsPanelStore.dispatchToken = dispatcher.register(function (action) {
@@ -34,6 +40,14 @@ platformsPanelStore.dispatchToken = dispatcher.register(function (action) {
 
         case ACTION_TYPES.RECEIVE_PLATFORM_STATUSES:
             _platforms = action.platforms;
+            platformsPanelStore.emitChange();
+            break;
+        case ACTION_TYPES.EXTEND_PLATFORMS_PANEL:        
+            _expanded = true;
+            platformsPanelStore.emitChange();
+            break;
+        case ACTION_TYPES.COLLAPSE_PLATFORMS_PANEL:
+            _expanded = false;
             platformsPanelStore.emitChange();
             break;
     }

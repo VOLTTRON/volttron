@@ -6,21 +6,21 @@ var dispatcher = require('../dispatcher');
 var rpc = require('../lib/rpc');
 
 var platformsPanelActionCreators = {    
-    // initialize: function () {
-    //     if (!authorizationStore.getAuthorization()) { return; }
+    togglePanel: function(expanded) {
 
-    //     platformsPanelActionCreators.loadPlatformsPanel();
-    // },
-    // closePanel: function () {
-    //     dispatcher.dispatch({
-    //         type: ACTION_TYPES.CLOSE_PLATFORMS_PANEL,
-    //     });
-    // },    
-    // openPanel: function () {
-    //     dispatcher.dispatch({
-    //         type: ACTION_TYPES.OPEN_PLATFORMS_PANEL,
-    //     });
-    // },
+        if (expanded)
+        {            
+            dispatcher.dispatch({
+                type: ACTION_TYPES.COLLAPSE_PLATFORMS_PANEL,
+            });
+        }
+        else
+        {
+            dispatcher.dispatch({
+                type: ACTION_TYPES.EXTEND_PLATFORMS_PANEL,
+            });
+        }
+    },
 
     loadPlatformsPanel: function () {
         var authorization = authorizationStore.getAuthorization();

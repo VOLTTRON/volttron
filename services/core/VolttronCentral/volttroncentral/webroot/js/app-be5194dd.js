@@ -614,21 +614,21 @@ var dispatcher = require('../dispatcher');
 var rpc = require('../lib/rpc');
 
 var platformsPanelActionCreators = {    
-    // initialize: function () {
-    //     if (!authorizationStore.getAuthorization()) { return; }
+    togglePanel: function(expanded) {
 
-    //     platformsPanelActionCreators.loadPlatformsPanel();
-    // },
-    // closePanel: function () {
-    //     dispatcher.dispatch({
-    //         type: ACTION_TYPES.CLOSE_PLATFORMS_PANEL,
-    //     });
-    // },    
-    // openPanel: function () {
-    //     dispatcher.dispatch({
-    //         type: ACTION_TYPES.OPEN_PLATFORMS_PANEL,
-    //     });
-    // },
+        if (expanded)
+        {            
+            dispatcher.dispatch({
+                type: ACTION_TYPES.COLLAPSE_PLATFORMS_PANEL,
+            });
+        }
+        else
+        {
+            dispatcher.dispatch({
+                type: ACTION_TYPES.EXTEND_PLATFORMS_PANEL,
+            });
+        }
+    },
 
     loadPlatformsPanel: function () {
         var authorization = authorizationStore.getAuthorization();
@@ -1771,10 +1771,16 @@ var modalStore = require('../stores/modal-store');
 var Navigation = require('./navigation');
 var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
 var PlatformsPanel = require('./platforms-panel');
+var platformsPanelStore = require('../stores/platforms-panel-store');
 
 var PlatformManager = React.createClass({displayName: "PlatformManager",
     mixins: [Router.Navigation, Router.State],
-    getInitialState: getStateFromStores,
+    getInitialState: function () {
+        var state = getStateFromStores(); 
+        state.expanded = false;
+
+        return state;
+    },
     componentWillMount: function () {
         platformManagerActionCreators.initialize();
     },
@@ -1782,6 +1788,7 @@ var PlatformManager = React.createClass({displayName: "PlatformManager",
         authorizationStore.addChangeListener(this._onStoreChange);
         consoleStore.addChangeListener(this._onStoreChange);
         modalStore.addChangeListener(this._onStoreChange);
+        platformsPanelStore.addChangeListener(this._onStoreChange);
         this._doModalBindings();
     },
     componentDidUpdate: function () {
@@ -1819,6 +1826,18 @@ var PlatformManager = React.createClass({displayName: "PlatformManager",
     render: function () {
         var classes = ['platform-manager'];
         var modal;
+        var exteriorClasses = ["panel-exterior"];
+
+        if (this.state.expanded)
+        {
+            exteriorClasses.push("narrow-exterior");
+            exteriorClasses.push("slow-narrow");
+        }
+        else
+        {
+            exteriorClasses.push("wide-exterior");
+            exteriorClasses.push("slow-wide");
+        }
 
         if (this.state.consoleShown) {
             classes.push('platform-manager--console-open');
@@ -1840,7 +1859,9 @@ var PlatformManager = React.createClass({displayName: "PlatformManager",
                 React.createElement("div", {ref: "main", className: "main"}, 
                     React.createElement(Navigation, null), 
                     React.createElement(PlatformsPanel, null), 
-                    React.createElement(Router.RouteHandler, null)
+                    React.createElement("div", {className: exteriorClasses.join(' ')}, 
+                        React.createElement(Router.RouteHandler, null)
+                    )
                 ), 
                 React.createElement("input", {
                     className: "toggle", 
@@ -1859,13 +1880,14 @@ function getStateFromStores() {
         consoleShown: consoleStore.getConsoleShown(),
         loggedIn: !!authorizationStore.getAuthorization(),
         modalContent: modalStore.getModalContent(),
+        expanded: platformsPanelStore.getExpanded(),
     };
 }
 
 module.exports = PlatformManager;
 
 
-},{"../action-creators/console-action-creators":2,"../action-creators/modal-action-creators":3,"../action-creators/platform-manager-action-creators":5,"../stores/authorization-store":37,"../stores/console-store":38,"../stores/modal-store":40,"./console":11,"./modal":19,"./navigation":20,"./platforms-panel":24,"jquery":undefined,"react":undefined,"react-router":undefined}],23:[function(require,module,exports){
+},{"../action-creators/console-action-creators":2,"../action-creators/modal-action-creators":3,"../action-creators/platform-manager-action-creators":5,"../stores/authorization-store":37,"../stores/console-store":38,"../stores/modal-store":40,"../stores/platforms-panel-store":42,"./console":11,"./modal":19,"./navigation":20,"./platforms-panel":24,"jquery":undefined,"react":undefined,"react-router":undefined}],23:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2031,32 +2053,29 @@ var Platform = React.createClass({displayName: "Platform",
         }
 
         return (
-
-            React.createElement("div", {className: "view"}, 
-                React.createElement("div", {className: "platform-view"}, 
-                    this.state.error && (
-                        React.createElement("div", {className: "view__error error"}, this.state.error)
-                    ), 
-                    React.createElement("h2", null, 
-                        React.createElement(Router.Link, {to: "platforms"}, "Platforms"), 
-                        " / ", 
-                        platform.name, " (", platform.uuid, ")"
-                    ), 
-                    React.createElement("h3", null, "Charts"), 
-                    charts, 
-                    React.createElement("div", null, 
-                        React.createElement("button", {
-                            className: "button", 
-                            onClick: this._onAddChartClick.bind(null, this.state.platform)
-                        }, 
-                            "Add chart"
-                        )
-                    ), 
-                    React.createElement("h3", null, "Agents"), 
-                    agents, 
-                    React.createElement("h3", null, "Install agents"), 
-                    React.createElement("input", {type: "file", multiple: true, onChange: this._onFileChange})
-                )
+            React.createElement("div", {className: "platform-view"}, 
+                this.state.error && (
+                    React.createElement("div", {className: "view__error error"}, this.state.error)
+                ), 
+                React.createElement("h2", null, 
+                    React.createElement(Router.Link, {to: "platforms"}, "Platforms"), 
+                    " / ", 
+                    platform.name, " (", platform.uuid, ")"
+                ), 
+                React.createElement("h3", null, "Charts"), 
+                charts, 
+                React.createElement("div", null, 
+                    React.createElement("button", {
+                        className: "button", 
+                        onClick: this._onAddChartClick.bind(null, this.state.platform)
+                    }, 
+                        "Add chart"
+                    )
+                ), 
+                React.createElement("h3", null, "Agents"), 
+                agents, 
+                React.createElement("h3", null, "Install agents"), 
+                React.createElement("input", {type: "file", multiple: true, onChange: this._onFileChange})
             )
         );
     },
@@ -2083,13 +2102,11 @@ var platformsPanelActionCreators = require('../action-creators/platforms-panel-a
 
 var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
     getInitialState: function () {
-        var state = getStateFromStores();   
-        state.expanded = true;
+        var state = {};
+        state.platforms = getPlatformsFromStore();   
+        state.expanded = false;
 
         return state;
-    },
-    componentWillMount: function () {
-        platformsPanelActionCreators.loadPlatformsPanel();
     },
     componentDidMount: function () {
         platformsPanelStore.addChangeListener(this._onStoresChange);
@@ -2098,22 +2115,11 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
         platformsPanelStore.removeChangeListener(this._onStoresChange);
     },
     _onStoresChange: function () {
-        this.setState(getStateFromStores());
+        this.setState({platforms: getPlatformsFromStore()});
+        this.setState({expanded: getExpandedFromStore()});
     },
     _togglePanel: function () {
-        this.setState({expanded: !this.state.expanded});  
-    },
-    _expandPanel: function (evt) {
-        if (!this.state.expanded)
-        {
-            this.setState({expanded: true});
-        }
-    },
-    _collapsePanel: function () {
-        if (this.state.expanded)
-        {
-            this.setState({expanded: false});
-        }
+        platformsPanelActionCreators.togglePanel(this.state.expanded);
     },
     render: function () {
         var platforms;
@@ -2126,10 +2132,6 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
             padding: "0px 20px 20px 10px",
             clear: "right"
         };
-
-        var labelColor = {
-            color: "#707070"
-        }
 
         var arrowStyle = {
             float: "left",
@@ -2189,7 +2191,7 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
                 React.createElement("div", {className: "extend-panel", 
                     onClick: this._togglePanel},  this.state.expanded ? '\u25c0' : '\u25b6'), 
                 React.createElement("div", {style: contentsStyle}, 
-                    React.createElement("h4", {style: labelColor}, "Running ..."), 
+                    React.createElement("h4", null, "Running ..."), 
                     React.createElement("ul", {className: "platform-panel-list"}, 
                     platforms
                     )
@@ -2199,11 +2201,13 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
     },
 });
 
-function getStateFromStores() {
-    return {
-        platforms: platformsPanelStore.getPlatforms(),
-    };
-}
+function getPlatformsFromStore() {
+    return platformsPanelStore.getPlatforms();
+};
+
+function getExpandedFromStore() {
+    return platformsPanelStore.getExpanded();
+};
 
 module.exports = PlatformsPanel;
 
@@ -2618,8 +2622,8 @@ module.exports = keyMirror({
     CLEAR_PLATFORM_ERROR: null,
 
     RECEIVE_PLATFORM_STATUSES: null,
-    // OPEN_PLATFORMS_PANEL: null,
-    // CLOSE_PLATFORMS_PANEL: null,
+    EXTEND_PLATFORMS_PANEL: null,
+    COLLAPSE_PLATFORMS_PANEL: null,
 
     RECEIVE_PLATFORM_TOPIC_DATA: null,
 });
@@ -3109,10 +3113,16 @@ var _platforms = [
             }
         ];;
 
+var _expanded;
+
 var platformsPanelStore = new Store();
 
 platformsPanelStore.getPlatforms = function () {
     return _platforms;
+};
+
+platformsPanelStore.getExpanded = function () {
+    return _expanded;
 };
 
 platformsPanelStore.dispatchToken = dispatcher.register(function (action) {
@@ -3121,6 +3131,14 @@ platformsPanelStore.dispatchToken = dispatcher.register(function (action) {
 
         case ACTION_TYPES.RECEIVE_PLATFORM_STATUSES:
             _platforms = action.platforms;
+            platformsPanelStore.emitChange();
+            break;
+        case ACTION_TYPES.EXTEND_PLATFORMS_PANEL:        
+            _expanded = true;
+            platformsPanelStore.emitChange();
+            break;
+        case ACTION_TYPES.COLLAPSE_PLATFORMS_PANEL:
+            _expanded = false;
             platformsPanelStore.emitChange();
             break;
     }
