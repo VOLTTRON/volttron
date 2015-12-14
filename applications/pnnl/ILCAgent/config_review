@@ -10,32 +10,35 @@
 				"CoolingCommand1": { 
 					"zone-setpoint":{
 						"operation": "1/(CoolingTemperaturesetPoint - ZoneTemperature)",
-						"operation_type": ["formula", "CoolingTemperatureSetPoint ZoneTemperature"]
+						"operation_type": "formula"
+						"operation_args": ["CoolingTemperatureSetPoint ZoneTemperature"],
 						"minimum": 0,
 						"maximum": 10
 					},
 					"rated-power": {
 					    "operation": 20.0,
-						"operation_type": ["status"]
-						"operation_args": ["CoolCommand1"]
+						"operation_type": "status",
+						"operation_args": ["CoolCommand1"],
 						"minimum": 0,
 						"maximum":20.0
 					},
 					"room-type": {
 						"operation": "Office",
-						"operation_type": ["mapper", "zone_type"],
+						"operation_type": "mapper",
+						"operation_args": ["zone_type"],
 						"minimum": 1.0,
 						"maximum": 9.0
 					},
 					"stage": {
 					    "operation": 1,
-						"operation_type": ["constant"],
+						"operation_type": "constant",
 						"minimum": 0,
 						"maximum": 1.0
 					},
 					"previous-zonetemp-zonetemp": {
 					    "operation": "direct",
-						"operation_type": ["history", "ZoneTemperature", 15],
+						"operation_type": "history",
+						"operation_args": ["ZoneTemperature", 15],
 						"minimum": 0,
 						"maximum": 10
 					},
@@ -46,29 +49,27 @@
 					}
 				},
 				"CoolingCommand2": { 
-					"criterion1":{
-						"name": "zone-setpoint",
+					"zone-setpoint":{
 						"operation": "1/(CoolingTemperaturesetPoint - ZoneTemperature)",
 						"operation_type": "formula",
 						"minimum": 0,
 						"maximum": 10
 					},
-					"criterion2": {
-						"name": "rated-power",
+					"rated-power": {
 						"operation": 20.0,
-						"operation_type":  ["status", "CoolCommand2"]
+						"operation_type":  "status",
+						"operation_args": ["CoolCommand2"],
 						"minimum": 0,
 						"maximum": 20.0
 					},
-					"criterion3": {
-						"name": "room-type",
+					"room-type": {
 						"operation": "Office",
-						"operation_type": ["mapper", "zone_type"],
+						"operation_type": "mapper",
+						"operation_args": ["zone_type"],
 						"minimum": 1.0,
 						"maximum": 9.0
 					},
-					"criterion4": {
-						"name": "stage",
+					"stage": {
 						"operation": 2,
 						"operation_type": "constant",
 						"minimum": 0,

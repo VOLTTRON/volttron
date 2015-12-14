@@ -30,6 +30,8 @@ logging.basicConfig(level=logging.debug,
                     format='%(asctime)s   %(levelname)-8s %(message)s',
                     datefmt='%m-%d-%y %H:%M:%S')
 
+import abc
+
 
 class DeviceTrender:
     def __init__(self, device_list):
@@ -86,6 +88,33 @@ class DeviceTrender:
         self.ts = []
         return 0
 
+criterion_registry = {}
+
+def register_criterion(name):
+    def decorator(klass):
+        criterion_registry[name] = klass
+        return klass
+    return decorator
+
+class BaseCriterion(object):
+    __metaclass__ = abc.ABCMeta
+    def __init__(self, minimum=None, maximum=None, operation=None):
+        self.min_func = lambda x:x if minimum is None else lambda x: min(x,minimum)
+        self.max_func = lambda x:x if maximum is None else lambda x: max(x,maximum)
+        self.operation = operation
+        
+    def evaluate_bounds(self, value):
+        value = self.min_func(value)
+        value = self.max_func(value)
+        return value
+    
+    @abc.abstractmethod
+    def evaluate(self, data):
+        pass
+        
+class MapperCriterion(BaseCriterion):
+    def __init__(self, ):
+        pass
 
 def ahp(config_path, **kwargs):
     '''Intelligent Load Curtailment Algorithm'
