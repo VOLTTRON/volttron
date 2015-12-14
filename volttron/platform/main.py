@@ -336,7 +336,17 @@ class PubSubService(Agent):
 def start_volttron_process(opts):
     '''Start the main volttron process.
 
+    Typically this function is used from main.py and just uses the argparser's
+    Options arguments as inputs.   It also can be called with a dictionary.  In
+    that case the dictionaries keys are mapped into a value that acts like the
+    args options.
     '''
+
+    if isinstance(opts, dict):
+        opts = type('Options', (), opts)()
+        # vip_address is meant to be a list so make it so.
+        if not isinstance(opts.vip_address, list):
+            opts.vip_address = [opts.vip_address]
     if opts.log:
         opts.log = config.expandall(opts.log)
     if opts.log_config:
