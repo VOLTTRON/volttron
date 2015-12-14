@@ -59,8 +59,10 @@ import os
 import gevent
 from volttron.platform.vip.agent import Agent, Core, RPC
 from volttron.platform.agent import utils
+from volttron.platform.agent import math_utils
 from driver import DriverAgent
 import resource
+from datetime import datetime
 
 from driver_locks import configure_socket_lock, configure_publish_lock
 
@@ -125,20 +127,36 @@ def master_driver_agent(config_path, **kwargs):
     #pop the uuid based id
     kwargs.pop('identity', None)
     driver_config_list = get_config('driver_config_list')
+    
+    scalability_test = get_config('scalability_test', False)
+    scalability_test_iterations = get_config('scalability_test_iterations', 3)
+    
+    staggered_start = get_config('staggered_start', None)
 
     class MasterDriverAgent(Agent):
         def __init__(self, **kwargs):
             super(MasterDriverAgent, self).__init__(**kwargs)
             self.instances = {}
+            if scalability_test:
+                self.waiting_to_finish = set()
+                self.test_iterations = 0
+                self.test_results = []
+                self.current_test_start = None
             
         @Core.receiver('onstart')
         def starting(self, sender, **kwargs):
             env = os.environ.copy()
             env.pop('AGENT_UUID', None)
+            
+            start_delay = None
+            if staggered_start is not None:
+                start_delay = staggered_start / float(len(driver_config_list))
             for config_name in driver_config_list:
                 _log.debug("Launching driver for config "+config_name)
                 driver = DriverAgent(self, config_name)
                 gevent.spawn(driver.core.run)   
+                if start_delay is not None:
+                    gevent.sleep(start_delay)
                 #driver.core.stop to kill an agent. 
                    
         
@@ -146,6 +164,46 @@ def master_driver_agent(config_path, **kwargs):
             _log.debug("Driver hooked up for "+topic)
             topic = topic.strip('/')
             self.instances[topic] = driver
+            
+        def scrape_starting(self, topic):
+            if not scalability_test:
+                return
+            
+            if not self.waiting_to_finish:
+                #Start a new measurement
+                self.current_test_start = datetime.now()
+                self.waiting_to_finish = set(self.instances.iterkeys())
+                
+            if topic not in self.waiting_to_finish:
+                _log.warning(topic + " started twice before test finished, increase the length of scrape interval and rerun test")
+                
+        
+        def scrape_ending(self, topic):
+            if not scalability_test:
+                return
+            
+            try:
+                self.waiting_to_finish.remove(topic)
+            except KeyError:
+                _log.warning(topic + " published twice before test finished, increase the length of scrape interval and rerun test")
+                
+            if not self.waiting_to_finish:
+                end = datetime.now()
+                delta = end - self.current_test_start
+                delta = delta.total_seconds()
+                self.test_results.append(delta)
+                
+                self.test_iterations += 1
+                
+                _log.info("publish {} took {} seconds".format(self.test_iterations, delta))
+                
+                if self.test_iterations >= scalability_test_iterations:
+                    #Test is now over. Button it up and shutdown.
+                    mean = math_utils.mean(self.test_results) 
+                    stdev = math_utils.stdev(self.test_results) 
+                    _log.info("Mean total publish time: "+str(mean))
+                    _log.info("Std dev publish time: "+str(stdev))
+                    sys.exit(0)
             
         @RPC.export
         def get_point(self, path, point_name, **kwargs):
