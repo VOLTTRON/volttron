@@ -29,15 +29,14 @@
 						"maximum": 9.0
 					},
 					"stage": {
-					    "operation": 1,
-						"operation_type": "constant",
-						"minimum": 0,
-						"maximum": 1.0
+					    "value": 1,
+						"operation_type": "constant"
 					},
 					"previous-zonetemp-zonetemp": {
-					    "operation": "direct",
+					    "comparison_type": "direct",
 						"operation_type": "history",
-						"operation_args": ["ZoneTemperature", 15],
+						"point_name": "ZoneTemperature",
+						"previous_time": 15,
 						"minimum": 0,
 						"maximum": 10
 					},
@@ -170,14 +169,16 @@
 			}
 		}
 	},
-	"mapper-zone_type": {
-		"Directors office": 1,
-		"Office": 3,
-		"Empty Office": 7,
-		"Conference Room": 1,
-		"Mechanical Room": 9,
-		"Computer Lab": 2,
-		"Kitchen": 3
+	"mappers": {
+		zone_type": {
+		    "Directors office": 1,
+		    "Office": 3,
+		    "Empty Office": 7,
+		    "Conference Room": 1,
+		    "Mechanical Room": 9,
+		    "Computer Lab": 2,
+		    "Kitchen": 3
+	    }
 	},
     "PowerMeter": {
     		"device": "PowerMeter",
