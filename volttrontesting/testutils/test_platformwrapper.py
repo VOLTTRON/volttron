@@ -3,43 +3,6 @@ import pytest
 
 from volttron.platform.vip.agent import Agent, PubSub, Core
 
-class PlatormTestAgent(Agent):
-    ''' A standalone version of the ListenerAgent'''
-
-    def onmessage(self, peer, sender, bus, topic, headers, message):
-        '''Handle incoming messages on the bus.'''
-        d = {'topic': topic, 'headers': headers, 'message': message}
-        sys.stdout.write(json.dumps(d)+'\n')
-
-    @Core.receiver('onstart')
-    def start(self, sender, **kwargs):
-        '''Handle the starting of the agent.
-
-        Subscribe to all points in the topics_prefix_to_watch tuple
-        defined in settings.py.
-        '''
-        self.vip.pubsub.subscribe(peer='pubsub', prefix='',
-            callback=self.onmessage).get(timeout=5)
-
-    # Demonstrate periodic decorator and settings access
-    @Core.periodic(1)
-    def publish_heartbeat(self):
-        '''Send heartbeat message every heartbeat_period seconds.
-
-        heartbeat_period is set and can be adjusted in the settings module.
-        '''
-        sys.stdout.write('publishing heartbeat.\n')
-        now = datetime.utcnow().isoformat(' ') + 'Z'
-        headers = {
-            #'AgentID': self._agent_id,
-            headers_mod.CONTENT_TYPE: headers_mod.CONTENT_TYPE.PLAIN_TEXT,
-            headers_mod.DATE: now,
-        }
-        self.vip.pubsub.publish(
-            'pubsub', 'heartbeat/standalonelistener', headers,
-            now).get(timeout=5)
-
-
 def test_can_connect_to_instance(volttron_instance1):
     assert volttron_instance1 is not None
     assert volttron_instance1.is_running()
@@ -60,7 +23,7 @@ def test_can_publish_messages(volttron_instance1):
     agent_subscriber = volttron_instance1.build_agent()
     response = agent_subscriber.vip.ping('', 'woot2').get(timeout=3)
     assert response[0] == 'woot2'
-    print('ADDRESS IS: ',agent_publisher.core.address)
+    
     agent_subscriber.vip.pubsub.subscribe(peer='pubsub',
         prefix='test/data', callback=onmessage).get(timeout=5)
     themessage = 'I am a fish!'
