@@ -19,8 +19,7 @@ def build_wrapper(vip_address, **kwargs):
 
 @pytest.fixture(scope="module")
 def volttron_instance1(request, instance1_config):
-    wrapper = build_wrapper(instance1_config)
-
+    wrapper = build_wrapper(instance1_config['vip-address'])
 
     def cleanup():
         wrapper.shutdown_platform(True)
@@ -32,7 +31,7 @@ def volttron_instance1(request, instance1_config):
 @pytest.fixture(scope="module")
 def volttron_instance2(request, instance2_config):
     print("building instance 2")
-    wrapper = build_wrapper(instance2_config)
+    wrapper = build_wrapper(instance2_config['vip-address'])
 
     def cleanup():
         wrapper.shutdown_platform(True)
