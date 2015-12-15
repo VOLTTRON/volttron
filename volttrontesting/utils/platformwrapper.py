@@ -1,7 +1,8 @@
 import json
 import os
 import shutil
-import subprocess
+import logging
+from multiprocessing import Process
 import sys
 import time
 import tempfile
@@ -14,6 +15,7 @@ from StringIO import StringIO
 import zmq
 import gevent
 
+from volttron.platform.main import start_volttron_process
 from volttron.platform.vip.agent import Agent
 from volttron.platform import aip
 #from volttron.platform.control import client, server
@@ -116,11 +118,13 @@ class PlatformWrapper:
 
     def startup_platform(self, vip_address, auth_dict=None, use_twistd=False,
         mode=UNRESTRICTED):
-        if not isinstance(vip_address, list):
-            self.vip_address = [vip_address]
-        else:
-            self.vip_address = vip_address
+        # if not isinstance(vip_address, list):
+        #     self.vip_address = [vip_address]
+        # else:
+        #     self.vip_address = vip_address
 
+        self.vip_address = [vip_address]
+        print('STARTUP_PLATFORM {}'.format(self.vip_address))
         self.mode = mode
 
         assert self.mode in MODES, 'Invalid platform mode set: '+str(mode)
@@ -136,6 +140,20 @@ class PlatformWrapper:
         with open(os.path.join(self.volttron_home, 'curve.key'), 'w'):
             pass
 
+        opts = {'verify_agents': False,
+                'volttron_home': self.volttron_home,
+                'vip_address': vip_address,
+                'vip_local_address': ipc + 'vip.socket',
+                'publish_address': ipc + 'publish',
+                'subscribe_address': ipc + 'subscribe',
+                'developer_mode': True,
+                'log': os.path.join(self.volttron_home,'volttron.log'),
+                'log_config': None,
+                'monitor': True,
+                'autostart': True,
+                'log_level': logging.DEBUG,
+                'verboseness': logging.DEBUG}
+
         if self.mode == UNRESTRICTED:
             if RESTRICTED_AVAILABLE:
                 config['mobility'] = False
@@ -143,12 +161,8 @@ class PlatformWrapper:
                 config['verify'] = False
             with closing(open(pconfig, 'w')) as cfg:
                 cfg.write(PLATFORM_CONFIG_UNRESTRICTED.format(**config))
-            opts = type('Options', (), {'verify_agents': False,
-                                        'volttron_home': self.volttron_home,
-                                        'vip_address': vip_address,
-                                        'publish_address': ipc + 'publish',
-                                        'subscribe_address': ipc + 'subscribe',
-                                        'developer_mode': True})()
+
+
         elif self.mode == RESTRICTED:
             if not RESTRICTED_AVAILABLE:
                 raise ValueError("restricted is not available.")
@@ -168,18 +182,12 @@ class PlatformWrapper:
         else:
             raise PlatformWrapperError("Invalid platform mode specified: {}".format(mode))
 
-        print("OPTS: ")
-        print( opts )
-        self.test_aip = aip.AIPplatform(opts)
-        self.test_aip.setup()
+        # Set up the environment for the process to run in.
+        os.environ['VOLTTRON_HOME'] = opts['volttron_home']
+        self._p_process = Process(target=start_volttron_process, args=(opts,))
+        self._p_process.daemon = True
+        self._p_process.start()
 
-        lfile = os.path.join(self.volttron_home, "volttron.log")
-
-        pparams = [VSTART, "-c", pconfig, "-vv", "-l", lfile]
-        print("PARAMS: ", pparams)
-
-        # start the process
-        self._p_process = subprocess.Popen(pparams, env=self.env)
         self.use_twistd = use_twistd
 
         #TODO: Revise this to start twistd with platform.
@@ -319,8 +327,6 @@ class PlatformWrapper:
         return self.test_aip.agent_status(agent_uuid)
 
     def build_agentpackage(self, agent_dir, config_file):
-        print('AGENT_DIR: ', agent_dir)
-        print('CONFIG', config_file)
         assert os.path.exists(agent_dir)
         assert os.path.exists(config_file)
         wheel_path = packaging.create_package(agent_dir,
@@ -401,8 +407,8 @@ class PlatformWrapper:
     def shutdown_platform(self, cleanup=True):
         '''Stop platform here'''
         if self._p_process != None:
-            self.test_aip.shutdown()
-            self._p_process.kill()
+            print('Terminating platform!')
+            self._p_process.terminate()
         else:
             print "platform process was null"
 
