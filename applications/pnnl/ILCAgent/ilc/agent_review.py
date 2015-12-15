@@ -237,28 +237,26 @@ def ahp(config_path, **kwargs):
     using Analytical Hierarchical Process.
     '''
     config = utils.load_config(config_path)
-    location = dict((key, config['device'][key])
-                    for key in ['campus', 'building'])
-    devices = config['device']['unit']
+    location = {}
+    location['campus'] = config.get('campus')
+    location['building'] = config.get('building')
+    devices = config.get('devices')
     agent_id = config.get('agent_id')
     base_device = "devices/{campus}/{building}/".format(**location)
     power_token = config.get('PowerMeter')
-    power_dev = power_token.get('device')
+    power_meter = power_token.get('device')
     power_pt = power_token.get('point')
-    if power_token is None or power_pt is None:
-        raise Exception('PowerMeter section of configuration '
-                        'file is not configured correctly.')
-    units = devices.keys()
+    power_meter_path = ''.join([base_device, power_meter, '/', power_pt])
+    all_devices = devices.keys()
     devices_topic = (
         base_device + '({})(/.*)?/all$'
-        .format('|'.join(re.escape(p) for p in units)))
+        .format('|'.join(re.escape(p) for p in all_devices)))
     bld_pwr_topic = (
         base_device + '({})(/.*)?/all$'
-        .format('|'.join(re.escape(p) for p in [power_dev])))
+        .format('|'.join(re.escape(p) for p in [power_meter])))
     BUILDING_TOPIC = re.compile(bld_pwr_topic)
     ALL_DEV = re.compile(devices_topic)
-    static_config = config['device']
-    all_devices = static_config.keys()
+    static_config = devices
     no_curt = {}
     demand_limit = float(config.get("Demand Limit"))
     curtail_time = float(config.get("Curtailment Time", 15.0))
@@ -266,9 +264,10 @@ def ahp(config_path, **kwargs):
         mapper = config.get('mappers')
     except AttributeError:
         mapper = None
-    for key in static_config:
-        for item in key['by_mode'].values():
-                no_curt[''.join([key, '_', item])] = 0
+    if mapper is not None:
+        for key in static_config:
+            for item in key['by_mode'].values():
+                    no_curt[''.join([key, '_', item])] = 0
 
     class AHP(Agent):
         def __init__(self, **kwargs):
@@ -327,6 +326,14 @@ def ahp(config_path, **kwargs):
             reset_time = dt.now() + td(days=1)
             self.core.schedule(reset_time, self.sched_reinit)
 
+        def extract_config(self, device, conf_token, config_section):
+            try:
+                return config_section.get(conf_token)
+            except AttributeError:
+                raise Exception('{} section of configuration file '
+                                'for {} is mis-configured.'.format(conf_token,
+                                                                   device))
+
         def new_data(self, peer, sender, bus, topic, headers, message):
             '''Generate static configuration inputs for
 
@@ -334,31 +341,26 @@ def ahp(config_path, **kwargs):
             '''
             _log.info('Data Received')
             if ALL_DEV.match(topic):
+                # topic of form:  devices/campus/building/device
                 device = topic.split('/')[3]
                 device_data = jsonapi.loads(message[0])
                 if isinstance(device_data, list):
                     device_data = device_data[0]
-                dev_config = static_config.get(device, None)
-                if dev_config is None:
-                    raise Exception('device section of configuration file '
-                                    'for {} is mis-configured.'.format(device))
-                point_list = dev_config.get('points', None)
-                if point_list is None:
-                    raise Exception('point_list section of configuration '
-                                    'file for {} is missing.'.format(device))
+                device_config = self.extract_config(device,
+                                                    device,
+                                                    static_config)
+                point_list = self.extract_config(device,
+                                                 'points',
+                                                 device_config)
                 data = history_data(device, device_data, point_list)
                 self.data_trender.new_data(key, point_list, data)
                 return
             if self.transition:
                 return
-#             if self.start_up:
-#                 return
             if BUILDING_TOPIC.match(topic) and not self.running_ahp:
                 _log.debug('Reading building power data.')
                 self.check_load(message)
             # TODO: Update below to verify on/off status
-            if self.running_ahp:
-                device = topic.split('/')[3]
             if device not in self.off_dev.keys():
                 return
 
@@ -368,25 +370,20 @@ def ahp(config_path, **kwargs):
             curtailable device.
             '''
             for key in static_config:
-                dev_config = static_config.get(key, None)
-                if dev_config is None:
-                    raise Exception('device section of configuration file '
-                                    'for {} is mis-configured.'.format(key))
-                point_list = dev_config.get('points', None)
-                if point_list is None:
-                    raise Exception('point_list section of configuration '
-                                    'file for {} is missing.'.format(key))
+                dev_config = self.extract_config(key, key, static_config)
+                point_list = self.extract_config(key, 'points', dev_config)
                 device = None
-                by_mode = dev_config.get('by_mode')
-                if dev_config is None:
-                    raise Exception('by_mode section of configuration '
-                                    'file for {} is missing.'.format(key))
-                for dev, status in by_mode.items():
-                    check_status = self.vip.rpc.call(
-                        'platform.actuator', 'get_point',
-                        ''.join([location, key, status])).get(timeout=10)
-                    if int(check_status[status]):
-                        device = dev_config.get(dev, None)
+                by_mode = self.extract_config(key, 'by_mode', dev_config)
+                for component, status in by_mode.items():
+                    check_status = (
+                        self.vip.rpc.call(
+                            'platform.actuator', 'get_point',
+                            ''.join([base_device, key, '/', status]))
+                        .get(timeout=10))
+                    if int(check_status):
+                        device = self.extract_config(key,
+                                                     component,
+                                                     dev_config)
                         break
                 if device is None:
                     self.off_dev.update({key: by_mode.values()})
@@ -566,9 +563,8 @@ def ahp(config_path, **kwargs):
 
         def curtail_confirm(self):
             '''Check if load shed goal is met.'''
-            pwr_mtr = ''.join([location, power_dev, power_pt])
             cur_pwr = self.vip.rpc.call('platform.actuator', 'get_point',
-                                        pwr_mtr).get(timeout=10)
+                                        power_meter_path).get(timeout=10)
             self.transition = False
             saved_off = deepcopy(self.off_dev)
             if cur_pwr < demand_limit:
