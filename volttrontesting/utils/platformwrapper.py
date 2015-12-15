@@ -95,8 +95,6 @@ RUN_DIR = 'run'
 PUBLISH_TO = RUN_DIR+'/publish'
 SUBSCRIBE_TO = RUN_DIR+'/subscribe'
 
-
-
 class PlatformWrapperError(Exception):
     pass
 
@@ -116,6 +114,19 @@ class PlatformWrapper:
         self._p_process = None
         self._t_process = None
 
+    def build_agent(self, address=None, should_spawn=True):
+        print('BuLIDING AGENT')
+        print('ADDRESS ', address)
+        if address == None:
+            print('VIP ADDRESS ', self.vip_address)
+            address = self.vip_address[0]
+
+        agent = Agent(address=address)
+        if should_spawn:
+            gevent.spawn(agent.core.run)
+            gevent.sleep(0)
+        return agent
+
     def startup_platform(self, vip_address, auth_dict=None, use_twistd=False,
         mode=UNRESTRICTED):
         # if not isinstance(vip_address, list):
@@ -124,7 +135,6 @@ class PlatformWrapper:
         #     self.vip_address = vip_address
 
         self.vip_address = [vip_address]
-        print('STARTUP_PLATFORM {}'.format(self.vip_address))
         self.mode = mode
 
         assert self.mode in MODES, 'Invalid platform mode set: '+str(mode)
