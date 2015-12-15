@@ -2,7 +2,7 @@
 {
     "campus": "campus1",
     "building": "building1",
-    "device": {
+    "devices": {
         "rtu1": {
 			"by_mode": {"Cooling": "CoolingCommand1", "Heating": "HeatingCommand1"},
 		    "points": ["ZoneTemperature", "CoolingTemperatureSetPoint","CoolingCommand1","CoolingCommand2", "HeatingCommand1", "HeatingCommand2"],
@@ -11,16 +11,15 @@
 					"zone-setpoint":{
 						"operation": "1/(CoolingTemperaturesetPoint - ZoneTemperature)",
 						"operation_type": "formula"
-						"operation_args": ["CoolingTemperatureSetPoint ZoneTemperature"],
+						"operation_args": ["CoolingTemperatureSetPoint", "ZoneTemperature"],
 						"minimum": 0,
 						"maximum": 10
 					},
 					"rated-power": {
-					    "operation": 20.0,
+					    "on_value": 20.0,
+					    "off_value": 0.0,
 						"operation_type": "status",
-						"operation_args": ["CoolCommand1"],
-						"minimum": 0,
-						"maximum":20.0
+						"point_name": ["CoolCommand1"]
 					},
 					"room-type": {
 						"operation": "Office",

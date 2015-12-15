@@ -20,6 +20,7 @@ from ilc.ilc_matrices import (extract_criteria, calc_column_sums,
                               normalize_matrix, validate_input,
                               history_data, build_score, input_matrix)
 
+
 MATRIX_ROWSTRING = "%20s\t%12.2f%12.2f%12.2f%12.2f%12.2f"
 CRITERIA_LABELSTRING = "\t\t\t%12s%12s%12s%12s%12s"
 DATE_FORMAT = '%m-%d-%y %H:%M:%S'
@@ -98,7 +99,7 @@ def register_criterion(name):
 
 class BaseCriterion(object):
     __metaclass__ = abc.ABCMeta
-    def __init__(self, minimum=None, maximum=None, operation=None):
+    def __init__(self, minimum=None, maximum=None):
         self.min_func = lambda x:x if minimum is None else lambda x: min(x,minimum)
         self.max_func = lambda x:x if maximum is None else lambda x: max(x,maximum)
         self.operation = operation
@@ -108,13 +109,66 @@ class BaseCriterion(object):
         value = self.max_func(value)
         return value
     
+    def evaluate_criterion(self, data):
+        value = self.evaluate(data)
+        value = self.evaluate_bounds(value)
+        return value
+    
     @abc.abstractmethod
     def evaluate(self, data):
         pass
+
+@register_criterion("status")        
+class StatusCriterion(BaseCriterion):
+    def __init__(self, on_value=None, off_value=0.0, point_name=None, **kwargs):
+        super(StatusCriterion, self).__init__(**kwargs)
+        if on_value is None or point_name is None:
+            raise ValueError("Missing parameter")
+        self.on_value = on_value
+        self.off_value = off_value
+        self.point_name = point_name
         
-class MapperCriterion(BaseCriterion):
-    def __init__(self, ):
-        pass
+    def evaluate(self, data):
+        if data[self.point_name]:
+            val = self.on_value
+        else:
+            val = self.off_value
+        return val
+        
+@register_criterion("formula")        
+class FormulaCriterion(BaseCriterion):
+    def __init__(self, operation=None, operation_args=None, **kwargs):
+        super(FormulaCriterion, self).__init__(**kwargs)
+        if operation is None or operation_args is None:
+            raise ValueError("Missing parameter")
+        self.operation_args = operation_args
+        self.points = symbols(' '.join(operation_args))
+        self.expr = parse_expr(operation)
+        
+    def evaluate(self, data):
+        pt_lst = []
+        for item in self.operation_args:
+            pt_lst.append((item, data[item]))
+        val = self.expr.subs(pt_lst)
+        return val    
+    
+class Criteria(object):
+    def __init__(self, criteria):
+        self.criteria = {}
+        criteria = deepcopy(criteria)
+        
+        curtailment_settings = criteria.pop("curtail")
+        self.curtail_point = curtailment_settings['point']
+        self.curtail_value = curtailment_settings['value']        
+        self.curtail_load = curtailment_settings['load']
+        
+        for name, criterion in criteria:
+            self.add(name, criterion)         
+    
+    def add(self, name, criterion):
+        operation_type = criterion.pop("operation_type")
+        klass = criterion_registry[operation_type]
+        self.criteria[name] = klass(**criterion)
 
 def ahp(config_path, **kwargs):
     '''Intelligent Load Curtailment Algorithm'
