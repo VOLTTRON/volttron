@@ -21,15 +21,17 @@ sqlite_platform = {
     "connection": {
         "type": "sqlite",
         "params": {
-            "database": 'test_sqlite.sqlite'
+            "database": 'test.sqlite'
         }
-    },
+    }
+}
+
+points = {
     "oat_point": "devices/Building/LAB/Device/OutsideAirTemperature",
     "mixed_point": "devices/Building/LAB/Device/MixedAirTemperature",
     "damper_point": "devices/Building/LAB/Device/DamperSignal",
     "all_topic": "devices/Building/LAB/Device/all"
 }
-
 mysql_platform={
     "agentid": "sqlhistorian-mysql",
     "identity": "platform.historian",
@@ -42,11 +44,7 @@ mysql_platform={
             "user": "historian",
             "passwd": "historian"
         }
-    },
-    "oat_point": "devices/Building/LAB/Device/OutsideAirTemperature",
-    "mixed_point": "devices/Building/LAB/Device/MixedAirTemperature",
-    "damper_point": "devices/Building/LAB/Device/DamperSignal",
-    "all_topic": "devices/Building/LAB/Device/all"
+    }
 }
 
 db_connection=None
@@ -58,60 +56,67 @@ def sqlhistorian(request,volttron_instance1):
     global db_connection,publish_agent
     # Make database connection
     print request.param
-    if request.param['connection']['type'] == "sqlite":
-        from os.path import expanduser
-        database_path = expanduser(request.param['connection']['params']['database'])
-        try:
-            print "connecting to sqlite path " + database_path
-            db_connection = sqlite3.connect(database_path)
-            print "successfully connected to sqlite"
-        except sqlite3.Error, e:
-            pytest.skip(msg="Unable to connect to sqlite databse: " +
-                            database_path +
-                            " Exception:" + e.args[0])
-    elif request.param['connection']['type'] == "mysql":
-        print "connect to mysql"
-        #db_connection = sqlite3.connect('example.db')
-    else:
-        pytest.skip(msg="Invalid database type specified "+request.param['connection']['type'] )
-
 
     #Install and start sqlhistorian agent
     agent_uuid = volttron_instance1.install_agent(
                   agent_dir="services/core/SQLHistorian",
                   config_file=request.param,
                   start=True)
+    gevent.sleep(1)
+    # if request.param['connection']['type'] == "sqlite":
+    #     from os import path
+    #     db_name = request.param['connection']['params']['database']
+    #     database_path = path.join(volttron_instance1.volttron_home,
+    #         'agents', agent_uuid,
+    #         'sqlhistorianagent-3.0.1/sqlhistorianagent-3.0.1.agent-data',
+    #          db_name)
+    #     print(database_path)
+    #     assert path.exists(database_path)
+    #
+    #     try:
+    #         print "connecting to sqlite path " + database_path
+    #         db_connection = sqlite3.connect(database_path)
+    #         print "successfully connected to sqlite"
+    #     except sqlite3.Error, e:
+    #         pytest.skip(msg="Unable to connect to sqlite databse: " +
+    #                         database_path +
+    #                         " Exception:" + e.args[0])
+    # elif request.param['connection']['type'] == "mysql":
+    #     print "connect to mysql"
+    #     #db_connection = sqlite3.connect('example.db')
+    # else:
+    #     pytest.skip(msg="Invalid database type specified "+request.param['connection']['type'] )
 
     #Start a fake agent to publish to message bus
-    publish_agent = Agent()
-    gevent.spawn(publish_agent.core.run).join(0)
+    publish_agent = volttron_instance1.build_agent()
 
     #add a tear down method to stop sqlhistorian agent and the fake agent that published to message bus
-    def stop_agent():
-        print("##########In teardown method of module")
-        if db_connection:
-            db_connection.close()
-        volttron_instance1.stop_agent(agent_uuid)
-        publish_agent.core.stop()
-    request.addfinalizer(stop_agent)
+    # def stop_agent():
+    #     print("##########In teardown method of module")
+    #     if db_connection:
+    #         db_connection.close()
+    #     volttron_instance1.stop_agent(agent_uuid)
+    #     publish_agent.core.stop()
+    # request.addfinalizer(stop_agent)
 
 
 
 @pytest.fixture(params=[sqlite_platform])
 def clean(request,volttron_instance1,sqlhistorian):
-    def delete_row_sqlite():
-        global db_connection
-        print("###Sqlite delete test records")
-        cursor = db_connection.cursor()
-        cursor.execute("DELETE FROM DATA")
-        cursor.execute("DELETE FROM TOPIC")
-        db_connection.commit()
-
-    if request.param['connection']['type'] == "sqlite":
-        print("####### Adding sqlite finalizer")
-        request.addfinalizer(delete_row_sqlite)
-    else:
-        print ("### Adding mysql finalizer")
+    pass
+    # def delete_row_sqlite():
+    #     global db_connection
+    #     print("###Sqlite delete test records")
+    #     cursor = db_connection.cursor()
+    #     cursor.execute("DELETE FROM data")
+    #     cursor.execute("DELETE FROM topics;")
+    #     db_connection.commit()
+    #
+    # if request.param['connection']['type'] == "sqlite":
+    #     print("####### Adding sqlite finalizer")
+    #     request.addfinalizer(delete_row_sqlite)
+    # else:
+    #     print ("### Adding mysql finalizer")
 
 @pytest.mark.historian
 def test_basic_function(volttron_instance1, sqlhistorian, clean):
@@ -125,50 +130,44 @@ def test_basic_function(volttron_instance1, sqlhistorian, clean):
     print("################### 1 " + __name__)
     print('HOME', volttron_instance1.volttron_home)
 
-    try:
+    #Publish fake data. The format mimics the format used by VOLTTRON drivers.
+    #Make some random readings
+    oat_reading = random.uniform(30,100)
+    mixed_reading = oat_reading + random.uniform(-5,5)
+    damper_reading = random.uniform(0,100)
 
-        #Publish fake data. The format mimics the format used by VOLTTRON drivers.
-        #Make some random readings
-        oat_reading = random.uniform(30,100)
-        mixed_reading = oat_reading + random.uniform(-5,5)
-        damper_reading = random.uniform(0,100)
-
-        # Create a message for all points.
-        all_message = [{'OutsideAirTemperature': oat_reading, 'MixedAirTemperature': mixed_reading,
-                    'DamperSignal': damper_reading},
-                   {'OutsideAirTemperature': {'units': 'F', 'tz': 'UTC', 'type': 'float'},
-                    'MixedAirTemperature': {'units': 'F', 'tz': 'UTC', 'type': 'float'},
-                    'DamperSignal': {'units': '%', 'tz': 'UTC', 'type': 'float'}
-                    }]
+    # Create a message for all points.
+    all_message = [{'OutsideAirTemperature': oat_reading, 'MixedAirTemperature': mixed_reading,
+                'DamperSignal': damper_reading},
+               {'OutsideAirTemperature': {'units': 'F', 'tz': 'UTC', 'type': 'float'},
+                'MixedAirTemperature': {'units': 'F', 'tz': 'UTC', 'type': 'float'},
+                'DamperSignal': {'units': '%', 'tz': 'UTC', 'type': 'float'}
+                }]
 
 
 
-        #Create timestamp
-        now = datetime.utcnow().isoformat(' ') + 'Z'
-        headers = {
-            headers_mod.DATE: now
-        }
-        print("################### 2 " + __name__)
-        #Publish messages
-        result = publish_agent.vip.pubsub.publish(
-            'pubsub', "devices/Building/LAB/Device/all", headers, all_message).get(timeout=10)
+    #Create timestamp
+    now = datetime.utcnow().isoformat(' ') + 'Z'
+    headers = {
+        headers_mod.DATE: now
+    }
+    print("################### 2 " + __name__)
+    #Publish messages
+    result = publish_agent.vip.pubsub.publish(
+        'pubsub', "devices/Building/LAB/Device/all", headers, all_message).get(timeout=10)
 
-        pytest.set_trace()
-        print("###################testing insert")
-        gevent.sleep(5)
+    print("###################testing insert")
+    gevent.sleep(5)
 
-        print("################### 3 " + __name__)
-        result = publish_agent.vip.rpc.call('platform.historian',
-                       'query',
-                        topic= "devices/Building/LAB/Device/OutsideAirTemperature",
-                        #start= now,
-                        count = 20,
-                        order = "LAST_TO_FIRST").get(timeout=10)
-        print('###########Query Result', result)
-        assert 1
-    except Exception as e:
-        print ("Exception testing insert: ", e)
-        assert 0
+    print("################### 3 " + __name__)
+    result = publish_agent.vip.rpc.call('platform.historian',
+                   'query',
+                    topic= "devices/Building/LAB/Device/OutsideAirTemperature",
+                    #start= now,
+                    count = 20,
+                    order = "LAST_TO_FIRST").get(timeout=10)
+    print('###########Query Result', result)
+    assert 1
 
 
 # @pytest.mark.historian
@@ -282,6 +281,3 @@ def test_basic_function(volttron_instance1, sqlhistorian, clean):
 #
 # gevent.sleep(5)
 # a.core.stop()
-
-
-
