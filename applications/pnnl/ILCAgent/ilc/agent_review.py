@@ -11,12 +11,14 @@ from sympy import *
 from sympy.parsing.sympy_parser import parse_expr
 from collections import defaultdict
 import abc
+from collections import deque
+
 # from volttron.platform.agent import utils, matching, sched
 # from volttron.platform.messaging import headers as headers_mod,
 from volttron.platform.messaging import topics
 from volttron.platform.agent import utils
 from volttron.platform.agent.utils import jsonapi, setup_logging
-from volttron.platform.vip.agent import *
+from volttron.platform.vip.agent import Agent
 from ilc.ilc_matrices import (extract_criteria, calc_column_sums,
                               normalize_matrix, validate_input,
                               history_data, build_score, input_matrix)
@@ -185,26 +187,51 @@ class MapperCriterion(BaseCriterion):
 
 @register_criterion("history")
 class HistoryCriterion(BaseCriterion):
-    def __init__(self, device, comparison_type=None,
-                 point_name=None, previous_time=None, **kwargs):
-        super(HistoryCriterion, self).__init__(**kwargs)
+    def __init__(self, comparison_type=None,
+                 point_name=None, previous_time=None, minimum=None, **kwargs):
+        super(HistoryCriterion, self).__init__(minimum=minimum, **kwargs)
         if (comparison_type is None or point_name is None or
-                previous_time is None or device is None):
+                previous_time is None or minimum is None):
             raise ValueError("Missing parameter")
-        self.device = device
+        
+        self.minimum = minimum
+
+        self.history = deque()
         self.comparison_type = comparison_type
         self.point_name = point_name
-        self.previous_time = previous_time
+        self.previous_time_delta = td(minutes=previous_time)
+        
+    def linear_interpolation(self, date1, value1, date2, value2, target_date):
+        end_delta_t = (date2-date1).total_seconds()
+        target_delta_t = (target_date-date1).total_seconds()
+        return (value2-value1)*(target_delta_t / end_delta_t) + value1
 
     def evaluate(self, data):
-        curr_time = dt.now().replace(second=0, microsecond=0)
-        prev_time = curr_time - td(minutes=self.previous_time)
-        trend_pt = ''.join([self.device, '_', self.point_name])
-        try:
-            prev_value = AHP().data_trender.data_arr[trend_pt].ix[prev_time]
-        except:
-            pass
+        current_time = dt.now()
+        history_time = current_time - self.previous_time_delta
+        
         current_value = data[self.point_name]
+        
+        self.history.appendleft((current_time, current_value))
+                
+        pre_value, pre_timestamp = self.history.pop()
+        
+        if pre_timestamp > history_time:
+            self.history.append((pre_value, pre_timestamp))
+            return self.minimum
+        
+        post_value,  post_timestamp = self.history.pop()
+        
+        while post_timestamp < history_time:
+            pre_value, pre_timestamp = post_value, post_timestamp
+            post_value,  post_timestamp = self.history.pop()
+            
+        self.history.append((post_value,  post_timestamp))
+        
+        prev_value = self.linear_interpolation(pre_timestamp, pre_value, 
+                                               post_timestamp, post_value, 
+                                               history_time)    
+        
         if self.comparison_type == 'direct':
             val = abs(prev_value - current_value)
         elif self.comparison_type == 'inverse':
@@ -267,7 +294,7 @@ def ahp(config_path, **kwargs):
     if mapper is not None:
         for key in static_config:
             for item in key['by_mode'].values():
-                    no_curt[''.join([key, '_', item])] = 0
+                no_curt[''.join([key, '_', item])] = 0
 
     class AHP(Agent):
         def __init__(self, **kwargs):
