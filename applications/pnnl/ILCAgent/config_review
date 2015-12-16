@@ -4,8 +4,7 @@
     "building": "building1",
     "devices": {
         "rtu1": {
-			"by_mode": {"Cooling": "CoolingCommand1", "Heating": "HeatingCommand1"},
-		    "points": ["ZoneTemperature", "CoolingTemperatureSetPoint","CoolingCommand1","CoolingCommand2", "HeatingCommand1", "HeatingCommand2"],
+			"mode_detection_points": {"Cooling": "CoolingCommand1", "Heating": "HeatingCommand1"},
 			"Cooling": {
 				"CoolingCommand1": { 
 					"zonetemperature-setpoint":{
@@ -22,9 +21,9 @@
 						"point_name": ["CoolCommand1"]
 					},
 					"room-type": {
-						"operation": "Office",
+						"map_key": "Office",
 						"operation_type": "mapper",
-						"operation_args": ["zone_type"],
+						"dict_name": "zone_type",
 						"minimum": 1.0,
 						"maximum": 9.0
 					},
@@ -46,7 +45,8 @@
 						"load": 10
 					}
 				},
-				"zonetemperature-setpoint":{
+				"CoolingCommand2": { 
+					"zonetemperature-setpoint":{
 						"operation": "1/(CoolingTemperaturesetPoint - ZoneTemperature)",
 						"operation_type": "formula"
 						"operation_args": ["CoolingTemperatureSetPoint", "ZoneTemperature"],

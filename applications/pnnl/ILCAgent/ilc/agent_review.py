@@ -35,61 +35,7 @@ logging.basicConfig(level=logging.debug,
                     datefmt='%m-%d-%y %H:%M:%S')
 
 
-class DeviceTrender:
-    def __init__(self, device_list):
-        self.data = []
-        self.data_arr = None
-        self.pt_names = []
-        self._master_devices = device_list[:]
-        self.needs_devices = device_list[:]
-        self.data_trender = None
-        self.ts = None
-
-    def reinit(self):
-        '''Reinitialize all arrays daily (store results for one day).'''
-        self.data_arr = None
-        self.data = []
-        self.pt_names = []
-
-    def new_data(self, device, points, data):
-        '''Assemble dataset containing device data.'''
-        self.pt_names.extend([(device + '_' + pt) for pt in points])
-        self.data.extend(data[device][pt] for pt in points)
-
-        if TESTING:
-            cur_time = parse(
-                data.get('date'), fuzzy=True).replace(second=0,
-                                                      microsecond=0)
-            self.ts = cur_time
-        else:
-            self.ts.append(dt.now().replace(second=0, microsecond=0))
-
-        try:
-            self.needs_devices.remove(device)
-        except ValueError:
-            # Deal with missing data.
-            _log.debug('Missing data.')
-
-        if (self.frame_data() if not self.needs_devices else False):
-            return
-
-    def frame_data(self):
-        '''Append Dataframe with current reading for all devices configured.'''
-        data_arr = df([self.data], columns=self.pt_names, index=[self.ts])
-        if self.data_arr is None:
-            self.data_arr = data_arr
-            self.needs_devices = self._master_devices[:]
-            self.pt_names = []
-            self.data = []
-            self.ts = []
-            return 1
-        self.needs_devices = self._master_devices[:]
-        self.data_arr = self.data_arr.append(data_arr)
-        self.pt_names = []
-        self.data = []
-        self.ts = []
-        return 0
-
+mappers = {}
 criterion_registry = {}
 
 
@@ -106,6 +52,8 @@ class BaseCriterion(object):
     def __init__(self, operation, minimum=None, maximum=None):
         self.min_func = lambda x: x if minimum is None else lambda x: min(x, minimum)
         self.max_func = lambda x: x if maximum is None else lambda x: max(x, maximum)
+        self.minimum = minimum
+        self.maximum = maximum
         self.operation = operation
 
     def evaluate_bounds(self, value):
@@ -119,7 +67,10 @@ class BaseCriterion(object):
         return value
 
     @abc.abstractmethod
-    def evaluate(self, data):
+    def evaluate(self):
+        pass
+    
+    def ingest_data(self, data):
         pass
 
 
@@ -133,13 +84,17 @@ class StatusCriterion(BaseCriterion):
         self.on_value = on_value
         self.off_value = off_value
         self.point_name = point_name
+        self.current_status = False
 
-    def evaluate(self, data):
-        if data[self.point_name]:
+    def evaluate(self):
+        if self.current_status:
             val = self.on_value
         else:
             val = self.off_value
         return val
+    
+    def ingest_data(self, data):
+        self.current_status = bool(data[self.point_name])
 
 
 @register_criterion("constant")
@@ -151,7 +106,7 @@ class ConstantCriterion(BaseCriterion):
             raise ValueError("Missing parameter")
         self.value = value
 
-    def evaluate(self, data):
+    def evaluate(self):
         return self.value
 
 
@@ -165,72 +120,84 @@ class FormulaCriterion(BaseCriterion):
         self.points = symbols(operation_args)
         self.expr = parse_expr(operation)
 
-    def evaluate(self, data):
-        pt_lst = []
-        for item in self.operation_args:
-            pt_lst.append((item, data[item]))
-        val = self.expr.subs(pt_lst)
+    def evaluate(self):
+        if self.pt_list:
+            val = self.expr.subs(self.pt_list)
+        else:
+            val = self.minimum
         return val
+    
+    def ingest_data(self, data):
+        pt_list = []
+        for item in self.operation_args:
+            pt_list.append((item, data[item]))
+        self.pt_list = pt_list
 
 
 @register_criterion("mapper")
 class MapperCriterion(BaseCriterion):
-    def __init__(self, mapper=None, map_dict=None, map_key=None, **kwargs):
+    def __init__(self, dict_name=None, map_key=None, **kwargs):
         super(MapperCriterion, self).__init__(**kwargs)
-        if mapper is None or map_dict is None or map_key is None:
+        if dict_name is None or map_key is None:
             raise ValueError("Missing parameter")
-        self.value = mapper[map_dict][map_key]
+        self.value = mappers[dict_name][map_key]
 
-    def evaluate(self, data):
+    def evaluate(self):
         return self.value
 
 
 @register_criterion("history")
 class HistoryCriterion(BaseCriterion):
     def __init__(self, comparison_type=None,
-                 point_name=None, previous_time=None, minimum=None, **kwargs):
-        super(HistoryCriterion, self).__init__(minimum=minimum, **kwargs)
+                 point_name=None, previous_time=None, **kwargs):
+        super(HistoryCriterion, self).__init__(**kwargs)
         if (comparison_type is None or point_name is None or
-                previous_time is None or minimum is None):
+                previous_time is None):
             raise ValueError("Missing parameter")
-        self.minimum = minimum
         self.history = deque()
         self.comparison_type = comparison_type
         self.point_name = point_name
         self.previous_time_delta = td(minutes=previous_time)
+        
+        self.current_value = None
+        self.history_time = None
 
     def linear_interpolation(self, date1, value1, date2, value2, target_date):
         end_delta_t = (date2-date1).total_seconds()
         target_delta_t = (target_date-date1).total_seconds()
         return (value2-value1)*(target_delta_t / end_delta_t) + value1
 
-    def evaluate(self, data):
-        current_time = dt.now()
-        history_time = current_time - self.previous_time_delta
-        current_value = data[self.point_name]
-        self.history.appendleft((current_time, current_value))
-
+    def evaluate(self):
+        if self.current_value is None:
+            return self.minimum
+        
         pre_value, pre_timestamp = self.history.pop()
 
-        if pre_timestamp > history_time:
+        if pre_timestamp > self.history_time:
             self.history.append((pre_value, pre_timestamp))
             return self.minimum
 
         post_value,  post_timestamp = self.history.pop()
 
-        while post_timestamp < history_time:
+        while post_timestamp < self.history_time:
             pre_value, pre_timestamp = post_value, post_timestamp
             post_value,  post_timestamp = self.history.pop()
 
         self.history.append((post_value,  post_timestamp))
         prev_value = self.linear_interpolation(pre_timestamp, pre_value,
                                                post_timestamp, post_value,
-                                               history_time)
+                                               self.history_time)
         if self.comparison_type == 'direct':
-            val = abs(prev_value - current_value)
+            val = abs(prev_value - self.current_value)
         elif self.comparison_type == 'inverse':
-            val = 1/abs(prev_value - current_value)
+            val = 1/abs(prev_value - self.current_value)
         return val
+    
+    def ingest_data(self, data):
+        current_time = dt.now()
+        self.history_time = current_time - self.previous_time_delta
+        self.current_value = data[self.point_name]
+        self.history.appendleft((current_time, self.current_value))
 
 
 class Criteria(object):
@@ -242,6 +209,7 @@ class Criteria(object):
         self.curtail_point = curtailment_settings['point']
         self.curtail_value = curtailment_settings['value']
         self.curtail_load = curtailment_settings['load']
+        self.curtail_count = 0
 
         for name, criterion in criteria:
             self.add(name, criterion)
@@ -250,6 +218,38 @@ class Criteria(object):
         operation_type = criterion.pop("operation_type")
         klass = criterion_registry[operation_type]
         self.criteria[name] = klass(**criterion)
+        
+    def evaluate(self):
+        results = {}
+        for name, criterion in self.criteria.items():
+            result = criterion.evaluate()
+            results[name] = result
+            
+        results["curtail_count"] = self.curtail_count
+        return results
+    
+    def ingest_data(self, data):
+        for criterion in self.criteria.values():
+            criterion.ingest(data)
+        
+    def reset_curtail(self):
+        self.curtail_count = 0
+        
+    def increment_curtail(self):
+        self.curtail_count += 1
+        
+class Device(object):
+    def __init__(self, device_config):
+        self.mode_detection_points = device_config["mode_detection_points"]
+        self.modes = {}
+        for mode_section in self.mode_detection_points:
+            mode_config = device_config[mode_section]
+            mode = {}
+            for command_point, criteria_config in mode_config.iteritems():
+                mode[command_point] = Criteria(criteria_config)
+            self.modes[mode_section] = mode
+            
+        
 
 
 def ahp(config_path, **kwargs):
@@ -281,14 +281,13 @@ def ahp(config_path, **kwargs):
     no_curt = {}
     demand_limit = float(config.get("Demand Limit"))
     curtail_time = float(config.get("Curtailment Time", 15.0))
+    
+    global mappers
+    
     try:
-        mapper = config.get('mappers')
-    except AttributeError:
-        mapper = None
-    if mapper is not None:
-        for key in static_config:
-            for item in key['by_mode'].values():
-                no_curt[''.join([key, '_', item])] = 0
+        mappers = config['mappers']
+    except KeyError:
+        mappers = {}
 
     class AHP(Agent):
         def __init__(self, **kwargs):
@@ -340,12 +339,6 @@ def ahp(config_path, **kwargs):
             self.vip.pubsub.subscribe(peer='pubsub',
                                       prefix=driver_prefix,
                                       callback=self.new_data)
-
-        def sched_reinit(self):
-            '''Reinitialize data trends for historical data.'''
-            self.data_trender.reinit()
-            reset_time = dt.now() + td(days=1)
-            self.core.schedule(reset_time, self.sched_reinit)
 
         def extract_config(self, device, conf_token, config_section):
             try:
