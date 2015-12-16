@@ -21,7 +21,7 @@ sqlite_platform = {
     "connection": {
         "type": "sqlite",
         "params": {
-            "database": "~/.volttron/data/platform.historian.sqlite"
+            "database": 'test_sqlite.sqlite'
         }
     },
     "oat_point": "devices/Building/LAB/Device/OutsideAirTemperature",
