@@ -124,8 +124,11 @@ class PlatformWrapper:
         agent = Agent(address=address)
         if should_spawn:
             print('SPAWNING GENERIC AGENT')
-            gevent.spawn(agent.core.run)
-            gevent.sleep(0)
+            event = gevent.event.Event()
+            gevent.spawn(agent.core.run, event)
+            event.wait()
+            #gevent.spawn(agent.core.run)
+            #gevent.sleep(0)
         return agent
 
     def startup_platform(self, vip_address, auth_dict=None, use_twistd=False,
@@ -151,7 +154,7 @@ class PlatformWrapper:
         with open(os.path.join(self.volttron_home, 'curve.key'), 'w'):
             pass
 
-        opts = {'verify_agents': False,
+        self.opts = {'verify_agents': False,
                 'volttron_home': self.volttron_home,
                 'vip_address': vip_address,
                 'vip_local_address': ipc + 'vip.socket',
@@ -194,8 +197,8 @@ class PlatformWrapper:
             raise PlatformWrapperError("Invalid platform mode specified: {}".format(mode))
 
         # Set up the environment for the process to run in.
-        os.environ['VOLTTRON_HOME'] = opts['volttron_home']
-        self._p_process = Process(target=start_volttron_process, args=(opts,))
+        os.environ['VOLTTRON_HOME'] = self.opts['volttron_home']
+        self._p_process = Process(target=start_volttron_process, args=(self.opts,))
         self._p_process.daemon = True
         self._p_process.start()
 
