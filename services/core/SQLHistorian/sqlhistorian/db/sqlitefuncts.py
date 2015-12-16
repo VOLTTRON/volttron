@@ -71,10 +71,11 @@ _log = logging.getLogger(__name__)
 class SqlLiteFuncts(DbDriver):
 
     def __init__(self, database, **kwargs):
-
+        print ("initializing historian database")
         if database == ':memory:':
             self.__database = database
         else:
+
             self.__database = os.path.expandvars(os.path.expanduser(database))
             db_dir  = os.path.dirname(self.__database)
 

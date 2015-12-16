@@ -318,6 +318,13 @@ class PlatformWrapper:
             if not config_file:
                 assert os.path.exists(os.path.join(agent_dir, "config"))
                 config_file = os.path.join(agent_dir, "config")
+            else:
+                if isinstance(config_file, dict):
+                    from os.path import join, basename
+                    temp_config=join(self.volttron_home, basename(agent_dir) + "_config_file")
+                    with open(temp_config,"w") as fp:
+                        fp.write(json.dumps(config_file))
+                    config_file = temp_config
             print('Building agent package')
             wheel_file = self.build_agentpackage(agent_dir, config_file)
             assert wheel_file
