@@ -8,7 +8,7 @@
 		    "points": ["ZoneTemperature", "CoolingTemperatureSetPoint","CoolingCommand1","CoolingCommand2", "HeatingCommand1", "HeatingCommand2"],
 			"Cooling": {
 				"CoolingCommand1": { 
-					"zone-setpoint":{
+					"zonetemperature-setpoint":{
 						"operation": "1/(CoolingTemperaturesetPoint - ZoneTemperature)",
 						"operation_type": "formula"
 						"operation_args": ["CoolingTemperatureSetPoint", "ZoneTemperature"],
@@ -32,7 +32,7 @@
 					    "value": 1,
 						"operation_type": "constant"
 					},
-					"previous-zonetemp-zonetemp": {
+					"history-zonetemperature": {
 					    "comparison_type": "direct",
 						"operation_type": "history",
 						"point_name": "ZoneTemperature",
@@ -46,19 +46,18 @@
 						"load": 10
 					}
 				},
-				"CoolingCommand2": { 
-					"zone-setpoint":{
+				"zonetemperature-setpoint":{
 						"operation": "1/(CoolingTemperaturesetPoint - ZoneTemperature)",
-						"operation_type": "formula",
+						"operation_type": "formula"
+						"operation_args": ["CoolingTemperatureSetPoint", "ZoneTemperature"],
 						"minimum": 0,
 						"maximum": 10
 					},
 					"rated-power": {
-						"operation": 20.0,
-						"operation_type":  "status",
-						"operation_args": ["CoolCommand2"],
-						"minimum": 0,
-						"maximum": 20.0
+					    "on_value": 20.0,
+					    "off_value": 0.0,
+						"operation_type": "status",
+						"point_name": ["CoolCommand2"]
 					},
 					"room-type": {
 						"operation": "Office",
@@ -68,10 +67,21 @@
 						"maximum": 9.0
 					},
 					"stage": {
-						"operation": 2,
-						"operation_type": "constant",
+					    "value": 2,
+						"operation_type": "constant"
+					},
+					"history-zonetemperature": {
+					    "comparison_type": "direct",
+						"operation_type": "history",
+						"point_name": "ZoneTemperature",
+						"previous_time": 15,
 						"minimum": 0,
-						"maximum": 1.0
+						"maximum": 10
+					},
+					"curtail": {
+						"point": "CoolingTemperatureSetPoint",
+						"value": 78.0,
+						"load": 10
 					}
 				}
 			},

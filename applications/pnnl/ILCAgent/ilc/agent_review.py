@@ -193,14 +193,12 @@ class HistoryCriterion(BaseCriterion):
         if (comparison_type is None or point_name is None or
                 previous_time is None or minimum is None):
             raise ValueError("Missing parameter")
-        
         self.minimum = minimum
-
         self.history = deque()
         self.comparison_type = comparison_type
         self.point_name = point_name
         self.previous_time_delta = td(minutes=previous_time)
-        
+
     def linear_interpolation(self, date1, value1, date2, value2, target_date):
         end_delta_t = (date2-date1).total_seconds()
         target_delta_t = (target_date-date1).total_seconds()
@@ -209,29 +207,25 @@ class HistoryCriterion(BaseCriterion):
     def evaluate(self, data):
         current_time = dt.now()
         history_time = current_time - self.previous_time_delta
-        
         current_value = data[self.point_name]
-        
         self.history.appendleft((current_time, current_value))
-                
+
         pre_value, pre_timestamp = self.history.pop()
-        
+
         if pre_timestamp > history_time:
             self.history.append((pre_value, pre_timestamp))
             return self.minimum
-        
+
         post_value,  post_timestamp = self.history.pop()
-        
+
         while post_timestamp < history_time:
             pre_value, pre_timestamp = post_value, post_timestamp
             post_value,  post_timestamp = self.history.pop()
-            
+
         self.history.append((post_value,  post_timestamp))
-        
-        prev_value = self.linear_interpolation(pre_timestamp, pre_value, 
-                                               post_timestamp, post_value, 
-                                               history_time)    
-        
+        prev_value = self.linear_interpolation(pre_timestamp, pre_value,
+                                               post_timestamp, post_value,
+                                               history_time)
         if self.comparison_type == 'direct':
             val = abs(prev_value - current_value)
         elif self.comparison_type == 'inverse':
