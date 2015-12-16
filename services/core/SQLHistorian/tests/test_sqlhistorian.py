@@ -118,6 +118,7 @@ def clean(request,volttron_instance1,sqlhistorian):
     # else:
     #     print ("### Adding mysql finalizer")
 
+
 @pytest.mark.historian
 def test_basic_function(volttron_instance1, sqlhistorian, clean):
     """
@@ -129,6 +130,7 @@ def test_basic_function(volttron_instance1, sqlhistorian, clean):
     """
     print("################### 1 " + __name__)
     print('HOME', volttron_instance1.volttron_home)
+
 
     #Publish fake data. The format mimics the format used by VOLTTRON drivers.
     #Make some random readings
@@ -144,6 +146,15 @@ def test_basic_function(volttron_instance1, sqlhistorian, clean):
                 'DamperSignal': {'units': '%', 'tz': 'UTC', 'type': 'float'}
                 }]
 
+    #Create timestamp
+    now = datetime.utcnow().isoformat(' ') + 'Z'
+    headers = {
+        headers_mod.DATE: now
+    }
+    print("################### 2 " + __name__)
+    #Publish messages
+    result = publish_agent.vip.pubsub.publish(
+        'pubsub', "devices/Building/LAB/Device/all", headers, all_message).get(timeout=10)
 
 
     #Create timestamp
