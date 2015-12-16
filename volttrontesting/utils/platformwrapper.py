@@ -17,10 +17,9 @@ import gevent
 
 from volttron.platform.main import start_volttron_process
 from volttron.platform.vip.agent import Agent
-from volttron.platform import aip
+from volttron.platform.aip import AIPplatform
 #from volttron.platform.control import client, server
 from volttron.platform import packaging
-from setuptools.command.setopt import config_file
 
 
 RESTRICTED_AVAILABLE = False
@@ -196,6 +195,8 @@ class PlatformWrapper:
         else:
             raise PlatformWrapperError("Invalid platform mode specified: {}".format(mode))
 
+        print('OPTS: ')
+        print(opts)
         # Set up the environment for the process to run in.
         os.environ['VOLTTRON_HOME'] = self.opts['volttron_home']
         self._p_process = Process(target=start_volttron_process, args=(self.opts,))
@@ -269,23 +270,24 @@ class PlatformWrapper:
         assert(auth.sign_as_initiator(package, 'initiator', files=files,
                                       certsobj=self.certsobj)), "Signing as {} failed.".format('initiator')
 
+    def _aip(self):
+        opts = type('Options', (), self.opts)
+        aip = AIPplatform(opts)
+        aip.setup()
+        return aip
+
     def _install_agent(self, wheel_file, start):
-        agent_uuid = self.test_aip.install_agent(wheel_file)
-        status = self.test_aip.agent_status(agent_uuid)
-        print('STATUS NOW:', status)
+        aip = self._aip()
+        auuid = aip.install_agent(wheel_file)
+        assert auuid is not None
         if start:
-            self.test_aip.start_agent(agent_uuid)
-            status = self.test_aip.agent_status(agent_uuid)
+            aip.start_agent(auuid)
+            status = aip.agent_status(auuid)
             print('STATUS NOW:', status)
-        # control = Agent(address=self.vip_address[0])
-        # gevent.spawn(control.core.run)
-        # gevent.sleep(0)
-        # uuid = control.vip.rpc.call('control', 'install_agent', wheel_file,
-        #     os.path.basename(wheel_file))
-        # control.core.stop().get(timeout=2)
-        return agent_uuid
+            assert len(status) == 2
+            assert status[0] > 0
 
-
+        return auuid
 
     def install_agent(self, agent_wheel=None, agent_dir=None, config_file=None,
         start=True):
@@ -298,6 +300,8 @@ class PlatformWrapper:
             specified or if it is not specified then it is assumed that the
             file agent_dir/config is to be used as the configuration file.  If
             none of these exist then an assertion error will be thrown.
+
+            This function will return with a uuid of the installed agent.
         '''
 
         assert self.is_running()
@@ -314,14 +318,7 @@ class PlatformWrapper:
             if not config_file:
                 assert os.path.exists(os.path.join(agent_dir, "config"))
                 config_file = os.path.join(agent_dir, "config")
-            else:
-                if isinstance(config_file, dict):
-                    from os.path import join, basename
-                    temp_config=join(self.volttron_home, basename(agent_dir) + "_config_file")
-                    with open(temp_config,"w") as fp:
-                        fp.write(json.dumps(config_file))
-                    config_file = temp_config
-                                  
+            print('Building agent package')
             wheel_file = self.build_agentpackage(agent_dir, config_file)
             assert wheel_file
 
@@ -334,18 +331,28 @@ class PlatformWrapper:
         return agent_uuid
 
     def start_agent(self, agent_uuid):
-        self.test_aip.start_agent(agent_uuid)
-        print(self.test_aip.agent_status(agent_uuid))
+        aip = self._aip()
+        aip.start_agent(agent_uuid)
+        return aip.agent_status(agent_uuid)
+
 
     def stop_agent(self, agent_uuid):
-        self.test_aip.stop_agent(agent_uuid)
+        aip = self._aip()
+        aip.stop_agent(agent_uuid)
+        return aip.agent_status(agent_uuid)
+
+    def list_agents(self):
+        aip = self._aip()
+        return aip.list_agents()
 
     def remove_agent(self, agent_uuid):
-        uuid = self.test_aip.remove_agent(agent_uuid)
-        return self.agent_status(uuid)
+        aip = self._aip()
+        uuid = aip.remove_agent(agent_uuid)
+        return aip.agent_status(uuid)
 
     def agent_status(self, agent_uuid):
-        return self.test_aip.agent_status(agent_uuid)
+        aip = self._aip()
+        return aip.agent_status(agent_uuid)
 
     def build_agentpackage(self, agent_dir, config_file):
         assert os.path.exists(agent_dir)
@@ -429,7 +436,10 @@ class PlatformWrapper:
         '''Stop platform here'''
         if self._p_process != None:
             print('Terminating platform!')
-            self._p_process.terminate()
+            try:
+                self._p_process.terminate()
+            except Exception as exp:
+                print(exp.strerror)
         else:
             print "platform process was null"
 
@@ -438,8 +448,8 @@ class PlatformWrapper:
             self._t_process.wait()
         elif self.use_twistd:
             print "twistd process was null"
-        if cleanup:
-            shutil.rmtree(self.volttron_home, ignore_errors=True)
+        # if cleanup:
+        #     shutil.rmtree(self.volttron_home, ignore_errors=True)
 
 
 def mergetree(src, dst, symlinks=False, ignore=None):

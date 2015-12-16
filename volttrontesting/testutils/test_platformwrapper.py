@@ -6,34 +6,94 @@ from volttron.platform.vip.agent import Agent, PubSub, Core
 def test_can_connect_to_instance(volttron_instance1):
     assert volttron_instance1 is not None
     assert volttron_instance1.is_running()
+    assert not volttron_instance1.list_agents()
     message = 'Pinging Hello'
     agent = volttron_instance1.build_agent()
     response = agent.vip.ping('', message).get(timeout=3)
     agent.core.stop()
     assert response[0] == message
 
-def test_can_publish_messages(volttron_instance1):
-    amessage = [None]
-    def onmessage(peer, sender, bus, topic, headers, message):
-        amessage[0] = message
+def test_can_install_listener(volttron_instance1):
+    vi = volttron_instance1
+    assert vi is not None
+    assert vi.is_running()
 
-    agent_publisher = volttron_instance1.build_agent()
-    response = agent_publisher.vip.ping('', 'woot').get(timeout=3)
-    assert response[0] == 'woot'
-    agent_subscriber = volttron_instance1.build_agent()
-    response = agent_subscriber.vip.ping('', 'woot2').get(timeout=3)
-    assert response[0] == 'woot2'
-    
-    agent_subscriber.vip.pubsub.subscribe(peer='pubsub',
-        prefix='test/data', callback=onmessage).get(timeout=5)
-    themessage = 'I am a fish!'
-    agent_publisher.vip.pubsub.publish(peer='pubsub',
-        topic='test/data', message=themessage).get(timeout=5)
+    auuid = vi.install_agent(agent_dir="examples/ListenerAgent",
+        start=False)
+    assert auuid is not None
+    started = vi.start_agent(auuid)
+    print('STARTED: ', started)
+    stopped = vi.stop_agent(auuid)
+    print('STOPPED: ', stopped)
+    removed = vi.remove_agent(auuid)
+    print('REMOVED: ', removed)
 
-    agent_subscriber.core.stop()
-    agent_publisher.core.stop()
+def test_can_ping_pubsub(volttron_instance1):
+    vi = volttron_instance1
+    agent = vi.build_agent()
+    resp = agent.vip.ping('', 'hello').get(timeout=5)
+    print('ROUTER RESP: ', resp)
+    resp = agent.vip.ping('pubsub', 'hello').get(timeout=5)
+    print('PUBSUB RESP: ', resp)
 
-    assert themessage == amessage[0]
+messages = {}
+def onmessage(peer, sender, bus, topic, headers, message):
+    messages[topic] = message
+
+def test_can_publish(volttron_instance1):
+    global messages
+    vi = volttron_instance1
+    agent = vi.build_agent()
+#    gevent.sleep(0)
+    agent.vip.pubsub.subscribe(peer='pubsub', prefix='test/world',
+        callback=onmessage).get(timeout=5)
+
+    agent_publisher = vi.build_agent()
+#    gevent.sleep(0)
+    agent_publisher.vip.pubsub.publish(peer='pubsub', topic='test/world',
+        message='got data')
+    # sleep so that the message bus can actually do some work before we
+    # eveluate the global messages.
+    gevent.sleep(0.1)
+    assert messages['test/world'] == 'got data'
+
+#
+# def test_can_ping_router(volttron_instance1):
+#     vi = volttron_instance1
+#     agent = vi.build_agent()
+#     resp = agent.vip.ping('', 'router?').get(timeout=4)
+#     #resp = agent.vip.hello().get(timeout=1)
+#     print("HELLO RESPONSE!",resp)
+
+
+
+# def test_can_ping_control(volttron_instance2):
+#     agent = volttron_instance2.build_agent()
+#     res = agent.vip.ping('aip', 'hello').get(timeout=5)
+#     assert res[0] == 'hello'
+
+# def test_can_publish_messages(volttron_instance1):
+#     amessage = [None]
+#     def onmessage(peer, sender, bus, topic, headers, message):
+#         amessage[0] = message
+#
+#     agent_publisher = volttron_instance1.build_agent()
+#     response = agent_publisher.vip.ping('', 'woot').get(timeout=3)
+#     assert response[0] == 'woot'
+#     agent_subscriber = volttron_instance1.build_agent()
+#     response = agent_subscriber.vip.ping('', 'woot2').get(timeout=3)
+#     assert response[0] == 'woot2'
+#
+#     agent_subscriber.vip.pubsub.subscribe(peer='pubsub',
+#         prefix='test/data', callback=onmessage).get(timeout=5)
+#     themessage = 'I am a fish!'
+#     agent_publisher.vip.pubsub.publish(peer='pubsub',
+#         topic='test/data', message=themessage).get(timeout=5)
+#
+#     agent_subscriber.core.stop()
+#     agent_publisher.core.stop()
+#
+#     assert themessage == amessage[0]
 
 
 # def test_volttron_fixtures(volttron_instance1, volttron_instance2):
