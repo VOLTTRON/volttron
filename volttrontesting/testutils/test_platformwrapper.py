@@ -1,5 +1,6 @@
 import gevent
 import pytest
+import time
 
 from volttron.platform.vip.agent import Agent, PubSub, Core
 
@@ -23,6 +24,17 @@ def test_can_install_listener(volttron_instance1):
     assert auuid is not None
     started = vi.start_agent(auuid)
     print('STARTED: ', started)
+    listening = vi.build_agent()
+    listening.vip.pubsub.subscribe(peer='pubsub',
+        prefix='heartbeat/listeneragent', callback=onmessage).get(timeout=5)
+    # sleep for 10 seconds and at least one heartbeat should have been published
+    # because it's set to 5 seconds.
+    time_start = time.clock()
+    while not 'heartbeat/listeneragent' in messages.keys() and \
+        time_start < time.clock() + 10:
+        gevent.sleep(0.2)
+    assert 'heartbeat/listeneragent' in messages.keys()
+
     stopped = vi.stop_agent(auuid)
     print('STOPPED: ', stopped)
     removed = vi.remove_agent(auuid)
