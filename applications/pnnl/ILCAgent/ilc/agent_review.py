@@ -205,10 +205,7 @@ class Criteria(object):
         self.criteria = {}
         criteria = deepcopy(criteria)
 
-        curtailment_settings = criteria.pop("curtail")
-        self.curtail_point = curtailment_settings['point']
-        self.curtail_value = curtailment_settings['value']
-        self.curtail_load = curtailment_settings['load']
+        self.curtailment = criteria.pop("curtail")
         self.curtail_count = 0
 
         for name, criterion in criteria:
@@ -238,18 +235,50 @@ class Criteria(object):
     def increment_curtail(self):
         self.curtail_count += 1
         
+    def get_curtailment(self):
+        return self.curtailment.copy()
+    
+    
+        
 class Device(object):
     def __init__(self, device_config):
         self.mode_detection_points = device_config["mode_detection_points"]
         self.modes = {}
+        self.current_mode = None
+        self.all_criteria = []
         for mode_section in self.mode_detection_points:
             mode_config = device_config[mode_section]
             mode = {}
             for command_point, criteria_config in mode_config.iteritems():
-                mode[command_point] = Criteria(criteria_config)
+                criteria = Criteria(criteria_config)
+                self.all_criteria.append(criteria)
+                mode[command_point] = criteria
             self.modes[mode_section] = mode
             
+    def ingest_data(self, data):
+        for criteria in self.all_criteria:
+            criteria.ingest_data(data)
+            
+        self.current_mode = None
+        for mode, command in self.mode_detection_points.iteritems():
+            if data[command]:
+                self.current_mode = mode
+                break
+            
+    def reset_curtail(self):
+        for criteria in self.all_criteria:
+            criteria.reset_curtail()
+            
+    def evaluate(self, mode):
+        results = {}
+        for command, criteria in self.modes[mode]:
+            results[command] = criteria.evaluate()
+    
+    def get_curtailment(self, mode, command):
+        self.modes[mode][command].get_curtailment()
         
+    def get_current_mode(self):
+        return self.current_mode
 
 
 def ahp(config_path, **kwargs):
