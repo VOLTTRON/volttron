@@ -246,24 +246,33 @@ class Device(object):
         self.modes = {}
         self.current_mode = None
         self.all_criteria = []
+        self.mode_status = {}
+        
         for mode_section in self.mode_detection_points:
             mode_config = device_config[mode_section]
             mode = {}
-            for command_point, criteria_config in mode_config.iteritems():
+            sub_component_status = {}
+            for command_point, criteria_config in mode_config.items():
                 criteria = Criteria(criteria_config)
                 self.all_criteria.append(criteria)
                 mode[command_point] = criteria
+                sub_component_status[command_point] = False
             self.modes[mode_section] = mode
+            self.mode_status[mode_section] = sub_component_status
             
     def ingest_data(self, data):
         for criteria in self.all_criteria:
             criteria.ingest_data(data)
             
         self.current_mode = None
-        for mode, command in self.mode_detection_points.iteritems():
+        for mode, command in self.mode_detection_points.items():
             if data[command]:
                 self.current_mode = mode
                 break
+        
+        for mode_section in self.mode_status.values():
+            for command in mode_section:
+                mode_section[command] = bool(data[command])
             
     def reset_curtail(self):
         for criteria in self.all_criteria:
@@ -279,6 +288,9 @@ class Device(object):
         
     def get_current_mode(self):
         return self.current_mode
+        
+    def get_mode_status(self, mode):
+        return self.mode_status[mode].copy()
 
 
 def ahp(config_path, **kwargs):
@@ -290,7 +302,7 @@ def ahp(config_path, **kwargs):
     location = {}
     location['campus'] = config.get('campus')
     location['building'] = config.get('building')
-    devices = config.get('devices')
+    device_configs = config['devices']
     agent_id = config.get('agent_id')
     base_device = "devices/{campus}/{building}/".format(**location)
     power_token = config.get('PowerMeter')
@@ -306,10 +318,12 @@ def ahp(config_path, **kwargs):
         .format('|'.join(re.escape(p) for p in [power_meter])))
     BUILDING_TOPIC = re.compile(bld_pwr_topic)
     ALL_DEV = re.compile(devices_topic)
-    static_config = devices
-    no_curt = {}
     demand_limit = float(config.get("Demand Limit"))
     curtail_time = float(config.get("Curtailment Time", 15.0))
+    
+    devices = {}
+    for device_name, device_config in device_configs:
+        devices[device_name] = Device(device_config)
     
     global mappers
     
@@ -333,26 +347,13 @@ def ahp(config_path, **kwargs):
             self.no_curtailed = no_curt
             # self.start_up = True
             self.data_trender = None
-
-        @Core.receiver("onstart")
-        def starting_base(self, sender, **kwargs):
-            '''startup method:
-             - Extract Criteria Matrix from excel file.
-             - Setup subscriptions to device and building power meter.
-            '''
-            self.data_trender = DeviceTrender(all_devices)
-            reset_time = dt.now().replace(minute=0, hour=0,
-                                          second=0, microsecond=0)
-            reset_time = reset_time + td(days=1)
-            self.core.schedule(reset_time, self.sched_reinit)
-
-            excel_file = config.get('excel_file', None)
-            if excel_file is not None:
-                self.crit_labels, criteria_arr = \
-                    extract_criteria(excel_file, "CriteriaMatrix")
-                col_sums = calc_column_sums(criteria_arr)
-                _, self.row_average = normalize_matrix(criteria_arr, col_sums)
-                print self.crit_labels, criteria_arr
+            
+            excel_file = config['builing_criteria_matrix']
+            self.crit_labels, criteria_arr = extract_criteria(excel_file, "CriteriaMatrix")
+            col_sums = calc_column_sums(criteria_arr)
+            _, self.row_average = normalize_matrix(criteria_arr, col_sums)
+            print self.crit_labels, criteria_arr
+            
             if not (validate_input(criteria_arr, col_sums, True,
                                    self.crit_labels, CRITERIA_LABELSTRING,
                                    MATRIX_ROWSTRING)):
@@ -361,6 +362,13 @@ def ahp(config_path, **kwargs):
                 # TODO:  MORE USEFULT MESSAGE TO DEAL WITH
                 # INCONSISTENT CONFIGURATION
                 sys.exit()
+
+        @Core.receiver("onstart")
+        def starting_base(self, sender, **kwargs):
+            '''startup method:
+             - Extract Criteria Matrix from excel file.
+             - Setup subscriptions to device and building power meter.
+            '''
             # Setup pubsub to listen to all devices being published.
             driver_prefix = topics.DRIVER_TOPIC_BASE
             _log.debug("subscribing to {}".format(driver_prefix))

@@ -18,7 +18,7 @@
 					    "on_value": 20.0,
 					    "off_value": 0.0,
 						"operation_type": "status",
-						"point_name": ["CoolCommand1"]
+						"point_name": ["CoolingCommand1"]
 					},
 					"room-type": {
 						"map_key": "Office",
@@ -55,7 +55,7 @@
 					    "on_value": 20.0,
 					    "off_value": 0.0,
 						"operation_type": "status",
-						"point_name": ["CoolCommand2"]
+						"point_name": ["CoolingCommand2"]
 					},
 					"room-type": {
 						"operation": "Office",
@@ -95,7 +95,7 @@
 					"criterion2": {
 						"name": "rated-power",
 					    "operation": 20.0,
-						"operation_type": ["status", "HeatCommand1"]
+						"operation_type": ["status", "HeatingCommand1"]
 						"minimum": 0,
 						"maximum":20.0
 					},
@@ -125,7 +125,7 @@
 					"criterion2": {
 						"name": "rated-power",
 						"operation": 20.0,
-						"operation_type": ["binary", "CoolingCommand1"],
+						"operation_type": ["binary", "HeatingCommand2"],
 						"minimum": 0,
 						"maximum": 20.0
 					},
@@ -195,5 +195,6 @@
 	"agent_id": "ahp",
 	"Demand Limit": 30.0,
 	"Curtailment Time": 15.0
+	"builing_criteria_matrix": ""
  }
 
