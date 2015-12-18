@@ -130,17 +130,17 @@ def historian(config_path, **kwargs):
                     # look at the topics that are stored in the database already
                     # to see if this topic has a value
                     topic_id = self.topic_map.get(topic, None)
-    
+
                     if topic_id is None:
                         _log.debug('Inserting topic: {}'.format(topic))
                         row  = self.insert_topic(topic)
                         topic_id = row[0]
                         self.topic_map[topic] = topic_id
                         _log.debug('TopicId: {} => {}'.format(topic_id, topic))
-                    
+
                     if self.insert_data(ts,topic_id, value):
                         real_published.append(x)
-                if len(real_published) > 0:            
+                if len(real_published) > 0:
                     if self.commit():
                         _log.debug('published {} data values'.format(len(to_publish_list)))
                         self.report_all_handled()
@@ -234,7 +234,12 @@ def historian(config_path, **kwargs):
             self.__connection = None
             self.__connect_params = connection['params']
             mongo_uri = "mongodb://{user}:{passwd}@{host}:{port}/{database}".format(**self.__connect_params)
-            self.__connection = pymongo.MongoClient(mongo_uri)
+            if 'replicaset' in self.__connect_params:
+                _log.debug('connecting to replicaset: {}'.format(self.__connect_params['replicaset']))
+                self.__connection = pymongo.MongoClient(mongo_uri,
+                    replicaset=self.__connect_params['replicaset'])
+            else:
+                self.__connection = pymongo.MongoClient(mongo_uri)
             if self.__connection == None:
                 _log.exception("Couldn't connect using specified configuration credentials")
                 self.core.stop()
