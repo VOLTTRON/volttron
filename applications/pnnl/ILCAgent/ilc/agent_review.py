@@ -303,21 +303,40 @@ def ahp(config_path, **kwargs):
     location['campus'] = config.get('campus')
     location['building'] = config.get('building')
     device_configs = config['devices']
-    agent_id = config.get('agent_id')
-    base_device = "devices/{campus}/{building}/".format(**location)
-    power_token = config.get('PowerMeter')
-    power_meter = power_token.get('device')
-    power_pt = power_token.get('point')
-    power_meter_path = ''.join([base_device, power_meter, '/', power_pt])
     all_devices = devices.keys()
-    devices_topic = (
-        base_device + '({})(/.*)?/all$'
-        .format('|'.join(re.escape(p) for p in all_devices)))
-    bld_pwr_topic = (
-        base_device + '({})(/.*)?/all$'
-        .format('|'.join(re.escape(p) for p in [power_meter])))
-    BUILDING_TOPIC = re.compile(bld_pwr_topic)
-    ALL_DEV = re.compile(devices_topic)
+    agent_id = config.get('agent_id')
+    base_device = "devices/{campus}/{building}/".format(campus=config.get('campus',''),
+                                                        building=config.get('building',''))
+                                                        
+    base_device_topic = topics.DEVICES_VALUE(campus=config.get('campus', ''), 
+                                            building=config.get('building', ''), 
+                                            unit=None,
+                                            path='',
+                                            point=None)
+                                                        
+    device_topic_list = []
+    device_topic_map = {}
+    for device_name in all_devices:
+        device_topic = topics.DEVICES_VALUE(campus=config.get('campus', ''), 
+                                            building=config.get('building', ''), 
+                                            unit=device_name,
+                                            path='',
+                                            point='all')
+        device_topic_list.append(device_topic)
+        device_topic_map[device_topic] = device_name
+    
+    power_token = config['PowerMeter']
+    power_meter = power_token['device']
+    power_pt = power_token['point']
+    power_meter_topic = topics.DEVICES_VALUE(campus=config.get('campus', ''), 
+                                            building=config.get('building', ''), 
+                                            unit=power_meter,
+                                            path='',
+                                            point=power_pt)
+    
+    
+    
+
     demand_limit = float(config.get("Demand Limit"))
     curtail_time = float(config.get("Curtailment Time", 15.0))
     
@@ -360,7 +379,7 @@ def ahp(config_path, **kwargs):
                 _log.info('Inconsistent criteria matrix. Check configuration '
                           'in ahp.xls file')
                 # TODO:  MORE USEFULT MESSAGE TO DEAL WITH
-                # INCONSISTENT CONFIGURATION
+                # INCONSISTENT CONFIGURATIONl
                 sys.exit()
 
         @Core.receiver("onstart")
@@ -373,17 +392,14 @@ def ahp(config_path, **kwargs):
             driver_prefix = topics.DRIVER_TOPIC_BASE
             _log.debug("subscribing to {}".format(driver_prefix))
 
+            for device_topic in device_topic_list:
+                self.vip.pubsub.subscribe(peer='pubsub',
+                                          prefix=device_topic,
+                                          callback=self.new_data)
+                                          
             self.vip.pubsub.subscribe(peer='pubsub',
-                                      prefix=driver_prefix,
-                                      callback=self.new_data)
-
-        def extract_config(self, device, conf_token, config_section):
-            try:
-                return config_section.get(conf_token)
-            except AttributeError:
-                raise Exception('{} section of configuration file '
-                                'for {} is mis-configured.'.format(conf_token,
-                                                                   device))
+                                      prefix=power_meter_topic,
+                                      callback=self.check_load)
 
         def new_data(self, peer, sender, bus, topic, headers, message):
             '''Generate static configuration inputs for
@@ -391,29 +407,47 @@ def ahp(config_path, **kwargs):
             priority calculation.
             '''
             _log.info('Data Received')
-            if ALL_DEV.match(topic):
-                # topic of form:  devices/campus/building/device
-                device = topic.split('/')[3]
-                device_data = jsonapi.loads(message[0])
-                if isinstance(device_data, list):
-                    device_data = device_data[0]
-                device_config = self.extract_config(device,
-                                                    device,
-                                                    static_config)
-                point_list = self.extract_config(device,
-                                                 'points',
-                                                 device_config)
-                data = history_data(device, device_data, point_list)
-                self.data_trender.new_data(key, point_list, data)
+            
+            # topic of form:  devices/campus/building/device
+            device = device_topic_map[topic]
+            
+            data = message[0]
+            devices[device].ingest_data(data)
+                
+            
+                
+                
+        def check_load(self, peer, sender, bus, topic, headers, message):
+            '''Check whole building power and if the value is above the
+
+            the demand limit (demand_limit) then initiate the AHP sequence.
+            '''
+            
+            if self.running_ahp:
                 return
+            
+            _log.debug('Reading building power data.')
+            
+            bldg_power = float(message[0])
+            
+            if bldg_power > demand_limit:
+                self.bldg_power = bldg_power
+                self.running_ahp = True
+                self.device_status()
+                if not self.builder:
+                    _log.info('All devices are off, nothing to curtail.')
+                    return
+                input_arr = input_matrix(self.builder, self.crit_labels)
+                scores, score_order = build_score(input_arr, self.row_average)
+                ctrl_dev = self.actuator_request(score_order)
+                self.remaining_device = deepcopy(ctrl_dev)
+                self.curtail(ctrl_dev, scores, score_order)
+                
             if self.transition:
                 return
-            if BUILDING_TOPIC.match(topic) and not self.running_ahp:
-                _log.debug('Reading building power data.')
-                self.check_load(message)
             # TODO: Update below to verify on/off status
             if device not in self.off_dev.keys():
-                return
+                return        
 
         def device_status(self, check_only=False):
             '''Query Actuator agent for current state of pertinent points on
@@ -545,25 +579,7 @@ def ahp(config_path, **kwargs):
                     continue
             self.builder[dev_key]['no_curtailed'] = self.no_curtailed[dev_key]
 
-        def check_load(self, message):
-            '''Check whole building power and if the value is above the
-
-            the demand limit (demand_limit) then initiate the AHP sequence.
-            '''
-            obj = jsonapi.loads(message[0])
-            bldg_power = float(obj[power_pt])
-            if bldg_power > demand_limit:
-                self.bldg_power = bldg_power
-                self.running_ahp = True
-                self.device_status()
-                if not self.builder:
-                    _log.info('All devices are off, nothing to curtail.')
-                    return
-                input_arr = input_matrix(self.builder, self.crit_labels)
-                scores, score_order = build_score(input_arr, self.row_average)
-                ctrl_dev = self.actuator_request(score_order)
-                self.remaining_device = deepcopy(ctrl_dev)
-                self.curtail(ctrl_dev, scores, score_order)
+        
 
         def actuator_request(self, score_order):
             '''request access to devices.'''
@@ -615,7 +631,7 @@ def ahp(config_path, **kwargs):
         def curtail_confirm(self):
             '''Check if load shed goal is met.'''
             cur_pwr = self.vip.rpc.call('platform.actuator', 'get_point',
-                                        power_meter_path).get(timeout=10)
+                                        power_meter_topic).get(timeout=10)
             self.transition = False
             saved_off = deepcopy(self.off_dev)
             if cur_pwr < demand_limit:
