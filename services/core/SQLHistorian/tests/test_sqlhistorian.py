@@ -360,7 +360,6 @@ def test_exact_timestamp(volttron_instance1, sqlhistorian, clean):
 
     gevent.sleep(5)
 
-    pytest.set_trace()
     # Query the historian
     result = publish_agent.vip.rpc.call('platform.historian',
                                         'query',
@@ -508,7 +507,7 @@ def test_topic_name_case_change(volttron_instance1, sqlhistorian, clean):
     # Publish messages
     publish_agent.vip.pubsub.publish(
             'pubsub', ALL_TOPIC, headers, all_message).get(timeout=10)
-    pytest.set_trace()
+    
     # Query the historian
     result = publish_agent.vip.rpc.call('platform.historian',
                                         'query',

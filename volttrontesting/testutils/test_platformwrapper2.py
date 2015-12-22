@@ -26,7 +26,7 @@ def test_can_cleanup_installed_listener():
     started = wrapper.start_agent(auuid)
     assert isinstance(started[0], int)
     assert psutil.pid_exists(started[0])
-    #pytest.set_trace()
+    
     wrapper.shutdown_platform()
     # give operating system enough time to update pids.
     gevent.sleep(0.1)
