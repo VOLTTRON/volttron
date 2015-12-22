@@ -1,16 +1,17 @@
 import gevent
 import pytest
 import time
+import warnings
 
 from volttrontesting.utils.platformwrapper import PlatformWrapper
 from volttron.platform.vip.agent import Agent, PubSub, Core
 
-@pytest.mark.dev
+@pytest.mark.wrapper
 def test_can_cleanup_installed_listener():
     try:
         import psutil
     except:
-        pytest.warning('No psutil module present for this test')
+        warnings.warn('No psutil module present for this test')
         return
     wrapper = PlatformWrapper()
     address="tcp://127.0.0.1:4848"
@@ -25,8 +26,8 @@ def test_can_cleanup_installed_listener():
     started = wrapper.start_agent(auuid)
     assert isinstance(started[0], int)
     assert psutil.pid_exists(started[0])
-
     #pytest.set_trace()
     wrapper.shutdown_platform()
-    gevent.sleep(.5)
+    # give operating system enough time to update pids.
+    gevent.sleep(0.1)
     assert not psutil.pid_exists(started[0])

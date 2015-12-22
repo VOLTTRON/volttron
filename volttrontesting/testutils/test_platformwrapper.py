@@ -4,6 +4,7 @@ import time
 
 from volttron.platform.vip.agent import Agent, PubSub, Core
 
+@pytest.mark.wrapper
 def test_can_connect_to_instance(volttron_instance1):
     assert volttron_instance1 is not None
     assert volttron_instance1.is_running()
@@ -14,6 +15,7 @@ def test_can_connect_to_instance(volttron_instance1):
     agent.core.stop()
     assert response[0] == message
 
+@pytest.mark.wrapper
 def test_can_install_listener(volttron_instance1):
     vi = volttron_instance1
     assert vi is not None
@@ -40,6 +42,7 @@ def test_can_install_listener(volttron_instance1):
     removed = vi.remove_agent(auuid)
     print('REMOVED: ', removed)
 
+@pytest.mark.wrapper
 def test_can_ping_pubsub(volttron_instance1):
     vi = volttron_instance1
     agent = vi.build_agent()
@@ -52,6 +55,7 @@ messages = {}
 def onmessage(peer, sender, bus, topic, headers, message):
     messages[topic] = message
 
+@pytest.mark.wrapper
 def test_can_publish(volttron_instance1):
     global messages
     vi = volttron_instance1
