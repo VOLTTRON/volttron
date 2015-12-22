@@ -3,13 +3,28 @@ import json
 import pytest
 from volttrontesting.utils.platformwrapper import PlatformWrapper
 
+def get_rand_port():
+    from random import randint
+    port = randint(5000, 6000)
+    while is_port_open(port):
+        port = randint(5000, 6000)
+    return port
+
+def is_port_open(port):
+    import socket
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    result = sock.connect_ex(('127.0.0.1',port))
+    return result == 0
+
 @pytest.fixture(scope="module")
 def instance1_config():
-    return {"vip-address": "tcp://127.0.0.1:22916"}
+    port = get_rand_port()
+    return {"vip-address": "tcp://127.0.0.1:{}".format(port)}
 
 @pytest.fixture(scope="module")
 def instance2_config():
-    return {"vip-address": "tcp://127.0.0.2:22916"}
+    port = get_rand_port()
+    return {"vip-address": "tcp://127.0.0.1:{}".format(port)}
 
 def build_wrapper(vip_address, **kwargs):
     wrapper = PlatformWrapper()
