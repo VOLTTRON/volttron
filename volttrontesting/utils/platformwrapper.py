@@ -15,12 +15,14 @@ from StringIO import StringIO
 import zmq
 import gevent
 
+from volttron.platform.messaging import topics
 from volttron.platform.main import start_volttron_process
 from volttron.platform.vip.agent import Agent
 from volttron.platform.aip import AIPplatform
 #from volttron.platform.control import client, server
 from volttron.platform import packaging
 
+_log = logging.getLogger(__name__)
 
 RESTRICTED_AVAILABLE = False
 
@@ -113,9 +115,10 @@ class PlatformWrapper:
 
         self._p_process = None
         self._t_process = None
+        self._started_pids = []
 
     def build_agent(self, address=None, should_spawn=True):
-        print('BUILD GENERIC AGENT')
+        _log.debug('BUILD GENERIC AGENT')
         if address == None:
             print('VIP ADDRESS ', self.vip_address[0])
             address = self.vip_address[0]
@@ -340,7 +343,10 @@ class PlatformWrapper:
     def start_agent(self, agent_uuid):
         aip = self._aip()
         aip.start_agent(agent_uuid)
-        return aip.agent_status(agent_uuid)
+        status = aip.agent_status(agent_uuid)
+        assert isinstance(status[0], int)
+        self._started_pids.append(status[0])
+        return status
 
 
     def stop_agent(self, agent_uuid):
@@ -440,15 +446,23 @@ class PlatformWrapper:
 
 
     def shutdown_platform(self, cleanup=True):
-        '''Stop platform here'''
+        '''Stop platform here
+
+           This function will shutdown the platform and attempt to kill any
+           process that the platformwrapper has started.
+        '''
         if self._p_process != None:
-            print('Terminating platform!')
-            try:
-                self._p_process.terminate()
-            except Exception as exp:
-                print(exp.strerror)
+            import signal
+            while self._started_pids:
+                pid = self._started_pids.pop()
+                try:
+                    os.kill(pid,signal.SIGTERM)
+                except:
+                    print('could not kill: {} '.format(pid))
         else:
             print "platform process was null"
+
+
 
         if self.use_twistd and self._t_process != None:
             self._t_process.kill()
