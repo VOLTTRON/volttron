@@ -114,13 +114,13 @@ class PlatformWrapper:
         self._p_process = None
         self._t_process = None
 
-    def build_agent(self, address=None, should_spawn=True):
+    def build_agent(self, address=None, should_spawn=True, identity=None):
         print('BUILD GENERIC AGENT')
         if address == None:
             print('VIP ADDRESS ', self.vip_address[0])
             address = self.vip_address[0]
 
-        agent = Agent(address=address)
+        agent = Agent(address=address, identity=identity)
         if should_spawn:
             print('SPAWNING GENERIC AGENT')
             event = gevent.event.Event()
