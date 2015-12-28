@@ -57,6 +57,7 @@ from __future__ import absolute_import, print_function
 import datetime
 import logging
 import sys
+import dateutil
 import pymongo
 
 import gevent
@@ -178,9 +179,9 @@ def historian(config_path, **kwargs):
             if order == 'LAST_TO_FIRST':
                 order_by = -1
             if start is not None:
-                start = datetime.datetime(2000, 1, 1, 0, 0, 0)
+                start = datetime.datetime(2000, 1, 1)
             if end is not None:
-                end = datetime.datetime(3000, 1, 1, 0, 0, 0)
+                end = datetime.datetime(3000, 1, 1)
             if count is None:
                 count = 100
             skip_count = 0
@@ -190,9 +191,19 @@ def historian(config_path, **kwargs):
             cursor = db["data"].find({
                         "topic_id": id_,
                         "ts": { "$gte": start, "$lte": end},
-                    }).skip(skip_count).limit(count).sort( { "ts": order_by } )
-
-            values = [(document.ts.isoformat(), document.value) for document in cursor]
+                    }).skip(skip_count).limit(count).sort( [ ("ts", order_by) ] )
+            #TODO: confirm w/ Mongo users what ouput format they 'd like to use
+            #Output as array of tuples.
+            # Each includes hourly timestamp and a dict of min from 0 to 60[(ts, {'0':15,...}),..]
+            values = [(document.get("ts").isoformat(), document.get("values")) for document in cursor]
+            #Output as array of tuples.
+            #  Each includes timestamp and 1 value [(ts,15),(ts2,1),...].
+            # for document in cursor:
+            #     out = document.get("values")
+            #     ts = document.get("ts")
+            #     for key, value in out.iteritems():
+            #         if value >= 0:
+            #             values.append(((ts + datetime.timedelta(minutes=int(key))).isoformat(), value))
 
             return {'values': values}
 
@@ -204,13 +215,45 @@ def historian(config_path, **kwargs):
             return True
 
         def insert_data(self, ts, topic_id, data):
+            #set and setOnInsert don't work on 1 document at the same time
+            #db.ts.update({x:4},{
+            #   $set: {"values.59": 737},
+            #   $setOnInsert: {"values": {"0": -1.0, "1": -1.0}}},
+            # {upsert: true})
+            #throws "Cannot update 'values.59' and 'values' at the same time"
             if self.__connection is None:
                 return False
             db = self.__connection[self.__connect_params["database"]]
-            id_ = db["data"].insert({
-                "ts": ts,
-                "topic_id": topic_id,
-                "value": data})
+            #
+            new_dt = datetime.datetime(ts.year, ts.month, ts.day, hour=ts.hour, tzinfo=ts.tzinfo)
+            count = db["data"].find({
+                        "topic_id": topic_id,
+                        "ts": new_dt,
+                    }).count()
+
+            if count==0:
+                init_values = {str(key): -1.0 for key in xrange(0,60)}
+                init_values[str(ts.minute)] = data
+                id_ = db["data"].insert({
+                            "ts": new_dt,
+                            "topic_id": topic_id,
+                            "num_samples": 1,
+                            "sum_samples": data,
+                            "values": init_values
+                        })
+            else:
+                db["data"].update(
+                        {
+                            "topic_id": topic_id,
+                            "ts": new_dt,
+                        },
+                        {
+                            "$set": {"values." + str(ts.minute): data },
+                            "$inc": {"num_samples": 1, "sum_samples": data }
+                        }, True)
+
+
+
 
             return True
 
