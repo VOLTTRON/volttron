@@ -93,11 +93,11 @@ class MySqlFuncts(DbDriver):
         args = [topic]
 
         if start is not None:
-            where_clauses.append("data.ts > %s")
+            where_clauses.append("data.ts >= %s")
             args.append(start)
 
         if end is not None:
-            where_clauses.append("data.ts < %s")
+            where_clauses.append("data.ts <= %s")
             args.append(end)
 
         where_statement = ' AND '.join(where_clauses)
@@ -130,7 +130,7 @@ class MySqlFuncts(DbDriver):
         _log.debug("Real Query: " + real_query)
         _log.debug("args: "+str(args))
 
-        rows = self.select(real_query)
+        rows = self.select(real_query,args)
         
         if rows:
             values = [(ts.isoformat(), jsonapi.loads(value)) for ts, value in rows]
