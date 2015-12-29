@@ -143,12 +143,18 @@ class SqlLiteFuncts(DbDriver):
         args = [topic]
 
         if start is not None:
-            where_clauses.append("data.ts > ?")
-            args.append(start)
+            start_str=start.isoformat(' ')
+            where_clauses.append("data.ts >= ?")
+            if start_str[-6:] != "+00:00":
+                start_str = start_str + "+00:00"
+            args.append(start_str)
 
         if end is not None:
-            where_clauses.append("data.ts < ?")
-            args.append(end)
+            end_str = end.isoformat(' ')
+            where_clauses.append("data.ts <= ?")
+            if end_str[-6:] != "+00:00":
+                end_str = end_str + "+00:00"
+            args.append(end_str)
 
         where_statement = ' AND '.join(where_clauses)
 
