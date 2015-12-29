@@ -232,7 +232,7 @@ def historian(config_path, **kwargs):
                     }).count()
 
             if count==0:
-                init_values = {str(key): -1.0 for key in xrange(0,60)}
+                init_values = {str(key): None for key in xrange(0,60)}
                 init_values[str(ts.minute)] = data
                 id_ = db["data"].insert({
                             "ts": new_dt,
