@@ -195,16 +195,24 @@ def historian(config_path, **kwargs):
             #TODO: confirm w/ Mongo users what ouput format they 'd like to use
             #Output as array of tuples.
             # Each includes hourly timestamp and a dict of min from 0 to 60[(ts, {'0':15,...}),..]
-            values = [(document.get("ts").isoformat(), document.get("values")) for document in cursor]
+            #values = [(document.get("ts").isoformat(), document.get("values")) for document in cursor]
             #Output as array of tuples.
+            values = []
+            #v1: dictionary values
             #  Each includes timestamp and 1 value [(ts,15),(ts2,1),...].
             # for document in cursor:
             #     out = document.get("values")
             #     ts = document.get("ts")
             #     for key, value in out.iteritems():
-            #         if value >= 0:
+            #         if value is not None:
             #             values.append(((ts + datetime.timedelta(minutes=int(key))).isoformat(), value))
-
+            #v2: array values
+            for document in cursor:
+                out = document.get("values")
+                ts = document.get("ts")
+                for idx, value in enumerate(out):
+                    if value is not None:
+                        values.append(((ts + datetime.timedelta(minutes=idx)).isoformat(), value))
             return {'values': values}
 
         #TODO: see if Mongodb has commit and rollback (or something equivalent)
@@ -232,8 +240,9 @@ def historian(config_path, **kwargs):
                     }).count()
 
             if count==0:
-                init_values = {str(key): None for key in xrange(0,60)}
-                init_values[str(ts.minute)] = data
+                #init_values = {str(key): None for key in xrange(0,60)}
+                init_values = [None for i in xrange(0,60)]
+                init_values[ts.minute] = data
                 id_ = db["data"].insert({
                             "ts": new_dt,
                             "topic_id": topic_id,
@@ -251,9 +260,6 @@ def historian(config_path, **kwargs):
                             "$set": {"values." + str(ts.minute): data },
                             "$inc": {"num_samples": 1, "sum_samples": data }
                         }, True)
-
-
-
 
             return True
 
