@@ -1,8 +1,10 @@
+import ConfigParser as configparser
 import json
 import os
 import shutil
 import logging
-from multiprocessing import Process
+import gevent.subprocess as subprocess
+from gevent.subprocess import Popen
 import sys
 import time
 import tempfile
@@ -116,6 +118,7 @@ class PlatformWrapper:
         self._p_process = None
         self._t_process = None
         self._started_pids = []
+        print('Creating Platform Wrapper at: {}'.format(self.volttron_home))
 
     def build_agent(self, address=None, should_spawn=True):
         _log.debug('BUILD GENERIC AGENT')
@@ -123,14 +126,19 @@ class PlatformWrapper:
             print('VIP ADDRESS ', self.vip_address[0])
             address = self.vip_address[0]
 
+        print('ADDRESS: ', address)
         agent = Agent(address=address)
         if should_spawn:
             print('SPAWNING GENERIC AGENT')
             event = gevent.event.Event()
-            gevent.spawn(agent.core.run, event)
-            event.wait()
+            gevent.spawn(agent.core.run, event)#.join(0)
+            #h = agent.vip.hello().get(timeout=2)
+            print('After spawn')
+            event.wait(timeout=2)
+            print('After event')
             #gevent.spawn(agent.core.run)
             #gevent.sleep(0)
+        print('Before returning agent.')
         return agent
 
     def startup_platform(self, vip_address, auth_dict=None, use_twistd=False,
@@ -145,8 +153,7 @@ class PlatformWrapper:
 
         assert self.mode in MODES, 'Invalid platform mode set: '+str(mode)
         opts = None
-        pconfig = os.path.join(self.volttron_home, 'config')
-        config = {}
+
         # see main.py for how we handle pub sub addresses.
         ipc = 'ipc://{}{}/run/'.format(
             '@' if sys.platform.startswith('linux') else '',
@@ -170,13 +177,21 @@ class PlatformWrapper:
                 'log_level': logging.DEBUG,
                 'verboseness': logging.DEBUG}
 
+        pconfig = os.path.join(self.volttron_home, 'config')
+        config = {}
+
+        parser =  configparser.ConfigParser()
+        parser.add_section('volttron')
+        parser.set('volttron', 'vip-address', vip_address)
+
         if self.mode == UNRESTRICTED:
             if RESTRICTED_AVAILABLE:
                 config['mobility'] = False
                 config['resource-monitor'] = False
                 config['verify'] = False
-            with closing(open(pconfig, 'w')) as cfg:
+            with closing(open(pconfig, 'wb')) as cfg:
                 cfg.write(PLATFORM_CONFIG_UNRESTRICTED.format(**config))
+                parser.write(cfg)
 
 
         elif self.mode == RESTRICTED:
@@ -190,7 +205,7 @@ class PlatformWrapper:
             self.certsobj = certs.Certs(certsdir)
 
 
-            with closing(open(pconfig, 'w')) as cfg:
+            with closing(open(pconfig, 'wb')) as cfg:
                 cfg.write(PLATFORM_CONFIG_RESTRICTED.format(**config))
             opts = type('Options', (), {'resource-monitor':False,
                                         'verify_agents': True,
@@ -198,14 +213,22 @@ class PlatformWrapper:
         else:
             raise PlatformWrapperError("Invalid platform mode specified: {}".format(mode))
 
-        print('OPTS: ')
-        print(opts)
-        # Set up the environment for the process to run in.
-        os.environ['VOLTTRON_HOME'] = self.opts['volttron_home']
-        self._p_process = Process(target=start_volttron_process, args=(self.opts,))
-        self._p_process.daemon = True
-        self._p_process.start()
+        log = os.path.join(self.env['VOLTTRON_HOME'], 'volttron.log')
+        self._p_process = Popen(['volttron', '-vv', '-l{}'.format(log),
+            '--developer-mode'],
+            env=self.env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
+        assert self._p_process is not None
+        # A None value means that the process is still running.
+        # A negative means that the process exited with an error.
+        assert self._p_process.poll() is None
+
+        #os.environ['VOLTTRON_HOME'] = self.opts['volttron_home']
+        #self._p_process = Process(target=start_volttron_process, args=(self.opts,))
+        #self._p_process.daemon = True
+        #self._p_process.start()
+
+        gevent.sleep()
         self.use_twistd = use_twistd
 
         #TODO: Revise this to start twistd with platform.
@@ -220,9 +243,8 @@ class PlatformWrapper:
             time.sleep(5)
         #self._t_process = subprocess.Popen(["twistd", "-n", "smap", "test-smap.ini"])
 
-
     def is_running(self):
-        return self._p_process is not None
+        return self._p_process is not None and self._p_process.poll() is None
 
     def twistd_is_running(self):
         return self._t_process is not None
@@ -284,11 +306,12 @@ class PlatformWrapper:
         auuid = aip.install_agent(wheel_file)
         assert auuid is not None
         if start:
-            aip.start_agent(auuid)
-            status = aip.agent_status(auuid)
+            print('STARTING', wheel_file)
+            status = self.start_agent(auuid)
+            #aip.start_agent(auuid)
+            #status = aip.agent_status(auuid)
             print('STATUS NOW:', status)
-            assert len(status) == 2
-            assert status[0] > 0
+            assert status > 0
 
         return auuid
 
@@ -341,12 +364,21 @@ class PlatformWrapper:
         return agent_uuid
 
     def start_agent(self, agent_uuid):
-        aip = self._aip()
-        aip.start_agent(agent_uuid)
-        status = aip.agent_status(agent_uuid)
-        assert isinstance(status[0], int)
-        self._started_pids.append(status[0])
-        return status
+        print('Starting agent {}'.format(agent_uuid))
+        cmd = ['volttron-ctl', 'start', agent_uuid]
+        p = Popen(cmd, env=self.env)
+        p.wait()
+
+        # Confirm agent running
+        cmd = ['volttron-ctl', 'status', agent_uuid]
+        res = subprocess.check_output(cmd, env=self.env)
+        assert 'running' in res
+        pidpos = res.index('[') + 1
+        pidend = res.index(']')
+        pid = int(res[pidpos: pidend])
+
+        self._started_pids.append(pid)
+        return int(pid)
 
 
     def stop_agent(self, agent_uuid):
@@ -451,14 +483,20 @@ class PlatformWrapper:
            This function will shutdown the platform and attempt to kill any
            process that the platformwrapper has started.
         '''
+        import signal
+        print('shutting down platform: PIDS: {}'.format(self._started_pids))
+        while self._started_pids:
+            pid = self._started_pids.pop()
+            print('ending pid: {}'.format(pid))
+            try:
+                os.kill(pid,signal.SIGTERM)
+            except:
+                print('could not kill: {} '.format(pid))
         if self._p_process != None:
-            import signal
-            while self._started_pids:
-                pid = self._started_pids.pop()
-                try:
-                    os.kill(pid,signal.SIGTERM)
-                except:
-                    print('could not kill: {} '.format(pid))
+
+            gevent.sleep()
+            self._p_process.terminate()
+            gevent.sleep()
         else:
             print "platform process was null"
 

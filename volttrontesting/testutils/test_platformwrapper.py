@@ -28,13 +28,16 @@ def test_can_install_listener(volttron_instance1):
     print('STARTED: ', started)
     listening = vi.build_agent()
     listening.vip.pubsub.subscribe(peer='pubsub',
-        prefix='heartbeat/listeneragent', callback=onmessage).get(timeout=5)
+        prefix='heartbeat/listeneragent', callback=onmessage)
     # sleep for 10 seconds and at least one heartbeat should have been published
     # because it's set to 5 seconds.
-    time_start = time.clock()
+    time_start = time.time()
+
+    print('Awaiting heartbeat response.')
     while not 'heartbeat/listeneragent' in messages.keys() and \
-        time_start < time.clock() + 10:
+        time.time() < time_start + 10:
         gevent.sleep(0.2)
+
     assert 'heartbeat/listeneragent' in messages.keys()
 
     stopped = vi.stop_agent(auuid)
@@ -73,15 +76,12 @@ def test_can_publish(volttron_instance1):
     gevent.sleep(0.1)
     assert messages['test/world'] == 'got data'
 
-#
-# def test_can_ping_router(volttron_instance1):
-#     vi = volttron_instance1
-#     agent = vi.build_agent()
-#     resp = agent.vip.ping('', 'router?').get(timeout=4)
-#     #resp = agent.vip.hello().get(timeout=1)
-#     print("HELLO RESPONSE!",resp)
-
-
+def test_can_ping_router(volttron_instance1):
+    vi = volttron_instance1
+    agent = vi.build_agent()
+    resp = agent.vip.ping('', 'router?').get(timeout=4)
+    #resp = agent.vip.hello().get(timeout=1)
+    print("HELLO RESPONSE!",resp)
 
 # def test_can_ping_control(volttron_instance2):
 #     agent = volttron_instance2.build_agent()
