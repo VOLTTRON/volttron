@@ -51,12 +51,12 @@ mysql_platform = {
 
 db_connection = None
 publish_agent = None
-
+agent_uuid = None
 
 # Fixtures for setup and teardown
 @pytest.fixture(scope="module", params=[mysql_platform,sqlite_platform])
 def sqlhistorian(request, volttron_instance1):
-    global db_connection, publish_agent
+    global db_connection, publish_agent, agent_uuid
     print("** Setting up test_sqlhistorian module **")
     # Make database connection
     print("request param", request.param)
@@ -67,6 +67,7 @@ def sqlhistorian(request, volttron_instance1):
             config_file=request.param,
             start=True)
     gevent.sleep(1)
+    print("agent id: ", agent_uuid)
     if request.param['connection']['type'] == "sqlite":
         connect_sqlite(agent_uuid, request, volttron_instance1)
     elif request.param['connection']['type'] == "mysql":
@@ -86,6 +87,8 @@ def sqlhistorian(request, volttron_instance1):
             print("closed connection to db")
 
         volttron_instance1.stop_agent(agent_uuid)
+        #volttron_instance1.remove_agent(agent_uuid)
+
         publish_agent.core.stop()
 
     request.addfinalizer(stop_agent)
@@ -142,25 +145,15 @@ def connect_sqlite(agent_uuid, request, volttron_instance1):
 
 @pytest.fixture()
 def clean(request,sqlhistorian):
-    def delete_sqlite_rows():
+    def delete_rows():
         global db_connection
-        print("delete test records")
         cursor = db_connection.cursor()
         cursor.execute("DELETE FROM data")
         # cursor.execute("DELETE FROM topics;")
         db_connection.commit()
+        print("deleted test records")
 
-    def delete_mysql_rows():
-        global db_connection
-        print("delete test records")
-        cursor = db_connection.cursor()
-        cursor.execute("TRUNCATE TABLE data")
-        # cursor.execute("DELETE FROM topics;")
-        db_connection.commit()
-    if sqlhistorian['connection']['type'] == 'sqlite':
-        request.addfinalizer(delete_sqlite_rows)
-    elif sqlhistorian['connection']['type'] == 'mysql':
-        request.addfinalizer(delete_mysql_rows)
+    request.addfinalizer(delete_rows)
 
 @pytest.mark.dev
 def test_basic_function(volttron_instance1, sqlhistorian, clean):
@@ -171,9 +164,10 @@ def test_basic_function(volttron_instance1, sqlhistorian, clean):
     :param sqlhistorian: instance of the sql historian tested
     :param clean: teardown function
     """
-    global publish_agent, query_points, ALL_TOPIC
+    global publish_agent, query_points, ALL_TOPIC,db_connection
     # print('HOME', volttron_instance1.volttron_home)
     print("\n** test_basic_function **")
+
     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
     # Make some random readings
     oat_reading = random.uniform(30, 100)
@@ -207,8 +201,36 @@ def test_basic_function(volttron_instance1, sqlhistorian, clean):
                                         'query',
                                         topic=query_points['oat_point'],
                                         count=20,
-                                        order="LAST_TO_FIRST").get(timeout=10)
+                                        order="LAST_TO_FIRST").get(timeout=100)
     print('Query Result', result)
+
+    # FOR DEBUG - START
+    cursor = db_connection.cursor()
+    cursor.execute(
+            "SELECT ts FROM data")
+    rows = cursor.fetchall()
+    print("select query result1: " , rows)
+    if sqlhistorian['connection']['type'] == 'mysql':
+        new_connection = mysql.connect(**sqlhistorian['connection']['params'])
+        newcur = new_connection.cursor()
+        newcur.execute("SELECT ts from data")
+        new_rows = newcur.fetchall()
+        print("select query result2: " , new_rows)
+        new_connection.close()
+    else:
+        from os import path
+        db_name = sqlhistorian['connection']['params']['database']
+        database_path = path.join(volttron_instance1.volttron_home,
+                              'agents', agent_uuid,
+                              'sqlhistorianagent-3.0.1/sqlhistorianagent-3.0.1.agent-data/data',
+                              db_name)
+        new_connection = sqlite3.connect(database_path)
+        newcur = new_connection.cursor()
+        newcur.execute("SELECT ts from data")
+        new_rows = newcur.fetchall()
+        print("select query result2: " , new_rows)
+        new_connection.close()
+    # FOR DEBUG END
     assert (len(result['values']) == 1)
     (now_date, now_time) = now.split(" ")
     assert (result['values'][0][0] == now_date + 'T' + now_time)
@@ -420,7 +442,7 @@ def test_query_start_time_with_z(volttron_instance1, sqlhistorian, clean):
     assert (result['values'][0][1] == oat_reading)
 
 
-@pytest.mark.historian
+@pytest.mark.dev
 def test_query_end_time(volttron_instance1, sqlhistorian, clean):
     """
     Test query based on end time alone. Expected result record with timestamp<= end time
@@ -428,9 +450,10 @@ def test_query_end_time(volttron_instance1, sqlhistorian, clean):
     :param sqlhistorian: instance of the sql historian tested
     :param clean: teardown function
     """
-    global publish_agent, query_points, ALL_TOPIC
+    global publish_agent, query_points, ALL_TOPIC, db_connection,agent_uuid
     # print('HOME', volttron_instance1.volttron_home)
     print("\n** test_query_end_time **")
+
     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
     # Make some random readings
     oat_reading = random.uniform(30, 100)
@@ -469,10 +492,39 @@ def test_query_end_time(volttron_instance1, sqlhistorian, clean):
                                         topic=query_points['mixed_point'],
                                         end=time2,
                                         count=20,
-                                        order="FIRST_TO_LAST").get(timeout=10)
+                                        order="FIRST_TO_LAST").get(timeout=100)
     print ("time1:", time1)
     print ("time2:", time2)
     print('Query Result', result)
+
+    # FOR DEBUG - START
+    cursor = db_connection.cursor()
+    cursor.execute(
+            "SELECT ts FROM data")
+    rows = cursor.fetchall()
+    print("select query result1: " , rows)
+
+    if sqlhistorian['connection']['type'] == 'mysql':
+        new_connection = mysql.connect(**sqlhistorian['connection']['params'])
+        newcur = new_connection.cursor()
+        newcur.execute("SELECT ts from data")
+        new_rows = newcur.fetchall()
+        print("select query result2: " , new_rows)
+        new_connection.close()
+    else:
+        from os import path
+        db_name = sqlhistorian['connection']['params']['database']
+        database_path = path.join(volttron_instance1.volttron_home,
+                              'agents', agent_uuid,
+                              'sqlhistorianagent-3.0.1/sqlhistorianagent-3.0.1.agent-data/data',
+                              db_name)
+        new_connection = sqlite3.connect(database_path)
+        newcur = new_connection.cursor()
+        newcur.execute("SELECT ts from data")
+        new_rows = newcur.fetchall()
+        print("select query result2: " , new_rows)
+        new_connection.close()
+    # FOR DEBUG - END
     # pytest.set_trace()
     assert (len(result['values']) == 2)
     (time1_date, time1_time) = time1.split(" ")
