@@ -162,7 +162,7 @@ def clean(request,sqlhistorian):
     elif sqlhistorian['connection']['type'] == 'mysql':
         request.addfinalizer(delete_mysql_rows)
 
-@pytest.mark.historian
+@pytest.mark.dev
 def test_basic_function(volttron_instance1, sqlhistorian, clean):
     """
     Test basic functionality of sql historian. Inserts three points as part of all topic and checks
@@ -298,7 +298,6 @@ def test_exact_timestamp(volttron_instance1, sqlhistorian, clean):
 
 
 @pytest.mark.historian
-@pytest.mark.xfail
 def test_query_start_time(volttron_instance1, sqlhistorian, clean):
     """
     Test query based on start_time alone. Expected result record with timestamp>= start_time
@@ -401,8 +400,7 @@ def test_query_start_time_with_z(volttron_instance1, sqlhistorian, clean):
             'pubsub', ALL_TOPIC, headers, all_message).get(timeout=10)
 
     gevent.sleep(5)
-    # pytest.set_trace()
-    # pytest.set_trace()
+
     # Query the historian
     result = publish_agent.vip.rpc.call('platform.historian',
                                         'query',
@@ -423,7 +421,6 @@ def test_query_start_time_with_z(volttron_instance1, sqlhistorian, clean):
 
 
 @pytest.mark.historian
-@pytest.mark.xfail
 def test_query_end_time(volttron_instance1, sqlhistorian, clean):
     """
     Test query based on end time alone. Expected result record with timestamp<= end time
@@ -485,7 +482,6 @@ def test_query_end_time(volttron_instance1, sqlhistorian, clean):
 
 
 @pytest.mark.historian
-@pytest.mark.xfail
 def test_query_end_time_with_z(volttron_instance1, sqlhistorian, clean):
     """
     Test query based on end time alone. Expected result record with timestamp<= end time
@@ -549,7 +545,6 @@ def test_query_end_time_with_z(volttron_instance1, sqlhistorian, clean):
 
 
 @pytest.mark.historian
-@pytest.mark.xfail
 def test_zero_timestamp(volttron_instance1, sqlhistorian, clean):
     """
     Test query based with timestamp where time is 00:00:00. Test with and without Z at the end.
@@ -746,7 +741,7 @@ def test_invalid_query(volttron_instance1, sqlhistorian, clean):
                                    # topic=query_points['mixed_point'],
                                    start=now,
                                    count=20,
-                                   order="LAST_TO_FIRST").get(timeout=20)                           order="LAST_TO_FIRST").get(timeout=10)
+                                   order="LAST_TO_FIRST").get(timeout=10)
         assert '"Topic" required' in str(excinfo.value)
 
     with pytest.raises(Exception) as excinfo:
