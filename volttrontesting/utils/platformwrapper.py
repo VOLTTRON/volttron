@@ -507,8 +507,8 @@ class PlatformWrapper:
             self._t_process.wait()
         elif self.use_twistd:
             print "twistd process was null"
-        # if cleanup:
-        #     shutil.rmtree(self.volttron_home, ignore_errors=True)
+        if cleanup:
+            shutil.rmtree(self.volttron_home, ignore_errors=True)
 
 
 def mergetree(src, dst, symlinks=False, ignore=None):
