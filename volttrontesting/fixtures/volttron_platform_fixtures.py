@@ -37,8 +37,8 @@ def volttron_instance1(request, instance1_config):
     wrapper = build_wrapper(instance1_config['vip-address'])
 
     def cleanup():
+        print('Shutting down instance: {}'.format(wrapper.volttron_home))
         wrapper.shutdown_platform(True)
-        print('teardown instance 1')
     request.addfinalizer(cleanup)
     return wrapper
 
@@ -49,7 +49,7 @@ def volttron_instance2(request, instance2_config):
     wrapper = build_wrapper(instance2_config['vip-address'])
 
     def cleanup():
+        print('Shutting down instance: {}'.format(wrapper.volttron_home))
         wrapper.shutdown_platform(True)
-        print('teardown instance 2')
     request.addfinalizer(cleanup)
     return wrapper
