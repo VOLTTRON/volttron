@@ -58,8 +58,11 @@ agent_uuid = None
 
 # Fixtures for setup and teardown
 @pytest.fixture(scope="module",
-    params=[pytest.mark.skipif(not HAS_MYSQL_CONNECTOR)(mysql_platform),
-        sqlite_platform])
+    params=[
+        pytest.mark.skipif(not HAS_MYSQL_CONNECTOR,
+            reason='No mysql client available.')(mysql_platform),
+        sqlite_platform
+    ])
 def sqlhistorian(request, volttron_instance1):
     global db_connection, publish_agent, agent_uuid
     print("** Setting up test_sqlhistorian module **")
@@ -68,7 +71,7 @@ def sqlhistorian(request, volttron_instance1):
 
     # Install and start sqlhistorian agent
     agent_uuid = volttron_instance1.install_agent(
-            agent_dir="/home/velo/workspace/volttron/services/core/SQLHistorian",
+            agent_dir="services/core/SQLHistorian",
             config_file=request.param,
             start=True)
     gevent.sleep(1)
