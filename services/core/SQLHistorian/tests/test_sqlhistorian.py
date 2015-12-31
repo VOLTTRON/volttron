@@ -11,9 +11,12 @@ import gevent
 import random
 from volttron.platform.messaging import headers as headers_mod
 from datetime import datetime
-import mysql.connector as mysql
-from mysql.connector import errorcode
-
+try:
+    import mysql.connector as mysql
+    from mysql.connector import errorcode
+    HAS_MYSQL_CONNECTOR = True
+except:
+    HAS_MYSQL_CONNECTOR = False
 # Module level variables
 ALL_TOPIC = "devices/Building/LAB/Device/all"
 sqlite_platform = {
@@ -54,7 +57,9 @@ publish_agent = None
 agent_uuid = None
 
 # Fixtures for setup and teardown
-@pytest.fixture(scope="module", params=[mysql_platform,sqlite_platform])
+@pytest.fixture(scope="module",
+    params=[pytest.mark.skipif(not HAS_MYSQL_CONNECTOR)(mysql_platform),
+        sqlite_platform])
 def sqlhistorian(request, volttron_instance1):
     global db_connection, publish_agent, agent_uuid
     print("** Setting up test_sqlhistorian module **")
