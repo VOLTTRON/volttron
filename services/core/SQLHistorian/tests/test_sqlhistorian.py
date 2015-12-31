@@ -41,7 +41,7 @@ mysql_platform = {
     "agentid": "sqlhistorian-mysql",
     "identity": "platform.historian",
     "connection": {
-        "type": "mysql",
+        "type": "mysql2",
         "params": {
             "host": "localhost",
             "port": 3306,
@@ -60,8 +60,7 @@ agent_uuid = None
 @pytest.fixture(scope="module",
     params=[
         pytest.mark.skipif(not HAS_MYSQL_CONNECTOR,
-            reason='No mysql client available.')(mysql_platform),
-        sqlite_platform
+            reason='No mysql client available.')(mysql_platform),sqlite_platform
     ])
 def sqlhistorian(request, volttron_instance1):
     global db_connection, publish_agent, agent_uuid
@@ -69,25 +68,37 @@ def sqlhistorian(request, volttron_instance1):
     # Make database connection
     print("request param", request.param)
 
-    # Install and start sqlhistorian agent
-    agent_uuid = volttron_instance1.install_agent(
-            agent_dir="services/core/SQLHistorian",
-            config_file=request.param,
-            start=True)
-    gevent.sleep(1)
-    print("agent id: ", agent_uuid)
+    # 1: Install historian agent
+    try:
+        # Install and start sqlhistorian agent
+        agent_uuid = volttron_instance1.install_agent(
+                    agent_dir="/home/velo/workspace/volttron/services/core/SQLHistorian",
+                    config_file=request.param,
+                    start=True)
+        gevent.sleep(1)
+        print("agent id: ", agent_uuid)
+    except Exception as exception:
+        print("Exception installing/starting sqlhistorian agent of type " + request.param['connection']['type'] , exception)
+        pytest.skip(msg='Exception setting up test module: '+ exception.message)
+
+    # 2: Open db connection that can be used for row deletes after each test method
     if request.param['connection']['type'] == "sqlite":
         connect_sqlite(agent_uuid, request, volttron_instance1)
     elif request.param['connection']['type'] == "mysql":
         connect_mysql(request)
     else:
+        print("Invalid database type specified " + request.param['connection']['type'] )
         pytest.skip(msg="Invalid database type specified " + request.param['connection']['type'])
 
-    # Start a fake agent to publish to message bus
-    publish_agent = volttron_instance1.build_agent()
-    gevent.sleep(1)
+    # 3: Start a fake agent to publish to message bus
+    try:
+        publish_agent = volttron_instance1.build_agent()
+        gevent.sleep(1)
+    except Exception as exception:
+        print("Exception creating publish agent for test ")
+        pytest.skip(msg='Exception creating publish agent for test: '+ exception.message)
 
-    # add a tear down method to stop sqlhistorian agent and the fake agent that published to message bus
+    # 4: add a tear down method to stop sqlhistorian agent and the fake agent that published to message bus
     def stop_agent():
         print("In teardown method of module")
         if db_connection:
@@ -121,13 +132,13 @@ def connect_mysql(request):
         print("mysql tables created")
     except mysql.Error as err:
         if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
+            print("MySQL Connection error: Something is wrong with your user name or password")
             pytest.skip(msg="MySQL Connection error: Something is wrong with your user name or password")
         elif err.errno == errorcode.ER_BAD_DB_ERROR:
+            print("MySQL Connection error: Database does not exist")
             pytest.skip(msg="MySQL Connection error: Database does not exist")
-        elif err.errno == errorcode.ER_TABLE_EXISTS_ERROR:
-            print("Mysql tables already exists")
-            return
         else:
+            print("MySQL Connection error: " + err.msg)
             pytest.skip(msg="MySQL Connection error: " + err.msg)
 
 
@@ -140,7 +151,6 @@ def connect_sqlite(agent_uuid, request, volttron_instance1):
                               'sqlhistorianagent-3.0.1/sqlhistorianagent-3.0.1.agent-data/data',
                               db_name)
     print(database_path)
-    assert path.exists(database_path)
     try:
         print "connecting to sqlite path " + database_path
         db_connection = sqlite3.connect(database_path)
