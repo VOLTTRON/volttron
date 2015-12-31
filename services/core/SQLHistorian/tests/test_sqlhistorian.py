@@ -72,7 +72,7 @@ def sqlhistorian(request, volttron_instance1):
     try:
         # Install and start sqlhistorian agent
         agent_uuid = volttron_instance1.install_agent(
-                    agent_dir="/home/velo/workspace/volttron/services/core/SQLHistorian",
+                    agent_dir="services/core/SQLHistorian",
                     config_file=request.param,
                     start=True)
         gevent.sleep(1)
