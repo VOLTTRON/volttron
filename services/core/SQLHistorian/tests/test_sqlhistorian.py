@@ -45,7 +45,7 @@ mysql_platform = {
         "params": {
             "host": "localhost",
             "port": 3306,
-            "database": "historian",
+            "database": "test_historian",
             "user": "historian",
             "passwd": "historian"
         }

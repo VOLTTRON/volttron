@@ -11,6 +11,8 @@ If the above command doesn't work then you could use the following instead
 
 Notes for historians other than sqlite3.
 
+The mysql user must have READ, WRITE, UPDATE, and DElETE privileges.
+
 The tables in the sql database will not be created as part of the execution
 of the SQLHistorianAgent.  There is a mysql-create.sql script as well as
 a mysql-drop.sql script for your convenience.
