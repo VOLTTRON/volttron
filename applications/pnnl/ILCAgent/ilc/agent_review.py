@@ -382,7 +382,7 @@ def ahp(config_path, **kwargs):
                                           
             self.vip.pubsub.subscribe(peer='pubsub',
                                       prefix=power_meter_topic,
-                                      callback=self.check_load)
+                                      callback=self.load_message_handler)
 
         def new_data(self, peer, sender, bus, topic, headers, message):
             '''Generate static configuration inputs for
@@ -397,15 +397,17 @@ def ahp(config_path, **kwargs):
             data = message[0]
             devices[device].ingest_data(data)
                 
+        def load_message_handler(self, peer, sender, bus, topic, headers, message):
+            _log.debug('Reading building power data.')
+            bldg_power = float(message[0])
+            self.check_load(bldg_power)
                 
-        def check_load(self, peer, sender, bus, topic, headers, message):
+        def check_load(self, bldg_power):
             '''Check whole building power and if the value is above the
 
             the demand limit (demand_limit) then initiate the AHP sequence.
             '''
-            _log.debug('Reading building power data.')
-            
-            bldg_power = float(message[0])
+            _log.debug('Checking building load.')
             
             if self.running_ahp:
                 now = dt.now()
@@ -414,7 +416,6 @@ def ahp(config_path, **kwargs):
                 return
             
             if bldg_power > demand_limit:
-                self.bldg_power = bldg_power
                 self.curtail_start = dt.now()
                 self.running_ahp = True
                 
@@ -428,19 +429,19 @@ def ahp(config_path, **kwargs):
                 scores, score_order = build_score(input_arr, self.row_average)
                 ctrl_dev = self.actuator_request(score_order)
                 self.remaining_device = deepcopy(ctrl_dev)
-                self.curtail(ctrl_dev, scores, score_order)
+                self.curtail(ctrl_dev, bldg_power)
                 
             
             # TODO: Update below to verify on/off status
 #             if device not in self.off_dev.keys():
 #                 return    
             
-        def curtail(self, ctrl_dev):
+        def curtail(self, ctrl_dev, bldg_power):
             '''Curtail loads by turning off device (or device components'''
             dev_keys = self.builder.keys()
             dev_keys = [(item.split('_')[0], item.split('_')[-1]) for item in dev_keys]
             dev_keys = [(item[0], item[-1]) for item in dev_keys if item[0] in ctrl_dev]
-            need_curtailed = self.bldg_power - demand_limit
+            need_curtailed = bldg_power - demand_limit
             est_curtailed = 0.0
             for item in dev_keys:
                 pt = static_config[item[0]][item[-1]]
@@ -461,8 +462,6 @@ def ahp(config_path, **kwargs):
                 if est_curtailed >= need_curtailed:
                     break
             self.transition = True
-            _chk_time = dt.now() + td(minutes=5)
-            self.core.schedule(_chk_time, self.curtail_confirm)
         
         def get_all_device_evaluations(self):
             results = {}
@@ -485,14 +484,14 @@ def ahp(config_path, **kwargs):
             if cur_pwr < demand_limit:
                 _log.info('Curtail goal for building load met.')
             else:
-                self.device_status(check_only=True)
+                #self.device_status(check_only=True)
                 if saved_off == self.off_dev and self.remaining_device:
-                    self.curtail(self.remaining_device)
+                    self.curtail(self.remaining_device, cur_pwr)
                 elif saved_off == self.off_dev:
                     _log.info('Did not meet load curtailment goal but there '
                               'are no further available loads to curtail.')
-                else:
-                    self.check_load(cur_pwr)    
+#                 else:
+#                     self.check_load(cur_pwr)    
         
         def actuator_request(self, score_order):
             '''request access to devices.'''
