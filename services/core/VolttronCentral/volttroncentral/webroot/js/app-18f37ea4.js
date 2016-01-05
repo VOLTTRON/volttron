@@ -75,7 +75,7 @@ router.run(function (Handler) {
 });
 
 
-},{"./components/dashboard":13,"./components/login-form":18,"./components/page-not-found":21,"./components/platform":23,"./components/platform-manager":22,"./components/platforms":25,"./stores/authorization-store":37,"react":undefined,"react-router":undefined}],2:[function(require,module,exports){
+},{"./components/dashboard":13,"./components/login-form":18,"./components/page-not-found":21,"./components/platform":23,"./components/platform-manager":22,"./components/platforms":27,"./stores/authorization-store":39,"react":undefined,"react-router":undefined}],2:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -102,7 +102,7 @@ var consoleActionCreators = {
 module.exports = consoleActionCreators;
 
 
-},{"../constants/action-types":28,"../dispatcher":29,"../lib/rpc/exchange":31}],3:[function(require,module,exports){
+},{"../constants/action-types":30,"../dispatcher":31,"../lib/rpc/exchange":33}],3:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -125,7 +125,7 @@ var modalActionCreators = {
 module.exports = modalActionCreators;
 
 
-},{"../constants/action-types":28,"../dispatcher":29}],4:[function(require,module,exports){
+},{"../constants/action-types":30,"../dispatcher":31}],4:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -477,7 +477,7 @@ function handle401(error) {
 module.exports = platformActionCreators;
 
 
-},{"../constants/action-types":28,"../dispatcher":29,"../lib/rpc":32,"../stores/authorization-store":37}],5:[function(require,module,exports){
+},{"../constants/action-types":30,"../dispatcher":31,"../lib/rpc":34,"../stores/authorization-store":39}],5:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -605,7 +605,7 @@ function handle401(error) {
 module.exports = platformManagerActionCreators;
 
 
-},{"../action-creators/platform-action-creators":4,"../constants/action-types":28,"../dispatcher":29,"../lib/rpc":32,"../stores/authorization-store":37}],6:[function(require,module,exports){
+},{"../action-creators/platform-action-creators":4,"../constants/action-types":30,"../dispatcher":31,"../lib/rpc":34,"../stores/authorization-store":39}],6:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -667,7 +667,7 @@ var platformsPanelActionCreators = {
 module.exports = platformsPanelActionCreators;
 
 
-},{"../constants/action-types":28,"../dispatcher":29,"../lib/rpc":32,"../stores/authorization-store":37}],7:[function(require,module,exports){
+},{"../constants/action-types":30,"../dispatcher":31,"../lib/rpc":34,"../stores/authorization-store":39}],7:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -739,7 +739,7 @@ var AgentRow = React.createClass({displayName: "AgentRow",
 module.exports = AgentRow;
 
 
-},{"../action-creators/modal-action-creators":3,"../action-creators/platform-action-creators":4,"./remove-agent-form":27,"react":undefined}],8:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../action-creators/platform-action-creators":4,"./remove-agent-form":29,"react":undefined}],8:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -803,7 +803,7 @@ function getStateFromStores(platform, chart) {
 module.exports = Chart;
 
 
-},{"../action-creators/platform-action-creators":4,"../stores/topic-data-store":44,"./line-chart":17,"react":undefined}],9:[function(require,module,exports){
+},{"../action-creators/platform-action-creators":4,"../stores/topic-data-store":47,"./line-chart":17,"react":undefined}],9:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -873,7 +873,7 @@ function getStateFromStores() {
 module.exports = Composer;
 
 
-},{"../action-creators/console-action-creators":2,"../stores/console-store":38,"react":undefined}],10:[function(require,module,exports){
+},{"../action-creators/console-action-creators":2,"../stores/console-store":40,"react":undefined}],10:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -984,7 +984,7 @@ function getStateFromStores() {
 module.exports = Conversation;
 
 
-},{"../stores/console-store":38,"./exchange":16,"jquery":undefined,"react":undefined}],13:[function(require,module,exports){
+},{"../stores/console-store":40,"./exchange":16,"jquery":undefined,"react":undefined}],13:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1090,7 +1090,7 @@ function getStateFromStores() {
 module.exports = Dashboard;
 
 
-},{"../action-creators/modal-action-creators":3,"../stores/platforms-store":43,"./chart":8,"./edit-chart-form":15,"react":undefined,"react-router":undefined}],14:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../stores/platforms-store":46,"./chart":8,"./edit-chart-form":15,"react":undefined,"react-router":undefined}],14:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1146,7 +1146,7 @@ function getStateFromStores() {
 module.exports = RegisterPlatformForm;
 
 
-},{"../action-creators/modal-action-creators":3,"../action-creators/platform-manager-action-creators":5,"../stores/platform-registration-store":41,"react":undefined}],15:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../action-creators/platform-manager-action-creators":5,"../stores/platform-registration-store":43,"react":undefined}],15:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1623,7 +1623,7 @@ function getStateFromStores() {
 module.exports = LoginForm;
 
 
-},{"../action-creators/platform-manager-action-creators":5,"../stores/login-form-store":39,"react":undefined,"react-router":undefined}],19:[function(require,module,exports){
+},{"../action-creators/platform-manager-action-creators":5,"../stores/login-form-store":41,"react":undefined,"react-router":undefined}],19:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1727,7 +1727,7 @@ function getStateFromStores() {
 module.exports = Navigation;
 
 
-},{"../action-creators/platform-manager-action-creators":5,"../stores/authorization-store":37,"react":undefined,"react-router":undefined}],21:[function(require,module,exports){
+},{"../action-creators/platform-manager-action-creators":5,"../stores/authorization-store":39,"react":undefined,"react-router":undefined}],21:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1878,7 +1878,7 @@ function getStateFromStores() {
 module.exports = PlatformManager;
 
 
-},{"../action-creators/console-action-creators":2,"../action-creators/modal-action-creators":3,"../action-creators/platform-manager-action-creators":5,"../stores/authorization-store":37,"../stores/console-store":38,"../stores/modal-store":40,"../stores/platforms-panel-store":42,"./console":11,"./modal":19,"./navigation":20,"./platforms-panel":24,"jquery":undefined,"react":undefined,"react-router":undefined}],23:[function(require,module,exports){
+},{"../action-creators/console-action-creators":2,"../action-creators/modal-action-creators":3,"../action-creators/platform-manager-action-creators":5,"../stores/authorization-store":39,"../stores/console-store":40,"../stores/modal-store":42,"../stores/platforms-panel-store":45,"./console":11,"./modal":19,"./navigation":20,"./platforms-panel":26,"jquery":undefined,"react":undefined,"react-router":undefined}],23:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2082,7 +2082,241 @@ function getStateFromStores(component) {
 module.exports = Platform;
 
 
-},{"../action-creators/modal-action-creators":3,"../action-creators/platform-action-creators":4,"../stores/platforms-store":43,"./agent-row":7,"./chart":8,"./confirm-form":10,"./edit-chart-form":15,"react":undefined,"react-router":undefined}],24:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../action-creators/platform-action-creators":4,"../stores/platforms-store":46,"./agent-row":7,"./chart":8,"./confirm-form":10,"./edit-chart-form":15,"react":undefined,"react-router":undefined}],24:[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+var Router = require('react-router');
+
+// var platformsPanelStore = require('../stores/platforms-panel-store');
+// var platformsPanelActionCreators = require('../action-creators/platforms-panel-action-creators');
+
+var PlatformsPanelAgent = React.createClass({displayName: "PlatformsPanelAgent",
+    getInitialState: function () {
+        var state = {};
+        
+        state.expanded = null;
+
+        return state;
+    },
+    // componentDidMount: function () {
+    //     platformsPanelStore.addChangeListener(this._onStoresChange);
+    // },
+    // componentWillUnmount: function () {
+    //     platformsPanelStore.removeChangeListener(this._onStoresChange);
+    // },
+    // _onStoresChange: function () {
+    //     this.setState({platforms: getPlatformsFromStore()});
+    //     this.setState({expanded: getExpandedFromStore()});
+    // },
+    _toggleItem: function () {
+
+        if (this.state.expanded === null)
+        {
+            this.setState({expanded: true})
+        }
+        else
+        {
+            this.setState({expanded: !this.state.expanded})    
+        }
+        
+        // platformsPanelItemActionCreators.toggleItem();
+    },
+    render: function () {
+        var agent = this.props.agent;
+
+        var arrowClasses = ["arrowButton"];
+
+        arrowClasses.push( ((agent.status === "GOOD") ? "status-good" :
+                                ( (agent.status === "BAD") ? "status-bad" : 
+                                    "status-unknown")) )
+
+        if (this.state.expanded !== null)
+        {
+            arrowClasses.push( (this.state.expanded ? "rotateDown" : "rotateRight") );
+        }
+
+        return (
+            React.createElement("li", {
+                key: agent.uuid, 
+                className: "panel-item"
+            }, 
+                React.createElement("div", {className: "platform-info"}, 
+                    React.createElement("div", {className: arrowClasses.join(' '), 
+                        onClick: this._toggleItem}, "▶"), 
+                    React.createElement("div", {className: "platform-link"}, 
+                        React.createElement(Router.Link, {
+                            to: "platform", 
+                            params: {uuid: agent.uuid}
+                        }, 
+                        agent.name
+                        )
+                    )
+                    
+                )
+            )
+        );
+    },
+});
+
+module.exports = PlatformsPanelAgent;
+
+
+},{"react":undefined,"react-router":undefined}],25:[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+var Router = require('react-router');
+
+var platformsPanelAgentStore = require('../stores/platforms-panel-agent-store');
+var PlatformsPanelAgent = require('./platforms-panel-agent');
+// var platformsPanelActionCreators = require('../action-creators/platforms-panel-action-creators');
+
+var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
+    getInitialState: function () {
+        var state = {};
+        
+        state.expanded = null;
+
+        state.agents = [];
+
+        return state;
+    },
+    // componentDidMount: function () {
+    //     platformsPanelStore.addChangeListener(this._onStoresChange);
+    // },
+    // componentWillUnmount: function () {
+    //     platformsPanelStore.removeChangeListener(this._onStoresChange);
+    // },
+    _onStoresChange: function () {
+
+        if (this.state.expanded)
+        {
+            this.setState({agents: getAgentsFromStore(this.props.platform)}); 
+        }       
+    },
+    _toggleItem: function () {
+
+        if (this.state.expanded === null)
+        {
+            this.setState({expanded: true});
+
+            if (this.props.agents.length === 0)
+            {
+                this.setState({agents: getAgentsFromStore(this.props.platform)});
+            }
+        }
+        else
+        {
+            this.setState({expanded: !this.state.expanded})    
+        }
+    },
+    render: function () {
+        var platform = this.props.platform;
+        var agents;
+
+        var propAgents = this.props.agents;
+        var filterTerm = this.props.filter;
+
+        var agentClasses = [];
+        var arrowClasses = ["arrowButton"];
+
+        arrowClasses.push( ((platform.status === "GOOD") ? "status-good" :
+                                ( (platform.status === "BAD") ? "status-bad" : 
+                                    "status-unknown")) )
+        if (propAgents.length > 0)
+        {
+            arrowClasses.push("rotateDown");
+            agentClasses = ["showAgents"];
+
+            agents = propAgents
+                .filter(function (agent) {
+                    return (agent.name.indexOf(this) > -1);
+                }, filterTerm) 
+                .sort(function (a, b) {
+                    if (a.name.toLowerCase() > b.name.toLowerCase()) { return 1; }
+                    if (a.name.toLowerCase() < b.name.toLowerCase()) { return -1; }
+                    return 0;
+                })
+                .map(function (agent) {
+
+                    return (
+
+                        React.createElement(PlatformsPanelAgent, {agent: agent})
+                        
+                    );
+                }, this);
+        }
+        else if (this.state.expanded !== null)
+        {
+            arrowClasses.push( (this.state.expanded ? "rotateDown" : "rotateRight") );
+
+            if (this.state.expanded)
+            {                
+                if (this.state.agents) 
+                {
+                    agentClasses = ["showAgents"];
+                    agents = this.state.agents
+                        .sort(function (a, b) {
+                            if (a.name.toLowerCase() > b.name.toLowerCase()) { return 1; }
+                            if (a.name.toLowerCase() < b.name.toLowerCase()) { return -1; }
+                            return 0;
+                        })
+                        .map(function (agent) {
+
+                            return (
+
+                                React.createElement(PlatformsPanelAgent, {agent: agent})
+                                
+                            );
+                        }, this);
+                }
+            }
+            else
+            {
+                if (this.state.agents) 
+                {
+                    agentClasses = ["hideAgents"];
+                }
+            }
+        }
+
+        return (
+            React.createElement("li", {
+                key: platform.uuid, 
+                className: "panel-item"
+            }, 
+                React.createElement("div", {className: "platform-info"}, 
+                    React.createElement("div", {className: arrowClasses.join(' '), 
+                        onClick: this._toggleItem}, "▶"), 
+                    React.createElement("div", {className: "platform-link"}, 
+                        React.createElement(Router.Link, {
+                            to: "platform", 
+                            params: {uuid: platform.uuid}
+                        }, 
+                        platform.name
+                        )
+                    )
+                    
+                ), 
+                React.createElement("div", {className: agentClasses}, 
+                    React.createElement("ul", {className: "platform-panel-list"}, 
+                        agents
+                    )
+                )
+            )
+        );
+    },
+});
+
+function getAgentsFromStore(platform) {
+    return platformsPanelAgentStore.getAgents(platform);
+}
+
+module.exports = PlatformsPanelItem;
+
+
+},{"../stores/platforms-panel-agent-store":44,"./platforms-panel-agent":24,"react":undefined,"react-router":undefined}],26:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2090,12 +2324,16 @@ var Router = require('react-router');
 
 var platformsPanelStore = require('../stores/platforms-panel-store');
 var platformsPanelActionCreators = require('../action-creators/platforms-panel-action-creators');
+var PlatformsPanelItem = require('./platforms-panel-item');
+var platformsPanelAgentStore = require('../stores/platforms-panel-agent-store');
+
 
 var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
     getInitialState: function () {
         var state = {};
         state.platforms = getPlatformsFromStore();   
         state.expanded = getExpandedFromStore();
+        state.filterValue = "";
 
         return state;
     },
@@ -2108,6 +2346,9 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
     _onStoresChange: function () {
         this.setState({platforms: getPlatformsFromStore()});
         this.setState({expanded: getExpandedFromStore()});
+    },
+    _onFilterBoxChange: function (e) {
+        this.setState({ filterValue: e.target.value });
     },
     _togglePanel: function () {
         platformsPanelActionCreators.togglePanel();
@@ -2124,12 +2365,11 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
             clear: "right"
         };
 
-        var arrowStyle = {
-            float: "left",
-            marginRight: "10px",
-            color: "#707070",
-            cursor: "pointer"
-        }
+        var filterBoxContainer = {
+            textAlign: "center"
+        };
+
+        var filterTerm = this.state.filterValue;
 
         if (!this.state.platforms) {
             platforms = (
@@ -2141,6 +2381,9 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
             );
         } else {
             platforms = this.state.platforms
+                .filter(function (platform) {
+                    return ((platform.name.indexOf(this) > -1) || (this === "") || filteredAgents(platform, this).length > 0);
+                }, filterTerm)                
                 .sort(function (a, b) {
                     if (a.name.toUpperCase() > b.name.toUpperCase()) { return 1; }
                     if (a.name.toUpperCase() < b.name.toUpperCase()) { return -1; }
@@ -2149,30 +2392,9 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
                 .map(function (platform) {
 
                     return (
-                        React.createElement("li", {
-                            key: platform.uuid, 
-                            className: "panel-item"
-                        }, 
-                            React.createElement("div", {className: "platform-info"}, 
-                                React.createElement("div", {className: "arrowButton", 
-                                    style: arrowStyle}, "▶"), 
-                                React.createElement("div", {className: 
-                                        ( (platform.status === "GOOD") ? "status-good" :
-                                            ( (platform.status === "BAD") ? "status-bad" : 
-                                                "status-unknown") )
-                                    }
-                                ), 
-                                React.createElement("div", {className: "platform-link"}, 
-                                    React.createElement(Router.Link, {
-                                        to: "platform", 
-                                        params: {uuid: platform.uuid}
-                                    }, 
-                                    platform.name
-                                    )
-                                )
-                                
-                            )
-                        )
+
+                        React.createElement(PlatformsPanelItem, {platform: platform, agents: filteredAgents(platform, filterTerm), filter: filterTerm})
+                        
                     );
                 }, this);
         }
@@ -2182,7 +2404,15 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
                 React.createElement("div", {className: "extend-panel", 
                     onClick: this._togglePanel},  this.state.expanded ? '\u25c0' : '\u25b6'), 
                 React.createElement("div", {style: contentsStyle}, 
-                    React.createElement("h4", null, "Running ..."), 
+                    React.createElement("br", null), 
+                    React.createElement("div", {style: filterBoxContainer}, 
+                        React.createElement("input", {
+                            className: "filter_box", 
+                            type: "text", 
+                            onChange: this._onFilterBoxChange, 
+                            value: this.state.filterValue}
+                        )
+                    ), 
                     React.createElement("ul", {className: "platform-panel-list"}, 
                     platforms
                     )
@@ -2200,10 +2430,27 @@ function getExpandedFromStore() {
     return platformsPanelStore.getExpanded();
 };
 
+function filteredAgents(platform, filterTerm) {
+
+    if (filterTerm !== "")
+    {
+        var agents = platformsPanelAgentStore.getAgents(platform);
+        return agents.filter(function (agent) {
+            return (agent.name.indexOf(this) > -1);
+        }, filterTerm);
+    }
+    else
+    {
+        return [];
+    } 
+
+    
+};
+
 module.exports = PlatformsPanel;
 
 
-},{"../action-creators/platforms-panel-action-creators":6,"../stores/platforms-panel-store":42,"react":undefined,"react-router":undefined}],25:[function(require,module,exports){
+},{"../action-creators/platforms-panel-action-creators":6,"../stores/platforms-panel-agent-store":44,"../stores/platforms-panel-store":45,"./platforms-panel-item":25,"react":undefined,"react-router":undefined}],27:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2318,7 +2565,7 @@ function getStateFromStores() {
 module.exports = Platforms;
 
 
-},{"../action-creators/modal-action-creators":3,"../components/deregister-platform-confirmation":14,"../components/register-platform-form":26,"../stores/platforms-store":43,"react":undefined,"react-router":undefined}],26:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../components/deregister-platform-confirmation":14,"../components/register-platform-form":28,"../stores/platforms-store":46,"react":undefined,"react-router":undefined}],28:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2524,7 +2771,7 @@ function getStateFromStores() {
 module.exports = RegisterPlatformForm;
 
 
-},{"../action-creators/modal-action-creators":3,"../action-creators/platform-manager-action-creators":5,"../stores/platform-registration-store":41,"react":undefined}],27:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../action-creators/platform-manager-action-creators":5,"../stores/platform-registration-store":43,"react":undefined}],29:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2583,7 +2830,7 @@ var RemoveAgentForm = React.createClass({displayName: "RemoveAgentForm",
 module.exports = RemoveAgentForm;
 
 
-},{"../action-creators/modal-action-creators":3,"../action-creators/platform-action-creators":4,"react":undefined}],28:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../action-creators/platform-action-creators":4,"react":undefined}],30:[function(require,module,exports){
 'use strict';
 
 var keyMirror = require('react/lib/keyMirror');
@@ -2619,7 +2866,7 @@ module.exports = keyMirror({
 });
 
 
-},{"react/lib/keyMirror":undefined}],29:[function(require,module,exports){
+},{"react/lib/keyMirror":undefined}],31:[function(require,module,exports){
 'use strict';
 
 var Dispatcher = require('flux').Dispatcher;
@@ -2639,7 +2886,7 @@ dispatcher.dispatch = function (action) {
 module.exports = dispatcher;
 
 
-},{"../constants/action-types":28,"flux":undefined}],30:[function(require,module,exports){
+},{"../constants/action-types":30,"flux":undefined}],32:[function(require,module,exports){
 'use strict';
 
 function RpcError(error) {
@@ -2654,7 +2901,7 @@ RpcError.prototype.constructor = RpcError;
 module.exports = RpcError;
 
 
-},{}],31:[function(require,module,exports){
+},{}],33:[function(require,module,exports){
 'use strict';
 
 var uuid = require('node-uuid');
@@ -2742,7 +2989,7 @@ function RpcExchange(request, redactedParams) {
 module.exports = RpcExchange;
 
 
-},{"../../constants/action-types":28,"../../dispatcher":29,"../xhr":35,"./error":30,"node-uuid":undefined}],32:[function(require,module,exports){
+},{"../../constants/action-types":30,"../../dispatcher":31,"../xhr":37,"./error":32,"node-uuid":undefined}],34:[function(require,module,exports){
 'use strict';
 
 module.exports = {
@@ -2751,7 +2998,7 @@ module.exports = {
 };
 
 
-},{"./error":30,"./exchange":31}],33:[function(require,module,exports){
+},{"./error":32,"./exchange":33}],35:[function(require,module,exports){
 'use strict';
 
 var EventEmitter = require('events').EventEmitter;
@@ -2779,7 +3026,7 @@ Store.prototype.removeChangeListener = function (callback) {
 module.exports = Store;
 
 
-},{"events":undefined}],34:[function(require,module,exports){
+},{"events":undefined}],36:[function(require,module,exports){
 'use strict';
 
 function XhrError(message, response) {
@@ -2793,7 +3040,7 @@ XhrError.prototype.constructor = XhrError;
 module.exports = XhrError;
 
 
-},{}],35:[function(require,module,exports){
+},{}],37:[function(require,module,exports){
 'use strict';
 
 module.exports = {
@@ -2802,7 +3049,7 @@ module.exports = {
 };
 
 
-},{"./error":34,"./request":36}],36:[function(require,module,exports){
+},{"./error":36,"./request":38}],38:[function(require,module,exports){
 'use strict';
 
 var jQuery = require('jquery');
@@ -2833,7 +3080,7 @@ function XhrRequest(opts) {
 module.exports = XhrRequest;
 
 
-},{"./error":34,"bluebird":undefined,"jquery":undefined}],37:[function(require,module,exports){
+},{"./error":36,"bluebird":undefined,"jquery":undefined}],39:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -2871,7 +3118,7 @@ authorizationStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = authorizationStore;
 
 
-},{"../constants/action-types":28,"../dispatcher":29,"../lib/store":33}],38:[function(require,module,exports){
+},{"../constants/action-types":30,"../dispatcher":31,"../lib/store":35}],40:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -2964,7 +3211,7 @@ consoleStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = consoleStore;
 
 
-},{"../constants/action-types":28,"../dispatcher":29,"../lib/store":33,"../stores/authorization-store":37}],39:[function(require,module,exports){
+},{"../constants/action-types":30,"../dispatcher":31,"../lib/store":35,"../stores/authorization-store":39}],41:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -2999,7 +3246,7 @@ loginFormStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = loginFormStore;
 
 
-},{"../constants/action-types":28,"../dispatcher":29,"../lib/store":33,"./authorization-store":37}],40:[function(require,module,exports){
+},{"../constants/action-types":30,"../dispatcher":31,"../lib/store":35,"./authorization-store":39}],42:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -3032,7 +3279,7 @@ modalStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = modalStore;
 
 
-},{"../constants/action-types":28,"../dispatcher":29,"../lib/store":33}],41:[function(require,module,exports){
+},{"../constants/action-types":30,"../dispatcher":31,"../lib/store":35}],43:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -3078,7 +3325,100 @@ platformRegistrationStore.dispatchToken = dispatcher.register(function (action) 
 module.exports = platformRegistrationStore;
 
 
-},{"../constants/action-types":28,"../dispatcher":29,"../lib/store":33,"./authorization-store":37}],42:[function(require,module,exports){
+},{"../constants/action-types":30,"../dispatcher":31,"../lib/store":35,"./authorization-store":39}],44:[function(require,module,exports){
+'use strict';
+
+var ACTION_TYPES = require('../constants/action-types');
+var dispatcher = require('../dispatcher');
+var Store = require('../lib/store');
+
+var _agents = {
+            "0987fedc-65ba-43fe-21dc-098765bafedc":
+            [
+                {
+                    "uuid": "0987fedc-65ba-43fe-21dc-098765bafedc",
+                    "name": "Volttron Central",
+                    "status": "GOOD"
+                },
+                {
+                    "uuid": "2291fedc-65ba-43fe-21dc-098765bafedc",
+                    "name": "Platform Agent",
+                    "status": "BAD"
+                },
+                {
+                    "uuid": "4837fedc-65ba-43fe-21dc-098765bafedc",
+                    "name": "SqlHistorian",
+                    "status": "UNKNOWN"
+                }
+            ],
+            "2291fedc-65ba-43fe-21dc-098765bafedc":
+            [ 
+                {
+                    "uuid": "0987fedc-65ba-43fe-21dc-098765bafedc",
+                    "name": "Husky Agent",
+                    "status": "GOOD"
+                },
+                {
+                    "uuid": "2291fedc-65ba-43fe-21dc-098765bafedc",
+                    "name": "Listener Agent",
+                    "status": "BAD"
+                },
+                {
+                    "uuid": "4837fedc-65ba-43fe-21dc-098765bafedc",
+                    "name": "SqlLiteHistorian",
+                    "status": "UNKNOWN"
+                }
+            ],
+            "4837fedc-65ba-43fe-21dc-098765bafedc":
+            [
+                {
+                    "uuid": "0987fedc-65ba-43fe-21dc-098765bafedc",
+                    "name": "Cougar Agent",
+                    "status": "GOOD"
+                },
+                {
+                    "uuid": "2291fedc-65ba-43fe-21dc-098765bafedc",
+                    "name": "Platform Agent",
+                    "status": "BAD"
+                },
+                {
+                    "uuid": "4837fedc-65ba-43fe-21dc-098765bafedc",
+                    "name": "SqlLiteHistorian",
+                    "status": "UNKNOWN"
+                }
+            ]
+        };
+
+var _expanded = false;
+
+var platformsPanelAgentStore = new Store();
+
+platformsPanelAgentStore.getAgents = function (platform) {
+    if (_agents.hasOwnProperty(platform.uuid))
+    {
+        return _agents[platform.uuid];
+    }
+    else
+    {
+        return [];
+    }
+};
+
+platformsPanelAgentStore.dispatchToken = dispatcher.register(function (action) {
+
+    switch (action.type) {
+
+        case ACTION_TYPES.RECEIVE_AGENT_STATUSES:
+            _agents = action.agents;
+            platformsPanelStore.emitChange();
+            break;
+    }
+});
+
+module.exports = platformsPanelAgentStore;
+
+
+},{"../constants/action-types":30,"../dispatcher":31,"../lib/store":35}],45:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -3088,17 +3428,17 @@ var Store = require('../lib/store');
 var _platforms = [
             {
                 "uuid": "0987fedc-65ba-43fe-21dc-098765bafedc",
-                "name": "vc",
+                "name": "PNNL",
                 "status": "GOOD"
             },
             {
                 "uuid": "2291fedc-65ba-43fe-21dc-098765bafedc",
-                "name": "vc1",
+                "name": "UW",
                 "status": "BAD"
             },
             {
                 "uuid": "4837fedc-65ba-43fe-21dc-098765bafedc",
-                "name": "vc2",
+                "name": "WSU",
                 "status": "UNKNOWN"
             }
         ];;
@@ -3133,7 +3473,7 @@ platformsPanelStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = platformsPanelStore;
 
 
-},{"../constants/action-types":28,"../dispatcher":29,"../lib/store":33}],43:[function(require,module,exports){
+},{"../constants/action-types":30,"../dispatcher":31,"../lib/store":35}],46:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -3202,7 +3542,7 @@ platformsStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = platformsStore;
 
 
-},{"../constants/action-types":28,"../dispatcher":29,"../lib/store":33,"../stores/authorization-store":37}],44:[function(require,module,exports){
+},{"../constants/action-types":30,"../dispatcher":31,"../lib/store":35,"../stores/authorization-store":39}],47:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -3242,4 +3582,4 @@ topicDataStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = topicDataStore;
 
 
-},{"../constants/action-types":28,"../dispatcher":29,"../lib/store":33,"./authorization-store":37}]},{},[1]);
+},{"../constants/action-types":30,"../dispatcher":31,"../lib/store":35,"./authorization-store":39}]},{},[1]);

@@ -5,12 +5,16 @@ var Router = require('react-router');
 
 var platformsPanelStore = require('../stores/platforms-panel-store');
 var platformsPanelActionCreators = require('../action-creators/platforms-panel-action-creators');
+var PlatformsPanelItem = require('./platforms-panel-item');
+var platformsPanelAgentStore = require('../stores/platforms-panel-agent-store');
+
 
 var PlatformsPanel = React.createClass({
     getInitialState: function () {
         var state = {};
         state.platforms = getPlatformsFromStore();   
         state.expanded = getExpandedFromStore();
+        state.filterValue = "";
 
         return state;
     },
@@ -23,6 +27,9 @@ var PlatformsPanel = React.createClass({
     _onStoresChange: function () {
         this.setState({platforms: getPlatformsFromStore()});
         this.setState({expanded: getExpandedFromStore()});
+    },
+    _onFilterBoxChange: function (e) {
+        this.setState({ filterValue: e.target.value });
     },
     _togglePanel: function () {
         platformsPanelActionCreators.togglePanel();
@@ -39,12 +46,11 @@ var PlatformsPanel = React.createClass({
             clear: "right"
         };
 
-        var arrowStyle = {
-            float: "left",
-            marginRight: "10px",
-            color: "#707070",
-            cursor: "pointer"
-        }
+        var filterBoxContainer = {
+            textAlign: "center"
+        };
+
+        var filterTerm = this.state.filterValue;
 
         if (!this.state.platforms) {
             platforms = (
@@ -56,6 +62,9 @@ var PlatformsPanel = React.createClass({
             );
         } else {
             platforms = this.state.platforms
+                .filter(function (platform) {
+                    return ((platform.name.indexOf(this) > -1) || (this === "") || filteredAgents(platform, this).length > 0);
+                }, filterTerm)                
                 .sort(function (a, b) {
                     if (a.name.toUpperCase() > b.name.toUpperCase()) { return 1; }
                     if (a.name.toUpperCase() < b.name.toUpperCase()) { return -1; }
@@ -64,30 +73,9 @@ var PlatformsPanel = React.createClass({
                 .map(function (platform) {
 
                     return (
-                        <li
-                            key={platform.uuid}
-                            className="panel-item"
-                        >
-                            <div className="platform-info">
-                                <div className="arrowButton"
-                                    style={arrowStyle}>&#9654;</div>
-                                <div className={
-                                        ( (platform.status === "GOOD") ? "status-good" :
-                                            ( (platform.status === "BAD") ? "status-bad" : 
-                                                "status-unknown") )
-                                    }>
-                                </div>
-                                <div className="platform-link">
-                                    <Router.Link
-                                        to="platform"
-                                        params={{uuid: platform.uuid}}
-                                    >
-                                    {platform.name}
-                                    </Router.Link>
-                                </div>
-                                
-                            </div>
-                        </li>
+
+                        <PlatformsPanelItem platform={platform} agents={filteredAgents(platform, filterTerm)} filter={filterTerm}/>
+                        
                     );
                 }, this);
         }
@@ -97,7 +85,15 @@ var PlatformsPanel = React.createClass({
                 <div className="extend-panel"
                     onClick={this._togglePanel}>{ this.state.expanded ? '\u25c0' : '\u25b6' }</div>
                 <div style={contentsStyle}>
-                    <h4>Running ...</h4>
+                    <br/>
+                    <div style={filterBoxContainer}>
+                        <input
+                            className="filter_box"
+                            type="text"
+                            onChange={this._onFilterBoxChange}
+                            value={this.state.filterValue}
+                        />
+                    </div>
                     <ul className="platform-panel-list">
                     {platforms}
                     </ul>
@@ -113,6 +109,23 @@ function getPlatformsFromStore() {
 
 function getExpandedFromStore() {
     return platformsPanelStore.getExpanded();
+};
+
+function filteredAgents(platform, filterTerm) {
+
+    if (filterTerm !== "")
+    {
+        var agents = platformsPanelAgentStore.getAgents(platform);
+        return agents.filter(function (agent) {
+            return (agent.name.indexOf(this) > -1);
+        }, filterTerm);
+    }
+    else
+    {
+        return [];
+    } 
+
+    
 };
 
 module.exports = PlatformsPanel;

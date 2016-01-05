@@ -7,17 +7,17 @@ var Store = require('../lib/store');
 var _platforms = [
             {
                 "uuid": "0987fedc-65ba-43fe-21dc-098765bafedc",
-                "name": "vc",
+                "name": "PNNL",
                 "status": "GOOD"
             },
             {
                 "uuid": "2291fedc-65ba-43fe-21dc-098765bafedc",
-                "name": "vc1",
+                "name": "UW",
                 "status": "BAD"
             },
             {
                 "uuid": "4837fedc-65ba-43fe-21dc-098765bafedc",
-                "name": "vc2",
+                "name": "WSU",
                 "status": "UNKNOWN"
             }
         ];;
