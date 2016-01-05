@@ -382,9 +382,10 @@ class PlatformWrapper:
 
 
     def stop_agent(self, agent_uuid):
-        aip = self._aip()
-        aip.stop_agent(agent_uuid)
-        return aip.agent_status(agent_uuid)
+        # Confirm agent running
+        cmd = ['volttron-ctl', 'stop', agent_uuid]
+        res = subprocess.check_output(cmd, env=self.env)
+        return self.agent_status(agent_uuid)
 
     def list_agents(self):
         aip = self._aip()
@@ -396,8 +397,17 @@ class PlatformWrapper:
         return aip.agent_status(uuid)
 
     def agent_status(self, agent_uuid):
-        aip = self._aip()
-        return aip.agent_status(agent_uuid)
+        # Confirm agent running
+        cmd = ['volttron-ctl', 'status', agent_uuid]
+        res = subprocess.check_output(cmd, env=self.env)
+
+        try:
+            pidpos = res.index('[') + 1
+            pidend = res.index(']')
+            pid = int(res[pidpos: pidend])
+        except:
+            pid = None
+        return pid
 
     def build_agentpackage(self, agent_dir, config_file):
         assert os.path.exists(agent_dir)

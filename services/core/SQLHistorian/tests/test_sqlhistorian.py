@@ -41,7 +41,7 @@ mysql_platform = {
     "agentid": "sqlhistorian-mysql",
     "identity": "platform.historian",
     "connection": {
-        "type": "mysql2",
+        "type": "mysql",
         "params": {
             "host": "localhost",
             "port": 3306,
@@ -173,7 +173,7 @@ def clean(request,sqlhistorian):
 
     request.addfinalizer(delete_rows)
 
-@pytest.mark.dev
+@pytest.mark.historian
 def test_basic_function(volttron_instance1, sqlhistorian, clean):
     """
     Test basic functionality of sql historian. Inserts three points as part of all topic and checks
@@ -460,7 +460,7 @@ def test_query_start_time_with_z(volttron_instance1, sqlhistorian, clean):
     assert (result['values'][0][1] == oat_reading)
 
 
-@pytest.mark.dev
+@pytest.mark.historian
 def test_query_end_time(volttron_instance1, sqlhistorian, clean):
     """
     Test query based on end time alone. Expected result record with timestamp<= end time
