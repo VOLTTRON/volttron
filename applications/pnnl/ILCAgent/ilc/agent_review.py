@@ -286,14 +286,14 @@ def ahp(config_path, **kwargs):
     device_configs = config['devices']
     all_devices = devices.keys()
     agent_id = config.get('agent_id')
-    base_device = "devices/{campus}/{building}/".format(campus=config.get('campus',''),
-                                                        building=config.get('building',''))
+#     base_device = "devices/{campus}/{building}/".format(campus=config.get('campus',''),
+#                                                         building=config.get('building',''))
                                                         
     base_device_topic = topics.DEVICES_VALUE(campus=config.get('campus', ''), 
                                             building=config.get('building', ''), 
                                             unit=None,
                                             path='',
-                                            point=None)
+                                            point='')
                                                         
     device_topic_list = []
     device_topic_map = {}
@@ -342,7 +342,6 @@ def ahp(config_path, **kwargs):
             self.running_ahp = False
             self.crit_labels = None
             self.row_average = None
-            self.failed_control = []
             self.bldg_power = None
             self.transition = False
             self.remaining_device = None
@@ -400,6 +399,13 @@ def ahp(config_path, **kwargs):
         def load_message_handler(self, peer, sender, bus, topic, headers, message):
             _log.debug('Reading building power data.')
             bldg_power = float(message[0])
+            
+            if self.running_ahp:
+                now = dt.now()
+                if now > self.curtail_start + curtail_confirm:
+                    self.curtail_confirm(bldg_power)                
+                return
+            
             self.check_load(bldg_power)
                 
         def check_load(self, bldg_power):
@@ -408,12 +414,6 @@ def ahp(config_path, **kwargs):
             the demand limit (demand_limit) then initiate the AHP sequence.
             '''
             _log.debug('Checking building load.')
-            
-            if self.running_ahp:
-                now = dt.now()
-                if now > self.curtail_start + curtail_confirm:
-                    self.curtail_confirm(bldg_power)                
-                return
             
             if bldg_power > demand_limit:
                 self.curtail_start = dt.now()
@@ -426,21 +426,20 @@ def ahp(config_path, **kwargs):
                     _log.info('All devices are off, nothing to curtail.')
                     return
                 input_arr = input_matrix(device_evaluations, self.crit_labels)
-                scores, score_order = build_score(input_arr, self.row_average)
-                ctrl_dev = self.actuator_request(score_order)
-                self.remaining_device = deepcopy(ctrl_dev)
-                self.curtail(ctrl_dev, bldg_power)
+                score_order = build_score(input_arr, self.row_average)
+                self.remaining_devices = self.actuator_request(score_order)
+                self.curtail(bldg_power)
                 
             
             # TODO: Update below to verify on/off status
 #             if device not in self.off_dev.keys():
 #                 return    
             
-        def curtail(self, ctrl_dev, bldg_power):
+        def curtail(self, bldg_power):
             '''Curtail loads by turning off device (or device components'''
             dev_keys = self.builder.keys()
             dev_keys = [(item.split('_')[0], item.split('_')[-1]) for item in dev_keys]
-            dev_keys = [(item[0], item[-1]) for item in dev_keys if item[0] in ctrl_dev]
+            dev_keys = [(item[0], item[-1]) for item in dev_keys if item[0] in self.remaining_devices]
             need_curtailed = bldg_power - demand_limit
             est_curtailed = 0.0
             for item in dev_keys:
@@ -458,7 +457,7 @@ def ahp(config_path, **kwargs):
                                            curtail_val).get(timeout=10)
                 est_curtailed += curtail_load
                 self.no_curtailed[dev_keys] += 1.0
-                self.remaining_device.remove(item)
+                self.remaining_devices.remove(item)
                 if est_curtailed >= need_curtailed:
                     break
             self.transition = True
@@ -490,8 +489,8 @@ def ahp(config_path, **kwargs):
                 elif saved_off == self.off_dev:
                     _log.info('Did not meet load curtailment goal but there '
                               'are no further available loads to curtail.')
-#                 else:
-#                     self.check_load(cur_pwr)    
+                else:
+                    self.check_load(cur_pwr)    
         
         def actuator_request(self, score_order):
             '''request access to devices.'''
@@ -499,16 +498,17 @@ def ahp(config_path, **kwargs):
             str_now = _now.strftime(DATE_FORMAT)
             _end = _now + td(minutes=curtail_time + 5)
             str_end = _end.strftime(DATE_FORMAT)
-            schedule_request = []
+            ctrl_dev = []
             for dev in score_order:
-                curtailed_device = ''.join([base_device, dev])
+                curtailed_device = base_device_topic(unit=dev)
                 schedule_request = [[curtailed_device, str_now, str_end]]
                 result = self.vip.rpc.call(
                     'platform.actuator', 'request_new_schedule', agent_id,
                     agent_id, 'HIGH', schedule_request).get(timeout=10)
                 if result['result'] == 'FAILURE':
-                    self.failed_control.append(dev)
-            ctrl_dev = [dev for dev in score_order if dev not in self.failed_control]
+                    _log.warn("Failed to schedule device: ", dev)
+                else:
+                    ctrl_dev.append(dev)
             return ctrl_dev
 
 

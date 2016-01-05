@@ -235,12 +235,17 @@ def build_score(_matrix, weight):
     '''
     input_keys, input_values = _matrix.keys(), _matrix.values()
     scores = []
-    for i in range(0, len(input_values) - 1):
-        criteria_sum = 0
-        for j in range(0, len(weight) - 1):
-            criteria_sum += input_values[i][j] * weight[j]
+    
+    for input_array in input_values:            
+        criteria_sum=sum(i*w for i,w in zip(input_array, weight))
         scores.append(criteria_sum)
-    return scores, input_keys
+    
+    pairs = zip(scores, input_keys)    
+    pairs.sort()
+    
+    results = [x[1] for x in pairs]
+    
+    return results
 
 
 def display_matrix(_matrix, LABELString, xLABELS, yLABELS,
@@ -256,18 +261,18 @@ def display_matrix(_matrix, LABELString, xLABELS, yLABELS,
         i += 1
 
 def history_data(device, device_data, point_list):
-            '''Store historical data on devices for use in "Input Matrix."'''
-            data = {}
-            for point in point_list:
-                try:
-                    value = device_data[point]
-                except KeyError:
-                    _log.error('Data names in point_list in config file do '
-                               'not match available data published by device '
-                               'drivers.')
-                data.update({device: {point: value}})
-            data[device].update({'date': dt.now()})
-            return data
+    '''Store historical data on devices for use in "Input Matrix."'''
+    data = {}
+    for point in point_list:
+        try:
+            value = device_data[point]
+        except KeyError:
+            _log.error('Data names in point_list in config file do '
+                       'not match available data published by device '
+                       'drivers.')
+        data.update({device: {point: value}})
+    data[device].update({'date': dt.now()})
+    return data
 
 def input_matrix(builder, criteria_labels):
     '''Construct input normalized input matrix.'''
