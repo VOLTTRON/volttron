@@ -293,7 +293,7 @@ def ahp(config_path, **kwargs):
                                             building=config.get('building', ''), 
                                             unit=None,
                                             path='',
-                                            point='')
+                                            point=None)
                                                         
     device_topic_list = []
     device_topic_map = {}
@@ -460,11 +460,12 @@ def ahp(config_path, **kwargs):
                 self.remaining_devices.remove(item)
                 if est_curtailed >= need_curtailed:
                     break
+                
             self.transition = True
         
         def get_all_device_evaluations(self):
             results = {}
-            for name, device in devices:
+            for name, device in devices.iteritems():
                 for command in device.get_on_commands():
                     evaluations = device.evaluate(command)
                     results[name+'_'+command] = evaluations
@@ -472,7 +473,7 @@ def ahp(config_path, **kwargs):
         
         def get_off_devices(self):
             results = []
-            for name, device in devices:
+            for name, device in devices.iteritems():
                 results.extend((name+'_'+command for command in device.get_off_commands()))
                    
             return results 
@@ -500,7 +501,7 @@ def ahp(config_path, **kwargs):
             str_end = _end.strftime(DATE_FORMAT)
             ctrl_dev = []
             for dev in score_order:
-                curtailed_device = base_device_topic(unit=dev)
+                curtailed_device = base_device_topic(unit=dev, point='')
                 schedule_request = [[curtailed_device, str_now, str_end]]
                 result = self.vip.rpc.call(
                     'platform.actuator', 'request_new_schedule', agent_id,
