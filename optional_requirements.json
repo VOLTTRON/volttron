@@ -1,4 +1,8 @@
 {
+    "--platform": {
+        "help": "Installs requirements for volttron central",
+        "packages": ["psutil"] 
+    },
     "--vc": {
         "help": "Installs requirements for volttron central",
         "packages": ["tornado>4,<5", "ply"]
