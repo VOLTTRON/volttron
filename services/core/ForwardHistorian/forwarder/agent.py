@@ -190,7 +190,7 @@ def historian(config_path, **kwargs):
 
         def historian_setup(self):
             _log.debug("Setting up")
-            agent = Agent(identity="target",address=destination_vip)
+            agent = Agent(address=destination_vip)
             event = gevent.event.Event()
             agent.core.onstart.connect(lambda *a, **kw: event.set(), event)
             gevent.spawn(agent.core.run)
