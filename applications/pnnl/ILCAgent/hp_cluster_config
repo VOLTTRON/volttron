@@ -1,0 +1,395 @@
+
+{
+    "campus": "campus1",
+    "building": "building1",
+    "devices": {
+        "rtu1": {
+			"CoolingCommand1": { 
+				"zonetemperature-setpoint":{
+					"operation": "1/(CoolingTemperaturesetPoint - ZoneTemperature)",
+					"operation_type": "formula",
+					"operation_args": ["CoolingTemperatureSetPoint", "ZoneTemperature"],
+					"minimum": 0,
+					"maximum": 10
+				},
+				"rated-power": {
+				    "on_value": 20.0,
+				    "off_value": 0.0,
+					"operation_type": "status",
+					"point_name": ["CoolingCommand1"]
+				},
+				"room-type": {
+					"map_key": "Office",
+					"operation_type": "mapper",
+					"dict_name": "zone_type"
+				},
+				"stage": {
+				    "value": 1,
+					"operation_type": "constant"
+				},
+				"history-zonetemperature": {
+				    "comparison_type": "direct",
+					"operation_type": "history",
+					"point_name": "ZoneTemperature",
+					"previous_time": 15,
+					"minimum": 0,
+					"maximum": 10
+				},
+				"curtail": {
+					"point": "CoolingTemperatureSetPoint",
+					"value": 78.0,
+					"load": 10
+				}
+			},
+			"CoolingCommand2": { 
+				"zonetemperature-setpoint":{
+					"operation": "1/(CoolingTemperaturesetPoint - ZoneTemperature)",
+					"operation_type": "formula",
+					"operation_args": ["CoolingTemperatureSetPoint", "ZoneTemperature"],
+					"minimum": 0,
+					"maximum": 10
+				},
+				"rated-power": {
+				    "on_value": 20.0,
+				    "off_value": 0.0,
+					"operation_type": "status",
+					"point_name": ["CoolingCommand2"]
+				},
+				"room-type": {
+					"operation": "Office",
+					"operation_type": "mapper",
+					"operation_args": ["zone_type"],
+					"minimum": 1.0,
+					"maximum": 9.0
+				},
+				"stage": {
+				    "value": 2,
+					"operation_type": "constant"
+				},
+				"history-zonetemperature": {
+				    "comparison_type": "direct",
+					"operation_type": "history",
+					"point_name": "ZoneTemperature",
+					"previous_time": 15,
+					"minimum": 0,
+					"maximum": 10
+				},
+				"curtail": {
+					"point": "CoolingTemperatureSetPoint",
+					"value": 78.0,
+					"load": 10
+				}
+			},
+			"HeatingCommand1": { 
+				"zonetemperature-setpoint":{
+					"operation": "1/(ZoneTemperature - HeatingTemperaturesetPoint)",
+					"operation_type": "formula",
+					"operation_args": ["HeatingTemperaturesetPoint", "ZoneTemperature"],
+					"minimum": 0,
+					"maximum": 10
+				},
+				"rated-power": {
+				    "on_value": 20.0,
+				    "off_value": 0.0,
+					"operation_type": "status",
+					"point_name": ["HeatingCommand1"]
+				},
+				"room-type": {
+					"map_key": "Office",
+					"operation_type": "mapper",
+					"dict_name": "zone_type"
+				},
+				"stage": {
+				    "value": 5,
+					"operation_type": "constant"
+				},
+				"history-zonetemperature": {
+				    "comparison_type": "direct",
+					"operation_type": "history",
+					"point_name": "ZoneTemperature",
+					"previous_time": 15,
+					"minimum": 0,
+					"maximum": 10
+				},
+				"curtail": {
+					"point": "HeatingTemperatureSetPoint",
+					"value": 78.0,
+					"load": 10
+				}
+			},
+            "HeatingCommand2": { 
+				"zonetemperature-setpoint":{
+					"operation": "1/(ZoneTemperature - HeatingTemperaturesetPoint)",
+					"operation_type": "formula",
+					"operation_args": ["HeatingTemperaturesetPoint", "ZoneTemperature"],
+					"minimum": 0,
+					"maximum": 10
+				},
+				"rated-power": {
+				    "on_value": 20.0,
+				    "off_value": 0.0,
+					"operation_type": "status",
+					"point_name": ["HeatingCommand2"]
+				},
+				"room-type": {
+					"map_key": "Office",
+					"operation_type": "mapper",
+					"dict_name": "zone_type"
+				},
+				"stage": {
+				    "value": 10,
+					"operation_type": "constant"
+				},
+				"history-zonetemperature": {
+				    "comparison_type": "direct",
+					"operation_type": "history",
+					"point_name": "ZoneTemperature",
+					"previous_time": 15,
+					"minimum": 0,
+					"maximum": 10
+				},
+				"curtail": {
+					"point": "HeatingTemperatureSetPoint",
+					"value": 78.0,
+					"load": 10
+				}
+            },
+            "ElectricHeat": { 
+				"zonetemperature-setpoint":{
+					"operation": "1/(ZoneTemperature - HeatingTemperaturesetPoint)",
+					"operation_type": "formula",
+					"operation_args": ["HeatingTemperaturesetPoint", "ZoneTemperature"],
+					"minimum": 0,
+					"maximum": 10
+				},
+				"rated-power": {
+				    "on_value": 50.0,
+				    "off_value": 0.0,
+					"operation_type": "status",
+					"point_name": ["ElectricHeat"]
+				},
+				"room-type": {
+					"map_key": "Office",
+					"operation_type": "mapper",
+					"dict_name": "zone_type"
+				},
+				"stage": {
+				    "value": 20,
+					"operation_type": "constant"
+				},
+				"history-zonetemperature": {
+				    "comparison_type": "direct",
+					"operation_type": "history",
+					"point_name": "ZoneTemperature",
+					"previous_time": 15,
+					"minimum": 0,
+					"maximum": 10
+				},
+				"curtail": {
+					"point": "ElectricHeat",
+					"value": 0,
+					"load": 50
+				}
+            }
+        },
+        "rtu2": {
+			"CoolingCommand1": { 
+				"zonetemperature-setpoint":{
+					"operation": "1/(CoolingTemperaturesetPoint - ZoneTemperature)",
+					"operation_type": "formula",
+					"operation_args": ["CoolingTemperatureSetPoint", "ZoneTemperature"],
+					"minimum": 0,
+					"maximum": 10
+				},
+				"rated-power": {
+				    "on_value": 30.0,
+				    "off_value": 0.0,
+					"operation_type": "status",
+					"point_name": ["CoolingCommand1"]
+				},
+				"room-type": {
+					"map_key": "Directors office",
+					"operation_type": "mapper",
+					"dict_name": "zone_type"
+				},
+				"stage": {
+				    "value": 1,
+					"operation_type": "constant"
+				},
+				"history-zonetemperature": {
+				    "comparison_type": "direct",
+					"operation_type": "history",
+					"point_name": "ZoneTemperature",
+					"previous_time": 15,
+					"minimum": 0,
+					"maximum": 10
+				},
+				"curtail": {
+					"point": "CoolingTemperatureSetPoint",
+					"value": 78.0,
+					"load": 10
+				}
+			},
+			"CoolingCommand2": { 
+				"zonetemperature-setpoint":{
+					"operation": "1/(CoolingTemperaturesetPoint - ZoneTemperature)",
+					"operation_type": "formula",
+					"operation_args": ["CoolingTemperatureSetPoint", "ZoneTemperature"],
+					"minimum": 0,
+					"maximum": 10
+				},
+				"rated-power": {
+				    "on_value": 30.0,
+				    "off_value": 0.0,
+					"operation_type": "status",
+					"point_name": ["CoolingCommand2"]
+				},
+				"room-type": {
+					"operation": "Directors office",
+					"operation_type": "mapper",
+					"operation_args": ["zone_type"],
+					"minimum": 1.0,
+					"maximum": 9.0
+				},
+				"stage": {
+				    "value": 2,
+					"operation_type": "constant"
+				},
+				"history-zonetemperature": {
+				    "comparison_type": "direct",
+					"operation_type": "history",
+					"point_name": "ZoneTemperature",
+					"previous_time": 15,
+					"minimum": 0,
+					"maximum": 10
+				},
+				"curtail": {
+					"point": "CoolingTemperatureSetPoint",
+					"value": 78.0,
+					"load": 10
+				}
+			},
+			"HeatingCommand1": { 
+				"zonetemperature-setpoint":{
+					"operation": "1/(ZoneTemperature - HeatingTemperaturesetPoint)",
+					"operation_type": "formula",
+					"operation_args": ["HeatingTemperaturesetPoint", "ZoneTemperature"],
+					"minimum": 0,
+					"maximum": 10
+				},
+				"rated-power": {
+				    "on_value": 30.0,
+				    "off_value": 0.0,
+					"operation_type": "status",
+					"point_name": ["HeatingCommand1"]
+				},
+				"room-type": {
+					"map_key": "Directors office",
+					"operation_type": "mapper",
+					"dict_name": "zone_type"
+				},
+				"stage": {
+				    "value": 5,
+					"operation_type": "constant"
+				},
+				"history-zonetemperature": {
+				    "comparison_type": "direct",
+					"operation_type": "history",
+					"point_name": "ZoneTemperature",
+					"previous_time": 15,
+					"minimum": 0,
+					"maximum": 10
+				},
+				"curtail": {
+					"point": "HeatingTemperatureSetPoint",
+					"value": 78.0,
+					"load": 10
+				}
+			},
+            "HeatingCommand2": { 
+				"zonetemperature-setpoint":{
+					"operation": "1/(ZoneTemperature - HeatingTemperaturesetPoint)",
+					"operation_type": "formula",
+					"operation_args": ["HeatingTemperaturesetPoint", "ZoneTemperature"],
+					"minimum": 0,
+					"maximum": 10
+				},
+				"rated-power": {
+				    "on_value": 30.0,
+				    "off_value": 0.0,
+					"operation_type": "status",
+					"point_name": ["HeatingCommand2"]
+				},
+				"room-type": {
+					"map_key": "Directors office",
+					"operation_type": "mapper",
+					"dict_name": "zone_type"
+				},
+				"stage": {
+				    "value": 10,
+					"operation_type": "constant"
+				},
+				"history-zonetemperature": {
+				    "comparison_type": "direct",
+					"operation_type": "history",
+					"point_name": "ZoneTemperature",
+					"previous_time": 15,
+					"minimum": 0,
+					"maximum": 10
+				},
+				"curtail": {
+					"point": "HeatingTemperatureSetPoint",
+					"value": 78.0,
+					"load": 10
+				}
+            },
+            "ElectricHeat": { 
+				"zonetemperature-setpoint":{
+					"operation": "1/(ZoneTemperature - HeatingTemperaturesetPoint)",
+					"operation_type": "formula",
+					"operation_args": ["HeatingTemperaturesetPoint", "ZoneTemperature"],
+					"minimum": 0,
+					"maximum": 10
+				},
+				"rated-power": {
+				    "on_value": 75.0,
+				    "off_value": 0.0,
+					"operation_type": "status",
+					"point_name": ["ElectricHeat"]
+				},
+				"room-type": {
+					"map_key": "Directors office",
+					"operation_type": "mapper",
+					"dict_name": "zone_type"
+				},
+				"stage": {
+				    "value": 20,
+					"operation_type": "constant"
+				},
+				"history-zonetemperature": {
+				    "comparison_type": "direct",
+					"operation_type": "history",
+					"point_name": "ZoneTemperature",
+					"previous_time": 15,
+					"minimum": 0,
+					"maximum": 10
+				},
+				"curtail": {
+					"point": "ElectricHeat",
+					"value": 0,
+					"load": 50
+				}
+            }
+		}
+	},
+	"mappers": {
+		"zone_type": {
+		    "Directors office": 1,
+		    "Office": 3,
+		    "Empty Office": 7,
+		    "Conference Room": 1,
+		    "Mechanical Room": 9,
+		    "Computer Lab": 2,
+		    "Kitchen": 3
+	    }
+	}

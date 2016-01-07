@@ -1,0 +1,25 @@
+{
+	"campus": "campus1",
+	"building": "building1",
+    "PowerMeter": {
+		"device": "PowerMeter",
+	    "point": "BuildingPower"
+    },
+	"agent_id": "ahp",
+	"demand_limit": 30.0,
+	"curtailment_time": 15.0,
+	"builing_criteria_matrix": "/home/volttron/path-to-excel-file",
+	"curtail_confirm": 5.0,
+	"ilc_cluster_files": {
+		"rtu_cluster": {
+			"device_file_path": "~/volttron/applications/pnnl/ILCAgent/ilc_rtu_cluster",
+			"critieria_file_path": "~/volttron/applications/pnnl/ILCAgent/ilc_rtu_cluster.xl",
+			"cluster_priority": 0.8
+		},
+		"lighting_cluster": {
+			"device_file_path": "~/volttron/applications/pnnl/ILCAgent/ilc_rtu_cluster",
+			"critieria_file_path": "~/volttron/applications/pnnl/ILCAgent/ilc_rtu_cluster.xl",
+			"cluster_priority": 0.2
+		}
+	}
+ }
