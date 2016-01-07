@@ -3,9 +3,7 @@
 var React = require('react');
 var Router = require('react-router');
 
-var platformsPanelAgentStore = require('../stores/platforms-panel-agent-store');
-var PlatformsPanelAgent = require('./platforms-panel-agent');
-// var platformsPanelActionCreators = require('../action-creators/platforms-panel-action-creators');
+var platformsPanelItemsStore = require('../stores/platforms-panel-items-store');
 
 var PlatformsPanelItem = React.createClass({
     getInitialState: function () {
@@ -13,7 +11,7 @@ var PlatformsPanelItem = React.createClass({
         
         state.expanded = null;
 
-        state.agents = [];
+        state.children = [];
 
         return state;
     },
@@ -27,98 +25,172 @@ var PlatformsPanelItem = React.createClass({
 
         if (this.state.expanded)
         {
-            this.setState({agents: getAgentsFromStore(this.props.platform)}); 
+            this.setState({children: getItemsFromStore(this.props.panelItem)}); 
         }       
     },
     _toggleItem: function () {
 
         if (this.state.expanded === null)
         {
-            this.setState({expanded: true});
+            var children = [];
 
-            if (this.props.agents.length === 0)
+            if (this.state.children.length === 0)
             {
-                this.setState({agents: getAgentsFromStore(this.props.platform)});
+                children = getItemsFromStore(this.props.panelItem);
+                this.setState({children: children});
+            }
+            else
+            {
+                children = this.state.children;
+            }
+
+            if (children.length > 0)
+            {
+                this.setState({expanded: true});
             }
         }
         else
         {
-            this.setState({expanded: !this.state.expanded})    
+            if (this.state.children.length > 0)
+            {
+                this.setState({expanded: !this.state.expanded});
+            }
         }
     },
     render: function () {
-        var platform = this.props.platform;
+        var panelItem = this.props.panelItem;
+        var items;
         var agents;
+        var devices;
+        var renderItems;
 
-        var propAgents = this.props.agents;
+        var propChildren = this.props.children;
         var filterTerm = this.props.filter;
 
-        var agentClasses = [];
-        var arrowClasses = ["arrowButton"];
+        var itemClasses;
+        var arrowClasses = ["arrowButton", "noRotate"];
 
-        arrowClasses.push( ((platform.status === "GOOD") ? "status-good" :
-                                ( (platform.status === "BAD") ? "status-bad" : 
+        var childrenItems = [];
+
+        arrowClasses.push( ((panelItem.status === "GOOD") ? "status-good" :
+                                ( (panelItem.status === "BAD") ? "status-bad" : 
                                     "status-unknown")) )
-        if (propAgents.length > 0)
+        if (propChildren.length > 0)
         {
             arrowClasses.push("rotateDown");
-            agentClasses = ["showAgents"];
+            itemClasses = "showItems";
 
-            agents = propAgents
-                .filter(function (agent) {
-                    return (agent.name.indexOf(this) > -1);
+            items = propChildren
+                .filter(function (item) {
+                    return (item.name.indexOf(this) > -1);
                 }, filterTerm) 
                 .sort(function (a, b) {
                     if (a.name.toLowerCase() > b.name.toLowerCase()) { return 1; }
                     if (a.name.toLowerCase() < b.name.toLowerCase()) { return -1; }
                     return 0;
                 })
-                .map(function (agent) {
+                .map(function (item) {
 
                     return (
 
-                        <PlatformsPanelAgent agent={agent}/>
+                        <PlatformsPanelItem panelItem={item} children={childrenItems}/>
                         
                     );
                 }, this);
         }
         else if (this.state.expanded !== null)
         {
-            arrowClasses.push( (this.state.expanded ? "rotateDown" : "rotateRight") );
+            var classIndex = arrowClasses.indexOf("noRotate");
+            if (classIndex > -1)
+            {
+                arrowClasses.splice(classIndex, 1);
+            }
+
+            arrowClasses.push(this.state.expanded ? "rotateDown" : "rotateRight");
 
             if (this.state.expanded)
             {                
-                if (this.state.agents) 
+                if (this.state.children)
                 {
-                    agentClasses = ["showAgents"];
-                    agents = this.state.agents
-                        .sort(function (a, b) {
-                            if (a.name.toLowerCase() > b.name.toLowerCase()) { return 1; }
-                            if (a.name.toLowerCase() < b.name.toLowerCase()) { return -1; }
-                            return 0;
-                        })
-                        .map(function (agent) {
+                    itemClasses = "showItems";
 
+                    var agentItems = findAgentsOrDevices(this.state.children, "agents");
+                    
+                    if (agentItems.length > 0)
+                    {
+                        agents = agentItems.map(function (item) {
                             return (
-
-                                <PlatformsPanelAgent agent={agent}/>
-                                
+                                <PlatformsPanelItem panelItem={item} children={childrenItems}/>
                             );
                         }, this);
+                    }
+
+                    var deviceItems = findAgentsOrDevices(this.state.children, "devices");
+
+                    if (deviceItems.length > 0)
+                    {
+                        devices = deviceItems.map(function (item) {
+                            return (
+                                <PlatformsPanelItem panelItem={item} children={childrenItems}/>
+                            );
+                        }, this);
+                    }
+
+                    if (!agents && !devices)
+                    {
+                        items = this.state.children
+                            .sort(function (a, b) {
+                                if (a.name.toLowerCase() > b.name.toLowerCase()) { return 1; }
+                                if (a.name.toLowerCase() < b.name.toLowerCase()) { return -1; }
+                                return 0;
+                            })
+                            .map(function (item) {
+
+                                return (
+
+                                    <PlatformsPanelItem panelItem={item} children={childrenItems}/>
+                                    
+                                );
+                            }, this);
+                    }
                 }
             }
             else
             {
-                if (this.state.agents) 
+                if (this.state.children) 
                 {
-                    agentClasses = ["hideAgents"];
+                    itemClasses = "hideItems";
                 }
             }
         }
 
+        if (items)
+        {
+            renderItems = <ul className="platform-panel-list">{items}</ul>;
+        }
+        else
+        {
+            if (agents && devices)
+            {
+                renderItems = <ul className="platform-panel-list">
+                                <li><ul className="platform-panel-sublist"><span className="boldText">Agents</span> {agents}</ul></li>
+                                <li><ul className="platform-panel-sublist"><span className="boldText">Devices</span> {devices}</ul></li>
+                               </ul>;
+            }
+            else if (agents)
+            {
+                renderItems = <ul className="platform-panel-list">Agents {agents}</ul>;
+            }
+            else if (devices)
+            {
+                renderItems = <ul className="platform-panel-list">Devices {devices}</ul>;
+            }
+        }
+
+
         return (
             <li
-                key={platform.uuid}
+                key={panelItem.uuid}
                 className="panel-item"
             >
                 <div className="platform-info">
@@ -127,25 +199,45 @@ var PlatformsPanelItem = React.createClass({
                     <div className="platform-link">
                         <Router.Link
                             to="platform"
-                            params={{uuid: platform.uuid}}
+                            params={{uuid: panelItem.uuid}}
                         >
-                        {platform.name}
+                        {panelItem.name}
                         </Router.Link>
                     </div>
                     
                 </div>
-                <div className={agentClasses}>
-                    <ul className="platform-panel-list">
-                        {agents}
-                    </ul>
+                <div className={itemClasses}>
+                    {renderItems}
                 </div>
             </li>
         );
     },
 });
 
-function getAgentsFromStore(platform) {
-    return platformsPanelAgentStore.getAgents(platform);
+function findAgentsOrDevices(item, filterTerm)
+{
+    var agentsOrDevices = [];
+
+    var items = item.filter(function(child) {
+        return (child.hasOwnProperty(this) && !child.hasOwnProperty("children"));
+    }, filterTerm);
+
+    if (items.length !== 0)
+    {
+        items = items[0][filterTerm];
+
+        for (var key in items)
+        {
+            agentsOrDevices.push(items[key]);
+        }
+    }
+
+    return agentsOrDevices;
+}
+
+
+function getItemsFromStore(parentItem) {
+    return platformsPanelItemsStore.getItems(parentItem);
 }
 
 module.exports = PlatformsPanelItem;

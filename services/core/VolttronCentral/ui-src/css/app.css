@@ -397,6 +397,12 @@ br + .form__control-help {
 
 .platform-panel-list {
     list-style-type: none;
+    padding-left: 20px;
+}
+
+.platform-panel-sublist {
+    list-style-type: none;
+    padding-left: 10px;
 }
 
 .platform-collapsed {
@@ -462,6 +468,13 @@ br + .form__control-help {
     cursor: pointer;
     font-size: 16px;
     display: inline-block;
+
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
 }
 
 .rotateRight {
@@ -488,7 +501,16 @@ br + .form__control-help {
     to {transform: rotate(0deg); } 
 } 
 
-.showAgents {
+.noRotate:active {
+    animation: vibrate 0.1s infinite;
+}
+
+@keyframes vibrate {
+    50% { transform: rotate(1deg) translateX(1px);}
+    100% { transform: rotate(-1deg) translateX(-1px);}
+}
+
+.showItems {
     /*-webkit-animation: agent-reveal 1s;
     animation: agent-reveal 1s;
     animation-fill-mode: forwards;*/
@@ -501,7 +523,7 @@ br + .form__control-help {
     -o-transition: height 2s; /* Opera */
 }
 
-.hideAgents {
+.hideItems {
     /*-webkit-animation: agent-conceal 1s;
     animation: agent-conceal 1s;
     animation-fill-mode: forwards;*/
@@ -535,6 +557,10 @@ br + .form__control-help {
     {0% height: 100%;}
     {100% height: 0px;}
 } 
+
+.boldText {
+    font-weight: bold;
+}
 
 .filter_box {
     width: 80%;

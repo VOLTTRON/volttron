@@ -4,6 +4,7 @@ var React = require('react');
 var Router = require('react-router');
 
 var platformsPanelStore = require('../stores/platforms-panel-store');
+var platformsPanelItemsStore = require('../stores/platforms-panel-items-store');
 var platformsPanelActionCreators = require('../action-creators/platforms-panel-action-creators');
 var PlatformsPanelItem = require('./platforms-panel-item');
 var platformsPanelAgentStore = require('../stores/platforms-panel-agent-store');
@@ -63,7 +64,7 @@ var PlatformsPanel = React.createClass({
         } else {
             platforms = this.state.platforms
                 .filter(function (platform) {
-                    return ((platform.name.indexOf(this) > -1) || (this === "") || filteredAgents(platform, this).length > 0);
+                    return ((platform.name.indexOf(this) > -1) || (this === "") || filteredChildren(platform, this).length > 0);
                 }, filterTerm)                
                 .sort(function (a, b) {
                     if (a.name.toUpperCase() > b.name.toUpperCase()) { return 1; }
@@ -74,7 +75,7 @@ var PlatformsPanel = React.createClass({
 
                     return (
 
-                        <PlatformsPanelItem platform={platform} agents={filteredAgents(platform, filterTerm)} filter={filterTerm}/>
+                        <PlatformsPanelItem panelItem={platform} children={filteredChildren(platform, filterTerm)} filter={filterTerm}/>
                         
                     );
                 }, this);
@@ -95,7 +96,7 @@ var PlatformsPanel = React.createClass({
                         />
                     </div>
                     <ul className="platform-panel-list">
-                    {platforms}
+                        {platforms}
                     </ul>
                 </div>
             </div>
@@ -104,27 +105,35 @@ var PlatformsPanel = React.createClass({
 });
 
 function getPlatformsFromStore() {
-    return platformsPanelStore.getPlatforms();
+    return platformsPanelItemsStore.getItems("platforms");
 };
 
 function getExpandedFromStore() {
     return platformsPanelStore.getExpanded();
 };
 
-function filteredAgents(platform, filterTerm) {
+function filteredChildren(platform, filterTerm) {
 
-    if (filterTerm !== "")
-    {
-        var agents = platformsPanelAgentStore.getAgents(platform);
-        return agents.filter(function (agent) {
-            return (agent.name.indexOf(this) > -1);
-        }, filterTerm);
-    }
-    else
-    {
-        return [];
-    } 
+    // if (filterTerm !== "")
+    // {
+    //     var itemsList = [];
 
+    //     for (var key in platform.children)
+    //     {
+    //         var items = platformsPanelItemsStore.getFilteredItems(platform);
+    //     }
+        
+
+    //     return {"agents": agents.filter(function (agent) {
+    //         return (agent.name.indexOf(this) > -1);
+    //     }, filterTerm)};
+    // }
+    // else
+    // {
+    //     return [];
+    // } 
+
+    return [];
     
 };
 

@@ -75,7 +75,7 @@ router.run(function (Handler) {
 });
 
 
-},{"./components/dashboard":13,"./components/login-form":18,"./components/page-not-found":21,"./components/platform":23,"./components/platform-manager":22,"./components/platforms":27,"./stores/authorization-store":39,"react":undefined,"react-router":undefined}],2:[function(require,module,exports){
+},{"./components/dashboard":13,"./components/login-form":18,"./components/page-not-found":21,"./components/platform":23,"./components/platform-manager":22,"./components/platforms":26,"./stores/authorization-store":38,"react":undefined,"react-router":undefined}],2:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -102,7 +102,7 @@ var consoleActionCreators = {
 module.exports = consoleActionCreators;
 
 
-},{"../constants/action-types":30,"../dispatcher":31,"../lib/rpc/exchange":33}],3:[function(require,module,exports){
+},{"../constants/action-types":29,"../dispatcher":30,"../lib/rpc/exchange":32}],3:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -125,7 +125,7 @@ var modalActionCreators = {
 module.exports = modalActionCreators;
 
 
-},{"../constants/action-types":30,"../dispatcher":31}],4:[function(require,module,exports){
+},{"../constants/action-types":29,"../dispatcher":30}],4:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -477,7 +477,7 @@ function handle401(error) {
 module.exports = platformActionCreators;
 
 
-},{"../constants/action-types":30,"../dispatcher":31,"../lib/rpc":34,"../stores/authorization-store":39}],5:[function(require,module,exports){
+},{"../constants/action-types":29,"../dispatcher":30,"../lib/rpc":33,"../stores/authorization-store":38}],5:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -605,7 +605,7 @@ function handle401(error) {
 module.exports = platformManagerActionCreators;
 
 
-},{"../action-creators/platform-action-creators":4,"../constants/action-types":30,"../dispatcher":31,"../lib/rpc":34,"../stores/authorization-store":39}],6:[function(require,module,exports){
+},{"../action-creators/platform-action-creators":4,"../constants/action-types":29,"../dispatcher":30,"../lib/rpc":33,"../stores/authorization-store":38}],6:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -667,7 +667,7 @@ var platformsPanelActionCreators = {
 module.exports = platformsPanelActionCreators;
 
 
-},{"../constants/action-types":30,"../dispatcher":31,"../lib/rpc":34,"../stores/authorization-store":39}],7:[function(require,module,exports){
+},{"../constants/action-types":29,"../dispatcher":30,"../lib/rpc":33,"../stores/authorization-store":38}],7:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -739,7 +739,7 @@ var AgentRow = React.createClass({displayName: "AgentRow",
 module.exports = AgentRow;
 
 
-},{"../action-creators/modal-action-creators":3,"../action-creators/platform-action-creators":4,"./remove-agent-form":29,"react":undefined}],8:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../action-creators/platform-action-creators":4,"./remove-agent-form":28,"react":undefined}],8:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -873,7 +873,7 @@ function getStateFromStores() {
 module.exports = Composer;
 
 
-},{"../action-creators/console-action-creators":2,"../stores/console-store":40,"react":undefined}],10:[function(require,module,exports){
+},{"../action-creators/console-action-creators":2,"../stores/console-store":39,"react":undefined}],10:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -984,7 +984,7 @@ function getStateFromStores() {
 module.exports = Conversation;
 
 
-},{"../stores/console-store":40,"./exchange":16,"jquery":undefined,"react":undefined}],13:[function(require,module,exports){
+},{"../stores/console-store":39,"./exchange":16,"jquery":undefined,"react":undefined}],13:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1146,7 +1146,7 @@ function getStateFromStores() {
 module.exports = RegisterPlatformForm;
 
 
-},{"../action-creators/modal-action-creators":3,"../action-creators/platform-manager-action-creators":5,"../stores/platform-registration-store":43,"react":undefined}],15:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../action-creators/platform-manager-action-creators":5,"../stores/platform-registration-store":42,"react":undefined}],15:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1623,7 +1623,7 @@ function getStateFromStores() {
 module.exports = LoginForm;
 
 
-},{"../action-creators/platform-manager-action-creators":5,"../stores/login-form-store":41,"react":undefined,"react-router":undefined}],19:[function(require,module,exports){
+},{"../action-creators/platform-manager-action-creators":5,"../stores/login-form-store":40,"react":undefined,"react-router":undefined}],19:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1727,7 +1727,7 @@ function getStateFromStores() {
 module.exports = Navigation;
 
 
-},{"../action-creators/platform-manager-action-creators":5,"../stores/authorization-store":39,"react":undefined,"react-router":undefined}],21:[function(require,module,exports){
+},{"../action-creators/platform-manager-action-creators":5,"../stores/authorization-store":38,"react":undefined,"react-router":undefined}],21:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1878,7 +1878,7 @@ function getStateFromStores() {
 module.exports = PlatformManager;
 
 
-},{"../action-creators/console-action-creators":2,"../action-creators/modal-action-creators":3,"../action-creators/platform-manager-action-creators":5,"../stores/authorization-store":39,"../stores/console-store":40,"../stores/modal-store":42,"../stores/platforms-panel-store":45,"./console":11,"./modal":19,"./navigation":20,"./platforms-panel":26,"jquery":undefined,"react":undefined,"react-router":undefined}],23:[function(require,module,exports){
+},{"../action-creators/console-action-creators":2,"../action-creators/modal-action-creators":3,"../action-creators/platform-manager-action-creators":5,"../stores/authorization-store":38,"../stores/console-store":39,"../stores/modal-store":41,"../stores/platforms-panel-store":45,"./console":11,"./modal":19,"./navigation":20,"./platforms-panel":25,"jquery":undefined,"react":undefined,"react-router":undefined}],23:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2088,89 +2088,7 @@ module.exports = Platform;
 var React = require('react');
 var Router = require('react-router');
 
-// var platformsPanelStore = require('../stores/platforms-panel-store');
-// var platformsPanelActionCreators = require('../action-creators/platforms-panel-action-creators');
-
-var PlatformsPanelAgent = React.createClass({displayName: "PlatformsPanelAgent",
-    getInitialState: function () {
-        var state = {};
-        
-        state.expanded = null;
-
-        return state;
-    },
-    // componentDidMount: function () {
-    //     platformsPanelStore.addChangeListener(this._onStoresChange);
-    // },
-    // componentWillUnmount: function () {
-    //     platformsPanelStore.removeChangeListener(this._onStoresChange);
-    // },
-    // _onStoresChange: function () {
-    //     this.setState({platforms: getPlatformsFromStore()});
-    //     this.setState({expanded: getExpandedFromStore()});
-    // },
-    _toggleItem: function () {
-
-        if (this.state.expanded === null)
-        {
-            this.setState({expanded: true})
-        }
-        else
-        {
-            this.setState({expanded: !this.state.expanded})    
-        }
-        
-        // platformsPanelItemActionCreators.toggleItem();
-    },
-    render: function () {
-        var agent = this.props.agent;
-
-        var arrowClasses = ["arrowButton"];
-
-        arrowClasses.push( ((agent.status === "GOOD") ? "status-good" :
-                                ( (agent.status === "BAD") ? "status-bad" : 
-                                    "status-unknown")) )
-
-        if (this.state.expanded !== null)
-        {
-            arrowClasses.push( (this.state.expanded ? "rotateDown" : "rotateRight") );
-        }
-
-        return (
-            React.createElement("li", {
-                key: agent.uuid, 
-                className: "panel-item"
-            }, 
-                React.createElement("div", {className: "platform-info"}, 
-                    React.createElement("div", {className: arrowClasses.join(' '), 
-                        onClick: this._toggleItem}, "▶"), 
-                    React.createElement("div", {className: "platform-link"}, 
-                        React.createElement(Router.Link, {
-                            to: "platform", 
-                            params: {uuid: agent.uuid}
-                        }, 
-                        agent.name
-                        )
-                    )
-                    
-                )
-            )
-        );
-    },
-});
-
-module.exports = PlatformsPanelAgent;
-
-
-},{"react":undefined,"react-router":undefined}],25:[function(require,module,exports){
-'use strict';
-
-var React = require('react');
-var Router = require('react-router');
-
-var platformsPanelAgentStore = require('../stores/platforms-panel-agent-store');
-var PlatformsPanelAgent = require('./platforms-panel-agent');
-// var platformsPanelActionCreators = require('../action-creators/platforms-panel-action-creators');
+var platformsPanelItemsStore = require('../stores/platforms-panel-items-store');
 
 var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
     getInitialState: function () {
@@ -2178,7 +2096,7 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
         
         state.expanded = null;
 
-        state.agents = [];
+        state.children = [];
 
         return state;
     },
@@ -2192,98 +2110,172 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
 
         if (this.state.expanded)
         {
-            this.setState({agents: getAgentsFromStore(this.props.platform)}); 
+            this.setState({children: getItemsFromStore(this.props.panelItem)}); 
         }       
     },
     _toggleItem: function () {
 
         if (this.state.expanded === null)
         {
-            this.setState({expanded: true});
+            var children = [];
 
-            if (this.props.agents.length === 0)
+            if (this.state.children.length === 0)
             {
-                this.setState({agents: getAgentsFromStore(this.props.platform)});
+                children = getItemsFromStore(this.props.panelItem);
+                this.setState({children: children});
+            }
+            else
+            {
+                children = this.state.children;
+            }
+
+            if (children.length > 0)
+            {
+                this.setState({expanded: true});
             }
         }
         else
         {
-            this.setState({expanded: !this.state.expanded})    
+            if (this.state.children.length > 0)
+            {
+                this.setState({expanded: !this.state.expanded});
+            }
         }
     },
     render: function () {
-        var platform = this.props.platform;
+        var panelItem = this.props.panelItem;
+        var items;
         var agents;
+        var devices;
+        var renderItems;
 
-        var propAgents = this.props.agents;
+        var propChildren = this.props.children;
         var filterTerm = this.props.filter;
 
-        var agentClasses = [];
-        var arrowClasses = ["arrowButton"];
+        var itemClasses;
+        var arrowClasses = ["arrowButton", "noRotate"];
 
-        arrowClasses.push( ((platform.status === "GOOD") ? "status-good" :
-                                ( (platform.status === "BAD") ? "status-bad" : 
+        var childrenItems = [];
+
+        arrowClasses.push( ((panelItem.status === "GOOD") ? "status-good" :
+                                ( (panelItem.status === "BAD") ? "status-bad" : 
                                     "status-unknown")) )
-        if (propAgents.length > 0)
+        if (propChildren.length > 0)
         {
             arrowClasses.push("rotateDown");
-            agentClasses = ["showAgents"];
+            itemClasses = "showItems";
 
-            agents = propAgents
-                .filter(function (agent) {
-                    return (agent.name.indexOf(this) > -1);
+            items = propChildren
+                .filter(function (item) {
+                    return (item.name.indexOf(this) > -1);
                 }, filterTerm) 
                 .sort(function (a, b) {
                     if (a.name.toLowerCase() > b.name.toLowerCase()) { return 1; }
                     if (a.name.toLowerCase() < b.name.toLowerCase()) { return -1; }
                     return 0;
                 })
-                .map(function (agent) {
+                .map(function (item) {
 
                     return (
 
-                        React.createElement(PlatformsPanelAgent, {agent: agent})
+                        React.createElement(PlatformsPanelItem, {panelItem: item, children: childrenItems})
                         
                     );
                 }, this);
         }
         else if (this.state.expanded !== null)
         {
-            arrowClasses.push( (this.state.expanded ? "rotateDown" : "rotateRight") );
+            var classIndex = arrowClasses.indexOf("noRotate");
+            if (classIndex > -1)
+            {
+                arrowClasses.splice(classIndex, 1);
+            }
+
+            arrowClasses.push(this.state.expanded ? "rotateDown" : "rotateRight");
 
             if (this.state.expanded)
             {                
-                if (this.state.agents) 
+                if (this.state.children)
                 {
-                    agentClasses = ["showAgents"];
-                    agents = this.state.agents
-                        .sort(function (a, b) {
-                            if (a.name.toLowerCase() > b.name.toLowerCase()) { return 1; }
-                            if (a.name.toLowerCase() < b.name.toLowerCase()) { return -1; }
-                            return 0;
-                        })
-                        .map(function (agent) {
+                    itemClasses = "showItems";
 
+                    var agentItems = findAgentsOrDevices(this.state.children, "agents");
+                    
+                    if (agentItems.length > 0)
+                    {
+                        agents = agentItems.map(function (item) {
                             return (
-
-                                React.createElement(PlatformsPanelAgent, {agent: agent})
-                                
+                                React.createElement(PlatformsPanelItem, {panelItem: item, children: childrenItems})
                             );
                         }, this);
+                    }
+
+                    var deviceItems = findAgentsOrDevices(this.state.children, "devices");
+
+                    if (deviceItems.length > 0)
+                    {
+                        devices = deviceItems.map(function (item) {
+                            return (
+                                React.createElement(PlatformsPanelItem, {panelItem: item, children: childrenItems})
+                            );
+                        }, this);
+                    }
+
+                    if (!agents && !devices)
+                    {
+                        items = this.state.children
+                            .sort(function (a, b) {
+                                if (a.name.toLowerCase() > b.name.toLowerCase()) { return 1; }
+                                if (a.name.toLowerCase() < b.name.toLowerCase()) { return -1; }
+                                return 0;
+                            })
+                            .map(function (item) {
+
+                                return (
+
+                                    React.createElement(PlatformsPanelItem, {panelItem: item, children: childrenItems})
+                                    
+                                );
+                            }, this);
+                    }
                 }
             }
             else
             {
-                if (this.state.agents) 
+                if (this.state.children) 
                 {
-                    agentClasses = ["hideAgents"];
+                    itemClasses = "hideItems";
                 }
             }
         }
 
+        if (items)
+        {
+            renderItems = React.createElement("ul", {className: "platform-panel-list"}, items);
+        }
+        else
+        {
+            if (agents && devices)
+            {
+                renderItems = React.createElement("ul", {className: "platform-panel-list"}, 
+                                React.createElement("li", null, React.createElement("ul", {className: "platform-panel-sublist"}, React.createElement("span", {className: "boldText"}, "Agents"), " ", agents)), 
+                                React.createElement("li", null, React.createElement("ul", {className: "platform-panel-sublist"}, React.createElement("span", {className: "boldText"}, "Devices"), " ", devices))
+                               );
+            }
+            else if (agents)
+            {
+                renderItems = React.createElement("ul", {className: "platform-panel-list"}, "Agents ", agents);
+            }
+            else if (devices)
+            {
+                renderItems = React.createElement("ul", {className: "platform-panel-list"}, "Devices ", devices);
+            }
+        }
+
+
         return (
             React.createElement("li", {
-                key: platform.uuid, 
+                key: panelItem.uuid, 
                 className: "panel-item"
             }, 
                 React.createElement("div", {className: "platform-info"}, 
@@ -2292,37 +2284,58 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
                     React.createElement("div", {className: "platform-link"}, 
                         React.createElement(Router.Link, {
                             to: "platform", 
-                            params: {uuid: platform.uuid}
+                            params: {uuid: panelItem.uuid}
                         }, 
-                        platform.name
+                        panelItem.name
                         )
                     )
                     
                 ), 
-                React.createElement("div", {className: agentClasses}, 
-                    React.createElement("ul", {className: "platform-panel-list"}, 
-                        agents
-                    )
+                React.createElement("div", {className: itemClasses}, 
+                    renderItems
                 )
             )
         );
     },
 });
 
-function getAgentsFromStore(platform) {
-    return platformsPanelAgentStore.getAgents(platform);
+function findAgentsOrDevices(item, filterTerm)
+{
+    var agentsOrDevices = [];
+
+    var items = item.filter(function(child) {
+        return (child.hasOwnProperty(this) && !child.hasOwnProperty("children"));
+    }, filterTerm);
+
+    if (items.length !== 0)
+    {
+        items = items[0][filterTerm];
+
+        for (var key in items)
+        {
+            agentsOrDevices.push(items[key]);
+        }
+    }
+
+    return agentsOrDevices;
+}
+
+
+function getItemsFromStore(parentItem) {
+    return platformsPanelItemsStore.getItems(parentItem);
 }
 
 module.exports = PlatformsPanelItem;
 
 
-},{"../stores/platforms-panel-agent-store":44,"./platforms-panel-agent":24,"react":undefined,"react-router":undefined}],26:[function(require,module,exports){
+},{"../stores/platforms-panel-items-store":44,"react":undefined,"react-router":undefined}],25:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
 var Router = require('react-router');
 
 var platformsPanelStore = require('../stores/platforms-panel-store');
+var platformsPanelItemsStore = require('../stores/platforms-panel-items-store');
 var platformsPanelActionCreators = require('../action-creators/platforms-panel-action-creators');
 var PlatformsPanelItem = require('./platforms-panel-item');
 var platformsPanelAgentStore = require('../stores/platforms-panel-agent-store');
@@ -2382,7 +2395,7 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
         } else {
             platforms = this.state.platforms
                 .filter(function (platform) {
-                    return ((platform.name.indexOf(this) > -1) || (this === "") || filteredAgents(platform, this).length > 0);
+                    return ((platform.name.indexOf(this) > -1) || (this === "") || filteredChildren(platform, this).length > 0);
                 }, filterTerm)                
                 .sort(function (a, b) {
                     if (a.name.toUpperCase() > b.name.toUpperCase()) { return 1; }
@@ -2393,7 +2406,7 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
 
                     return (
 
-                        React.createElement(PlatformsPanelItem, {platform: platform, agents: filteredAgents(platform, filterTerm), filter: filterTerm})
+                        React.createElement(PlatformsPanelItem, {panelItem: platform, children: filteredChildren(platform, filterTerm), filter: filterTerm})
                         
                     );
                 }, this);
@@ -2414,7 +2427,7 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
                         )
                     ), 
                     React.createElement("ul", {className: "platform-panel-list"}, 
-                    platforms
+                        platforms
                     )
                 )
             )
@@ -2423,34 +2436,42 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
 });
 
 function getPlatformsFromStore() {
-    return platformsPanelStore.getPlatforms();
+    return platformsPanelItemsStore.getItems("platforms");
 };
 
 function getExpandedFromStore() {
     return platformsPanelStore.getExpanded();
 };
 
-function filteredAgents(platform, filterTerm) {
+function filteredChildren(platform, filterTerm) {
 
-    if (filterTerm !== "")
-    {
-        var agents = platformsPanelAgentStore.getAgents(platform);
-        return agents.filter(function (agent) {
-            return (agent.name.indexOf(this) > -1);
-        }, filterTerm);
-    }
-    else
-    {
-        return [];
-    } 
+    // if (filterTerm !== "")
+    // {
+    //     var itemsList = [];
 
+    //     for (var key in platform.children)
+    //     {
+    //         var items = platformsPanelItemsStore.getFilteredItems(platform);
+    //     }
+        
+
+    //     return {"agents": agents.filter(function (agent) {
+    //         return (agent.name.indexOf(this) > -1);
+    //     }, filterTerm)};
+    // }
+    // else
+    // {
+    //     return [];
+    // } 
+
+    return [];
     
 };
 
 module.exports = PlatformsPanel;
 
 
-},{"../action-creators/platforms-panel-action-creators":6,"../stores/platforms-panel-agent-store":44,"../stores/platforms-panel-store":45,"./platforms-panel-item":25,"react":undefined,"react-router":undefined}],27:[function(require,module,exports){
+},{"../action-creators/platforms-panel-action-creators":6,"../stores/platforms-panel-agent-store":43,"../stores/platforms-panel-items-store":44,"../stores/platforms-panel-store":45,"./platforms-panel-item":24,"react":undefined,"react-router":undefined}],26:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2565,7 +2586,7 @@ function getStateFromStores() {
 module.exports = Platforms;
 
 
-},{"../action-creators/modal-action-creators":3,"../components/deregister-platform-confirmation":14,"../components/register-platform-form":28,"../stores/platforms-store":46,"react":undefined,"react-router":undefined}],28:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../components/deregister-platform-confirmation":14,"../components/register-platform-form":27,"../stores/platforms-store":46,"react":undefined,"react-router":undefined}],27:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2771,7 +2792,7 @@ function getStateFromStores() {
 module.exports = RegisterPlatformForm;
 
 
-},{"../action-creators/modal-action-creators":3,"../action-creators/platform-manager-action-creators":5,"../stores/platform-registration-store":43,"react":undefined}],29:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../action-creators/platform-manager-action-creators":5,"../stores/platform-registration-store":42,"react":undefined}],28:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2830,7 +2851,7 @@ var RemoveAgentForm = React.createClass({displayName: "RemoveAgentForm",
 module.exports = RemoveAgentForm;
 
 
-},{"../action-creators/modal-action-creators":3,"../action-creators/platform-action-creators":4,"react":undefined}],30:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../action-creators/platform-action-creators":4,"react":undefined}],29:[function(require,module,exports){
 'use strict';
 
 var keyMirror = require('react/lib/keyMirror');
@@ -2866,7 +2887,7 @@ module.exports = keyMirror({
 });
 
 
-},{"react/lib/keyMirror":undefined}],31:[function(require,module,exports){
+},{"react/lib/keyMirror":undefined}],30:[function(require,module,exports){
 'use strict';
 
 var Dispatcher = require('flux').Dispatcher;
@@ -2886,7 +2907,7 @@ dispatcher.dispatch = function (action) {
 module.exports = dispatcher;
 
 
-},{"../constants/action-types":30,"flux":undefined}],32:[function(require,module,exports){
+},{"../constants/action-types":29,"flux":undefined}],31:[function(require,module,exports){
 'use strict';
 
 function RpcError(error) {
@@ -2901,7 +2922,7 @@ RpcError.prototype.constructor = RpcError;
 module.exports = RpcError;
 
 
-},{}],33:[function(require,module,exports){
+},{}],32:[function(require,module,exports){
 'use strict';
 
 var uuid = require('node-uuid');
@@ -2989,7 +3010,7 @@ function RpcExchange(request, redactedParams) {
 module.exports = RpcExchange;
 
 
-},{"../../constants/action-types":30,"../../dispatcher":31,"../xhr":37,"./error":32,"node-uuid":undefined}],34:[function(require,module,exports){
+},{"../../constants/action-types":29,"../../dispatcher":30,"../xhr":36,"./error":31,"node-uuid":undefined}],33:[function(require,module,exports){
 'use strict';
 
 module.exports = {
@@ -2998,7 +3019,7 @@ module.exports = {
 };
 
 
-},{"./error":32,"./exchange":33}],35:[function(require,module,exports){
+},{"./error":31,"./exchange":32}],34:[function(require,module,exports){
 'use strict';
 
 var EventEmitter = require('events').EventEmitter;
@@ -3026,7 +3047,7 @@ Store.prototype.removeChangeListener = function (callback) {
 module.exports = Store;
 
 
-},{"events":undefined}],36:[function(require,module,exports){
+},{"events":undefined}],35:[function(require,module,exports){
 'use strict';
 
 function XhrError(message, response) {
@@ -3040,7 +3061,7 @@ XhrError.prototype.constructor = XhrError;
 module.exports = XhrError;
 
 
-},{}],37:[function(require,module,exports){
+},{}],36:[function(require,module,exports){
 'use strict';
 
 module.exports = {
@@ -3049,7 +3070,7 @@ module.exports = {
 };
 
 
-},{"./error":36,"./request":38}],38:[function(require,module,exports){
+},{"./error":35,"./request":37}],37:[function(require,module,exports){
 'use strict';
 
 var jQuery = require('jquery');
@@ -3080,7 +3101,7 @@ function XhrRequest(opts) {
 module.exports = XhrRequest;
 
 
-},{"./error":36,"bluebird":undefined,"jquery":undefined}],39:[function(require,module,exports){
+},{"./error":35,"bluebird":undefined,"jquery":undefined}],38:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -3118,7 +3139,7 @@ authorizationStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = authorizationStore;
 
 
-},{"../constants/action-types":30,"../dispatcher":31,"../lib/store":35}],40:[function(require,module,exports){
+},{"../constants/action-types":29,"../dispatcher":30,"../lib/store":34}],39:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -3211,7 +3232,7 @@ consoleStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = consoleStore;
 
 
-},{"../constants/action-types":30,"../dispatcher":31,"../lib/store":35,"../stores/authorization-store":39}],41:[function(require,module,exports){
+},{"../constants/action-types":29,"../dispatcher":30,"../lib/store":34,"../stores/authorization-store":38}],40:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -3246,7 +3267,7 @@ loginFormStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = loginFormStore;
 
 
-},{"../constants/action-types":30,"../dispatcher":31,"../lib/store":35,"./authorization-store":39}],42:[function(require,module,exports){
+},{"../constants/action-types":29,"../dispatcher":30,"../lib/store":34,"./authorization-store":38}],41:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -3279,7 +3300,7 @@ modalStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = modalStore;
 
 
-},{"../constants/action-types":30,"../dispatcher":31,"../lib/store":35}],43:[function(require,module,exports){
+},{"../constants/action-types":29,"../dispatcher":30,"../lib/store":34}],42:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -3325,7 +3346,7 @@ platformRegistrationStore.dispatchToken = dispatcher.register(function (action) 
 module.exports = platformRegistrationStore;
 
 
-},{"../constants/action-types":30,"../dispatcher":31,"../lib/store":35,"./authorization-store":39}],44:[function(require,module,exports){
+},{"../constants/action-types":29,"../dispatcher":30,"../lib/store":34,"./authorization-store":38}],43:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -3418,7 +3439,675 @@ platformsPanelAgentStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = platformsPanelAgentStore;
 
 
-},{"../constants/action-types":30,"../dispatcher":31,"../lib/store":35}],45:[function(require,module,exports){
+},{"../constants/action-types":29,"../dispatcher":30,"../lib/store":34}],44:[function(require,module,exports){
+'use strict';
+
+var ACTION_TYPES = require('../constants/action-types');
+var dispatcher = require('../dispatcher');
+var Store = require('../lib/store');
+
+var _items = {
+    "platforms": {
+
+        "4687fedc-65ba-43fe-21dc-098765bafedc":
+        {
+            "uuid": "4687fedc-65ba-43fe-21dc-098765bafedc",
+            "name": "PNNL",
+            "status": "GOOD",
+            "children": ["buildings"],
+            "path": ["platforms"],
+            "buildings": {
+                "1111fedc-65ba-43fe-21dc-098765bafede":
+                {
+                    "uuid": "1111fedc-65ba-43fe-21dc-098765bafede",
+                    "name": "ISB1",
+                    "status": "GOOD",
+                    "children": ["agents", "devices"],
+                    "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings"],
+                    "agents": {
+                        "2461fedc-65ba-43fe-21dc-098765bafede":
+                        {
+                            "uuid": "2461fedc-65ba-43fe-21dc-098765bafede",
+                            "name": "Platform Agent",
+                            "status": "GOOD",
+                            "children": [],
+                            "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "agents"]
+                        },
+                        "7897fedc-65ba-43fe-21dc-098765bafedf":
+                        {
+                            "uuid": "7897fedc-65ba-43fe-21dc-098765bafedf",
+                            "name": "SqlHistorian",
+                            "status": "GOOD",
+                            "children": [],
+                            "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "agents"]
+                        }
+                    },
+                    "devices": {
+                        "1231fedc-65ba-43fe-21dc-098765bafedl":
+                        {
+                            "uuid": "1231fedc-65ba-43fe-21dc-098765bafedl",
+                            "name": "RTU1",
+                            "status": "GOOD",
+                            "children": ["points"],
+                            "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices"],
+                            "points": {
+                                "5461fedc-65ba-43fe-21dc-098765bafedl":
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-098765bafedl",
+                                    "name": "MinimumSupplyFanSpeed",
+                                    "status": "GOOD",
+                                    "children": [],
+                                    "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "points"]
+                                },
+                                "6451fedc-65ba-43fe-21dc-098765bafedl":
+                                {
+                                    "uuid": "6451fedc-65ba-43fe-21dc-098765bafedl",
+                                    "name": "CoolingValvePosition",
+                                    "status": "GOOD",
+                                    "children": [],
+                                    "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "points"]
+                                }
+                            }
+                        },
+                        "4567fedc-65ba-43fe-21dc-098765bafedm":
+                        {
+                            "uuid": "4567fedc-65ba-43fe-21dc-098765bafedm",
+                            "name": "RTU2",
+                            "status": "GOOD",
+                            "children": ["points"],
+                            "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices"],
+                            "points": {
+                                "7681fedc-65ba-43fe-21dc-098765bafedl":
+                                {
+                                    "uuid": "7681fedc-65ba-43fe-21dc-098765bafedl",
+                                    "name": "CoolingValvePosition",
+                                    "status": "GOOD",
+                                    "children": [],
+                                    "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "4567fedc-65ba-43fe-21dc-098765bafedm", "points"]
+                                },
+                                "8671fedc-65ba-43fe-21dc-098765bafedl":
+                                {
+                                    "uuid": "8671fedc-65ba-43fe-21dc-098765bafedl",
+                                    "name": "MixedAirTemperature",
+                                    "status": "GOOD",
+                                    "children": [],
+                                    "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "4567fedc-65ba-43fe-21dc-098765bafedm", "points"]
+                                }
+                            }
+                        }
+                    }
+                },
+                "2221fedc-65ba-43fe-21dc-098765bafede":
+                {
+                    "uuid": "2221fedc-65ba-43fe-21dc-098765bafede",
+                    "name": "ISB2",
+                    "status": "GOOD",
+                    "children": ["agents", "devices"],
+                    "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings"],
+                    "agents": {
+                        "3331fedc-65ba-43fe-21dc-098765bafede":
+                        {
+                            "uuid": "3331fedc-65ba-43fe-21dc-098765bafede",
+                            "name": "Platform Agent",
+                            "status": "GOOD",
+                            "children": [],
+                            "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2221fedc-65ba-43fe-21dc-098765bafede", "agents"]
+                        },
+                        "4447fedc-65ba-43fe-21dc-098765bafedf":
+                        {
+                            "uuid": "4447fedc-65ba-43fe-21dc-098765bafedf",
+                            "name": "SqlHistorian",
+                            "status": "GOOD",
+                            "children": [],
+                            "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2221fedc-65ba-43fe-21dc-098765bafede", "agents"]
+                        }
+                    },
+                    "devices": {
+                        "5551fedc-65ba-43fe-21dc-098765bafedl":
+                        {
+                            "uuid": "5551fedc-65ba-43fe-21dc-098765bafedl",
+                            "name": "RTU1",
+                            "status": "GOOD",
+                            "children": ["points"],
+                            "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2221fedc-65ba-43fe-21dc-098765bafede", "devices"],
+                            "points": {
+                                "7771fedc-65ba-43fe-21dc-098765bafedl":
+                                {
+                                    "uuid": "7771fedc-65ba-43fe-21dc-098765bafedl",
+                                    "name": "MinimumSupplyFanSpeed",
+                                    "status": "GOOD",
+                                    "children": [],
+                                    "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2221fedc-65ba-43fe-21dc-098765bafede", "devices", "5551fedc-65ba-43fe-21dc-098765bafedl", "points"]
+                                },
+                                "8881fedc-65ba-43fe-21dc-098765bafedl":
+                                {
+                                    "uuid": "8881fedc-65ba-43fe-21dc-098765bafedl",
+                                    "name": "CoolingValvePosition",
+                                    "status": "GOOD",
+                                    "children": [],
+                                    "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2221fedc-65ba-43fe-21dc-098765bafede", "devices", "5551fedc-65ba-43fe-21dc-098765bafedl", "points"]
+                                }
+                            }
+                        },
+                        "6567fedc-65ba-43fe-21dc-098765bafedm":
+                        {
+                            "uuid": "6567fedc-65ba-43fe-21dc-098765bafedm",
+                            "name": "RTU2",
+                            "status": "GOOD",
+                            "children": ["points"],
+                            "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2221fedc-65ba-43fe-21dc-098765bafede", "devices"],
+                            "points": {
+                                "9991fedc-65ba-43fe-21dc-098765bafedl":
+                                {
+                                    "uuid": "9991fedc-65ba-43fe-21dc-098765bafedl",
+                                    "name": "CoolingValvePosition",
+                                    "status": "GOOD",
+                                    "children": [],
+                                    "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2221fedc-65ba-43fe-21dc-098765bafede", "devices", "6567fedc-65ba-43fe-21dc-098765bafedm", "points"]
+                                },
+                                "1000fedc-65ba-43fe-21dc-098765bafedl":
+                                {
+                                    "uuid": "1000fedc-65ba-43fe-21dc-098765bafedl",
+                                    "name": "MixedAirTemperature",
+                                    "status": "GOOD",
+                                    "children": [],
+                                    "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2221fedc-65ba-43fe-21dc-098765bafede", "devices", "6567fedc-65ba-43fe-21dc-098765bafedm", "points"]
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "6801fedc-65ba-43fe-21dc-098765bafedc":
+        {
+            "uuid": "6801fedc-65ba-43fe-21dc-098765bafedc",
+            "name": "UW",
+            "status": "BAD",
+            "children": ["buildings"],
+            "path": ["platforms"],
+            "buildings": {
+                "1111fedc-65ba-43fe-21dc-098765bafede":
+                {
+                    "uuid": "1111fedc-65ba-43fe-21dc-098765bafede",
+                    "name": "HUB",
+                    "status": "GOOD",
+                    "children": ["agents", "devices"],
+                    "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings"],
+                    "agents": {
+                        "2461fedc-65ba-43fe-21dc-098765bafede":
+                        {
+                            "uuid": "2461fedc-65ba-43fe-21dc-098765bafede",
+                            "name": "Platform Agent",
+                            "status": "GOOD",
+                            "children": [],
+                            "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "agents"]
+                        },
+                        "7897fedc-65ba-43fe-21dc-098765bafedf":
+                        {
+                            "uuid": "7897fedc-65ba-43fe-21dc-098765bafedf",
+                            "name": "SqlHistorian",
+                            "status": "GOOD",
+                            "children": [],
+                            "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "agents"]
+                        }
+                    },
+                    "devices": {
+                        "1231fedc-65ba-43fe-21dc-098765bafedl":
+                        {
+                            "uuid": "1231fedc-65ba-43fe-21dc-098765bafedl",
+                            "name": "RTU1",
+                            "status": "GOOD",
+                            "children": "points",
+                            "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices"],
+                            "points": {
+                                "5461fedc-65ba-43fe-21dc-098765bafedl":
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-098765bafedl",
+                                    "name": "MinimumSupplyFanSpeed",
+                                    "status": "GOOD",
+                                    "children": [],
+                                    "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "points"]
+                                },
+                                "6451fedc-65ba-43fe-21dc-098765bafedl":
+                                {
+                                    "uuid": "6451fedc-65ba-43fe-21dc-098765bafedl",
+                                    "name": "CoolingValvePosition",
+                                    "status": "GOOD",
+                                    "children": [],
+                                    "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "points"]
+                                }
+                            }
+                        },
+                        "4567fedc-65ba-43fe-21dc-098765bafedm":
+                        {
+                            "uuid": "4567fedc-65ba-43fe-21dc-098765bafedm",
+                            "name": "RTU2",
+                            "status": "GOOD",
+                            "children": ["points"],
+                            "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices"],
+                            "points": {
+                                "7681fedc-65ba-43fe-21dc-098765bafedl":
+                                {
+                                    "uuid": "7681fedc-65ba-43fe-21dc-098765bafedl",
+                                    "name": "CoolingValvePosition",
+                                    "status": "GOOD",
+                                    "children": [],
+                                    "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "4567fedc-65ba-43fe-21dc-098765bafedm", "points"]
+                                },
+                                "8671fedc-65ba-43fe-21dc-098765bafedl":
+                                {
+                                    "uuid": "8671fedc-65ba-43fe-21dc-098765bafedl",
+                                    "name": "MixedAirTemperature",
+                                    "status": "GOOD",
+                                    "children": [],
+                                    "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "4567fedc-65ba-43fe-21dc-098765bafedm", "points"]
+                                }
+                            }
+                        }
+                    }
+                },
+                "2221fedc-65ba-43fe-21dc-098765bafede":
+                {
+                    "uuid": "2221fedc-65ba-43fe-21dc-098765bafede",
+                    "name": "FAC",
+                    "status": "BAD",
+                    "children": ["agents", "devices"],
+                    "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings"],
+                    "agents": {
+                        "1357fedc-65ba-43fe-21dc-098765bafedg":
+                        {
+                            "uuid": "1357fedc-65ba-43fe-21dc-098765bafedg",
+                            "name": "Husky Agent",
+                            "status": "GOOD",
+                            "children": [],
+                            "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2221fedc-65ba-43fe-21dc-098765bafede", "agents"]
+                        },
+                        "3571fedc-65ba-43fe-21dc-098765bafedh":
+                        {
+                            "uuid": "3571fedc-65ba-43fe-21dc-098765bafedh",
+                            "name": "Listener Agent",
+                            "status": "GOOD",
+                            "children": [],
+                            "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2221fedc-65ba-43fe-21dc-098765bafede", "agents"]
+                        },
+                        "5797fedc-65ba-43fe-21dc-098765bafedi":
+                        {
+                            "uuid": "5797fedc-65ba-43fe-21dc-098765bafedi",
+                            "name": "SqlLiteHistorian",
+                            "status": "GOOD",
+                            "children": [],
+                            "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2221fedc-65ba-43fe-21dc-098765bafede", "agents"]
+                        }
+                    },
+                    "devices": {
+                        "1451fedc-65ba-43fe-21dc-098765bafedl":
+                        {
+                            "uuid": "1451fedc-65ba-43fe-21dc-098765bafedl",
+                            "name": "HVAC1",
+                            "status": "BAD",
+                            "children": ["points"],
+                            "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2221fedc-65ba-43fe-21dc-098765bafede", "devices"],
+                            "points": {
+                                "0371fedc-65ba-43fe-21dc-098765bafedl":
+                                {
+                                    "uuid": "0371fedc-65ba-43fe-21dc-098765bafedl",
+                                    "name": "CoolingValvePosition",
+                                    "status": "BAD",
+                                    "children": [],
+                                    "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2221fedc-65ba-43fe-21dc-098765bafede", "devices", "1451fedc-65ba-43fe-21dc-098765bafedl", "points"]
+                                },
+                                "7301fedc-65ba-43fe-21dc-098765bafedl":
+                                {
+                                    "uuid": "7301fedc-65ba-43fe-21dc-098765bafedl",
+                                    "name": "MixedAirTemperature",
+                                    "status": "GOOD",
+                                    "children": [],
+                                    "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2221fedc-65ba-43fe-21dc-098765bafede", "devices", "1451fedc-65ba-43fe-21dc-098765bafedl", "points"]
+                                }
+                            }
+                        },
+                        "2567fedc-65ba-43fe-21dc-098765bafedm":
+                        {
+                            "uuid": "2567fedc-65ba-43fe-21dc-098765bafedm",
+                            "name": "HVAC2",
+                            "status": "GOOD",
+                            "children": ["points"],
+                            "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2221fedc-65ba-43fe-21dc-098765bafede", "devices"],
+                            "points": {
+                                "4891fedc-65ba-43fe-21dc-098765bafedl":
+                                {
+                                    "uuid": "4891fedc-65ba-43fe-21dc-098765bafedl",
+                                    "name": "CoolingValvePosition",
+                                    "status": "GOOD",
+                                    "children": [],
+                                    "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2221fedc-65ba-43fe-21dc-098765bafede", "devices", "2567fedc-65ba-43fe-21dc-098765bafedm", "points"]
+                                },
+                                "9841fedc-65ba-43fe-21dc-098765bafedl":
+                                {
+                                    "uuid": "9841fedc-65ba-43fe-21dc-098765bafedl",
+                                    "name": "MixedAirTemperature",
+                                    "status": "GOOD",
+                                    "children": [],
+                                    "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2221fedc-65ba-43fe-21dc-098765bafede", "devices", "2567fedc-65ba-43fe-21dc-098765bafedm", "points"]
+                                }
+                            }
+                        }
+                    }
+                }
+            }                
+        },
+        "9757fedc-65ba-43fe-21dc-098765bafedc":
+        {
+            "uuid": "9757fedc-65ba-43fe-21dc-098765bafedc",
+            "name": "WSU",
+            "status": "UNKNOWN",
+            "children": ["buildings"],
+            "path": ["platforms"],
+            "buildings": {
+                "1101fedc-65ba-43fe-21dc-098765bafede":
+                {
+                    "uuid": "1101fedc-65ba-43fe-21dc-098765bafede",
+                    "name": "CIC",
+                    "status": "GOOD",
+                    "children": ["agents", "devices"],
+                    "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings"],
+                    "agents": {
+                        "2461fedc-65ba-43fe-21dc-098765bafede":
+                        {
+                            "uuid": "2461fedc-65ba-43fe-21dc-098765bafede",
+                            "name": "Platform Agent",
+                            "status": "GOOD",
+                            "children": [],
+                            "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1101fedc-65ba-43fe-21dc-098765bafede", "agents"] 
+                        },
+                        "7897fedc-65ba-43fe-21dc-098765bafedf":
+                        {
+                            "uuid": "7897fedc-65ba-43fe-21dc-098765bafedf",
+                            "name": "SqlHistorian",
+                            "status": "GOOD",
+                            "children": [],
+                            "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1101fedc-65ba-43fe-21dc-098765bafede", "agents"] 
+                        }
+                    },
+                    "devices": {
+                        "1231fedc-65ba-43fe-21dc-098765bafedl":
+                        {
+                            "uuid": "1231fedc-65ba-43fe-21dc-098765bafedl",
+                            "name": "RTU1",
+                            "status": "GOOD",
+                            "children": ["points"],
+                            "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1101fedc-65ba-43fe-21dc-098765bafede", "devices"],
+                            "points": {
+                                "5461fedc-65ba-43fe-21dc-098765bafedl":
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-098765bafedl",
+                                    "name": "MinimumSupplyFanSpeed",
+                                    "status": "GOOD",
+                                    "children": [],
+                                    "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1101fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "points"]
+                                },
+                                "6451fedc-65ba-43fe-21dc-098765bafedl":
+                                {
+                                    "uuid": "6451fedc-65ba-43fe-21dc-098765bafedl",
+                                    "name": "CoolingValvePosition",
+                                    "status": "GOOD",
+                                    "children": [],
+                                    "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1101fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "points"]
+                                }
+                            }
+                        },
+                        "4567fedc-65ba-43fe-21dc-098765bafedm":
+                        {
+                            "uuid": "4567fedc-65ba-43fe-21dc-098765bafedm",
+                            "name": "RTU2",
+                            "status": "GOOD",
+                            "children": ["points"],
+                            "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1101fedc-65ba-43fe-21dc-098765bafede", "devices"],
+                            "points": {
+                                "7681fedc-65ba-43fe-21dc-098765bafedl":
+                                {
+                                    "uuid": "7681fedc-65ba-43fe-21dc-098765bafedl",
+                                    "name": "CoolingValvePosition",
+                                    "status": "GOOD",
+                                    "children": [],
+                                    "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1101fedc-65ba-43fe-21dc-098765bafede", "devices", "4567fedc-65ba-43fe-21dc-098765bafedm", "points"]
+                                },
+                                "8671fedc-65ba-43fe-21dc-098765bafedl":
+                                {
+                                    "uuid": "8671fedc-65ba-43fe-21dc-098765bafedl",
+                                    "name": "MixedAirTemperature",
+                                    "status": "GOOD",
+                                    "children": [],
+                                    "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1101fedc-65ba-43fe-21dc-098765bafede", "devices", "4567fedc-65ba-43fe-21dc-098765bafedm", "points"]
+                                }
+                            }
+                        }
+                    }
+                },
+                "2211fedc-65ba-43fe-21dc-098765bafede":
+                {
+                    "uuid": "2211fedc-65ba-43fe-21dc-098765bafede",
+                    "name": "BESL",
+                    "status": "UNKNOWN",
+                    "children": ["agents", "devices"],
+                    "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings"],
+                    "agents": {
+                        "7531fedc-65ba-43fe-21dc-098765bafedk":
+                        {
+                            "uuid": "7531fedc-65ba-43fe-21dc-098765bafedk",
+                            "name": "Platform Agent",
+                            "status": "GOOD",
+                            "children": [],
+                            "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2211fedc-65ba-43fe-21dc-098765bafede", "agents"]
+                        },
+                        "5317fedc-65ba-43fe-21dc-098765bafedl":
+                        {
+                            "uuid": "5317fedc-65ba-43fe-21dc-098765bafedl",
+                            "name": "SqlLiteHistorian",
+                            "status": "UNKNOWN",
+                            "children": [],
+                            "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2211fedc-65ba-43fe-21dc-098765bafede", "agents"]
+                        }
+                    },
+                    "devices": {
+                        "3671fedc-65ba-43fe-21dc-098765bafedl":
+                        {
+                            "uuid": "3671fedc-65ba-43fe-21dc-098765bafedl",
+                            "name": "HVAC1",
+                            "status": "GOOD",
+                            "children": ["points"],
+                            "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2211fedc-65ba-43fe-21dc-098765bafede", "devices"],
+                            "points": {
+                                "3101fedc-65ba-43fe-21dc-098765bafedl":
+                                {
+                                    "uuid": "3101fedc-65ba-43fe-21dc-098765bafedl",
+                                    "name": "CoolingValvePosition",
+                                    "status": "GOOD",
+                                    "children": [],
+                                    "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2211fedc-65ba-43fe-21dc-098765bafede", "devices", "3671fedc-65ba-43fe-21dc-098765bafedl", "points"]
+                                },
+                                "0131fedc-65ba-43fe-21dc-098765bafedl":
+                                {
+                                    "uuid": "0131fedc-65ba-43fe-21dc-098765bafedl",
+                                    "name": "MixedAirTemperature",
+                                    "status": "GOOD",
+                                    "children": [],
+                                    "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2211fedc-65ba-43fe-21dc-098765bafede", "devices", "3671fedc-65ba-43fe-21dc-098765bafedl", "points"]
+                                }
+                            }
+                        },
+                        "4787fedc-65ba-43fe-21dc-098765bafedm":
+                        {
+                            "uuid": "4787fedc-65ba-43fe-21dc-098765bafedm",
+                            "name": "HVAC2",
+                            "status": "GOOD",
+                            "children": ["points"],
+                            "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2211fedc-65ba-43fe-21dc-098765bafede", "devices"],
+                            "points": {
+                                "4281fedc-65ba-43fe-21dc-098765bafedl":
+                                {
+                                    "uuid": "4281fedc-65ba-43fe-21dc-098765bafedl",
+                                    "name": "CoolingValvePosition",
+                                    "status": "GOOD",
+                                    "children": [],
+                                    "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2211fedc-65ba-43fe-21dc-098765bafede", "devices", "4787fedc-65ba-43fe-21dc-098765bafedm", "points"]
+                                },
+                                "8241fedc-65ba-43fe-21dc-098765bafedl":
+                                {
+                                    "uuid": "8241fedc-65ba-43fe-21dc-098765bafedl",
+                                    "name": "MixedAirTemperature",
+                                    "status": "GOOD",
+                                    "children": [],
+                                    "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2211fedc-65ba-43fe-21dc-098765bafede", "devices", "4787fedc-65ba-43fe-21dc-098765bafedm", "points"]
+                                }
+                            }
+                        }
+                    }
+                }
+            }  
+        }
+    }
+};
+
+var _expanded = false;
+
+var platformsPanelItemsStore = new Store();
+
+function buildItemsList(parent, child)
+{
+    var itemsList = [];
+    var items = _items;
+
+    //First find the parent item according to its path
+    for (var i = 0; i < parent.path.length; i++)
+    {
+        if (items.hasOwnProperty(parent.path[i]))
+        {
+            items = items[parent.path[i]];
+        }
+    }
+
+    //Then create a list of the children
+    if (items[parent.uuid].hasOwnProperty(child))
+    {
+        for (var key in items[parent.uuid][child])
+        {
+            itemsList.push(items[parent.uuid][child][key]);
+        }
+    }
+
+    return itemsList;
+}
+
+platformsPanelItemsStore.getItems = function (parent) {
+
+    var itemsList = [];
+
+    if (parent === "platforms")
+    {
+        for (var key in _items[parent])
+        {
+            itemsList.push(_items[parent][key]);
+        }
+    }
+    else
+    {
+        var notAgentsOrDevices = true;
+
+        if (parent.children.indexOf("agents") !== -1)
+        {
+            var agentsList = buildItemsList(parent, "agents");
+            itemsList.push({"agents": agentsList});
+            notAgentsOrDevices = false;
+        }
+
+        if (parent.children.indexOf("devices") !== -1)
+        {
+            var devicesList = buildItemsList(parent, "devices");
+            itemsList.push({"devices": devicesList});
+            notAgentsOrDevices = false;
+        }
+
+        if (notAgentsOrDevices)
+        {
+            itemsList = buildItemsList(parent, parent.children[0]);
+        }
+    }
+
+    return itemsList;
+};
+
+platformsPanelItemsStore.getExpanded = function () {
+    return _expanded;
+};
+
+platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
+
+    switch (action.type) {
+
+        case ACTION_TYPES.RECEIVE_PLATFORM_STATUSES:
+            _items["platforms"] = action.platforms;
+
+            for (var key in _items["platforms"])
+            {
+                _items["platforms"][key]["children"] = ["buildings"];                
+                _items["platforms"][key]["path"] = ["platforms"];
+            }
+            
+            platformsPanelItemsStore.emitChange();
+            break;
+        case ACTION_TYPES.RECEIVE_BUILDING_STATUSES:
+            _items["platforms"][action.platform.uuid]["buildings"] = action.buildings;
+
+            for (var key in _items["platforms"][action.platform.uuid]["buildings"])
+            {
+                _items["platforms"][action.platform.uuid]["buildings"][key]["children"] = ["agents", "devices"];                
+                _items["platforms"][action.platform.uuid]["buildings"][key]["path"] = ["platforms", action.platform.uuid, "buildings"];
+            }
+            
+            platformsPanelItemsStore.emitChange();
+            break;
+        case ACTION_TYPES.RECEIVE_AGENT_STATUSES:
+            _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["agents"] = action.agents;
+
+            for (var key in _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["agents"])
+            {
+                _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["agents"][key]["children"] = [];                
+                _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["agents"][key]["path"] = ["platforms", action.platform.uuid, "buildings", action.building.uuid, "agents"];
+            }
+
+            platformsPanelItemsStore.emitChange();
+            break;
+        case ACTION_TYPES.RECEIVE_DEVICE_STATUSES:
+            _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"] = action.devices;
+
+            for (var key in _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"])
+            {
+                _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"][key]["children"] = ["points"];                
+                _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"][key]["path"] = ["platforms", action.platform.uuid, "buildings", action.building.uuid, "devices"];
+            }
+
+            platformsPanelItemsStore.emitChange();
+            break;
+        case ACTION_TYPES.RECEIVE_DEVICE_DATAPOINT_STATUSES:
+            _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"][action.device.uuid]["points"] = action.points;
+
+            for (var key in _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"][action.device.uuid]["points"])
+            {
+                _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"][action.device.uuid]["points"][key]["children"] = [];
+                _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"][action.device.uuid]["points"][key]["path"] = ["platforms", action.platform.uuid, "buildings", action.building.uuid, "devices", action.device.uuid, "points"];
+            }
+
+            platformsPanelItemsStore.emitChange();
+            break;
+    }
+});
+
+module.exports = platformsPanelItemsStore;
+
+
+},{"../constants/action-types":29,"../dispatcher":30,"../lib/store":34}],45:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -3473,7 +4162,7 @@ platformsPanelStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = platformsPanelStore;
 
 
-},{"../constants/action-types":30,"../dispatcher":31,"../lib/store":35}],46:[function(require,module,exports){
+},{"../constants/action-types":29,"../dispatcher":30,"../lib/store":34}],46:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -3542,7 +4231,7 @@ platformsStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = platformsStore;
 
 
-},{"../constants/action-types":30,"../dispatcher":31,"../lib/store":35,"../stores/authorization-store":39}],47:[function(require,module,exports){
+},{"../constants/action-types":29,"../dispatcher":30,"../lib/store":34,"../stores/authorization-store":38}],47:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -3582,4 +4271,4 @@ topicDataStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = topicDataStore;
 
 
-},{"../constants/action-types":30,"../dispatcher":31,"../lib/store":35,"./authorization-store":39}]},{},[1]);
+},{"../constants/action-types":29,"../dispatcher":30,"../lib/store":34,"./authorization-store":38}]},{},[1]);
