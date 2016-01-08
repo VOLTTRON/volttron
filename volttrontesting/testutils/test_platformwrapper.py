@@ -2,8 +2,13 @@ import gevent
 import pytest
 import time
 
-from volttron.platform.vip.agent import Agent, PubSub, Core
+from zmq import curve_keypair
 
+from volttron.platform.vip.agent import Agent, PubSub, Core
+from volttron.platform.vip.socket import encode_key
+from volttrontesting.utils.platformwrapper import PlatformWrapper
+
+@pytest.mark.wrapper
 def test_can_connect_to_instance(volttron_instance1):
     assert volttron_instance1 is not None
     assert volttron_instance1.is_running()
@@ -14,6 +19,7 @@ def test_can_connect_to_instance(volttron_instance1):
     agent.core.stop()
     assert response[0] == message
 
+@pytest.mark.wrapper
 def test_can_install_listener(volttron_instance1):
     vi = volttron_instance1
     assert vi is not None
@@ -26,13 +32,16 @@ def test_can_install_listener(volttron_instance1):
     print('STARTED: ', started)
     listening = vi.build_agent()
     listening.vip.pubsub.subscribe(peer='pubsub',
-        prefix='heartbeat/listeneragent', callback=onmessage).get(timeout=5)
+        prefix='heartbeat/listeneragent', callback=onmessage)
     # sleep for 10 seconds and at least one heartbeat should have been published
     # because it's set to 5 seconds.
-    time_start = time.clock()
+    time_start = time.time()
+
+    print('Awaiting heartbeat response.')
     while not 'heartbeat/listeneragent' in messages.keys() and \
-        time_start < time.clock() + 10:
+        time.time() < time_start + 10:
         gevent.sleep(0.2)
+
     assert 'heartbeat/listeneragent' in messages.keys()
 
     stopped = vi.stop_agent(auuid)
@@ -40,6 +49,7 @@ def test_can_install_listener(volttron_instance1):
     removed = vi.remove_agent(auuid)
     print('REMOVED: ', removed)
 
+@pytest.mark.wrapper
 def test_can_ping_pubsub(volttron_instance1):
     vi = volttron_instance1
     agent = vi.build_agent()
@@ -52,6 +62,7 @@ messages = {}
 def onmessage(peer, sender, bus, topic, headers, message):
     messages[topic] = message
 
+@pytest.mark.wrapper
 def test_can_publish(volttron_instance1):
     global messages
     vi = volttron_instance1
@@ -69,15 +80,12 @@ def test_can_publish(volttron_instance1):
     gevent.sleep(0.1)
     assert messages['test/world'] == 'got data'
 
-#
-# def test_can_ping_router(volttron_instance1):
-#     vi = volttron_instance1
-#     agent = vi.build_agent()
-#     resp = agent.vip.ping('', 'router?').get(timeout=4)
-#     #resp = agent.vip.hello().get(timeout=1)
-#     print("HELLO RESPONSE!",resp)
-
-
+def test_can_ping_router(volttron_instance1):
+    vi = volttron_instance1
+    agent = vi.build_agent()
+    resp = agent.vip.ping('', 'router?').get(timeout=4)
+    #resp = agent.vip.hello().get(timeout=1)
+    print("HELLO RESPONSE!",resp)
 
 # def test_can_ping_control(volttron_instance2):
 #     agent = volttron_instance2.build_agent()
@@ -154,3 +162,22 @@ def test_can_publish(volttron_instance1):
 #     status = volttron_instance1.agent_status(uuid)
 #     assert status != (None, None)
 #     assert volttron_instance1.confirm_agent_running("listeneragent-3.0")
+
+@pytest.mark.wrapper
+def test_encryption():
+    addr = 'tcp://127.0.0.1:55055'
+    pub, sec = curve_keypair()
+    publickey, secretkey = encode_key(pub), encode_key(sec)
+    auth = {'allow': [{'credentials': 'CURVE:{}'.format(publickey)}]}
+
+    plat = PlatformWrapper()
+    plat.startup_platform(vip_address=addr, auth_dict=auth, encrypt=True)
+
+    agent_addr = '{}?serverkey={}&publickey={}&secretkey=' \
+                 '{}'.format(addr, plat.publickey, publickey, secretkey)
+
+    agent1 = plat.build_agent(agent_addr, identity='agent1')
+    peers = agent1.vip.peerlist.list().get(timeout=2)
+    plat.shutdown_platform(True)
+    print('PEERS: ', peers)
+    assert len(peers) > 0

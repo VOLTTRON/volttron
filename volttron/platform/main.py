@@ -461,6 +461,7 @@ def start_volttron_process(opts):
                    monitor=opts.monitor, tracker=tracker).run()
         except Exception:
             _log.exception('Unhandled exception in router loop')
+            raise
         finally:
             stop()
 
@@ -480,6 +481,10 @@ def start_volttron_process(opts):
         thread = threading.Thread(target=router, args=(auth.core.stop,))
         thread.daemon = True
         thread.start()
+
+        gevent.sleep(0.1)
+        if not thread.isAlive():
+            sys.exit()
 
         # Launch additional services and wait for them to start before
         # auto-starting agents

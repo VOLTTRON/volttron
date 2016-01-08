@@ -6,4 +6,4 @@ export CI=travis
 
 pip install pytest pytest-bdd pytest-cov
 
-py.test
+py.test -s -v
