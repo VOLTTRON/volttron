@@ -61,14 +61,20 @@ from setuptools import setup, find_packages
 packages = find_packages('.')
 package = packages[0]
 
+agent_module = package+'.historian'
+
+_temp = __import__(agent_module, globals(), locals(), ['__version__'], -1)
+__version__ = _temp.__version__
+
 setup(
+    include_package_data=True,
     name = package + 'agent',
-    version = "3.0.2",
+    version = __version__,
     install_requires = ['volttron', 'ply'],
     packages = packages,
     entry_points = {
         'setuptools.installation': [
-            'eggsecutable = ' + package + '.historian:main',
+            'eggsecutable = ' + agent_module + ':main',
         ]
     }
 )

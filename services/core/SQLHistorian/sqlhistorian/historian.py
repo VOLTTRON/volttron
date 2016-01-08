@@ -75,6 +75,8 @@ from volttron.platform.messaging import topics, headers as headers_mod
 #import sqlhistorian.settings
 #import settings
 
+__version__ = "3.0.2"
+
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
