@@ -82,12 +82,18 @@ class MySqlFuncts(DbDriver):
             self.MICROSECOND_SUPPORT  = False
         elif int(version_nums[1]) <  6:
             self.MICROSECOND_SUPPORT =  False
-        elif int(version_nums[2]) < 4 :
-            self.MICROSECOND_SUPPORT = False
         else:
-            self.MICROSECOND_SUPPORT = True
-
+            rev = version_nums[2]
+            if 'ubuntu' in version_nums[2]:
+                rev = rev[:rev.index('-')]
+            print('rev is {}'.format(rev))
+            rev = int(rev)
+            if rev < 4 :
+                self.MICROSECOND_SUPPORT = False
+            else:
+                self.MICROSECOND_SUPPORT = True
         
+
     def query(self, topic, start=None, end=None, skip=0,
                             count=None, order="FIRST_TO_LAST"):
         """This function should return the results of a query in the form:
@@ -144,7 +150,7 @@ class MySqlFuncts(DbDriver):
         if skip > 0:
             offset_statement = 'OFFSET %s'
             args.append(skip)
-        
+
 
         _log.debug("About to do real_query")
 
@@ -156,20 +162,20 @@ class MySqlFuncts(DbDriver):
         _log.debug("args: "+str(args))
 
         rows = self.select(real_query,args)
-        
+
         if rows:
             values = [(ts.isoformat(), jsonapi.loads(value)) for ts, value in rows]
         else:
             values = {}
-        
+
         return {'values':values}
-    
+
     def insert_data_query(self):
         return '''REPLACE INTO data values(%s, %s, %s)'''
-        
+
     def insert_topic_query(self):
         return '''INSERT INTO topics (topic_name) values (%s)'''
-    
+
     def get_topic_map(self):
         q = "SELECT topic_id, topic_name FROM topics;"
         rows = self.select(q, None)

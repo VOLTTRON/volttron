@@ -133,10 +133,16 @@ def connect_mysql(request):
             MICROSECOND_SUPPORT  = False
         elif int(version_nums[1]) <  6:
             MICROSECOND_SUPPORT =  False
-        elif int(version_nums[2]) < 4 :
-            MICROSECOND_SUPPORT = False
         else:
-            MICROSECOND_SUPPORT = True
+            rev = version_nums[2]
+            if 'ubuntu' in version_nums[2]:
+                rev = rev[:rev.index('-')]
+            print('rev is {}'.format(rev))
+            rev = int(rev)
+            if rev < 4 :
+                MICROSECOND_SUPPORT = False
+            else:
+                MICROSECOND_SUPPORT = True
         cursor = db_connection.cursor()
         print("MICROSECOND_SUPPORT " , MICROSECOND_SUPPORT)
         if MICROSECOND_SUPPORT:
