@@ -5,10 +5,10 @@ language: python
 #addons:
 #  apt:
 #    packages:
-#    - build-essential
-#    - python-dev
-#    - openssl
-#    - libssl-dev
+#    - build-essential 
+#    - python-dev 
+#    - openssl 
+#    - libssl-dev 
 #    - libevent-dev
 
 before_install:
@@ -37,4 +37,5 @@ notifications:
 #  include:
 #    - python: "2.7"
 #      env: TEST_SUITE=suite_2_7
-# script: env/bin/python
+# script: env/bin/python 
+
