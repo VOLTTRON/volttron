@@ -63,17 +63,16 @@ MICROSECOND_SUPPORT = True
 @pytest.fixture(scope="module",
     params=[
         pytest.mark.skipif(not HAS_MYSQL_CONNECTOR,
-            reason='No mysql client available.')(mysql_platform),sqlite_platform
-    ])
-# @pytest.fixture(scope="module",
-#     params=[
-#         sqlite_platform
-#     ])
+            reason='No mysql client available.')(mysql_platform),
+            sqlite_platform
+])
 def sqlhistorian(request, volttron_instance1):
     global db_connection, publish_agent, agent_uuid
     print("** Setting up test_sqlhistorian module **")
     # Make database connection
     print("request param", request.param)
+    if request.param['connection']['type'] == 'sqlite':
+        request.param['connection']['params']['database'] = volttron_instance1.volttron_home+"/historian.sqlite"
 
     # 1: Install historian agent
     # Install and start sqlhistorian agent
@@ -154,11 +153,7 @@ def connect_mysql(request):
 def connect_sqlite(agent_uuid, request, volttron_instance1):
     global db_connection,MICROSECOND_SUPPORT
     from os import path
-    db_name = request.param['connection']['params']['database']
-    database_path = path.join(volttron_instance1.volttron_home,
-                              'agents', agent_uuid,
-                              'sqlhistorianagent-3.0.1/sqlhistorianagent-3.0.1.agent-data/data',
-                              db_name)
+    database_path = request.param['connection']['params']['database']
     print "connecting to sqlite path " + database_path
     db_connection = sqlite3.connect(database_path)
     print "successfully connected to sqlite"
