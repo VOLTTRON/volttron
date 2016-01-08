@@ -457,6 +457,11 @@ br + .form__control-help {
     color: #A3A3A3;
 }
 
+.panelItemCheckbox {
+    float: left;
+    margin: 5px 5px 5px 0px;    
+}
+
 .arrowButton:hover {
     opacity: .8;
     cursor: pointer;

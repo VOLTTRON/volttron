@@ -57,6 +57,9 @@ var PlatformsPanelItem = React.createClass({
             }
         }
     },
+    _checkItem: function () {
+
+    },
     render: function () {
         var panelItem = this.props.panelItem;
         var items;
@@ -69,6 +72,11 @@ var PlatformsPanelItem = React.createClass({
 
         var itemClasses;
         var arrowClasses = ["arrowButton", "noRotate"];
+
+        var checkboxClass = "panelItemCheckbox";
+        var checkboxStyle = {
+            display : (["agent", "device", "point"].indexOf(panelItem.type) < 0 ? "none" : "block")
+        };
 
         var childrenItems = [];
 
@@ -195,7 +203,11 @@ var PlatformsPanelItem = React.createClass({
             >
                 <div className="platform-info">
                     <div className={arrowClasses.join(' ')}
-                        onClick={this._toggleItem}>&#9654;</div>                    
+                        onClick={this._toggleItem}>&#9654;</div>  
+                    <input className={checkboxClass}
+                        style={checkboxStyle}
+                        type="checkbox"
+                        onClick={this._checkItem}></input>                    
                     <div className="platform-link">
                         <Router.Link
                             to="platform"

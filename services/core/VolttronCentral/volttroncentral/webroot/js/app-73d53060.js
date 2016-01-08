@@ -1768,7 +1768,7 @@ var PlatformManager = React.createClass({displayName: "PlatformManager",
     mixins: [Router.Navigation, Router.State],
     getInitialState: function () {
         var state = getStateFromStores(); 
-        state.expanded = false;
+        // state.expanded = false;
 
         return state;
     },
@@ -1819,15 +1819,19 @@ var PlatformManager = React.createClass({displayName: "PlatformManager",
         var modal;
         var exteriorClasses = ["panel-exterior"];
 
-        if (this.state.expanded)
+        if (this.state.expanded === true)
         {
             exteriorClasses.push("narrow-exterior");
             exteriorClasses.push("slow-narrow");
         }
-        else
+        else if (this.state.expanded === false)
         {
             exteriorClasses.push("wide-exterior");
             exteriorClasses.push("slow-wide");
+        }
+        else if (this.state.expanded === null)
+        {
+            exteriorClasses.push("wide-exterior");
         }
 
         if (this.state.consoleShown) {
@@ -2142,6 +2146,9 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
             }
         }
     },
+    _checkItem: function () {
+
+    },
     render: function () {
         var panelItem = this.props.panelItem;
         var items;
@@ -2154,6 +2161,11 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
 
         var itemClasses;
         var arrowClasses = ["arrowButton", "noRotate"];
+
+        var checkboxClass = "panelItemCheckbox";
+        var checkboxStyle = {
+            display : (["agent", "device", "point"].indexOf(panelItem.type) < 0 ? "none" : "block")
+        };
 
         var childrenItems = [];
 
@@ -2281,6 +2293,10 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
                 React.createElement("div", {className: "platform-info"}, 
                     React.createElement("div", {className: arrowClasses.join(' '), 
                         onClick: this._toggleItem}, "▶"), 
+                    React.createElement("input", {className: checkboxClass, 
+                        style: checkboxStyle, 
+                        type: "checkbox", 
+                        onClick: this._checkItem}), 
                     React.createElement("div", {className: "platform-link"}, 
                         React.createElement(Router.Link, {
                             to: "platform", 
@@ -2363,19 +2379,26 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
     _onFilterBoxChange: function (e) {
         this.setState({ filterValue: e.target.value });
     },
+    _filterItems: function (e) {
+        
+    },
     _togglePanel: function () {
         platformsPanelActionCreators.togglePanel();
     },
     render: function () {
         var platforms;
-        var classes = (this.state.expanded ? 
-                        "platform-statuses slow-open platform-expanded" :
-                        "platform-statuses slow-shut platform-collapsed");
+        var classes = (this.state.expanded === null ? 
+                        "platform-statuses platform-collapsed" : 
+                        (this.state.expanded ? 
+                            "platform-statuses slow-open platform-expanded" :
+                            "platform-statuses slow-shut platform-collapsed")
+                        );
 
         var contentsStyle = { 
             display: (this.state.expanded ? "block" : "none"),
             padding: "0px 20px 20px 10px",
-            clear: "right"
+            clear: "right",
+            width: "100%"
         };
 
         var filterBoxContainer = {
@@ -2424,6 +2447,11 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
                             type: "text", 
                             onChange: this._onFilterBoxChange, 
                             value: this.state.filterValue}
+                        ), 
+                        React.createElement("input", {
+                            className: "filter_button", 
+                            type: "button", 
+                            onClick: this._filterItems}
                         )
                     ), 
                     React.createElement("ul", {className: "platform-panel-list"}, 
@@ -3454,6 +3482,7 @@ var _items = {
             "uuid": "4687fedc-65ba-43fe-21dc-098765bafedc",
             "name": "PNNL",
             "status": "GOOD",
+            "type": "platform",
             "children": ["buildings"],
             "path": ["platforms"],
             "buildings": {
@@ -3462,6 +3491,7 @@ var _items = {
                     "uuid": "1111fedc-65ba-43fe-21dc-098765bafede",
                     "name": "ISB1",
                     "status": "GOOD",
+                    "type": "building",
                     "children": ["agents", "devices"],
                     "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings"],
                     "agents": {
@@ -3470,6 +3500,7 @@ var _items = {
                             "uuid": "2461fedc-65ba-43fe-21dc-098765bafede",
                             "name": "Platform Agent",
                             "status": "GOOD",
+                            "type": "agent",
                             "children": [],
                             "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "agents"]
                         },
@@ -3478,6 +3509,7 @@ var _items = {
                             "uuid": "7897fedc-65ba-43fe-21dc-098765bafedf",
                             "name": "SqlHistorian",
                             "status": "GOOD",
+                            "type": "agent",
                             "children": [],
                             "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "agents"]
                         }
@@ -3488,6 +3520,7 @@ var _items = {
                             "uuid": "1231fedc-65ba-43fe-21dc-098765bafedl",
                             "name": "RTU1",
                             "status": "GOOD",
+                            "type": "device",
                             "children": ["points"],
                             "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices"],
                             "points": {
@@ -3496,6 +3529,7 @@ var _items = {
                                     "uuid": "5461fedc-65ba-43fe-21dc-098765bafedl",
                                     "name": "MinimumSupplyFanSpeed",
                                     "status": "GOOD",
+                                    "type": "point",
                                     "children": [],
                                     "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "points"]
                                 },
@@ -3504,6 +3538,7 @@ var _items = {
                                     "uuid": "6451fedc-65ba-43fe-21dc-098765bafedl",
                                     "name": "CoolingValvePosition",
                                     "status": "GOOD",
+                                    "type": "point",
                                     "children": [],
                                     "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "points"]
                                 }
@@ -3514,6 +3549,7 @@ var _items = {
                             "uuid": "4567fedc-65ba-43fe-21dc-098765bafedm",
                             "name": "RTU2",
                             "status": "GOOD",
+                            "type": "device",
                             "children": ["points"],
                             "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices"],
                             "points": {
@@ -3522,6 +3558,7 @@ var _items = {
                                     "uuid": "7681fedc-65ba-43fe-21dc-098765bafedl",
                                     "name": "CoolingValvePosition",
                                     "status": "GOOD",
+                                    "type": "point",
                                     "children": [],
                                     "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "4567fedc-65ba-43fe-21dc-098765bafedm", "points"]
                                 },
@@ -3530,6 +3567,7 @@ var _items = {
                                     "uuid": "8671fedc-65ba-43fe-21dc-098765bafedl",
                                     "name": "MixedAirTemperature",
                                     "status": "GOOD",
+                                    "type": "point",
                                     "children": [],
                                     "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "4567fedc-65ba-43fe-21dc-098765bafedm", "points"]
                                 }
@@ -3541,6 +3579,7 @@ var _items = {
                 {
                     "uuid": "2221fedc-65ba-43fe-21dc-098765bafede",
                     "name": "ISB2",
+                    "type": "building",
                     "status": "GOOD",
                     "children": ["agents", "devices"],
                     "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings"],
@@ -3550,6 +3589,7 @@ var _items = {
                             "uuid": "3331fedc-65ba-43fe-21dc-098765bafede",
                             "name": "Platform Agent",
                             "status": "GOOD",
+                            "type": "agent",
                             "children": [],
                             "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2221fedc-65ba-43fe-21dc-098765bafede", "agents"]
                         },
@@ -3558,6 +3598,7 @@ var _items = {
                             "uuid": "4447fedc-65ba-43fe-21dc-098765bafedf",
                             "name": "SqlHistorian",
                             "status": "GOOD",
+                            "type": "agent",
                             "children": [],
                             "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2221fedc-65ba-43fe-21dc-098765bafede", "agents"]
                         }
@@ -3568,6 +3609,7 @@ var _items = {
                             "uuid": "5551fedc-65ba-43fe-21dc-098765bafedl",
                             "name": "RTU1",
                             "status": "GOOD",
+                            "type": "device",
                             "children": ["points"],
                             "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2221fedc-65ba-43fe-21dc-098765bafede", "devices"],
                             "points": {
@@ -3576,6 +3618,7 @@ var _items = {
                                     "uuid": "7771fedc-65ba-43fe-21dc-098765bafedl",
                                     "name": "MinimumSupplyFanSpeed",
                                     "status": "GOOD",
+                                    "type": "point",
                                     "children": [],
                                     "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2221fedc-65ba-43fe-21dc-098765bafede", "devices", "5551fedc-65ba-43fe-21dc-098765bafedl", "points"]
                                 },
@@ -3584,6 +3627,7 @@ var _items = {
                                     "uuid": "8881fedc-65ba-43fe-21dc-098765bafedl",
                                     "name": "CoolingValvePosition",
                                     "status": "GOOD",
+                                    "type": "point",
                                     "children": [],
                                     "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2221fedc-65ba-43fe-21dc-098765bafede", "devices", "5551fedc-65ba-43fe-21dc-098765bafedl", "points"]
                                 }
@@ -3594,6 +3638,7 @@ var _items = {
                             "uuid": "6567fedc-65ba-43fe-21dc-098765bafedm",
                             "name": "RTU2",
                             "status": "GOOD",
+                            "type": "device",
                             "children": ["points"],
                             "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2221fedc-65ba-43fe-21dc-098765bafede", "devices"],
                             "points": {
@@ -3602,6 +3647,7 @@ var _items = {
                                     "uuid": "9991fedc-65ba-43fe-21dc-098765bafedl",
                                     "name": "CoolingValvePosition",
                                     "status": "GOOD",
+                                    "type": "point",
                                     "children": [],
                                     "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2221fedc-65ba-43fe-21dc-098765bafede", "devices", "6567fedc-65ba-43fe-21dc-098765bafedm", "points"]
                                 },
@@ -3610,6 +3656,7 @@ var _items = {
                                     "uuid": "1000fedc-65ba-43fe-21dc-098765bafedl",
                                     "name": "MixedAirTemperature",
                                     "status": "GOOD",
+                                    "type": "point",
                                     "children": [],
                                     "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2221fedc-65ba-43fe-21dc-098765bafede", "devices", "6567fedc-65ba-43fe-21dc-098765bafedm", "points"]
                                 }
@@ -3624,6 +3671,7 @@ var _items = {
             "uuid": "6801fedc-65ba-43fe-21dc-098765bafedc",
             "name": "UW",
             "status": "BAD",
+            "type": "platform",
             "children": ["buildings"],
             "path": ["platforms"],
             "buildings": {
@@ -3631,6 +3679,7 @@ var _items = {
                 {
                     "uuid": "1111fedc-65ba-43fe-21dc-098765bafede",
                     "name": "HUB",
+                    "type": "building",
                     "status": "GOOD",
                     "children": ["agents", "devices"],
                     "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings"],
@@ -3640,6 +3689,7 @@ var _items = {
                             "uuid": "2461fedc-65ba-43fe-21dc-098765bafede",
                             "name": "Platform Agent",
                             "status": "GOOD",
+                            "type": "agent",
                             "children": [],
                             "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "agents"]
                         },
@@ -3648,6 +3698,7 @@ var _items = {
                             "uuid": "7897fedc-65ba-43fe-21dc-098765bafedf",
                             "name": "SqlHistorian",
                             "status": "GOOD",
+                            "type": "agent",
                             "children": [],
                             "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "agents"]
                         }
@@ -3658,7 +3709,7 @@ var _items = {
                             "uuid": "1231fedc-65ba-43fe-21dc-098765bafedl",
                             "name": "RTU1",
                             "status": "GOOD",
-                            "children": "points",
+                            "children": ["points"],
                             "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices"],
                             "points": {
                                 "5461fedc-65ba-43fe-21dc-098765bafedl":
@@ -3666,6 +3717,7 @@ var _items = {
                                     "uuid": "5461fedc-65ba-43fe-21dc-098765bafedl",
                                     "name": "MinimumSupplyFanSpeed",
                                     "status": "GOOD",
+                                    "type": "point",
                                     "children": [],
                                     "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "points"]
                                 },
@@ -3674,6 +3726,7 @@ var _items = {
                                     "uuid": "6451fedc-65ba-43fe-21dc-098765bafedl",
                                     "name": "CoolingValvePosition",
                                     "status": "GOOD",
+                                    "type": "point",
                                     "children": [],
                                     "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "points"]
                                 }
@@ -3684,6 +3737,7 @@ var _items = {
                             "uuid": "4567fedc-65ba-43fe-21dc-098765bafedm",
                             "name": "RTU2",
                             "status": "GOOD",
+                            "type": "device",
                             "children": ["points"],
                             "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices"],
                             "points": {
@@ -3692,6 +3746,7 @@ var _items = {
                                     "uuid": "7681fedc-65ba-43fe-21dc-098765bafedl",
                                     "name": "CoolingValvePosition",
                                     "status": "GOOD",
+                                    "type": "point",
                                     "children": [],
                                     "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "4567fedc-65ba-43fe-21dc-098765bafedm", "points"]
                                 },
@@ -3700,6 +3755,7 @@ var _items = {
                                     "uuid": "8671fedc-65ba-43fe-21dc-098765bafedl",
                                     "name": "MixedAirTemperature",
                                     "status": "GOOD",
+                                    "type": "point",
                                     "children": [],
                                     "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "4567fedc-65ba-43fe-21dc-098765bafedm", "points"]
                                 }
@@ -3711,6 +3767,7 @@ var _items = {
                 {
                     "uuid": "2221fedc-65ba-43fe-21dc-098765bafede",
                     "name": "FAC",
+                    "type": "building",
                     "status": "BAD",
                     "children": ["agents", "devices"],
                     "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings"],
@@ -3720,6 +3777,7 @@ var _items = {
                             "uuid": "1357fedc-65ba-43fe-21dc-098765bafedg",
                             "name": "Husky Agent",
                             "status": "GOOD",
+                            "type": "agent",
                             "children": [],
                             "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2221fedc-65ba-43fe-21dc-098765bafede", "agents"]
                         },
@@ -3728,6 +3786,7 @@ var _items = {
                             "uuid": "3571fedc-65ba-43fe-21dc-098765bafedh",
                             "name": "Listener Agent",
                             "status": "GOOD",
+                            "type": "agent",
                             "children": [],
                             "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2221fedc-65ba-43fe-21dc-098765bafede", "agents"]
                         },
@@ -3736,6 +3795,7 @@ var _items = {
                             "uuid": "5797fedc-65ba-43fe-21dc-098765bafedi",
                             "name": "SqlLiteHistorian",
                             "status": "GOOD",
+                            "type": "agent",
                             "children": [],
                             "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2221fedc-65ba-43fe-21dc-098765bafede", "agents"]
                         }
@@ -3746,6 +3806,7 @@ var _items = {
                             "uuid": "1451fedc-65ba-43fe-21dc-098765bafedl",
                             "name": "HVAC1",
                             "status": "BAD",
+                            "type": "device",
                             "children": ["points"],
                             "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2221fedc-65ba-43fe-21dc-098765bafede", "devices"],
                             "points": {
@@ -3754,6 +3815,7 @@ var _items = {
                                     "uuid": "0371fedc-65ba-43fe-21dc-098765bafedl",
                                     "name": "CoolingValvePosition",
                                     "status": "BAD",
+                                    "type": "point",
                                     "children": [],
                                     "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2221fedc-65ba-43fe-21dc-098765bafede", "devices", "1451fedc-65ba-43fe-21dc-098765bafedl", "points"]
                                 },
@@ -3762,6 +3824,7 @@ var _items = {
                                     "uuid": "7301fedc-65ba-43fe-21dc-098765bafedl",
                                     "name": "MixedAirTemperature",
                                     "status": "GOOD",
+                                    "type": "point",
                                     "children": [],
                                     "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2221fedc-65ba-43fe-21dc-098765bafede", "devices", "1451fedc-65ba-43fe-21dc-098765bafedl", "points"]
                                 }
@@ -3772,6 +3835,7 @@ var _items = {
                             "uuid": "2567fedc-65ba-43fe-21dc-098765bafedm",
                             "name": "HVAC2",
                             "status": "GOOD",
+                            "type": "device",
                             "children": ["points"],
                             "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2221fedc-65ba-43fe-21dc-098765bafede", "devices"],
                             "points": {
@@ -3780,6 +3844,7 @@ var _items = {
                                     "uuid": "4891fedc-65ba-43fe-21dc-098765bafedl",
                                     "name": "CoolingValvePosition",
                                     "status": "GOOD",
+                                    "type": "point",
                                     "children": [],
                                     "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2221fedc-65ba-43fe-21dc-098765bafede", "devices", "2567fedc-65ba-43fe-21dc-098765bafedm", "points"]
                                 },
@@ -3788,6 +3853,7 @@ var _items = {
                                     "uuid": "9841fedc-65ba-43fe-21dc-098765bafedl",
                                     "name": "MixedAirTemperature",
                                     "status": "GOOD",
+                                    "type": "point",
                                     "children": [],
                                     "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2221fedc-65ba-43fe-21dc-098765bafede", "devices", "2567fedc-65ba-43fe-21dc-098765bafedm", "points"]
                                 }
@@ -3802,6 +3868,7 @@ var _items = {
             "uuid": "9757fedc-65ba-43fe-21dc-098765bafedc",
             "name": "WSU",
             "status": "UNKNOWN",
+            "type": "platform",
             "children": ["buildings"],
             "path": ["platforms"],
             "buildings": {
@@ -3809,6 +3876,7 @@ var _items = {
                 {
                     "uuid": "1101fedc-65ba-43fe-21dc-098765bafede",
                     "name": "CIC",
+                    "type": "building",
                     "status": "GOOD",
                     "children": ["agents", "devices"],
                     "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings"],
@@ -3818,6 +3886,7 @@ var _items = {
                             "uuid": "2461fedc-65ba-43fe-21dc-098765bafede",
                             "name": "Platform Agent",
                             "status": "GOOD",
+                            "type": "agent",
                             "children": [],
                             "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1101fedc-65ba-43fe-21dc-098765bafede", "agents"] 
                         },
@@ -3826,6 +3895,7 @@ var _items = {
                             "uuid": "7897fedc-65ba-43fe-21dc-098765bafedf",
                             "name": "SqlHistorian",
                             "status": "GOOD",
+                            "type": "agent",
                             "children": [],
                             "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1101fedc-65ba-43fe-21dc-098765bafede", "agents"] 
                         }
@@ -3836,6 +3906,7 @@ var _items = {
                             "uuid": "1231fedc-65ba-43fe-21dc-098765bafedl",
                             "name": "RTU1",
                             "status": "GOOD",
+                            "type": "device",
                             "children": ["points"],
                             "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1101fedc-65ba-43fe-21dc-098765bafede", "devices"],
                             "points": {
@@ -3844,6 +3915,7 @@ var _items = {
                                     "uuid": "5461fedc-65ba-43fe-21dc-098765bafedl",
                                     "name": "MinimumSupplyFanSpeed",
                                     "status": "GOOD",
+                                    "type": "point",
                                     "children": [],
                                     "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1101fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "points"]
                                 },
@@ -3852,6 +3924,7 @@ var _items = {
                                     "uuid": "6451fedc-65ba-43fe-21dc-098765bafedl",
                                     "name": "CoolingValvePosition",
                                     "status": "GOOD",
+                                    "type": "point",
                                     "children": [],
                                     "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1101fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "points"]
                                 }
@@ -3862,6 +3935,7 @@ var _items = {
                             "uuid": "4567fedc-65ba-43fe-21dc-098765bafedm",
                             "name": "RTU2",
                             "status": "GOOD",
+                            "type": "device",
                             "children": ["points"],
                             "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1101fedc-65ba-43fe-21dc-098765bafede", "devices"],
                             "points": {
@@ -3870,6 +3944,7 @@ var _items = {
                                     "uuid": "7681fedc-65ba-43fe-21dc-098765bafedl",
                                     "name": "CoolingValvePosition",
                                     "status": "GOOD",
+                                    "type": "point",
                                     "children": [],
                                     "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1101fedc-65ba-43fe-21dc-098765bafede", "devices", "4567fedc-65ba-43fe-21dc-098765bafedm", "points"]
                                 },
@@ -3878,6 +3953,7 @@ var _items = {
                                     "uuid": "8671fedc-65ba-43fe-21dc-098765bafedl",
                                     "name": "MixedAirTemperature",
                                     "status": "GOOD",
+                                    "type": "point",
                                     "children": [],
                                     "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1101fedc-65ba-43fe-21dc-098765bafede", "devices", "4567fedc-65ba-43fe-21dc-098765bafedm", "points"]
                                 }
@@ -3889,6 +3965,7 @@ var _items = {
                 {
                     "uuid": "2211fedc-65ba-43fe-21dc-098765bafede",
                     "name": "BESL",
+                    "type": "building",
                     "status": "UNKNOWN",
                     "children": ["agents", "devices"],
                     "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings"],
@@ -3898,6 +3975,7 @@ var _items = {
                             "uuid": "7531fedc-65ba-43fe-21dc-098765bafedk",
                             "name": "Platform Agent",
                             "status": "GOOD",
+                            "type": "agent",
                             "children": [],
                             "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2211fedc-65ba-43fe-21dc-098765bafede", "agents"]
                         },
@@ -3906,6 +3984,7 @@ var _items = {
                             "uuid": "5317fedc-65ba-43fe-21dc-098765bafedl",
                             "name": "SqlLiteHistorian",
                             "status": "UNKNOWN",
+                            "type": "agent",
                             "children": [],
                             "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2211fedc-65ba-43fe-21dc-098765bafede", "agents"]
                         }
@@ -3916,6 +3995,7 @@ var _items = {
                             "uuid": "3671fedc-65ba-43fe-21dc-098765bafedl",
                             "name": "HVAC1",
                             "status": "GOOD",
+                            "type": "device",
                             "children": ["points"],
                             "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2211fedc-65ba-43fe-21dc-098765bafede", "devices"],
                             "points": {
@@ -3924,6 +4004,7 @@ var _items = {
                                     "uuid": "3101fedc-65ba-43fe-21dc-098765bafedl",
                                     "name": "CoolingValvePosition",
                                     "status": "GOOD",
+                                    "type": "point",
                                     "children": [],
                                     "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2211fedc-65ba-43fe-21dc-098765bafede", "devices", "3671fedc-65ba-43fe-21dc-098765bafedl", "points"]
                                 },
@@ -3932,6 +4013,7 @@ var _items = {
                                     "uuid": "0131fedc-65ba-43fe-21dc-098765bafedl",
                                     "name": "MixedAirTemperature",
                                     "status": "GOOD",
+                                    "type": "point",
                                     "children": [],
                                     "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2211fedc-65ba-43fe-21dc-098765bafede", "devices", "3671fedc-65ba-43fe-21dc-098765bafedl", "points"]
                                 }
@@ -3942,6 +4024,7 @@ var _items = {
                             "uuid": "4787fedc-65ba-43fe-21dc-098765bafedm",
                             "name": "HVAC2",
                             "status": "GOOD",
+                            "type": "device",
                             "children": ["points"],
                             "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2211fedc-65ba-43fe-21dc-098765bafede", "devices"],
                             "points": {
@@ -3950,6 +4033,7 @@ var _items = {
                                     "uuid": "4281fedc-65ba-43fe-21dc-098765bafedl",
                                     "name": "CoolingValvePosition",
                                     "status": "GOOD",
+                                    "type": "point",
                                     "children": [],
                                     "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2211fedc-65ba-43fe-21dc-098765bafede", "devices", "4787fedc-65ba-43fe-21dc-098765bafedm", "points"]
                                 },
@@ -3958,6 +4042,7 @@ var _items = {
                                     "uuid": "8241fedc-65ba-43fe-21dc-098765bafedl",
                                     "name": "MixedAirTemperature",
                                     "status": "GOOD",
+                                    "type": "point",
                                     "children": [],
                                     "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2211fedc-65ba-43fe-21dc-098765bafede", "devices", "4787fedc-65ba-43fe-21dc-098765bafedm", "points"]
                                 }
@@ -4132,7 +4217,7 @@ var _platforms = [
             }
         ];;
 
-var _expanded = false;
+var _expanded = null;
 
 var platformsPanelStore = new Store();
 
@@ -4152,8 +4237,8 @@ platformsPanelStore.dispatchToken = dispatcher.register(function (action) {
             _platforms = action.platforms;
             platformsPanelStore.emitChange();
             break;
-        case ACTION_TYPES.TOGGLE_PLATFORMS_PANEL:        
-            _expanded = !_expanded;
+        case ACTION_TYPES.TOGGLE_PLATFORMS_PANEL:  
+            (_expanded === null ? _expanded = true : _expanded = !_expanded);
             platformsPanelStore.emitChange();
             break;
     }

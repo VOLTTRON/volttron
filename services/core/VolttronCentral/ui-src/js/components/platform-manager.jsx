@@ -20,7 +20,7 @@ var PlatformManager = React.createClass({
     mixins: [Router.Navigation, Router.State],
     getInitialState: function () {
         var state = getStateFromStores(); 
-        state.expanded = false;
+        // state.expanded = false;
 
         return state;
     },
@@ -71,15 +71,19 @@ var PlatformManager = React.createClass({
         var modal;
         var exteriorClasses = ["panel-exterior"];
 
-        if (this.state.expanded)
+        if (this.state.expanded === true)
         {
             exteriorClasses.push("narrow-exterior");
             exteriorClasses.push("slow-narrow");
         }
-        else
+        else if (this.state.expanded === false)
         {
             exteriorClasses.push("wide-exterior");
             exteriorClasses.push("slow-wide");
+        }
+        else if (this.state.expanded === null)
+        {
+            exteriorClasses.push("wide-exterior");
         }
 
         if (this.state.consoleShown) {

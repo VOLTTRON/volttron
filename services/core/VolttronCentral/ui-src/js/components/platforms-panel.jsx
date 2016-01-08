@@ -32,19 +32,26 @@ var PlatformsPanel = React.createClass({
     _onFilterBoxChange: function (e) {
         this.setState({ filterValue: e.target.value });
     },
+    _filterItems: function (e) {
+        
+    },
     _togglePanel: function () {
         platformsPanelActionCreators.togglePanel();
     },
     render: function () {
         var platforms;
-        var classes = (this.state.expanded ? 
-                        "platform-statuses slow-open platform-expanded" :
-                        "platform-statuses slow-shut platform-collapsed");
+        var classes = (this.state.expanded === null ? 
+                        "platform-statuses platform-collapsed" : 
+                        (this.state.expanded ? 
+                            "platform-statuses slow-open platform-expanded" :
+                            "platform-statuses slow-shut platform-collapsed")
+                        );
 
         var contentsStyle = { 
             display: (this.state.expanded ? "block" : "none"),
             padding: "0px 20px 20px 10px",
-            clear: "right"
+            clear: "right",
+            width: "100%"
         };
 
         var filterBoxContainer = {
@@ -93,6 +100,11 @@ var PlatformsPanel = React.createClass({
                             type="text"
                             onChange={this._onFilterBoxChange}
                             value={this.state.filterValue}
+                        />
+                        <input
+                            className="filter_button"
+                            type="button"
+                            onClick={this._filterItems}
                         />
                     </div>
                     <ul className="platform-panel-list">
