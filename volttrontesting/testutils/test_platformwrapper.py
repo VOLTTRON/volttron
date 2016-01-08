@@ -2,7 +2,11 @@ import gevent
 import pytest
 import time
 
+from zmq import curve_keypair
+
 from volttron.platform.vip.agent import Agent, PubSub, Core
+from volttron.platform.vip.socket import encode_key
+from volttrontesting.utils.platformwrapper import PlatformWrapper
 
 @pytest.mark.wrapper
 def test_can_connect_to_instance(volttron_instance1):
@@ -158,3 +162,22 @@ def test_can_ping_router(volttron_instance1):
 #     status = volttron_instance1.agent_status(uuid)
 #     assert status != (None, None)
 #     assert volttron_instance1.confirm_agent_running("listeneragent-3.0")
+
+@pytest.mark.wrapper
+def test_encryption():
+    addr = 'tcp://127.0.0.1:55055'
+    pub, sec = curve_keypair()
+    publickey, secretkey = encode_key(pub), encode_key(sec)
+    auth = {'allow': [{'credentials': 'CURVE:{}'.format(publickey)}]}
+
+    plat = PlatformWrapper()
+    plat.startup_platform(vip_address=addr, auth_dict=auth, encrypt=True)
+
+    agent_addr = '{}?serverkey={}&publickey={}&secretkey=' \
+                 '{}'.format(addr, plat.publickey, publickey, secretkey)
+
+    agent1 = plat.build_agent(agent_addr, identity='agent1')
+    peers = agent1.vip.peerlist.list().get(timeout=2)
+    plat.shutdown_platform(True)
+    print('PEERS: ', peers)
+    assert len(peers) > 0
