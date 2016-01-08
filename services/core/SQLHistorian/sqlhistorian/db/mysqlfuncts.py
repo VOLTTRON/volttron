@@ -73,6 +73,20 @@ class MySqlFuncts(DbDriver):
     def __init__(self, **kwargs):
         #kwargs['dbapimodule'] = 'mysql.connector'
         super(MySqlFuncts, self).__init__('mysql.connector', **kwargs)
+        self.MICROSECOND_SUPPORT = None
+
+    def init_microsecond_support(self):
+        rows = self.select("SELECT version()",None)
+        version_nums = rows[0][0].split(".")
+        if int(version_nums[0]) < 5:
+            self.MICROSECOND_SUPPORT  = False
+        elif int(version_nums[1]) <  6:
+            self.MICROSECOND_SUPPORT =  False
+        elif int(version_nums[2]) < 4 :
+            self.MICROSECOND_SUPPORT = False
+        else:
+            self.MICROSECOND_SUPPORT = True
+
         
     def query(self, topic, start=None, end=None, skip=0,
                             count=None, order="FIRST_TO_LAST"):
@@ -89,16 +103,27 @@ class MySqlFuncts(DbDriver):
                    {limit}
                    {offset}'''
 
+        if self.MICROSECOND_SUPPORT == None:
+            self.init_microsecond_support()
+
         where_clauses = ["WHERE topics.topic_name = %s", "topics.topic_id = data.topic_id"]
         args = [topic]
 
         if start is not None:
             where_clauses.append("data.ts >= %s")
-            args.append(start)
+            if self.MICROSECOND_SUPPORT:
+                args.append(start)
+            else:
+                start_str=start.isoformat()
+                args.append(start_str[:start_str.rfind('.')])
 
         if end is not None:
             where_clauses.append("data.ts <= %s")
-            args.append(end)
+            if self.MICROSECOND_SUPPORT:
+                args.append(end)
+            else:
+                end_str=end.isoformat()
+                args.append(end_str[:end_str.rfind('.')])
 
         where_statement = ' AND '.join(where_clauses)
 
