@@ -76,16 +76,12 @@ def sqlhistorian(request, volttron_instance1):
     print("request param", request.param)
 
     # 1: Install historian agent
-    try:
-        # Install and start sqlhistorian agent
-        agent_uuid = volttron_instance1.install_agent(
-                    agent_dir="services/core/SQLHistorian",
-                    config_file=request.param,
-                    start=True)
-        print("agent id: ", agent_uuid)
-    except Exception as exception:
-        print("Exception installing/starting sqlhistorian agent of type " + request.param['connection']['type'] , exception)
-        pytest.fail(msg='Exception setting up test module: '+ exception.message)
+    # Install and start sqlhistorian agent
+    agent_uuid = volttron_instance1.install_agent(
+                agent_dir="services/core/SQLHistorian",
+                config_file=request.param,
+                start=True)
+    print("agent id: ", agent_uuid)
 
     # 2: Open db connection that can be used for row deletes after each test method
     if request.param['connection']['type'] == "sqlite":
@@ -97,11 +93,7 @@ def sqlhistorian(request, volttron_instance1):
         pytest.fail(msg="Invalid database type specified " + request.param['connection']['type'])
 
     # 3: Start a fake agent to publish to message bus
-    try:
-        publish_agent = volttron_instance1.build_agent()
-    except Exception as exception:
-        print("Exception creating publish agent for test ")
-        pytest.fail(msg='Exception creating publish agent for test: '+ exception.message)
+    publish_agent = volttron_instance1.build_agent()
 
     # 4: add a tear down method to stop sqlhistorian agent and the fake agent that published to message bus
     def stop_agent():
@@ -111,8 +103,6 @@ def sqlhistorian(request, volttron_instance1):
             print("closed connection to db")
 
         volttron_instance1.stop_agent(agent_uuid)
-        #volttron_instance1.remove_agent(agent_uuid)
-
         publish_agent.core.stop()
 
     request.addfinalizer(stop_agent)
@@ -122,56 +112,44 @@ def sqlhistorian(request, volttron_instance1):
 def connect_mysql(request):
     global db_connection, MICROSECOND_SUPPORT
     print "connect to mysql"
-    try:
-        db_connection = mysql.connect(**request.param['connection']['params'])
-        cursor = db_connection.cursor()
-        cursor.execute("SELECT version()")
-        version = cursor.fetchone()
-        version_nums = version[0].split(".")
-        print (version)
-        if int(version_nums[0]) < 5:
-            MICROSECOND_SUPPORT  = False
-        elif int(version_nums[1]) <  6:
-            MICROSECOND_SUPPORT =  False
+    db_connection = mysql.connect(**request.param['connection']['params'])
+    cursor = db_connection.cursor()
+    cursor.execute("SELECT version()")
+    version = cursor.fetchone()
+    version_nums = version[0].split(".")
+    print (version)
+    if int(version_nums[0]) < 5:
+        MICROSECOND_SUPPORT  = False
+    elif int(version_nums[1]) <  6:
+        MICROSECOND_SUPPORT =  False
+    else:
+        rev = version_nums[2]
+        if 'ubuntu' in version_nums[2]:
+            rev = rev[:rev.index('-')]
+        print('rev is {}'.format(rev))
+        rev = int(rev)
+        if rev < 4 :
+            MICROSECOND_SUPPORT = False
         else:
-            rev = version_nums[2]
-            if 'ubuntu' in version_nums[2]:
-                rev = rev[:rev.index('-')]
-            print('rev is {}'.format(rev))
-            rev = int(rev)
-            if rev < 4 :
-                MICROSECOND_SUPPORT = False
-            else:
-                MICROSECOND_SUPPORT = True
-        cursor = db_connection.cursor()
-        print("MICROSECOND_SUPPORT " , MICROSECOND_SUPPORT)
-        if MICROSECOND_SUPPORT:
-            cursor.execute('CREATE TABLE IF NOT EXISTS data (ts timestamp(6) NOT NULL,\
-                                 topic_id INTEGER NOT NULL, \
-                                 value_string TEXT NOT NULL, \
-                                 UNIQUE(ts, topic_id))')
-        else:
-            cursor.execute('CREATE TABLE IF NOT EXISTS data (ts timestamp NOT NULL,\
-                                 topic_id INTEGER NOT NULL, \
-                                 value_string TEXT NOT NULL, \
-                                 UNIQUE(ts, topic_id))')
-        cursor.execute('CREATE TABLE IF NOT EXISTS topics (topic_id INTEGER NOT NULL AUTO_INCREMENT, \
-                                 topic_name varchar(512) NOT NULL,\
-                                 PRIMARY KEY (topic_id),\
-                                 UNIQUE(topic_name))')
-        db_connection.commit()
-        print("mysql tables created")
-    except mysql.Error as err:
-        if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
-            print("MySQL Connection error: Something is wrong with your user name or password")
-            pytest.fail(msg="MySQL Connection error: Something is wrong with your user name or password")
-        elif err.errno == errorcode.ER_BAD_DB_ERROR:
-            print("MySQL Connection error: Database does not exist")
-            pytest.fail(msg="MySQL Connection error: Database does not exist")
-        else:
-            print("MySQL Connection error: " + err.msg)
-            pytest.fail(msg="MySQL Connection error: " + err.msg)
-
+            MICROSECOND_SUPPORT = True
+    cursor = db_connection.cursor()
+    print("MICROSECOND_SUPPORT " , MICROSECOND_SUPPORT)
+    if MICROSECOND_SUPPORT:
+        cursor.execute('CREATE TABLE IF NOT EXISTS data (ts timestamp(6) NOT NULL,\
+                             topic_id INTEGER NOT NULL, \
+                             value_string TEXT NOT NULL, \
+                             UNIQUE(ts, topic_id))')
+    else:
+        cursor.execute('CREATE TABLE IF NOT EXISTS data (ts timestamp NOT NULL,\
+                             topic_id INTEGER NOT NULL, \
+                             value_string TEXT NOT NULL, \
+                             UNIQUE(ts, topic_id))')
+    cursor.execute('CREATE TABLE IF NOT EXISTS topics (topic_id INTEGER NOT NULL AUTO_INCREMENT, \
+                             topic_name varchar(512) NOT NULL,\
+                             PRIMARY KEY (topic_id),\
+                             UNIQUE(topic_name))')
+    db_connection.commit()
+    print("mysql tables created")
 
 def connect_sqlite(agent_uuid, request, volttron_instance1):
     global db_connection,MICROSECOND_SUPPORT
@@ -181,17 +159,10 @@ def connect_sqlite(agent_uuid, request, volttron_instance1):
                               'agents', agent_uuid,
                               'sqlhistorianagent-3.0.1/sqlhistorianagent-3.0.1.agent-data/data',
                               db_name)
-    print(database_path)
-    try:
-        print "connecting to sqlite path " + database_path
-        db_connection = sqlite3.connect(database_path)
-        print "successfully connected to sqlite"
-        MICROSECOND_SUPPORT = True
-    except sqlite3.Error, e:
-        pytest.fail(msg="Unable to connect to sqlite databse: " +
-                        database_path +
-                        " Exception:" + e.args[0])
-
+    print "connecting to sqlite path " + database_path
+    db_connection = sqlite3.connect(database_path)
+    print "successfully connected to sqlite"
+    MICROSECOND_SUPPORT = True
 
 @pytest.fixture()
 def clean(request,sqlhistorian):
