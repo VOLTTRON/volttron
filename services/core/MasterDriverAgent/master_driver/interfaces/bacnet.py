@@ -54,13 +54,24 @@ under Contract DE-AC05-76RL01830
 from master_driver.interfaces import BaseInterface, BaseRegister
 from csv import DictReader
 from StringIO import StringIO
+import logging
+
+from master_driver.driver_exceptions import DriverConfigError
+
+#Logging is completely configured by now.
+_log = logging.getLogger(__name__)
 
 class Register(BaseRegister):
-    def __init__(self, instance_number, object_type, property_name, read_only, pointName, units, description = ''):
+    def __init__(self, instance_number, object_type, property_name, read_only, pointName, units, 
+                 description = '',
+                 priority = None,
+                 list_index = None):
         super(Register, self).__init__("byte", read_only, pointName, units, description = '')
         self.instance_number = int(instance_number)
         self.object_type = object_type
         self.property = property_name
+        self.priority = priority
+        self.index = list_index
 
         
 class Interface(BaseInterface):
@@ -68,9 +79,11 @@ class Interface(BaseInterface):
         super(Interface, self).__init__(**kwargs)
         
     def configure(self, config_dict, registry_config_str):
+        self.min_priority = config_dict.get("min_priority", 8)
         self.parse_config(registry_config_str)         
         self.target_address = config_dict["device_address"]
         self.proxy_address = config_dict.get("proxy_address", "platform.bacnet_proxy")
+        self.max_per_request = config_dict.get("max_per_request")        
         self.ping_target(self.target_address)
                                          
     def ping_target(self, address):    
@@ -79,27 +92,36 @@ class Interface(BaseInterface):
         # settle that for us when the response comes back. 
         return self.vip.rpc.call(self.proxy_address, 'ping_device', self.target_address).get(timeout=10.0)
         
-    def get_point(self, point_name): 
+    def get_point(self, point_name, get_priority_array=False): 
         register = self.get_register_by_name(point_name)   
+        my_property = "priorityArray" if get_priority_array else register.property
         point_map = {point_name:[register.object_type, 
                                  register.instance_number, 
-                                 register.property]}
+                                 my_property]}
         result = self.vip.rpc.call(self.proxy_address, 'read_properties', 
                                        self.target_address, point_map).get(timeout=10.0)
         return result[point_name]
     
-    def set_point(self, point_name, value):    
+    def set_point(self, point_name, value, priority=None):    
+        #TODO: support writing from an array.
         register = self.get_register_by_name(point_name)  
         if register.read_only:
             raise  IOError("Trying to write to a point configured read only: "+point_name)
+        
+        if priority is not None and priority < self.min_priority:
+            raise  IOError("Trying to write with a priority lower than the minimum of "+str(self.min_priority))
+        
+        #We've already validated the register priority against the min priority.
         args = [self.target_address, value,
                 register.object_type, 
                 register.instance_number, 
-                register.property]
+                register.property,
+                priority if priority is not None else register.priority]
         result = self.vip.rpc.call(self.proxy_address, 'write_property', *args).get(timeout=10.0)
         return result
         
     def scrape_all(self):
+        #TODO: support reading from an array.
         point_map = {}
         read_registers = self.get_registers_by_type("byte", True)
         write_registers = self.get_registers_by_type("byte", False) 
@@ -109,7 +131,8 @@ class Interface(BaseInterface):
                                               register.property]
         
         result = self.vip.rpc.call(self.proxy_address, 'read_properties', 
-                                       self.target_address, point_map).get(timeout=10.0)
+                                       self.target_address, point_map,
+                                       self.max_per_request).get(timeout=10.0)
         return result
     
     def parse_config(self, config_string):
@@ -122,14 +145,35 @@ class Interface(BaseInterface):
         
         for regDef in configDict:
             #Skip lines that have no address yet.
-            if not regDef['Point Name']:
-                continue
+#             if not regDef['Point Name']:
+#                 continue
             
             io_type = regDef['BACnet Object Type']
             read_only = regDef['Writable'].lower() != 'true'
             point_name = regDef['Volttron Point Name']        
-            index = int(regDef['Index'])        
-            description = regDef['Notes']                 
+            index = int(regDef['Index'])   
+                
+            list_index = regDef.get('Array Index', '')
+            list_index = list_index.strip()
+            if not list_index:
+                list_index = None
+            else:
+                list_index = int(list_index) 
+                
+            priority = regDef.get('Write Priority', '')
+            priority = priority.strip()
+            if not priority:
+                priority = None
+            else:
+                priority = int(priority) 
+                
+                if priority < self.min_priority:
+                    message = "{point} configured with a priority {priority} which is lower than than minimum {min}."
+                    raise DriverConfigError(message.format(point=point_name,
+                                                           priority=priority,
+                                                           min=self.min_priority))
+                
+            description = regDef.get('Notes', '')                 
             units = regDef['Units']       
             property_name = regDef['Property']       
                         
@@ -139,6 +183,8 @@ class Interface(BaseInterface):
                                 read_only, 
                                 point_name,
                                 units, 
-                                description = description)
+                                description = description,
+                                priority = priority,
+                                list_index = list_index)
                 
             self.insert_register(register)

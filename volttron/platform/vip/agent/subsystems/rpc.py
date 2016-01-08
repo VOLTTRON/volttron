@@ -224,6 +224,32 @@ class RPC(SubsystemBase):
             self.context = gevent.local.local()
             self._dispatcher = Dispatcher(self._exports, self.context)
         core.onsetup.connect(setup, self)
+        self._iterate_exports()
+
+    def _iterate_exports(self):
+        '''Iterates over exported methods and adds authorization checks
+        as necessary
+        '''
+        for method_name in self._exports:
+            method = self._exports[method_name]
+            caps = annotations(method, set, 'rpc.allow_capabilities')
+            if caps:
+                self._exports[method_name] = self._add_auth_check(method, caps)
+
+    def _add_auth_check(self, method, required_caps):
+        '''Adds an authorization check to verify the calling agent has the
+        required capabilities.
+        '''
+        def checked_method(*args, **kwargs):
+            user = str(self.context.vip_message.user)
+            caps = self.call('auth', 'get_capabilities', user_id=user).get(timeout=5)
+            if not required_caps <= set(caps):
+                msg = ('method "{}" requires capabilities {},'
+                      ' but capability list {} was'
+                      ' provided').format(method.__name__, required_caps, caps)
+                raise jsonrpc.exception_from_json(jsonrpc.UNAUTHORIZED, msg)
+            return method(*args, **kwargs)
+        return checked_method
 
     @spawn
     def _handle_subsystem(self, message):
@@ -285,3 +311,26 @@ class RPC(SubsystemBase):
     def notify(self, peer, method, *args, **kwargs):
         request = self._dispatcher.notify(method, args, kwargs)
         self.core().socket.send_vip(peer, 'RPC', [request])
+
+    @classmethod
+    def allow(cls, capabilities):
+        '''Decorator specifies required agent capabilities to call a method.
+     
+        This is designed to be used with the export decorator:
+
+        @RPC.export
+        @RPC.allow('can_read_status')
+        def get_status():
+            ...
+
+        Multiple capabilies can be provided in a list:
+        @RPC.allow(['can_read_status', 'can_call_my_methods'])
+        '''
+        def decorate(method):
+            if isinstance(capabilities, basestring):
+                annotate(method, set, 'rpc.allow_capabilities', capabilities)
+            else:
+                for cap in capabilities:
+                    annotate(method, set, 'rpc.allow_capabilities', cap)
+            return method
+        return decorate

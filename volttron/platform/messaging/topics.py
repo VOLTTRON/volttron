@@ -102,6 +102,8 @@ __license__ = 'FreeBSD'
 PLATFORM = _('platform/{subtopic}')
 PLATFORM_SHUTDOWN = PLATFORM(subtopic='shutdown')
 
+RECORD = _('record')
+
 AGENT_SHUTDOWN = _('agent/{agent}/shutdown')
 AGENT_PING = _('agent/ping/{}/{}/{{cookie}}'.format(os.uname()[1], os.getpid()))
 
