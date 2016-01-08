@@ -122,14 +122,16 @@ class PlatformWrapper:
         self._started_pids = []
         print('Creating Platform Wrapper at: {}'.format(self.volttron_home))
 
-    def build_agent(self, address=None, should_spawn=True, identity=None):
+    def build_agent(self, address=None, should_spawn=True, identity=None,
+                    publickey=None, secretkey=None, serverkey=None):
         _log.debug('BUILD GENERIC AGENT')
         if address == None:
             print('VIP ADDRESS ', self.vip_address[0])
             address = self.vip_address[0]
 
         print('ADDRESS: ', address)
-        agent = Agent(address=address, identity=identity)
+        agent = Agent(address=address, identity=identity, publickey=publickey,
+                      secretkey=secretkey, serverkey=serverkey)
         if should_spawn:
             print('SPAWNING GENERIC AGENT')
             event = gevent.event.Event()
@@ -148,6 +150,11 @@ class PlatformWrapper:
         with open(os.path.join(self.volttron_home, 'curve.key'), 'w') as fd:
             fd.write(key)
         return encode_key(key[:40]) # public key
+
+    def set_auth_dict(self, auth_dict):
+        if auth_dict:
+            with open(os.path.join(self.volttron_home, 'auth.json'), 'w') as fd:
+                fd.write(json.dumps(auth_dict))
 
     def startup_platform(self, vip_address, auth_dict=None, use_twistd=False,
         mode=UNRESTRICTED, encrypt=False):
@@ -172,9 +179,7 @@ class PlatformWrapper:
             with open(os.path.join(self.volttron_home, 'curve.key'), 'w'):
                 pass
 
-        if auth_dict:
-            with open(os.path.join(self.volttron_home, 'auth.json'), 'w') as fd:
-                fd.write(json.dumps(auth_dict))
+        self.set_auth_dict(auth_dict)
 
         self.opts = {'verify_agents': False,
                 'volttron_home': self.volttron_home,
