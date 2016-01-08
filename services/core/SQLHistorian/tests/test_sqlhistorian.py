@@ -10,7 +10,10 @@ import sqlite3
 import gevent
 import random
 from volttron.platform.messaging import headers as headers_mod
-from datetime import datetime
+
+from datetime import datetime, timedelta
+
+
 try:
     import mysql.connector as mysql
     from mysql.connector import errorcode
@@ -52,9 +55,9 @@ mysql_platform = {
     }
 }
 
+offset = timedelta(seconds=3)
 db_connection = None
-publish_agent = None
-agent_uuid = None
+MICROSECOND_SUPPORT = True
 
 # Fixtures for setup and teardown
 @pytest.fixture(scope="module",
@@ -62,6 +65,10 @@ agent_uuid = None
         pytest.mark.skipif(not HAS_MYSQL_CONNECTOR,
             reason='No mysql client available.')(mysql_platform),sqlite_platform
     ])
+# @pytest.fixture(scope="module",
+#     params=[
+#         sqlite_platform
+#     ])
 def sqlhistorian(request, volttron_instance1):
     global db_connection, publish_agent, agent_uuid
     print("** Setting up test_sqlhistorian module **")
@@ -69,17 +76,12 @@ def sqlhistorian(request, volttron_instance1):
     print("request param", request.param)
 
     # 1: Install historian agent
-    try:
-        # Install and start sqlhistorian agent
-        agent_uuid = volttron_instance1.install_agent(
-                    agent_dir="services/core/SQLHistorian",
-                    config_file=request.param,
-                    start=True)
-        gevent.sleep(1)
-        print("agent id: ", agent_uuid)
-    except Exception as exception:
-        print("Exception installing/starting sqlhistorian agent of type " + request.param['connection']['type'] , exception)
-        pytest.skip(msg='Exception setting up test module: '+ exception.message)
+    # Install and start sqlhistorian agent
+    agent_uuid = volttron_instance1.install_agent(
+                agent_dir="services/core/SQLHistorian",
+                config_file=request.param,
+                start=True)
+    print("agent id: ", agent_uuid)
 
     # 2: Open db connection that can be used for row deletes after each test method
     if request.param['connection']['type'] == "sqlite":
@@ -88,15 +90,10 @@ def sqlhistorian(request, volttron_instance1):
         connect_mysql(request)
     else:
         print("Invalid database type specified " + request.param['connection']['type'] )
-        pytest.skip(msg="Invalid database type specified " + request.param['connection']['type'])
+        pytest.fail(msg="Invalid database type specified " + request.param['connection']['type'])
 
     # 3: Start a fake agent to publish to message bus
-    try:
-        publish_agent = volttron_instance1.build_agent()
-        gevent.sleep(1)
-    except Exception as exception:
-        print("Exception creating publish agent for test ")
-        pytest.skip(msg='Exception creating publish agent for test: '+ exception.message)
+    publish_agent = volttron_instance1.build_agent()
 
     # 4: add a tear down method to stop sqlhistorian agent and the fake agent that published to message bus
     def stop_agent():
@@ -106,8 +103,6 @@ def sqlhistorian(request, volttron_instance1):
             print("closed connection to db")
 
         volttron_instance1.stop_agent(agent_uuid)
-        #volttron_instance1.remove_agent(agent_uuid)
-
         publish_agent.core.stop()
 
     request.addfinalizer(stop_agent)
@@ -115,51 +110,59 @@ def sqlhistorian(request, volttron_instance1):
 
 
 def connect_mysql(request):
-    global db_connection
+    global db_connection, MICROSECOND_SUPPORT
     print "connect to mysql"
-    try:
-        db_connection = mysql.connect(**request.param['connection']['params'])
-        cursor = db_connection.cursor()
-        cursor.execute('CREATE TABLE IF NOT EXISTS data (ts timestamp(6) NOT NULL,\
-                                 topic_id INTEGER NOT NULL, \
-                                 value_string TEXT NOT NULL, \
-                                 UNIQUE(ts, topic_id))')
-        cursor.execute('CREATE TABLE IF NOT EXISTS topics (topic_id INTEGER NOT NULL AUTO_INCREMENT, \
-                                 topic_name varchar(512) NOT NULL,\
-                                 PRIMARY KEY (topic_id),\
-                                 UNIQUE(topic_name))')
-        db_connection.commit()
-        print("mysql tables created")
-    except mysql.Error as err:
-        if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
-            print("MySQL Connection error: Something is wrong with your user name or password")
-            pytest.skip(msg="MySQL Connection error: Something is wrong with your user name or password")
-        elif err.errno == errorcode.ER_BAD_DB_ERROR:
-            print("MySQL Connection error: Database does not exist")
-            pytest.skip(msg="MySQL Connection error: Database does not exist")
+    db_connection = mysql.connect(**request.param['connection']['params'])
+    cursor = db_connection.cursor()
+    cursor.execute("SELECT version()")
+    version = cursor.fetchone()
+    version_nums = version[0].split(".")
+    print (version)
+    if int(version_nums[0]) < 5:
+        MICROSECOND_SUPPORT  = False
+    elif int(version_nums[1]) <  6:
+        MICROSECOND_SUPPORT =  False
+    else:
+        rev = version_nums[2]
+        if 'ubuntu' in version_nums[2]:
+            rev = rev[:rev.index('-')]
+        print('rev is {}'.format(rev))
+        rev = int(rev)
+        if rev < 4 :
+            MICROSECOND_SUPPORT = False
         else:
-            print("MySQL Connection error: " + err.msg)
-            pytest.skip(msg="MySQL Connection error: " + err.msg)
-
+            MICROSECOND_SUPPORT = True
+    cursor = db_connection.cursor()
+    print("MICROSECOND_SUPPORT " , MICROSECOND_SUPPORT)
+    if MICROSECOND_SUPPORT:
+        cursor.execute('CREATE TABLE IF NOT EXISTS data (ts timestamp(6) NOT NULL,\
+                             topic_id INTEGER NOT NULL, \
+                             value_string TEXT NOT NULL, \
+                             UNIQUE(ts, topic_id))')
+    else:
+        cursor.execute('CREATE TABLE IF NOT EXISTS data (ts timestamp NOT NULL,\
+                             topic_id INTEGER NOT NULL, \
+                             value_string TEXT NOT NULL, \
+                             UNIQUE(ts, topic_id))')
+    cursor.execute('CREATE TABLE IF NOT EXISTS topics (topic_id INTEGER NOT NULL AUTO_INCREMENT, \
+                             topic_name varchar(512) NOT NULL,\
+                             PRIMARY KEY (topic_id),\
+                             UNIQUE(topic_name))')
+    db_connection.commit()
+    print("mysql tables created")
 
 def connect_sqlite(agent_uuid, request, volttron_instance1):
-    global db_connection
+    global db_connection,MICROSECOND_SUPPORT
     from os import path
     db_name = request.param['connection']['params']['database']
     database_path = path.join(volttron_instance1.volttron_home,
                               'agents', agent_uuid,
                               'sqlhistorianagent-3.0.1/sqlhistorianagent-3.0.1.agent-data/data',
                               db_name)
-    print(database_path)
-    try:
-        print "connecting to sqlite path " + database_path
-        db_connection = sqlite3.connect(database_path)
-        print "successfully connected to sqlite"
-    except sqlite3.Error, e:
-        pytest.skip(msg="Unable to connect to sqlite databse: " +
-                        database_path +
-                        " Exception:" + e.args[0])
-
+    print "connecting to sqlite path " + database_path
+    db_connection = sqlite3.connect(database_path)
+    print "successfully connected to sqlite"
+    MICROSECOND_SUPPORT = True
 
 @pytest.fixture()
 def clean(request,sqlhistorian):
@@ -167,11 +170,20 @@ def clean(request,sqlhistorian):
         global db_connection
         cursor = db_connection.cursor()
         cursor.execute("DELETE FROM data")
-        # cursor.execute("DELETE FROM topics;")
         db_connection.commit()
         print("deleted test records")
 
     request.addfinalizer(delete_rows)
+
+def assert_timestamp(result, expected_date, expected_time):
+    global MICROSECOND_SUPPORT
+    print("MICROSECOND SUPPORT ", MICROSECOND_SUPPORT)
+    print("TIMESTAMP with microseconds ", expected_time)
+    print("TIMESTAMP without microseconds ", expected_time[:-7])
+    if MICROSECOND_SUPPORT:
+        assert (result == expected_date + 'T' + expected_time)
+    else:
+        assert (result == expected_date + 'T' + expected_time[:-7])
 
 @pytest.mark.historian
 def test_basic_function(volttron_instance1, sqlhistorian, clean):
@@ -207,12 +219,12 @@ def test_basic_function(volttron_instance1, sqlhistorian, clean):
     headers = {
         headers_mod.DATE: now
     }
-
+    print("Published time in header: " + now)
     # Publish messages
     publish_agent.vip.pubsub.publish(
             'pubsub', ALL_TOPIC, headers, all_message).get(timeout=10)
 
-    gevent.sleep(5)
+    gevent.sleep(1)
 
     # Query the historian
     result = publish_agent.vip.rpc.call('platform.historian',
@@ -221,37 +233,9 @@ def test_basic_function(volttron_instance1, sqlhistorian, clean):
                                         count=20,
                                         order="LAST_TO_FIRST").get(timeout=100)
     print('Query Result', result)
-
-    # FOR DEBUG - START
-    cursor = db_connection.cursor()
-    cursor.execute(
-            "SELECT ts FROM data")
-    rows = cursor.fetchall()
-    print("select query result1: " , rows)
-    if sqlhistorian['connection']['type'] == 'mysql':
-        new_connection = mysql.connect(**sqlhistorian['connection']['params'])
-        newcur = new_connection.cursor()
-        newcur.execute("SELECT ts from data")
-        new_rows = newcur.fetchall()
-        print("select query result2: " , new_rows)
-        new_connection.close()
-    else:
-        from os import path
-        db_name = sqlhistorian['connection']['params']['database']
-        database_path = path.join(volttron_instance1.volttron_home,
-                              'agents', agent_uuid,
-                              'sqlhistorianagent-3.0.1/sqlhistorianagent-3.0.1.agent-data/data',
-                              db_name)
-        new_connection = sqlite3.connect(database_path)
-        newcur = new_connection.cursor()
-        newcur.execute("SELECT ts from data")
-        new_rows = newcur.fetchall()
-        print("select query result2: " , new_rows)
-        new_connection.close()
-    # FOR DEBUG END
     assert (len(result['values']) == 1)
     (now_date, now_time) = now.split(" ")
-    assert (result['values'][0][0] == now_date + 'T' + now_time)
+    assert_timestamp(result['values'][0][0], now_date, now_time)
     assert (result['values'][0][1] == oat_reading)
 
     # Query the historian
@@ -263,7 +247,7 @@ def test_basic_function(volttron_instance1, sqlhistorian, clean):
     print('Query Result', result)
     assert (len(result['values']) == 1)
     (now_date, now_time) = now.split(" ")
-    assert (result['values'][0][0] == now_date + 'T' + now_time)
+    assert_timestamp(result['values'][0][0], now_date, now_time)
     assert (result['values'][0][1] == mixed_reading)
 
     # Query the historian
@@ -275,9 +259,123 @@ def test_basic_function(volttron_instance1, sqlhistorian, clean):
     print('Query Result', result)
     assert (len(result['values']) == 1)
     (now_date, now_time) = now.split(" ")
-    assert (result['values'][0][0] == now_date + 'T' + now_time)
+    assert_timestamp(result['values'][0][0], now_date, now_time)
     assert (result['values'][0][1] == damper_reading)
 
+@pytest.mark.historian
+def test_exact_timestamp(volttron_instance1, sqlhistorian, clean):
+    """
+    Test query based on same start and end time with literal 'Z' at the end of utc time.
+    Expected result: record with timestamp == start time
+    :param volttron_instance1: The instance against which the test is run
+    :param sqlhistorian: instance of the sql historian tested
+    :param clean: teardown function
+    """
+    global publish_agent, query_points, ALL_TOPIC
+    # print('HOME', volttron_instance1.volttron_home)
+    print("\n** test_exact_timestamp **")
+    # Publish fake data. The format mimics the format used by VOLTTRON drivers.
+    # Make some random readings
+    oat_reading = random.uniform(30, 100)
+    mixed_reading = oat_reading + random.uniform(-5, 5)
+    damper_reading = random.uniform(0, 100)
+
+    # Create a message for all points.
+    all_message = [{'OutsideAirTemperature': oat_reading, 'MixedAirTemperature': mixed_reading,
+                    'DamperSignal': damper_reading},
+                   {'OutsideAirTemperature': {'units': 'F', 'tz': 'UTC', 'type': 'float'},
+                    'MixedAirTemperature': {'units': 'F', 'tz': 'UTC', 'type': 'float'},
+                    'DamperSignal': {'units': '%', 'tz': 'UTC', 'type': 'float'}
+                    }]
+
+    # Create timestamp
+    now = datetime.utcnow().isoformat() + 'Z'
+    print("now is ", now)
+    # now = '2015-12-02T00:00:00'
+    headers = {
+        headers_mod.DATE: now
+    }
+
+    # Publish messages
+    publish_agent.vip.pubsub.publish(
+            'pubsub', ALL_TOPIC, headers, all_message).get(timeout=10)
+
+    gevent.sleep(0.5)
+
+    # pytest.set_trace()
+    # Query the historian
+    result = publish_agent.vip.rpc.call('platform.historian',
+                                        'query',
+                                        topic=query_points['mixed_point'],
+                                        start=now,
+                                        end=now,
+                                        count=20,
+                                        order="LAST_TO_FIRST").get(timeout=10)
+    print('Query Result', result)
+    assert (len(result['values']) == 1)
+    (now_date, now_time) = now.split("T")
+    if now_time[-1:] == 'Z':
+        now_time = now_time[:-1]
+    assert_timestamp(result['values'][0][0], now_date, now_time)
+    assert (result['values'][0][1] == mixed_reading)
+
+@pytest.mark.historian
+def test_exact_timestamp_with_T(volttron_instance1, sqlhistorian, clean):
+    """
+    Test query based on same start and end time with literal 'Z' at the end of utc time.
+    Expected result: record with timestamp == start time
+    :param volttron_instance1: The instance against which the test is run
+    :param sqlhistorian: instance of the sql historian tested
+    :param clean: teardown function
+    """
+    global publish_agent, query_points, ALL_TOPIC
+    # print('HOME', volttron_instance1.volttron_home)
+    print("\n** test_exact_timestamp **")
+    # Publish fake data. The format mimics the format used by VOLTTRON drivers.
+    # Make some random readings
+    oat_reading = random.uniform(30, 100)
+    mixed_reading = oat_reading + random.uniform(-5, 5)
+    damper_reading = random.uniform(0, 100)
+
+    # Create a message for all points.
+    all_message = [{'OutsideAirTemperature': oat_reading, 'MixedAirTemperature': mixed_reading,
+                    'DamperSignal': damper_reading},
+                   {'OutsideAirTemperature': {'units': 'F', 'tz': 'UTC', 'type': 'float'},
+                    'MixedAirTemperature': {'units': 'F', 'tz': 'UTC', 'type': 'float'},
+                    'DamperSignal': {'units': '%', 'tz': 'UTC', 'type': 'float'}
+                    }]
+
+    # Create timestamp
+    now = datetime.utcnow().isoformat() + 'Z'
+
+    print("now is ", now)
+    # now = '2015-12-02T00:00:00'
+    headers = {
+        headers_mod.DATE: now
+    }
+
+    # Publish messages
+    publish_agent.vip.pubsub.publish(
+            'pubsub', ALL_TOPIC, headers, all_message).get(timeout=10)
+
+    gevent.sleep(0.5)
+
+    # pytest.set_trace()
+    # Query the historian
+    result = publish_agent.vip.rpc.call('platform.historian',
+                                        'query',
+                                        topic=query_points['mixed_point'],
+                                        start=now,
+                                        end=now,
+                                        count=20,
+                                        order="LAST_TO_FIRST").get(timeout=10)
+    print('Query Result', result)
+    assert (len(result['values']) == 1)
+    (now_date, now_time) = now.split("T")
+    if now_time[-1:] == 'Z':
+        now_time = now_time[:-1]
+    assert_timestamp(result['values'][0][0], now_date, now_time)
+    assert (result['values'][0][1] == mixed_reading)
 
 @pytest.mark.historian
 def test_exact_timestamp(volttron_instance1, sqlhistorian, clean):
@@ -317,7 +415,7 @@ def test_exact_timestamp(volttron_instance1, sqlhistorian, clean):
     publish_agent.vip.pubsub.publish(
             'pubsub', ALL_TOPIC, headers, all_message).get(timeout=10)
 
-    gevent.sleep(5)
+    gevent.sleep(0.5)
 
     # pytest.set_trace()
     # Query the historian
@@ -333,7 +431,7 @@ def test_exact_timestamp(volttron_instance1, sqlhistorian, clean):
     (now_date, now_time) = now.split(" ")
     if now_time[-1:] == 'Z':
         now_time = now_time[:-1]
-    assert (result['values'][0][0] == now_date + 'T' + now_time)
+    assert_timestamp(result['values'][0][0], now_date, now_time)
     assert (result['values'][0][1] == mixed_reading)
 
 
@@ -369,15 +467,16 @@ def test_query_start_time(volttron_instance1, sqlhistorian, clean):
     }
     publish_agent.vip.pubsub.publish(
             'pubsub', ALL_TOPIC, headers, all_message).get(timeout=10)
-    gevent.sleep(1)
-    time2 = datetime.utcnow().isoformat(' ')
+    gevent.sleep(0.5)
+    time2 = datetime.utcnow() + offset
+    time2 = time2.isoformat(' ')
     headers = {
         headers_mod.DATE: time2
     }
     publish_agent.vip.pubsub.publish(
             'pubsub', ALL_TOPIC, headers, all_message).get(timeout=10)
 
-    gevent.sleep(5)
+    gevent.sleep(0.5)
     # pytest.set_trace()
     # pytest.set_trace()
     # Query the historian
@@ -395,7 +494,7 @@ def test_query_start_time(volttron_instance1, sqlhistorian, clean):
     if time2_time[-1:] == 'Z':
         time2_time = time2_time[:-1]
     # Verify order LAST_TO_FIRST.
-    assert (result['values'][0][0] == time2_date + 'T' + time2_time)
+    assert_timestamp(result['values'][0][0], time2_date, time2_time)
     assert (result['values'][0][1] == oat_reading)
 
 
@@ -431,15 +530,16 @@ def test_query_start_time_with_z(volttron_instance1, sqlhistorian, clean):
     }
     publish_agent.vip.pubsub.publish(
             'pubsub', ALL_TOPIC, headers, all_message).get(timeout=10)
-    gevent.sleep(1)
-    time2 = datetime.utcnow().isoformat(' ') + 'Z'
+    gevent.sleep(0.5)
+    time2 = datetime.utcnow() + offset
+    time2 = time2.isoformat(' ') + 'Z'
     headers = {
         headers_mod.DATE: time2
     }
     publish_agent.vip.pubsub.publish(
             'pubsub', ALL_TOPIC, headers, all_message).get(timeout=10)
 
-    gevent.sleep(5)
+    gevent.sleep(0.5)
 
     # Query the historian
     result = publish_agent.vip.rpc.call('platform.historian',
@@ -456,7 +556,7 @@ def test_query_start_time_with_z(volttron_instance1, sqlhistorian, clean):
     if time2_time[-1:] == 'Z':
         time2_time = time2_time[:-1]
     # Verify order LAST_TO_FIRST.
-    assert (result['values'][0][0] == time2_date + 'T' + time2_time)
+    assert_timestamp(result['values'][0][0], time2_date, time2_time)
     assert (result['values'][0][1] == oat_reading)
 
 
@@ -493,15 +593,16 @@ def test_query_end_time(volttron_instance1, sqlhistorian, clean):
     }
     publish_agent.vip.pubsub.publish(
             'pubsub', ALL_TOPIC, headers, all_message).get(timeout=10)
-    gevent.sleep(1)
-    time2 = datetime.utcnow().isoformat(' ')
+    gevent.sleep(0.5)
+    time2 = datetime.utcnow() + offset
+    time2 = time2.isoformat(' ')
     headers = {
         headers_mod.DATE: time2
     }
     publish_agent.vip.pubsub.publish(
             'pubsub', ALL_TOPIC, headers, all_message).get(timeout=10)
 
-    gevent.sleep(5)
+    gevent.sleep(0.5)
 
     # pytest.set_trace()
     # Query the historian
@@ -515,39 +616,10 @@ def test_query_end_time(volttron_instance1, sqlhistorian, clean):
     print ("time2:", time2)
     print('Query Result', result)
 
-    # FOR DEBUG - START
-    cursor = db_connection.cursor()
-    cursor.execute(
-            "SELECT ts FROM data")
-    rows = cursor.fetchall()
-    print("select query result1: " , rows)
-
-    if sqlhistorian['connection']['type'] == 'mysql':
-        new_connection = mysql.connect(**sqlhistorian['connection']['params'])
-        newcur = new_connection.cursor()
-        newcur.execute("SELECT ts from data")
-        new_rows = newcur.fetchall()
-        print("select query result2: " , new_rows)
-        new_connection.close()
-    else:
-        from os import path
-        db_name = sqlhistorian['connection']['params']['database']
-        database_path = path.join(volttron_instance1.volttron_home,
-                              'agents', agent_uuid,
-                              'sqlhistorianagent-3.0.1/sqlhistorianagent-3.0.1.agent-data/data',
-                              db_name)
-        new_connection = sqlite3.connect(database_path)
-        newcur = new_connection.cursor()
-        newcur.execute("SELECT ts from data")
-        new_rows = newcur.fetchall()
-        print("select query result2: " , new_rows)
-        new_connection.close()
-    # FOR DEBUG - END
-    # pytest.set_trace()
     assert (len(result['values']) == 2)
     (time1_date, time1_time) = time1.split(" ")
     # verify ordering("FIRST_TO_LAST" is specified so expecting time1 in index 0
-    assert (result['values'][0][0] == time1_date + 'T' + time1_time)
+    assert_timestamp(result['values'][0][0], time1_date, time1_time)
     assert (result['values'][0][1] == mixed_reading)
 
 
@@ -583,15 +655,16 @@ def test_query_end_time_with_z(volttron_instance1, sqlhistorian, clean):
     }
     publish_agent.vip.pubsub.publish(
             'pubsub', ALL_TOPIC, headers, all_message).get(timeout=10)
-    gevent.sleep(1)
-    time2 = datetime.utcnow().isoformat(' ') + 'Z'
+    gevent.sleep(0.5)
+    time2 = datetime.utcnow() + offset
+    time2 = time2.isoformat(' ') + 'Z'
     headers = {
         headers_mod.DATE: time2
     }
     publish_agent.vip.pubsub.publish(
             'pubsub', ALL_TOPIC, headers, all_message).get(timeout=10)
 
-    gevent.sleep(5)
+    gevent.sleep(0.5)
 
     # pytest.set_trace()
     # Query the historian
@@ -610,7 +683,7 @@ def test_query_end_time_with_z(volttron_instance1, sqlhistorian, clean):
     if time1_time[-1:] == 'Z':
         time1_time = time1_time[:-1]
     # verify ordering("FIRST_TO_LAST" is specified so expecting time1 in index 0
-    assert (result['values'][0][0] == time1_date + 'T' + time1_time)
+    assert_timestamp(result['values'][0][0], time1_date, time1_time)
     assert (result['values'][0][1] == mixed_reading)
 
 
@@ -650,7 +723,7 @@ def test_zero_timestamp(volttron_instance1, sqlhistorian, clean):
     publish_agent.vip.pubsub.publish(
             'pubsub', ALL_TOPIC, headers, all_message).get(timeout=10)
 
-    gevent.sleep(5)
+    gevent.sleep(0.5)
 
     # Query the historian
     result = publish_agent.vip.rpc.call('platform.historian',
@@ -663,7 +736,7 @@ def test_zero_timestamp(volttron_instance1, sqlhistorian, clean):
     assert (len(result['values']) == 1)
     (now_date, now_time) = now.split(" ")
     now_time = now_time[:-2] + '1'
-    assert (result['values'][0][0] == now_date + 'T' + now_time)
+    assert_timestamp(result['values'][0][0], now_date, now_time)
     assert (result['values'][0][1] == mixed_reading)
 
     # Create timestamp
@@ -676,7 +749,7 @@ def test_zero_timestamp(volttron_instance1, sqlhistorian, clean):
     publish_agent.vip.pubsub.publish(
             'pubsub', ALL_TOPIC, headers, all_message).get(timeout=10)
 
-    gevent.sleep(5)
+    gevent.sleep(0.5)
 
     # Query the historian
     result = publish_agent.vip.rpc.call('platform.historian',
@@ -689,7 +762,7 @@ def test_zero_timestamp(volttron_instance1, sqlhistorian, clean):
     assert (len(result['values']) == 1)
     (now_date, now_time) = now.split(" ")
     now_time = now_time[:-1] + '1'
-    assert (result['values'][0][0] == now_date + 'T' + now_time)
+    assert_timestamp(result['values'][0][0], now_date, now_time)
     assert (result['values'][0][1] == mixed_reading)
 
 
@@ -729,7 +802,7 @@ def test_topic_name_case_change(volttron_instance1, sqlhistorian, clean):
     publish_agent.vip.pubsub.publish(
             'pubsub', ALL_TOPIC, headers, all_message).get(timeout=10)
 
-    gevent.sleep(5)
+    gevent.sleep(0.5)
 
     # Create a message for all points.
     all_message = [{'Outsideairtemperature': oat_reading, 'MixedAirTemperature': mixed_reading},
@@ -757,7 +830,7 @@ def test_topic_name_case_change(volttron_instance1, sqlhistorian, clean):
     assert (len(result['values']) == 2)
     (time1_date, time1_time) = time1.split(" ")
     time1_time = time1_time[:-2] + '1'
-    assert (result['values'][0][0] == time1_date + 'T' + time1_time)
+    assert_timestamp(result['values'][0][0], time1_date, time1_time)
     assert (result['values'][0][1] == oat_reading)
 
     cursor = db_connection.cursor()

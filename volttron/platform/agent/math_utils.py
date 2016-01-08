@@ -55,71 +55,43 @@
 # under Contract DE-AC05-76RL01830
 #}}}
 
-from os import environ
-from os import path
-import sys
-import json
+'''Dumping ground for VOLTTRON platform™ agent math helper functions.
 
-#from distutils.core import setup
-from setuptools import setup, find_packages
+Not meant to replace numpy in all cases. A basic set common math
+routines to remove the need for numpy in simple cases.
 
-# Requirements which must be built separately with the provided options.
-option_requirements = [
-    ('pyzmq>=14.7,<15', ['--zmq=bundled']),
-]
+This module should NEVER import numpy as that would defeat the 
+purpose.'''
 
-optional_requirements = set()
+def mean(data):
+    """Return the sample arithmetic mean of data."""
+    n = len(data)
+    if n < 1:
+        raise ValueError('mean requires at least one data point')
+    return sum(data)/n # in Python 2 use sum(data)/float(n)
 
-# For the different keyed in options allow the command paramenter to
-# install the given requirements.
-if path.exists('optional_requirements.json'):
-    with open('optional_requirements.json') as optional:
-        data = json.load(optional)
+def _ss(data):
+    """Return sum of square deviations of sequence data."""
+    c = mean(data)
+    ss = sum((x-c)**2 for x in data)
+    return ss
 
-        for arg, val in data.items():
-            if arg in sys.argv:
-                for req in val['packages']:
-                    optional_requirements.add(req)
+def pstdev(data):
+    """Calculates the population standard deviation."""
+    n = len(data)
+    if n < 2:
+        raise ValueError('variance requires at least two data points')
+    ss = _ss(data)
+    pvar = ss/n # the population variance
+    return pvar**0.5
 
-# Requirements in the repository which should be installed as editable.
-local_requirements = [
-]
+def stdev(data):
+    """Calculates the sample standard deviation."""
+    n = len(data)
+    if n < 2:
+        raise ValueError('variance requires at least two data points')
+    ss = _ss(data)
+    pvar = ss/(n-1) # sample variance
+    return pvar**0.5
 
-# Standard requirements
-requirements = [
-    'BACpypes>=0.10,<2',
-    'gevent>=0.13,<2',
-    'monotonic',
-    'pymodbus>=1.2,<2',
-    'setuptools',
-    'simplejson>=3.3,<4',
-    'Smap==2.0.24c780d',
-    'wheel>=0.24,<2',
-]
 
-install_requires = (
-    [req for req, _ in option_requirements] +
-    [req for req, _ in local_requirements] +
-    requirements +
-    [req for req in optional_requirements]
-)
-
-if __name__ == '__main__':
-    setup(
-        name = 'volttron',
-        version = '3.0.3',
-        description = 'Agent Execution Platform',
-        author = 'Volttron Team',
-        author_email = 'volttron@pnnl.gov',
-        url = 'https://github.com/VOLTTRON/volttron',
-        packages = find_packages('.'),
-        install_requires = install_requires,
-        entry_points = {
-            'console_scripts': [
-                'volttron = volttron.platform.main:_main',
-                'volttron-ctl = volttron.platform.control:_main',
-                'volttron-pkg = volttron.platform.packaging:_main',
-            ]
-        },
-        zip_safe = False,
-    )

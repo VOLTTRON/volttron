@@ -91,86 +91,89 @@ def historian(config_path, **kwargs):
     class ForwardHistorian(BaseHistorian):
         '''This historian forwards data to another platform.
         '''
-
+        
         @Core.receiver("onstart")
-        def starting(self, sender, **kwargs):
+        def starting_base(self, sender, **kwargs):
+            '''
+            Subscribes to the platform message bus on the actuator, record,
+            datalogger, and device topics to capture data.
+            '''
+            _log.debug("Starting Forward historian")
+    
+            driver_prefix = topics.DRIVER_TOPIC_BASE
+            _log.debug("subscribing to {}".format(driver_prefix))
+            self.vip.pubsub.subscribe(peer='pubsub',
+                                   prefix=driver_prefix,
+                                   callback=self.capture_data)
+     
+            _log.debug('Subscribing to: {}'.format(topics.LOGGER_BASE))
+            self.vip.pubsub.subscribe(peer='pubsub',
+                                   prefix=topics.LOGGER_BASE, #"datalogger",
+                                   callback=self.capture_data)
+     
+            _log.debug('Subscribing to: '.format(topics.ACTUATOR))
+            self.vip.pubsub.subscribe(peer='pubsub',
+                                   prefix=topics.ACTUATOR,  # actuators/*
+                                   callback=self.capture_data)
+    
+            _log.debug('Subscribing to: {}'.format(topics.ANALYSIS_TOPIC_BASE))
+            self.vip.pubsub.subscribe(peer='pubsub',
+                                   prefix=topics.ANALYSIS_TOPIC_BASE,  # anaysis/*
+                                   callback=self.capture_data)
+            self._started = True
             
-            print('Starting address: {} identity: {}'.format(self.core.address, self.core.identity))
-            #TODO: Check that destination exists
-            self.topic_map = {}
-
             
+            
+        def capture_data(self, peer, sender, bus, topic, headers, message):
+            if 'X-Forwarded-For' in headers.keys():
+                return
+            
+            payload = jsonapi.dumps({'headers':headers,'message':message})
+            
+                
+            self._event_queue.put({'source': "forwarded",
+                                   'topic': topic,
+                                   'readings': [(str(datetime.datetime.utcnow()),payload)]})
 
+  
         def __platform(self, peer, sender, bus, topic, headers, message):
             _log.debug('Platform is now: {}'.format(message))
             
 
         def publish_to_historian(self, to_publish_list):
+            print (to_publish_list)
+#             self.historian_setup()
+            handled_records =[]
+            
             _log.debug("publish_to_historian number of items: {}"
                        .format(len(to_publish_list)))
             
-            # load a topic map if there isn't one yet.
-#             try:
-#                 self.topic_map.items()
-#             except:
-#                 self.topic_map = self.reader.get_topic_map()
-
-            
-            datalog ={}
-
             for x in to_publish_list:
+                print(x)
                 ts = x['timestamp']
                 topic = x['topic']
                 value = x['value']
                 meta = x['meta']
-                # look at the topics that are stored in the database already
-                # to see if this topic has a value
-                if topic.startswith('datalogger'):
-                    continue
-#                 topic_id = self.topic_map.get(topic)
 
-#                 if topic_id is None:
-#                     row  = self.writer.insert_topic(topic)
-#                     topic_id = row[0]
-#                     self.topic_map[topic] = topic_id
+                payload = jsonapi.loads(value)
+                headers = payload['headers']
+                headers['X-Forwarded-For'] = 'my-platform'
 
-#                 self.writer.insert_data(ts,topic_id, value)
-#                 parts = topic.split('/')
-#                 all_topic = '/'.join(reversed(parts[2:]))
-
-                if not 'units' in meta.keys():
-                    #print('unit for topic {} is now {}'.format(topic, 'percent'))
-                    meta['units'] = 'percent'
-
-                #Device data is UTC
-                #.replace(tzinfo=None)
-                datalog[topic] = {'Readings': [str(ts),value],
-                                  'Units': meta['units'],'data_type': meta['type'], 
-                                  'tz':meta['tz']}
-                
-            base_topic = 'datalogger/devices'
-
-
-
-            
-            message = jsonapi.dumps(datalog)
-            
-#             agent = self._get_rpc_agent(destination_vip)
-            _log.debug("about to publish to destination: {}".format(destination_vip))
-#                         agent.vip.publish()
-#             agent.vip.pubsub.publish(peer='pubsub',headers=headers,
-#                                         topic=topic,
-#                                         message=message)
-
-            with gevent.Timeout(30):
-                try:
-                    self._target_platform.vip.pubsub.publish(peer='pubsub',
-                                    topic=base_topic,
-                                    message=datalog).get()
-                except gevent.Timeout:
-                    pass
-                else: 
-                    self.report_all_handled()
+                with gevent.Timeout(30):
+                    try:
+                        self._target_platform.vip.pubsub.publish(peer='pubsub',
+                                        topic=topic,
+                                        headers=headers,
+                                        message=payload['message']).get()
+                    except gevent.Timeout:
+                        pass
+                    except Exception as e:
+                        _log.error(e)
+                    else: 
+                        handled_records.append(x)
+                        
+            self.report_handled(handled_records)
+                    
 
         def query_topic_list(self):
             if len(self.topic_map) > 0:
@@ -187,7 +190,7 @@ def historian(config_path, **kwargs):
 
         def historian_setup(self):
             _log.debug("Setting up")
-            agent = Agent(identity="target",address=destination_vip)
+            agent = Agent(address=destination_vip)
             event = gevent.event.Event()
             agent.core.onstart.connect(lambda *a, **kw: event.set(), event)
             gevent.spawn(agent.core.run)

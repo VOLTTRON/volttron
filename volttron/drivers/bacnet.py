@@ -526,7 +526,7 @@ class BACnetInterface(BaseInterface):
                 
                 io_type = regDef['BACnet Object Type']
                 read_only = regDef['Writable'].lower() != 'true'
-                point_name = regDef['PNNL Point Name']        
+                point_name = regDef['Volttron Point Name']        
                 index = int(regDef['Index'])        
                 description = regDef['Notes']                 
                 units = regDef['Units']       

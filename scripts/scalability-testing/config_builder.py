@@ -66,7 +66,7 @@ from test_settings import (virtual_device_host, device_types, config_dir,
 
 class DeviceConfig(object):
     __metaclass__ = abc.ABCMeta
-    def __init__(self, host_address, instance_number, registry_config, interval=60):
+    def __init__(self, host_address, instance_number, registry_config, interval=60, publish_only_depth_all=False):
         self.configuration = {"registry_config": registry_config,
                               "interval": interval,
                               "driver_type": self.device_type(),
@@ -74,6 +74,11 @@ class DeviceConfig(object):
                               "timezone": 'US/Pacific'}
         
         self.configuration["driver_config"] = self.get_driver_config(host_address, instance_number)
+        
+        if publish_only_depth_all:
+            self.configuration["publish_breadth_first_all"] = False
+            self.configuration["publish_depth_first"] = False
+            self.configuration["publish_breadth_first"] = False
         
     def __str__(self):
         return json.dumps(self.configuration,
@@ -94,8 +99,6 @@ class DeviceConfig(object):
 
 class BACnetConfig(DeviceConfig):
     starting_port = 47808
-    def __init__(self, host_address, instance_number, registry_config, interval=60):
-        super(BACnetConfig, self).__init__(host_address, instance_number, registry_config, interval=interval)
         
     def device_type(self):
         return "bacnet"
@@ -112,8 +115,6 @@ class BACnetConfig(DeviceConfig):
 
 class ModbusConfig(DeviceConfig):
     starting_port = 50200
-    def __init__(self, host_address, instance_number, registry_config, interval=60):
-        super(ModbusConfig, self).__init__(host_address, instance_number, registry_config, interval=interval)
         
     def device_type(self):
         return "modbus"
@@ -130,11 +131,23 @@ class ModbusConfig(DeviceConfig):
         return "modbus.py {config} {interface} --port={port}".format(config=config_file, 
                                                                      interface=host_address, 
                                                                      port=port)
+        
+class FakeConfig(DeviceConfig):        
+    def device_type(self):
+        return "fakedriver"
+        
+    @staticmethod
+    def get_driver_config(host_address, instance_number):
+        return {}    
+
+    def get_virtual_driver_commandline(self):
+        return ""
 
 device_config_classes = {"bacnet":BACnetConfig,
-                         "modbus":ModbusConfig}
+                         "modbus":ModbusConfig,
+                         "fake":FakeConfig}
 
-def build_device_configs(device_type, host_address, count, reg_config, config_dir):    
+def build_device_configs(device_type, host_address, count, reg_config, config_dir, interval, publish_only_depth_all):    
     config_paths = []
     #command line to start virtual devices.
     command_lines = []
@@ -146,7 +159,9 @@ def build_device_configs(device_type, host_address, count, reg_config, config_di
     
     klass = device_config_classes[device_type]
     for i in range(count):
-        config_instance = klass(host_address, i, reg_config)
+        config_instance = klass(host_address, i, reg_config, 
+                                interval=interval,
+                                publish_only_depth_all=publish_only_depth_all)
         
         file_name = device_type + str(i) + ".config"
         file_path = os.path.join(config_dir, file_name)
@@ -159,7 +174,9 @@ def build_device_configs(device_type, host_address, count, reg_config, config_di
         
     return config_paths, command_lines
 
-def build_all_configs(agent_config, device_type, host_address, count, reg_config, config_dir):
+def build_all_configs(agent_config, device_type, host_address, count, reg_config, config_dir, 
+                      scalability_test, scalability_test_iterations, stagger_driver_startup,
+                      publish_only_depth_all, interval):
     '''For command line interface'''
         
     try:
@@ -170,15 +187,21 @@ def build_all_configs(agent_config, device_type, host_address, count, reg_config
     config_dir = os.path.abspath(config_dir)
     reg_config = os.path.abspath(reg_config)
     
-    config_list, command_lines = build_device_configs(device_type, host_address, count, reg_config, config_dir)
+    config_list, command_lines = build_device_configs(device_type, host_address, count, reg_config, config_dir, interval, publish_only_depth_all)
     
-    build_master_config(agent_config, config_dir, config_list)
+    build_master_config(agent_config, config_dir, config_list, 
+                        scalability_test, scalability_test_iterations,
+                        stagger_driver_startup)
         
-    print command_lines
     
-def build_master_config(agent_config, config_dir, config_list):
+def build_master_config(agent_config, config_dir, config_list, 
+                        scalability_test, scalability_test_iterations,
+                        stagger_driver_startup):
     """Takes the input from multiple called to build_device_configs and create the master config."""
     configuration = {"driver_config_list": config_list}
+    configuration['scalability_test'] = scalability_test
+    configuration['scalability_test_iterations'] = scalability_test_iterations
+    configuration['staggered_start'] = stagger_driver_startup
     
     config_str = json.dumps(configuration, indent=4, separators=(',', ': '))
     
@@ -196,7 +219,19 @@ if __name__ == "__main__":
     parser.add_argument('--count', type=int, default=1, 
                         help='number of devices to configure')
     
-    parser.add_argument('device_type', choices=['bacnet', 'modbus'], 
+    parser.add_argument('--scalability-test', action='store_true', 
+                        help='Configure master driver for a scalability test')
+    
+    parser.add_argument('--publish_only_depth_all', action='store_true', 
+                        help='Configure drivers to only publish depth first all.')
+    
+    parser.add_argument('--stagger-driver-startup', type=float, 
+                        help='Configure master driver to stagger driver startup over N seconds.')
+    
+    parser.add_argument('--scalability-test-iterations', type=int, default=5, 
+                        help='Scalability test iterations')
+    
+    parser.add_argument('device_type', choices=['bacnet', 'modbus', 'fake'], 
                         help='type of device to use for testing')
     
     parser.add_argument('registry_config', 
@@ -206,13 +241,19 @@ if __name__ == "__main__":
                         help='host of the test devices',
                         default=virtual_device_host)
     
-    parser.add_argument('config_dir', help='output directory for configurations',
+    parser.add_argument('--config-dir', help='output directory for configurations',
                         default=config_dir)
+    
+    parser.add_argument('--interval', help='Scrape interval setting for all drivers',
+                        type=float,
+                        default=60.0)
     
     args = parser.parse_args()
     build_all_configs(args.agent_config, args.device_type, 
                       args.virtual_device_host, args.count, args.registry_config, 
-                      args.config_dir)
+                      args.config_dir, args.scalability_test, args.scalability_test_iterations,
+                      args.stagger_driver_startup, args.publish_only_depth_all,
+                      args.interval)
     
     
     
