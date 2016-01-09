@@ -60,6 +60,7 @@ import logging
 import os
 
 #from mysql import connector
+import re
 from zmq.utils import jsonapi
 
 from basedb import DbDriver
@@ -77,21 +78,16 @@ class MySqlFuncts(DbDriver):
 
     def init_microsecond_support(self):
         rows = self.select("SELECT version()",None)
-        version_nums = rows[0][0].split(".")
+        p = re.compile('(\d+)\D+(\d+)\D+(\d+)\D*')
+        version_nums = p.match(rows[0][0]).groups()
         if int(version_nums[0]) < 5:
             self.MICROSECOND_SUPPORT  = False
         elif int(version_nums[1]) <  6:
             self.MICROSECOND_SUPPORT =  False
+        elif int(version_nums[2]) < 4 :
+            MICROSECOND_SUPPORT = False
         else:
-            rev = version_nums[2]
-            if 'ubuntu' in version_nums[2]:
-                rev = rev[:rev.index('-')]
-            print('rev is {}'.format(rev))
-            rev = int(rev)
-            if rev < 4 :
-                self.MICROSECOND_SUPPORT = False
-            else:
-                self.MICROSECOND_SUPPORT = True
+            MICROSECOND_SUPPORT = True
         
     def query(self, topic, start=None, end=None, skip=0,
                             count=None, order="FIRST_TO_LAST"):

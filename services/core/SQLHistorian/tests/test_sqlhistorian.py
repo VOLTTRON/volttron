@@ -9,6 +9,8 @@ import pytest
 import sqlite3
 import gevent
 import random
+
+import re
 from volttron.platform.messaging import headers as headers_mod
 
 from datetime import datetime, timedelta
@@ -115,22 +117,18 @@ def connect_mysql(request):
     cursor = db_connection.cursor()
     cursor.execute("SELECT version()")
     version = cursor.fetchone()
-    version_nums = version[0].split(".")
+    p = re.compile('(\d+)\D+(\d+)\D+(\d+)\D*')
+    version_nums = p.match(version[0]).groups()
+
     print (version)
     if int(version_nums[0]) < 5:
         MICROSECOND_SUPPORT  = False
     elif int(version_nums[1]) <  6:
         MICROSECOND_SUPPORT =  False
+    elif int(version_nums[2]) < 4 :
+        MICROSECOND_SUPPORT = False
     else:
-        rev = version_nums[2]
-        if 'ubuntu' in version_nums[2]:
-            rev = rev[:rev.index('-')]
-        print('rev is {}'.format(rev))
-        rev = int(rev)
-        if rev < 4 :
-            MICROSECOND_SUPPORT = False
-        else:
-            MICROSECOND_SUPPORT = True
+        MICROSECOND_SUPPORT = True
     cursor = db_connection.cursor()
     print("MICROSECOND_SUPPORT " , MICROSECOND_SUPPORT)
     if MICROSECOND_SUPPORT:
@@ -148,11 +146,14 @@ def connect_mysql(request):
                              PRIMARY KEY (topic_id),\
                              UNIQUE(topic_name))')
     db_connection.commit()
-    print("mysql tables created")
+    print("created mysql tables")
+    #clean up any rows from older runs
+    cursor = db_connection.cursor()
+    cursor.execute("DELETE FROM data")
+    db_connection.commit()
 
 def connect_sqlite(agent_uuid, request, volttron_instance1):
     global db_connection,MICROSECOND_SUPPORT
-    from os import path
     database_path = request.param['connection']['params']['database']
     print "connecting to sqlite path " + database_path
     db_connection = sqlite3.connect(database_path)
