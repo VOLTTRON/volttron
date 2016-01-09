@@ -53,13 +53,13 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-#}}}
+# }}}
 
 import errno
 import logging
 import os
 
-#from mysql import connector
+# from mysql import connector
 import re
 from zmq.utils import jsonapi
 
@@ -69,28 +69,28 @@ from volttron.platform.agent import utils
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
-class MySqlFuncts(DbDriver):
 
+class MySqlFuncts(DbDriver):
     def __init__(self, **kwargs):
-        #kwargs['dbapimodule'] = 'mysql.connector'
+        # kwargs['dbapimodule'] = 'mysql.connector'
         super(MySqlFuncts, self).__init__('mysql.connector', **kwargs)
         self.MICROSECOND_SUPPORT = None
 
     def init_microsecond_support(self):
-        rows = self.select("SELECT version()",None)
+        rows = self.select("SELECT version()", None)
         p = re.compile('(\d+)\D+(\d+)\D+(\d+)\D*')
         version_nums = p.match(rows[0][0]).groups()
         if int(version_nums[0]) < 5:
-            self.MICROSECOND_SUPPORT  = False
-        elif int(version_nums[1]) <  6:
-            self.MICROSECOND_SUPPORT =  False
-        elif int(version_nums[2]) < 4 :
-            MICROSECOND_SUPPORT = False
+            self.MICROSECOND_SUPPORT = False
+        elif int(version_nums[1]) < 6:
+            self.MICROSECOND_SUPPORT = False
+        elif int(version_nums[2]) < 4:
+            self.MICROSECOND_SUPPORT = False
         else:
-            MICROSECOND_SUPPORT = True
-        
+            self.MICROSECOND_SUPPORT = True
+
     def query(self, topic, start=None, end=None, skip=0,
-                            count=None, order="FIRST_TO_LAST"):
+              count=None, order="FIRST_TO_LAST"):
         """This function should return the results of a query in the form:
         {"values": [(timestamp1, value1), (timestamp2, value2), ...],
          "metadata": {"key1": value1, "key2": value2, ...}}
@@ -115,7 +115,7 @@ class MySqlFuncts(DbDriver):
             if self.MICROSECOND_SUPPORT:
                 args.append(start)
             else:
-                start_str=start.isoformat()
+                start_str = start.isoformat()
                 args.append(start_str[:start_str.rfind('.')])
 
         if end is not None:
@@ -123,7 +123,7 @@ class MySqlFuncts(DbDriver):
             if self.MICROSECOND_SUPPORT:
                 args.append(end)
             else:
-                end_str=end.isoformat()
+                end_str = end.isoformat()
                 args.append(end_str[:end_str.rfind('.')])
 
         where_statement = ' AND '.join(where_clauses)
@@ -132,7 +132,7 @@ class MySqlFuncts(DbDriver):
         if order == 'LAST_TO_FIRST':
             order_by = ' ORDER BY data.ts DESC'
 
-        #can't have an offset without a limit
+        # can't have an offset without a limit
         # -1 = no limit and allows the user to
         # provied just an offset
         if count is None:
@@ -146,7 +146,6 @@ class MySqlFuncts(DbDriver):
             offset_statement = 'OFFSET %s'
             args.append(skip)
 
-
         _log.debug("About to do real_query")
 
         real_query = query.format(where=where_statement,
@@ -154,23 +153,23 @@ class MySqlFuncts(DbDriver):
                                   offset=offset_statement,
                                   order_by=order_by)
         _log.debug("Real Query: " + real_query)
-        _log.debug("args: "+str(args))
+        _log.debug("args: " + str(args))
 
-        rows = self.select(real_query,args)
+        rows = self.select(real_query, args)
 
         if rows:
             values = [(ts.isoformat(), jsonapi.loads(value)) for ts, value in rows]
         else:
             values = {}
 
-        return {'values':values}
+        return {'values': values}
 
     def insert_data_query(self):
         return '''REPLACE INTO data values(%s, %s, %s)'''
 
     def insert_topic_query(self):
         return '''REPLACE INTO topics (topic_name) values (%s)'''
-    
+
     def get_topic_map(self):
         q = "SELECT topic_id, topic_name FROM topics;"
         rows = self.select(q, None)
