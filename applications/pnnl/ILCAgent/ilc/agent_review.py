@@ -7,7 +7,7 @@ from dateutil.parser import parse
 from datetime import timedelta as td, datetime as dt
 from copy import deepcopy
 # from _ast import comprehension
-from sympy import *
+from sympy import symbols
 from sympy.parsing.sympy_parser import parse_expr
 from collections import defaultdict
 import abc
@@ -18,11 +18,12 @@ from collections import deque
 from volttron.platform.messaging import topics
 from volttron.platform.agent import utils
 from volttron.platform.agent.utils import jsonapi, setup_logging
-from volttron.platform.vip.agent import Agent
+from volttron.platform.vip.agent import Agent, Core
 from ilc.ilc_matrices import (extract_criteria, calc_column_sums,
                               normalize_matrix, validate_input,
                               history_data, build_score, input_matrix)
 
+__version__ = "1.0.0"
 
 MATRIX_ROWSTRING = "%20s\t%12.2f%12.2f%12.2f%12.2f%12.2f"
 CRITERIA_LABELSTRING = "\t\t\t%12s%12s%12s%12s%12s"
@@ -49,12 +50,11 @@ def register_criterion(name):
 class BaseCriterion(object):
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, operation, minimum=None, maximum=None):
+    def __init__(self, minimum=None, maximum=None):
         self.min_func = lambda x: x if minimum is None else lambda x: min(x, minimum)
         self.max_func = lambda x: x if maximum is None else lambda x: max(x, maximum)
         self.minimum = minimum
         self.maximum = maximum
-        self.operation = operation
 
     def evaluate_bounds(self, value):
         value = self.min_func(value)
@@ -206,9 +206,15 @@ class Criteria(object):
         criteria = deepcopy(criteria)
 
         self.curtailment = criteria.pop("curtail")
+        
+        #Verify all curtailment parameters.
+        for key in ('point', 'value', 'load'):
+            if key not in self.curtailment:
+                raise Exception("Missing {key} parameter from curtailment settings.".format(key=key))
+        
         self.curtail_count = 0
 
-        for name, criterion in criteria:
+        for name, criterion in criteria.items():
             self.add(name, criterion)
 
     def add(self, name, criterion):
@@ -230,10 +236,10 @@ class Criteria(object):
             criterion.ingest(data)
         
     def reset_curtail(self):
-        self.curtail_count = 0
+        self.curtail_count = 0.0
         
     def increment_curtail(self):
-        self.curtail_count += 1
+        self.curtail_count += 1.0
         
     def get_curtailment(self):
         return self.curtailment.copy()
@@ -261,18 +267,88 @@ class Device(object):
         for criteria in self.criteria.values():
             criteria.reset_curtail()
             
+    def increment_curtail(self, command):
+        self.criteria[command].increment_curtail()
+            
     def evaluate(self, command):
         return self.criteria[command].evaluate()
     
     def get_curtailment(self, command):
-        self.criteria[command].get_curtailment()
+        return self.criteria[command].get_curtailment()
         
     def get_off_commands(self):
         return [command for command, state in self.command_status.iteritems() if not state]
     
     def get_on_commands(self):
         return [command for command, state in self.command_status.iteritems() if state]
+    
+class DeviceCluster(object):
+    def __init__(self, priority, crit_labels, row_average, cluster_config):
+        self.devices = {}
+        
+        self.priority = priority
+        self.crit_labels = crit_labels
+        self.row_average = row_average
+        
+        for device_name, device_config in cluster_config.iteritems():
+            self.devices[device_name] = Device(device_config)
+            
+    def get_all_device_evaluations(self):
+        results = {}
+        for name, device in self.devices.iteritems():
+            for command in device.get_on_commands():
+                evaluations = device.evaluate(command)
+                results[name,command] = evaluations
+        return results
 
+        
+class Clusters(object):
+    def __init__(self):
+        self.clusters = []
+        self.devices = {}
+
+    def add_device_cluster(self, cluster):
+        self.clusters.append(cluster)
+        self.devices.update(cluster.devices)
+        
+    def get_device_name_list(self):
+        return self.devices.keys()    
+    
+    def get_device(self, device_name):            
+        return self.devices[device_name]
+    
+    def get_off_device_set(self):
+        results = set()
+        for name, device in self.devices.iteritems():
+            results.update(((name,command) for command in device.get_off_commands()))
+               
+        return results 
+    
+    def get_on_device_set(self):
+        results = set()
+        for name, device in self.devices.iteritems():
+            results.update(((name,command) for command in device.get_on_commands()))
+               
+        return results 
+    
+    def get_score_order(self):
+        all_scored_devices = []
+        for cluster in self.clusters:
+            device_evaluations = cluster.get_all_device_evaluations()
+            
+            if not device_evaluations:
+                continue
+            
+            input_arr = input_matrix(device_evaluations, cluster.crit_labels)
+            scored_devices = build_score(input_arr, cluster.row_average, cluster.priority)
+            all_scored_devices.extend(scored_devices)
+            
+        all_scored_devices.sort()
+        results = [x[1] for x in all_scored_devices]
+    
+        return results
+    
+            
 
 def ahp(config_path, **kwargs):
     '''Intelligent Load Curtailment Algorithm'
@@ -283,11 +359,40 @@ def ahp(config_path, **kwargs):
     location = {}
     location['campus'] = config.get('campus')
     location['building'] = config.get('building')
-    device_configs = config['devices']
-    all_devices = devices.keys()
+    cluster_configs = config['clusters']
     agent_id = config.get('agent_id')
-#     base_device = "devices/{campus}/{building}/".format(campus=config.get('campus',''),
-#                                                         building=config.get('building',''))
+    
+    global mappers
+    
+    try:
+        mappers = config['mappers']
+    except KeyError:
+        mappers = {}
+    
+    clusters = Clusters()
+    
+    for cluster_config in cluster_configs:
+        excel_file_name = cluster_config["critieria_file_path"]
+        cluster_config_file_name = cluster_config["device_file_path"]
+        cluster_priority = cluster_config["cluster_priority"]
+        
+        crit_labels, criteria_arr = extract_criteria(excel_file_name, "CriteriaMatrix")
+        col_sums = calc_column_sums(criteria_arr)
+        _, row_average = normalize_matrix(criteria_arr, col_sums)
+        print crit_labels
+        print criteria_arr
+        
+        if not (validate_input(criteria_arr, col_sums, False,
+                               crit_labels, CRITERIA_LABELSTRING,
+                               MATRIX_ROWSTRING)):
+            _log.info('Inconsistent criteria matrix. Check configuration '
+                      'in ' + excel_file_name)
+            sys.exit()
+        
+        cluster_config = utils.load_config(cluster_config_file_name)
+            
+        device_cluster = DeviceCluster(cluster_priority, crit_labels, row_average, cluster_config)
+        clusters.add_device_cluster(device_cluster)     
                                                         
     base_device_topic = topics.DEVICES_VALUE(campus=config.get('campus', ''), 
                                             building=config.get('building', ''), 
@@ -297,6 +402,8 @@ def ahp(config_path, **kwargs):
                                                         
     device_topic_list = []
     device_topic_map = {}
+    all_devices = clusters.get_device_name_list()
+    
     for device_name in all_devices:
         device_topic = topics.DEVICES_VALUE(campus=config.get('campus', ''), 
                                             building=config.get('building', ''), 
@@ -306,7 +413,7 @@ def ahp(config_path, **kwargs):
         device_topic_list.append(device_topic)
         device_topic_map[device_topic] = device_name
     
-    power_token = config['PowerMeter']
+    power_token = config['power_meter']
     power_meter = power_token['device']
     power_pt = power_token['point']
     power_meter_topic = topics.DEVICES_VALUE(campus=config.get('campus', ''), 
@@ -318,51 +425,33 @@ def ahp(config_path, **kwargs):
     
     
 
-    demand_limit = float(config.get("demand_limit"))
+    demand_limit = float(config["demand_limit"])
     curtail_time = td(minutes=config.get("curtailment_time", 15.0))
     
-    curtail_confirm = td(minutes=config.get("curtail_confirm", 15.0))
+    curtail_confirm = td(minutes=config.get("curtailment_confirm", 5.0))
+    curtail_break = td(minutes=config.get("curtailment_break", 5.0))
+
     
     
-    devices = {}
-    for device_name, device_config in device_configs:
-        devices[device_name] = Device(device_config)
-    
-    global mappers
-    
-    try:
-        mappers = config['mappers']
-    except KeyError:
-        mappers = {}
+#     try:
+#         mappers = config['mappers']
+#     except KeyError:
+#         mappers = {}
 
     class AHP(Agent):
         def __init__(self, **kwargs):
             super(AHP, self).__init__(**kwargs)
-            self.off_dev = None
             self.running_ahp = False
             self.crit_labels = None
             self.row_average = None
-            self.bldg_power = None
-            self.transition = False
-            self.remaining_device = None
-            # self.start_up = True
-            self.data_trender = None
-            self.curtail_start = None
+            self.remaining_devices = []
+            self.saved_off_device_set = set()
             
-            excel_file = config['builing_criteria_matrix']
-            self.crit_labels, criteria_arr = extract_criteria(excel_file, "CriteriaMatrix")
-            col_sums = calc_column_sums(criteria_arr)
-            _, self.row_average = normalize_matrix(criteria_arr, col_sums)
-            print self.crit_labels, criteria_arr
-            
-            if not (validate_input(criteria_arr, col_sums, True,
-                                   self.crit_labels, CRITERIA_LABELSTRING,
-                                   MATRIX_ROWSTRING)):
-                _log.info('Inconsistent criteria matrix. Check configuration '
-                          'in ahp.xls file')
-                # TODO:  MORE USEFULT MESSAGE TO DEAL WITH
-                # INCONSISTENT CONFIGURATIONl
-                sys.exit()
+            self.next_curtail_confirm = None
+            self.curtail_end = None
+            self.break_end = None
+            self.scheduled_devices = set()
+            self.devices_curtailed = set()
 
         @Core.receiver("onstart")
         def starting_base(self, sender, **kwargs):
@@ -370,15 +459,13 @@ def ahp(config_path, **kwargs):
              - Extract Criteria Matrix from excel file.
              - Setup subscriptions to device and building power meter.
             '''
-            # Setup pubsub to listen to all devices being published.
-            driver_prefix = topics.DRIVER_TOPIC_BASE
-            _log.debug("subscribing to {}".format(driver_prefix))
-
             for device_topic in device_topic_list:
+                _log.debug("Subscribing to "+device_topic)
                 self.vip.pubsub.subscribe(peer='pubsub',
                                           prefix=device_topic,
                                           callback=self.new_data)
-                                          
+            
+            _log.debug("Subscribing to "+power_meter_topic)                              
             self.vip.pubsub.subscribe(peer='pubsub',
                                       prefix=power_meter_topic,
                                       callback=self.load_message_handler)
@@ -391,19 +478,27 @@ def ahp(config_path, **kwargs):
             _log.info('Data Received')
             
             # topic of form:  devices/campus/building/device
-            device = device_topic_map[topic]
+            device_name = device_topic_map[topic]
             
             data = message[0]
-            devices[device].ingest_data(data)
+            clusters.get_device(device_name).ingest_data(data)
                 
         def load_message_handler(self, peer, sender, bus, topic, headers, message):
             _log.debug('Reading building power data.')
             bldg_power = float(message[0])
             
+            now = dt.now()
+            
             if self.running_ahp:
-                now = dt.now()
-                if now > self.curtail_start + curtail_confirm:
+                
+                if now >= self.curtail_end:
+                    self.end_curtail()                
+                
+                elif now >= self.next_curtail_confirm:
                     self.curtail_confirm(bldg_power)                
+                return
+            
+            elif now < self.break_end:
                 return
             
             self.check_load(bldg_power)
@@ -415,81 +510,84 @@ def ahp(config_path, **kwargs):
             '''
             _log.debug('Checking building load.')
             
-            if bldg_power > demand_limit:
-                self.curtail_start = dt.now()
-                self.running_ahp = True
+            if bldg_power > demand_limit:                
+                _log.info('Current load ({load}) exceeds limit or {limit}.'.format(load=bldg_power, limit=demand_limit))
                 
-                device_evaluations = self.get_all_device_evaluations()
-                self.off_devices = self.get_off_devices()
-                
-                if not device_evaluations:
+                self.saved_off_device_set = clusters.get_off_device_set()
+                                
+                score_order = clusters.get_score_order()
+                if not score_order:
                     _log.info('All devices are off, nothing to curtail.')
                     return
-                input_arr = input_matrix(device_evaluations, self.crit_labels)
-                score_order = build_score(input_arr, self.row_average)
-                self.remaining_devices = self.actuator_request(score_order)
-                self.curtail(bldg_power)
+                
+                scored_devices = self.actuator_request(score_order)
+                self.remaining_devices = self.curtail(scored_devices, bldg_power)
                 
             
-            # TODO: Update below to verify on/off status
-#             if device not in self.off_dev.keys():
-#                 return    
-            
-        def curtail(self, bldg_power):
+        def curtail(self, scored_devices, bldg_power):
             '''Curtail loads by turning off device (or device components'''
-            dev_keys = self.builder.keys()
-            dev_keys = [(item.split('_')[0], item.split('_')[-1]) for item in dev_keys]
-            dev_keys = [(item[0], item[-1]) for item in dev_keys if item[0] in self.remaining_devices]
             need_curtailed = bldg_power - demand_limit
             est_curtailed = 0.0
-            for item in dev_keys:
-                pt = static_config[item[0]][item[-1]]
-                pt = pt.get('curtail', None)
-                if pt is None:
-                    raise Exception('The curtail section for {} is missing or '
-                                    'or configured incorrectly.'.format(item))
-                curtail_pt = pt.get('point', None)
-                curtail_val = pt.get('value', None)
-                curtail_load = pt.get('load', None)
-                curtail_path = ''.join([location, item[0], curtail_pt])
+            
+            remaining_devices = scored_devices[:]
+            
+            #Don't restart timer if ahp is running. 
+            #curtail_confirm updates the next confirm time after this.
+            now = dt.now()
+            
+            if not self.running_ahp:
+                _log.info('Starting AHP')
+                self.curtail_end = now + curtail_time
+                self.break_end = now + curtail_break
+                self.running_ahp = True                    
+            
+            self.next_curtail_confirm = now + curtail_confirm
+            
+            _log.info('Curtialing load.')
+            
+            for item in scored_devices:
+                
+                device_name, command = item 
+                
+                curtail = clusters.get_device(device_name).get_curtailment(command)
+                
+                curtail_pt = curtail['point']
+                curtail_val = curtail['value']
+                curtail_load = curtail['load']
+                
+                curtailed_point = base_device_topic(unit=device_name, point=curtail_pt)
+                #TODO: catch errors.
                 result = self.vip.rpc.call('platform.actuator', 'set_point',
-                                           agent_id, curtail_path,
+                                           agent_id, curtailed_point,
                                            curtail_val).get(timeout=10)
                 est_curtailed += curtail_load
-                self.no_curtailed[dev_keys] += 1.0
-                self.remaining_devices.remove(item)
+                clusters.get_device(device_name).increment_curtail(command)
+                self.devices_curtailed.add(item)
+                
                 if est_curtailed >= need_curtailed:
                     break
-                
-            self.transition = True
+            
+            for device in self.devices_curtailed:
+                remaining_devices.remove(device)
+            
+            return remaining_devices
         
-        def get_all_device_evaluations(self):
-            results = {}
-            for name, device in devices.iteritems():
-                for command in device.get_on_commands():
-                    evaluations = device.evaluate(command)
-                    results[name+'_'+command] = evaluations
-            return results
-        
-        def get_off_devices(self):
-            results = []
-            for name, device in devices.iteritems():
-                results.extend((name+'_'+command for command in device.get_off_commands()))
-                   
-            return results 
 
         def curtail_confirm(self, cur_pwr):
-            '''Check if load shed goal is met.'''
-            saved_off = deepcopy(self.off_dev)
+            '''Check if load shed goal is met.'''  
             if cur_pwr < demand_limit:
                 _log.info('Curtail goal for building load met.')
             else:
-                #self.device_status(check_only=True)
-                if saved_off == self.off_dev and self.remaining_device:
-                    self.curtail(self.remaining_device, cur_pwr)
-                elif saved_off == self.off_dev:
-                    _log.info('Did not meet load curtailment goal but there '
-                              'are no further available loads to curtail.')
+                _log.info('Curtail goal for building load NOT met.')
+                on_device_set = clusters.get_on_device_set()
+                new_on_device_set = self.saved_off_device_set.union(on_device_set)
+                
+                if not new_on_device_set:
+                    if self.remaining_devices:
+                        self.remaining_devices = self.curtail(self.remaining_devices, cur_pwr)
+                    else:
+                        _log.info('Did not meet load curtailment goal but there '
+                                  'are no further available loads to remove.')
                 else:
                     self.check_load(cur_pwr)    
         
@@ -500,17 +598,64 @@ def ahp(config_path, **kwargs):
             _end = _now + td(minutes=curtail_time + 5)
             str_end = _end.strftime(DATE_FORMAT)
             ctrl_dev = []
-            for dev in score_order:
-                curtailed_device = base_device_topic(unit=dev, point='')
+            already_handled = {}
+            for item in score_order:
+                
+                device, _ = item
+                
+                if device in already_handled or device in self.scheduled_devices:
+                    if already_handled[device]:
+                        ctrl_dev.append(item)
+                    continue
+                
+                curtailed_device = base_device_topic(unit=device, point='')
                 schedule_request = [[curtailed_device, str_now, str_end]]
                 result = self.vip.rpc.call(
                     'platform.actuator', 'request_new_schedule', agent_id,
-                    agent_id, 'HIGH', schedule_request).get(timeout=10)
+                    device, 'HIGH', schedule_request).get(timeout=10)
                 if result['result'] == 'FAILURE':
-                    _log.warn("Failed to schedule device: ", dev)
+                    _log.warn("Failed to schedule device: ", device)
+                    already_handled[device] = False
                 else:
-                    ctrl_dev.append(dev)
+                    already_handled[device] = True
+                    self.scheduled_devices.add(device)
+                    ctrl_dev.append(item)
+                    
             return ctrl_dev
+        
+        def end_curtail(self):
+            self.running_ahp = False
+            self.reset_devices()
+            self.release_devices()
+            
+        def reset_devices(self):
+            _log.info("Resetting devices")
+            for item in self.devices_curtailed:
+                
+                device_name, command = item 
+                
+                curtail = clusters.get_device(device_name).get_curtailment(command)
+                
+                curtail_pt = curtail['point']
+                curtail_val = None
+                
+                curtailed_point = base_device_topic(unit=device_name, point=curtail_pt)
+                #TODO: catch errors.
+                result = self.vip.rpc.call('platform.actuator', 'set_point',
+                                           agent_id, curtailed_point,
+                                           curtail_val).get(timeout=10)
+                                           
+            self.devices_curtailed = set()
+        
+        def release_devices(self):
+            for device in self.scheduled_devices:
+                result = self.vip.rpc.call(
+                    'platform.actuator', 'request_cancel_schedule', agent_id,
+                    device).get(timeout=10)
+            
+            self.scheduled_devices = set()
+            
+        
 
 
 

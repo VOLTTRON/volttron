@@ -227,7 +227,7 @@ def validate_input(pairwise_matrix, col_sums, display=False,
     return consistency_ratio < 0.2
 
 
-def build_score(_matrix, weight):
+def build_score(_matrix, weight, priority):
     '''Calculates the curtailment score using the normalized matrix m,
 
     and the weights vector returns a sorted vector of weights for each
@@ -238,14 +238,9 @@ def build_score(_matrix, weight):
     
     for input_array in input_values:            
         criteria_sum=sum(i*w for i,w in zip(input_array, weight))
-        scores.append(criteria_sum)
+        scores.append(criteria_sum*priority)
     
-    pairs = zip(scores, input_keys)    
-    pairs.sort()
-    
-    results = [x[1] for x in pairs]
-    
-    return results
+    return zip(scores, input_keys)
 
 
 def display_matrix(_matrix, LABELString, xLABELS, yLABELS,

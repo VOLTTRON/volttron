@@ -1,25 +1,36 @@
 {
 	"campus": "campus1",
 	"building": "building1",
-    "PowerMeter": {
+    "power_meter": {
 		"device": "PowerMeter",
 	    "point": "BuildingPower"
     },
 	"agent_id": "ahp",
 	"demand_limit": 30.0,
 	"curtailment_time": 15.0,
-	"builing_criteria_matrix": "/home/volttron/path-to-excel-file",
-	"curtail_confirm": 5.0,
-	"ilc_cluster_files": {
-		"rtu_cluster": {
-			"device_file_path": "~/volttron/applications/pnnl/ILCAgent/ilc_rtu_cluster",
-			"critieria_file_path": "~/volttron/applications/pnnl/ILCAgent/ilc_rtu_cluster.xl",
+	"curtailment_confirm": 5.0,
+	"curtailment_break": 5.0,
+	"clusters": [ 
+		{
+			"device_file_path": "hp_cluster_config",
+			"critieria_file_path": "hp_cluster.xls",
 			"cluster_priority": 0.8
-		},
-		"lighting_cluster": {
-			"device_file_path": "~/volttron/applications/pnnl/ILCAgent/ilc_rtu_cluster",
-			"critieria_file_path": "~/volttron/applications/pnnl/ILCAgent/ilc_rtu_cluster.xl",
-			"cluster_priority": 0.2
 		}
+#		{
+#			"device_file_path": "~/volttron/applications/pnnl/ILCAgent/ilc_rtu_cluster",
+#			"critieria_file_path": "~/volttron/applications/pnnl/ILCAgent/ilc_rtu_cluster.xls",
+#			"cluster_priority": 0.2
+#		}
+	],
+	"mappers": {
+		"zone_type": {
+		    "Directors office": 1,
+		    "Office": 3,
+		    "Empty Office": 7,
+		    "Conference Room": 1,
+		    "Mechanical Room": 9,
+		    "Computer Lab": 2,
+		    "Kitchen": 3
+	    }
 	}
  }
