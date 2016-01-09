@@ -171,8 +171,18 @@ def historian(config_path, **kwargs):
             if self.__connection is None:
                 return False
             db = self.__connection[self.__connect_params["database"]]
+
+            _log.debug('Finding topic: {}'.format(topic))
+
+            for found in db.topics.find():
+                print("FOUND")
+                print(found)
+            #print("TOPICS FOUND: {}".format(db.topics.find()))
             #Find topic_id for topic
-            row = db["topics"].find_one({"topic_name": topic})
+            item = db.topics.find({"topic_name": topic})
+            print('THE ITEM IS:')
+            print(item)
+            row = db["topics"].find({"topic_name": topic})[0]
             id_ = row.topic_id
 
             order_by = 1
