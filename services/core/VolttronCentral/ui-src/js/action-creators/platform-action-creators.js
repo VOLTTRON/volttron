@@ -121,6 +121,45 @@ var platformActionCreators = {
                 });
             });
     },
+    removeAgent: function (platform, agent) {
+        var authorization = authorizationStore.getAuthorization();
+
+        agent.actionPending = true;
+        
+
+        dispatcher.dispatch({
+            type: ACTION_TYPES.CLOSE_MODAL,
+        });
+
+        dispatcher.dispatch({
+            type: ACTION_TYPES.RECEIVE_PLATFORM,
+            platform: platform,
+        });
+
+        var methodStr = 'platforms.uuid.' + platform.uuid + '.remove_agent';
+        var agentId = [agent.uuid];
+        
+        new rpc.Exchange({
+            method: methodStr,
+            params: agentId,
+            authorization: authorization,
+        }).promise
+            .then(function (result) {
+                
+                if (result.error) {
+                    dispatcher.dispatch({
+                        type: ACTION_TYPES.RECEIVE_PLATFORM_ERROR,
+                        platform: platform,
+                        error: result.error,
+                    });
+                }
+                else
+                {
+                    platformActionCreators.loadPlatform(platform);
+                }
+            })
+            .catch(rpc.Error, handle401);
+    },
     installAgents: function (platform, files) {
         platformActionCreators.clearPlatformError(platform);
 
@@ -168,41 +207,41 @@ var platformActionCreators = {
                 } else {
                     // Provide default set of charts if none are configured
                     platform.charts = [
-                        {
-                          "topic": "datalogger/log/platform/status/cpu/percent",
-                          "refreshInterval": 15000,
-                          "type": "line",
-                          "min": 0,
-                          "max": 100
-                        },
-                        {
-                          "topic": "datalogger/log/platform/status/cpu/times_percent/idle",
-                          "refreshInterval": 15000,
-                          "type": "line",
-                          "min": 0,
-                          "max": 100
-                        },
-                        {
-                          "topic": "datalogger/log/platform/status/cpu/times_percent/nice",
-                          "refreshInterval": 15000,
-                          "type": "line",
-                          "min": 0,
-                          "max": 100
-                        },
-                        {
-                          "topic": "datalogger/log/platform/status/cpu/times_percent/system",
-                          "refreshInterval": 15000,
-                          "type": "line",
-                          "min": 0,
-                          "max": 100
-                        },
-                        {
-                          "topic": "datalogger/log/platform/status/cpu/times_percent/user",
-                          "refreshInterval": 15000,
-                          "type": "line",
-                          "min": 0,
-                          "max": 100
-                        },
+//                        {
+//                          "topic": "datalogger/log/platform/status/cpu/percent",
+//                          "refreshInterval": 15000,
+//                          "type": "line",
+//                          "min": 0,
+//                          "max": 100
+//                        },
+//                        {
+//                          "topic": "datalogger/log/platform/status/cpu/times_percent/idle",
+//                          "refreshInterval": 15000,
+//                          "type": "line",
+//                          "min": 0,
+//                          "max": 100
+//                        },
+//                        {
+//                          "topic": "datalogger/log/platform/status/cpu/times_percent/nice",
+//                          "refreshInterval": 15000,
+//                          "type": "line",
+//                          "min": 0,
+//                          "max": 100
+//                        },
+//                        {
+//                          "topic": "datalogger/log/platform/status/cpu/times_percent/system",
+//                          "refreshInterval": 15000,
+//                          "type": "line",
+//                          "min": 0,
+//                          "max": 100
+//                        },
+//                        {
+//                          "topic": "datalogger/log/platform/status/cpu/times_percent/user",
+//                          "refreshInterval": 15000,
+//                          "type": "line",
+//                          "min": 0,
+//                          "max": 100
+//                        },
                     ];
                 }
 
