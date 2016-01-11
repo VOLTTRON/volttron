@@ -155,7 +155,7 @@ def historian(config_path, **kwargs):
 
                 # Reformat to a filter tha bulk inserter.
                 bulk_publish.append(ReplaceOne({'ts': ts, 'topic_id': topic},
-                    {'ts': ts, 'topic_id': topic, 'value': value},
+                    {'ts': ts, 'topic_id': topic_id, 'value': value},
                     upsert=True))
 
             # http://api.mongodb.org/python/current/api/pymongo/collection.html#pymongo.collection.Collection.bulk_write
