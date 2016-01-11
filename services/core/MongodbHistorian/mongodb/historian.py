@@ -59,6 +59,8 @@ import logging
 import sys
 import dateutil
 import pymongo
+from pymongo import ReplaceOne
+from bson.objectid import ObjectId
 
 import gevent
 
@@ -82,6 +84,9 @@ def historian(config_path, **kwargs):
     params = connection.get('params', None)
     assert params is not None
 
+    aggregation = config.get('aggregation', 'minute')
+
+
     identity = config.get('identity', kwargs.pop('identity', None))
 
     class MongodbHistorian(BaseHistorian):
@@ -90,90 +95,100 @@ def historian(config_path, **kwargs):
         of the BaseHistorianAgent.
         This is very similar to SQLHistorian implementation
         '''
-        @Core.receiver("onstart")
-        def starting(self, sender, **kwargs):
-            _log.debug('Starting address: {} identity: {}'.format(self.core.address, self.core.identity))
 
-            if self.core.identity == 'platform.historian':
-                # Check to see if the platform agent is available, if it isn't then
-                # subscribe to the /platform topic to be notified when the platform
-                # agent becomes available.
-                try:
-                    ping = self.vip.ping('platform.agent',
-                                         'awake?').get(timeout=3)
-                    _log.debug("Ping response was? "+ str(ping))
-                    self.vip.rpc.call('platform.agent', 'register_service',
-                                      self.core.identity).get(timeout=3)
-                except Unreachable:
-                    _log.debug('Could not register historian service')
-                finally:
-                    self.vip.pubsub.subscribe('pubsub', '/platform',
-                                              self.__platform)
-                    _log.debug("Listening to /platform")
-
-        def __platform(self, peer, sender, bus, topic, headers, message):
-            _log.debug('Platform is now: {}'.format(message))
-            if message == 'available' and \
-                    self.core.identity == 'platform.historian':
-                gevent.spawn(self.vip.rpc.call, 'platform.agent', 'register_service',
-                                   self.core.identity)
-                gevent.sleep(0)
+        # @Core.receiver("onstart")
+        # def starting(self, sender, **kwargs):
+        #     _log.debug('Starting address: {} identity: {}'.format(self.core.address, self.core.identity))
+        #
+        #     if self.core.identity == 'platform.historian':
+        #         # Check to see if the platform agent is available, if it isn't then
+        #         # subscribe to the /platform topic to be notified when the platform
+        #         # agent becomes available.
+        #         try:
+        #             ping = self.vip.ping('platform.agent',
+        #                                  'awake?').get(timeout=3)
+        #             _log.debug("Ping response was? "+ str(ping))
+        #             self.vip.rpc.call('platform.agent', 'register_service',
+        #                               self.core.identity).get(timeout=3)
+        #         except Unreachable:
+        #             _log.debug('Could not register historian service')
+        #         finally:
+        #             self.vip.pubsub.subscribe('pubsub', '/platform',
+        #                                       self.__platform)
+        #             _log.debug("Listening to /platform")
+        #
+        # def __platform(self, peer, sender, bus, topic, headers, message):
+        #     _log.debug('Platform is now: {}'.format(message))
+        #     if message == 'available' and \
+        #             self.core.identity == 'platform.historian':
+        #         gevent.spawn(self.vip.rpc.call, 'platform.agent', 'register_service',
+        #                            self.core.identity)
+        #         gevent.sleep(0)
 
         def publish_to_historian(self, to_publish_list):
             _log.debug("publish_to_historian number of items: {}"
                        .format(len(to_publish_list)))
-            try:
-                real_published = []
-                for x in to_publish_list:
-                    ts = x['timestamp']
-                    topic = x['topic']
-                    value = x['value']
-                    # look at the topics that are stored in the database already
-                    # to see if this topic has a value
-                    topic_id = self.topic_map.get(topic, None)
 
-                    if topic_id is None:
-                        _log.debug('Inserting topic: {}'.format(topic))
-                        row  = self.insert_topic(topic)
-                        topic_id = row[0]
-                        self.topic_map[topic] = topic_id
-                        _log.debug('TopicId: {} => {}'.format(topic_id, topic))
+            # Use the db instance to insert/update the topics and data
+            #collections
+            db = self.mongoclient[self.database_name]
+            bulk_publish = []
+            for x in to_publish_list:
+                ts = x['timestamp']
+                topic = x['topic']
+                value = x['value']
 
-                    if self.insert_data(ts,topic_id, value):
-                        real_published.append(x)
-                if len(real_published) > 0:
-                    if self.commit():
-                        _log.debug('published {} data values'.format(len(to_publish_list)))
-                        self.report_all_handled()
-                    else:
-                        _log.debug('failed to commit so rolling back {} data values'.format(len(to_publish_list)))
-                        self.rollback()
-                else:
-                    _log.debug('Unable to publish {}'.format(len(to_publish_list)))
-            except:
-                self.rollback()
-                # Raise to the platform so it is logged properly.
-                raise
+                # look at the topics that are stored in the database already
+                # to see if this topic has a value
+                topic_id = self.topic_map.get(topic, None)
 
-        def query_topic_list(self):
-            if len(self.topic_map) > 0:
-                return self.topic_map.keys()
-            return []
+                if topic_id is None:
+                    _log.debug('Inserting topic: {}'.format(topic))
+                    row  = db.topics.insert_one({'topic_name': topic})# self.insert_topic(topic)
+                    topic_id = row.inserted_id
+                    # topic map should hold both a lookup from topic name
+                    # and from id to topic_name.
+                    self.topic_map[topic] = topic_id
+                    self.topic_map[topic_id] = topic
+                    _log.debug('TopicId: {} => {}'.format(topic_id, topic))
+
+
+                # Reformat to a filter tha bulk inserter.
+                bulk_publish.append(ReplaceOne({'ts': ts, 'topic_id': topic},
+                    {'ts': ts, 'topic_id': topic, 'value': value},
+                    ordered=True, upsert=True))
+
+            # http://api.mongodb.org/python/current/api/pymongo/collection.html#pymongo.collection.Collection.bulk_write
+            db['data'].bulk_write(bulk_publish)
+
+            # No write errros here when
+            if not a.bulk_api_result['writeErrors']:
+                self.report_all_handled()
+            else:
+                _log.error('SOME THINGS DIDNT WORK')
 
         def query_historian(self, topic, start=None, end=None, skip=0,
                             count=None, order="FIRST_TO_LAST"):
-            """This function should return the results of a query in the form:
+            """ Returns the results of the query from the mongo database.
+
+            This historian stores data to the nearest second.  It will not
+            store subsecond resolution data.  This is an optimisation based
+            upon storage for the database.
+
+            This function should return the results of a query in the form:
             {"values": [(timestamp1, value1), (timestamp2, value2), ...],
              "metadata": {"key1": value1, "key2": value2, ...}}
 
-             metadata is not required (The caller will normalize this to {} for you)
+             metadata is not required (The caller will normalize this to {}
+             for you)
             """
-            if self.__connection is None:
+            if self.mongoclient is None:
                 return False
-            db = self.__connection[self.__connect_params["database"]]
+            db = self.mongoclient[self.__connect_params["database"]]
             #Find topic_id for topic
             row = db["topics"].find_one({"topic_name": topic})
-            id_ = row.topic_id
+            id_ = row['_id']
+            print("THE ID IS {}".format(id_))
 
             order_by = 1
             if order == 'LAST_TO_FIRST':
@@ -188,9 +203,14 @@ def historian(config_path, **kwargs):
             if skip > 0:
                 skip_count = skip
 
+            cursor = db['data'].find({'topic_id': ObjectId(id_)})
+            for x in cursor:
+                _log.debug('X is found: {}'.format(x))
+
             cursor = db["data"].find({
-                        "topic_id": id_,
-                        "ts": { "$gte": start, "$lte": end},
+                        "topic_id": ObjectId(id_)
+                        #,
+                        #"ts": { "$gte": start, "$lte": end},
                     }).skip(skip_count).limit(count).sort( [ ("ts", order_by) ] )
             #TODO: confirm w/ Mongo users what ouput format they 'd like to use
             #Output as array of tuples.
@@ -198,6 +218,7 @@ def historian(config_path, **kwargs):
             #values = [(document.get("ts").isoformat(), document.get("values")) for document in cursor]
             #Output as array of tuples.
             values = []
+            _log.debug('COUNT RETURNED: {}'.format(cursor.count()))
             #v1: dictionary values
             #  Each includes timestamp and 1 value [(ts,15),(ts2,1),...].
             # for document in cursor:
@@ -229,11 +250,12 @@ def historian(config_path, **kwargs):
             #   $setOnInsert: {"values": {"0": -1.0, "1": -1.0}}},
             # {upsert: true})
             #throws "Cannot update 'values.59' and 'values' at the same time"
-            if self.__connection is None:
+            if self.mongoclient is None:
                 return False
-            db = self.__connection[self.__connect_params["database"]]
+            db = self.mongoclient[self.__connect_params["database"]]
             #
-            new_dt = datetime.datetime(ts.year, ts.month, ts.day, hour=ts.hour, tzinfo=ts.tzinfo)
+            new_dt = datetime.datetime(ts.year, ts.month, ts.day, hour=ts.hour,
+                tzinfo=ts.tzinfo)
             count = db["data"].find({
                         "topic_id": topic_id,
                         "ts": new_dt,
@@ -241,7 +263,7 @@ def historian(config_path, **kwargs):
 
             if count==0:
                 #init_values = {str(key): None for key in xrange(0,60)}
-                init_values = [None for i in xrange(0,60)]
+                init_values = [None for i in xrange(60)]
                 init_values[ts.minute] = data
                 id_ = db["data"].insert({
                             "ts": new_dt,
@@ -264,32 +286,35 @@ def historian(config_path, **kwargs):
             return True
 
         def insert_topic(self, topic):
-            if self.__connection is None:
+            if self.mongoclient is None:
                 return False
-            db = self.__connection[self.__connect_params["database"]]
+            db = self.mongoclient[self.__connect_params["database"]]
             id_ = db["topics"].insert({"topic_name": topic})
             return [id_]
 
         def get_topic_map(self):
-            if self.__connection is None:
+            if self.mongoclient is None:
                 return False
-            db = self.__connection[self.__connect_params["database"]]
+            db = self.mongoclient[self.__connect_params["database"]]
             cursor = db["topics"].find()
-            res = dict([(document["topic_name"], document["_id"]) for document in cursor])
+            res = dict([(document["topic_name"], document["_id"])
+                for document in cursor])
             _log.debug("TOPIC MAP RESULT {}".format(res))
             return res
 
         def historian_setup(self):
-            self.__connection = None
+            self.mongoclient = None
             self.__connect_params = connection['params']
+            self.database_name = self.__connect_params['database']
+
             mongo_uri = "mongodb://{user}:{passwd}@{host}:{port}/{database}".format(**self.__connect_params)
             if 'replicaset' in self.__connect_params:
                 _log.debug('connecting to replicaset: {}'.format(self.__connect_params['replicaset']))
-                self.__connection = pymongo.MongoClient(mongo_uri,
+                self.mongoclient = pymongo.MongoClient(mongo_uri,
                     replicaset=self.__connect_params['replicaset'])
             else:
-                self.__connection = pymongo.MongoClient(mongo_uri)
-            if self.__connection == None:
+                self.mongoclient = pymongo.MongoClient(mongo_uri)
+            if self.mongoclient == None:
                 _log.exception("Couldn't connect using specified configuration credentials")
                 self.core.stop()
             self.topic_map = self.get_topic_map()
