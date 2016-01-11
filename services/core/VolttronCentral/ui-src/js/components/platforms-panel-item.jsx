@@ -25,7 +25,7 @@ var PlatformsPanelItem = React.createClass({
 
         if (this.state.expanded)
         {
-            this.setState({children: getItemsFromStore(this.props.panelItem)}); 
+            this.setState({children: getChildren(this.props.panelItem, this.props.itemPath)}); 
         }       
     },
     _toggleItem: function () {
@@ -36,7 +36,7 @@ var PlatformsPanelItem = React.createClass({
 
             if (this.state.children.length === 0)
             {
-                children = getItemsFromStore(this.props.panelItem);
+                children = getChildren(this.props.panelItem, this.props.itemPath);
                 this.setState({children: children});
             }
             else
@@ -62,10 +62,10 @@ var PlatformsPanelItem = React.createClass({
     },
     render: function () {
         var panelItem = this.props.panelItem;
+        var itemPath = this.props.itemPath;
+
         var items;
-        var agents;
-        var devices;
-        var renderItems;
+        var children;
 
         var propChildren = this.props.children;
         var filterTerm = this.props.filter;
@@ -74,39 +74,66 @@ var PlatformsPanelItem = React.createClass({
         var arrowClasses = ["arrowButton", "noRotate"];
 
         var checkboxClass = "panelItemCheckbox";
+
         var checkboxStyle = {
-            display : (["agent", "device", "point"].indexOf(panelItem.type) < 0 ? "none" : "block")
+            display : (["device", "point"].indexOf(panelItem.type) < 0 ? "none" : "block")
         };
 
-        var childrenItems = [];
+        // var childrenItems = [];
 
         arrowClasses.push( ((panelItem.status === "GOOD") ? "status-good" :
                                 ( (panelItem.status === "BAD") ? "status-bad" : 
                                     "status-unknown")) )
-        if (propChildren.length > 0)
-        {
-            arrowClasses.push("rotateDown");
-            itemClasses = "showItems";
+        // if (propChildren.length > 0)
+        // {
+        //     arrowClasses.push("rotateDown");
+        //     itemClasses = "showItems";
 
-            items = propChildren
-                .filter(function (item) {
-                    return (item.name.indexOf(this) > -1);
-                }, filterTerm) 
-                .sort(function (a, b) {
-                    if (a.name.toLowerCase() > b.name.toLowerCase()) { return 1; }
-                    if (a.name.toLowerCase() < b.name.toLowerCase()) { return -1; }
-                    return 0;
-                })
-                .map(function (item) {
+        //     items = propChildren
+        //         .filter(function (item) {
+        //             return (item.name.indexOf(this) > -1);
+        //         }, filterTerm) 
+        //         .sort(function (a, b) {
+        //             if (a.name.toLowerCase() > b.name.toLowerCase()) { return 1; }
+        //             if (a.name.toLowerCase() < b.name.toLowerCase()) { return -1; }
+        //             return 0;
+        //         })
+        //         .map(function (item) {
 
-                    return (
+        //             return (
 
-                        <PlatformsPanelItem panelItem={item} children={childrenItems}/>
+        //                 <PlatformsPanelItem panelItem={item} children={childrenItems}/>
                         
-                    );
-                }, this);
+        //             );
+        //         }, this);
+        // }
+        // else 
+
+        var listItem;
+
+        if (!panelItem.hasOwnProperty("uuid"))
+        {
+            listItem = <div>
+                        {panelItem.name}
+                    </div>;
+                
+            
         }
-        else if (this.state.expanded !== null)
+        else
+        {
+            listItem = <div className="platform-link">
+                        <Router.Link
+                            to="platform"
+                            params={{uuid: panelItem.uuid}}
+                        >
+                        {panelItem.name}
+                        </Router.Link>
+                    </div>;
+            
+        }
+        
+
+        if (this.state.expanded !== null)
         {
             var classIndex = arrowClasses.indexOf("noRotate");
             if (classIndex > -1)
@@ -122,44 +149,15 @@ var PlatformsPanelItem = React.createClass({
                 {
                     itemClasses = "showItems";
 
-                    var agentItems = findAgentsOrDevices(this.state.children, "agents");
+                    var childItems = this.state.children;
                     
-                    if (agentItems.length > 0)
+                    if (childItems.length > 0)
                     {
-                        agents = agentItems.map(function (item) {
+                        children = childItems.map(function (child) {                            
                             return (
-                                <PlatformsPanelItem panelItem={item} children={childrenItems}/>
+                                <PlatformsPanelItem panelItem={child} itemPath={child.path}/>
                             );
                         }, this);
-                    }
-
-                    var deviceItems = findAgentsOrDevices(this.state.children, "devices");
-
-                    if (deviceItems.length > 0)
-                    {
-                        devices = deviceItems.map(function (item) {
-                            return (
-                                <PlatformsPanelItem panelItem={item} children={childrenItems}/>
-                            );
-                        }, this);
-                    }
-
-                    if (!agents && !devices)
-                    {
-                        items = this.state.children
-                            .sort(function (a, b) {
-                                if (a.name.toLowerCase() > b.name.toLowerCase()) { return 1; }
-                                if (a.name.toLowerCase() < b.name.toLowerCase()) { return -1; }
-                                return 0;
-                            })
-                            .map(function (item) {
-
-                                return (
-
-                                    <PlatformsPanelItem panelItem={item} children={childrenItems}/>
-                                    
-                                );
-                            }, this);
                     }
                 }
             }
@@ -171,30 +169,6 @@ var PlatformsPanelItem = React.createClass({
                 }
             }
         }
-
-        if (items)
-        {
-            renderItems = <ul className="platform-panel-list">{items}</ul>;
-        }
-        else
-        {
-            if (agents && devices)
-            {
-                renderItems = <ul className="platform-panel-list">
-                                <li><ul className="platform-panel-sublist"><span className="boldText">Agents</span> {agents}</ul></li>
-                                <li><ul className="platform-panel-sublist"><span className="boldText">Devices</span> {devices}</ul></li>
-                               </ul>;
-            }
-            else if (agents)
-            {
-                renderItems = <ul className="platform-panel-list">Agents {agents}</ul>;
-            }
-            else if (devices)
-            {
-                renderItems = <ul className="platform-panel-list">Devices {devices}</ul>;
-            }
-        }
-
 
         return (
             <li
@@ -208,48 +182,49 @@ var PlatformsPanelItem = React.createClass({
                         style={checkboxStyle}
                         type="checkbox"
                         onClick={this._checkItem}></input>                    
-                    <div className="platform-link">
-                        <Router.Link
-                            to="platform"
-                            params={{uuid: panelItem.uuid}}
-                        >
-                        {panelItem.name}
-                        </Router.Link>
-                    </div>
+                    {listItem}
                     
                 </div>
                 <div className={itemClasses}>
-                    {renderItems}
+                    <ul className="platform-panel-list">
+                        {children}
+                    </ul>
                 </div>
             </li>
         );
     },
 });
 
-function findAgentsOrDevices(item, filterTerm)
+function getChildren(parent, parentPath)
 {
-    var agentsOrDevices = [];
+    // var childList = [];
 
-    var items = item.filter(function(child) {
-        return (child.hasOwnProperty(this) && !child.hasOwnProperty("children"));
-    }, filterTerm);
+    
+    // if (parent.hasOwnProperty("children")) //parent is an actual object and its children are object types
+    // {
+    //     var children = parent.children.slice(0);
 
-    if (items.length !== 0)
-    {
-        items = items[0][filterTerm];
+    //     for (var i = 0; i < children.length; i++) // for each child, create an object with a path property
+    //     {
+    //         var child = children[i];
+    //         var childPath = parentPath.slice(0);
+    //         childPath.push(child);
 
-        for (var key in items)
-        {
-            agentsOrDevices.push(items[key]);
-        }
-    }
+    //         childList.push({child: {"path": childPath, "name": child} });
+    //     }        
+    // }
+    // else // parent is an object type and its children are actual objects
+    // {
+    //     childList = getItemsFromStore(parent, parentPath);
+    // }
 
-    return agentsOrDevices;
+    
+    return getItemsFromStore(parent, parentPath);
 }
 
 
-function getItemsFromStore(parentItem) {
-    return platformsPanelItemsStore.getItems(parentItem);
+function getItemsFromStore(parentItem, parentPath) {
+    return platformsPanelItemsStore.getItems(parentItem, parentPath);
 }
 
 module.exports = PlatformsPanelItem;

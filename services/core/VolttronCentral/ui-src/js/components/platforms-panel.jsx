@@ -33,7 +33,7 @@ var PlatformsPanel = React.createClass({
         this.setState({ filterValue: e.target.value });
     },
     _filterItems: function (e) {
-        
+
     },
     _togglePanel: function () {
         platformsPanelActionCreators.togglePanel();
@@ -82,7 +82,7 @@ var PlatformsPanel = React.createClass({
 
                     return (
 
-                        <PlatformsPanelItem panelItem={platform} children={filteredChildren(platform, filterTerm)} filter={filterTerm}/>
+                        <PlatformsPanelItem panelItem={platform} itemPath={platform.path} children={filteredChildren(platform, filterTerm)} filter={filterTerm}/>
                         
                     );
                 }, this);
@@ -117,7 +117,7 @@ var PlatformsPanel = React.createClass({
 });
 
 function getPlatformsFromStore() {
-    return platformsPanelItemsStore.getItems("platforms");
+    return platformsPanelItemsStore.getItems("platforms", null);
 };
 
 function getExpandedFromStore() {

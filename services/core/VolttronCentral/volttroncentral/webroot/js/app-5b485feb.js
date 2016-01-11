@@ -2114,7 +2114,7 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
 
         if (this.state.expanded)
         {
-            this.setState({children: getItemsFromStore(this.props.panelItem)}); 
+            this.setState({children: getChildren(this.props.panelItem, this.props.itemPath)}); 
         }       
     },
     _toggleItem: function () {
@@ -2125,7 +2125,7 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
 
             if (this.state.children.length === 0)
             {
-                children = getItemsFromStore(this.props.panelItem);
+                children = getChildren(this.props.panelItem, this.props.itemPath);
                 this.setState({children: children});
             }
             else
@@ -2151,10 +2151,10 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
     },
     render: function () {
         var panelItem = this.props.panelItem;
+        var itemPath = this.props.itemPath;
+
         var items;
-        var agents;
-        var devices;
-        var renderItems;
+        var children;
 
         var propChildren = this.props.children;
         var filterTerm = this.props.filter;
@@ -2163,39 +2163,66 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
         var arrowClasses = ["arrowButton", "noRotate"];
 
         var checkboxClass = "panelItemCheckbox";
+
         var checkboxStyle = {
-            display : (["agent", "device", "point"].indexOf(panelItem.type) < 0 ? "none" : "block")
+            display : (["device", "point"].indexOf(panelItem.type) < 0 ? "none" : "block")
         };
 
-        var childrenItems = [];
+        // var childrenItems = [];
 
         arrowClasses.push( ((panelItem.status === "GOOD") ? "status-good" :
                                 ( (panelItem.status === "BAD") ? "status-bad" : 
                                     "status-unknown")) )
-        if (propChildren.length > 0)
-        {
-            arrowClasses.push("rotateDown");
-            itemClasses = "showItems";
+        // if (propChildren.length > 0)
+        // {
+        //     arrowClasses.push("rotateDown");
+        //     itemClasses = "showItems";
 
-            items = propChildren
-                .filter(function (item) {
-                    return (item.name.indexOf(this) > -1);
-                }, filterTerm) 
-                .sort(function (a, b) {
-                    if (a.name.toLowerCase() > b.name.toLowerCase()) { return 1; }
-                    if (a.name.toLowerCase() < b.name.toLowerCase()) { return -1; }
-                    return 0;
-                })
-                .map(function (item) {
+        //     items = propChildren
+        //         .filter(function (item) {
+        //             return (item.name.indexOf(this) > -1);
+        //         }, filterTerm) 
+        //         .sort(function (a, b) {
+        //             if (a.name.toLowerCase() > b.name.toLowerCase()) { return 1; }
+        //             if (a.name.toLowerCase() < b.name.toLowerCase()) { return -1; }
+        //             return 0;
+        //         })
+        //         .map(function (item) {
 
-                    return (
+        //             return (
 
-                        React.createElement(PlatformsPanelItem, {panelItem: item, children: childrenItems})
+        //                 <PlatformsPanelItem panelItem={item} children={childrenItems}/>
                         
+        //             );
+        //         }, this);
+        // }
+        // else 
+
+        var listItem;
+
+        if (!panelItem.hasOwnProperty("uuid"))
+        {
+            listItem = React.createElement("div", null, 
+                        panelItem.name
                     );
-                }, this);
+                
+            
         }
-        else if (this.state.expanded !== null)
+        else
+        {
+            listItem = React.createElement("div", {className: "platform-link"}, 
+                        React.createElement(Router.Link, {
+                            to: "platform", 
+                            params: {uuid: panelItem.uuid}
+                        }, 
+                        panelItem.name
+                        )
+                    );
+            
+        }
+        
+
+        if (this.state.expanded !== null)
         {
             var classIndex = arrowClasses.indexOf("noRotate");
             if (classIndex > -1)
@@ -2211,44 +2238,15 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
                 {
                     itemClasses = "showItems";
 
-                    var agentItems = findAgentsOrDevices(this.state.children, "agents");
+                    var childItems = this.state.children;
                     
-                    if (agentItems.length > 0)
+                    if (childItems.length > 0)
                     {
-                        agents = agentItems.map(function (item) {
+                        children = childItems.map(function (child) {                            
                             return (
-                                React.createElement(PlatformsPanelItem, {panelItem: item, children: childrenItems})
+                                React.createElement(PlatformsPanelItem, {panelItem: child, itemPath: child.path})
                             );
                         }, this);
-                    }
-
-                    var deviceItems = findAgentsOrDevices(this.state.children, "devices");
-
-                    if (deviceItems.length > 0)
-                    {
-                        devices = deviceItems.map(function (item) {
-                            return (
-                                React.createElement(PlatformsPanelItem, {panelItem: item, children: childrenItems})
-                            );
-                        }, this);
-                    }
-
-                    if (!agents && !devices)
-                    {
-                        items = this.state.children
-                            .sort(function (a, b) {
-                                if (a.name.toLowerCase() > b.name.toLowerCase()) { return 1; }
-                                if (a.name.toLowerCase() < b.name.toLowerCase()) { return -1; }
-                                return 0;
-                            })
-                            .map(function (item) {
-
-                                return (
-
-                                    React.createElement(PlatformsPanelItem, {panelItem: item, children: childrenItems})
-                                    
-                                );
-                            }, this);
                     }
                 }
             }
@@ -2260,30 +2258,6 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
                 }
             }
         }
-
-        if (items)
-        {
-            renderItems = React.createElement("ul", {className: "platform-panel-list"}, items);
-        }
-        else
-        {
-            if (agents && devices)
-            {
-                renderItems = React.createElement("ul", {className: "platform-panel-list"}, 
-                                React.createElement("li", null, React.createElement("ul", {className: "platform-panel-sublist"}, React.createElement("span", {className: "boldText"}, "Agents"), " ", agents)), 
-                                React.createElement("li", null, React.createElement("ul", {className: "platform-panel-sublist"}, React.createElement("span", {className: "boldText"}, "Devices"), " ", devices))
-                               );
-            }
-            else if (agents)
-            {
-                renderItems = React.createElement("ul", {className: "platform-panel-list"}, "Agents ", agents);
-            }
-            else if (devices)
-            {
-                renderItems = React.createElement("ul", {className: "platform-panel-list"}, "Devices ", devices);
-            }
-        }
-
 
         return (
             React.createElement("li", {
@@ -2297,48 +2271,49 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
                         style: checkboxStyle, 
                         type: "checkbox", 
                         onClick: this._checkItem}), 
-                    React.createElement("div", {className: "platform-link"}, 
-                        React.createElement(Router.Link, {
-                            to: "platform", 
-                            params: {uuid: panelItem.uuid}
-                        }, 
-                        panelItem.name
-                        )
-                    )
+                    listItem
                     
                 ), 
                 React.createElement("div", {className: itemClasses}, 
-                    renderItems
+                    React.createElement("ul", {className: "platform-panel-list"}, 
+                        children
+                    )
                 )
             )
         );
     },
 });
 
-function findAgentsOrDevices(item, filterTerm)
+function getChildren(parent, parentPath)
 {
-    var agentsOrDevices = [];
+    // var childList = [];
 
-    var items = item.filter(function(child) {
-        return (child.hasOwnProperty(this) && !child.hasOwnProperty("children"));
-    }, filterTerm);
+    
+    // if (parent.hasOwnProperty("children")) //parent is an actual object and its children are object types
+    // {
+    //     var children = parent.children.slice(0);
 
-    if (items.length !== 0)
-    {
-        items = items[0][filterTerm];
+    //     for (var i = 0; i < children.length; i++) // for each child, create an object with a path property
+    //     {
+    //         var child = children[i];
+    //         var childPath = parentPath.slice(0);
+    //         childPath.push(child);
 
-        for (var key in items)
-        {
-            agentsOrDevices.push(items[key]);
-        }
-    }
+    //         childList.push({child: {"path": childPath, "name": child} });
+    //     }        
+    // }
+    // else // parent is an object type and its children are actual objects
+    // {
+    //     childList = getItemsFromStore(parent, parentPath);
+    // }
 
-    return agentsOrDevices;
+    
+    return getItemsFromStore(parent, parentPath);
 }
 
 
-function getItemsFromStore(parentItem) {
-    return platformsPanelItemsStore.getItems(parentItem);
+function getItemsFromStore(parentItem, parentPath) {
+    return platformsPanelItemsStore.getItems(parentItem, parentPath);
 }
 
 module.exports = PlatformsPanelItem;
@@ -2380,7 +2355,7 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
         this.setState({ filterValue: e.target.value });
     },
     _filterItems: function (e) {
-        
+
     },
     _togglePanel: function () {
         platformsPanelActionCreators.togglePanel();
@@ -2429,7 +2404,7 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
 
                     return (
 
-                        React.createElement(PlatformsPanelItem, {panelItem: platform, children: filteredChildren(platform, filterTerm), filter: filterTerm})
+                        React.createElement(PlatformsPanelItem, {panelItem: platform, itemPath: platform.path, children: filteredChildren(platform, filterTerm), filter: filterTerm})
                         
                     );
                 }, this);
@@ -2464,7 +2439,7 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
 });
 
 function getPlatformsFromStore() {
-    return platformsPanelItemsStore.getItems("platforms");
+    return platformsPanelItemsStore.getItems("platforms", null);
 };
 
 function getExpandedFromStore() {
@@ -3477,53 +3452,122 @@ var Store = require('../lib/store');
 var _items = {
     "platforms": {
 
-        "4687fedc-65ba-43fe-21dc-098765bafedc":
-        {
+        "4687fedc-65ba-43fe-21dc-098765bafedc": {
             "uuid": "4687fedc-65ba-43fe-21dc-098765bafedc",
             "name": "PNNL",
             "status": "GOOD",
             "type": "platform",
-            "children": ["buildings"],
-            "path": ["platforms"],
-            "buildings": {
+            "children": ["agents", "buildings", "points"],
+            "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc"],
+            "points": {
+                "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "points"],
+                "name": "Points",
+                "status": "GOOD",
+                "type": "type",
+                "children": ["5461fedc-65ba-43fe-21dc-098765bafedl", "6451fedc-65ba-43fe-21dc-098765bafedl"],                    
+                "5461fedc-65ba-43fe-21dc-098765bafedl":
+                {
+                    "uuid": "5461fedc-65ba-43fe-21dc-098765bafedl",
+                    "name": "MinimumSupplyFanSpeed",
+                    "status": "GOOD",
+                    "type": "point",
+                    "children": [],
+                    "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "points", "5461fedc-65ba-43fe-21dc-098765bafedl"]
+                },
+                "6451fedc-65ba-43fe-21dc-098765bafedl":
+                {
+                    "uuid": "6451fedc-65ba-43fe-21dc-098765bafedl",
+                    "name": "CoolingValvePosition",
+                    "status": "GOOD",
+                    "type": "point",
+                    "children": [],
+                    "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "points", "6451fedc-65ba-43fe-21dc-098765bafedl"]
+                }
+            },
+            "agents": {                
+                "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "agents"],
+                "name": "Agents",
+                "status": "GOOD",
+                "type": "type",
+                "children": ["2461fedc-65ba-43fe-21dc-098765bafede", "7897fedc-65ba-43fe-21dc-098765bafedf"], 
+                "2461fedc-65ba-43fe-21dc-098765bafede":
+                {
+                    "uuid": "2461fedc-65ba-43fe-21dc-098765bafede",
+                    "name": "Platform Agent",
+                    "status": "GOOD",
+                    "type": "agent",
+                    "children": [],
+                    "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "agents", "2461fedc-65ba-43fe-21dc-098765bafede"]
+                },
+                "7897fedc-65ba-43fe-21dc-098765bafedf":
+                {
+                    "uuid": "7897fedc-65ba-43fe-21dc-098765bafedf",
+                    "name": "SqlHistorian",
+                    "status": "GOOD",
+                    "type": "agent",
+                    "children": [],
+                    "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "agents", "7897fedc-65ba-43fe-21dc-098765bafedf"]
+                }
+            },
+            "buildings": {             
+                "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings"],
+                "name": "Buildings",
+                "status": "GOOD",
+                "type": "type",
+                "children": ["1111fedc-65ba-43fe-21dc-098765bafede"],
                 "1111fedc-65ba-43fe-21dc-098765bafede":
                 {
                     "uuid": "1111fedc-65ba-43fe-21dc-098765bafede",
                     "name": "ISB1",
                     "status": "GOOD",
                     "type": "building",
-                    "children": ["agents", "devices"],
-                    "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings"],
-                    "agents": {
-                        "2461fedc-65ba-43fe-21dc-098765bafede":
+                    "children": ["devices", "points"],
+                    "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede"],
+                    "points": {         
+                        "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "points"],
+                        "name": "Points",
+                        "status": "GOOD",
+                        "type": "type",
+                        "children": ["5461fedc-65ba-43fe-21dc-098765bafedl", "6451fedc-65ba-43fe-21dc-098765bafedl"], 
+                        "5461fedc-65ba-43fe-21dc-098765bafedl":
                         {
-                            "uuid": "2461fedc-65ba-43fe-21dc-098765bafede",
-                            "name": "Platform Agent",
+                            "uuid": "5461fedc-65ba-43fe-21dc-098765bafedl",
+                            "name": "MinimumSupplyFanSpeed",
                             "status": "GOOD",
-                            "type": "agent",
+                            "type": "point",
                             "children": [],
-                            "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "agents"]
+                            "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "points", "5461fedc-65ba-43fe-21dc-098765bafedl"]
                         },
-                        "7897fedc-65ba-43fe-21dc-098765bafedf":
+                        "6451fedc-65ba-43fe-21dc-098765bafedl":
                         {
-                            "uuid": "7897fedc-65ba-43fe-21dc-098765bafedf",
-                            "name": "SqlHistorian",
+                            "uuid": "6451fedc-65ba-43fe-21dc-098765bafedl",
+                            "name": "CoolingValvePosition",
                             "status": "GOOD",
-                            "type": "agent",
+                            "type": "point",
                             "children": [],
-                            "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "agents"]
+                            "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "points", "6451fedc-65ba-43fe-21dc-098765bafedl"]
                         }
                     },
-                    "devices": {
+                    "devices": {       
+                        "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices"],
+                        "name": "Devices",
+                        "status": "GOOD",
+                        "type": "type",
+                        "children": ["1231fedc-65ba-43fe-21dc-098765bafedl"],
                         "1231fedc-65ba-43fe-21dc-098765bafedl":
                         {
                             "uuid": "1231fedc-65ba-43fe-21dc-098765bafedl",
                             "name": "RTU1",
                             "status": "GOOD",
                             "type": "device",
-                            "children": ["points"],
-                            "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices"],
-                            "points": {
+                            "children": ["devices", "points"],
+                            "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl"],
+                            "points": {      
+                                "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "points"],
+                                "name": "Points",
+                                "status": "GOOD",
+                                "type": "type",
+                                "children": ["5461fedc-65ba-43fe-21dc-098765bafedl", "6451fedc-65ba-43fe-21dc-098765bafedl"],
                                 "5461fedc-65ba-43fe-21dc-098765bafedl":
                                 {
                                     "uuid": "5461fedc-65ba-43fe-21dc-098765bafedl",
@@ -3531,7 +3575,7 @@ var _items = {
                                     "status": "GOOD",
                                     "type": "point",
                                     "children": [],
-                                    "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "points"]
+                                    "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "points", "5461fedc-65ba-43fe-21dc-098765bafedl"]
                                 },
                                 "6451fedc-65ba-43fe-21dc-098765bafedl":
                                 {
@@ -3540,385 +3584,147 @@ var _items = {
                                     "status": "GOOD",
                                     "type": "point",
                                     "children": [],
-                                    "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "points"]
+                                    "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "points", "6451fedc-65ba-43fe-21dc-098765bafedl"]
                                 }
-                            }
-                        },
-                        "4567fedc-65ba-43fe-21dc-098765bafedm":
-                        {
-                            "uuid": "4567fedc-65ba-43fe-21dc-098765bafedm",
-                            "name": "RTU2",
-                            "status": "GOOD",
-                            "type": "device",
-                            "children": ["points"],
-                            "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices"],
-                            "points": {
-                                "7681fedc-65ba-43fe-21dc-098765bafedl":
+                            },
+                            "devices": {    
+                                "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "devices"],
+                                "name": "Devices",
+                                "status": "GOOD",
+                                "type": "type",
+                                "children": ["4488fedc-65ba-43fe-21dc-098765bafedl"],
+                                "4488fedc-65ba-43fe-21dc-098765bafedl":
                                 {
-                                    "uuid": "7681fedc-65ba-43fe-21dc-098765bafedl",
-                                    "name": "CoolingValvePosition",
+                                    "uuid": "4488fedc-65ba-43fe-21dc-098765bafedl",
+                                    "name": "Sub-RTU1",
                                     "status": "GOOD",
-                                    "type": "point",
-                                    "children": [],
-                                    "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "4567fedc-65ba-43fe-21dc-098765bafedm", "points"]
-                                },
-                                "8671fedc-65ba-43fe-21dc-098765bafedl":
-                                {
-                                    "uuid": "8671fedc-65ba-43fe-21dc-098765bafedl",
-                                    "name": "MixedAirTemperature",
-                                    "status": "GOOD",
-                                    "type": "point",
-                                    "children": [],
-                                    "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "4567fedc-65ba-43fe-21dc-098765bafedm", "points"]
-                                }
-                            }
-                        }
-                    }
-                },
-                "2221fedc-65ba-43fe-21dc-098765bafede":
-                {
-                    "uuid": "2221fedc-65ba-43fe-21dc-098765bafede",
-                    "name": "ISB2",
-                    "type": "building",
-                    "status": "GOOD",
-                    "children": ["agents", "devices"],
-                    "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings"],
-                    "agents": {
-                        "3331fedc-65ba-43fe-21dc-098765bafede":
-                        {
-                            "uuid": "3331fedc-65ba-43fe-21dc-098765bafede",
-                            "name": "Platform Agent",
-                            "status": "GOOD",
-                            "type": "agent",
-                            "children": [],
-                            "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2221fedc-65ba-43fe-21dc-098765bafede", "agents"]
-                        },
-                        "4447fedc-65ba-43fe-21dc-098765bafedf":
-                        {
-                            "uuid": "4447fedc-65ba-43fe-21dc-098765bafedf",
-                            "name": "SqlHistorian",
-                            "status": "GOOD",
-                            "type": "agent",
-                            "children": [],
-                            "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2221fedc-65ba-43fe-21dc-098765bafede", "agents"]
-                        }
-                    },
-                    "devices": {
-                        "5551fedc-65ba-43fe-21dc-098765bafedl":
-                        {
-                            "uuid": "5551fedc-65ba-43fe-21dc-098765bafedl",
-                            "name": "RTU1",
-                            "status": "GOOD",
-                            "type": "device",
-                            "children": ["points"],
-                            "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2221fedc-65ba-43fe-21dc-098765bafede", "devices"],
-                            "points": {
-                                "7771fedc-65ba-43fe-21dc-098765bafedl":
-                                {
-                                    "uuid": "7771fedc-65ba-43fe-21dc-098765bafedl",
-                                    "name": "MinimumSupplyFanSpeed",
-                                    "status": "GOOD",
-                                    "type": "point",
-                                    "children": [],
-                                    "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2221fedc-65ba-43fe-21dc-098765bafede", "devices", "5551fedc-65ba-43fe-21dc-098765bafedl", "points"]
-                                },
-                                "8881fedc-65ba-43fe-21dc-098765bafedl":
-                                {
-                                    "uuid": "8881fedc-65ba-43fe-21dc-098765bafedl",
-                                    "name": "CoolingValvePosition",
-                                    "status": "GOOD",
-                                    "type": "point",
-                                    "children": [],
-                                    "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2221fedc-65ba-43fe-21dc-098765bafede", "devices", "5551fedc-65ba-43fe-21dc-098765bafedl", "points"]
-                                }
-                            }
-                        },
-                        "6567fedc-65ba-43fe-21dc-098765bafedm":
-                        {
-                            "uuid": "6567fedc-65ba-43fe-21dc-098765bafedm",
-                            "name": "RTU2",
-                            "status": "GOOD",
-                            "type": "device",
-                            "children": ["points"],
-                            "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2221fedc-65ba-43fe-21dc-098765bafede", "devices"],
-                            "points": {
-                                "9991fedc-65ba-43fe-21dc-098765bafedl":
-                                {
-                                    "uuid": "9991fedc-65ba-43fe-21dc-098765bafedl",
-                                    "name": "CoolingValvePosition",
-                                    "status": "GOOD",
-                                    "type": "point",
-                                    "children": [],
-                                    "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2221fedc-65ba-43fe-21dc-098765bafede", "devices", "6567fedc-65ba-43fe-21dc-098765bafedm", "points"]
-                                },
-                                "1000fedc-65ba-43fe-21dc-098765bafedl":
-                                {
-                                    "uuid": "1000fedc-65ba-43fe-21dc-098765bafedl",
-                                    "name": "MixedAirTemperature",
-                                    "status": "GOOD",
-                                    "type": "point",
-                                    "children": [],
-                                    "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2221fedc-65ba-43fe-21dc-098765bafede", "devices", "6567fedc-65ba-43fe-21dc-098765bafedm", "points"]
+                                    "type": "device",
+                                    "children": ["points"],
+                                    "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "devices", "4488fedc-65ba-43fe-21dc-098765bafedl"],
+                                    "points": {  
+                                        "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "devices", "4488fedc-65ba-43fe-21dc-098765bafedl", "points"],
+                                        "name": "Points",
+                                        "status": "GOOD",
+                                        "type": "type",
+                                        "children": ["5461fedc-65ba-43fe-21dc-098765bafedl", "6451fedc-65ba-43fe-21dc-098765bafedl"],
+                                        "5461fedc-65ba-43fe-21dc-098765bafedl":
+                                        {
+                                            "uuid": "5461fedc-65ba-43fe-21dc-098765bafedl",
+                                            "name": "MinimumSupplyFanSpeed",
+                                            "status": "GOOD",
+                                            "type": "point",
+                                            "children": [],
+                                            "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "devices", "4488fedc-65ba-43fe-21dc-098765bafedl", "points", "5461fedc-65ba-43fe-21dc-098765bafedl"]
+                                        },
+                                        "6451fedc-65ba-43fe-21dc-098765bafedl":
+                                        {
+                                            "uuid": "6451fedc-65ba-43fe-21dc-098765bafedl",
+                                            "name": "CoolingValvePosition",
+                                            "status": "GOOD",
+                                            "type": "point",
+                                            "children": [],
+                                            "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "devices", "4488fedc-65ba-43fe-21dc-098765bafedl", "points", "6451fedc-65ba-43fe-21dc-098765bafedl"]
+                                        }
+                                    }
                                 }
                             }
                         }
-                    }
+                    }   
                 }
             }
-        },
-        "6801fedc-65ba-43fe-21dc-098765bafedc":
-        {
-            "uuid": "6801fedc-65ba-43fe-21dc-098765bafedc",
-            "name": "UW",
-            "status": "BAD",
-            "type": "platform",
-            "children": ["buildings"],
-            "path": ["platforms"],
-            "buildings": {
-                "1111fedc-65ba-43fe-21dc-098765bafede":
-                {
-                    "uuid": "1111fedc-65ba-43fe-21dc-098765bafede",
-                    "name": "HUB",
-                    "type": "building",
-                    "status": "GOOD",
-                    "children": ["agents", "devices"],
-                    "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings"],
-                    "agents": {
-                        "2461fedc-65ba-43fe-21dc-098765bafede":
-                        {
-                            "uuid": "2461fedc-65ba-43fe-21dc-098765bafede",
-                            "name": "Platform Agent",
-                            "status": "GOOD",
-                            "type": "agent",
-                            "children": [],
-                            "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "agents"]
-                        },
-                        "7897fedc-65ba-43fe-21dc-098765bafedf":
-                        {
-                            "uuid": "7897fedc-65ba-43fe-21dc-098765bafedf",
-                            "name": "SqlHistorian",
-                            "status": "GOOD",
-                            "type": "agent",
-                            "children": [],
-                            "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "agents"]
-                        }
-                    },
-                    "devices": {
-                        "1231fedc-65ba-43fe-21dc-098765bafedl":
-                        {
-                            "uuid": "1231fedc-65ba-43fe-21dc-098765bafedl",
-                            "name": "RTU1",
-                            "status": "GOOD",
-                            "children": ["points"],
-                            "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices"],
-                            "points": {
-                                "5461fedc-65ba-43fe-21dc-098765bafedl":
-                                {
-                                    "uuid": "5461fedc-65ba-43fe-21dc-098765bafedl",
-                                    "name": "MinimumSupplyFanSpeed",
-                                    "status": "GOOD",
-                                    "type": "point",
-                                    "children": [],
-                                    "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "points"]
-                                },
-                                "6451fedc-65ba-43fe-21dc-098765bafedl":
-                                {
-                                    "uuid": "6451fedc-65ba-43fe-21dc-098765bafedl",
-                                    "name": "CoolingValvePosition",
-                                    "status": "GOOD",
-                                    "type": "point",
-                                    "children": [],
-                                    "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "points"]
-                                }
-                            }
-                        },
-                        "4567fedc-65ba-43fe-21dc-098765bafedm":
-                        {
-                            "uuid": "4567fedc-65ba-43fe-21dc-098765bafedm",
-                            "name": "RTU2",
-                            "status": "GOOD",
-                            "type": "device",
-                            "children": ["points"],
-                            "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices"],
-                            "points": {
-                                "7681fedc-65ba-43fe-21dc-098765bafedl":
-                                {
-                                    "uuid": "7681fedc-65ba-43fe-21dc-098765bafedl",
-                                    "name": "CoolingValvePosition",
-                                    "status": "GOOD",
-                                    "type": "point",
-                                    "children": [],
-                                    "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "4567fedc-65ba-43fe-21dc-098765bafedm", "points"]
-                                },
-                                "8671fedc-65ba-43fe-21dc-098765bafedl":
-                                {
-                                    "uuid": "8671fedc-65ba-43fe-21dc-098765bafedl",
-                                    "name": "MixedAirTemperature",
-                                    "status": "GOOD",
-                                    "type": "point",
-                                    "children": [],
-                                    "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "4567fedc-65ba-43fe-21dc-098765bafedm", "points"]
-                                }
-                            }
-                        }
-                    }
-                },
-                "2221fedc-65ba-43fe-21dc-098765bafede":
-                {
-                    "uuid": "2221fedc-65ba-43fe-21dc-098765bafede",
-                    "name": "FAC",
-                    "type": "building",
-                    "status": "BAD",
-                    "children": ["agents", "devices"],
-                    "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings"],
-                    "agents": {
-                        "1357fedc-65ba-43fe-21dc-098765bafedg":
-                        {
-                            "uuid": "1357fedc-65ba-43fe-21dc-098765bafedg",
-                            "name": "Husky Agent",
-                            "status": "GOOD",
-                            "type": "agent",
-                            "children": [],
-                            "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2221fedc-65ba-43fe-21dc-098765bafede", "agents"]
-                        },
-                        "3571fedc-65ba-43fe-21dc-098765bafedh":
-                        {
-                            "uuid": "3571fedc-65ba-43fe-21dc-098765bafedh",
-                            "name": "Listener Agent",
-                            "status": "GOOD",
-                            "type": "agent",
-                            "children": [],
-                            "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2221fedc-65ba-43fe-21dc-098765bafede", "agents"]
-                        },
-                        "5797fedc-65ba-43fe-21dc-098765bafedi":
-                        {
-                            "uuid": "5797fedc-65ba-43fe-21dc-098765bafedi",
-                            "name": "SqlLiteHistorian",
-                            "status": "GOOD",
-                            "type": "agent",
-                            "children": [],
-                            "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2221fedc-65ba-43fe-21dc-098765bafede", "agents"]
-                        }
-                    },
-                    "devices": {
-                        "1451fedc-65ba-43fe-21dc-098765bafedl":
-                        {
-                            "uuid": "1451fedc-65ba-43fe-21dc-098765bafedl",
-                            "name": "HVAC1",
-                            "status": "BAD",
-                            "type": "device",
-                            "children": ["points"],
-                            "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2221fedc-65ba-43fe-21dc-098765bafede", "devices"],
-                            "points": {
-                                "0371fedc-65ba-43fe-21dc-098765bafedl":
-                                {
-                                    "uuid": "0371fedc-65ba-43fe-21dc-098765bafedl",
-                                    "name": "CoolingValvePosition",
-                                    "status": "BAD",
-                                    "type": "point",
-                                    "children": [],
-                                    "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2221fedc-65ba-43fe-21dc-098765bafede", "devices", "1451fedc-65ba-43fe-21dc-098765bafedl", "points"]
-                                },
-                                "7301fedc-65ba-43fe-21dc-098765bafedl":
-                                {
-                                    "uuid": "7301fedc-65ba-43fe-21dc-098765bafedl",
-                                    "name": "MixedAirTemperature",
-                                    "status": "GOOD",
-                                    "type": "point",
-                                    "children": [],
-                                    "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2221fedc-65ba-43fe-21dc-098765bafede", "devices", "1451fedc-65ba-43fe-21dc-098765bafedl", "points"]
-                                }
-                            }
-                        },
-                        "2567fedc-65ba-43fe-21dc-098765bafedm":
-                        {
-                            "uuid": "2567fedc-65ba-43fe-21dc-098765bafedm",
-                            "name": "HVAC2",
-                            "status": "GOOD",
-                            "type": "device",
-                            "children": ["points"],
-                            "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2221fedc-65ba-43fe-21dc-098765bafede", "devices"],
-                            "points": {
-                                "4891fedc-65ba-43fe-21dc-098765bafedl":
-                                {
-                                    "uuid": "4891fedc-65ba-43fe-21dc-098765bafedl",
-                                    "name": "CoolingValvePosition",
-                                    "status": "GOOD",
-                                    "type": "point",
-                                    "children": [],
-                                    "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2221fedc-65ba-43fe-21dc-098765bafede", "devices", "2567fedc-65ba-43fe-21dc-098765bafedm", "points"]
-                                },
-                                "9841fedc-65ba-43fe-21dc-098765bafedl":
-                                {
-                                    "uuid": "9841fedc-65ba-43fe-21dc-098765bafedl",
-                                    "name": "MixedAirTemperature",
-                                    "status": "GOOD",
-                                    "type": "point",
-                                    "children": [],
-                                    "path": ["platforms", "6801fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2221fedc-65ba-43fe-21dc-098765bafede", "devices", "2567fedc-65ba-43fe-21dc-098765bafedm", "points"]
-                                }
-                            }
-                        }
-                    }
-                }
-            }                
         },
         "9757fedc-65ba-43fe-21dc-098765bafedc":
         {
             "uuid": "9757fedc-65ba-43fe-21dc-098765bafedc",
             "name": "WSU",
-            "status": "UNKNOWN",
+            "status": "BAD",
             "type": "platform",
-            "children": ["buildings"],
-            "path": ["platforms"],
-            "buildings": {
-                "1101fedc-65ba-43fe-21dc-098765bafede":
+            "children": ["agents", "buildings"],
+            "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc"],
+            "agents": {                
+                "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "agents"],
+                "name": "Agents",
+                "status": "GOOD",
+                "type": "type",
+                "children": ["2461fedc-65ba-43fe-21dc-098765bafede", "7897fedc-65ba-43fe-21dc-098765bafedf"], 
+                "2461fedc-65ba-43fe-21dc-098765bafede":
                 {
-                    "uuid": "1101fedc-65ba-43fe-21dc-098765bafede",
-                    "name": "CIC",
-                    "type": "building",
+                    "uuid": "2461fedc-65ba-43fe-21dc-098765bafede",
+                    "name": "Platform Agent",
                     "status": "GOOD",
-                    "children": ["agents", "devices"],
-                    "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings"],
-                    "agents": {
-                        "2461fedc-65ba-43fe-21dc-098765bafede":
+                    "type": "agent",
+                    "children": [],
+                    "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "agents", "2461fedc-65ba-43fe-21dc-098765bafede"]
+                },
+                "7897fedc-65ba-43fe-21dc-098765bafedf":
+                {
+                    "uuid": "7897fedc-65ba-43fe-21dc-098765bafedf",
+                    "name": "SqlHistorian",
+                    "status": "GOOD",
+                    "type": "agent",
+                    "children": [],
+                    "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "agents", "7897fedc-65ba-43fe-21dc-098765bafedf"]
+                }
+            },
+            "buildings": {             
+                "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings"],
+                "name": "Buildings",
+                "status": "BAD",
+                "type": "type",
+                "children": ["1111fedc-65ba-43fe-21dc-098765bafede", "1333fedc-65ba-43fe-21dc-098765bafede"],
+                "1111fedc-65ba-43fe-21dc-098765bafede":
+                {
+                    "uuid": "1111fedc-65ba-43fe-21dc-098765bafede",
+                    "name": "BSEL",
+                    "status": "BAD",
+                    "type": "building",
+                    "children": ["devices", "points"],
+                    "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede"],
+                    "points": {         
+                        "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "points"],
+                        "name": "Points",
+                        "status": "UNKNOWN",
+                        "type": "type",
+                        "children": ["5461fedc-65ba-43fe-21dc-098765bafedl", "6451fedc-65ba-43fe-21dc-098765bafedl"], 
+                        "5461fedc-65ba-43fe-21dc-098765bafedl":
                         {
-                            "uuid": "2461fedc-65ba-43fe-21dc-098765bafede",
-                            "name": "Platform Agent",
+                            "uuid": "5461fedc-65ba-43fe-21dc-098765bafedl",
+                            "name": "MinimumSupplyFanSpeed",
                             "status": "GOOD",
-                            "type": "agent",
+                            "type": "point",
                             "children": [],
-                            "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1101fedc-65ba-43fe-21dc-098765bafede", "agents"] 
+                            "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "points", "5461fedc-65ba-43fe-21dc-098765bafedl"]
                         },
-                        "7897fedc-65ba-43fe-21dc-098765bafedf":
+                        "6451fedc-65ba-43fe-21dc-098765bafedl":
                         {
-                            "uuid": "7897fedc-65ba-43fe-21dc-098765bafedf",
-                            "name": "SqlHistorian",
-                            "status": "GOOD",
-                            "type": "agent",
+                            "uuid": "6451fedc-65ba-43fe-21dc-098765bafedl",
+                            "name": "CoolingValvePosition",
+                            "status": "UNKNOWN",
+                            "type": "point",
                             "children": [],
-                            "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1101fedc-65ba-43fe-21dc-098765bafede", "agents"] 
+                            "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "points", "6451fedc-65ba-43fe-21dc-098765bafedl"]
                         }
                     },
-                    "devices": {
+                    "devices": {       
+                        "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices"],
+                        "name": "Devices",
+                        "status": "BAD",
+                        "type": "type",
+                        "children": ["1231fedc-65ba-43fe-21dc-098765bafedl"],
                         "1231fedc-65ba-43fe-21dc-098765bafedl":
                         {
                             "uuid": "1231fedc-65ba-43fe-21dc-098765bafedl",
-                            "name": "RTU1",
-                            "status": "GOOD",
+                            "name": "HVAC",
+                            "status": "BAD",
                             "type": "device",
-                            "children": ["points"],
-                            "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1101fedc-65ba-43fe-21dc-098765bafede", "devices"],
-                            "points": {
-                                "5461fedc-65ba-43fe-21dc-098765bafedl":
-                                {
-                                    "uuid": "5461fedc-65ba-43fe-21dc-098765bafedl",
-                                    "name": "MinimumSupplyFanSpeed",
-                                    "status": "GOOD",
-                                    "type": "point",
-                                    "children": [],
-                                    "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1101fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "points"]
-                                },
+                            "children": ["devices", "points"],
+                            "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl"],
+                            "points": {      
+                                "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "points"],
+                                "name": "Points",
+                                "status": "GOOD",
+                                "type": "type",
+                                "children": ["6451fedc-65ba-43fe-21dc-098765bafedl"],                                
                                 "6451fedc-65ba-43fe-21dc-098765bafedl":
                                 {
                                     "uuid": "6451fedc-65ba-43fe-21dc-098765bafedl",
@@ -3926,199 +3732,208 @@ var _items = {
                                     "status": "GOOD",
                                     "type": "point",
                                     "children": [],
-                                    "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1101fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "points"]
+                                    "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "points", "6451fedc-65ba-43fe-21dc-098765bafedl"]
                                 }
-                            }
-                        },
-                        "4567fedc-65ba-43fe-21dc-098765bafedm":
-                        {
-                            "uuid": "4567fedc-65ba-43fe-21dc-098765bafedm",
-                            "name": "RTU2",
-                            "status": "GOOD",
-                            "type": "device",
-                            "children": ["points"],
-                            "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1101fedc-65ba-43fe-21dc-098765bafede", "devices"],
-                            "points": {
-                                "7681fedc-65ba-43fe-21dc-098765bafedl":
+                            },
+                            "devices": {    
+                                "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "devices"],
+                                "name": "Devices",
+                                "status": "BAD",
+                                "type": "type",
+                                "children": ["4488fedc-65ba-43fe-21dc-098765bafedl"],
+                                "4488fedc-65ba-43fe-21dc-098765bafedl":
                                 {
-                                    "uuid": "7681fedc-65ba-43fe-21dc-098765bafedl",
-                                    "name": "CoolingValvePosition",
-                                    "status": "GOOD",
-                                    "type": "point",
-                                    "children": [],
-                                    "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1101fedc-65ba-43fe-21dc-098765bafede", "devices", "4567fedc-65ba-43fe-21dc-098765bafedm", "points"]
-                                },
-                                "8671fedc-65ba-43fe-21dc-098765bafedl":
-                                {
-                                    "uuid": "8671fedc-65ba-43fe-21dc-098765bafedl",
-                                    "name": "MixedAirTemperature",
-                                    "status": "GOOD",
-                                    "type": "point",
-                                    "children": [],
-                                    "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1101fedc-65ba-43fe-21dc-098765bafede", "devices", "4567fedc-65ba-43fe-21dc-098765bafedm", "points"]
+                                    "uuid": "4488fedc-65ba-43fe-21dc-098765bafedl",
+                                    "name": "Condenser",
+                                    "status": "BAD",
+                                    "type": "device",
+                                    "children": ["points"],
+                                    "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "devices", "4488fedc-65ba-43fe-21dc-098765bafedl"],
+                                    "points": {  
+                                        "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "devices", "4488fedc-65ba-43fe-21dc-098765bafedl", "points"],
+                                        "name": "Points",
+                                        "status": "BAD",
+                                        "type": "type",
+                                        "children": ["5461fedc-65ba-43fe-21dc-098765bafedl", "6451fedc-65ba-43fe-21dc-098765bafedl"],
+                                        "5461fedc-65ba-43fe-21dc-098765bafedl":
+                                        {
+                                            "uuid": "5461fedc-65ba-43fe-21dc-098765bafedl",
+                                            "name": "MinimumSupplyFanSpeed",
+                                            "status": "BAD",
+                                            "type": "point",
+                                            "children": [],
+                                            "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "devices", "4488fedc-65ba-43fe-21dc-098765bafedl", "points", "5461fedc-65ba-43fe-21dc-098765bafedl"]
+                                        },
+                                        "6451fedc-65ba-43fe-21dc-098765bafedl":
+                                        {
+                                            "uuid": "6451fedc-65ba-43fe-21dc-098765bafedl",
+                                            "name": "CoolingValvePosition",
+                                            "status": "GOOD",
+                                            "type": "point",
+                                            "children": [],
+                                            "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "devices", "4488fedc-65ba-43fe-21dc-098765bafedl", "points", "6451fedc-65ba-43fe-21dc-098765bafedl"]
+                                        }
+                                    }
                                 }
                             }
                         }
-                    }
+                    }   
                 },
-                "2211fedc-65ba-43fe-21dc-098765bafede":
+                "1333fedc-65ba-43fe-21dc-098765bafede":
                 {
-                    "uuid": "2211fedc-65ba-43fe-21dc-098765bafede",
-                    "name": "BESL",
+                    "uuid": "1333fedc-65ba-43fe-21dc-098765bafede",
+                    "name": "CIC",
+                    "status": "GOOD",
                     "type": "building",
-                    "status": "UNKNOWN",
-                    "children": ["agents", "devices"],
-                    "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings"],
-                    "agents": {
-                        "7531fedc-65ba-43fe-21dc-098765bafedk":
+                    "children": ["devices", "points"],
+                    "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1333fedc-65ba-43fe-21dc-098765bafede"],
+                    "points": {         
+                        "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1333fedc-65ba-43fe-21dc-098765bafede", "points"],
+                        "name": "Points",
+                        "status": "GOOD",
+                        "type": "type",
+                        "children": ["5461fedc-65ba-43fe-21dc-098765bafedl", "6451fedc-65ba-43fe-21dc-098765bafedl"], 
+                        "5461fedc-65ba-43fe-21dc-098765bafedl":
                         {
-                            "uuid": "7531fedc-65ba-43fe-21dc-098765bafedk",
-                            "name": "Platform Agent",
+                            "uuid": "5461fedc-65ba-43fe-21dc-098765bafedl",
+                            "name": "MinimumSupplyFanSpeed",
                             "status": "GOOD",
-                            "type": "agent",
+                            "type": "point",
                             "children": [],
-                            "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2211fedc-65ba-43fe-21dc-098765bafede", "agents"]
+                            "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1333fedc-65ba-43fe-21dc-098765bafede", "points", "5461fedc-65ba-43fe-21dc-098765bafedl"]
                         },
-                        "5317fedc-65ba-43fe-21dc-098765bafedl":
+                        "6451fedc-65ba-43fe-21dc-098765bafedl":
                         {
-                            "uuid": "5317fedc-65ba-43fe-21dc-098765bafedl",
-                            "name": "SqlLiteHistorian",
-                            "status": "UNKNOWN",
-                            "type": "agent",
+                            "uuid": "6451fedc-65ba-43fe-21dc-098765bafedl",
+                            "name": "CoolingValvePosition",
+                            "status": "GOOD",
+                            "type": "point",
                             "children": [],
-                            "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2211fedc-65ba-43fe-21dc-098765bafede", "agents"]
+                            "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1333fedc-65ba-43fe-21dc-098765bafede", "points", "6451fedc-65ba-43fe-21dc-098765bafedl"]
                         }
                     },
-                    "devices": {
-                        "3671fedc-65ba-43fe-21dc-098765bafedl":
+                    "devices": {       
+                        "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1333fedc-65ba-43fe-21dc-098765bafede", "devices"],
+                        "name": "Devices",
+                        "status": "GOOD",
+                        "type": "type",
+                        "children": ["1231fedc-65ba-43fe-21dc-098765bafedl"],
+                        "1231fedc-65ba-43fe-21dc-098765bafedl":
                         {
-                            "uuid": "3671fedc-65ba-43fe-21dc-098765bafedl",
-                            "name": "HVAC1",
+                            "uuid": "1231fedc-65ba-43fe-21dc-098765bafedl",
+                            "name": "HVAC",
                             "status": "GOOD",
                             "type": "device",
                             "children": ["points"],
-                            "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2211fedc-65ba-43fe-21dc-098765bafede", "devices"],
-                            "points": {
-                                "3101fedc-65ba-43fe-21dc-098765bafedl":
+                            "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1333fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl"],
+                            "points": {      
+                                "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1333fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "points"],
+                                "name": "Points",
+                                "status": "GOOD",
+                                "type": "type",
+                                "children": ["6451fedc-65ba-43fe-21dc-098765bafedl"],                                
+                                "6451fedc-65ba-43fe-21dc-098765bafedl":
                                 {
-                                    "uuid": "3101fedc-65ba-43fe-21dc-098765bafedl",
+                                    "uuid": "6451fedc-65ba-43fe-21dc-098765bafedl",
                                     "name": "CoolingValvePosition",
                                     "status": "GOOD",
                                     "type": "point",
                                     "children": [],
-                                    "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2211fedc-65ba-43fe-21dc-098765bafede", "devices", "3671fedc-65ba-43fe-21dc-098765bafedl", "points"]
-                                },
-                                "0131fedc-65ba-43fe-21dc-098765bafedl":
-                                {
-                                    "uuid": "0131fedc-65ba-43fe-21dc-098765bafedl",
-                                    "name": "MixedAirTemperature",
-                                    "status": "GOOD",
-                                    "type": "point",
-                                    "children": [],
-                                    "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2211fedc-65ba-43fe-21dc-098765bafede", "devices", "3671fedc-65ba-43fe-21dc-098765bafedl", "points"]
-                                }
-                            }
-                        },
-                        "4787fedc-65ba-43fe-21dc-098765bafedm":
-                        {
-                            "uuid": "4787fedc-65ba-43fe-21dc-098765bafedm",
-                            "name": "HVAC2",
-                            "status": "GOOD",
-                            "type": "device",
-                            "children": ["points"],
-                            "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2211fedc-65ba-43fe-21dc-098765bafede", "devices"],
-                            "points": {
-                                "4281fedc-65ba-43fe-21dc-098765bafedl":
-                                {
-                                    "uuid": "4281fedc-65ba-43fe-21dc-098765bafedl",
-                                    "name": "CoolingValvePosition",
-                                    "status": "GOOD",
-                                    "type": "point",
-                                    "children": [],
-                                    "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2211fedc-65ba-43fe-21dc-098765bafede", "devices", "4787fedc-65ba-43fe-21dc-098765bafedm", "points"]
-                                },
-                                "8241fedc-65ba-43fe-21dc-098765bafedl":
-                                {
-                                    "uuid": "8241fedc-65ba-43fe-21dc-098765bafedl",
-                                    "name": "MixedAirTemperature",
-                                    "status": "GOOD",
-                                    "type": "point",
-                                    "children": [],
-                                    "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "2211fedc-65ba-43fe-21dc-098765bafede", "devices", "4787fedc-65ba-43fe-21dc-098765bafedm", "points"]
+                                    "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1333fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "points", "6451fedc-65ba-43fe-21dc-098765bafedl"]
                                 }
                             }
                         }
-                    }
+                    }   
                 }
-            }  
+            }
         }
     }
 };
 
 var _expanded = false;
+var _itemTypes = ["platforms", "buildings", "agents", "devices", "points"];
 
 var platformsPanelItemsStore = new Store();
 
-function buildItemsList(parent, child)
-{
+// function buildItemsList(parent, child)
+// {
+//     var itemsList = [];
+//     var items = _items;
+
+//     //First find the parent item according to its path
+//     for (var i = 0; i < parent.path.length; i++)
+//     {
+//         if (items.hasOwnProperty(parent.path[i]))
+//         {
+//             items = items[parent.path[i]];
+//         }
+//     }
+
+//     //Then create a list of the children
+//     if (items[parent.uuid].hasOwnProperty(child))
+//     {
+//         for (var key in items[parent.uuid][child])
+//         {
+//             itemsList.push(items[parent.uuid][child][key]);
+//         }
+//     }
+
+//     return itemsList;
+// }
+
+platformsPanelItemsStore.getItems = function (parent, parentPath) {
+
     var itemsList = [];
-    var items = _items;
+    var item = _items;
 
-    //First find the parent item according to its path
-    for (var i = 0; i < parent.path.length; i++)
+    if (parentPath !== null) // for everything but the top level, drill down to the parent
     {
-        if (items.hasOwnProperty(parent.path[i]))
+        for (var i = 0; i < parentPath.length; i++)
         {
-            items = items[parent.path[i]];
+            if (item.hasOwnProperty(parentPath[i]))
+            {
+                item = item[parentPath[i]];
+            }
         }
-    }
-
-    //Then create a list of the children
-    if (items[parent.uuid].hasOwnProperty(child))
-    {
-        for (var key in items[parent.uuid][child])
+    
+          
+        for (var i = 0; i < item.children.length; i++)
         {
-            itemsList.push(items[parent.uuid][child][key]);
+            // if (_itemTypes.indexOf(item.children[i]) > -1) // if the child is an object type
+            // {
+            //     itemsList.push(item[item.children[i]]);
+
+            //     // for (var key in items[parent])
+            //     // {
+            //     //     itemsList.push(items[parent][key]);
+            //     // }
+            // }
+            // else
+            // {
+            //     // itemsList.push(item.children[i]);
+
+            //     for (var key in item.children[i])
+            //     {
+            //         itemsList.push(item.children[i][key]);
+            //         break;  // presumably there's only one key, the actual object's UUID
+            //     }
+            // }
+
+            itemsList.push(item[item.children[i]]);
         }
-    }
-
-    return itemsList;
-}
-
-platformsPanelItemsStore.getItems = function (parent) {
-
-    var itemsList = [];
-
-    if (parent === "platforms")
-    {
-        for (var key in _items[parent])
-        {
-            itemsList.push(_items[parent][key]);
-        }
+            
     }
     else
     {
-        var notAgentsOrDevices = true;
-
-        if (parent.children.indexOf("agents") !== -1)
+        for (var key in item[parent])
         {
-            var agentsList = buildItemsList(parent, "agents");
-            itemsList.push({"agents": agentsList});
-            notAgentsOrDevices = false;
-        }
-
-        if (parent.children.indexOf("devices") !== -1)
-        {
-            var devicesList = buildItemsList(parent, "devices");
-            itemsList.push({"devices": devicesList});
-            notAgentsOrDevices = false;
-        }
-
-        if (notAgentsOrDevices)
-        {
-            itemsList = buildItemsList(parent, parent.children[0]);
+            itemsList.push(item[parent][key]);
         }
     }
+    // else // if the parent is an actual object 
+    // {
+    //     itemsList = parent.children;
+    // }    
 
     return itemsList;
 };
