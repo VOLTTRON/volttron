@@ -156,13 +156,13 @@ def historian(config_path, **kwargs):
                 # Reformat to a filter tha bulk inserter.
                 bulk_publish.append(ReplaceOne({'ts': ts, 'topic_id': topic},
                     {'ts': ts, 'topic_id': topic, 'value': value},
-                    ordered=True, upsert=True))
+                    upsert=True))
 
             # http://api.mongodb.org/python/current/api/pymongo/collection.html#pymongo.collection.Collection.bulk_write
-            db['data'].bulk_write(bulk_publish)
+            result = db['data'].bulk_write(bulk_publish)
 
             # No write errros here when
-            if not a.bulk_api_result['writeErrors']:
+            if not result.bulk_api_result['writeErrors']:
                 self.report_all_handled()
             else:
                 _log.error('SOME THINGS DIDNT WORK')
