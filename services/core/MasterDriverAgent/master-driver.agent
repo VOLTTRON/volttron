@@ -1,5 +1,17 @@
 {
     "agentid": "master_driver",
+
+    # Number of instances to collect from the same device(s).
+    # Adjusts drivers' periodic read intervals.
+    # "failover_array_size": 2,
+
+    # Integer less than "failover_array_size".
+    # Determines timing offset on periodic read call.
+    # This is the only configurable that should change
+    # per instance in a failover setup and should be unique.
+    # "failover_instance_id": 0,
+    # "failover_instance_id": 1,
+
     "driver_config_list": [
     					   "/home/kyle/workspaces/volttron/services/core/MasterDriverAgent/master_driver/test_bacnet1.config",
     					   "/home/kyle/workspaces/volttron/services/core/MasterDriverAgent/master_driver/test_bacnet2.config",
