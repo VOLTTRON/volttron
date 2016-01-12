@@ -96,34 +96,36 @@ def historian(config_path, **kwargs):
         This is very similar to SQLHistorian implementation
         '''
 
-        # @Core.receiver("onstart")
-        # def starting(self, sender, **kwargs):
-        #     _log.debug('Starting address: {} identity: {}'.format(self.core.address, self.core.identity))
-        #
-        #     if self.core.identity == 'platform.historian':
-        #         # Check to see if the platform agent is available, if it isn't then
-        #         # subscribe to the /platform topic to be notified when the platform
-        #         # agent becomes available.
-        #         try:
-        #             ping = self.vip.ping('platform.agent',
-        #                                  'awake?').get(timeout=3)
-        #             _log.debug("Ping response was? "+ str(ping))
-        #             self.vip.rpc.call('platform.agent', 'register_service',
-        #                               self.core.identity).get(timeout=3)
-        #         except Unreachable:
-        #             _log.debug('Could not register historian service')
-        #         finally:
-        #             self.vip.pubsub.subscribe('pubsub', '/platform',
-        #                                       self.__platform)
-        #             _log.debug("Listening to /platform")
-        #
-        # def __platform(self, peer, sender, bus, topic, headers, message):
-        #     _log.debug('Platform is now: {}'.format(message))
-        #     if message == 'available' and \
-        #             self.core.identity == 'platform.historian':
-        #         gevent.spawn(self.vip.rpc.call, 'platform.agent', 'register_service',
-        #                            self.core.identity)
-        #         gevent.sleep(0)
+        @Core.receiver("onstart")
+        def starting(self, sender, **kwargs):
+            _log.debug('Starting address: {} identity: {}'.format(self.core.address, self.core.identity))
+
+            if self.core.identity == 'platform.historian':
+                # Check to see if the platform agent is available, if it isn't then
+                # subscribe to the /platform topic to be notified when the platform
+                # agent becomes available.
+                try:
+                    ping = self.vip.ping('platform.agent',
+                                         'awake?').get(timeout=3)
+                    _log.debug("Ping response was? "+ str(ping))
+                    self.vip.rpc.call('platform.agent', 'register_service',
+                                      self.core.identity).get(timeout=3)
+                except Unreachable:
+                    _log.debug('Could not register historian service')
+                finally:
+                    self.vip.pubsub.subscribe('pubsub', '/platform',
+                                              self._connect_platform)
+                    _log.debug("Listening to /platform")
+
+        def _connect_platform(self, peer, sender, bus, topic, headers, message):
+            ''' Connect to the platform.agent and register service.
+            '''
+            _log.debug('Platform is now: {}'.format(message))
+            if message == 'available' and \
+                    self.core.identity == 'platform.historian':
+                gevent.spawn(self.vip.rpc.call, 'platform.agent',
+                    'register_service', self.core.identity)
+                gevent.sleep(0)
 
         def publish_to_historian(self, to_publish_list):
             _log.debug("publish_to_historian number of items: {}"
