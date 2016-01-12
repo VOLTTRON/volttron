@@ -60,6 +60,7 @@ def clean_db(client):
 pymongo_mark = pytest.mark.skipif(not HAS_PYMONGO,
     reason='No pymongo client available.')
 
+CLEANUP_CLIENT = True
 @pytest.fixture(scope="function",
     params=[
         pymongo_mark(mongo_platform)
@@ -71,7 +72,8 @@ def database_client(request):
 
     client = pymongo.MongoClient(mongo_uri)
     def close_client():
-        db = client[params['database']]
+        if CLEANUP_CLIENT:
+            clean_db(client)
 
         if client != None:
             client.close()
@@ -209,7 +211,7 @@ def test_two_hours_of_publishing(request, volttron_instance1, database_client):
     for row in db.topics.find():
         topic_to_id[row['topic_name']] = row['_id']
 
-    gevent.sleep(0.1)
+    gevent.sleep(0.5)
     for d, v in expected.items():
         assert db['data'].find({'ts': d}).count() == 3
 
@@ -304,6 +306,7 @@ def publish_fake_data(agent):
     # Create timestamp (no parameter to isoformat so the result is a T
     # separator) The now value is a string after this function is called.
     now = datetime.utcnow()
+    #now = now.replace(microsecond=random.randint(0,100))
     # now = datetime(now.year, now.month, now.day, now.hour,
     #     now.minute, now.second)
     # now = now.isoformat()
@@ -311,7 +314,7 @@ def publish_fake_data(agent):
 
     # now = '2015-12-02T00:00:00'
     headers = {
-        headers_mod.DATE: now
+        headers_mod.DATE: now.isoformat()
     }
 
     # Publish messages
@@ -329,34 +332,57 @@ def publish_fake_data(agent):
 
 
 
-# @pytest.mark.historian
-# @pytest.mark.mongodb
-# def test_basic_function(volttron_instance1, mongohistorian, clean):
-#     """
-#     Test basic functionality of sql historian. Inserts three points as part of all topic and checks
-#     if all three got into the database
-#     :param volttron_instance1: The instance against which the test is run
-#     :param mongohistorian: instance of the sql historian tested
-#     :param clean: teardown function
-#     """
-#     global query_points,  db_connection
-#     # print('HOME', volttron_instance1.volttron_home)
-#     print("\n** test_basic_function **")
-#
-#     publish_agent = volttron_instance1.build_agent()
-#
-#     # Publish data to message bus that should be recorded in the mongo database.
-#     expected = publish_fake_data(publish_agent)
-#
-#     # make sure that we allow some time for publish to happen.
-#     gevent.sleep(3)
-#     # Query the historian
-#     result = publish_agent.vip.rpc.call('platform.historian',
-#                                         'query',
-#                                         topic=query_points['oat_point'],
-#                                         count=20,
-#                                         order="LAST_TO_FIRST").get(timeout=100)
-#     print('Query Result', result)
+@pytest.mark.historian
+@pytest.mark.mongodb
+def test_basic_function(volttron_instance1, database_client):
+    """
+    Test basic functionality of sql historian. Inserts three points as part of all topic and checks
+    if all three got into the database
+    :param volttron_instance1: The instance against which the test is run
+    :param mongohistorian: instance of the sql historian tested
+    :param clean: teardown function
+    """
+    global query_points,  db_connection
+
+    install_historian_agent(volttron_instance1, mongo_platform)
+
+    # print('HOME', volttron_instance1.volttron_home)
+    print("\n** test_basic_function **")
+
+    publish_agent = volttron_instance1.build_agent()
+
+    # Publish data to message bus that should be recorded in the mongo database.
+    expected = publish_fake_data(publish_agent)
+    gevent.sleep(0.5)
+
+    # Query the historian
+    result = publish_agent.vip.rpc.call('platform.historian',
+                                        'query',
+                                        topic=query_points['oat_point'],
+                                        count=20,
+                                        order="LAST_TO_FIRST").get(timeout=100)
+
+    assert expected['datetime'].isoformat()[:-3]+'000' == result['values'][0][0]
+    assert result['values'][0][1] == expected['oat_point']
+
+    result = publish_agent.vip.rpc.call('platform.historian',
+                                        'query',
+                                        topic=query_points['mixed_point'],
+                                        count=20,
+                                        order="LAST_TO_FIRST").get(timeout=100)
+
+    assert expected['datetime'].isoformat()[:-3]+'000' == result['values'][0][0]
+    assert result['values'][0][1] == expected['mixed_point']
+
+
+    result = publish_agent.vip.rpc.call('platform.historian',
+                                        'query',
+                                        topic=query_points['damper_point'],
+                                        count=20,
+                                        order="LAST_TO_FIRST").get(timeout=100)
+
+    assert expected['datetime'].isoformat()[:-3]+'000' == result['values'][0][0]
+    assert result['values'][0][1] == expected['damper_point']
 
 
     #FOR DEBUG - START

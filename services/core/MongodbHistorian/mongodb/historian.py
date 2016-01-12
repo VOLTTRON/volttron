@@ -182,20 +182,34 @@ def historian(config_path, **kwargs):
              metadata is not required (The caller will normalize this to {}
              for you)
             """
+
+            try:
+                topic_id = self.topic_map.get(topic, None)
+            except:
+                self.topic_map = {}
+
+                for row in self.mongoclient[self.database_name]['topics'].find():
+                    self.topic_map[row['topic_name']] = row['_id']
+                    self.topic_map[row['_id']] = row['topic_name']
+
+                topic_id = self.topic_map.get(topic, None)
+
+            _log.debug('Getting data from topic_id: {} topic: {}'.format(topic_id, topic))
+
+            if not topic_id:
+                return {}
+
             if self.mongoclient is None:
-                return False
-            db = self.mongoclient[self.__connect_params["database"]]
-            #Find topic_id for topic
-            row = db["topics"].find_one({"topic_name": topic})
-            id_ = row['_id']
-            print("THE ID IS {}".format(id_))
+                return {}
+
+            db = self.mongoclient[self.database_name]
 
             order_by = 1
             if order == 'LAST_TO_FIRST':
                 order_by = -1
-            if start is not None:
+            if start is None:
                 start = datetime.datetime(2000, 1, 1)
-            if end is not None:
+            if end is None:
                 end = datetime.datetime(3000, 1, 1)
             if count is None:
                 count = 100
@@ -203,21 +217,33 @@ def historian(config_path, **kwargs):
             if skip > 0:
                 skip_count = skip
 
-            cursor = db['data'].find({'topic_id': ObjectId(id_)})
-            for x in cursor:
-                _log.debug('X is found: {}'.format(x))
+            # import dateutil.parser as parsedate
+            # start = parsedate.parse('2016-01-12T00:26:31.220Z')
+            #
+            _log.debug('START IS: {}'.format(start))
+            _log.debug('END IS: {}'.format(end))
+            #
+            #
+            # cursor = db['data'].find({
+            #     'topic_id': ObjectId(topic_id),
+            #     'ts': {
+            #         '$gte': start,
+            #     }})
+            # for x in cursor:
+            #     _log.debug('X is found: {}'.format(x))
 
             cursor = db["data"].find({
-                        "topic_id": ObjectId(id_)
+                        "topic_id": ObjectId(topic_id),
                         #,
-                        #"ts": { "$gte": start, "$lte": end},
+                        "ts": { "$gte": start, "$lte": end}
                     }).skip(skip_count).limit(count).sort( [ ("ts", order_by) ] )
             #TODO: confirm w/ Mongo users what ouput format they 'd like to use
             #Output as array of tuples.
             # Each includes hourly timestamp and a dict of min from 0 to 60[(ts, {'0':15,...}),..]
             #values = [(document.get("ts").isoformat(), document.get("values")) for document in cursor]
             #Output as array of tuples.
-            values = []
+            values = [(row['ts'].isoformat(), row['value']) for row in cursor]
+            _log.debug('VALUES IS: ', values)
             _log.debug('COUNT RETURNED: {}'.format(cursor.count()))
             #v1: dictionary values
             #  Each includes timestamp and 1 value [(ts,15),(ts2,1),...].
@@ -228,12 +254,12 @@ def historian(config_path, **kwargs):
             #         if value is not None:
             #             values.append(((ts + datetime.timedelta(minutes=int(key))).isoformat(), value))
             #v2: array values
-            for document in cursor:
-                out = document.get("values")
-                ts = document.get("ts")
-                for idx, value in enumerate(out):
-                    if value is not None:
-                        values.append(((ts + datetime.timedelta(minutes=idx)).isoformat(), value))
+            # for document in cursor:
+            #     out = document.get("values")
+            #     ts = document.get("ts")
+            #     for idx, value in enumerate(out):
+            #         if value is not None:
+            #             values.append(((ts + datetime.timedelta(minutes=idx)).isoformat(), value))
             return {'values': values}
 
         #TODO: see if Mongodb has commit and rollback (or something equivalent)
