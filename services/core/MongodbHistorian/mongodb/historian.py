@@ -59,7 +59,7 @@ import logging
 import sys
 import dateutil
 import pymongo
-from pymongo import ReplaceOne
+from pymongo import ReplaceOne, InsertOne
 from bson.objectid import ObjectId
 
 import gevent
@@ -145,7 +145,6 @@ def historian(config_path, **kwargs):
                 topic_id = self.topic_map.get(topic, None)
 
                 if topic_id is None:
-                    _log.debug('Inserting topic: {}'.format(topic))
                     row  = db.topics.insert_one({'topic_name': topic})# self.insert_topic(topic)
                     topic_id = row.inserted_id
                     # topic map should hold both a lookup from topic name
@@ -154,9 +153,8 @@ def historian(config_path, **kwargs):
                     self.topic_map[topic_id] = topic
 
                 # Reformat to a filter tha bulk inserter.
-                bulk_publish.append(ReplaceOne({'ts': ts, 'topic_id': topic},
-                    {'ts': ts, 'topic_id': topic_id, 'value': value},
-                    upsert=True))
+                bulk_publish.append(InsertOne(
+                    {'ts': ts, 'topic_id': topic_id, 'value': value}))
 
             # http://api.mongodb.org/python/current/api/pymongo/collection.html#pymongo.collection.Collection.bulk_write
             result = db['data'].bulk_write(bulk_publish)
