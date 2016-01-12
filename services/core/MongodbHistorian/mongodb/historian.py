@@ -195,7 +195,6 @@ def historian(config_path, **kwargs):
 
                 topic_id = self.topic_map.get(topic, None)
 
-
             if not topic_id:
                 return {}
 
@@ -204,26 +203,23 @@ def historian(config_path, **kwargs):
 
             db = self.mongoclient[self.database_name]
 
+            ts_filter = {}
             order_by = 1
             if order == 'LAST_TO_FIRST':
                 order_by = -1
-            if start is None:
-                start = datetime.datetime(2000, 1, 1)
-            if end is None:
-                end = datetime.datetime(3000, 1, 1)
+            if start is not None:
+                ts_filter["$gte"] = start
+            if end is not None:
+                ts_filter["$lte"] = end
             if count is None:
                 count = 100
             skip_count = 0
             if skip > 0:
                 skip_count = skip
 
-
-            cursor = db["data"].find({
-                        "topic_id": ObjectId(topic_id),
-                        #,
-                        "ts": { "$gte": start, "$lte": end}
-                    }).skip(skip_count).limit(count).sort( [ ("ts", order_by) ] )
-            return {'values': values}
+            find_params = {"topic_id": ObjectId(topic_id)}
+            if ts_filter:
+                find_params['ts'] = ts_filter
 
             cursor = db["data"].find(find_params)
             cursor = cursor.skip(skip_count).limit(count)
@@ -232,6 +228,7 @@ def historian(config_path, **kwargs):
             # Create list of tuples for return values.
             values = [(row['ts'].isoformat(), row['value']) for row in cursor]
 
+            return {'values': values}
 
         def get_topic_map(self):
             if self.mongoclient is None:
