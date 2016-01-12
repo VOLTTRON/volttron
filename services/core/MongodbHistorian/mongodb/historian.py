@@ -55,80 +55,50 @@
 from __future__ import absolute_import, print_function
 
 import datetime
-import errno
-import inspect
 import logging
-import os, os.path
-from pprint import pprint
 import sys
-import uuid
+import dateutil
+import pymongo
+from pymongo import ReplaceOne, InsertOne
+from bson.objectid import ObjectId
 
 import gevent
-from zmq.utils import jsonapi
 
 from volttron.platform.vip.agent import *
 from volttron.platform.agent.base_historian import BaseHistorian
 from volttron.platform.agent import utils
-from volttron.platform.messaging import topics, headers as headers_mod
-
-#import sqlhistorian
-#import sqlhistorian.settings
-#import settings
-
-__version__ = "3.0.2"
-
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
 
-
 def historian(config_path, **kwargs):
 
     config = utils.load_config(config_path)
-    connection = config.get('connection', None);
-
+    connection = config.get('connection', None)
     assert connection is not None
+
     databaseType = connection.get('type', None)
     assert databaseType is not None
+
     params = connection.get('params', None)
     assert params is not None
+
+    aggregation = config.get('aggregation', 'minute')
+
+
     identity = config.get('identity', kwargs.pop('identity', None))
 
-    
-    mod_name = databaseType+"functs"
-    mod_name_path = "sqlhistorian.db."+mod_name
-    loaded_mod = __import__(mod_name_path, fromlist=[mod_name])
-    
-    for name, cls in inspect.getmembers(loaded_mod):
-        # assume class is not the root dbdriver
-        if inspect.isclass(cls) and name != 'DbDriver':
-            DbFuncts = cls
-            break
-    try:
-        _log.debug('Historian using module: '+DbFuncts.__name__)
-    except NameError:
-        functerror = 'Invalid module named '+mod_name_path+ "."
-        raise Exception(functerror)
-            
-    class SQLHistorian(BaseHistorian):
+    class MongodbHistorian(BaseHistorian):
         '''This is a simple example of a historian agent that writes stuff
-        to a SQLite database. It is designed to test some of the functionality
+        to Mongodb. It is designed to test some of the functionality
         of the BaseHistorianAgent.
+        This is very similar to SQLHistorian implementation
         '''
 
         @Core.receiver("onstart")
         def starting(self, sender, **kwargs):
-            
-            print('Starting address: {} identity: {}'.format(self.core.address, self.core.identity))
-            try:
-                self.reader = DbFuncts(**connection['params'])
-            except AttributeError:
-                _log.exception('bad connection parameters')
-                self.core.stop()
-                return
-                        
-            self.topic_map = self.reader.get_topic_map()
+            _log.debug('Starting address: {} identity: {}'.format(self.core.address, self.core.identity))
 
             if self.core.identity == 'platform.historian':
                 # Check to see if the platform agent is available, if it isn't then
@@ -144,89 +114,149 @@ def historian(config_path, **kwargs):
                     _log.debug('Could not register historian service')
                 finally:
                     self.vip.pubsub.subscribe('pubsub', '/platform',
-                                              self.__platform)
+                                              self._connect_platform)
                     _log.debug("Listening to /platform")
 
-        def __platform(self, peer, sender, bus, topic, headers, message):
+        def _connect_platform(self, peer, sender, bus, topic, headers, message):
+            ''' Connect to the platform.agent and register service.
+            '''
             _log.debug('Platform is now: {}'.format(message))
             if message == 'available' and \
                     self.core.identity == 'platform.historian':
-                gevent.spawn(self.vip.rpc.call, 'platform.agent', 'register_service',
-                                   self.core.identity)
+                gevent.spawn(self.vip.rpc.call, 'platform.agent',
+                    'register_service', self.core.identity)
                 gevent.sleep(0)
 
         def publish_to_historian(self, to_publish_list):
             _log.debug("publish_to_historian number of items: {}"
                        .format(len(to_publish_list)))
-            
-            # load a topic map if there isn't one yet.
-            try:
-                self.topic_map.items()
-            except:
-                self.topic_map = self.reader.get_topic_map()
 
-            try:
-                real_published = []
-                for x in to_publish_list:
-                    ts = x['timestamp']
-                    topic = x['topic']
-                    value = x['value']
-                    # look at the topics that are stored in the database already
-                    # to see if this topic has a value
-                    topic_id = self.topic_map.get(topic, None)
-    
-                    if topic_id is None:
-                        _log.debug('Inserting topic: {}'.format(topic))
-                        row  = self.writer.insert_topic(topic)
-                        topic_id = row[0]
-                        self.topic_map[topic] = topic_id
-                        _log.debug('TopicId: {} => {}'.format(topic_id, topic))
-                    
-                    if self.writer.insert_data(ts,topic_id, value):
-                        #_log.debug('item was inserted')
-                        real_published.append(x)
-                if len(real_published) > 0:            
-                    if self.writer.commit():
-                        _log.debug('published {} data values'.format(len(to_publish_list)))
-                        self.report_all_handled()
-                    else:
-                        _log.debug('failed to commit so rolling back {} data values'.format(len(to_publish_list)))
-                        self.writer.rollback()
-                else:
-                    _log.debug('Unable to publish {}'.format(len(to_publish_list)))
-            except:
-                self.writer.rollback()
-                # Raise to the platform so it is logged properly.
-                raise
-                
-                
-        def query_topic_list(self):
-            if len(self.topic_map) > 0:
-                return self.topic_map.keys()
+            # Use the db instance to insert/update the topics and data
+            #collections
+            db = self.mongoclient[self.database_name]
+            bulk_publish = []
+            for x in to_publish_list:
+                ts = x['timestamp']
+                topic = x['topic']
+                value = x['value']
+
+                # look at the topics that are stored in the database already
+                # to see if this topic has a value
+                topic_id = self.topic_map.get(topic, None)
+
+                if topic_id is None:
+                    row  = db.topics.insert_one({'topic_name': topic})# self.insert_topic(topic)
+                    topic_id = row.inserted_id
+                    # topic map should hold both a lookup from topic name
+                    # and from id to topic_name.
+                    self.topic_map[topic] = topic_id
+                    self.topic_map[topic_id] = topic
+
+                # Reformat to a filter tha bulk inserter.
+                bulk_publish.append(InsertOne(
+                    {'ts': ts, 'topic_id': topic_id, 'value': value}))
+
+            # http://api.mongodb.org/python/current/api/pymongo/collection.html#pymongo.collection.Collection.bulk_write
+            result = db['data'].bulk_write(bulk_publish)
+
+            # No write errros here when
+            if not result.bulk_api_result['writeErrors']:
+                self.report_all_handled()
             else:
-                # No topics present.
-                return []
+                # TODO handle when something happens during writing of data.
+                _log.error('SOME THINGS DIDNT WORK')
 
         def query_historian(self, topic, start=None, end=None, skip=0,
                             count=None, order="FIRST_TO_LAST"):
-            """This function should return the results of a query in the form:
+            """ Returns the results of the query from the mongo database.
+
+            This historian stores data to the nearest second.  It will not
+            store subsecond resolution data.  This is an optimisation based
+            upon storage for the database.
+
+            This function should return the results of a query in the form:
             {"values": [(timestamp1, value1), (timestamp2, value2), ...],
              "metadata": {"key1": value1, "key2": value2, ...}}
 
-             metadata is not required (The caller will normalize this to {} for you)
+             metadata is not required (The caller will normalize this to {}
+             for you)
             """
-            return self.reader.query(topic, start=start, end=end, skip=skip,
-                                     count=count, order=order)
+
+            try:
+                topic_id = self.topic_map.get(topic, None)
+            except:
+                self.topic_map = {}
+
+                for row in self.mongoclient[self.database_name]['topics'].find():
+                    self.topic_map[row['topic_name']] = row['_id']
+                    self.topic_map[row['_id']] = row['topic_name']
+
+                topic_id = self.topic_map.get(topic, None)
+
+            if not topic_id:
+                return {}
+
+            if self.mongoclient is None:
+                return {}
+
+            db = self.mongoclient[self.database_name]
+
+            ts_filter = {}
+            order_by = 1
+            if order == 'LAST_TO_FIRST':
+                order_by = -1
+            if start is not None:
+                ts_filter["$gte"] = start
+            if end is not None:
+                ts_filter["$lte"] = end
+            if count is None:
+                count = 100
+            skip_count = 0
+            if skip > 0:
+                skip_count = skip
+
+            find_params = {"topic_id": ObjectId(topic_id)}
+            if ts_filter:
+                find_params['ts'] = ts_filter
+
+            cursor = db["data"].find(find_params)
+            cursor = cursor.skip(skip_count).limit(count)
+            cursor = cursor.sort( [ ("ts", order_by) ] )
+
+            # Create list of tuples for return values.
+            values = [(row['ts'].isoformat(), row['value']) for row in cursor]
+
+            return {'values': values}
+
+        def get_topic_map(self):
+            if self.mongoclient is None:
+                return False
+            db = self.mongoclient[self.__connect_params["database"]]
+            cursor = db["topics"].find()
+            res = dict([(document["topic_name"], document["_id"])
+                for document in cursor])
+            return res
 
         def historian_setup(self):
-            try:
-                self.writer = DbFuncts(**connection['params'])
-            except AttributeError as exc:
-                print(exc)
-                self.core.stop()
+            self.mongoclient = None
+            self.__connect_params = connection['params']
+            self.database_name = self.__connect_params['database']
 
-    SQLHistorian.__name__ = 'SQLHistorian'
-    return SQLHistorian(identity=identity, **kwargs)
+            mongo_uri = "mongodb://{user}:{passwd}@{host}:{port}/{database}".format(**self.__connect_params)
+            if 'replicaset' in self.__connect_params:
+                _log.debug('connecting to replicaset: {}'.format(self.__connect_params['replicaset']))
+                self.mongoclient = pymongo.MongoClient(mongo_uri,
+                    replicaset=self.__connect_params['replicaset'])
+            else:
+                self.mongoclient = pymongo.MongoClient(mongo_uri)
+            if self.mongoclient == None:
+                _log.exception("Couldn't connect using specified configuration credentials")
+                self.core.stop()
+            self.topic_map = self.get_topic_map()
+
+
+    MongodbHistorian.__name__ = 'MongodbHistorian'
+    return MongodbHistorian(identity=identity, **kwargs)
 
 
 
@@ -234,10 +264,6 @@ def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
     try:
         utils.vip_main(historian)
-        #utils.default_main(historian,
-        #                   description='Historian agent that saves a history to a sqlite db.',
-        #                   argv=argv,
-        #                   no_pub_sub_socket=True)
     except Exception as e:
         print(e)
         _log.exception('unhandled exception')

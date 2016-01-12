@@ -396,6 +396,9 @@ class PlatformWrapper:
         uuid = aip.remove_agent(agent_uuid)
         return aip.agent_status(uuid)
 
+    def is_agent_running(self, agent_uuid):
+        return self.agent_status is not None
+
     def agent_status(self, agent_uuid):
         # Confirm agent running
         cmd = ['volttron-ctl', 'status', agent_uuid]
