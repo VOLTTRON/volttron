@@ -55,71 +55,66 @@
 # under Contract DE-AC05-76RL01830
 #}}}
 
-from os import environ
-from os import path
 import sys
-import json
+import time
 
-#from distutils.core import setup
-from setuptools import setup, find_packages
+import pytest
+import zmq
 
-# Requirements which must be built separately with the provided options.
-option_requirements = [
-    ('pyzmq>=14.7,<15', ['--zmq=bundled']),
-]
+publish_address = 'ipc:///tmp/volttron-platform-agent-publish'
+subscribe_address = 'ipc:///tmp/volttron-platform-agent-subscribe'
 
-optional_requirements = set()
 
-# For the different keyed in options allow the command paramenter to
-# install the given requirements.
-if path.exists('optional_requirements.json'):
-    with open('optional_requirements.json') as optional:
-        data = json.load(optional)
+ctx = zmq.Context()
 
-        for arg, val in data.items():
-            if arg in sys.argv:
-                for req in val['packages']:
-                    optional_requirements.add(req)
+def broker():
+    pub = zmq.Socket(ctx, zmq.PUB)
+    pull = zmq.Socket(ctx, zmq.PULL)
+    pub.bind('ipc:///tmp/volttron-platform-agent-subscribe')
+    pull.bind('ipc:///tmp/volttron-platform-agent-publish')
+    while True:
+        message = pull.recv_multipart()
+        print message
+        pub.send_multipart(message)
 
-# Requirements in the repository which should be installed as editable.
-local_requirements = [
-]
 
-# Standard requirements
-requirements = [
-    'BACpypes>=0.10,<2',
-    'gevent>=0.13,<2',
-    'monotonic',
-    'pymodbus>=1.2,<2',
-    'setuptools',
-    'simplejson>=3.3,<4',
-    'Smap==2.0.24c780d',
-    'wheel>=0.24,<2',
-]
+def publisher():
+    push = zmq.Socket(ctx, zmq.PUSH)
+    push.connect('ipc:///tmp/volttron-platform-agent-publish')
+    while True:
+        sys.stdout.write('Topic: ')
+        sys.stdout.flush()
+        topic = sys.stdin.readline()
+        sys.stdout.write('Message: ')
+        sys.stdout.flush()
+        message = sys.stdin.readline()
+        push.send_multipart([topic, message])
 
-install_requires = (
-    [req for req, _ in option_requirements] +
-    [req for req, _ in local_requirements] +
-    requirements +
-    [req for req in optional_requirements]
-)
+
+def subscriber():
+    sub = zmq.Socket(ctx, zmq.SUB)
+    sub.connect('ipc:///tmp/volttron-platform-agent-subscribe')
+    sub.subscribe = ''
+    while True:
+        print sub.recv_multipart()
+
+@pytest.mark.slow        
+@pytest.mark.zmq
+def test_broker():
+    pub = zmq.Socket(ctx, zmq.PUB)
+    pull = zmq.Socket(ctx, zmq.PULL)
+    pub.bind('ipc:///tmp/volttron-platform-agent-subscribe')
+    pull.bind('ipc:///tmp/volttron-platform-agent-publish')
+    
+    pub.send_multipart(['topic1', 'Hello world1'])
+    time.sleep(2)
+    pub.send_multipart(['foo', 'bar'])
+    time.sleep(2)
+    pub.send_multipart(['topic2', 'Goodbye'])
+    time.sleep(2)
+    pub.send_multipart(['platform', 'Hello from platform'])
+    time.sleep(2)
+    pub.send_multipart(['platform.shutdown', 'Goodbye'])
 
 if __name__ == '__main__':
-    setup(
-        name = 'volttron',
-        version = '3.0.3',
-        description = 'Agent Execution Platform',
-        author = 'Volttron Team',
-        author_email = 'volttron@pnnl.gov',
-        url = 'https://github.com/VOLTTRON/volttron',
-        packages = find_packages('.'),
-        install_requires = install_requires,
-        entry_points = {
-            'console_scripts': [
-                'volttron = volttron.platform.main:_main',
-                'volttron-ctl = volttron.platform.control:_main',
-                'volttron-pkg = volttron.platform.packaging:_main',
-            ]
-        },
-        zip_safe = False,
-    )
+    subscriber()

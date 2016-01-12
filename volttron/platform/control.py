@@ -141,6 +141,13 @@ class ControlService(BaseAgent):
         self._aip.stop_agent(uuid)
 
     @RPC.export
+    def restart_agent(self, uuid):
+        if not isinstance(uuid, basestring):
+            raise TypeError("expected a string for 'uuid'; got {!r}".format(
+                type(uuid).__name__))
+        self._aip.restart_agent(uuid)
+
+    @RPC.export
     def shutdown(self):
         self._aip.shutdown()
 
@@ -434,6 +441,10 @@ def stop_agent(opts):
                 _stdout.write('Stopping {} {}\n'.format(agent.uuid, agent.name))
                 call('stop_agent', agent.uuid)
 
+def restart_agent(opts):
+    stop_agent(opts)
+    start_agent(opts)
+
 def run_agent(opts):
     call = opts.connection.call
     for directory in opts.directory:
@@ -711,6 +722,10 @@ def main(argv=sys.argv):
         help='stop agent')
     stop.add_argument('pattern', nargs='+', help='UUID or name of agent')
     stop.set_defaults(func=stop_agent)
+
+    restart = add_parser('restart', parents=[filterable], help='restart agent')
+    restart.add_argument('pattern', nargs='+', help='UUID or name of agent')
+    restart.set_defaults(func=restart_agent)
 
     run = add_parser('run',
         help='start any agent by path')
