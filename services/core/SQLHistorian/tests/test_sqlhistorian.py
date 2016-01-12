@@ -64,11 +64,11 @@ MICROSECOND_SUPPORT = True
 
 # Fixtures for setup and teardown
 @pytest.fixture(scope="module",
-                params=[
-                    pytest.mark.skipif(not HAS_MYSQL_CONNECTOR,
-                                       reason='No mysql client available.')(mysql_platform),
-                    sqlite_platform
-                ])
+    params=[
+        pytest.mark.skipif(not HAS_MYSQL_CONNECTOR,
+            reason='No mysql client available.')(mysql_platform),
+            sqlite_platform
+])
 def sqlhistorian(request, volttron_instance1):
     global db_connection, publish_agent, agent_uuid
     print("** Setting up test_sqlhistorian module **")
@@ -156,6 +156,7 @@ def connect_mysql(request):
 
 def connect_sqlite(agent_uuid, request, volttron_instance1):
     global db_connection, MICROSECOND_SUPPORT
+
     database_path = request.param['connection']['params']['database']
     print "connecting to sqlite path " + database_path
     db_connection = sqlite3.connect(database_path)
