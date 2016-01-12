@@ -152,8 +152,6 @@ def historian(config_path, **kwargs):
                     # and from id to topic_name.
                     self.topic_map[topic] = topic_id
                     self.topic_map[topic_id] = topic
-                    _log.debug('TopicId: {} => {}'.format(topic_id, topic))
-
 
                 # Reformat to a filter tha bulk inserter.
                 bulk_publish.append(ReplaceOne({'ts': ts, 'topic_id': topic},
@@ -167,6 +165,7 @@ def historian(config_path, **kwargs):
             if not result.bulk_api_result['writeErrors']:
                 self.report_all_handled()
             else:
+                # TODO handle when something happens during writing of data.
                 _log.error('SOME THINGS DIDNT WORK')
 
         def query_historian(self, topic, start=None, end=None, skip=0,
@@ -196,7 +195,6 @@ def historian(config_path, **kwargs):
 
                 topic_id = self.topic_map.get(topic, None)
 
-            _log.debug('Getting data from topic_id: {} topic: {}'.format(topic_id, topic))
 
             if not topic_id:
                 return {}
@@ -219,106 +217,21 @@ def historian(config_path, **kwargs):
             if skip > 0:
                 skip_count = skip
 
-            # import dateutil.parser as parsedate
-            # start = parsedate.parse('2016-01-12T00:26:31.220Z')
-            #
-            _log.debug('START IS: {}'.format(start))
-            _log.debug('END IS: {}'.format(end))
-            #
-            #
-            # cursor = db['data'].find({
-            #     'topic_id': ObjectId(topic_id),
-            #     'ts': {
-            #         '$gte': start,
-            #     }})
-            # for x in cursor:
-            #     _log.debug('X is found: {}'.format(x))
 
             cursor = db["data"].find({
                         "topic_id": ObjectId(topic_id),
                         #,
                         "ts": { "$gte": start, "$lte": end}
                     }).skip(skip_count).limit(count).sort( [ ("ts", order_by) ] )
-            #TODO: confirm w/ Mongo users what ouput format they 'd like to use
-            #Output as array of tuples.
-            # Each includes hourly timestamp and a dict of min from 0 to 60[(ts, {'0':15,...}),..]
-            #values = [(document.get("ts").isoformat(), document.get("values")) for document in cursor]
-            #Output as array of tuples.
-            values = [(row['ts'].isoformat(), row['value']) for row in cursor]
-            _log.debug('VALUES IS: ', values)
-            _log.debug('COUNT RETURNED: {}'.format(cursor.count()))
-            #v1: dictionary values
-            #  Each includes timestamp and 1 value [(ts,15),(ts2,1),...].
-            # for document in cursor:
-            #     out = document.get("values")
-            #     ts = document.get("ts")
-            #     for key, value in out.iteritems():
-            #         if value is not None:
-            #             values.append(((ts + datetime.timedelta(minutes=int(key))).isoformat(), value))
-            #v2: array values
-            # for document in cursor:
-            #     out = document.get("values")
-            #     ts = document.get("ts")
-            #     for idx, value in enumerate(out):
-            #         if value is not None:
-            #             values.append(((ts + datetime.timedelta(minutes=idx)).isoformat(), value))
             return {'values': values}
 
-        #TODO: see if Mongodb has commit and rollback (or something equivalent)
-        def commit(self):
-            return True
+            cursor = db["data"].find(find_params)
+            cursor = cursor.skip(skip_count).limit(count)
+            cursor = cursor.sort( [ ("ts", order_by) ] )
 
-        def rollback(self):
-            return True
+            # Create list of tuples for return values.
+            values = [(row['ts'].isoformat(), row['value']) for row in cursor]
 
-        def insert_data(self, ts, topic_id, data):
-            #set and setOnInsert don't work on 1 document at the same time
-            #db.ts.update({x:4},{
-            #   $set: {"values.59": 737},
-            #   $setOnInsert: {"values": {"0": -1.0, "1": -1.0}}},
-            # {upsert: true})
-            #throws "Cannot update 'values.59' and 'values' at the same time"
-            if self.mongoclient is None:
-                return False
-            db = self.mongoclient[self.__connect_params["database"]]
-            #
-            new_dt = datetime.datetime(ts.year, ts.month, ts.day, hour=ts.hour,
-                tzinfo=ts.tzinfo)
-            count = db["data"].find({
-                        "topic_id": topic_id,
-                        "ts": new_dt,
-                    }).count()
-
-            if count==0:
-                #init_values = {str(key): None for key in xrange(0,60)}
-                init_values = [None for i in xrange(60)]
-                init_values[ts.minute] = data
-                id_ = db["data"].insert({
-                            "ts": new_dt,
-                            "topic_id": topic_id,
-                            "num_samples": 1,
-                            "sum_samples": data,
-                            "values": init_values
-                        })
-            else:
-                db["data"].update(
-                        {
-                            "topic_id": topic_id,
-                            "ts": new_dt,
-                        },
-                        {
-                            "$set": {"values." + str(ts.minute): data },
-                            "$inc": {"num_samples": 1, "sum_samples": data }
-                        }, True)
-
-            return True
-
-        def insert_topic(self, topic):
-            if self.mongoclient is None:
-                return False
-            db = self.mongoclient[self.__connect_params["database"]]
-            id_ = db["topics"].insert({"topic_name": topic})
-            return [id_]
 
         def get_topic_map(self):
             if self.mongoclient is None:
@@ -327,7 +240,6 @@ def historian(config_path, **kwargs):
             cursor = db["topics"].find()
             res = dict([(document["topic_name"], document["_id"])
                 for document in cursor])
-            _log.debug("TOPIC MAP RESULT {}".format(res))
             return res
 
         def historian_setup(self):
