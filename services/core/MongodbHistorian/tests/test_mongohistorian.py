@@ -209,6 +209,7 @@ def test_two_hours_of_publishing(request, volttron_instance1, database_client):
     for row in db.topics.find():
         topic_to_id[row['topic_name']] = row['_id']
 
+    gevent.sleep(0.1)
     for d, v in expected.items():
         assert db['data'].find({'ts': d}).count() == 3
 
