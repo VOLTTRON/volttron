@@ -181,12 +181,11 @@ def historian(config_path, **kwargs):
              metadata is not required (The caller will normalize this to {}
              for you)
             """
-
             try:
                 topic_id = self.topic_map.get(topic, None)
             except:
                 self.topic_map = {}
-
+                _log.debug('CONNECTED TO {}'.format(self.database_name))
                 for row in self.mongoclient[self.database_name]['topics'].find():
                     self.topic_map[row['topic_name']] = row['_id']
                     self.topic_map[row['_id']] = row['topic_name']
@@ -230,25 +229,46 @@ def historian(config_path, **kwargs):
 
         def get_topic_map(self):
             if self.mongoclient is None:
-                return False
-            db = self.mongoclient[self.__connect_params["database"]]
+                return None
+            db = self.mongoclient[self.database_name]
             cursor = db["topics"].find()
             res = dict([(document["topic_name"], document["_id"])
                 for document in cursor])
             return res
 
         def historian_setup(self):
+            _log.debug("HISTORIAN SETUP")
             self.mongoclient = None
-            self.__connect_params = connection['params']
-            self.database_name = self.__connect_params['database']
+            self._params = connection['params']
+            self.database_name = self._params['database']
+            hosts = connection['params']['host']
+            ports = connection['params']['port']
+            user = connection['params']['user']
+            passwd = connection['params']['passwd']
 
-            mongo_uri = "mongodb://{user}:{passwd}@{host}:{port}/{database}".format(**self.__connect_params)
-            if 'replicaset' in self.__connect_params:
-                _log.debug('connecting to replicaset: {}'.format(self.__connect_params['replicaset']))
-                self.mongoclient = pymongo.MongoClient(mongo_uri,
-                    replicaset=self.__connect_params['replicaset'])
+    	    if isinstance(hosts, list):
+                if not ports:
+                    hosts=','.join(hosts)
+    	        else:
+                    if len(ports) != len(hosts):
+                        _log.exception('port an hosts must have the same number of items')
+                        self.core.stop()
+    	            hostports = zip(hosts,ports)
+                    hostports = [str(e[0])+':'+str(e[1]) for e in hostports]
+                    hosts = ','.join(hostports)
             else:
-                self.mongoclient = pymongo.MongoClient(mongo_uri)
+    	        if isinstance(ports, list):
+                    _log.exception('port cannot be a list if hosts is not also a list.')
+                    self.core.stop()
+                hosts = '{}:{}'.format(hosts,ports)
+
+            self._params = {'hostsandports': hosts, 'user': user,
+                'passwd': passwd, 'database': self.database_name}
+
+            mongo_uri = "mongodb://{user}:{passwd}@{hostsandports}/{database}"
+            mongo_uri = mongo_uri.format(**self._params)
+            print(mongo_uri)
+            self.mongoclient = pymongo.MongoClient(mongo_uri)
             if self.mongoclient == None:
                 _log.exception("Couldn't connect using specified configuration credentials")
                 self.core.stop()
