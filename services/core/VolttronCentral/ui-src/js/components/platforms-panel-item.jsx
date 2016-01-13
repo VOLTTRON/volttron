@@ -4,6 +4,7 @@ var React = require('react');
 var Router = require('react-router');
 
 var platformsPanelItemsStore = require('../stores/platforms-panel-items-store');
+var platformsPanelActionCreators = require('../action-creators/platforms-panel-action-creators');
 
 var PlatformsPanelItem = React.createClass({
     getInitialState: function () {
@@ -11,50 +12,85 @@ var PlatformsPanelItem = React.createClass({
         
         state.expanded = null;
 
-        state.children = [];
+        state.children = getChildrenFromStore(this.props.panelItem, this.props.itemPath);
 
         return state;
     },
-    // componentDidMount: function () {
-    //     platformsPanelStore.addChangeListener(this._onStoresChange);
-    // },
-    // componentWillUnmount: function () {
-    //     platformsPanelStore.removeChangeListener(this._onStoresChange);
-    // },
+    componentDidMount: function () {
+        platformsPanelItemsStore.addChangeListener(this._onStoresChange);
+    },
+    componentWillMount: function () {
+        platformsPanelActionCreators.loadChildren(this.props.panelItem.type, this.props.panelItem);
+    },
+    componentWillUnmount: function () {
+        platformsPanelItemsStore.removeChangeListener(this._onStoresChange);
+    },
     _onStoresChange: function () {
 
-        if (this.state.expanded)
-        {
-            this.setState({children: getChildren(this.props.panelItem, this.props.itemPath)}); 
-        }       
+        // if (this.state.expanded)
+        // {
+        //     this.setState({children: getItemsFromStore(this.props.panelItem, this.props.itemPath)}); 
+        // }       
+
+        var children = getChildrenFromStore(this.props.panelItem, this.props.itemPath);
+
+        this.setState({children: children});
+
+        // if (children.length > 0)
+        // {
+        //     this.setState({expanded: true});
+        // }
     },
     _toggleItem: function () {
 
-        if (this.state.expanded === null)
-        {
-            var children = [];
+        // if (this.state.expanded === null)
+        // {
+        //     this.setState({expanded: true});
 
-            if (this.state.children.length === 0)
-            {
-                children = getChildren(this.props.panelItem, this.props.itemPath);
-                this.setState({children: children});
-            }
-            else
-            {
-                children = this.state.children;
-            }
+        //     var panelItem = this.props.panelItem;
 
-            if (children.length > 0)
-            {
-                this.setState({expanded: true});
-            }
-        }
-        else
+        //     platformsPanelActionCreators.loadChildren(panelItem.type, panelItem);
+            
+
+
+        //     // var children = [];
+
+        //     // if (this.state.children.length === 0)
+        //     // {
+        //     //     // children = getItemsFromStore(this.props.panelItem, this.props.itemPath);
+        //     //     // this.setState({children: children});
+
+        //     //     // var panelItem = this.props.panelItem;
+
+        //     //     // platformsPanelActionCreators.loadPanelItems(panelItem.type, panelItem);
+
+        //     //     // this.props.panelItem.children.forEach(function (child) {
+                    
+        //     //     //     platformsPanelActionCreators.loadPanelItems(panelItem[child], panelItem);
+        //     //     // });
+                
+        //     // }
+        //     // else
+        //     // {
+        //     //     children = this.state.children;
+        //     // }
+
+        //     // if (children.length > 0)
+        //     // {
+        //     //     this.setState({expanded: true});
+        //     // }
+        // }
+        // else
+        // {
+        //     if (this.state.children.length > 0)
+        //     {
+        //         this.setState({expanded: !this.state.expanded});
+        //     }
+        // }
+
+        if (this.state.children.length > 0)
         {
-            if (this.state.children.length > 0)
-            {
-                this.setState({expanded: !this.state.expanded});
-            }
+            this.setState({expanded: !this.state.expanded});
         }
     },
     _checkItem: function () {
@@ -76,7 +112,7 @@ var PlatformsPanelItem = React.createClass({
         var checkboxClass = "panelItemCheckbox";
 
         var checkboxStyle = {
-            display : (["device", "point"].indexOf(panelItem.type) < 0 ? "none" : "block")
+            display : (["point"].indexOf(panelItem.type) < 0 ? "none" : "block")
         };
 
         // var childrenItems = [];
@@ -114,10 +150,10 @@ var PlatformsPanelItem = React.createClass({
         if (!panelItem.hasOwnProperty("uuid"))
         {
             listItem = <div>
-                        {panelItem.name}
-                    </div>;
-                
-            
+                            <b>
+                                {panelItem.name}
+                            </b>
+                        </div>;
         }
         else
         {
@@ -128,8 +164,7 @@ var PlatformsPanelItem = React.createClass({
                         >
                         {panelItem.name}
                         </Router.Link>
-                    </div>;
-            
+                    </div>;            
         }
         
 
@@ -153,11 +188,21 @@ var PlatformsPanelItem = React.createClass({
                     
                     if (childItems.length > 0)
                     {
-                        children = childItems.map(function (child) {                            
-                            return (
-                                <PlatformsPanelItem panelItem={child} itemPath={child.path}/>
-                            );
-                        }, this);
+                        children = childItems
+                            .sort(function (a, b) {
+                                if (a.name.toUpperCase() > b.name.toUpperCase()) { return 1; }
+                                if (a.name.toUpperCase() < b.name.toUpperCase()) { return -1; }
+                                return 0;
+                            })
+                            .sort(function (a, b) {
+                                if (a.sortOrder > b.sortOrder) { return 1; }
+                                if (a.sortOrder < b.sortOrder) { return -1; }
+                                return 0;
+                            })
+                            .map(function (child) {                            
+                                return (
+                                    <PlatformsPanelItem panelItem={child} itemPath={child.path}/>
+                                );}, this);
                     }
                 }
             }
@@ -195,35 +240,13 @@ var PlatformsPanelItem = React.createClass({
     },
 });
 
-function getChildren(parent, parentPath)
-{
-    // var childList = [];
-
-    
-    // if (parent.hasOwnProperty("children")) //parent is an actual object and its children are object types
-    // {
-    //     var children = parent.children.slice(0);
-
-    //     for (var i = 0; i < children.length; i++) // for each child, create an object with a path property
-    //     {
-    //         var child = children[i];
-    //         var childPath = parentPath.slice(0);
-    //         childPath.push(child);
-
-    //         childList.push({child: {"path": childPath, "name": child} });
-    //     }        
-    // }
-    // else // parent is an object type and its children are actual objects
-    // {
-    //     childList = getItemsFromStore(parent, parentPath);
-    // }
-
-    
-    return getItemsFromStore(parent, parentPath);
-}
+// function getChildren(parent, parentPath)
+// {
+//     return getItemsFromStore(parent, parentPath);
+// }
 
 
-function getItemsFromStore(parentItem, parentPath) {
+function getChildrenFromStore(parentItem, parentPath) {
     return platformsPanelItemsStore.getItems(parentItem, parentPath);
 }
 

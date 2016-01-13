@@ -520,7 +520,7 @@ br + .form__control-help {
     animation: agent-reveal 1s;
     animation-fill-mode: forwards;*/
     height: 100%;
-    overflow: hidden;
+    overflow: visible;
 
     transition: height 2s ease-out;
     -moz-transition: height 2s; /* Firefox 4 */

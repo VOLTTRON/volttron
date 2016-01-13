@@ -7,17 +7,19 @@ var platformsPanelStore = require('../stores/platforms-panel-store');
 var platformsPanelItemsStore = require('../stores/platforms-panel-items-store');
 var platformsPanelActionCreators = require('../action-creators/platforms-panel-action-creators');
 var PlatformsPanelItem = require('./platforms-panel-item');
-var platformsPanelAgentStore = require('../stores/platforms-panel-agent-store');
 
 
 var PlatformsPanel = React.createClass({
     getInitialState: function () {
         var state = {};
-        state.platforms = getPlatformsFromStore();   
+        state.platforms = [];   
         state.expanded = getExpandedFromStore();
         state.filterValue = "";
 
         return state;
+    },
+    componentWillMount: function () {
+        platformsPanelActionCreators.loadPanelPlatforms();
     },
     componentDidMount: function () {
         platformsPanelStore.addChangeListener(this._onStoresChange);
@@ -101,11 +103,6 @@ var PlatformsPanel = React.createClass({
                             onChange={this._onFilterBoxChange}
                             value={this.state.filterValue}
                         />
-                        <input
-                            className="filter_button"
-                            type="button"
-                            onClick={this._filterItems}
-                        />
                     </div>
                     <ul className="platform-panel-list">
                         {platforms}
@@ -115,6 +112,10 @@ var PlatformsPanel = React.createClass({
         );
     },
 });
+
+function getItemsFromStore(parentItem, parentPath) {
+    return platformsPanelItemsStore.getItems(parentItem, parentPath);
+};
 
 function getPlatformsFromStore() {
     return platformsPanelItemsStore.getItems("platforms", null);

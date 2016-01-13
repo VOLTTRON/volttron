@@ -621,48 +621,143 @@ var platformsPanelActionCreators = {
         });
     },
 
-    loadPlatformsPanel: function () {
+    loadPanelPlatforms: function () {
+        if (!authorizationStore.getAuthorization()) { return; }
+
+        
+
         var authorization = authorizationStore.getAuthorization();
 
-        var platforms = [
-            {
-                "uuid": "0987fedc-65ba-43fe-21dc-098765bafedc",
-                "name": "vc",
-                "status": "GOOD"
-            },
-            {
-                "uuid": "2291fedc-65ba-43fe-21dc-098765bafedc",
-                "name": "vc1",
-                "status": "BAD"
-            },
-            {
-                "uuid": "4837fedc-65ba-43fe-21dc-098765bafedc",
-                "name": "vc2",
-                "status": "UNKNOWN"
-            }
-        ];
+        return new rpc.Exchange({
+            method: 'list_platforms',
+            authorization: authorization,
+        }).promise
+            .then(function (platforms) {
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.RECEIVE_PLATFORM_STATUSES,
+                    platforms: platforms,
+                });
 
-        // dispatcher.dispatch({
-        //     type: ACTION_TYPES.RECEIVE_PLATFORM_STATUSES,
-        //     platforms: platforms,
-        // });
-
-        // return new rpc.Exchange({
-        //     method: 'list_platforms',
-        //     authorization: authorization,
-        // }).promise
-        //     .then(function (platforms) {
-        //         dispatcher.dispatch({
-        //             type: ACTION_TYPES.RECEIVE_PLATFORM_STATUSES,
-        //             platforms: platforms,
-        //         });
-                
-        //     })
-        //     .catch(rpc.Error, handle401);
+                // platforms.forEach(function (platform) {
+                //     platformActionCreators.loadPlatform(platform);
+                // });
+            })
+            .catch(rpc.Error, handle401);
         
+    },
+
+    loadChildren: function(type, parent)
+    {
+        switch (type)
+        {
+            case "platform":
+                platformsPanelActionCreators.loadPanelAgents(parent);
+                platformsPanelActionCreators.loadPanelBuildings(parent);
+                platformsPanelActionCreators.loadPanelPoints(parent);
+                break;
+            case "building":
+                platformsPanelActionCreators.loadPanelDevices(parent);
+                platformsPanelActionCreators.loadPanelPoints(parent);
+                break;
+            case "device":
+                platformsPanelActionCreators.loadPanelPoints(parent);
+                platformsPanelActionCreators.loadPanelDevices(parent);
+                break;
+            case "type":
+
+                for (var i = 0; i < parent.children.length; i++)
+                {
+                    platformsPanelActionCreators.loadChildren(parent[parent.children[i]].type, parent[parent.children[i]]);
+                }
+
+                // for (var i = 0; i < parent.children.length; i++)
+                // {
+                //     platformsPanelActionCreators.loadChildren(parent.children[i], parent[parent.children[i]]);
+                // }
+                break;
+            default:
+
+        }
+    },
+    loadPanelPoints: function (parent) {
+        dispatcher.dispatch({
+            type: ACTION_TYPES.RECEIVE_POINT_STATUSES,
+            platform: parent
+        });
+    },
+    loadPanelDevices: function (parent) {
+        dispatcher.dispatch({
+            type: ACTION_TYPES.RECEIVE_DEVICE_STATUSES,
+            platform: parent
+        });
+    },
+    loadPanelBuildings: function (platform) {
+        dispatcher.dispatch({
+            type: ACTION_TYPES.RECEIVE_BUILDING_STATUSES,
+            platform: platform
+        });
+    },
+    loadPanelAgents: function (platform) {
+        var authorization = authorizationStore.getAuthorization();
+
+        new rpc.Exchange({
+            method: 'platforms.uuid.' + platform.uuid + '.list_agents',
+            authorization: authorization,
+        }).promise
+            .then(function (agentsList) {
+                // platform.agents = agentsList;
+
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.RECEIVE_AGENT_STATUSES,
+                    platform: platform,
+                    agents: agentsList
+                });
+
+                // if (!agentsList.length) { return; }
+
+                // new rpc.Exchange({
+                //     method: 'platforms.uuid.' + platform.uuid + '.status_agents',
+                //     authorization: authorization,
+                // }).promise
+                //     .then(function (agentStatuses) {
+                //         platform.agents.forEach(function (agent) {
+                //             if (!agentStatuses.some(function (status) {
+                //                 if (agent.uuid === status.uuid) {
+                //                     agent.actionPending = false;
+                //                     agent.process_id = status.process_id;
+                //                     agent.return_code = status.return_code;
+
+                //                     return true;
+                //                 }
+                //             })) {
+                //                 agent.actionPending = false;
+                //                 agent.process_id = null;
+                //                 agent.return_code = null;
+                //             }
+
+                //         });
+
+                //         dispatcher.dispatch({
+                //             type: ACTION_TYPES.RECEIVE_PLATFORM,
+                //             platform: platform,
+                //         });
+                //     });
+            })
+            .catch(rpc.Error, handle401);
     },
 };
 
+
+function handle401(error) {
+    if (error.code && error.code === 401) {
+        dispatcher.dispatch({
+            type: ACTION_TYPES.RECEIVE_UNAUTHORIZED,
+            error: error,
+        });
+
+        platformManagerActionCreators.clearAuthorization();
+    }
+};
 
 module.exports = platformsPanelActionCreators;
 
@@ -803,7 +898,7 @@ function getStateFromStores(platform, chart) {
 module.exports = Chart;
 
 
-},{"../action-creators/platform-action-creators":4,"../stores/topic-data-store":47,"./line-chart":17,"react":undefined}],9:[function(require,module,exports){
+},{"../action-creators/platform-action-creators":4,"../stores/topic-data-store":46,"./line-chart":17,"react":undefined}],9:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1090,7 +1185,7 @@ function getStateFromStores() {
 module.exports = Dashboard;
 
 
-},{"../action-creators/modal-action-creators":3,"../stores/platforms-store":46,"./chart":8,"./edit-chart-form":15,"react":undefined,"react-router":undefined}],14:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../stores/platforms-store":45,"./chart":8,"./edit-chart-form":15,"react":undefined,"react-router":undefined}],14:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1882,7 +1977,7 @@ function getStateFromStores() {
 module.exports = PlatformManager;
 
 
-},{"../action-creators/console-action-creators":2,"../action-creators/modal-action-creators":3,"../action-creators/platform-manager-action-creators":5,"../stores/authorization-store":38,"../stores/console-store":39,"../stores/modal-store":41,"../stores/platforms-panel-store":45,"./console":11,"./modal":19,"./navigation":20,"./platforms-panel":25,"jquery":undefined,"react":undefined,"react-router":undefined}],23:[function(require,module,exports){
+},{"../action-creators/console-action-creators":2,"../action-creators/modal-action-creators":3,"../action-creators/platform-manager-action-creators":5,"../stores/authorization-store":38,"../stores/console-store":39,"../stores/modal-store":41,"../stores/platforms-panel-store":44,"./console":11,"./modal":19,"./navigation":20,"./platforms-panel":25,"jquery":undefined,"react":undefined,"react-router":undefined}],23:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2086,13 +2181,14 @@ function getStateFromStores(component) {
 module.exports = Platform;
 
 
-},{"../action-creators/modal-action-creators":3,"../action-creators/platform-action-creators":4,"../stores/platforms-store":46,"./agent-row":7,"./chart":8,"./confirm-form":10,"./edit-chart-form":15,"react":undefined,"react-router":undefined}],24:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../action-creators/platform-action-creators":4,"../stores/platforms-store":45,"./agent-row":7,"./chart":8,"./confirm-form":10,"./edit-chart-form":15,"react":undefined,"react-router":undefined}],24:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
 var Router = require('react-router');
 
 var platformsPanelItemsStore = require('../stores/platforms-panel-items-store');
+var platformsPanelActionCreators = require('../action-creators/platforms-panel-action-creators');
 
 var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
     getInitialState: function () {
@@ -2100,50 +2196,85 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
         
         state.expanded = null;
 
-        state.children = [];
+        state.children = getChildrenFromStore(this.props.panelItem, this.props.itemPath);
 
         return state;
     },
-    // componentDidMount: function () {
-    //     platformsPanelStore.addChangeListener(this._onStoresChange);
-    // },
-    // componentWillUnmount: function () {
-    //     platformsPanelStore.removeChangeListener(this._onStoresChange);
-    // },
+    componentDidMount: function () {
+        platformsPanelItemsStore.addChangeListener(this._onStoresChange);
+    },
+    componentWillMount: function () {
+        platformsPanelActionCreators.loadChildren(this.props.panelItem.type, this.props.panelItem);
+    },
+    componentWillUnmount: function () {
+        platformsPanelItemsStore.removeChangeListener(this._onStoresChange);
+    },
     _onStoresChange: function () {
 
-        if (this.state.expanded)
-        {
-            this.setState({children: getChildren(this.props.panelItem, this.props.itemPath)}); 
-        }       
+        // if (this.state.expanded)
+        // {
+        //     this.setState({children: getItemsFromStore(this.props.panelItem, this.props.itemPath)}); 
+        // }       
+
+        var children = getChildrenFromStore(this.props.panelItem, this.props.itemPath);
+
+        this.setState({children: children});
+
+        // if (children.length > 0)
+        // {
+        //     this.setState({expanded: true});
+        // }
     },
     _toggleItem: function () {
 
-        if (this.state.expanded === null)
-        {
-            var children = [];
+        // if (this.state.expanded === null)
+        // {
+        //     this.setState({expanded: true});
 
-            if (this.state.children.length === 0)
-            {
-                children = getChildren(this.props.panelItem, this.props.itemPath);
-                this.setState({children: children});
-            }
-            else
-            {
-                children = this.state.children;
-            }
+        //     var panelItem = this.props.panelItem;
 
-            if (children.length > 0)
-            {
-                this.setState({expanded: true});
-            }
-        }
-        else
+        //     platformsPanelActionCreators.loadChildren(panelItem.type, panelItem);
+            
+
+
+        //     // var children = [];
+
+        //     // if (this.state.children.length === 0)
+        //     // {
+        //     //     // children = getItemsFromStore(this.props.panelItem, this.props.itemPath);
+        //     //     // this.setState({children: children});
+
+        //     //     // var panelItem = this.props.panelItem;
+
+        //     //     // platformsPanelActionCreators.loadPanelItems(panelItem.type, panelItem);
+
+        //     //     // this.props.panelItem.children.forEach(function (child) {
+                    
+        //     //     //     platformsPanelActionCreators.loadPanelItems(panelItem[child], panelItem);
+        //     //     // });
+                
+        //     // }
+        //     // else
+        //     // {
+        //     //     children = this.state.children;
+        //     // }
+
+        //     // if (children.length > 0)
+        //     // {
+        //     //     this.setState({expanded: true});
+        //     // }
+        // }
+        // else
+        // {
+        //     if (this.state.children.length > 0)
+        //     {
+        //         this.setState({expanded: !this.state.expanded});
+        //     }
+        // }
+
+        if (this.state.children.length > 0)
         {
-            if (this.state.children.length > 0)
-            {
-                this.setState({expanded: !this.state.expanded});
-            }
+            this.setState({expanded: !this.state.expanded});
         }
     },
     _checkItem: function () {
@@ -2165,7 +2296,7 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
         var checkboxClass = "panelItemCheckbox";
 
         var checkboxStyle = {
-            display : (["device", "point"].indexOf(panelItem.type) < 0 ? "none" : "block")
+            display : (["point"].indexOf(panelItem.type) < 0 ? "none" : "block")
         };
 
         // var childrenItems = [];
@@ -2203,10 +2334,10 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
         if (!panelItem.hasOwnProperty("uuid"))
         {
             listItem = React.createElement("div", null, 
-                        panelItem.name
-                    );
-                
-            
+                            React.createElement("b", null, 
+                                panelItem.name
+                            )
+                        );
         }
         else
         {
@@ -2217,8 +2348,7 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
                         }, 
                         panelItem.name
                         )
-                    );
-            
+                    );            
         }
         
 
@@ -2242,11 +2372,21 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
                     
                     if (childItems.length > 0)
                     {
-                        children = childItems.map(function (child) {                            
-                            return (
-                                React.createElement(PlatformsPanelItem, {panelItem: child, itemPath: child.path})
-                            );
-                        }, this);
+                        children = childItems
+                            .sort(function (a, b) {
+                                if (a.name.toUpperCase() > b.name.toUpperCase()) { return 1; }
+                                if (a.name.toUpperCase() < b.name.toUpperCase()) { return -1; }
+                                return 0;
+                            })
+                            .sort(function (a, b) {
+                                if (a.sortOrder > b.sortOrder) { return 1; }
+                                if (a.sortOrder < b.sortOrder) { return -1; }
+                                return 0;
+                            })
+                            .map(function (child) {                            
+                                return (
+                                    React.createElement(PlatformsPanelItem, {panelItem: child, itemPath: child.path})
+                                );}, this);
                     }
                 }
             }
@@ -2284,42 +2424,20 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
     },
 });
 
-function getChildren(parent, parentPath)
-{
-    // var childList = [];
-
-    
-    // if (parent.hasOwnProperty("children")) //parent is an actual object and its children are object types
-    // {
-    //     var children = parent.children.slice(0);
-
-    //     for (var i = 0; i < children.length; i++) // for each child, create an object with a path property
-    //     {
-    //         var child = children[i];
-    //         var childPath = parentPath.slice(0);
-    //         childPath.push(child);
-
-    //         childList.push({child: {"path": childPath, "name": child} });
-    //     }        
-    // }
-    // else // parent is an object type and its children are actual objects
-    // {
-    //     childList = getItemsFromStore(parent, parentPath);
-    // }
-
-    
-    return getItemsFromStore(parent, parentPath);
-}
+// function getChildren(parent, parentPath)
+// {
+//     return getItemsFromStore(parent, parentPath);
+// }
 
 
-function getItemsFromStore(parentItem, parentPath) {
+function getChildrenFromStore(parentItem, parentPath) {
     return platformsPanelItemsStore.getItems(parentItem, parentPath);
 }
 
 module.exports = PlatformsPanelItem;
 
 
-},{"../stores/platforms-panel-items-store":44,"react":undefined,"react-router":undefined}],25:[function(require,module,exports){
+},{"../action-creators/platforms-panel-action-creators":6,"../stores/platforms-panel-items-store":43,"react":undefined,"react-router":undefined}],25:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2329,17 +2447,19 @@ var platformsPanelStore = require('../stores/platforms-panel-store');
 var platformsPanelItemsStore = require('../stores/platforms-panel-items-store');
 var platformsPanelActionCreators = require('../action-creators/platforms-panel-action-creators');
 var PlatformsPanelItem = require('./platforms-panel-item');
-var platformsPanelAgentStore = require('../stores/platforms-panel-agent-store');
 
 
 var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
     getInitialState: function () {
         var state = {};
-        state.platforms = getPlatformsFromStore();   
+        state.platforms = [];   
         state.expanded = getExpandedFromStore();
         state.filterValue = "";
 
         return state;
+    },
+    componentWillMount: function () {
+        platformsPanelActionCreators.loadPanelPlatforms();
     },
     componentDidMount: function () {
         platformsPanelStore.addChangeListener(this._onStoresChange);
@@ -2422,11 +2542,6 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
                             type: "text", 
                             onChange: this._onFilterBoxChange, 
                             value: this.state.filterValue}
-                        ), 
-                        React.createElement("input", {
-                            className: "filter_button", 
-                            type: "button", 
-                            onClick: this._filterItems}
                         )
                     ), 
                     React.createElement("ul", {className: "platform-panel-list"}, 
@@ -2437,6 +2552,10 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
         );
     },
 });
+
+function getItemsFromStore(parentItem, parentPath) {
+    return platformsPanelItemsStore.getItems(parentItem, parentPath);
+};
 
 function getPlatformsFromStore() {
     return platformsPanelItemsStore.getItems("platforms", null);
@@ -2474,7 +2593,7 @@ function filteredChildren(platform, filterTerm) {
 module.exports = PlatformsPanel;
 
 
-},{"../action-creators/platforms-panel-action-creators":6,"../stores/platforms-panel-agent-store":43,"../stores/platforms-panel-items-store":44,"../stores/platforms-panel-store":45,"./platforms-panel-item":24,"react":undefined,"react-router":undefined}],26:[function(require,module,exports){
+},{"../action-creators/platforms-panel-action-creators":6,"../stores/platforms-panel-items-store":43,"../stores/platforms-panel-store":44,"./platforms-panel-item":24,"react":undefined,"react-router":undefined}],26:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2589,7 +2708,7 @@ function getStateFromStores() {
 module.exports = Platforms;
 
 
-},{"../action-creators/modal-action-creators":3,"../components/deregister-platform-confirmation":14,"../components/register-platform-form":27,"../stores/platforms-store":46,"react":undefined,"react-router":undefined}],27:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../components/deregister-platform-confirmation":14,"../components/register-platform-form":27,"../stores/platforms-store":45,"react":undefined,"react-router":undefined}],27:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2885,6 +3004,11 @@ module.exports = keyMirror({
 
     RECEIVE_PLATFORM_STATUSES: null,
     TOGGLE_PLATFORMS_PANEL: null,
+
+    RECEIVE_AGENT_STATUSES: null,
+    RECEIVE_DEVICE_STATUSES: null,
+    RECEIVE_POINT_STATUSES: null,
+    RECEIVE_BUILDING_STATUSES: null,
 
     RECEIVE_PLATFORM_TOPIC_DATA: null,
 });
@@ -3356,98 +3480,10 @@ var ACTION_TYPES = require('../constants/action-types');
 var dispatcher = require('../dispatcher');
 var Store = require('../lib/store');
 
-var _agents = {
-            "0987fedc-65ba-43fe-21dc-098765bafedc":
-            [
-                {
-                    "uuid": "0987fedc-65ba-43fe-21dc-098765bafedc",
-                    "name": "Volttron Central",
-                    "status": "GOOD"
-                },
-                {
-                    "uuid": "2291fedc-65ba-43fe-21dc-098765bafedc",
-                    "name": "Platform Agent",
-                    "status": "BAD"
-                },
-                {
-                    "uuid": "4837fedc-65ba-43fe-21dc-098765bafedc",
-                    "name": "SqlHistorian",
-                    "status": "UNKNOWN"
-                }
-            ],
-            "2291fedc-65ba-43fe-21dc-098765bafedc":
-            [ 
-                {
-                    "uuid": "0987fedc-65ba-43fe-21dc-098765bafedc",
-                    "name": "Husky Agent",
-                    "status": "GOOD"
-                },
-                {
-                    "uuid": "2291fedc-65ba-43fe-21dc-098765bafedc",
-                    "name": "Listener Agent",
-                    "status": "BAD"
-                },
-                {
-                    "uuid": "4837fedc-65ba-43fe-21dc-098765bafedc",
-                    "name": "SqlLiteHistorian",
-                    "status": "UNKNOWN"
-                }
-            ],
-            "4837fedc-65ba-43fe-21dc-098765bafedc":
-            [
-                {
-                    "uuid": "0987fedc-65ba-43fe-21dc-098765bafedc",
-                    "name": "Cougar Agent",
-                    "status": "GOOD"
-                },
-                {
-                    "uuid": "2291fedc-65ba-43fe-21dc-098765bafedc",
-                    "name": "Platform Agent",
-                    "status": "BAD"
-                },
-                {
-                    "uuid": "4837fedc-65ba-43fe-21dc-098765bafedc",
-                    "name": "SqlLiteHistorian",
-                    "status": "UNKNOWN"
-                }
-            ]
-        };
-
-var _expanded = false;
-
-var platformsPanelAgentStore = new Store();
-
-platformsPanelAgentStore.getAgents = function (platform) {
-    if (_agents.hasOwnProperty(platform.uuid))
-    {
-        return _agents[platform.uuid];
-    }
-    else
-    {
-        return [];
-    }
-};
-
-platformsPanelAgentStore.dispatchToken = dispatcher.register(function (action) {
-
-    switch (action.type) {
-
-        case ACTION_TYPES.RECEIVE_AGENT_STATUSES:
-            _agents = action.agents;
-            platformsPanelStore.emitChange();
-            break;
-    }
-});
-
-module.exports = platformsPanelAgentStore;
-
-
-},{"../constants/action-types":29,"../dispatcher":30,"../lib/store":34}],44:[function(require,module,exports){
-'use strict';
-
-var ACTION_TYPES = require('../constants/action-types');
-var dispatcher = require('../dispatcher');
-var Store = require('../lib/store');
+var _pointsOrder = 0;
+var _devicesOrder = 1;
+var _buildingsOrder = 2;
+var _agentsOrder = 3;
 
 var _items = {
     "platforms": {
@@ -3457,6 +3493,7 @@ var _items = {
             "name": "PNNL",
             "status": "GOOD",
             "type": "platform",
+            "sortOrder": 0,
             "children": ["agents", "buildings", "points"],
             "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc"],
             "points": {
@@ -3464,24 +3501,17 @@ var _items = {
                 "name": "Points",
                 "status": "GOOD",
                 "type": "type",
-                "children": ["5461fedc-65ba-43fe-21dc-098765bafedl", "6451fedc-65ba-43fe-21dc-098765bafedl"],                    
+                "sortOrder": _pointsOrder,
+                "children": ["5461fedc-65ba-43fe-21dc-098765bafedl"],                    
                 "5461fedc-65ba-43fe-21dc-098765bafedl":
                 {
                     "uuid": "5461fedc-65ba-43fe-21dc-098765bafedl",
-                    "name": "MinimumSupplyFanSpeed",
+                    "name": "OutdoorAirTemperature",
                     "status": "GOOD",
                     "type": "point",
+                    "sortOrder": 0,
                     "children": [],
                     "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "points", "5461fedc-65ba-43fe-21dc-098765bafedl"]
-                },
-                "6451fedc-65ba-43fe-21dc-098765bafedl":
-                {
-                    "uuid": "6451fedc-65ba-43fe-21dc-098765bafedl",
-                    "name": "CoolingValvePosition",
-                    "status": "GOOD",
-                    "type": "point",
-                    "children": [],
-                    "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "points", "6451fedc-65ba-43fe-21dc-098765bafedl"]
                 }
             },
             "agents": {                
@@ -3489,6 +3519,7 @@ var _items = {
                 "name": "Agents",
                 "status": "GOOD",
                 "type": "type",
+                "sortOrder": _agentsOrder,
                 "children": ["2461fedc-65ba-43fe-21dc-098765bafede", "7897fedc-65ba-43fe-21dc-098765bafedf"], 
                 "2461fedc-65ba-43fe-21dc-098765bafede":
                 {
@@ -3496,6 +3527,7 @@ var _items = {
                     "name": "Platform Agent",
                     "status": "GOOD",
                     "type": "agent",
+                    "sortOrder": 0,
                     "children": [],
                     "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "agents", "2461fedc-65ba-43fe-21dc-098765bafede"]
                 },
@@ -3505,6 +3537,7 @@ var _items = {
                     "name": "SqlHistorian",
                     "status": "GOOD",
                     "type": "agent",
+                    "sortOrder": 0,
                     "children": [],
                     "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "agents", "7897fedc-65ba-43fe-21dc-098765bafedf"]
                 }
@@ -3514,6 +3547,7 @@ var _items = {
                 "name": "Buildings",
                 "status": "GOOD",
                 "type": "type",
+                "sortOrder": _buildingsOrder,
                 "children": ["1111fedc-65ba-43fe-21dc-098765bafede"],
                 "1111fedc-65ba-43fe-21dc-098765bafede":
                 {
@@ -3521,6 +3555,7 @@ var _items = {
                     "name": "ISB1",
                     "status": "GOOD",
                     "type": "building",
+                    "sortOrder": 0,
                     "children": ["devices", "points"],
                     "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede"],
                     "points": {         
@@ -3528,22 +3563,25 @@ var _items = {
                         "name": "Points",
                         "status": "GOOD",
                         "type": "type",
+                        "sortOrder": _pointsOrder,
                         "children": ["5461fedc-65ba-43fe-21dc-098765bafedl", "6451fedc-65ba-43fe-21dc-098765bafedl"], 
                         "5461fedc-65ba-43fe-21dc-098765bafedl":
                         {
                             "uuid": "5461fedc-65ba-43fe-21dc-098765bafedl",
-                            "name": "MinimumSupplyFanSpeed",
+                            "name": "OutdoorAirTemperature",
                             "status": "GOOD",
                             "type": "point",
+                            "sortOrder": 0,
                             "children": [],
                             "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "points", "5461fedc-65ba-43fe-21dc-098765bafedl"]
                         },
                         "6451fedc-65ba-43fe-21dc-098765bafedl":
                         {
                             "uuid": "6451fedc-65ba-43fe-21dc-098765bafedl",
-                            "name": "CoolingValvePosition",
+                            "name": "WholeBuildingPower",
                             "status": "GOOD",
                             "type": "point",
+                            "sortOrder": 0,
                             "children": [],
                             "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "points", "6451fedc-65ba-43fe-21dc-098765bafedl"]
                         }
@@ -3553,6 +3591,7 @@ var _items = {
                         "name": "Devices",
                         "status": "GOOD",
                         "type": "type",
+                        "sortOrder": _devicesOrder,
                         "children": ["1231fedc-65ba-43fe-21dc-098765bafedl"],
                         "1231fedc-65ba-43fe-21dc-098765bafedl":
                         {
@@ -3560,6 +3599,7 @@ var _items = {
                             "name": "RTU1",
                             "status": "GOOD",
                             "type": "device",
+                            "sortOrder": 0,
                             "children": ["devices", "points"],
                             "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl"],
                             "points": {      
@@ -3567,22 +3607,25 @@ var _items = {
                                 "name": "Points",
                                 "status": "GOOD",
                                 "type": "type",
+                                "sortOrder": _pointsOrder,
                                 "children": ["5461fedc-65ba-43fe-21dc-098765bafedl", "6451fedc-65ba-43fe-21dc-098765bafedl"],
                                 "5461fedc-65ba-43fe-21dc-098765bafedl":
                                 {
                                     "uuid": "5461fedc-65ba-43fe-21dc-098765bafedl",
-                                    "name": "MinimumSupplyFanSpeed",
+                                    "name": "CoolingCall",
                                     "status": "GOOD",
                                     "type": "point",
+                                    "sortOrder": 0,
                                     "children": [],
                                     "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "points", "5461fedc-65ba-43fe-21dc-098765bafedl"]
                                 },
                                 "6451fedc-65ba-43fe-21dc-098765bafedl":
                                 {
                                     "uuid": "6451fedc-65ba-43fe-21dc-098765bafedl",
-                                    "name": "CoolingValvePosition",
+                                    "name": "CondenserFanPower",
                                     "status": "GOOD",
                                     "type": "point",
+                                    "sortOrder": 0,
                                     "children": [],
                                     "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "points", "6451fedc-65ba-43fe-21dc-098765bafedl"]
                                 }
@@ -3592,13 +3635,15 @@ var _items = {
                                 "name": "Devices",
                                 "status": "GOOD",
                                 "type": "type",
+                                "sortOrder": _devicesOrder,
                                 "children": ["4488fedc-65ba-43fe-21dc-098765bafedl"],
                                 "4488fedc-65ba-43fe-21dc-098765bafedl":
                                 {
                                     "uuid": "4488fedc-65ba-43fe-21dc-098765bafedl",
-                                    "name": "Sub-RTU1",
+                                    "name": "Zone",
                                     "status": "GOOD",
                                     "type": "device",
+                                    "sortOrder": 0,
                                     "children": ["points"],
                                     "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "devices", "4488fedc-65ba-43fe-21dc-098765bafedl"],
                                     "points": {  
@@ -3606,22 +3651,25 @@ var _items = {
                                         "name": "Points",
                                         "status": "GOOD",
                                         "type": "type",
+                                        "sortOrder": _pointsOrder,
                                         "children": ["5461fedc-65ba-43fe-21dc-098765bafedl", "6451fedc-65ba-43fe-21dc-098765bafedl"],
                                         "5461fedc-65ba-43fe-21dc-098765bafedl":
                                         {
                                             "uuid": "5461fedc-65ba-43fe-21dc-098765bafedl",
-                                            "name": "MinimumSupplyFanSpeed",
+                                            "name": "FirstStageAuxilaryHeat",
                                             "status": "GOOD",
                                             "type": "point",
+                                            "sortOrder": 0,
                                             "children": [],
                                             "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "devices", "4488fedc-65ba-43fe-21dc-098765bafedl", "points", "5461fedc-65ba-43fe-21dc-098765bafedl"]
                                         },
                                         "6451fedc-65ba-43fe-21dc-098765bafedl":
                                         {
                                             "uuid": "6451fedc-65ba-43fe-21dc-098765bafedl",
-                                            "name": "CoolingValvePosition",
+                                            "name": "SecondStageAuxilaryHeat",
                                             "status": "GOOD",
                                             "type": "point",
+                                            "sortOrder": 0,
                                             "children": [],
                                             "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "devices", "4488fedc-65ba-43fe-21dc-098765bafedl", "points", "6451fedc-65ba-43fe-21dc-098765bafedl"]
                                         }
@@ -3639,6 +3687,7 @@ var _items = {
             "name": "WSU",
             "status": "BAD",
             "type": "platform",
+            "sortOrder": 0,
             "children": ["agents", "buildings"],
             "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc"],
             "agents": {                
@@ -3646,6 +3695,7 @@ var _items = {
                 "name": "Agents",
                 "status": "GOOD",
                 "type": "type",
+                "sortOrder": _agentsOrder,
                 "children": ["2461fedc-65ba-43fe-21dc-098765bafede", "7897fedc-65ba-43fe-21dc-098765bafedf"], 
                 "2461fedc-65ba-43fe-21dc-098765bafede":
                 {
@@ -3653,6 +3703,7 @@ var _items = {
                     "name": "Platform Agent",
                     "status": "GOOD",
                     "type": "agent",
+                    "sortOrder": 0,
                     "children": [],
                     "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "agents", "2461fedc-65ba-43fe-21dc-098765bafede"]
                 },
@@ -3662,6 +3713,7 @@ var _items = {
                     "name": "SqlHistorian",
                     "status": "GOOD",
                     "type": "agent",
+                    "sortOrder": 0,
                     "children": [],
                     "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "agents", "7897fedc-65ba-43fe-21dc-098765bafedf"]
                 }
@@ -3671,6 +3723,7 @@ var _items = {
                 "name": "Buildings",
                 "status": "BAD",
                 "type": "type",
+                "sortOrder": _buildingsOrder,
                 "children": ["1111fedc-65ba-43fe-21dc-098765bafede", "1333fedc-65ba-43fe-21dc-098765bafede"],
                 "1111fedc-65ba-43fe-21dc-098765bafede":
                 {
@@ -3678,6 +3731,7 @@ var _items = {
                     "name": "BSEL",
                     "status": "BAD",
                     "type": "building",
+                    "sortOrder": 0,
                     "children": ["devices", "points"],
                     "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede"],
                     "points": {         
@@ -3685,22 +3739,25 @@ var _items = {
                         "name": "Points",
                         "status": "UNKNOWN",
                         "type": "type",
+                        "sortOrder": _pointsOrder,
                         "children": ["5461fedc-65ba-43fe-21dc-098765bafedl", "6451fedc-65ba-43fe-21dc-098765bafedl"], 
                         "5461fedc-65ba-43fe-21dc-098765bafedl":
                         {
                             "uuid": "5461fedc-65ba-43fe-21dc-098765bafedl",
-                            "name": "MinimumSupplyFanSpeed",
+                            "name": "WholeBuildingElectricity",
                             "status": "GOOD",
                             "type": "point",
+                            "sortOrder": 0,
                             "children": [],
                             "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "points", "5461fedc-65ba-43fe-21dc-098765bafedl"]
                         },
                         "6451fedc-65ba-43fe-21dc-098765bafedl":
                         {
                             "uuid": "6451fedc-65ba-43fe-21dc-098765bafedl",
-                            "name": "CoolingValvePosition",
+                            "name": "LightingStatus",
                             "status": "UNKNOWN",
                             "type": "point",
+                            "sortOrder": 0,
                             "children": [],
                             "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "points", "6451fedc-65ba-43fe-21dc-098765bafedl"]
                         }
@@ -3710,13 +3767,15 @@ var _items = {
                         "name": "Devices",
                         "status": "BAD",
                         "type": "type",
+                        "sortOrder": _devicesOrder,
                         "children": ["1231fedc-65ba-43fe-21dc-098765bafedl"],
                         "1231fedc-65ba-43fe-21dc-098765bafedl":
                         {
                             "uuid": "1231fedc-65ba-43fe-21dc-098765bafedl",
-                            "name": "HVAC",
+                            "name": "AHU",
                             "status": "BAD",
                             "type": "device",
+                            "sortOrder": 0,
                             "children": ["devices", "points"],
                             "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl"],
                             "points": {      
@@ -3724,13 +3783,15 @@ var _items = {
                                 "name": "Points",
                                 "status": "GOOD",
                                 "type": "type",
+                                "sortOrder": _pointsOrder,
                                 "children": ["6451fedc-65ba-43fe-21dc-098765bafedl"],                                
                                 "6451fedc-65ba-43fe-21dc-098765bafedl":
                                 {
                                     "uuid": "6451fedc-65ba-43fe-21dc-098765bafedl",
-                                    "name": "CoolingValvePosition",
+                                    "name": "DuctStaticPressureSetPoint",
                                     "status": "GOOD",
                                     "type": "point",
+                                    "sortOrder": 0,
                                     "children": [],
                                     "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "points", "6451fedc-65ba-43fe-21dc-098765bafedl"]
                                 }
@@ -3740,13 +3801,15 @@ var _items = {
                                 "name": "Devices",
                                 "status": "BAD",
                                 "type": "type",
+                                "sortOrder": _devicesOrder,
                                 "children": ["4488fedc-65ba-43fe-21dc-098765bafedl"],
                                 "4488fedc-65ba-43fe-21dc-098765bafedl":
                                 {
                                     "uuid": "4488fedc-65ba-43fe-21dc-098765bafedl",
-                                    "name": "Condenser",
+                                    "name": "Zone",
                                     "status": "BAD",
                                     "type": "device",
+                                    "sortOrder": 0,
                                     "children": ["points"],
                                     "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "devices", "4488fedc-65ba-43fe-21dc-098765bafedl"],
                                     "points": {  
@@ -3754,22 +3817,25 @@ var _items = {
                                         "name": "Points",
                                         "status": "BAD",
                                         "type": "type",
+                                        "sortOrder": _pointsOrder,
                                         "children": ["5461fedc-65ba-43fe-21dc-098765bafedl", "6451fedc-65ba-43fe-21dc-098765bafedl"],
                                         "5461fedc-65ba-43fe-21dc-098765bafedl":
                                         {
                                             "uuid": "5461fedc-65ba-43fe-21dc-098765bafedl",
-                                            "name": "MinimumSupplyFanSpeed",
+                                            "name": "TerminalBoxDamperCommand",
                                             "status": "BAD",
                                             "type": "point",
+                                            "sortOrder": 0,
                                             "children": [],
                                             "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "devices", "4488fedc-65ba-43fe-21dc-098765bafedl", "points", "5461fedc-65ba-43fe-21dc-098765bafedl"]
                                         },
                                         "6451fedc-65ba-43fe-21dc-098765bafedl":
                                         {
                                             "uuid": "6451fedc-65ba-43fe-21dc-098765bafedl",
-                                            "name": "CoolingValvePosition",
+                                            "name": "ZoneTemperature",
                                             "status": "GOOD",
                                             "type": "point",
+                                            "sortOrder": 0,
                                             "children": [],
                                             "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "devices", "4488fedc-65ba-43fe-21dc-098765bafedl", "points", "6451fedc-65ba-43fe-21dc-098765bafedl"]
                                         }
@@ -3785,6 +3851,7 @@ var _items = {
                     "name": "CIC",
                     "status": "GOOD",
                     "type": "building",
+                    "sortOrder": 0,
                     "children": ["devices", "points"],
                     "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1333fedc-65ba-43fe-21dc-098765bafede"],
                     "points": {         
@@ -3792,22 +3859,25 @@ var _items = {
                         "name": "Points",
                         "status": "GOOD",
                         "type": "type",
+                        "sortOrder": _pointsOrder,
                         "children": ["5461fedc-65ba-43fe-21dc-098765bafedl", "6451fedc-65ba-43fe-21dc-098765bafedl"], 
                         "5461fedc-65ba-43fe-21dc-098765bafedl":
                         {
                             "uuid": "5461fedc-65ba-43fe-21dc-098765bafedl",
-                            "name": "MinimumSupplyFanSpeed",
+                            "name": "WholeBuildingGas",
                             "status": "GOOD",
                             "type": "point",
+                            "sortOrder": 0,
                             "children": [],
                             "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1333fedc-65ba-43fe-21dc-098765bafede", "points", "5461fedc-65ba-43fe-21dc-098765bafedl"]
                         },
                         "6451fedc-65ba-43fe-21dc-098765bafedl":
                         {
                             "uuid": "6451fedc-65ba-43fe-21dc-098765bafedl",
-                            "name": "CoolingValvePosition",
+                            "name": "OutdoorAirRelativeHumidity",
                             "status": "GOOD",
                             "type": "point",
+                            "sortOrder": 0,
                             "children": [],
                             "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1333fedc-65ba-43fe-21dc-098765bafede", "points", "6451fedc-65ba-43fe-21dc-098765bafedl"]
                         }
@@ -3817,13 +3887,15 @@ var _items = {
                         "name": "Devices",
                         "status": "GOOD",
                         "type": "type",
+                        "sortOrder": _devicesOrder,
                         "children": ["1231fedc-65ba-43fe-21dc-098765bafedl"],
                         "1231fedc-65ba-43fe-21dc-098765bafedl":
                         {
                             "uuid": "1231fedc-65ba-43fe-21dc-098765bafedl",
-                            "name": "HVAC",
+                            "name": "Chilled_Water_Distribution_System",
                             "status": "GOOD",
                             "type": "device",
+                            "sortOrder": 0,
                             "children": ["points"],
                             "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1333fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl"],
                             "points": {      
@@ -3831,13 +3903,15 @@ var _items = {
                                 "name": "Points",
                                 "status": "GOOD",
                                 "type": "type",
+                                "sortOrder": _pointsOrder,
                                 "children": ["6451fedc-65ba-43fe-21dc-098765bafedl"],                                
                                 "6451fedc-65ba-43fe-21dc-098765bafedl":
                                 {
                                     "uuid": "6451fedc-65ba-43fe-21dc-098765bafedl",
-                                    "name": "CoolingValvePosition",
+                                    "name": "NaturalGasEnergy",
                                     "status": "GOOD",
                                     "type": "point",
+                                    "sortOrder": 0,
                                     "children": [],
                                     "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1333fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "points", "6451fedc-65ba-43fe-21dc-098765bafedl"]
                                 }
@@ -3855,31 +3929,6 @@ var _itemTypes = ["platforms", "buildings", "agents", "devices", "points"];
 
 var platformsPanelItemsStore = new Store();
 
-// function buildItemsList(parent, child)
-// {
-//     var itemsList = [];
-//     var items = _items;
-
-//     //First find the parent item according to its path
-//     for (var i = 0; i < parent.path.length; i++)
-//     {
-//         if (items.hasOwnProperty(parent.path[i]))
-//         {
-//             items = items[parent.path[i]];
-//         }
-//     }
-
-//     //Then create a list of the children
-//     if (items[parent.uuid].hasOwnProperty(child))
-//     {
-//         for (var key in items[parent.uuid][child])
-//         {
-//             itemsList.push(items[parent.uuid][child][key]);
-//         }
-//     }
-
-//     return itemsList;
-// }
 
 platformsPanelItemsStore.getItems = function (parent, parentPath) {
 
@@ -3898,27 +3947,7 @@ platformsPanelItemsStore.getItems = function (parent, parentPath) {
     
           
         for (var i = 0; i < item.children.length; i++)
-        {
-            // if (_itemTypes.indexOf(item.children[i]) > -1) // if the child is an object type
-            // {
-            //     itemsList.push(item[item.children[i]]);
-
-            //     // for (var key in items[parent])
-            //     // {
-            //     //     itemsList.push(items[parent][key]);
-            //     // }
-            // }
-            // else
-            // {
-            //     // itemsList.push(item.children[i]);
-
-            //     for (var key in item.children[i])
-            //     {
-            //         itemsList.push(item.children[i][key]);
-            //         break;  // presumably there's only one key, the actual object's UUID
-            //     }
-            // }
-
+        {           
             itemsList.push(item[item.children[i]]);
         }
             
@@ -3929,11 +3958,7 @@ platformsPanelItemsStore.getItems = function (parent, parentPath) {
         {
             itemsList.push(item[parent][key]);
         }
-    }
-    // else // if the parent is an actual object 
-    // {
-    //     itemsList = parent.children;
-    // }    
+    } 
 
     return itemsList;
 };
@@ -3947,57 +3972,88 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
     switch (action.type) {
 
         case ACTION_TYPES.RECEIVE_PLATFORM_STATUSES:
-            _items["platforms"] = action.platforms;
+            
+            var platforms = action.platforms;
 
-            for (var key in _items["platforms"])
+            platforms.forEach(function (platform)
             {
-                _items["platforms"][key]["children"] = ["buildings"];                
-                _items["platforms"][key]["path"] = ["platforms"];
-            }
+                _items["platforms"][platform.uuid] = platform; 
+                
+                var platformItem = _items["platforms"][platform.uuid];
+                platformItem.path = ["platforms", platform.uuid];
+                // platformItem.status = "GOOD";
+                platformItem.children = [];
+                platformItem.type = "platform";
+            });
             
             platformsPanelItemsStore.emitChange();
             break;
         case ACTION_TYPES.RECEIVE_BUILDING_STATUSES:
-            _items["platforms"][action.platform.uuid]["buildings"] = action.buildings;
+            // _items["platforms"][action.platform.uuid]["buildings"] = action.buildings;
 
-            for (var key in _items["platforms"][action.platform.uuid]["buildings"])
-            {
-                _items["platforms"][action.platform.uuid]["buildings"][key]["children"] = ["agents", "devices"];                
-                _items["platforms"][action.platform.uuid]["buildings"][key]["path"] = ["platforms", action.platform.uuid, "buildings"];
-            }
+            // for (var key in _items["platforms"][action.platform.uuid]["buildings"])
+            // {
+            //     _items["platforms"][action.platform.uuid]["buildings"][key]["children"] = ["agents", "devices"];                
+            //     _items["platforms"][action.platform.uuid]["buildings"][key]["path"] = ["platforms", action.platform.uuid, "buildings"];
+            // }
             
             platformsPanelItemsStore.emitChange();
             break;
         case ACTION_TYPES.RECEIVE_AGENT_STATUSES:
-            _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["agents"] = action.agents;
 
-            for (var key in _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["agents"])
+            var platform = _items["platforms"][action.platform.uuid];
+
+            if (action.agents.length > 0)
             {
-                _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["agents"][key]["children"] = [];                
-                _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["agents"][key]["path"] = ["platforms", action.platform.uuid, "buildings", action.building.uuid, "agents"];
+                platform.agents = {};
+                platform.agents.path = platform.path.slice(0);
+                platform.agents.path.push("agents");
+                platform.agents.name = "Agents";
+                platform.agents.children = [];
+                platform.agents.type = "type";
+                platform.agents.sortOrder = _agentsOrder;
+
+                if (platform.children.indexOf("agents") < 0)
+                {
+                    platform.children.push("agents");
+                }
+
+                action.agents.forEach(function (agent)
+                {
+                    var agentProps = agent;
+                    agentProps.path = platform.agents.path.slice(0);
+                    agentProps.path.push(agent.uuid);
+                    // agent.status = "GOOD";
+                    agentProps.children = [];
+                    agentProps.type = "agent";
+                    agentProps.sortOrder = 0;
+                    platform.agents.children.push(agent.uuid); 
+                    platform.agents[agent.uuid] = agentProps;
+                });
+
             }
 
             platformsPanelItemsStore.emitChange();
             break;
         case ACTION_TYPES.RECEIVE_DEVICE_STATUSES:
-            _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"] = action.devices;
+            // _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"] = action.devices;
 
-            for (var key in _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"])
-            {
-                _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"][key]["children"] = ["points"];                
-                _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"][key]["path"] = ["platforms", action.platform.uuid, "buildings", action.building.uuid, "devices"];
-            }
+            // for (var key in _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"])
+            // {
+            //     _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"][key]["children"] = ["points"];                
+            //     _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"][key]["path"] = ["platforms", action.platform.uuid, "buildings", action.building.uuid, "devices"];
+            // }
 
             platformsPanelItemsStore.emitChange();
             break;
-        case ACTION_TYPES.RECEIVE_DEVICE_DATAPOINT_STATUSES:
-            _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"][action.device.uuid]["points"] = action.points;
+        case ACTION_TYPES.RECEIVE_POINT_STATUSES:
+            // _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"][action.device.uuid]["points"] = action.points;
 
-            for (var key in _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"][action.device.uuid]["points"])
-            {
-                _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"][action.device.uuid]["points"][key]["children"] = [];
-                _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"][action.device.uuid]["points"][key]["path"] = ["platforms", action.platform.uuid, "buildings", action.building.uuid, "devices", action.device.uuid, "points"];
-            }
+            // for (var key in _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"][action.device.uuid]["points"])
+            // {
+            //     _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"][action.device.uuid]["points"][key]["children"] = [];
+            //     _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"][action.device.uuid]["points"][key]["path"] = ["platforms", action.platform.uuid, "buildings", action.building.uuid, "devices", action.device.uuid, "points"];
+            // }
 
             platformsPanelItemsStore.emitChange();
             break;
@@ -4007,38 +4063,38 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = platformsPanelItemsStore;
 
 
-},{"../constants/action-types":29,"../dispatcher":30,"../lib/store":34}],45:[function(require,module,exports){
+},{"../constants/action-types":29,"../dispatcher":30,"../lib/store":34}],44:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
 var dispatcher = require('../dispatcher');
 var Store = require('../lib/store');
 
-var _platforms = [
-            {
-                "uuid": "0987fedc-65ba-43fe-21dc-098765bafedc",
-                "name": "PNNL",
-                "status": "GOOD"
-            },
-            {
-                "uuid": "2291fedc-65ba-43fe-21dc-098765bafedc",
-                "name": "UW",
-                "status": "BAD"
-            },
-            {
-                "uuid": "4837fedc-65ba-43fe-21dc-098765bafedc",
-                "name": "WSU",
-                "status": "UNKNOWN"
-            }
-        ];;
+// var _platforms = [
+//             {
+//                 "uuid": "0987fedc-65ba-43fe-21dc-098765bafedc",
+//                 "name": "PNNL",
+//                 "status": "GOOD"
+//             },
+//             {
+//                 "uuid": "2291fedc-65ba-43fe-21dc-098765bafedc",
+//                 "name": "UW",
+//                 "status": "BAD"
+//             },
+//             {
+//                 "uuid": "4837fedc-65ba-43fe-21dc-098765bafedc",
+//                 "name": "WSU",
+//                 "status": "UNKNOWN"
+//             }
+//         ];;
 
 var _expanded = null;
 
 var platformsPanelStore = new Store();
 
-platformsPanelStore.getPlatforms = function () {
-    return _platforms;
-};
+// platformsPanelStore.getPlatforms = function () {
+//     return _platforms;
+// };
 
 platformsPanelStore.getExpanded = function () {
     return _expanded;
@@ -4048,10 +4104,6 @@ platformsPanelStore.dispatchToken = dispatcher.register(function (action) {
 
     switch (action.type) {
 
-        case ACTION_TYPES.RECEIVE_PLATFORM_STATUSES:
-            _platforms = action.platforms;
-            platformsPanelStore.emitChange();
-            break;
         case ACTION_TYPES.TOGGLE_PLATFORMS_PANEL:  
             (_expanded === null ? _expanded = true : _expanded = !_expanded);
             platformsPanelStore.emitChange();
@@ -4062,7 +4114,7 @@ platformsPanelStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = platformsPanelStore;
 
 
-},{"../constants/action-types":29,"../dispatcher":30,"../lib/store":34}],46:[function(require,module,exports){
+},{"../constants/action-types":29,"../dispatcher":30,"../lib/store":34}],45:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -4131,7 +4183,7 @@ platformsStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = platformsStore;
 
 
-},{"../constants/action-types":29,"../dispatcher":30,"../lib/store":34,"../stores/authorization-store":38}],47:[function(require,module,exports){
+},{"../constants/action-types":29,"../dispatcher":30,"../lib/store":34,"../stores/authorization-store":38}],46:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
