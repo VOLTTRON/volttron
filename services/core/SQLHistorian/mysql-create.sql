@@ -1,5 +1,5 @@
 
-CREATE TABLE data (ts timestamp NOT NULL,
+CREATE TABLE data (ts timestamp(6) NOT NULL,
                                  topic_id INTEGER NOT NULL, 
                                  value_string TEXT NOT NULL, 
                                  UNIQUE(ts, topic_id));

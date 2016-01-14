@@ -206,6 +206,7 @@ class AIPplatform(object):
         self.agents = {}
 
     def setup(self):
+        '''Creates paths for used directories for the instance.'''
         for path in [self.run_dir, self.config_dir, self.install_dir]:
             if not os.path.exists(path):
                 os.makedirs(path, 0o755)

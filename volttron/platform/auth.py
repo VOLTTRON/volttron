@@ -254,6 +254,39 @@ class AuthService(Agent):
         if self.allow_any:
             return dump_user(domain, address, mechanism, *credentials[:1])
 
+    @RPC.export
+    def get_authorizations(self, user_id):
+        use_parts = True
+        try:
+            domain, address, mechanism, credentials = load_user(user_id)
+        except ValueError:
+            use_parts = False
+        for entry in self.auth_entries:
+            if entry.user_id == user_id:
+                return [entry.capabilities, entry.groups, entry.roles]
+            elif use_parts:
+                if entry.match(domain, address, mechanism, [credentials]):
+                    return [entry.capabilities, entry.groups, entry.roles]
+
+    def _get_authorizations(self, user_id, index):
+        '''Convenience method for getting authorization component by index'''
+        auths = self.get_authorizations(user_id)
+        if auths:
+            return auths[index]
+        return []
+
+    @RPC.export
+    def get_capabilities(self, user_id):
+        return self._get_authorizations(user_id, 0)
+
+    @RPC.export
+    def get_groups(self, user_id):
+        return self._get_authorizations(user_id, 1)
+
+    @RPC.export
+    def get_roles(self, user_id):
+        return self._get_authorizations(user_id, 2)
+
 
 class String(unicode):
     def __new__(cls, value):
