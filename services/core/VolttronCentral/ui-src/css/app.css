@@ -563,6 +563,53 @@ br + .form__control-help {
     {100% height: 0px;}
 } 
 
+.tooltip_inner {
+    background-color: #F6EDFA;
+    padding: 10px;
+    border-radius: 5px;
+}
+
+.tooltip_point {
+    color: #F6EDFA;
+    transform: rotate(90deg);
+    transform-origin: 20px 20px;
+    margin: 0px;
+    padding: 0px;
+}
+
+@font-face {
+  font-family: 'FontAwesome';
+  src: url('../fonts/fontawesome-webfont.eot?v=4.5.0');
+  src: url('../fonts/fontawesome-webfont.eot?#iefix&v=4.5.0') format('embedded-opentype'), url('../fonts/fontawesome-webfont.woff2?v=4.5.0') format('woff2'), url('../fonts/fontawesome-webfont.woff?v=4.5.0') format('woff'), url('../fonts/fontawesome-webfont.ttf?v=4.5.0') format('truetype'), url('../fonts/fontawesome-webfont.svg?v=4.5.0#fontawesomeregular') format('svg');
+  font-weight: normal;
+  font-style: normal;
+}
+
+.fa {
+  display: inline-block;
+  font: normal normal normal 14px/1 FontAwesome;
+  font-size: inherit;
+  text-rendering: auto;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.fa-minus-circle:before {
+  content: "\f056";
+}
+
+.fa-square:before {
+  content: "\f0c8";
+}
+
+/*.tooltip_show {
+    display: "block";
+}
+
+.tooltip_hide {
+    display: "none";
+}*/
+
 .boldText {
     font-weight: bold;
 }

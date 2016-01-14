@@ -2195,6 +2195,10 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
         var state = {};
         
         state.expanded = null;
+        state.showTooltip = false;
+        state.tooltipX = null;
+        state.tooltipY = null;
+        state.keepTooltip = false;
 
         state.children = getChildrenFromStore(this.props.panelItem, this.props.itemPath);
 
@@ -2211,74 +2215,34 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
     },
     _onStoresChange: function () {
 
-        // if (this.state.expanded)
-        // {
-        //     this.setState({children: getItemsFromStore(this.props.panelItem, this.props.itemPath)}); 
-        // }       
-
         var children = getChildrenFromStore(this.props.panelItem, this.props.itemPath);
 
         this.setState({children: children});
-
-        // if (children.length > 0)
-        // {
-        //     this.setState({expanded: true});
-        // }
     },
     _toggleItem: function () {
-
-        // if (this.state.expanded === null)
-        // {
-        //     this.setState({expanded: true});
-
-        //     var panelItem = this.props.panelItem;
-
-        //     platformsPanelActionCreators.loadChildren(panelItem.type, panelItem);
-            
-
-
-        //     // var children = [];
-
-        //     // if (this.state.children.length === 0)
-        //     // {
-        //     //     // children = getItemsFromStore(this.props.panelItem, this.props.itemPath);
-        //     //     // this.setState({children: children});
-
-        //     //     // var panelItem = this.props.panelItem;
-
-        //     //     // platformsPanelActionCreators.loadPanelItems(panelItem.type, panelItem);
-
-        //     //     // this.props.panelItem.children.forEach(function (child) {
-                    
-        //     //     //     platformsPanelActionCreators.loadPanelItems(panelItem[child], panelItem);
-        //     //     // });
-                
-        //     // }
-        //     // else
-        //     // {
-        //     //     children = this.state.children;
-        //     // }
-
-        //     // if (children.length > 0)
-        //     // {
-        //     //     this.setState({expanded: true});
-        //     // }
-        // }
-        // else
-        // {
-        //     if (this.state.children.length > 0)
-        //     {
-        //         this.setState({expanded: !this.state.expanded});
-        //     }
-        // }
 
         if (this.state.children.length > 0)
         {
             this.setState({expanded: !this.state.expanded});
         }
     },
-    _checkItem: function () {
-
+    _showTooltip: function (evt) {
+        this.setState({showTooltip: true});
+        this.setState({tooltipX: evt.clientX - 20});
+        this.setState({tooltipY: evt.clientY - 70});
+    },
+    _hideTooltip: function () {
+        this.setState({showTooltip: false});
+    },
+    _moveTooltip: function (evt) {
+        this.setState({tooltipX: evt.clientX - 20});
+        this.setState({tooltipY: evt.clientY - 70});
+    },
+    _keepTooltip: function () {
+        this.setState({keepTooltip: true});
+    },
+    _unkeepTooltip: function () {
+        this.setState({keepTooltip: false});
     },
     render: function () {
         var panelItem = this.props.panelItem;
@@ -2299,11 +2263,34 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
             display : (["point"].indexOf(panelItem.type) < 0 ? "none" : "block")
         };
 
+        var tooltipStyle = {
+            display: (panelItem.type !== "type" ? (this.state.showTooltip || this.state.keepTooltip ? "block" : "none") : "none"),
+            position: "absolute",
+            top: this.state.tooltipY + "px",
+            left: this.state.tooltipX + "px"
+        };
+
         // var childrenItems = [];
 
         arrowClasses.push( ((panelItem.status === "GOOD") ? "status-good" :
                                 ( (panelItem.status === "BAD") ? "status-bad" : 
-                                    "status-unknown")) )
+                                    "status-unknown")) );
+
+        var arrowContent;
+
+        if (panelItem.status === "GOOD")
+        {
+            arrowContent = React.createElement("span", null, "▶");
+        } 
+        else if (panelItem.status === "BAD") 
+        {
+            arrowContent = React.createElement("i", {className: "fa fa-minus-circle"});
+        }
+        else
+        {
+            arrowContent = React.createElement("i", {className: "fa fa-square"});
+        }
+
         // if (propChildren.length > 0)
         // {
         //     arrowClasses.push("rotateDown");
@@ -2406,13 +2393,27 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
             }, 
                 React.createElement("div", {className: "platform-info"}, 
                     React.createElement("div", {className: arrowClasses.join(' '), 
-                        onClick: this._toggleItem}, "▶"), 
+                        onClick: this._toggleItem}, 
+                        arrowContent
+                        ), 
                     React.createElement("input", {className: checkboxClass, 
                         style: checkboxStyle, 
                         type: "checkbox", 
                         onClick: this._checkItem}), 
-                    listItem
-                    
+                    React.createElement("div", {style: tooltipStyle}, 
+                        React.createElement("div", {className: "tooltip_inner"}, 
+                            panelItem.uuid
+                        ), 
+                        React.createElement("div", {className: "tooltip_point"}, 
+                            "▶"
+                        )
+                    ), 
+                    React.createElement("div", {className: "tooltip_target", 
+                        onMouseEnter: this._showTooltip, 
+                        onMouseLeave: this._hideTooltip, 
+                        onMouseMove: this._moveTooltip}, 
+                        listItem
+                    )
                 ), 
                 React.createElement("div", {className: itemClasses}, 
                     React.createElement("ul", {className: "platform-panel-list"}, 
