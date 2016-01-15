@@ -71,10 +71,11 @@ _log = logging.getLogger(__name__)
 class SqlLiteFuncts(DbDriver):
 
     def __init__(self, database, **kwargs):
-
+        print ("initializing historian database")
         if database == ':memory:':
             self.__database = database
         else:
+
             self.__database = os.path.expandvars(os.path.expanduser(database))
             db_dir  = os.path.dirname(self.__database)
 
@@ -142,12 +143,18 @@ class SqlLiteFuncts(DbDriver):
         args = [topic]
 
         if start is not None:
-            where_clauses.append("data.ts > ?")
-            args.append(start)
+            start_str=start.isoformat(' ')
+            where_clauses.append("data.ts >= ?")
+            if start_str[-6:] != "+00:00":
+                start_str = start_str + "+00:00"
+            args.append(start_str)
 
         if end is not None:
-            where_clauses.append("data.ts < ?")
-            args.append(end)
+            end_str = end.isoformat(' ')
+            where_clauses.append("data.ts <= ?")
+            if end_str[-6:] != "+00:00":
+                end_str = end_str + "+00:00"
+            args.append(end_str)
 
         where_statement = ' AND '.join(where_clauses)
 
@@ -189,7 +196,7 @@ class SqlLiteFuncts(DbDriver):
         return '''INSERT OR REPLACE INTO data values(?, ?, ?)'''
     
     def insert_topic_query(self):
-        return '''INSERT INTO topics (topic_name) values (?)'''
+        return '''INSERT OR REPLACE INTO topics (topic_name) values (?)'''
 
     def get_topic_map(self):
         q = "SELECT topic_id, topic_name FROM topics"

@@ -1,0 +1,13 @@
+{
+    "agentid": "mongodb-historian",
+    "connection": {
+        "type": "mongodb",
+        "params": {
+            "host": "localhost",
+            "port": 27017,
+            "database": "volttron_guide",
+            "user": "admin",
+            "passwd": "admin"
+        }
+    }
+}

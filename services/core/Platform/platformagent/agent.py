@@ -304,7 +304,9 @@ def platform_agent(config_path, **kwargs):
                                       'return_code': a[2][1]}
                             for a in self.vip.rpc.call('control', method).get()]}
 
-            elif method in ('agent_status', 'start_agent', 'stop_agent'):
+            elif method in ('agent_status', 'start_agent', 'stop_agent',
+                            'remove_agent'):
+                _log.debug('We are trying to exectute method {}'.format(method))
                 if isinstance(params, list) and len(params) != 1 or \
                     isinstance(params, dict) and 'uuid' not in params.keys():
                     result['code'] = INVALID_PARAMS
@@ -378,7 +380,7 @@ def platform_agent(config_path, **kwargs):
 
         @Core.receiver('onstart')
         def starting(self, sender, **kwargs):
-            
+
             psutil.cpu_times_percent()
             psutil.cpu_percent()
             _, _, my_id = self.vip.hello().get(timeout=3)
