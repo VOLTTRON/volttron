@@ -4,6 +4,7 @@ from pandas import DataFrame as df
 import numpy as np
 from datetime import timedelta as td, datetime as dt
 from copy import deepcopy
+from dateutil import parser
 # from _ast import comprehension
 from sympy import symbols
 from sympy.parsing.sympy_parser import parse_expr
@@ -67,7 +68,7 @@ class BaseCriterion(object):
     def evaluate(self):
         pass
 
-    def ingest_data(self, data):
+    def ingest_data(self, time_stamp, data):
         pass
 
 
@@ -90,7 +91,7 @@ class StatusCriterion(BaseCriterion):
             val = self.off_value
         return val
 
-    def ingest_data(self, data):
+    def ingest_data(self, time_stamp, data):
         self.current_status = bool(data[self.point_name])
 
 
@@ -124,7 +125,7 @@ class FormulaCriterion(BaseCriterion):
             val = self.minimum
         return val
 
-    def ingest_data(self, data):
+    def ingest_data(self, time_stamp, data):
         pt_list = []
         for item in self.operation_args:
             pt_list.append((item, data[item]))
@@ -168,19 +169,19 @@ class HistoryCriterion(BaseCriterion):
         if self.current_value is None:
             return self.minimum
 
-        pre_value, pre_timestamp = self.history.pop()
+        pre_timestamp, pre_value = self.history.pop()
 
         if pre_timestamp > self.history_time:
-            self.history.append((pre_value, pre_timestamp))
+            self.history.append((pre_timestamp, pre_value))
             return self.minimum
 
-        post_value, post_timestamp = self.history.pop()
+        post_timestamp, post_value  = self.history.pop()
 
         while post_timestamp < self.history_time:
             pre_value, pre_timestamp = post_value, post_timestamp
-            post_value, post_timestamp = self.history.pop()
+            post_timestamp, post_value  = self.history.pop()
 
-        self.history.append((post_value, post_timestamp))
+        self.history.append((post_timestamp, post_value))
         prev_value = self.linear_interpolation(pre_timestamp, pre_value,
                                                post_timestamp, post_value,
                                                self.history_time)
@@ -190,11 +191,10 @@ class HistoryCriterion(BaseCriterion):
             val = 1/abs(prev_value - self.current_value)
         return val
 
-    def ingest_data(self, data):
-        current_time = dt.now()
-        self.history_time = current_time - self.previous_time_delta
+    def ingest_data(self, time_stamp, data):
+        self.history_time = time_stamp - self.previous_time_delta
         self.current_value = data[self.point_name]
-        self.history.appendleft((current_time, self.current_value))
+        self.history.appendleft((time_stamp, self.current_value))
 
 
 class Criteria(object):
@@ -228,9 +228,9 @@ class Criteria(object):
         results["curtail_count"] = self.curtail_count
         return results
 
-    def ingest_data(self, data):
+    def ingest_data(self, time_stamp, data):
         for criterion in self.criteria.values():
-            criterion.ingest(data)
+            criterion.ingest_data(time_stamp, data)
 
     def reset_curtail(self):
         self.curtail_count = 0.0
@@ -252,9 +252,9 @@ class Device(object):
             self.criteria[command_point] = criteria
             self.command_status[command_point] = False
 
-    def ingest_data(self, data):
-        for criteria in self.all_criteria:
-            criteria.ingest_data(data)
+    def ingest_data(self, time_stamp, data):
+        for criteria in self.criteria.values():
+            criteria.ingest_data(time_stamp, data)
 
         for command in self.command_status:
             self.command_status[command] = bool(data[command])
@@ -410,12 +410,13 @@ def ahp(config_path, **kwargs):
                                              building=config.get('building', ''),
                                              unit=power_meter,
                                              path='',
-                                             point=power_pt)
+                                             point='all')
 
     demand_limit = float(config["demand_limit"])
     curtail_time = td(minutes=config.get("curtailment_time", 15.0))
     curtail_confirm = td(minutes=config.get("curtailment_confirm", 5.0))
     curtail_break = td(minutes=config.get("curtailment_break", 5.0))
+    actuator_schedule_buffer = td(minutes=config.get("actuator_schedule_buffer", 5.0))
 
     class AHP(Agent):
         def __init__(self, **kwargs):
@@ -458,13 +459,16 @@ def ahp(config_path, **kwargs):
             device_name = device_topic_map[topic]
 
             data = message[0]
-            clusters.get_device(device_name).ingest_data(data)
+            now = parser.parse(headers['Date'])
+            
+            clusters.get_device(device_name).ingest_data(now, data)
 
         def load_message_handler(self, peer, sender, bus, topic, headers, message):
             _log.debug('Reading building power data.')
-            bldg_power = float(message[0])
+            bldg_power = float(message[0][power_pt])
 
-            now = dt.now()
+            
+            now = parser.parse(headers['Date'])
 
             if self.running_ahp:
 
@@ -475,7 +479,7 @@ def ahp(config_path, **kwargs):
                     self.curtail_confirm(bldg_power)
                 return
 
-            elif now < self.break_end:
+            elif self.break_end is not None and now < self.break_end:
                 return
 
             self.check_load(bldg_power)
@@ -496,6 +500,8 @@ def ahp(config_path, **kwargs):
                 if not score_order:
                     _log.info('All devices are off, nothing to curtail.')
                     return
+                
+                print score_order
 
                 scored_devices = self.actuator_request(score_order)
                 self.remaining_devices = self.curtail(scored_devices, bldg_power)
@@ -569,16 +575,19 @@ def ahp(config_path, **kwargs):
             '''request access to devices.'''
             _now = dt.now()
             str_now = _now.strftime(DATE_FORMAT)
-            _end = _now + td(minutes=curtail_time + 5)
+            _end = _now + curtail_time + actuator_schedule_buffer
             str_end = _end.strftime(DATE_FORMAT)
             ctrl_dev = []
             already_handled = {}
             for item in score_order:
 
-                device, _ = item
+                device, point = item
+                
+                _log.debug("Reserving device: " + device)
 
                 if device in already_handled or device in self.scheduled_devices:
                     if already_handled[device]:
+                        _log.debug("Skipping reserve device (previously reserved): " + device)
                         ctrl_dev.append(item)
                     continue
 
@@ -588,7 +597,7 @@ def ahp(config_path, **kwargs):
                     'platform.actuator', 'request_new_schedule', agent_id,
                     device, 'HIGH', schedule_request).get(timeout=10)
                 if result['result'] == 'FAILURE':
-                    _log.warn("Failed to schedule device: ", device)
+                    _log.warn("Failed to schedule device: " + device)
                     already_handled[device] = False
                 else:
                     already_handled[device] = True

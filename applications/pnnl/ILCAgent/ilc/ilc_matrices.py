@@ -70,6 +70,8 @@ logging.basicConfig(level=logging.debug,
                     format='%(asctime)s   %(levelname)-8s %(message)s',
                     datefmt='%m-%d-%y %H:%M:%S')
 
+from collections import defaultdict
+
 
 def open_file():
     '''Create file input window for user.'''
@@ -238,6 +240,7 @@ def build_score(_matrix, weight, priority):
     
     for input_array in input_values:            
         criteria_sum=sum(i*w for i,w in zip(input_array, weight))
+        
         scores.append(criteria_sum*priority)
     
     return zip(scores, input_keys)
@@ -271,7 +274,7 @@ def history_data(device, device_data, point_list):
 
 def input_matrix(builder, criteria_labels):
     '''Construct input normalized input matrix.'''
-    sum_mat = {}
+    sum_mat = defaultdict(float)
     inp_mat = {}
     label_check = builder.values()[-1].keys()
     if set(label_check) != set(criteria_labels):
@@ -280,6 +283,12 @@ def input_matrix(builder, criteria_labels):
         for k,v in device_data.items():
             sum_mat[k] = v if k not in sum_mat else sum_mat[k] + v
     for key in builder:
-        inp_mat[key] = [builder[key][tag]/sum_mat[tag] for tag in criteria_labels]
+        inp_mat[key] = mat_list = []
+        for tag in criteria_labels:
+            builder_value = builder[key][tag]
+            if builder_value:
+                mat_list.append(builder_value/sum_mat[tag])
+            else:
+                mat_list.append(0.0)
     
     return inp_mat
