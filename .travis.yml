@@ -26,8 +26,8 @@ notifications:
       #- michael.roup@pnnl.gov
       #- bora.akyol@pnnl.gov
       #- robert.lutes@pnnl.gov
-      on_success: change
-      on_failure: change
+#      on_success: change
+#      on_failure: change
 
 #language: python
 #matrix:
