@@ -71,6 +71,7 @@ import threading
 import uuid
 
 import gevent
+from gevent import pywsgi
 import zmq
 from zmq import curve_keypair, green
 # Create a context common to the green and non-green zmq modules.
@@ -327,6 +328,42 @@ class Router(BaseRouter):
             frames[3] = b''
             return frames
 
+class MasterWebService(Agent):
+    '''The service that is responsible for managing and serving registered pages
+
+    '''
+
+    #@export
+    def register(self, regex, root):
+        stat = os.stat(root)
+        if os.path.exists(root):
+            self.agentroutes[regex] = {'path': root}
+
+    def app_routing(self, env, start_response):
+        path_info = env['PATH_INFO']
+
+        for k, v in self.agentroutes.items():
+            if path_info == k:
+                start_response('200 OK', [('Content-Type', 'text/html')])
+                return [v]
+
+        start_response('404 Not Found', [('Content-Type', 'text/html')])
+        return [b'<h1>Not Found</h1>']
+
+    @Core.receiver('onstart')
+    def startupagent(self, sender, **kwargs):
+        self.agentroutes = {
+            r'/discovery': b"<b>hello world inside</b>"
+        }
+        self.register('/', 'services/core/VolttronCentral/volttroncentral/webroot/')
+        self.server = pywsgi.WSGIServer(('0.0.0.0', 8443), self.app_routing)
+        self.server.serve_forever()
+
+    # print('Serving on https://127.0.0.1:8443')
+    # server = pywsgi.WSGIServer(('0.0.0.0', 8443), hello_world, keyfile='server.key', certfile='server.crt')
+    # to start the server asynchronously, call server.start()
+    # we use blocking serve_forever() here because we have no other jobs
+
 
 class PubSubService(Agent):
     @Core.receiver('onstart')
@@ -494,6 +531,7 @@ def start_volttron_process(opts):
             CompatPubSub(address=address, identity='pubsub.compat',
                          publish_address=opts.publish_address,
                          subscribe_address=opts.subscribe_address),
+            MasterWebService(address=address, identity='volttron.web')
         ]
         events = [gevent.event.Event() for service in services]
         tasks = [gevent.spawn(service.core.run, event)
