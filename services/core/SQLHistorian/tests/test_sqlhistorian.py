@@ -1,10 +1,9 @@
-# Example file using the weather agent.
-#
-# Requirements
-#    - A VOLTTRON instance must be started
-#    - A weatheragnet must be running prior to running this code.
-#
-# Author: Craig Allwardt
+# pytest test cases for SQLHistorian
+# For mysql test's to succeed
+# 1. MySql server should be running
+# 2. test database and test user should exist
+# 3. Test user should have all privileges on test database
+# 4. Refer to the dictionary object mysql_platform for the server configuration
 import pytest
 import sqlite3
 import gevent
@@ -12,6 +11,7 @@ import random
 
 import re
 from volttron.platform.messaging import headers as headers_mod
+from volttron.platform.messaging import topics
 
 from datetime import datetime, timedelta
 
@@ -334,7 +334,7 @@ def test_exact_timestamp_with_T(volttron_instance1, sqlhistorian, clean):
     """
     global publish_agent, query_points, ALL_TOPIC
     # print('HOME', volttron_instance1.volttron_home)
-    print("\n** test_exact_timestamp **")
+    print("\n** test_exact_timestamp_with_T **")
     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
     # Make some random readings
     oat_reading = random.uniform(30, 100)
@@ -842,3 +842,155 @@ def test_invalid_query(volttron_instance1, sqlhistorian, clean):
                                    count=20,
                                    order="LAST_TO_FIRST").get(timeout=10)
         assert "No route to host: platform.historian1" in str(excinfo.value)
+
+@pytest.mark.historian
+def test_analysis_topic(volttron_instance1, sqlhistorian, clean):
+    """
+    Test query based on same start and end time with literal 'Z' at the end of utc time.
+    Expected result: record with timestamp == start time
+    :param volttron_instance1: The instance against which the test is run
+    :param sqlhistorian: instance of the sql historian tested
+    :param clean: teardown function
+    """
+    global publish_agent, query_points
+    # print('HOME', volttron_instance1.volttron_home)
+    print("\n** test_analysis_topic **")
+    # Publish fake data. The format mimics the format used by VOLTTRON drivers.
+    # Make some random readings
+    oat_reading = random.uniform(30, 100)
+    mixed_reading = oat_reading + random.uniform(-5, 5)
+    damper_reading = random.uniform(0, 100)
+
+    # Create a message for all points.
+    all_message = [{'OutsideAirTemperature': oat_reading, 'MixedAirTemperature': mixed_reading,
+                    'DamperSignal': damper_reading},
+                   {'OutsideAirTemperature': {'units': 'F', 'tz': 'UTC', 'type': 'float'},
+                    'MixedAirTemperature': {'units': 'F', 'tz': 'UTC', 'type': 'float'},
+                    'DamperSignal': {'units': '%', 'tz': 'UTC', 'type': 'float'}
+                    }]
+
+    # Create timestamp
+    now = datetime.utcnow().isoformat() + 'Z'
+    print("now is ", now)
+    # now = '2015-12-02T00:00:00'
+    headers = {
+        headers_mod.DATE: now
+    }
+    # Publish messages
+    publish_agent.vip.pubsub.publish(
+            'pubsub', "analysis/Building/LAB/Device/MixedAirTemperature", headers, all_message).get(timeout=10)
+
+    gevent.sleep(0.5)
+
+    # pytest.set_trace()
+    # Query the historian
+    result = publish_agent.vip.rpc.call('platform.historian',
+                                        'query',
+                                        topic=query_points['mixed_point'],
+                                        start=now,
+                                        end=now,
+                                        count=20,
+                                        order="LAST_TO_FIRST").get(timeout=10)
+    print('Query Result', result)
+    assert (len(result['values']) == 1)
+    (now_date, now_time) = now.split("T")
+    if now_time[-1:] == 'Z':
+        now_time = now_time[:-1]
+    assert_timestamp(result['values'][0][0], now_date, now_time)
+    assert (result['values'][0][1] == mixed_reading)
+
+@pytest.mark.historian
+def test_record_topic_query(volttron_instance1, sqlhistorian, clean):
+    """
+    Test query based on same start with literal 'Z' at the end of utc time.
+    Cannot query based on exact time as timestamp recorded is time of insert
+    publish and query record topic
+    :param volttron_instance1: The instance against which the test is run
+    :param sqlhistorian: instance of the sql historian tested
+    :param clean: teardown function
+    """
+    global publish_agent
+    # print('HOME', volttron_instance1.volttron_home)
+    print("\n** test_exact_timestamp **")
+    # Publish int data
+
+    # Create timestamp
+    now = datetime.utcnow().isoformat() + 'Z'
+    print("now is ", now)
+
+    headers = {
+        headers_mod.DATE: now
+    }
+    # Publish messages
+    publish_agent.vip.pubsub.publish(
+            'pubsub', topics.RECORD, None, 1).get(timeout=10)
+    # sleep 1 second so that records gets inserted with unique timestamp even in case of older mysql
+    gevent.sleep(1)
+    publish_agent.vip.pubsub.publish(
+            'pubsub', topics.RECORD, None, 'value0').get(timeout=10)
+    # sleep 1 second so that records gets inserted with unique timestamp even in case of older mysql
+    gevent.sleep(1)
+    publish_agent.vip.pubsub.publish(
+            'pubsub', topics.RECORD, None, {'key':'value'}).get(timeout=10)
+
+    gevent.sleep(0.5)
+
+    # pytest.set_trace()
+    # Query the historian
+    result = publish_agent.vip.rpc.call('platform.historian',
+                                        'query',
+                                        topic=topics.RECORD,
+                                        start=now,
+                                        count=20,
+                                        order="FIRST_TO_LAST").get(timeout=10)
+    print('Query Result', result)
+    assert (len(result['values']) == 3)
+    assert (result['values'][0][1] == 1)
+    assert (result['values'][1][1] == 'value0')
+    assert (result['values'][2][1] == {'key':'value'} )
+
+@pytest.mark.historian
+def test_log_topic(volttron_instance1, sqlhistorian, clean):
+    """
+    Test query based on same start and end time with literal 'Z' at the end of utc time.
+    Expected result: record with timestamp == start time
+    :param volttron_instance1: The instance against which the test is run
+    :param sqlhistorian: instance of the sql historian tested
+    :param clean: teardown function
+    """
+    global publish_agent, query_points
+    # print('HOME', volttron_instance1.volttron_home)
+    print("\n** test_log_topic **")
+    # Publish fake data. The format mimics the format used by VOLTTRON drivers.
+    # Make some random readings
+    oat_reading = random.uniform(30, 100)
+    mixed_reading = oat_reading + random.uniform(-5, 5)
+    damper_reading = random.uniform(0, 100)
+
+    # Create a message for all points.
+    message = {'MixedAirTemperature': {'Readings':mixed_reading,'Units': 'F', 'tz': 'UTC', 'type': 'float'}}
+
+    #pytest.set_trace()
+    # Create timestamp
+    now = datetime.utcnow().isoformat() + 'Z'
+    print("now is ", now)
+    # now = '2015-12-02T00:00:00'
+
+    # Publish messages
+    publish_agent.vip.pubsub.publish(
+            'pubsub', "datalogger/Building/LAB/Device", None, message).get(timeout=10)
+
+    gevent.sleep(1)
+
+
+    # Query the historian
+    result = publish_agent.vip.rpc.call('platform.historian',
+                                        'query',
+                                        topic="datalogger/Building/LAB/Device/MixedAirTemperature",
+                                        start=now,
+                                        count=20,
+                                        order="LAST_TO_FIRST").get(timeout=10)
+    print('Query Result', result)
+    assert (len(result['values']) == 1)
+    (now_date, now_time) = now.split("T")
+    assert (result['values'][0][1] == mixed_reading)
