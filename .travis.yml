@@ -1,6 +1,6 @@
 language: python
 
-dist: trusty
+#dist: trusty
 sudo: required
 
 before_install:
