@@ -2194,7 +2194,9 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
     getInitialState: function () {
         var state = {};
         
-        state.expanded = null;
+        state.expanded = (this.props.panelItem.hasOwnProperty("expanded") ? this.props.panelItem.expanded : null);
+
+        // state.expanded = null;
         state.showTooltip = false;
         state.tooltipX = null;
         state.tooltipY = null;
@@ -2208,7 +2210,10 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
         platformsPanelItemsStore.addChangeListener(this._onStoresChange);
     },
     componentWillMount: function () {
-        platformsPanelActionCreators.loadChildren(this.props.panelItem.type, this.props.panelItem);
+        if (typeof this.props.children === "undefined")
+        { 
+            platformsPanelActionCreators.loadChildren(this.props.panelItem.type, this.props.panelItem);
+        }
     },
     componentWillUnmount: function () {
         platformsPanelItemsStore.removeChangeListener(this._onStoresChange);
@@ -2288,77 +2293,61 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
         }
         else
         {
-            arrowContent = React.createElement("i", {className: "fa fa-square"});
+            arrowContent = React.createElement("span", null, "▬");
         }
 
-        // if (propChildren.length > 0)
-        // {
-        //     arrowClasses.push("rotateDown");
-        //     itemClasses = "showItems";
+        if (typeof propChildren !== "undefined" && propChildren !== null)
+        {   
+            children = propChildren
+                .sort(function (a, b) {
+                    if (a.name.toUpperCase() > b.name.toUpperCase()) { return 1; }
+                    if (a.name.toUpperCase() < b.name.toUpperCase()) { return -1; }
+                    return 0;
+                })
+                .sort(function (a, b) {
+                    if (a.sortOrder > b.sortOrder) { return 1; }
+                    if (a.sortOrder < b.sortOrder) { return -1; }
+                    return 0;
+                })
+                .map(function (propChild) {
+                    
+                    var grandchildren = [];
+                    propChild.children.forEach(function (childString) {
+                        grandchildren.push(propChild[childString]);
+                    });
 
-        //     items = propChildren
-        //         .filter(function (item) {
-        //             return (item.name.indexOf(this) > -1);
-        //         }, filterTerm) 
-        //         .sort(function (a, b) {
-        //             if (a.name.toLowerCase() > b.name.toLowerCase()) { return 1; }
-        //             if (a.name.toLowerCase() < b.name.toLowerCase()) { return -1; }
-        //             return 0;
-        //         })
-        //         .map(function (item) {
+                    return (
+                        React.createElement(PlatformsPanelItem, {panelItem: propChild, itemPath: propChild.path, children: grandchildren})
+                    );
+                }); 
 
-        //             return (
+            if (children.length > 0)
+            {
+                itemClasses = "showItems";
 
-        //                 <PlatformsPanelItem panelItem={item} children={childrenItems}/>
-                        
-        //             );
-        //         }, this);
-        // }
-        // else 
+                var classIndex = arrowClasses.indexOf("noRotate");
+                
+                if (classIndex > -1)
+                {
+                    arrowClasses.splice(classIndex, 1);
+                }
 
-        var listItem;
-
-        if (!panelItem.hasOwnProperty("uuid"))
-        {
-            listItem = React.createElement("div", null, 
-                            React.createElement("b", null, 
-                                panelItem.name
-                            )
-                        );
+                arrowClasses.push("rotateDown");
+                 // : "rotateRight");
+            }          
         }
         else
         {
-            listItem = React.createElement("div", {className: "platform-link"}, 
-                        React.createElement(Router.Link, {
-                            to: "platform", 
-                            params: {uuid: panelItem.uuid}
-                        }, 
-                        panelItem.name
-                        )
-                    );            
-        }
-        
-
-        if (this.state.expanded !== null)
-        {
-            var classIndex = arrowClasses.indexOf("noRotate");
-            if (classIndex > -1)
-            {
-                arrowClasses.splice(classIndex, 1);
-            }
-
-            arrowClasses.push(this.state.expanded ? "rotateDown" : "rotateRight");
-
-            if (this.state.expanded)
-            {                
-                if (this.state.children)
-                {
-                    itemClasses = "showItems";
-
-                    var childItems = this.state.children;
-                    
-                    if (childItems.length > 0)
+            if (this.state.expanded !== null)
+            {                   
+                if (this.state.expanded)
+                {                
+                    if (this.state.children !== null)
                     {
+                        // itemClasses = "showItems";
+
+                        var childItems = this.state.children;
+                        
                         children = childItems
                             .sort(function (a, b) {
                                 if (a.name.toUpperCase() > b.name.toUpperCase()) { return 1; }
@@ -2374,16 +2363,74 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
                                 return (
                                     React.createElement(PlatformsPanelItem, {panelItem: child, itemPath: child.path})
                                 );}, this);
+
+                        if (children.length > 0)
+                        {
+                            itemClasses = "showItems";
+
+                            var classIndex = arrowClasses.indexOf("noRotate");
+                            
+                            if (classIndex > -1)
+                            {
+                                arrowClasses.splice(classIndex, 1);
+                            }
+
+                            arrowClasses.push("rotateDown");
+                             // : "rotateRight");
+                        }                            
                     }
                 }
-            }
-            else
-            {
-                if (this.state.children) 
+                else
                 {
-                    itemClasses = "hideItems";
+                    if (this.state.children) 
+                    {
+                        itemClasses = "hideItems";
+
+                        arrowClasses.push("rotateRight");
+                    }
                 }
+
+                // if (children)
+                // {
+                //     if (children.length > 0)
+                //     {
+                //         itemClasses = "showItems";
+
+                //         var classIndex = arrowClasses.indexOf("noRotate");
+                        
+                //         if (classIndex > -1)
+                //         {
+                //             arrowClasses.splice(classIndex, 1);
+                //         }
+
+                //         arrowClasses.push(this.state.expanded ? "rotateDown" : "rotateRight");
+                //     }
+                // }
             }
+        }
+
+        var listItem;
+
+        if (!panelItem.hasOwnProperty("uuid"))
+        {
+            listItem = 
+                React.createElement("div", null, 
+                    React.createElement("b", null, 
+                        panelItem.name
+                    )
+                );
+        }
+        else
+        {
+            listItem = 
+                React.createElement("div", {className: "platform-link"}, 
+                    React.createElement(Router.Link, {
+                        to: "platform", 
+                        params: {uuid: panelItem.uuid}
+                    }, 
+                    panelItem.name
+                    )
+                );            
         }
 
         return (
@@ -2453,7 +2500,8 @@ var PlatformsPanelItem = require('./platforms-panel-item');
 var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
     getInitialState: function () {
         var state = {};
-        state.platforms = [];   
+        state.platforms = [];  
+        state.filteredPlatforms = null;   
         state.expanded = getExpandedFromStore();
         state.filterValue = "";
 
@@ -2463,26 +2511,52 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
         platformsPanelActionCreators.loadPanelPlatforms();
     },
     componentDidMount: function () {
-        platformsPanelStore.addChangeListener(this._onStoresChange);
+        platformsPanelStore.addChangeListener(this._onPanelStoreChange);
+        platformsPanelItemsStore.addChangeListener(this._onPanelItemsStoreChange);
     },
     componentWillUnmount: function () {
-        platformsPanelStore.removeChangeListener(this._onStoresChange);
+        platformsPanelStore.removeChangeListener(this._onPanelStoreChange);
+        platformsPanelItemsStore.removeChangeListener(this._onPanelItemsStoreChange);
     },
-    _onStoresChange: function () {
-        this.setState({platforms: getPlatformsFromStore()});
-        this.setState({expanded: getExpandedFromStore()});
+    _onPanelStoreChange: function () {
+        var expanded = getExpandedFromStore();
+
+        this.setState({expanded: expanded});
+
+        if (expanded !== null)
+        {
+            this.setState({platforms: getPlatformsFromStore()});
+        }
+    },
+    _onPanelItemsStoreChange: function () {
+        if (this.state.expanded !== null)
+        {
+            this.setState({platforms: getPlatformsFromStore()});
+        }
     },
     _onFilterBoxChange: function (e) {
         this.setState({ filterValue: e.target.value });
+        this.setState({ filteredPlatforms: getFilteredPlatforms(e.target.value, "") });
     },
-    _filterItems: function (e) {
-
+    _onFilterGood: function (e) {
+        this.setState({ filteredPlatforms: getFilteredPlatforms("", "GOOD") });
+    },
+    _onFilterBad: function (e) {
+        this.setState({ filteredPlatforms: getFilteredPlatforms("", "BAD") });
+    },
+    _onFilterUnknown: function (e) {
+        this.setState({ filteredPlatforms: getFilteredPlatforms("", "UNKNOWN") });
+    },
+    _onFilterOff: function (e) {
+        this.setState({ filteredPlatforms: getFilteredPlatforms("", "") });
     },
     _togglePanel: function () {
         platformsPanelActionCreators.togglePanel();
     },
     render: function () {
         var platforms;
+        var filteredPlatforms = this.state.filteredPlatforms;
+
         var classes = (this.state.expanded === null ? 
                         "platform-statuses platform-collapsed" : 
                         (this.state.expanded ? 
@@ -2498,10 +2572,8 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
         };
 
         var filterBoxContainer = {
-            textAlign: "center"
+            textAlign: "left"
         };
-
-        var filterTerm = this.state.filterValue;
 
         if (!this.state.platforms) {
             platforms = (
@@ -2511,24 +2583,43 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
             platforms = (
                 React.createElement("p", null, "No platforms found.")
             );
-        } else {
-            platforms = this.state.platforms
-                .filter(function (platform) {
-                    return ((platform.name.indexOf(this) > -1) || (this === "") || filteredChildren(platform, this).length > 0);
-                }, filterTerm)                
-                .sort(function (a, b) {
-                    if (a.name.toUpperCase() > b.name.toUpperCase()) { return 1; }
-                    if (a.name.toUpperCase() < b.name.toUpperCase()) { return -1; }
-                    return 0;
-                })
-                .map(function (platform) {
-
-                    return (
-
-                        React.createElement(PlatformsPanelItem, {panelItem: platform, itemPath: platform.path, children: filteredChildren(platform, filterTerm), filter: filterTerm})
+        } 
+        else 
+        {
+            if (filteredPlatforms !== null)
+            {
+                platforms = filteredPlatforms
+                    .sort(function (a, b) {
+                        if (a.name.toUpperCase() > b.name.toUpperCase()) { return 1; }
+                        if (a.name.toUpperCase() < b.name.toUpperCase()) { return -1; }
+                        return 0;
+                    })
+                    .map(function (filteredPlatform) {
                         
-                    );
-                }, this);
+                        var children = [];
+                        filteredPlatform.children.forEach(function (childString) {
+                            children.push(filteredPlatform[childString]);
+                        });
+
+                        return (
+                            React.createElement(PlatformsPanelItem, {panelItem: filteredPlatform, itemPath: filteredPlatform.path, children: children})
+                        );
+                });
+            }
+            else
+            {
+                platforms = this.state.platforms
+                    .sort(function (a, b) {
+                        if (a.name.toUpperCase() > b.name.toUpperCase()) { return 1; }
+                        if (a.name.toUpperCase() < b.name.toUpperCase()) { return -1; }
+                        return 0;
+                    })
+                    .map(function (platform) {
+                        return (
+                            React.createElement(PlatformsPanelItem, {panelItem: platform, itemPath: platform.path})
+                        );
+                    });
+            }
         }
 
         return (
@@ -2543,6 +2634,32 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
                             type: "text", 
                             onChange: this._onFilterBoxChange, 
                             value: this.state.filterValue}
+                        ), 
+                        React.createElement("div", {className: "filter_buttons"}, 
+                            React.createElement("div", {className: "filter_button status-good", 
+                                onClick: this._onFilterGood}, 
+                                React.createElement("div", {className: "centeredDiv"}, 
+                                    React.createElement("span", null, "▶")
+                                )
+                            ), 
+                            React.createElement("div", {className: "filter_button status-bad", 
+                                onClick: this._onFilterBad}, 
+                                React.createElement("div", {className: "centeredDiv"}, 
+                                    React.createElement("i", {className: "fa fa-minus-circle"})
+                                )
+                            ), 
+                            React.createElement("div", {className: "filter_button status-unknown", 
+                                onClick: this._onFilterUnknown}, 
+                                React.createElement("div", {className: "centeredDiv"}, 
+                                    React.createElement("span", null, "▬")
+                                )
+                            ), 
+                            React.createElement("div", {className: "filter_button", 
+                                onClick: this._onFilterOff}, 
+                                React.createElement("div", {className: "centeredDiv"}, 
+                                    React.createElement("i", {className: "fa fa-ban"})
+                                )
+                            )
                         )
                     ), 
                     React.createElement("ul", {className: "platform-panel-list"}, 
@@ -2566,30 +2683,60 @@ function getExpandedFromStore() {
     return platformsPanelStore.getExpanded();
 };
 
-function filteredChildren(platform, filterTerm) {
+function getFilteredPlatforms(filterTerm, filterStatus) {
 
-    // if (filterTerm !== "")
-    // {
-    //     var itemsList = [];
+    var platformsList = [];
 
-    //     for (var key in platform.children)
-    //     {
-    //         var items = platformsPanelItemsStore.getFilteredItems(platform);
-    //     }
-        
+    if (filterTerm !== "" || filterStatus !== "")
+    {
+        var treeCopy = platformsPanelItemsStore.getTreeCopy();
 
-    //     return {"agents": agents.filter(function (agent) {
-    //         return (agent.name.indexOf(this) > -1);
-    //     }, filterTerm)};
-    // }
-    // else
-    // {
-    //     return [];
-    // } 
+        var platforms = treeCopy["platforms"];
 
-    return [];
-    
-};
+        for (var key in platforms)
+        {
+            var filteredPlatform = platformsPanelItemsStore.getFilteredItems(platforms[key], filterTerm, filterStatus);
+
+            if (filteredPlatform)
+            {
+                if ((filteredPlatform.children.length === 0) && (filteredPlatform.name.indexOf(filterTerm, filterStatus) < 0))
+                {
+                    filteredPlatform = null;
+                }
+            }
+
+            if (filteredPlatform)
+            {
+                platformsList.push(filteredPlatform);
+            }
+        }
+    }
+    else
+    {
+        platformsList = null;
+    }
+
+    return platformsList;
+}
+
+
+// function filteredPlatform(platform, filterTerm) {
+
+//     var treeCopy = platformsPanelItemsStore.getTreeCopy();
+
+//     var filteredPlatform = platformsPanelItemsStore.getFilteredItems(treeCopy["platforms"][platform.uuid], filterTerm);
+
+
+//     if (filteredPlatform)
+//     {
+//         if ((filteredPlatform.children.length === 0) && (filteredPlatform.name.indexOf(filterTerm) < 0))
+//         {
+//             filteredPlatform = null;
+//         }
+//     }
+
+//     return filteredPlatform;
+// };
 
 module.exports = PlatformsPanel;
 
@@ -3963,6 +4110,86 @@ platformsPanelItemsStore.getItems = function (parent, parentPath) {
 
     return itemsList;
 };
+
+platformsPanelItemsStore.getTreeCopy = function() {
+
+    return JSON.parse(JSON.stringify(_items));
+}
+
+platformsPanelItemsStore.getFilteredItems = function (parent, filterTerm, filterStatus) {
+
+    var compareFunct;
+    var compareTerm;
+
+    if (filterTerm === "")
+    {
+        compareFunct = function (parent, filterStatus)
+        {
+            return (parent.status !== filterStatus);
+        }
+
+        compareTerm = filterStatus;
+    }
+    else if (filterStatus === "")
+    {
+        compareFunct = function (parent, filterTerm)
+        {
+            return (parent.name.indexOf(filterTerm) < 0);
+        }
+
+        compareTerm = filterTerm;
+    }
+
+    if (parent.children.length === 0)
+    {
+        if (compareFunct(parent, compareTerm))
+        {
+            return null;
+        }
+        else
+        {
+            return parent;
+        }
+    }
+    else
+    {
+        var childrenToDelete = [];
+
+        for (var i = 0; i < parent.children.length; i++)
+        {
+            var childString = parent.children[i];
+            var filteredChild = platformsPanelItemsStore.getFilteredItems(parent[childString], filterTerm, filterStatus);
+
+            if (filteredChild === null)
+            {
+                delete parent[childString];
+
+                childrenToDelete.push(childString);
+            }
+        }
+        
+        for (var i = 0; i < childrenToDelete.length; i++)
+        {
+            var index = parent.children.indexOf(childrenToDelete[i]);
+            parent.children.splice(index, 1);
+        }
+
+        if ((parent.children.length === 0) && (compareFunct(parent, compareTerm)))
+        {
+            parent = null;
+        }
+        else
+        {
+            if (parent.children.length > 0)
+            {
+                parent.expanded = true;
+            }
+        }
+
+        return parent;
+    }
+};
+
 
 platformsPanelItemsStore.getExpanded = function () {
     return _expanded;

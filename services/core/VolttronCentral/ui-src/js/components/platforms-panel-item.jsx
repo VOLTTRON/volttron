@@ -10,7 +10,9 @@ var PlatformsPanelItem = React.createClass({
     getInitialState: function () {
         var state = {};
         
-        state.expanded = null;
+        state.expanded = (this.props.panelItem.hasOwnProperty("expanded") ? this.props.panelItem.expanded : null);
+
+        // state.expanded = null;
         state.showTooltip = false;
         state.tooltipX = null;
         state.tooltipY = null;
@@ -24,7 +26,10 @@ var PlatformsPanelItem = React.createClass({
         platformsPanelItemsStore.addChangeListener(this._onStoresChange);
     },
     componentWillMount: function () {
-        platformsPanelActionCreators.loadChildren(this.props.panelItem.type, this.props.panelItem);
+        if (typeof this.props.children === "undefined")
+        { 
+            platformsPanelActionCreators.loadChildren(this.props.panelItem.type, this.props.panelItem);
+        }
     },
     componentWillUnmount: function () {
         platformsPanelItemsStore.removeChangeListener(this._onStoresChange);
@@ -104,77 +109,61 @@ var PlatformsPanelItem = React.createClass({
         }
         else
         {
-            arrowContent = <i className="fa fa-square"></i>;
+            arrowContent = <span>&#9644;</span>;
         }
 
-        // if (propChildren.length > 0)
-        // {
-        //     arrowClasses.push("rotateDown");
-        //     itemClasses = "showItems";
+        if (typeof propChildren !== "undefined" && propChildren !== null)
+        {   
+            children = propChildren
+                .sort(function (a, b) {
+                    if (a.name.toUpperCase() > b.name.toUpperCase()) { return 1; }
+                    if (a.name.toUpperCase() < b.name.toUpperCase()) { return -1; }
+                    return 0;
+                })
+                .sort(function (a, b) {
+                    if (a.sortOrder > b.sortOrder) { return 1; }
+                    if (a.sortOrder < b.sortOrder) { return -1; }
+                    return 0;
+                })
+                .map(function (propChild) {
+                    
+                    var grandchildren = [];
+                    propChild.children.forEach(function (childString) {
+                        grandchildren.push(propChild[childString]);
+                    });
 
-        //     items = propChildren
-        //         .filter(function (item) {
-        //             return (item.name.indexOf(this) > -1);
-        //         }, filterTerm) 
-        //         .sort(function (a, b) {
-        //             if (a.name.toLowerCase() > b.name.toLowerCase()) { return 1; }
-        //             if (a.name.toLowerCase() < b.name.toLowerCase()) { return -1; }
-        //             return 0;
-        //         })
-        //         .map(function (item) {
+                    return (
+                        <PlatformsPanelItem panelItem={propChild} itemPath={propChild.path} children={grandchildren}/>
+                    );
+                }); 
 
-        //             return (
+            if (children.length > 0)
+            {
+                itemClasses = "showItems";
 
-        //                 <PlatformsPanelItem panelItem={item} children={childrenItems}/>
-                        
-        //             );
-        //         }, this);
-        // }
-        // else 
+                var classIndex = arrowClasses.indexOf("noRotate");
+                
+                if (classIndex > -1)
+                {
+                    arrowClasses.splice(classIndex, 1);
+                }
 
-        var listItem;
-
-        if (!panelItem.hasOwnProperty("uuid"))
-        {
-            listItem = <div>
-                            <b>
-                                {panelItem.name}
-                            </b>
-                        </div>;
+                arrowClasses.push("rotateDown");
+                 // : "rotateRight");
+            }          
         }
         else
         {
-            listItem = <div className="platform-link">
-                        <Router.Link
-                            to="platform"
-                            params={{uuid: panelItem.uuid}}
-                        >
-                        {panelItem.name}
-                        </Router.Link>
-                    </div>;            
-        }
-        
-
-        if (this.state.expanded !== null)
-        {
-            var classIndex = arrowClasses.indexOf("noRotate");
-            if (classIndex > -1)
-            {
-                arrowClasses.splice(classIndex, 1);
-            }
-
-            arrowClasses.push(this.state.expanded ? "rotateDown" : "rotateRight");
-
-            if (this.state.expanded)
-            {                
-                if (this.state.children)
-                {
-                    itemClasses = "showItems";
-
-                    var childItems = this.state.children;
-                    
-                    if (childItems.length > 0)
+            if (this.state.expanded !== null)
+            {                   
+                if (this.state.expanded)
+                {                
+                    if (this.state.children !== null)
                     {
+                        // itemClasses = "showItems";
+
+                        var childItems = this.state.children;
+                        
                         children = childItems
                             .sort(function (a, b) {
                                 if (a.name.toUpperCase() > b.name.toUpperCase()) { return 1; }
@@ -190,16 +179,74 @@ var PlatformsPanelItem = React.createClass({
                                 return (
                                     <PlatformsPanelItem panelItem={child} itemPath={child.path}/>
                                 );}, this);
+
+                        if (children.length > 0)
+                        {
+                            itemClasses = "showItems";
+
+                            var classIndex = arrowClasses.indexOf("noRotate");
+                            
+                            if (classIndex > -1)
+                            {
+                                arrowClasses.splice(classIndex, 1);
+                            }
+
+                            arrowClasses.push("rotateDown");
+                             // : "rotateRight");
+                        }                            
                     }
                 }
-            }
-            else
-            {
-                if (this.state.children) 
+                else
                 {
-                    itemClasses = "hideItems";
+                    if (this.state.children) 
+                    {
+                        itemClasses = "hideItems";
+
+                        arrowClasses.push("rotateRight");
+                    }
                 }
+
+                // if (children)
+                // {
+                //     if (children.length > 0)
+                //     {
+                //         itemClasses = "showItems";
+
+                //         var classIndex = arrowClasses.indexOf("noRotate");
+                        
+                //         if (classIndex > -1)
+                //         {
+                //             arrowClasses.splice(classIndex, 1);
+                //         }
+
+                //         arrowClasses.push(this.state.expanded ? "rotateDown" : "rotateRight");
+                //     }
+                // }
             }
+        }
+
+        var listItem;
+
+        if (!panelItem.hasOwnProperty("uuid"))
+        {
+            listItem = 
+                <div>
+                    <b>
+                        {panelItem.name}
+                    </b>
+                </div>;
+        }
+        else
+        {
+            listItem = 
+                <div className="platform-link">
+                    <Router.Link
+                        to="platform"
+                        params={{uuid: panelItem.uuid}}
+                    >
+                    {panelItem.name}
+                    </Router.Link>
+                </div>;            
         }
 
         return (

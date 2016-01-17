@@ -602,6 +602,10 @@ br + .form__control-help {
   content: "\f0c8";
 }
 
+.fa-ban:before {
+  content: "\f05e";
+}
+
 /*.tooltip_show {
     display: "block";
 }
@@ -615,7 +619,26 @@ br + .form__control-help {
 }
 
 .filter_box {
-    width: 80%;
+    width: 60%;
+}
+
+.filter_buttons {
+    display: inline-block;
+}
+
+.filter_button {
+    display: inline-block;
+    margin: 0px 1px;
+    cursor: pointer;
+    border: solid 1px gray;
+    border-radius: 2px;
+    width: 15px;
+    height: 18px;
+    padding: 2px 2px;
+}
+
+.centeredDiv {
+    text-align: center;
 }
 
 .status-good {

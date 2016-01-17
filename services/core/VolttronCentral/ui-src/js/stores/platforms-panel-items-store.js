@@ -487,6 +487,86 @@ platformsPanelItemsStore.getItems = function (parent, parentPath) {
     return itemsList;
 };
 
+platformsPanelItemsStore.getTreeCopy = function() {
+
+    return JSON.parse(JSON.stringify(_items));
+}
+
+platformsPanelItemsStore.getFilteredItems = function (parent, filterTerm, filterStatus) {
+
+    var compareFunct;
+    var compareTerm;
+
+    if (filterTerm === "")
+    {
+        compareFunct = function (parent, filterStatus)
+        {
+            return (parent.status !== filterStatus);
+        }
+
+        compareTerm = filterStatus;
+    }
+    else if (filterStatus === "")
+    {
+        compareFunct = function (parent, filterTerm)
+        {
+            return (parent.name.indexOf(filterTerm) < 0);
+        }
+
+        compareTerm = filterTerm;
+    }
+
+    if (parent.children.length === 0)
+    {
+        if (compareFunct(parent, compareTerm))
+        {
+            return null;
+        }
+        else
+        {
+            return parent;
+        }
+    }
+    else
+    {
+        var childrenToDelete = [];
+
+        for (var i = 0; i < parent.children.length; i++)
+        {
+            var childString = parent.children[i];
+            var filteredChild = platformsPanelItemsStore.getFilteredItems(parent[childString], filterTerm, filterStatus);
+
+            if (filteredChild === null)
+            {
+                delete parent[childString];
+
+                childrenToDelete.push(childString);
+            }
+        }
+        
+        for (var i = 0; i < childrenToDelete.length; i++)
+        {
+            var index = parent.children.indexOf(childrenToDelete[i]);
+            parent.children.splice(index, 1);
+        }
+
+        if ((parent.children.length === 0) && (compareFunct(parent, compareTerm)))
+        {
+            parent = null;
+        }
+        else
+        {
+            if (parent.children.length > 0)
+            {
+                parent.expanded = true;
+            }
+        }
+
+        return parent;
+    }
+};
+
+
 platformsPanelItemsStore.getExpanded = function () {
     return _expanded;
 };
