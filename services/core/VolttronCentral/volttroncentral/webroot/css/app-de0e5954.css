@@ -564,13 +564,13 @@ br + .form__control-help {
 } 
 
 .tooltip_inner {
-    background-color: #F6EDFA;
+    background-color: #D6D5A3;
     padding: 10px;
     border-radius: 5px;
 }
 
 .tooltip_point {
-    color: #F6EDFA;
+    color: #D6D5A3;
     transform: rotate(90deg);
     transform-origin: 20px 20px;
     margin: 0px;
@@ -606,6 +606,10 @@ br + .form__control-help {
   content: "\f05e";
 }
 
+.fa-search:before {
+  content: "\f002";
+}
+
 /*.tooltip_show {
     display: "block";
 }
@@ -619,7 +623,7 @@ br + .form__control-help {
 }
 
 .filter_box {
-    width: 60%;
+    width: 55%;
 }
 
 .filter_buttons {

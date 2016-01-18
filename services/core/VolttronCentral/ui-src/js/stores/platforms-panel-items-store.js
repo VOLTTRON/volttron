@@ -501,7 +501,30 @@ platformsPanelItemsStore.getFilteredItems = function (parent, filterTerm, filter
     {
         compareFunct = function (parent, filterStatus)
         {
-            return (parent.status !== filterStatus);
+            if (parent.hasOwnProperty("status"))
+            {
+                return (parent.status !== filterStatus);                
+            }
+            else
+            {
+                var result;
+
+                if (filterStatus !== "UNKNOWN")
+                {
+                    result = true;
+                }
+                else
+                {
+                    result = false;
+                }
+
+                return result;
+
+                // return ;
+            }
+
+            
+            // return ((parent.status !== filterStatus) || (!parent.hasOwnProperty("status") && (filterStatus === 'UNKNOWN')));
         }
 
         compareTerm = filterStatus;

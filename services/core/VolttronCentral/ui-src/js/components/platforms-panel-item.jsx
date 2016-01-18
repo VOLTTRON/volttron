@@ -26,7 +26,7 @@ var PlatformsPanelItem = React.createClass({
         platformsPanelItemsStore.addChangeListener(this._onStoresChange);
     },
     componentWillMount: function () {
-        if (typeof this.props.children === "undefined")
+        if (!this.props.hasOwnProperty("children"))
         { 
             platformsPanelActionCreators.loadChildren(this.props.panelItem.type, this.props.panelItem);
         }
@@ -46,6 +46,20 @@ var PlatformsPanelItem = React.createClass({
         {
             this.setState({expanded: !this.state.expanded});
         }
+        else
+        {
+            if (this.props.hasOwnProperty("children"))
+            {
+                if (this.state.expanded === null)
+                {
+                    this.setState({expanded: !this.props.panelItem.expanded});
+                }
+                else
+                {
+                    this.setState({expanded: !this.state.expanded});
+                }
+            }
+        }   
     },
     _showTooltip: function (evt) {
         this.setState({showTooltip: true});
@@ -111,46 +125,57 @@ var PlatformsPanelItem = React.createClass({
         {
             arrowContent = <span>&#9644;</span>;
         }
-
+        
         if (typeof propChildren !== "undefined" && propChildren !== null)
         {   
-            children = propChildren
-                .sort(function (a, b) {
-                    if (a.name.toUpperCase() > b.name.toUpperCase()) { return 1; }
-                    if (a.name.toUpperCase() < b.name.toUpperCase()) { return -1; }
-                    return 0;
-                })
-                .sort(function (a, b) {
-                    if (a.sortOrder > b.sortOrder) { return 1; }
-                    if (a.sortOrder < b.sortOrder) { return -1; }
-                    return 0;
-                })
-                .map(function (propChild) {
-                    
-                    var grandchildren = [];
-                    propChild.children.forEach(function (childString) {
-                        grandchildren.push(propChild[childString]);
-                    });
-
-                    return (
-                        <PlatformsPanelItem panelItem={propChild} itemPath={propChild.path} children={grandchildren}/>
-                    );
-                }); 
-
-            if (children.length > 0)
+            // if (this.state.expanded || (this.state.expanded === null && this.props.panelItem.expanded === true))
+            if (this.state.expanded || this.props.panelItem.expanded === true)
             {
-                itemClasses = "showItems";
+                children = propChildren
+                    .sort(function (a, b) {
+                        if (a.name.toUpperCase() > b.name.toUpperCase()) { return 1; }
+                        if (a.name.toUpperCase() < b.name.toUpperCase()) { return -1; }
+                        return 0;
+                    })
+                    .sort(function (a, b) {
+                        if (a.sortOrder > b.sortOrder) { return 1; }
+                        if (a.sortOrder < b.sortOrder) { return -1; }
+                        return 0;
+                    })
+                    .map(function (propChild) {
+                        
+                        var grandchildren = [];
+                        propChild.children.forEach(function (childString) {
+                            grandchildren.push(propChild[childString]);
+                        });
 
-                var classIndex = arrowClasses.indexOf("noRotate");
-                
-                if (classIndex > -1)
+                        return (
+                            <PlatformsPanelItem panelItem={propChild} itemPath={propChild.path} children={grandchildren}/>
+                        );
+                    }); 
+
+                if (children.length > 0)
                 {
-                    arrowClasses.splice(classIndex, 1);
-                }
+                    // itemClasses = "showItems";
 
-                arrowClasses.push("rotateDown");
-                 // : "rotateRight");
-            }          
+                    var classIndex = arrowClasses.indexOf("noRotate");
+                    
+                    if (classIndex > -1)
+                    {
+                        arrowClasses.splice(classIndex, 1);
+                    }
+
+                    arrowClasses.push("rotateDown");
+                    itemClasses = "showItems";
+
+                    // arrowClasses.push(this.state.expanded ? "rotateDown" : "rotateRight");
+                    // itemClasses = (this.state.expanded ? "showItems" : "hideItems");
+                     // : "rotateRight");
+
+                    // this.props.panelItem.expanded = this.state.expanded;
+                    
+                }          
+            }
         }
         else
         {

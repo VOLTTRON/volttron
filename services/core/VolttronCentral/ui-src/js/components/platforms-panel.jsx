@@ -87,6 +87,10 @@ var PlatformsPanel = React.createClass({
             textAlign: "left"
         };
 
+        var space_right = {
+            marginRight: "5px"
+        };
+
         if (!this.state.platforms) {
             platforms = (
                 <p>Loading platforms panel ...</p>
@@ -141,11 +145,13 @@ var PlatformsPanel = React.createClass({
                 <div style={contentsStyle}>
                     <br/>
                     <div style={filterBoxContainer}>
+                        <i className="fa fa-search"
+                            style={space_right}></i>
                         <input
                             className="filter_box"
                             type="text"
                             onChange={this._onFilterBoxChange}
-                            value={this.state.filterValue}
+                            value={ this.state.filterValue }
                         />
                         <div className="filter_buttons">
                             <div className="filter_button status-good"
