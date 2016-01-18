@@ -60,6 +60,7 @@ from __future__ import absolute_import, print_function
 
 import argparse
 import collections
+import json
 import logging
 import logging.handlers
 import os
@@ -512,6 +513,11 @@ def do_stats(opts):
         call('stats.' + opts.op)
         _stdout.write('%sabled\n' % ('en' if call('stats.enabled') else 'dis'))
 
+def manage_auth(opts):
+    with open(os.path.join(opts.volttron_home, 'auth.json')) as auth_file:
+        auth_json = json.load(auth_file)
+    if opts.list:
+        _stdout.write('{}\n'.format(json.dumps(auth_json, indent=4)))
 
 # XXX: reimplement over VIP
 #def send_agent(opts):
@@ -757,6 +763,13 @@ def main(argv=sys.argv):
     op = stats.add_argument(
         'op', choices=['status', 'enable', 'disable', 'dump', 'pprint'], nargs='?')
     stats.set_defaults(func=do_stats, op='status')
+
+    auth = add_parser('auth',
+        help='manage authentication records, credentials, domains, addresses, '
+             'groups, and capabilities')
+    auth.add_argument('--list', action='store_true',
+        help='list authorization records')
+    auth.set_defaults(func=manage_auth)
 
     if HAVE_RESTRICTED:
         cgroup = add_parser('create-cgroups',
