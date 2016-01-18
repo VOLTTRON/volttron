@@ -2201,6 +2201,8 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
         state.tooltipX = null;
         state.tooltipY = null;
         state.keepTooltip = false;
+        state.expandedChildren;
+        // state.expandedOn = null;
 
         state.children = getChildrenFromStore(this.props.panelItem, this.props.itemPath);
 
@@ -2224,6 +2226,14 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
 
         this.setState({children: children});
     },
+    _expandAll : function () {
+        var expandedOn = ((this.state.expanded === null) ? true : !this.state.expanded);
+
+        // this.setState({expandedOn: expandedOn});
+        this.setState({expanded: expandedOn});
+        
+        this.setState({expandedChildren: expandAllChildren(expandedOn, this.props.panelItem)});
+    },
     _toggleItem: function () {
 
         if (this.state.children.length > 0)
@@ -2243,7 +2253,8 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
                     this.setState({expanded: !this.state.expanded});
                 }
             }
-        }   
+        }
+        
     },
     _showTooltip: function (evt) {
         this.setState({showTooltip: true});
@@ -2270,7 +2281,13 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
         var items;
         var children;
 
-        var propChildren = this.props.children;
+        var propChildren = this.state.expandedChildren;
+
+        if (typeof propChildren === "undefined" || propChildren === null)
+        {
+            propChildren = this.props.children;
+        }
+
         var filterTerm = this.props.filter;
 
         var itemClasses;
@@ -2465,6 +2482,7 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
             }, 
                 React.createElement("div", {className: "platform-info"}, 
                     React.createElement("div", {className: arrowClasses.join(' '), 
+                        onDoubleClick: this._expandAll, 
                         onClick: this._toggleItem}, 
                         arrowContent
                         ), 
@@ -2501,7 +2519,18 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
 // {
 //     return getItemsFromStore(parent, parentPath);
 // }
+function expandAllChildren(expandOn, parent)
+{
+    var expandedParent = platformsPanelItemsStore.getExpandedChildren(expandOn, parent);
+    var expandedChildren = [];
 
+    expandedParent.children.forEach(function(childString) {
+        expandedChildren.push(expandedParent[childString]);
+    })
+
+    return expandedChildren;
+
+}
 
 function getChildrenFromStore(parentItem, parentPath) {
     return platformsPanelItemsStore.getItems(parentItem, parentPath);
@@ -4162,24 +4191,8 @@ platformsPanelItemsStore.getFilteredItems = function (parent, filterTerm, filter
             }
             else
             {
-                var result;
-
-                if (filterStatus !== "UNKNOWN")
-                {
-                    result = true;
-                }
-                else
-                {
-                    result = false;
-                }
-
-                return result;
-
-                // return ;
+                return (filterStatus !== "UNKNOWN");
             }
-
-            
-            // return ((parent.status !== filterStatus) || (!parent.hasOwnProperty("status") && (filterStatus === 'UNKNOWN')));
         }
 
         compareTerm = filterStatus;
@@ -4239,6 +4252,26 @@ platformsPanelItemsStore.getFilteredItems = function (parent, filterTerm, filter
                 parent.expanded = true;
             }
         }
+
+        return parent;
+    }
+};
+
+platformsPanelItemsStore.getExpandedChildren = function (expandedOn, parent) {
+
+    if (parent.children.length === 0)
+    {
+        return parent;
+    }
+    else
+    {
+        for (var i = 0; i < parent.children.length; i++)
+        {
+            var childString = parent.children[i];
+            var expandedChild = platformsPanelItemsStore.getExpandedChildren(expandedOn, parent[childString]);
+        }
+        
+        parent.expanded = expandedOn;
 
         return parent;
     }

@@ -17,6 +17,8 @@ var PlatformsPanelItem = React.createClass({
         state.tooltipX = null;
         state.tooltipY = null;
         state.keepTooltip = false;
+        state.expandedChildren;
+        // state.expandedOn = null;
 
         state.children = getChildrenFromStore(this.props.panelItem, this.props.itemPath);
 
@@ -40,6 +42,14 @@ var PlatformsPanelItem = React.createClass({
 
         this.setState({children: children});
     },
+    _expandAll : function () {
+        var expandedOn = ((this.state.expanded === null) ? true : !this.state.expanded);
+
+        // this.setState({expandedOn: expandedOn});
+        this.setState({expanded: expandedOn});
+        
+        this.setState({expandedChildren: expandAllChildren(expandedOn, this.props.panelItem)});
+    },
     _toggleItem: function () {
 
         if (this.state.children.length > 0)
@@ -59,7 +69,8 @@ var PlatformsPanelItem = React.createClass({
                     this.setState({expanded: !this.state.expanded});
                 }
             }
-        }   
+        }
+        
     },
     _showTooltip: function (evt) {
         this.setState({showTooltip: true});
@@ -86,7 +97,13 @@ var PlatformsPanelItem = React.createClass({
         var items;
         var children;
 
-        var propChildren = this.props.children;
+        var propChildren = this.state.expandedChildren;
+
+        if (typeof propChildren === "undefined" || propChildren === null)
+        {
+            propChildren = this.props.children;
+        }
+
         var filterTerm = this.props.filter;
 
         var itemClasses;
@@ -281,6 +298,7 @@ var PlatformsPanelItem = React.createClass({
             >
                 <div className="platform-info">
                     <div className={arrowClasses.join(' ')}
+                        onDoubleClick={this._expandAll}
                         onClick={this._toggleItem}>
                         {arrowContent}
                         </div>  
@@ -317,7 +335,18 @@ var PlatformsPanelItem = React.createClass({
 // {
 //     return getItemsFromStore(parent, parentPath);
 // }
+function expandAllChildren(expandOn, parent)
+{
+    var expandedParent = platformsPanelItemsStore.getExpandedChildren(expandOn, parent);
+    var expandedChildren = [];
 
+    expandedParent.children.forEach(function(childString) {
+        expandedChildren.push(expandedParent[childString]);
+    })
+
+    return expandedChildren;
+
+}
 
 function getChildrenFromStore(parentItem, parentPath) {
     return platformsPanelItemsStore.getItems(parentItem, parentPath);

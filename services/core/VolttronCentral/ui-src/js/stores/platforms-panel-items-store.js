@@ -507,24 +507,8 @@ platformsPanelItemsStore.getFilteredItems = function (parent, filterTerm, filter
             }
             else
             {
-                var result;
-
-                if (filterStatus !== "UNKNOWN")
-                {
-                    result = true;
-                }
-                else
-                {
-                    result = false;
-                }
-
-                return result;
-
-                // return ;
+                return (filterStatus !== "UNKNOWN");
             }
-
-            
-            // return ((parent.status !== filterStatus) || (!parent.hasOwnProperty("status") && (filterStatus === 'UNKNOWN')));
         }
 
         compareTerm = filterStatus;
@@ -584,6 +568,26 @@ platformsPanelItemsStore.getFilteredItems = function (parent, filterTerm, filter
                 parent.expanded = true;
             }
         }
+
+        return parent;
+    }
+};
+
+platformsPanelItemsStore.getExpandedChildren = function (expandedOn, parent) {
+
+    if (parent.children.length === 0)
+    {
+        return parent;
+    }
+    else
+    {
+        for (var i = 0; i < parent.children.length; i++)
+        {
+            var childString = parent.children[i];
+            var expandedChild = platformsPanelItemsStore.getExpandedChildren(expandedOn, parent[childString]);
+        }
+        
+        parent.expanded = expandedOn;
 
         return parent;
     }
