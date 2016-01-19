@@ -127,13 +127,28 @@ def historian(config_path, **kwargs):
         def capture_data(self, peer, sender, bus, topic, headers, message):
             if 'X-Forwarded-For' in headers.keys():
                 return
-            
-            payload = jsonapi.dumps({'headers':headers,'message':message})
-            
-                
+            data = message
+            try:
+                # 2.0 agents compatability layer makes sender == pubsub.compat so
+                # we can do the proper thing when it is here
+                if sender == 'pubsub.compat':
+                    data = jsonapi.loads(message[0])
+                if isinstance(data, dict):
+                    data = data
+                else:
+                    data = data[0]
+            except ValueError as e:
+                log_message = "message for {topic} bad message string: {message_string}"
+                _log.error(log_message.format(topic=topic, message_string=message[0]))
+                raise
+
+            _log.debug('prepayload: {}'.format(message))
+            payload = jsonapi.dumps({'headers': headers, 'message': data})
+            _log.debug('postpayload: {}'.format(payload))
+
             self._event_queue.put({'source': "forwarded",
                                    'topic': topic,
-                                   'readings': [(str(datetime.datetime.utcnow()),payload)]})
+                                   'readings': [(str(datetime.datetime.utcnow()), payload)]})
 
   
         def __platform(self, peer, sender, bus, topic, headers, message):
