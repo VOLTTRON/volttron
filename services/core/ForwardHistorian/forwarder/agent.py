@@ -172,7 +172,8 @@ def historian(config_path, **kwargs):
 
                 payload = jsonapi.loads(value)
                 headers = payload['headers']
-                headers['X-Forwarded-For'] = 'my-platform'
+                headers['Origin'] = self.core.address
+                headers['Destination'] = destination_vip
 
                 with gevent.Timeout(30):
                     try:
