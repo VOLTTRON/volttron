@@ -71,27 +71,20 @@ from volttron.platform.agent.base_historian import BaseHistorian
 from volttron.platform.agent import utils
 from volttron.platform.messaging import topics, headers as headers_mod
 
-#import sqlhistorian
-#import sqlhistorian.settings
-#import settings
-
-
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
 
-
 def historian(config_path, **kwargs):
-
     config = utils.load_config(config_path)
-    
+
     destination_vip = config.get('destination-vip')
     identity = config.get('identity', kwargs.pop('identity', None))
-            
+
     class ForwardHistorian(BaseHistorian):
         '''This historian forwards data to another platform.
         '''
-        
+
         @Core.receiver("onstart")
         def starting_base(self, sender, **kwargs):
             '''
@@ -99,31 +92,29 @@ def historian(config_path, **kwargs):
             datalogger, and device topics to capture data.
             '''
             _log.debug("Starting Forward historian")
-    
+
             driver_prefix = topics.DRIVER_TOPIC_BASE
             _log.debug("subscribing to {}".format(driver_prefix))
             self.vip.pubsub.subscribe(peer='pubsub',
-                                   prefix=driver_prefix,
-                                   callback=self.capture_data)
-     
+                                      prefix=driver_prefix,
+                                      callback=self.capture_data)
+
             _log.debug('Subscribing to: {}'.format(topics.LOGGER_BASE))
             self.vip.pubsub.subscribe(peer='pubsub',
-                                   prefix=topics.LOGGER_BASE, #"datalogger",
-                                   callback=self.capture_data)
-     
+                                      prefix=topics.LOGGER_BASE,  # "datalogger",
+                                      callback=self.capture_data)
+
             _log.debug('Subscribing to: '.format(topics.ACTUATOR))
             self.vip.pubsub.subscribe(peer='pubsub',
-                                   prefix=topics.ACTUATOR,  # actuators/*
-                                   callback=self.capture_data)
-    
+                                      prefix=topics.ACTUATOR,  # actuators/*
+                                      callback=self.capture_data)
+
             _log.debug('Subscribing to: {}'.format(topics.ANALYSIS_TOPIC_BASE))
             self.vip.pubsub.subscribe(peer='pubsub',
-                                   prefix=topics.ANALYSIS_TOPIC_BASE,  # anaysis/*
-                                   callback=self.capture_data)
+                                      prefix=topics.ANALYSIS_TOPIC_BASE,  # anaysis/*
+                                      callback=self.capture_data)
             self._started = True
-            
-            
-            
+
         def capture_data(self, peer, sender, bus, topic, headers, message):
             if 'X-Forwarded-For' in headers.keys():
                 return
@@ -150,26 +141,18 @@ def historian(config_path, **kwargs):
                                    'topic': topic,
                                    'readings': [(str(datetime.datetime.utcnow()), payload)]})
 
-  
         def __platform(self, peer, sender, bus, topic, headers, message):
             _log.debug('Platform is now: {}'.format(message))
-            
 
         def publish_to_historian(self, to_publish_list):
-            print (to_publish_list)
-#             self.historian_setup()
-            handled_records =[]
-            
+            handled_records = []
+
             _log.debug("publish_to_historian number of items: {}"
                        .format(len(to_publish_list)))
-            
+
             for x in to_publish_list:
-                print(x)
-                ts = x['timestamp']
                 topic = x['topic']
                 value = x['value']
-                meta = x['meta']
-
                 payload = jsonapi.loads(value)
                 headers = payload['headers']
                 headers['Origin'] = self.core.address
@@ -177,26 +160,20 @@ def historian(config_path, **kwargs):
 
                 with gevent.Timeout(30):
                     try:
+                        _log.debug('debugger: {} {} {}'.format(topic, headers, payload))
                         self._target_platform.vip.pubsub.publish(peer='pubsub',
-                                        topic=topic,
-                                        headers=headers,
-                                        message=payload['message']).get()
+                                                                 topic=topic,
+                                                                 headers=headers,
+                                                                 message=payload['message']).get()
                     except gevent.Timeout:
                         pass
                     except Exception as e:
                         _log.error(e)
-                    else: 
+                    else:
                         handled_records.append(x)
-                        
-            self.report_handled(handled_records)
-                    
 
-        def query_topic_list(self):
-            if len(self.topic_map) > 0:
-                return self.topic_map.keys()
-            else:
-                # No topics present.
-                return []
+            _log.debug("handled: {} number of items".format(len(to_publish_list)))
+            self.report_handled(handled_records)
 
         def query_historian(self, topic, start=None, end=None, skip=0,
                             count=None, order="FIRST_TO_LAST"):
@@ -205,7 +182,7 @@ def historian(config_path, **kwargs):
             return None
 
         def historian_setup(self):
-            _log.debug("Setting up")
+            _log.debug("Setting up to forward to {}".format(destination_vip))
             agent = Agent(address=destination_vip)
             event = gevent.event.Event()
             agent.core.onstart.connect(lambda *a, **kw: event.set(), event)
@@ -215,7 +192,6 @@ def historian(config_path, **kwargs):
 
     ForwardHistorian.__name__ = 'ForwardHistorian'
     return ForwardHistorian(**kwargs)
-
 
 
 def main(argv=sys.argv):
