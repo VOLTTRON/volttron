@@ -2,11 +2,11 @@
 	"campus": "campus1",
 	"building": "building1",
     "power_meter": {
-		"device": "PowerMeter",
-	    "point": "BuildingPower"
+		"device": "WBElectric",
+	    "point": "demand"
     },
 	"agent_id": "ahp",
-	"demand_limit": 30.0,
+	"demand_limit": 100.0,
 	"curtailment_time": 15.0,
 	"curtailment_confirm": 5.0,
 	"curtailment_break": 5.0,
