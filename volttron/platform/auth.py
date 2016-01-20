@@ -164,10 +164,10 @@ class AuthService(Agent):
                 if event.name == filename and event.mask & IN_MODIFY:
                     self.read_auth_file()
 
-        @Core.receiver('onstop')
-        def stop_zap(self, sender, **kwargs):
-            if self._zap_greenlet is not None:
-                self._zap_greenlet.kill()
+    @Core.receiver('onstop')
+    def stop_zap(self, sender, **kwargs):
+        if self._zap_greenlet is not None:
+            self._zap_greenlet.kill()
 
     @Core.receiver('onfinish')
     def unbind_zap(self, sender, **kwargs):
@@ -197,8 +197,6 @@ class AuthService(Agent):
                 elif kind not in [b'NULL', b'PLAIN']:
                     continue
                 response = zap[:4]
-                _log.debug("type(credentials): %s", type(credentials))
-                _log.debug("credentials: %s", credentials)
                 user = self.authenticate(domain, address, kind, credentials)
                 if user:
                     _log.info('authentication success: domain=%r, address=%r, '
