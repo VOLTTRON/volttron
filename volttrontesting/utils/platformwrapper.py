@@ -120,14 +120,14 @@ class PlatformWrapper:
         self._started_pids = []
         print('Creating Platform Wrapper at: {}'.format(self.volttron_home))
 
-    def build_agent(self, address=None, should_spawn=True):
+    def build_agent(self, identity=None, address=None, should_spawn=True):
         _log.debug('BUILD GENERIC AGENT')
         if address == None:
             print('VIP ADDRESS ', self.vip_address[0])
             address = self.vip_address[0]
 
         print('ADDRESS: ', address)
-        agent = Agent(address=address)
+        agent = Agent(address=address, identity=None)
         if should_spawn:
             print('SPAWNING GENERIC AGENT')
             event = gevent.event.Event()
