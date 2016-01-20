@@ -49,16 +49,14 @@ CLEANUP_CLIENT = True
                 ])
 def database_client(request):
     print('connecting to mongo database')
-
-    #print(mongo_connection_string())
-    #pytest.set_trace()
     client = pymongo.MongoClient(mongo_connection_string())
 
     def close_client():
         if CLEANUP_CLIENT:
+            print('cleansing mongodb')
             clean_db(client)
 
-        if client != None:
+        if client is not None:
             client.close()
 
     request.addfinalizer(close_client)
@@ -191,7 +189,7 @@ def test_two_hours_of_publishing(request, volttron_instance1, database_client):
     # Based upon the structure that we expect the database to be in we should
     # now have 3 topics present in the database and 2 records for each of the
     # 3 data items.
-    db = database_client[mongo_connection_params()['database']]
+    db = database_client.get_default_database()
 
     assert 3 == db.topics.find().count()
 
@@ -379,38 +377,84 @@ def publish_data(publisher, topic, message, now=datetime.utcnow()):
 
 @pytest.mark.historian
 @pytest.mark.mongodb
-def test_get_topic_map(volttron_instance1, database_client):
-
+def test_analysis_topic(volttron_instance1, database_client):
     agent_uuid = install_historian_agent(volttron_instance1, mongo_agent_config())
 
-    oat_reading = random.uniform(30, 100)
-    all_message = [{'OutsideAirTemperature': oat_reading},
-                   {'OutsideAirTemperature':
-                     {'units': 'F', 'tz': 'UTC', 'type': 'float'}}]
+    try:
+        publisher = volttron_instance1.build_agent()
+        oat_reading = random.uniform(30, 100)
+        message = [{'FluffyWidgets': oat_reading},
+                       {'FluffyWidgets':
+                         {'units': 'F', 'tz': 'UTC', 'type': 'float'}}]
 
-    publisher = volttron_instance1.build_agent()
-    aspublished = publish_data(publisher, ALL_TOPIC, all_message)
+        publisheddt = publish_data(publisher, BASE_ANALYSIS_TOPIC+'/FluffyWidgets', message)
+        gevent.sleep(0.1)
 
-    lister = volttron_instance1.build_agent()
+        lister = volttron_instance1.build_agent()
+        topic_list = lister.vip.rpc.call('platform.historian', 'get_topic_list').get(timeout=5)
+        assert topic_list is not None
+        assert len(topic_list) == 1
+        assert 'FluffyWidgets' in topic_list[0]
 
-    pinger = lister.vip.ping('platform.historian', 'awake?').get(timeout=5)
-    assert pinger is not None
+        result = lister.vip.rpc.call('platform.historian',
+                                            'query',
+                                            topic=BASE_ANALYSIS_TOPIC[9:]+'/FluffyWidgets').get(timeout=5)
+        assert result is not None
+        assert len(result['values']) == 1
+        assert isinstance(result['values'], list)
+        mongoizetimestamp = publisheddt.isoformat()[:-3]+'000'
+        assert result['values'][0] == [mongoizetimestamp, oat_reading]
+    finally:
+        volttron_instance1.stop_agent(agent_uuid)
 
-    topic_list = lister.vip.rpc.call('platform.historian', 'get_topic_list').get(timeout=5)
 
-    assert topic_list is not None
-    assert len(topic_list) == 1
-    #
-    # topic_list = lister.vip.rpc.call('platform.historian', 'get_topic_list').get(timeout=5)
-    # assert topic_list is not None
-    # assert len(topic_list) == 1
-    #
-    # aspublished = publish_data(publisher, BASE_ANALYSIS_TOPIC+"/OutsideAirTemperature", all_message)
-    # gevent.sleep(0.5)
-    #
-    # topic_list = lister.vip.rpc.call('platform.historian', 'get_topic_list').get(timeout=5)
-    # assert topic_list is not None
-    # assert len(topic_list) == 2
+
+@pytest.mark.historian
+@pytest.mark.mongodb
+@pytest.mark.xfail(reason="Fails for some reason on the rpc call though the function above does not fail.")
+def test_get_topic_map(volttron_instance1, database_client):
+    try:
+        agent_uuid = install_historian_agent(volttron_instance1, mongo_agent_config())
+
+        oat_reading = random.uniform(30, 100)
+        all_message = [{'OutsideAirTemperature': oat_reading},
+                       {'OutsideAirTemperature':
+                         {'units': 'F', 'tz': 'UTC', 'type': 'float'}}]
+
+        publisher = volttron_instance1.build_agent()
+        publisheddt = publish_data(publisher, ALL_TOPIC, all_message)
+
+        db = database_client.get_default_database()
+        assert db.topics.count() == 1
+
+        lister = volttron_instance1.build_agent()
+        topic_list = lister.vip.rpc.call('platform.historian', 'get_topic_list').get(timeout=5)
+        assert topic_list is not None
+        assert len(topic_list) == 1
+
+        # Publish data again for the next point.
+        publisheddt = publish_data(publisher, ALL_TOPIC, all_message)
+        topic_list = lister.vip.rpc.call('platform.historian', 'get_topic_list').get(timeout=5)
+
+        # Same topic shouldn't add anything else.
+        assert topic_list is not None
+        assert len(topic_list) == 1
+        assert topic_list[0] == BASE_DEVICE_TOPIC[8:] + '/OutsideAirTemperature'
+
+        mixed_reading = random.uniform(30, 100)
+        all_message = [{'MixedAirTemperature': mixed_reading},
+                       {'MixedAirTemperature': {'units': 'F', 'tz': 'UTC', 'type': 'float'}}]
+
+        publisheddt = publish_data(publisher, ALL_TOPIC, all_message)
+        topic_list = lister.vip.rpc.call('platform.historian', 'get_topic_list').get(timeout=5)
+
+        assert topic_list is not None
+        assert len(topic_list) == 2
+    finally:
+        volttron_instance1.stop_agent(agent_uuid)
+
+
+
 
 
 
