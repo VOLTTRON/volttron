@@ -53,37 +53,73 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
+
 #}}}
 
-from __future__ import absolute_import
 
-from .core import *
-from .errors import *
-from .decorators import *
-from .subsystems import *
+'''Module for storing local public and secret keys and remote public keys'''
 
 
-class Agent(object):
-    class Subsystems(object):
-        def __init__(self, owner, core):
-            self.peerlist = PeerList(core)
-            self.ping = Ping(core)
-            self.rpc = RPC(core, owner)
-            self.hello = Hello(core)
-            self.pubsub = PubSub(core, self.rpc, self.peerlist, owner)
-            self.channel = Channel(core)
+import json
+import urlparse
 
-    def __init__(self, identity=None, address=None, context=None,
-                 publickey=None, secretkey=None, serverkey=None):
-        self.core = Core(
-            self, identity=identity, address=address, context=context,
-            publickey=publickey, secretkey=secretkey, serverkey=serverkey)
-        self.vip = Agent.Subsystems(self, self.core)
-        self.core.setup()
+from zmq import curve_keypair
+
+from .vip.socket import encode_key
 
 
-class BasicAgent(object):
-    def __init__(self, **kwargs):
-        kwargs.pop('identity', None)
-        super(BasicAgent, self).__init__(**kwargs)
-        self.core = BasicCore(self)
+class BaseJSONStore(object):
+    '''JSON-file-backed store for dictionaries'''
+
+    def __init__(self, filename):
+        self.filename = filename
+
+    def store(self, data):
+        with open(self.filename, 'w') as json_file:
+            json_file.write(json.dumps(data, indent=4))
+
+    def load(self):
+        try:
+            with open(self.filename, 'r') as json_file:
+                return json.load(json_file)
+        except IOError:
+            return {}
+        except ValueError:
+            return {}
+
+    def update(self, new_data):
+        data = self.load()
+        data.update(new_data)
+        self.store(data)
+
+
+class KeyStore(BaseJSONStore):
+    '''Handle generation, storage, and retrival of keys'''
+
+    def generate(self):
+        public, secret = curve_keypair()
+        self.store({'public': encode_key(public),
+                    'secret': encode_key(secret)})
+
+    def public(self):
+        return self.load().get('public', None)
+
+    def secret(self):
+        return self.load().get('secret', None)
+
+
+class KnownHostsStore(BaseJSONStore):
+    '''Handle storage and retrival of known hosts'''
+
+    def add(self, addr, server_key):
+        self.update({self._parse_addr(addr): server_key})
+
+    def serverkey(self, addr):
+        return self.load().get(self._parse_addr(addr), None)
+
+    @staticmethod
+    def _parse_addr(addr):
+        url = urlparse.urlparse(addr)
+        if url.netloc:
+            return url.netloc
+        return url.path

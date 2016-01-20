@@ -20,6 +20,7 @@ import gevent
 from volttron.platform.messaging import topics
 from volttron.platform.main import start_volttron_process
 from volttron.platform.vip.agent import Agent
+from volttron.platform.vip.socket import encode_key
 from volttron.platform.aip import AIPplatform
 #from volttron.platform.control import client, server
 from volttron.platform import packaging
@@ -117,17 +118,20 @@ class PlatformWrapper:
 
         self._p_process = None
         self._t_process = None
+        self.publickey = self.generate_key()
         self._started_pids = []
         print('Creating Platform Wrapper at: {}'.format(self.volttron_home))
 
-    def build_agent(self, address=None, should_spawn=True):
+    def build_agent(self, address=None, should_spawn=True, identity=None,
+                    publickey=None, secretkey=None, serverkey=None):
         _log.debug('BUILD GENERIC AGENT')
         if address == None:
             print('VIP ADDRESS ', self.vip_address[0])
             address = self.vip_address[0]
 
         print('ADDRESS: ', address)
-        agent = Agent(address=address)
+        agent = Agent(address=address, identity=identity, publickey=publickey,
+                      secretkey=secretkey, serverkey=serverkey)
         if should_spawn:
             print('SPAWNING GENERIC AGENT')
             event = gevent.event.Event()
@@ -141,8 +145,19 @@ class PlatformWrapper:
         print('Before returning agent.')
         return agent
 
+    def generate_key(self):
+        key = ''.join(zmq.curve_keypair())
+        with open(os.path.join(self.volttron_home, 'curve.key'), 'w') as fd:
+            fd.write(key)
+        return encode_key(key[:40]) # public key
+
+    def set_auth_dict(self, auth_dict):
+        if auth_dict:
+            with open(os.path.join(self.volttron_home, 'auth.json'), 'w') as fd:
+                fd.write(json.dumps(auth_dict))
+
     def startup_platform(self, vip_address, auth_dict=None, use_twistd=False,
-        mode=UNRESTRICTED):
+        mode=UNRESTRICTED, encrypt=False):
         # if not isinstance(vip_address, list):
         #     self.vip_address = [vip_address]
         # else:
@@ -159,9 +174,12 @@ class PlatformWrapper:
             '@' if sys.platform.startswith('linux') else '',
             self.volttron_home)
 
-        # Remove connection encryption
-        with open(os.path.join(self.volttron_home, 'curve.key'), 'w'):
-            pass
+        if not encrypt:
+            # Remove connection encryption
+            with open(os.path.join(self.volttron_home, 'curve.key'), 'w'):
+                pass
+
+        self.set_auth_dict(auth_dict)
 
         self.opts = {'verify_agents': False,
                 'volttron_home': self.volttron_home,
@@ -169,7 +187,7 @@ class PlatformWrapper:
                 'vip_local_address': ipc + 'vip.socket',
                 'publish_address': ipc + 'publish',
                 'subscribe_address': ipc + 'subscribe',
-                'developer_mode': True,
+                'developer_mode': not encrypt,
                 'log': os.path.join(self.volttron_home,'volttron.log'),
                 'log_config': None,
                 'monitor': True,
@@ -214,9 +232,13 @@ class PlatformWrapper:
             raise PlatformWrapperError("Invalid platform mode specified: {}".format(mode))
 
         log = os.path.join(self.env['VOLTTRON_HOME'], 'volttron.log')
-        self._p_process = Popen(['volttron', '-vv', '-l{}'.format(log),
-            '--developer-mode'],
-            env=self.env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+        cmd = ['volttron', '-vv', '-l{}'.format(log)]
+        if self.opts['developer_mode']:
+            cmd.append('--developer-mode')
+
+        self._p_process = Popen(cmd, env=self.env, stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE)
 
         assert self._p_process is not None
         # A None value means that the process is still running.
