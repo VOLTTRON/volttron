@@ -44,6 +44,8 @@ def test_failover(primary_volttron, secondary_volttron):
     primary_listener = primary_volttron.build_agent()
     primary_listener.vip.pubsub.subscribe(peer='pubsub', prefix='', callback=onmessage)
 
+    print(agent_dir + "/tests/config0")
+
     primary_master = primary_volttron.install_agent(agent_dir=agent_dir, config_file=agent_dir + "/tests/config0")
     assert primary_master is not None
 
@@ -54,9 +56,14 @@ def test_failover(primary_volttron, secondary_volttron):
         primary_msg_delay += 1
         print "PRIMARY {}".format(primary_msg_delay)
 
+    print(messages.keys())
     assert messages.keys()
 
+    primary_volttron.stop_agent(primary_master)
     messages.clear()
+    assert(not primary_volttron.is_agent_running(primary_master))
+
+    
 
     # find out how long it takes to get data from secondary instance
 
@@ -77,6 +84,7 @@ def test_failover(primary_volttron, secondary_volttron):
         print "SECONDARY {}".format(secondary_msg_delay)
 
     assert messages.keys()
+    print("tried to delay", messages)
 
     # they shouldn't take the same ammount of time
     assert (secondary_msg_delay - primary_msg_delay) > 0
