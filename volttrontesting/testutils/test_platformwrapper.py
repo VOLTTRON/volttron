@@ -55,6 +55,23 @@ def test_can_ping_pubsub(volttron_instance1):
     resp = agent.vip.ping('pubsub', 'hello').get(timeout=5)
     print('PUBSUB RESP: ', resp)
 
+@pytest.mark.wrapper
+def test_can_call_rpc_method(volttron_instance1):
+    config = dict(agentid="Central Platform", report_status_period=15)
+    agent_uuid = volttron_instance1.install_agent(agent_dir='services/core/Platform',
+                                                  config_file=config,
+                                                  start=True)
+    assert agent_uuid is not None
+    assert volttron_instance1.is_agent_running(agent_uuid)
+
+    agent = volttron_instance1.build_agent()
+
+    agent_list = agent.vip.rpc.call('platform.agent', method='list_agents').get(timeout=5)
+
+    print('The agent list is: {}'.format(agent_list))
+    assert agent_list is not None
+
+
 messages = {}
 def onmessage(peer, sender, bus, topic, headers, message):
     messages[topic] = {'headers': headers, 'message': message}
