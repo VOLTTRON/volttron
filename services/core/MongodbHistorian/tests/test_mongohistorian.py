@@ -109,6 +109,7 @@ def database_name(request):
 
 @pytest.mark.historian
 @pytest.mark.mongodb
+@pytest.mark.skipif(not HAS_PYMONGO, reason='No pymongo driver')
 def test_can_connect(database_client):
     ''' Tests whether we can connect to the mongo database at all.
 
@@ -171,6 +172,7 @@ def test_can_connect(database_client):
 
 @pytest.mark.historian
 @pytest.mark.mongodb
+@pytest.mark.skipif(not HAS_PYMONGO, reason='No pymongo driver')
 def test_two_hours_of_publishing(request, volttron_instance1, database_client):
     clean_db(database_client)
     # Install the historian agent (after this call the agent should be running
@@ -318,6 +320,7 @@ def publish_fake_data(agent):
 
 @pytest.mark.historian
 @pytest.mark.mongodb
+@pytest.mark.skipif(not HAS_PYMONGO, reason='No pymongo driver')
 def test_insert_duplicate(volttron_instance1, database_client):
     clean_db(database_client)
     data_collection = database_client.get_default_database()['data']
@@ -377,6 +380,7 @@ def publish_data(publisher, topic, message, now=datetime.utcnow()):
 
 @pytest.mark.historian
 @pytest.mark.mongodb
+@pytest.mark.skipif(not HAS_PYMONGO, reason='No pymongo driver')
 def test_analysis_topic(volttron_instance1, database_client):
     agent_uuid = install_historian_agent(volttron_instance1, mongo_agent_config())
 
@@ -460,6 +464,7 @@ def test_get_topic_map(volttron_instance1, database_client):
 
 @pytest.mark.historian
 @pytest.mark.mongodb
+@pytest.mark.skipif(not HAS_PYMONGO, reason='No pymongo driver')
 def test_basic_function(volttron_instance1, database_client):
     """
     Test basic functionality of sql historian. Inserts three points as part of all topic and checks
