@@ -5,6 +5,7 @@
 .svn
 .metadata
 
+/.idea
 /env/
 /Agents/*/{build,dist}/
 /Agents/*.egg
