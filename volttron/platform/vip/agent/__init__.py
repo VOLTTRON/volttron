@@ -73,11 +73,9 @@ class Agent(object):
             self.pubsub = PubSub(core, self.rpc, self.peerlist, owner)
             self.channel = Channel(core)
 
-    def __init__(self, identity=None, address=None, context=None,
-                 publickey=None, secretkey=None, serverkey=None):
+    def __init__(self, identity=None, address=None, context=None):
         self.core = Core(
-            self, identity=identity, address=address, context=context,
-            publickey=publickey, secretkey=secretkey, serverkey=serverkey)
+            self, identity=identity, address=address, context=context)
         self.vip = Agent.Subsystems(self, self.core)
         self.core.setup()
 

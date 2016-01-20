@@ -53,14 +53,3 @@ def volttron_instance2(request, instance2_config):
         wrapper.shutdown_platform(True)
     request.addfinalizer(cleanup)
     return wrapper
-
-@pytest.fixture(scope="function")
-def volttron_instance1_encrypt(request, instance1_config):
-    print("building instance 1 (using encryption)")
-    wrapper = build_wrapper(instance1_config['vip-address'], encrypt=True)
-
-    def cleanup():
-        print('Shutting down instance: {}'.format(wrapper.volttron_home))
-        wrapper.shutdown_platform(True)
-    request.addfinalizer(cleanup)
-    return wrapper

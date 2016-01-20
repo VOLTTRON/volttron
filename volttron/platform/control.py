@@ -71,13 +71,14 @@ import traceback
 
 import gevent
 import gevent.event
+from zmq import curve_keypair
 
 from .agent import utils
 from .vip.agent import Agent as BaseAgent, Core, RPC
+from .vip.socket import encode_key
 from . import aip as aipmod
 from . import config
 from .jsonrpc import RemoteError
-from .keystore import KeyStore, KnownHostsStore
 
 try:
     import volttron.restricted
@@ -215,6 +216,7 @@ class ControlService(BaseAgent):
             return self._aip.install_agent(path)
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)
+
 
 
 def log_to_file(file, level=logging.WARNING,
@@ -490,21 +492,10 @@ def send_agent(opts):
         connection.call('start_agent', uuid)
         _stdout.write('Agent {} started as {}\n'.format(wheel, uuid))
 
-def gen_keypair(opts):
-    keystore = KeyStore(opts.keystore_file)
-    if os.path.isfile(opts.keystore_file):
-        _stdout.write('{} already exists.\n'.format(opts.keystore_file))
-        choice = raw_input('Overwrite (y/n)? ')
-        if not choice or choice.lower()[0] != 'y':
-            return
-    keystore.generate()
-    _stdout.write('public key: {}\n'.format(keystore.public()))
-    _stdout.write('keys written to {}\n'.format(opts.keystore_file))
-
-def add_server_key(opts):
-    store = KnownHostsStore(opts.known_hosts_file)
-    store.add(opts.host, opts.server_key)
-    _stdout.write('server key written to {}\n'.format(opts.known_hosts_file))
+def print_keypair(opts):
+    public, secret = curve_keypair()
+    _stdout.write('public: %s\nsecret: %s\n' % (
+        encode_key(public), encode_key(secret)))
 
 def do_stats(opts):
     call = opts.connection.call
@@ -547,12 +538,10 @@ def do_stats(opts):
 
 
 class Connection(object):
-    def __init__(self, address, peer='control', publickey=None, secretkey=None,
-            serverkey=None):
+    def __init__(self, address, peer='control'):
         self.address = address
         self.peer = peer
-        self._server = BaseAgent(address=self.address, publickey=publickey,
-                secretkey=secretkey, serverkey=serverkey)
+        self._server = BaseAgent(address=self.address)
         self._greenlet = None
 
     @property
@@ -582,18 +571,6 @@ def priority(value):
         raise ValueError('invalid priority (0 <= n < 100): {}'.format(n))
     return '{:02}'.format(n)
 
-def get_keys(opts):
-    '''Gets keys from keystore and known-hosts store'''
-    hosts = KnownHostsStore(opts.known_hosts_file)
-    serverkey = hosts.serverkey(opts.vip_address)
-    publickey = None
-    secretkey = None
-    if opts.keystore:
-        key_store = KeyStore(opts.keystore_file)
-        publickey = key_store.public()
-        secretkey = key_store.secret()
-    return {'publickey': publickey, 'secretkey': secretkey,
-            'serverkey': serverkey}
 
 def main(argv=sys.argv):
     # Refuse to run as root
@@ -622,17 +599,9 @@ def main(argv=sys.argv):
     global_args.add_argument(
         '--vip-address', metavar='ZMQADDR',
         help='ZeroMQ URL to bind for VIP connections')
-    global_args.add_argument('-k', '--keystore', action='store_true',
-        help='use public and secret keys from keystore')
-    global_args.add_argument('--keystore-file', metavar='FILE',
-        help='use keystore from FILE')
-    global_args.add_argument('--known-hosts-file', metavar='FILE',
-        help='get known-host server keys from FILE')
     global_args.set_defaults(
         vip_address='ipc://' + vip_path,
         timeout=30,
-        keystore_file=os.path.join(volttron_home, 'keystore'),
-        known_hosts_file=os.path.join(volttron_home, 'known_hosts')
     )
 
     filterable = config.ArgumentParser(add_help=False)
@@ -781,14 +750,7 @@ def main(argv=sys.argv):
 
     keypair = add_parser('keypair',
         help='generate CurveMQ keys for encrypting VIP connections')
-    keypair.set_defaults(func=gen_keypair)
-
-    add_known_host = add_parser('add-known-host',
-        help='add server public key to known-hosts file')
-    add_known_host.add_argument('--host', required=True,
-        help='hostname or IP address with optional port')
-    add_known_host.add_argument('--server-key', required=True)
-    add_known_host.set_defaults(func=add_server_key)
+    keypair.set_defaults(func=print_keypair)
 
     stats = add_parser('stats',
         help='manage router message statistics tracking')
@@ -838,7 +800,7 @@ def main(argv=sys.argv):
 
     opts.aip = aipmod.AIPplatform(opts)
     opts.aip.setup()
-    opts.connection = Connection(opts.vip_address, **get_keys(opts))
+    opts.connection = Connection(opts.vip_address)
 
     try:
         with gevent.Timeout(opts.timeout):
