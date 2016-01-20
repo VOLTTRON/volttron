@@ -80,6 +80,7 @@ from .vip.socket import encode_key
 from . import aip as aipmod
 from . import config
 from .jsonrpc import RemoteError
+from .auth import AuthEntry, AuthFile
 
 try:
     import volttron.restricted
@@ -513,11 +514,38 @@ def do_stats(opts):
         call('stats.' + opts.op)
         _stdout.write('%sabled\n' % ('en' if call('stats.enabled') else 'dis'))
 
-def manage_auth(opts):
-    with open(os.path.join(opts.volttron_home, 'auth.json')) as auth_file:
-        auth_json = json.load(auth_file)
-    if opts.list:
-        _stdout.write('{}\n'.format(json.dumps(auth_json, indent=4)))
+def _get_auth_file(volttron_home):
+    path = os.path.join(volttron_home, 'auth.json')
+    return AuthFile(path)
+
+def list_auth(opts):
+    auth_file = _get_auth_file(opts.volttron_home)
+    entries = auth_file.read()
+    print_out = []
+    if entries:
+        _stdout.write('INDEX\tENTRY\n')
+        for index, entry in enumerate(entries):
+            print_out.append('{}:\t{}\n'.format(index, json.dumps(vars(entry))))
+        _stdout.write('\n'.join(print_out))
+    else:
+        _stdout.write('No entries in {}'.format(auth_file.auth_file))
+
+def add_auth(opts):
+    auth_file = _get_auth_file(opts.volttron_home)
+    entry = AuthEntry(**vars(opts))
+    success, msg = auth_file.add(entry)
+    if success:
+        _stdout.write('%s\n' % msg)
+    else:
+        _stderr.write('ERROR: %s\n' % msg)
+
+def remove_auth(opts):
+    auth_file = _get_auth_file(opts.volttron_home)
+    success, msg = auth_file.remove_by_indices(opts.index)
+    if success:
+        _stdout.write('%s\n' % msg)
+    else:
+        _stderr.write('ERROR: %s\n' % msg)
 
 # XXX: reimplement over VIP
 #def send_agent(opts):
@@ -764,12 +792,25 @@ def main(argv=sys.argv):
         'op', choices=['status', 'enable', 'disable', 'dump', 'pprint'], nargs='?')
     stats.set_defaults(func=do_stats, op='status')
 
-    auth = add_parser('auth',
-        help='manage authentication records, credentials, domains, addresses, '
-             'groups, and capabilities')
-    auth.add_argument('--list', action='store_true',
-        help='list authorization records')
-    auth.set_defaults(func=manage_auth)
+    auth_list = add_parser('auth-list', help='list authentication records')
+    auth_list.set_defaults(func=list_auth)
+
+    auth_add = add_parser('auth-add', help='add new authentication record')
+    auth_add.add_argument('--domain', type=str)
+    auth_add.add_argument('--address', type=str)
+    auth_add.add_argument('--user_id', type=str)
+    auth_add.add_argument('--capabilities', nargs='+', type=str)
+    auth_add.add_argument('--roles', nargs='+', type=str)
+    auth_add.add_argument('--groups', nargs='+', type=str)
+    auth_add_required = auth_add.add_argument_group('required named arguments')
+    auth_add_required.add_argument('--credentials', type=str, required=True)
+    auth_add.set_defaults(func=add_auth)
+
+    auth_remove = add_parser('auth-remove',
+        help='removes one or more authentication records by index')
+    auth_remove.add_argument('index', nargs='+', type=int,
+        help='index of record to remove')
+    auth_remove.set_defaults(func=remove_auth)
 
     if HAVE_RESTRICTED:
         cgroup = add_parser('create-cgroups',

@@ -164,10 +164,10 @@ class AuthService(Agent):
                 if event.name == filename and event.mask & IN_MODIFY:
                     self.read_auth_file()
 
-    @Core.receiver('onstop')
-    def stop_zap(self, sender, **kwargs):
-        if self._zap_greenlet is not None:
-            self._zap_greenlet.kill()
+        @Core.receiver('onstop')
+        def stop_zap(self, sender, **kwargs):
+            if self._zap_greenlet is not None:
+                self._zap_greenlet.kill()
 
     @Core.receiver('onfinish')
     def unbind_zap(self, sender, **kwargs):
@@ -197,6 +197,8 @@ class AuthService(Agent):
                 elif kind not in [b'NULL', b'PLAIN']:
                     continue
                 response = zap[:4]
+                _log.debug("type(credentials): %s", type(credentials))
+                _log.debug("credentials: %s", credentials)
                 user = self.authenticate(domain, address, kind, credentials)
                 if user:
                     _log.info('authentication success: domain=%r, address=%r, '
@@ -344,3 +346,119 @@ class AuthEntry(object):
     def __repr__(self):
         cls = self.__class__
         return '%s.%s(%s)' % (cls.__module__, cls.__name__, self)
+
+    def invalid(self):
+        '''Returns error string if the entry is invalid; None if it is valid'''
+        if self.credentials is None:
+            return 'credentials parameter is required'
+        if not (self.credentials == 'NULL' or
+                self.credentials.startswith('PLAIN:') or
+                self.credentials.startswith('CURVE:')):
+            return ('credentials must either begin with "PLAIN" or "CURVE" '
+                    'or it must be "NULL"')
+
+
+class AuthFile(object):
+    def __init__(self, auth_file):
+        self.auth_file = auth_file
+
+    def _create(self):
+        _log.info('creating auth file %s', self.auth_file)
+        fd = os.open(self.auth_file, os.O_CREAT|os.O_WRONLY, 0o660)
+        try:
+            os.write(fd, _SAMPLE_AUTH_FILE)
+        finally:
+            os.close(fd)
+
+    def read(self):
+        '''Returns the allowed entries from the auth file'''
+        _log.info('loading auth file %s', self.auth_file)
+        try:
+            try:
+                fil = open(self.auth_file)
+            except IOError as exc:
+                if exc.errno != errno.ENOENT:
+                    raise
+                _log.debug('missing auth file %s', self.auth_file)
+                self._create()
+                return []
+            with open(self.auth_file) as fil:
+                # Use gevent FileObject to avoid blocking the thread
+                data = strip_comments(FileObject(fil, close=False).read())
+                auth_data = jsonapi.loads(data)
+        except Exception:
+            _log.exception('error loading %s', self.auth_file)
+            return []
+        else:
+            try:
+                allowed = auth_data['allow']
+            except KeyError:
+                _log.warn("missing 'allow' key in auth file %s", self.auth_file)
+                allowed = []
+            entries = []
+            for file_entry in allowed:
+                try:
+                    entry = AuthEntry(**file_entry)
+                    error_msg = entry.invalid()
+                    if error_msg:
+                        _log.warn('invalid entry %r in auth file %s (%s)',
+                                  file_entry, self.auth_file, error_msg)
+                    entries.append(entry)
+                except TypeError:
+                    _log.warn('invalid entry %r in auth file %s',
+                              file_entry, self.auth_file)
+            _log.info('auth file %s loaded', self.auth_file)
+            return entries
+
+    def add(self, auth_entry):
+        '''Adds an AuthEntry to the auth file'''
+        error_msg = auth_entry.invalid()
+        if error_msg:
+            return False, error_msg
+        same_list = self._find(auth_entry)
+        if same_list:
+            entry_word = 'entry' if len(same_list) == 1 else 'entries'
+            return False, ('entry matches domain, address and credentials of '
+                           'existing %s %s') % (entry_word, same_list)
+        entries = self._read_entries()
+        entry_dict = vars(auth_entry)
+        entries.append(entry_dict)
+        self._write(entries)
+        return True, 'added entry %s' % entry_dict
+
+    def remove_by_indices(self, indices):
+        '''Removes entry from auth file by indices as shown by list command'''
+        entries = self._read_entries()
+        for index in indices:
+            try:
+                del entries[index]
+            except IndexError:
+                return False, 'invalid index %d' % index
+        else:
+            self._write(entries)
+            if len(indices) > 1:
+                msg = 'removed entries at indices {}'
+            else:
+                msg = 'removed entry at index {}'
+            return True, msg.format(indices)
+
+    def _read_entries(self):
+        entries = self.read() # TODO: maybe the file should be locked here
+        return [vars(x) for x in entries]
+
+    def _find(self, entry):
+        try:
+            mech, cred = entry.credentials.split(':')
+        except ValueError:
+            mech = 'NULL'
+            cred = ''
+        match_list = []
+        for index, prev_entry in enumerate(self.read()):
+            if prev_entry.match(entry.domain, entry.address, mech, [cred]):
+                match_list.append(index)
+        return match_list
+
+    def _write(self, entries):
+        auth = {'allow': entries}
+        with open(self.auth_file, 'w') as fp:
+            fp.write(jsonapi.dumps(auth))
