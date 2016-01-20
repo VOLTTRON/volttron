@@ -120,25 +120,22 @@ class PlatformWrapper:
         self._started_pids = []
         print('Creating Platform Wrapper at: {}'.format(self.volttron_home))
 
-    def build_agent(self, address=None, should_spawn=True):
+    def build_agent(self, identity=None, address=None, should_spawn=True):
         _log.debug('BUILD GENERIC AGENT')
-        if address == None:
-            print('VIP ADDRESS ', self.vip_address[0])
+        if address is None:
             address = self.vip_address[0]
 
-        print('ADDRESS: ', address)
-        agent = Agent(address=address)
+        print('platformwrapper.build_agent.address: {}'.format(address))
+        agent = Agent(address=address, identity=None)
         if should_spawn:
-            print('SPAWNING GENERIC AGENT')
+            print('platformwrapper.build_agent spawning')
             event = gevent.event.Event()
             gevent.spawn(agent.core.run, event)#.join(0)
-            #h = agent.vip.hello().get(timeout=2)
-            print('After spawn')
             event.wait(timeout=2)
-            print('After event')
-            #gevent.spawn(agent.core.run)
-            #gevent.sleep(0)
-        print('Before returning agent.')
+
+            hello = agent.vip.hello().get(timeout=.3)
+            print('Got hello response {}'.format(hello))
+
         return agent
 
     def startup_platform(self, vip_address, auth_dict=None, use_twistd=False,
@@ -356,10 +353,11 @@ class PlatformWrapper:
             assert wheel_file
 
         agent_uuid = self._install_agent(wheel_file, start)
-        #agent_uuid = self.test_aip.install_agent(wheel_file)
+
         assert agent_uuid is not None
-        #if start:
-    #        self.start_agent(agent_uuid)
+
+        if start:
+            assert self.is_agent_running(agent_uuid)
 
         return agent_uuid
 
@@ -397,7 +395,7 @@ class PlatformWrapper:
         return aip.agent_status(uuid)
 
     def is_agent_running(self, agent_uuid):
-        return self.agent_status is not None
+        return self.agent_status(agent_uuid) is not None
 
     def agent_status(self, agent_uuid):
         # Confirm agent running
@@ -507,9 +505,9 @@ class PlatformWrapper:
                 print('could not kill: {} '.format(pid))
         if self._p_process != None:
 
-            gevent.sleep()
+            gevent.sleep(0.1)
             self._p_process.terminate()
-            gevent.sleep()
+            gevent.sleep(0.1)
         else:
             print "platform process was null"
 
