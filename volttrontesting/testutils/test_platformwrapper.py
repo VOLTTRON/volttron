@@ -17,6 +17,7 @@ def test_can_connect_to_instance(volttron_instance1):
 
 @pytest.mark.wrapper
 def test_can_install_listener(volttron_instance1):
+    clear_messages()
     vi = volttron_instance1
     assert vi is not None
     assert vi.is_running()
@@ -56,11 +57,16 @@ def test_can_ping_pubsub(volttron_instance1):
 
 messages = {}
 def onmessage(peer, sender, bus, topic, headers, message):
-    messages[topic] = message
+    messages[topic] = {'headers': headers, 'message': message}
+
+def clear_messages():
+    global messages
+    messages = {}
 
 @pytest.mark.wrapper
 def test_can_publish(volttron_instance1):
     global messages
+    clear_messages()
     vi = volttron_instance1
     agent = vi.build_agent()
 #    gevent.sleep(0)
@@ -74,7 +80,7 @@ def test_can_publish(volttron_instance1):
     # sleep so that the message bus can actually do some work before we
     # eveluate the global messages.
     gevent.sleep(0.1)
-    assert messages['test/world'] == 'got data'
+    assert messages['test/world']['message'] == 'got data'
 
 def test_can_ping_router(volttron_instance1):
     vi = volttron_instance1
@@ -82,6 +88,53 @@ def test_can_ping_router(volttron_instance1):
     resp = agent.vip.ping('', 'router?').get(timeout=4)
     #resp = agent.vip.hello().get(timeout=1)
     print("HELLO RESPONSE!",resp)
+
+@pytest.mark.wrapper
+def test_can_install_listener_on_two_platforms(volttron_instance1, volttron_instance2):
+    global messages
+    clear_messages()
+    auuid = volttron_instance1.install_agent(agent_dir="examples/ListenerAgent",
+        start=False)
+    assert auuid is not None
+    started = volttron_instance1.start_agent(auuid)
+    print('STARTED: ', started)
+    listening = volttron_instance1.build_agent()
+    listening.vip.pubsub.subscribe(peer='pubsub',
+        prefix='heartbeat/listeneragent', callback=onmessage)
+
+    # sleep for 10 seconds and at least one heartbeat should have been published
+    # because it's set to 5 seconds.
+    time_start = time.time()
+
+    print('Awaiting heartbeat response for platform1.')
+    while not 'heartbeat/listeneragent' in messages.keys() and \
+        time.time() < time_start + 10:
+        gevent.sleep(0.2)
+
+    assert 'heartbeat/listeneragent' in messages.keys()
+
+    clear_messages()
+    auuid2 = volttron_instance2.install_agent(agent_dir="examples/ListenerAgent",
+        start=True)
+    assert auuid2 is not None
+    started2 = volttron_instance2.start_agent(auuid2)
+    print('STARTED: ', started2)
+    listening = volttron_instance2.build_agent()
+    listening.vip.pubsub.subscribe(peer='pubsub',
+        prefix='heartbeat/listeneragent', callback=onmessage)
+
+    # sleep for 10 seconds and at least one heartbeat should have been published
+    # because it's set to 5 seconds.
+    time_start = time.time()
+
+    print('Awaiting heartbeat response for platform2.')
+    while not 'heartbeat/listeneragent' in messages.keys() and \
+        time.time() < time_start + 10:
+        gevent.sleep(0.2)
+
+    assert 'heartbeat/listeneragent' in messages.keys()
+
+
 
 # def test_can_ping_control(volttron_instance2):
 #     agent = volttron_instance2.build_agent()
