@@ -1,4 +1,10 @@
 #!/bin/sh
 
-echo "Running Tests"
+export CI=travis
 
+# The context should already have been activated at this point.
+
+#pip install pymongo pytest pytest-bdd pytest-cov
+pip install pytest pytest-bdd pytest-cov
+
+py.test -s -v

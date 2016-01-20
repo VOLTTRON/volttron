@@ -53,68 +53,51 @@
 
 #}}}
 
-
-from datetime import datetime
 import logging
 import sys
 
-from volttron.platform.agent import BaseAgent, PublishMixin, periodic
-from volttron.platform.agent import utils, matching
-from volttron.platform.messaging import headers as headers_mod
-
-import settings
-
+from volttron.platform.vip.agent import *
+from volttron.platform.agent.base_historian import BaseHistorian
+from volttron.platform.agent import utils
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
+def historian(config_path, **kwargs):
 
-class ListenerAgent(PublishMixin, BaseAgent):
-    '''Listens to everything and publishes a heartbeat according to the
-    heartbeat period specified in the settings module.
-    '''
-
-    def __init__(self, config_path, **kwargs):
-        super(ListenerAgent, self).__init__(**kwargs)
-        self.config = utils.load_config(config_path)
-
-    def setup(self):
-        # Demonstrate accessing a value from the config file
-        _log.info(self.config['message'])
-        self._agent_id = self.config['agentid']
-        # Always call the base class setup()
-        super(ListenerAgent, self).setup()
-
-    @matching.match_all
-    def on_match(self, topic, headers, message, match):
-        '''Use match_all to receive all messages and print them out.'''
-        _log.debug("Topic: {topic}, Headers: {headers}, "
-                         "Message: {message}".format(
-                         topic=topic, headers=headers, message=message))
-
-    # Demonstrate periodic decorator and settings access
-    @periodic(settings.HEARTBEAT_PERIOD)
-    def publish_heartbeat(self):
-        '''Send heartbeat message every HEARTBEAT_PERIOD seconds.
-
-        HEARTBEAT_PERIOD is set and can be adjusted in the settings module.
+    config = utils.load_config(config_path)
+            
+    class NullHistorian(BaseHistorian):
+        '''This historian forwards data to another platform.
         '''
-        now = datetime.utcnow().isoformat(' ') + 'Z'
-        headers = {
-            'AgentID': self._agent_id,
-            headers_mod.CONTENT_TYPE: headers_mod.CONTENT_TYPE.PLAIN_TEXT,
-            headers_mod.DATE: now,
-        }
-        self.publish('heartbeat/listeneragent', headers, now)
+
+        @Core.receiver("onstart")
+        def starting(self, sender, **kwargs):
+            
+            _log.debug('Null historian started.')
+
+        def publish_to_historian(self, to_publish_list):
+            _log.debug("recieved {} items to publish"
+                       .format(len(to_publish_list)))
+
+            self.report_all_handled()
+
+        def query_historian(self, topic, start=None, end=None, skip=0,
+                            count=None, order="FIRST_TO_LAST"):
+            """Not implemented
+            """
+            raise NotImplemented("query_historian not implimented for null historian")
+
+    return NullHistorian(**kwargs)
+
 
 
 def main(argv=sys.argv):
-    '''Main method called by the eggsecutable.'''
+    '''Main method called by the aip.'''
     try:
-        utils.default_main(ListenerAgent,
-                           description='Example VOLTTRON platform™ heartbeat agent',
-                           argv=argv)
+        utils.vip_main(historian)
     except Exception as e:
+        print(e)
         _log.exception('unhandled exception')
 
 

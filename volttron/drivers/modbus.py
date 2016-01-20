@@ -384,7 +384,7 @@ class ModbusInterface(BaseInterface):
                 io_type = regDef['Modbus Register']
                 bit_register = io_type.lower() == 'bool'
                 read_only = regDef['Writable'].lower() != 'true'
-                point_path = regDef['PNNL Point Name']        
+                point_path = regDef['Volttron Point Name']        
                 address = int(regDef['Point Address'])        
                 description = regDef['Notes']                 
                 units = regDef['Units']         

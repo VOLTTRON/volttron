@@ -54,6 +54,7 @@ under Contract DE-AC05-76RL01830
 import sys
 import time
 
+import pytest
 import zmq
 
 
@@ -93,8 +94,10 @@ def subscriber():
     sub.subscribe = ''
     while True:
         print sub.recv_multipart()
-        
-def broker_test():
+
+@pytest.mark.slow
+@pytest.mark.zmq      
+def test_broker(): #broker_test():
     pub = zmq.Socket(ctx, zmq.PUB)
     pull = zmq.Socket(ctx, zmq.PULL)
     pub.bind('ipc:///tmp/volttron-platform-agent-subscribe')
@@ -115,4 +118,4 @@ def broker_test():
     pub.send_multipart(['platform/shutdown', 'Goodbye'])
 
 if __name__ == '__main__':
-    broker_test()
+    test_broker()
