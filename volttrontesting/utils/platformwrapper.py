@@ -356,10 +356,11 @@ class PlatformWrapper:
             assert wheel_file
 
         agent_uuid = self._install_agent(wheel_file, start)
-        #agent_uuid = self.test_aip.install_agent(wheel_file)
+
         assert agent_uuid is not None
-        #if start:
-    #        self.start_agent(agent_uuid)
+
+        if start:
+            assert self.is_agent_running(agent_uuid)
 
         return agent_uuid
 
