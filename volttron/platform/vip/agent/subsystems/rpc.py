@@ -312,15 +312,7 @@ class RPC(SubsystemBase):
         request = self._dispatcher.notify(method, args, kwargs)
         self.core().socket.send_vip(peer, 'RPC', [request])
 
-    @dualmethod
-    def allow(self, method, capabilities):
-        if isinstance(capabilities, basestring):
-            cap = set([capabilities])
-        else:
-            cap = set(capabilities)
-        self._exports[method.__name__] = self._add_auth_check(method, cap)
-
-    @allow.classmethod
+    @classmethod
     def allow(cls, capabilities):
         '''Decorator specifies required agent capabilities to call a method.
      
