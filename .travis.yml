@@ -15,8 +15,10 @@ script: scripts/run-tests.sh
 
 notifications:
   email:
-    recipients:
-      - craig.allwardt@pnnl.gov
+    - craig.allwardt@pnnl.gov
+    - zachary.beech@pnnl.gov
+#    recipients:
+#      - craig.allwardt@pnnl.gov
       #- zachary.beech@pnnl.gov
       #- jereme.haack@pnnl.gov
       #- kyle.monson@pnnl.gov
@@ -25,8 +27,8 @@ notifications:
       #- michael.roup@pnnl.gov
       #- bora.akyol@pnnl.gov
       #- robert.lutes@pnnl.gov
-      on_success: change
-      on_failure: change
+#      on_success: change
+#      on_failure: change
 
 #language: python
 #matrix:
