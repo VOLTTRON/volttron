@@ -16,12 +16,12 @@ def is_port_open(port):
     result = sock.connect_ex(('127.0.0.1',port))
     return result == 0
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module")
 def instance1_config():
     port = get_rand_port()
     return {"vip-address": "tcp://127.0.0.1:{}".format(port)}
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module")
 def instance2_config():
     port = get_rand_port()
     return {"vip-address": "tcp://127.0.0.1:{}".format(port)}
@@ -32,7 +32,7 @@ def build_wrapper(vip_address, **kwargs):
     wrapper.startup_platform(vip_address=vip_address, **kwargs)
     return wrapper
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module")
 def volttron_instance1(request, instance1_config):
     wrapper = build_wrapper(instance1_config['vip-address'])
 
@@ -43,7 +43,7 @@ def volttron_instance1(request, instance1_config):
     return wrapper
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="module")
 def volttron_instance2(request, instance2_config):
     print("building instance 2")
     wrapper = build_wrapper(instance2_config['vip-address'])
@@ -55,9 +55,10 @@ def volttron_instance2(request, instance2_config):
     return wrapper
 
 @pytest.fixture(scope="function")
-def volttron_instance1_encrypt(request, instance1_config):
+def volttron_instance1_encrypt(request):
     print("building instance 1 (using encryption)")
-    wrapper = build_wrapper(instance1_config['vip-address'], encrypt=True)
+    address = "tcp://127.0.0.1:{}".format(get_rand_port()) 
+    wrapper = build_wrapper(address, encrypt=True)
 
     def cleanup():
         print('Shutting down instance: {}'.format(wrapper.volttron_home))
