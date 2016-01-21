@@ -131,6 +131,11 @@ class PlatformWrapper:
         agent = Agent(address=address, identity=identity, publickey=publickey,
                       secretkey=secretkey, serverkey=serverkey)
         print('platformwrapper.build_agent.address: {}'.format(address))
+
+        # Automatically add agent's credentials to auth.json file
+        if publickey:
+            self._append_allow_curve_key(publickey)
+
         if should_spawn:
             print('platformwrapper.build_agent spawning')
             event = gevent.event.Event()
@@ -147,6 +152,26 @@ class PlatformWrapper:
         with open(os.path.join(self.volttron_home, 'curve.key'), 'w') as fd:
             fd.write(key)
         return encode_key(key[:40]) # public key
+
+    def _append_allow_curve_key(self, publickey):
+        cred = 'CURVE:{}'.format(publickey)
+        auth_path = os.path.join(self.volttron_home, 'auth.json')
+
+        try:
+            with open(auth_path, 'r') as fd:
+                auth = json.load(fd)
+        except IOError:
+            auth = {}
+
+        if not 'allow' in auth:
+            auth['allow'] = []
+
+        allow = auth['allow']
+        if not any(record['credentials'] == cred for record in allow):
+            allow.append({'credentials': cred})
+
+        with open(auth_path, 'w+') as fd:
+            json.dump(auth, fd)
 
     def set_auth_dict(self, auth_dict):
         if auth_dict:
