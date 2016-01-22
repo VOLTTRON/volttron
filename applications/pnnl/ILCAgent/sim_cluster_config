@@ -21,7 +21,7 @@
 				"dict_name": "zone_type"
 			},
 			"stage": {
-			    "value": 2,
+			    "value": 1,
 				"operation_type": "constant"
 			},
 			"history-zonetemperature": {
@@ -60,7 +60,7 @@
 				"dict_name": "zone_type"
 			},
 			"stage": {
-			    "value": 2,
+			    "value": 4,
 				"operation_type": "constant"
 			},
 			"history-zonetemperature": {

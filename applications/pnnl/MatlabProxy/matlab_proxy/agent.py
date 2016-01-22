@@ -120,6 +120,7 @@ def matlab_proxy_agent(config_path, **kwargs):
     building_power_point = building_power_format["building_power_point"]
     timestamp_row = config["timestamp_row"]
     interval = config["interval"]
+    defaults = config.get("defaults", {})
     
     SCHEDULE_RESPONSE_SUCCESS = 'SUCCESS'
     
@@ -131,7 +132,6 @@ def matlab_proxy_agent(config_path, **kwargs):
             super(MATLABProxyAgent, self).__init__(identity=vip_identity, **kwargs)
             #TODO error handling
             self.dirty_points = set()
-            self.last_clean_value = {}
             self.setup_device()
             
             
@@ -145,11 +145,12 @@ def matlab_proxy_agent(config_path, **kwargs):
             
         @Core.receiver('onstart')
         def starting(self, sender, **kwargs):
+#             self.advance_publish()
 #             self.set_point('foo', 'RTU1Compressor1/ThermostateSetPointTemperature',65)
-#             self.set_point('RTU1Compressor2','ThermostateSetPointTemperature',65)
-#             self.set_point('RTU2','ThermostateSetPointTemperature',67)
-#             self.set_point('RTU3','ThermostateSetPointTemperature',68)
-#             self.set_point('RTU4','ThermostateSetPointTemperature',69)
+#             self.set_point('foo', 'RTU1Compressor2/ThermostateSetPointTemperature',65)
+#             self.set_point('foo', 'RTU2/ThermostateSetPointTemperature',67)
+#             self.set_point('foo', 'RTU3/ThermostateSetPointTemperature',68)
+#             self.set_point('foo', 'RTU4/ThermostateSetPointTemperature',69)
             self.advance_publish()
             self.core.periodic(interval, self.advance_publish, wait=None)
             
@@ -177,8 +178,6 @@ def matlab_proxy_agent(config_path, **kwargs):
             
             target_device, property_name = topic.rsplit('/', 1)
             
-            self.dirty_points.add((target_device, property_name))
-            
             request = 'setpoint,'+str(target_device)+','+str(property_name)+','+str(value)
             
             self.conn.send(body=request, destination=request_queue, headers = {"content-type": "text/plain"})
@@ -198,9 +197,12 @@ def matlab_proxy_agent(config_path, **kwargs):
         @RPC.export
         def revert_point(self, requester_id, topic, **kwargs):
             target_device, property_name = topic.rsplit('/', 1)
-            value = self.last_clean_value[target_device, property_name]
+            value = defaults.get(target_device, {}).get(property_name)
+            if value is None:
+                _log.warning("Unable to revert point "+topic+" to "+str(value)+"!")
+                return
+            _log.debug("Reverting point "+topic+" to "+str(value))
             self.set_point(requester_id, topic, value)
-            self.dirty_points.remove((target_device, property_name))
             
         def advance_publish(self):
             """Read system status and return the results"""
@@ -228,8 +230,6 @@ def matlab_proxy_agent(config_path, **kwargs):
                 for point_name, row_index in point_map.items():
                     value = matrix[row_index][column_index]
                     device_result[point_name] = value
-                    if (device_name, point_name) not in self.dirty_points:
-                        self.last_clean_value[device_name, point_name] = value
                     
                 values[device_name] = device_result
                 

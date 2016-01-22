@@ -13,6 +13,14 @@
     					["RTU2",{"ThermostatSetPointTemperature":0,"ThermostatZoneTemperature":1,"RTUOnOffStatus":2}],
     					["RTU3",{"ThermostatSetPointTemperature":0,"ThermostatZoneTemperature":1,"RTUOnOffStatus":2}],
     					["RTU4",{"ThermostatSetPointTemperature":0,"ThermostatZoneTemperature":1,"RTUOnOffStatus":2}]],
+    					
+    "defaults": {
+    			"RTU1Compressor1":{"ThermostatSetPointTemperature":71.6},
+				"RTU1Compressor2":{"ThermostatSetPointTemperature":71.6},
+				"RTU2":{"ThermostatSetPointTemperature":71.6},
+				"RTU3":{"ThermostatSetPointTemperature":71.6},
+				"RTU4":{"ThermostatSetPointTemperature":71.6}
+				},
    
    "building_power_format":{
    							"building_power_row_index":3,
@@ -22,7 +30,7 @@
    
 	"timestamp_row": 4,
 	
-	"interval": 1
+	"interval": 0.25
 	
     
 }

@@ -131,6 +131,9 @@ ACTUATOR_SCHEDULE_REQUEST = _(_ACTUATOR_SCHEDULE.replace('{op}', 'request'))
 ACTUATOR_SCHEDULE_RESULT = _(_ACTUATOR_SCHEDULE.replace('{op}', 'result'))
 ACTUATOR_SCHEDULE_ANNOUNCE_RAW = _(_ACTUATOR_SCHEDULE.replace('{op}','announce/{device}'))
 
+#For use when scheduling devices and setting points
+ACTUATOR_DEVICE_PATH = _(DEVICES_PATH.replace('{base}//{node}//', ''))
+
 #This is a convenience topic for agent listening for announcements
 # and want to use the {campus}//{building}//{unit} style replacement
 ACTUATOR_SCHEDULE_ANNOUNCE = _(ACTUATOR_SCHEDULE_ANNOUNCE_RAW.replace('{device}','{campus}//{building}//{unit}'))

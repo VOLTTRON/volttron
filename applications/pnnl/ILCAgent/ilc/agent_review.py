@@ -353,10 +353,12 @@ class Clusters(object):
                 continue
 
             input_arr = input_matrix(device_evaluations, cluster.crit_labels)
+            _log.debug("Input Array: " + str(input_arr))
             scored_devices = build_score(input_arr, cluster.row_average, cluster.priority)
             all_scored_devices.extend(scored_devices)
 
         all_scored_devices.sort()
+        _log.debug("Scored Devices: " + str(all_scored_devices))
         results = [x[1] for x in all_scored_devices]
 
         return results
@@ -407,6 +409,13 @@ def ahp(config_path, **kwargs):
                                              unit=None,
                                              path='',
                                              point=None)
+    
+    base_rpc_path = topics.ACTUATOR_DEVICE_PATH(campus=config.get('campus', ''),
+                                                     building=config.get('building', ''),
+                                                     unit=None,
+                                                     path='',
+                                                     point=None)
+    
     device_topic_list = []
     device_topic_map = {}
     all_devices = clusters.get_device_name_list()
@@ -493,6 +502,7 @@ def ahp(config_path, **kwargs):
             
             if self.reset_curtail_count_time is not None:
                 if self.reset_curtail_count_time <= now:
+                    _log.debug("Resetting curtail count")
                     clusters.reset_curtail_count()
 
             if self.running_ahp:
@@ -524,8 +534,6 @@ def ahp(config_path, **kwargs):
                 if not score_order:
                     _log.info('All devices are off, nothing to curtail.')
                     return
-                
-                print score_order
 
                 scored_devices = self.actuator_request(score_order)
                 self.remaining_devices = self.curtail(scored_devices, bldg_power, now)
@@ -561,8 +569,10 @@ def ahp(config_path, **kwargs):
                 curtail_val = curtail['value']
                 curtail_load = curtail['load']
 
-                curtailed_point = base_device_topic(unit=device_name, point=curtail_pt)
+                curtailed_point = base_rpc_path(unit=device_name, point=curtail_pt)
                 # TODO: catch errors.
+                _log.debug("Setting "+curtailed_point+" to "+str(curtail_val))
+                
                 result = self.vip.rpc.call('platform.actuator', 'set_point',
                                            agent_id, curtailed_point,
                                            curtail_val).get(timeout=10)
@@ -619,7 +629,7 @@ def ahp(config_path, **kwargs):
                         ctrl_dev.append(item)
                     continue
 
-                curtailed_device = base_device_topic(unit=device, point='')
+                curtailed_device = base_rpc_path(unit=device, point='')
                 schedule_request = [[curtailed_device, str_now, str_end]]
                 result = self.vip.rpc.call(
                     'platform.actuator', 'request_new_schedule', agent_id,
@@ -646,7 +656,7 @@ def ahp(config_path, **kwargs):
                 device_name, command = item
                 curtail = clusters.get_device(device_name).get_curtailment(command)
                 curtail_pt = curtail['point']
-                curtailed_point = base_device_topic(unit=device_name, point=curtail_pt)
+                curtailed_point = base_rpc_path(unit=device_name, point=curtail_pt)
                 # TODO: catch errors.
                 result = self.vip.rpc.call('platform.actuator', 'revert_point',
                                            agent_id, curtailed_point).get(timeout=10)
