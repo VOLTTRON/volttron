@@ -55,6 +55,8 @@
 
 import logging
 import sys
+import gevent
+import random
 
 from volttron.platform.vip.agent import Agent, Core, RPC
 from volttron.platform.async import AsyncCall
@@ -73,6 +75,22 @@ import dateutil
 import stomp
 from stomp.listener import TestListener
 
+class MyTestListener(TestListener):
+
+    def wait_for_message(self):
+        with self.message_condition:
+            while not self.message_received:
+                self.message_condition.wait(timeout=5)
+        self.message_received = False
+
+    def get_latest_message(self):
+        if not self.message_list:
+            return None
+        
+        message = self.message_list[-1]
+        self.message_list = []
+        return message
+
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
@@ -81,7 +99,7 @@ modbus_logger.setLevel(logging.WARNING)
 
 import os.path
 
-write_debug_str = "Writing: {target} {property} : {value}"
+write_debug_str = "Writing: {target} {property} : {value} {result}"
 
 def matlab_proxy_agent(config_path, **kwargs):
     config = utils.load_config(config_path)
@@ -102,7 +120,9 @@ def matlab_proxy_agent(config_path, **kwargs):
     building_power_point = building_power_format["building_power_point"]
     timestamp_row = config["timestamp_row"]
     interval = config["interval"]
-
+    
+    SCHEDULE_RESPONSE_SUCCESS = 'SUCCESS'
+    
     class MATLABProxyAgent(Agent):
         '''This agent creates a virtual matlab device that is used by
         the matlab driver interface to communicate with matlab simulation devices.
@@ -110,46 +130,77 @@ def matlab_proxy_agent(config_path, **kwargs):
         def __init__(self, **kwargs):
             super(MATLABProxyAgent, self).__init__(identity=vip_identity, **kwargs)
             #TODO error handling
+            self.dirty_points = set()
+            self.last_clean_value = {}
             self.setup_device()
             
             
             
         def setup_device(self): 
             self.conn = stomp.Connection12(host_and_ports=((activemq_address, activemq_port),),auto_content_length=False)
-            self.conn.set_listener('', TestListener())
+            self.conn.set_listener('', MyTestListener())
             self.conn.start()
             self.conn.connect(activemq_user,activemq_password, wait=True)
             self.conn.subscribe(destination=response_queue, id=1, ack='auto')
             
         @Core.receiver('onstart')
         def starting(self, sender, **kwargs):
-#             self.set_point('RTU1Compressor1','ThermostateSetPointTemperature',290)
-#             self.set_point('RTU1Compressor2','ThermostateSetPointTemperature',291)
-#             self.set_point('RTU2','ThermostateSetPointTemperature',292)
-#             self.set_point('RTU3','ThermostateSetPointTemperature',293)
-#             self.set_point('RTU4','ThermostateSetPointTemperature',294)
-#             self.advance_publish()
-              self.core.periodic(interval, self.advance_publish, wait=None)
+#             self.set_point('foo', 'RTU1Compressor1/ThermostateSetPointTemperature',65)
+#             self.set_point('RTU1Compressor2','ThermostateSetPointTemperature',65)
+#             self.set_point('RTU2','ThermostateSetPointTemperature',67)
+#             self.set_point('RTU3','ThermostateSetPointTemperature',68)
+#             self.set_point('RTU4','ThermostateSetPointTemperature',69)
+            self.advance_publish()
+            self.core.periodic(interval, self.advance_publish, wait=None)
+            
+        @RPC.export    
+        def request_new_schedule(self, requester_id, task_id, priority, requests):
+            _log.debug(requester_id + " requests new schedule " + task_id + " " + str(requests))
+            data =  {}        
+            results = {'result':SCHEDULE_RESPONSE_SUCCESS, 
+                       'data': data, 
+                       'info':""}
+            return results
+        
+        @RPC.export 
+        def request_cancel_schedule(self, requester_id, task_id):
+            _log.debug(requester_id + " canceled " + task_id)
+            message = {'result':SCHEDULE_RESPONSE_SUCCESS,  
+                       'info': '',
+                       'data':{}}
+                
+            return message   
             
         @RPC.export
-        def set_point(self, target_device, property_name, value):
+        def set_point(self, requester_id, topic, value, **kwargs):
             """Write to a property."""
             
-            _log.debug(write_debug_str.format(target=target_device,
-                                              property=property_name,
-                                              value=value))
+            target_device, property_name = topic.rsplit('/', 1)
+            
+            self.dirty_points.add((target_device, property_name))
             
             request = 'setpoint,'+str(target_device)+','+str(property_name)+','+str(value)
             
             self.conn.send(body=request, destination=request_queue, headers = {"content-type": "text/plain"})
             self.conn.get_listener(name='').wait_for_message()
             response = self.conn.get_listener(name='').get_latest_message()
-            print "Response: ", response[0], response[1]
+            
+            _log.debug(write_debug_str.format(target=target_device,
+                                              property=property_name,
+                                              value=value,
+                                              result=response[1]))
+            
             if response[1]=='success':
                 return value;
             else:
                 raise RuntimeError("Failed to set value: " + response[1])
-            
+         
+        @RPC.export
+        def revert_point(self, requester_id, topic, **kwargs):
+            target_device, property_name = topic.rsplit('/', 1)
+            value = self.last_clean_value[target_device, property_name]
+            self.set_point(requester_id, topic, value)
+            self.dirty_points.remove((target_device, property_name))
             
         def advance_publish(self):
             """Read system status and return the results"""
@@ -157,13 +208,10 @@ def matlab_proxy_agent(config_path, **kwargs):
             values  = {}
             matrix = []
             
-            print "Sending message"
+            _log.debug("Advancing simulation")
             self.conn.send(body='advance', destination=request_queue, headers = {"content-type": "text/plain"})
             self.conn.get_listener(name='').wait_for_message()
             response = self.conn.get_listener(name='').get_latest_message()
-            
-            print "Response:", response[1]
-            # tsp1 tsp2 tsp3 tsp4 tsp5 ; tz1 tz2 tz3 tz4 tz5 ; bp1 bp2 3 4 5 ; 1 0 1 0 1;
             
             rows = response[1].split(';')
             
@@ -171,20 +219,17 @@ def matlab_proxy_agent(config_path, **kwargs):
             timestamp_value = rows[timestamp_row]
             
             for rows_string in rows[:3]:
-                print "Row: ", rows_string
                 row = [float(x) for x in rows_string.split()]
                 matrix.append(row)
-                
-            print "Matrix: " , matrix
-                    
-            
             
             for column_index, device_config in enumerate(status_format):
                 device_name, point_map = device_config
                 device_result = {}
                 for point_name, row_index in point_map.items():
-                    print "Value: ", point_name, matrix[row_index][column_index]
-                    device_result[point_name] = matrix[row_index][column_index]
+                    value = matrix[row_index][column_index]
+                    device_result[point_name] = value
+                    if (device_name, point_name) not in self.dirty_points:
+                        self.last_clean_value[device_name, point_name] = value
                     
                 values[device_name] = device_result
                 
@@ -194,12 +239,11 @@ def matlab_proxy_agent(config_path, **kwargs):
             
             now = dateutil.parser.parse(timestamp_value)
             
-            
             headers = {
                 headers_mod.DATE: now.isoformat()
             }
             
-            print "Values:", values
+            _log.debug("Returned simulation values: "+str(values))
                     
             for device_name, device_results in values.items(): 
                 publish_topic = DEVICES_VALUE(campus='',

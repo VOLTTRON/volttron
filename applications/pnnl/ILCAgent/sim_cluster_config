@@ -1,0 +1,198 @@
+
+{
+    "RTU1Compressor1": {
+		"RTUOnOffStatus": { 
+			"zonetemperature-setpoint":{
+				"operation": "1/(ThermostatZoneTemperature - ThermostatSetPointTemperature)",
+				"operation_type": "formula",
+				"operation_args": ["ThermostatSetPointTemperature", "ThermostatZoneTemperature"],
+				"minimum": 0,
+				"maximum": 10
+			},
+			"rated-power": {
+			    "on_value": 15.0,
+			    "off_value": 0.0,
+				"operation_type": "status",
+				"point_name": "RTUOnOffStatus"
+			},
+			"room-type": {
+				"map_key": "Office",
+				"operation_type": "mapper",
+				"dict_name": "zone_type"
+			},
+			"stage": {
+			    "value": 2,
+				"operation_type": "constant"
+			},
+			"history-zonetemperature": {
+			    "comparison_type": "direct",
+				"operation_type": "history",
+				"point_name": "ThermostatZoneTemperature",
+				"previous_time": 15,
+				"minimum": 0,
+				"maximum": 10
+			},
+			"curtail": {
+				"point": "ThermostatSetPointTemperature",
+				"value": 78.0,
+				"load": 10.0
+			}
+		}
+    },
+    "RTU1Compressor2": {
+		"RTUOnOffStatus": { 
+			"zonetemperature-setpoint":{
+				"operation": "1/(ThermostatZoneTemperature - ThermostatSetPointTemperature)",
+				"operation_type": "formula",
+				"operation_args": ["ThermostatSetPointTemperature", "ThermostatZoneTemperature"],
+				"minimum": 0,
+				"maximum": 10
+			},
+			"rated-power": {
+			    "on_value": 15.0,
+			    "off_value": 0.0,
+				"operation_type": "status",
+				"point_name": "RTUOnOffStatus"
+			},
+			"room-type": {
+				"map_key": "Office",
+				"operation_type": "mapper",
+				"dict_name": "zone_type"
+			},
+			"stage": {
+			    "value": 2,
+				"operation_type": "constant"
+			},
+			"history-zonetemperature": {
+			    "comparison_type": "direct",
+				"operation_type": "history",
+				"point_name": "ThermostatZoneTemperature",
+				"previous_time": 15,
+				"minimum": 0,
+				"maximum": 10
+			},
+			"curtail": {
+				"point": "ThermostatSetPointTemperature",
+				"value": 78.0,
+				"load": 10.0
+			}
+		}
+    },
+    "RTU2": {
+		"RTUOnOffStatus": { 
+			"zonetemperature-setpoint":{
+				"operation": "1/(ThermostatZoneTemperature - ThermostatSetPointTemperature)",
+				"operation_type": "formula",
+				"operation_args": ["ThermostatSetPointTemperature", "ThermostatZoneTemperature"],
+				"minimum": 0,
+				"maximum": 10
+			},
+			"rated-power": {
+			    "on_value": 5.3,
+			    "off_value": 0.0,
+				"operation_type": "status",
+				"point_name": "RTUOnOffStatus"
+			},
+			"room-type": {
+				"map_key": "Office",
+				"operation_type": "mapper",
+				"dict_name": "zone_type"
+			},
+			"stage": {
+			    "value": 1,
+				"operation_type": "constant"
+			},
+			"history-zonetemperature": {
+			    "comparison_type": "direct",
+				"operation_type": "history",
+				"point_name": "ThermostatZoneTemperature",
+				"previous_time": 15,
+				"minimum": 0,
+				"maximum": 10
+			},
+			"curtail": {
+				"point": "ThermostatSetPointTemperature",
+				"value": 78.0,
+				"load": 5.3
+			}
+		}
+    },
+    "RTU3": {
+		"RTUOnOffStatus": { 
+			"zonetemperature-setpoint":{
+				"operation": "1/(ThermostatZoneTemperature - ThermostatSetPointTemperature)",
+				"operation_type": "formula",
+				"operation_args": ["ThermostatSetPointTemperature", "ThermostatZoneTemperature"],
+				"minimum": 0,
+				"maximum": 10
+			},
+			"rated-power": {
+			    "on_value": 5.3,
+			    "off_value": 0.0,
+				"operation_type": "status",
+				"point_name": "RTUOnOffStatus"
+			},
+			"room-type": {
+				"map_key": "Office",
+				"operation_type": "mapper",
+				"dict_name": "zone_type"
+			},
+			"stage": {
+			    "value": 1,
+				"operation_type": "constant"
+			},
+			"history-zonetemperature": {
+			    "comparison_type": "direct",
+				"operation_type": "history",
+				"point_name": "ThermostatZoneTemperature",
+				"previous_time": 15,
+				"minimum": 0,
+				"maximum": 10
+			},
+			"curtail": {
+				"point": "ThermostatSetPointTemperature",
+				"value": 78.0,
+				"load": 5.3
+			}
+		}
+    },
+    "RTU4": {
+		"RTUOnOffStatus": { 
+			"zonetemperature-setpoint":{
+				"operation": "1/(ThermostatZoneTemperature - ThermostatSetPointTemperature)",
+				"operation_type": "formula",
+				"operation_args": ["ThermostatSetPointTemperature", "ThermostatZoneTemperature"],
+				"minimum": 0,
+				"maximum": 10
+			},
+			"rated-power": {
+			    "on_value": 5.3,
+			    "off_value": 0.0,
+				"operation_type": "status",
+				"point_name": "RTUOnOffStatus"
+			},
+			"room-type": {
+				"map_key": "Kitchen",
+				"operation_type": "mapper",
+				"dict_name": "zone_type"
+			},
+			"stage": {
+			    "value": 1,
+				"operation_type": "constant"
+			},
+			"history-zonetemperature": {
+			    "comparison_type": "direct",
+				"operation_type": "history",
+				"point_name": "ThermostatZoneTemperature",
+				"previous_time": 15,
+				"minimum": 0,
+				"maximum": 10
+			},
+			"curtail": {
+				"point": "ThermostatSetPointTemperature",
+				"value": 78.0,
+				"load": 5.3
+			}
+		}
+    }    
+}

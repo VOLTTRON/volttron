@@ -1,6 +1,7 @@
 {
     "agentid": "matlab_proxy",
-    "activemq_address": "jocose.pnl.gov",
+    "vip_identity": "platform.actuator",
+    "activemq_address": "WE25369.pnl.gov",
     "activemq_port": 61613,
     "activemq_user": "admin",
     "activemq_password": "password",
@@ -21,7 +22,7 @@
    
 	"timestamp_row": 4,
 	
-	"interval": 2
+	"interval": 1
 	
     
 }

@@ -199,6 +199,7 @@ class HistoryCriterion(BaseCriterion):
 
 class Criteria(object):
     def __init__(self, criteria):
+        self.currently_curtailed = False
         self.criteria = {}
         criteria = deepcopy(criteria)
 
@@ -232,14 +233,18 @@ class Criteria(object):
         for criterion in self.criteria.values():
             criterion.ingest_data(time_stamp, data)
 
-    def reset_curtail(self):
+    def reset_curtail_count(self):
         self.curtail_count = 0.0
 
     def increment_curtail(self):
+        self.currently_curtailed = False
         self.curtail_count += 1.0
 
     def get_curtailment(self):
         return self.curtailment.copy()
+    
+    def reset_currently_curtailed(self):    
+        self.currently_curtailed = True
 
 
 class Device(object):
@@ -259,9 +264,13 @@ class Device(object):
         for command in self.command_status:
             self.command_status[command] = bool(data[command])
 
-    def reset_curtail(self):
+    def reset_curtail_count(self):
         for criteria in self.criteria.values():
-            criteria.reset_curtail()
+            criteria.reset_curtail_count()
+            
+    def reset_currently_curtailed(self):
+        for criteria in self.criteria.values():
+            criteria.reset_currently_curtailed()
 
     def increment_curtail(self, command):
         self.criteria[command].increment_curtail()
@@ -296,7 +305,7 @@ class DeviceCluster(object):
                 evaluations = device.evaluate(command)
                 results[name, command] = evaluations
         return results
-
+    
 
 class Clusters(object):
     def __init__(self):
@@ -319,6 +328,14 @@ class Clusters(object):
             results.update(((name, command) for command in device.get_off_commands()))
 
         return results
+    
+    def reset_curtail_count(self):
+        for device in self.devices.itervalues():
+            device.reset_curtail_count()
+            
+    def reset_currently_curtailed(self):
+        for device in self.devices.itervalues():
+            device.reset_currently_curtailed()
 
     def get_on_device_set(self):
         results = set()
@@ -417,6 +434,9 @@ def ahp(config_path, **kwargs):
     curtail_confirm = td(minutes=config.get("curtailment_confirm", 5.0))
     curtail_break = td(minutes=config.get("curtailment_break", 5.0))
     actuator_schedule_buffer = td(minutes=config.get("actuator_schedule_buffer", 5.0))
+    reset_curtail_count_time = td(hours=config.get("reset_curtail_count_time", 6.0))
+    
+    longest_possible_curtail = len(clusters.devices) * curtail_time
 
     class AHP(Agent):
         def __init__(self, **kwargs):
@@ -429,6 +449,7 @@ def ahp(config_path, **kwargs):
             self.next_curtail_confirm = None
             self.curtail_end = None
             self.break_end = None
+            self.reset_curtail_count_time = None
             self.scheduled_devices = set()
             self.devices_curtailed = set()
 
@@ -469,6 +490,10 @@ def ahp(config_path, **kwargs):
 
             
             now = parser.parse(headers['Date'])
+            
+            if self.reset_curtail_count_time is not None:
+                if self.reset_curtail_count_time <= now:
+                    clusters.reset_curtail_count()
 
             if self.running_ahp:
 
@@ -476,17 +501,16 @@ def ahp(config_path, **kwargs):
                     self.end_curtail()
 
                 elif now >= self.next_curtail_confirm:
-                    self.curtail_confirm(bldg_power)
+                    self.curtail_confirm(bldg_power, now)
                 return
 
             elif self.break_end is not None and now < self.break_end:
                 return
 
-            self.check_load(bldg_power)
+            self.check_load(bldg_power, now)
 
-        def check_load(self, bldg_power):
+        def check_load(self, bldg_power, now):
             '''Check whole building power and if the value is above the
-
             the demand limit (demand_limit) then initiate the AHP sequence.
             '''
             _log.debug('Checking building load.')
@@ -504,29 +528,30 @@ def ahp(config_path, **kwargs):
                 print score_order
 
                 scored_devices = self.actuator_request(score_order)
-                self.remaining_devices = self.curtail(scored_devices, bldg_power)
+                self.remaining_devices = self.curtail(scored_devices, bldg_power, now)
 
-        def curtail(self, scored_devices, bldg_power):
+        def curtail(self, scored_devices, bldg_power, now):
             '''Curtail loads by turning off device (or device components'''
             need_curtailed = bldg_power - demand_limit
             est_curtailed = 0.0
             remaining_devices = scored_devices[:]
-
-            # Don't restart timer if ahp is running.
-            # curtail_confirm updates the next confirm time after this.
-            now = dt.now()
+            
+            for device in self.devices_curtailed:
+                if device in remaining_devices:
+                    remaining_devices.remove(device)
 
             if not self.running_ahp:
-                _log.info('Starting AHP')
-                self.curtail_end = now + curtail_time
-                self.break_end = now + curtail_break
+                _log.info('Starting AHP')                
                 self.running_ahp = True
-
+                
+            self.curtail_end = now + curtail_time
+            self.break_end = now + curtail_break
+            self.reset_curtail_count_time = self.curtail_end + reset_curtail_count_time
             self.next_curtail_confirm = now + curtail_confirm
 
             _log.info('Curtialing load.')
 
-            for item in scored_devices:
+            for item in remaining_devices:
 
                 device_name, command = item
 
@@ -549,11 +574,12 @@ def ahp(config_path, **kwargs):
                     break
 
             for device in self.devices_curtailed:
-                remaining_devices.remove(device)
+                if device in remaining_devices:
+                    remaining_devices.remove(device)
 
             return remaining_devices
 
-        def curtail_confirm(self, cur_pwr):
+        def curtail_confirm(self, cur_pwr, now):
             '''Check if load shed goal is met.'''
             if cur_pwr < demand_limit:
                 _log.info('Curtail goal for building load met.')
@@ -564,28 +590,30 @@ def ahp(config_path, **kwargs):
 
                 if not new_on_device_set:
                     if self.remaining_devices:
-                        self.remaining_devices = self.curtail(self.remaining_devices, cur_pwr)
+                        self.remaining_devices = self.curtail(self.remaining_devices, cur_pwr, now)
                     else:
                         _log.info('Did not meet load curtailment goal but there '
                                   'are no further available loads to remove.')
                 else:
-                    self.check_load(cur_pwr)
+                    self.check_load(cur_pwr, now)
 
         def actuator_request(self, score_order):
             '''request access to devices.'''
             _now = dt.now()
             str_now = _now.strftime(DATE_FORMAT)
-            _end = _now + curtail_time + actuator_schedule_buffer
+            _end = _now + longest_possible_curtail + actuator_schedule_buffer
             str_end = _end.strftime(DATE_FORMAT)
             ctrl_dev = []
-            already_handled = {}
+                        
+            already_handled = dict((device, True) for device in self.scheduled_devices)
+            
             for item in score_order:
 
                 device, point = item
                 
                 _log.debug("Reserving device: " + device)
 
-                if device in already_handled or device in self.scheduled_devices:
+                if device in already_handled:
                     if already_handled[device]:
                         _log.debug("Skipping reserve device (previously reserved): " + device)
                         ctrl_dev.append(item)
@@ -618,12 +646,10 @@ def ahp(config_path, **kwargs):
                 device_name, command = item
                 curtail = clusters.get_device(device_name).get_curtailment(command)
                 curtail_pt = curtail['point']
-                curtail_val = None
                 curtailed_point = base_device_topic(unit=device_name, point=curtail_pt)
                 # TODO: catch errors.
-                result = self.vip.rpc.call('platform.actuator', 'set_point',
-                                           agent_id, curtailed_point,
-                                           curtail_val).get(timeout=10)
+                result = self.vip.rpc.call('platform.actuator', 'revert_point',
+                                           agent_id, curtailed_point).get(timeout=10)
             self.devices_curtailed = set()
 
         def release_devices(self):
