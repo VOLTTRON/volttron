@@ -331,32 +331,67 @@ class Router(BaseRouter):
 class MasterWebService(Agent):
     '''The service that is responsible for managing and serving registered pages
 
+    Agents can register either a directory of files to serve or an rpc method
+    that will be called during the request process.
     '''
+
+    def __init__(self, serverkey, identity, address):
+        '''Initialize the discovery service with the serverkey
+
+        serverkey is the public key in order to access this volttron's bus.
+        '''
+        super(MasterWebService, self).__init__(identity, address)
+
+        self.serverkey = serverkey
+        self.registeredroutes = []
 
     #@export
     def register(self, regex, root):
-        stat = os.stat(root)
-        if os.path.exists(root):
-            self.agentroutes[regex] = {'path': root}
+
+        try:
+            # callablle was removed in 3.0 but added back to the language
+            # in python 3.2
+            if callable(root):
+                print('Callable is true')
+                self.registeredroutes.append((regex, 'callable', root))
+            else:
+                print('Is Not Callable.')
+                if os.path.exists(root):
+                    self.registeredroutes.append((regex, 'path', root))
+                else:
+                    raise AttributeError(root +' is not available')
+        except OSError as exc:
+            print('An error occured')
+        # if os.path.exists(root):
+        #     self.registeredroutes.append((regex, root))
+        #     #[regex] = {'path': root}
+
+    def get_serverkey(self, environ, start_response):
+        start_response('200 OK', [('Content-Type', 'application/json')])
+        return str({"serverkey": encode_key(self.serverkey)})
+
+
 
     def app_routing(self, env, start_response):
         path_info = env['PATH_INFO']
 
-        for k, v in self.agentroutes.items():
+        for k, t, v in self.registeredroutes:
             if path_info == k:
-                start_response('200 OK', [('Content-Type', 'text/html')])
-                return [v]
+                if t == 'callable':
+                    return v(env, start_response)
+                else:
+                    start_response('200 OK', [('Content-Type', 'text/html')])
+                    return [b'{}'.format(env)]
 
         start_response('404 Not Found', [('Content-Type', 'text/html')])
         return [b'<h1>Not Found</h1>']
 
     @Core.receiver('onstart')
     def startupagent(self, sender, **kwargs):
-        self.agentroutes = {
-            r'/discovery': b"<b>hello world inside</b>"
-        }
-        self.register('/', 'services/core/VolttronCentral/volttroncentral/webroot/')
-        self.server = pywsgi.WSGIServer(('0.0.0.0', 8443), self.app_routing)
+        #self.registeredroutes.append((r'/discovery', self.get_serverkey))
+        self.register('/discovery', self.get_serverkey)
+        self.register('/', '/home/vdev/git/volttron/services/core/VolttronCentral/volttroncentral/webroot')
+        self.server = pywsgi.WSGIServer(('0.0.0.0', 8080), self.app_routing)
         self.server.serve_forever()
 
     # print('Serving on https://127.0.0.1:8443')
@@ -531,7 +566,8 @@ def start_volttron_process(opts):
             CompatPubSub(address=address, identity='pubsub.compat',
                          publish_address=opts.publish_address,
                          subscribe_address=opts.subscribe_address),
-            MasterWebService(address=address, identity='volttron.web')
+            MasterWebService(serverkey=publickey, identity='volttron.web',
+                             address=address)
         ]
         events = [gevent.event.Event() for service in services]
         tasks = [gevent.spawn(service.core.run, event)
