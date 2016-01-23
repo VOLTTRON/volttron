@@ -21,6 +21,7 @@ def build_agent(platform, identity):
 
 def build_two_test_agents(platform):
     agent1 = build_agent(platform, 'agent1')
+    gevent.sleep(0.1)
     agent2 = build_agent(platform, 'agent2')
 
     agent1.foo = lambda x: x
