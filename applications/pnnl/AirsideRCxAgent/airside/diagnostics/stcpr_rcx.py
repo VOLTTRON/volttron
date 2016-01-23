@@ -97,7 +97,7 @@ class DuctStaticRcx(object):
         self.low_msg = ('The supply fan is running at nearly 100% of full '
                         'speed, data corresponding to {} will not be used.')
         self.high_msg = ('The supply fan is running at the minimum speed, '
-                         'data corresponding to {ts} will not be used.')
+                         'data corresponding to {} will not be used.')
 
     def duct_static(self, cur_time, stcpr_sp_data, stcpr_data, zn_dmpr_data,
                     stc_override_check, low_dx_cond, high_dx_cond, dx_result,
