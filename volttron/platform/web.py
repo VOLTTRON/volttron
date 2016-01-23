@@ -55,62 +55,70 @@
 # under Contract DE-AC05-76RL01830
 #}}}
 
+import logging
 import os
+import re
 
 from gevent import pywsgi
-from .vip.agent import Agent, Core
+from zmq.utils import jsonapi as json
+
+from .vip.agent import Agent, Core, RPC
 from .vip.socket import encode_key
+
+_log = logging.getLogger(__name__)
 
 
 class MasterWebService(Agent):
-    '''The service that is responsible for managing and serving registered pages
+    """The service that is responsible for managing and serving registered pages
 
     Agents can register either a directory of files to serve or an rpc method
     that will be called during the request process.
-    '''
+    """
 
     def __init__(self, serverkey, identity, address):
-        '''Initialize the discovery service with the serverkey
+        """Initialize the discovery service with the serverkey
 
         serverkey is the public key in order to access this volttron's bus.
-        '''
+        """
         super(MasterWebService, self).__init__(identity, address)
 
         self.serverkey = serverkey
         self.registeredroutes = []
 
-    #@export
+    @RPC.export
     def register(self, regex, root):
 
         try:
+            _log.debug('Registering uri expression: {}'.format(regex))
+            compiled = re.compile(regex)
             # callablle was removed in 3.0 but added back to the language
             # in python 3.2
             if callable(root):
                 print('Callable is true')
-                self.registeredroutes.append((regex, 'callable', root))
+                self.registeredroutes.append((compiled, 'callable', root))
             else:
                 print('Is Not Callable.')
                 if os.path.exists(root):
-                    self.registeredroutes.append((regex, 'path', root))
+                    self.registeredroutes.append((compiled, 'path', root))
                 else:
                     raise AttributeError(root +' is not available')
         except OSError as exc:
             print('An error occured')
-        # if os.path.exists(root):
-        #     self.registeredroutes.append((regex, root))
-        #     #[regex] = {'path': root}
 
     def get_serverkey(self, environ, start_response):
         start_response('200 OK', [('Content-Type', 'application/json')])
-        return str({"serverkey": encode_key(self.serverkey)})
-
-    #def handle_file(self):
+        return json.dumps({"serverkey": encode_key(self.serverkey)})
 
     def app_routing(self, env, start_response):
+
         path_info = env['PATH_INFO']
+        if path_info.startswith('/http://'):
+            path_info = path_info[path_info.index('/', len('/http://')):]
+            _log.debug('Path info is: {}'.format(path_info))
 
         for k, t, v in self.registeredroutes:
-            if path_info == k:
+            print(k.pattern, path_info, k.match(path_info))
+            if k.match(path_info):
                 if t == 'callable':
                     return v(env, start_response)
                 else:
@@ -122,13 +130,8 @@ class MasterWebService(Agent):
 
     @Core.receiver('onstart')
     def startupagent(self, sender, **kwargs):
-        #self.registeredroutes.append((r'/discovery', self.get_serverkey))
-        self.register('/discovery', self.get_serverkey)
-        self.register('/', '/home/vdev/git/volttron/services/core/VolttronCentral/volttroncentral/webroot')
+        _log.debug('Starting web server.')
+        self.register('^/discovery/$', self.get_serverkey)
+        self.register('/$', '/home/vdev/git/volttron/services/core/VolttronCentral/volttroncentral/webroot')
         self.server = pywsgi.WSGIServer(('0.0.0.0', 8080), self.app_routing)
         self.server.serve_forever()
-
-    # print('Serving on https://127.0.0.1:8443')
-    # server = pywsgi.WSGIServer(('0.0.0.0', 8443), hello_world, keyfile='server.key', certfile='server.crt')
-    # to start the server asynchronously, call server.start()
-    # we use blocking serve_forever() here because we have no other jobs
