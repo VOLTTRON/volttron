@@ -10,6 +10,7 @@ var PageNotFound = require('./components/page-not-found');
 var Platform = require('./components/platform');
 var PlatformManager = require('./components/platform-manager');
 var Platforms = require('./components/platforms');
+var Graph = require('./components/graph');
 
 var _afterLoginPath = '/dashboard';
 
@@ -51,6 +52,7 @@ var routes = (
         <Router.Route name="dashboard" path="dashboard" handler={checkAuth(Dashboard)} />
         <Router.Route name="platforms" path="platforms" handler={checkAuth(Platforms)} />
         <Router.Route name="platform" path="platforms/:uuid" handler={checkAuth(Platform)} />
+        <Router.Route name="graph" path="graph" handler={checkAuth(Graph)} />
         <Router.NotFoundRoute handler={checkAuth(PageNotFound)} />
         <Router.DefaultRoute handler={AfterLogin} />
     </Router.Route>

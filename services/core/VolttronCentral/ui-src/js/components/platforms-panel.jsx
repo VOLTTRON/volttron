@@ -87,12 +87,6 @@ var PlatformsPanel = React.createClass({
             textAlign: "left"
         };
 
-        var space_right = {
-            marginRight: "5px"
-        };
-
-        var searchIcon = '\f002' ;
-
         if (!this.state.platforms) {
             platforms = (
                 <p>Loading platforms panel ...</p>

@@ -618,6 +618,10 @@ br + .form__control-help {
     display: "none";
 }*/
 
+.tooltip_outer {
+    z-index: 100;
+}
+
 .boldText {
     font-weight: bold;
 }

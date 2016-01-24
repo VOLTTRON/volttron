@@ -251,7 +251,7 @@ var PlatformsPanelItem = React.createClass({
             listItem = 
                 <div className="platform-link">
                     <Router.Link
-                        to="platform"
+                        to="graph"
                         params={{uuid: panelItem.uuid}}
                     >
                     {panelItem.name}
@@ -274,7 +274,8 @@ var PlatformsPanelItem = React.createClass({
                         style={checkboxStyle}
                         type="checkbox"
                         onClick={this._checkItem}></input>                    
-                    <div style={tooltipStyle}>
+                    <div className="tooltip_outer" 
+                        style={tooltipStyle}>
                         <div className="tooltip_inner">
                             {panelItem.uuid}
                         </div>
