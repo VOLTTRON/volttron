@@ -2306,8 +2306,6 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
             left: this.state.tooltipX + "px"
         };
 
-        // var childrenItems = [];
-
         arrowClasses.push( ((panelItem.status === "GOOD") ? "status-good" :
                                 ( (panelItem.status === "BAD") ? "status-bad" : 
                                     "status-unknown")) );
@@ -2329,7 +2327,6 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
         
         if (typeof propChildren !== "undefined" && propChildren !== null)
         {   
-            // if (this.state.expanded || (this.state.expanded === null && this.props.panelItem.expanded === true))
             if (this.state.expanded || this.props.panelItem.expanded === true)
             {
                 children = propChildren
@@ -2357,8 +2354,6 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
 
                 if (children.length > 0)
                 {
-                    // itemClasses = "showItems";
-
                     var classIndex = arrowClasses.indexOf("noRotate");
                     
                     if (classIndex > -1)
@@ -2367,14 +2362,7 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
                     }
 
                     arrowClasses.push("rotateDown");
-                    itemClasses = "showItems";
-
-                    // arrowClasses.push(this.state.expanded ? "rotateDown" : "rotateRight");
-                    // itemClasses = (this.state.expanded ? "showItems" : "hideItems");
-                     // : "rotateRight");
-
-                    // this.props.panelItem.expanded = this.state.expanded;
-                    
+                    itemClasses = "showItems";                    
                 }          
             }
         }
@@ -2386,8 +2374,6 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
                 {                
                     if (this.state.children !== null)
                     {
-                        // itemClasses = "showItems";
-
                         var childItems = this.state.children;
                         
                         children = childItems
@@ -2418,7 +2404,6 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
                             }
 
                             arrowClasses.push("rotateDown");
-                             // : "rotateRight");
                         }                            
                     }
                 }
@@ -2431,23 +2416,6 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
                         arrowClasses.push("rotateRight");
                     }
                 }
-
-                // if (children)
-                // {
-                //     if (children.length > 0)
-                //     {
-                //         itemClasses = "showItems";
-
-                //         var classIndex = arrowClasses.indexOf("noRotate");
-                        
-                //         if (classIndex > -1)
-                //         {
-                //             arrowClasses.splice(classIndex, 1);
-                //         }
-
-                //         arrowClasses.push(this.state.expanded ? "rotateDown" : "rotateRight");
-                //     }
-                // }
             }
         }
 
@@ -2515,10 +2483,6 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
     },
 });
 
-// function getChildren(parent, parentPath)
-// {
-//     return getItemsFromStore(parent, parentPath);
-// }
 function expandAllChildren(expandOn, parent)
 {
     var expandedParent = platformsPanelItemsStore.getExpandedChildren(expandOn, parent);
@@ -2633,6 +2597,8 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
             marginRight: "5px"
         };
 
+        var searchIcon = '\f002' ;
+
         if (!this.state.platforms) {
             platforms = (
                 React.createElement("p", null, "Loading platforms panel ...")
@@ -2686,12 +2652,10 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
                     onClick: this._togglePanel},  this.state.expanded ? '\u25c0' : '\u25b6'), 
                 React.createElement("div", {style: contentsStyle}, 
                     React.createElement("br", null), 
-                    React.createElement("div", {style: filterBoxContainer}, 
-                        React.createElement("i", {className: "fa fa-search", 
-                            style: space_right}), 
+                    React.createElement("div", {className: "filter_box", style: filterBoxContainer}, 
+                        React.createElement("span", {className: "fa fa-search"}), 
                         React.createElement("input", {
-                            className: "filter_box", 
-                            type: "text", 
+                            type: "search", 
                             onChange: this._onFilterBoxChange, 
                             value:  this.state.filterValue}
                         ), 

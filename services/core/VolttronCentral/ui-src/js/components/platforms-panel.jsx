@@ -91,6 +91,8 @@ var PlatformsPanel = React.createClass({
             marginRight: "5px"
         };
 
+        var searchIcon = '\f002' ;
+
         if (!this.state.platforms) {
             platforms = (
                 <p>Loading platforms panel ...</p>
@@ -144,12 +146,10 @@ var PlatformsPanel = React.createClass({
                     onClick={this._togglePanel}>{ this.state.expanded ? '\u25c0' : '\u25b6' }</div>
                 <div style={contentsStyle}>
                     <br/>
-                    <div style={filterBoxContainer}>
-                        <i className="fa fa-search"
-                            style={space_right}></i>
+                    <div className="filter_box" style={filterBoxContainer}>
+                        <span className="fa fa-search"></span>
                         <input
-                            className="filter_box"
-                            type="text"
+                            type="search"
                             onChange={this._onFilterBoxChange}
                             value={ this.state.filterValue }
                         />

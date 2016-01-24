@@ -623,7 +623,19 @@ br + .form__control-help {
 }
 
 .filter_box {
+    position: relative;
+}
+
+.filter_box input{
     width: 55%;
+    text-indent: 17px;
+}
+
+.filter_box .fa-search { 
+    position: absolute;
+    top: 7px;
+    left: 5px;
+    color: #707070;
 }
 
 .filter_buttons {
