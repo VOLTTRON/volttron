@@ -178,7 +178,7 @@ def matlab_proxy_agent(config_path, **kwargs):
             
             target_device, property_name = topic.rsplit('/', 1)
             
-            _log.debug("Attempting to write" +str(target_device)+','+str(property_name)+" with value: "+str(value))
+            _log.debug("Attempting to write " +str(target_device)+', '+str(property_name)+" with value: "+str(value))
             
             request = 'setpoint,'+str(target_device)+','+str(property_name)+','+str(value)
             
