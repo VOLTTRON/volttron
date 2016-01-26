@@ -73,33 +73,6 @@ logging.basicConfig(level=logging.debug,
 from collections import defaultdict
 
 
-def open_file():
-    '''Create file input window for user.'''
-    from Tkinter import Tk
-    from tkFileDialog import askopenfilename
-    file_path = None
-    supported_files = ['xlsx', 'xls']
-    tk = Tk()
-    tk.withdraw()
-    file_path = \
-        askopenfilename(defaultextension='.xlsx',
-                        title='choose excel file for AHP',
-                        initialfile='',
-                        parent=tk,
-                        initialdir=os.path.realpath(__file__))
-    _, filextension = os.path.splitext(file_path)
-    if ([ext for ext in supported_files if ext == filextension] and
-            filextension != ''):
-        file_path = ('File Selected is not a supported '
-                     'type (xlsx or xls)')
-        return file_path
-    if (file_path != '' and os.path.exists(file_path) and
-            os.path.isfile(file_path)):
-        file_path = file_path
-    tk.destroy()
-    return file_path
-
-
 def extract_criteria(excel_file, sheet):
     '''Function to extract the criteria matrix from
 
@@ -170,7 +143,7 @@ def normalize_matrix(criteria_matrix, col_sums):
 
 # Validates the criteria matrix to ensure that the inputs are internally consistent
 # Returns a True if the matrix is valid, and False if it is not.
-def validate_input(pairwise_matrix, col_sums, display=False,
+def validate_input(pairwise_matrix, col_sums, 
                    criteria_LABELS="", CRITERIA_LABELSTRING="",
                    MATRIX_ROWSTRING="", display_dest=sys.stdout):
     '''Validates the criteria matrix to ensure that the inputs are
@@ -184,10 +157,6 @@ def validate_input(pairwise_matrix, col_sums, display=False,
     roots = []
     for row in pairwise_matrix:
         roots.append(math.pow(reduce(operator.mul, row, 1), 1.0/5))
-    display_matrix([roots, ], CRITERIA_LABELSTRING,
-                   criteria_LABELS, ['5th root of product'],
-                   MATRIX_ROWSTRING, display_dest) \
-        if display else ""
     # Sum the vector of products
     root_sum = sum(roots)
     # Calculate the priority vector
@@ -195,37 +164,23 @@ def validate_input(pairwise_matrix, col_sums, display=False,
     for item in roots:
         priority_vec.append(item / root_sum)
 
-    display_matrix([priority_vec, ], CRITERIA_LABELSTRING,
-                   criteria_LABELS, ['Priority Vector'],
-                   MATRIX_ROWSTRING, display_dest) \
-        if display else ""
     # Calculate the priority row
     priority_row = []
     for i in range(0, len(col_sums)):
         priority_row.append(col_sums[i] * priority_vec[i])
 
-    display_matrix([priority_row, ], CRITERIA_LABELSTRING,
-                   criteria_LABELS, ['Priority Row'],
-                   MATRIX_ROWSTRING, display_dest) \
-        if display else ""
 
     # Sum the priority row
     priority_row_sum = sum(priority_row)
-    if display:
-        print >> display_dest, "Priority row sum: ", priority_row_sum
 
     # Calculate the consistency index
     consistency_index = \
         (priority_row_sum - len(col_sums))/(len(col_sums) - 1)
 
-    if display:
-        print >> display_dest, "Consistency Index:", consistency_index
 
     # Calculate the consistency ratio
     consistency_ratio = consistency_index / random_index[len(col_sums)]
 
-    if display:
-        print >> display_dest, "Consistency Ratio:", consistency_ratio
     return consistency_ratio < 0.2
 
 
@@ -246,32 +201,6 @@ def build_score(_matrix, weight, priority):
     return zip(scores, input_keys)
 
 
-def display_matrix(_matrix, LABELString, xLABELS, yLABELS,
-                   rowstring, display_func=sys.stdout):
-    '''Function to diplay the critieria matrix.'''
-    # Display header
-    xLABELS = [item.encode('utf-8') for item in xLABELS]
-    print >> display_func, LABELString % tuple(xLABELS)
-    i = 0
-    while i < len(yLABELS):
-        print >> display_func, \
-                 rowstring % ((yLABELS[i],) + tuple(_matrix[i]))
-        i += 1
-
-def history_data(device, device_data, point_list):
-    '''Store historical data on devices for use in "Input Matrix."'''
-    data = {}
-    for point in point_list:
-        try:
-            value = device_data[point]
-        except KeyError:
-            _log.error('Data names in point_list in config file do '
-                       'not match available data published by device '
-                       'drivers.')
-        data.update({device: {point: value}})
-    data[device].update({'date': dt.now()})
-    return data
-
 def input_matrix(builder, criteria_labels):
     '''Construct input normalized input matrix.'''
     sum_mat = defaultdict(float)
@@ -281,7 +210,7 @@ def input_matrix(builder, criteria_labels):
         raise Exception('Input criteria and data criteria do not match.')
     for device_data in builder.values():
         for k,v in device_data.items():
-            sum_mat[k] = v if k not in sum_mat else sum_mat[k] + v
+            sum_mat[k] += v
     for key in builder:
         inp_mat[key] = mat_list = []
         for tag in criteria_labels:

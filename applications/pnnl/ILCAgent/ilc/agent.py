@@ -49,8 +49,8 @@ class BaseCriterion(object):
     __metaclass__ = abc.ABCMeta
 
     def __init__(self, minimum=None, maximum=None):
-        self.min_func = lambda x: x if minimum is None else lambda x: min(x, minimum)
-        self.max_func = lambda x: x if maximum is None else lambda x: max(x, maximum)
+        self.min_func = (lambda x: x) if minimum is None else (lambda x: max(x, minimum))
+        self.max_func = (lambda x: x) if maximum is None else (lambda x: min(x, maximum))
         self.minimum = minimum
         self.maximum = maximum
 
@@ -59,8 +59,8 @@ class BaseCriterion(object):
         value = self.max_func(value)
         return value
 
-    def evaluate_criterion(self, data):
-        value = self.evaluate(data)
+    def evaluate_criterion(self):
+        value = self.evaluate()
         value = self.evaluate_bounds(value)
         return value
 
@@ -223,7 +223,7 @@ class Criteria(object):
     def evaluate(self):
         results = {}
         for name, criterion in self.criteria.items():
-            result = criterion.evaluate()
+            result = criterion.evaluate_criterion()
             results[name] = result
 
         results["curtail_count"] = self.curtail_count
@@ -348,6 +348,8 @@ class Clusters(object):
         all_scored_devices = []
         for cluster in self.clusters:
             device_evaluations = cluster.get_all_device_evaluations()
+            
+            _log.debug("Device Evaluations: " + str(device_evaluations))
 
             if not device_evaluations:
                 continue
@@ -357,7 +359,7 @@ class Clusters(object):
             scored_devices = build_score(input_arr, cluster.row_average, cluster.priority)
             all_scored_devices.extend(scored_devices)
 
-        all_scored_devices.sort()
+        all_scored_devices.sort(reverse=True)
         _log.debug("Scored Devices: " + str(all_scored_devices))
         results = [x[1] for x in all_scored_devices]
 
@@ -394,7 +396,7 @@ def ahp(config_path, **kwargs):
         col_sums = calc_column_sums(criteria_arr)
         _, row_average = normalize_matrix(criteria_arr, col_sums)
 
-        if not (validate_input(criteria_arr, col_sums, False,
+        if not (validate_input(criteria_arr, col_sums, 
                                crit_labels, CRITERIA_LABELSTRING,
                                MATRIX_ROWSTRING)):
             _log.info('Inconsistent criteria matrix. Check configuration '
@@ -402,6 +404,8 @@ def ahp(config_path, **kwargs):
             sys.exit()
         cluster_config = utils.load_config(cluster_config_file_name)
         device_cluster = DeviceCluster(cluster_priority, crit_labels, row_average, cluster_config)
+        
+        _log.debug("Crit Labels: "+ str(crit_labels))
         clusters.add_device_cluster(device_cluster)
 
     base_device_topic = topics.DEVICES_VALUE(campus=config.get('campus', ''),
@@ -451,7 +455,6 @@ def ahp(config_path, **kwargs):
         def __init__(self, **kwargs):
             super(AHP, self).__init__(**kwargs)
             self.running_ahp = False
-            self.crit_labels = None
             self.row_average = None
             self.remaining_devices = []
             self.saved_off_device_set = set()
@@ -499,6 +502,8 @@ def ahp(config_path, **kwargs):
 
             
             now = parser.parse(headers['Date'])
+            
+            _log.debug("Reported time: "+str(now))
             
             if self.reset_curtail_count_time is not None:
                 if self.reset_curtail_count_time <= now:

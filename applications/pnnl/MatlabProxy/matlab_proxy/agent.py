@@ -178,6 +178,8 @@ def matlab_proxy_agent(config_path, **kwargs):
             
             target_device, property_name = topic.rsplit('/', 1)
             
+            _log.debug("Attempting to write" +str(target_device)+','+str(property_name)+" with value: "+str(value))
+            
             request = 'setpoint,'+str(target_device)+','+str(property_name)+','+str(value)
             
             self.conn.send(body=request, destination=request_queue, headers = {"content-type": "text/plain"})
@@ -235,13 +237,13 @@ def matlab_proxy_agent(config_path, **kwargs):
                 
             #building_power = matrix[0][building_power_row_index]
             
-            values[building_power_device] = {building_power_point: building_power}
-            
             now = dateutil.parser.parse(timestamp_value)
             
             headers = {
                 headers_mod.DATE: now.isoformat()
             }
+            
+            _log.debug("Simulation time: "+str(now))
             
             _log.debug("Returned simulation values: "+str(values))
                     
@@ -253,6 +255,14 @@ def matlab_proxy_agent(config_path, **kwargs):
                 self._publish_wrapper(publish_topic, 
                                       headers=headers, 
                                       message=[device_results,{}])
+                
+            publish_topic = DEVICES_VALUE(campus='',
+                                          building='',
+                                          unit=building_power_device,
+                                          point='all')
+            self._publish_wrapper(publish_topic, 
+                                  headers=headers, 
+                                  message=[{building_power_point: building_power},{}])
 
         
         def _publish_wrapper(self, topic, headers, message):
