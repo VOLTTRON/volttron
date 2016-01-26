@@ -10,7 +10,7 @@
 				"maximum": 10
 			},
 			"rated-power": {
-			    "on_value": 15.0,
+			    "on_value": 5.9,
 			    "off_value": 0.0,
 				"operation_type": "status",
 				"point_name": "RTUOnOffStatus"
@@ -35,7 +35,7 @@
 			"curtail": {
 				"point": "ThermostatSetPointTemperature",
 				"value": 78.0,
-				"load": 10.0
+				"load": 5.9
 			}
 		}
     },
@@ -49,7 +49,7 @@
 				"maximum": 10
 			},
 			"rated-power": {
-			    "on_value": 15.0,
+			    "on_value": 5.9,
 			    "off_value": 0.0,
 				"operation_type": "status",
 				"point_name": "RTUOnOffStatus"
@@ -74,7 +74,7 @@
 			"curtail": {
 				"point": "ThermostatSetPointTemperature",
 				"value": 78.0,
-				"load": 10.0
+				"load": 5.9
 			}
 		}
     },
@@ -88,7 +88,7 @@
 				"maximum": 10
 			},
 			"rated-power": {
-			    "on_value": 5.3,
+			    "on_value": 4.5,
 			    "off_value": 0.0,
 				"operation_type": "status",
 				"point_name": "RTUOnOffStatus"
@@ -113,7 +113,7 @@
 			"curtail": {
 				"point": "ThermostatSetPointTemperature",
 				"value": 78.0,
-				"load": 5.3
+				"load": 4.5
 			}
 		}
     },
@@ -127,7 +127,7 @@
 				"maximum": 10
 			},
 			"rated-power": {
-			    "on_value": 5.3,
+			    "on_value": 4.5,
 			    "off_value": 0.0,
 				"operation_type": "status",
 				"point_name": "RTUOnOffStatus"
@@ -152,7 +152,7 @@
 			"curtail": {
 				"point": "ThermostatSetPointTemperature",
 				"value": 78.0,
-				"load": 5.3
+				"load": 4.5
 			}
 		}
     },
@@ -166,7 +166,7 @@
 				"maximum": 10
 			},
 			"rated-power": {
-			    "on_value": 5.3,
+			    "on_value": 4.5,
 			    "off_value": 0.0,
 				"operation_type": "status",
 				"point_name": "RTUOnOffStatus"
@@ -191,7 +191,7 @@
 			"curtail": {
 				"point": "ThermostatSetPointTemperature",
 				"value": 78.0,
-				"load": 5.3
+				"load": 4.5
 			}
 		}
     }    
