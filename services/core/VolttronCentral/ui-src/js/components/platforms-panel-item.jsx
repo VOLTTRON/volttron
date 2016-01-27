@@ -251,7 +251,7 @@ var PlatformsPanelItem = React.createClass({
             listItem = 
                 <div className="platform-link">
                     <Router.Link
-                        to="graph"
+                        to="graphs"
                         params={{uuid: panelItem.uuid}}
                     >
                     {panelItem.name}

@@ -21,6 +21,7 @@
     "node-uuid": "^1.4.2",
     "normalize.css": "^3.0.2",
     "react": "^0.13.1",
+    "react-nvd3": "^0.4.2",
     "react-router": "^0.13.3",
     "through2": "^2.0.0"
   }
