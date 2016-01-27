@@ -48,8 +48,8 @@
         "CoolingCall"
     ],
 
-    "input file": "/home/lboss/storage/volttron/applications/pnnl/PassiveAFDD/passiveafdd/sample_data/sample_data_shrink.csv",
-    "results directory": "/home/volttron/volttron_merge/applications/pnnl/PassiveAFDD/Results",
+    "input file": "passiveafdd/sample_data/sample_data.csv",
+    "results directory": "Results",
     "temperature_diff_requirement": 4.0,
     "temperature sensor threshold": 5.0,
 
@@ -84,5 +84,3 @@
     "EER": 10,
     "tonnage": 10                   
 }
-
- 

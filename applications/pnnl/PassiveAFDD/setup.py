@@ -53,24 +53,25 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-
-#}}}
+# }}}
 
 from setuptools import setup, find_packages
 
 packages = find_packages('.')
-print packages
 package = packages[0]
 
+_temp = __import__(package+'.passive_afdd', globals(), locals(), ['__version__'], -1)
+__version__ = _temp.__version__
+
 setup(
-    name = package,
-    version = "0.1",
-    install_requires = ['volttron'],
-    packages = packages,
-    entry_points = {
+    include_package_data=True,
+    name=package + 'application',
+    version=__version__,
+    install_requires=['volttron3.x'],
+    packages=packages,
+    entry_points={
         'setuptools.installation': [
             'eggsecutable = ' + package + '.passive_afdd:main',
         ]
     }
 )
-

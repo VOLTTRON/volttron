@@ -63,7 +63,7 @@ from volttron.platform.vip.agent import Agent, Core, RPC
 from volttron.platform.messaging import topics
 from volttron.platform.agent import utils
 from collections import OrderedDict
-
+__version__ = "2.0.0"
 NO_TREND = ['not measured', 'none']
 
 
