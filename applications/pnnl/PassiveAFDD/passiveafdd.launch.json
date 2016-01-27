@@ -2,7 +2,7 @@
     "agentid": "passiveafdd",
     "campus": "campus1",
     "building": "building1",
-    "unit": "rtu1",
+    "unit": "RTU1",
 
     # Required data for diagnostic
     "points": {
@@ -17,7 +17,7 @@
 		# cool_call_point_name can be "Not Measured" or unit cool call point name.
 		# One of the cooling status points must be measured, either cool_call_point_name or cool_cmd_point_name.
         "cool_cmd_point_name": "CompressorStatus",
-        "cool_call_point_name": "CoolingCall",
+        "cool_call_point_name": "CoolCall",
 
         # heat_cmd_point_name can be "None" (no heating on this unit), "Not Measured", or the heating status point name.
         # if the mixed-air temperature is not measured then heat_cmd_point_name must be specified (measured) unless the 
@@ -36,7 +36,7 @@
 	# if the first entry is set to false the second entry is disregarded.
     "mat not measured": [false, ""],
     "sampling_rate": 1,
-    "csv_input": true,
+    "csv_input": false,
     
     # data is aggregated by time and unit mode of operation
     # this list should contain at a minimum the fan status point name
@@ -44,12 +44,12 @@
     "status list": [
         "CompressorStatus",
         "Heating",
-        "FanStatus",
+        "FanStatus"
         "CoolingCall"
     ],
 
     "input file": "/home/lboss/storage/volttron/applications/pnnl/PassiveAFDD/passiveafdd/sample_data/sample_data_shrink.csv",
-    "results directory": "/home/lboss/storage/volttron/applications/pnnl/PassiveAFDD/Results",
+    "results directory": "/home/volttron/volttron_merge/applications/pnnl/PassiveAFDD/Results",
     "temperature_diff_requirement": 4.0,
     "temperature sensor threshold": 5.0,
 

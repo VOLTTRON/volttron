@@ -64,8 +64,8 @@ from volttron.platform.messaging import topics
 from volttron.platform.agent import utils
 from collections import OrderedDict
 
-logging.captureWarnings(True)
 NO_TREND = ['not measured', 'none']
+
 
 def passiveafdd(config_path, **kwargs):
     '''Passive fault detection application for AHU/RTU economizer systems'''
@@ -100,9 +100,11 @@ def passiveafdd(config_path, **kwargs):
             self.timestamp = []
             self.data_status = {}
             self.first_data_scrape = True
+            self.cool_call_measured = True
 
             # supported economizer types.
-            self.economizer_type = config.get('economizer type', 'differential_ddb').lower()
+            self.economizer_type = config.get('economizer type',
+                                              'differential_ddb').lower()
             self.economizer_types = ['differential_ddb', 'highlimit']
 
             # Temperature sensor diagnostic thresholds
@@ -142,6 +144,7 @@ def passiveafdd(config_path, **kwargs):
                                'available for diagnostics.')
                     sys.exit()
                 self.cool_call_name = self.cool_cmd_name
+                self.cool_call_measured = False
 
             self.heat_cmd_name = data_pts['heat_cmd_point_name']
             self.data_pts = data_pts.values()
@@ -265,7 +268,7 @@ def passiveafdd(config_path, **kwargs):
         def process_file_data(self, device_data):
             '''Format parsed data from csv file.'''
             data = {}
-            for index, row in device_data.iterrows():
+            for _, row in device_data.iterrows():
                 data[self.fan_status_name] = row[self.fan_status_name]
                 data[self.oatemp_name] = row[self.oatemp_name]
                 data[self.ratemp_name] = row[self.ratemp_name]
@@ -305,7 +308,7 @@ def passiveafdd(config_path, **kwargs):
             self.update_device_status(data)
 
         def check_device_status(self, device_data):
-            '''Check if the device status has changed from last data measurement.'''
+            '''Check if the device status has changed from last measurement.'''
             for key, value in self.data_status.items():
                 if device_data[key] != value or (self.timestamp and device_data[self.timestamp_name].hour != self.timestamp[-1].hour):
                     self.run_diagnostics()
@@ -314,7 +317,7 @@ def passiveafdd(config_path, **kwargs):
 
         def update_device_status(self, device_data):
             '''Update the device status (cooling, heating, ventilating.'''
-            for key, value in self.data_status.items():
+            for key, _ in self.data_status.items():
                 self.data_status[key] = device_data[key]
 
         def data_collector(self, device_data):
@@ -345,10 +348,13 @@ def passiveafdd(config_path, **kwargs):
             beginning = self.timestamp[0]
             end = self.timestamp[-1]
             try:
-                oaf = [(m - r)/(o - r) for o, r, m in zip(self.oatemp,
-                                                          self.ratemp,
-                                                          self.matemp)]
-                oaf = sum(oaf)/len(oaf)*100.0
+                if fan_status:
+                    oaf = [(m - r)/(o - r) for o, r, m in zip(self.oatemp,
+                                                              self.ratemp,
+                                                              self.matemp)]
+                    oaf = sum(oaf)/len(oaf)*100.0
+                else:
+                    oaf = 'OFF'
             except:
                 oaf = None
             self.reinit()
@@ -359,8 +365,14 @@ def passiveafdd(config_path, **kwargs):
             oae_4 = self.excess_oa_intake(oatemp, ratemp, matemp, cooling, compressor, heating, oa_damper, oaf) if fan_status else 59
             oae_5 = self.insufficient_ventilation(oatemp, ratemp, matemp, cooling, compressor, heating, oa_damper, oaf) if fan_status else 69
             oae_6 = self.schedule_diagnostic(cooling, fan_status, end)
-            energy_impact = self.calculate_energy_impact(oae_2, oae_3, oae_4, oatemp, ratemp, matemp)
-            results = [beginning, end, oae_1, oae_2, oae_3, oae_4, oae_5, oae_6, energy_impact, oaf]
+            energy_impact = self.calculate_energy_impact(oae_2, oae_3, oae_4, oatemp, ratemp, matemp) if fan_status else 'OFF'
+            if oaf != 'OFF':
+                if oaf < 0:
+                    oaf = 0 if oaf > -5 else 'inconclusive'
+                if oaf > 100:
+                    oaf = 100 if oaf < 115 else 'inconclusive'
+            results = [beginning, end, oae_1, oae_2, oae_3,
+                       oae_4, oae_5, oae_6, energy_impact, oaf]
             _log.debug('results: {}'.format(results))
             self.result_writer(results)
 
@@ -413,36 +425,36 @@ def passiveafdd(config_path, **kwargs):
             if not cooling:
                 return 31
 
-            # econmozier_type is not properly configured.
+            # economizer_type is not properly configured.
             if self.economizer_type not in self.economizer_types:
-                return 37
+                return 32
 
             if self.economizer_type == 'differential_ddb':
                 # Outdoor conditions are not conducive to diagnostic.
                 if ratemp - oatemp < self.uncertainty_band:
-                    return 31
+                    return 33
 
             if self.economizer_type == 'highlimit':
                 # Outdoor conditions are not conducive to diagnostic.
                 if self.high_limit - oatemp < self.uncertainty_band:
-                    return 31
+                    return 33
 
             # Outdoor damper is not open fully to utilize economizing.
             if 100.0 - oa_damper > self.oae2_damper_threshold:
-                return 35
+                return 34
 
             # OAT and RAT  are too close for conclusive diagnostic.
             if math.fabs(oatemp - ratemp) < self.temperature_diff_requirement:
-                return 36
+                return 35
 
             # MAT sensor is not measured and mechanical cooling is ON.
             # OA damper is open for economizing (NF).
             if self.matemp_missing and compressor:
-                return 37
+                return 35
 
             # OAF calculation resulted in an unexpected value.
-            if oaf is None or oaf < -0.1 or oaf > 125:
-                return 38
+            if oaf is None or oaf < - 0.1 or oaf > 125:
+                return 36
 
             # OAF is too low.
             if 100.0 - oaf > self.oae2_oaf_threshold:
@@ -451,39 +463,39 @@ def passiveafdd(config_path, **kwargs):
 
         def economizer_diagnostic2(self, oatemp, ratemp, cooling, oa_damper):
             '''Unit is cooling.'''
-            if cooling:
+            if cooling or not self.cool_call_measured:
                 if self.economizer_type not in self.economizer_types:
-                    return 44
+                    return 41
 
                 if self.economizer_type == 'differential_ddb':
                     if oatemp - ratemp < self.uncertainty_band:
-                        return 43
+                        return 42
 
                 if self.economizer_type == 'highlimit':
                     if oatemp - self.hightlimit < self.uncertainty_band:
-                        return 43
+                        return 42
 
             if oa_damper > self.min_oa_damper*1.25:
-                return 41
+                return 43
 
             return 40
 
         def excess_oa_intake(self, oatemp, ratemp, matemp, cooling,
                              compressor, heating, oa_damper, oaf):
-            if cooling:
+            if cooling or not self.cool_call_measured:
                 # econmozier_type is not properly configured.
                 if self.economizer_type not in self.economizer_types:
-                    return 54
+                    return 51
 
                 if self.economizer_type == 'differential_ddb':
                     # Outdoor conditions are not conducive to diagnostic.
                     if oatemp - ratemp < self.uncertainty_band:
-                        return 56
+                        return 52
 
                 if self.economizer_type == 'highlimit':
                     # Outdoor conditions are not conducive to diagnostic.
                     if oatemp - self.high_limit < self.uncertainty_band:
-                        return 56
+                        return 52
 
             # Outdoor damper is not open fully to utilize economizing.
             if oa_damper > self.min_oa_damper*1.25:
@@ -491,19 +503,19 @@ def passiveafdd(config_path, **kwargs):
 
             # OAT and RAT  are too close for conclusive diagnostic.
             if math.fabs(oatemp - ratemp) < self.temperature_diff_requirement:
-                return 52
+                return 54
 
             # MAT sensor is not measured and mechanical cooling/heating is ON.
             if self.matemp_missing and (compressor or heating):
-                return 52
+                return 54
 
             # OAF calculation resulted in an unexpected value.
             if oaf is None or oaf < -0.1 or oaf > 125:
-                return 58
+                return 55
 
             # Unit is brining in excess OA.
             if oaf > self.minimum_oa*1.25:
-                return 51
+                return 56
 
             # No problems detected.
             return 50
@@ -512,7 +524,7 @@ def passiveafdd(config_path, **kwargs):
                                      compressor, heating, oa_damper, oaf):
             # Damper is significantly below the minimum damper set point (F).
             if self.min_oa_damper - oa_damper > self.damper_deadband:
-                return 63
+                return 61
 
             # Conditions are not favorable for OAF calculation (No Fault).
             if math.fabs(oatemp - ratemp) < self.temperature_diff_requirement:
@@ -542,20 +554,19 @@ def passiveafdd(config_path, **kwargs):
                 if end_time.hour < start or end_time.hour > end:
 
                     return 71
-
-                return 70
+            return 70
 
         def calculate_energy_impact(self, oae_2, oae_3, oae_4, oatemp, ratemp, matemp):
             '''Estimate energy impact.'''
             energy_impact = None
 
             if oae_2 == 32 or oae_2 == 33 and matemp > oatemp:
-                energy_impact = (1.08*self.cfm*(matemp - oatemp)/(1000 * self.eer))
+                energy_impact = (1.08*self.cfm*(matemp - oatemp)/(1000*self.eer))
 
             if oae_3 == 41 or oae_4 == 51 or oae_4 == 53 and oatemp > matemp:
 
                 ei = 1.08*self.cfm/(1000*self.eer)
-                ei = ei*(matemp - (oatemp * self.minimum_oa + ratemp*(1 - self.minimum_oa)))
+                ei = ei*(matemp - (oatemp*self.minimum_oa + ratemp*(1 - self.minimum_oa)))
                 energy_impact = ei if ei > energy_impact else energy_impact
 
             if energy_impact is None or energy_impact < 0:
@@ -604,4 +615,3 @@ if __name__ == '__main__':
         sys.exit(main())
     except KeyboardInterrupt:
         pass
-
