@@ -225,7 +225,7 @@ def DataPub(config_path, **kwargs):
                 except:
                     self._log.info('Unable to remove line store.')
                     
-        @Core.periodic(period=pub_interval, wait=pub_interval+pub_interval)
+        @Core.periodic(period=pub_interval, wait=pub_interval)
         def publish_data_or_heartbeat(self):
             '''Publish data from file to message bus.'''
             data = {}
