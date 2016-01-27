@@ -44,8 +44,8 @@
     "status list": [
         "CompressorStatus",
         "Heating",
-        "FanStatus"
-        "CoolingCall"
+        "FanStatus",
+        "CoolCall"
     ],
 
     "input file": "passiveafdd/sample_data/sample_data.csv",
