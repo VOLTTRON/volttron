@@ -72,6 +72,8 @@ from actuator.scheduler import ScheduleManager
 from dateutil.parser import parse 
 
 VALUE_RESPONSE_PREFIX = topics.ACTUATOR_VALUE()
+REVERT_POINT_RESPONSE_PREFIX = topics.ACTUATOR_REVERTED_POINT()
+REVERT_DEVICE_RESPONSE_PREFIX = topics.ACTUATOR_REVERTED_DEVICE()
 ERROR_RESPONSE_PREFIX = topics.ACTUATOR_ERROR()
 
 WRITE_ATTEMPT_PREFIX = topics.ACTUATOR_WRITE()
@@ -263,6 +265,58 @@ def actuator_agent(config_path, **kwargs):
                 raise LockError("caller does not have this lock")
                 
             return result
+        
+        def handle_revert_point(self, peer, sender, bus, topic, headers, message):
+            point = topic.replace(topics.ACTUATOR_SET()+'/', '', 1)
+            requester = headers.get('requesterID')
+            headers = self.get_headers(requester)
+            
+            try:
+                self.revert_point(requester, point)
+            except StandardError as ex:
+                
+                error = {'type': ex.__class__.__name__, 'value': str(ex)}
+                self.push_result_topic_pair(ERROR_RESPONSE_PREFIX,
+                                            point, headers, error)
+                _log.debug('Actuator Agent Error: '+str(error))
+        
+        @RPC.export
+        def revert_point(self, requester_id, topic, **kwargs):  
+            topic = topic.strip('/')
+            _log.debug('handle_revert: {topic},{requester_id}'.
+                       format(topic=topic, requester_id=requester_id))
+            
+            path, point_name = topic.rsplit('/', 1)
+            
+            headers = self.get_headers(requester_id)
+            
+            if self.check_lock(path, requester_id):
+                self.vip.rpc.call(driver_vip_identity, 'revert_point', path, point_name, **kwargs).get()
+        
+                headers = self.get_headers(requester_id)
+                self.push_result_topic_pair(REVERT_POINT_RESPONSE_PREFIX,
+                                            topic, headers)
+            else:
+                raise LockError("caller does not have this lock")
+            
+        @RPC.export
+        def revert_device(self, requester_id, topic, **kwargs):  
+            topic = topic.strip('/')
+            _log.debug('handle_revert: {topic},{requester_id}'.
+                       format(topic=topic, requester_id=requester_id))
+            
+            path = topic
+            
+            headers = self.get_headers(requester_id)
+            
+            if self.check_lock(path, requester_id):
+                self.vip.rpc.call(driver_vip_identity, 'revert_device', path, **kwargs).get()
+        
+                headers = self.get_headers(requester_id)
+                self.push_result_topic_pair(REVERT_DEVICE_RESPONSE_PREFIX,
+                                            topic, headers)
+            else:
+                raise LockError("caller does not have this lock")
 
         def check_lock(self, device, requester):
             _log.debug('check_lock: {device}, {requester}'.format(device=device, 
