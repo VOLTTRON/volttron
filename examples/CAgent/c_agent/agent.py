@@ -71,13 +71,12 @@ _log = logging.getLogger(__name__)
 
 ################################################################################
 
-# so_filename = ctypes.util.find_library("foo")
-so_filename = "c_agent/foo.so"
+so_filename = "c_agent/libfoo.so"
 cdll.LoadLibrary(so_filename)
 shared_object = CDLL(so_filename)
 
-# ctypes assumes every C funciton returns an int
-collatz = shared_object.collatz
+water_temperature = shared_object.water_temperature
+water_temperature.restype = c_float
 
 ################################################################################
 
@@ -86,7 +85,6 @@ class CAgent(Agent):
         super(CAgent, self).__init__(**kwargs)
         self.config = utils.load_config(config_path)
         self._agent_id = self.config['agentid']
-        self._number = 25
 
     @Core.receiver('onsetup')
     def setup(self, sender, **kwargs):
@@ -94,9 +92,9 @@ class CAgent(Agent):
 
     @Core.periodic(settings.HEARTBEAT_PERIOD)
     def publish_heartbeat(self):
-        _log.debug(self._number)
-        self._number = collatz(self._number)
-        self.vip.pubsub.publish('pubsub', 'NUMBER' + str(self._number))
+        wt = water_temperature()
+        _log.debug(wt)
+        self.vip.pubsub.publish('pubsub', 'device/WATER_TEMP=' + str(wt))
 
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
