@@ -49,7 +49,7 @@ def publish_agent(request, volttron_instance1):
     return publish_agent
 
 
-@pytest.mark.dev
+@pytest.mark.actuator
 def test_schedule_success(publish_agent):
     print("requesting a schedule for device0")
     start = str(datetime.now())
@@ -72,7 +72,7 @@ def test_schedule_success(publish_agent):
 
 
 @pytest.mark.actuator
-def test_schedule_success(publish_agent):
+def test_schedule_success2(publish_agent):
     print("requesting a schedule for device0")
     start = str(datetime.now())
     end = str(datetime.now() + timedelta(seconds=1))
@@ -138,6 +138,50 @@ def test_schedule_missing_agentid(publish_agent):
     assert result['result'] == 'FAILURE'
     assert result['info'] == 'MISSING_AGENT_ID'
 
+@pytest.mark.actuator
+def test_schedule_none_taskid(publish_agent):
+    print("requesting a schedule for device1")
+    start = str(datetime.now())
+    end = str(datetime.now() + timedelta(seconds=1))
+    print ('start time for device0', start)
+
+    msg = [
+        ['fakedriver1', start, end]
+    ]
+    result = publish_agent.vip.rpc.call(
+            'platform.actuator',
+            'request_new_schedule',
+            TEST_AGENT,
+            None,
+            'LOW',
+            msg).get(timeout=10)
+    # expected result {'info': u'', 'data': {}, 'result': 'SUCCESS'}
+    print result
+    assert result['result'] == 'FAILURE'
+    assert result['info'] == 'MISSING_TASK_ID'
+
+
+@pytest.mark.actuator
+def test_schedule_none_agentid(publish_agent):
+    print("requesting a schedule for device0")
+    start = str(datetime.now())
+    end = str(datetime.now() + timedelta(seconds=1))
+    print ('start time for device0', start)
+
+    msg = [
+        ['fakedriver0', start, end]
+    ]
+    result = publish_agent.vip.rpc.call(
+            'platform.actuator',
+            'request_new_schedule',
+            None,
+            'task1',
+            'LOW',
+            msg).get(timeout=10)
+    # expected result {'info': u'', 'data': {}, 'result': 'SUCCESS'}
+    print result
+    assert result['result'] == 'FAILURE'
+    assert result['info'] == 'MISSING_AGENT_ID'
 
 @pytest.mark.actuator
 def test_schedule_invalid_priority(publish_agent):
@@ -177,7 +221,7 @@ def test_schedule_empty_msg(publish_agent):
             'request_new_schedule',
             TEST_AGENT,
             'task1',
-            'LOW2',
+            'LOW',
             msg).get(timeout=10)
     # expected result {'info': u'', 'data': {}, 'result': 'SUCCESS'}
     print result
@@ -428,7 +472,7 @@ def test_set_success(publish_agent):
     gevent.sleep(1)
 
 
-@pytest.mark.dev
+@pytest.mark.actuator
 def test_set_lock_error(publish_agent):
     try:
         result = publish_agent.vip.rpc.call(
@@ -443,7 +487,7 @@ def test_set_lock_error(publish_agent):
         assert e.message == 'caller does not have this lock'
 
 
-@pytest.mark.dev
+@pytest.mark.actuator
 def test_set_value_error(publish_agent):
     start = str(datetime.now())
     end = str(datetime.now() + timedelta(seconds=2))
