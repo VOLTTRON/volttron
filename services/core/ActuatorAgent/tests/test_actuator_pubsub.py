@@ -106,7 +106,7 @@ def test_schedule_response_success(publish_agent):
     print ('topic scheule response is :', topics.ACTUATOR_SCHEDULE_RESULT)
     publish_agent.vip.pubsub.subscribe(peer='pubsub',
                                        prefix=topics.ACTUATOR_SCHEDULE_RESULT,
-                                       callback=publish_agent.callback)
+                                       callback=publish_agent.callback).get()
 
     print("requesting a schedule for device0")
     start = str(datetime.now() + timedelta(seconds=10))
@@ -178,7 +178,7 @@ def test_schedule_error_invalid_type(publish_agent):
     print ('topic scheule response is :', topics.ACTUATOR_SCHEDULE_RESULT)
     publish_agent.vip.pubsub.subscribe(peer='pubsub',
                                        prefix=topics.ACTUATOR_SCHEDULE_RESULT,
-                                       callback=publish_agent.callback)
+                                       callback=publish_agent.callback).get()
 
     print("requesting a schedule for device0")
     start = str(datetime.now() + timedelta(seconds=10))
@@ -222,7 +222,7 @@ def test_schedule_error_invalid_task(publish_agent):
     print ('topic scheule response is :', topics.ACTUATOR_SCHEDULE_RESULT)
     publish_agent.vip.pubsub.subscribe(peer='pubsub',
                                        prefix=topics.ACTUATOR_SCHEDULE_RESULT,
-                                       callback=publish_agent.callback)
+                                       callback=publish_agent.callback).get()
 
     print("requesting a schedule for device0")
     start = str(datetime.now() + timedelta(seconds=10))
@@ -264,7 +264,7 @@ def test_schedule_error_none_taskid(publish_agent):
     print ('topic scheule response is :', topics.ACTUATOR_SCHEDULE_RESULT)
     publish_agent.vip.pubsub.subscribe(peer='pubsub',
                                        prefix=topics.ACTUATOR_SCHEDULE_RESULT,
-                                       callback=publish_agent.callback)
+                                       callback=publish_agent.callback).get()
 
     print("requesting a schedule for device0")
     start = str(datetime.now() + timedelta(seconds=10))
@@ -304,7 +304,7 @@ def test_schedule_error_missing_taskid(publish_agent):
     print ('topic scheule response is :', topics.ACTUATOR_SCHEDULE_RESULT)
     publish_agent.vip.pubsub.subscribe(peer='pubsub',
                                        prefix=topics.ACTUATOR_SCHEDULE_RESULT,
-                                       callback=publish_agent.callback)
+                                       callback=publish_agent.callback).get()
 
     print("requesting a schedule for device0")
     start = str(datetime.now() + timedelta(seconds=10))
@@ -345,7 +345,7 @@ def test_schedule_error_empty_message(publish_agent):
     print ('topic scheule response is :', topics.ACTUATOR_SCHEDULE_RESULT)
     publish_agent.vip.pubsub.subscribe(peer='pubsub',
                                        prefix=topics.ACTUATOR_SCHEDULE_RESULT,
-                                       callback=publish_agent.callback)
+                                       callback=publish_agent.callback).get()
 
     print("requesting a schedule for device0")
     start = str(datetime.now() + timedelta(seconds=10))
@@ -388,7 +388,7 @@ def test_schedule_error_multiple_missing(publish_agent):
     print ('topic scheule response is :', topics.ACTUATOR_SCHEDULE_RESULT)
     publish_agent.vip.pubsub.subscribe(peer='pubsub',
                                        prefix=topics.ACTUATOR_SCHEDULE_RESULT,
-                                       callback=publish_agent.callback)
+                                       callback=publish_agent.callback).get()
 
     print("requesting a schedule for device0")
     start = str(datetime.now() + timedelta(seconds=10))
@@ -431,7 +431,7 @@ def test_schedule_error_none_agent(publish_agent):
     print ('topic scheule response is :', topics.ACTUATOR_SCHEDULE_RESULT)
     publish_agent.vip.pubsub.subscribe(peer='pubsub',
                                        prefix=topics.ACTUATOR_SCHEDULE_RESULT,
-                                       callback=publish_agent.callback)
+                                       callback=publish_agent.callback).get()
 
     print("requesting a schedule for device0")
     start = str(datetime.now() + timedelta(seconds=10))
@@ -472,7 +472,7 @@ def test_schedule_error_missing_agent(publish_agent):
     print ('topic scheule response is :', topics.ACTUATOR_SCHEDULE_RESULT)
     publish_agent.vip.pubsub.subscribe(peer='pubsub',
                                        prefix=topics.ACTUATOR_SCHEDULE_RESULT,
-                                       callback=publish_agent.callback)
+                                       callback=publish_agent.callback).get()
 
     print("requesting a schedule for device0")
     start = str(datetime.now() + timedelta(seconds=10))
@@ -514,7 +514,7 @@ def test_schedule_error_duplicate_task(publish_agent):
     print ('topic scheule response is :', topics.ACTUATOR_SCHEDULE_RESULT)
     publish_agent.vip.pubsub.subscribe(peer='pubsub',
                                        prefix=topics.ACTUATOR_SCHEDULE_RESULT,
-                                       callback=publish_agent.callback)
+                                       callback=publish_agent.callback).get()
 
     print("requesting a schedule for device0")
 
@@ -566,7 +566,7 @@ def test_schedule_error_missing_priority(publish_agent):
     print ('topic scheule response is :', topics.ACTUATOR_SCHEDULE_RESULT)
     publish_agent.vip.pubsub.subscribe(peer='pubsub',
                                        prefix=topics.ACTUATOR_SCHEDULE_RESULT,
-                                       callback=publish_agent.callback)
+                                       callback=publish_agent.callback).get()
 
     print("requesting a schedule for device0")
     start = str(datetime.now() + timedelta(seconds=10))
@@ -597,7 +597,7 @@ def test_schedule_error_missing_priority(publish_agent):
     assert result_message['info'] == 'MISSING_PRIORITY'
 
 
-@pytest.mark.dev
+@pytest.mark.actuator
 def test_schedule_error_malformed_request(publish_agent):
     # Test Error response
     # Mock callback methods
@@ -660,7 +660,7 @@ def test_schedule_announce(publish_agent, volttron_instance1):
         announce = topics.ACTUATOR_SCHEDULE_ANNOUNCE(campus='', building='', unit='fakedriver0')
         publish_agent.vip.pubsub.subscribe(peer='pubsub',
                                            prefix=announce,
-                                           callback=publish_agent.actuate0)
+                                           callback=publish_agent.actuate0).get()
 
         print("requesting a schedule for device0")
         start = str(datetime.now() + timedelta(seconds=1))
@@ -703,7 +703,7 @@ def test_schedule_announce(publish_agent, volttron_instance1):
 
 
 @pytest.mark.actuator
-def test_set_value_success1(publish_agent):
+def test_set_value_success_bool(publish_agent):
     """
     Test setting a float value of a point through pubsub
     Format of expected result
@@ -723,10 +723,10 @@ def test_set_value_success1(publish_agent):
     print ('value topic', value_topic)
     publish_agent.vip.pubsub.subscribe(peer='pubsub',
                                        prefix=value_topic,
-                                       callback=publish_agent.callback)
+                                       callback=publish_agent.callback).get()
     publish_agent.vip.pubsub.subscribe(peer='pubsub',
                                        prefix=error_topic,
-                                       callback=publish_agent.callback)
+                                       callback=publish_agent.callback).get()
     print("requesting a schedule for device1")
     start = str(datetime.now())
     end = str(datetime.now() + timedelta(seconds=3))
@@ -753,7 +753,7 @@ def test_set_value_success1(publish_agent):
                                      topics.ACTUATOR_SET(campus='', building='', unit='fakedriver1',
                                                          point='SampleWritableBool1'),
                                      headers=header,
-                                     message=['On']).get(timeout=10)
+                                     message=True).get(timeout=10)
     gevent.sleep(1)
     assert publish_agent.callback.call_count == 1
     print ('call args ', publish_agent.callback.call_args[0])
@@ -762,11 +762,11 @@ def test_set_value_success1(publish_agent):
     result_header = publish_agent.callback.call_args[0][4]
     result_message = publish_agent.callback.call_args[0][5]
     assert result_header['requesterID'] == TEST_AGENT
-    assert result_message == ['On']
+    assert result_message == True
 
 
 @pytest.mark.actuator
-def test_set_value_success2(publish_agent):
+def test_set_value_success_array(publish_agent):
     """
     Test setting a float value of a point through pubsub
     Format of expected result
@@ -793,10 +793,10 @@ def test_set_value_success2(publish_agent):
     print ('value topic', value_topic)
     publish_agent.vip.pubsub.subscribe(peer='pubsub',
                                        prefix=value_topic,
-                                       callback=publish_agent.callback)
+                                       callback=publish_agent.callback).get()
     publish_agent.vip.pubsub.subscribe(peer='pubsub',
                                        prefix=error_topic,
-                                       callback=publish_agent.callback)
+                                       callback=publish_agent.callback).get()
     print("requesting a schedule for device1")
     start = str(datetime.now())
     end = str(datetime.now() + timedelta(seconds=3))
@@ -825,7 +825,7 @@ def test_set_value_success2(publish_agent):
     publish_agent.vip.pubsub.publish('pubsub',
                                      set_topic,
                                      headers=header,
-                                     message=['0.2']).get(timeout=10)
+                                     message=[0.2]).get(timeout=10)
     gevent.sleep(1)
     assert publish_agent.callback.call_count == 1
     print ('call args ', publish_agent.callback.call_args[0])
@@ -834,10 +834,10 @@ def test_set_value_success2(publish_agent):
     result_header = publish_agent.callback.call_args[0][4]
     result_message = publish_agent.callback.call_args[0][5]
     assert result_header['requesterID'] == TEST_AGENT
-    assert result_message == ['0.2']
+    assert result_message == [0.2]
 
 @pytest.mark.actuator
-def test_set_value_success3(publish_agent):
+def test_set_value_success_float(publish_agent):
     """
     Test setting a float value of a point  through pubsub.
     Value is set without enclosing it in an list
@@ -865,10 +865,10 @@ def test_set_value_success3(publish_agent):
     print ('value topic', value_topic)
     publish_agent.vip.pubsub.subscribe(peer='pubsub',
                                        prefix=value_topic,
-                                       callback=publish_agent.callback)
+                                       callback=publish_agent.callback).get()
     publish_agent.vip.pubsub.subscribe(peer='pubsub',
                                        prefix=error_topic,
-                                       callback=publish_agent.callback)
+                                       callback=publish_agent.callback).get()
     print("requesting a schedule for device1")
     start = str(datetime.now())
     end = str(datetime.now() + timedelta(seconds=3))
@@ -897,7 +897,7 @@ def test_set_value_success3(publish_agent):
     publish_agent.vip.pubsub.publish('pubsub',
                                      set_topic,
                                      headers=header,
-                                     message='0.2').get(timeout=10)
+                                     message=0.2).get(timeout=10)
     gevent.sleep(1)
     assert publish_agent.callback.call_count == 1
     print ('call args ', publish_agent.callback.call_args[0])
@@ -906,7 +906,7 @@ def test_set_value_success3(publish_agent):
     result_header = publish_agent.callback.call_args[0][4]
     result_message = publish_agent.callback.call_args[0][5]
     assert result_header['requesterID'] == TEST_AGENT
-    assert result_message == '0.2'
+    assert result_message == 0.2
 
 @pytest.mark.actuator
 def test_set_read_only_point(publish_agent):
@@ -934,10 +934,10 @@ def test_set_read_only_point(publish_agent):
     print ('value topic', value_topic)
     publish_agent.vip.pubsub.subscribe(peer='pubsub',
                                        prefix=value_topic,
-                                       callback=publish_agent.callback)
+                                       callback=publish_agent.callback).get()
     publish_agent.vip.pubsub.subscribe(peer='pubsub',
                                        prefix=error_topic,
-                                       callback=publish_agent.callback)
+                                       callback=publish_agent.callback).get()
     print("requesting a schedule for device1")
     start = str(datetime.now())
     end = str(datetime.now() + timedelta(seconds=3))
@@ -1003,10 +1003,10 @@ def test_set_lock_error(publish_agent):
     print ('value topic', value_topic)
     # publish_agent.vip.pubsub.subscribe(peer='pubsub',
     #                            prefix = value_topic,
-    #                            callback=publish_agent.callback)
+    #                            callback=publish_agent.callback).get()
     publish_agent.vip.pubsub.subscribe(peer='pubsub',
                                        prefix=error_topic,
-                                       callback=publish_agent.callback)
+                                       callback=publish_agent.callback).get()
 
     # set value
     header = {
@@ -1057,10 +1057,10 @@ def test_set_value_error(publish_agent):
     print ('value topic', value_topic)
     publish_agent.vip.pubsub.subscribe(peer='pubsub',
                                        prefix=value_topic,
-                                       callback=publish_agent.callback)
+                                       callback=publish_agent.callback).get()
     publish_agent.vip.pubsub.subscribe(peer='pubsub',
                                        prefix=error_topic,
-                                       callback=publish_agent.callback)
+                                       callback=publish_agent.callback).get()
     print("requesting a schedule for device1")
     start = str(datetime.now())
     end = str(datetime.now() + timedelta(seconds=3))
@@ -1123,10 +1123,10 @@ def test_get_value_success(publish_agent):
     print ('value topic', value_topic)
     publish_agent.vip.pubsub.subscribe(peer='pubsub',
                                        prefix=value_topic,
-                                       callback=publish_agent.callback)
+                                       callback=publish_agent.callback).get()
     publish_agent.vip.pubsub.subscribe(peer='pubsub',
                                        prefix=error_topic,
-                                       callback=publish_agent.callback)
+                                       callback=publish_agent.callback).get()
     print("requesting a schedule for device1")
     start = str(datetime.now())
     end = str(datetime.now() + timedelta(seconds=2))
@@ -1226,5 +1226,6 @@ def test_get_invalid_point(publish_agent):
     assert publish_agent.callback.call_args[0][3] == error_topic
     result_header = publish_agent.callback.call_args[0][4]
     result_message = publish_agent.callback.call_args[0][5]
+    assert result_message['type'] == 'master_driver.interfaces.DriverInterfaceError'
+    assert result_message['info'] == 'Point not configured on device: SampleWriteableFloat12'
     assert result_header['requesterID'] == TEST_AGENT
-    assert result_message == ['20.5']
