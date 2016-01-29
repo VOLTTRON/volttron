@@ -320,11 +320,21 @@ def actuator_agent(config_path, **kwargs):
         def request_new_schedule(self, requester_id, task_id, priority, requests):
             now = datetime.datetime.now()
             
-            if isinstance(requests[0], basestring):
-                requests = [requests]
+            topic = topics.ACTUATOR_SCHEDULE_RESULT()
+            headers = self.get_headers(requester_id, task_id=task_id)
+            headers['type'] = SCHEDULE_ACTION_NEW
             
-            requests = [[r[0].strip('/'),parse(r[1]),parse(r[2])] for r in requests]
-                
+            try:
+                if requests and isinstance(requests[0], basestring):
+                    requests = [requests]
+                requests = [[r[0].strip('/'),parse(r[1]),parse(r[2])] for r in requests]
+            
+            except StandardError as ex:
+                results = {'result':"FAILURE", 
+                           'data': {}, 
+                           'info':'MALFORMED_REQUEST: '+ex.__class__.__name__+': '+str(ex)}
+                self.vip.pubsub.publish('pubsub', topic, headers=headers, message=results)
+                return results
             
             _log.debug("Got new schedule request: {}, {}, {}, {}".
                        format(requester_id, task_id, priority, requests))
@@ -346,10 +356,8 @@ def actuator_agent(config_path, **kwargs):
                                                              'taskID': task_id}})
             
             #If we are successful we do something else with the real result data
-            data = result.data if not result.success else {}        
-            topic = topics.ACTUATOR_SCHEDULE_RESULT()
-            headers = self.get_headers(requester_id, task_id=task_id)
-            headers['type'] = SCHEDULE_ACTION_NEW
+            data = result.data if not result.success else {}     
+            
             results = {'result':success, 
                        'data': data, 
                        'info':result.info_string}
