@@ -62,12 +62,14 @@ import sys
 import time
 import logging
 
-from volttron.platform.vip.agent import Agent, Core, RPC
+from volttron.platform.vip.agent import Agent, Core, RPC, compat
 from volttron.platform.messaging import topics
 from volttron.platform.agent import utils
 from volttron.platform.messaging.utils import normtopic
 from volttron.platform.agent.sched import EventWithTime
 from actuator.scheduler import ScheduleManager
+
+from volttron.platform.jsonrpc import RemoteError
 
 from dateutil.parser import parse 
 
@@ -185,7 +187,21 @@ def actuator_agent(config_path, **kwargs):
             
         def _update_schedule_state(self, now):            
             self.update_device_state_and_schedule(now)
-                            
+            
+         
+        def _handle_remote_error(self, ex, point, headers):  
+            try:
+                exc_type = ex.exc_info['exc_type']
+                exc_args = ex.exc_info['exc_args']
+            except KeyError:
+                exc_type = "RemoteError"
+                exc_args = ex.message
+            error = {'type': exc_type, 'value': str(exc_args)}
+            self.push_result_topic_pair(ERROR_RESPONSE_PREFIX,
+                                        point, headers, error)
+            
+            _log.debug('Actuator Agent Error: '+str(error)) 
+            
 
         def handle_get(self, peer, sender, bus, topic, headers, message):
             point = topic.replace(topics.ACTUATOR_GET()+'/', '', 1)
@@ -195,13 +211,14 @@ def actuator_agent(config_path, **kwargs):
                 value = self.get_point(point)
                 self.push_result_topic_pair(VALUE_RESPONSE_PREFIX,
                                             point, headers, value)
-            except StandardError as ex:
-                error = {'type': ex.__class__.__name__, 'value': str(ex)}
-                self.push_result_topic_pair(ERROR_RESPONSE_PREFIX,
-                                            point, headers, error)
+            except RemoteError as ex:
+                self._handle_remote_error(ex, point, headers)
 
 
         def handle_set(self, peer, sender, bus, topic, headers, message):
+            if sender == 'pubsub.compat':
+                message = compat.unpack_legacy_message(headers, message)
+                
             point = topic.replace(topics.ACTUATOR_SET()+'/', '', 1)
             requester = headers.get('requesterID')
             headers = self.get_headers(requester)
@@ -211,29 +228,11 @@ def actuator_agent(config_path, **kwargs):
                 self.push_result_topic_pair(ERROR_RESPONSE_PREFIX,
                                             point, headers, error)
                 return
-            else:
-                try:
-                    message = message[0]
-                    if isinstance(message, bool):
-                        message = int(message)
-                except ValueError as ex:
-                    # Could be ValueError of JSONDecodeError depending
-                    # on if simplesjson was used.  JSONDecodeError
-                    # inherits from ValueError
-                    _log.debug('ValueError: '+message)
-                    error = {'type': 'ValueError', 'value': str(ex)}
-                    self.push_result_topic_pair(ERROR_RESPONSE_PREFIX,
-                                                point, headers, error)
-                    return
             
             try:
                 self.set_point(requester, point, message)
-            except StandardError as ex:
-                
-                error = {'type': ex.__class__.__name__, 'value': str(ex)}
-                self.push_result_topic_pair(ERROR_RESPONSE_PREFIX,
-                                            point, headers, error)
-                _log.debug('Actuator Agent Error: '+str(error))
+            except RemoteError as ex:
+                self._handle_remote_error(ex, point, headers)
                 
                 
         @RPC.export        
@@ -329,6 +328,9 @@ def actuator_agent(config_path, **kwargs):
 
 
         def handle_schedule_request(self, peer, sender, bus, topic, headers, message):
+            if sender == 'pubsub.compat':
+                message = compat.unpack_legacy_message(headers, message)
+                
             request_type = headers.get('type')
             _log.debug('handle_schedule_request: {topic}, {headers}, {message}'.
                        format(topic=topic, headers=str(headers), message=str(message)))
@@ -374,11 +376,21 @@ def actuator_agent(config_path, **kwargs):
         def request_new_schedule(self, requester_id, task_id, priority, requests):
             now = datetime.datetime.now()
             
-            if isinstance(requests[0], basestring):
-                requests = [requests]
+            topic = topics.ACTUATOR_SCHEDULE_RESULT()
+            headers = self.get_headers(requester_id, task_id=task_id)
+            headers['type'] = SCHEDULE_ACTION_NEW
             
-            requests = [[r[0].strip('/'),parse(r[1]),parse(r[2])] for r in requests]
-                
+            try:
+                if requests and isinstance(requests[0], basestring):
+                    requests = [requests]
+                requests = [[r[0].strip('/'),parse(r[1]),parse(r[2])] for r in requests]
+            
+            except StandardError as ex:
+                results = {'result':"FAILURE", 
+                           'data': {}, 
+                           'info':'MALFORMED_REQUEST: '+ex.__class__.__name__+': '+str(ex)}
+                self.vip.pubsub.publish('pubsub', topic, headers=headers, message=results)
+                return results
             
             _log.debug("Got new schedule request: {}, {}, {}, {}".
                        format(requester_id, task_id, priority, requests))
@@ -400,10 +412,8 @@ def actuator_agent(config_path, **kwargs):
                                                              'taskID': task_id}})
             
             #If we are successful we do something else with the real result data
-            data = result.data if not result.success else {}        
-            topic = topics.ACTUATOR_SCHEDULE_RESULT()
-            headers = self.get_headers(requester_id, task_id=task_id)
-            headers['type'] = SCHEDULE_ACTION_NEW
+            data = result.data if not result.success else {}     
+            
             results = {'result':success, 
                        'data': data, 
                        'info':result.info_string}
@@ -415,6 +425,7 @@ def actuator_agent(config_path, **kwargs):
         def request_cancel_schedule(self, requester_id, task_id):
             now = datetime.datetime.now()
             headers = self.get_headers(requester_id, task_id=task_id)
+            headers['type'] = SCHEDULE_ACTION_CANCEL
             
             result = self._schedule_manager.cancel_task(requester_id, task_id, now)
             success = SCHEDULE_RESPONSE_SUCCESS if result.success else SCHEDULE_RESPONSE_FAILURE
@@ -446,9 +457,9 @@ def actuator_agent(config_path, **kwargs):
             return headers
 
 
-        def push_result_topic_pair(self, prefix, point, headers, *args):
+        def push_result_topic_pair(self, prefix, point, headers, value):
             topic = normtopic('/'.join([prefix, point]))
-            self.vip.pubsub.publish('pubsub', topic, headers, message = args)
+            self.vip.pubsub.publish('pubsub', topic, headers, message = value)
 
     return ActuatorAgent(identity=vip_identity,**kwargs)
 

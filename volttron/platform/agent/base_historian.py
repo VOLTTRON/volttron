@@ -56,25 +56,22 @@
 #}}}
 
 from __future__ import absolute_import, print_function
-from abc import abstractmethod
-from collections import defaultdict
-from dateutil.parser import parse
-from datetime import datetime, timedelta
+
 import logging
-from pprint import pprint
-from Queue import Queue, Empty
-import re
 import sqlite3
+from Queue import Queue, Empty
+from collections import defaultdict
+from datetime import datetime, timedelta
 from threading import Thread
 
-import gevent
 import pytz
-from zmq.utils import jsonapi
-
+import re
+from abc import abstractmethod
+from dateutil.parser import parse
 from volttron.platform.agent.utils import process_timestamp
-from volttron.platform.vip.agent import *
 from volttron.platform.messaging import topics, headers as headers_mod
-
+from volttron.platform.vip.agent import *
+from zmq.utils import jsonapi
 
 _log = logging.getLogger(__name__)
 
@@ -201,7 +198,7 @@ class BaseHistorianAgent(Agent):
         for point, item in data.iteritems():
 #             ts_path = location + '/' + point
             if 'Readings' not in item or 'Units' not in item:
-                _log.error("logging request for {path} missing Readings or Units".format(path=ts_path))
+                _log.error("logging request for {topic} missing Readings or Units".format(topic=topic))
                 continue
             units = item['Units']
             dtype = item.get('data_type', 'float')
@@ -252,14 +249,14 @@ class BaseHistorianAgent(Agent):
         
         Filter out all but the all topics
         '''
-        
+
         if topic.endswith("/all") or '/all/' in topic:
             return
                 
         parts = topic.split('/')
         # strip off the first part of the topic.
         device = '/'.join(parts[1:-1])
-                
+
         self._capture_data(peer, sender, bus, topic, headers, message, device)
         
     def _capture_data(self, peer, sender, bus, topic, headers, message, device):
@@ -651,7 +648,6 @@ class BaseHistorian(BaseHistorianAgent, BaseQueryHistorianAgent):
 #and is under the same licence as the remainder of the code in this file.
 #Modification were made to remove unneeded pieces and to fit with the
 #intended use.
-import ply
 import ply.lex as lex
 import ply.yacc as yacc
 from dateutil.tz import gettz, tzlocal
