@@ -270,8 +270,8 @@ class DriverAgent(BasicAgent):
         return self.interface.set_point(point_name, value, **kwargs)
     
     def revert_point(self, point_name, **kwargs):
-        self.interface.get_point(point_name, **kwargs)
+        self.interface.revert_point(point_name, **kwargs)
     
-    def revert_all(self, point_name, value, **kwargs):
-        self.interface.set_point(point_name, value, **kwargs)
+    def revert_all(self, **kwargs):
+        self.interface.revert_all(**kwargs)
         
