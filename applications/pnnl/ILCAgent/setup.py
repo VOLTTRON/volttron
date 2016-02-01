@@ -54,7 +54,7 @@
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 
-#}}}
+# }}}
 
 from setuptools import setup, find_packages
 
@@ -66,14 +66,13 @@ __version__ = _temp.__version__
 
 setup(
     include_package_data=True,
-    name = package + 'agent',
-    version = __version__,
-    install_requires = ['volttronlite'],
-    packages = packages,
-    entry_points = {
+    name=package + 'agent',
+    version=__version__,
+    install_requires=['volttron>=3.0', 'sympy', 'xlrd'],
+    packages=packages,
+    entry_points={
         'setuptools.installation': [
             'eggsecutable = ' + package + '.agent:main',
         ]
     }
 )
-

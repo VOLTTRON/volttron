@@ -113,7 +113,7 @@ def ahp(config_path, **kwargs):
         base_device + '({})(/.*)?/all$'
         .format('|'.join(re.escape(p) for p in [power_dev])))
     BUILDING_TOPIC = re.compile(bld_pwr_topic)
-    ALL_DEV = re.compile(devices_topic)
+    ALL_TOPIC = re.compile(devices_topic)
     static_config = config['device']
     all_devices = static_config.keys()
     no_curt = {}
@@ -184,21 +184,20 @@ def ahp(config_path, **kwargs):
             self.core.schedule(reset_time, self.sched_reinit)
 
         def new_data(self, peer, sender, bus, topic, headers, message):
-            '''Generate static configuration inputs for
+            '''Receive data from all devices from drivers and store for
 
-            priority calculation.
-            '''
-            _log.info('Data Received')
-            if ALL_DEV.match(topic):
+            use in "Input Matrix."'''
+            if ALL_TOPIC.match(topic):
                 device = topic.split('/')[3]
+                _log.info('Data Received for {}.'.format(device))
                 device_data = jsonapi.loads(message[0])
                 if isinstance(device_data, list):
                     device_data = device_data[0]
-                dev_config = static_config.get(device, None)
-                if dev_config is None:
+                device_config = static_config.get(device, None)
+                if device_config is None:
                     raise Exception('device section of configuration file '
                                     'for {} is mis-configured.'.format(device))
-                point_list = dev_config.get('points', None)
+                point_list = device_config.get('points', None)
                 if point_list is None:
                     raise Exception('point_list section of configuration '
                                     'file for {} is missing.'.format(device))
@@ -207,8 +206,6 @@ def ahp(config_path, **kwargs):
                 return
             if self.transition:
                 return
-#             if self.start_up:
-#                 return
             if BUILDING_TOPIC.match(topic) and not self.running_ahp:
                 _log.debug('Reading building power data.')
                 self.check_load(message)
@@ -224,25 +221,25 @@ def ahp(config_path, **kwargs):
             curtailable device.
             '''
             for key in static_config:
-                dev_config = static_config.get(key, None)
-                if dev_config is None:
+                device_config = static_config.get(key, None)
+                if device_config is None:
                     raise Exception('device section of configuration file '
                                     'for {} is mis-configured.'.format(key))
-                point_list = dev_config.get('points', None)
+                point_list = device_config.get('points', None)
                 if point_list is None:
                     raise Exception('point_list section of configuration '
                                     'file for {} is missing.'.format(key))
                 device = None
-                by_mode = dev_config.get('by_mode', None)
-                if dev_config is None:
+                by_mode = device_config.get('by_mode', None)
+                if device_config is None:
                     raise Exception('by_mode section of configuration '
                                     'file for {} is missing.'.format(key))
-                for dev, status in by_mode.items():
+                for mode, status in by_mode.items():
                     check_status = self.vip.rpc.call(
                         'platform.actuator', 'get_point',
                         ''.join([location, key, status])).get(timeout=10)
                     if int(check_status[status]):
-                        device = dev_config.get(dev, None)
+                        device = device_config.get(mode, None)
                         break
                 if device is None:
                     self.off_dev.update({key: by_mode.values()})
@@ -362,6 +359,8 @@ def ahp(config_path, **kwargs):
             '''
             obj = jsonapi.loads(message[0])
             bldg_power = float(obj[power_pt])
+            if isinstance(bldg_power, list):
+                bldg_power = bldg_power[0]
             if bldg_power > demand_limit:
                 self.bldg_power = bldg_power
                 self.running_ahp = True
