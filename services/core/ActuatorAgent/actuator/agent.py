@@ -272,12 +272,18 @@ def actuator_agent(config_path, **kwargs):
             
             try:
                 self.revert_point(requester, point)
-            except StandardError as ex:
+            except RemoteError as ex:
+                self._handle_remote_error(ex, point, headers)
                 
-                error = {'type': ex.__class__.__name__, 'value': str(ex)}
-                self.push_result_topic_pair(ERROR_RESPONSE_PREFIX,
-                                            point, headers, error)
-                _log.debug('Actuator Agent Error: '+str(error))
+        def handle_revert_device(self, peer, sender, bus, topic, headers, message):
+            point = topic.replace(topics.ACTUATOR_SET()+'/', '', 1)
+            requester = headers.get('requesterID')
+            headers = self.get_headers(requester)
+            
+            try:
+                self.revert_device(requester, point)
+            except RemoteError as ex:
+                self._handle_remote_error(ex, point, headers)
         
         @RPC.export
         def revert_point(self, requester_id, topic, **kwargs):  
