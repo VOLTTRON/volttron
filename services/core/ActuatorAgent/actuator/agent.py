@@ -300,7 +300,7 @@ def actuator_agent(config_path, **kwargs):
         
                 headers = self.get_headers(requester_id)
                 self.push_result_topic_pair(REVERT_POINT_RESPONSE_PREFIX,
-                                            topic, headers)
+                                            topic, headers, None)
             else:
                 raise LockError("caller does not have this lock")
             
@@ -319,7 +319,7 @@ def actuator_agent(config_path, **kwargs):
         
                 headers = self.get_headers(requester_id)
                 self.push_result_topic_pair(REVERT_DEVICE_RESPONSE_PREFIX,
-                                            topic, headers)
+                                            topic, headers, None)
             else:
                 raise LockError("caller does not have this lock")
 
