@@ -56,6 +56,9 @@
 #}}}
 
 from os import environ
+from os import path
+import sys
+import json
 
 #from distutils.core import setup
 from setuptools import setup, find_packages
@@ -64,6 +67,19 @@ from setuptools import setup, find_packages
 option_requirements = [
     ('pyzmq>=14.7,<15', ['--zmq=bundled']),
 ]
+
+optional_requirements = set()
+
+# For the different keyed in options allow the command paramenter to
+# install the given requirements.
+if path.exists('optional_requirements.json'):
+    with open('optional_requirements.json') as optional:
+        data = json.load(optional)
+
+        for arg, val in data.items():
+            if arg in sys.argv:
+                for req in val['packages']:
+                    optional_requirements.add(req)
 
 # Requirements in the repository which should be installed as editable.
 local_requirements = [
@@ -84,14 +100,14 @@ requirements = [
 install_requires = (
     [req for req, _ in option_requirements] +
     [req for req, _ in local_requirements] +
-    requirements
+    requirements +
+    [req for req in optional_requirements]
 )
-
 
 if __name__ == '__main__':
     setup(
         name = 'volttron',
-        version = '3.0',
+        version = '3.0.3',
         description = 'Agent Execution Platform',
         author = 'Volttron Team',
         author_email = 'volttron@pnnl.gov',

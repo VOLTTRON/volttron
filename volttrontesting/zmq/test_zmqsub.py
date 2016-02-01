@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-# Copyright (c) 2013, Battelle Memorial Institute
+# Copyright (c) 2015, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -53,5 +53,68 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-
 #}}}
+
+import sys
+import time
+
+import pytest
+import zmq
+
+publish_address = 'ipc:///tmp/volttron-platform-agent-publish'
+subscribe_address = 'ipc:///tmp/volttron-platform-agent-subscribe'
+
+
+ctx = zmq.Context()
+
+def broker():
+    pub = zmq.Socket(ctx, zmq.PUB)
+    pull = zmq.Socket(ctx, zmq.PULL)
+    pub.bind('ipc:///tmp/volttron-platform-agent-subscribe')
+    pull.bind('ipc:///tmp/volttron-platform-agent-publish')
+    while True:
+        message = pull.recv_multipart()
+        print message
+        pub.send_multipart(message)
+
+
+def publisher():
+    push = zmq.Socket(ctx, zmq.PUSH)
+    push.connect('ipc:///tmp/volttron-platform-agent-publish')
+    while True:
+        sys.stdout.write('Topic: ')
+        sys.stdout.flush()
+        topic = sys.stdin.readline()
+        sys.stdout.write('Message: ')
+        sys.stdout.flush()
+        message = sys.stdin.readline()
+        push.send_multipart([topic, message])
+
+
+def subscriber():
+    sub = zmq.Socket(ctx, zmq.SUB)
+    sub.connect('ipc:///tmp/volttron-platform-agent-subscribe')
+    sub.subscribe = ''
+    while True:
+        print sub.recv_multipart()
+
+@pytest.mark.slow        
+@pytest.mark.zmq
+def test_broker():
+    pub = zmq.Socket(ctx, zmq.PUB)
+    pull = zmq.Socket(ctx, zmq.PULL)
+    pub.bind('ipc:///tmp/volttron-platform-agent-subscribe')
+    pull.bind('ipc:///tmp/volttron-platform-agent-publish')
+    
+    pub.send_multipart(['topic1', 'Hello world1'])
+    time.sleep(2)
+    pub.send_multipart(['foo', 'bar'])
+    time.sleep(2)
+    pub.send_multipart(['topic2', 'Goodbye'])
+    time.sleep(2)
+    pub.send_multipart(['platform', 'Hello from platform'])
+    time.sleep(2)
+    pub.send_multipart(['platform.shutdown', 'Goodbye'])
+
+if __name__ == '__main__':
+    subscriber()

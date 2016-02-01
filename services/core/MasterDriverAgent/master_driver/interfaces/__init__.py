@@ -129,3 +129,13 @@ class BaseInterface(object):
     def scrape_all(self):
         """Return a dictionary of point names:values for device"""
         pass
+    
+    @abc.abstractmethod        
+    def revert_all(self, **kwargs):
+        """Revert entrire device to it's default state"""
+        pass
+    
+    @abc.abstractmethod        
+    def revert_point(self, point_name, **kwargs):
+        """Revert point to it's default state"""
+        pass

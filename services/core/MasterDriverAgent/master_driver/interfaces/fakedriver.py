@@ -57,11 +57,26 @@ from master_driver.interfaces import BaseInterface, BaseRegister
 from csv import DictReader
 from StringIO import StringIO
 
+type_mapping = {"string": str,
+                "int":int,
+                "integer":int,
+                "float":float,
+                "bool":bool,
+                "boolean":bool}
+
 class FakeRegister(BaseRegister):
-    def __init__(self,read_only, pointName, units, description = ''):
+    def __init__(self,read_only, pointName, units, reg_type, default_value = None, description = ''):
 #     register_type, read_only, pointName, units, description = ''):
         super(FakeRegister, self).__init__("byte", read_only, pointName, units, description = '')
-        self._value = random.uniform(0,100)
+        self.reg_type = reg_type
+        
+        if default_value is None:
+            self._value = self.reg_type(random.uniform(0,100))
+        else:
+            try:
+                self._value = self.reg_type(default_value)
+            except ValueError:
+                self._value = self.reg_type()
 
         
 class Interface(BaseInterface):
@@ -81,7 +96,8 @@ class Interface(BaseInterface):
         if register.read_only:
             raise  IOError("Trying to write to a point configured read only: "+point_name)
        
-        register._value = value
+        
+        register._value = register.reg_type(value)
         result = value
         return result
         
@@ -111,10 +127,18 @@ class Interface(BaseInterface):
             point_name = regDef['Volttron Point Name']        
             description = regDef['Notes']                 
             units = regDef['Units']       
+            default_value = regDef.get("Starting Value", '')
+            if not default_value:
+                default_value = None
+            type_name = regDef.get("Type", 'string')
+            reg_type = type_mapping.get(type_name, str)
+            
             register = FakeRegister( 
                                 read_only, 
                                 point_name,
                                 units, 
+                                reg_type,
+                                default_value = default_value,
                                 description = description)
                 
             self.insert_register(register)

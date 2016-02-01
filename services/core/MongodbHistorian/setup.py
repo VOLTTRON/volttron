@@ -64,10 +64,12 @@ package = packages[0]
 setup(
     name = package + 'agent',
     version = "0.1",
-    install_requires = [], # ['volttron'],
-    packages = packages, 
-    #install_data = {'': '/tmp/data'},
-    data_files = {'LICENSE'},
-    include_package_data=True,
+    install_requires = ['volttron'],
+    packages = packages,
+    entry_points = {
+        'setuptools.installation': [
+            'eggsecutable = ' + package + '.historian:main',
+        ]
+    }
 )
 
