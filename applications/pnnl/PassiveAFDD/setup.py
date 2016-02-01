@@ -67,7 +67,7 @@ setup(
     include_package_data=True,
     name=package + 'application',
     version=__version__,
-    install_requires=['volttron3.x'],
+    install_requires=['volttron>3'],
     packages=packages,
     entry_points={
         'setuptools.installation': [
