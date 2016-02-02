@@ -269,7 +269,7 @@ def CaseInsensitiveConfigFileAction(ConfigFileAction):
             yield section, key, value, lineno
 
 
-# Revert _SubParsersAction due to Python revision 1a3143752db2 
+# Revert _SubParsersAction due to Python revision 1a3143752db2
 # (https://hg.python.org/cpython/rev/1a3143752db2) which introduced
 # a backward-incompatible bug and broke parsing of global options.
 # See Python issue #9351 (https://bugs.python.org/issue9351) for the bug
@@ -558,3 +558,34 @@ _patch_argparse()
 
 def expandall(string):
     return _os.path.expanduser(_os.path.expandvars(string))
+
+def prompt_response(tup):
+    while True:
+        resp = raw_input(tup[0])
+        if resp == '' and len(tup) == 3:
+            return tup[2]
+        if resp in tup[1]:
+            return resp
+        else:
+            print('Invalid response proper responses are: ')
+            print(tup[1])
+
+
+def _main():
+    """ Routine for configuring an insalled volttron instance.
+
+    The function interactively sets up the instance for working with volttron
+    central and the discovery service.
+    """
+    y_or_n = ('Y', 'N', 'y', 'n')
+    y = ('Y', 'y')
+    t = ('Is this instance discoverable (Y/N)? [N] ', y_or_n, 'N')
+    is_discoverable = prompt_response(t)
+
+    if is_discoverable in ('Y', 'y'):
+        t = ('Is this instance a volttron central (Y/N)? [N] ', y_or_n, 'N')
+        is_vc = prompt_response(t)
+
+        if is_vc in y:
+            t = ('Should volttron central autostart(Y/N)? [Y] ', y_or_n, 'Y')
+            vc_autostart = prompt_response(t)
