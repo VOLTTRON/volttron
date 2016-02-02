@@ -559,16 +559,23 @@ _patch_argparse()
 def expandall(string):
     return _os.path.expanduser(_os.path.expandvars(string))
 
-def prompt_response(tup):
+def prompt_response(inputs):
+    """ Prompt the user for answers.
+
+    The inputs argument is a list or tuple with the following elements:
+    [0] - The prompt to the user
+    [1] - A valid selection of responses
+    [2] - (Optional) Default value if the user just types enter.
+    """
     while True:
-        resp = raw_input(tup[0])
+        resp = raw_input(inputs[0])
         if resp == '' and len(tup) == 3:
-            return tup[2]
-        if resp in tup[1]:
+            return inputs[2]
+        if resp in inputs[1]:
             return resp
         else:
             print('Invalid response proper responses are: ')
-            print(tup[1])
+            print(inputs[1])
 
 
 def _main():
