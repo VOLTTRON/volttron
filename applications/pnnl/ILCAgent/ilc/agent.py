@@ -75,6 +75,7 @@ from volttron.platform.vip.agent import Agent, Core
 from ilc.ilc_matrices import (extract_criteria, calc_column_sums,
                               normalize_matrix, validate_input,
                               build_score, input_matrix)
+from volttron.platform.jsonrpc import RemoteError
 
 __version__ = '1.0.0'
 
@@ -538,7 +539,7 @@ def ahp(config_path, **kwargs):
 
             priority calculation.
             '''
-            _log.info('Data Received')
+            _log.info('Data Received for {}'.format(topic))
 
             # topic of form:  devices/campus/building/device
             device_name = device_topic_map[topic]
@@ -555,6 +556,7 @@ def ahp(config_path, **kwargs):
             now = parser.parse(headers['Date'])
 
             _log.debug('Reported time: '+str(now))
+            _log.info('Current load: {}'.format(bldg_power))
 
             if self.reset_curtail_count_time is not None:
                 if self.reset_curtail_count_time <= now:
@@ -581,7 +583,7 @@ def ahp(config_path, **kwargs):
             sequence.
             '''
             _log.debug('Checking building load.')
-
+            
             if bldg_power > demand_limit:
                 _log.info('Current load ({load}) exceeds limit or {limit}.'.format(load=bldg_power, limit=demand_limit))
 
@@ -630,9 +632,14 @@ def ahp(config_path, **kwargs):
                 # TODO: catch errors.
                 _log.debug('Setting '+curtailed_point+' to '+str(curtail_val))
 
-                result = self.vip.rpc.call('platform.actuator', 'set_point',
-                                           agent_id, curtailed_point,
-                                           curtail_val).get(timeout=10)
+                try:
+                    result = self.vip.rpc.call('platform.actuator', 'set_point',
+                                               agent_id, curtailed_point,
+                                               curtail_val).get(timeout=10)
+                except RemoteError as ex:
+                    _log.warning("Failed to set {} to {}: {}".format(curtailed_point, curtail_val, str(ex)))
+                    continue
+                
                 est_curtailed += curtail_load
                 clusters.get_device(device_name).increment_curtail(command)
                 self.devices_curtailed.add(item)
@@ -689,11 +696,16 @@ def ahp(config_path, **kwargs):
 
                 curtailed_device = base_rpc_path(unit=device, point='')
                 schedule_request = [[curtailed_device, str_now, str_end]]
-                result = self.vip.rpc.call(
-                    'platform.actuator', 'request_new_schedule', agent_id,
-                    device, 'HIGH', schedule_request).get(timeout=10)
+                try:
+                    result = self.vip.rpc.call(
+                        'platform.actuator', 'request_new_schedule', agent_id,
+                        device, 'HIGH', schedule_request).get(timeout=10)
+                except RemoteError as ex:
+                    _log.warning("Failed to schedule device {} (RemoteError): {}".format(device, str(ex)))
+                    continue
+                
                 if result['result'] == 'FAILURE':
-                    _log.warn('Failed to schedule device: ' + device)
+                    _log.warn('Failed to schedule device (unavailable) ' + device)
                     already_handled[device] = False
                 else:
                     already_handled[device] = True
@@ -715,9 +727,13 @@ def ahp(config_path, **kwargs):
                 curtail = clusters.get_device(device_name).get_curtailment(command)
                 curtail_pt = curtail['point']
                 curtailed_point = base_rpc_path(unit=device_name, point=curtail_pt)
-                # TODO: catch errors.
-                result = self.vip.rpc.call('platform.actuator', 'revert_point',
-                                           agent_id, curtailed_point).get(timeout=10)
+                try:
+                    result = self.vip.rpc.call('platform.actuator', 'revert_point',
+                                               agent_id, curtailed_point).get(timeout=10)
+                except RemoteError as ex:
+                    _log.warning("Failed to revert point {} (RemoteError): {}".format(curtailed_point, str(ex)))
+                    continue
+                
             self.devices_curtailed = set()
 
         def release_devices(self):
