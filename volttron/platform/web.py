@@ -60,6 +60,7 @@ import os
 import re
 
 from gevent import pywsgi
+import mimetypes
 from zmq.utils import jsonapi as json
 
 from .vip.agent import Agent, Core, RPC
@@ -75,6 +76,7 @@ class MasterWebService(Agent):
     that will be called during the request process.
     """
 
+
     def __init__(self, serverkey, identity, address):
         """Initialize the discovery service with the serverkey
 
@@ -84,6 +86,8 @@ class MasterWebService(Agent):
 
         self.serverkey = serverkey
         self.registeredroutes = []
+        if not mimetypes.inited:
+            mimetypes.init()
 
     @RPC.export
     def register_agent_route(self, regex, peer, fn):
@@ -157,13 +161,18 @@ class MasterWebService(Agent):
         from wsgiref.util import FileWrapper
         status = '200 OK'
         _log.debug('SENDING FILE: {}'.format(filename))
-        if not os.path.exists(filename):
-            status = ''
-        #fname = os.path.join(os.path.dirname(__file__), "hello.txt")
-        f = open(filename, 'rb')
+        guess = mimetypes.guess_type(filename)[0]
+        _log.debug('MIME GUESS: {}'.format(guess))
 
+        if not os.path.exists(filename):
+            start_response('404 Not Found', [('Content-Type', 'text/html')])
+            return [b'<h1>Not Found</h1>']
+
+        if not guess:
+            guess = 'text/plain'
+    
         response_headers = [
-            ('Content-type', 'text/plain'),
+            ('Content-type', guess),
         ]
         start_response(status, response_headers)
 
