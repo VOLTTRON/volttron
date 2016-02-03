@@ -101,27 +101,11 @@ class MasterWebService(Agent):
         compiled = re.compile(regex)
         self.registeredroutes.append((compiled, 'path', root_dir))
 
-    @RPC.export
-    def register(self, regex, root_or_callable):
+    def _redirect_index(self, env, start_response):
+        start_response('302 Found', [('Location','/index.html')])
+        return ['1']
 
-        try:
-            _log.debug('Registering uri expression: {}'.format(regex))
-            compiled = re.compile(regex)
-            # callablle was removed in 3.0 but added back to the language
-            # in python 3.2
-            if callable(root_or_callable):
-                print('Callable is true')
-                self.registeredroutes.append((compiled, 'callable', root_or_callable))
-            else:
-                print('Is Not Callable.')
-                if os.path.exists(root_or_callable):
-                    self.registeredroutes.append((compiled, 'path', root_or_callable))
-                else:
-                    raise AttributeError(root +' is not available')
-        except OSError as exc:
-            print('An error occured')
-
-    def get_serverkey(self, environ, start_response):
+    def _get_serverkey(self, environ, start_response):
         start_response('200 OK', [('Content-Type', 'application/json')])
         return json.dumps({"serverkey": encode_key(self.serverkey)})
 
@@ -181,7 +165,9 @@ class MasterWebService(Agent):
     @Core.receiver('onstart')
     def startupagent(self, sender, **kwargs):
         _log.debug('Starting web server.')
-        self.register('^/discovery/$', self.get_serverkey)
-        #self.register('/$', '/home/vdev/git/volttron/services/core/VolttronCentral/volttroncentral/webroot')
+        self.registeredroutes.append((re.compile('^/discovery/$'), 'callable',
+            self._get_serverkey))
+        self.registeredroutes.append((re.compile('^/$'), 'callable',
+            self._redirect_index))
         self.server = pywsgi.WSGIServer(('0.0.0.0', 8080), self.app_routing)
         self.server.serve_forever()
