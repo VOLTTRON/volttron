@@ -12,13 +12,12 @@ var PlatformsPanelItem = React.createClass({
         
         state.expanded = (this.props.panelItem.hasOwnProperty("expanded") ? this.props.panelItem.expanded : null);
 
-        // state.expanded = null;
         state.showTooltip = false;
         state.tooltipX = null;
         state.tooltipY = null;
         state.keepTooltip = false;
         state.expandedChildren;
-        // state.expandedOn = null;
+        state.checked = false;
 
         state.children = getChildrenFromStore(this.props.panelItem, this.props.itemPath);
 
@@ -49,6 +48,21 @@ var PlatformsPanelItem = React.createClass({
         this.setState({expanded: expandedOn});
         
         this.setState({expandedChildren: expandAllChildren(expandedOn, this.props.panelItem)});
+    },
+    _checkItem: function (e) {
+
+        var checked = e.target.checked;
+
+        this.setState({checked: checked});
+
+        if (checked)
+        {
+            platformsPanelActionCreators.addToGraph(this.props.panelItem);
+        }
+        else
+        {
+            platformsPanelActionCreators.removeFromGraph(this.props.panelItem);
+        }
     },
     _toggleItem: function () {
 
@@ -273,7 +287,7 @@ var PlatformsPanelItem = React.createClass({
                     <input className={checkboxClass}
                         style={checkboxStyle}
                         type="checkbox"
-                        onClick={this._checkItem}></input>                    
+                        onChange={this._checkItem}></input>                    
                     <div className="tooltip_outer" 
                         style={tooltipStyle}>
                         <div className="tooltip_inner">

@@ -653,17 +653,17 @@ var platformsPanelActionCreators = {
         switch (type)
         {
             case "platform":
-                platformsPanelActionCreators.loadPanelAgents(parent);
-                platformsPanelActionCreators.loadPanelBuildings(parent);
-                platformsPanelActionCreators.loadPanelPoints(parent);
+                loadPanelAgents(parent);
+                loadPanelBuildings(parent);
+                loadPanelPoints(parent);
                 break;
             case "building":
-                platformsPanelActionCreators.loadPanelDevices(parent);
-                platformsPanelActionCreators.loadPanelPoints(parent);
+                loadPanelDevices(parent);
+                loadPanelPoints(parent);
                 break;
             case "device":
-                platformsPanelActionCreators.loadPanelPoints(parent);
-                platformsPanelActionCreators.loadPanelDevices(parent);
+                loadPanelPoints(parent);
+                loadPanelDevices(parent);
                 break;
             case "type":
 
@@ -671,83 +671,117 @@ var platformsPanelActionCreators = {
                 {
                     platformsPanelActionCreators.loadChildren(parent[parent.children[i]].type, parent[parent.children[i]]);
                 }
-
-                // for (var i = 0; i < parent.children.length; i++)
-                // {
-                //     platformsPanelActionCreators.loadChildren(parent.children[i], parent[parent.children[i]]);
-                // }
+                
                 break;
             default:
 
         }
+
+        function loadPanelPoints(parent) {
+            dispatcher.dispatch({
+                type: ACTION_TYPES.RECEIVE_POINT_STATUSES,
+                platform: parent
+            });    
+        }
+
+        function loadPanelDevices(parent) {
+            dispatcher.dispatch({
+                type: ACTION_TYPES.RECEIVE_DEVICE_STATUSES,
+                platform: parent
+            });    
+        }
+
+        function loadPanelBuildings(parent) {
+            dispatcher.dispatch({
+                type: ACTION_TYPES.RECEIVE_BUILDING_STATUSES,
+                platform: parent
+            });    
+        }
+
+        function loadPanelAgents(platform) {
+            var authorization = authorizationStore.getAuthorization();
+
+            new rpc.Exchange({
+                method: 'platforms.uuid.' + platform.uuid + '.list_agents',
+                authorization: authorization,
+            }).promise
+                .then(function (agentsList) {
+                    
+                    dispatcher.dispatch({
+                        type: ACTION_TYPES.RECEIVE_AGENT_STATUSES,
+                        platform: platform,
+                        agents: agentsList
+                    });
+
+                    
+                })
+                .catch(rpc.Error, handle401);    
+        }
+
+
+
+
+    // },
+    
+    // loadPanelPoints: function (parent) {
+    //     dispatcher.dispatch({
+    //         type: ACTION_TYPES.RECEIVE_POINT_STATUSES,
+    //         platform: parent
+    //     });
+    // },
+    // loadPanelDevices: function (parent) {
+    //     dispatcher.dispatch({
+    //         type: ACTION_TYPES.RECEIVE_DEVICE_STATUSES,
+    //         platform: parent
+    //     });
+    // },
+    // loadPanelBuildings: function (platform) {
+    //     dispatcher.dispatch({
+    //         type: ACTION_TYPES.RECEIVE_BUILDING_STATUSES,
+    //         platform: platform
+    //     });
+    // },
+    // loadPanelAgents: function (platform) {
+    //     var authorization = authorizationStore.getAuthorization();
+
+    //     new rpc.Exchange({
+    //         method: 'platforms.uuid.' + platform.uuid + '.list_agents',
+    //         authorization: authorization,
+    //     }).promise
+    //         .then(function (agentsList) {
+                
+    //             dispatcher.dispatch({
+    //                 type: ACTION_TYPES.RECEIVE_AGENT_STATUSES,
+    //                 platform: platform,
+    //                 agents: agentsList
+    //             });
+
+                
+    //         })
+    //         .catch(rpc.Error, handle401);
+    // },
     },
-    loadPanelPoints: function (parent) {
+
+    addToGraph: function(panelItem) {
+
         dispatcher.dispatch({
-            type: ACTION_TYPES.RECEIVE_POINT_STATUSES,
-            platform: parent
-        });
+            type: ACTION_TYPES.ADD_TO_GRAPH,
+            panelItem: panelItem
+        });  
+
     },
-    loadPanelDevices: function (parent) {
+
+    removeFromGraph: function(panelItem) {
+
         dispatcher.dispatch({
-            type: ACTION_TYPES.RECEIVE_DEVICE_STATUSES,
-            platform: parent
-        });
-    },
-    loadPanelBuildings: function (platform) {
-        dispatcher.dispatch({
-            type: ACTION_TYPES.RECEIVE_BUILDING_STATUSES,
-            platform: platform
-        });
-    },
-    loadPanelAgents: function (platform) {
-        var authorization = authorizationStore.getAuthorization();
+            type: ACTION_TYPES.REMOVE_FROM_GRAPH,
+            panelItem: panelItem
+        });  
 
-        new rpc.Exchange({
-            method: 'platforms.uuid.' + platform.uuid + '.list_agents',
-            authorization: authorization,
-        }).promise
-            .then(function (agentsList) {
-                // platform.agents = agentsList;
+    }
+}
 
-                dispatcher.dispatch({
-                    type: ACTION_TYPES.RECEIVE_AGENT_STATUSES,
-                    platform: platform,
-                    agents: agentsList
-                });
 
-                // if (!agentsList.length) { return; }
-
-                // new rpc.Exchange({
-                //     method: 'platforms.uuid.' + platform.uuid + '.status_agents',
-                //     authorization: authorization,
-                // }).promise
-                //     .then(function (agentStatuses) {
-                //         platform.agents.forEach(function (agent) {
-                //             if (!agentStatuses.some(function (status) {
-                //                 if (agent.uuid === status.uuid) {
-                //                     agent.actionPending = false;
-                //                     agent.process_id = status.process_id;
-                //                     agent.return_code = status.return_code;
-
-                //                     return true;
-                //                 }
-                //             })) {
-                //                 agent.actionPending = false;
-                //                 agent.process_id = null;
-                //                 agent.return_code = null;
-                //             }
-
-                //         });
-
-                //         dispatcher.dispatch({
-                //             type: ACTION_TYPES.RECEIVE_PLATFORM,
-                //             platform: platform,
-                //         });
-                //     });
-            })
-            .catch(rpc.Error, handle401);
-    },
-};
 
 
 function handle401(error) {
@@ -1466,51 +1500,65 @@ var graphStore = require('../stores/graph-store');
 
 var lineChart;
 
-var Header = React.createClass({displayName: "Header",
-  render: function() {
-    return (
-      React.createElement("div", {className: "row text-center"}, 
-        React.createElement("div", {className: "col-md-12"}, 
-          React.createElement("h3", null, "2011 to 2015")
-        )
-      )
-    );
-  }
-});
 
-var UserSelect = React.createClass({displayName: "UserSelect",
-  render: function() {
-    return (
-      React.createElement("div", {className: "row text-center"}, 
-        React.createElement("div", {className: "col-md-12"}, 
-          React.createElement("div", {id: "user-select-dropdown", className: "dropdown"}, 
-            React.createElement("button", {className: "btn btn-default dropdown-toggle", type: "button", id: "user-select", "data-toggle": "dropdown", "aria-haspopup": "true", "aria-expanded": "true"}, 
-              React.createElement("span", {id: "select-text"}, "Avg Temp (ºF)"), " ", React.createElement("span", {className: "caret"})
-            ), 
-            React.createElement("ul", {onClick: this.props.handleSelect, className: "dropdown-menu", "aria-labelledby": "user-select"}, 
-              React.createElement("li", null, React.createElement("a", {href: "javascript:void(0)", className: "select current-selection", id: "avg_temp_f"}, "Avg Temp (ºF)")), 
-              React.createElement("li", null, React.createElement("a", {href: "javascript:void(0)", className: "select", id: "avg_min_temp_f"}, "Avg Min Temp (ºF)")), 
-              React.createElement("li", null, React.createElement("a", {href: "javascript:void(0)", className: "select", id: "avg_max_temp_f"}, "Avg Max Temp (ºF)")), 
-              React.createElement("li", null, React.createElement("a", {href: "javascript:void(0)", className: "select", id: "total_percipitation_in"}, "Total Percipitation (in)")), 
-              React.createElement("li", null, React.createElement("a", {href: "javascript:void(0)", className: "select", id: "total_snowfall_in"}, "Total Snowfall (in)"))
+var Graph = React.createClass({displayName: "Graph",
+    getInitialState: function () {
+        var state = {};
+        state.graphs = getGraphsFromStores();
+
+        return state;
+    },
+    componentWillMount: function () {
+        
+    },
+    componentDidMount: function () {
+        graphStore.addChangeListener(this._onStoreChange);
+    },
+    componentWillUnmount: function () {
+        graphStore.removeChangeListener(this._onStoreChange);
+    },
+    _onStoreChange: function () {
+        var graphs = getGraphsFromStores();
+
+        this.setState({graphs: graphs});
+    },
+    render: function () {
+        var graphs  = this.state.graphs;  
+
+        var vizGraph;
+
+        if (graphs.length > 0)
+        {
+            vizGraph = React.createElement("div", {id: "chart", class: "with-3d-shadow with-transitions"}, 
+                          React.createElement(Viz, {data: graphs})
+                      )
+        }
+
+
+        return (
+            React.createElement("div", null, 
+                vizGraph
             )
-          )
-        )
-      )
-    );
-  }
+        );
+    },
 });
 
-var BarChart = React.createClass({displayName: "BarChart",
+
+function getGraphsFromStores() {
+    return graphStore.getData();
+}
+
+
+var GraphLineChart = React.createClass({displayName: "GraphLineChart",
   componentDidMount: function() {
-    drawLineChart('line-chart', lineData(this.props.selection, keyToYearThenMonth(this.props.data)));
+    drawLineChart('graph-line-chart', lineData(this.props.selection, keyToYearThenMonth(this.props.data)));
   },
   componentDidUpdate: function() {
-    updateLineChart('line-chart', lineData(this.props.selection, keyToYearThenMonth(this.props.data)));
+    updateLineChart('graph-line-chart', lineData(this.props.selection, keyToYearThenMonth(this.props.data)));
   },
   render: function() {
     return (
-      React.createElement("div", {id: "line-chart"}, 
+      React.createElement("div", {id: "graph-line-chart"}, 
         React.createElement("svg", null)
       )
     );
@@ -1520,7 +1568,7 @@ var BarChart = React.createClass({displayName: "BarChart",
 var Viz = React.createClass({displayName: "Viz",
   getInitialState: function() {
     return {
-      data: [],
+      // data: this.props.data,
       selection: 'avg_temp_f'
     };
   },
@@ -1534,14 +1582,20 @@ var Viz = React.createClass({displayName: "Viz",
   // componentDidMount: function () {
   //   this.loadData();
   // },
-  loadData: function (datum) {
+  // loadData: function () {
     
-    this.setState({ data: datum});
-  },
-  componentDidMount: function () {
-    var datum = graphStore.getGraphData();
-    this.loadData(datum);
-  },
+  //   this.setState({ data: this.props.data});
+  // },
+  // componentDidMount: function () {
+  //   // var datum = graphStore.getGraphData();
+  //   this.loadData();
+  // },
+
+    // componentDidUpdate: function() {
+        
+    //     this.setState({data: this.props.data});
+    // },
+
   handleUserSelect: function (e) {
     var selection = e.target.id;
     $('#select-text').text(e.target.innerHTML);
@@ -1554,94 +1608,12 @@ var Viz = React.createClass({displayName: "Viz",
   render: function() {
     return (
       React.createElement("div", {id: "viz"}, 
-        React.createElement(Header, null), 
-        React.createElement(UserSelect, {selection: this.state.selection, handleSelect: this.handleUserSelect}), 
-         this.state.data.length != 0 ? React.createElement(BarChart, {data: this.state.data, selection: this.state.selection}) : null
+        
+         this.props.data.length != 0 ? React.createElement(GraphLineChart, {data: this.props.data, selection: this.state.selection}) : null
       )
     );
   }
 });
-
-
-var Graph = React.createClass({displayName: "Graph",
-    getInitialState: getStateFromStores,
-    componentWillMount: function () {
-        
-    },
-    componentDidMount: function () {
-        graphStore.addChangeListener(this._onStoreChange);
-    },
-    componentWillUnmount: function () {
-        graphStore.removeChangeListener(this._onStoreChange);
-    },
-    _onStoreChange: function () {
-        this.setState(getStateFromStores());
-    },
-    render: function () {
-        var graphs  = [];        
-
-        
-
-        return (
-                React.createElement("div", {className: "view"}, 
-                    React.createElement("div", {id: "chart", class: "with-3d-shadow with-transitions"}, 
-                        React.createElement(Viz, null)
-                    )
-
-                )
-        );
-    },
-});
-
-
-function getStateFromStores() {
-    return {
-        graphs: graphStore.getGraphs(),
-    };
-}
-
-function testData() {
-    return stream_layers(3,128,.1).map(function(data, i) {
-        return {
-            key: 'Stream' + i,
-            area: i === 1,
-            values: data
-        };
-    });
-}
-
-function stream_layers(n, m, o) {
-    if (arguments.length < 3) o = 0;
-    function bump(a) {
-    var x = 1 / (.1 + Math.random()),
-        y = 2 * Math.random() - .5,
-        z = 10 / (.1 + Math.random());
-    for (var i = 0; i < m; i++) {
-      var w = (i / m - y) * z;
-      a[i] += x * Math.exp(-w * w);
-    }
-    }
-    return d3.range(n).map(function() {
-      var a = [], i;
-      for (i = 0; i < m; i++) a[i] = o + o * Math.random();
-      for (i = 0; i < 5; i++) bump(a);
-      return a.map(stream_index);
-    });
-    }
-
-    /* Another layer generator using gamma distributions. */
-    function stream_waves(n, m) {
-    return d3.range(n).map(function(i) {
-    return d3.range(m).map(function(j) {
-        var x = 20 * j / m - i / 3;
-        return 2 * x * Math.exp(-.5 * x);
-      }).map(stream_index);
-    });
-    }
-
-    function stream_index(d, i) {
-    return {x: i, y: Math.max(0, d)};
-}
 
 
 function drawLineChart (elementParent, data) {
@@ -1677,7 +1649,7 @@ function updateLineChart (elementParent, data) {
 //line data
 function keyToYearThenMonth (data) {
   var keyYearMonth = d3.nest()
-    .key(function(d){return d.year; })
+    .key(function(d){return d.name; })
     .key(function(d){return d.month; });
   var keyedData = keyYearMonth.entries(
     data.map(function(d) {
@@ -1689,7 +1661,7 @@ function keyToYearThenMonth (data) {
 
 function lineData (selection, data) {
   var colors = ['#ff7f00','#984ea3','#4daf4a','#377eb8','#e41a1c'];
-  data = data.sort(function(a,b){ return +a.key - +b.key; });
+  data = data.sort(function(a,b){ return a.key > b.key; });
   var lineDataArr = [];
   for (var i = 0; i <= data.length-1; i++) {
     var lineDataElement = [];
@@ -1701,7 +1673,7 @@ function lineData (selection, data) {
       });
     }
     lineDataArr.push({
-      key: +data[i].key,
+      key: data[i].key,
       color: colors[i],
       values: lineDataElement
     });
@@ -2503,13 +2475,12 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
         
         state.expanded = (this.props.panelItem.hasOwnProperty("expanded") ? this.props.panelItem.expanded : null);
 
-        // state.expanded = null;
         state.showTooltip = false;
         state.tooltipX = null;
         state.tooltipY = null;
         state.keepTooltip = false;
         state.expandedChildren;
-        // state.expandedOn = null;
+        state.checked = false;
 
         state.children = getChildrenFromStore(this.props.panelItem, this.props.itemPath);
 
@@ -2540,6 +2511,21 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
         this.setState({expanded: expandedOn});
         
         this.setState({expandedChildren: expandAllChildren(expandedOn, this.props.panelItem)});
+    },
+    _checkItem: function (e) {
+
+        var checked = e.target.checked;
+
+        this.setState({checked: checked});
+
+        if (checked)
+        {
+            platformsPanelActionCreators.addToGraph(this.props.panelItem);
+        }
+        else
+        {
+            platformsPanelActionCreators.removeFromGraph(this.props.panelItem);
+        }
     },
     _toggleItem: function () {
 
@@ -2764,7 +2750,7 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
                     React.createElement("input", {className: checkboxClass, 
                         style: checkboxStyle, 
                         type: "checkbox", 
-                        onClick: this._checkItem}), 
+                        onChange: this._checkItem}), 
                     React.createElement("div", {className: "tooltip_outer", 
                         style: tooltipStyle}, 
                         React.createElement("div", {className: "tooltip_inner"}, 
@@ -3025,7 +3011,9 @@ function getFilteredPlatforms(filterTerm, filterStatus) {
 
             if (filteredPlatform)
             {
-                if ((filteredPlatform.children.length === 0) && (filteredPlatform.name.indexOf(filterTerm, filterStatus) < 0))
+                var upperName = filteredPlatform.name.toUpperCase();
+
+                if ((filteredPlatform.children.length === 0) && (upperName.indexOf(filterTerm.toUpperCase()) < 0))
                 {
                     filteredPlatform = null;
                 }
@@ -3484,6 +3472,9 @@ module.exports = keyMirror({
     RECEIVE_POINT_STATUSES: null,
     RECEIVE_BUILDING_STATUSES: null,
 
+    ADD_TO_GRAPH: null,
+    REMOVE_FROM_GRAPH: null,
+
     RECEIVE_PLATFORM_TOPIC_DATA: null,
 });
 
@@ -3842,6 +3833,9 @@ var dispatcher = require('../dispatcher');
 var Store = require('../lib/store');
 
 
+var _graphVisible = false;
+var _graphData = [];
+
 var graphStore = new Store();
 
 graphStore.getGraphs = function (uuid) {
@@ -3854,558 +3848,66 @@ graphStore.getLastError = function (uuid) {
     return _lastErrors[uuid] || null;
 };
 
-graphStore.dispatchToken = dispatcher.register(function (action) {
-    dispatcher.waitFor([authorizationStore.dispatchToken]);
+graphStore.getData = function () {
+    return _graphData;
+}
 
+graphStore.dispatchToken = dispatcher.register(function (action) {
+    switch (action.type) {
+
+        case ACTION_TYPES.ADD_TO_GRAPH:  
+
+            var graphItems = _graphData.filter(function (item) { return item.uuid === action.panelItem.uuid });
+
+            if (graphItems.length === 0)
+            {
+                if (action.panelItem.hasOwnProperty("data"))
+                {
+                    _graphData = _graphData.concat(action.panelItem.data);
+                }
+
+                if (_graphData.length > 0)
+                {
+                    _graphVisible = true;
+                }
+
+                graphStore.emitChange();
+            }
+
+            break;
+
+        case ACTION_TYPES.REMOVE_FROM_GRAPH:
+
+            if (_graphData.length > 0)
+            {
+                _graphData.forEach(function(item, index) {
+                    if (item.uuid === action.panelItem.uuid)
+                    {
+                        _graphData.splice(index, 1);
+                    }
+                });
+
+                for (var i = _graphData.length - 1; i >= 0; i--)
+                {
+                    if (_graphData[i].uuid === action.panelItem.uuid)
+                    {
+                        _graphData.splice(i, 1);
+                    }                    
+                }
+
+                if (_graphData.length === 0)
+                {
+                    _graphVisible = false;
+                }
+
+                graphStore.emitChange();  
+            }
+
+            break;
+    } 
     
 });
 
-graphStore.getGraphData = function () {
-    var graphJson = [
-  {
-    "year": 2011,
-    "month": 1,
-    "avg_max_temp_f": 46.83,
-    "avg_min_temp_f": 28.1,
-    "avg_temp_f": 37.47,
-    "total_percipitation_in": 2.35,
-    "total_snowfall_in": 9.6
-  },
-  {
-    "year": 2011,
-    "month": 2,
-    "avg_max_temp_f": 47.58,
-    "avg_min_temp_f": 26.35,
-    "avg_temp_f": 36.96,
-    "total_percipitation_in": 7.61,
-    "total_snowfall_in": 25.5
-  },
-  {
-    "year": 2011,
-    "month": 3,
-    "avg_max_temp_f": 51.45,
-    "avg_min_temp_f": 31.39,
-    "avg_temp_f": 41.42,
-    "total_percipitation_in": 11.74,
-    "total_snowfall_in": 39.6
-  },
-  {
-    "year": 2011,
-    "month": 4,
-    "avg_max_temp_f": 61.5,
-    "avg_min_temp_f": 35.13,
-    "avg_temp_f": 48.32,
-    "total_percipitation_in": 1.44,
-    "total_snowfall_in": 2.3
-  },
-  {
-    "year": 2011,
-    "month": 5,
-    "avg_max_temp_f": 64.9,
-    "avg_min_temp_f": 40.68,
-    "avg_temp_f": 52.79,
-    "total_percipitation_in": 2.17,
-    "total_snowfall_in": 0
-  },
-  {
-    "year": 2011,
-    "month": 6,
-    "avg_max_temp_f": 73.79,
-    "avg_min_temp_f": 48.18,
-    "avg_temp_f": 60.98,
-    "total_percipitation_in": 2.06,
-    "total_snowfall_in": 0
-  },
-  {
-    "year": 2011,
-    "month": 7,
-    "avg_max_temp_f": 85.07,
-    "avg_min_temp_f": 56.1,
-    "avg_temp_f": 70.58,
-    "total_percipitation_in": 0,
-    "total_snowfall_in": 0
-  },
-  {
-    "year": 2011,
-    "month": 8,
-    "avg_max_temp_f": 88.1,
-    "avg_min_temp_f": 56.45,
-    "avg_temp_f": 72.28,
-    "total_percipitation_in": 0.15,
-    "total_snowfall_in": 0
-  },
-  {
-    "year": 2011,
-    "month": 9,
-    "avg_max_temp_f": 84.47,
-    "avg_min_temp_f": 54.13,
-    "avg_temp_f": 69.3,
-    "total_percipitation_in": 3.42,
-    "total_snowfall_in": 0
-  },
-  {
-    "year": 2011,
-    "month": 10,
-    "avg_max_temp_f": 71.14,
-    "avg_min_temp_f": 43.54,
-    "avg_temp_f": 57.34,
-    "total_percipitation_in": 2.8,
-    "total_snowfall_in": 0
-  },
-  {
-    "year": 2011,
-    "month": 11,
-    "avg_max_temp_f": 53.62,
-    "avg_min_temp_f": 32.07,
-    "avg_temp_f": 42.62,
-    "total_percipitation_in": 1.07,
-    "total_snowfall_in": 5
-  },
-  {
-    "year": 2011,
-    "month": 12,
-    "avg_max_temp_f": 48.97,
-    "avg_min_temp_f": 25.42,
-    "avg_temp_f": 37.19,
-    "total_percipitation_in": 0,
-    "total_snowfall_in": 0
-  },
-  {
-    "year": 2012,
-    "month": 1,
-    "avg_max_temp_f": 51.5,
-    "avg_min_temp_f": 28.2,
-    "avg_temp_f": 39.85,
-    "total_percipitation_in": 4.98,
-    "total_snowfall_in": 1.1
-  },
-  {
-    "year": 2012,
-    "month": 2,
-    "avg_max_temp_f": 54.32,
-    "avg_min_temp_f": 29.86,
-    "avg_temp_f": 42.09,
-    "total_percipitation_in": 0.9,
-    "total_snowfall_in": 11
-  },
-  {
-    "year": 2012,
-    "month": 3,
-    "avg_max_temp_f": 54.45,
-    "avg_min_temp_f": 32.62,
-    "avg_temp_f": 43.53,
-    "total_percipitation_in": 5.76,
-    "total_snowfall_in": 24.5
-  },
-  {
-    "year": 2012,
-    "month": 4,
-    "avg_max_temp_f": 63.69,
-    "avg_min_temp_f": 38.83,
-    "avg_temp_f": 51.12,
-    "total_percipitation_in": 4.45,
-    "total_snowfall_in": 5.5
-  },
-  {
-    "year": 2012,
-    "month": 5,
-    "avg_max_temp_f": 75.45,
-    "avg_min_temp_f": 46.57,
-    "avg_temp_f": 61.16,
-    "total_percipitation_in": 0.33,
-    "total_snowfall_in": 0
-  },
-  {
-    "year": 2012,
-    "month": 6,
-    "avg_max_temp_f": 82.21,
-    "avg_min_temp_f": 51.36,
-    "avg_temp_f": 66.79,
-    "total_percipitation_in": 0.67,
-    "total_snowfall_in": 0
-  },
-  {
-    "year": 2012,
-    "month": 7,
-    "avg_max_temp_f": 89.3,
-    "avg_min_temp_f": 57.4,
-    "avg_temp_f": 73.35,
-    "total_percipitation_in": 0.01,
-    "total_snowfall_in": 0
-  },
-  {
-    "year": 2012,
-    "month": 8,
-    "avg_max_temp_f": 93.14,
-    "avg_min_temp_f": 60.62,
-    "avg_temp_f": 76.88,
-    "total_percipitation_in": 0.06,
-    "total_snowfall_in": 0
-  },
-  {
-    "year": 2012,
-    "month": 9,
-    "avg_max_temp_f": 87.41,
-    "avg_min_temp_f": 56.1,
-    "avg_temp_f": 71.76,
-    "total_percipitation_in": 0,
-    "total_snowfall_in": 0
-  },
-  {
-    "year": 2012,
-    "month": 10,
-    "avg_max_temp_f": 72.04,
-    "avg_min_temp_f": 44.89,
-    "avg_temp_f": 58.46,
-    "total_percipitation_in": 1.47,
-    "total_snowfall_in": 0
-  },
-  {
-    "year": 2012,
-    "month": 11,
-    "avg_max_temp_f": 56.04,
-    "avg_min_temp_f": 35.39,
-    "avg_temp_f": 45.71,
-    "total_percipitation_in": 5.06,
-    "total_snowfall_in": 6.5
-  },
-  {
-    "year": 2012,
-    "month": 12,
-    "avg_max_temp_f": 42.64,
-    "avg_min_temp_f": 29.93,
-    "avg_temp_f": 36.29,
-    "total_percipitation_in": 11.91,
-    "total_snowfall_in": 18.5
-  },
-  {
-    "year": 2013,
-    "month": 1,
-    "avg_max_temp_f": 44.25,
-    "avg_min_temp_f": 23.25,
-    "avg_temp_f": 33.75,
-    "total_percipitation_in": 0.91,
-    "total_snowfall_in": 2
-  },
-  {
-    "year": 2013,
-    "month": 2,
-    "avg_max_temp_f": 53.14,
-    "avg_min_temp_f": 27.9,
-    "avg_temp_f": 40.52,
-    "total_percipitation_in": 0.5,
-    "total_snowfall_in": 1.1
-  },
-  {
-    "year": 2013,
-    "month": 3,
-    "avg_max_temp_f": 61.18,
-    "avg_min_temp_f": 36.18,
-    "avg_temp_f": 48.68,
-    "total_percipitation_in": 2.99,
-    "total_snowfall_in": 0
-  },
-  {
-    "year": 2013,
-    "month": 4,
-    "avg_max_temp_f": 67.76,
-    "avg_min_temp_f": 41.24,
-    "avg_temp_f": 54.5,
-    "total_percipitation_in": 1.64,
-    "total_snowfall_in": 0.5
-  },
-  {
-    "year": 2013,
-    "month": 5,
-    "avg_max_temp_f": 73.55,
-    "avg_min_temp_f": 47.86,
-    "avg_temp_f": 60.7,
-    "total_percipitation_in": 2.96,
-    "total_snowfall_in": 0
-  },
-  {
-    "year": 2013,
-    "month": 6,
-    "avg_max_temp_f": 84.77,
-    "avg_min_temp_f": 55.1,
-    "avg_temp_f": 69.93,
-    "total_percipitation_in": 0.16,
-    "total_snowfall_in": 0
-  },
-  {
-    "year": 2013,
-    "month": 7,
-    "avg_max_temp_f": 93.69,
-    "avg_min_temp_f": 61.81,
-    "avg_temp_f": 77.75,
-    "total_percipitation_in": 0.02,
-    "total_snowfall_in": 0
-  },
-  {
-    "year": 2013,
-    "month": 8,
-    "avg_max_temp_f": 89.25,
-    "avg_min_temp_f": 55.89,
-    "avg_temp_f": 72.57,
-    "total_percipitation_in": 0,
-    "total_snowfall_in": 0
-  },
-  {
-    "year": 2013,
-    "month": 9,
-    "avg_max_temp_f": 82,
-    "avg_min_temp_f": 50.78,
-    "avg_temp_f": 66.39,
-    "total_percipitation_in": 0.92,
-    "total_snowfall_in": 0
-  },
-  {
-    "year": 2013,
-    "month": 10,
-    "avg_max_temp_f": 69.5,
-    "avg_min_temp_f": 39.5,
-    "avg_temp_f": 54.5,
-    "total_percipitation_in": 0.94,
-    "total_snowfall_in": 0
-  },
-  {
-    "year": 2013,
-    "month": 11,
-    "avg_max_temp_f": 60.32,
-    "avg_min_temp_f": 33.63,
-    "avg_temp_f": 46.97,
-    "total_percipitation_in": 0.73,
-    "total_snowfall_in": 0
-  },
-  {
-    "year": 2013,
-    "month": 12,
-    "avg_max_temp_f": 48.81,
-    "avg_min_temp_f": 24.95,
-    "avg_temp_f": 36.88,
-    "total_percipitation_in": 1.53,
-    "total_snowfall_in": 10.5
-  },
-  {
-    "year": 2014,
-    "month": 1,
-    "avg_max_temp_f": 57.13,
-    "avg_min_temp_f": 31.32,
-    "avg_temp_f": 44.23,
-    "total_percipitation_in": 1.01,
-    "total_snowfall_in": 0
-  },
-  {
-    "year": 2014,
-    "month": 2,
-    "avg_max_temp_f": 54.64,
-    "avg_min_temp_f": 34.82,
-    "avg_temp_f": 44.73,
-    "total_percipitation_in": 5.47,
-    "total_snowfall_in": 2
-  },
-  {
-    "year": 2014,
-    "month": 3,
-    "avg_max_temp_f": 62.48,
-    "avg_min_temp_f": 37.44,
-    "avg_temp_f": 49.96,
-    "total_percipitation_in": 3.89,
-    "total_snowfall_in": 1
-  },
-  {
-    "year": 2014,
-    "month": 4,
-    "avg_max_temp_f": 66.56,
-    "avg_min_temp_f": 40.5,
-    "avg_temp_f": 53.53,
-    "total_percipitation_in": 2.81,
-    "total_snowfall_in": 0
-  },
-  {
-    "year": 2014,
-    "month": 5,
-    "avg_max_temp_f": 75.83,
-    "avg_min_temp_f": 46.83,
-    "avg_temp_f": 61.33,
-    "total_percipitation_in": 0.73,
-    "total_snowfall_in": 0
-  },
-  {
-    "year": 2014,
-    "month": 6,
-    "avg_max_temp_f": 85.28,
-    "avg_min_temp_f": 53.39,
-    "avg_temp_f": 69.33,
-    "total_percipitation_in": 0.2,
-    "total_snowfall_in": 0
-  },
-  {
-    "year": 2014,
-    "month": 7,
-    "avg_max_temp_f": 91,
-    "avg_min_temp_f": 60.93,
-    "avg_temp_f": 75.97,
-    "total_percipitation_in": 0.28,
-    "total_snowfall_in": 0
-  },
-  {
-    "year": 2014,
-    "month": 8,
-    "avg_max_temp_f": 88.85,
-    "avg_min_temp_f": 57.8,
-    "avg_temp_f": 73.33,
-    "total_percipitation_in": 0.15,
-    "total_snowfall_in": 0
-  },
-  {
-    "year": 2014,
-    "month": 9,
-    "avg_max_temp_f": 85.04,
-    "avg_min_temp_f": 53.5,
-    "avg_temp_f": 69.27,
-    "total_percipitation_in": 0.54,
-    "total_snowfall_in": 0
-  },
-  {
-    "year": 2014,
-    "month": 10,
-    "avg_max_temp_f": 76.79,
-    "avg_min_temp_f": 36.18,
-    "avg_temp_f": 56.48,
-    "total_percipitation_in": 0,
-    "total_snowfall_in": 0
-  },
-  {
-    "year": 2014,
-    "month": 11,
-    "avg_max_temp_f": 59.27,
-    "avg_min_temp_f": 33.53,
-    "avg_temp_f": 46.4,
-    "total_percipitation_in": 2.98,
-    "total_snowfall_in": 0
-  },
-  {
-    "year": 2014,
-    "month": 12,
-    "avg_max_temp_f": 48.86,
-    "avg_min_temp_f": 32.79,
-    "avg_temp_f": 40.82,
-    "total_percipitation_in": 4.71,
-    "total_snowfall_in": 1.2
-  },
-  {
-    "year": 2015,
-    "month": 1,
-    "avg_max_temp_f": 56.96,
-    "avg_min_temp_f": 30.39,
-    "avg_temp_f": 43.68,
-    "total_percipitation_in": 0.1,
-    "total_snowfall_in": 0
-  },
-  {
-    "year": 2015,
-    "month": 2,
-    "avg_max_temp_f": 64.82,
-    "avg_min_temp_f": 36,
-    "avg_temp_f": 50.3,
-    "total_percipitation_in": 1.63,
-    "total_snowfall_in": 0
-  },
-  {
-    "year": 2015,
-    "month": 3,
-    "avg_max_temp_f": 67.29,
-    "avg_min_temp_f": 38.33,
-    "avg_temp_f": 52.81,
-    "total_percipitation_in": 0.43,
-    "total_snowfall_in": 0
-  },
-  {
-    "year": 2015,
-    "month": 4,
-    "avg_max_temp_f": 66.35,
-    "avg_min_temp_f": 37.73,
-    "avg_temp_f": 52.04,
-    "total_percipitation_in": 3.15,
-    "total_snowfall_in": 4.5
-  },
-  {
-    "year": 2015,
-    "month": 5,
-    "avg_max_temp_f": 68.81,
-    "avg_min_temp_f": 43.96,
-    "avg_temp_f": 56.38,
-    "total_percipitation_in": 1.97,
-    "total_snowfall_in": 0
-  },
-  {
-    "year": 2015,
-    "month": 6,
-    "avg_max_temp_f": 87.97,
-    "avg_min_temp_f": 57.23,
-    "avg_temp_f": 72.6,
-    "total_percipitation_in": 0.79,
-    "total_snowfall_in": 0
-  },
-  {
-    "year": 2015,
-    "month": 7,
-    "avg_max_temp_f": 87.68,
-    "avg_min_temp_f": 59.71,
-    "avg_temp_f": 73.69,
-    "total_percipitation_in": 2.58,
-    "total_snowfall_in": 0
-  },
-  {
-    "year": 2015,
-    "month": 8,
-    "avg_max_temp_f": 91.39,
-    "avg_min_temp_f": 58.68,
-    "avg_temp_f": 75.03,
-    "total_percipitation_in": 0.04,
-    "total_snowfall_in": 0
-  },
-  {
-    "year": 2015,
-    "month": 9,
-    "avg_max_temp_f": 85.07,
-    "avg_min_temp_f": 55.86,
-    "avg_temp_f": 70.41,
-    "total_percipitation_in": 0.15,
-    "total_snowfall_in": 0
-  },
-  {
-    "year": 2015,
-    "month": 10,
-    "avg_max_temp_f": 73.26,
-    "avg_min_temp_f": 46.17,
-    "avg_temp_f": 59.93,
-    "total_percipitation_in": 3.37,
-    "total_snowfall_in": 0
-  },
-  {
-    "year": 2015,
-    "month": 11,
-    "avg_max_temp_f": 50.5,
-    "avg_min_temp_f": 29.36,
-    "avg_temp_f": 39.93,
-    "total_percipitation_in": 3.74,
-    "total_snowfall_in": 0
-  },
-  {
-    "year": 2015,
-    "month": 12,
-    "avg_max_temp_f": 43.42,
-    "avg_min_temp_f": 24.65,
-    "avg_temp_f": 34.03,
-    "total_percipitation_in": 5.18,
-    "total_snowfall_in": 0
-  }
-];
-
-    return graphJson;
-};
 
 
 module.exports = graphStore;
@@ -4554,16 +4056,138 @@ var _items = {
                 "status": "GOOD",
                 "type": "type",
                 "sortOrder": _pointsOrder,
-                "children": ["5461fedc-65ba-43fe-21dc-098765bafedl"],                    
-                "5461fedc-65ba-43fe-21dc-098765bafedl":
+                "children": ["5461fedc-65ba-43fe-21dc-000765bafedl"],                    
+                "5461fedc-65ba-43fe-21dc-000765bafedl":
                 {
-                    "uuid": "5461fedc-65ba-43fe-21dc-098765bafedl",
+                    "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
                     "name": "OutdoorAirTemperature",
                     "status": "GOOD",
                     "type": "point",
                     "sortOrder": 0,
                     "children": [],
-                    "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "points", "5461fedc-65ba-43fe-21dc-098765bafedl"]
+                    "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "points", "5461fedc-65ba-43fe-21dc-000765bafedl"],
+                    "data": [
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
+                                    "name": "OutdoorAirTemperature",
+                                    "month": 1,
+                                    "avg_max_temp_f": 46.83,
+                                    "avg_min_temp_f": 28.1,
+                                    "avg_temp_f": 37.47,
+                                    "total_percipitation_in": 2.35,
+                                    "total_snowfall_in": 9.6
+                                },
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
+                                    "name": "OutdoorAirTemperature",
+                                    "month": 2,
+                                    "avg_max_temp_f": 47.58,
+                                    "avg_min_temp_f": 26.35,
+                                    "avg_temp_f": 36.96,
+                                    "total_percipitation_in": 7.61,
+                                    "total_snowfall_in": 25.5
+                                },
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
+                                    "name": "OutdoorAirTemperature",
+                                    "month": 3,
+                                    "avg_max_temp_f": 51.45,
+                                    "avg_min_temp_f": 31.39,
+                                    "avg_temp_f": 41.42,
+                                    "total_percipitation_in": 11.74,
+                                    "total_snowfall_in": 39.6
+                                },
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
+                                    "name": "OutdoorAirTemperature",
+                                    "month": 4,
+                                    "avg_max_temp_f": 61.5,
+                                    "avg_min_temp_f": 35.13,
+                                    "avg_temp_f": 48.32,
+                                    "total_percipitation_in": 1.44,
+                                    "total_snowfall_in": 2.3
+                                },
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
+                                    "name": "OutdoorAirTemperature",
+                                    "month": 5,
+                                    "avg_max_temp_f": 64.9,
+                                    "avg_min_temp_f": 40.68,
+                                    "avg_temp_f": 52.79,
+                                    "total_percipitation_in": 2.17,
+                                    "total_snowfall_in": 0
+                                },
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
+                                    "name": "OutdoorAirTemperature",
+                                    "month": 6,
+                                    "avg_max_temp_f": 73.79,
+                                    "avg_min_temp_f": 48.18,
+                                    "avg_temp_f": 60.98,
+                                    "total_percipitation_in": 2.06,
+                                    "total_snowfall_in": 0
+                                },
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
+                                    "name": "OutdoorAirTemperature",
+                                    "month": 7,
+                                    "avg_max_temp_f": 85.07,
+                                    "avg_min_temp_f": 56.1,
+                                    "avg_temp_f": 70.58,
+                                    "total_percipitation_in": 0,
+                                    "total_snowfall_in": 0
+                                },
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
+                                    "name": "OutdoorAirTemperature",
+                                    "month": 8,
+                                    "avg_max_temp_f": 88.1,
+                                    "avg_min_temp_f": 56.45,
+                                    "avg_temp_f": 72.28,
+                                    "total_percipitation_in": 0.15,
+                                    "total_snowfall_in": 0
+                                },
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
+                                    "name": "OutdoorAirTemperature",
+                                    "month": 9,
+                                    "avg_max_temp_f": 84.47,
+                                    "avg_min_temp_f": 54.13,
+                                    "avg_temp_f": 69.3,
+                                    "total_percipitation_in": 3.42,
+                                    "total_snowfall_in": 0
+                                },
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
+                                    "name": "OutdoorAirTemperature",
+                                    "month": 10,
+                                    "avg_max_temp_f": 71.14,
+                                    "avg_min_temp_f": 43.54,
+                                    "avg_temp_f": 57.34,
+                                    "total_percipitation_in": 2.8,
+                                    "total_snowfall_in": 0
+                                },
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
+                                    "name": "OutdoorAirTemperature",
+                                    "month": 11,
+                                    "avg_max_temp_f": 53.62,
+                                    "avg_min_temp_f": 32.07,
+                                    "avg_temp_f": 42.62,
+                                    "total_percipitation_in": 1.07,
+                                    "total_snowfall_in": 5
+                                },
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
+                                    "name": "OutdoorAirTemperature",
+                                    "month": 12,
+                                    "avg_max_temp_f": 48.97,
+                                    "avg_min_temp_f": 25.42,
+                                    "avg_temp_f": 37.19,
+                                    "total_percipitation_in": 0,
+                                    "total_snowfall_in": 0
+                                }
+                            ]
                 }
             },
             "agents": {                
@@ -4616,26 +4240,270 @@ var _items = {
                         "status": "GOOD",
                         "type": "type",
                         "sortOrder": _pointsOrder,
-                        "children": ["5461fedc-65ba-43fe-21dc-098765bafedl", "6451fedc-65ba-43fe-21dc-098765bafedl"], 
-                        "5461fedc-65ba-43fe-21dc-098765bafedl":
+                        "children": ["5461fedc-65ba-43fe-21dc-111765bafedl", "6451fedc-65ba-43fe-21dc-000765bafedl"], 
+                        "5461fedc-65ba-43fe-21dc-111765bafedl":
                         {
-                            "uuid": "5461fedc-65ba-43fe-21dc-098765bafedl",
+                            "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
                             "name": "OutdoorAirTemperature",
                             "status": "GOOD",
                             "type": "point",
                             "sortOrder": 0,
                             "children": [],
-                            "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "points", "5461fedc-65ba-43fe-21dc-098765bafedl"]
+                            "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "points", "5461fedc-65ba-43fe-21dc-111765bafedl"],
+                            "data": [
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
+                                    "name": "OutdoorAirTemperature",
+                                    "month": 1,
+                                    "avg_max_temp_f": 51.5,
+                                    "avg_min_temp_f": 28.2,
+                                    "avg_temp_f": 39.85,
+                                    "total_percipitation_in": 4.98,
+                                    "total_snowfall_in": 1.1
+                                },
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
+                                    "name": "OutdoorAirTemperature",
+                                    "month": 2,
+                                    "avg_max_temp_f": 54.32,
+                                    "avg_min_temp_f": 29.86,
+                                    "avg_temp_f": 42.09,
+                                    "total_percipitation_in": 0.9,
+                                    "total_snowfall_in": 11
+                                },
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
+                                    "name": "OutdoorAirTemperature",
+                                    "month": 3,
+                                    "avg_max_temp_f": 54.45,
+                                    "avg_min_temp_f": 32.62,
+                                    "avg_temp_f": 43.53,
+                                    "total_percipitation_in": 5.76,
+                                    "total_snowfall_in": 24.5
+                                },
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
+                                    "name": "OutdoorAirTemperature",
+                                    "month": 4,
+                                    "avg_max_temp_f": 63.69,
+                                    "avg_min_temp_f": 38.83,
+                                    "avg_temp_f": 51.12,
+                                    "total_percipitation_in": 4.45,
+                                    "total_snowfall_in": 5.5
+                                },
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
+                                    "name": "OutdoorAirTemperature",
+                                    "month": 5,
+                                    "avg_max_temp_f": 75.45,
+                                    "avg_min_temp_f": 46.57,
+                                    "avg_temp_f": 61.16,
+                                    "total_percipitation_in": 0.33,
+                                    "total_snowfall_in": 0
+                                },
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
+                                    "name": "OutdoorAirTemperature",
+                                    "month": 6,
+                                    "avg_max_temp_f": 82.21,
+                                    "avg_min_temp_f": 51.36,
+                                    "avg_temp_f": 66.79,
+                                    "total_percipitation_in": 0.67,
+                                    "total_snowfall_in": 0
+                                },
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
+                                    "name": "OutdoorAirTemperature",
+                                    "month": 7,
+                                    "avg_max_temp_f": 89.3,
+                                    "avg_min_temp_f": 57.4,
+                                    "avg_temp_f": 73.35,
+                                    "total_percipitation_in": 0.01,
+                                    "total_snowfall_in": 0
+                                },
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
+                                    "name": "OutdoorAirTemperature",
+                                    "month": 8,
+                                    "avg_max_temp_f": 93.14,
+                                    "avg_min_temp_f": 60.62,
+                                    "avg_temp_f": 76.88,
+                                    "total_percipitation_in": 0.06,
+                                    "total_snowfall_in": 0
+                                },
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
+                                    "name": "OutdoorAirTemperature",
+                                    "month": 9,
+                                    "avg_max_temp_f": 87.41,
+                                    "avg_min_temp_f": 56.1,
+                                    "avg_temp_f": 71.76,
+                                    "total_percipitation_in": 0,
+                                    "total_snowfall_in": 0
+                                },
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
+                                    "name": "OutdoorAirTemperature",
+                                    "month": 10,
+                                    "avg_max_temp_f": 72.04,
+                                    "avg_min_temp_f": 44.89,
+                                    "avg_temp_f": 58.46,
+                                    "total_percipitation_in": 1.47,
+                                    "total_snowfall_in": 0
+                                },
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
+                                    "name": "OutdoorAirTemperature",
+                                    "month": 11,
+                                    "avg_max_temp_f": 56.04,
+                                    "avg_min_temp_f": 35.39,
+                                    "avg_temp_f": 45.71,
+                                    "total_percipitation_in": 5.06,
+                                    "total_snowfall_in": 6.5
+                                },
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
+                                    "name": "OutdoorAirTemperature",
+                                    "month": 12,
+                                    "avg_max_temp_f": 42.64,
+                                    "avg_min_temp_f": 29.93,
+                                    "avg_temp_f": 36.29,
+                                    "total_percipitation_in": 11.91,
+                                    "total_snowfall_in": 18.5
+                                }
+                            ]
                         },
-                        "6451fedc-65ba-43fe-21dc-098765bafedl":
+                        "6451fedc-65ba-43fe-21dc-000765bafedl":
                         {
-                            "uuid": "6451fedc-65ba-43fe-21dc-098765bafedl",
+                            "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
                             "name": "WholeBuildingPower",
                             "status": "GOOD",
                             "type": "point",
                             "sortOrder": 0,
                             "children": [],
-                            "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "points", "6451fedc-65ba-43fe-21dc-098765bafedl"]
+                            "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "points", "6451fedc-65ba-43fe-21dc-000765bafedl"],
+                            "data": [
+                                {
+                                    "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
+                                    "name": "WholeBuildingPower",
+                                    "month": 1,
+                                    "avg_max_temp_f": 44.25,
+                                    "avg_min_temp_f": 23.25,
+                                    "avg_temp_f": 33.75,
+                                    "total_percipitation_in": 0.91,
+                                    "total_snowfall_in": 2
+                                },
+                                {
+                                    "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
+                                    "name": "WholeBuildingPower",
+                                    "month": 2,
+                                    "avg_max_temp_f": 53.14,
+                                    "avg_min_temp_f": 27.9,
+                                    "avg_temp_f": 40.52,
+                                    "total_percipitation_in": 0.5,
+                                    "total_snowfall_in": 1.1
+                                },
+                                {
+                                    "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
+                                    "name": "WholeBuildingPower",
+                                    "month": 3,
+                                    "avg_max_temp_f": 61.18,
+                                    "avg_min_temp_f": 36.18,
+                                    "avg_temp_f": 48.68,
+                                    "total_percipitation_in": 2.99,
+                                    "total_snowfall_in": 0
+                                },
+                                {
+                                    "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
+                                    "name": "WholeBuildingPower",
+                                    "month": 4,
+                                    "avg_max_temp_f": 67.76,
+                                    "avg_min_temp_f": 41.24,
+                                    "avg_temp_f": 54.5,
+                                    "total_percipitation_in": 1.64,
+                                    "total_snowfall_in": 0.5
+                                },
+                                {
+                                    "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
+                                    "name": "WholeBuildingPower",
+                                    "month": 5,
+                                    "avg_max_temp_f": 73.55,
+                                    "avg_min_temp_f": 47.86,
+                                    "avg_temp_f": 60.7,
+                                    "total_percipitation_in": 2.96,
+                                    "total_snowfall_in": 0
+                                },
+                                {
+                                    "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
+                                    "name": "WholeBuildingPower",
+                                    "month": 6,
+                                    "avg_max_temp_f": 84.77,
+                                    "avg_min_temp_f": 55.1,
+                                    "avg_temp_f": 69.93,
+                                    "total_percipitation_in": 0.16,
+                                    "total_snowfall_in": 0
+                                },
+                                {
+                                    "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
+                                    "name": "WholeBuildingPower",
+                                    "month": 7,
+                                    "avg_max_temp_f": 93.69,
+                                    "avg_min_temp_f": 61.81,
+                                    "avg_temp_f": 77.75,
+                                    "total_percipitation_in": 0.02,
+                                    "total_snowfall_in": 0
+                                },
+                                {
+                                    "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
+                                    "name": "WholeBuildingPower",
+                                    "month": 8,
+                                    "avg_max_temp_f": 89.25,
+                                    "avg_min_temp_f": 55.89,
+                                    "avg_temp_f": 72.57,
+                                    "total_percipitation_in": 0,
+                                    "total_snowfall_in": 0
+                                },
+                                {
+                                    "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
+                                    "name": "WholeBuildingPower",
+                                    "month": 9,
+                                    "avg_max_temp_f": 82,
+                                    "avg_min_temp_f": 50.78,
+                                    "avg_temp_f": 66.39,
+                                    "total_percipitation_in": 0.92,
+                                    "total_snowfall_in": 0
+                                },
+                                {
+                                    "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
+                                    "name": "WholeBuildingPower",
+                                    "month": 10,
+                                    "avg_max_temp_f": 69.5,
+                                    "avg_min_temp_f": 39.5,
+                                    "avg_temp_f": 54.5,
+                                    "total_percipitation_in": 0.94,
+                                    "total_snowfall_in": 0
+                                },
+                                {
+                                    "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
+                                    "name": "WholeBuildingPower",
+                                    "month": 11,
+                                    "avg_max_temp_f": 60.32,
+                                    "avg_min_temp_f": 33.63,
+                                    "avg_temp_f": 46.97,
+                                    "total_percipitation_in": 0.73,
+                                    "total_snowfall_in": 0
+                                },
+                                {
+                                    "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
+                                    "name": "WholeBuildingPower",
+                                    "month": 12,
+                                    "avg_max_temp_f": 48.81,
+                                    "avg_min_temp_f": 24.95,
+                                    "avg_temp_f": 36.88,
+                                    "total_percipitation_in": 1.53,
+                                    "total_snowfall_in": 10.5
+                                }
+                            ]
                         }
                     },
                     "devices": {       
@@ -4660,26 +4528,269 @@ var _items = {
                                 "status": "GOOD",
                                 "type": "type",
                                 "sortOrder": _pointsOrder,
-                                "children": ["5461fedc-65ba-43fe-21dc-098765bafedl", "6451fedc-65ba-43fe-21dc-098765bafedl"],
-                                "5461fedc-65ba-43fe-21dc-098765bafedl":
+                                "children": ["5461fedc-65ba-43fe-21dc-222765bafedl", "6451fedc-65ba-43fe-21dc-11165bafedl"],
+                                "5461fedc-65ba-43fe-21dc-222765bafedl":
                                 {
-                                    "uuid": "5461fedc-65ba-43fe-21dc-098765bafedl",
+                                    "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
                                     "name": "CoolingCall",
                                     "status": "GOOD",
                                     "type": "point",
                                     "sortOrder": 0,
                                     "children": [],
-                                    "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "points", "5461fedc-65ba-43fe-21dc-098765bafedl"]
+                                    "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "points", "5461fedc-65ba-43fe-21dc-222765bafedl"],
+                                    "data": [
+                                        {
+                                            "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
+                                            "name": "CoolingCall",
+                                            "month": 1,
+                                            "avg_max_temp_f": 57.13,
+                                            "avg_min_temp_f": 31.32,
+                                            "avg_temp_f": 44.23,
+                                            "total_percipitation_in": 1.01,
+                                            "total_snowfall_in": 0
+                                        },
+                                        {
+                                            "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
+                                            "name": "CoolingCall",
+                                            "month": 2,
+                                            "avg_max_temp_f": 54.64,
+                                            "avg_min_temp_f": 34.82,
+                                            "avg_temp_f": 44.73,
+                                            "total_percipitation_in": 5.47,
+                                            "total_snowfall_in": 2
+                                        },
+                                        {
+                                            "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
+                                            "name": "CoolingCall",
+                                            "month": 3,
+                                            "avg_max_temp_f": 62.48,
+                                            "avg_min_temp_f": 37.44,
+                                            "avg_temp_f": 49.96,
+                                            "total_percipitation_in": 3.89,
+                                            "total_snowfall_in": 1
+                                        },
+                                        {
+                                            "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
+                                            "name": "CoolingCall",
+                                            "month": 4,
+                                            "avg_max_temp_f": 66.56,
+                                            "avg_min_temp_f": 40.5,
+                                            "avg_temp_f": 53.53,
+                                            "total_percipitation_in": 2.81,
+                                            "total_snowfall_in": 0
+                                        },
+                                        {
+                                            "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
+                                            "name": "CoolingCall",
+                                            "month": 5,
+                                            "avg_max_temp_f": 75.83,
+                                            "avg_min_temp_f": 46.83,
+                                            "avg_temp_f": 61.33,
+                                            "total_percipitation_in": 0.73,
+                                            "total_snowfall_in": 0
+                                        },
+                                        {
+                                            "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
+                                            "name": "CoolingCall",
+                                            "month": 6,
+                                            "avg_max_temp_f": 85.28,
+                                            "avg_min_temp_f": 53.39,
+                                            "avg_temp_f": 69.33,
+                                            "total_percipitation_in": 0.2,
+                                            "total_snowfall_in": 0
+                                        },
+                                        {
+                                            "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
+                                            "name": "CoolingCall",
+                                            "month": 7,
+                                            "avg_max_temp_f": 91,
+                                            "avg_min_temp_f": 60.93,
+                                            "avg_temp_f": 75.97,
+                                            "total_percipitation_in": 0.28,
+                                            "total_snowfall_in": 0
+                                        },
+                                        {
+                                            "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
+                                            "name": "CoolingCall",
+                                            "month": 8,
+                                            "avg_max_temp_f": 88.85,
+                                            "avg_min_temp_f": 57.8,
+                                            "avg_temp_f": 73.33,
+                                            "total_percipitation_in": 0.15,
+                                            "total_snowfall_in": 0
+                                        },
+                                        {
+                                            "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
+                                            "name": "CoolingCall",
+                                            "month": 9,
+                                            "avg_max_temp_f": 85.04,
+                                            "avg_min_temp_f": 53.5,
+                                            "avg_temp_f": 69.27,
+                                            "total_percipitation_in": 0.54,
+                                            "total_snowfall_in": 0
+                                        },
+                                        {
+                                            "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
+                                            "name": "CoolingCall",
+                                            "month": 10,
+                                            "avg_max_temp_f": 76.79,
+                                            "avg_min_temp_f": 36.18,
+                                            "avg_temp_f": 56.48,
+                                            "total_percipitation_in": 0,
+                                            "total_snowfall_in": 0
+                                        },
+                                        {
+                                            "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
+                                            "name": "CoolingCall",
+                                            "month": 11,
+                                            "avg_max_temp_f": 59.27,
+                                            "avg_min_temp_f": 33.53,
+                                            "avg_temp_f": 46.4,
+                                            "total_percipitation_in": 2.98,
+                                            "total_snowfall_in": 0
+                                        },
+                                        {
+                                            "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
+                                            "name": "CoolingCall",
+                                            "month": 12,
+                                            "avg_max_temp_f": 48.86,
+                                            "avg_min_temp_f": 32.79,
+                                            "avg_temp_f": 40.82,
+                                            "total_percipitation_in": 4.71,
+                                            "total_snowfall_in": 1.2
+                                        }
+                                    ]
                                 },
-                                "6451fedc-65ba-43fe-21dc-098765bafedl":
+                                "6451fedc-65ba-43fe-21dc-11165bafedl":
                                 {
-                                    "uuid": "6451fedc-65ba-43fe-21dc-098765bafedl",
+                                    "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
                                     "name": "CondenserFanPower",
                                     "status": "GOOD",
                                     "type": "point",
                                     "sortOrder": 0,
                                     "children": [],
-                                    "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "points", "6451fedc-65ba-43fe-21dc-098765bafedl"]
+                                    "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "points", "6451fedc-65ba-43fe-21dc-11165bafedl"],
+                                    "data": [
+                                        {
+                                            "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
+                                            "name": "CondenserFanPower",
+                                            "month": 1,
+                                            "avg_max_temp_f": 56.96,
+                                            "avg_min_temp_f": 30.39,
+                                            "avg_temp_f": 43.68,
+                                            "total_percipitation_in": 0.1,
+                                            "total_snowfall_in": 0
+                                        },
+                                        {
+                                            "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
+                                            "name": "CondenserFanPower",
+                                            "month": 2,
+                                            "avg_max_temp_f": 64.82,
+                                            "avg_min_temp_f": 36,
+                                            "avg_temp_f": 50.3,
+                                            "total_percipitation_in": 1.63,
+                                            "total_snowfall_in": 0
+                                        },
+                                        {
+                                            "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
+                                            "name": "CondenserFanPower",
+                                            "month": 3,
+                                            "avg_max_temp_f": 67.29,
+                                            "avg_min_temp_f": 38.33,
+                                            "avg_temp_f": 52.81,
+                                            "total_percipitation_in": 0.43,
+                                            "total_snowfall_in": 0
+                                        },
+                                        {
+                                            "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
+                                            "name": "CondenserFanPower",
+                                            "month": 4,
+                                            "avg_max_temp_f": 66.35,
+                                            "avg_min_temp_f": 37.73,
+                                            "avg_temp_f": 52.04,
+                                            "total_percipitation_in": 3.15,
+                                            "total_snowfall_in": 4.5
+                                        },
+                                        {
+                                            "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
+                                            "name": "CondenserFanPower",
+                                            "month": 5,
+                                            "avg_max_temp_f": 68.81,
+                                            "avg_min_temp_f": 43.96,
+                                            "avg_temp_f": 56.38,
+                                            "total_percipitation_in": 1.97,
+                                            "total_snowfall_in": 0
+                                        },
+                                        {
+                                            "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
+                                            "name": "CondenserFanPower",
+                                            "month": 6,
+                                            "avg_max_temp_f": 87.97,
+                                            "avg_min_temp_f": 57.23,
+                                            "avg_temp_f": 72.6,
+                                            "total_percipitation_in": 0.79,
+                                            "total_snowfall_in": 0
+                                        },
+                                        {
+                                            "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
+                                            "name": "CondenserFanPower",
+                                            "month": 7,
+                                            "avg_max_temp_f": 87.68,
+                                            "avg_min_temp_f": 59.71,
+                                            "avg_temp_f": 73.69,
+                                            "total_percipitation_in": 2.58,
+                                            "total_snowfall_in": 0
+                                        },
+                                        {
+                                            "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
+                                            "name": "CondenserFanPower",
+                                            "month": 8,
+                                            "avg_max_temp_f": 91.39,
+                                            "avg_min_temp_f": 58.68,
+                                            "avg_temp_f": 75.03,
+                                            "total_percipitation_in": 0.04,
+                                            "total_snowfall_in": 0
+                                        },
+                                        {
+                                            "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
+                                            "name": "CondenserFanPower",
+                                            "month": 9,
+                                            "avg_max_temp_f": 85.07,
+                                            "avg_min_temp_f": 55.86,
+                                            "avg_temp_f": 70.41,
+                                            "total_percipitation_in": 0.15,
+                                            "total_snowfall_in": 0
+                                        },
+                                        {
+                                            "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
+                                            "name": "CondenserFanPower",
+                                            "month": 10,
+                                            "avg_max_temp_f": 73.26,
+                                            "avg_min_temp_f": 46.17,
+                                            "avg_temp_f": 59.93,
+                                            "total_percipitation_in": 3.37,
+                                            "total_snowfall_in": 0
+                                        },
+                                        {
+                                            "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
+                                            "name": "CondenserFanPower",
+                                            "month": 11,
+                                            "avg_max_temp_f": 50.5,
+                                            "avg_min_temp_f": 29.36,
+                                            "avg_temp_f": 39.93,
+                                            "total_percipitation_in": 3.74,
+                                            "total_snowfall_in": 0
+                                        },
+                                        {
+                                            "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
+                                            "name": "CondenserFanPower",
+                                            "month": 12,
+                                            "avg_max_temp_f": 43.42,
+                                            "avg_min_temp_f": 24.65,
+                                            "avg_temp_f": 34.03,
+                                            "total_percipitation_in": 5.18,
+                                            "total_snowfall_in": 0
+                                        }]
                                 }
                             },
                             "devices": {    
@@ -5045,7 +5156,9 @@ platformsPanelItemsStore.getFilteredItems = function (parent, filterTerm, filter
     {
         compareFunct = function (parent, filterTerm)
         {
-            return (parent.name.indexOf(filterTerm) < 0);
+            var upperParent = parent.name.toUpperCase();
+
+            return (upperParent.indexOf(filterTerm.toUpperCase()) < 0);
         }
 
         compareTerm = filterTerm;
@@ -5229,31 +5342,9 @@ var ACTION_TYPES = require('../constants/action-types');
 var dispatcher = require('../dispatcher');
 var Store = require('../lib/store');
 
-// var _platforms = [
-//             {
-//                 "uuid": "0987fedc-65ba-43fe-21dc-098765bafedc",
-//                 "name": "PNNL",
-//                 "status": "GOOD"
-//             },
-//             {
-//                 "uuid": "2291fedc-65ba-43fe-21dc-098765bafedc",
-//                 "name": "UW",
-//                 "status": "BAD"
-//             },
-//             {
-//                 "uuid": "4837fedc-65ba-43fe-21dc-098765bafedc",
-//                 "name": "WSU",
-//                 "status": "UNKNOWN"
-//             }
-//         ];;
-
 var _expanded = null;
 
 var platformsPanelStore = new Store();
-
-// platformsPanelStore.getPlatforms = function () {
-//     return _platforms;
-// };
 
 platformsPanelStore.getExpanded = function () {
     return _expanded;

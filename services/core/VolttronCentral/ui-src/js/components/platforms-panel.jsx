@@ -211,7 +211,9 @@ function getFilteredPlatforms(filterTerm, filterStatus) {
 
             if (filteredPlatform)
             {
-                if ((filteredPlatform.children.length === 0) && (filteredPlatform.name.indexOf(filterTerm, filterStatus) < 0))
+                var upperName = filteredPlatform.name.toUpperCase();
+
+                if ((filteredPlatform.children.length === 0) && (upperName.indexOf(filterTerm.toUpperCase()) < 0))
                 {
                     filteredPlatform = null;
                 }
