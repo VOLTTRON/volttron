@@ -1,135 +1,187 @@
-'''
-Copyright (c) 2014, Battelle Memorial Institute
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-1. Redistributions of source code must retain the above copyright notice, this
-   list of conditions and the following disclaimer.
-2. Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-The views and conclusions contained in the software and documentation are those
-of the authors and should not be interpreted as representing official policies,
-either expressed or implied, of the FreeBSD Project.
-'''
-'''
-This material was prepared as an account of work sponsored by an
-agency of the United States Government.  Neither the United States
-Government nor the United States Department of Energy, nor Battelle,
-nor any of their employees, nor any jurisdiction or organization
-that has cooperated in the development of these materials, makes
-any warranty, express or implied, or assumes any legal liability
-or responsibility for the accuracy, completeness, or usefulness or
-any information, apparatus, product, software, or process disclosed
-or represents that its use would not infringe privately owned rights.
-
-Reference herein to any specific commercial product, process, or
-service by trade name, trademark, manufacturer, or otherwise does
-not necessarily constitute or imply its endorsement, recommendation,
-r favoring by the United States Government or any agency thereof,
-or Battelle Memorial Institute. The views and opinions of authors
-expressed herein do not necessarily state or reflect those of the
-United States Government or any agency thereof.
-
-PACIFIC NORTHWEST NATIONAL LABORATORY
-operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
-under Contract DE-AC05-76RL01830
-'''
-import numpy
+# Copyright (c) 2015, Battelle Memorial Institute
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in
+#    the documentation and/or other materials provided with the
+#    distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# 'AS IS' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+# The views and conclusions contained in the software and documentation
+# are those of the authors and should not be interpreted as representing
+# official policies, either expressed or implied, of the FreeBSD
+# Project.
+#
+# This material was prepared as an account of work sponsored by an
+# agency of the United States Government.  Neither the United States
+# Government nor the United States Department of Energy, nor Battelle,
+# nor any of their employees, nor any jurisdiction or organization that
+# has cooperated in the development of these materials, makes any
+# warranty, express or implied, or assumes any legal liability or
+# responsibility for the accuracy, completeness, or usefulness or any
+# information, apparatus, product, software, or process disclosed, or
+# represents that its use would not infringe privately owned rights.
+#
+# Reference herein to any specific commercial product, process, or
+# service by trade name, trademark, manufacturer, or otherwise does not
+# necessarily constitute or imply its endorsement, recommendation, or
+# favoring by the United States Government or any agency thereof, or
+# Battelle Memorial Institute. The views and opinions of authors
+# expressed herein do not necessarily state or reflect those of the
+# United States Government or any agency thereof.
+#
+# PACIFIC NORTHWEST NATIONAL LABORATORY
+# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# under Contract DE-AC05-76RL01830
 import math
-import calendar
 import datetime
+from datetime import timedelta as td, datetime as dt
 import sys
-import os
+from os.path import join, basename, splitext, isdir, isfile
+from os import makedirs
 import logging
-import itertools
-import inspect
 import csv
-from zmq.utils import jsonapi
 import dateutil.parser
-from volttron.platform.agent import BaseAgent, PublishMixin, periodic
-from volttron.platform.agent import green, utils, matching, sched
-from volttron.platform.messaging import headers as headers_mod, topics
-from input_output import result_writer, open_file, read_oae_pandas
-logging.captureWarnings(True)
+from volttron.platform.vip.agent import Agent, Core, RPC
+from volttron.platform.messaging import topics
+from volttron.platform.agent import utils
+from collections import OrderedDict
+__version__ = "2.0.0"
+NO_TREND = ['not measured', 'none']
 
 
 def passiveafdd(config_path, **kwargs):
     '''Passive fault detection application for AHU/RTU economizer systems'''
     config = utils.load_config(config_path)
-    rtu_path = dict((key, config[key])
-                    for key in ['campus', 'building', 'unit'])
+    rtu_path = OrderedDict((key, config[key])
+                           for key in ['campus', 'building', 'unit'])
+    rtu_tag = ''
+    for key in rtu_path:
+        rtu_tag += rtu_path[key] + '-'
+    device_topic = topics.DEVICES_VALUE(**rtu_path) + '/all'
     utils.setup_logging()
     _log = logging.getLogger(__name__)
     logging.basicConfig(level=logging.debug,
                         format='%(asctime)s   %(levelname)-8s %(message)s',
                         datefmt='%m-%d-%y %H:%M:%S')
 
-    class Agent(PublishMixin, BaseAgent):
+    class PassiveAFDD(Agent):
+
         def __init__(self, **kwargs):
             '''Input and initialize user configurable parameters.'''
-            super(Agent, self).__init__(**kwargs)
+            super(PassiveAFDD, self).__init__(**kwargs)
             # Agent Configuration parameters
-            self.agent_id = config.get('agentid')
-            self.aggregate_data = int(config.get("aggregate_data", 1))
-            self.matemp_missing = int(config.get("matemp_missing"))
+            self.agent_id = config.get('agentid', 'passiveafdd')
+            self.matemp = []
+            self.oatemp = []
+            self.ratemp = []
+            self.cool_call = []
+            self.compressor_status = []
+            self.heating_status = []
+            self.oa_damper = []
+            self.fan_status = []
+            self.timestamp = []
+            self.data_status = {}
+            self.first_data_scrape = True
+            self.cool_call_measured = True
+
+            # supported economizer types.
+            self.economizer_type = config.get('economizer type',
+                                              'differential_ddb').lower()
+            self.economizer_types = ['differential_ddb', 'highlimit']
+
             # Temperature sensor diagnostic thresholds
-            self.mat_low = float(config.get("mat_low", 50.0))
-            self.mat_high = float(config.get("mat_high", 90.0))
-            self.oat_low = float(config.get("oat_low", 30.0))
-            self.oat_high = float(config.get("oat_high", 120.0))
-            self.rat_low = float(config.get("rat_low", 50.0))
-            self.rat_high = float(config.get("rat_high", 90.0))
-            self.temp_sensor_threshold = (
-                float(config.get("temp_sensor_threshold", 5.0)))
-            self.temp_deadband = config.get('temp_deadband', 2.5)
+            self.mat_low = float(config.get('mat_low', 50.0))
+            self.mat_high = float(config.get('mat_high', 90.0))
+            self.oat_low = float(config.get('oat_low', 30.0))
+            self.oat_high = float(config.get('oat_high', 120.0))
+            self.rat_low = float(config.get('rat_low', 50.0))
+            self.rat_high = float(config.get('rat_high', 90.0))
+            self.temp_sensor_threshold = float(config.get('temperature sensor threshold', 5.0))
+            self.uncertainty_band = config.get('uncertainty deadband', 2.5)
+
             # Economizer diagnostic thresholds and parameters
-            self.high_limit = float(config.get("high_limit", 60.0))
-            self.economizer_type = int(config.get("economizer_type", 0))
-            self.damper_minimum = float(config.get("damper_minimum", 15.0))
-            self.minimum_oa = float(config.get("minimum_oa", 0.1))
-            self.oae2_damper_threshold = (
-                float(config.get("oae2_damper_threshold", 30.0)))
-            self.oae2_oaf_threshold = \
-                float(config.get("oae2_oaf_threshold", 0.25))
-            self.oae4_oaf_threshold = \
-                float(config.get("oae4_oaf_threshold", 0.25))
-            self.oae5_oaf_threshold = \
-                float(config.get("oae5_oaf_threshold", 0))
-            self.damper_deadband = config.get('damper_deadband', 10.0)
+            self.high_limit = float(config.get('high_limit', 60.0))
+            self.min_oa_damper = float(config.get('minimum oad command', 15.0))
+            self.minimum_oa = float(config.get('minimum oa', 10.0))
+            self.oae2_damper_threshold = float(config.get('oae2_damper_threshold', 30.0))
+            self.temperature_diff_requirement = float(config.get('temperature difference requirement', 5.0))
+            self.oae2_oaf_threshold = float(config.get('oae2_oaf_threshold', 25.0))
+            self.oae4_oaf_threshold = float(config.get('oae4_oaf_threshold', 25.0))
+            self.oae5_oaf_threshold = float(config.get('oae5_oaf_threshold', 0))
+            self.damper_deadband = config.get('oad uncertainty band', 10.0)
+
+            data_pts = config['points']
+            self.oatemp_name = data_pts['oat_point_name']
+            self.ratemp_name = data_pts['rat_point_name']
+            self.oa_damper_name = data_pts['damper_point_name']
+            self.fan_status_name = data_pts['fan_status_point_name']
+            self.matemp_name = data_pts.get('mat_point_name', 'not measured')
+            self.timestamp_name = data_pts.get('timestamp_name', 'Date')
+            self.cool_call_name = data_pts['cool_call_point_name']
+
+            self.cool_cmd_name = data_pts['cool_cmd_point_name']
+            if self.cool_call_name.lower() == 'not measured':
+                if self.cool_cmd_name.lower() == 'not measured':
+                    _log.debug('One cooling status point must be '
+                               'available for diagnostics.')
+                    sys.exit()
+                self.cool_call_name = self.cool_cmd_name
+                self.cool_call_measured = False
+
+            self.heat_cmd_name = data_pts['heat_cmd_point_name']
+            self.data_pts = data_pts.values()
+
             # RTU rated parameters (e.g., capacity)
-            self.eer = float(config.get("EER", 10))
-            tonnage = float(config.get("tonnage"))
+            self.eer = float(config.get('EER', 10))
+            tonnage = float(config.get('tonnage'))
             if tonnage:
                 self.cfm = 300*tonnage
-            self.csv_input = int(config["csv_input"])
-            # Point names for input file (CSV) or BACnet config
-            self.timestamp_name = config.get('timestamp_name')
-            self.input_file = config.get('input_file', 'CONFIG_ERROR')
-            self.oat_name = config.get('oat_point_name')
-            self.rat_name = config.get('rat_point_name')
-            self.mat_name = config.get('mat_point_name')
-            self.fan_status_name = config.get('fan_status_point_name')
-            self.cool_cmd_name = config.get('cool_cmd_name')
-            self.heat_cmd_name = config.get('heat_cmd_name')
-            self.damper_name = config.get('damper_point_name')
+
+            self.csv_input = config.get('csv_input', False)
+
             # Misc. data configuration parameters
-            self.sampling_rate = config.get('sampling_rate')
-            self.mat_missing = config.get('mixed_air_sensor_missing')
+            mat_missing = config.get('mat not measured'.lower(), [False, ''])
+            if mat_missing and self.cool_cmd_name.lower() == 'not measured':
+                _log.debug('If the mixed-air temperature is not measured then '
+                           'the units compressor command must be available.')
+                sys.exit()
+            if mat_missing and self.heat_cmd_name.lower() == 'not measured':
+                _log.debug('If the mixed-air temperature is not measured then '
+                           'the units heat command must to run diagnostic')
+            if mat_missing[0]:
+                try:
+                    self.matemp_name = mat_missing[1]
+                except:
+                    _log.debug('If the mixed-air temperature is not '
+                               'specified the discharge-air temperature '
+                               'must be available or the diagnostic '
+                               'cannot proceed.')
+                    sys.exit()
+            self.matemp_missing = mat_missing[0]
+
+            if self.heat_cmd_name.lower() in NO_TREND:
+                self.heat_cmd_name = False
+            if self.cool_cmd_name.lower() in NO_TREND:
+                self.heat_cmd_name = False
+
             # Device occupancy schedule
             sunday = config.get('Sunday')
             monday = config.get('Monday')
@@ -138,718 +190,425 @@ def passiveafdd(config_path, **kwargs):
             thursday = config.get('Thursday')
             friday = config.get('Friday')
             saturday = config.get('Saturday')
-
             self.schedule_dict = dict({0: sunday, 1: monday, 2: tuesday,
                                        3: wednesday, 4: thursday, 5: friday,
                                        6: saturday})
-            # Initialize raw data arrays used during data aggregation
-            self.oaf_raw = []
-            self.timestamp_raw = []
-            self.matemp_raw = []
-            self.oatemp_raw = []
-            self.ratemp_raw = []
-            self.cooling_raw = []
-            self.heating_raw = []
-            self.damper_raw = []
-            self.fan_status_raw = []
-            # Initialize final data arrays used during diagnostics
-            self.oaf = []
-            self.timestamp = []
-            self.matemp = []
-            self.oatemp = []
-            self.ratemp = []
-            self.cooling = []
-            self.heating = []
-            self.damper = []
-            self.fan_status = []
-            self.run_aggregate = None
-            self.names = [config.get('oat_point_name'),
-                          config.get('mat_point_name'),
-                          config.get('dat_point_name'),
-                          config.get('rat_point_name'),
-                          config.get('damper_point_name'),
-                          config.get('cool_cmd_name'),
-                          config.get('fan_status_point_name'),
-                          config.get('heat_cmd_name')]
-            self.file = config.get('input_file')
 
-        def setup(self):
+            # Create status list to that determines RTU mode of operation.
+            self.status_lst = config.get('status list')
+            self.data_status = self.data_status.fromkeys(self.status_lst, None)
+
+            input_file_name = ''
+            if self.csv_input:
+                self.input_file = config['input file']
+                input_file_name = basename(splitext(self.input_file)[0])
+            results_file_name = rtu_tag + '-' + input_file_name
+
+            output_directory = config.get('results directory', __file__)
+            if not isdir(output_directory):
+                try:
+                    makedirs(output_directory)
+                except:
+                    _log.debug('Cannot create results directory, '
+                               'check user permissions.')
+                    sys.exit()
+            i = 0
+            now = datetime.date.today()
+            file_path = join(output_directory, results_file_name + '({ts}).csv'.format(ts=now))
+            while isfile(file_path):
+                i += 1
+                file_path = join(output_directory, results_file_name + '({})-{}.csv'.format(now, i))
+            self.result_file_path = file_path
+
+        @Core.receiver('onstart')
+        def startup(self, sender, **kwargs):
+            '''Startup method.'''
+            if self.csv_input:
+                device_data = self.run_from_csv()
+                self.process_file_data(device_data)
+                return
+
+            self.vip.pubsub.subscribe(peer='pubsub',
+                                      prefix=device_topic,
+                                      callback=self.new_data)
+
+        def run_from_csv(self):
             '''Enter location for the data file if using text csv.
-
             Entry can be through file entry window using TKinter or
             through configuration file as input_file.
             '''
+            if not self.input_file:
+                _log.error('No csv file not found ...')
+                raise Exception
+            print self.input_file
+
+            if(not isfile(self.input_file)):
+                raise Exception
+
+            _, filextension = splitext(self.input_file)
+            if filextension != '.csv' and filextension != '':
+                _log.error('Input file must be a csv.')
+                raise Exception
+
+            bldg_data = self.read_oae_pandas()
+            return bldg_data
+
+        def read_oae_pandas(self):
+            '''Parse metered data for RTU or AHU and provide to diagnostic algorithms.
+            Uses panda library to efficiently parse the csv data and returns a
+            panda time-series.
+            '''
+            import pandas
+            data = pandas.read_csv(self.input_file,
+                                   error_bad_lines=False,
+                                   sep=',')
+            data = data.dropna()
+            return data
+
+        def process_file_data(self, device_data):
+            '''Format parsed data from csv file.'''
+            data = {}
+            for _, row in device_data.iterrows():
+                data[self.fan_status_name] = row[self.fan_status_name]
+                data[self.oatemp_name] = row[self.oatemp_name]
+                data[self.ratemp_name] = row[self.ratemp_name]
+                data[self.matemp_name] = row[self.matemp_name]
+                data[self.oa_damper_name] = row[self.oa_damper_name]
+                data[self.cool_call_name] = row[self.cool_call_name]
+                data[self.timestamp_name] = dateutil.parser.parse(row[self.timestamp_name])
+
+                if self.cool_cmd_name:
+                    data[self.cool_cmd_name] = row[self.cool_cmd_name]
+                if self.heat_cmd_name:
+                    data[self.heat_cmd_name] = row[self.heat_cmd_name]
+
+                if self.first_data_scrape:
+                    for key in self.data_status:
+                        self.data_status[key] = data[key]
+                    self.first_data_scrape = False
+
+                self.check_device_status(data)
+                self.update_device_status(data)
+
+        def new_data(self, peer, sender, bus, topic, headers, message):
+            '''Receive real-time device data.'''
+            _log.info('Data Received')
+            data = message[0]
+            _log.info(data)
+
+            if self.first_data_scrape:
+                for key in self.data_status:
+                    self.data_status[key] = data[key]
+                self.first_data_scrape = False
+
+            current_time_stamp = dateutil.parser.parse(headers['Date'])
+            data.update({self.timestamp_name: current_time_stamp})
+
+            self.check_device_status(data)
+            self.update_device_status(data)
+
+        def check_device_status(self, device_data):
+            '''Check if the device status has changed from last measurement.'''
+            for key, value in self.data_status.items():
+                if device_data[key] != value or (self.timestamp and device_data[self.timestamp_name].hour != self.timestamp[-1].hour):
+                    self.run_diagnostics()
+                    break
+            self.data_collector(device_data)
+
+        def update_device_status(self, device_data):
+            '''Update the device status (cooling, heating, ventilating.'''
+            for key, _ in self.data_status.items():
+                self.data_status[key] = device_data[key]
+
+        def data_collector(self, device_data):
+            '''Store data by state and timestamp.'''
+            self.oatemp.append(device_data[self.oatemp_name])
+            self.ratemp.append(device_data[self.ratemp_name])
+            self.matemp.append(device_data[self.matemp_name])
+            self.oa_damper.append(device_data[self.oa_damper_name])
+            self.cool_call.append(device_data[self.cool_call_name])
+            self.fan_status.append(device_data[self.fan_status_name])
+            self.timestamp.append(device_data[self.timestamp_name])
+
+            if self.heat_cmd_name:
+                self.heating_status.append(device_data[self.heat_cmd_name])
+            if self.cool_cmd_name:
+                self.compressor_status.append(device_data[self.cool_cmd_name])
+
+        def run_diagnostics(self):
+            '''Use aggregated data to run diagnostics.'''
+            oatemp = sum(self.oatemp)/len(self.oatemp)
+            matemp = sum(self.matemp)/len(self.matemp)
+            ratemp = sum(self.ratemp)/len(self.ratemp)
+            oa_damper = sum(self.oa_damper)/len(self.oa_damper)
+            cooling = max(self.cool_call)
+            heating = max(self.heating_status) if self.heating_status else False
+            compressor = max(self.compressor_status) if self.compressor_status else False
+            fan_status = max(self.fan_status)
+            beginning = self.timestamp[0]
+            end = self.timestamp[-1]
             try:
-                super(Agent, self).setup()
-                _log.info('Running')
-                if self.csv_input:
-                    self.file_path = open_file()
-                    if self.file_path == '':
-                        _log.info('No csv file not found ...')
-                        return
-                    if (self.file_path == 'File Selected is not a csv' or
-                       not self.file_path.endswith('.csv')):
-                        _log.info('File must be in CSV format.')
-                        return
-                    if self.file_path is None and self.input_file == "CONFIG_ERROR":
-                        _log.info(
-                            'Check configuration file and add input_file '
-                            'parameter as file path to data file')
-                        return
-                    if self.file_path is None:
-                        self.file_path = self.file
-                    self.bldg_data = read_oae_pandas(self.file_path,
-                                                     self.names)
-                    self.process_data()
+                if fan_status:
+                    oaf = [(m - r)/(o - r) for o, r, m in zip(self.oatemp,
+                                                              self.ratemp,
+                                                              self.matemp)]
+                    oaf = sum(oaf)/len(oaf)*100.0
+                else:
+                    oaf = 'OFF'
             except:
-                _log.exception('Error:' + str(sys.exc_info()[0]))
-
-        def process_data(self):
-            '''Aggregate the data based on cooling status, heating status,
-            and supply-fan status where one hour is the largest aggregated
-            interval.
-            '''
-            _log.info('Processing data')
-            timestamp = []
-            if self.csv_input:
-                timestamp_ = self.bldg_data[self.timestamp_name].tolist()
-                matemp = self.bldg_data[self.mat_name].tolist()
-                oatemp = self.bldg_data[self.oat_name].tolist()
-                ratemp = self.bldg_data[self.rat_name].tolist()
-                cooling = self.bldg_data[self.cool_cmd_name].tolist()
-                heating = self.bldg_data[self.heat_cmd_name].tolist()
-                damper = self.bldg_data[self.damper_name].tolist()
-                fan_status = self.bldg_data[self.fan_status_name].tolist()
-            else:
-                timestamp_ = self.timestamp_raw
-                matemp = self.matemp_raw
-                oatemp = self.oatemp_raw
-                ratemp = self.ratemp_raw
-                cooling = self.cooling_raw
-                heating = self.heating_raw
-                damper = self.damper_raw
-                fan_status = self.fan_status_raw
-            for item in timestamp_:
-                timestamp.append(dateutil.parser.
-                                 parse(item, fuzzy=True))
-            if self.aggregate_data:
-                temp_damper = []
-                temp_mat = []
-                temp_oat = []
-                temp_rat = []
-                for points in xrange(0, len(timestamp)-1):
-                    temp_damper.append(damper[points])
-                    temp_oat.append(oatemp[points])
-                    temp_mat.append(matemp[points])
-                    temp_rat.append(ratemp[points])
-                    if timestamp[points].hour != timestamp[points+1].hour:
-                        self.timestamp.append((timestamp[points] +
-                                              datetime.timedelta(hours=1)).
-                                              replace(minute=0))
-                        temp_oat[:] = (value for value in temp_oat
-                                       if value != 0)
-                        temp_rat[:] = (value for value in temp_rat
-                                       if value != 0)
-                        temp_mat[:] = (value for value in temp_mat
-                                       if value != 0)
-                        self.damper.append(numpy.mean(temp_damper))
-                        self.oatemp.append(numpy.mean(temp_oat))
-                        self.matemp.append(numpy.mean(temp_mat))
-                        self.ratemp.append(numpy.mean(temp_rat))
-                        self.cooling.append(cooling[points])
-                        self.fan_status.append(fan_status[points])
-                        self.heating.append(heating[points])
-                        temp_damper = []
-                        temp_mat = []
-                        temp_oat = []
-                        temp_rat = []
-
-                    elif (cooling[points+1] != cooling[points] or
-                          heating[points+1] != heating[points] or
-                          fan_status[points+1] != fan_status[points] or
-                          ((timestamp[points+1] - timestamp[points] >
-                            datetime.timedelta(minutes=self.sampling_rate)))):
-                        self.timestamp.append(timestamp[points])
-                        temp_oat[:] = (value for value in temp_oat
-                                       if value != 0)
-                        temp_rat[:] = (value for value in temp_rat
-                                       if value != 0)
-                        temp_mat[:] = (value for value in temp_mat
-                                       if value != 0)
-                        self.damper.append(numpy.mean(temp_damper))
-                        self.oatemp.append(numpy.mean(temp_oat))
-                        self.matemp.append(numpy.mean(temp_mat))
-                        self.ratemp.append(numpy.mean(temp_rat))
-                        self.cooling.append(cooling[points])
-                        self.fan_status.append(fan_status[points])
-                        self.heating.append(heating[points])
-                        temp_damper = []
-                        temp_mat = []
-                        temp_oat = []
-                        temp_rat = []
-                    if (points == len(timestamp) - 2 and not temp_oat):
-                        temp_damper.append(damper[points+1])
-                        temp_oat.append(oatemp[points+1])
-                        temp_mat.append(matemp[points+1])
-                        temp_rat.append(ratemp[points+1])
-                        self.timestamp.append(timestamp[points+1])
-                        temp_oat[:] = (value for value in temp_oat
-                                       if value != 0)
-                        temp_rat[:] = (value for value in temp_rat
-                                       if value != 0)
-                        temp_mat[:] = (value for value in temp_mat
-                                       if value != 0)
-                        self.damper.append(numpy.mean(temp_damper))
-                        self.oatemp.append(numpy.mean(temp_oat))
-                        self.matemp.append(numpy.mean(temp_mat))
-                        self.ratemp.append(numpy.mean(temp_rat))
-                        self.cooling.append(cooling[points+1])
-                        self.fan_status.append(fan_status[points+1])
-                        self.heating.append(heating[points+1])
-                        temp_damper = []
-                        temp_mat = []
-                        temp_oat = []
-                        temp_rat = []
-            else:
-                self.timestamp = timestamp
-                self.matemp = matemp
-                self.oatemp = oatemp
-                self.ratemp = ratemp
-                self.cooling = cooling
-                self.heating = heating
-                self.damper = damper
-                self.fan_status = fan_status
-            self.oaf_raw = []
-            self.timestamp_raw = []
-            self.matemp_raw = []
-            self.oatemp_raw = []
-            self.ratemp_raw = []
-            self.cooling_raw = []
-            self.heating_raw = []
-            self.damper_raw = []
-            self.fan_status_raw = []
-            self.newdata = len(self.timestamp)
-
-            def check_nan(data):
-                '''check for any nan values in data.'''
-                length = len(data)
-                for x in xrange(0, length):
-                    if math.isnan(data[x]):
-                        data[x] = -99
-                return data
-            self.newdata = len(self.timestamp)
-            self.matemp = check_nan(self.matemp)
-            self.oatemp = check_nan(self.oatemp)
-            self.ratemp = check_nan(self.ratemp)
-            self.cooling = check_nan(self.cooling)
-            self.heating = check_nan(self.heating)
-            self.damper = check_nan(self.damper)
-            self.fan_status = check_nan(self.fan_status)
-            self.oaf = self.calculate_oaf()
-            self.output_aggregate()
+                oaf = None
+            self.reinit()
             _log.info('Performing Diagnostic')
-            oae_1 = self.sensor_diagnostic()
-            oae_2 = self.economizer_diagnostic1()
-            oae_3 = self.economizer_diagnostic2()
-            oae_4 = self.excess_oa_intake()
-            oae_5 = self.insufficient_ventilation()
-            oae_6 = self.schedule_diagnostic()
-            energy_impact = self.calculate_energy_impact(oae_2, oae_3, oae_4)
-            contents = [self.timestamp, oae_1, oae_2, oae_3, oae_4, oae_5,
-                        oae_6, energy_impact, self.oaf]
-            result_writer(contents)
-            _log.info('Processing Done!')
+            oae_1 = self.sensor_diagnostic(cooling, heating, matemp, ratemp, oatemp) if fan_status else 29
+            oae_2 = self.economizer_diagnostic1(oatemp, ratemp, matemp, cooling, compressor, oa_damper, oaf) if fan_status else 39
+            oae_3 = self.economizer_diagnostic2(oatemp, ratemp, cooling, oa_damper) if fan_status else 49
+            oae_4 = self.excess_oa_intake(oatemp, ratemp, matemp, cooling, compressor, heating, oa_damper, oaf) if fan_status else 59
+            oae_5 = self.insufficient_ventilation(oatemp, ratemp, matemp, cooling, compressor, heating, oa_damper, oaf) if fan_status else 69
+            oae_6 = self.schedule_diagnostic(cooling, fan_status, end)
+            energy_impact = self.calculate_energy_impact(oae_2, oae_3, oae_4, oatemp, ratemp, matemp) if fan_status else 'OFF'
+            if oaf != 'OFF':
+                if oaf < 0:
+                    oaf = 0 if oaf > -5 else 'inconclusive'
+                if oaf > 100:
+                    oaf = 100 if oaf < 115 else 'inconclusive'
+            results = [beginning, end, oae_1, oae_2, oae_3,
+                       oae_4, oae_5, oae_6, energy_impact, oaf]
+            _log.debug('results: {}'.format(results))
+            self.result_writer(results)
 
-        def output_aggregate(self):
-            '''output_aggregate writes the results of the data
-            aggregation to file for inspection.
-            '''
-            file_path = inspect.getfile(inspect.currentframe())
-            out_dir = os.path.dirname(os.path.realpath(file_path))
-            now = datetime.date.today()
-            file_path = os.path.join(out_dir, "Aggregate_Data({ts}).csv".
-                                     format(ts=now))
+        def reinit(self):
+            self.oatemp = []
+            self.ratemp = []
+            self.matemp = []
+            self.oa_damper = []
+            self.cool_call = []
+            self.heating_status = []
+            self.compressor_status = []
+            self.timestamp = []
+            self.fan_status = []
+            self.first_data_scrape = True
+            self.data_status = self.data_status.fromkeys(self.status_lst, None)
 
-            ofile = open(file_path, 'wb')
-            x = [self.timestamp, self.oatemp, self.matemp, self.ratemp,
-                 self.damper, self.cooling, self.heating, self.fan_status]
-            outs = csv.writer(ofile, dialect='excel')
-            writer = csv.DictWriter(ofile, fieldnames=["Timestamp",
-                                                       "OutsideAirTemp",
-                                                       "MixedAirTemp",
-                                                       "ReturnAirTemp",
-                                                       "Damper",
-                                                       "CoolingStatus",
-                                                       "Heating",
-                                                       "FanStatus"],
-                                    delimiter=',')
-            writer.writeheader()
-            for row in itertools.izip_longest(*x):
-                outs.writerow(row)
-            ofile.close()
+        def sensor_diagnostic(self, cooling, heating, matemp, ratemp, oatemp):
+            '''RTU temperature sensor diagnostic.'''
+            # RAT sensor outside of expected operating range.
+            if ratemp < self.rat_low or ratemp > self.rat_high:
+                return 24
 
-        def calculate_oaf(self):
-            '''Create OAF vector for data set.'''
-            for points in xrange(0, self.newdata):
-                if (self.matemp[points] != -99 and
-                        self.oatemp[points] != -99 and
-                        self.ratemp[points] != -99 and
-                        math.fabs(self.oatemp[points] - self.ratemp[points]) >
-                        4.0 and int(self.fan_status[points]) == 1):
-                    self.oaf.append((
-                        self.matemp[points] - self.ratemp[points]) /
-                        (self.oatemp[points] - self.ratemp[points]))
-                else:
-                    self.oaf.append(int(-99))
-            return self.oaf
+            # OAT sensor outside of expected operating range.
+            if oatemp < self.oat_low or oatemp > self.oat_high:
+                return 25
 
-        def sensor_diagnostic(self):
-            oae1_result = []
-            for points in xrange(0, self.newdata):
-                if self.fan_status[points] != -99:
-                    if int(self.fan_status[points]):
-                        if (self.matemp[points] != -99 and
-                           self.ratemp[points] != -99 and
-                           self.oatemp[points] != -99):
-                            if ((int(self.matemp_missing)) and
-                               (int(self.cooling[points]) or
-                               int(self.heating[points]))):
-                                oae1_result.append(22)
-                            elif (self.matemp[points] < self.mat_low or
-                                  self.matemp[points] > self.mat_high):
-                                # Temperature sensor problem detected (fault).
-                                oae1_result.append(23)
-                            elif (self.ratemp[points] < self.rat_low or
-                                  self.ratemp[points] > self.rat_high):
-                                # Temperature sensor problem detected (fault).
-                                oae1_result.append(24)
-                            elif (self.oatemp[points] < self.oat_low or
-                                  self.oatemp[points] > self.oat_high):
-                                # Temperature sensor problem detected (fault).
-                                oae1_result.append(25)
-                            elif ((self.matemp[points] - self.ratemp[points] >
-                                  self.temp_sensor_threshold and
-                                  self.matemp[points] - self.oatemp[points] >
-                                  self.temp_sensor_threshold) or
-                                  (self.matemp[points] - self.ratemp[points] >
-                                  self.temp_sensor_threshold and
-                                  self.oatemp[points] - self.matemp[points] >
-                                  self.temp_sensor_threshold)):
-                                # Temperature sensor problem detected (fault).
-                                oae1_result.append(21)
-                            else:
-                                # No faults detected.
-                                oae1_result.append(20)
-                        else:
-                            # Missing required data for diagnostic (No fault).
-                            oae1_result.append(27)
-                    else:
-                        # Unit is off (No Fault).
-                        oae1_result.append(29)
-                else:
-                    # Missing required data for diagnostic (No fault).
-                    oae1_result.append(27)
-            return oae1_result
+            # Conditions not favorable for diagnostic.
+            if self.matemp_missing and (cooling or heating):
+                return 22
 
-        def economizer_diagnostic1(self):
-            oae2_result = []
-            for points in xrange(0, self.newdata):
-                if self.fan_status[points] != -99:
-                    if self.fan_status[points]:
-                        if (self.oaf[points] != -99 and
-                           self.cooling[points] != -99 and
-                           self.damper[points] != -99):
-                            if((self.ratemp[points] - self.oatemp[points] >
-                                self.temp_deadband and self.cooling[points] and
-                                self.economizer_type == 0.0) or
-                                (self.high_limit - self.oatemp[points] >
-                                 self.temp_deadband and self.cooling[points] and
-                                 self.economizer_type == 1.0)):
-                                if ((100.0 - self.damper[points]) <
-                                   self.oae2_damper_threshold):
-                                    if (math.fabs(
-                                            self.oatemp[points] -
-                                            self.ratemp[points]) > 5.0 and
-                                            not self.matemp_missing):
-                                        if (1.0 - self.oaf[points] <
-                                            self.oae2_oaf_threshold and
-                                           self.oaf[points] > 0 and
-                                           self.oaf[points] < 1.25):
-                                            # No fault detected.
-                                            oae2_result.append(30)
-                                        elif (1.0 - self.oaf[points] >
-                                              self.oae2_oaf_threshold and
-                                              self.oaf[points] > 0 and
-                                              self.oaf[points] < 1.25):
-                                            # OAF is too low (Fault).
-                                            oae2_result.append(32)
-                                        else:
-                                            # OAF resulted in unexpected
-                                            # value (No fault).
-                                            oae2_result.append(38)
-                                    elif not ((
-                                          self.heating[points] and
-                                          self.cooling[points]) and
-                                          math.fabs(
-                                            self.oatemp[points] -
-                                            self.ratemp[points]) > 5.0 and
-                                          self.matemp_missing):
-                                        if (
-                                            1.0 - self.oaf[points] <
-                                            self.oae2_oaf_threshold and
-                                            self.oaf[points] > 0 and
-                                                self.oaf[points] < 1.25):
-                                            oae2_result.append(30)
-                                        elif (1.0 - self.oaf[points] >
-                                              self.oae2_oaf_threshold and
-                                              self.oaf[points] > 0 and
-                                              self.oaf[points] < 1.25):
-                                            # OAF is too low when unit is
-                                            # economizing (Fault).
-                                            oae2_result.append(32)
-                                        else:
-                                            oae2_result.append(38)
-                                    else:
-                                        oae2_result.append(36)
-                                else:
-                                    # Damper is not open when conditions
-                                    # are favorable for economizing (Fault).
-                                    oae2_result.append(33)
-                            else:
-                                oae2_result.append(31)
-                        else:
-                            # Missing data (No fault).
-                            oae2_result.append(37)
-                    else:
-                        # Supply fan is off (No fault).
-                        oae2_result.append(39)
-                else:
-                    oae2_result.append(37)
-            return oae2_result
+            # MAT sensor outside of expected operating range.
+            if matemp < self.mat_low or matemp > self.mat_high:
+                return 23
 
-        def economizer_diagnostic2(self):
-            oae3_result = []
-            for points in xrange(0, self.newdata):
-                if self.fan_status[points] != -99:
-                    if self.fan_status[points]:
-                        if (self.cooling[points] != -99 and
-                           self.ratemp[points] != -99 and
-                           self.oatemp[points] != -99 and
-                           self.damper[points] != -99):
-                            if((self.oatemp[points] - self.ratemp[points] >
-                                self.temp_deadband and
-                                self.economizer_type == 0.0) or
-                                (self.oatemp[points] - self.high_limit >
-                                 self.temp_deadband and
-                                 self.economizer_type == 1.0)):
-                                if self.damper[points] <= self.damper_minimum:
-                                    # No fault detected.
-                                    oae3_result.append(40)
-                                else:
-                                    # Damper should be at minimum
-                                    # for ventilation(Fault).
-                                    oae3_result.append(41)
-                            else:
-                                # Conditions are favorable for economizing
-                                oae3_result.append(43)
-                        else:
-                            # Missing Data (No fault).
-                            oae3_result.append(47)
-                    else:
-                        # Supply fan is off (No fault).
-                        oae3_result.append(49)
-                else:
-                    # Missing data (No fault).
-                    oae3_result.append(47)
-            return oae3_result
+            # Temperature sensor problem detected.
+            if (matemp - ratemp > self.temp_sensor_threshold and
+                    matemp - oatemp > self.temp_sensor_threshold):
+                return 21
 
-        def excess_oa_intake(self):
-            oae4_result = []
-            for points in xrange(0, self.newdata):
-                if self.fan_status[points] != -99:
-                    if self.fan_status[points]:
-                        if (self.cooling[points] != -99 and
-                           self.oaf[points] != -99 and
-                           self.damper[points] != -99):
-                            if((self.oatemp[points] - self.ratemp[points] >
-                                self.temp_deadband and
-                                self.economizer_type == 0.0) or
-                                (self.oatemp[points] - self.high_limit >
-                                 self.temp_deadband and
-                                 self.economizer_type == 1.0)):
-                                if self.damper[points] <= self.damper_minimum:
-                                    if (not self.matemp_missing and
-                                       math.fabs(self.oatemp[points] -
-                                                 self.ratemp[points]) > 5.0):
-                                        if ((self.oaf[points] -
-                                           self.minimum_oa) <
-                                           self.oae4_oaf_threshold and
-                                           self.oaf[points] > 0 and
-                                           self.oaf[points] < 1.25):
-                                            # No Fault detected.
-                                            oae4_result.append(50)
-                                        elif ((self.oaf[points] -
-                                              self.minimum_oa) >
-                                                self.oae4_oaf_threshold and
-                                              self.oaf[points] > 0 and
-                                              self.oaf[points] < 1.25):
-                                            # Excess OA intake (Fault).
-                                            oae4_result.append(51)
-                                        else:
-                                            # OAF calculation resulted in an
-                                            # unexpected value (No fault).
-                                            oae4_result.append(58)
-                                    elif (not int(self.heating[points]) and
-                                          not int(self.cooling[points]) and
-                                          math.fabs(self.oatemp[points] -
-                                                    self.ratemp[points]) >
-                                          5.0 and self.matemp_missing):
-                                        if (
-                                            self.oaf[points] -
-                                            self.minimum_oa <
-                                            self.oae4_oaf_threshold and
-                                           self.oaf[points] > 0 and
-                                           self.oaf[points] < 1.25):
-                                            # No fault detected.
-                                            oae4_result.append(50)
-                                        elif ((self.oaf[points] -
-                                               self.minimum_oa) >
-                                                self.oae4_oaf_threshold and
-                                              self.oaf[points] > 0 and
-                                              self.oaf[points] < 1.25):
-                                            # The unit is bringing in excess
-                                            # OA (Fault).
-                                            oae4_result.append(51)
-                                        else:
-                                            # OAF calculation resulted in
-                                            # unexpected value (No Fault).
-                                            oae4_result.append(58)
-                                    else:
-                                        # Conditions are not favorable for OAF
-                                        # calculation (No Fault).
-                                        oae4_result.append(52)
-                                else:
-                                    # Damper is not at minimum (Fault).
-                                    oae4_result.append(53)
-                            else:
-                                # Unit may be economizing (No fault).
-                                oae4_result.append(56)
-                        else:
-                            # Missing data (No fault).
-                            oae4_result.append(57)
-                    else:
-                        # Supply fan is off (No Fault).
-                        oae4_result.append(59)
-                else:
-                    # Missing data (No fault).
-                    oae4_result.append(57)
-            return oae4_result
+            # Temperature sensor problem detected.
+            if (ratemp - matemp > self.temp_sensor_threshold and
+                    oatemp - matemp > self.temp_sensor_threshold):
+                return 21
 
-        def insufficient_ventilation(self):
-            oae5_result = []
-            for points in xrange(0, self.newdata):
-                if self.fan_status[points] != -99:
-                    if int(self.fan_status[points]):
-                        if (self.cooling[points] != -99 and
-                           self.oaf[points] != -99 and
-                           self.damper[points] != -99):
-                            if (self.damper_minimum - self.damper[points] <=
-                                    self.damper_deadband):
-                                if ((math.fabs(self.oatemp[points] -
-                                               self.ratemp[points]) > 5.0) and
-                                   not self.matemp_missing):
-                                    if ((self.minimum_oa - self.oaf[points]) >
-                                        self.oae5_oaf_threshold and
-                                       self.oaf[points] > 0 and
-                                       self.oaf[points] < 1.25):
-                                        # Unit is bringing in insufficient
-                                        # OA (Fault)
-                                        oae5_result.append(61)
-                                    elif (
-                                        self.minimum_oa - self.oaf[points] <
-                                        self.oae5_oaf_threshold and
-                                        self.oaf[points] > 0 and
-                                            self.oaf[points] < 1.25):
-                                        # No problem detected.
-                                        oae5_result.append(60)
-                                    else:
-                                        # Unexpected result for OAF calculation
-                                        # (No Fault)
-                                        oae5_result.append(68)
-                                elif (math.fabs(self.oatemp[points] -
-                                                self.ratemp[points]) > 5.0 and
-                                      self.matemp_missing and not
-                                      int(self.cooling[points]) and
-                                      int(self.heating[points])):
-                                    if ((self.minimum_oa - self.oaf[points]) >
-                                        self.oae5_oaf_threshold and
-                                       self.oaf[points] > 0 and
-                                       self.oaf[points] < 1.25):
-                                        oae5_result.append(61)
-                                    # Insufficient OA (Fault)
-                                    elif ((self.minimum_oa -
-                                           self.oaf[points]) <
-                                          self.oae5_oaf_threshold and
-                                          self.oaf[points] > 0 and
-                                          self.oaf[points] < 1.25):
-                                        oae5_result.append(60)  # No Fault
-                                    else:
-                                        # Unexpected result for OAF calculation
-                                        # (No Fault).
-                                        oae5_result.append(68)
-                                else:
-                                    # Conditions are not favorable for
-                                    # OAF calculation (No Fault).
-                                    oae5_result.append(62)
-                            else:
-                                # Damper is significantly below the minimum
-                                # damper set point (Fault)
-                                oae5_result.append(63)
-                        else:
-                            # Missing required data (No fault)
-                            oae5_result.append(67)
-                    else:
-                        # Unit is off (No fault).
-                        oae5_result.append(69)
-                else:
-                    oae5_result.append(67)  # Missing data (No Fault)
-            return oae5_result
+            return 20
 
-        def schedule_diagnostic(self):
-            oae6_result = []
-            for points in xrange(0, self.newdata):
-                if (self.fan_status[points] != -99 and
-                   self.cooling[points] != -99):
-                    if (int(self.fan_status[points]) or
-                       int(self.cooling[points])):
-                        day = self.timestamp[points].weekday()
-                        sched = self.schedule_dict[day]
-                        start = int(sched[0])
-                        end = int(sched[1])
-                        if (self.timestamp[points].hour < start or
-                           self.timestamp[points].hour > end):
-                            oae6_result.append(71)
-                        else:
-                            oae6_result.append(70)
-                    else:
-                        oae6_result.append(70)
-                else:
-                    oae6_result.append(77)
-            return oae6_result
+        def economizer_diagnostic1(self, oatemp, ratemp, matemp, cooling,
+                                   compressor, oa_damper, oaf):
+            # unit is not cooling.
+            if not cooling:
+                return 31
 
-        def calculate_energy_impact(self, oae_2, oae_3, oae_4):
-            energy_impact = []
-            month_abbr = {k: v for k, v in enumerate(calendar.month_abbr)}
-            if not self.matemp_missing:
-                for points in xrange(0, self.newdata):
-                    if oae_2[points] == 32 or oae_2[points] == 33:
-                        energy_impact.append(
-                            1.08*self.cfm*(self.matemp[points] -
-                                           self.oatemp[points]) /
-                            (1000*self.eer))
-                    elif (oae_3[points] == 41 or oae_4[points] == 51 or
-                          oae_4[points] == 53 and
-                          self. oatemp[points] > self.matemp[points]):
-                        ei = 1.08*self.cfm/(1000*self.eer)
-                        ei = ei*(self.matemp[points] - (self.oatemp[points] *
-                                                        self.minimum_oa +
-                                                        self.ratemp[points] *
-                                                        (1 - self.minimum_oa)))
-                        energy_impact.append(ei)
-                    elif (oae_3[points] == 41 or oae_4[points] == 51 or
-                          oae_4[points] == 53 and
-                          self. oatemp[points] > self.matemp[points]):
-                        ei = (1.08*(
-                            self.oatemp[points]*self.minimum_oa +
-                            self.ratemp[points]*(1 - self.minimum_oa)) -
-                            self.cfm*(self.matemp[points])/(1000*self.eer))
-                        energy_impact.append(ei)
-                    else:
-                        energy_impact.append(0)
-                    if energy_impact[points] < 0:
-                        energy_impact[points] = 0
+            # economizer_type is not properly configured.
+            if self.economizer_type not in self.economizer_types:
+                return 32
+
+            if self.economizer_type == 'differential_ddb':
+                # Outdoor conditions are not conducive to diagnostic.
+                if ratemp - oatemp < self.uncertainty_band:
+                    return 33
+
+            if self.economizer_type == 'highlimit':
+                # Outdoor conditions are not conducive to diagnostic.
+                if self.high_limit - oatemp < self.uncertainty_band:
+                    return 33
+
+            # Outdoor damper is not open fully to utilize economizing.
+            if 100.0 - oa_damper > self.oae2_damper_threshold:
+                return 34
+
+            # OAT and RAT  are too close for conclusive diagnostic.
+            if math.fabs(oatemp - ratemp) < self.temperature_diff_requirement:
+                return 35
+
+            # MAT sensor is not measured and mechanical cooling is ON.
+            # OA damper is open for economizing (NF).
+            if self.matemp_missing and compressor:
+                return 35
+
+            # OAF calculation resulted in an unexpected value.
+            if oaf is None or oaf < - 0.1 or oaf > 125:
+                return 36
+
+            # OAF is too low.
+            if 100.0 - oaf > self.oae2_oaf_threshold:
+                return 32
+            return 30
+
+        def economizer_diagnostic2(self, oatemp, ratemp, cooling, oa_damper):
+            '''Unit is cooling.'''
+            if cooling or not self.cool_call_measured:
+                if self.economizer_type not in self.economizer_types:
+                    return 41
+
+                if self.economizer_type == 'differential_ddb':
+                    if oatemp - ratemp < self.uncertainty_band:
+                        return 42
+
+                if self.economizer_type == 'highlimit':
+                    if oatemp - self.hightlimit < self.uncertainty_band:
+                        return 42
+
+            if oa_damper > self.min_oa_damper*1.25:
+                return 43
+
+            return 40
+
+        def excess_oa_intake(self, oatemp, ratemp, matemp, cooling,
+                             compressor, heating, oa_damper, oaf):
+            if cooling or not self.cool_call_measured:
+                # econmozier_type is not properly configured.
+                if self.economizer_type not in self.economizer_types:
+                    return 51
+
+                if self.economizer_type == 'differential_ddb':
+                    # Outdoor conditions are not conducive to diagnostic.
+                    if oatemp - ratemp < self.uncertainty_band:
+                        return 52
+
+                if self.economizer_type == 'highlimit':
+                    # Outdoor conditions are not conducive to diagnostic.
+                    if oatemp - self.high_limit < self.uncertainty_band:
+                        return 52
+
+            # Outdoor damper is not open fully to utilize economizing.
+            if oa_damper > self.min_oa_damper*1.25:
+                return 53
+
+            # OAT and RAT  are too close for conclusive diagnostic.
+            if math.fabs(oatemp - ratemp) < self.temperature_diff_requirement:
+                return 54
+
+            # MAT sensor is not measured and mechanical cooling/heating is ON.
+            if self.matemp_missing and (compressor or heating):
+                return 54
+
+            # OAF calculation resulted in an unexpected value.
+            if oaf is None or oaf < -0.1 or oaf > 125:
+                return 55
+
+            # Unit is brining in excess OA.
+            if oaf > self.minimum_oa*1.25:
+                return 56
+
+            # No problems detected.
+            return 50
+
+        def insufficient_ventilation(self, oatemp, ratemp, matemp, cooling,
+                                     compressor, heating, oa_damper, oaf):
+            # Damper is significantly below the minimum damper set point (F).
+            if self.min_oa_damper - oa_damper > self.damper_deadband:
+                return 61
+
+            # Conditions are not favorable for OAF calculation (No Fault).
+            if math.fabs(oatemp - ratemp) < self.temperature_diff_requirement:
+                return 62
+
+            # Unexpected result for OAF calculation (No Fault).
+            if oaf is None or oaf < -0.1 or oaf > 125:
+                return 68
+
+            # MAT sensor is not measured and mechanical cooling/heating is ON.
+            if self.matemp_missing and (compressor or heating):
+                return 62
+
+            # Unit is bringing in insufficient OA (Fault)
+            if self.minimum_oa - oaf > self.oae5_oaf_threshold:
+                return 61
+
+            return 60
+
+        def schedule_diagnostic(self, cooling, fan_status, end_time):
+            '''Simple Schedule diagnostic.'''
+            if cooling or fan_status:
+                day = end_time.weekday()
+                sched = self.schedule_dict[day]
+                start = int(sched[0])
+                end = int(sched[1])
+                if end_time.hour < start or end_time.hour > end:
+
+                    return 71
+            return 70
+
+        def calculate_energy_impact(self, oae_2, oae_3, oae_4, oatemp, ratemp, matemp):
+            '''Estimate energy impact.'''
+            energy_impact = None
+
+            if oae_2 == 32 or oae_2 == 33 and matemp > oatemp:
+                energy_impact = (1.08*self.cfm*(matemp - oatemp)/(1000*self.eer))
+
+            if oae_3 == 41 or oae_4 == 51 or oae_4 == 53 and oatemp > matemp:
+
+                ei = 1.08*self.cfm/(1000*self.eer)
+                ei = ei*(matemp - (oatemp*self.minimum_oa + ratemp*(1 - self.minimum_oa)))
+                energy_impact = ei if ei > energy_impact else energy_impact
+
+            if energy_impact is None or energy_impact < 0:
+                energy_impact = 'inconclusive'
             return energy_impact
 
-        @matching.match_exact(topics.DEVICES_VALUE(point='all', **rtu_path))
-        def datahandler(self, topic, header, message, match):
-            '''Subscribes to data and assembles raw data arrays.
-
-            data_handler subscribes to a device or simulated device on the
-            message bus and assembles the array (lists) of data to be
-            aggregated for analysis.
+        def result_writer(self, contents):
+            '''Data is aggregated into hourly or smaller intervals based on compressor
+            status, heating status, and supply fan status for analysis.
+            result_writer receives the diagnostic results and associated energy
+            impact and writes the values to csv.
             '''
-            data = jsonapi.loads(message[0])
-            _log.info('Getting Data from message bus')
-            publisher_id = header.get('AgentID', 0)
-            if ((self.run_aggregate is False or
-               self.run_aggregate is None) and
-               publisher_id != 'publisher'):
-                _log.info('Real-time device data.')
-                self.run_aggregate = True
-                event_time = (datetime.datetime.now().
-                              replace(hour=0, minute=0, second=0) +
-                              datetime.timedelta(days=1))
-                event = sched.Event(self.process_data)
-                self.schedule(event_time, event)
-                self.oaf_raw = []
-                self.timestamp_raw = []
-                self.matemp_raw = []
-                self.oatemp_raw = []
-                self.ratemp_raw = []
-                self.cooling_raw = []
-                self.heating_raw = []
-                self.damper_raw = []
-                self.fan_status_raw = []
-            elif publisher_id == 'publisher':
-                _log.info('Simulated device data.')
-                if self.run_aggregate is None:
-                    self.prev_time = dateutil.parser.parse(
-                        data[self.timestamp_name]
-                    )
-                self.run_aggregate = True
-                time = dateutil.parser.parse(data[self.timestamp_name],
-                                             fuzzy=True)
-                time_delta = time - self.prev_time
-                time_check = time + time_delta
-                self.timestamp_raw.append(time)
-                self.fan_status_raw.append(data[self.fan_status_name])
-                self.cooling_raw.append(data[self.coolcmd1_name])
-                self.heating_raw.append(data[self.heat_cmd1_name])
-                self.damper_raw.append(data[self.damper_name])
-                self.oatemp_raw.append(data[self.oat_name])
-                self.ratemp_raw.append(data[self.rat_name])
-                self.matemp_raw.append(data[self.mat_name])
-                if time.day < time_check.day:
-                    self.timestamp_raw.append(time_check)
-                    self.process_data()
-                    self.oaf_raw = []
-                    self.timestamp_raw = []
-                    self.oatemp_raw = []
-                    self.ratemp_raw = []
-                    self.cooling_raw = []
-                    self.heating_raw = []
-                    self.damper_raw = []
-                    self.fan_status_raw = []
-                self.prev_time = time
-            if publisher_id != 'publisher':
-                self.timestamp_raw.append(datetime.datetime.now())
-                self.fan_status_raw.append(data[self.fan_status_name])
-                self.cooling_raw.append(data[self.coolcmd1_name])
-                self.heating_raw.append(data[self.heat_cmd1_name])
-                self.damper_raw.append(data[self.damper_name])
-                self.oatemp_raw.append(data[self.oat_name])
-                self.ratemp_raw.append(data[self.rat_name])
-                self.matemp_raw.append(data[self.mat_name])
+            try:
+                if not isfile(self.result_file_path):
+                    ofile = open(self.result_file_path, 'a+')
+                    outs = csv.writer(ofile, dialect='excel')
+                    writer = csv.DictWriter(ofile, fieldnames=['Beginning',
+                                                               'End', 'OAE1',
+                                                               'OAE2', 'OAE3',
+                                                               'OAE4', 'OAE5',
+                                                               'OAE6',
+                                                               'Energy_Impact',
+                                                               'OAF'],
+                                            delimiter=',')
+                    writer.writeheader()
+                else:
+                    ofile = open(self.result_file_path, 'a+')
+                outs = csv.writer(ofile, dialect='excel')
+                outs.writerow(contents)
+                ofile.close()
+            except IOError:
+                print('Output error please close results file and rerun.')
+                return
 
-    Agent.__name__ = 'passiveafdd'
-    return Agent(**kwargs)
+    return PassiveAFDD(**kwargs)
 
 
 def main(argv=sys.argv):
-    '''Main method called by the eggsecutable.'''
-    utils.default_main(passiveafdd,
-                       description='VOLTTRON passive AFDD',
-                       argv=argv)
+    '''Main method called to start the agent.'''
+    utils.vip_main(passiveafdd)
+
+
 if __name__ == '__main__':
     # Entry point for script
     try:

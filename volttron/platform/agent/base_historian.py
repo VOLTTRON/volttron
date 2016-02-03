@@ -471,10 +471,13 @@ class BackupDatabase:
                 self._backup_cache[topic_id] = topic
                 self._backup_cache[topic] = topic_id
 
+            meta_dict = self._meta_data[(source,topic_id)]
             for name, value in meta.iteritems():
-                c.execute('''INSERT OR REPLACE INTO metadata values(?, ?, ?, ?)''',
-                            (source,topic_id,name,value))
-                self._meta_data[(source,topic_id)][name] = value
+                current_meta_value = meta_dict.get(name)
+                if current_meta_value != value:
+                    c.execute('''INSERT OR REPLACE INTO metadata values(?, ?, ?, ?)''',
+                                (source,topic_id,name,value))
+                    meta_dict[name] = value
 
             for timestamp, value in values:
                 c.execute('''INSERT OR REPLACE INTO outstanding values(NULL, ?, ?, ?, ?)''',
