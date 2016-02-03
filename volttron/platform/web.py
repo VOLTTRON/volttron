@@ -120,23 +120,20 @@ class MasterWebService(Agent):
             'REQUEST_METHOD', 'SERVER_PROTOCOL']
         passenv = dict((envlist[i], env[envlist[i]]) for i in range(0, len(envlist)))
         for k, t, v in self.registeredroutes:
-            _log.debug("pattern: {}, path_info: {}\n v: {}".format(k.pattern, path_info, v))
-
             if k.match(path_info):
-                if t == 'peer_route':
+                _log.debug("MATCHED:\npattern: {}, path_info: {}\n v: {}"
+                    .format(k.pattern, path_info, v))
+                if t == 'callable': # Generally for locally called items.
+                    return v(env, start_response)
+                elif t == 'peer_route': # RPC calls from agents on the platform.
                     peer, fn = (v[0], v[1])
                     res = self.vip.rpc.call(peer, fn, passenv).get(timeout=4)
-                    _log.debug('RES is {}'.format(res))
                     start_response('200 OK', [('Content-Type', 'application/json')])
-                    return [res]
-                else:
-                    _log.debug('V is: {} MATCHED: {}'.format(v, k.pattern))
+                    return res
+                elif t == 'path': # File service from agents on the platform.
                     server_path = v + path_info #os.path.join(v, path_info)
-                    _log.debug("SERVER_PATH: {}".format(server_path))
                     return self._sendfile(env, start_response, server_path)
 
-                    #start_response('200 OK', [('Content-Type', 'text/html')])
-                    #return [b'{}'.format(env)]
 
         start_response('404 Not Found', [('Content-Type', 'text/html')])
         return [b'<h1>Not Found</h1>']
@@ -154,7 +151,7 @@ class MasterWebService(Agent):
 
         if not guess:
             guess = 'text/plain'
-    
+
         response_headers = [
             ('Content-type', guess),
         ]
@@ -169,5 +166,6 @@ class MasterWebService(Agent):
             self._get_serverkey))
         self.registeredroutes.append((re.compile('^/$'), 'callable',
             self._redirect_index))
+
         self.server = pywsgi.WSGIServer(('0.0.0.0', 8080), self.app_routing)
         self.server.serve_forever()
