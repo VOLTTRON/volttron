@@ -34,5 +34,8 @@ module.exports = keyMirror({
     RECEIVE_POINT_STATUSES: null,
     RECEIVE_BUILDING_STATUSES: null,
 
+    ADD_TO_GRAPH: null,
+    REMOVE_FROM_GRAPH: null,
+
     RECEIVE_PLATFORM_TOPIC_DATA: null,
 });

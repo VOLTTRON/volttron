@@ -10,11 +10,14 @@ var PlatformsPanelItem = React.createClass({
     getInitialState: function () {
         var state = {};
         
-        state.expanded = null;
+        state.expanded = (this.props.panelItem.hasOwnProperty("expanded") ? this.props.panelItem.expanded : null);
+
         state.showTooltip = false;
         state.tooltipX = null;
         state.tooltipY = null;
         state.keepTooltip = false;
+        state.expandedChildren;
+        state.checked = false;
 
         state.children = getChildrenFromStore(this.props.panelItem, this.props.itemPath);
 
@@ -24,7 +27,10 @@ var PlatformsPanelItem = React.createClass({
         platformsPanelItemsStore.addChangeListener(this._onStoresChange);
     },
     componentWillMount: function () {
-        platformsPanelActionCreators.loadChildren(this.props.panelItem.type, this.props.panelItem);
+        if (!this.props.hasOwnProperty("children"))
+        { 
+            platformsPanelActionCreators.loadChildren(this.props.panelItem.type, this.props.panelItem);
+        }
     },
     componentWillUnmount: function () {
         platformsPanelItemsStore.removeChangeListener(this._onStoresChange);
@@ -35,12 +41,50 @@ var PlatformsPanelItem = React.createClass({
 
         this.setState({children: children});
     },
+    _expandAll : function () {
+        var expandedOn = ((this.state.expanded === null) ? true : !this.state.expanded);
+
+        // this.setState({expandedOn: expandedOn});
+        this.setState({expanded: expandedOn});
+        
+        this.setState({expandedChildren: expandAllChildren(expandedOn, this.props.panelItem)});
+    },
+    _checkItem: function (e) {
+
+        var checked = e.target.checked;
+
+        this.setState({checked: checked});
+
+        if (checked)
+        {
+            platformsPanelActionCreators.addToGraph(this.props.panelItem);
+        }
+        else
+        {
+            platformsPanelActionCreators.removeFromGraph(this.props.panelItem);
+        }
+    },
     _toggleItem: function () {
 
         if (this.state.children.length > 0)
         {
             this.setState({expanded: !this.state.expanded});
         }
+        else
+        {
+            if (this.props.hasOwnProperty("children"))
+            {
+                if (this.state.expanded === null)
+                {
+                    this.setState({expanded: !this.props.panelItem.expanded});
+                }
+                else
+                {
+                    this.setState({expanded: !this.state.expanded});
+                }
+            }
+        }
+        
     },
     _showTooltip: function (evt) {
         this.setState({showTooltip: true});
@@ -67,7 +111,13 @@ var PlatformsPanelItem = React.createClass({
         var items;
         var children;
 
-        var propChildren = this.props.children;
+        var propChildren = this.state.expandedChildren;
+
+        if (typeof propChildren === "undefined" || propChildren === null)
+        {
+            propChildren = this.props.children;
+        }
+
         var filterTerm = this.props.filter;
 
         var itemClasses;
@@ -86,8 +136,6 @@ var PlatformsPanelItem = React.createClass({
             left: this.state.tooltipX + "px"
         };
 
-        // var childrenItems = [];
-
         arrowClasses.push( ((panelItem.status === "GOOD") ? "status-good" :
                                 ( (panelItem.status === "BAD") ? "status-bad" : 
                                     "status-unknown")) );
@@ -104,77 +152,60 @@ var PlatformsPanelItem = React.createClass({
         }
         else
         {
-            arrowContent = <i className="fa fa-square"></i>;
+            arrowContent = <span>&#9644;</span>;
         }
-
-        // if (propChildren.length > 0)
-        // {
-        //     arrowClasses.push("rotateDown");
-        //     itemClasses = "showItems";
-
-        //     items = propChildren
-        //         .filter(function (item) {
-        //             return (item.name.indexOf(this) > -1);
-        //         }, filterTerm) 
-        //         .sort(function (a, b) {
-        //             if (a.name.toLowerCase() > b.name.toLowerCase()) { return 1; }
-        //             if (a.name.toLowerCase() < b.name.toLowerCase()) { return -1; }
-        //             return 0;
-        //         })
-        //         .map(function (item) {
-
-        //             return (
-
-        //                 <PlatformsPanelItem panelItem={item} children={childrenItems}/>
+        
+        if (typeof propChildren !== "undefined" && propChildren !== null)
+        {   
+            if (this.state.expanded || this.props.panelItem.expanded === true)
+            {
+                children = propChildren
+                    .sort(function (a, b) {
+                        if (a.name.toUpperCase() > b.name.toUpperCase()) { return 1; }
+                        if (a.name.toUpperCase() < b.name.toUpperCase()) { return -1; }
+                        return 0;
+                    })
+                    .sort(function (a, b) {
+                        if (a.sortOrder > b.sortOrder) { return 1; }
+                        if (a.sortOrder < b.sortOrder) { return -1; }
+                        return 0;
+                    })
+                    .map(function (propChild) {
                         
-        //             );
-        //         }, this);
-        // }
-        // else 
+                        var grandchildren = [];
+                        propChild.children.forEach(function (childString) {
+                            grandchildren.push(propChild[childString]);
+                        });
 
-        var listItem;
+                        return (
+                            <PlatformsPanelItem panelItem={propChild} itemPath={propChild.path} children={grandchildren}/>
+                        );
+                    }); 
 
-        if (!panelItem.hasOwnProperty("uuid"))
-        {
-            listItem = <div>
-                            <b>
-                                {panelItem.name}
-                            </b>
-                        </div>;
+                if (children.length > 0)
+                {
+                    var classIndex = arrowClasses.indexOf("noRotate");
+                    
+                    if (classIndex > -1)
+                    {
+                        arrowClasses.splice(classIndex, 1);
+                    }
+
+                    arrowClasses.push("rotateDown");
+                    itemClasses = "showItems";                    
+                }          
+            }
         }
         else
         {
-            listItem = <div className="platform-link">
-                        <Router.Link
-                            to="platform"
-                            params={{uuid: panelItem.uuid}}
-                        >
-                        {panelItem.name}
-                        </Router.Link>
-                    </div>;            
-        }
-        
-
-        if (this.state.expanded !== null)
-        {
-            var classIndex = arrowClasses.indexOf("noRotate");
-            if (classIndex > -1)
-            {
-                arrowClasses.splice(classIndex, 1);
-            }
-
-            arrowClasses.push(this.state.expanded ? "rotateDown" : "rotateRight");
-
-            if (this.state.expanded)
-            {                
-                if (this.state.children)
-                {
-                    itemClasses = "showItems";
-
-                    var childItems = this.state.children;
-                    
-                    if (childItems.length > 0)
+            if (this.state.expanded !== null)
+            {                   
+                if (this.state.expanded)
+                {                
+                    if (this.state.children !== null)
                     {
+                        var childItems = this.state.children;
+                        
                         children = childItems
                             .sort(function (a, b) {
                                 if (a.name.toUpperCase() > b.name.toUpperCase()) { return 1; }
@@ -190,16 +221,56 @@ var PlatformsPanelItem = React.createClass({
                                 return (
                                     <PlatformsPanelItem panelItem={child} itemPath={child.path}/>
                                 );}, this);
+
+                        if (children.length > 0)
+                        {
+                            itemClasses = "showItems";
+
+                            var classIndex = arrowClasses.indexOf("noRotate");
+                            
+                            if (classIndex > -1)
+                            {
+                                arrowClasses.splice(classIndex, 1);
+                            }
+
+                            arrowClasses.push("rotateDown");
+                        }                            
+                    }
+                }
+                else
+                {
+                    if (this.state.children) 
+                    {
+                        itemClasses = "hideItems";
+
+                        arrowClasses.push("rotateRight");
                     }
                 }
             }
-            else
-            {
-                if (this.state.children) 
-                {
-                    itemClasses = "hideItems";
-                }
-            }
+        }
+
+        var listItem;
+
+        if (!panelItem.hasOwnProperty("uuid"))
+        {
+            listItem = 
+                <div>
+                    <b>
+                        {panelItem.name}
+                    </b>
+                </div>;
+        }
+        else
+        {
+            listItem = 
+                <div className="platform-link">
+                    <Router.Link
+                        to="graphs"
+                        params={{uuid: panelItem.uuid}}
+                    >
+                    {panelItem.name}
+                    </Router.Link>
+                </div>;            
         }
 
         return (
@@ -209,14 +280,16 @@ var PlatformsPanelItem = React.createClass({
             >
                 <div className="platform-info">
                     <div className={arrowClasses.join(' ')}
+                        onDoubleClick={this._expandAll}
                         onClick={this._toggleItem}>
                         {arrowContent}
                         </div>  
                     <input className={checkboxClass}
                         style={checkboxStyle}
                         type="checkbox"
-                        onClick={this._checkItem}></input>                    
-                    <div style={tooltipStyle}>
+                        onChange={this._checkItem}></input>                    
+                    <div className="tooltip_outer" 
+                        style={tooltipStyle}>
                         <div className="tooltip_inner">
                             {panelItem.uuid}
                         </div>
@@ -241,11 +314,18 @@ var PlatformsPanelItem = React.createClass({
     },
 });
 
-// function getChildren(parent, parentPath)
-// {
-//     return getItemsFromStore(parent, parentPath);
-// }
+function expandAllChildren(expandOn, parent)
+{
+    var expandedParent = platformsPanelItemsStore.getExpandedChildren(expandOn, parent);
+    var expandedChildren = [];
 
+    expandedParent.children.forEach(function(childString) {
+        expandedChildren.push(expandedParent[childString]);
+    })
+
+    return expandedChildren;
+
+}
 
 function getChildrenFromStore(parentItem, parentPath) {
     return platformsPanelItemsStore.getItems(parentItem, parentPath);

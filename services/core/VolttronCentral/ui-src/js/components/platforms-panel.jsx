@@ -12,7 +12,8 @@ var PlatformsPanelItem = require('./platforms-panel-item');
 var PlatformsPanel = React.createClass({
     getInitialState: function () {
         var state = {};
-        state.platforms = [];   
+        state.platforms = [];  
+        state.filteredPlatforms = null;   
         state.expanded = getExpandedFromStore();
         state.filterValue = "";
 
@@ -22,26 +23,52 @@ var PlatformsPanel = React.createClass({
         platformsPanelActionCreators.loadPanelPlatforms();
     },
     componentDidMount: function () {
-        platformsPanelStore.addChangeListener(this._onStoresChange);
+        platformsPanelStore.addChangeListener(this._onPanelStoreChange);
+        platformsPanelItemsStore.addChangeListener(this._onPanelItemsStoreChange);
     },
     componentWillUnmount: function () {
-        platformsPanelStore.removeChangeListener(this._onStoresChange);
+        platformsPanelStore.removeChangeListener(this._onPanelStoreChange);
+        platformsPanelItemsStore.removeChangeListener(this._onPanelItemsStoreChange);
     },
-    _onStoresChange: function () {
-        this.setState({platforms: getPlatformsFromStore()});
-        this.setState({expanded: getExpandedFromStore()});
+    _onPanelStoreChange: function () {
+        var expanded = getExpandedFromStore();
+
+        this.setState({expanded: expanded});
+
+        if (expanded !== null)
+        {
+            this.setState({platforms: getPlatformsFromStore()});
+        }
+    },
+    _onPanelItemsStoreChange: function () {
+        if (this.state.expanded !== null)
+        {
+            this.setState({platforms: getPlatformsFromStore()});
+        }
     },
     _onFilterBoxChange: function (e) {
         this.setState({ filterValue: e.target.value });
+        this.setState({ filteredPlatforms: getFilteredPlatforms(e.target.value, "") });
     },
-    _filterItems: function (e) {
-
+    _onFilterGood: function (e) {
+        this.setState({ filteredPlatforms: getFilteredPlatforms("", "GOOD") });
+    },
+    _onFilterBad: function (e) {
+        this.setState({ filteredPlatforms: getFilteredPlatforms("", "BAD") });
+    },
+    _onFilterUnknown: function (e) {
+        this.setState({ filteredPlatforms: getFilteredPlatforms("", "UNKNOWN") });
+    },
+    _onFilterOff: function (e) {
+        this.setState({ filteredPlatforms: getFilteredPlatforms("", "") });
     },
     _togglePanel: function () {
         platformsPanelActionCreators.togglePanel();
     },
     render: function () {
         var platforms;
+        var filteredPlatforms = this.state.filteredPlatforms;
+
         var classes = (this.state.expanded === null ? 
                         "platform-statuses platform-collapsed" : 
                         (this.state.expanded ? 
@@ -57,10 +84,8 @@ var PlatformsPanel = React.createClass({
         };
 
         var filterBoxContainer = {
-            textAlign: "center"
+            textAlign: "left"
         };
-
-        var filterTerm = this.state.filterValue;
 
         if (!this.state.platforms) {
             platforms = (
@@ -70,24 +95,43 @@ var PlatformsPanel = React.createClass({
             platforms = (
                 <p>No platforms found.</p>
             );
-        } else {
-            platforms = this.state.platforms
-                .filter(function (platform) {
-                    return ((platform.name.indexOf(this) > -1) || (this === "") || filteredChildren(platform, this).length > 0);
-                }, filterTerm)                
-                .sort(function (a, b) {
-                    if (a.name.toUpperCase() > b.name.toUpperCase()) { return 1; }
-                    if (a.name.toUpperCase() < b.name.toUpperCase()) { return -1; }
-                    return 0;
-                })
-                .map(function (platform) {
-
-                    return (
-
-                        <PlatformsPanelItem panelItem={platform} itemPath={platform.path} children={filteredChildren(platform, filterTerm)} filter={filterTerm}/>
+        } 
+        else 
+        {
+            if (filteredPlatforms !== null)
+            {
+                platforms = filteredPlatforms
+                    .sort(function (a, b) {
+                        if (a.name.toUpperCase() > b.name.toUpperCase()) { return 1; }
+                        if (a.name.toUpperCase() < b.name.toUpperCase()) { return -1; }
+                        return 0;
+                    })
+                    .map(function (filteredPlatform) {
                         
-                    );
-                }, this);
+                        var children = [];
+                        filteredPlatform.children.forEach(function (childString) {
+                            children.push(filteredPlatform[childString]);
+                        });
+
+                        return (
+                            <PlatformsPanelItem panelItem={filteredPlatform} itemPath={filteredPlatform.path} children={children}/>
+                        );
+                });
+            }
+            else
+            {
+                platforms = this.state.platforms
+                    .sort(function (a, b) {
+                        if (a.name.toUpperCase() > b.name.toUpperCase()) { return 1; }
+                        if (a.name.toUpperCase() < b.name.toUpperCase()) { return -1; }
+                        return 0;
+                    })
+                    .map(function (platform) {
+                        return (
+                            <PlatformsPanelItem panelItem={platform} itemPath={platform.path}/>
+                        );
+                    });
+            }
         }
 
         return (
@@ -96,13 +140,39 @@ var PlatformsPanel = React.createClass({
                     onClick={this._togglePanel}>{ this.state.expanded ? '\u25c0' : '\u25b6' }</div>
                 <div style={contentsStyle}>
                     <br/>
-                    <div style={filterBoxContainer}>
+                    <div className="filter_box" style={filterBoxContainer}>
+                        <span className="fa fa-search"></span>
                         <input
-                            className="filter_box"
-                            type="text"
+                            type="search"
                             onChange={this._onFilterBoxChange}
-                            value={this.state.filterValue}
+                            value={ this.state.filterValue }
                         />
+                        <div className="filter_buttons">
+                            <div className="filter_button status-good"
+                                onClick={this._onFilterGood}>
+                                <div className="centeredDiv">
+                                    <span>&#9654;</span>
+                                </div>
+                            </div>
+                            <div className="filter_button status-bad"
+                                onClick={this._onFilterBad}>
+                                <div className="centeredDiv">
+                                    <i className="fa fa-minus-circle"></i>
+                                </div>
+                            </div>
+                            <div className="filter_button status-unknown"
+                                onClick={this._onFilterUnknown}>
+                                <div className="centeredDiv">
+                                    <span>&#9644;</span>
+                                </div>
+                            </div>
+                            <div className="filter_button"
+                                onClick={this._onFilterOff}>
+                                <div className="centeredDiv">
+                                    <i className="fa fa-ban"></i>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <ul className="platform-panel-list">
                         {platforms}
@@ -125,29 +195,61 @@ function getExpandedFromStore() {
     return platformsPanelStore.getExpanded();
 };
 
-function filteredChildren(platform, filterTerm) {
+function getFilteredPlatforms(filterTerm, filterStatus) {
 
-    // if (filterTerm !== "")
-    // {
-    //     var itemsList = [];
+    var platformsList = [];
 
-    //     for (var key in platform.children)
-    //     {
-    //         var items = platformsPanelItemsStore.getFilteredItems(platform);
-    //     }
-        
+    if (filterTerm !== "" || filterStatus !== "")
+    {
+        var treeCopy = platformsPanelItemsStore.getTreeCopy();
 
-    //     return {"agents": agents.filter(function (agent) {
-    //         return (agent.name.indexOf(this) > -1);
-    //     }, filterTerm)};
-    // }
-    // else
-    // {
-    //     return [];
-    // } 
+        var platforms = treeCopy["platforms"];
 
-    return [];
-    
-};
+        for (var key in platforms)
+        {
+            var filteredPlatform = platformsPanelItemsStore.getFilteredItems(platforms[key], filterTerm, filterStatus);
+
+            if (filteredPlatform)
+            {
+                var upperName = filteredPlatform.name.toUpperCase();
+
+                if ((filteredPlatform.children.length === 0) && (upperName.indexOf(filterTerm.toUpperCase()) < 0))
+                {
+                    filteredPlatform = null;
+                }
+            }
+
+            if (filteredPlatform)
+            {
+                platformsList.push(filteredPlatform);
+            }
+        }
+    }
+    else
+    {
+        platformsList = null;
+    }
+
+    return platformsList;
+}
+
+
+// function filteredPlatform(platform, filterTerm) {
+
+//     var treeCopy = platformsPanelItemsStore.getTreeCopy();
+
+//     var filteredPlatform = platformsPanelItemsStore.getFilteredItems(treeCopy["platforms"][platform.uuid], filterTerm);
+
+
+//     if (filteredPlatform)
+//     {
+//         if ((filteredPlatform.children.length === 0) && (filteredPlatform.name.indexOf(filterTerm) < 0))
+//         {
+//             filteredPlatform = null;
+//         }
+//     }
+
+//     return filteredPlatform;
+// };
 
 module.exports = PlatformsPanel;

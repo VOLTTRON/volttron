@@ -11,6 +11,7 @@ var PageNotFound = require('./components/page-not-found');
 var Platform = require('./components/platform');
 var PlatformManager = require('./components/platform-manager');
 var Platforms = require('./components/platforms');
+var Graphs = require('./components/graphs');
 
 var _afterLoginPath = '/dashboard';
 
@@ -52,6 +53,7 @@ var routes = (
         React.createElement(Router.Route, {name: "dashboard", path: "dashboard", handler: checkAuth(Dashboard)}), 
         React.createElement(Router.Route, {name: "platforms", path: "platforms", handler: checkAuth(Platforms)}), 
         React.createElement(Router.Route, {name: "platform", path: "platforms/:uuid", handler: checkAuth(Platform)}), 
+        React.createElement(Router.Route, {name: "graphs", path: "graphs", handler: checkAuth(Graphs)}), 
         React.createElement(Router.NotFoundRoute, {handler: checkAuth(PageNotFound)}), 
         React.createElement(Router.DefaultRoute, {handler: AfterLogin})
     )
@@ -75,7 +77,7 @@ router.run(function (Handler) {
 });
 
 
-},{"./components/dashboard":13,"./components/login-form":18,"./components/page-not-found":21,"./components/platform":23,"./components/platform-manager":22,"./components/platforms":26,"./stores/authorization-store":38,"react":undefined,"react-router":undefined}],2:[function(require,module,exports){
+},{"./components/dashboard":13,"./components/graphs":18,"./components/login-form":20,"./components/page-not-found":23,"./components/platform":25,"./components/platform-manager":24,"./components/platforms":28,"./stores/authorization-store":40,"react":undefined,"react-router":undefined}],2:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -102,7 +104,7 @@ var consoleActionCreators = {
 module.exports = consoleActionCreators;
 
 
-},{"../constants/action-types":29,"../dispatcher":30,"../lib/rpc/exchange":32}],3:[function(require,module,exports){
+},{"../constants/action-types":31,"../dispatcher":32,"../lib/rpc/exchange":34}],3:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -125,7 +127,7 @@ var modalActionCreators = {
 module.exports = modalActionCreators;
 
 
-},{"../constants/action-types":29,"../dispatcher":30}],4:[function(require,module,exports){
+},{"../constants/action-types":31,"../dispatcher":32}],4:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -477,7 +479,7 @@ function handle401(error) {
 module.exports = platformActionCreators;
 
 
-},{"../constants/action-types":29,"../dispatcher":30,"../lib/rpc":33,"../stores/authorization-store":38}],5:[function(require,module,exports){
+},{"../constants/action-types":31,"../dispatcher":32,"../lib/rpc":35,"../stores/authorization-store":40}],5:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -605,7 +607,7 @@ function handle401(error) {
 module.exports = platformManagerActionCreators;
 
 
-},{"../action-creators/platform-action-creators":4,"../constants/action-types":29,"../dispatcher":30,"../lib/rpc":33,"../stores/authorization-store":38}],6:[function(require,module,exports){
+},{"../action-creators/platform-action-creators":4,"../constants/action-types":31,"../dispatcher":32,"../lib/rpc":35,"../stores/authorization-store":40}],6:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -651,17 +653,17 @@ var platformsPanelActionCreators = {
         switch (type)
         {
             case "platform":
-                platformsPanelActionCreators.loadPanelAgents(parent);
-                platformsPanelActionCreators.loadPanelBuildings(parent);
-                platformsPanelActionCreators.loadPanelPoints(parent);
+                loadPanelAgents(parent);
+                loadPanelBuildings(parent);
+                loadPanelPoints(parent);
                 break;
             case "building":
-                platformsPanelActionCreators.loadPanelDevices(parent);
-                platformsPanelActionCreators.loadPanelPoints(parent);
+                loadPanelDevices(parent);
+                loadPanelPoints(parent);
                 break;
             case "device":
-                platformsPanelActionCreators.loadPanelPoints(parent);
-                platformsPanelActionCreators.loadPanelDevices(parent);
+                loadPanelPoints(parent);
+                loadPanelDevices(parent);
                 break;
             case "type":
 
@@ -669,83 +671,117 @@ var platformsPanelActionCreators = {
                 {
                     platformsPanelActionCreators.loadChildren(parent[parent.children[i]].type, parent[parent.children[i]]);
                 }
-
-                // for (var i = 0; i < parent.children.length; i++)
-                // {
-                //     platformsPanelActionCreators.loadChildren(parent.children[i], parent[parent.children[i]]);
-                // }
+                
                 break;
             default:
 
         }
+
+        function loadPanelPoints(parent) {
+            dispatcher.dispatch({
+                type: ACTION_TYPES.RECEIVE_POINT_STATUSES,
+                platform: parent
+            });    
+        }
+
+        function loadPanelDevices(parent) {
+            dispatcher.dispatch({
+                type: ACTION_TYPES.RECEIVE_DEVICE_STATUSES,
+                platform: parent
+            });    
+        }
+
+        function loadPanelBuildings(parent) {
+            dispatcher.dispatch({
+                type: ACTION_TYPES.RECEIVE_BUILDING_STATUSES,
+                platform: parent
+            });    
+        }
+
+        function loadPanelAgents(platform) {
+            var authorization = authorizationStore.getAuthorization();
+
+            new rpc.Exchange({
+                method: 'platforms.uuid.' + platform.uuid + '.list_agents',
+                authorization: authorization,
+            }).promise
+                .then(function (agentsList) {
+                    
+                    dispatcher.dispatch({
+                        type: ACTION_TYPES.RECEIVE_AGENT_STATUSES,
+                        platform: platform,
+                        agents: agentsList
+                    });
+
+                    
+                })
+                .catch(rpc.Error, handle401);    
+        }
+
+
+
+
+    // },
+    
+    // loadPanelPoints: function (parent) {
+    //     dispatcher.dispatch({
+    //         type: ACTION_TYPES.RECEIVE_POINT_STATUSES,
+    //         platform: parent
+    //     });
+    // },
+    // loadPanelDevices: function (parent) {
+    //     dispatcher.dispatch({
+    //         type: ACTION_TYPES.RECEIVE_DEVICE_STATUSES,
+    //         platform: parent
+    //     });
+    // },
+    // loadPanelBuildings: function (platform) {
+    //     dispatcher.dispatch({
+    //         type: ACTION_TYPES.RECEIVE_BUILDING_STATUSES,
+    //         platform: platform
+    //     });
+    // },
+    // loadPanelAgents: function (platform) {
+    //     var authorization = authorizationStore.getAuthorization();
+
+    //     new rpc.Exchange({
+    //         method: 'platforms.uuid.' + platform.uuid + '.list_agents',
+    //         authorization: authorization,
+    //     }).promise
+    //         .then(function (agentsList) {
+                
+    //             dispatcher.dispatch({
+    //                 type: ACTION_TYPES.RECEIVE_AGENT_STATUSES,
+    //                 platform: platform,
+    //                 agents: agentsList
+    //             });
+
+                
+    //         })
+    //         .catch(rpc.Error, handle401);
+    // },
     },
-    loadPanelPoints: function (parent) {
+
+    addToGraph: function(panelItem) {
+
         dispatcher.dispatch({
-            type: ACTION_TYPES.RECEIVE_POINT_STATUSES,
-            platform: parent
-        });
+            type: ACTION_TYPES.ADD_TO_GRAPH,
+            panelItem: panelItem
+        });  
+
     },
-    loadPanelDevices: function (parent) {
+
+    removeFromGraph: function(panelItem) {
+
         dispatcher.dispatch({
-            type: ACTION_TYPES.RECEIVE_DEVICE_STATUSES,
-            platform: parent
-        });
-    },
-    loadPanelBuildings: function (platform) {
-        dispatcher.dispatch({
-            type: ACTION_TYPES.RECEIVE_BUILDING_STATUSES,
-            platform: platform
-        });
-    },
-    loadPanelAgents: function (platform) {
-        var authorization = authorizationStore.getAuthorization();
+            type: ACTION_TYPES.REMOVE_FROM_GRAPH,
+            panelItem: panelItem
+        });  
 
-        new rpc.Exchange({
-            method: 'platforms.uuid.' + platform.uuid + '.list_agents',
-            authorization: authorization,
-        }).promise
-            .then(function (agentsList) {
-                // platform.agents = agentsList;
+    }
+}
 
-                dispatcher.dispatch({
-                    type: ACTION_TYPES.RECEIVE_AGENT_STATUSES,
-                    platform: platform,
-                    agents: agentsList
-                });
 
-                // if (!agentsList.length) { return; }
-
-                // new rpc.Exchange({
-                //     method: 'platforms.uuid.' + platform.uuid + '.status_agents',
-                //     authorization: authorization,
-                // }).promise
-                //     .then(function (agentStatuses) {
-                //         platform.agents.forEach(function (agent) {
-                //             if (!agentStatuses.some(function (status) {
-                //                 if (agent.uuid === status.uuid) {
-                //                     agent.actionPending = false;
-                //                     agent.process_id = status.process_id;
-                //                     agent.return_code = status.return_code;
-
-                //                     return true;
-                //                 }
-                //             })) {
-                //                 agent.actionPending = false;
-                //                 agent.process_id = null;
-                //                 agent.return_code = null;
-                //             }
-
-                //         });
-
-                //         dispatcher.dispatch({
-                //             type: ACTION_TYPES.RECEIVE_PLATFORM,
-                //             platform: platform,
-                //         });
-                //     });
-            })
-            .catch(rpc.Error, handle401);
-    },
-};
 
 
 function handle401(error) {
@@ -762,7 +798,7 @@ function handle401(error) {
 module.exports = platformsPanelActionCreators;
 
 
-},{"../constants/action-types":29,"../dispatcher":30,"../lib/rpc":33,"../stores/authorization-store":38}],7:[function(require,module,exports){
+},{"../constants/action-types":31,"../dispatcher":32,"../lib/rpc":35,"../stores/authorization-store":40}],7:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -834,7 +870,7 @@ var AgentRow = React.createClass({displayName: "AgentRow",
 module.exports = AgentRow;
 
 
-},{"../action-creators/modal-action-creators":3,"../action-creators/platform-action-creators":4,"./remove-agent-form":28,"react":undefined}],8:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../action-creators/platform-action-creators":4,"./remove-agent-form":30,"react":undefined}],8:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -898,7 +934,7 @@ function getStateFromStores(platform, chart) {
 module.exports = Chart;
 
 
-},{"../action-creators/platform-action-creators":4,"../stores/topic-data-store":46,"./line-chart":17,"react":undefined}],9:[function(require,module,exports){
+},{"../action-creators/platform-action-creators":4,"../stores/topic-data-store":49,"./line-chart":19,"react":undefined}],9:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -968,7 +1004,7 @@ function getStateFromStores() {
 module.exports = Composer;
 
 
-},{"../action-creators/console-action-creators":2,"../stores/console-store":39,"react":undefined}],10:[function(require,module,exports){
+},{"../action-creators/console-action-creators":2,"../stores/console-store":41,"react":undefined}],10:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1079,7 +1115,7 @@ function getStateFromStores() {
 module.exports = Conversation;
 
 
-},{"../stores/console-store":39,"./exchange":16,"jquery":undefined,"react":undefined}],13:[function(require,module,exports){
+},{"../stores/console-store":41,"./exchange":16,"jquery":undefined,"react":undefined}],13:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1185,7 +1221,7 @@ function getStateFromStores() {
 module.exports = Dashboard;
 
 
-},{"../action-creators/modal-action-creators":3,"../stores/platforms-store":45,"./chart":8,"./edit-chart-form":15,"react":undefined,"react-router":undefined}],14:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../stores/platforms-store":48,"./chart":8,"./edit-chart-form":15,"react":undefined,"react-router":undefined}],14:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1241,7 +1277,7 @@ function getStateFromStores() {
 module.exports = RegisterPlatformForm;
 
 
-},{"../action-creators/modal-action-creators":3,"../action-creators/platform-manager-action-creators":5,"../stores/platform-registration-store":42,"react":undefined}],15:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../action-creators/platform-manager-action-creators":5,"../stores/platform-registration-store":45,"react":undefined}],15:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1454,6 +1490,249 @@ module.exports = Exchange;
 },{"react":undefined}],17:[function(require,module,exports){
 'use strict';
 
+var React = require('react');
+var Router = require('react-router');
+var d3 = require('d3');
+var nv = require('nvd3');
+
+
+var graphStore = require('../stores/graph-store');
+
+var lineChart;
+
+
+var Graph = React.createClass({displayName: "Graph",
+    getInitialState: function () {
+        var state = {};
+        state.graphs = getGraphsFromStores();
+
+        return state;
+    },
+    componentWillMount: function () {
+        
+    },
+    componentDidMount: function () {
+        graphStore.addChangeListener(this._onStoreChange);
+    },
+    componentWillUnmount: function () {
+        graphStore.removeChangeListener(this._onStoreChange);
+    },
+    _onStoreChange: function () {
+        var graphs = getGraphsFromStores();
+
+        this.setState({graphs: graphs});
+    },
+    render: function () {
+        var graphs  = this.state.graphs;  
+
+        var vizGraph;
+
+        if (graphs.length > 0)
+        {
+            vizGraph = React.createElement("div", {id: "chart", class: "with-3d-shadow with-transitions"}, 
+                          React.createElement(Viz, {data: graphs})
+                      )
+        }
+
+
+        return (
+            React.createElement("div", null, 
+                vizGraph
+            )
+        );
+    },
+});
+
+
+function getGraphsFromStores() {
+    return graphStore.getData();
+}
+
+
+var GraphLineChart = React.createClass({displayName: "GraphLineChart",
+  componentDidMount: function() {
+    drawLineChart('graph-line-chart', lineData(this.props.selection, keyToYearThenMonth(this.props.data)));
+  },
+  componentDidUpdate: function() {
+    updateLineChart('graph-line-chart', lineData(this.props.selection, keyToYearThenMonth(this.props.data)));
+  },
+  render: function() {
+    return (
+      React.createElement("div", {id: "graph-line-chart"}, 
+        React.createElement("svg", null)
+      )
+    );
+  }
+});
+
+var Viz = React.createClass({displayName: "Viz",
+  getInitialState: function() {
+    return {
+      // data: this.props.data,
+      selection: 'avg_temp_f'
+    };
+  },
+  // loadData: function () {
+  //   d3.csv('/data/018_analytics_chart.csv',function(csv){
+  //     this.setState({
+  //       data: csv
+  //     });
+  //   }.bind(this));
+  // },
+  // componentDidMount: function () {
+  //   this.loadData();
+  // },
+  // loadData: function () {
+    
+  //   this.setState({ data: this.props.data});
+  // },
+  // componentDidMount: function () {
+  //   // var datum = graphStore.getGraphData();
+  //   this.loadData();
+  // },
+
+    // componentDidUpdate: function() {
+        
+    //     this.setState({data: this.props.data});
+    // },
+
+  handleUserSelect: function (e) {
+    var selection = e.target.id;
+    $('#select-text').text(e.target.innerHTML);
+    $('.select').removeClass('current-selection');
+    $('#' + selection).addClass('current-selection');
+    this.setState({
+      selection: selection
+    });
+  },
+  render: function() {
+    return (
+      React.createElement("div", {id: "viz"}, 
+        
+         this.props.data.length != 0 ? React.createElement(GraphLineChart, {data: this.props.data, selection: this.state.selection}) : null
+      )
+    );
+  }
+});
+
+
+function drawLineChart (elementParent, data) {
+  var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  nv.addGraph(function() {
+    lineChart = nv.models.lineChart()
+      .margin({left: 25, right: 25})
+      .x(function(d) {return d.x})
+      .y(function(d) {return d.y})
+      .useInteractiveGuideline(true)
+      .showYAxis(true)
+      .showXAxis(true);
+    lineChart.xAxis
+      .tickFormat(function (d) { return months[d - 1]; })
+      .staggerLabels(false);
+    lineChart.yAxis
+      .tickFormat(d3.format('.1f'));
+    d3.select('#' + elementParent + ' svg')
+      .datum(data)
+      .call(lineChart);
+    nv.utils.windowResize(function() { lineChart.update() });
+    return lineChart;
+  });
+}
+
+function updateLineChart (elementParent, data) {
+  d3.select('#' + elementParent + ' svg')
+    .datum(data)
+    .call(lineChart);
+}
+
+
+//line data
+function keyToYearThenMonth (data) {
+  var keyYearMonth = d3.nest()
+    .key(function(d){return d.name; })
+    .key(function(d){return d.month; });
+  var keyedData = keyYearMonth.entries(
+    data.map(function(d) {
+      return d;
+    })
+  );
+  return keyedData;
+}
+
+function lineData (selection, data) {
+  var colors = ['#ff7f00','#984ea3','#4daf4a','#377eb8','#e41a1c'];
+  data = data.sort(function(a,b){ return a.key > b.key; });
+  var lineDataArr = [];
+  for (var i = 0; i <= data.length-1; i++) {
+    var lineDataElement = [];
+    var currentValues = data[i].values.sort(function(a,b){ return +a.key - +b.key; });
+    for (var j = 0; j <= currentValues.length-1; j++) {
+      lineDataElement.push({
+        'x': +currentValues[j].key,
+        'y': +currentValues[j].values[0][selection]
+      });
+    }
+    lineDataArr.push({
+      key: data[i].key,
+      color: colors[i],
+      values: lineDataElement
+    });
+  }
+  return lineDataArr;
+}
+
+
+module.exports = Graph;
+
+
+},{"../stores/graph-store":42,"d3":undefined,"nvd3":undefined,"react":undefined,"react-router":undefined}],18:[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+var Router = require('react-router');
+var Graph = require('./graph');
+
+var graphStore = require('../stores/graph-store');
+
+var Graphs = React.createClass({displayName: "Graphs",
+    getInitialState: getStateFromStores,
+    componentDidMount: function () {
+        graphStore.addChangeListener(this._onStoreChange);
+    },
+    componentWillUnmount: function () {
+        graphStore.removeChangeListener(this._onStoreChange);
+    },
+    _onStoreChange: function () {
+        this.setState(getStateFromStores());
+    },
+    render: function () {
+        var graphs  = [];
+
+        var graph = React.createElement(Graph, null)
+
+        return (
+                React.createElement("div", null, 
+                    React.createElement("div", {className: "view"}, 
+                        React.createElement("h2", null, "Graphs"), 
+                        graph
+                    )
+                )
+        );
+    },
+});
+
+function getStateFromStores() {
+    return {
+        graphs: graphStore.getGraphs(),
+    };
+}
+
+module.exports = Graphs;
+
+
+},{"../stores/graph-store":42,"./graph":17,"react":undefined,"react-router":undefined}],19:[function(require,module,exports){
+'use strict';
+
 var d3 = require('d3');
 var moment = require('moment');
 var React = require('react');
@@ -1640,7 +1919,7 @@ var LineChart = React.createClass({displayName: "LineChart",
 module.exports = LineChart;
 
 
-},{"d3":undefined,"moment":undefined,"react":undefined}],18:[function(require,module,exports){
+},{"d3":undefined,"moment":undefined,"react":undefined}],20:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1718,7 +1997,7 @@ function getStateFromStores() {
 module.exports = LoginForm;
 
 
-},{"../action-creators/platform-manager-action-creators":5,"../stores/login-form-store":40,"react":undefined,"react-router":undefined}],19:[function(require,module,exports){
+},{"../action-creators/platform-manager-action-creators":5,"../stores/login-form-store":43,"react":undefined,"react-router":undefined}],21:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1745,7 +2024,7 @@ var Modal = React.createClass({displayName: "Modal",
 module.exports = Modal;
 
 
-},{"../action-creators/modal-action-creators":3,"react":undefined}],20:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"react":undefined}],22:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1822,7 +2101,7 @@ function getStateFromStores() {
 module.exports = Navigation;
 
 
-},{"../action-creators/platform-manager-action-creators":5,"../stores/authorization-store":38,"react":undefined,"react-router":undefined}],21:[function(require,module,exports){
+},{"../action-creators/platform-manager-action-creators":5,"../stores/authorization-store":40,"react":undefined,"react-router":undefined}],23:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1840,7 +2119,7 @@ var PageNotFound = React.createClass({displayName: "PageNotFound",
 module.exports = PageNotFound;
 
 
-},{"react":undefined}],22:[function(require,module,exports){
+},{"react":undefined}],24:[function(require,module,exports){
 'use strict';
 
 var $ = require('jquery');
@@ -1977,7 +2256,7 @@ function getStateFromStores() {
 module.exports = PlatformManager;
 
 
-},{"../action-creators/console-action-creators":2,"../action-creators/modal-action-creators":3,"../action-creators/platform-manager-action-creators":5,"../stores/authorization-store":38,"../stores/console-store":39,"../stores/modal-store":41,"../stores/platforms-panel-store":44,"./console":11,"./modal":19,"./navigation":20,"./platforms-panel":25,"jquery":undefined,"react":undefined,"react-router":undefined}],23:[function(require,module,exports){
+},{"../action-creators/console-action-creators":2,"../action-creators/modal-action-creators":3,"../action-creators/platform-manager-action-creators":5,"../stores/authorization-store":40,"../stores/console-store":41,"../stores/modal-store":44,"../stores/platforms-panel-store":47,"./console":11,"./modal":21,"./navigation":22,"./platforms-panel":27,"jquery":undefined,"react":undefined,"react-router":undefined}],25:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2181,7 +2460,7 @@ function getStateFromStores(component) {
 module.exports = Platform;
 
 
-},{"../action-creators/modal-action-creators":3,"../action-creators/platform-action-creators":4,"../stores/platforms-store":45,"./agent-row":7,"./chart":8,"./confirm-form":10,"./edit-chart-form":15,"react":undefined,"react-router":undefined}],24:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../action-creators/platform-action-creators":4,"../stores/platforms-store":48,"./agent-row":7,"./chart":8,"./confirm-form":10,"./edit-chart-form":15,"react":undefined,"react-router":undefined}],26:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2194,11 +2473,14 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
     getInitialState: function () {
         var state = {};
         
-        state.expanded = null;
+        state.expanded = (this.props.panelItem.hasOwnProperty("expanded") ? this.props.panelItem.expanded : null);
+
         state.showTooltip = false;
         state.tooltipX = null;
         state.tooltipY = null;
         state.keepTooltip = false;
+        state.expandedChildren;
+        state.checked = false;
 
         state.children = getChildrenFromStore(this.props.panelItem, this.props.itemPath);
 
@@ -2208,7 +2490,10 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
         platformsPanelItemsStore.addChangeListener(this._onStoresChange);
     },
     componentWillMount: function () {
-        platformsPanelActionCreators.loadChildren(this.props.panelItem.type, this.props.panelItem);
+        if (!this.props.hasOwnProperty("children"))
+        { 
+            platformsPanelActionCreators.loadChildren(this.props.panelItem.type, this.props.panelItem);
+        }
     },
     componentWillUnmount: function () {
         platformsPanelItemsStore.removeChangeListener(this._onStoresChange);
@@ -2219,12 +2504,50 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
 
         this.setState({children: children});
     },
+    _expandAll : function () {
+        var expandedOn = ((this.state.expanded === null) ? true : !this.state.expanded);
+
+        // this.setState({expandedOn: expandedOn});
+        this.setState({expanded: expandedOn});
+        
+        this.setState({expandedChildren: expandAllChildren(expandedOn, this.props.panelItem)});
+    },
+    _checkItem: function (e) {
+
+        var checked = e.target.checked;
+
+        this.setState({checked: checked});
+
+        if (checked)
+        {
+            platformsPanelActionCreators.addToGraph(this.props.panelItem);
+        }
+        else
+        {
+            platformsPanelActionCreators.removeFromGraph(this.props.panelItem);
+        }
+    },
     _toggleItem: function () {
 
         if (this.state.children.length > 0)
         {
             this.setState({expanded: !this.state.expanded});
         }
+        else
+        {
+            if (this.props.hasOwnProperty("children"))
+            {
+                if (this.state.expanded === null)
+                {
+                    this.setState({expanded: !this.props.panelItem.expanded});
+                }
+                else
+                {
+                    this.setState({expanded: !this.state.expanded});
+                }
+            }
+        }
+        
     },
     _showTooltip: function (evt) {
         this.setState({showTooltip: true});
@@ -2251,7 +2574,13 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
         var items;
         var children;
 
-        var propChildren = this.props.children;
+        var propChildren = this.state.expandedChildren;
+
+        if (typeof propChildren === "undefined" || propChildren === null)
+        {
+            propChildren = this.props.children;
+        }
+
         var filterTerm = this.props.filter;
 
         var itemClasses;
@@ -2270,8 +2599,6 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
             left: this.state.tooltipX + "px"
         };
 
-        // var childrenItems = [];
-
         arrowClasses.push( ((panelItem.status === "GOOD") ? "status-good" :
                                 ( (panelItem.status === "BAD") ? "status-bad" : 
                                     "status-unknown")) );
@@ -2288,77 +2615,60 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
         }
         else
         {
-            arrowContent = React.createElement("i", {className: "fa fa-square"});
+            arrowContent = React.createElement("span", null, "▬");
         }
-
-        // if (propChildren.length > 0)
-        // {
-        //     arrowClasses.push("rotateDown");
-        //     itemClasses = "showItems";
-
-        //     items = propChildren
-        //         .filter(function (item) {
-        //             return (item.name.indexOf(this) > -1);
-        //         }, filterTerm) 
-        //         .sort(function (a, b) {
-        //             if (a.name.toLowerCase() > b.name.toLowerCase()) { return 1; }
-        //             if (a.name.toLowerCase() < b.name.toLowerCase()) { return -1; }
-        //             return 0;
-        //         })
-        //         .map(function (item) {
-
-        //             return (
-
-        //                 <PlatformsPanelItem panelItem={item} children={childrenItems}/>
+        
+        if (typeof propChildren !== "undefined" && propChildren !== null)
+        {   
+            if (this.state.expanded || this.props.panelItem.expanded === true)
+            {
+                children = propChildren
+                    .sort(function (a, b) {
+                        if (a.name.toUpperCase() > b.name.toUpperCase()) { return 1; }
+                        if (a.name.toUpperCase() < b.name.toUpperCase()) { return -1; }
+                        return 0;
+                    })
+                    .sort(function (a, b) {
+                        if (a.sortOrder > b.sortOrder) { return 1; }
+                        if (a.sortOrder < b.sortOrder) { return -1; }
+                        return 0;
+                    })
+                    .map(function (propChild) {
                         
-        //             );
-        //         }, this);
-        // }
-        // else 
+                        var grandchildren = [];
+                        propChild.children.forEach(function (childString) {
+                            grandchildren.push(propChild[childString]);
+                        });
 
-        var listItem;
-
-        if (!panelItem.hasOwnProperty("uuid"))
-        {
-            listItem = React.createElement("div", null, 
-                            React.createElement("b", null, 
-                                panelItem.name
-                            )
+                        return (
+                            React.createElement(PlatformsPanelItem, {panelItem: propChild, itemPath: propChild.path, children: grandchildren})
                         );
+                    }); 
+
+                if (children.length > 0)
+                {
+                    var classIndex = arrowClasses.indexOf("noRotate");
+                    
+                    if (classIndex > -1)
+                    {
+                        arrowClasses.splice(classIndex, 1);
+                    }
+
+                    arrowClasses.push("rotateDown");
+                    itemClasses = "showItems";                    
+                }          
+            }
         }
         else
         {
-            listItem = React.createElement("div", {className: "platform-link"}, 
-                        React.createElement(Router.Link, {
-                            to: "platform", 
-                            params: {uuid: panelItem.uuid}
-                        }, 
-                        panelItem.name
-                        )
-                    );            
-        }
-        
-
-        if (this.state.expanded !== null)
-        {
-            var classIndex = arrowClasses.indexOf("noRotate");
-            if (classIndex > -1)
-            {
-                arrowClasses.splice(classIndex, 1);
-            }
-
-            arrowClasses.push(this.state.expanded ? "rotateDown" : "rotateRight");
-
-            if (this.state.expanded)
-            {                
-                if (this.state.children)
-                {
-                    itemClasses = "showItems";
-
-                    var childItems = this.state.children;
-                    
-                    if (childItems.length > 0)
+            if (this.state.expanded !== null)
+            {                   
+                if (this.state.expanded)
+                {                
+                    if (this.state.children !== null)
                     {
+                        var childItems = this.state.children;
+                        
                         children = childItems
                             .sort(function (a, b) {
                                 if (a.name.toUpperCase() > b.name.toUpperCase()) { return 1; }
@@ -2374,16 +2684,56 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
                                 return (
                                     React.createElement(PlatformsPanelItem, {panelItem: child, itemPath: child.path})
                                 );}, this);
+
+                        if (children.length > 0)
+                        {
+                            itemClasses = "showItems";
+
+                            var classIndex = arrowClasses.indexOf("noRotate");
+                            
+                            if (classIndex > -1)
+                            {
+                                arrowClasses.splice(classIndex, 1);
+                            }
+
+                            arrowClasses.push("rotateDown");
+                        }                            
+                    }
+                }
+                else
+                {
+                    if (this.state.children) 
+                    {
+                        itemClasses = "hideItems";
+
+                        arrowClasses.push("rotateRight");
                     }
                 }
             }
-            else
-            {
-                if (this.state.children) 
-                {
-                    itemClasses = "hideItems";
-                }
-            }
+        }
+
+        var listItem;
+
+        if (!panelItem.hasOwnProperty("uuid"))
+        {
+            listItem = 
+                React.createElement("div", null, 
+                    React.createElement("b", null, 
+                        panelItem.name
+                    )
+                );
+        }
+        else
+        {
+            listItem = 
+                React.createElement("div", {className: "platform-link"}, 
+                    React.createElement(Router.Link, {
+                        to: "graphs", 
+                        params: {uuid: panelItem.uuid}
+                    }, 
+                    panelItem.name
+                    )
+                );            
         }
 
         return (
@@ -2393,14 +2743,16 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
             }, 
                 React.createElement("div", {className: "platform-info"}, 
                     React.createElement("div", {className: arrowClasses.join(' '), 
+                        onDoubleClick: this._expandAll, 
                         onClick: this._toggleItem}, 
                         arrowContent
                         ), 
                     React.createElement("input", {className: checkboxClass, 
                         style: checkboxStyle, 
                         type: "checkbox", 
-                        onClick: this._checkItem}), 
-                    React.createElement("div", {style: tooltipStyle}, 
+                        onChange: this._checkItem}), 
+                    React.createElement("div", {className: "tooltip_outer", 
+                        style: tooltipStyle}, 
                         React.createElement("div", {className: "tooltip_inner"}, 
                             panelItem.uuid
                         ), 
@@ -2425,11 +2777,18 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
     },
 });
 
-// function getChildren(parent, parentPath)
-// {
-//     return getItemsFromStore(parent, parentPath);
-// }
+function expandAllChildren(expandOn, parent)
+{
+    var expandedParent = platformsPanelItemsStore.getExpandedChildren(expandOn, parent);
+    var expandedChildren = [];
 
+    expandedParent.children.forEach(function(childString) {
+        expandedChildren.push(expandedParent[childString]);
+    })
+
+    return expandedChildren;
+
+}
 
 function getChildrenFromStore(parentItem, parentPath) {
     return platformsPanelItemsStore.getItems(parentItem, parentPath);
@@ -2438,7 +2797,7 @@ function getChildrenFromStore(parentItem, parentPath) {
 module.exports = PlatformsPanelItem;
 
 
-},{"../action-creators/platforms-panel-action-creators":6,"../stores/platforms-panel-items-store":43,"react":undefined,"react-router":undefined}],25:[function(require,module,exports){
+},{"../action-creators/platforms-panel-action-creators":6,"../stores/platforms-panel-items-store":46,"react":undefined,"react-router":undefined}],27:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2453,7 +2812,8 @@ var PlatformsPanelItem = require('./platforms-panel-item');
 var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
     getInitialState: function () {
         var state = {};
-        state.platforms = [];   
+        state.platforms = [];  
+        state.filteredPlatforms = null;   
         state.expanded = getExpandedFromStore();
         state.filterValue = "";
 
@@ -2463,26 +2823,52 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
         platformsPanelActionCreators.loadPanelPlatforms();
     },
     componentDidMount: function () {
-        platformsPanelStore.addChangeListener(this._onStoresChange);
+        platformsPanelStore.addChangeListener(this._onPanelStoreChange);
+        platformsPanelItemsStore.addChangeListener(this._onPanelItemsStoreChange);
     },
     componentWillUnmount: function () {
-        platformsPanelStore.removeChangeListener(this._onStoresChange);
+        platformsPanelStore.removeChangeListener(this._onPanelStoreChange);
+        platformsPanelItemsStore.removeChangeListener(this._onPanelItemsStoreChange);
     },
-    _onStoresChange: function () {
-        this.setState({platforms: getPlatformsFromStore()});
-        this.setState({expanded: getExpandedFromStore()});
+    _onPanelStoreChange: function () {
+        var expanded = getExpandedFromStore();
+
+        this.setState({expanded: expanded});
+
+        if (expanded !== null)
+        {
+            this.setState({platforms: getPlatformsFromStore()});
+        }
+    },
+    _onPanelItemsStoreChange: function () {
+        if (this.state.expanded !== null)
+        {
+            this.setState({platforms: getPlatformsFromStore()});
+        }
     },
     _onFilterBoxChange: function (e) {
         this.setState({ filterValue: e.target.value });
+        this.setState({ filteredPlatforms: getFilteredPlatforms(e.target.value, "") });
     },
-    _filterItems: function (e) {
-
+    _onFilterGood: function (e) {
+        this.setState({ filteredPlatforms: getFilteredPlatforms("", "GOOD") });
+    },
+    _onFilterBad: function (e) {
+        this.setState({ filteredPlatforms: getFilteredPlatforms("", "BAD") });
+    },
+    _onFilterUnknown: function (e) {
+        this.setState({ filteredPlatforms: getFilteredPlatforms("", "UNKNOWN") });
+    },
+    _onFilterOff: function (e) {
+        this.setState({ filteredPlatforms: getFilteredPlatforms("", "") });
     },
     _togglePanel: function () {
         platformsPanelActionCreators.togglePanel();
     },
     render: function () {
         var platforms;
+        var filteredPlatforms = this.state.filteredPlatforms;
+
         var classes = (this.state.expanded === null ? 
                         "platform-statuses platform-collapsed" : 
                         (this.state.expanded ? 
@@ -2498,10 +2884,8 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
         };
 
         var filterBoxContainer = {
-            textAlign: "center"
+            textAlign: "left"
         };
-
-        var filterTerm = this.state.filterValue;
 
         if (!this.state.platforms) {
             platforms = (
@@ -2511,24 +2895,43 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
             platforms = (
                 React.createElement("p", null, "No platforms found.")
             );
-        } else {
-            platforms = this.state.platforms
-                .filter(function (platform) {
-                    return ((platform.name.indexOf(this) > -1) || (this === "") || filteredChildren(platform, this).length > 0);
-                }, filterTerm)                
-                .sort(function (a, b) {
-                    if (a.name.toUpperCase() > b.name.toUpperCase()) { return 1; }
-                    if (a.name.toUpperCase() < b.name.toUpperCase()) { return -1; }
-                    return 0;
-                })
-                .map(function (platform) {
-
-                    return (
-
-                        React.createElement(PlatformsPanelItem, {panelItem: platform, itemPath: platform.path, children: filteredChildren(platform, filterTerm), filter: filterTerm})
+        } 
+        else 
+        {
+            if (filteredPlatforms !== null)
+            {
+                platforms = filteredPlatforms
+                    .sort(function (a, b) {
+                        if (a.name.toUpperCase() > b.name.toUpperCase()) { return 1; }
+                        if (a.name.toUpperCase() < b.name.toUpperCase()) { return -1; }
+                        return 0;
+                    })
+                    .map(function (filteredPlatform) {
                         
-                    );
-                }, this);
+                        var children = [];
+                        filteredPlatform.children.forEach(function (childString) {
+                            children.push(filteredPlatform[childString]);
+                        });
+
+                        return (
+                            React.createElement(PlatformsPanelItem, {panelItem: filteredPlatform, itemPath: filteredPlatform.path, children: children})
+                        );
+                });
+            }
+            else
+            {
+                platforms = this.state.platforms
+                    .sort(function (a, b) {
+                        if (a.name.toUpperCase() > b.name.toUpperCase()) { return 1; }
+                        if (a.name.toUpperCase() < b.name.toUpperCase()) { return -1; }
+                        return 0;
+                    })
+                    .map(function (platform) {
+                        return (
+                            React.createElement(PlatformsPanelItem, {panelItem: platform, itemPath: platform.path})
+                        );
+                    });
+            }
         }
 
         return (
@@ -2537,12 +2940,38 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
                     onClick: this._togglePanel},  this.state.expanded ? '\u25c0' : '\u25b6'), 
                 React.createElement("div", {style: contentsStyle}, 
                     React.createElement("br", null), 
-                    React.createElement("div", {style: filterBoxContainer}, 
+                    React.createElement("div", {className: "filter_box", style: filterBoxContainer}, 
+                        React.createElement("span", {className: "fa fa-search"}), 
                         React.createElement("input", {
-                            className: "filter_box", 
-                            type: "text", 
+                            type: "search", 
                             onChange: this._onFilterBoxChange, 
-                            value: this.state.filterValue}
+                            value:  this.state.filterValue}
+                        ), 
+                        React.createElement("div", {className: "filter_buttons"}, 
+                            React.createElement("div", {className: "filter_button status-good", 
+                                onClick: this._onFilterGood}, 
+                                React.createElement("div", {className: "centeredDiv"}, 
+                                    React.createElement("span", null, "▶")
+                                )
+                            ), 
+                            React.createElement("div", {className: "filter_button status-bad", 
+                                onClick: this._onFilterBad}, 
+                                React.createElement("div", {className: "centeredDiv"}, 
+                                    React.createElement("i", {className: "fa fa-minus-circle"})
+                                )
+                            ), 
+                            React.createElement("div", {className: "filter_button status-unknown", 
+                                onClick: this._onFilterUnknown}, 
+                                React.createElement("div", {className: "centeredDiv"}, 
+                                    React.createElement("span", null, "▬")
+                                )
+                            ), 
+                            React.createElement("div", {className: "filter_button", 
+                                onClick: this._onFilterOff}, 
+                                React.createElement("div", {className: "centeredDiv"}, 
+                                    React.createElement("i", {className: "fa fa-ban"})
+                                )
+                            )
                         )
                     ), 
                     React.createElement("ul", {className: "platform-panel-list"}, 
@@ -2566,35 +2995,67 @@ function getExpandedFromStore() {
     return platformsPanelStore.getExpanded();
 };
 
-function filteredChildren(platform, filterTerm) {
+function getFilteredPlatforms(filterTerm, filterStatus) {
 
-    // if (filterTerm !== "")
-    // {
-    //     var itemsList = [];
+    var platformsList = [];
 
-    //     for (var key in platform.children)
-    //     {
-    //         var items = platformsPanelItemsStore.getFilteredItems(platform);
-    //     }
-        
+    if (filterTerm !== "" || filterStatus !== "")
+    {
+        var treeCopy = platformsPanelItemsStore.getTreeCopy();
 
-    //     return {"agents": agents.filter(function (agent) {
-    //         return (agent.name.indexOf(this) > -1);
-    //     }, filterTerm)};
-    // }
-    // else
-    // {
-    //     return [];
-    // } 
+        var platforms = treeCopy["platforms"];
 
-    return [];
-    
-};
+        for (var key in platforms)
+        {
+            var filteredPlatform = platformsPanelItemsStore.getFilteredItems(platforms[key], filterTerm, filterStatus);
+
+            if (filteredPlatform)
+            {
+                var upperName = filteredPlatform.name.toUpperCase();
+
+                if ((filteredPlatform.children.length === 0) && (upperName.indexOf(filterTerm.toUpperCase()) < 0))
+                {
+                    filteredPlatform = null;
+                }
+            }
+
+            if (filteredPlatform)
+            {
+                platformsList.push(filteredPlatform);
+            }
+        }
+    }
+    else
+    {
+        platformsList = null;
+    }
+
+    return platformsList;
+}
+
+
+// function filteredPlatform(platform, filterTerm) {
+
+//     var treeCopy = platformsPanelItemsStore.getTreeCopy();
+
+//     var filteredPlatform = platformsPanelItemsStore.getFilteredItems(treeCopy["platforms"][platform.uuid], filterTerm);
+
+
+//     if (filteredPlatform)
+//     {
+//         if ((filteredPlatform.children.length === 0) && (filteredPlatform.name.indexOf(filterTerm) < 0))
+//         {
+//             filteredPlatform = null;
+//         }
+//     }
+
+//     return filteredPlatform;
+// };
 
 module.exports = PlatformsPanel;
 
 
-},{"../action-creators/platforms-panel-action-creators":6,"../stores/platforms-panel-items-store":43,"../stores/platforms-panel-store":44,"./platforms-panel-item":24,"react":undefined,"react-router":undefined}],26:[function(require,module,exports){
+},{"../action-creators/platforms-panel-action-creators":6,"../stores/platforms-panel-items-store":46,"../stores/platforms-panel-store":47,"./platforms-panel-item":26,"react":undefined,"react-router":undefined}],28:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2709,7 +3170,7 @@ function getStateFromStores() {
 module.exports = Platforms;
 
 
-},{"../action-creators/modal-action-creators":3,"../components/deregister-platform-confirmation":14,"../components/register-platform-form":27,"../stores/platforms-store":45,"react":undefined,"react-router":undefined}],27:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../components/deregister-platform-confirmation":14,"../components/register-platform-form":29,"../stores/platforms-store":48,"react":undefined,"react-router":undefined}],29:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2915,7 +3376,7 @@ function getStateFromStores() {
 module.exports = RegisterPlatformForm;
 
 
-},{"../action-creators/modal-action-creators":3,"../action-creators/platform-manager-action-creators":5,"../stores/platform-registration-store":42,"react":undefined}],28:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../action-creators/platform-manager-action-creators":5,"../stores/platform-registration-store":45,"react":undefined}],30:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2974,7 +3435,7 @@ var RemoveAgentForm = React.createClass({displayName: "RemoveAgentForm",
 module.exports = RemoveAgentForm;
 
 
-},{"../action-creators/modal-action-creators":3,"../action-creators/platform-action-creators":4,"react":undefined}],29:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../action-creators/platform-action-creators":4,"react":undefined}],31:[function(require,module,exports){
 'use strict';
 
 var keyMirror = require('react/lib/keyMirror');
@@ -3011,11 +3472,14 @@ module.exports = keyMirror({
     RECEIVE_POINT_STATUSES: null,
     RECEIVE_BUILDING_STATUSES: null,
 
+    ADD_TO_GRAPH: null,
+    REMOVE_FROM_GRAPH: null,
+
     RECEIVE_PLATFORM_TOPIC_DATA: null,
 });
 
 
-},{"react/lib/keyMirror":undefined}],30:[function(require,module,exports){
+},{"react/lib/keyMirror":undefined}],32:[function(require,module,exports){
 'use strict';
 
 var Dispatcher = require('flux').Dispatcher;
@@ -3035,7 +3499,7 @@ dispatcher.dispatch = function (action) {
 module.exports = dispatcher;
 
 
-},{"../constants/action-types":29,"flux":undefined}],31:[function(require,module,exports){
+},{"../constants/action-types":31,"flux":undefined}],33:[function(require,module,exports){
 'use strict';
 
 function RpcError(error) {
@@ -3050,7 +3514,7 @@ RpcError.prototype.constructor = RpcError;
 module.exports = RpcError;
 
 
-},{}],32:[function(require,module,exports){
+},{}],34:[function(require,module,exports){
 'use strict';
 
 var uuid = require('node-uuid');
@@ -3138,7 +3602,7 @@ function RpcExchange(request, redactedParams) {
 module.exports = RpcExchange;
 
 
-},{"../../constants/action-types":29,"../../dispatcher":30,"../xhr":36,"./error":31,"node-uuid":undefined}],33:[function(require,module,exports){
+},{"../../constants/action-types":31,"../../dispatcher":32,"../xhr":38,"./error":33,"node-uuid":undefined}],35:[function(require,module,exports){
 'use strict';
 
 module.exports = {
@@ -3147,7 +3611,7 @@ module.exports = {
 };
 
 
-},{"./error":31,"./exchange":32}],34:[function(require,module,exports){
+},{"./error":33,"./exchange":34}],36:[function(require,module,exports){
 'use strict';
 
 var EventEmitter = require('events').EventEmitter;
@@ -3175,7 +3639,7 @@ Store.prototype.removeChangeListener = function (callback) {
 module.exports = Store;
 
 
-},{"events":undefined}],35:[function(require,module,exports){
+},{"events":undefined}],37:[function(require,module,exports){
 'use strict';
 
 function XhrError(message, response) {
@@ -3189,7 +3653,7 @@ XhrError.prototype.constructor = XhrError;
 module.exports = XhrError;
 
 
-},{}],36:[function(require,module,exports){
+},{}],38:[function(require,module,exports){
 'use strict';
 
 module.exports = {
@@ -3198,7 +3662,7 @@ module.exports = {
 };
 
 
-},{"./error":35,"./request":37}],37:[function(require,module,exports){
+},{"./error":37,"./request":39}],39:[function(require,module,exports){
 'use strict';
 
 var jQuery = require('jquery');
@@ -3229,7 +3693,7 @@ function XhrRequest(opts) {
 module.exports = XhrRequest;
 
 
-},{"./error":35,"bluebird":undefined,"jquery":undefined}],38:[function(require,module,exports){
+},{"./error":37,"bluebird":undefined,"jquery":undefined}],40:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -3267,7 +3731,7 @@ authorizationStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = authorizationStore;
 
 
-},{"../constants/action-types":29,"../dispatcher":30,"../lib/store":34}],39:[function(require,module,exports){
+},{"../constants/action-types":31,"../dispatcher":32,"../lib/store":36}],41:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -3360,7 +3824,96 @@ consoleStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = consoleStore;
 
 
-},{"../constants/action-types":29,"../dispatcher":30,"../lib/store":34,"../stores/authorization-store":38}],40:[function(require,module,exports){
+},{"../constants/action-types":31,"../dispatcher":32,"../lib/store":36,"../stores/authorization-store":40}],42:[function(require,module,exports){
+'use strict';
+
+var ACTION_TYPES = require('../constants/action-types');
+var authorizationStore = require('../stores/authorization-store');
+var dispatcher = require('../dispatcher');
+var Store = require('../lib/store');
+
+
+var _graphVisible = false;
+var _graphData = [];
+
+var graphStore = new Store();
+
+graphStore.getGraphs = function (uuid) {
+    
+
+    return null;
+};
+
+graphStore.getLastError = function (uuid) {
+    return _lastErrors[uuid] || null;
+};
+
+graphStore.getData = function () {
+    return _graphData;
+}
+
+graphStore.dispatchToken = dispatcher.register(function (action) {
+    switch (action.type) {
+
+        case ACTION_TYPES.ADD_TO_GRAPH:  
+
+            var graphItems = _graphData.filter(function (item) { return item.uuid === action.panelItem.uuid });
+
+            if (graphItems.length === 0)
+            {
+                if (action.panelItem.hasOwnProperty("data"))
+                {
+                    _graphData = _graphData.concat(action.panelItem.data);
+                }
+
+                if (_graphData.length > 0)
+                {
+                    _graphVisible = true;
+                }
+
+                graphStore.emitChange();
+            }
+
+            break;
+
+        case ACTION_TYPES.REMOVE_FROM_GRAPH:
+
+            if (_graphData.length > 0)
+            {
+                _graphData.forEach(function(item, index) {
+                    if (item.uuid === action.panelItem.uuid)
+                    {
+                        _graphData.splice(index, 1);
+                    }
+                });
+
+                for (var i = _graphData.length - 1; i >= 0; i--)
+                {
+                    if (_graphData[i].uuid === action.panelItem.uuid)
+                    {
+                        _graphData.splice(i, 1);
+                    }                    
+                }
+
+                if (_graphData.length === 0)
+                {
+                    _graphVisible = false;
+                }
+
+                graphStore.emitChange();  
+            }
+
+            break;
+    } 
+    
+});
+
+
+
+module.exports = graphStore;
+
+
+},{"../constants/action-types":31,"../dispatcher":32,"../lib/store":36,"../stores/authorization-store":40}],43:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -3395,7 +3948,7 @@ loginFormStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = loginFormStore;
 
 
-},{"../constants/action-types":29,"../dispatcher":30,"../lib/store":34,"./authorization-store":38}],41:[function(require,module,exports){
+},{"../constants/action-types":31,"../dispatcher":32,"../lib/store":36,"./authorization-store":40}],44:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -3428,7 +3981,7 @@ modalStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = modalStore;
 
 
-},{"../constants/action-types":29,"../dispatcher":30,"../lib/store":34}],42:[function(require,module,exports){
+},{"../constants/action-types":31,"../dispatcher":32,"../lib/store":36}],45:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -3474,7 +4027,7 @@ platformRegistrationStore.dispatchToken = dispatcher.register(function (action) 
 module.exports = platformRegistrationStore;
 
 
-},{"../constants/action-types":29,"../dispatcher":30,"../lib/store":34,"./authorization-store":38}],43:[function(require,module,exports){
+},{"../constants/action-types":31,"../dispatcher":32,"../lib/store":36,"./authorization-store":40}],46:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -3503,16 +4056,138 @@ var _items = {
                 "status": "GOOD",
                 "type": "type",
                 "sortOrder": _pointsOrder,
-                "children": ["5461fedc-65ba-43fe-21dc-098765bafedl"],                    
-                "5461fedc-65ba-43fe-21dc-098765bafedl":
+                "children": ["5461fedc-65ba-43fe-21dc-000765bafedl"],                    
+                "5461fedc-65ba-43fe-21dc-000765bafedl":
                 {
-                    "uuid": "5461fedc-65ba-43fe-21dc-098765bafedl",
+                    "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
                     "name": "OutdoorAirTemperature",
                     "status": "GOOD",
                     "type": "point",
                     "sortOrder": 0,
                     "children": [],
-                    "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "points", "5461fedc-65ba-43fe-21dc-098765bafedl"]
+                    "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "points", "5461fedc-65ba-43fe-21dc-000765bafedl"],
+                    "data": [
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
+                                    "name": "OutdoorAirTemperature",
+                                    "month": 1,
+                                    "avg_max_temp_f": 46.83,
+                                    "avg_min_temp_f": 28.1,
+                                    "avg_temp_f": 37.47,
+                                    "total_percipitation_in": 2.35,
+                                    "total_snowfall_in": 9.6
+                                },
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
+                                    "name": "OutdoorAirTemperature",
+                                    "month": 2,
+                                    "avg_max_temp_f": 47.58,
+                                    "avg_min_temp_f": 26.35,
+                                    "avg_temp_f": 36.96,
+                                    "total_percipitation_in": 7.61,
+                                    "total_snowfall_in": 25.5
+                                },
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
+                                    "name": "OutdoorAirTemperature",
+                                    "month": 3,
+                                    "avg_max_temp_f": 51.45,
+                                    "avg_min_temp_f": 31.39,
+                                    "avg_temp_f": 41.42,
+                                    "total_percipitation_in": 11.74,
+                                    "total_snowfall_in": 39.6
+                                },
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
+                                    "name": "OutdoorAirTemperature",
+                                    "month": 4,
+                                    "avg_max_temp_f": 61.5,
+                                    "avg_min_temp_f": 35.13,
+                                    "avg_temp_f": 48.32,
+                                    "total_percipitation_in": 1.44,
+                                    "total_snowfall_in": 2.3
+                                },
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
+                                    "name": "OutdoorAirTemperature",
+                                    "month": 5,
+                                    "avg_max_temp_f": 64.9,
+                                    "avg_min_temp_f": 40.68,
+                                    "avg_temp_f": 52.79,
+                                    "total_percipitation_in": 2.17,
+                                    "total_snowfall_in": 0
+                                },
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
+                                    "name": "OutdoorAirTemperature",
+                                    "month": 6,
+                                    "avg_max_temp_f": 73.79,
+                                    "avg_min_temp_f": 48.18,
+                                    "avg_temp_f": 60.98,
+                                    "total_percipitation_in": 2.06,
+                                    "total_snowfall_in": 0
+                                },
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
+                                    "name": "OutdoorAirTemperature",
+                                    "month": 7,
+                                    "avg_max_temp_f": 85.07,
+                                    "avg_min_temp_f": 56.1,
+                                    "avg_temp_f": 70.58,
+                                    "total_percipitation_in": 0,
+                                    "total_snowfall_in": 0
+                                },
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
+                                    "name": "OutdoorAirTemperature",
+                                    "month": 8,
+                                    "avg_max_temp_f": 88.1,
+                                    "avg_min_temp_f": 56.45,
+                                    "avg_temp_f": 72.28,
+                                    "total_percipitation_in": 0.15,
+                                    "total_snowfall_in": 0
+                                },
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
+                                    "name": "OutdoorAirTemperature",
+                                    "month": 9,
+                                    "avg_max_temp_f": 84.47,
+                                    "avg_min_temp_f": 54.13,
+                                    "avg_temp_f": 69.3,
+                                    "total_percipitation_in": 3.42,
+                                    "total_snowfall_in": 0
+                                },
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
+                                    "name": "OutdoorAirTemperature",
+                                    "month": 10,
+                                    "avg_max_temp_f": 71.14,
+                                    "avg_min_temp_f": 43.54,
+                                    "avg_temp_f": 57.34,
+                                    "total_percipitation_in": 2.8,
+                                    "total_snowfall_in": 0
+                                },
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
+                                    "name": "OutdoorAirTemperature",
+                                    "month": 11,
+                                    "avg_max_temp_f": 53.62,
+                                    "avg_min_temp_f": 32.07,
+                                    "avg_temp_f": 42.62,
+                                    "total_percipitation_in": 1.07,
+                                    "total_snowfall_in": 5
+                                },
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
+                                    "name": "OutdoorAirTemperature",
+                                    "month": 12,
+                                    "avg_max_temp_f": 48.97,
+                                    "avg_min_temp_f": 25.42,
+                                    "avg_temp_f": 37.19,
+                                    "total_percipitation_in": 0,
+                                    "total_snowfall_in": 0
+                                }
+                            ]
                 }
             },
             "agents": {                
@@ -3565,26 +4240,270 @@ var _items = {
                         "status": "GOOD",
                         "type": "type",
                         "sortOrder": _pointsOrder,
-                        "children": ["5461fedc-65ba-43fe-21dc-098765bafedl", "6451fedc-65ba-43fe-21dc-098765bafedl"], 
-                        "5461fedc-65ba-43fe-21dc-098765bafedl":
+                        "children": ["5461fedc-65ba-43fe-21dc-111765bafedl", "6451fedc-65ba-43fe-21dc-000765bafedl"], 
+                        "5461fedc-65ba-43fe-21dc-111765bafedl":
                         {
-                            "uuid": "5461fedc-65ba-43fe-21dc-098765bafedl",
+                            "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
                             "name": "OutdoorAirTemperature",
                             "status": "GOOD",
                             "type": "point",
                             "sortOrder": 0,
                             "children": [],
-                            "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "points", "5461fedc-65ba-43fe-21dc-098765bafedl"]
+                            "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "points", "5461fedc-65ba-43fe-21dc-111765bafedl"],
+                            "data": [
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
+                                    "name": "OutdoorAirTemperature",
+                                    "month": 1,
+                                    "avg_max_temp_f": 51.5,
+                                    "avg_min_temp_f": 28.2,
+                                    "avg_temp_f": 39.85,
+                                    "total_percipitation_in": 4.98,
+                                    "total_snowfall_in": 1.1
+                                },
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
+                                    "name": "OutdoorAirTemperature",
+                                    "month": 2,
+                                    "avg_max_temp_f": 54.32,
+                                    "avg_min_temp_f": 29.86,
+                                    "avg_temp_f": 42.09,
+                                    "total_percipitation_in": 0.9,
+                                    "total_snowfall_in": 11
+                                },
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
+                                    "name": "OutdoorAirTemperature",
+                                    "month": 3,
+                                    "avg_max_temp_f": 54.45,
+                                    "avg_min_temp_f": 32.62,
+                                    "avg_temp_f": 43.53,
+                                    "total_percipitation_in": 5.76,
+                                    "total_snowfall_in": 24.5
+                                },
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
+                                    "name": "OutdoorAirTemperature",
+                                    "month": 4,
+                                    "avg_max_temp_f": 63.69,
+                                    "avg_min_temp_f": 38.83,
+                                    "avg_temp_f": 51.12,
+                                    "total_percipitation_in": 4.45,
+                                    "total_snowfall_in": 5.5
+                                },
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
+                                    "name": "OutdoorAirTemperature",
+                                    "month": 5,
+                                    "avg_max_temp_f": 75.45,
+                                    "avg_min_temp_f": 46.57,
+                                    "avg_temp_f": 61.16,
+                                    "total_percipitation_in": 0.33,
+                                    "total_snowfall_in": 0
+                                },
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
+                                    "name": "OutdoorAirTemperature",
+                                    "month": 6,
+                                    "avg_max_temp_f": 82.21,
+                                    "avg_min_temp_f": 51.36,
+                                    "avg_temp_f": 66.79,
+                                    "total_percipitation_in": 0.67,
+                                    "total_snowfall_in": 0
+                                },
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
+                                    "name": "OutdoorAirTemperature",
+                                    "month": 7,
+                                    "avg_max_temp_f": 89.3,
+                                    "avg_min_temp_f": 57.4,
+                                    "avg_temp_f": 73.35,
+                                    "total_percipitation_in": 0.01,
+                                    "total_snowfall_in": 0
+                                },
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
+                                    "name": "OutdoorAirTemperature",
+                                    "month": 8,
+                                    "avg_max_temp_f": 93.14,
+                                    "avg_min_temp_f": 60.62,
+                                    "avg_temp_f": 76.88,
+                                    "total_percipitation_in": 0.06,
+                                    "total_snowfall_in": 0
+                                },
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
+                                    "name": "OutdoorAirTemperature",
+                                    "month": 9,
+                                    "avg_max_temp_f": 87.41,
+                                    "avg_min_temp_f": 56.1,
+                                    "avg_temp_f": 71.76,
+                                    "total_percipitation_in": 0,
+                                    "total_snowfall_in": 0
+                                },
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
+                                    "name": "OutdoorAirTemperature",
+                                    "month": 10,
+                                    "avg_max_temp_f": 72.04,
+                                    "avg_min_temp_f": 44.89,
+                                    "avg_temp_f": 58.46,
+                                    "total_percipitation_in": 1.47,
+                                    "total_snowfall_in": 0
+                                },
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
+                                    "name": "OutdoorAirTemperature",
+                                    "month": 11,
+                                    "avg_max_temp_f": 56.04,
+                                    "avg_min_temp_f": 35.39,
+                                    "avg_temp_f": 45.71,
+                                    "total_percipitation_in": 5.06,
+                                    "total_snowfall_in": 6.5
+                                },
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
+                                    "name": "OutdoorAirTemperature",
+                                    "month": 12,
+                                    "avg_max_temp_f": 42.64,
+                                    "avg_min_temp_f": 29.93,
+                                    "avg_temp_f": 36.29,
+                                    "total_percipitation_in": 11.91,
+                                    "total_snowfall_in": 18.5
+                                }
+                            ]
                         },
-                        "6451fedc-65ba-43fe-21dc-098765bafedl":
+                        "6451fedc-65ba-43fe-21dc-000765bafedl":
                         {
-                            "uuid": "6451fedc-65ba-43fe-21dc-098765bafedl",
+                            "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
                             "name": "WholeBuildingPower",
                             "status": "GOOD",
                             "type": "point",
                             "sortOrder": 0,
                             "children": [],
-                            "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "points", "6451fedc-65ba-43fe-21dc-098765bafedl"]
+                            "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "points", "6451fedc-65ba-43fe-21dc-000765bafedl"],
+                            "data": [
+                                {
+                                    "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
+                                    "name": "WholeBuildingPower",
+                                    "month": 1,
+                                    "avg_max_temp_f": 44.25,
+                                    "avg_min_temp_f": 23.25,
+                                    "avg_temp_f": 33.75,
+                                    "total_percipitation_in": 0.91,
+                                    "total_snowfall_in": 2
+                                },
+                                {
+                                    "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
+                                    "name": "WholeBuildingPower",
+                                    "month": 2,
+                                    "avg_max_temp_f": 53.14,
+                                    "avg_min_temp_f": 27.9,
+                                    "avg_temp_f": 40.52,
+                                    "total_percipitation_in": 0.5,
+                                    "total_snowfall_in": 1.1
+                                },
+                                {
+                                    "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
+                                    "name": "WholeBuildingPower",
+                                    "month": 3,
+                                    "avg_max_temp_f": 61.18,
+                                    "avg_min_temp_f": 36.18,
+                                    "avg_temp_f": 48.68,
+                                    "total_percipitation_in": 2.99,
+                                    "total_snowfall_in": 0
+                                },
+                                {
+                                    "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
+                                    "name": "WholeBuildingPower",
+                                    "month": 4,
+                                    "avg_max_temp_f": 67.76,
+                                    "avg_min_temp_f": 41.24,
+                                    "avg_temp_f": 54.5,
+                                    "total_percipitation_in": 1.64,
+                                    "total_snowfall_in": 0.5
+                                },
+                                {
+                                    "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
+                                    "name": "WholeBuildingPower",
+                                    "month": 5,
+                                    "avg_max_temp_f": 73.55,
+                                    "avg_min_temp_f": 47.86,
+                                    "avg_temp_f": 60.7,
+                                    "total_percipitation_in": 2.96,
+                                    "total_snowfall_in": 0
+                                },
+                                {
+                                    "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
+                                    "name": "WholeBuildingPower",
+                                    "month": 6,
+                                    "avg_max_temp_f": 84.77,
+                                    "avg_min_temp_f": 55.1,
+                                    "avg_temp_f": 69.93,
+                                    "total_percipitation_in": 0.16,
+                                    "total_snowfall_in": 0
+                                },
+                                {
+                                    "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
+                                    "name": "WholeBuildingPower",
+                                    "month": 7,
+                                    "avg_max_temp_f": 93.69,
+                                    "avg_min_temp_f": 61.81,
+                                    "avg_temp_f": 77.75,
+                                    "total_percipitation_in": 0.02,
+                                    "total_snowfall_in": 0
+                                },
+                                {
+                                    "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
+                                    "name": "WholeBuildingPower",
+                                    "month": 8,
+                                    "avg_max_temp_f": 89.25,
+                                    "avg_min_temp_f": 55.89,
+                                    "avg_temp_f": 72.57,
+                                    "total_percipitation_in": 0,
+                                    "total_snowfall_in": 0
+                                },
+                                {
+                                    "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
+                                    "name": "WholeBuildingPower",
+                                    "month": 9,
+                                    "avg_max_temp_f": 82,
+                                    "avg_min_temp_f": 50.78,
+                                    "avg_temp_f": 66.39,
+                                    "total_percipitation_in": 0.92,
+                                    "total_snowfall_in": 0
+                                },
+                                {
+                                    "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
+                                    "name": "WholeBuildingPower",
+                                    "month": 10,
+                                    "avg_max_temp_f": 69.5,
+                                    "avg_min_temp_f": 39.5,
+                                    "avg_temp_f": 54.5,
+                                    "total_percipitation_in": 0.94,
+                                    "total_snowfall_in": 0
+                                },
+                                {
+                                    "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
+                                    "name": "WholeBuildingPower",
+                                    "month": 11,
+                                    "avg_max_temp_f": 60.32,
+                                    "avg_min_temp_f": 33.63,
+                                    "avg_temp_f": 46.97,
+                                    "total_percipitation_in": 0.73,
+                                    "total_snowfall_in": 0
+                                },
+                                {
+                                    "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
+                                    "name": "WholeBuildingPower",
+                                    "month": 12,
+                                    "avg_max_temp_f": 48.81,
+                                    "avg_min_temp_f": 24.95,
+                                    "avg_temp_f": 36.88,
+                                    "total_percipitation_in": 1.53,
+                                    "total_snowfall_in": 10.5
+                                }
+                            ]
                         }
                     },
                     "devices": {       
@@ -3609,26 +4528,269 @@ var _items = {
                                 "status": "GOOD",
                                 "type": "type",
                                 "sortOrder": _pointsOrder,
-                                "children": ["5461fedc-65ba-43fe-21dc-098765bafedl", "6451fedc-65ba-43fe-21dc-098765bafedl"],
-                                "5461fedc-65ba-43fe-21dc-098765bafedl":
+                                "children": ["5461fedc-65ba-43fe-21dc-222765bafedl", "6451fedc-65ba-43fe-21dc-11165bafedl"],
+                                "5461fedc-65ba-43fe-21dc-222765bafedl":
                                 {
-                                    "uuid": "5461fedc-65ba-43fe-21dc-098765bafedl",
+                                    "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
                                     "name": "CoolingCall",
                                     "status": "GOOD",
                                     "type": "point",
                                     "sortOrder": 0,
                                     "children": [],
-                                    "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "points", "5461fedc-65ba-43fe-21dc-098765bafedl"]
+                                    "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "points", "5461fedc-65ba-43fe-21dc-222765bafedl"],
+                                    "data": [
+                                        {
+                                            "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
+                                            "name": "CoolingCall",
+                                            "month": 1,
+                                            "avg_max_temp_f": 57.13,
+                                            "avg_min_temp_f": 31.32,
+                                            "avg_temp_f": 44.23,
+                                            "total_percipitation_in": 1.01,
+                                            "total_snowfall_in": 0
+                                        },
+                                        {
+                                            "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
+                                            "name": "CoolingCall",
+                                            "month": 2,
+                                            "avg_max_temp_f": 54.64,
+                                            "avg_min_temp_f": 34.82,
+                                            "avg_temp_f": 44.73,
+                                            "total_percipitation_in": 5.47,
+                                            "total_snowfall_in": 2
+                                        },
+                                        {
+                                            "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
+                                            "name": "CoolingCall",
+                                            "month": 3,
+                                            "avg_max_temp_f": 62.48,
+                                            "avg_min_temp_f": 37.44,
+                                            "avg_temp_f": 49.96,
+                                            "total_percipitation_in": 3.89,
+                                            "total_snowfall_in": 1
+                                        },
+                                        {
+                                            "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
+                                            "name": "CoolingCall",
+                                            "month": 4,
+                                            "avg_max_temp_f": 66.56,
+                                            "avg_min_temp_f": 40.5,
+                                            "avg_temp_f": 53.53,
+                                            "total_percipitation_in": 2.81,
+                                            "total_snowfall_in": 0
+                                        },
+                                        {
+                                            "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
+                                            "name": "CoolingCall",
+                                            "month": 5,
+                                            "avg_max_temp_f": 75.83,
+                                            "avg_min_temp_f": 46.83,
+                                            "avg_temp_f": 61.33,
+                                            "total_percipitation_in": 0.73,
+                                            "total_snowfall_in": 0
+                                        },
+                                        {
+                                            "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
+                                            "name": "CoolingCall",
+                                            "month": 6,
+                                            "avg_max_temp_f": 85.28,
+                                            "avg_min_temp_f": 53.39,
+                                            "avg_temp_f": 69.33,
+                                            "total_percipitation_in": 0.2,
+                                            "total_snowfall_in": 0
+                                        },
+                                        {
+                                            "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
+                                            "name": "CoolingCall",
+                                            "month": 7,
+                                            "avg_max_temp_f": 91,
+                                            "avg_min_temp_f": 60.93,
+                                            "avg_temp_f": 75.97,
+                                            "total_percipitation_in": 0.28,
+                                            "total_snowfall_in": 0
+                                        },
+                                        {
+                                            "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
+                                            "name": "CoolingCall",
+                                            "month": 8,
+                                            "avg_max_temp_f": 88.85,
+                                            "avg_min_temp_f": 57.8,
+                                            "avg_temp_f": 73.33,
+                                            "total_percipitation_in": 0.15,
+                                            "total_snowfall_in": 0
+                                        },
+                                        {
+                                            "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
+                                            "name": "CoolingCall",
+                                            "month": 9,
+                                            "avg_max_temp_f": 85.04,
+                                            "avg_min_temp_f": 53.5,
+                                            "avg_temp_f": 69.27,
+                                            "total_percipitation_in": 0.54,
+                                            "total_snowfall_in": 0
+                                        },
+                                        {
+                                            "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
+                                            "name": "CoolingCall",
+                                            "month": 10,
+                                            "avg_max_temp_f": 76.79,
+                                            "avg_min_temp_f": 36.18,
+                                            "avg_temp_f": 56.48,
+                                            "total_percipitation_in": 0,
+                                            "total_snowfall_in": 0
+                                        },
+                                        {
+                                            "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
+                                            "name": "CoolingCall",
+                                            "month": 11,
+                                            "avg_max_temp_f": 59.27,
+                                            "avg_min_temp_f": 33.53,
+                                            "avg_temp_f": 46.4,
+                                            "total_percipitation_in": 2.98,
+                                            "total_snowfall_in": 0
+                                        },
+                                        {
+                                            "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
+                                            "name": "CoolingCall",
+                                            "month": 12,
+                                            "avg_max_temp_f": 48.86,
+                                            "avg_min_temp_f": 32.79,
+                                            "avg_temp_f": 40.82,
+                                            "total_percipitation_in": 4.71,
+                                            "total_snowfall_in": 1.2
+                                        }
+                                    ]
                                 },
-                                "6451fedc-65ba-43fe-21dc-098765bafedl":
+                                "6451fedc-65ba-43fe-21dc-11165bafedl":
                                 {
-                                    "uuid": "6451fedc-65ba-43fe-21dc-098765bafedl",
+                                    "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
                                     "name": "CondenserFanPower",
                                     "status": "GOOD",
                                     "type": "point",
                                     "sortOrder": 0,
                                     "children": [],
-                                    "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "points", "6451fedc-65ba-43fe-21dc-098765bafedl"]
+                                    "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "points", "6451fedc-65ba-43fe-21dc-11165bafedl"],
+                                    "data": [
+                                        {
+                                            "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
+                                            "name": "CondenserFanPower",
+                                            "month": 1,
+                                            "avg_max_temp_f": 56.96,
+                                            "avg_min_temp_f": 30.39,
+                                            "avg_temp_f": 43.68,
+                                            "total_percipitation_in": 0.1,
+                                            "total_snowfall_in": 0
+                                        },
+                                        {
+                                            "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
+                                            "name": "CondenserFanPower",
+                                            "month": 2,
+                                            "avg_max_temp_f": 64.82,
+                                            "avg_min_temp_f": 36,
+                                            "avg_temp_f": 50.3,
+                                            "total_percipitation_in": 1.63,
+                                            "total_snowfall_in": 0
+                                        },
+                                        {
+                                            "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
+                                            "name": "CondenserFanPower",
+                                            "month": 3,
+                                            "avg_max_temp_f": 67.29,
+                                            "avg_min_temp_f": 38.33,
+                                            "avg_temp_f": 52.81,
+                                            "total_percipitation_in": 0.43,
+                                            "total_snowfall_in": 0
+                                        },
+                                        {
+                                            "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
+                                            "name": "CondenserFanPower",
+                                            "month": 4,
+                                            "avg_max_temp_f": 66.35,
+                                            "avg_min_temp_f": 37.73,
+                                            "avg_temp_f": 52.04,
+                                            "total_percipitation_in": 3.15,
+                                            "total_snowfall_in": 4.5
+                                        },
+                                        {
+                                            "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
+                                            "name": "CondenserFanPower",
+                                            "month": 5,
+                                            "avg_max_temp_f": 68.81,
+                                            "avg_min_temp_f": 43.96,
+                                            "avg_temp_f": 56.38,
+                                            "total_percipitation_in": 1.97,
+                                            "total_snowfall_in": 0
+                                        },
+                                        {
+                                            "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
+                                            "name": "CondenserFanPower",
+                                            "month": 6,
+                                            "avg_max_temp_f": 87.97,
+                                            "avg_min_temp_f": 57.23,
+                                            "avg_temp_f": 72.6,
+                                            "total_percipitation_in": 0.79,
+                                            "total_snowfall_in": 0
+                                        },
+                                        {
+                                            "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
+                                            "name": "CondenserFanPower",
+                                            "month": 7,
+                                            "avg_max_temp_f": 87.68,
+                                            "avg_min_temp_f": 59.71,
+                                            "avg_temp_f": 73.69,
+                                            "total_percipitation_in": 2.58,
+                                            "total_snowfall_in": 0
+                                        },
+                                        {
+                                            "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
+                                            "name": "CondenserFanPower",
+                                            "month": 8,
+                                            "avg_max_temp_f": 91.39,
+                                            "avg_min_temp_f": 58.68,
+                                            "avg_temp_f": 75.03,
+                                            "total_percipitation_in": 0.04,
+                                            "total_snowfall_in": 0
+                                        },
+                                        {
+                                            "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
+                                            "name": "CondenserFanPower",
+                                            "month": 9,
+                                            "avg_max_temp_f": 85.07,
+                                            "avg_min_temp_f": 55.86,
+                                            "avg_temp_f": 70.41,
+                                            "total_percipitation_in": 0.15,
+                                            "total_snowfall_in": 0
+                                        },
+                                        {
+                                            "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
+                                            "name": "CondenserFanPower",
+                                            "month": 10,
+                                            "avg_max_temp_f": 73.26,
+                                            "avg_min_temp_f": 46.17,
+                                            "avg_temp_f": 59.93,
+                                            "total_percipitation_in": 3.37,
+                                            "total_snowfall_in": 0
+                                        },
+                                        {
+                                            "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
+                                            "name": "CondenserFanPower",
+                                            "month": 11,
+                                            "avg_max_temp_f": 50.5,
+                                            "avg_min_temp_f": 29.36,
+                                            "avg_temp_f": 39.93,
+                                            "total_percipitation_in": 3.74,
+                                            "total_snowfall_in": 0
+                                        },
+                                        {
+                                            "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
+                                            "name": "CondenserFanPower",
+                                            "month": 12,
+                                            "avg_max_temp_f": 43.42,
+                                            "avg_min_temp_f": 24.65,
+                                            "avg_temp_f": 34.03,
+                                            "total_percipitation_in": 5.18,
+                                            "total_snowfall_in": 0
+                                        }]
                                 }
                             },
                             "devices": {    
@@ -3964,6 +5126,115 @@ platformsPanelItemsStore.getItems = function (parent, parentPath) {
     return itemsList;
 };
 
+platformsPanelItemsStore.getTreeCopy = function() {
+
+    return JSON.parse(JSON.stringify(_items));
+}
+
+platformsPanelItemsStore.getFilteredItems = function (parent, filterTerm, filterStatus) {
+
+    var compareFunct;
+    var compareTerm;
+
+    if (filterTerm === "")
+    {
+        compareFunct = function (parent, filterStatus)
+        {
+            if (parent.hasOwnProperty("status"))
+            {
+                return (parent.status !== filterStatus);                
+            }
+            else
+            {
+                return (filterStatus !== "UNKNOWN");
+            }
+        }
+
+        compareTerm = filterStatus;
+    }
+    else if (filterStatus === "")
+    {
+        compareFunct = function (parent, filterTerm)
+        {
+            var upperParent = parent.name.toUpperCase();
+
+            return (upperParent.indexOf(filterTerm.toUpperCase()) < 0);
+        }
+
+        compareTerm = filterTerm;
+    }
+
+    if (parent.children.length === 0)
+    {
+        if (compareFunct(parent, compareTerm))
+        {
+            return null;
+        }
+        else
+        {
+            return parent;
+        }
+    }
+    else
+    {
+        var childrenToDelete = [];
+
+        for (var i = 0; i < parent.children.length; i++)
+        {
+            var childString = parent.children[i];
+            var filteredChild = platformsPanelItemsStore.getFilteredItems(parent[childString], filterTerm, filterStatus);
+
+            if (filteredChild === null)
+            {
+                delete parent[childString];
+
+                childrenToDelete.push(childString);
+            }
+        }
+        
+        for (var i = 0; i < childrenToDelete.length; i++)
+        {
+            var index = parent.children.indexOf(childrenToDelete[i]);
+            parent.children.splice(index, 1);
+        }
+
+        if ((parent.children.length === 0) && (compareFunct(parent, compareTerm)))
+        {
+            parent = null;
+        }
+        else
+        {
+            if (parent.children.length > 0)
+            {
+                parent.expanded = true;
+            }
+        }
+
+        return parent;
+    }
+};
+
+platformsPanelItemsStore.getExpandedChildren = function (expandedOn, parent) {
+
+    if (parent.children.length === 0)
+    {
+        return parent;
+    }
+    else
+    {
+        for (var i = 0; i < parent.children.length; i++)
+        {
+            var childString = parent.children[i];
+            var expandedChild = platformsPanelItemsStore.getExpandedChildren(expandedOn, parent[childString]);
+        }
+        
+        parent.expanded = expandedOn;
+
+        return parent;
+    }
+};
+
+
 platformsPanelItemsStore.getExpanded = function () {
     return _expanded;
 };
@@ -4064,38 +5335,16 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = platformsPanelItemsStore;
 
 
-},{"../constants/action-types":29,"../dispatcher":30,"../lib/store":34}],44:[function(require,module,exports){
+},{"../constants/action-types":31,"../dispatcher":32,"../lib/store":36}],47:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
 var dispatcher = require('../dispatcher');
 var Store = require('../lib/store');
 
-// var _platforms = [
-//             {
-//                 "uuid": "0987fedc-65ba-43fe-21dc-098765bafedc",
-//                 "name": "PNNL",
-//                 "status": "GOOD"
-//             },
-//             {
-//                 "uuid": "2291fedc-65ba-43fe-21dc-098765bafedc",
-//                 "name": "UW",
-//                 "status": "BAD"
-//             },
-//             {
-//                 "uuid": "4837fedc-65ba-43fe-21dc-098765bafedc",
-//                 "name": "WSU",
-//                 "status": "UNKNOWN"
-//             }
-//         ];;
-
 var _expanded = null;
 
 var platformsPanelStore = new Store();
-
-// platformsPanelStore.getPlatforms = function () {
-//     return _platforms;
-// };
 
 platformsPanelStore.getExpanded = function () {
     return _expanded;
@@ -4115,7 +5364,7 @@ platformsPanelStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = platformsPanelStore;
 
 
-},{"../constants/action-types":29,"../dispatcher":30,"../lib/store":34}],45:[function(require,module,exports){
+},{"../constants/action-types":31,"../dispatcher":32,"../lib/store":36}],48:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -4184,7 +5433,7 @@ platformsStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = platformsStore;
 
 
-},{"../constants/action-types":29,"../dispatcher":30,"../lib/store":34,"../stores/authorization-store":38}],46:[function(require,module,exports){
+},{"../constants/action-types":31,"../dispatcher":32,"../lib/store":36,"../stores/authorization-store":40}],49:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -4224,4 +5473,4 @@ topicDataStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = topicDataStore;
 
 
-},{"../constants/action-types":29,"../dispatcher":30,"../lib/store":34,"./authorization-store":38}]},{},[1]);
+},{"../constants/action-types":31,"../dispatcher":32,"../lib/store":36,"./authorization-store":40}]},{},[1]);

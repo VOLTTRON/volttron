@@ -43,17 +43,17 @@ var platformsPanelActionCreators = {
         switch (type)
         {
             case "platform":
-                platformsPanelActionCreators.loadPanelAgents(parent);
-                platformsPanelActionCreators.loadPanelBuildings(parent);
-                platformsPanelActionCreators.loadPanelPoints(parent);
+                loadPanelAgents(parent);
+                loadPanelBuildings(parent);
+                loadPanelPoints(parent);
                 break;
             case "building":
-                platformsPanelActionCreators.loadPanelDevices(parent);
-                platformsPanelActionCreators.loadPanelPoints(parent);
+                loadPanelDevices(parent);
+                loadPanelPoints(parent);
                 break;
             case "device":
-                platformsPanelActionCreators.loadPanelPoints(parent);
-                platformsPanelActionCreators.loadPanelDevices(parent);
+                loadPanelPoints(parent);
+                loadPanelDevices(parent);
                 break;
             case "type":
 
@@ -61,83 +61,117 @@ var platformsPanelActionCreators = {
                 {
                     platformsPanelActionCreators.loadChildren(parent[parent.children[i]].type, parent[parent.children[i]]);
                 }
-
-                // for (var i = 0; i < parent.children.length; i++)
-                // {
-                //     platformsPanelActionCreators.loadChildren(parent.children[i], parent[parent.children[i]]);
-                // }
+                
                 break;
             default:
 
         }
+
+        function loadPanelPoints(parent) {
+            dispatcher.dispatch({
+                type: ACTION_TYPES.RECEIVE_POINT_STATUSES,
+                platform: parent
+            });    
+        }
+
+        function loadPanelDevices(parent) {
+            dispatcher.dispatch({
+                type: ACTION_TYPES.RECEIVE_DEVICE_STATUSES,
+                platform: parent
+            });    
+        }
+
+        function loadPanelBuildings(parent) {
+            dispatcher.dispatch({
+                type: ACTION_TYPES.RECEIVE_BUILDING_STATUSES,
+                platform: parent
+            });    
+        }
+
+        function loadPanelAgents(platform) {
+            var authorization = authorizationStore.getAuthorization();
+
+            new rpc.Exchange({
+                method: 'platforms.uuid.' + platform.uuid + '.list_agents',
+                authorization: authorization,
+            }).promise
+                .then(function (agentsList) {
+                    
+                    dispatcher.dispatch({
+                        type: ACTION_TYPES.RECEIVE_AGENT_STATUSES,
+                        platform: platform,
+                        agents: agentsList
+                    });
+
+                    
+                })
+                .catch(rpc.Error, handle401);    
+        }
+
+
+
+
+    // },
+    
+    // loadPanelPoints: function (parent) {
+    //     dispatcher.dispatch({
+    //         type: ACTION_TYPES.RECEIVE_POINT_STATUSES,
+    //         platform: parent
+    //     });
+    // },
+    // loadPanelDevices: function (parent) {
+    //     dispatcher.dispatch({
+    //         type: ACTION_TYPES.RECEIVE_DEVICE_STATUSES,
+    //         platform: parent
+    //     });
+    // },
+    // loadPanelBuildings: function (platform) {
+    //     dispatcher.dispatch({
+    //         type: ACTION_TYPES.RECEIVE_BUILDING_STATUSES,
+    //         platform: platform
+    //     });
+    // },
+    // loadPanelAgents: function (platform) {
+    //     var authorization = authorizationStore.getAuthorization();
+
+    //     new rpc.Exchange({
+    //         method: 'platforms.uuid.' + platform.uuid + '.list_agents',
+    //         authorization: authorization,
+    //     }).promise
+    //         .then(function (agentsList) {
+                
+    //             dispatcher.dispatch({
+    //                 type: ACTION_TYPES.RECEIVE_AGENT_STATUSES,
+    //                 platform: platform,
+    //                 agents: agentsList
+    //             });
+
+                
+    //         })
+    //         .catch(rpc.Error, handle401);
+    // },
     },
-    loadPanelPoints: function (parent) {
+
+    addToGraph: function(panelItem) {
+
         dispatcher.dispatch({
-            type: ACTION_TYPES.RECEIVE_POINT_STATUSES,
-            platform: parent
-        });
+            type: ACTION_TYPES.ADD_TO_GRAPH,
+            panelItem: panelItem
+        });  
+
     },
-    loadPanelDevices: function (parent) {
+
+    removeFromGraph: function(panelItem) {
+
         dispatcher.dispatch({
-            type: ACTION_TYPES.RECEIVE_DEVICE_STATUSES,
-            platform: parent
-        });
-    },
-    loadPanelBuildings: function (platform) {
-        dispatcher.dispatch({
-            type: ACTION_TYPES.RECEIVE_BUILDING_STATUSES,
-            platform: platform
-        });
-    },
-    loadPanelAgents: function (platform) {
-        var authorization = authorizationStore.getAuthorization();
+            type: ACTION_TYPES.REMOVE_FROM_GRAPH,
+            panelItem: panelItem
+        });  
 
-        new rpc.Exchange({
-            method: 'platforms.uuid.' + platform.uuid + '.list_agents',
-            authorization: authorization,
-        }).promise
-            .then(function (agentsList) {
-                // platform.agents = agentsList;
+    }
+}
 
-                dispatcher.dispatch({
-                    type: ACTION_TYPES.RECEIVE_AGENT_STATUSES,
-                    platform: platform,
-                    agents: agentsList
-                });
 
-                // if (!agentsList.length) { return; }
-
-                // new rpc.Exchange({
-                //     method: 'platforms.uuid.' + platform.uuid + '.status_agents',
-                //     authorization: authorization,
-                // }).promise
-                //     .then(function (agentStatuses) {
-                //         platform.agents.forEach(function (agent) {
-                //             if (!agentStatuses.some(function (status) {
-                //                 if (agent.uuid === status.uuid) {
-                //                     agent.actionPending = false;
-                //                     agent.process_id = status.process_id;
-                //                     agent.return_code = status.return_code;
-
-                //                     return true;
-                //                 }
-                //             })) {
-                //                 agent.actionPending = false;
-                //                 agent.process_id = null;
-                //                 agent.return_code = null;
-                //             }
-
-                //         });
-
-                //         dispatcher.dispatch({
-                //             type: ACTION_TYPES.RECEIVE_PLATFORM,
-                //             platform: platform,
-                //         });
-                //     });
-            })
-            .catch(rpc.Error, handle401);
-    },
-};
 
 
 function handle401(error) {
