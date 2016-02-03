@@ -86,20 +86,32 @@ class MasterWebService(Agent):
         self.registeredroutes = []
 
     @RPC.export
-    def register(self, regex, root):
+    def register_agent_route(self, regex, peer, fn):
+        _log.debug('Registering agent rount expression: {}'.format(regex))
+        compiled = re.compile(regex)
+        self.registeredroutes.append((compiled, 'peer_route', (peer, fn)))
+
+    @RPC.export
+    def register_path_route(self, regex, root_dir):
+        _log.debug('Path location: {}'.format(root_dir))
+        compiled = re.compile(regex)
+        self.registeredroutes.append((compiled, 'path', root_dir))
+
+    @RPC.export
+    def register(self, regex, root_or_callable):
 
         try:
             _log.debug('Registering uri expression: {}'.format(regex))
             compiled = re.compile(regex)
             # callablle was removed in 3.0 but added back to the language
             # in python 3.2
-            if callable(root):
+            if callable(root_or_callable):
                 print('Callable is true')
-                self.registeredroutes.append((compiled, 'callable', root))
+                self.registeredroutes.append((compiled, 'callable', root_or_callable))
             else:
                 print('Is Not Callable.')
-                if os.path.exists(root):
-                    self.registeredroutes.append((compiled, 'path', root))
+                if os.path.exists(root_or_callable):
+                    self.registeredroutes.append((compiled, 'path', root_or_callable))
                 else:
                     raise AttributeError(root +' is not available')
         except OSError as exc:
@@ -112,26 +124,55 @@ class MasterWebService(Agent):
     def app_routing(self, env, start_response):
 
         path_info = env['PATH_INFO']
+        _log.debug("PATHINFO: {}".format(path_info))
         if path_info.startswith('/http://'):
             path_info = path_info[path_info.index('/', len('/http://')):]
             _log.debug('Path info is: {}'.format(path_info))
-
+        envlist = ['HTTP_USER_AGENT', 'PATH_INFO', 'QUERY_STRING',
+            'REQUEST_METHOD', 'SERVER_PROTOCOL']
+        passenv = dict((envlist[i], env[envlist[i]]) for i in range(0, len(envlist)))
         for k, t, v in self.registeredroutes:
-            print(k.pattern, path_info, k.match(path_info))
+            _log.debug("pattern: {}, path_info: {}\n v: {}".format(k.pattern, path_info, v))
+
             if k.match(path_info):
-                if t == 'callable':
-                    return v(env, start_response)
+                if t == 'peer_route':
+                    peer, fn = (v[0], v[1])
+                    res = self.vip.rpc.call(peer, fn, passenv).get(timeout=4)
+                    _log.debug('RES is {}'.format(res))
+                    start_response('200 OK', [('Content-Type', 'application/json')])
+                    return [res]
                 else:
-                    start_response('200 OK', [('Content-Type', 'text/html')])
-                    return [b'{}'.format(env)]
+                    _log.debug('V is: {} MATCHED: {}'.format(v, k.pattern))
+                    server_path = v + path_info #os.path.join(v, path_info)
+                    _log.debug("SERVER_PATH: {}".format(server_path))
+                    return self._sendfile(env, start_response, server_path)
+
+                    #start_response('200 OK', [('Content-Type', 'text/html')])
+                    #return [b'{}'.format(env)]
 
         start_response('404 Not Found', [('Content-Type', 'text/html')])
         return [b'<h1>Not Found</h1>']
+
+    def _sendfile(self, env, start_response, filename):
+        from wsgiref.util import FileWrapper
+        status = '200 OK'
+        _log.debug('SENDING FILE: {}'.format(filename))
+        if not os.path.exists(filename):
+            status = ''
+        #fname = os.path.join(os.path.dirname(__file__), "hello.txt")
+        f = open(filename, 'rb')
+
+        response_headers = [
+            ('Content-type', 'text/plain'),
+        ]
+        start_response(status, response_headers)
+
+        return FileWrapper(open(filename, 'r'))
 
     @Core.receiver('onstart')
     def startupagent(self, sender, **kwargs):
         _log.debug('Starting web server.')
         self.register('^/discovery/$', self.get_serverkey)
-        self.register('/$', '/home/vdev/git/volttron/services/core/VolttronCentral/volttroncentral/webroot')
+        #self.register('/$', '/home/vdev/git/volttron/services/core/VolttronCentral/volttroncentral/webroot')
         self.server = pywsgi.WSGIServer(('0.0.0.0', 8080), self.app_routing)
         self.server.serve_forever()

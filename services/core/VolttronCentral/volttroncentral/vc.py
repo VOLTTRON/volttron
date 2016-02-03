@@ -101,27 +101,27 @@ WEB_ROOT = p.abspath(p.join(p.dirname(__file__), 'webroot'))
 
 def volttron_central_agent(config_path, **kwargs):
     '''The main entry point for the volttron central agent
-    
-    The config options requires a user_map section that should 
+
+    The config options requires a user_map section that should
     hold a mapping of users to their hashed passwords.  Passwords
     are currently hashed using hashlib.sha512(password).hexdigest().
-    
-    
+
+
     '''
     config = utils.load_config(config_path)
 
     vip_identity = config.get('vip_identity', 'volttron.central')
-    
+
     kwargs.pop('identity',None)
 
-    
+
 
     agent_id = config.get('agentid', 'Volttron Central')
     server_conf = config.get('server', {})
-    
+
     # Required users.
     user_map = config.get('users', None)
-    
+
     if user_map is None:
         raise ValueError('users not specified within the config file.')
 
@@ -172,6 +172,7 @@ def volttron_central_agent(config_path, **kwargs):
             self._vip_channels = {}
             self.persistence_path = ''
             self._external_addresses = None
+
 
         def list_agents(self, uuid):
             platform = self.registry.get_platform(uuid)
@@ -269,24 +270,40 @@ def volttron_central_agent(config_path, **kwargs):
             if registered:
                 self.registry.unpackage(registered)
 
-            self.async_caller = AsyncCall()
+            #self.async_caller = AsyncCall()
+
+        @RPC.export
+        def dummy(*kargs, **kwargs):
+            _log.debug('Dummy called')
+            _log.debug(kargs)
+            _log.debug(kwargs)
+            return jsonapi.dumps({'apple': 'banna'})
+
 
         @Core.receiver('onstart')
         def starting(self, sender, **kwargs):
             '''This event is triggered when the platform is ready for the agent
             '''
-            
+
             q = query.Query(self.core)
             result = q.query('addresses').get(timeout=10)
-            
+
             #TODO: Use all addresses for fallback, #114
             self._external_addresses = (result and result[0]) or self.core.address
-            
+            _log.debug('Registering dummy')
+            self.vip.rpc.call('volttron.web', 'register_agent_route',
+                            r'^/jsonrpc.*',
+                            self.core.identity,
+                            'dummy').get(timeout=5)
+
+            self.vip.rpc.call('volttron.web', 'register_path_route',
+                            r'^/.*', WEB_ROOT).get(timeout=5)
+
             # Start server in own thread.
-            th = threading.Thread(target=startWebServer, args=(self,))
-            th.daemon = True
-            th.start()
-            
+            # th = threading.Thread(target=startWebServer, args=(self,))
+            # th.daemon = True
+            # th.start()
+
 
         def __load_persist_data(self):
             persist_kv = None
