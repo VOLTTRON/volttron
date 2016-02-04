@@ -357,10 +357,13 @@ def driven_agent(config_path, **kwargs):
             self.publish(topics.ACTUATOR_SET(point=self.current_key, **device),
                          headers, str(value))
 
-        @matching.match_headers({headers_mod.REQUESTER_ID: agent_id})
-        @matching.match_exact(topics.ACTUATOR_SCHEDULE_RESULT())
-        def schedule_result(self, topic, headers, message, match):
+        #@matching.match_headers({headers_mod.REQUESTER_ID: agent_id})
+        #@matching.match_exact(topics.ACTUATOR_SCHEDULE_RESULT())
+        def schedule_result(self, peer, sender, bus, topic, headers, message):
             '''Actuator response (FAILURE, SUCESS).'''
+            self.match_header(headers, {headers_mod.REQUESTER_ID: agent_id})
+            if not topic == topics.ACTUATOR_SCHEDULE_RESULT(): 
+                return
             _log.debug('Actuator Response')
             msg = jsonapi.loads(message[0])
             msg = msg['result']
@@ -371,10 +374,14 @@ def driven_agent(config_path, **kwargs):
                 elif msg == "FAILURE":
                     _log.debug('Auto-correction of device failed.')
 
-        @matching.match_headers({headers_mod.REQUESTER_ID: agent_id})
-        @matching.match_glob(topics.ACTUATOR_VALUE(point='*', **device))
-        def on_set_result(self, topic, headers, message, match):
+        MATCH_TOPIC = re.compile(topics.ACTUATOR_VALUE(point='*', **device))
+        #@matching.match_headers({headers_mod.REQUESTER_ID: agent_id})
+        #@matching.match_glob(topics.ACTUATOR_VALUE(point='*', **device))
+        def on_set_result(self, peer, sender, bus, topic, headers, message):
             '''Setting of point on device was successful.'''
+            self.match_header(headers, {headers_mod.REQUESTER_ID: agent_id})
+            if not MATCH_TOPIC.match(topic):
+                return
             _log.debug('Set Success:  {point} - {value}'
                        .format(point=self.current_key,
                                value=str(self.commands[self.current_key])))
@@ -397,10 +404,14 @@ def driven_agent(config_path, **kwargs):
                 
                 self.keys = None
 
-        @matching.match_headers({headers_mod.REQUESTER_ID: agent_id})
-        @matching.match_glob(topics.ACTUATOR_ERROR(point='*', **device))
-        def on_set_error(self, topic, headers, message, match):
+        MATCH_TOPIC = re.compile(topics.ACTUATOR_ERROR(point='*', **device))
+        #@matching.match_headers({headers_mod.REQUESTER_ID: agent_id})
+        #@matching.match_glob(topics.ACTUATOR_ERROR(point='*', **device))
+        def on_set_error(self, peer, sender, bus, topic, headers, message):
             '''Setting of point on device failed, log failure message.'''
+            self.match_header(headers, {headers_mod.REQUESTER_ID: agent_id})
+            if not MATCH_TOPIC.match(topic):
+                return
             _log.debug('Set ERROR')
             msg = jsonapi.loads(message[0])
             msg = msg['type']
@@ -421,6 +432,16 @@ def driven_agent(config_path, **kwargs):
                                         topic=topics.ACTUATOR_SCHEDULE_REQUEST(),
                                         message={})
                 self.keys = None
+        
+        def match_header(self, headers, required_headers):
+            for key, required_value in required_headers.iteritems():
+                try:
+                    value = headers[key]
+                except KeyError:
+                    return
+                if value != required_value:
+                    return
+        
 
     DrivenMatlabAgent.__name__ = 'DrivenMatlabAgent'
     return DrivenMatlabAgent(**kwargs)
