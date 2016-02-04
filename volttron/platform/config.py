@@ -74,6 +74,7 @@ import shlex as _shlex
 import sys as _sys
 from gevent import subprocess
 from gevent.subprocess import Popen
+from . import get_home
 
 class TrackingString(str):
     '''String subclass that allows attaching source information.'''
@@ -677,12 +678,22 @@ def _shutdown_platform():
 
     pid = Popen(cmd, env=_os.environ)
 
-def _make_configuration(external_uri):
-    pass
+def _make_configuration(external_uri, volttron_central=None):
+    print('Building cofiguration file.')
+    import ConfigParser as configparser # python3 has configparser rather than
+                                        # this name.
+    config = configparser.ConfigParser()
+    config.add_section('volttron')
+    config.set('volttron', 'vip-address', external_uri)
+    if volttron_central:
+        config.set('volttron', 'volttron-central', volttron_central)
+    cfgfile = _os.path.join(get_home(), 'config')
+    with open(cfgfile, 'w') as cf:
+        config.write(cf)
 
 def _resolvable(uri_and_port):
     import requests
-    discovery_uri = uri_and_port+"/discovery"
+    discovery_uri = "http://"+uri_and_port+"/discovery/"
     req = requests.request('GET', discovery_uri)
     return True
 
@@ -706,8 +717,14 @@ def _main():
     if is_discoverable in ('Y', 'y'):
         t = ('What is the external ip address for this instance? ',)
         external_ip = prompt_response(t)
+        t = ('What is the vip port this instance? [22916] ',)
+        vip_port = prompt_response(t)
+        if not vip_port:
+            vip_port = 22916
         t = ('What is the port for discovery? [8080] ',)
         external_port = prompt_response(t)
+        if not external_port:
+            external_port = 8080
         t = ('Is this instance a volttron central (Y/N)? [N] ', y_or_n, 'N')
         is_vc = prompt_response(t)
         vc_autostart = 'Y'
@@ -721,7 +738,7 @@ def _main():
                 print("Couldn't resolve {}".format(vc_ipaddress))
                 vc_ipaddress = prompt_response(t)
         try:
-            external_uri = "tcp://{}:{}".format(external_ip, external_port)
+            external_uri = "tcp://{}:{}".format(external_ip, vip_port)
             _make_configuration(external_uri, vc_ipaddress)
         except: # Should only happen if this is a vc instance.
             _make_configuration(external_uri)
