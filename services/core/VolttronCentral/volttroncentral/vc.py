@@ -65,10 +65,10 @@ import os.path as p
 import uuid
 
 import gevent
-import tornado
-import tornado.ioloop
-import tornado.web
-from tornado.web import url
+# import tornado
+# import tornado.ioloop
+# import tornado.web
+# from tornado.web import url
 from zmq.utils import jsonapi
 
 from authenticate import Authenticate
@@ -84,8 +84,8 @@ from volttron.platform.vip.agent.subsystems import query
 #                                               onevent, jsonapi, export)
 # from volttron.platform.agent import utils
 
-from webserver import (ManagerWebApplication, ManagerRequestHandler,
-                       StatusHandler, LogHandler, SessionHandler, RpcResponse)
+# from webserver import (ManagerWebApplication, ManagerRequestHandler,
+#                        StatusHandler, LogHandler, SessionHandler, RpcResponse)
 
 from volttron.platform.control import list_agents
 from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
@@ -126,38 +126,38 @@ def volttron_central_agent(config_path, **kwargs):
         raise ValueError('users not specified within the config file.')
 
 
-    hander_config = [
-        (r'/jsonrpc', ManagerRequestHandler),
-        (r'/jsonrpc/', ManagerRequestHandler),
-        (r'/websocket', StatusHandler),
-        (r'/websocket/', StatusHandler),
-        (r'/log', LogHandler),
-        (r'/log/', LogHandler),
-        (r"/(.*)", tornado.web.StaticFileHandler,
-         {"path": WEB_ROOT, "default_filename": "index.html"})
-    ]
+    # hander_config = [
+    #     (r'/jsonrpc', ManagerRequestHandler),
+    #     (r'/jsonrpc/', ManagerRequestHandler),
+    #     (r'/websocket', StatusHandler),
+    #     (r'/websocket/', StatusHandler),
+    #     (r'/log', LogHandler),
+    #     (r'/log/', LogHandler),
+    #     (r"/(.*)", tornado.web.StaticFileHandler,
+    #      {"path": WEB_ROOT, "default_filename": "index.html"})
+    # ]
 
-    def startWebServer(manager):
-        '''Starts the webserver to allow http/RpcParser calls.
-
-        This is where the tornado IOLoop instance is officially started.  It
-        does block here so one should call this within a thread or process if
-        one doesn't want it to block.
-
-        One can stop the server by calling stopWebServer or by issuing an
-        IOLoop.stop() call.
-        '''
-        session_handler = SessionHandler(Authenticate(user_map))
-        webserver = ManagerWebApplication(session_handler, manager,
-                                          hander_config, debug=True)
-        webserver.listen(server_conf.get('port', server_conf.get('port', 8080)),
-                         server_conf.get('host', ''))
-        tornado.ioloop.IOLoop.instance().start()
-
-    def stopWebServer():
-        '''Stops the webserver by calling IOLoop.stop
-        '''
-        tornado.ioloop.IOLoop.stop()
+    # def startWebServer(manager):
+    #     '''Starts the webserver to allow http/RpcParser calls.
+    #
+    #     This is where the tornado IOLoop instance is officially started.  It
+    #     does block here so one should call this within a thread or process if
+    #     one doesn't want it to block.
+    #
+    #     One can stop the server by calling stopWebServer or by issuing an
+    #     IOLoop.stop() call.
+    #     '''
+    #     session_handler = SessionHandler(Authenticate(user_map))
+    #     webserver = ManagerWebApplication(session_handler, manager,
+    #                                       hander_config, debug=True)
+    #     webserver.listen(server_conf.get('port', server_conf.get('port', 8080)),
+    #                      server_conf.get('host', ''))
+    #     tornado.ioloop.IOLoop.instance().start()
+    #
+    # def stopWebServer():
+    #     '''Stops the webserver by calling IOLoop.stop
+    #     '''
+    #     tornado.ioloop.IOLoop.stop()
 
     class VolttronCentralAgent(Agent):
         """Agent for querying WeatherUndergrounds API"""
@@ -270,15 +270,12 @@ def volttron_central_agent(config_path, **kwargs):
             if registered:
                 self.registry.unpackage(registered)
 
-            #self.async_caller = AsyncCall()
-
         @RPC.export
-        def dummy(*kargs, **kwargs):
-            _log.debug('Dummy called')
-            _log.debug(kargs)
-            _log.debug(kwargs)
-            return jsonapi.dumps({'apple': 'banna'})
-
+        def echoresponse(self, environ, data):
+            _log.debug(environ)
+            _log.debug(data)
+            package = {'environ': environ, 'data': data}
+            return jsonapi.dumps(environ)
 
         @Core.receiver('onstart')
         def starting(self, sender, **kwargs):
@@ -294,7 +291,7 @@ def volttron_central_agent(config_path, **kwargs):
             self.vip.rpc.call('volttron.web', 'register_agent_route',
                             r'^/jsonrpc.*',
                             self.core.identity,
-                            'dummy').get(timeout=5)
+                            'echoresponse').get(timeout=5)
 
             self.vip.rpc.call('volttron.web', 'register_path_route',
                             r'^/.*', WEB_ROOT).get(timeout=5)
@@ -342,9 +339,10 @@ def volttron_central_agent(config_path, **kwargs):
 
             return value
 
-        @Core.receiver('onfinish')
+        @Core.receiver('onstop')
         def finish(self, sender, **kwargs):
-            stopWebServer()
+            self.vip.rpc.call('volttron.web', 'unregister_all_agent_routes',
+                            self.core.identity).get(timeout=5)
 
         def _handle_list_platforms(self):
             return [{'uuid': x['uuid'],
