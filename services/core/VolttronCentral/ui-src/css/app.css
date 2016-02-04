@@ -1113,8 +1113,17 @@ a.view__item:hover::before {
 
 /* our nvd3-related styles */
 
-#graph-line-chart {
-    height: 60vh;
+.graph-line-chart {
+    /*height: 60vh;*/
+}
+
+.nv-chart {
+    text-align: center;
+}
+
+.chart-title {
+    font-size: 12px;
+    color: #7D7D7D;
 }
 
 /* end nvd3-related styles */

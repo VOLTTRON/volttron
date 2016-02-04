@@ -234,22 +234,4 @@ function getFilteredPlatforms(filterTerm, filterStatus) {
 }
 
 
-// function filteredPlatform(platform, filterTerm) {
-
-//     var treeCopy = platformsPanelItemsStore.getTreeCopy();
-
-//     var filteredPlatform = platformsPanelItemsStore.getFilteredItems(treeCopy["platforms"][platform.uuid], filterTerm);
-
-
-//     if (filteredPlatform)
-//     {
-//         if ((filteredPlatform.children.length === 0) && (filteredPlatform.name.indexOf(filterTerm) < 0))
-//         {
-//             filteredPlatform = null;
-//         }
-//     }
-
-//     return filteredPlatform;
-// };
-
 module.exports = PlatformsPanel;

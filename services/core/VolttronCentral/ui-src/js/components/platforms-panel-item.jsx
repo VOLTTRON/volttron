@@ -118,7 +118,7 @@ var PlatformsPanelItem = React.createClass({
             propChildren = this.props.children;
         }
 
-        var filterTerm = this.props.filter;
+        // var filterTerm = this.props.filter;
 
         var itemClasses;
         var arrowClasses = ["arrowButton", "noRotate"];

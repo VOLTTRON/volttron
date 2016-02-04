@@ -7,7 +7,7 @@ var Store = require('../lib/store');
 
 
 var _graphVisible = false;
-var _graphData = [];
+var _graphData = {};
 
 var graphStore = new Store();
 
@@ -30,45 +30,57 @@ graphStore.dispatchToken = dispatcher.register(function (action) {
 
         case ACTION_TYPES.ADD_TO_GRAPH:  
 
-            var graphItems = _graphData.filter(function (item) { return item.uuid === action.panelItem.uuid });
+            if (_graphData.hasOwnProperty(action.panelItem.name))
+            {
+                var graphItems = _graphData[action.panelItem.name].filter(function (item) { return item.uuid === action.panelItem.uuid });
 
-            if (graphItems.length === 0)
+                if (graphItems.length === 0)
+                {
+                    if (action.panelItem.hasOwnProperty("data"))
+                    {
+                        _graphData[action.panelItem.name] = _graphData[action.panelItem.name].concat(action.panelItem.data);
+                    }
+
+                    if (_graphData[action.panelItem.name].length > 0)
+                    {
+                        _graphVisible = true;
+                    }
+
+                    graphStore.emitChange();
+                }
+            }
+            else
             {
                 if (action.panelItem.hasOwnProperty("data"))
                 {
-                    _graphData = _graphData.concat(action.panelItem.data);
-                }
+                    _graphData[action.panelItem.name] = JSON.parse(JSON.stringify(action.panelItem.data));
 
-                if (_graphData.length > 0)
-                {
-                    _graphVisible = true;
+                    graphStore.emitChange();
                 }
-
-                graphStore.emitChange();
             }
 
             break;
 
         case ACTION_TYPES.REMOVE_FROM_GRAPH:
 
-            if (_graphData.length > 0)
+            if (_graphData[action.panelItem.name].length > 0)
             {
-                _graphData.forEach(function(item, index) {
-                    if (item.uuid === action.panelItem.uuid)
-                    {
-                        _graphData.splice(index, 1);
-                    }
-                });
+                // _graphData[action.panelItem.name].forEach(function(item, index) {
+                //     if (item.uuid === action.panelItem.uuid)
+                //     {
+                //         _graphData[action.panelItem.name].splice(index, 1);
+                //     }
+                // });
 
-                for (var i = _graphData.length - 1; i >= 0; i--)
+                for (var i = _graphData[action.panelItem.name].length - 1; i >= 0; i--)
                 {
-                    if (_graphData[i].uuid === action.panelItem.uuid)
+                    if (_graphData[action.panelItem.name][i].uuid === action.panelItem.uuid)
                     {
-                        _graphData.splice(i, 1);
+                        _graphData[action.panelItem.name].splice(i, 1);
                     }                    
                 }
 
-                if (_graphData.length === 0)
+                if (_graphData[action.panelItem.name].length === 0)
                 {
                     _graphVisible = false;
                 }

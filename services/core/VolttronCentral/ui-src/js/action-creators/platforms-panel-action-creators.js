@@ -107,49 +107,7 @@ var platformsPanelActionCreators = {
                 })
                 .catch(rpc.Error, handle401);    
         }
-
-
-
-
-    // },
     
-    // loadPanelPoints: function (parent) {
-    //     dispatcher.dispatch({
-    //         type: ACTION_TYPES.RECEIVE_POINT_STATUSES,
-    //         platform: parent
-    //     });
-    // },
-    // loadPanelDevices: function (parent) {
-    //     dispatcher.dispatch({
-    //         type: ACTION_TYPES.RECEIVE_DEVICE_STATUSES,
-    //         platform: parent
-    //     });
-    // },
-    // loadPanelBuildings: function (platform) {
-    //     dispatcher.dispatch({
-    //         type: ACTION_TYPES.RECEIVE_BUILDING_STATUSES,
-    //         platform: platform
-    //     });
-    // },
-    // loadPanelAgents: function (platform) {
-    //     var authorization = authorizationStore.getAuthorization();
-
-    //     new rpc.Exchange({
-    //         method: 'platforms.uuid.' + platform.uuid + '.list_agents',
-    //         authorization: authorization,
-    //     }).promise
-    //         .then(function (agentsList) {
-                
-    //             dispatcher.dispatch({
-    //                 type: ACTION_TYPES.RECEIVE_AGENT_STATUSES,
-    //                 platform: platform,
-    //                 agents: agentsList
-    //             });
-
-                
-    //         })
-    //         .catch(rpc.Error, handle401);
-    // },
     },
 
     addToGraph: function(panelItem) {

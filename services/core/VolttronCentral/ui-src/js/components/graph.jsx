@@ -14,7 +14,7 @@ var lineChart;
 var Graph = React.createClass({
     getInitialState: function () {
         var state = {};
-        state.graphs = getGraphsFromStores();
+        state.graphData = getGraphsFromStores();
 
         return state;
     },
@@ -30,24 +30,51 @@ var Graph = React.createClass({
     _onStoreChange: function () {
         var graphs = getGraphsFromStores();
 
-        this.setState({graphs: graphs});
+        this.setState({graphData: graphs});
     },
     render: function () {
-        var graphs  = this.state.graphs;  
+        var graphData = this.state.graphData; 
 
-        var vizGraph;
+        var graphs = [];
 
-        if (graphs.length > 0)
+        var count = 0;
+
+        for (var key in graphData)
         {
-            vizGraph = <div id="chart" class='with-3d-shadow with-transitions'>
-                          <Viz data={graphs}></Viz>
-                      </div>
+            ++count;
         }
+
+        for (var key in graphData)
+        {
+            if (graphData[key].length > 0)
+            {
+                var graph = <div className="nv-chart with-3d-shadow with-transitions">
+                          <label className="chart-title">{graphData[key][0].name}</label>
+                          <Viz data={graphData[key]} count={count} name={graphData[key][0].name}></Viz>
+                          <br/>
+                      </div>
+
+                graphs.push(graph);
+            }
+            
+        }
+
+
+
+
+        // var vizGraph;
+
+        // if (graphs.length > 0)
+        // {
+        //     vizGraph = <div id="chart" class='with-3d-shadow with-transitions'>
+        //                   <Viz data={graphs}></Viz>
+        //               </div>
+        // }
 
 
         return (
             <div>
-                {vizGraph}
+                {graphs}
             </div>
         );
     },
@@ -61,14 +88,24 @@ function getGraphsFromStores() {
 
 var GraphLineChart = React.createClass({
   componentDidMount: function() {
-    drawLineChart('graph-line-chart', lineData(this.props.selection, keyToYearThenMonth(this.props.data)));
+    drawLineChart(this.props.name + '_graph', lineData(this.props.selection, keyToYearThenMonth(this.props.data)));
   },
   componentDidUpdate: function() {
-    updateLineChart('graph-line-chart', lineData(this.props.selection, keyToYearThenMonth(this.props.data)));
+    updateLineChart(this.props.name + '_graph', lineData(this.props.selection, keyToYearThenMonth(this.props.data)));
   },
   render: function() {
+
+    var graphHeight = 70 / this.props.count;
+
+    var graphStyle = {
+        height: graphHeight.toString() + "%",
+        width: "100%"
+    }
+
     return (
-      <div id='graph-line-chart'>
+      <div id={this.props.name + '_graph'} 
+            className='graph-line-chart'
+            style={graphStyle}>
         <svg></svg>
       </div>
     );
@@ -117,9 +154,12 @@ var Viz = React.createClass({
   },
   render: function() {
     return (
-      <div id='viz'>
+      <div className='viz'>
         
-        { this.props.data.length != 0 ? <GraphLineChart data={this.props.data} selection={this.state.selection} /> : null }
+        { this.props.data.length != 0 ? <GraphLineChart data={this.props.data} 
+                                                        selection={this.state.selection} 
+                                                        count={this.props.count}
+                                                        name={this.props.name} /> : null }
       </div>
     );
   }
@@ -159,7 +199,7 @@ function updateLineChart (elementParent, data) {
 //line data
 function keyToYearThenMonth (data) {
   var keyYearMonth = d3.nest()
-    .key(function(d){return d.name; })
+    .key(function(d){return d.parent; })
     .key(function(d){return d.month; });
   var keyedData = keyYearMonth.entries(
     data.map(function(d) {
@@ -170,7 +210,7 @@ function keyToYearThenMonth (data) {
 }
 
 function lineData (selection, data) {
-  var colors = ['#ff7f00','#984ea3','#4daf4a','#377eb8','#e41a1c'];
+  var colors = ['DarkOrange', 'ForestGreen', 'DeepPink', 'DarkViolet', 'Teal', 'Maroon', 'RoyalBlue', 'Silver', 'MediumPurple', 'Red', 'Lime', 'Tan', 'LightGoldenrodYellow', 'Turquoise', 'Pink', 'DeepSkyBlue', 'OrangeRed', 'LightGrey', 'Olive'];
   data = data.sort(function(a,b){ return a.key > b.key; });
   var lineDataArr = [];
   for (var i = 0; i <= data.length-1; i++) {
