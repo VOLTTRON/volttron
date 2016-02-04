@@ -55,6 +55,7 @@
 # under Contract DE-AC05-76RL01830
 #}}}
 
+from collections import defaultdict
 import logging
 import os
 import re
@@ -86,6 +87,7 @@ class MasterWebService(Agent):
 
         self.serverkey = serverkey
         self.registeredroutes = []
+        self.peerroutes = defaultdict(list)
         if not mimetypes.inited:
             mimetypes.init()
 
@@ -93,7 +95,14 @@ class MasterWebService(Agent):
     def register_agent_route(self, regex, peer, fn):
         _log.debug('Registering agent rount expression: {}'.format(regex))
         compiled = re.compile(regex)
+        self.peerroutes[peer].append(compiled)
         self.registeredroutes.append((compiled, 'peer_route', (peer, fn)))
+
+    @RPC.export
+    def unregister_all_agent_routes(self, peer):
+        for regex in self.peerroutes[peer]:
+            out = [cp for cp in self.registeredroutes if cp[0] != regex]
+            self.registeredroutes = out
 
     @RPC.export
     def register_path_route(self, regex, root_dir):
@@ -118,6 +127,7 @@ class MasterWebService(Agent):
             _log.debug('Path info is: {}'.format(path_info))
         envlist = ['HTTP_USER_AGENT', 'PATH_INFO', 'QUERY_STRING',
             'REQUEST_METHOD', 'SERVER_PROTOCOL']
+        data = env['wsgi.input'].read()
         passenv = dict((envlist[i], env[envlist[i]]) for i in range(0, len(envlist)))
         for k, t, v in self.registeredroutes:
             if k.match(path_info):
@@ -127,7 +137,7 @@ class MasterWebService(Agent):
                     return v(env, start_response)
                 elif t == 'peer_route': # RPC calls from agents on the platform.
                     peer, fn = (v[0], v[1])
-                    res = self.vip.rpc.call(peer, fn, passenv).get(timeout=4)
+                    res = self.vip.rpc.call(peer, fn, passenv, data).get(timeout=4)
                     start_response('200 OK', [('Content-Type', 'application/json')])
                     return res
                 elif t == 'path': # File service from agents on the platform.
