@@ -14,6 +14,7 @@ FAILURE = 'FAILURE'
 SUCCESS = 'SUCCESS'
 PLATFORM_ACTUATOR = 'platform.actuator'
 TEST_AGENT = 'test-agent'
+TEST_AGENT_OTHER = 'test-agent-other'
 actuator_uuid = None
 
 
@@ -944,7 +945,7 @@ def test_schedule_error_malformed_request(publish_agent):
     assert result_message['info'].startswith('MALFORMED_REQUEST')
 
 
-@pytest.mark.actuator_pubsub
+@pytest.mark.dev
 def test_schedule_preempt(publish_agent):
     """
     Test error response for schedule request through pubsub.
@@ -991,7 +992,7 @@ def test_schedule_preempt(publish_agent):
     result = publish_agent.vip.rpc.call(
         'platform.actuator',
         'request_new_schedule',
-        TEST_AGENT,
+        TEST_AGENT_OTHER,
         'task_low_priority',
         'LOW',
         msg).get(timeout=10)
@@ -1037,12 +1038,15 @@ def test_schedule_preempt(publish_agent):
     assert schedule_header['type'] == 'NEW_SCHEDULE'
     assert schedule_header['taskID'] == 'task_high_priority'
     assert schedule_header['requesterID'] == TEST_AGENT
+    
     assert schedule_message['result'] == SUCCESS
 
     assert cancel_header['taskID'] == 'task_low_priority'
-    assert cancel_message['agentID'] == TEST_AGENT
-    assert cancel_message['taskID'] == 'task_high_priority'
+    assert cancel_header['requesterID'] == TEST_AGENT_OTHER
+    
     assert cancel_message['result'] == 'PREEMPTED'
+    assert cancel_message['data']['agentID'] == TEST_AGENT
+    assert cancel_message['data']['taskID'] == 'task_high_priority'
 
 
 
