@@ -318,8 +318,9 @@ def driven_agent(config_path, **kwargs):
                                                     'units': 'float',
                                                     }
                                             }]
-                                self.publish_json(analysis_topic,
-                                                  headers, message)
+                                self.vip.pubsub.publish(headers=headers,
+                                        topic=analysis_topic,
+                                        message=message)
 
             if results.commands and mode:
                 self.commands = results.commands
@@ -340,9 +341,10 @@ def driven_agent(config_path, **kwargs):
             end = start + td(seconds=30)
             start = str(start)
             end = str(end)
-            self.publish_json(topics.ACTUATOR_SCHEDULE_REQUEST(), headers,
-                              [["{campus}/{building}/{unit}".format(**device),
-                                start, end]])
+            self.vip.pubsub.publish(headers=headers,
+                                        topic=opics.ACTUATOR_SCHEDULE_REQUEST(),
+                                        message=[["{campus}/{building}/{unit}".format(**device),
+                                                  start, end]])
 
         def command_equip(self):
             '''Execute commands on configured device.'''
@@ -389,8 +391,10 @@ def driven_agent(config_path, **kwargs):
                     'requesterID': agent_id,
                     'taskID': actuator_id
                     }
-                self.publish_json(topics.ACTUATOR_SCHEDULE_REQUEST(),
-                                  headers, {})
+                self.vip.pubsub.publish(headers=headers,
+                                        topic=topics.ACTUATOR_SCHEDULE_REQUEST(),
+                                        message={})
+                
                 self.keys = None
 
         @matching.match_headers({headers_mod.REQUESTER_ID: agent_id})
@@ -413,8 +417,9 @@ def driven_agent(config_path, **kwargs):
                     'requesterID': agent_id,
                     'taskID': actuator_id
                     }
-                self.publish_json(topics.ACTUATOR_SCHEDULE_REQUEST(),
-                                  headers, {})
+                self.vip.pubsub.publish(headers=headers,
+                                        topic=topics.ACTUATOR_SCHEDULE_REQUEST(),
+                                        message={})
                 self.keys = None
 
     DrivenMatlabAgent.__name__ = 'DrivenMatlabAgent'
