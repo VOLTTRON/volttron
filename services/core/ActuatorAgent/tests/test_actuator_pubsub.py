@@ -945,6 +945,108 @@ def test_schedule_error_malformed_request(publish_agent):
 
 
 @pytest.mark.actuator_pubsub
+def test_schedule_preempt(publish_agent):
+    """
+    Test error response for schedule request through pubsub.
+    Test schedule preemption by a higher priority task.
+    Expected result message
+    {
+    'agentID': <Agent ID of preempting task>,
+    'taskID': <Task ID of preempting task>
+    }
+    Expected header
+    {
+    'type': 'CANCEL_SCHEDULE'
+    'requesterID': <Agent ID from the request>,
+    'taskID': <Task ID from the request>
+    }
+    :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
+    of Agent object used for publishing
+    """
+    print ("**** test_schedule_preempt_success ****")
+    # Mock callback methods
+    publish_agent.callback = MagicMock(name="callback")
+    publish_agent.callback.reset_mock()
+    # subscribe to schedule response topic
+    print ('topic scheule response is :', topics.ACTUATOR_SCHEDULE_RESULT)
+    publish_agent.vip.pubsub.subscribe(peer='pubsub',
+                                       prefix=topics.ACTUATOR_SCHEDULE_RESULT,
+                                       callback=publish_agent.callback).get()
+
+    start = str(datetime.now() + timedelta(seconds=10))
+    end = str(datetime.now() + timedelta(seconds=20))
+    print ('start time for device1', start)
+
+    header = {
+        'type': 'NEW_SCHEDULE',
+        'requesterID': TEST_AGENT,  # The name of the requesting agent.
+        'taskID': 'task_high_priority',  # unique (to all tasks) ID for scheduled task.
+        'priority': 'HIGH'
+    }
+    msg = [
+        ['fakedriver1', start, end]
+    ]
+
+    # First schedule the low priority task
+    result = publish_agent.vip.rpc.call(
+        'platform.actuator',
+        'request_new_schedule',
+        TEST_AGENT,
+        'task_low_priority',
+        'LOW',
+        msg).get(timeout=10)
+    # expected result {'info': u'', 'data': {}, 'result': 'SUCCESS'}
+    print result
+    assert result['result'] == 'SUCCESS'
+    gevent.sleep(1)  # wait for response on pubsub
+    publish_agent.callback.reset_mock()  # reset as we don't care about the success message sent for above
+
+    # Now publish the higher priority task
+    publish_agent.vip.pubsub.publish(peer='pubsub', topic=topics.ACTUATOR_SCHEDULE_REQUEST, headers=header,
+                                     message=msg).get()
+    gevent.sleep(5)  # wait for 2 callbacks - success msg for task_high_priority and preempt msg for task_low_priority
+    print ('call args list:', publish_agent.callback.call_args_list)
+    assert publish_agent.callback.call_count == 2
+
+    # Grab the args of callback and verify
+    call_args1 = publish_agent.callback.call_args_list[0][0]
+    call_args2 = publish_agent.callback.call_args_list[1][0]
+
+    assert call_args1[1] == PLATFORM_ACTUATOR
+    assert call_args1[3] == topics.ACTUATOR_SCHEDULE_RESULT
+
+    # initialize 0 to schedule response and 1 to cancel response
+    schedule_header = call_args1[4]
+    schedule_message = call_args1[5]
+    print ("call args of 1 ",  publish_agent.callback.call_args_list[1])
+    cancel_header = call_args2[4]
+    cancel_message = call_args2[5]
+
+    # check if order is reversed: 0 is cancelresponse and 1 is new schedule
+    if call_args1[4]['type'] == 'CANCEL_SCHEDULE':
+        assert call_args2[4]['type'] == 'NEW_SCHEDULE'
+        cancel_header = call_args1[4]
+        cancel_message = call_args1[5]
+        schedule_header = call_args2[4]
+        schedule_message = call_args2[5]
+    else:
+        assert call_args1[4]['type'] == 'NEW_SCHEDULE'
+        assert call_args2[4]['type'] == 'CANCEL_SCHEDULE'
+        # values remain as initialized above if/else
+
+    assert schedule_header['type'] == 'NEW_SCHEDULE'
+    assert schedule_header['taskID'] == 'task_high_priority'
+    assert schedule_header['requesterID'] == TEST_AGENT
+    assert schedule_message['result'] == SUCCESS
+
+    assert cancel_header['taskID'] == 'task_low_priority'
+    assert cancel_message['agentID'] == TEST_AGENT
+    assert cancel_message['taskID'] == 'task_high_priority'
+    assert cancel_message['result'] == 'PREEMPTED'
+
+
+
+@pytest.mark.actuator_pubsub
 def test_set_value_bool(publish_agent):
     """
     Test setting a float value of a point through pubsub
