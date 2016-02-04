@@ -589,11 +589,7 @@ def _install_vc(autostart):
     cmd = ['volttron-ctl', 'remove', '--tag', 'vc', '--force']
     process = Popen(cmd, env=_os.environ)
     process.wait()
-
-    cmd = ['pip', 'install', 'tornado']
-    process = Popen(cmd)
-    process.wait()
-
+    
     admin_pass = hashlib.sha512('admin').hexdigest()
     cfg_file = NamedTemporaryFile()
     cfg = {
