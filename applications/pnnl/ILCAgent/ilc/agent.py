@@ -573,6 +573,7 @@ def ahp(config_path, **kwargs):
                 return
 
             elif self.break_end is not None and now < self.break_end:
+		_log.debug('Skipping load check, still on curtailment break.')
                 return
 
             self.check_load(bldg_power, now)
@@ -612,7 +613,7 @@ def ahp(config_path, **kwargs):
                 self.running_ahp = True
 
             self.curtail_end = now + curtail_time
-            self.break_end = now + curtail_break
+            self.break_end = now + curtail_break + curtail_time
             self.reset_curtail_count_time = self.curtail_end + reset_curtail_count_time
             self.next_curtail_confirm = now + curtail_confirm
 
@@ -730,6 +731,7 @@ def ahp(config_path, **kwargs):
                 try:
                     result = self.vip.rpc.call('platform.actuator', 'revert_point',
                                                agent_id, curtailed_point).get(timeout=10)
+                    _log.debug('Reverted point: {}'.format(curtailed_point))
                 except RemoteError as ex:
                     _log.warning("Failed to revert point {} (RemoteError): {}".format(curtailed_point, str(ex)))
                     continue
