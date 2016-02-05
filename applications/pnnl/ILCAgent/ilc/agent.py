@@ -76,6 +76,7 @@ from ilc.ilc_matrices import (extract_criteria, calc_column_sums,
                               normalize_matrix, validate_input,
                               build_score, input_matrix)
 from volttron.platform.jsonrpc import RemoteError
+import gevent
 
 __version__ = '1.0.0'
 
@@ -495,6 +496,19 @@ def ahp(config_path, **kwargs):
                                              unit=power_meter,
                                              path='',
                                              point='all')
+    
+    kill_device_topic = None
+    kill_token = config.get('kill_switch')
+    if kill_token is not None:
+        kill_device = kill_token['device']
+        kill_pt = kill_token['point']
+        kill_device_topic = topics.DEVICES_VALUE(campus=config.get('campus', ''),
+                                                 building=config.get('building', ''),
+                                                 unit=kill_device,
+                                                 path='',
+                                                 point='all')
+        
+    
 
     demand_limit = float(config['demand_limit'])
     curtail_time = td(minutes=config.get('curtailment_time', 15.0))
@@ -515,6 +529,7 @@ def ahp(config_path, **kwargs):
             self.curtail_end = None
             self.break_end = None
             self.reset_curtail_count_time = None
+            self.kill_signal_recieved = False
             self.scheduled_devices = set()
             self.devices_curtailed = set()
 
@@ -533,12 +548,35 @@ def ahp(config_path, **kwargs):
             self.vip.pubsub.subscribe(peer='pubsub',
                                       prefix=power_meter_topic,
                                       callback=self.load_message_handler)
+            
+            if kill_device_topic is not None:
+                _log.debug('Subscribing to '+kill_device_topic)
+                self.vip.pubsub.subscribe(peer='pubsub',
+                                          prefix=kill_device_topic,
+                                          callback=self.handle_agent_kill)
+            
+        
+        def handle_agent_kill(self, peer, sender, bus, topic, headers, message):
+            data = message[0]
+            _log.info('Checking kill signal')
+            kill_signal = bool(data[kill_pt])
+            
+            if kill_signal:
+                _log.info('Kill signal recieved, shutting down')
+                self.kill_signal_recieved = False
+                gevent.sleep(8)
+                self.end_curtail()
+                sys.exit()
+                
 
         def new_data(self, peer, sender, bus, topic, headers, message):
             '''Generate static configuration inputs for
 
             priority calculation.
             '''
+            if self.kill_signal_recieved:
+                return
+            
             _log.info('Data Received for {}'.format(topic))
 
             # topic of form:  devices/campus/building/device
@@ -550,6 +588,9 @@ def ahp(config_path, **kwargs):
             clusters.get_device(device_name).ingest_data(now, data)
 
         def load_message_handler(self, peer, sender, bus, topic, headers, message):
+            if self.kill_signal_recieved:
+                return
+            
             _log.debug('Reading building power data.')
             bldg_power = float(message[0][power_pt])
 
@@ -582,7 +623,7 @@ def ahp(config_path, **kwargs):
             '''Check whole building power and if the value is above the
             the demand limit (demand_limit) then initiate the ILC (AHP)
             sequence.
-            '''
+            '''            
             _log.debug('Checking building load.')
             
             if bldg_power > demand_limit:
@@ -634,9 +675,11 @@ def ahp(config_path, **kwargs):
                 _log.debug('Setting '+curtailed_point+' to '+str(curtail_val))
 
                 try:
+                    if self.kill_signal_recieved:
+                        break
                     result = self.vip.rpc.call('platform.actuator', 'set_point',
                                                agent_id, curtailed_point,
-                                               curtail_val).get(timeout=10)
+                                               curtail_val).get(timeout=4)                    
                 except RemoteError as ex:
                     _log.warning("Failed to set {} to {}: {}".format(curtailed_point, curtail_val, str(ex)))
                     continue
@@ -698,9 +741,11 @@ def ahp(config_path, **kwargs):
                 curtailed_device = base_rpc_path(unit=device, point='')
                 schedule_request = [[curtailed_device, str_now, str_end]]
                 try:
+                    if self.kill_signal_recieved:
+                        break
                     result = self.vip.rpc.call(
                         'platform.actuator', 'request_new_schedule', agent_id,
-                        device, 'HIGH', schedule_request).get(timeout=10)
+                        device, 'HIGH', schedule_request).get(timeout=4)
                 except RemoteError as ex:
                     _log.warning("Failed to schedule device {} (RemoteError): {}".format(device, str(ex)))
                     continue
