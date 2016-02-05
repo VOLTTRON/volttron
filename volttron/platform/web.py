@@ -93,13 +93,14 @@ class MasterWebService(Agent):
 
     @RPC.export
     def register_agent_route(self, regex, peer, fn):
-        _log.debug('Registering agent rount expression: {}'.format(regex))
+        _log.debug('Registering agent route expression: {}'.format(regex))
         compiled = re.compile(regex)
         self.peerroutes[peer].append(compiled)
         self.registeredroutes.append((compiled, 'peer_route', (peer, fn)))
 
     @RPC.export
     def unregister_all_agent_routes(self, peer):
+        _log.debug('Unregistering agent routes for: {}'.format(peer))
         for regex in self.peerroutes[peer]:
             out = [cp for cp in self.registeredroutes if cp[0] != regex]
             self.registeredroutes = out
@@ -142,6 +143,7 @@ class MasterWebService(Agent):
                     return res
                 elif t == 'path': # File service from agents on the platform.
                     server_path = v + path_info #os.path.join(v, path_info)
+                    _log.debug('Serverpath: {}'.format(server_path))
                     return self._sendfile(env, start_response, server_path)
 
 

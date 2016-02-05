@@ -62,9 +62,12 @@ from setuptools import setup, find_packages
 packages = find_packages('.')
 package = packages[0]
 
+_temp = __import__(package+'.vc', globals(), locals(), ['__version__'], -1)
+__version__ = _temp.__version__
+
 setup(
     name = package + 'agent',
-    version = "3.1",
+    version = __version__,
     install_requires = ['volttron'],
     packages = packages,
     package_data = {

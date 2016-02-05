@@ -54,6 +54,8 @@
 
 #}}}
 
+__version__ = "3.1"
+
 import datetime
 import errno
 import logging
@@ -65,10 +67,6 @@ import os.path as p
 import uuid
 
 import gevent
-# import tornado
-# import tornado.ioloop
-# import tornado.web
-# from tornado.web import url
 from zmq.utils import jsonapi
 
 from authenticate import Authenticate
@@ -105,37 +103,28 @@ def volttron_central_agent(config_path, **kwargs):
     The config options requires a user_map section that should
     hold a mapping of users to their hashed passwords.  Passwords
     are currently hashed using hashlib.sha512(password).hexdigest().
-
-
     '''
+    global WEB_ROOT
+
     config = utils.load_config(config_path)
 
-    vip_identity = config.get('vip_identity', 'volttron.central')
+    identity = kwargs.pop('identity', 'volttron.central')
+    identity = config.get('identity', identity)
 
-    kwargs.pop('identity',None)
-
+    # For debugging purposes overwrite the WEB_ROOT variable with what's
+    # from the configuration file.
+    WEB_ROOT = config.get('webroot', WEB_ROOT)
+    if WEB_ROOT.endswith('/'):
+        WEB_ROOT = WEB_ROOT[:-1]
 
 
     agent_id = config.get('agentid', 'Volttron Central')
-    server_conf = config.get('server', {})
 
     # Required users.
     user_map = config.get('users', None)
 
     if user_map is None:
         raise ValueError('users not specified within the config file.')
-
-
-    # hander_config = [
-    #     (r'/jsonrpc', ManagerRequestHandler),
-    #     (r'/jsonrpc/', ManagerRequestHandler),
-    #     (r'/websocket', StatusHandler),
-    #     (r'/websocket/', StatusHandler),
-    #     (r'/log', LogHandler),
-    #     (r'/log/', LogHandler),
-    #     (r"/(.*)", tornado.web.StaticFileHandler,
-    #      {"path": WEB_ROOT, "default_filename": "index.html"})
-    # ]
 
     # def startWebServer(manager):
     #     '''Starts the webserver to allow http/RpcParser calls.
@@ -163,8 +152,8 @@ def volttron_central_agent(config_path, **kwargs):
         """Agent for querying WeatherUndergrounds API"""
 
         def __init__(self, **kwargs):
-            super(VolttronCentralAgent, self).__init__(identity=vip_identity, **kwargs)
-            _log.debug("Registering (vip_address, vip_identity) ({}, {})"
+            super(VolttronCentralAgent, self).__init__(**kwargs)
+            _log.debug("Registering (address, identity) ({}, {})"
                        .format(self.core.address, self.core.identity))
             # a list of peers that have checked in with this agent.
             self.registry = PlatformRegistry()
@@ -285,6 +274,17 @@ def volttron_central_agent(config_path, **kwargs):
             q = query.Query(self.core)
             result = q.query('addresses').get(timeout=10)
 
+# hander_config = [
+#     (r'/jsonrpc', ManagerRequestHandler),
+#     (r'/jsonrpc/', ManagerRequestHandler),
+#     (r'/websocket', StatusHandler),
+#     (r'/websocket/', StatusHandler),
+#     (r'/log', LogHandler),
+#     (r'/log/', LogHandler),
+#     (r"/(.*)", tornado.web.StaticFileHandler,
+#      {"path": WEB_ROOT, "default_filename": "index.html"})
+# ]
+
             #TODO: Use all addresses for fallback, #114
             self._external_addresses = (result and result[0]) or self.core.address
             _log.debug('Registering dummy')
@@ -295,7 +295,7 @@ def volttron_central_agent(config_path, **kwargs):
 
             self.vip.rpc.call('volttron.web', 'register_path_route',
                             r'^/.*', WEB_ROOT).get(timeout=5)
-
+            _log.debug('Serving files from: '+WEB_ROOT)
             # Start server in own thread.
             # th = threading.Thread(target=startWebServer, args=(self,))
             # th.daemon = True
@@ -390,7 +390,7 @@ def volttron_central_agent(config_path, **kwargs):
             return result
 
     VolttronCentralAgent.__name__ = 'VolttronCentralAgent'
-    return VolttronCentralAgent(**kwargs)
+    return VolttronCentralAgent(identity=identity, **kwargs)
 
 
 def main(argv=sys.argv):
