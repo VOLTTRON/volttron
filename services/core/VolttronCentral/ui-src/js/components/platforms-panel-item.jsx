@@ -28,7 +28,7 @@ var PlatformsPanelItem = React.createClass({
         platformsPanelItemsStore.addChangeListener(this._onStoresChange);
     },
     componentWillMount: function () {
-        if (!this.props.hasOwnProperty("children"))
+        if (!this.props.hasOwnProperty("knownChildren"))
         { 
             platformsPanelActionCreators.loadChildren(this.props.panelItem.type, this.props.panelItem);
         }
@@ -70,23 +70,20 @@ var PlatformsPanelItem = React.createClass({
     },
     _toggleItem: function () {
 
-        if (this.state.children.length > 0)
+        if (this.props.hasOwnProperty("knownChildren"))
+        {
+            if (this.state.expanded === null)
+            {
+                this.setState({expanded: !this.props.panelItem.expanded});
+            }
+            else
+            {
+                this.setState({expanded: !this.state.expanded});
+            }
+        }
+        else if (this.state.children.length > 0)
         {
             this.setState({expanded: !this.state.expanded});
-        }
-        else
-        {
-            if (this.props.hasOwnProperty("children"))
-            {
-                if (this.state.expanded === null)
-                {
-                    this.setState({expanded: !this.props.panelItem.expanded});
-                }
-                else
-                {
-                    this.setState({expanded: !this.state.expanded});
-                }
-            }
         }
         
     },
@@ -137,10 +134,6 @@ var PlatformsPanelItem = React.createClass({
                                     type="checkbox"
                                     onChange={this._checkItem}></input>);
         }
-        
-        var checkboxStyle = {
-            display : (["point"].indexOf(panelItem.type) < 0 ? "none" : "block")
-        };
 
         var tooltipStyle = {
             display: (panelItem.type !== "type" ? (this.state.showTooltip || this.state.keepTooltip ? "block" : "none") : "none"),
@@ -170,7 +163,7 @@ var PlatformsPanelItem = React.createClass({
         
         if (typeof propChildren !== "undefined" && propChildren !== null)
         {   
-            if (this.state.expanded || this.props.panelItem.expanded === true)
+            if (this.props.panelItem.expanded === true)
             {
                 children = propChildren
                     .sort(function (a, b) {
@@ -248,15 +241,6 @@ var PlatformsPanelItem = React.createClass({
 
                             arrowClasses.push("rotateDown");
                         }                            
-                    }
-                }
-                else
-                {
-                    if (this.state.children) 
-                    {
-                        itemClasses = "hideItems";
-
-                        arrowClasses.push("rotateRight");
                     }
                 }
             }

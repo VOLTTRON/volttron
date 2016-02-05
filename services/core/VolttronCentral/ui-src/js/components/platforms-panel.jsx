@@ -47,8 +47,8 @@ var PlatformsPanel = React.createClass({
         }
     },
     _onFilterBoxChange: function (e) {
-        this.setState({ filterValue: e.target.value });
         this.setState({ filteredPlatforms: getFilteredPlatforms(e.target.value, "") });
+        this.setState({ filterValue: e.target.value });
     },
     _onFilterGood: function (e) {
         this.setState({ filteredPlatforms: getFilteredPlatforms("", "GOOD") });
