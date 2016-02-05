@@ -6,11 +6,15 @@
 
 #define AMBIENT_TEMP 70 /* F */
 
-int heating_element_status();
-float water_temperature();
+/* read only points */
+int get_heating_element_status();
+float get_water_temperature();
 
-void set_temperature(int);
+/* writable points */
+int get_tgt_temperature();
+void set_tgt_temperature(int);
+
+int get_element_threshold();
 void set_element_threshold(int);
-
 
 #endif

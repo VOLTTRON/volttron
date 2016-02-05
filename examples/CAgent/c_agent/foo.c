@@ -28,19 +28,27 @@ static void update_element() {
   }
 }
 
-int heating_element_status() {
+int get_heating_element_status() {
   return element_status;
 }
 
-float water_temperature() {
+float get_water_temperature() {
   update_temperature();
   update_element();
 
   return water_temp;
 }
 
-void set_temperature(int temp) {
+int get_tgt_temperature() {
+  return target_temp;
+}
+
+void set_tgt_temperature(int temp) {
   target_temp = temp;
+}
+
+int get_element_threshold() {
+  return elem_threshold;
 }
 
 void set_element_threshold(int t) {
