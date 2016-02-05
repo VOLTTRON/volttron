@@ -73,6 +73,7 @@ import gevent
 
 from zmq.utils import jsonapi
 
+from ..lib.inotify.green import inotify, IN_MODIFY
 
 __all__ = ['load_config', 'run_agent', 'start_agent_thread']
 
@@ -302,3 +303,13 @@ def process_timestamp(timestamp_string):
         original_tz = timestamp.tzinfo
         timestamp = timestamp.astimezone(pytz.UTC)
     return timestamp, original_tz
+
+def watch_file(fullpath, callback):
+    '''Run callback method whenever the file changes'''
+    dirname, filename = os.path.split(fullpath)
+    with inotify() as inot:
+        inot.add_watch(dirname, IN_MODIFY)
+        for event in inot:
+            if event.name == filename and event.mask & IN_MODIFY:
+                callback()
+

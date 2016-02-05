@@ -329,9 +329,18 @@ class Router(BaseRouter):
 
 
 class PubSubService(Agent):
+    def __init__(self, protected_topcis_file, *args, **kwargs):
+        super(PubSubService, self).__init__(*args, **kwargs)
+        self.protected_topics_file = os.path.abspath(protected_topics_file)
+
     @Core.receiver('onstart')
     def setup_agent(self, sender, **kwargs):
+        self.core.spawn(utils.watch_file(self.protected_topics_file, 
+                                         self.read_protected_topics_file))
         self.vip.pubsub.add_bus('')
+
+    def read_protected_topics_file(self):
+        pass
 
 def start_volttron_process(opts):
     '''Start the main volttron process.
@@ -486,11 +495,13 @@ def start_volttron_process(opts):
         if not thread.isAlive():
             sys.exit()
 
+        protected_topics_file = os.path.join(opts.volttron_home, 'protected_topics.json')
+
         # Launch additional services and wait for them to start before
         # auto-starting agents
         services = [
             ControlService(opts.aip, address=address, identity='control', tracker=tracker),
-            PubSubService(address=address, identity='pubsub'),
+            PubSubService(protected_topics_file, address=address, identity='pubsub'),
             CompatPubSub(address=address, identity='pubsub.compat',
                          publish_address=opts.publish_address,
                          subscribe_address=opts.subscribe_address),

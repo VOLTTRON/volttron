@@ -71,8 +71,7 @@ from gevent.fileobject import FileObject
 from zmq import green as zmq
 from zmq.utils import jsonapi
 
-from .agent.utils import strip_comments
-from .lib.inotify.green import inotify, IN_MODIFY
+from .agent.utils import strip_comments, watch_file
 from .vip.agent import Agent, Core, RPC
 from .vip.socket import encode_key
 
@@ -116,7 +115,7 @@ class AuthService(Agent):
         if self.allow_any:
             _log.warn('insecure permissive authentication enabled')
         self.read_auth_file()
-        self.core.spawn(self._watch_auth_file)
+        self.core.spawn(watch_file(self.auth_file, self.read_auth_file))
 
     def read_auth_file(self):
         _log.info('loading auth file %s', self.auth_file)
@@ -155,14 +154,6 @@ class AuthService(Agent):
                               entry, self.auth_file)
             self.auth_entries = entries
             _log.info('auth file %s loaded', self.auth_file)
-
-    def _watch_auth_file(self):
-        dirname, filename = os.path.split(self.auth_file)
-        with inotify() as inot:
-            inot.add_watch(dirname, IN_MODIFY)
-            for event in inot:
-                if event.name == filename and event.mask & IN_MODIFY:
-                    self.read_auth_file()
 
     @Core.receiver('onstop')
     def stop_zap(self, sender, **kwargs):
