@@ -64,11 +64,12 @@ package = packages[0]
 
 setup(
     name = package + 'agent',
-    version = "3.0",
-    install_requires = ['volttron', 'tornado'],
+    version = "3.1",
+    install_requires = ['volttron'],
     packages = packages,
     package_data = {
-        package: ['webroot/*.*', 'webroot/css/*.css', 'webroot/js/*.js']
+        package: ['webroot/*.*', 'webroot/css/*.css', 'webroot/js/*.js',
+                    'webroot/fonts/*.*']
     },
     entry_points = {
         'setuptools.installation': [
