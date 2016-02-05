@@ -49,31 +49,8 @@ def publish_agent(request, volttron_instance1):
     request.addfinalizer(stop_agent)
     return publish_agent
 
-
 @pytest.mark.actuator
 def test_schedule_success(publish_agent):
-    print("requesting a schedule for device0")
-    start = str(datetime.now())
-    end = str(datetime.now() + timedelta(seconds=1))
-    print ('start time for device0', start)
-
-    msg = [
-        ['fakedriver0', start, end]
-    ]
-    result = publish_agent.vip.rpc.call(
-        'platform.actuator',
-        'request_new_schedule',
-        TEST_AGENT,
-        'task_value_error',
-        'LOW',
-        msg).get(timeout=10)
-    # expected result {'info': u'', 'data': {}, 'result': 'SUCCESS'}
-    print result
-    assert result['result'] == 'SUCCESS'
-
-
-@pytest.mark.actuator
-def test_schedule_success2(publish_agent):
     print("requesting a schedule for device0")
     start = str(datetime.now())
     end = str(datetime.now() + timedelta(seconds=1))
@@ -92,6 +69,12 @@ def test_schedule_success2(publish_agent):
     # expected result {'info': u'', 'data': {}, 'result': 'SUCCESS'}
     print result
     assert result['result'] == 'SUCCESS'
+
+# @pytest.mark.actuator
+# def test_schedule_int_agentid(publish_agent):
+#
+# @pytest.mark.actuator
+# def test_schedule_int_taskid(publish_agent):
 
 
 @pytest.mark.actuator
@@ -281,39 +264,6 @@ def test_schedule_overlap_success(publish_agent):
     gevent.sleep(1)  # so that the task expires
 
 
-@pytest.mark.actuator
-def test_schedule_conflict(publish_agent):
-    print("requesting a schedule for device1")
-    start = str(datetime.now())
-    end = str(datetime.now() + timedelta(seconds=2))
-    print ('start time for device0', start)
-
-    msg = [
-        ['fakedriver0', start, end]
-    ]
-    result = publish_agent.vip.rpc.call(
-        'platform.actuator',
-        'request_new_schedule',
-        1234,
-        'task_conflict1',
-        'LOW',
-        msg).get(timeout=10)
-    # expected result {'info': u'', 'data': {}, 'result': 'SUCCESS'}
-    print result
-    assert result['result'] == 'SUCCESS'
-    result = publish_agent.vip.rpc.call(
-        'platform.actuator',
-        'request_new_schedule',
-        TEST_AGENT,
-        'task_conflict2',
-        'LOW',
-        msg).get(timeout=10)
-    # expected result {'info': u'', 'data': {}, 'result': 'SUCCESS'}
-    print result
-    assert result['result'] == 'FAILURE'
-    assert result['info'] == 'CONFLICTS_WITH_EXISTING_SCHEDULES'
-    gevent.sleep(1)  # so that the task expires
-
 
 @pytest.mark.actuator
 def test_schedule_conflict(publish_agent):
@@ -351,18 +301,7 @@ def test_schedule_conflict(publish_agent):
 
 
 @pytest.mark.actuator
-def test_schedule_invalid_cancel(publish_agent):
-    result = publish_agent.vip.rpc.call(
-        'platform.actuator',
-        'request_cancel_schedule',
-        TEST_AGENT,
-        'invalid_cancel',
-    ).get(timeout=10)
-    # expected result {'info': u'', 'data': {}, 'result': 'SUCCESS'}
-    print result
-    assert result['result'] == 'FAILURE'
-    assert result['info'] == 'TASK_ID_DOES_NOT_EXIST'
-
+def test_cancel_taskid_agentid_mismatch(publish_agent):
     print("requesting a schedule for device0")
     start = str(datetime.now())
     end = str(datetime.now() + timedelta(seconds=2))
@@ -394,6 +333,19 @@ def test_schedule_invalid_cancel(publish_agent):
     assert result['info'] == 'AGENT_ID_TASK_ID_MISMATCH'
     gevent.sleep(2)  # so that the task expires
 
+@pytest.mark.actuator
+def test_cancel_invalid_taskid(publish_agent):
+    result = publish_agent.vip.rpc.call(
+        'platform.actuator',
+        'request_cancel_schedule',
+        TEST_AGENT,
+        'invalid_cancel',
+    ).get(timeout=10)
+    # expected result {'info': u'', 'data': {}, 'result': 'SUCCESS'}
+    print result
+    assert result['result'] == 'FAILURE'
+    assert result['info'] == 'TASK_ID_DOES_NOT_EXIST'
+    gevent.sleep(2)  # so that the task expires
 
 @pytest.mark.actuator
 def test_schedule_cancel_success(publish_agent):
