@@ -5,6 +5,10 @@
 		"device": "PowerMeter",
 	    "point": "power"
     },
+    "kill_switch": {
+		"device": "killdevice",
+	    "point": "kill"
+    },
 	"agent_id": "ahp",
 	"demand_limit": 27.0,
 	"curtailment_time": 15.0,
