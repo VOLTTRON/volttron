@@ -53,11 +53,11 @@ under Contract DE-AC05-76RL01830
 
 from StringIO import StringIO
 from csv import DictReader
-from ctypes import *
 
 from master_driver.interfaces import BaseInterface, BaseRegister
 
 ################################################################################
+from ctypes import *
 
 so_filename = "libfoo.so"
 cdll.LoadLibrary(so_filename)
@@ -65,6 +65,14 @@ shared_object = CDLL(so_filename)
 
 water_temperature = shared_object.get_water_temperature
 water_temperature.restype = c_float
+
+def so_lookup_function(function_name):
+    try:
+        function = getattr(shared_object, function_name)
+    except AttributeError:
+        raise IOError("No such function in shared object: {}".format(function_name))
+
+    return function
 
 ################################################################################
 
@@ -83,31 +91,19 @@ class Interface(BaseInterface):
 
     def get_point(self, point_name):
         register = self.get_register_by_name(point_name)
+        so_get_point = so_lookup_function("get_" + register.point_name)
 
-        so_function_name = "get_" + register.point_name
-
-        try:
-            so_get_function = getattr(shared_object, so_function_name)
-        except AttributeError:
-            raise IOError("No such function in shared object: {}".format(set_function_name))
-
-        return so_get_function()
+        return so_get_point()
 
     def set_point(self, point_name, value):
         register = self.get_register_by_name(point_name)
         if register.read_only:
             raise  IOError("Trying to write to a point configured read only: "+point_name)
 
-        so_function_name = "set_" + register.point_name
+        so_set_point = so_lookup_function("set_" + register.point_name)
+        so_set_point(value)
 
-        try:
-            so_set_function = getattr(shared_object, so_function_name)
-        except AttributeError:
-            raise IOError("No such function in shared object: {}".format(so_function_name))
-
-        so_set_function(value)
-
-        return True
+        return None
 
     def scrape_all(self):
         result = {}
