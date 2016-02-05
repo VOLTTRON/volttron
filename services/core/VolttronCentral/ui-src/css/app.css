@@ -1113,11 +1113,11 @@ a.view__item:hover::before {
 
 /* our nvd3-related styles */
 
-.graph-line-chart {
+.platform-line-chart {
     /*height: 60vh;*/
 }
 
-.nv-chart {
+.platform-chart {
     text-align: center;
 }
 

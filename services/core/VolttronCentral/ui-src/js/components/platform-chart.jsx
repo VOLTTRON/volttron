@@ -6,15 +6,15 @@ var d3 = require('d3');
 var nv = require('nvd3');
 
 
-var graphStore = require('../stores/graph-store');
+var chartStore = require('../stores/platform-chart-store');
 
 var lineChart;
 
 
-var Graph = React.createClass({
+var PlatformChart = React.createClass({
     getInitialState: function () {
         var state = {};
-        state.graphData = getGraphsFromStores();
+        state.chartData = getChartsFromStores();
 
         return state;
     },
@@ -22,39 +22,39 @@ var Graph = React.createClass({
         
     },
     componentDidMount: function () {
-        graphStore.addChangeListener(this._onStoreChange);
+        chartStore.addChangeListener(this._onStoreChange);
     },
     componentWillUnmount: function () {
-        graphStore.removeChangeListener(this._onStoreChange);
+        chartStore.removeChangeListener(this._onStoreChange);
     },
     _onStoreChange: function () {
-        var graphs = getGraphsFromStores();
+        var platformCharts = getChartsFromStores();
 
-        this.setState({graphData: graphs});
+        this.setState({chartData: platformCharts});
     },
     render: function () {
-        var graphData = this.state.graphData; 
+        var chartData = this.state.chartData; 
 
-        var graphs = [];
+        var platformCharts = [];
 
-        var count = 0;
+        // var count = 0;
 
-        for (var key in graphData)
+        // for (var key in chartData)
+        // {
+        //     ++count;
+        // }
+
+        for (var key in chartData)
         {
-            ++count;
-        }
-
-        for (var key in graphData)
-        {
-            if (graphData[key].length > 0)
+            if (chartData[key].length > 0)
             {
-                var graph = <div className="nv-chart with-3d-shadow with-transitions">
-                          <label className="chart-title">{graphData[key][0].name}</label>
-                          <Viz data={graphData[key]} count={count} name={graphData[key][0].name}></Viz>
+                var platformChart = <div className="platform-chart with-3d-shadow with-transitions">
+                          <label className="chart-title">{chartData[key][0].name}</label>
+                          <Viz data={chartData[key]} name={chartData[key][0].name}></Viz>
                           <br/>
                       </div>
 
-                graphs.push(graph);
+                platformCharts.push(platformChart);
             }
             
         }
@@ -74,38 +74,44 @@ var Graph = React.createClass({
 
         return (
             <div>
-                {graphs}
+                {platformCharts}
             </div>
         );
     },
 });
 
 
-function getGraphsFromStores() {
-    return graphStore.getData();
+function getChartsFromStores() {
+    return chartStore.getData();
 }
 
 
 var GraphLineChart = React.createClass({
+  getInitialState: function () {
+      var state = {};
+      state.chartName = this.props.name + '_chart';
+
+      return state;
+  },
   componentDidMount: function() {
-    drawLineChart(this.props.name + '_graph', lineData(this.props.selection, keyToYearThenMonth(this.props.data)));
+    drawLineChart(this.state.chartName, lineData(this.props.selection, getNested(this.props.data)));
   },
   componentDidUpdate: function() {
-    updateLineChart(this.props.name + '_graph', lineData(this.props.selection, keyToYearThenMonth(this.props.data)));
+    updateLineChart(this.state.chartName, lineData(this.props.selection, getNested(this.props.data)));
   },
   render: function() {
 
-    var graphHeight = 70 / this.props.count;
+    // var chartHeight = 70 / this.props.count;
 
-    var graphStyle = {
-        height: graphHeight.toString() + "%",
+    var chartStyle = {
+        // height: chartHeight.toString() + "%",
         width: "100%"
     }
 
     return (
-      <div id={this.props.name + '_graph'} 
-            className='graph-line-chart'
-            style={graphStyle}>
+      <div id={this.state.chartName} 
+            className='platform-line-chart'
+            style={chartStyle}>
         <svg></svg>
       </div>
     );
@@ -134,7 +140,7 @@ var Viz = React.createClass({
   //   this.setState({ data: this.props.data});
   // },
   // componentDidMount: function () {
-  //   // var datum = graphStore.getGraphData();
+  //   // var datum = chartStore.getchartData();
   //   this.loadData();
   // },
 
@@ -158,7 +164,7 @@ var Viz = React.createClass({
         
         { this.props.data.length != 0 ? <GraphLineChart data={this.props.data} 
                                                         selection={this.state.selection} 
-                                                        count={this.props.count}
+                                                        // count={this.props.count}
                                                         name={this.props.name} /> : null }
       </div>
     );
@@ -197,7 +203,7 @@ function updateLineChart (elementParent, data) {
 
 
 //line data
-function keyToYearThenMonth (data) {
+function getNested (data) {
   var keyYearMonth = d3.nest()
     .key(function(d){return d.parent; })
     .key(function(d){return d.month; });
@@ -232,4 +238,4 @@ function lineData (selection, data) {
 }
 
 
-module.exports = Graph;
+module.exports = PlatformChart;

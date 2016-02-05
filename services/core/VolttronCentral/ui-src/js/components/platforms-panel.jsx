@@ -52,15 +52,19 @@ var PlatformsPanel = React.createClass({
     },
     _onFilterGood: function (e) {
         this.setState({ filteredPlatforms: getFilteredPlatforms("", "GOOD") });
+        this.setState({ filterValue: ""});
     },
     _onFilterBad: function (e) {
         this.setState({ filteredPlatforms: getFilteredPlatforms("", "BAD") });
+        this.setState({ filterValue: ""});
     },
     _onFilterUnknown: function (e) {
         this.setState({ filteredPlatforms: getFilteredPlatforms("", "UNKNOWN") });
+        this.setState({ filterValue: ""});
     },
     _onFilterOff: function (e) {
         this.setState({ filteredPlatforms: getFilteredPlatforms("", "") });
+        this.setState({ filterValue: ""});
     },
     _togglePanel: function () {
         platformsPanelActionCreators.togglePanel();
@@ -114,7 +118,7 @@ var PlatformsPanel = React.createClass({
                         });
 
                         return (
-                            <PlatformsPanelItem panelItem={filteredPlatform} itemPath={filteredPlatform.path} children={children}/>
+                            <PlatformsPanelItem panelItem={filteredPlatform} itemPath={filteredPlatform.path} knownChildren={children}/>
                         );
                 });
             }

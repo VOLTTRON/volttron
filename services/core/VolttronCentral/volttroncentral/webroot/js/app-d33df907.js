@@ -11,7 +11,7 @@ var PageNotFound = require('./components/page-not-found');
 var Platform = require('./components/platform');
 var PlatformManager = require('./components/platform-manager');
 var Platforms = require('./components/platforms');
-var Graphs = require('./components/graphs');
+var PlatformCharts = require('./components/platform-charts');
 
 var _afterLoginPath = '/dashboard';
 
@@ -53,7 +53,7 @@ var routes = (
         React.createElement(Router.Route, {name: "dashboard", path: "dashboard", handler: checkAuth(Dashboard)}), 
         React.createElement(Router.Route, {name: "platforms", path: "platforms", handler: checkAuth(Platforms)}), 
         React.createElement(Router.Route, {name: "platform", path: "platforms/:uuid", handler: checkAuth(Platform)}), 
-        React.createElement(Router.Route, {name: "graphs", path: "graphs", handler: checkAuth(Graphs)}), 
+        React.createElement(Router.Route, {name: "platform-charts", path: "platform-charts", handler: checkAuth(PlatformCharts)}), 
         React.createElement(Router.NotFoundRoute, {handler: checkAuth(PageNotFound)}), 
         React.createElement(Router.DefaultRoute, {handler: AfterLogin})
     )
@@ -77,7 +77,7 @@ router.run(function (Handler) {
 });
 
 
-},{"./components/dashboard":13,"./components/graphs":18,"./components/login-form":20,"./components/page-not-found":23,"./components/platform":25,"./components/platform-manager":24,"./components/platforms":28,"./stores/authorization-store":40,"react":undefined,"react-router":undefined}],2:[function(require,module,exports){
+},{"./components/dashboard":13,"./components/login-form":18,"./components/page-not-found":21,"./components/platform":25,"./components/platform-charts":23,"./components/platform-manager":24,"./components/platforms":28,"./stores/authorization-store":40,"react":undefined,"react-router":undefined}],2:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -720,19 +720,19 @@ var platformsPanelActionCreators = {
     
     },
 
-    addToGraph: function(panelItem) {
+    addToChart: function(panelItem) {
 
         dispatcher.dispatch({
-            type: ACTION_TYPES.ADD_TO_GRAPH,
+            type: ACTION_TYPES.ADD_TO_CHART,
             panelItem: panelItem
         });  
 
     },
 
-    removeFromGraph: function(panelItem) {
+    removeFromChart: function(panelItem) {
 
         dispatcher.dispatch({
-            type: ACTION_TYPES.REMOVE_FROM_GRAPH,
+            type: ACTION_TYPES.REMOVE_FROM_CHART,
             panelItem: panelItem
         });  
 
@@ -892,7 +892,7 @@ function getStateFromStores(platform, chart) {
 module.exports = Chart;
 
 
-},{"../action-creators/platform-action-creators":4,"../stores/topic-data-store":49,"./line-chart":19,"react":undefined}],9:[function(require,module,exports){
+},{"../action-creators/platform-action-creators":4,"../stores/topic-data-store":49,"./line-chart":17,"react":undefined}],9:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1448,289 +1448,6 @@ module.exports = Exchange;
 },{"react":undefined}],17:[function(require,module,exports){
 'use strict';
 
-var React = require('react');
-var Router = require('react-router');
-var d3 = require('d3');
-var nv = require('nvd3');
-
-
-var graphStore = require('../stores/graph-store');
-
-var lineChart;
-
-
-var Graph = React.createClass({displayName: "Graph",
-    getInitialState: function () {
-        var state = {};
-        state.graphData = getGraphsFromStores();
-
-        return state;
-    },
-    componentWillMount: function () {
-        
-    },
-    componentDidMount: function () {
-        graphStore.addChangeListener(this._onStoreChange);
-    },
-    componentWillUnmount: function () {
-        graphStore.removeChangeListener(this._onStoreChange);
-    },
-    _onStoreChange: function () {
-        var graphs = getGraphsFromStores();
-
-        this.setState({graphData: graphs});
-    },
-    render: function () {
-        var graphData = this.state.graphData; 
-
-        var graphs = [];
-
-        var count = 0;
-
-        for (var key in graphData)
-        {
-            ++count;
-        }
-
-        for (var key in graphData)
-        {
-            if (graphData[key].length > 0)
-            {
-                var graph = React.createElement("div", {className: "nv-chart with-3d-shadow with-transitions"}, 
-                          React.createElement("label", {className: "chart-title"}, graphData[key][0].name), 
-                          React.createElement(Viz, {data: graphData[key], count: count, name: graphData[key][0].name}), 
-                          React.createElement("br", null)
-                      )
-
-                graphs.push(graph);
-            }
-            
-        }
-
-
-
-
-        // var vizGraph;
-
-        // if (graphs.length > 0)
-        // {
-        //     vizGraph = <div id="chart" class='with-3d-shadow with-transitions'>
-        //                   <Viz data={graphs}></Viz>
-        //               </div>
-        // }
-
-
-        return (
-            React.createElement("div", null, 
-                graphs
-            )
-        );
-    },
-});
-
-
-function getGraphsFromStores() {
-    return graphStore.getData();
-}
-
-
-var GraphLineChart = React.createClass({displayName: "GraphLineChart",
-  componentDidMount: function() {
-    drawLineChart(this.props.name + '_graph', lineData(this.props.selection, keyToYearThenMonth(this.props.data)));
-  },
-  componentDidUpdate: function() {
-    updateLineChart(this.props.name + '_graph', lineData(this.props.selection, keyToYearThenMonth(this.props.data)));
-  },
-  render: function() {
-
-    var graphHeight = 70 / this.props.count;
-
-    var graphStyle = {
-        height: graphHeight.toString() + "%",
-        width: "100%"
-    }
-
-    return (
-      React.createElement("div", {id: this.props.name + '_graph', 
-            className: "graph-line-chart", 
-            style: graphStyle}, 
-        React.createElement("svg", null)
-      )
-    );
-  }
-});
-
-var Viz = React.createClass({displayName: "Viz",
-  getInitialState: function() {
-    return {
-      // data: this.props.data,
-      selection: 'avg_temp_f'
-    };
-  },
-  // loadData: function () {
-  //   d3.csv('/data/018_analytics_chart.csv',function(csv){
-  //     this.setState({
-  //       data: csv
-  //     });
-  //   }.bind(this));
-  // },
-  // componentDidMount: function () {
-  //   this.loadData();
-  // },
-  // loadData: function () {
-    
-  //   this.setState({ data: this.props.data});
-  // },
-  // componentDidMount: function () {
-  //   // var datum = graphStore.getGraphData();
-  //   this.loadData();
-  // },
-
-    // componentDidUpdate: function() {
-        
-    //     this.setState({data: this.props.data});
-    // },
-
-  handleUserSelect: function (e) {
-    var selection = e.target.id;
-    $('#select-text').text(e.target.innerHTML);
-    $('.select').removeClass('current-selection');
-    $('#' + selection).addClass('current-selection');
-    this.setState({
-      selection: selection
-    });
-  },
-  render: function() {
-    return (
-      React.createElement("div", {className: "viz"}, 
-        
-         this.props.data.length != 0 ? React.createElement(GraphLineChart, {data: this.props.data, 
-                                                        selection: this.state.selection, 
-                                                        count: this.props.count, 
-                                                        name: this.props.name}) : null
-      )
-    );
-  }
-});
-
-
-function drawLineChart (elementParent, data) {
-  var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  nv.addGraph(function() {
-    lineChart = nv.models.lineChart()
-      .margin({left: 25, right: 25})
-      .x(function(d) {return d.x})
-      .y(function(d) {return d.y})
-      .useInteractiveGuideline(true)
-      .showYAxis(true)
-      .showXAxis(true);
-    lineChart.xAxis
-      .tickFormat(function (d) { return months[d - 1]; })
-      .staggerLabels(false);
-    lineChart.yAxis
-      .tickFormat(d3.format('.1f'));
-    d3.select('#' + elementParent + ' svg')
-      .datum(data)
-      .call(lineChart);
-    nv.utils.windowResize(function() { lineChart.update() });
-    return lineChart;
-  });
-}
-
-function updateLineChart (elementParent, data) {
-  d3.select('#' + elementParent + ' svg')
-    .datum(data)
-    .call(lineChart);
-}
-
-
-//line data
-function keyToYearThenMonth (data) {
-  var keyYearMonth = d3.nest()
-    .key(function(d){return d.parent; })
-    .key(function(d){return d.month; });
-  var keyedData = keyYearMonth.entries(
-    data.map(function(d) {
-      return d;
-    })
-  );
-  return keyedData;
-}
-
-function lineData (selection, data) {
-  var colors = ['DarkOrange', 'ForestGreen', 'DeepPink', 'DarkViolet', 'Teal', 'Maroon', 'RoyalBlue', 'Silver', 'MediumPurple', 'Red', 'Lime', 'Tan', 'LightGoldenrodYellow', 'Turquoise', 'Pink', 'DeepSkyBlue', 'OrangeRed', 'LightGrey', 'Olive'];
-  data = data.sort(function(a,b){ return a.key > b.key; });
-  var lineDataArr = [];
-  for (var i = 0; i <= data.length-1; i++) {
-    var lineDataElement = [];
-    var currentValues = data[i].values.sort(function(a,b){ return +a.key - +b.key; });
-    for (var j = 0; j <= currentValues.length-1; j++) {
-      lineDataElement.push({
-        'x': +currentValues[j].key,
-        'y': +currentValues[j].values[0][selection]
-      });
-    }
-    lineDataArr.push({
-      key: data[i].key,
-      color: colors[i],
-      values: lineDataElement
-    });
-  }
-  return lineDataArr;
-}
-
-
-module.exports = Graph;
-
-
-},{"../stores/graph-store":42,"d3":undefined,"nvd3":undefined,"react":undefined,"react-router":undefined}],18:[function(require,module,exports){
-'use strict';
-
-var React = require('react');
-var Router = require('react-router');
-var Graph = require('./graph');
-
-var graphStore = require('../stores/graph-store');
-
-var Graphs = React.createClass({displayName: "Graphs",
-    getInitialState: getStateFromStores,
-    componentDidMount: function () {
-        graphStore.addChangeListener(this._onStoreChange);
-    },
-    componentWillUnmount: function () {
-        graphStore.removeChangeListener(this._onStoreChange);
-    },
-    _onStoreChange: function () {
-        this.setState(getStateFromStores());
-    },
-    render: function () {
-        var graphs  = [];
-
-        var graph = React.createElement(Graph, null)
-
-        return (
-                React.createElement("div", null, 
-                    React.createElement("div", {className: "view"}, 
-                        React.createElement("h2", null, "Graphs"), 
-                        graph
-                    )
-                )
-        );
-    },
-});
-
-function getStateFromStores() {
-    return {
-        graphs: graphStore.getGraphs(),
-    };
-}
-
-module.exports = Graphs;
-
-
-},{"../stores/graph-store":42,"./graph":17,"react":undefined,"react-router":undefined}],19:[function(require,module,exports){
-'use strict';
-
 var d3 = require('d3');
 var moment = require('moment');
 var React = require('react');
@@ -1917,7 +1634,7 @@ var LineChart = React.createClass({displayName: "LineChart",
 module.exports = LineChart;
 
 
-},{"d3":undefined,"moment":undefined,"react":undefined}],20:[function(require,module,exports){
+},{"d3":undefined,"moment":undefined,"react":undefined}],18:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1995,7 +1712,7 @@ function getStateFromStores() {
 module.exports = LoginForm;
 
 
-},{"../action-creators/platform-manager-action-creators":5,"../stores/login-form-store":43,"react":undefined,"react-router":undefined}],21:[function(require,module,exports){
+},{"../action-creators/platform-manager-action-creators":5,"../stores/login-form-store":42,"react":undefined,"react-router":undefined}],19:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2022,7 +1739,7 @@ var Modal = React.createClass({displayName: "Modal",
 module.exports = Modal;
 
 
-},{"../action-creators/modal-action-creators":3,"react":undefined}],22:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"react":undefined}],20:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2099,7 +1816,7 @@ function getStateFromStores() {
 module.exports = Navigation;
 
 
-},{"../action-creators/platform-manager-action-creators":5,"../stores/authorization-store":40,"react":undefined,"react-router":undefined}],23:[function(require,module,exports){
+},{"../action-creators/platform-manager-action-creators":5,"../stores/authorization-store":40,"react":undefined,"react-router":undefined}],21:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2117,7 +1834,292 @@ var PageNotFound = React.createClass({displayName: "PageNotFound",
 module.exports = PageNotFound;
 
 
-},{"react":undefined}],24:[function(require,module,exports){
+},{"react":undefined}],22:[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+var Router = require('react-router');
+var d3 = require('d3');
+var nv = require('nvd3');
+
+
+var chartStore = require('../stores/platform-chart-store');
+
+var lineChart;
+
+
+var PlatformChart = React.createClass({displayName: "PlatformChart",
+    getInitialState: function () {
+        var state = {};
+        state.chartData = getChartsFromStores();
+
+        return state;
+    },
+    componentWillMount: function () {
+        
+    },
+    componentDidMount: function () {
+        chartStore.addChangeListener(this._onStoreChange);
+    },
+    componentWillUnmount: function () {
+        chartStore.removeChangeListener(this._onStoreChange);
+    },
+    _onStoreChange: function () {
+        var platformCharts = getChartsFromStores();
+
+        this.setState({chartData: platformCharts});
+    },
+    render: function () {
+        var chartData = this.state.chartData; 
+
+        var platformCharts = [];
+
+        // var count = 0;
+
+        // for (var key in chartData)
+        // {
+        //     ++count;
+        // }
+
+        for (var key in chartData)
+        {
+            if (chartData[key].length > 0)
+            {
+                var platformChart = React.createElement("div", {className: "platform-chart with-3d-shadow with-transitions"}, 
+                          React.createElement("label", {className: "chart-title"}, chartData[key][0].name), 
+                          React.createElement(Viz, {data: chartData[key], name: chartData[key][0].name}), 
+                          React.createElement("br", null)
+                      )
+
+                platformCharts.push(platformChart);
+            }
+            
+        }
+
+
+
+
+        // var vizGraph;
+
+        // if (graphs.length > 0)
+        // {
+        //     vizGraph = <div id="chart" class='with-3d-shadow with-transitions'>
+        //                   <Viz data={graphs}></Viz>
+        //               </div>
+        // }
+
+
+        return (
+            React.createElement("div", null, 
+                platformCharts
+            )
+        );
+    },
+});
+
+
+function getChartsFromStores() {
+    return chartStore.getData();
+}
+
+
+var GraphLineChart = React.createClass({displayName: "GraphLineChart",
+  getInitialState: function () {
+      var state = {};
+      state.chartName = this.props.name + '_chart';
+
+      return state;
+  },
+  componentDidMount: function() {
+    drawLineChart(this.state.chartName, lineData(this.props.selection, getNested(this.props.data)));
+  },
+  componentDidUpdate: function() {
+    updateLineChart(this.state.chartName, lineData(this.props.selection, getNested(this.props.data)));
+  },
+  render: function() {
+
+    // var chartHeight = 70 / this.props.count;
+
+    var chartStyle = {
+        // height: chartHeight.toString() + "%",
+        width: "100%"
+    }
+
+    return (
+      React.createElement("div", {id: this.state.chartName, 
+            className: "platform-line-chart", 
+            style: chartStyle}, 
+        React.createElement("svg", null)
+      )
+    );
+  }
+});
+
+var Viz = React.createClass({displayName: "Viz",
+  getInitialState: function() {
+    return {
+      // data: this.props.data,
+      selection: 'avg_temp_f'
+    };
+  },
+  // loadData: function () {
+  //   d3.csv('/data/018_analytics_chart.csv',function(csv){
+  //     this.setState({
+  //       data: csv
+  //     });
+  //   }.bind(this));
+  // },
+  // componentDidMount: function () {
+  //   this.loadData();
+  // },
+  // loadData: function () {
+    
+  //   this.setState({ data: this.props.data});
+  // },
+  // componentDidMount: function () {
+  //   // var datum = chartStore.getchartData();
+  //   this.loadData();
+  // },
+
+    // componentDidUpdate: function() {
+        
+    //     this.setState({data: this.props.data});
+    // },
+
+  handleUserSelect: function (e) {
+    var selection = e.target.id;
+    $('#select-text').text(e.target.innerHTML);
+    $('.select').removeClass('current-selection');
+    $('#' + selection).addClass('current-selection');
+    this.setState({
+      selection: selection
+    });
+  },
+  render: function() {
+    return (
+      React.createElement("div", {className: "viz"}, 
+        
+         this.props.data.length != 0 ? React.createElement(GraphLineChart, {data: this.props.data, 
+                                                        selection: this.state.selection, 
+                                                        // count={this.props.count}
+                                                        name: this.props.name}) : null
+      )
+    );
+  }
+});
+
+
+function drawLineChart (elementParent, data) {
+  var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  nv.addGraph(function() {
+    lineChart = nv.models.lineChart()
+      .margin({left: 25, right: 25})
+      .x(function(d) {return d.x})
+      .y(function(d) {return d.y})
+      .useInteractiveGuideline(true)
+      .showYAxis(true)
+      .showXAxis(true);
+    lineChart.xAxis
+      .tickFormat(function (d) { return months[d - 1]; })
+      .staggerLabels(false);
+    lineChart.yAxis
+      .tickFormat(d3.format('.1f'));
+    d3.select('#' + elementParent + ' svg')
+      .datum(data)
+      .call(lineChart);
+    nv.utils.windowResize(function() { lineChart.update() });
+    return lineChart;
+  });
+}
+
+function updateLineChart (elementParent, data) {
+  d3.select('#' + elementParent + ' svg')
+    .datum(data)
+    .call(lineChart);
+}
+
+
+//line data
+function getNested (data) {
+  var keyYearMonth = d3.nest()
+    .key(function(d){return d.parent; })
+    .key(function(d){return d.month; });
+  var keyedData = keyYearMonth.entries(
+    data.map(function(d) {
+      return d;
+    })
+  );
+  return keyedData;
+}
+
+function lineData (selection, data) {
+  var colors = ['DarkOrange', 'ForestGreen', 'DeepPink', 'DarkViolet', 'Teal', 'Maroon', 'RoyalBlue', 'Silver', 'MediumPurple', 'Red', 'Lime', 'Tan', 'LightGoldenrodYellow', 'Turquoise', 'Pink', 'DeepSkyBlue', 'OrangeRed', 'LightGrey', 'Olive'];
+  data = data.sort(function(a,b){ return a.key > b.key; });
+  var lineDataArr = [];
+  for (var i = 0; i <= data.length-1; i++) {
+    var lineDataElement = [];
+    var currentValues = data[i].values.sort(function(a,b){ return +a.key - +b.key; });
+    for (var j = 0; j <= currentValues.length-1; j++) {
+      lineDataElement.push({
+        'x': +currentValues[j].key,
+        'y': +currentValues[j].values[0][selection]
+      });
+    }
+    lineDataArr.push({
+      key: data[i].key,
+      color: colors[i],
+      values: lineDataElement
+    });
+  }
+  return lineDataArr;
+}
+
+
+module.exports = PlatformChart;
+
+
+},{"../stores/platform-chart-store":44,"d3":undefined,"nvd3":undefined,"react":undefined,"react-router":undefined}],23:[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+var Router = require('react-router');
+var PlatformChart = require('./platform-chart');
+
+// var chartStore = require('../stores/platform-chart-store');
+
+var PlatformCharts = React.createClass({displayName: "PlatformCharts",
+    // getInitialState: getStateFromStores,
+    componentDidMount: function () {
+        // chartStore.addChangeListener(this._onStoreChange);
+    },
+    componentWillUnmount: function () {
+        // chartStore.removeChangeListener(this._onStoreChange);
+    },
+    _onStoreChange: function () {
+        // this.setState(getStateFromStores());
+    },
+    render: function () {
+        // var charts  = [];
+
+        var platformChart = React.createElement(PlatformChart, null)
+
+        return (
+                React.createElement("div", null, 
+                    React.createElement("div", {className: "view"}, 
+                        React.createElement("h2", null, "Points"), 
+                        platformChart
+                    )
+                )
+        );
+    },
+});
+
+
+
+module.exports = PlatformCharts;
+
+
+},{"./platform-chart":22,"react":undefined,"react-router":undefined}],24:[function(require,module,exports){
 'use strict';
 
 var $ = require('jquery');
@@ -2254,7 +2256,7 @@ function getStateFromStores() {
 module.exports = PlatformManager;
 
 
-},{"../action-creators/console-action-creators":2,"../action-creators/modal-action-creators":3,"../action-creators/platform-manager-action-creators":5,"../stores/authorization-store":40,"../stores/console-store":41,"../stores/modal-store":44,"../stores/platforms-panel-store":47,"./console":11,"./modal":21,"./navigation":22,"./platforms-panel":27,"jquery":undefined,"react":undefined,"react-router":undefined}],25:[function(require,module,exports){
+},{"../action-creators/console-action-creators":2,"../action-creators/modal-action-creators":3,"../action-creators/platform-manager-action-creators":5,"../stores/authorization-store":40,"../stores/console-store":41,"../stores/modal-store":43,"../stores/platforms-panel-store":47,"./console":11,"./modal":19,"./navigation":20,"./platforms-panel":27,"jquery":undefined,"react":undefined,"react-router":undefined}],25:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2467,6 +2469,7 @@ var Router = require('react-router');
 var platformsPanelItemsStore = require('../stores/platforms-panel-items-store');
 var platformsPanelActionCreators = require('../action-creators/platforms-panel-action-creators');
 
+
 var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
     getInitialState: function () {
         var state = {};
@@ -2477,7 +2480,7 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
         state.tooltipX = null;
         state.tooltipY = null;
         state.keepTooltip = false;
-        state.expandedChildren;
+        state.expandedChildren = null;
         state.checked = false;
 
         state.children = getChildrenFromStore(this.props.panelItem, this.props.itemPath);
@@ -2516,13 +2519,16 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
 
         this.setState({checked: checked});
 
+        var a, b;
+
         if (checked)
         {
-            platformsPanelActionCreators.addToGraph(this.props.panelItem);
+            platformsPanelActionCreators.addToChart(this.props.panelItem);
+            window.location = '/#/platform-charts';
         }
         else
         {
-            platformsPanelActionCreators.removeFromGraph(this.props.panelItem);
+            platformsPanelActionCreators.removeFromChart(this.props.panelItem);
         }
     },
     _toggleItem: function () {
@@ -2576,7 +2582,7 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
 
         if (typeof propChildren === "undefined" || propChildren === null)
         {
-            propChildren = this.props.children;
+            propChildren = this.props.knownChildren;
         }
 
         // var filterTerm = this.props.filter;
@@ -2584,8 +2590,17 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
         var itemClasses;
         var arrowClasses = ["arrowButton", "noRotate"];
 
-        var checkboxClass = "panelItemCheckbox";
+        // var checkboxClass = "panelItemCheckbox";
 
+        var ChartCheckbox;
+
+        if (["point"].indexOf(panelItem.type) > -1)
+        {
+            ChartCheckbox = (React.createElement("input", {className: "panelItemCheckbox", 
+                                    type: "checkbox", 
+                                    onChange: this._checkItem}));
+        }
+        
         var checkboxStyle = {
             display : (["point"].indexOf(panelItem.type) < 0 ? "none" : "block")
         };
@@ -2639,7 +2654,7 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
                         });
 
                         return (
-                            React.createElement(PlatformsPanelItem, {panelItem: propChild, itemPath: propChild.path, children: grandchildren})
+                            React.createElement(PlatformsPanelItem, {panelItem: propChild, itemPath: propChild.path, knownChildren: grandchildren})
                         );
                     }); 
 
@@ -2726,7 +2741,7 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
             listItem = 
                 React.createElement("div", {className: "platform-link"}, 
                     React.createElement(Router.Link, {
-                        to: "graphs", 
+                        to: "platform-charts", 
                         params: {uuid: panelItem.uuid}
                     }, 
                     panelItem.name
@@ -2745,10 +2760,7 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
                         onClick: this._toggleItem}, 
                         arrowContent
                         ), 
-                    React.createElement("input", {className: checkboxClass, 
-                        style: checkboxStyle, 
-                        type: "checkbox", 
-                        onChange: this._checkItem}), 
+                    ChartCheckbox, 
                     React.createElement("div", {className: "tooltip_outer", 
                         style: tooltipStyle}, 
                         React.createElement("div", {className: "tooltip_inner"}, 
@@ -2782,7 +2794,12 @@ function expandAllChildren(expandOn, parent)
 
     expandedParent.children.forEach(function(childString) {
         expandedChildren.push(expandedParent[childString]);
-    })
+    });
+
+    if (!expandOn)
+    {
+        expandedChildren = null;
+    }
 
     return expandedChildren;
 
@@ -2850,15 +2867,19 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
     },
     _onFilterGood: function (e) {
         this.setState({ filteredPlatforms: getFilteredPlatforms("", "GOOD") });
+        this.setState({ filterValue: ""});
     },
     _onFilterBad: function (e) {
         this.setState({ filteredPlatforms: getFilteredPlatforms("", "BAD") });
+        this.setState({ filterValue: ""});
     },
     _onFilterUnknown: function (e) {
         this.setState({ filteredPlatforms: getFilteredPlatforms("", "UNKNOWN") });
+        this.setState({ filterValue: ""});
     },
     _onFilterOff: function (e) {
         this.setState({ filteredPlatforms: getFilteredPlatforms("", "") });
+        this.setState({ filterValue: ""});
     },
     _togglePanel: function () {
         platformsPanelActionCreators.togglePanel();
@@ -2912,7 +2933,7 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
                         });
 
                         return (
-                            React.createElement(PlatformsPanelItem, {panelItem: filteredPlatform, itemPath: filteredPlatform.path, children: children})
+                            React.createElement(PlatformsPanelItem, {panelItem: filteredPlatform, itemPath: filteredPlatform.path, knownChildren: children})
                         );
                 });
             }
@@ -3452,8 +3473,8 @@ module.exports = keyMirror({
     RECEIVE_POINT_STATUSES: null,
     RECEIVE_BUILDING_STATUSES: null,
 
-    ADD_TO_GRAPH: null,
-    REMOVE_FROM_GRAPH: null,
+    ADD_TO_CHART: null,
+    REMOVE_FROM_CHART: null,
 
     RECEIVE_PLATFORM_TOPIC_DATA: null,
 });
@@ -3808,107 +3829,6 @@ module.exports = consoleStore;
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
-var authorizationStore = require('../stores/authorization-store');
-var dispatcher = require('../dispatcher');
-var Store = require('../lib/store');
-
-
-var _graphVisible = false;
-var _graphData = {};
-
-var graphStore = new Store();
-
-graphStore.getGraphs = function (uuid) {
-    
-
-    return null;
-};
-
-graphStore.getLastError = function (uuid) {
-    return _lastErrors[uuid] || null;
-};
-
-graphStore.getData = function () {
-    return _graphData;
-}
-
-graphStore.dispatchToken = dispatcher.register(function (action) {
-    switch (action.type) {
-
-        case ACTION_TYPES.ADD_TO_GRAPH:  
-
-            if (_graphData.hasOwnProperty(action.panelItem.name))
-            {
-                var graphItems = _graphData[action.panelItem.name].filter(function (item) { return item.uuid === action.panelItem.uuid });
-
-                if (graphItems.length === 0)
-                {
-                    if (action.panelItem.hasOwnProperty("data"))
-                    {
-                        _graphData[action.panelItem.name] = _graphData[action.panelItem.name].concat(action.panelItem.data);
-                    }
-
-                    if (_graphData[action.panelItem.name].length > 0)
-                    {
-                        _graphVisible = true;
-                    }
-
-                    graphStore.emitChange();
-                }
-            }
-            else
-            {
-                if (action.panelItem.hasOwnProperty("data"))
-                {
-                    _graphData[action.panelItem.name] = JSON.parse(JSON.stringify(action.panelItem.data));
-
-                    graphStore.emitChange();
-                }
-            }
-
-            break;
-
-        case ACTION_TYPES.REMOVE_FROM_GRAPH:
-
-            if (_graphData[action.panelItem.name].length > 0)
-            {
-                // _graphData[action.panelItem.name].forEach(function(item, index) {
-                //     if (item.uuid === action.panelItem.uuid)
-                //     {
-                //         _graphData[action.panelItem.name].splice(index, 1);
-                //     }
-                // });
-
-                for (var i = _graphData[action.panelItem.name].length - 1; i >= 0; i--)
-                {
-                    if (_graphData[action.panelItem.name][i].uuid === action.panelItem.uuid)
-                    {
-                        _graphData[action.panelItem.name].splice(i, 1);
-                    }                    
-                }
-
-                if (_graphData[action.panelItem.name].length === 0)
-                {
-                    _graphVisible = false;
-                }
-
-                graphStore.emitChange();  
-            }
-
-            break;
-    } 
-    
-});
-
-
-
-module.exports = graphStore;
-
-
-},{"../constants/action-types":31,"../dispatcher":32,"../lib/store":36,"../stores/authorization-store":40}],43:[function(require,module,exports){
-'use strict';
-
-var ACTION_TYPES = require('../constants/action-types');
 var authorizationStore = require('./authorization-store');
 var dispatcher = require('../dispatcher');
 var Store = require('../lib/store');
@@ -3940,7 +3860,7 @@ loginFormStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = loginFormStore;
 
 
-},{"../constants/action-types":31,"../dispatcher":32,"../lib/store":36,"./authorization-store":40}],44:[function(require,module,exports){
+},{"../constants/action-types":31,"../dispatcher":32,"../lib/store":36,"./authorization-store":40}],43:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -3973,7 +3893,108 @@ modalStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = modalStore;
 
 
-},{"../constants/action-types":31,"../dispatcher":32,"../lib/store":36}],45:[function(require,module,exports){
+},{"../constants/action-types":31,"../dispatcher":32,"../lib/store":36}],44:[function(require,module,exports){
+'use strict';
+
+var ACTION_TYPES = require('../constants/action-types');
+var authorizationStore = require('../stores/authorization-store');
+var dispatcher = require('../dispatcher');
+var Store = require('../lib/store');
+
+
+var _chartVisible = false;
+var _chartData = {};
+
+var chartStore = new Store();
+
+chartStore.getCharts = function (uuid) {
+    
+
+    return null;
+};
+
+chartStore.getLastError = function (uuid) {
+    return _lastErrors[uuid] || null;
+};
+
+chartStore.getData = function () {
+    return _chartData;
+}
+
+chartStore.dispatchToken = dispatcher.register(function (action) {
+    switch (action.type) {
+
+        case ACTION_TYPES.ADD_TO_CHART:  
+
+            if (_chartData.hasOwnProperty(action.panelItem.name))
+            {
+                var chartItems = _chartData[action.panelItem.name].filter(function (item) { return item.uuid === action.panelItem.uuid });
+
+                if (chartItems.length === 0)
+                {
+                    if (action.panelItem.hasOwnProperty("data"))
+                    {
+                        _chartData[action.panelItem.name] = _chartData[action.panelItem.name].concat(action.panelItem.data);
+                    }
+
+                    if (_chartData[action.panelItem.name].length > 0)
+                    {
+                        _chartVisible = true;
+                    }
+
+                    chartStore.emitChange();
+                }
+            }
+            else
+            {
+                if (action.panelItem.hasOwnProperty("data"))
+                {
+                    _chartData[action.panelItem.name] = JSON.parse(JSON.stringify(action.panelItem.data));
+
+                    chartStore.emitChange();
+                }
+            }
+
+            break;
+
+        case ACTION_TYPES.REMOVE_FROM_CHART:
+
+            if (_chartData[action.panelItem.name].length > 0)
+            {
+                // _chartData[action.panelItem.name].forEach(function(item, index) {
+                //     if (item.uuid === action.panelItem.uuid)
+                //     {
+                //         _chartData[action.panelItem.name].splice(index, 1);
+                //     }
+                // });
+
+                for (var i = _chartData[action.panelItem.name].length - 1; i >= 0; i--)
+                {
+                    if (_chartData[action.panelItem.name][i].uuid === action.panelItem.uuid)
+                    {
+                        _chartData[action.panelItem.name].splice(i, 1);
+                    }                    
+                }
+
+                if (_chartData[action.panelItem.name].length === 0)
+                {
+                    _chartVisible = false;
+                }
+
+                chartStore.emitChange();  
+            }
+
+            break;
+    } 
+    
+});
+
+
+
+module.exports = chartStore;
+
+
+},{"../constants/action-types":31,"../dispatcher":32,"../lib/store":36,"../stores/authorization-store":40}],45:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');

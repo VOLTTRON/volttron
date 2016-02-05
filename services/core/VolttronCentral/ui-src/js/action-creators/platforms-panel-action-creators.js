@@ -110,19 +110,19 @@ var platformsPanelActionCreators = {
     
     },
 
-    addToGraph: function(panelItem) {
+    addToChart: function(panelItem) {
 
         dispatcher.dispatch({
-            type: ACTION_TYPES.ADD_TO_GRAPH,
+            type: ACTION_TYPES.ADD_TO_CHART,
             panelItem: panelItem
         });  
 
     },
 
-    removeFromGraph: function(panelItem) {
+    removeFromChart: function(panelItem) {
 
         dispatcher.dispatch({
-            type: ACTION_TYPES.REMOVE_FROM_GRAPH,
+            type: ACTION_TYPES.REMOVE_FROM_CHART,
             panelItem: panelItem
         });  
 

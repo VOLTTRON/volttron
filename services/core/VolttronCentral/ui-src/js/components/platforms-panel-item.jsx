@@ -6,6 +6,7 @@ var Router = require('react-router');
 var platformsPanelItemsStore = require('../stores/platforms-panel-items-store');
 var platformsPanelActionCreators = require('../action-creators/platforms-panel-action-creators');
 
+
 var PlatformsPanelItem = React.createClass({
     getInitialState: function () {
         var state = {};
@@ -16,7 +17,7 @@ var PlatformsPanelItem = React.createClass({
         state.tooltipX = null;
         state.tooltipY = null;
         state.keepTooltip = false;
-        state.expandedChildren;
+        state.expandedChildren = null;
         state.checked = false;
 
         state.children = getChildrenFromStore(this.props.panelItem, this.props.itemPath);
@@ -55,13 +56,16 @@ var PlatformsPanelItem = React.createClass({
 
         this.setState({checked: checked});
 
+        var a, b;
+
         if (checked)
         {
-            platformsPanelActionCreators.addToGraph(this.props.panelItem);
+            platformsPanelActionCreators.addToChart(this.props.panelItem);
+            window.location = '/#/platform-charts';
         }
         else
         {
-            platformsPanelActionCreators.removeFromGraph(this.props.panelItem);
+            platformsPanelActionCreators.removeFromChart(this.props.panelItem);
         }
     },
     _toggleItem: function () {
@@ -115,7 +119,7 @@ var PlatformsPanelItem = React.createClass({
 
         if (typeof propChildren === "undefined" || propChildren === null)
         {
-            propChildren = this.props.children;
+            propChildren = this.props.knownChildren;
         }
 
         // var filterTerm = this.props.filter;
@@ -123,8 +127,17 @@ var PlatformsPanelItem = React.createClass({
         var itemClasses;
         var arrowClasses = ["arrowButton", "noRotate"];
 
-        var checkboxClass = "panelItemCheckbox";
+        // var checkboxClass = "panelItemCheckbox";
 
+        var ChartCheckbox;
+
+        if (["point"].indexOf(panelItem.type) > -1)
+        {
+            ChartCheckbox = (<input className="panelItemCheckbox"
+                                    type="checkbox"
+                                    onChange={this._checkItem}></input>);
+        }
+        
         var checkboxStyle = {
             display : (["point"].indexOf(panelItem.type) < 0 ? "none" : "block")
         };
@@ -178,7 +191,7 @@ var PlatformsPanelItem = React.createClass({
                         });
 
                         return (
-                            <PlatformsPanelItem panelItem={propChild} itemPath={propChild.path} children={grandchildren}/>
+                            <PlatformsPanelItem panelItem={propChild} itemPath={propChild.path} knownChildren={grandchildren}/>
                         );
                     }); 
 
@@ -265,7 +278,7 @@ var PlatformsPanelItem = React.createClass({
             listItem = 
                 <div className="platform-link">
                     <Router.Link
-                        to="graphs"
+                        to="platform-charts"
                         params={{uuid: panelItem.uuid}}
                     >
                     {panelItem.name}
@@ -284,10 +297,7 @@ var PlatformsPanelItem = React.createClass({
                         onClick={this._toggleItem}>
                         {arrowContent}
                         </div>  
-                    <input className={checkboxClass}
-                        style={checkboxStyle}
-                        type="checkbox"
-                        onChange={this._checkItem}></input>                    
+                    {ChartCheckbox}                   
                     <div className="tooltip_outer" 
                         style={tooltipStyle}>
                         <div className="tooltip_inner">
@@ -321,7 +331,12 @@ function expandAllChildren(expandOn, parent)
 
     expandedParent.children.forEach(function(childString) {
         expandedChildren.push(expandedParent[childString]);
-    })
+    });
+
+    if (!expandOn)
+    {
+        expandedChildren = null;
+    }
 
     return expandedChildren;
 
