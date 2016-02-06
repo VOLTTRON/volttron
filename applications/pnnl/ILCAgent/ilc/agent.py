@@ -1,27 +1,87 @@
-import re
+# -*- coding: utf-8 -*- {{{
+# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
+
+# Copyright (c) 2015, Battelle Memorial Institute
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in
+#    the documentation and/or other materials provided with the
+#    distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+# The views and conclusions contained in the software and documentation
+# are those of the authors and should not be interpreted as representing
+# official policies, either expressed or implied, of the FreeBSD
+# Project.
+#
+# This material was prepared as an account of work sponsored by an
+# agency of the United States Government.  Neither the United States
+# Government nor the United States Department of Energy, nor Battelle,
+# nor any of their employees, nor any jurisdiction or organization that
+# has cooperated in the development of these materials, makes any
+# warranty, express or implied, or assumes any legal liability or
+# responsibility for the accuracy, completeness, or usefulness or any
+# information, apparatus, product, software, or process disclosed, or
+# represents that its use would not infringe privately owned rights.
+#
+# Reference herein to any specific commercial product, process, or
+# service by trade name, trademark, manufacturer, or otherwise does not
+# necessarily constitute or imply its endorsement, recommendation, or
+# favoring by the United States Government or any agency thereof, or
+# Battelle Memorial Institute. The views and opinions of authors
+# expressed herein do not necessarily state or reflect those of the
+# United States Government or any agency thereof.
+#
+# PACIFIC NORTHWEST NATIONAL LABORATORY
+# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# under Contract DE-AC05-76RL01830
+
+# }}}
 import sys
 import logging
-from pandas import DataFrame as df
-import numpy as np
-from dateutil.parser import parse
 from datetime import timedelta as td, datetime as dt
 from copy import deepcopy
+from dateutil import parser
 # from _ast import comprehension
-from sympy import *
+from sympy import symbols
 from sympy.parsing.sympy_parser import parse_expr
-from collections import defaultdict
+import abc
+from collections import deque
+
 # from volttron.platform.agent import utils, matching, sched
 # from volttron.platform.messaging import headers as headers_mod,
 from volttron.platform.messaging import topics
 from volttron.platform.agent import utils
 from volttron.platform.agent.utils import jsonapi, setup_logging
-from volttron.platform.vip.agent import *
+from volttron.platform.vip.agent import Agent, Core
 from ilc.ilc_matrices import (extract_criteria, calc_column_sums,
                               normalize_matrix, validate_input,
-                              history_data, build_score, input_matrix)
+                              build_score, input_matrix)
+from volttron.platform.jsonrpc import RemoteError
+import gevent
 
-MATRIX_ROWSTRING = "%20s\t%12.2f%12.2f%12.2f%12.2f%12.2f"
-CRITERIA_LABELSTRING = "\t\t\t%12s%12s%12s%12s%12s"
+__version__ = '1.0.0'
+
+MATRIX_ROWSTRING = '%20s\t%12.2f%12.2f%12.2f%12.2f%12.2f'
+CRITERIA_LABELSTRING = '\t\t\t%12s%12s%12s%12s%12s'
 DATE_FORMAT = '%m-%d-%y %H:%M:%S'
 TESTING = True
 setup_logging()
@@ -29,62 +89,336 @@ _log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.debug,
                     format='%(asctime)s   %(levelname)-8s %(message)s',
                     datefmt='%m-%d-%y %H:%M:%S')
+mappers = {}
+criterion_registry = {}
 
 
-class DeviceTrender:
-    def __init__(self, device_list):
-        self.data = []
-        self.data_arr = None
-        self.pt_names = []
-        self._master_devices = deepcopy(device_list)
-        self.needs_devices = deepcopy(device_list)
-        self.data_trender = None
-        self.ts = None
+def register_criterion(name):
+    def decorator(klass):
+        criterion_registry[name] = klass
+        return klass
+    return decorator
 
-    def reinit(self):
-        '''Reinitialize all arrays daily (store results for one day).'''
-        self.data_arr = None
-        self.data = []
-        self.pt_names = []
 
-    def new_data(self, device, points, data):
-        '''Assemble dataset containing device data.'''
-        self.pt_names.extend([(device + '_' + pt) for pt in points])
-        self.data.extend(data[device][pt] for pt in points)
+class BaseCriterion(object):
+    __metaclass__ = abc.ABCMeta
 
-        if TESTING:
-            cur_time = parse(
-                data.get('date'), fuzzy=True).replace(second=0,
-                                                      microsecond=0)
-            self.ts = cur_time
+    def __init__(self, minimum=None, maximum=None):
+        self.min_func = (lambda x: x) if minimum is None else (lambda x: max(x, minimum))
+        self.max_func = (lambda x: x) if maximum is None else (lambda x: min(x, maximum))
+        self.minimum = minimum
+        self.maximum = maximum
+
+    def evaluate_bounds(self, value):
+        value = self.min_func(value)
+        value = self.max_func(value)
+        return value
+
+    def evaluate_criterion(self):
+        value = self.evaluate()
+        value = self.evaluate_bounds(value)
+        return value
+
+    @abc.abstractmethod
+    def evaluate(self):
+        pass
+
+    def ingest_data(self, time_stamp, data):
+        pass
+
+
+@register_criterion('status')
+class StatusCriterion(BaseCriterion):
+    def __init__(self, on_value=None, off_value=0.0,
+                 point_name=None, **kwargs):
+        super(StatusCriterion, self).__init__(**kwargs)
+        if on_value is None or point_name is None:
+            raise ValueError('Missing parameter')
+        self.on_value = on_value
+        self.off_value = off_value
+        self.point_name = point_name
+        self.current_status = False
+
+    def evaluate(self):
+        if self.current_status:
+            val = self.on_value
         else:
-            self.ts.append(dt.now().replace(second=0, microsecond=0))
+            val = self.off_value
+        return val
 
-        try:
-            self.needs_devices.remove(device)
-        except ValueError:
-            # Deal with missing data.
-            _log.debug('Missing data.')
+    def ingest_data(self, time_stamp, data):
+        self.current_status = bool(data[self.point_name])
 
-        if (self.frame_data() if not self.needs_devices else False):
-            return
 
-    def frame_data(self):
-        '''Append Dataframe with current reading for all devices configured.'''
-        data_arr = df([self.data], columns=self.pt_names, index=[self.ts])
-        if self.data_arr is None:
-            self.data_arr = data_arr
-            self.needs_devices = deepcopy(self._master_devices)
-            self.pt_names = []
-            self.data = []
-            self.ts = []
-            return 1
-        self.needs_devices = deepcopy(self._master_devices)
-        self.data_arr = self.data_arr.append(data_arr)
-        self.pt_names = []
-        self.data = []
-        self.ts = []
-        return 0
+@register_criterion('constant')
+class ConstantCriterion(BaseCriterion):
+    def __init__(self, value=None, off_value=0.0,
+                 point_name=None, **kwargs):
+        super(ConstantCriterion, self).__init__(**kwargs)
+        if value is None:
+            raise ValueError('Missing parameter')
+        self.value = value
+
+    def evaluate(self):
+        return self.value
+
+
+@register_criterion('formula')
+class FormulaCriterion(BaseCriterion):
+    def __init__(self, operation=None, operation_args=None, **kwargs):
+        super(FormulaCriterion, self).__init__(**kwargs)
+        if operation is None or operation_args is None:
+            raise ValueError('Missing parameter')
+        self.operation_args = operation_args
+        self.points = symbols(operation_args)
+        self.expr = parse_expr(operation)
+
+    def evaluate(self):
+        if self.pt_list:
+            val = self.expr.subs(self.pt_list)
+        else:
+            val = self.minimum
+        return val
+
+    def ingest_data(self, time_stamp, data):
+        pt_list = []
+        for item in self.operation_args:
+            pt_list.append((item, data[item]))
+        self.pt_list = pt_list
+
+
+@register_criterion('mapper')
+class MapperCriterion(BaseCriterion):
+    def __init__(self, dict_name=None, map_key=None, **kwargs):
+        super(MapperCriterion, self).__init__(**kwargs)
+        if dict_name is None or map_key is None:
+            raise ValueError('Missing parameter')
+        self.value = mappers[dict_name][map_key]
+
+    def evaluate(self):
+        return self.value
+
+
+@register_criterion('history')
+class HistoryCriterion(BaseCriterion):
+    def __init__(self, comparison_type=None,
+                 point_name=None, previous_time=None, **kwargs):
+        super(HistoryCriterion, self).__init__(**kwargs)
+        if (comparison_type is None or point_name is None or
+                previous_time is None):
+            raise ValueError('Missing parameter')
+        self.history = deque()
+        self.comparison_type = comparison_type
+        self.point_name = point_name
+        self.previous_time_delta = td(minutes=previous_time)
+
+        self.current_value = None
+        self.history_time = None
+
+    def linear_interpolation(self, date1, value1, date2, value2, target_date):
+        end_delta_t = (date2-date1).total_seconds()
+        target_delta_t = (target_date-date1).total_seconds()
+        return (value2-value1)*(target_delta_t / end_delta_t) + value1
+
+    def evaluate(self):
+        if self.current_value is None:
+            return self.minimum
+
+        pre_timestamp, pre_value = self.history.pop()
+
+        if pre_timestamp > self.history_time:
+            self.history.append((pre_timestamp, pre_value))
+            return self.minimum
+
+        post_timestamp, post_value = self.history.pop()
+
+        while post_timestamp < self.history_time:
+            pre_value, pre_timestamp = post_value, post_timestamp
+            post_timestamp, post_value = self.history.pop()
+
+        self.history.append((post_timestamp, post_value))
+        prev_value = self.linear_interpolation(pre_timestamp, pre_value,
+                                               post_timestamp, post_value,
+                                               self.history_time)
+        if self.comparison_type == 'direct':
+            val = abs(prev_value - self.current_value)
+        elif self.comparison_type == 'inverse':
+            val = 1/abs(prev_value - self.current_value)
+        return val
+
+    def ingest_data(self, time_stamp, data):
+        self.history_time = time_stamp - self.previous_time_delta
+        self.current_value = data[self.point_name]
+        self.history.appendleft((time_stamp, self.current_value))
+
+
+class Criteria(object):
+    def __init__(self, criteria):
+        self.currently_curtailed = False
+        self.criteria = {}
+        criteria = deepcopy(criteria)
+
+        self.curtailment = criteria.pop('curtail')
+
+        # Verify all curtailment parameters.
+        for key in ('point', 'value', 'load'):
+            if key not in self.curtailment:
+                raise Exception('Missing {key} parameter from curtailment settings.'.format(key=key))
+
+        self.curtail_count = 0
+
+        for name, criterion in criteria.items():
+            self.add(name, criterion)
+
+    def add(self, name, criterion):
+        operation_type = criterion.pop('operation_type')
+        klass = criterion_registry[operation_type]
+        self.criteria[name] = klass(**criterion)
+
+    def evaluate(self):
+        results = {}
+        for name, criterion in self.criteria.items():
+            result = criterion.evaluate_criterion()
+            results[name] = result
+
+        results['curtail_count'] = self.curtail_count
+        return results
+
+    def ingest_data(self, time_stamp, data):
+        for criterion in self.criteria.values():
+            criterion.ingest_data(time_stamp, data)
+
+    def reset_curtail_count(self):
+        self.curtail_count = 0.0
+
+    def increment_curtail(self):
+        self.currently_curtailed = False
+        self.curtail_count += 1.0
+
+    def get_curtailment(self):
+        return self.curtailment.copy()
+
+    def reset_currently_curtailed(self):
+        self.currently_curtailed = True
+
+
+class Device(object):
+    def __init__(self, device_config):
+        self.criteria = {}
+        self.command_status = {}
+
+        for command_point, criteria_config in device_config.items():
+            criteria = Criteria(criteria_config)
+            self.criteria[command_point] = criteria
+            self.command_status[command_point] = False
+
+    def ingest_data(self, time_stamp, data):
+        for criteria in self.criteria.values():
+            criteria.ingest_data(time_stamp, data)
+
+        for command in self.command_status:
+            self.command_status[command] = bool(data[command])
+
+    def reset_curtail_count(self):
+        for criteria in self.criteria.values():
+            criteria.reset_curtail_count()
+
+    def reset_currently_curtailed(self):
+        for criteria in self.criteria.values():
+            criteria.reset_currently_curtailed()
+
+    def increment_curtail(self, command):
+        self.criteria[command].increment_curtail()
+
+    def evaluate(self, command):
+        return self.criteria[command].evaluate()
+
+    def get_curtailment(self, command):
+        return self.criteria[command].get_curtailment()
+
+    def get_off_commands(self):
+        return [command for command, state in self.command_status.iteritems() if not state]
+
+    def get_on_commands(self):
+        return [command for command, state in self.command_status.iteritems() if state]
+
+
+class DeviceCluster(object):
+    def __init__(self, priority, crit_labels, row_average, cluster_config):
+        self.devices = {}
+        self.priority = priority
+        self.crit_labels = crit_labels
+        self.row_average = row_average
+
+        for device_name, device_config in cluster_config.iteritems():
+            self.devices[device_name] = Device(device_config)
+
+    def get_all_device_evaluations(self):
+        results = {}
+        for name, device in self.devices.iteritems():
+            for command in device.get_on_commands():
+                evaluations = device.evaluate(command)
+                results[name, command] = evaluations
+        return results
+
+
+class Clusters(object):
+    def __init__(self):
+        self.clusters = []
+        self.devices = {}
+
+    def add_device_cluster(self, cluster):
+        self.clusters.append(cluster)
+        self.devices.update(cluster.devices)
+
+    def get_device_name_list(self):
+        return self.devices.keys()
+
+    def get_device(self, device_name):
+        return self.devices[device_name]
+
+    def get_off_device_set(self):
+        results = set()
+        for name, device in self.devices.iteritems():
+            results.update(((name, command) for command in device.get_off_commands()))
+
+        return results
+
+    def reset_curtail_count(self):
+        for device in self.devices.itervalues():
+            device.reset_curtail_count()
+
+    def reset_currently_curtailed(self):
+        for device in self.devices.itervalues():
+            device.reset_currently_curtailed()
+
+    def get_on_device_set(self):
+        results = set()
+        for name, device in self.devices.iteritems():
+            results.update(((name, command) for command in device.get_on_commands()))
+
+        return results
+
+    def get_score_order(self):
+        all_scored_devices = []
+        for cluster in self.clusters:
+            device_evaluations = cluster.get_all_device_evaluations()
+
+            _log.debug('Device Evaluations: ' + str(device_evaluations))
+
+            if not device_evaluations:
+                continue
+
+            input_arr = input_matrix(device_evaluations, cluster.crit_labels)
+            _log.debug('Input Array: ' + str(input_arr))
+            scored_devices = build_score(input_arr, cluster.row_average, cluster.priority)
+            all_scored_devices.extend(scored_devices)
+
+        all_scored_devices.sort(reverse=True)
+        _log.debug('Scored Devices: ' + str(all_scored_devices))
+        results = [x[1] for x in all_scored_devices]
+
+        return results
 
 
 def ahp(config_path, **kwargs):
@@ -93,353 +427,369 @@ def ahp(config_path, **kwargs):
     using Analytical Hierarchical Process.
     '''
     config = utils.load_config(config_path)
-    location = dict((key, config['device'][key])
-                    for key in ['campus', 'building'])
-    devices = config['device']['unit']
+    location = {}
+    location['campus'] = config.get('campus')
+    location['building'] = config.get('building')
+    cluster_configs = config['clusters']
     agent_id = config.get('agent_id')
-    base_device = "devices/{campus}/{building}/".format(**location)
-    power_token = config.get('PowerMeter', None)
-    assert power_token
-    power_dev = power_token.get('device', None)
-    power_pt = power_token.get('point', None)
-    if power_token is None or power_pt is None:
-        raise Exception('PowerMeter section of configuration '
-                        'file is not configured correctly.')
-    units = devices.keys()
-    devices_topic = (
-        base_device + '({})(/.*)?/all$'
-        .format('|'.join(re.escape(p) for p in units)))
-    bld_pwr_topic = (
-        base_device + '({})(/.*)?/all$'
-        .format('|'.join(re.escape(p) for p in [power_dev])))
-    BUILDING_TOPIC = re.compile(bld_pwr_topic)
-    ALL_DEV = re.compile(devices_topic)
-    static_config = config['device']
-    all_devices = static_config.keys()
-    no_curt = {}
-    by_mode = static_config.get('by_mode')
-    if by_mode is None:
-        raise Exception('by_mode section of configuration file is missing.')
-    demand_limit = float(config.get("Demand Limit"))
-    curtail_time = float(config.get("Curtailment Time", 15.0))
-    for key in static_config:
-        for item in by_mode:
-            no_curt[''.join([key, '_', item])] = 0
+
+    global mappers
+
+    try:
+        mappers = config['mappers']
+    except KeyError:
+        mappers = {}
+
+    clusters = Clusters()
+
+    for cluster_config in cluster_configs:
+        excel_file_name = cluster_config['critieria_file_path']
+        cluster_config_file_name = cluster_config['device_file_path']
+        cluster_priority = cluster_config['cluster_priority']
+
+        crit_labels, criteria_arr = extract_criteria(excel_file_name, 'CriteriaMatrix')
+        col_sums = calc_column_sums(criteria_arr)
+        _, row_average = normalize_matrix(criteria_arr, col_sums)
+
+        if not (validate_input(criteria_arr, col_sums, 
+                               crit_labels, CRITERIA_LABELSTRING,
+                               MATRIX_ROWSTRING)):
+            _log.info('Inconsistent criteria matrix. Check configuration '
+                      'in ' + excel_file_name)
+            sys.exit()
+        cluster_config = utils.load_config(cluster_config_file_name)
+        device_cluster = DeviceCluster(cluster_priority, crit_labels, row_average, cluster_config)
+
+        _log.debug('Crit Labels: ' + str(crit_labels))
+        clusters.add_device_cluster(device_cluster)
+
+    base_device_topic = topics.DEVICES_VALUE(campus=config.get('campus', ''),
+                                             building=config.get('building', ''),
+                                             unit=None,
+                                             path='',
+                                             point=None)
+
+    base_rpc_path = topics.ACTUATOR_DEVICE_PATH(campus=config.get('campus', ''),
+                                                building=config.get('building', ''),
+                                                unit=None,
+                                                path='',
+                                                point=None)
+
+    device_topic_list = []
+    device_topic_map = {}
+    all_devices = clusters.get_device_name_list()
+
+    for device_name in all_devices:
+        device_topic = topics.DEVICES_VALUE(campus=config.get('campus', ''),
+                                            building=config.get('building', ''),
+                                            unit=device_name,
+                                            path='',
+                                            point='all')
+        device_topic_list.append(device_topic)
+        device_topic_map[device_topic] = device_name
+
+    power_token = config['power_meter']
+    power_meter = power_token['device']
+    power_pt = power_token['point']
+    power_meter_topic = topics.DEVICES_VALUE(campus=config.get('campus', ''),
+                                             building=config.get('building', ''),
+                                             unit=power_meter,
+                                             path='',
+                                             point='all')
+    
+    kill_device_topic = None
+    kill_token = config.get('kill_switch')
+    if kill_token is not None:
+        kill_device = kill_token['device']
+        kill_pt = kill_token['point']
+        kill_device_topic = topics.DEVICES_VALUE(campus=config.get('campus', ''),
+                                                 building=config.get('building', ''),
+                                                 unit=kill_device,
+                                                 path='',
+                                                 point='all')
+        
+    
+
+    demand_limit = float(config['demand_limit'])
+    curtail_time = td(minutes=config.get('curtailment_time', 15.0))
+    curtail_confirm = td(minutes=config.get('curtailment_confirm', 5.0))
+    curtail_break = td(minutes=config.get('curtailment_break', 5.0))
+    actuator_schedule_buffer = td(minutes=config.get('actuator_schedule_buffer', 5.0))
+    reset_curtail_count_time = td(hours=config.get('reset_curtail_count_time', 6.0))
+    longest_possible_curtail = len(clusters.devices) * curtail_time
 
     class AHP(Agent):
         def __init__(self, **kwargs):
             super(AHP, self).__init__(**kwargs)
-            self.off_dev = defaultdict(list)
             self.running_ahp = False
-            self.builder = defaultdict(dict)
-            self.crit_labels = None
             self.row_average = None
-            self.failed_control = []
-            self.bldg_power = None
-            self.transition = False
-            self.remaining_device = None
-            self.no_curtailed = no_curt
-            # self.start_up = True
-            self.data_trender = None
+            self.remaining_devices = []
+            self.saved_off_device_set = set()
+            self.next_curtail_confirm = None
+            self.curtail_end = None
+            self.break_end = None
+            self.reset_curtail_count_time = None
+            self.kill_signal_recieved = False
+            self.scheduled_devices = set()
+            self.devices_curtailed = set()
 
-        @Core.receiver("onstart")
+        @Core.receiver('onstart')
         def starting_base(self, sender, **kwargs):
             '''startup method:
              - Extract Criteria Matrix from excel file.
              - Setup subscriptions to device and building power meter.
             '''
-            self.data_trender = DeviceTrender(all_devices)
-            reset_time = dt.now().replace(minute=0, hour=0,
-                                          second=0, microsecond=0)
-            reset_time = reset_time + td(days=1)
-            self.core.schedule(reset_time, self.sched_reinit)
-
-            excel_file = config.get('excel_file', None)
-            if excel_file is not None:
-                self.crit_labels, criteria_arr = \
-                    extract_criteria(excel_file, "CriteriaMatrix")
-                col_sums = calc_column_sums(criteria_arr)
-                _, self.row_average = normalize_matrix(criteria_arr, col_sums)
-                print self.crit_labels, criteria_arr
-            if not (validate_input(criteria_arr, col_sums, True,
-                                   self.crit_labels, CRITERIA_LABELSTRING,
-                                   MATRIX_ROWSTRING)):
-                _log.info('Inconsistent criteria matrix. Check configuration '
-                          'in ahp.xls file')
-                # TODO:  MORE USEFULT MESSAGE TO DEAL WITH
-                # INCONSISTENT CONFIGURATION
-                sys.exit()
-            # Setup pubsub to listen to all devices being published.
-            driver_prefix = topics.DRIVER_TOPIC_BASE
-            _log.debug("subscribing to {}".format(driver_prefix))
-
+            for device_topic in device_topic_list:
+                _log.debug('Subscribing to '+device_topic)
+                self.vip.pubsub.subscribe(peer='pubsub',
+                                          prefix=device_topic,
+                                          callback=self.new_data)
+            _log.debug('Subscribing to '+power_meter_topic)
             self.vip.pubsub.subscribe(peer='pubsub',
-                                      prefix=driver_prefix,
-                                      callback=self.new_data)
-
-        def sched_reinit(self):
-            '''Reinitialize data trends for historical data.'''
-            self.data_trender.reinit()
-            reset_time = dt.now() + td(days=1)
-            self.core.schedule(reset_time, self.sched_reinit)
+                                      prefix=power_meter_topic,
+                                      callback=self.load_message_handler)
+            
+            if kill_device_topic is not None:
+                _log.debug('Subscribing to '+kill_device_topic)
+                self.vip.pubsub.subscribe(peer='pubsub',
+                                          prefix=kill_device_topic,
+                                          callback=self.handle_agent_kill)
+            
+        
+        def handle_agent_kill(self, peer, sender, bus, topic, headers, message):
+            data = message[0]
+            _log.info('Checking kill signal')
+            kill_signal = bool(data[kill_pt])
+            
+            if kill_signal:
+                _log.info('Kill signal recieved, shutting down')
+                self.kill_signal_recieved = False
+                gevent.sleep(8)
+                self.end_curtail()
+                sys.exit()
+                
 
         def new_data(self, peer, sender, bus, topic, headers, message):
             '''Generate static configuration inputs for
 
             priority calculation.
             '''
-            _log.info('Data Received')
-            if ALL_DEV.match(topic):
-                device = topic.split('/')[3]
-                device_data = jsonapi.loads(message[0])
-                if isinstance(device_data, list):
-                    device_data = device_data[0]
-                dev_config = static_config.get(device, None)
-                if dev_config is None:
-                    raise Exception('device section of configuration file '
-                                    'for {} is mis-configured.'.format(device))
-                point_list = dev_config.get('points', None)
-                if point_list is None:
-                    raise Exception('point_list section of configuration '
-                                    'file for {} is missing.'.format(device))
-                data = history_data(device, device_data, point_list)
-                self.data_trender.new_data(key, point_list, data)
+            if self.kill_signal_recieved:
                 return
-            if self.transition:
+            
+            _log.info('Data Received for {}'.format(topic))
+
+            # topic of form:  devices/campus/building/device
+            device_name = device_topic_map[topic]
+
+            data = message[0]
+            now = parser.parse(headers['Date'])
+
+            clusters.get_device(device_name).ingest_data(now, data)
+
+        def load_message_handler(self, peer, sender, bus, topic, headers, message):
+            if self.kill_signal_recieved:
                 return
-#             if self.start_up:
-#                 return
-            if BUILDING_TOPIC.match(topic) and not self.running_ahp:
-                _log.debug('Reading building power data.')
-                self.check_load(message)
-            # TODO: Update below to verify on/off status
+            
+            _log.debug('Reading building power data.')
+            bldg_power = float(message[0][power_pt])
+
+            now = parser.parse(headers['Date'])
+
+            _log.debug('Reported time: '+str(now))
+            _log.info('Current load: {}'.format(bldg_power))
+
+            if self.reset_curtail_count_time is not None:
+                if self.reset_curtail_count_time <= now:
+                    _log.debug('Resetting curtail count')
+                    clusters.reset_curtail_count()
+
             if self.running_ahp:
-                device = topic.split('/')[3]
-            if device not in self.off_dev.keys():
+
+                if now >= self.curtail_end:
+                    self.end_curtail()
+
+                elif now >= self.next_curtail_confirm:
+                    self.curtail_confirm(bldg_power, now)
                 return
 
-        def device_status(self, check_only=False):
-            '''Query Actuator agent for current state of pertinent points on
+            elif self.break_end is not None and now < self.break_end:
+		_log.debug('Skipping load check, still on curtailment break.')
+                return
 
-            curtailable device.
-            '''
-            for key in static_config:
-                dev_config = static_config.get(key, None)
-                if dev_config is None:
-                    raise Exception('device section of configuration file '
-                                    'for {} is mis-configured.'.format(key))
-                point_list = dev_config.get('points', None)
-                if point_list is None:
-                    raise Exception('point_list section of configuration '
-                                    'file for {} is missing.'.format(key))
-                device = None
-                by_mode = dev_config.get('by_mode', None)
-                if dev_config is None:
-                    raise Exception('by_mode section of configuration '
-                                    'file for {} is missing.'.format(key))
-                for dev, status in by_mode.items():
-                    check_status = self.vip.rpc.call(
-                        'platform.actuator', 'get_point',
-                        ''.join([location, key, status])).get(timeout=10)
-                    if int(check_status[status]):
-                        device = dev_config.get(dev, None)
-                        break
-                if device is None:
-                    self.off_dev.update({key: by_mode.values()})
-                    continue
-                if not check_only:
-                    data = self.query_device(key, point_list)
-                    for sub_dev in device:
-                        if data[sub_dev]:
-                            self.construct_input(key, sub_dev,
-                                                 device[sub_dev], data)
-                        else:
-                            self.off_dev[key].append(sub_dev)
+            self.check_load(bldg_power, now)
 
-        def query_device(self, device, point_list):
-            '''Use RPC get method to obtain device data from Actuator agent.'''
-            data = {}
-            for point in point_list:
-                value = self.vip.rpc.call(
-                    'platform.actuator', 'get_point',
-                    ''.join([location, device, point])).get(timeout=10)
-                data.update({device: {point: value}})
-            data[device].update({'date': dt.now()})
-            return data
-
-        def construct_input(self, key, sub_dev, criteria, data):
-            '''Declare and construct data matrix for device.'''
-            dev_key = ''.join([key, '_', sub_dev])
-            self.builder.update({dev_key: {}})
-            data = data[key]
-            for item in criteria:
-                if item == 'curtail':
-                    continue
-                _name = criteria.get('name', None)
-                op_type = criteria.get('operation_type', None)
-                _operation = criteria.get('operation', None)
-                op_str = isinstance(op_type, str)
-                op_lst = isinstance(op_type, list)
-                if _name is None or op_type is None or _operation is None:
-                    _log.error('{} is misconfigured.'.format(item))
-                    raise Exception('{} is misconfigured'.format(item))
-                if op_str and op_type == "constant":
-                    val = criteria['operation']
-                    if val < criteria['minimum']:
-                        val = criteria['minimum']
-                    if val > criteria['maximum']:
-                        val = criteria['maximum']
-                    self.builder[dev_key].update({_name: val})
-                    continue
-                if op_lst and op_type and op_type[0] == 'mapper':
-                    val = config['mapper-' + op_type[1]][_operation]
-                    if val < criteria['minimum']:
-                        val = criteria['minimum']
-                    if val > criteria['maximum']:
-                        val = criteria['maximum']
-                    self.builder[dev_key].update({_name: val})
-                    continue
-                if op_lst and op_type and op_type[0] == 'status':
-                    if data[op_type[1]]:
-                        val = _operation
-                    else:
-                        val = 0
-                    self.builder[dev_key].update({_name: val})
-                    continue
-                if op_lst and op_type and op_type[0][0] == 'staged':
-                    val = 0
-                    for i in range(1, op_type[0][1]+1):
-                        if data[op_type[i][0]]:
-                            val += op_type[i][1]
-                    if val < criteria['minimum']:
-                        val = criteria['minimum']
-                    if val > criteria['maximum']:
-                        val = criteria['maximum']
-                    self.builder[dev_key].update({_name: val})
-                    continue
-                if op_lst and op_type and op_type[0] == 'formula':
-                    _points = op_type[1].split(" ")
-                    points = symbols(op_type[1])
-                    expr = parse_expr[_operation]
-                    pt_lst = []
-                    for item in _points:
-                        pt_lst.append([(item, data[item])])
-                    val = expr.subs([pt_lst])
-                    if val < criteria['minimum']:
-                        val = criteria['minimum']
-                    if val > criteria['maximum']:
-                        val = criteria['maximum']
-                    self.builder[dev_key].update({_name: val})
-                    continue
-                if op_lst and op_type and op_type[0] == 'history':
-                    pt_name = op_type[1]
-                    _now = dt.now().replace(second=0, microsecond=0)
-                    comp_time = int(op_type[2])
-                    prev = _now - td(minutes=comp_time)
-                    try:
-                        prev_val = self.data_trender.data_arr[dev_key].ix[prev]
-                    except:
-                        val = criteria['minimum']
-                        continue
-                    cur_val = data[pt_name]
-                    if _operation == 'direct':
-                        val = abs(prev_val - cur_val)
-                    elif _operation == 'inverse':
-                        val = 1/abs(prev_val-cur_val)
-                    if val < criteria['minimum']:
-                        val = criteria['minimum']
-                    if val > criteria['maximum']:
-                        val = criteria['maximum']
-                    self.builder[dev_key].update({_name: val})
-                    continue
-            self.builder[dev_key].update(
-                {'no_curtailed': self.no_curtailed[dev_key]})
-
-        def check_load(self, message):
+        def check_load(self, bldg_power, now):
             '''Check whole building power and if the value is above the
-
-            the demand limit (demand_limit) then initiate the AHP sequence.
-            '''
-            obj = jsonapi.loads(message[0])
-            bldg_power = float(obj[power_pt])
+            the demand limit (demand_limit) then initiate the ILC (AHP)
+            sequence.
+            '''            
+            _log.debug('Checking building load.')
+            
             if bldg_power > demand_limit:
-                self.bldg_power = bldg_power
-                self.running_ahp = True
-                self.device_status()
-                if not self.builder:
+                _log.info('Current load ({load}) exceeds limit or {limit}.'.format(load=bldg_power, limit=demand_limit))
+
+                self.saved_off_device_set = clusters.get_off_device_set()
+
+                score_order = clusters.get_score_order()
+                if not score_order:
                     _log.info('All devices are off, nothing to curtail.')
                     return
-                input_arr = input_matrix(self.builder, self.crit_labels)
-                scores, score_order = build_score(input_arr, self.row_average)
-                ctrl_dev = self.actuator_request(score_order)
-                self.remaining_device = deepcopy(ctrl_dev)
-                self.curtail(ctrl_dev, scores, score_order)
+
+                scored_devices = self.actuator_request(score_order)
+                self.remaining_devices = self.curtail(scored_devices, bldg_power, now)
+
+        def curtail(self, scored_devices, bldg_power, now):
+            '''Curtail loads by turning off device (or device components)'''
+            need_curtailed = bldg_power - demand_limit
+            est_curtailed = 0.0
+            remaining_devices = scored_devices[:]
+
+            for device in self.devices_curtailed:
+                if device in remaining_devices:
+                    remaining_devices.remove(device)
+
+            if not self.running_ahp:
+                _log.info('Starting AHP')
+                self.running_ahp = True
+
+            self.curtail_end = now + curtail_time
+            self.break_end = now + curtail_break + curtail_time
+            self.reset_curtail_count_time = self.curtail_end + reset_curtail_count_time
+            self.next_curtail_confirm = now + curtail_confirm
+
+            _log.info('Curtialing load.')
+
+            for item in remaining_devices:
+
+                device_name, command = item
+
+                curtail = clusters.get_device(device_name).get_curtailment(command)
+
+                curtail_pt = curtail['point']
+                curtail_val = curtail['value']
+                curtail_load = curtail['load']
+
+                curtailed_point = base_rpc_path(unit=device_name, point=curtail_pt)
+                # TODO: catch errors.
+                _log.debug('Setting '+curtailed_point+' to '+str(curtail_val))
+
+                try:
+                    if self.kill_signal_recieved:
+                        break
+                    result = self.vip.rpc.call('platform.actuator', 'set_point',
+                                               agent_id, curtailed_point,
+                                               curtail_val).get(timeout=4)                    
+                except RemoteError as ex:
+                    _log.warning("Failed to set {} to {}: {}".format(curtailed_point, curtail_val, str(ex)))
+                    continue
+                
+                est_curtailed += curtail_load
+                clusters.get_device(device_name).increment_curtail(command)
+                self.devices_curtailed.add(item)
+
+                if est_curtailed >= need_curtailed:
+                    break
+
+            for device in self.devices_curtailed:
+                if device in remaining_devices:
+                    remaining_devices.remove(device)
+
+            return remaining_devices
+
+        def curtail_confirm(self, cur_pwr, now):
+            '''Check if load shed goal is met.'''
+            if cur_pwr < demand_limit:
+                _log.info('Curtail goal for building load met.')
+            else:
+                _log.info('Curtail goal for building load NOT met.')
+                on_device_set = clusters.get_on_device_set()
+                new_on_device_set = self.saved_off_device_set.union(on_device_set)
+
+                if not new_on_device_set:
+                    if self.remaining_devices:
+                        self.remaining_devices = self.curtail(self.remaining_devices, cur_pwr, now)
+                    else:
+                        _log.info('Did not meet load curtailment '
+                                  'goal but there are no further '
+                                  'available loads to remove.')
+                else:
+                    self.check_load(cur_pwr, now)
 
         def actuator_request(self, score_order):
             '''request access to devices.'''
             _now = dt.now()
             str_now = _now.strftime(DATE_FORMAT)
-            _end = _now + td(minutes=curtail_time + 5)
+            _end = _now + longest_possible_curtail + actuator_schedule_buffer
             str_end = _end.strftime(DATE_FORMAT)
-            schedule_request = []
-            for dev in score_order:
-                curtailed_device = ''.join([base_device, dev])
+            ctrl_dev = []
+
+            already_handled = dict((device, True) for device in self.scheduled_devices)
+
+            for item in score_order:
+
+                device, point = item
+
+                _log.debug('Reserving device: ' + device)
+
+                if device in already_handled:
+                    if already_handled[device]:
+                        _log.debug('Skipping reserve device (previously reserved): ' + device)
+                        ctrl_dev.append(item)
+                    continue
+
+                curtailed_device = base_rpc_path(unit=device, point='')
                 schedule_request = [[curtailed_device, str_now, str_end]]
-                result = self.vip.rpc.call(
-                    'platform.actuator', 'request_new_schedule', agent_id,
-                    agent_id, 'HIGH', schedule_request).get(timeout=10)
+                try:
+                    if self.kill_signal_recieved:
+                        break
+                    result = self.vip.rpc.call(
+                        'platform.actuator', 'request_new_schedule', agent_id,
+                        device, 'HIGH', schedule_request).get(timeout=4)
+                except RemoteError as ex:
+                    _log.warning("Failed to schedule device {} (RemoteError): {}".format(device, str(ex)))
+                    continue
+                
                 if result['result'] == 'FAILURE':
-                    self.failed_control.append(dev)
-            ctrl_dev = [dev for dev in score_order if dev not in self.failed_control]
+                    _log.warn('Failed to schedule device (unavailable) ' + device)
+                    already_handled[device] = False
+                else:
+                    already_handled[device] = True
+                    self.scheduled_devices.add(device)
+                    ctrl_dev.append(item)
+
             return ctrl_dev
 
-        def curtail(self, ctrl_dev):
-            '''Curtail loads by turning off device (or device components'''
-            dev_keys = self.builder.keys()
-            dev_keys = [(item.split('_')[0], item.split('_')[-1]) for item in dev_keys]
-            dev_keys = [(item[0], item[-1]) for item in dev_keys if item[0] in ctrl_dev]
-            need_curtailed = self.bldg_power - demand_limit
-            est_curtailed = 0.0
-            for item in dev_keys:
-                pt = static_config[item[0]][item[-1]]
-                pt = pt.get('curtail', None)
-                if pt is None:
-                    raise Exception('The curtail section for {} is missing or '
-                                    'or configured incorrectly.'.format(item))
-                curtail_pt = pt.get('point', None)
-                curtail_val = pt.get('value', None)
-                curtail_load = pt.get('load', None)
-                curtail_path = ''.join([location, item[0], curtail_pt])
-                result = self.vip.rpc.call('platform.actuator', 'set_point',
-                                           agent_id, curtail_path,
-                                           curtail_val).get(timeout=10)
-                est_curtailed += curtail_load
-                self.no_curtailed[dev_keys] += 1.0
-                self.remaining_device.remove(item)
-                if est_curtailed >= need_curtailed:
-                    break
-            self.transition = True
-            _chk_time = dt.now() + td(minutes=5)
-            self.core.schedule(_chk_time, self.curtail_confirm)
+        def end_curtail(self):
+            self.running_ahp = False
+            self.reset_devices()
+            self.release_devices()
 
-        def curtail_confirm(self):
-            '''Check if load shed goal is met.'''
-            pwr_mtr = ''.join([location, power_dev, power_pt])
-            cur_pwr = self.vip.rpc.call('platform.actuator', 'get_point',
-                                        pwr_mtr).get(timeout=10)
-            self.transition = False
-            saved_off = deepcopy(self.off_dev)
-            if cur_pwr < demand_limit:
-                _log.info('Curtail goal for building load met.')
-            else:
-                self.device_status(check_only=True)
-                if saved_off == self.off_dev and self.remaining_device:
-                    self.curtail(self.remaining_device)
-                elif saved_off == self.off_dev:
-                    _log.info('Did not meet load curtailment goal but there '
-                              'are no further available loads to curtail.')
-                else:
-                    self.check_load(cur_pwr)
+        def reset_devices(self):
+            _log.info('Resetting devices')
+            for item in self.devices_curtailed:
+
+                device_name, command = item
+                curtail = clusters.get_device(device_name).get_curtailment(command)
+                curtail_pt = curtail['point']
+                curtailed_point = base_rpc_path(unit=device_name, point=curtail_pt)
+                try:
+                    result = self.vip.rpc.call('platform.actuator', 'revert_point',
+                                               agent_id, curtailed_point).get(timeout=10)
+                    _log.debug('Reverted point: {}'.format(curtailed_point))
+                except RemoteError as ex:
+                    _log.warning("Failed to revert point {} (RemoteError): {}".format(curtailed_point, str(ex)))
+                    continue
+                
+            self.devices_curtailed = set()
+
+        def release_devices(self):
+            for device in self.scheduled_devices:
+                result = self.vip.rpc.call(
+                    'platform.actuator', 'request_cancel_schedule', agent_id,
+                    device).get(timeout=10)
+
+            self.scheduled_devices = set()
 
     return AHP(**kwargs)
 

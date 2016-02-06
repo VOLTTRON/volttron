@@ -1,20 +1,24 @@
 {
-	"campus": "campus1",
-	"building": "building1",
+	"campus": "",
+	"building": "",
     "power_meter": {
-		"device": "WBElectric",
-	    "point": "demand"
+		"device": "PowerMeter",
+	    "point": "power"
+    },
+    "kill_switch": {
+		"device": "killdevice",
+	    "point": "kill"
     },
 	"agent_id": "ahp",
-	"demand_limit": 100.0,
+	"demand_limit": 27.0,
 	"curtailment_time": 15.0,
 	"curtailment_confirm": 5.0,
 	"curtailment_break": 5.0,
 	"clusters": [ 
 		{
-			"device_file_path": "hp_cluster_config",
+			"device_file_path": "sim_cluster_config",
 			"critieria_file_path": "hp_cluster.xls",
-			"cluster_priority": 0.8
+			"cluster_priority": 1.0
 		}
 #		{
 #			"device_file_path": "~/volttron/applications/pnnl/ILCAgent/ilc_rtu_cluster",
@@ -30,7 +34,7 @@
 		    "Conference Room": 1,
 		    "Mechanical Room": 9,
 		    "Computer Lab": 2,
-		    "Kitchen": 3
+		    "Kitchen": 6
 	    }
 	}
  }
