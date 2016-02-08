@@ -59,6 +59,7 @@ from __future__ import absolute_import
 
 from base64 import b64encode, b64decode
 import inspect
+import logging
 import random
 import weakref
 
@@ -74,6 +75,7 @@ from .... import jsonrpc
 
 __all__ = ['PubSub']
 
+_log = logging.getLogger(__name__)
 
 def encode_peer(peer):
     if peer.startswith('\x00'):
@@ -93,6 +95,7 @@ class PubSub(SubsystemBase):
         self.peerlist = weakref.ref(peerlist_subsys)
         self._peer_subscriptions = {}
         self._my_subscriptions = {}
+        self._protected_topics = {} # topic -> [capabilities]
 
         def setup(sender, **kwargs):
             # pylint: disable=unused-argument
@@ -215,6 +218,7 @@ class PubSub(SubsystemBase):
         return results
 
     def _peer_publish(self, topic, headers, message=None, bus=''):
+        self._check_if_protected_topic(topic)
         peer = bytes(self.rpc().context.vip_message.peer)
         self._distribute(peer, topic, headers, message, bus)
 
@@ -379,3 +383,19 @@ class PubSub(SubsystemBase):
             return self.rpc().call(
                 peer, 'pubsub.publish', topic=topic, headers=headers,
                 message=message, bus=bus)
+
+    def set_protected_topics(self, protected_topics):
+        _log.debug("set_protected_topics: %s", protected_topics)
+        self._protected_topics = protected_topics
+
+    def _check_if_protected_topic(self, topic):
+        required_caps = self._protected_topics.get(topic)
+        if required_caps:
+            user = str(self.rpc().context.vip_message.user)
+            caps = self.rpc().call('auth', 'get_capabilities',
+                                   user_id=user).get(timeout=5)
+            if not set(required_caps) <= set(caps):
+                msg = ('to publish to topic "{}" requires capabilities {},'
+                      ' but capability list {} was'
+                      ' provided').format(topic, required_caps, caps)
+                raise jsonrpc.exception_from_json(jsonrpc.UNAUTHORIZED, msg)

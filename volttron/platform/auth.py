@@ -60,7 +60,6 @@
 from __future__ import absolute_import, print_function
 
 import bisect
-import errno
 import logging
 import os
 import random
@@ -71,7 +70,7 @@ from gevent.fileobject import FileObject
 from zmq import green as zmq
 from zmq.utils import jsonapi
 
-from .agent.utils import strip_comments, watch_file
+from .agent.utils import strip_comments, create_file_if_missing, watch_file
 from .vip.agent import Agent, Core, RPC
 from .vip.socket import encode_key
 
@@ -115,30 +114,19 @@ class AuthService(Agent):
         if self.allow_any:
             _log.warn('insecure permissive authentication enabled')
         self.read_auth_file()
-        self.core.spawn(watch_file(self.auth_file, self.read_auth_file))
+        self.core.spawn(watch_file, self.auth_file, self.read_auth_file)
 
     def read_auth_file(self):
         _log.info('loading auth file %s', self.auth_file)
         try:
-            try:
-                fil = open(self.auth_file)
-            except IOError as exc:
-                if exc.errno != errno.ENOENT:
-                    raise
-                _log.debug('missing auth file %s', self.auth_file)
-                _log.info('creating auth file %s', self.auth_file)
-                fd = os.open(self.auth_file, os.O_CREAT|os.O_WRONLY, 0o660)
-                try:
-                    os.write(fd, _SAMPLE_AUTH_FILE)
-                finally:
-                    os.close(fd)
-                self.auth_entries = []
+            create_file_if_missing(self.auth_file, contents=_SAMPLE_AUTH_FILE)
             with open(self.auth_file) as fil:
                 # Use gevent FileObject to avoid blocking the thread
                 data = strip_comments(FileObject(fil, close=False).read())
                 auth_data = jsonapi.loads(data)
         except Exception:
             _log.exception('error loading %s', self.auth_file)
+            self.auth_entries = []
         else:
             try:
                 allowed = auth_data['allow']

@@ -60,6 +60,7 @@
 import argparse
 from dateutil.parser import parse
 from datetime import timedelta
+import errno
 import logging
 import os
 import pytz
@@ -313,3 +314,17 @@ def watch_file(fullpath, callback):
             if event.name == filename and event.mask & IN_MODIFY:
                 callback()
 
+def create_file_if_missing(path, permission=0o660, contents=None):
+    try:
+        fil = open(path)
+    except IOError as exc:
+        if exc.errno != errno.ENOENT:
+            raise
+        _log.debug('missing file %s', path)
+        _log.info('creating file %s', path)
+        fd = os.open(path, os.O_CREAT|os.O_WRONLY, permission)
+        try:
+            if contents:
+                os.write(fd, contents)
+        finally:
+            os.close(fd)

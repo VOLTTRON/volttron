@@ -3,6 +3,7 @@ import json
 import os
 import shutil
 import logging
+from gevent.fileobject import FileObject
 import gevent.subprocess as subprocess
 from gevent.subprocess import Popen
 import sys
@@ -15,8 +16,11 @@ from contextlib import closing
 from StringIO import StringIO
 
 import zmq
+from zmq.utils import jsonapi
+
 import gevent
 
+from volttron.platform.agent.utils import strip_comments
 from volttron.platform.messaging import topics
 from volttron.platform.main import start_volttron_process
 from volttron.platform.vip.agent import Agent
@@ -159,7 +163,8 @@ class PlatformWrapper:
 
         try:
             with open(auth_path, 'r') as fd:
-                auth = json.load(fd)
+                data = strip_comments(FileObject(fd, close=False).read())
+                auth = jsonapi.loads(data)
         except IOError:
             auth = {}
 
