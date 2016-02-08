@@ -352,7 +352,7 @@ class AuthEntry(object):
         if not (self.credentials == 'NULL' or
                 self.credentials.startswith('PLAIN:') or
                 self.credentials.startswith('CURVE:')):
-            return ('credentials must either begin with "PLAIN" or "CURVE" '
+            return ('credentials must either begin with "PLAIN:" or "CURVE:" '
                     'or it must be "NULL"')
 
 
@@ -426,6 +426,8 @@ class AuthFile(object):
 
     def remove_by_indices(self, indices):
         '''Removes entry from auth file by indices as shown by list command'''
+        indices = list(set(indices))
+        indices.sort(reverse=True)
         entries = self._read_entries()
         for index in indices:
             try:
