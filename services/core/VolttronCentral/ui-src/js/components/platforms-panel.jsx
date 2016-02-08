@@ -15,6 +15,7 @@ var PlatformsPanel = React.createClass({
         state.platforms = [];     
         state.expanded = getExpandedFromStore();
         state.filterValue = "";
+        state.filterStatus = "";
 
         return state;
     },
@@ -48,18 +49,27 @@ var PlatformsPanel = React.createClass({
     _onFilterBoxChange: function (e) {
         this.setState({ filterValue: e.target.value });
         platformsPanelActionCreators.loadFilteredItems(e.target.value, "");
+        this.setState({ filterStatus: "" });
     },
     _onFilterGood: function (e) {
         platformsPanelActionCreators.loadFilteredItems("", "GOOD");
+        this.setState({ filterStatus: "GOOD" });
+        this.setState({ filterValue: "" });
     },
     _onFilterBad: function (e) {
         platformsPanelActionCreators.loadFilteredItems("", "BAD");
+        this.setState({ filterStatus: "BAD" });
+        this.setState({ filterValue: "" });
     },
     _onFilterUnknown: function (e) {
         platformsPanelActionCreators.loadFilteredItems("", "UNKNOWN");
+        this.setState({ filterStatus: "UNKNOWN" });
+        this.setState({ filterValue: "" });
     },
     _onFilterOff: function (e) {
         platformsPanelActionCreators.loadFilteredItems("", "");
+        this.setState({ filterValue: "" });
+        this.setState({ filterStatus: "" });
     },
     _togglePanel: function () {
         platformsPanelActionCreators.togglePanel();
@@ -84,6 +94,28 @@ var PlatformsPanel = React.createClass({
         var filterBoxContainer = {
             textAlign: "left"
         };
+
+        var selectedColor = "#ccc";
+        var filterGood, filterBad, filterUnknown = {};
+
+        switch (this.state.filterStatus)
+        {
+            case "GOOD":
+                filterGood = {
+                    backgroundColor: selectedColor
+                }
+                break;
+            case "BAD":
+                filterBad = {
+                    backgroundColor: selectedColor
+                }
+                break;
+            case "UNKNOWN":
+                filterUnknown = {
+                    backgroundColor: selectedColor
+                }
+                break;
+        }
 
         if (!this.state.platforms) {
             platforms = (
@@ -124,19 +156,22 @@ var PlatformsPanel = React.createClass({
                         />
                         <div className="filter_buttons">
                             <div className="filter_button status-good"
-                                onClick={this._onFilterGood}>
+                                onClick={this._onFilterGood}
+                                style={filterGood}>
                                 <div className="centeredDiv">
                                     <span>&#9654;</span>
                                 </div>
                             </div>
                             <div className="filter_button status-bad"
-                                onClick={this._onFilterBad}>
+                                onClick={this._onFilterBad}
+                                style={filterBad}>
                                 <div className="centeredDiv">
                                     <i className="fa fa-minus-circle"></i>
                                 </div>
                             </div>
                             <div className="filter_button status-unknown"
-                                onClick={this._onFilterUnknown}>
+                                onClick={this._onFilterUnknown}
+                                style={filterUnknown}>
                                 <div className="centeredDiv">
                                     <span>&#9644;</span>
                                 </div>

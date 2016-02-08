@@ -1304,7 +1304,7 @@ platformsPanelItemsStore.loadFilteredItems = function (filterTerm, filterStatus)
         if (parent.children.length === 0)
         {
             parent.visible = !notAMatch(parent, compareTerm);
-            parent.expanded = false;
+            parent.expanded = null;
 
             return parent;
         }
@@ -1367,7 +1367,7 @@ var expandAllChildren = function (parent, expanded) {
     }
     else
     {
-        parent.expanded = false;
+        parent.expanded = null;
     }
 
     parent.visible = true;
@@ -1426,6 +1426,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                 platformItem.children = [];
                 platformItem.type = "platform";
                 platformItem.visible = true;
+                platformItem.expanded = null;
             });
             
             platformsPanelItemsStore.emitChange();
@@ -1458,6 +1459,8 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                 platform.agents.path = platform.path.slice(0);
                 platform.agents.path.push("agents");
                 platform.agents.name = "Agents";
+                platform.agents.expanded = false;
+                platform.agents.visible = true;
                 platform.agents.children = [];
                 platform.agents.type = "type";
                 platform.agents.sortOrder = _agentsOrder;

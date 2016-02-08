@@ -2777,6 +2777,7 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
         state.platforms = [];     
         state.expanded = getExpandedFromStore();
         state.filterValue = "";
+        state.filterStatus = "";
 
         return state;
     },
@@ -2810,18 +2811,27 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
     _onFilterBoxChange: function (e) {
         this.setState({ filterValue: e.target.value });
         platformsPanelActionCreators.loadFilteredItems(e.target.value, "");
+        this.setState({ filterStatus: "" });
     },
     _onFilterGood: function (e) {
         platformsPanelActionCreators.loadFilteredItems("", "GOOD");
+        this.setState({ filterStatus: "GOOD" });
+        this.setState({ filterValue: "" });
     },
     _onFilterBad: function (e) {
         platformsPanelActionCreators.loadFilteredItems("", "BAD");
+        this.setState({ filterStatus: "BAD" });
+        this.setState({ filterValue: "" });
     },
     _onFilterUnknown: function (e) {
         platformsPanelActionCreators.loadFilteredItems("", "UNKNOWN");
+        this.setState({ filterStatus: "UNKNOWN" });
+        this.setState({ filterValue: "" });
     },
     _onFilterOff: function (e) {
         platformsPanelActionCreators.loadFilteredItems("", "");
+        this.setState({ filterValue: "" });
+        this.setState({ filterStatus: "" });
     },
     _togglePanel: function () {
         platformsPanelActionCreators.togglePanel();
@@ -2846,6 +2856,28 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
         var filterBoxContainer = {
             textAlign: "left"
         };
+
+        var selectedColor = "#ccc";
+        var filterGood, filterBad, filterUnknown = {};
+
+        switch (this.state.filterStatus)
+        {
+            case "GOOD":
+                filterGood = {
+                    backgroundColor: selectedColor
+                }
+                break;
+            case "BAD":
+                filterBad = {
+                    backgroundColor: selectedColor
+                }
+                break;
+            case "UNKNOWN":
+                filterUnknown = {
+                    backgroundColor: selectedColor
+                }
+                break;
+        }
 
         if (!this.state.platforms) {
             platforms = (
@@ -2886,19 +2918,22 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
                         ), 
                         React.createElement("div", {className: "filter_buttons"}, 
                             React.createElement("div", {className: "filter_button status-good", 
-                                onClick: this._onFilterGood}, 
+                                onClick: this._onFilterGood, 
+                                style: filterGood}, 
                                 React.createElement("div", {className: "centeredDiv"}, 
                                     React.createElement("span", null, "▶")
                                 )
                             ), 
                             React.createElement("div", {className: "filter_button status-bad", 
-                                onClick: this._onFilterBad}, 
+                                onClick: this._onFilterBad, 
+                                style: filterBad}, 
                                 React.createElement("div", {className: "centeredDiv"}, 
                                     React.createElement("i", {className: "fa fa-minus-circle"})
                                 )
                             ), 
                             React.createElement("div", {className: "filter_button status-unknown", 
-                                onClick: this._onFilterUnknown}, 
+                                onClick: this._onFilterUnknown, 
+                                style: filterUnknown}, 
                                 React.createElement("div", {className: "centeredDiv"}, 
                                     React.createElement("span", null, "▬")
                                 )
@@ -5234,7 +5269,7 @@ platformsPanelItemsStore.loadFilteredItems = function (filterTerm, filterStatus)
         if (parent.children.length === 0)
         {
             parent.visible = !notAMatch(parent, compareTerm);
-            parent.expanded = false;
+            parent.expanded = null;
 
             return parent;
         }
@@ -5297,7 +5332,7 @@ var expandAllChildren = function (parent, expanded) {
     }
     else
     {
-        parent.expanded = false;
+        parent.expanded = null;
     }
 
     parent.visible = true;
@@ -5356,6 +5391,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                 platformItem.children = [];
                 platformItem.type = "platform";
                 platformItem.visible = true;
+                platformItem.expanded = null;
             });
             
             platformsPanelItemsStore.emitChange();
@@ -5388,6 +5424,8 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                 platform.agents.path = platform.path.slice(0);
                 platform.agents.path.push("agents");
                 platform.agents.name = "Agents";
+                platform.agents.expanded = false;
+                platform.agents.visible = true;
                 platform.agents.children = [];
                 platform.agents.type = "type";
                 platform.agents.sortOrder = _agentsOrder;
