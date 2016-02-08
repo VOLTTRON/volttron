@@ -15,6 +15,8 @@ var _items = {
         "4687fedc-65ba-43fe-21dc-098765bafedc": {
             "uuid": "4687fedc-65ba-43fe-21dc-098765bafedc",
             "name": "PNNL",
+            "expanded": null,
+            "visible": true,
             "status": "GOOD",
             "type": "platform",
             "sortOrder": 0,
@@ -23,6 +25,8 @@ var _items = {
             "points": {
                 "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "points"],
                 "name": "Points",
+                "expanded": null,
+                "visible": true,
                 "status": "GOOD",
                 "type": "type",
                 "sortOrder": _pointsOrder,
@@ -31,6 +35,8 @@ var _items = {
                 {
                     "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
                     "name": "OutdoorAirTemperature",
+                    "expanded": null,
+                    "visible": true,
                     "status": "GOOD",
                     "type": "point",
                     "sortOrder": 0,
@@ -175,6 +181,8 @@ var _items = {
             "agents": {                
                 "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "agents"],
                 "name": "Agents",
+                "expanded": null,
+                "visible": true,
                 "status": "GOOD",
                 "type": "type",
                 "sortOrder": _agentsOrder,
@@ -183,6 +191,8 @@ var _items = {
                 {
                     "uuid": "2461fedc-65ba-43fe-21dc-098765bafede",
                     "name": "Platform Agent",
+                    "expanded": null,
+                    "visible": true,
                     "status": "GOOD",
                     "type": "agent",
                     "sortOrder": 0,
@@ -193,6 +203,8 @@ var _items = {
                 {
                     "uuid": "7897fedc-65ba-43fe-21dc-098765bafedf",
                     "name": "SqlHistorian",
+                    "expanded": null,
+                    "visible": true,
                     "status": "GOOD",
                     "type": "agent",
                     "sortOrder": 0,
@@ -203,6 +215,8 @@ var _items = {
             "buildings": {             
                 "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings"],
                 "name": "Buildings",
+                "expanded": null,
+                "visible": true,
                 "status": "GOOD",
                 "type": "type",
                 "sortOrder": _buildingsOrder,
@@ -211,6 +225,8 @@ var _items = {
                 {
                     "uuid": "1111fedc-65ba-43fe-21dc-098765bafede",
                     "name": "ISB1",
+                    "expanded": null,
+                    "visible": true,
                     "status": "GOOD",
                     "type": "building",
                     "sortOrder": 0,
@@ -219,6 +235,8 @@ var _items = {
                     "points": {         
                         "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "points"],
                         "name": "Points",
+                        "expanded": null,
+                        "visible": true,
                         "status": "GOOD",
                         "type": "type",
                         "sortOrder": _pointsOrder,
@@ -227,6 +245,8 @@ var _items = {
                         {
                             "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
                             "name": "OutdoorAirTemperature",
+                            "expanded": null,
+                            "visible": true,
                             "status": "GOOD",
                             "type": "point",
                             "sortOrder": 0,
@@ -371,6 +391,8 @@ var _items = {
                         {
                             "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
                             "name": "WholeBuildingPower",
+                            "expanded": null,
+                            "visible": true,
                             "status": "GOOD",
                             "type": "point",
                             "sortOrder": 0,
@@ -515,6 +537,8 @@ var _items = {
                     "devices": {       
                         "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices"],
                         "name": "Devices",
+                        "expanded": null,
+                        "visible": true,
                         "status": "GOOD",
                         "type": "type",
                         "sortOrder": _devicesOrder,
@@ -523,6 +547,8 @@ var _items = {
                         {
                             "uuid": "1231fedc-65ba-43fe-21dc-098765bafedl",
                             "name": "RTU1",
+                            "expanded": null,
+                            "visible": true,
                             "status": "GOOD",
                             "type": "device",
                             "sortOrder": 0,
@@ -531,6 +557,8 @@ var _items = {
                             "points": {      
                                 "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "points"],
                                 "name": "Points",
+                                "expanded": null,
+                                "visible": true,
                                 "status": "GOOD",
                                 "type": "type",
                                 "sortOrder": _pointsOrder,
@@ -539,6 +567,8 @@ var _items = {
                                 {
                                     "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
                                     "name": "CoolingCall",
+                                    "expanded": null,
+                                    "visible": true,
                                     "status": "GOOD",
                                     "type": "point",
                                     "sortOrder": 0,
@@ -683,6 +713,8 @@ var _items = {
                                 {
                                     "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
                                     "name": "CondenserFanPower",
+                                    "expanded": null,
+                                    "visible": true,
                                     "status": "GOOD",
                                     "type": "point",
                                     "sortOrder": 0,
@@ -827,6 +859,8 @@ var _items = {
                             "devices": {    
                                 "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "devices"],
                                 "name": "Devices",
+                                "expanded": null,
+                                "visible": true,
                                 "status": "GOOD",
                                 "type": "type",
                                 "sortOrder": _devicesOrder,
@@ -835,6 +869,8 @@ var _items = {
                                 {
                                     "uuid": "4488fedc-65ba-43fe-21dc-098765bafedl",
                                     "name": "Zone",
+                                    "expanded": null,
+                                    "visible": true,
                                     "status": "GOOD",
                                     "type": "device",
                                     "sortOrder": 0,
@@ -843,6 +879,8 @@ var _items = {
                                     "points": {  
                                         "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "devices", "4488fedc-65ba-43fe-21dc-098765bafedl", "points"],
                                         "name": "Points",
+                                        "expanded": null,
+                                        "visible": true,
                                         "status": "GOOD",
                                         "type": "type",
                                         "sortOrder": _pointsOrder,
@@ -851,6 +889,8 @@ var _items = {
                                         {
                                             "uuid": "5461fedc-65ba-43fe-21dc-098765bafedl",
                                             "name": "FirstStageAuxilaryHeat",
+                                            "expanded": null,
+                                            "visible": true,
                                             "status": "GOOD",
                                             "type": "point",
                                             "sortOrder": 0,
@@ -861,6 +901,8 @@ var _items = {
                                         {
                                             "uuid": "6451fedc-65ba-43fe-21dc-098765bafedl",
                                             "name": "SecondStageAuxilaryHeat",
+                                            "expanded": null,
+                                            "visible": true,
                                             "status": "GOOD",
                                             "type": "point",
                                             "sortOrder": 0,
@@ -879,6 +921,8 @@ var _items = {
         {
             "uuid": "9757fedc-65ba-43fe-21dc-098765bafedc",
             "name": "WSU",
+            "expanded": null,
+            "visible": true,
             "status": "BAD",
             "type": "platform",
             "sortOrder": 0,
@@ -887,6 +931,8 @@ var _items = {
             "agents": {                
                 "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "agents"],
                 "name": "Agents",
+                "expanded": null,
+                "visible": true,
                 "status": "GOOD",
                 "type": "type",
                 "sortOrder": _agentsOrder,
@@ -895,6 +941,8 @@ var _items = {
                 {
                     "uuid": "2461fedc-65ba-43fe-21dc-098765bafede",
                     "name": "Platform Agent",
+                    "expanded": null,
+                    "visible": true,
                     "status": "GOOD",
                     "type": "agent",
                     "sortOrder": 0,
@@ -905,6 +953,8 @@ var _items = {
                 {
                     "uuid": "7897fedc-65ba-43fe-21dc-098765bafedf",
                     "name": "SqlHistorian",
+                    "expanded": null,
+                    "visible": true,
                     "status": "GOOD",
                     "type": "agent",
                     "sortOrder": 0,
@@ -915,6 +965,8 @@ var _items = {
             "buildings": {             
                 "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings"],
                 "name": "Buildings",
+                "expanded": null,
+                "visible": true,
                 "status": "BAD",
                 "type": "type",
                 "sortOrder": _buildingsOrder,
@@ -923,6 +975,8 @@ var _items = {
                 {
                     "uuid": "1111fedc-65ba-43fe-21dc-098765bafede",
                     "name": "BSEL",
+                    "expanded": null,
+                    "visible": true,
                     "status": "BAD",
                     "type": "building",
                     "sortOrder": 0,
@@ -931,6 +985,8 @@ var _items = {
                     "points": {         
                         "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "points"],
                         "name": "Points",
+                        "expanded": null,
+                        "visible": true,
                         "status": "UNKNOWN",
                         "type": "type",
                         "sortOrder": _pointsOrder,
@@ -939,6 +995,8 @@ var _items = {
                         {
                             "uuid": "5461fedc-65ba-43fe-21dc-098765bafedl",
                             "name": "WholeBuildingElectricity",
+                            "expanded": null,
+                            "visible": true,
                             "status": "GOOD",
                             "type": "point",
                             "sortOrder": 0,
@@ -949,6 +1007,8 @@ var _items = {
                         {
                             "uuid": "6451fedc-65ba-43fe-21dc-098765bafedl",
                             "name": "LightingStatus",
+                            "expanded": null,
+                            "visible": true,
                             "status": "UNKNOWN",
                             "type": "point",
                             "sortOrder": 0,
@@ -959,6 +1019,8 @@ var _items = {
                     "devices": {       
                         "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices"],
                         "name": "Devices",
+                        "expanded": null,
+                        "visible": true,
                         "status": "BAD",
                         "type": "type",
                         "sortOrder": _devicesOrder,
@@ -967,6 +1029,8 @@ var _items = {
                         {
                             "uuid": "1231fedc-65ba-43fe-21dc-098765bafedl",
                             "name": "AHU",
+                            "expanded": null,
+                            "visible": true,
                             "status": "BAD",
                             "type": "device",
                             "sortOrder": 0,
@@ -975,6 +1039,8 @@ var _items = {
                             "points": {      
                                 "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "points"],
                                 "name": "Points",
+                                "expanded": null,
+                                "visible": true,
                                 "status": "GOOD",
                                 "type": "type",
                                 "sortOrder": _pointsOrder,
@@ -983,6 +1049,8 @@ var _items = {
                                 {
                                     "uuid": "6451fedc-65ba-43fe-21dc-098765bafedl",
                                     "name": "DuctStaticPressureSetPoint",
+                                    "expanded": null,
+                                    "visible": true,
                                     "status": "GOOD",
                                     "type": "point",
                                     "sortOrder": 0,
@@ -993,6 +1061,8 @@ var _items = {
                             "devices": {    
                                 "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "devices"],
                                 "name": "Devices",
+                                "expanded": null,
+                                "visible": true,
                                 "status": "BAD",
                                 "type": "type",
                                 "sortOrder": _devicesOrder,
@@ -1001,6 +1071,8 @@ var _items = {
                                 {
                                     "uuid": "4488fedc-65ba-43fe-21dc-098765bafedl",
                                     "name": "Zone",
+                                    "expanded": null,
+                                    "visible": true,
                                     "status": "BAD",
                                     "type": "device",
                                     "sortOrder": 0,
@@ -1009,6 +1081,8 @@ var _items = {
                                     "points": {  
                                         "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "devices", "4488fedc-65ba-43fe-21dc-098765bafedl", "points"],
                                         "name": "Points",
+                                        "expanded": null,
+                                        "visible": true,
                                         "status": "BAD",
                                         "type": "type",
                                         "sortOrder": _pointsOrder,
@@ -1017,6 +1091,8 @@ var _items = {
                                         {
                                             "uuid": "5461fedc-65ba-43fe-21dc-098765bafedl",
                                             "name": "TerminalBoxDamperCommand",
+                                            "expanded": null,
+                                            "visible": true,
                                             "status": "BAD",
                                             "type": "point",
                                             "sortOrder": 0,
@@ -1027,6 +1103,8 @@ var _items = {
                                         {
                                             "uuid": "6451fedc-65ba-43fe-21dc-098765bafedl",
                                             "name": "ZoneTemperature",
+                                            "expanded": null,
+                                            "visible": true,
                                             "status": "GOOD",
                                             "type": "point",
                                             "sortOrder": 0,
@@ -1043,6 +1121,8 @@ var _items = {
                 {
                     "uuid": "1333fedc-65ba-43fe-21dc-098765bafede",
                     "name": "CIC",
+                    "expanded": null,
+                    "visible": true,
                     "status": "GOOD",
                     "type": "building",
                     "sortOrder": 0,
@@ -1051,6 +1131,8 @@ var _items = {
                     "points": {         
                         "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1333fedc-65ba-43fe-21dc-098765bafede", "points"],
                         "name": "Points",
+                        "expanded": null,
+                        "visible": true,
                         "status": "GOOD",
                         "type": "type",
                         "sortOrder": _pointsOrder,
@@ -1059,6 +1141,8 @@ var _items = {
                         {
                             "uuid": "5461fedc-65ba-43fe-21dc-098765bafedl",
                             "name": "WholeBuildingGas",
+                            "expanded": null,
+                            "visible": true,
                             "status": "GOOD",
                             "type": "point",
                             "sortOrder": 0,
@@ -1069,6 +1153,8 @@ var _items = {
                         {
                             "uuid": "6451fedc-65ba-43fe-21dc-098765bafedl",
                             "name": "OutdoorAirRelativeHumidity",
+                            "expanded": null,
+                            "visible": true,
                             "status": "GOOD",
                             "type": "point",
                             "sortOrder": 0,
@@ -1079,6 +1165,8 @@ var _items = {
                     "devices": {       
                         "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1333fedc-65ba-43fe-21dc-098765bafede", "devices"],
                         "name": "Devices",
+                        "expanded": null,
+                        "visible": true,
                         "status": "GOOD",
                         "type": "type",
                         "sortOrder": _devicesOrder,
@@ -1087,6 +1175,8 @@ var _items = {
                         {
                             "uuid": "1231fedc-65ba-43fe-21dc-098765bafedl",
                             "name": "Chilled_Water_Distribution_System",
+                            "expanded": null,
+                            "visible": true,
                             "status": "GOOD",
                             "type": "device",
                             "sortOrder": 0,
@@ -1095,6 +1185,8 @@ var _items = {
                             "points": {      
                                 "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1333fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "points"],
                                 "name": "Points",
+                                "expanded": null,
+                                "visible": true,
                                 "status": "GOOD",
                                 "type": "type",
                                 "sortOrder": _pointsOrder,
@@ -1103,6 +1195,8 @@ var _items = {
                                 {
                                     "uuid": "6451fedc-65ba-43fe-21dc-098765bafedl",
                                     "name": "NaturalGasEnergy",
+                                    "expanded": null,
+                                    "visible": true,
                                     "status": "GOOD",
                                     "type": "point",
                                     "sortOrder": 0,
@@ -1123,8 +1217,23 @@ var _itemTypes = ["platforms", "buildings", "agents", "devices", "points"];
 
 var platformsPanelItemsStore = new Store();
 
+platformsPanelItemsStore.getItem = function (itemPath)
+{
+    var itemsList = [];
+    var item = _items;
+    
+    for (var i = 0; i < itemPath.length; i++)
+    {
+        if (item.hasOwnProperty(itemPath[i]))
+        {
+            item = item[itemPath[i]];
+        }
+    }
 
-platformsPanelItemsStore.getItems = function (parent, parentPath) {
+    return item;
+}  
+
+platformsPanelItemsStore.getChildren = function (parent, parentPath) {
 
     var itemsList = [];
     var item = _items;
@@ -1157,112 +1266,111 @@ platformsPanelItemsStore.getItems = function (parent, parentPath) {
     return itemsList;
 };
 
-platformsPanelItemsStore.getTreeCopy = function() {
+platformsPanelItemsStore.loadFilteredItems = function (filterTerm, filterStatus) {
 
-    return JSON.parse(JSON.stringify(_items));
-}
+    var filterItems = function (parent, filterTerm, filterStatus) {
 
-platformsPanelItemsStore.getFilteredItems = function (parent, filterTerm, filterStatus) {
+        var notAMatch;
+        var compareTerm;
 
-    var compareFunct;
-    var compareTerm;
-
-    if (filterTerm === "")
-    {
-        compareFunct = function (parent, filterStatus)
+        if (filterTerm === "")
         {
-            if (parent.hasOwnProperty("status"))
+            notAMatch = function (parent, filterStatus)
             {
-                return (parent.status !== filterStatus);                
+                if (parent.hasOwnProperty("status"))
+                {
+                    return (parent.status !== filterStatus);                
+                }
+                else
+                {
+                    return (filterStatus !== "UNKNOWN");
+                }
+            }
+
+            compareTerm = filterStatus;
+        }
+        else if (filterStatus === "")
+        {
+            notAMatch = function (parent, filterTerm)
+            {
+                var upperParent = parent.name.toUpperCase();
+
+                return (upperParent.indexOf(filterTerm.toUpperCase()) < 0);
+            }
+
+            compareTerm = filterTerm;
+        }
+
+        if (parent.children.length === 0)
+        {
+            parent.visible = !notAMatch(parent, compareTerm);
+            parent.expanded = false;
+
+            return parent;
+        }
+        else
+        {
+            var childrenToHide = 0;
+
+            for (var i = 0; i < parent.children.length; i++)
+            {
+                var childString = parent.children[i];
+                var filteredChild = filterItems(parent[childString], filterTerm, filterStatus);
+
+                if (!filteredChild.visible)
+                {
+                    ++childrenToHide;
+                }
+            }
+            
+            if (childrenToHide === parent.children.length)
+            {
+                parent.visible = !notAMatch(parent, compareTerm);
+                parent.expanded = false;
             }
             else
             {
-                return (filterStatus !== "UNKNOWN");
-            }
-        }
+                parent.visible = true;
+                parent.expanded = true;
+            }        
 
-        compareTerm = filterStatus;
-    }
-    else if (filterStatus === "")
-    {
-        compareFunct = function (parent, filterTerm)
-        {
-            var upperParent = parent.name.toUpperCase();
-
-            return (upperParent.indexOf(filterTerm.toUpperCase()) < 0);
-        }
-
-        compareTerm = filterTerm;
-    }
-
-    if (parent.children.length === 0)
-    {
-        if (compareFunct(parent, compareTerm))
-        {
-            return null;
-        }
-        else
-        {
             return parent;
         }
     }
-    else
+
+    for (var key in _items.platforms)
     {
-        var childrenToDelete = [];
-
-        for (var i = 0; i < parent.children.length; i++)
+        if (filterTerm !== "" || filterStatus !== "")
         {
-            var childString = parent.children[i];
-            var filteredChild = platformsPanelItemsStore.getFilteredItems(parent[childString], filterTerm, filterStatus);
-
-            if (filteredChild === null)
-            {
-                delete parent[childString];
-
-                childrenToDelete.push(childString);
-            }
-        }
-        
-        for (var i = 0; i < childrenToDelete.length; i++)
-        {
-            var index = parent.children.indexOf(childrenToDelete[i]);
-            parent.children.splice(index, 1);
-        }
-
-        if ((parent.children.length === 0) && (compareFunct(parent, compareTerm)))
-        {
-            parent = null;
+            filterItems(_items.platforms[key], filterTerm, filterStatus);
         }
         else
         {
-            if (parent.children.length > 0)
-            {
-                parent.expanded = true;
-            }
-        }
-
-        return parent;
+            expandAllChildren(_items.platforms[key], false);
+            _items.platforms[key].visible = true;
+        }        
     }
-};
 
-platformsPanelItemsStore.getExpandedChildren = function (expandedOn, parent) {
+}
 
-    if (parent.children.length === 0)
+var expandAllChildren = function (parent, expanded) {
+    
+    for (var i = 0; i < parent.children.length; i++)
     {
-        return parent;
+        var childString = parent.children[i];
+        expandAllChildren(parent[childString], expanded);
+    }
+
+    if (parent.children.length > 0)
+    {
+        parent.expanded = expanded;
     }
     else
     {
-        for (var i = 0; i < parent.children.length; i++)
-        {
-            var childString = parent.children[i];
-            var expandedChild = platformsPanelItemsStore.getExpandedChildren(expandedOn, parent[childString]);
-        }
-        
-        parent.expanded = expandedOn;
-
-        return parent;
+        parent.expanded = false;
     }
+
+    parent.visible = true;
 };
 
 
@@ -1273,6 +1381,36 @@ platformsPanelItemsStore.getExpanded = function () {
 platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
     switch (action.type) {
+
+        case ACTION_TYPES.FILTER_ITEMS:
+
+            var filterTerm = action.filterTerm;
+            var filterStatus = action.filterStatus;
+            platformsPanelItemsStore.loadFilteredItems(filterTerm, filterStatus);
+
+            platformsPanelItemsStore.emitChange();
+
+            break;
+        case ACTION_TYPES.EXPAND_ALL:
+
+            var item = platformsPanelItemsStore.getItem(action.itemPath);
+            
+            var expanded = (item.expanded !== null ? !item.expanded : true);
+
+            expandAllChildren(item, expanded);
+
+            platformsPanelItemsStore.emitChange();
+
+            break;
+
+        case ACTION_TYPES.TOGGLE_ITEM:
+
+            var item = platformsPanelItemsStore.getItem(action.itemPath);
+            item.expanded = !item.expanded;
+
+            platformsPanelItemsStore.emitChange();
+
+            break;
 
         case ACTION_TYPES.RECEIVE_PLATFORM_STATUSES:
             
@@ -1287,6 +1425,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                 // platformItem.status = "GOOD";
                 platformItem.children = [];
                 platformItem.type = "platform";
+                platformItem.visible = true;
             });
             
             platformsPanelItemsStore.emitChange();
@@ -1299,6 +1438,12 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             //     _items["platforms"][action.platform.uuid]["buildings"][key]["children"] = ["agents", "devices"];                
             //     _items["platforms"][action.platform.uuid]["buildings"][key]["path"] = ["platforms", action.platform.uuid, "buildings"];
             // }
+            var platform = _items["platforms"][action.platform.uuid];
+
+            if (platform.children.length > 0)
+            {
+                platform.expanded = true;
+            }
             
             platformsPanelItemsStore.emitChange();
             break;
@@ -1308,6 +1453,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
             if (action.agents.length > 0)
             {
+                platform.expanded = true;
                 platform.agents = {};
                 platform.agents.path = platform.path.slice(0);
                 platform.agents.path.push("agents");
@@ -1324,6 +1470,8 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                 action.agents.forEach(function (agent)
                 {
                     var agentProps = agent;
+                    agentProps.expanded = false;
+                    agentProps.visible = true;
                     agentProps.path = platform.agents.path.slice(0);
                     agentProps.path.push(agent.uuid);
                     // agent.status = "GOOD";
@@ -1339,6 +1487,15 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             platformsPanelItemsStore.emitChange();
             break;
         case ACTION_TYPES.RECEIVE_DEVICE_STATUSES:
+
+            var item = platformsPanelItemsStore.getItem(action.platform.path);
+
+            // var platform = _items["platforms"][action.platform.uuid];
+
+            if (item.children.length > 0)
+            {
+                item.expanded = true;
+            }
             // _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"] = action.devices;
 
             // for (var key in _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"])
@@ -1357,6 +1514,33 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             //     _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"][action.device.uuid]["points"][key]["children"] = [];
             //     _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"][action.device.uuid]["points"][key]["path"] = ["platforms", action.platform.uuid, "buildings", action.building.uuid, "devices", action.device.uuid, "points"];
             // }
+            var item = platformsPanelItemsStore.getItem(action.platform.path);
+
+            // var platform = _items["platforms"][action.platform.uuid];
+
+            if (item.children.length > 0)
+            {
+                item.expanded = true;
+            }
+
+            platformsPanelItemsStore.emitChange();
+            break;
+        case ACTION_TYPES.RECEIVE_PANEL_CHILDREN:
+            // _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"][action.device.uuid]["points"] = action.points;
+
+            // for (var key in _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"][action.device.uuid]["points"])
+            // {
+            //     _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"][action.device.uuid]["points"][key]["children"] = [];
+            //     _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"][action.device.uuid]["points"][key]["path"] = ["platforms", action.platform.uuid, "buildings", action.building.uuid, "devices", action.device.uuid, "points"];
+            // }
+            var item = platformsPanelItemsStore.getItem(action.platform.path);
+
+            // var platform = _items["platforms"][action.platform.uuid];
+
+            if (item.children.length > 0)
+            {
+                item.expanded = true;
+            }
 
             platformsPanelItemsStore.emitChange();
             break;

@@ -11,52 +11,57 @@ var PlatformsPanelItem = React.createClass({
     getInitialState: function () {
         var state = {};
         
-        state.expanded = (this.props.panelItem.hasOwnProperty("expanded") ? this.props.panelItem.expanded : null);
-
         state.showTooltip = false;
         state.tooltipX = null;
         state.tooltipY = null;
         state.keepTooltip = false;
-        state.expandedChildren = null;
         state.checked = false;
-
-        state.children = getChildrenFromStore(this.props.panelItem, this.props.itemPath);
+        state.panelItem = this.props.panelItem;
+        state.children = this.props.panelChildren;
 
         return state;
     },
     componentDidMount: function () {
         platformsPanelItemsStore.addChangeListener(this._onStoresChange);
     },
-    componentWillMount: function () {
-        if (!this.props.hasOwnProperty("knownChildren"))
-        { 
-            platformsPanelActionCreators.loadChildren(this.props.panelItem.type, this.props.panelItem);
-        }
-    },
     componentWillUnmount: function () {
         platformsPanelItemsStore.removeChangeListener(this._onStoresChange);
     },
     _onStoresChange: function () {
 
-        var children = getChildrenFromStore(this.props.panelItem, this.props.itemPath);
+        var panelItem = getItemFromStore(this.props.itemPath);
+        var panelChildren = getChildrenFromStore(this.props.panelItem, this.props.itemPath)
 
-        this.setState({children: children});
+        this.setState({panelItem: panelItem});
+        this.setState({children: panelChildren});
     },
     _expandAll : function () {
-        var expandedOn = ((this.state.expanded === null) ? true : !this.state.expanded);
-
-        // this.setState({expandedOn: expandedOn});
-        this.setState({expanded: expandedOn});
         
-        this.setState({expandedChildren: expandAllChildren(expandedOn, this.props.panelItem)});
+        platformsPanelActionCreators.expandAll(this.props.itemPath);
+    },
+    _toggleItem: function () {
+
+        if (this.state.panelItem.expanded === null)
+        {
+            platformsPanelActionCreators.loadChildren(this.props.panelItem.type, this.props.panelItem);
+        }
+        else
+        {
+            if (this.state.panelItem.expanded)
+            {
+                platformsPanelActionCreators.expandAll(this.props.itemPath);
+            }
+            else
+            {
+                platformsPanelActionCreators.toggleItem(this.props.itemPath);    
+            }
+        }
     },
     _checkItem: function (e) {
 
         var checked = e.target.checked;
 
         this.setState({checked: checked});
-
-        var a, b;
 
         if (checked)
         {
@@ -67,25 +72,6 @@ var PlatformsPanelItem = React.createClass({
         {
             platformsPanelActionCreators.removeFromChart(this.props.panelItem);
         }
-    },
-    _toggleItem: function () {
-
-        if (this.props.hasOwnProperty("knownChildren"))
-        {
-            if (this.state.expanded === null)
-            {
-                this.setState({expanded: !this.props.panelItem.expanded});
-            }
-            else
-            {
-                this.setState({expanded: !this.state.expanded});
-            }
-        }
-        else if (this.state.children.length > 0)
-        {
-            this.setState({expanded: !this.state.expanded});
-        }
-        
     },
     _showTooltip: function (evt) {
         this.setState({showTooltip: true});
@@ -106,25 +92,22 @@ var PlatformsPanelItem = React.createClass({
         this.setState({keepTooltip: false});
     },
     render: function () {
-        var panelItem = this.props.panelItem;
+        var panelItem = this.state.panelItem;
         var itemPath = this.props.itemPath;
-
-        var items;
+        var propChildren = this.state.children;
         var children;
 
-        var propChildren = this.state.expandedChildren;
+        var visibleStyle = {};
 
-        if (typeof propChildren === "undefined" || propChildren === null)
+        if (panelItem.visible !== true)
         {
-            propChildren = this.props.knownChildren;
+            visibleStyle = {
+                display: "none"
+            }
         }
-
-        // var filterTerm = this.props.filter;
 
         var itemClasses;
         var arrowClasses = ["arrowButton", "noRotate"];
-
-        // var checkboxClass = "panelItemCheckbox";
 
         var ChartCheckbox;
 
@@ -160,90 +143,44 @@ var PlatformsPanelItem = React.createClass({
         {
             arrowContent = <span>&#9644;</span>;
         }
-        
-        if (typeof propChildren !== "undefined" && propChildren !== null)
-        {   
-            if (this.props.panelItem.expanded === true)
-            {
-                children = propChildren
-                    .sort(function (a, b) {
-                        if (a.name.toUpperCase() > b.name.toUpperCase()) { return 1; }
-                        if (a.name.toUpperCase() < b.name.toUpperCase()) { return -1; }
-                        return 0;
-                    })
-                    .sort(function (a, b) {
-                        if (a.sortOrder > b.sortOrder) { return 1; }
-                        if (a.sortOrder < b.sortOrder) { return -1; }
-                        return 0;
-                    })
-                    .map(function (propChild) {
-                        
-                        var grandchildren = [];
-                        propChild.children.forEach(function (childString) {
-                            grandchildren.push(propChild[childString]);
-                        });
-
-                        return (
-                            <PlatformsPanelItem panelItem={propChild} itemPath={propChild.path} knownChildren={grandchildren}/>
-                        );
-                    }); 
-
-                if (children.length > 0)
-                {
-                    var classIndex = arrowClasses.indexOf("noRotate");
-                    
-                    if (classIndex > -1)
-                    {
-                        arrowClasses.splice(classIndex, 1);
-                    }
-
-                    arrowClasses.push("rotateDown");
-                    itemClasses = "showItems";                    
-                }          
-            }
-        }
-        else
+          
+        if (this.state.panelItem.expanded === true )
         {
-            if (this.state.expanded !== null)
-            {                   
-                if (this.state.expanded)
-                {                
-                    if (this.state.children !== null)
-                    {
-                        var childItems = this.state.children;
-                        
-                        children = childItems
-                            .sort(function (a, b) {
-                                if (a.name.toUpperCase() > b.name.toUpperCase()) { return 1; }
-                                if (a.name.toUpperCase() < b.name.toUpperCase()) { return -1; }
-                                return 0;
-                            })
-                            .sort(function (a, b) {
-                                if (a.sortOrder > b.sortOrder) { return 1; }
-                                if (a.sortOrder < b.sortOrder) { return -1; }
-                                return 0;
-                            })
-                            .map(function (child) {                            
-                                return (
-                                    <PlatformsPanelItem panelItem={child} itemPath={child.path}/>
-                                );}, this);
+            children = propChildren
+                .sort(function (a, b) {
+                    if (a.name.toUpperCase() > b.name.toUpperCase()) { return 1; }
+                    if (a.name.toUpperCase() < b.name.toUpperCase()) { return -1; }
+                    return 0;
+                })
+                .sort(function (a, b) {
+                    if (a.sortOrder > b.sortOrder) { return 1; }
+                    if (a.sortOrder < b.sortOrder) { return -1; }
+                    return 0;
+                })
+                .map(function (propChild) {
+                    
+                    var grandchildren = [];
+                    propChild.children.forEach(function (childString) {
+                        grandchildren.push(propChild[childString]);
+                    });
 
-                        if (children.length > 0)
-                        {
-                            itemClasses = "showItems";
+                    return (
+                        <PlatformsPanelItem panelItem={propChild} itemPath={propChild.path} panelChildren={grandchildren}/>
+                    );
+                }); 
 
-                            var classIndex = arrowClasses.indexOf("noRotate");
-                            
-                            if (classIndex > -1)
-                            {
-                                arrowClasses.splice(classIndex, 1);
-                            }
-
-                            arrowClasses.push("rotateDown");
-                        }                            
-                    }
+            if (children.length > 0)
+            {
+                var classIndex = arrowClasses.indexOf("noRotate");
+                
+                if (classIndex > -1)
+                {
+                    arrowClasses.splice(classIndex, 1);
                 }
-            }
+
+                arrowClasses.push("rotateDown");
+                itemClasses = "showItems";                    
+            }          
         }
 
         var listItem;
@@ -274,6 +211,7 @@ var PlatformsPanelItem = React.createClass({
             <li
                 key={panelItem.uuid}
                 className="panel-item"
+                style={visibleStyle}
             >
                 <div className="platform-info">
                     <div className={arrowClasses.join(' ')}
@@ -308,26 +246,12 @@ var PlatformsPanelItem = React.createClass({
     },
 });
 
-function expandAllChildren(expandOn, parent)
-{
-    var expandedParent = platformsPanelItemsStore.getExpandedChildren(expandOn, parent);
-    var expandedChildren = [];
-
-    expandedParent.children.forEach(function(childString) {
-        expandedChildren.push(expandedParent[childString]);
-    });
-
-    if (!expandOn)
-    {
-        expandedChildren = null;
-    }
-
-    return expandedChildren;
-
+function getChildrenFromStore(parentItem, parentPath) {
+    return platformsPanelItemsStore.getChildren(parentItem, parentPath);
 }
 
-function getChildrenFromStore(parentItem, parentPath) {
-    return platformsPanelItemsStore.getItems(parentItem, parentPath);
+function getItemFromStore(itemPath) {
+    return platformsPanelItemsStore.getItem(itemPath);
 }
 
 module.exports = PlatformsPanelItem;

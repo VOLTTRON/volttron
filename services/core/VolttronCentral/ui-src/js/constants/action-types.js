@@ -34,8 +34,15 @@ module.exports = keyMirror({
     RECEIVE_POINT_STATUSES: null,
     RECEIVE_BUILDING_STATUSES: null,
 
+    RECEIVE_PANEL_CHILDREN: null,
+
     ADD_TO_CHART: null,
     REMOVE_FROM_CHART: null,
+
+    EXPAND_ALL: null,
+    TOGGLE_ITEM: null,
+    FILTER_ITEMS: null,
+
 
     RECEIVE_PLATFORM_TOPIC_DATA: null,
 });

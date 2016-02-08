@@ -55,16 +55,28 @@ var platformsPanelActionCreators = {
                 loadPanelPoints(parent);
                 loadPanelDevices(parent);
                 break;
-            case "type":
+            // case "type":
 
-                for (var i = 0; i < parent.children.length; i++)
-                {
-                    platformsPanelActionCreators.loadChildren(parent[parent.children[i]].type, parent[parent.children[i]]);
-                }
+            //     for (var i = 0; i < parent.children.length; i++)
+            //     {
+            //         platformsPanelActionCreators.loadChildren(parent[parent.children[i]].type, parent[parent.children[i]]);
+            //     }
                 
-                break;
+            //     break;
             default:
 
+                loadPanelChildren(parent);
+
+                break;
+
+        }
+
+
+        function loadPanelChildren(parent) {
+            dispatcher.dispatch({
+                type: ACTION_TYPES.RECEIVE_PANEL_CHILDREN,
+                platform: parent
+            });    
         }
 
         function loadPanelPoints(parent) {
@@ -108,6 +120,33 @@ var platformsPanelActionCreators = {
                 .catch(rpc.Error, handle401);    
         }
     
+    },
+
+    loadFilteredItems: function (filterTerm, filterStatus)
+    {
+        dispatcher.dispatch({
+            type: ACTION_TYPES.FILTER_ITEMS,
+            filterTerm: filterTerm,
+            filterStatus: filterStatus
+        });
+    },
+
+    expandAll: function (itemPath) {
+
+        dispatcher.dispatch({
+            type: ACTION_TYPES.EXPAND_ALL,
+            itemPath: itemPath
+        });
+
+    },
+
+    toggleItem: function (itemPath) {
+
+        dispatcher.dispatch({
+            type: ACTION_TYPES.TOGGLE_ITEM,
+            itemPath: itemPath
+        });
+
     },
 
     addToChart: function(panelItem) {
