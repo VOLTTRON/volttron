@@ -496,7 +496,7 @@ def ahp(config_path, **kwargs):
                                              unit=power_meter,
                                              path='',
                                              point='all')
-    
+
     kill_device_topic = None
     kill_token = config.get('kill_switch')
     if kill_token is not None:
@@ -507,8 +507,6 @@ def ahp(config_path, **kwargs):
                                                  unit=kill_device,
                                                  path='',
                                                  point='all')
-        
-    
 
     demand_limit = float(config['demand_limit'])
     curtail_time = td(minutes=config.get('curtailment_time', 15.0))
@@ -532,6 +530,7 @@ def ahp(config_path, **kwargs):
             self.kill_signal_recieved = False
             self.scheduled_devices = set()
             self.devices_curtailed = set()
+            self.bldg_power = []
 
         @Core.receiver('onstart')
         def starting_base(self, sender, **kwargs):
@@ -548,26 +547,24 @@ def ahp(config_path, **kwargs):
             self.vip.pubsub.subscribe(peer='pubsub',
                                       prefix=power_meter_topic,
                                       callback=self.load_message_handler)
-            
+
             if kill_device_topic is not None:
                 _log.debug('Subscribing to '+kill_device_topic)
                 self.vip.pubsub.subscribe(peer='pubsub',
                                           prefix=kill_device_topic,
                                           callback=self.handle_agent_kill)
-            
-        
+
         def handle_agent_kill(self, peer, sender, bus, topic, headers, message):
             data = message[0]
             _log.info('Checking kill signal')
             kill_signal = bool(data[kill_pt])
-            
+
             if kill_signal:
                 _log.info('Kill signal recieved, shutting down')
                 self.kill_signal_recieved = False
                 gevent.sleep(8)
                 self.end_curtail()
                 sys.exit()
-                
 
         def new_data(self, peer, sender, bus, topic, headers, message):
             '''Generate static configuration inputs for
@@ -576,7 +573,7 @@ def ahp(config_path, **kwargs):
             '''
             if self.kill_signal_recieved:
                 return
-            
+
             _log.info('Data Received for {}'.format(topic))
 
             # topic of form:  devices/campus/building/device
@@ -590,14 +587,21 @@ def ahp(config_path, **kwargs):
         def load_message_handler(self, peer, sender, bus, topic, headers, message):
             if self.kill_signal_recieved:
                 return
-            
+
             _log.debug('Reading building power data.')
-            bldg_power = float(message[0][power_pt])
+            current_power = float(message[0][power_pt])
+
+            if current_power < 0:
+                current_power = 0.0
 
             now = parser.parse(headers['Date'])
+            self.bldg_power.append((now, current_power))
+            if self.bldg_power[-1][0] - self.bldg_power[0][0] > td(minutes=curtail_time):
+                self.bldg_power.pop(0)
+            average_power = sum(self.bldg_power[1])/len(self.bldg_power[1])
 
             _log.debug('Reported time: '+str(now))
-            _log.info('Current load: {}'.format(bldg_power))
+            _log.info('Current load: {}'.format(average_power))
 
             if self.reset_curtail_count_time is not None:
                 if self.reset_curtail_count_time <= now:
@@ -610,22 +614,22 @@ def ahp(config_path, **kwargs):
                     self.end_curtail()
 
                 elif now >= self.next_curtail_confirm:
-                    self.curtail_confirm(bldg_power, now)
+                    self.curtail_confirm(average_power, now)
                 return
 
             elif self.break_end is not None and now < self.break_end:
-		_log.debug('Skipping load check, still on curtailment break.')
+                _log.debug('Skipping load check, still on curtailment break.')
                 return
 
-            self.check_load(bldg_power, now)
+            self.check_load(average_power, now)
 
         def check_load(self, bldg_power, now):
             '''Check whole building power and if the value is above the
             the demand limit (demand_limit) then initiate the ILC (AHP)
             sequence.
-            '''            
+            '''
             _log.debug('Checking building load.')
-            
+
             if bldg_power > demand_limit:
                 _log.info('Current load ({load}) exceeds limit or {limit}.'.format(load=bldg_power, limit=demand_limit))
 
@@ -679,11 +683,11 @@ def ahp(config_path, **kwargs):
                         break
                     result = self.vip.rpc.call('platform.actuator', 'set_point',
                                                agent_id, curtailed_point,
-                                               curtail_val).get(timeout=4)                    
+                                               curtail_val).get(timeout=4)
                 except RemoteError as ex:
                     _log.warning("Failed to set {} to {}: {}".format(curtailed_point, curtail_val, str(ex)))
                     continue
-                
+
                 est_curtailed += curtail_load
                 clusters.get_device(device_name).increment_curtail(command)
                 self.devices_curtailed.add(item)
@@ -749,7 +753,7 @@ def ahp(config_path, **kwargs):
                 except RemoteError as ex:
                     _log.warning("Failed to schedule device {} (RemoteError): {}".format(device, str(ex)))
                     continue
-                
+
                 if result['result'] == 'FAILURE':
                     _log.warn('Failed to schedule device (unavailable) ' + device)
                     already_handled[device] = False
@@ -780,7 +784,7 @@ def ahp(config_path, **kwargs):
                 except RemoteError as ex:
                     _log.warning("Failed to revert point {} (RemoteError): {}".format(curtailed_point, str(ex)))
                     continue
-                
+
             self.devices_curtailed = set()
 
         def release_devices(self):
