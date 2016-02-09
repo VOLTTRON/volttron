@@ -598,7 +598,7 @@ def ahp(config_path, **kwargs):
             self.bldg_power.append((now, current_power))
             if self.bldg_power[-1][0] - self.bldg_power[0][0] > td(minutes=curtail_time):
                 self.bldg_power.pop(0)
-            average_power = sum(self.bldg_power[1])/len(self.bldg_power[1])
+            average_power = sum(power[1] for power in self.bldg_power)/len(self.bldg_power)
 
             _log.debug('Reported time: '+str(now))
             _log.info('Current load: {}'.format(average_power))
