@@ -60,14 +60,11 @@ import logging
 from datetime import timedelta as td, datetime as dt
 from copy import deepcopy
 from dateutil import parser
-# from _ast import comprehension
 from sympy import symbols
 from sympy.parsing.sympy_parser import parse_expr
 import abc
 from collections import deque
 
-# from volttron.platform.agent import utils, matching, sched
-# from volttron.platform.messaging import headers as headers_mod,
 from volttron.platform.messaging import topics
 from volttron.platform.agent import utils
 from volttron.platform.agent.utils import jsonapi, setup_logging
@@ -78,12 +75,11 @@ from ilc.ilc_matrices import (extract_criteria, calc_column_sums,
 from volttron.platform.jsonrpc import RemoteError
 import gevent
 
-__version__ = '1.0.0'
+__version__ = '2.0.0'
 
 MATRIX_ROWSTRING = '%20s\t%12.2f%12.2f%12.2f%12.2f%12.2f'
 CRITERIA_LABELSTRING = '\t\t\t%12s%12s%12s%12s%12s'
 DATE_FORMAT = '%m-%d-%y %H:%M:%S'
-TESTING = True
 setup_logging()
 _log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.debug,
@@ -421,10 +417,10 @@ class Clusters(object):
         return results
 
 
-def ahp(config_path, **kwargs):
-    '''Intelligent Load Curtailment Algorithm'
+def ilc_agent(config_path, **kwargs):
+    '''Intelligent Load Curtailment (ILC) Application using
 
-    using Analytical Hierarchical Process.
+    Analytical Hierarchical Process (AHP).
     '''
     config = utils.load_config(config_path)
     location = {}
@@ -536,7 +532,8 @@ def ahp(config_path, **kwargs):
         def starting_base(self, sender, **kwargs):
             '''startup method:
              - Extract Criteria Matrix from excel file.
-             - Setup subscriptions to device and building power meter.
+             - Setup subscriptions to curtailable devices.
+             - Setup subscription to building power meter.
             '''
             for device_topic in device_topic_list:
                 _log.debug('Subscribing to '+device_topic)
@@ -555,22 +552,25 @@ def ahp(config_path, **kwargs):
                                           callback=self.handle_agent_kill)
 
         def handle_agent_kill(self, peer, sender, bus, topic, headers, message):
+            '''
+            Locally implemented override for ILC application.
+
+            When an override is detected the ILC application will return
+            operations for all units to normal.
+            '''
             data = message[0]
             _log.info('Checking kill signal')
             kill_signal = bool(data[kill_pt])
 
             if kill_signal:
-                _log.info('Kill signal recieved, shutting down')
+                _log.info('Kill signal received, shutting down')
                 self.kill_signal_recieved = False
                 gevent.sleep(8)
                 self.end_curtail()
                 sys.exit()
 
         def new_data(self, peer, sender, bus, topic, headers, message):
-            '''Generate static configuration inputs for
-
-            priority calculation.
-            '''
+            '''Call back method for curtailable device data subscription.'''
             if self.kill_signal_recieved:
                 return
 
@@ -585,6 +585,10 @@ def ahp(config_path, **kwargs):
             clusters.get_device(device_name).ingest_data(now, data)
 
         def load_message_handler(self, peer, sender, bus, topic, headers, message):
+            '''Call back method for building power meter. Calculates the average
+            building demand over a configurable time and manages the curtailment
+            time and curtailment break times.
+            '''
             if self.kill_signal_recieved:
                 return
 
@@ -625,6 +629,7 @@ def ahp(config_path, **kwargs):
 
         def check_load(self, bldg_power, now):
             '''Check whole building power and if the value is above the
+
             the demand limit (demand_limit) then initiate the ILC (AHP)
             sequence.
             '''
@@ -702,7 +707,11 @@ def ahp(config_path, **kwargs):
             return remaining_devices
 
         def curtail_confirm(self, cur_pwr, now):
-            '''Check if load shed goal is met.'''
+            '''Check if load shed has been met.  If the demand goal is not
+
+            met and there are additional devices to curtail then the ILC will shed
+            additional load by curtailing more devices.
+            '''
             if cur_pwr < demand_limit:
                 _log.info('Curtail goal for building load met.')
             else:
@@ -800,7 +809,7 @@ def ahp(config_path, **kwargs):
 
 def main(argv=sys.argv):
     '''Main method called to start the agent.'''
-    utils.vip_main(ahp)
+    utils.vip_main(ilc_agent)
 
 
 if __name__ == '__main__':
