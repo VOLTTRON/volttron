@@ -600,7 +600,7 @@ def ilc_agent(config_path, **kwargs):
 
             now = parser.parse(headers['Date'])
             self.bldg_power.append((now, current_power))
-            if self.bldg_power[-1][0] - self.bldg_power[0][0] > td(minutes=curtail_time):
+            if self.bldg_power[-1][0] - self.bldg_power[0][0] > curtail_time:
                 self.bldg_power.pop(0)
             average_power = sum(power[1] for power in self.bldg_power)/len(self.bldg_power)
 
