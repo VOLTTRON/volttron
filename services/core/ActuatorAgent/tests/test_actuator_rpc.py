@@ -1270,7 +1270,7 @@ def test_set_value_float(publish_agent, cancel_schedule):
     assert result == 2.5
 
 
-@pytest.mark.dev
+@pytest.mark.actuator
 def test_set_error_array(publish_agent, cancel_schedule):
     """
     Test setting a array of single float value of a point. Should return type error

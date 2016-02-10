@@ -337,10 +337,9 @@ def actuator_agent(config_path, **kwargs):
             if result.success:
                 self.update_device_state_and_schedule(now)
                 for preempted_task in result.data:
-                    topic = topics.ACTUATOR_SCHEDULE_RESULT()
-                    headers = self.get_headers(preempted_task[0], task_id=preempted_task[1])
-                    headers['type'] = SCHEDULE_ACTION_CANCEL
-                    self.vip.pubsub.publish('pubsub', topic, headers=headers,
+                    preempt_headers = self.get_headers(preempted_task[0], task_id=preempted_task[1])
+                    preempt_headers['type'] = SCHEDULE_ACTION_CANCEL
+                    self.vip.pubsub.publish('pubsub', topic, headers=preempt_headers,
                                             message={'result': SCHEDULE_CANCEL_PREEMPTED,
                                                      'info': '',
                                                      'data': {'agentID': requester_id,

@@ -562,7 +562,7 @@ def test_schedule_error_none_agent(publish_agent):
 
 
 #
-# @pytest.mark.dev
+# @pytest.mark.actuator_pubsub
 # def test_schedule_error_intarray_taskid(publish_agent):
 #     """
 #     Test error responses for schedule request through pubsub. Test taskid=[int]
@@ -1607,7 +1607,7 @@ def test_set_value_bool(publish_agent, cancel_schedule):
     assert result_message == True
 
 
-@pytest.mark.dev
+@pytest.mark.actuator_pubsub
 def test_set_value_array(publish_agent, cancel_schedule):
     """
     Test setting point through pubsub. Set value as array with length=1
