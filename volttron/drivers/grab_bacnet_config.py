@@ -168,7 +168,7 @@ try:
     
     if not isinstance(result, IAmRequest):
         result.debug_contents()
-        raise TypeError("Error making WhoIs request")
+        raise TypeError("Error making WhoIs request, you might try again.")
         
     
     device_type, device_instance = result.iAmDeviceIdentifier
@@ -183,10 +183,17 @@ try:
     
     device_id = result.iAmDeviceIdentifier[1]
     
-    device_name = read_prop(this_application, target_address, "device", device_id, "objectName")
-    _log.debug('device_name = ' + str(device_name))
-    device_description = read_prop(this_application, target_address, "device", device_id, "description")
-    _log.debug('description = ' + str(device_description))
+    try:
+        device_name = read_prop(this_application, target_address, "device", device_id, "objectName")
+        _log.debug('device_name = ' + str(device_name))
+    except TypeError:
+        _log.debug('device missing objectName')
+    
+    try:
+        device_description = read_prop(this_application, target_address, "device", device_id, "description")
+        _log.debug('description = ' + str(device_description))
+    except TypeError:
+        _log.debug('device missing description')
     
     objectCount = read_prop(this_application, target_address, "device", device_id, "objectList", index=0)
     
@@ -217,10 +224,15 @@ try:
         
         obj_type, index = bac_object
         
+        _log.debug('object_device_index = ' + repr(object_index))
+        _log.debug('obj_type = ' + repr(obj_type))
+        _log.debug('bacnet_index = ' + repr(index))
+        
         writable = 'FALSE'
         
         present_value_type = get_datatype(obj_type, 'presentValue')
         if present_value_type is None:
+            _log.debug('This object type has no presentValue. Skipping.')
             continue
         
         if not issubclass(present_value_type, (Enumerated,
@@ -229,6 +241,7 @@ try:
                                                Integer,
                                                Real,
                                                Double)):
+            _log.debug('presenValue is an unsupported type: ' + repr(present_value_type))
             continue 
         
         try:
@@ -237,8 +250,8 @@ try:
         except TypeError:
             object_name = "NO NAME! PLEASE NAME THIS."
             
-        _log.debug('  object type = ' + obj_type)
-        _log.debug('  object index = ' + str(index))
+#         _log.debug('  object type = ' + obj_type)
+#         _log.debug('  object index = ' + str(index))
         
         try:
             object_notes = read_prop(this_application, target_address, obj_type, index, "description")
