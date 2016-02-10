@@ -363,7 +363,11 @@ class ScheduleManager(object):
                         
         if requests is None or not requests:
             return RequestResult(False, {}, 'MALFORMED_REQUEST_EMPTY')
-        
+        if not isinstance(agent_id,str):
+            return RequestResult(False, {}, 'MALFORMED_REQUEST: TypeError: agentid is not a string')
+        if not isinstance(id_,str):
+            return RequestResult(False, {}, 'MALFORMED_REQUEST: TypeError: taskid is not a string')
+
         try:
             new_task = Task(agent_id, priority, requests)
         except ScheduleError as ex:

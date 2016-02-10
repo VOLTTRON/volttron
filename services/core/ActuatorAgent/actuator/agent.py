@@ -252,7 +252,8 @@ def actuator_agent(config_path, **kwargs):
             path, point_name = topic.rsplit('/', 1)
 
             headers = self.get_headers(requester_id)
-
+            if not isinstance(requester_id, str):
+                raise TypeError("Agent id must be a string")
             if self.check_lock(path, requester_id):
                 result = self.vip.rpc.call(driver_vip_identity, 'set_point', path, point_name, value, **kwargs).get()
 
@@ -262,7 +263,7 @@ def actuator_agent(config_path, **kwargs):
                 self.push_result_topic_pair(VALUE_RESPONSE_PREFIX,
                                             topic, headers, result)
             else:
-                raise LockError("caller does not have this lock")
+                raise LockError("caller ({}) does not have this lock".format(requester_id))
 
             return result
 
