@@ -60,9 +60,11 @@ def publish_agent(request, volttron_instance1):
 
 @pytest.fixture(scope="function")
 def cancel_schedule(request, publish_agent):
+    cleanup_perameters = {}
+    
     def cleanup():
-        agentid = request.function.func_dict.get('agentid', TEST_AGENT)
-        taskid = request.function.func_dict.get('taskid', 'test_task')
+        agentid = cleanup_perameters.get('agentid', TEST_AGENT)
+        taskid = cleanup_perameters.get('taskid', 'test_task')
         print('Requesting cancel for task:', taskid, 'from agent:', agentid)
         result = publish_agent.vip.rpc.call(
             PLATFORM_ACTUATOR,
@@ -73,6 +75,7 @@ def cancel_schedule(request, publish_agent):
         print ("result of cancel ", result)
 
     request.addfinalizer(cleanup)
+    return cleanup_perameters
 
 
 @pytest.mark.actuator
@@ -168,7 +171,7 @@ def test_schedule_error_int_agentid(publish_agent):
     assert result['result'] == FAILURE
     assert result['info'] == 'MALFORMED_REQUEST: TypeError: agentid is not a string'
 
-@pytest.mark.xfail
+@pytest.mark.dev
 @pytest.mark.actuator
 def test_schedule_empty_taskid(publish_agent, cancel_schedule):
     """
@@ -495,9 +498,8 @@ def test_schedule_premept_self(publish_agent, cancel_schedule):
     """
     print ("\n**** test_schedule_premept_self ****")
     # used by cancel_schedule
-    this = test_schedule_premept_self
-    this.agentid = TEST_AGENT
-    this.taskid = 'task_high_priority'
+    agentid = cancel_schedule['agentid'] = TEST_AGENT
+    taskid = cancel_schedule['taskid'] = 'task_high_priority'
     publish_agent.callback = MagicMock(name="callback")
     publish_agent.callback.reset_mock()
     # subscribe to schedule response topic
@@ -505,7 +507,7 @@ def test_schedule_premept_self(publish_agent, cancel_schedule):
                                        prefix=topics.ACTUATOR_SCHEDULE_RESULT,
                                        callback=publish_agent.callback).get()
 
-    start = str(datetime.now())
+    start = str(datetime.now()+ timedelta(seconds=10))
     end = str(datetime.now() + timedelta(seconds=20))
     msg = [
         ['fakedriver1', start, end]
@@ -526,8 +528,8 @@ def test_schedule_premept_self(publish_agent, cancel_schedule):
     result = publish_agent.vip.rpc.call(
         PLATFORM_ACTUATOR,
         REQUEST_NEW_SCHEDULE,
-        this.agentid,
-        this.taskid,
+        agentid,
+        taskid,
         'HIGH',
         msg).get(timeout=10)
     assert result['result'] == SUCCESS
@@ -562,13 +564,13 @@ def test_schedule_premept_self(publish_agent, cancel_schedule):
         # values remain as initialized above if/else
 
     assert schedule_header['type'] == 'NEW_SCHEDULE'
-    assert schedule_header['taskID'] == this.taskid
+    assert schedule_header['taskID'] == taskid
     assert schedule_header['requesterID'] == TEST_AGENT
     assert schedule_message['result'] == SUCCESS
 
     assert cancel_header['taskID'] == 'task_low_priority'
     assert cancel_message['data']['agentID'] == TEST_AGENT
-    assert cancel_message['data']['taskID'] == this.taskid
+    assert cancel_message['data']['taskID'] == taskid
     assert cancel_message['result'] == 'PREEMPTED'
 
 
@@ -586,9 +588,8 @@ def test_schedule_premept_active_task(publish_agent, cancel_schedule):
     """
     print ("\n**** test_schedule_premept_active_task ****")
     # used by cancel_schedule
-    this = test_schedule_premept_active_task
-    this.agentid = 'new_agent'
-    this.taskid = 'task_high_priority2'
+    agentid = cancel_schedule['agentid'] = 'new_agent'
+    taskid = cancel_schedule['taskid'] = 'task_high_priority2'
     publish_agent.callback = MagicMock(name="callback")
     publish_agent.callback.reset_mock()
     # subscribe to schedule response topic
@@ -597,7 +598,7 @@ def test_schedule_premept_active_task(publish_agent, cancel_schedule):
                                        callback=publish_agent.callback).get()
 
     start = str(datetime.now())
-    end = str(datetime.now() + timedelta(seconds=10))
+    end = str(datetime.now() + timedelta(seconds=6))
     msg = [
         ['fakedriver1', start, end]
     ]
@@ -617,8 +618,8 @@ def test_schedule_premept_active_task(publish_agent, cancel_schedule):
     result = publish_agent.vip.rpc.call(
         PLATFORM_ACTUATOR,
         REQUEST_NEW_SCHEDULE,
-        this.agentid,
-        this.taskid,
+        agentid,
+        taskid,
         'HIGH',
         msg).get(timeout=10)
     assert result['result'] == SUCCESS
@@ -654,13 +655,13 @@ def test_schedule_premept_active_task(publish_agent, cancel_schedule):
         # values remain as initialized above if/else
 
     assert schedule_header['type'] == 'NEW_SCHEDULE'
-    assert schedule_header['taskID'] == this.taskid
-    assert schedule_header['requesterID'] == this.agentid
+    assert schedule_header['taskID'] == taskid
+    assert schedule_header['requesterID'] == agentid
     assert schedule_message['result'] == SUCCESS
 
     assert cancel_header['taskID'] == 'task_low_priority2'
-    assert cancel_message['data']['agentID'] == this.agentid
-    assert cancel_message['data']['taskID'] == this.taskid
+    assert cancel_message['data']['agentID'] == agentid
+    assert cancel_message['data']['taskID'] == taskid
     assert cancel_message['result'] == 'PREEMPTED'
 
 
@@ -763,7 +764,7 @@ def test_schedule_premept_active_task_gracetime(publish_agent, cancel_schedule):
         result = publish_agent.vip.rpc.call(
             PLATFORM_ACTUATOR,  # Target agent
             'set_point',  # Method
-            TEST_AGENT,  # Requestor
+            this.agentid,  # Requestor
             'fakedriver1/SampleWritableFloat1',  # Point to set
             2.5  # New value
         ).get(timeout=10)
