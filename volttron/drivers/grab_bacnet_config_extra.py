@@ -168,7 +168,7 @@ try:
     
     if not isinstance(result, IAmRequest):
         result.debug_contents()
-        raise TypeError("Error making WhoIs request")
+        raise TypeError("Error making WhoIs request, you might try again.")
         
     
     device_type, device_instance = result.iAmDeviceIdentifier
@@ -183,10 +183,17 @@ try:
     
     device_id = result.iAmDeviceIdentifier[1]
     
-    device_name = read_prop(this_application, target_address, "device", device_id, "objectName")
-    _log.debug('device_name = ' + str(device_name))
-    device_description = read_prop(this_application, target_address, "device", device_id, "description")
-    _log.debug('description = ' + str(device_description))
+    try:
+        device_name = read_prop(this_application, target_address, "device", device_id, "objectName")
+        _log.debug('device_name = ' + str(device_name))
+    except TypeError:
+        _log.debug('device missing objectName')
+    
+    try:
+        device_description = read_prop(this_application, target_address, "device", device_id, "description")
+        _log.debug('description = ' + str(device_description))
+    except TypeError:
+        _log.debug('device missing description')
     
     objectCount = read_prop(this_application, target_address, "device", device_id, "objectList", index=0)
     
