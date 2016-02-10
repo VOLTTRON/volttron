@@ -4,8 +4,8 @@ import os
 import gevent
 import pytest
 
-from .. import jsonrpc
-from .. import keystore
+from volttron.platform import jsonrpc
+from volttron.platform import keystore
 
 def build_agent(platform, identity):
     keys = keystore.KeyStore(os.path.join(platform.volttron_home,
@@ -191,6 +191,60 @@ def test_pubsub_protected_and_authorized(volttron_instance1_encrypt):
 
     agent1.vip.pubsub.subscribe('pubsub', 'foo', callback=got_msg).get(timeout=1)
     agent2.vip.pubsub.publish('pubsub', 'foo', message='hello agent').get(timeout=1)
+
+    gevent.sleep(2)
+    assert agent1.last_msg == 'hello agent'
+
+@pytest.mark.auth
+def test_pubsub_protected_not_authorized_none_peer(volttron_instance1_encrypt):
+    '''
+    Tests pubsub with a protected topic and the agents are not authorized to
+    publish to the protected topic.
+    '''
+    topic_dict = {'protect': [{'topic': 'foo', 'capabilities': ['can_publish_to_foo']}]}
+
+    write_protected_topic_to_file(volttron_instance1_encrypt, topic_dict)
+    gevent.sleep(1)
+
+    agent1, agent2 = build_two_test_agents(volttron_instance1_encrypt)
+
+    agent1.last_msg = None
+    def got_msg(peer, sender, bus, topic, headers, message):
+        agent1.last_msg = message
+
+    agent1.vip.pubsub.subscribe('pubsub', 'foo', callback=got_msg).get(timeout=1)
+
+    with pytest.raises(jsonrpc.RemoteError):
+        agent2.vip.pubsub.publish(None, 'foo', message='hello').get(timeout=1)
+
+@pytest.mark.auth
+def test_pubsub_protected_and_authorized_none_peer(volttron_instance1_encrypt):
+    '''
+    Tests pubsub with a protected topic and an agents is authorized to
+    publish to the protected topic.
+    '''
+    topic_dict = {'protect': [{'topic': 'foo', 'capabilities': ['can_publish_to_foo']}]}
+
+    write_protected_topic_to_file(volttron_instance1_encrypt, topic_dict)
+    gevent.sleep(1)
+
+    agent1, agent2 = build_two_test_agents(volttron_instance1_encrypt)
+
+    auth = {'allow':
+        [
+            {'credentials': 'CURVE:{}'.format(agent1.publickey)},
+            {'credentials': 'CURVE:{}'.format(agent2.publickey),
+             'capabilities': ['can_publish_to_foo']}
+        ]}
+
+    volttron_instance1_encrypt.set_auth_dict(auth)
+
+    agent1.last_msg = None
+    def got_msg(peer, sender, bus, topic, headers, message):
+        agent1.last_msg = message
+
+    agent1.vip.pubsub.subscribe('pubsub', 'foo', callback=got_msg).get(timeout=1)
+    agent2.vip.pubsub.publish(None, 'foo', message='hello agent').get(timeout=1)
 
     gevent.sleep(2)
     assert agent1.last_msg == 'hello agent'

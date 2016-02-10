@@ -218,11 +218,12 @@ class PubSub(SubsystemBase):
         return results
 
     def _peer_publish(self, topic, headers, message=None, bus=''):
-        self._check_if_protected_topic(topic)
         peer = bytes(self.rpc().context.vip_message.peer)
         self._distribute(peer, topic, headers, message, bus)
 
     def _distribute(self, peer, topic, headers, message=None, bus=''):
+
+        self._check_if_protected_topic(topic)
         subscriptions = self._peer_subscriptions[bus]
         subscribers = set()
         for prefix, subscription in subscriptions.iteritems():
@@ -377,12 +378,10 @@ class PubSub(SubsystemBase):
         if headers is None:
             headers = {}
         if peer is None:
-            self._distribute(self.core().socket.identity,
-                             topic, headers, message, bus)
-        else:
-            return self.rpc().call(
-                peer, 'pubsub.publish', topic=topic, headers=headers,
-                message=message, bus=bus)
+            peer = 'pubsub'
+        return self.rpc().call(
+            peer, 'pubsub.publish', topic=topic, headers=headers,
+            message=message, bus=bus)
 
     def set_protected_topics(self, protected_topics):
         _log.debug("set_protected_topics: %s", protected_topics)
