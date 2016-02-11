@@ -9,28 +9,32 @@ from mock import MagicMock
 from volttron.platform.messaging import topics
 
 FAILURE = 'FAILURE'
-
 SUCCESS = 'SUCCESS'
 PLATFORM_ACTUATOR = 'platform.actuator'
 TEST_AGENT = 'test-agent'
 actuator_uuid = None
+REQUEST_CANCEL_SCHEDULE = 'request_cancel_schedule'
+REQUEST_NEW_SCHEDULE = 'request_new_schedule'
 
 
 @pytest.fixture(scope="function")
-def cancel_schedule(request, publish_agent):
+def cancel_schedules(request, publish_agent):
+    cleanup_parameters = []
+
     def cleanup():
-        agentid = request.function.func_dict.get('agentid', TEST_AGENT)
-        taskid = request.function.func_dict.get('taskid', 'test_task')
-        print('Requesting cancel for task:', taskid, 'from agent:', agentid)
-        result = publish_agent.vip.rpc.call(
-            'platform.actuator',
-            'request_cancel_schedule',
-            agentid,
-            taskid).get(timeout=10)
-        gevent.sleep(2)  # sleep so that the message is sent to pubsub before next test monitors callback method calls
-        print ("result of cancel ", result)
+        for schedule in cleanup_parameters:
+            print('Requesting cancel for task:', schedule['taskid'], 'from agent:', schedule['agentid'])
+            result = publish_agent.vip.rpc.call(
+                PLATFORM_ACTUATOR,
+                REQUEST_CANCEL_SCHEDULE,
+                schedule['agentid'],
+                schedule['taskid']).get(timeout=10)
+            gevent.sleep(
+                1)  # sleep so that the message is sent to pubsub before next test monitors callback method calls
+            print ("result of cancel ", result)
 
     request.addfinalizer(cleanup)
+    return cleanup_parameters
 
 
 @pytest.fixture(scope="module")
@@ -90,9 +94,9 @@ def publish_agent(request, volttron_instance1):
     return fake_publish_agent
 
 
-def callback(self, peer, sender, bus, topic, headers, message):
-    print("*************In callback")
-    print ("topic:", topic, 'header:', headers, 'message:', message)
+# def callback(self, peer, sender, bus, topic, headers, message):
+#     print("*************In callback")
+#     print ("topic:", topic, 'header:', headers, 'message:', message)
 
 
 @pytest.mark.actuator_pubsub
@@ -201,7 +205,7 @@ def test_schedule_announce(publish_agent, volttron_instance1):
 
         result = publish_agent.vip.rpc.call(
             'platform.actuator',
-            'request_new_schedule',
+            REQUEST_NEW_SCHEDULE,
             TEST_AGENT,
             'task_schedule_announce',
             'LOW',
@@ -211,7 +215,7 @@ def test_schedule_announce(publish_agent, volttron_instance1):
         gevent.sleep(5)
 
         # Test message on schedule/announce
-        assert publish_agent.actuate0.called == True
+        assert publish_agent.actuate0.called is True
         assert publish_agent.actuate0.call_count == 2
         args_list1 = publish_agent.actuate0.call_args_list[0][0]
         args_list2 = publish_agent.actuate0.call_args_list[1][0]
@@ -238,9 +242,9 @@ def test_schedule_announce(publish_agent, volttron_instance1):
 
     finally:
         # cancel so fakedriver0 can be used by other tests
-        result = publish_agent.vip.rpc.call(
+        publish_agent.vip.rpc.call(
             'platform.actuator',
-            'request_cancel_schedule',
+            REQUEST_CANCEL_SCHEDULE,
             TEST_AGENT,
             'task_schedule_announce').get(timeout=10)
         volttron_instance1.stop_agent(actuator_uuid)
@@ -286,7 +290,7 @@ def test_schedule_error_int_taskid(publish_agent):
     assert result_header['type'] == 'NEW_SCHEDULE'
     assert result_header['requesterID'] == TEST_AGENT
     assert result_message['result'] == FAILURE
-    assert result_message['info'] == 'MALFORMED_REQUEST: TypeError: taskid is not a string'
+    assert result_message['info'] == 'MALFORMED_REQUEST: TypeError: taskid must be a nonempty string'
 
 
 @pytest.mark.actuator_pubsub
@@ -327,7 +331,7 @@ def test_schedule_error_int_agentid(publish_agent):
     assert result_header['type'] == 'NEW_SCHEDULE'
     assert result_header['taskID'] == taskid
     assert result_message['result'] == FAILURE
-    assert result_message['info'] == 'MALFORMED_REQUEST: TypeError: agentid is not a string'
+    assert result_message['info'] == 'MALFORMED_REQUEST: TypeError: agentid must be a nonempty string'
 
 
 # Ideally the first subscription itself should fail and hence this test case would be irrelevant
@@ -394,29 +398,27 @@ def test_schedule_error_int_agentid(publish_agent):
 #     assert result_message['result'] == FAILURE
 #     assert result_message['info'] == "CONFLICTS_WITH_EXISTING_SCHEDULES"
 
-@pytest.mark.xfail
 @pytest.mark.actuator_pubsub
-def test_schedule_empty_task(publish_agent, cancel_schedule):
+def test_schedule_empty_task(publish_agent, cancel_schedules):
     """
     Test responses for schedule request through pubsub. Test task=''
 
     :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
     of Agent object used for publishing
-    :cancel_schedule: fixture used to cancel the schedule at the end of test so that other tests can use
+    :param cancel_schedules: fixture used to cancel the schedule at the end of test so that other tests can use
     the same device and time slot
     """
     print ("\n**** test_schedule_empty_task ****")
-    # set agentid and task id for  cancel_schedule fixture
-    this = test_schedule_empty_task
-    this.agentid = TEST_AGENT
-    this.taskid = ''
+    agentid = TEST_AGENT
+    taskid = ''
+    cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
 
     start = str(datetime.now() + timedelta(seconds=1))
     end = str(datetime.now() + timedelta(seconds=2))
     header = {
         'type': 'NEW_SCHEDULE',
-        'requesterID': TEST_AGENT,  # The name of the requesting agent.
-        'taskID': this.taskid,  # unique (to all tasks) ID for scheduled task.
+        'requesterID': agentid,  # The name of the requesting agent.
+        'taskID': taskid,  # unique (to all tasks) ID for scheduled task.
         'priority': 'LOW'
     }
     msg = [
@@ -435,34 +437,33 @@ def test_schedule_empty_task(publish_agent, cancel_schedule):
     result_header = publish_agent.callback.call_args[0][4]
     result_message = publish_agent.callback.call_args[0][5]
     assert result_header['type'] == 'NEW_SCHEDULE'
-    assert result_header['taskID'] == this.taskid
-    assert result_message['result'] == SUCCESS
+    assert result_header['taskID'] == taskid
+    assert result_message['result'] == FAILURE
+    assert result_message['info'] == 'MALFORMED_REQUEST: TypeError: taskid must be a nonempty string'
 
 
-@pytest.mark.xfail
 @pytest.mark.actuator_pubsub
-def test_schedule_empty_agent(publish_agent, cancel_schedule):
+def test_schedule_empty_agent(publish_agent, cancel_schedules):
     """
     Test responses for schedule request through pubsub. Test Agent=''. This test case should be removed
     once agent id are generated by the volttron platform
 
     :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
     of Agent object used for publishing
-    :cancel_schedule: fixture used to cancel the schedule at the end of test so that other tests can use
+    :param cancel_schedules: fixture used to cancel the schedule at the end of test so that other tests can use
     the same device and time slot
     """
     print ("\n**** test_schedule_empty_agent ****")
-    # used by cancel_schedule
-    this = test_schedule_empty_agent
-    this.agentid = ''
-    this.taskid = 'task_empty_agent_id'
+    agentid = ''
+    taskid = 'task_empty_agent_id'
+    cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
 
     start = str(datetime.now() + timedelta(seconds=1))
     end = str(datetime.now() + timedelta(seconds=2))
     header = {
         'type': 'NEW_SCHEDULE',
-        'requesterID': this.agentid,  # The name of the requesting agent.
-        'taskID': this.taskid,  # unique (to all tasks) ID for scheduled task.
+        'requesterID': agentid,  # The name of the requesting agent.
+        'taskID': taskid,  # unique (to all tasks) ID for scheduled task.
         'priority': 'LOW'
     }
     msg = [
@@ -481,8 +482,9 @@ def test_schedule_empty_agent(publish_agent, cancel_schedule):
     result_header = publish_agent.callback.call_args[0][4]
     result_message = publish_agent.callback.call_args[0][5]
     assert result_header['type'] == 'NEW_SCHEDULE'
-    assert result_header['taskID'] == this.taskid
-    assert result_message['result'] == SUCCESS
+    assert result_header['taskID'] == taskid
+    assert result_message['result'] == FAILURE
+    assert result_message['info'] == 'MALFORMED_REQUEST: TypeError: agentid must be a nonempty string'
 
 
 @pytest.mark.actuator_pubsub
@@ -732,8 +734,6 @@ def test_schedule_error_empty_message(publish_agent):
     """
     print ("\n**** test_schedule_error_empty_message ****")
 
-    start = str(datetime.now() + timedelta(seconds=10))
-    end = str(datetime.now() + timedelta(seconds=20))
     header = {
         'type': 'NEW_SCHEDULE',
         'requesterID': TEST_AGENT,  # The name of the requesting agent.
@@ -771,8 +771,6 @@ def test_schedule_error_multiple_missing_headers(publish_agent):
     """
     print ("\n**** test_schedule_error_multiple_missing_headers ****")
 
-    start = str(datetime.now() + timedelta(seconds=10))
-    end = str(datetime.now() + timedelta(seconds=20))
     header = {
         'type': 'NEW_SCHEDULE',
         'requesterID': TEST_AGENT,  # The name of the requesting agent.
@@ -802,15 +800,20 @@ def test_schedule_error_multiple_missing_headers(publish_agent):
 
 
 @pytest.mark.actuator_pubsub
-def test_schedule_error_duplicate_task(publish_agent):
+def test_schedule_error_duplicate_task(publish_agent, cancel_schedules):
     """
     Test error response for schedule request through pubsub. Test Agent=''. This test case should be removed
     once agent id are generated by the volttron platform
 
     :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
     of Agent object used for publishing
+    :param cancel_schedules: fixture used to cancel the schedule at the end of test so that other tests can use the
+    same device and time slot
     """
     print ("\n**** test_schedule_error_duplicate_task ****")
+    agentid = TEST_AGENT
+    taskid = 'task_duplicate_task'
+    cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
 
     start = str(datetime.now())
     end = str(datetime.now() + timedelta(seconds=4))
@@ -820,7 +823,7 @@ def test_schedule_error_duplicate_task(publish_agent):
     publish_agent.callback.reset_mock()  # reset mock to ignore any previous callback
     result = publish_agent.vip.rpc.call(
         'platform.actuator',
-        'request_new_schedule',
+        REQUEST_NEW_SCHEDULE,
         TEST_AGENT,
         'task_duplicate_task',
         'LOW',
@@ -837,24 +840,18 @@ def test_schedule_error_duplicate_task(publish_agent):
     publish_agent.vip.pubsub.publish(peer='pubsub', topic=topics.ACTUATOR_SCHEDULE_REQUEST, headers=header,
                                      message=msg).get()
     gevent.sleep(1)
-    try:
-        print ('call args list:', publish_agent.callback.call_args_list)
-        assert publish_agent.callback.call_count == 2  # once for rpc call and once for publish
-        print (publish_agent.callback.call_args[0])
-        assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
-        assert publish_agent.callback.call_args[0][3] == topics.ACTUATOR_SCHEDULE_RESULT
-        result_header = publish_agent.callback.call_args[0][4]
-        result_message = publish_agent.callback.call_args[0][5]
-        assert result_header['type'] == 'NEW_SCHEDULE'
-        assert result_header['taskID'] == 'task_duplicate_task'
-        assert result_message['result'] == FAILURE
-        assert result_message['info'] == 'TASK_ID_ALREADY_EXISTS'
-    finally:
-        result = publish_agent.vip.rpc.call(
-            'platform.actuator',
-            'request_cancel_schedule',
-            TEST_AGENT,
-            'task_duplicate_task').get(timeout=10)
+
+    print ('call args list:', publish_agent.callback.call_args_list)
+    assert publish_agent.callback.call_count == 2  # once for rpc call and once for publish
+    print (publish_agent.callback.call_args[0])
+    assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
+    assert publish_agent.callback.call_args[0][3] == topics.ACTUATOR_SCHEDULE_RESULT
+    result_header = publish_agent.callback.call_args[0][4]
+    result_message = publish_agent.callback.call_args[0][5]
+    assert result_header['type'] == 'NEW_SCHEDULE'
+    assert result_header['taskID'] == 'task_duplicate_task'
+    assert result_message['result'] == FAILURE
+    assert result_message['info'] == 'TASK_ID_ALREADY_EXISTS'
 
 
 @pytest.mark.actuator_pubsub
@@ -906,7 +903,7 @@ def test_schedule_error_malformed_request(publish_agent):
     print ("\n**** test_schedule_error_malformed_request ****")
 
     start = str(datetime.now() + timedelta(seconds=10))
-    end = str(datetime.now() + timedelta(seconds=20))
+    # end = str(datetime.now() + timedelta(seconds=20))
     header = {
         'type': 'NEW_SCHEDULE',
         'requesterID': TEST_AGENT,  # The name of the requesting agent.
@@ -934,7 +931,7 @@ def test_schedule_error_malformed_request(publish_agent):
 
 
 @pytest.mark.actuator_pubsub
-def test_schedule_preempt_self(publish_agent, cancel_schedule):
+def test_schedule_preempt_self(publish_agent, cancel_schedules):
     """
     Test error response for schedule request through pubsub.
     Test schedule preemption by a higher priority task from the same agent.
@@ -951,21 +948,23 @@ def test_schedule_preempt_self(publish_agent, cancel_schedule):
     }
     :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
     of Agent object used for publishing
-    :cancel_schedule: fixture used to cancel the schedule at the end of test so that other tests can use
+    :param cancel_schedules: fixture used to cancel the schedule at the end of test so that other tests can use
     the same device and time slot
     """
     print ("\n**** test_schedule_preempt_self ****")
-    # set agentid and task id for  cancel_schedule fixture
-    this = test_schedule_preempt_self
-    this.agentid = TEST_AGENT
-    this.taskid = 'task_high_priority'
+
+    agentid = TEST_AGENT
+    taskid = 'task_high_priority'
+    cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
+    # add low prority task as well  since it won't get cancelled till end of grace time
+    cancel_schedules.append({'agentid': agentid, 'taskid': 'task_low_priority'})
 
     start = str(datetime.now() + timedelta(seconds=10))
     end = str(datetime.now() + timedelta(seconds=20))
     header = {
         'type': 'NEW_SCHEDULE',
-        'requesterID': TEST_AGENT,  # The name of the requesting agent.
-        'taskID': this.taskid,  # unique (to all tasks) ID for scheduled task.
+        'requesterID': agentid,  # The name of the requesting agent.
+        'taskID': taskid,  # unique (to all tasks) ID for scheduled task.
         'priority': 'HIGH'
     }
     msg = [
@@ -976,8 +975,8 @@ def test_schedule_preempt_self(publish_agent, cancel_schedule):
     # First schedule the low priority task
     result = publish_agent.vip.rpc.call(
         'platform.actuator',
-        'request_new_schedule',
-        TEST_AGENT,
+        REQUEST_NEW_SCHEDULE,
+        agentid,
         'task_low_priority',
         'LOW',
         msg).get(timeout=10)
@@ -1021,18 +1020,18 @@ def test_schedule_preempt_self(publish_agent, cancel_schedule):
         # values remain as initialized above if/else
 
     assert schedule_header['type'] == 'NEW_SCHEDULE'
-    assert schedule_header['taskID'] == this.taskid
-    assert schedule_header['requesterID'] == TEST_AGENT
+    assert schedule_header['taskID'] == taskid
+    assert schedule_header['requesterID'] == agentid
     assert schedule_message['result'] == SUCCESS
 
     assert cancel_header['taskID'] == 'task_low_priority'
-    assert cancel_message['data']['agentID'] == TEST_AGENT
-    assert cancel_message['data']['taskID'] == this.taskid
+    assert cancel_message['data']['agentID'] == agentid
+    assert cancel_message['data']['taskID'] == taskid
     assert cancel_message['result'] == 'PREEMPTED'
 
 
 @pytest.mark.actuator_pubsub
-def test_schedule_preempt_other(publish_agent, cancel_schedule):
+def test_schedule_preempt_other(publish_agent, cancel_schedules):
     """
     Test error response for schedule request through pubsub.
     Test schedule preemption by a higher priority task from a different agent.
@@ -1049,21 +1048,23 @@ def test_schedule_preempt_other(publish_agent, cancel_schedule):
     }
     :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
     of Agent object used for publishing
-    :cancel_schedule: fixture used to cancel the schedule at the end of test so that other tests can use
+    :param cancel_schedules: fixture used to cancel the schedule at the end of test so that other tests can use
     the same device and time slot
     """
     print ("\n**** test_schedule_preempt_other ****")
-    # set agentid and task id for  cancel_schedule fixture
-    this = test_schedule_preempt_other
-    this.agentid = TEST_AGENT
-    this.taskid = 'task_high_priority'
+
+    agentid = TEST_AGENT
+    taskid = 'task_high_priority2'
+    cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
+    # add low prority task as well  since it won't get cancelled till end of grace time
+    cancel_schedules.append({'agentid': 'other_agent', 'taskid': 'task_low_priority2'})
 
     start = str(datetime.now() + timedelta(seconds=10))
     end = str(datetime.now() + timedelta(seconds=20))
     header = {
         'type': 'NEW_SCHEDULE',
-        'requesterID': TEST_AGENT,  # The name of the requesting agent.
-        'taskID': this.taskid,  # unique (to all tasks) ID for scheduled task.
+        'requesterID': agentid,  # The name of the requesting agent.
+        'taskID': taskid,  # unique (to all tasks) ID for scheduled task.
         'priority': 'HIGH'
     }
     msg = [
@@ -1074,9 +1075,9 @@ def test_schedule_preempt_other(publish_agent, cancel_schedule):
     # First schedule the low priority task
     result = publish_agent.vip.rpc.call(
         'platform.actuator',
-        'request_new_schedule',
+        REQUEST_NEW_SCHEDULE,
         'other_agent',
-        'task_low_priority',
+        'task_low_priority2',
         'LOW',
         msg).get(timeout=10)
     # expected result {'info': u'', 'data': {}, 'result': 'SUCCESS'}
@@ -1119,32 +1120,31 @@ def test_schedule_preempt_other(publish_agent, cancel_schedule):
         # values remain as initialized above if/else
 
     assert schedule_header['type'] == 'NEW_SCHEDULE'
-    assert schedule_header['taskID'] == this.taskid
-    assert schedule_header['requesterID'] == TEST_AGENT
+    assert schedule_header['taskID'] == taskid
+    assert schedule_header['requesterID'] == agentid
     assert schedule_message['result'] == SUCCESS
 
-    assert cancel_header['taskID'] == 'task_low_priority'
+    assert cancel_header['taskID'] == 'task_low_priority2'
     assert cancel_header['requesterID'] == 'other_agent'
-    assert cancel_message['data']['agentID'] == TEST_AGENT
-    assert cancel_message['data']['taskID'] == this.taskid
+    assert cancel_message['data']['agentID'] == agentid
+    assert cancel_message['data']['taskID'] == taskid
     assert cancel_message['result'] == 'PREEMPTED'
 
 
 @pytest.mark.actuator_pubsub
-def test_schedule_conflict(publish_agent, cancel_schedule):
+def test_schedule_conflict(publish_agent, cancel_schedules):
     """
     Test schedule conflict with existing schdeule
 
     :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
     of Agent object used for publishing
-    :cancel_schedule: fixture used to cancel the schedule at the end of test so that other tests can use
+    :param cancel_schedules: fixture used to cancel the schedule at the end of test so that other tests can use
     the same device and time slot
     """
     print ("\n**** test_schedule_conflict ****")
-    # set agentid and task id for  cancel_schedule fixture
-    this = test_schedule_conflict
-    this.agentid = TEST_AGENT
-    this.taskid = 'task_conflict1'
+    agentid = TEST_AGENT
+    taskid = 'task_conflict1'
+    cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
 
     start = str(datetime.now())
     end = str(datetime.now() + timedelta(seconds=2))
@@ -1153,9 +1153,9 @@ def test_schedule_conflict(publish_agent, cancel_schedule):
     ]
     result = publish_agent.vip.rpc.call(
         'platform.actuator',
-        'request_new_schedule',
-        TEST_AGENT,
-        this.taskid,
+        REQUEST_NEW_SCHEDULE,
+        agentid,
+        taskid,
         'LOW',
         msg).get(timeout=10)
     print result
@@ -1165,7 +1165,7 @@ def test_schedule_conflict(publish_agent, cancel_schedule):
     # now do second schedule expecting conflict
     header = {
         'type': 'NEW_SCHEDULE',
-        'requesterID': TEST_AGENT,  # The name of the requesting agent.
+        'requesterID': agentid,  # The name of the requesting agent.
         'taskID': 'task_conflict2',  # unique (to all tasks) ID for scheduled task.
         'priority': 'LOW'
     }
@@ -1224,20 +1224,19 @@ def test_schedule_conflict_self(publish_agent):
 
 
 @pytest.mark.actuator_pubsub
-def test_schedule_overlap(publish_agent, cancel_schedule):
+def test_schedule_overlap(publish_agent, cancel_schedules):
     """
     Test successful schedule when end time of one time slot is the same as start time of another slot
 
     :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
     of Agent object used for publishing
-    :cancel_schedule: fixture used to cancel the schedule at the end of test so that other tests can use
+    :param cancel_schedules: fixture used to cancel the schedule at the end of test so that other tests can use
     the same device and time slot
     """
     print ("\n**** test_schedule_overlap ****")
-    # set agentid and task id for  cancel_schedule fixture
-    this = test_schedule_overlap
-    this.agentid = TEST_AGENT
-    this.taskid = 'task_overlap'
+    agentid = TEST_AGENT
+    taskid = 'task_overlap'
+    cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
 
     start = str(datetime.now())
     end = str(datetime.now() + timedelta(seconds=1))
@@ -1248,8 +1247,8 @@ def test_schedule_overlap(publish_agent, cancel_schedule):
     ]
     header = {
         'type': 'NEW_SCHEDULE',
-        'requesterID': TEST_AGENT,  # The name of the requesting agent.
-        'taskID': this.taskid,  # unique (to all tasks) ID for scheduled task.
+        'requesterID': agentid,  # The name of the requesting agent.
+        'taskID': taskid,  # unique (to all tasks) ID for scheduled task.
         'priority': 'LOW'
     }
 
@@ -1265,7 +1264,7 @@ def test_schedule_overlap(publish_agent, cancel_schedule):
     result_header = publish_agent.callback.call_args[0][4]
     result_message = publish_agent.callback.call_args[0][5]
     assert result_header['type'] == 'NEW_SCHEDULE'
-    assert result_header['taskID'] == this.taskid
+    assert result_header['taskID'] == taskid
     assert result_message['result'] == SUCCESS
 
 
@@ -1306,20 +1305,19 @@ def test_cancel_error_invalid_task(publish_agent):
 
 
 @pytest.mark.actuator_pubsub
-def test_cancel_error_taskid_agentid_mismatch(publish_agent, cancel_schedule):
+def test_cancel_error_taskid_agentid_mismatch(publish_agent, cancel_schedules):
     """
     Test cancel error when there is a mismatch between the agentid used to schdeule and agent id used to cancel
 
     :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
     of Agent object used for publishing
-    :cancel_schedule: fixture used to cancel the schedule at the end of test so that other tests can use
+    :param cancel_schedules: fixture used to cancel the schedule at the end of test so that other tests can use
     the same device and time slot
     """
     print ("\n**** test_cancel_error_taskid_agentid_mismatch ****")
-    # set agentid and task id for  cancel_schedule fixture
-    this = test_cancel_error_taskid_agentid_mismatch
-    this.agentid = TEST_AGENT
-    this.taskid = 'task_invalid_cancel'
+    agentid = TEST_AGENT
+    taskid = 'task_invalid_cancel'
+    cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
 
     start = str(datetime.now())
     end = str(datetime.now() + timedelta(seconds=2))
@@ -1328,9 +1326,9 @@ def test_cancel_error_taskid_agentid_mismatch(publish_agent, cancel_schedule):
     ]
     result = publish_agent.vip.rpc.call(
         'platform.actuator',
-        'request_new_schedule',
-        TEST_AGENT,
-        this.taskid,
+        REQUEST_NEW_SCHEDULE,
+        agentid,
+        taskid,
         'LOW',
         msg).get(timeout=10)
     print result
@@ -1340,7 +1338,7 @@ def test_cancel_error_taskid_agentid_mismatch(publish_agent, cancel_schedule):
     header = {
         'type': 'CANCEL_SCHEDULE',
         'requesterID': 'invalid_agent_for_task',  # The name of the requesting agent.
-        'taskID': this.taskid
+        'taskID': taskid
     }
     publish_agent.callback.reset_mock()  # reset mock to ignore any previous callback
     publish_agent.vip.pubsub.publish(peer='pubsub', topic=topics.ACTUATOR_SCHEDULE_REQUEST, headers=header,
@@ -1408,7 +1406,7 @@ def test_get_default(publish_agent):
 
 
 @pytest.mark.actuator_pubsub
-def test_get_value_success(publish_agent, cancel_schedule):
+def test_get_value_success(publish_agent, cancel_schedules):
     """
     Test getting a float value of a point through pubsub
     Format of expected result
@@ -1420,13 +1418,14 @@ def test_get_value_success(publish_agent, cancel_schedule):
 
     :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
     of Agent object used for publishing
-    :cancel_schedule: fixture used to cancel the schedule at the end of test so that other tests can use the same
+    :param cancel_schedules: fixture used to cancel the schedule at the end of test so that other tests can use the same
     device and time slot
     """
     print ("\n**** test_get_value_success ****")
-    # set agentid and task id for  cancel_schedule fixture
-    this = test_get_value_success
-    this.taskid = 'task_get_value_success'
+
+    agentid = TEST_AGENT
+    taskid = 'task_get_value_success'
+    cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
 
     # Mock callback methods
     publish_agent.callback = MagicMock(name="callback")
@@ -1447,9 +1446,9 @@ def test_get_value_success(publish_agent, cancel_schedule):
     ]
     result = publish_agent.vip.rpc.call(
         'platform.actuator',
-        'request_new_schedule',
-        TEST_AGENT,
-        this.taskid,
+        REQUEST_NEW_SCHEDULE,
+        agentid,
+        taskid,
         'LOW',
         msg).get(timeout=10)
     # expected result {'info': u'', 'data': {}, 'result': 'SUCCESS'}
@@ -1464,7 +1463,7 @@ def test_get_value_success(publish_agent, cancel_schedule):
     result = publish_agent.vip.rpc.call(
         'platform.actuator',  # Target agent
         'set_point',  # Method
-        TEST_AGENT,  # Requestor
+        agentid,  # Requestor
         'fakedriver1/SampleWritableFloat1',  # Point to set
         20.5  # New value
     ).get(timeout=10)
@@ -1481,7 +1480,7 @@ def test_get_value_success(publish_agent, cancel_schedule):
     assert publish_agent.callback.call_args[0][3] == value_topic
     result_header = publish_agent.callback.call_args[0][4]
     result_message = publish_agent.callback.call_args[0][5]
-    assert result_header['requesterID'] == TEST_AGENT
+    assert result_header['requesterID'] == agentid
     assert result_message == 20.5
 
 
@@ -1539,7 +1538,7 @@ def test_get_error_invalid_point(publish_agent):
 
 
 @pytest.mark.actuator_pubsub
-def test_set_value_bool(publish_agent, cancel_schedule):
+def test_set_value_bool(publish_agent, cancel_schedules):
     """
     Test setting a float value of a point through pubsub
     Format of expected result
@@ -1550,14 +1549,13 @@ def test_set_value_bool(publish_agent, cancel_schedule):
     The message contains the value of the actuation point in JSON
     :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
     of Agent object used for publishing
-    :cancel_schedule: fixture used to cancel the schedule at the end of test so that other tests can use the
+    :param cancel_schedules: fixture used to cancel the schedule at the end of test so that other tests can use the
     same device and time slot
     """
     print ("\n**** test_set_value_bool ****")
-    # set agentid and task id for  cancel_schedule fixture
-    this = test_set_value_bool
-    this.agentid = TEST_AGENT
-    this.taskid = 'task_set_bool_value'
+    agentid = TEST_AGENT
+    taskid = 'task_set_bool_value'
+    cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
 
     # Mock callback methods
     publish_agent.callback = MagicMock(name="callback")
@@ -1578,16 +1576,16 @@ def test_set_value_bool(publish_agent, cancel_schedule):
     ]
     result = publish_agent.vip.rpc.call(
         'platform.actuator',
-        'request_new_schedule',
-        TEST_AGENT,
-        this.taskid,
+        REQUEST_NEW_SCHEDULE,
+        agentid,
+        taskid,
         'LOW',
         msg).get(timeout=10)
     # expected result {'info': u'', 'data': {}, 'result': 'SUCCESS'}
     assert result['result'] == 'SUCCESS'
     # set value
     header = {
-        'requesterID': TEST_AGENT
+        'requesterID': agentid
     }
 
     publish_agent.vip.pubsub.publish('pubsub',
@@ -1603,12 +1601,12 @@ def test_set_value_bool(publish_agent, cancel_schedule):
     assert publish_agent.callback.call_args[0][3] == value_topic
     result_header = publish_agent.callback.call_args[0][4]
     result_message = publish_agent.callback.call_args[0][5]
-    assert result_header['requesterID'] == TEST_AGENT
-    assert result_message == True
+    assert result_header['requesterID'] == agentid
+    assert result_message is True
 
 
 @pytest.mark.actuator_pubsub
-def test_set_value_array(publish_agent, cancel_schedule):
+def test_set_value_array(publish_agent, cancel_schedules):
     """
     Test setting point through pubsub. Set value as array with length=1
     Format of expected result
@@ -1626,14 +1624,13 @@ def test_set_value_array(publish_agent, cancel_schedule):
     }
     :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
     of Agent object used for publishing
-    :cancel_schedule: fixture used to cancel the schedule at the end of test so that other tests can use the
+    :param cancel_schedules: fixture used to cancel the schedule at the end of test so that other tests can use the
     same device and time slot
     """
     print ("\n**** test_set_value_array ****")
-    # set agentid and task id for  cancel_schedule fixture
-    this = test_set_value_array
-    this.agentid = TEST_AGENT
-    this.taskid = 'task_set_array_value'
+    agentid = TEST_AGENT
+    taskid = 'task_set_array_value'
+    cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
 
     # Mock callback methods
     publish_agent.callback = MagicMock(name="callback")
@@ -1654,9 +1651,9 @@ def test_set_value_array(publish_agent, cancel_schedule):
     ]
     result = publish_agent.vip.rpc.call(
         'platform.actuator',
-        'request_new_schedule',
-        TEST_AGENT,
-        this.taskid,
+        REQUEST_NEW_SCHEDULE,
+        agentid,
+        taskid,
         'LOW',
         msg).get(timeout=10)
     # expected result {'info': u'', 'data': {}, 'result': 'SUCCESS'}
@@ -1664,7 +1661,7 @@ def test_set_value_array(publish_agent, cancel_schedule):
     assert result['result'] == 'SUCCESS'
     # set value
     header = {
-        'requesterID': TEST_AGENT
+        'requesterID': agentid
     }
 
     set_topic = topics.ACTUATOR_SET(campus='', building='', unit='fakedriver0', point='SampleWritableFloat1')
@@ -1680,13 +1677,13 @@ def test_set_value_array(publish_agent, cancel_schedule):
     assert publish_agent.callback.call_args[0][3] == error_topic
     result_header = publish_agent.callback.call_args[0][4]
     result_message = publish_agent.callback.call_args[0][5]
-    assert result_header['requesterID'] == TEST_AGENT
+    assert result_header['requesterID'] == agentid
     assert result_message['type'] == 'TypeError'
     assert result_message['value'] == "['float() argument must be a string or a number']"
 
 
 @pytest.mark.actuator_pubsub
-def test_set_value_float(publish_agent, cancel_schedule):
+def test_set_value_float(publish_agent, cancel_schedules):
     """
     Test setting a float value of a point  through pubsub.
     Value is set without enclosing it in an list
@@ -1705,14 +1702,13 @@ def test_set_value_float(publish_agent, cancel_schedule):
     }
     :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
     of Agent object used for publishing
-    :cancel_schedule: fixture used to cancel the schedule at the end of test so that other tests can use the same
+    :param cancel_schedules: fixture used to cancel the schedule at the end of test so that other tests can use the same
     device and time slot
     """
     print ("\n**** test_set_value_float ****")
-    # set agentid and task id for  cancel_schedule fixture
-    this = test_set_value_float
-    this.agentid = TEST_AGENT
-    this.taskid = 'task_set_float_value'
+    agentid = TEST_AGENT
+    taskid = 'task_set_float_value'
+    cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
 
     # Mock callback methods
     publish_agent.callback = MagicMock(name="callback")
@@ -1733,9 +1729,9 @@ def test_set_value_float(publish_agent, cancel_schedule):
     ]
     result = publish_agent.vip.rpc.call(
         'platform.actuator',
-        'request_new_schedule',
-        TEST_AGENT,
-        this.taskid,
+        REQUEST_NEW_SCHEDULE,
+        agentid,
+        taskid,
         'LOW',
         msg).get(timeout=10)
     # expected result {'info': u'', 'data': {}, 'result': 'SUCCESS'}
@@ -1760,12 +1756,12 @@ def test_set_value_float(publish_agent, cancel_schedule):
     assert publish_agent.callback.call_args[0][3] == value_topic
     result_header = publish_agent.callback.call_args[0][4]
     result_message = publish_agent.callback.call_args[0][5]
-    assert result_header['requesterID'] == TEST_AGENT
+    assert result_header['requesterID'] == agentid
     assert result_message == 0.2
 
 
 @pytest.mark.actuator_pubsub
-def test_set_read_only_point(publish_agent, cancel_schedule):
+def test_set_read_only_point(publish_agent, cancel_schedules):
     """
     Test setting a value of a read only point through pubsub
     Format of expected result
@@ -1781,14 +1777,13 @@ def test_set_read_only_point(publish_agent, cancel_schedule):
 
     :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
     of Agent object used for publishing
-    :cancel_schedule: fixture used to cancel the schedule at the end of test so that other tests can use the same
+    :param cancel_schedules: fixture used to cancel the schedule at the end of test so that other tests can use the same
     device and time slot
     """
     print ("\n**** test_set_read_only_point ****")
-    # set agentid and task id for  cancel_schedule fixture
-    this = test_set_read_only_point
-    this.agentid = TEST_AGENT
-    this.taskid = 'task_set_readonly_point'
+    agentid = TEST_AGENT
+    taskid = 'task_set_readonly_point'
+    cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
 
     # Mock callback methods
     publish_agent.callback = MagicMock(name="callback")
@@ -1809,9 +1804,9 @@ def test_set_read_only_point(publish_agent, cancel_schedule):
     ]
     result = publish_agent.vip.rpc.call(
         'platform.actuator',
-        'request_new_schedule',
-        TEST_AGENT,
-        this.taskid,
+        REQUEST_NEW_SCHEDULE,
+        agentid,
+        taskid,
         'LOW',
         msg).get(timeout=10)
     # expected result {'info': u'', 'data': {}, 'result': 'SUCCESS'}
@@ -1830,8 +1825,8 @@ def test_set_read_only_point(publish_agent, cancel_schedule):
                                      message=['0.2']).get(timeout=10)
     publish_agent.vip.rpc.call(
         'platform.actuator',
-        'request_cancel_schedule',
-        TEST_AGENT,
+        REQUEST_CANCEL_SCHEDULE,
+        agentid,
         'task_set_read_only_point').get(timeout=10)
     gevent.sleep(1)
 
@@ -1841,7 +1836,7 @@ def test_set_read_only_point(publish_agent, cancel_schedule):
     assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
     assert publish_agent.callback.call_args[0][3] == error_topic
     result_header = publish_agent.callback.call_args[0][4]
-    assert result_header['requesterID'] == TEST_AGENT
+    assert result_header['requesterID'] == agentid
     result_message = publish_agent.callback.call_args[0][5]
     assert result_message['type'] == 'IOError'
     assert result_message['value'] == "['Trying to write to a point configured read only: OutsideAirTemperature1']"
@@ -1924,7 +1919,7 @@ def test_set_lock_error(publish_agent):
 
 
 @pytest.mark.actuator_pubsub
-def test_set_value_error(publish_agent, cancel_schedule):
+def test_set_value_error(publish_agent, cancel_schedules):
     """
     Test setting a value of a point through pubsub
     Format of expected result
@@ -1940,14 +1935,14 @@ def test_set_value_error(publish_agent, cancel_schedule):
 
     :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
     of Agent object used for publishing
-    :cancel_schedule: fixture used to cancel the schedule at the end of test so that other tests can use the same
+    :param cancel_schedules: fixture used to cancel the schedule at the end of test so that other tests can use the same
     device and time slot
     """
     print ("\n**** test_set_value_error ****")
-    # set agentid and task id for  cancel_schedule fixture
-    this = test_set_value_error
-    this.agentid = TEST_AGENT
-    this.taskid = 'task_set_value_error'
+
+    agentid = TEST_AGENT
+    taskid = 'task_set_value_error'
+    cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
 
     # Mock callback methods
     publish_agent.callback = MagicMock(name="callback_value_error")
@@ -1968,9 +1963,9 @@ def test_set_value_error(publish_agent, cancel_schedule):
     ]
     result = publish_agent.vip.rpc.call(
         'platform.actuator',
-        'request_new_schedule',
-        TEST_AGENT,
-        this.taskid,
+        REQUEST_NEW_SCHEDULE,
+        agentid,
+        taskid,
         'LOW',
         msg).get(timeout=10)
     # expected result {'info': u'', 'data': {}, 'result': 'SUCCESS'}
@@ -1978,7 +1973,7 @@ def test_set_value_error(publish_agent, cancel_schedule):
     assert result['result'] == 'SUCCESS'
     # set value
     header = {
-        'requesterID': TEST_AGENT
+        'requesterID': agentid
     }
 
     set_topic = topics.ACTUATOR_SET(campus='', building='', unit='fakedriver0', point='SampleWritableFloat1')
@@ -1996,13 +1991,13 @@ def test_set_value_error(publish_agent, cancel_schedule):
     assert publish_agent.callback.call_args[0][3] == error_topic
     result_header = publish_agent.callback.call_args[0][4]
     result_message = publish_agent.callback.call_args[0][5]
-    assert result_header['requesterID'] == TEST_AGENT
+    assert result_header['requesterID'] == agentid
     assert result_message['type'] == 'ValueError'
     assert result_message['value'] == "['could not convert string to float: abcd']"
 
 
 @pytest.mark.actuator_pubsub
-def test_set_error_none_agent(publish_agent, cancel_schedule):
+def test_set_error_none_agent(publish_agent, cancel_schedules):
     """
     Test setting a value of a point through pubsub without a valid agent id
     Format of expected result
@@ -2018,14 +2013,13 @@ def test_set_error_none_agent(publish_agent, cancel_schedule):
 
     :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
     of Agent object used for publishing
-    :cancel_schedule: fixture used to cancel the schedule at the end of test so that other tests can use the same
+    :param cancel_schedules: fixture used to cancel the schedule at the end of test so that other tests can use the same
     device and time slot
     """
     print ("\n**** test_set_error_none_agent ****")
-    # set agentid and task id for  cancel_schedule fixture
-    this = test_set_error_none_agent
-    this.agentid = TEST_AGENT
-    this.taskid = 'task_set_none_agent'
+    agentid = TEST_AGENT
+    taskid = 'task_set_none_agent'
+    cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
 
     # Mock callback methods
     publish_agent.callback = MagicMock(name="callback_value_error")
@@ -2046,9 +2040,9 @@ def test_set_error_none_agent(publish_agent, cancel_schedule):
     ]
     result = publish_agent.vip.rpc.call(
         'platform.actuator',
-        'request_new_schedule',
-        TEST_AGENT,
-        this.taskid,
+        REQUEST_NEW_SCHEDULE,
+        agentid,
+        taskid,
         'LOW',
         msg).get(timeout=10)
     # expected result {'info': u'', 'data': {}, 'result': 'SUCCESS'}
@@ -2072,15 +2066,13 @@ def test_set_error_none_agent(publish_agent, cancel_schedule):
     print ('call args ', publish_agent.callback.call_args[0])
     assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
     assert publish_agent.callback.call_args[0][3] == error_topic
-    result_header = publish_agent.callback.call_args[0][4]
     result_message = publish_agent.callback.call_args[0][5]
-    # assert result_header['requesterID'] == TEST_AGENT
     assert result_message['type'] == 'TypeError'
-    assert result_message['value'] == 'Agent id must be a string'
+    assert result_message['value'] == 'Agent id must be a nonempty string'
 
 
 @pytest.mark.actuator_pubsub
-def test_set_error_empty_header(publish_agent, cancel_schedule):
+def test_set_error_empty_header(publish_agent, cancel_schedules):
     """
     Test setting a value of a point through pubsub with an empty header(no agent id)
     Format of expected result
@@ -2096,14 +2088,13 @@ def test_set_error_empty_header(publish_agent, cancel_schedule):
 
     :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
     of Agent object used for publishing
-    :cancel_schedule: fixture used to cancel the schedule at the end of test so that other tests can use the same
+    :param cancel_schedules: fixture used to cancel the schedule at the end of test so that other tests can use the same
     device and time slot
     """
     print ("\n**** test_set_error_empty_header ****")
-    # set agentid and task id for  cancel_schedule fixture
-    this = test_set_error_empty_header
-    this.agentid = TEST_AGENT
-    this.taskid = 'task_set_none_agent'
+    agentid = TEST_AGENT
+    taskid = 'task_set_none_agent'
+    cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
 
     # Mock callback methods
     publish_agent.callback = MagicMock(name="callback_value_error")
@@ -2124,9 +2115,9 @@ def test_set_error_empty_header(publish_agent, cancel_schedule):
     ]
     result = publish_agent.vip.rpc.call(
         'platform.actuator',
-        'request_new_schedule',
-        TEST_AGENT,
-        this.taskid,
+        REQUEST_NEW_SCHEDULE,
+        agentid,
+        taskid,
         'LOW',
         msg).get(timeout=10)
     # expected result {'info': u'', 'data': {}, 'result': 'SUCCESS'}
@@ -2149,7 +2140,6 @@ def test_set_error_empty_header(publish_agent, cancel_schedule):
     print ('call args ', publish_agent.callback.call_args[0])
     assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
     assert publish_agent.callback.call_args[0][3] == error_topic
-    result_header = publish_agent.callback.call_args[0][4]
     result_message = publish_agent.callback.call_args[0][5]
     assert result_message['type'] == 'TypeError'
-    assert result_message['value'] == 'Agent id must be a string'
+    assert result_message['value'] == 'Agent id must be a nonempty string'
