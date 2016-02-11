@@ -506,7 +506,7 @@ def ilc_agent(config_path, **kwargs):
 
     demand_limit = float(config['demand_limit'])
     curtail_time = td(minutes=config.get('curtailment_time', 15.0))
-    average_building_power_window = td(minutes=config.get('average_building_power_window'), 5.0)
+    average_building_power_window = td(minutes=config.get('average_building_power_window', 5.0))
     curtail_confirm = td(minutes=config.get('curtailment_confirm', 5.0))
     curtail_break = td(minutes=config.get('curtailment_break', 5.0))
     actuator_schedule_buffer = td(minutes=config.get('actuator_schedule_buffer', 5.0))
