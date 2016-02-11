@@ -253,7 +253,7 @@ def actuator_agent(config_path, **kwargs):
 
             headers = self.get_headers(requester_id)
             if not isinstance(requester_id, str):
-                raise TypeError("Agent id must be a string")
+                raise TypeError("Agent id must be a nonempty string")
             if self.check_lock(path, requester_id):
                 result = self.vip.rpc.call(driver_vip_identity, 'set_point', path, point_name, value, **kwargs).get()
 
