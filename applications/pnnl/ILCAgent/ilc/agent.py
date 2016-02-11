@@ -60,14 +60,11 @@ import logging
 from datetime import timedelta as td, datetime as dt
 from copy import deepcopy
 from dateutil import parser
-# from _ast import comprehension
 from sympy import symbols
 from sympy.parsing.sympy_parser import parse_expr
 import abc
 from collections import deque
 
-# from volttron.platform.agent import utils, matching, sched
-# from volttron.platform.messaging import headers as headers_mod,
 from volttron.platform.messaging import topics
 from volttron.platform.agent import utils
 from volttron.platform.agent.utils import jsonapi, setup_logging
@@ -78,12 +75,11 @@ from ilc.ilc_matrices import (extract_criteria, calc_column_sums,
 from volttron.platform.jsonrpc import RemoteError
 import gevent
 
-__version__ = '1.0.0'
+__version__ = '2.0.0'
 
 MATRIX_ROWSTRING = '%20s\t%12.2f%12.2f%12.2f%12.2f%12.2f'
 CRITERIA_LABELSTRING = '\t\t\t%12s%12s%12s%12s%12s'
 DATE_FORMAT = '%m-%d-%y %H:%M:%S'
-TESTING = True
 setup_logging()
 _log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.debug,
@@ -421,10 +417,10 @@ class Clusters(object):
         return results
 
 
-def ahp(config_path, **kwargs):
-    '''Intelligent Load Curtailment Algorithm'
+def ilc_agent(config_path, **kwargs):
+    '''Intelligent Load Curtailment (ILC) Application using
 
-    using Analytical Hierarchical Process.
+    Analytical Hierarchical Process (AHP).
     '''
     config = utils.load_config(config_path)
     location = {}
@@ -496,7 +492,7 @@ def ahp(config_path, **kwargs):
                                              unit=power_meter,
                                              path='',
                                              point='all')
-    
+
     kill_device_topic = None
     kill_token = config.get('kill_switch')
     if kill_token is not None:
@@ -507,11 +503,10 @@ def ahp(config_path, **kwargs):
                                                  unit=kill_device,
                                                  path='',
                                                  point='all')
-        
-    
 
     demand_limit = float(config['demand_limit'])
     curtail_time = td(minutes=config.get('curtailment_time', 15.0))
+    average_building_power_window = td(minutes=config.get('average_building_power_window', 5.0))
     curtail_confirm = td(minutes=config.get('curtailment_confirm', 5.0))
     curtail_break = td(minutes=config.get('curtailment_break', 5.0))
     actuator_schedule_buffer = td(minutes=config.get('actuator_schedule_buffer', 5.0))
@@ -532,12 +527,14 @@ def ahp(config_path, **kwargs):
             self.kill_signal_recieved = False
             self.scheduled_devices = set()
             self.devices_curtailed = set()
+            self.bldg_power = []
 
         @Core.receiver('onstart')
         def starting_base(self, sender, **kwargs):
             '''startup method:
              - Extract Criteria Matrix from excel file.
-             - Setup subscriptions to device and building power meter.
+             - Setup subscriptions to curtailable devices.
+             - Setup subscription to building power meter.
             '''
             for device_topic in device_topic_list:
                 _log.debug('Subscribing to '+device_topic)
@@ -548,35 +545,36 @@ def ahp(config_path, **kwargs):
             self.vip.pubsub.subscribe(peer='pubsub',
                                       prefix=power_meter_topic,
                                       callback=self.load_message_handler)
-            
+
             if kill_device_topic is not None:
                 _log.debug('Subscribing to '+kill_device_topic)
                 self.vip.pubsub.subscribe(peer='pubsub',
                                           prefix=kill_device_topic,
                                           callback=self.handle_agent_kill)
-            
-        
+
         def handle_agent_kill(self, peer, sender, bus, topic, headers, message):
+            '''
+            Locally implemented override for ILC application.
+
+            When an override is detected the ILC application will return
+            operations for all units to normal.
+            '''
             data = message[0]
             _log.info('Checking kill signal')
             kill_signal = bool(data[kill_pt])
-            
+
             if kill_signal:
-                _log.info('Kill signal recieved, shutting down')
+                _log.info('Kill signal received, shutting down')
                 self.kill_signal_recieved = False
                 gevent.sleep(8)
                 self.end_curtail()
                 sys.exit()
-                
 
         def new_data(self, peer, sender, bus, topic, headers, message):
-            '''Generate static configuration inputs for
-
-            priority calculation.
-            '''
+            '''Call back method for curtailable device data subscription.'''
             if self.kill_signal_recieved:
                 return
-            
+
             _log.info('Data Received for {}'.format(topic))
 
             # topic of form:  devices/campus/building/device
@@ -588,16 +586,27 @@ def ahp(config_path, **kwargs):
             clusters.get_device(device_name).ingest_data(now, data)
 
         def load_message_handler(self, peer, sender, bus, topic, headers, message):
+            '''Call back method for building power meter. Calculates the average
+            building demand over a configurable time and manages the curtailment
+            time and curtailment break times.
+            '''
             if self.kill_signal_recieved:
                 return
-            
+
             _log.debug('Reading building power data.')
-            bldg_power = float(message[0][power_pt])
+            current_power = float(message[0][power_pt])
+
+            if current_power < 0:
+                current_power = 0.0
 
             now = parser.parse(headers['Date'])
+            self.bldg_power.append((now, current_power))
+            if self.bldg_power[-1][0] - self.bldg_power[0][0] > average_building_power_window:
+                self.bldg_power.pop(0)
+            average_power = sum(power[1] for power in self.bldg_power)/len(self.bldg_power)
 
             _log.debug('Reported time: '+str(now))
-            _log.info('Current load: {}'.format(bldg_power))
+            _log.info('Current load: {}'.format(average_power))
 
             if self.reset_curtail_count_time is not None:
                 if self.reset_curtail_count_time <= now:
@@ -610,22 +619,23 @@ def ahp(config_path, **kwargs):
                     self.end_curtail()
 
                 elif now >= self.next_curtail_confirm:
-                    self.curtail_confirm(bldg_power, now)
+                    self.curtail_confirm(average_power, now)
                 return
 
             elif self.break_end is not None and now < self.break_end:
-		_log.debug('Skipping load check, still on curtailment break.')
+                _log.debug('Skipping load check, still on curtailment break.')
                 return
 
-            self.check_load(bldg_power, now)
+            self.check_load(average_power, now)
 
         def check_load(self, bldg_power, now):
             '''Check whole building power and if the value is above the
+
             the demand limit (demand_limit) then initiate the ILC (AHP)
             sequence.
-            '''            
+            '''
             _log.debug('Checking building load.')
-            
+
             if bldg_power > demand_limit:
                 _log.info('Current load ({load}) exceeds limit or {limit}.'.format(load=bldg_power, limit=demand_limit))
 
@@ -679,11 +689,11 @@ def ahp(config_path, **kwargs):
                         break
                     result = self.vip.rpc.call('platform.actuator', 'set_point',
                                                agent_id, curtailed_point,
-                                               curtail_val).get(timeout=4)                    
+                                               curtail_val).get(timeout=4)
                 except RemoteError as ex:
                     _log.warning("Failed to set {} to {}: {}".format(curtailed_point, curtail_val, str(ex)))
                     continue
-                
+
                 est_curtailed += curtail_load
                 clusters.get_device(device_name).increment_curtail(command)
                 self.devices_curtailed.add(item)
@@ -698,7 +708,11 @@ def ahp(config_path, **kwargs):
             return remaining_devices
 
         def curtail_confirm(self, cur_pwr, now):
-            '''Check if load shed goal is met.'''
+            '''Check if load shed has been met.  If the demand goal is not
+
+            met and there are additional devices to curtail then the ILC will shed
+            additional load by curtailing more devices.
+            '''
             if cur_pwr < demand_limit:
                 _log.info('Curtail goal for building load met.')
             else:
@@ -749,7 +763,7 @@ def ahp(config_path, **kwargs):
                 except RemoteError as ex:
                     _log.warning("Failed to schedule device {} (RemoteError): {}".format(device, str(ex)))
                     continue
-                
+
                 if result['result'] == 'FAILURE':
                     _log.warn('Failed to schedule device (unavailable) ' + device)
                     already_handled[device] = False
@@ -780,7 +794,7 @@ def ahp(config_path, **kwargs):
                 except RemoteError as ex:
                     _log.warning("Failed to revert point {} (RemoteError): {}".format(curtailed_point, str(ex)))
                     continue
-                
+
             self.devices_curtailed = set()
 
         def release_devices(self):
@@ -796,7 +810,7 @@ def ahp(config_path, **kwargs):
 
 def main(argv=sys.argv):
     '''Main method called to start the agent.'''
-    utils.vip_main(ahp)
+    utils.vip_main(ilc_agent)
 
 
 if __name__ == '__main__':
