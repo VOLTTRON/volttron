@@ -90,6 +90,7 @@ from .vip.tracking import Tracker
 from .auth import AuthService
 from .control import ControlService
 from .agent import utils
+from .vip.agent.subsystems.pubsub import ProtectedPubSubTopics
 
 try:
     import volttron.restricted
@@ -359,22 +360,15 @@ class PubSubService(Agent):
             _log.exception('error loading %s', self._protected_topics_file)
         else:
             protect_data = topics_data.get('protect', [])
+            topics = ProtectedPubSubTopics()
             try:
-                topics_dict = self._build_topics_dict(protect_data)
+                for entry in protect_data:
+                    topics.add(entry['topic'], entry['capabilities'])
             except KeyError:
                 _log.exception('invalid format for protected topics '
                                'file {}'.format(self._protected_topics_file))
             else:
-                self.vip.pubsub.set_protected_topics(topics_dict)
-
-    def _build_topics_dict(self, protect_data):
-        topics_dict = {}
-        for entry in protect_data:
-            caps = entry['capabilities']
-            if isinstance(caps, basestring):
-                caps = [caps]
-            topics_dict[entry['topic']] = caps
-        return topics_dict
+                self.vip.pubsub.protected_topics = topics
 
 
 def start_volttron_process(opts):
