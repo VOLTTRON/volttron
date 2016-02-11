@@ -157,23 +157,37 @@ class PlatformWrapper:
             fd.write(key)
         return encode_key(key[:40]) # public key
 
-    def _append_allow_curve_key(self, publickey):
-        cred = 'CURVE:{}'.format(publickey)
+    def _read_auth_file(self):
         auth_path = os.path.join(self.volttron_home, 'auth.json')
-
         try:
             with open(auth_path, 'r') as fd:
                 data = strip_comments(FileObject(fd, close=False).read())
                 auth = jsonapi.loads(data)
         except IOError:
             auth = {}
-
         if not 'allow' in auth:
             auth['allow'] = []
+        return auth, auth_path
 
+    def _append_allow_curve_key(self, publickey):
+        auth, auth_path = self._read_auth_file()
+        cred = 'CURVE:{}'.format(publickey)
         allow = auth['allow']
         if not any(record['credentials'] == cred for record in allow):
             allow.append({'credentials': cred})
+
+        with open(auth_path, 'w+') as fd:
+            json.dump(auth, fd)
+
+    def add_capabilities(self, publickey, capabilities):
+        if isinstance(capabilities, basestring):
+            capabilities = [capabilities]
+        auth, auth_path = self._read_auth_file()
+        cred = 'CURVE:{}'.format(publickey)
+        allow = auth['allow']
+        entry = next((item for item in allow if item['credentials'] == cred), {})
+        caps = entry.get('capabilities', [])
+        entry['capabilities'] = list(set(caps + capabilities))
 
         with open(auth_path, 'w+') as fd:
             json.dump(auth, fd)
