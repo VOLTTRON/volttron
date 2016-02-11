@@ -122,7 +122,7 @@ def build_protected_pubsub(instance, topic, capabilities, topic_regex=None,
     agent1, agent2, topic, msgs = build_two_agents_pubsub_agents(instance,
                                                                  topic)
     topic_to_protect = topic_regex if topic_regex else topic
-    topic_dict = {'protect': [{'topic': topic_to_protect,
+    topic_dict = {'write-protect': [{'topic': topic_to_protect,
                                'capabilities': capabilities}]}
 
     write_protected_topic_to_file(instance, topic_dict)

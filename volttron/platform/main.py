@@ -331,7 +331,7 @@ class Router(BaseRouter):
 
 
 _SAMPLE_PROTECTED_TOPICS_FILE = r'''{
-    "protect": [
+    "write-protect": [
     # {"topic": "foo", "capabilities": ["can_publish_to_foo"]}
     ]
 }
@@ -350,6 +350,8 @@ class PubSubService(Agent):
         self.vip.pubsub.add_bus('')
 
     def _read_protected_topics_file(self):
+        _log.info('loading protected-topics file %s',
+                  self._protected_topics_file)
         try:
             utils.create_file_if_missing(self._protected_topics_file)
             with open(self._protected_topics_file) as fil:
@@ -359,16 +361,18 @@ class PubSubService(Agent):
         except Exception:
             _log.exception('error loading %s', self._protected_topics_file)
         else:
-            protect_data = topics_data.get('protect', [])
+            write_protect = topics_data.get('write-protect', [])
             topics = ProtectedPubSubTopics()
             try:
-                for entry in protect_data:
+                for entry in write_protect:
                     topics.add(entry['topic'], entry['capabilities'])
             except KeyError:
                 _log.exception('invalid format for protected topics '
                                'file {}'.format(self._protected_topics_file))
             else:
                 self.vip.pubsub.protected_topics = topics
+                _log.info('protected-topics file %s loaded',
+                          self._protected_topics_file)
 
 
 def start_volttron_process(opts):
