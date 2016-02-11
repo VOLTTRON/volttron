@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 #
-# Copyright (c) 2015, Battelle Memorial Institute
+# Copyright (c) 2016, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -126,6 +126,9 @@ def historian(config_path, **kwargs):
                     data = jsonapi.loads(message[0])
                 if isinstance(data, dict):
                     data = data
+                elif isinstance(data, int) or isinstance(data, float) \
+                    or isinstance(data, long):
+                    data = data
                 else:
                     data = data[0]
             except ValueError as e:
@@ -191,7 +194,7 @@ def historian(config_path, **kwargs):
             self._target_platform = agent
 
     ForwardHistorian.__name__ = 'ForwardHistorian'
-    return ForwardHistorian(**kwargs)
+    return ForwardHistorian(identity=identity, **kwargs)
 
 
 def main(argv=sys.argv):
