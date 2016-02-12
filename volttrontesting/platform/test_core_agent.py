@@ -8,6 +8,7 @@ import requests
 logging.basicConfig(level=logging.DEBUG)
 from volttrontesting.utils.build_agent import build_agent, build_agent_with_key
 from volttron.platform.vip.agent import Agent, Core, RPC
+from volttron.platform.vip.agent.core import STATUS_GOOD, STATUS_BAD, STATUS_UNKNOWN
 
 @pytest.fixture
 def example_agent(volttron_instance1):
@@ -60,8 +61,15 @@ def example_agent(volttron_instance1):
         def baz(self):
             return 'baz'
 
+        def set_status(state, context):
+            self._set_status(state, context)
+
     return ExampleAgent(address=volttron_instance1.vip_address)
 
 @pytest.mark.agent
 def test_agent_status_set_when_created(example_agent):
     assert example_agent.core.status() is not None
+    assert isinstance(example_agent.core.status(), str)
+    l = json.loads(example_agent.core.status())
+    assert l['state'] == STATUS_GOOD
+    assert l['context'] is not None

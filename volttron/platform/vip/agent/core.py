@@ -72,6 +72,7 @@ import urlparse
 import gevent.event
 from zmq import green as zmq
 from zmq.green import ZMQError, EAGAIN
+from zmq.utils import jsonapi as json
 from zmq.utils.monitor import recv_monitor_message
 
 from .decorators import annotate, annotations, dualmethod
@@ -185,16 +186,17 @@ class BasicCore(object):
         self.onfinish = Signal()
         self._owner = owner
         self._status = {}  # status will be a json serialized string.
-        self.set_status(STATUS_GOOD, 'Initialization of object')
+        self._set_status(STATUS_GOOD, 'Initialization of object')
 
-    def set_status(self, state, context=None):
+    def _set_status(self, state, context=None):
         self._status = {
             'state': state,
             'context': context,
             'last_updated': datetime.utcnow().isoformat()
         }
+
     def status(self):
-        return self._status
+        return json.dumps(self._status)
 
     def setup(self):
         # Split out setup from __init__ to give oportunity to add
