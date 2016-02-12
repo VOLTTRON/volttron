@@ -188,9 +188,9 @@ class BasicCore(object):
         self._status = {}  # status will be a json serialized string.
         self._set_status(STATUS_GOOD, 'Initialization of object')
 
-    def _set_status(self, state, context=None):
+    def _set_status(self, status, context=None):
         self._status = {
-            'state': state,
+            'status': status,
             'context': context,
             'last_updated': datetime.utcnow().isoformat()
         }
