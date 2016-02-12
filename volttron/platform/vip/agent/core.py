@@ -58,6 +58,7 @@
 from __future__ import absolute_import, print_function
 
 from contextlib import contextmanager
+from datetime import datetime
 from errno import ENOENT
 import heapq
 import inspect
@@ -80,6 +81,9 @@ from .. import green as vip
 from .. import router
 from .... import platform
 
+STATUS_GOOD = 'Good'
+STATUS_BAD = 'Bad'
+STATUS_UNKNOWN = 'Unknown'
 
 __all__ = ['BasicCore', 'Core', 'killing']
 
@@ -180,6 +184,17 @@ class BasicCore(object):
         self.onstop = Signal()
         self.onfinish = Signal()
         self._owner = owner
+        self._status = {}  # status will be a json serialized string.
+        self.set_status(STATUS_GOOD, 'Initialization of object')
+
+    def set_status(self, state, context=None):
+        self._status = {
+            'state': state,
+            'context': context,
+            'last_updated': datetime.utcnow().isoformat()
+        }
+    def status(self):
+        return self._status
 
     def setup(self):
         # Split out setup from __init__ to give oportunity to add
@@ -403,7 +418,10 @@ class Core(BasicCore):
         super(Core, self).__init__(owner)
         self.context = context or zmq.Context.instance()
         self.address = address
-        self._add_keys_to_addr(publickey, secretkey, serverkey)
+        if publickey and secretkey and serverkey:
+            self._add_keys_to_addr(publickey, secretkey, serverkey)
+        else:
+            _log.warn('Encryption not established... no publickey, secretkey, or serverkey provided.')
         self.identity = identity
         self.socket = None
         self.subsystems = {'error': self.handle_error}
