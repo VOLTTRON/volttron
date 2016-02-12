@@ -75,7 +75,7 @@ from ilc.ilc_matrices import (extract_criteria, calc_column_sums,
 from volttron.platform.jsonrpc import RemoteError
 import gevent
 
-__version__ = '2.0.0'
+__version__ = '2.1.0'
 
 MATRIX_ROWSTRING = '%20s\t%12.2f%12.2f%12.2f%12.2f%12.2f'
 CRITERIA_LABELSTRING = '\t\t\t%12s%12s%12s%12s%12s'
