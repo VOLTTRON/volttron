@@ -1,3 +1,5 @@
+from datetime import datetime
+from dateutil.parser import parse as dateparse
 import logging
 
 import gevent
@@ -61,8 +63,11 @@ def example_agent(volttron_instance1):
         def baz(self):
             return 'baz'
 
-        def set_status(state, context):
-            self._set_status(state, context)
+        def changestatusunknown(self, context):
+            self.core._set_status(STATUS_UNKNOWN, context)
+
+        def changestatusbad(self, context):
+            self.core._set_status(STATUS_BAD, context)
 
     return ExampleAgent(address=volttron_instance1.vip_address)
 
@@ -71,5 +76,29 @@ def test_agent_status_set_when_created(example_agent):
     assert example_agent.core.status() is not None
     assert isinstance(example_agent.core.status(), str)
     l = json.loads(example_agent.core.status())
-    assert l['state'] == STATUS_GOOD
+    assert l['status'] == STATUS_GOOD
     assert l['context'] is not None
+
+@pytest.mark.agent
+def test_agent_status_changes(example_agent):
+    unknown_message = "This is unknown"
+    bad_message = "Bad kitty"
+    example_agent.changestatusunknown(unknown_message)
+    r = json.loads(example_agent.core.status())
+    assert unknown_message == r['context']
+    assert STATUS_UNKNOWN == r['status']
+
+    example_agent.changestatusbad(bad_message)
+    r = json.loads(example_agent.core.status())
+    assert bad_message == r['context']
+    assert STATUS_BAD == r['status']
+
+@pytest.mark.agent
+def test_agent_last_update_increses(example_agent):
+    s = json.loads(example_agent.core.status())
+    dt = dateparse(s['last_updated'], fuzzy=True)
+    example_agent.changestatusunknown('Unknown now!')
+    gevent.sleep(1)
+    s = json.loads(example_agent.core.status())
+    dt2 = dateparse(s['last_updated'], fuzzy=True)
+    assert dt < dt2

@@ -551,10 +551,12 @@ class PlatformWrapper:
             except:
                 print('could not kill: {} '.format(pid))
         if self._p_process != None:
-
-            gevent.sleep(0.1)
-            self._p_process.terminate()
-            gevent.sleep(0.1)
+            try:
+                gevent.sleep(0.1)
+                self._p_process.terminate()
+                gevent.sleep(0.1)
+            except OSError:
+                print('Platform process was terminated.')
         else:
             print "platform process was null"
 
