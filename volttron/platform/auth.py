@@ -383,7 +383,10 @@ class AuthFile(object):
             with open(self.auth_file) as fil:
                 # Use gevent FileObject to avoid blocking the thread
                 data = strip_comments(FileObject(fil, close=False).read())
-                auth_data = jsonapi.loads(data)
+                if data:
+                    auth_data = jsonapi.loads(data)
+                else:
+                    auth_data = {}
         except Exception:
             _log.exception('error loading %s', self.auth_file)
             return []
@@ -441,6 +444,18 @@ class AuthFile(object):
             else:
                 msg = 'removed entry at index {}'
             return True, msg.format(indices)
+
+    def update_by_index(self, auth_entry, index):
+        error_msg = auth_entry.invalid()
+        if error_msg:
+            return False, error_msg
+        entries = self._read_entries()
+        try:
+            entries[index] = vars(auth_entry)
+        except IndexError:
+            return False, 'invalid index %d' % index
+        self._write(entries)
+        return True, 'updated entry at index %d' % index
 
     def _read_entries(self):
         entries = self.read() # TODO: maybe the file should be locked here
