@@ -33,9 +33,17 @@
 				"maximum": 10
 			},
 			"curtail": {
-				"point": "SP",
-				"value": 78.0,
-				"load": 10
+			    "OccupancyMode == True": {
+			        "conditional_args" =  ["OccupancyMode"],
+				    "point": "SP",
+				    "value": 78.0,
+				    "load": 10
+				},
+				"OccupancyMode == False": {
+				    "conditional_args" =  ["OccupancyMode"],
+                    "point": "SP",
+                    "value": 82.0,
+                    "load": 10
 			}
 		}
     },
