@@ -73,7 +73,7 @@ setup(
     package_data = {
         package: ['webroot/*.*', 'webroot/css/*.css', 'webroot/js/*.js',
                     'webroot/fonts/*.*']
-    },
+   },
     entry_points = {
         'setuptools.installation': [
             'eggsecutable = ' + package + '.vc:main',
