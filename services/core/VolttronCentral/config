@@ -7,6 +7,11 @@
     "vip_identity": "volttron.central",
     "identity": "volttron.central",
 
+    # By default the webroot will be relative to the installation directory
+    # of the agent when it is installed.  One can override this by specifying
+    # the root directory here.
+    # "webroot": "path/to/webroot", 
+
     # Tornado server settings.  These options are passed to the
     # tornado webserver during agent start up.
     "server" : {
