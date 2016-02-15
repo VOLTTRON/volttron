@@ -68,7 +68,7 @@ setup(
     install_requires = ['volttron', 'tornado'],
     packages = packages,
     package_data = {
-        package: ['webroot/*.*', 'webroot/css/*.css', 'webroot/js/*.js']
+        package: ['webroot/*.*', 'webroot/font/*.*', 'webroot/css/*.css', 'webroot/js/*.js']
     },
     entry_points = {
         'setuptools.installation': [
