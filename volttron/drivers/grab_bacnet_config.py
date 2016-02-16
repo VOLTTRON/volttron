@@ -125,11 +125,45 @@ def read_prop(app, address, obj_type, obj_inst, prop_id, index=None):
 
     return value
 
+
+def process_device_object_reference(app, address, obj_type, index, property_name, max_range_report, config_writer):
+    objectCount = read_prop(app, address, obj_type, index, property_name, index=0)
+    
+    for object_index in xrange(1,objectCount+1):
+        _log.debug('property_name index = ' + repr(object_index))
+        
+        object_reference = read_prop(app, 
+                                address, 
+                                obj_type, 
+                                index, 
+                                property_name,
+                                index=object_index)
+        
+        #Skip references to objects on other devices.
+        if object_reference.deviceIdentifier is not None:
+            continue
+        
+        sub_obj_type, sub_obj_index = object_reference.objectIdentifier
+        
+        process_object(app, address, sub_obj_type, sub_obj_index, max_range_report, config_writer)
+
 def process_object(app, address, obj_type, index, max_range_report, config_writer):
     _log.debug('obj_type = ' + repr(obj_type))
     _log.debug('bacnet_index = ' + repr(index))
     
     writable = 'FALSE'
+    
+    subondinate_list_property = get_datatype(obj_type, 'subordinateList')
+    if subondinate_list_property is not None:
+        _log.debug('Processing StructuredViewObject')
+        process_device_object_reference(app, address, obj_type, index, 'subordinateList', max_range_report, config_writer)
+        return
+    
+    subondinate_list_property = get_datatype(obj_type, 'zoneMembers')
+    if subondinate_list_property is not None:
+        _log.debug('Processing LifeSafetyZoneObject')
+        process_device_object_reference(app, address, obj_type, index, 'zoneMembers', max_range_report, config_writer)
+        return
     
     present_value_type = get_datatype(obj_type, 'presentValue')
     if present_value_type is None:
@@ -332,8 +366,6 @@ def main():
 
     _log.debug("starting build")
     
-    print args.address
-    
     target_address = Address(args.address)
     
     request = WhoIsRequest()
@@ -391,11 +423,11 @@ def main():
         _log.debug('object_device_index = ' + repr(object_index))
         
         bac_object = read_prop(this_application, 
-                                    target_address, 
-                                    "device", 
-                                    device_id, 
-                                    "objectList",
-                                    index=object_index)
+                                target_address, 
+                                "device", 
+                                device_id, 
+                                "objectList",
+                                index=object_index)
         
         obj_type, index = bac_object
         
