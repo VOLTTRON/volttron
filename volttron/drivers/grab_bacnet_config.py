@@ -401,9 +401,7 @@ def main():
     except TypeError:
         _log.debug('device missing description')
     
-    objectCount = read_prop(this_application, target_address, "device", device_id, "objectList", index=0)
     
-    _log.debug('objectCount = ' + str(objectCount))
     
     config_writer = DictWriter(args.out_file, 
                                ('Reference Point Name',
@@ -419,6 +417,16 @@ def main():
     
     config_writer.writeheader()
     
+    
+    try:
+        objectCount = read_prop(this_application, target_address, "device", device_id, "objectList", index=0)
+        list_property = "objectList"
+    except TypeError:
+        objectCount = read_prop(this_application, target_address, "device", device_id, "objectList", index=0)
+        list_property = "structuredObjectList"
+    
+    _log.debug('objectCount = ' + str(objectCount))
+    
     for object_index in xrange(1,objectCount+1):
         _log.debug('object_device_index = ' + repr(object_index))
         
@@ -426,7 +434,7 @@ def main():
                                 target_address, 
                                 "device", 
                                 device_id, 
-                                "objectList",
+                                list_property,
                                 index=object_index)
         
         obj_type, index = bac_object
