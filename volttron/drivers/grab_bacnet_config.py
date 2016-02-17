@@ -422,7 +422,7 @@ def main():
         objectCount = read_prop(this_application, target_address, "device", device_id, "objectList", index=0)
         list_property = "objectList"
     except TypeError:
-        objectCount = read_prop(this_application, target_address, "device", device_id, "objectList", index=0)
+        objectCount = read_prop(this_application, target_address, "device", device_id, "structuredObjectList", index=0)
         list_property = "structuredObjectList"
     
     _log.debug('objectCount = ' + str(objectCount))
