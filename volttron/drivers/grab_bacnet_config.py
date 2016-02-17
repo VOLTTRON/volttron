@@ -243,7 +243,7 @@ def process_object(app, address, obj_type, index, max_range_report, config_write
             try:
                 enum_strings=[]
                 state_list = read_prop(app, address, obj_type, index, "stateText")
-                for name in state_list.value[1:]:
+                for name in state_list[1:]:
                     enum_strings.append(name)
                     
                 object_notes = ', '.join('{}={}'.format(x,y) for x,y in enumerate(enum_strings, start=1))
