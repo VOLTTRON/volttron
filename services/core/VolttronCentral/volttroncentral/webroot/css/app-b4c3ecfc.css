@@ -644,6 +644,27 @@ br + .form__control-help {
     z-index: 100;
 }
 
+.delayed-show-slow {
+    animation-name: delayed-fade-in;
+    animation-duration: 1.5s;
+
+    -webkit-animation: delayed-fade-in 1.5s;
+}
+
+@keyframes delayed-fade-in {
+    0% {opacity: 0;}
+    30% {opacity: 0;}
+    100% {opacity: 1;}
+
+}
+
+@-webkit-keyframes delayed-fade-in {
+    0% {opacity: 0;}
+    30% {opacity: 0;}
+    100% {opacity: 1;}
+
+}
+
 .boldText {
     font-weight: bold;
 }
@@ -748,7 +769,7 @@ br + .form__control-help {
     border-top: 1px solid #fff;
     position: relative;
     height: 100%;
-    width: 70%;
+    width: 100%;
     float: left;
 }
 

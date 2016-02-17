@@ -125,6 +125,8 @@ var PlatformsPanelItem = React.createClass({
             left: this.state.tooltipX + "px"
         };
 
+        var toolTipClasses = (this.state.showTooltip ? "tooltip_outer delayed-show-slow" : "tooltip_outer");
+
         arrowClasses.push( ((panelItem.status === "GOOD") ? "status-good" :
                                 ( (panelItem.status === "BAD") ? "status-bad" : 
                                     "status-unknown")) );
@@ -204,9 +206,9 @@ var PlatformsPanelItem = React.createClass({
                         onDoubleClick={this._expandAll}
                         onClick={this._toggleItem}>
                         {arrowContent}
-                    </div>  
-                    {ChartCheckbox}
-                    <div className="tooltip_outer" 
+                        </div>  
+                            {ChartCheckbox}                   
+                        <div className={toolTipClasses}
                         style={tooltipStyle}>
                         <div className="tooltip_inner">
                             {panelItem.uuid}

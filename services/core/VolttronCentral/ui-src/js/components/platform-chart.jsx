@@ -14,30 +14,14 @@ var lineChart;
 
 
 var PlatformChart = React.createClass({
-    // getInitialState: function () {
-    //     var state = {
-    //         chartData: this.props.chart
-    //     };
-
-    //     return state;
-    // },
     componentDidMount: function () {
-        // chartDataStore.addChangeListener(this._onStoreChange);
-
         if (!this._refreshChartTimeout) {
             this._refreshChartTimeout = setTimeout(this._refreshChart, 0);
         }
     },
     componentWillUnmount: function () {
-        // chartDataStore.removeChangeListener(this._onStoreChange);
         clearTimeout(this._refreshChartTimeout);
     },
-    // _initTopicData: function () {
-
-    // },
-    // _onStoreChange: function () {
-    //     this.setState(getStateFromStores(this.props.chartKey));
-    // },
     _refreshChart: function () {
         platformChartActionCreators.refreshChart(
             this.props.chart.series
@@ -47,20 +31,6 @@ var PlatformChart = React.createClass({
             this._refreshChartTimeout = setTimeout(this._refreshChart, this.props.chart.refreshInterval);
         }
     },
-    // componentWillMount: function () {
-        
-    // },
-    // componentDidMount: function () {
-    //     chartStore.addChangeListener(this._onStoreChange);
-    // },
-    // componentWillUnmount: function () {
-    //     chartStore.removeChangeListener(this._onStoreChange);
-    // },
-    // _onStoreChange: function () {
-    //     var platformCharts = getChartsFromStores();
-
-    //     this.setState({chartData: platformCharts});
-    // },
     _onPinToggle: function () {
         platformChartActionCreators.pinChart(this.props.chartKey);
     },
@@ -103,12 +73,6 @@ var PlatformChart = React.createClass({
 });
 
 
-// function getChartsFromStores() {
-
-//     return chartStore.getData();
-// }
-
-
 var GraphLineChart = React.createClass({
   getInitialState: function () {
       var state = {};
@@ -141,64 +105,11 @@ var GraphLineChart = React.createClass({
   }
 });
 
-// var Viz = React.createClass({
-//   getInitialState: function() {
-//     return {
-//       // // data: this.props.data,
-//       // selection: "1"
-//     };
-//   },
-//   // loadData: function () {
-//   //   d3.csv('/data/018_analytics_chart.csv',function(csv){
-//   //     this.setState({
-//   //       data: csv
-//   //     });
-//   //   }.bind(this));
-//   // },
-//   // componentDidMount: function () {
-//   //   this.loadData();
-//   // },
-//   // loadData: function () {
-    
-//   //   this.setState({ data: this.props.data});
-//   // },
-//   // componentDidMount: function () {
-//   //   // var datum = chartStore.getchartData();
-//   //   this.loadData();
-//   // },
-
-//     // componentDidUpdate: function() {
-        
-//     //     this.setState({data: this.props.data});
-//     // },
-
-//   // handleUserSelect: function (e) {
-//   //   var selection = e.target.id;
-//   //   $('#select-text').text(e.target.innerHTML);
-//   //   $('.select').removeClass('current-selection');
-//   //   $('#' + selection).addClass('current-selection');
-//   //   this.setState({
-//   //     selection: selection
-//   //   });
-//   // },
-//   render: function() {
-//     return (
-//       <div className='viz'>
-        
-//         { this.props.data.length != 0 ? <GraphLineChart data={this.props.data} 
-//                                                         // selection={this.state.selection} 
-//                                                         // count={this.props.count}
-//                                                         name={this.props.name} /> : null }
-//       </div>
-//     );
-//   }
-// });
-
 
 function drawLineChart (elementParent, data) {
   var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   nv.addGraph(function() {
-    lineChart = nv.models.lineChart()
+    lineChart = nv.models.lineWithFocusChart()
       .margin({left: 25, right: 25})
       .x(function(d) {return d.x})
       .y(function(d) {return d.y})
