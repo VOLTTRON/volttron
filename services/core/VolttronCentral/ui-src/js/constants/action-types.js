@@ -43,6 +43,7 @@ module.exports = keyMirror({
 
     EXPAND_ALL: null,
     TOGGLE_ITEM: null,
+    CHECK_ITEM: null,
     FILTER_ITEMS: null,
 
 

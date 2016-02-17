@@ -877,7 +877,6 @@ var platformsPanelActionCreators = {
             type: ACTION_TYPES.EXPAND_ALL,
             itemPath: itemPath
         });
-
     },
 
     toggleItem: function (itemPath) {
@@ -886,7 +885,15 @@ var platformsPanelActionCreators = {
             type: ACTION_TYPES.TOGGLE_ITEM,
             itemPath: itemPath
         });
+    },
 
+    checkItem: function (itemPath, checked) {
+
+        dispatcher.dispatch({
+            type: ACTION_TYPES.CHECK_ITEM,
+            itemPath: itemPath,
+            checked: checked
+        });
     },
 
     addToChart: function(panelItem) {
@@ -2064,12 +2071,16 @@ var PlatformChart = React.createClass({displayName: "PlatformChart",
         clearTimeout(this._refreshChartTimeout);
     },
     _refreshChart: function () {
-        platformChartActionCreators.refreshChart(
-            this.props.chart.series
-        );
+        
+        if (this.props.hasOwnProperty("chart"))
+        {
+            platformChartActionCreators.refreshChart(
+                this.props.chart.series
+            );
 
-        if (this.props.chart.refreshInterval) {
-            this._refreshChartTimeout = setTimeout(this._refreshChart, this.props.chart.refreshInterval);
+            if (this.props.chart.refreshInterval) {
+                this._refreshChartTimeout = setTimeout(this._refreshChart, this.props.chart.refreshInterval);
+            }    
         }
     },
     _onPinToggle: function () {
@@ -2640,7 +2651,7 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
         state.tooltipX = null;
         state.tooltipY = null;
         state.keepTooltip = false;
-        state.checked = false;
+        state.checked = (this.props.panelItem.hasOwnProperty("checked") ? this.props.panelItem.checked : false);
         state.panelItem = this.props.panelItem;
         state.children = this.props.panelChildren;
 
@@ -2659,6 +2670,7 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
 
         this.setState({panelItem: panelItem});
         this.setState({children: panelChildren});
+        this.setState({checked: panelItem.checked});
     },
     _expandAll : function () {
         
@@ -2685,6 +2697,8 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
     _checkItem: function (e) {
 
         var checked = e.target.checked;
+
+        platformsPanelActionCreators.checkItem(this.props.itemPath, checked);
 
         this.setState({checked: checked});
 
@@ -2740,7 +2754,8 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
         {
             ChartCheckbox = (React.createElement("input", {className: "panelItemCheckbox", 
                                     type: "checkbox", 
-                                    onChange: this._checkItem}));
+                                    onChange: this._checkItem, 
+                                    checked: this.state.checked}));
         }
 
         var tooltipStyle = {
@@ -3508,6 +3523,7 @@ module.exports = keyMirror({
 
     EXPAND_ALL: null,
     TOGGLE_ITEM: null,
+    CHECK_ITEM: null,
     FILTER_ITEMS: null,
 
 
@@ -4018,7 +4034,7 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
 
         if (chartItems.length === 0)
         {
-            if (action.item.hasOwnProperty("data"))
+            if (item.hasOwnProperty("data"))
             {
                 _chartData[item.name].data = _chartData[item.name].data.concat(convertTimeToSeconds(item.data));
                 _chartData[item.name].series.push(
@@ -5549,6 +5565,15 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
             var item = platformsPanelItemsStore.getItem(action.itemPath);
             item.expanded = !item.expanded;
+
+            platformsPanelItemsStore.emitChange();
+
+            break;
+
+        case ACTION_TYPES.CHECK_ITEM:
+
+            var item = platformsPanelItemsStore.getItem(action.itemPath);
+            item.checked = action.checked;
 
             platformsPanelItemsStore.emitChange();
 

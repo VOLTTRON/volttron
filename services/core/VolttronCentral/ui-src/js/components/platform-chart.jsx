@@ -23,12 +23,16 @@ var PlatformChart = React.createClass({
         clearTimeout(this._refreshChartTimeout);
     },
     _refreshChart: function () {
-        platformChartActionCreators.refreshChart(
-            this.props.chart.series
-        );
+        
+        if (this.props.hasOwnProperty("chart"))
+        {
+            platformChartActionCreators.refreshChart(
+                this.props.chart.series
+            );
 
-        if (this.props.chart.refreshInterval) {
-            this._refreshChartTimeout = setTimeout(this._refreshChart, this.props.chart.refreshInterval);
+            if (this.props.chart.refreshInterval) {
+                this._refreshChartTimeout = setTimeout(this._refreshChart, this.props.chart.refreshInterval);
+            }    
         }
     },
     _onPinToggle: function () {

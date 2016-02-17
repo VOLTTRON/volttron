@@ -87,7 +87,7 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
 
         if (chartItems.length === 0)
         {
-            if (action.item.hasOwnProperty("data"))
+            if (item.hasOwnProperty("data"))
             {
                 _chartData[item.name].data = _chartData[item.name].data.concat(convertTimeToSeconds(item.data));
                 _chartData[item.name].series.push(

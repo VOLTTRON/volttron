@@ -15,7 +15,7 @@ var PlatformsPanelItem = React.createClass({
         state.tooltipX = null;
         state.tooltipY = null;
         state.keepTooltip = false;
-        state.checked = false;
+        state.checked = (this.props.panelItem.hasOwnProperty("checked") ? this.props.panelItem.checked : false);
         state.panelItem = this.props.panelItem;
         state.children = this.props.panelChildren;
 
@@ -34,6 +34,7 @@ var PlatformsPanelItem = React.createClass({
 
         this.setState({panelItem: panelItem});
         this.setState({children: panelChildren});
+        this.setState({checked: panelItem.checked});
     },
     _expandAll : function () {
         
@@ -60,6 +61,8 @@ var PlatformsPanelItem = React.createClass({
     _checkItem: function (e) {
 
         var checked = e.target.checked;
+
+        platformsPanelActionCreators.checkItem(this.props.itemPath, checked);
 
         this.setState({checked: checked});
 
@@ -115,7 +118,8 @@ var PlatformsPanelItem = React.createClass({
         {
             ChartCheckbox = (<input className="panelItemCheckbox"
                                     type="checkbox"
-                                    onChange={this._checkItem}></input>);
+                                    onChange={this._checkItem}
+                                    checked={this.state.checked}></input>);
         }
 
         var tooltipStyle = {

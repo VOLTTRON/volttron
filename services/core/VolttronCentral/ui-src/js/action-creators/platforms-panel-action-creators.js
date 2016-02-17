@@ -192,7 +192,6 @@ var platformsPanelActionCreators = {
             type: ACTION_TYPES.EXPAND_ALL,
             itemPath: itemPath
         });
-
     },
 
     toggleItem: function (itemPath) {
@@ -201,7 +200,15 @@ var platformsPanelActionCreators = {
             type: ACTION_TYPES.TOGGLE_ITEM,
             itemPath: itemPath
         });
+    },
 
+    checkItem: function (itemPath, checked) {
+
+        dispatcher.dispatch({
+            type: ACTION_TYPES.CHECK_ITEM,
+            itemPath: itemPath,
+            checked: checked
+        });
     },
 
     addToChart: function(panelItem) {

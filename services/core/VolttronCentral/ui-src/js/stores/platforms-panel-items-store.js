@@ -1412,6 +1412,15 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
             break;
 
+        case ACTION_TYPES.CHECK_ITEM:
+
+            var item = platformsPanelItemsStore.getItem(action.itemPath);
+            item.checked = action.checked;
+
+            platformsPanelItemsStore.emitChange();
+
+            break;
+
         case ACTION_TYPES.RECEIVE_PLATFORM_STATUSES:
             
             var platforms = action.platforms;
