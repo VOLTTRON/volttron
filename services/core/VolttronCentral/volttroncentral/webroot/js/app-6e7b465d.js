@@ -2844,18 +2844,21 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
                                     "status-unknown")) );
 
         var arrowContent;
+        var arrowContentStyle = {
+            width: "14px"
+        }
 
         if (panelItem.status === "GOOD")
         {
-            arrowContent = React.createElement("span", null, "▶");
+            arrowContent = React.createElement("span", {style: arrowContentStyle}, "▶");
         } 
         else if (panelItem.status === "BAD") 
         {
-            arrowContent = React.createElement("i", {className: "fa fa-minus-circle"});
+            arrowContent = React.createElement("span", {style: arrowContentStyle}, React.createElement("i", {className: "fa fa-minus-circle"}));
         }
         else
         {
-            arrowContent = React.createElement("span", null, "▬");
+            arrowContent = React.createElement("span", {style: arrowContentStyle}, "▬");
         }
           
         if (this.state.panelItem.expanded === true )

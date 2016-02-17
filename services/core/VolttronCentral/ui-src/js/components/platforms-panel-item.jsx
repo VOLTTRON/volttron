@@ -130,18 +130,21 @@ var PlatformsPanelItem = React.createClass({
                                     "status-unknown")) );
 
         var arrowContent;
+        var arrowContentStyle = {
+            width: "14px"
+        }
 
         if (panelItem.status === "GOOD")
         {
-            arrowContent = <span>&#9654;</span>;
+            arrowContent = <span style={arrowContentStyle}>&#9654;</span>;
         } 
         else if (panelItem.status === "BAD") 
         {
-            arrowContent = <i className="fa fa-minus-circle"></i>;
+            arrowContent = <span style={arrowContentStyle}><i className="fa fa-minus-circle"></i></span>;
         }
         else
         {
-            arrowContent = <span>&#9644;</span>;
+            arrowContent = <span style={arrowContentStyle}>&#9644;</span>;
         }
           
         if (this.state.panelItem.expanded === true )

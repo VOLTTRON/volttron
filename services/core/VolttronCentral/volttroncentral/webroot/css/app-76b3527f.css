@@ -573,6 +573,7 @@ br + .form__control-help {
 
 .item_label {
     font-size: 12px;
+    cursor: default;
 }
 
 .item_type {
