@@ -405,6 +405,7 @@ br + .form__control-help {
 .platform-panel-list {
     list-style-type: none;
     padding-left: 20px;
+    width: 100%;
 }
 
 .platform-panel-sublist {
@@ -476,9 +477,9 @@ br + .form__control-help {
 
 .arrowButton {
     float: left;
-    margin-right: 10px;
+    margin-right: 5px;
     cursor: pointer;
-    font-size: 16px;
+    font-size: 12px;
     display: inline-block;
 
     -webkit-touch-callout: none;
@@ -570,6 +571,15 @@ br + .form__control-help {
     {100% height: 0px;}
 } 
 
+.item_label {
+    font-size: 12px;
+}
+
+.item_type {
+    font-size: 12px;
+    font-weight: bold;
+}
+
 .tooltip_inner {
     background-color: #D6D5A3;
     padding: 10px;
@@ -615,6 +625,10 @@ br + .form__control-help {
 
 .fa-search:before {
   content: "\f002";
+}
+
+.fa-thumb-tack:before {
+  content: "\f08d";
 }
 
 /*.tooltip_show {
@@ -1131,6 +1145,18 @@ a.view__item:hover::before {
 .chart-title {
     font-size: 12px;
     color: #7D7D7D;
+}
+
+.chart-pin {
+    
+}
+
+.unpinned-chart {
+    transform: rotate(45deg);
+}
+
+.pinned-chart {
+    transform: rotate(90deg);
 }
 
 /* end nvd3-related styles */

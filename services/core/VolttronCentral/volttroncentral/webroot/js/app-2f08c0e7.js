@@ -77,7 +77,7 @@ router.run(function (Handler) {
 });
 
 
-},{"./components/dashboard":13,"./components/login-form":18,"./components/page-not-found":21,"./components/platform":25,"./components/platform-charts":23,"./components/platform-manager":24,"./components/platforms":28,"./stores/authorization-store":40,"react":undefined,"react-router":undefined}],2:[function(require,module,exports){
+},{"./components/dashboard":14,"./components/login-form":19,"./components/page-not-found":22,"./components/platform":26,"./components/platform-charts":24,"./components/platform-manager":25,"./components/platforms":29,"./stores/authorization-store":41,"react":undefined,"react-router":undefined}],2:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -104,7 +104,7 @@ var consoleActionCreators = {
 module.exports = consoleActionCreators;
 
 
-},{"../constants/action-types":31,"../dispatcher":32,"../lib/rpc/exchange":34}],3:[function(require,module,exports){
+},{"../constants/action-types":32,"../dispatcher":33,"../lib/rpc/exchange":35}],3:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -127,7 +127,7 @@ var modalActionCreators = {
 module.exports = modalActionCreators;
 
 
-},{"../constants/action-types":31,"../dispatcher":32}],4:[function(require,module,exports){
+},{"../constants/action-types":32,"../dispatcher":33}],4:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -479,7 +479,82 @@ function handle401(error) {
 module.exports = platformActionCreators;
 
 
-},{"../constants/action-types":31,"../dispatcher":32,"../lib/rpc":35,"../stores/authorization-store":40}],5:[function(require,module,exports){
+},{"../constants/action-types":32,"../dispatcher":33,"../lib/rpc":36,"../stores/authorization-store":41}],5:[function(require,module,exports){
+'use strict';
+
+var ACTION_TYPES = require('../constants/action-types');
+var dispatcher = require('../dispatcher');
+var authorizationStore = require('../stores/authorization-store');
+var rpc = require('../lib/rpc');
+
+var platformChartActionCreators = {
+	pinChart: function (chartKey) {
+		dispatcher.dispatch({
+			type: ACTION_TYPES.PIN_CHART,
+			chartKey: chartKey,
+		});
+	},
+	refreshChart: function (series) {
+
+		var authorization = authorizationStore.getAuthorization();
+
+		series.forEach(function (item) {
+
+			if (item.parentType === "platform")
+	        {
+	            var authorization = authorizationStore.getAuthorization();
+
+	            new rpc.Exchange({
+	                method: 'platforms.uuid.' + item.parentUuid + '.historian.query',
+	                params: {
+	                    topic: item.topic,
+	                    count: 20,
+	                    order: 'LAST_TO_FIRST',
+	                },
+	                authorization: authorization,
+	            }).promise
+	                .then(function (result) {
+	                	item.data = result.values;
+
+	                    item.data.forEach(function (datum) {
+	                        datum.name = item.name;
+	                        datum.parent = item.parentPath;
+                        	datum.uuid = item.uuid;
+	                    });
+	                    dispatcher.dispatch({
+	                        type: ACTION_TYPES.REFRESH_CHART,
+	                        item: item
+	                    });
+	                })
+	                .catch(rpc.Error, handle401);
+	        }  
+	        else
+	        {
+	            dispatcher.dispatch({
+	                type: ACTION_TYPES.REFRESH_CHART,
+	                item: item
+	            });
+	        }
+		});
+		
+	},
+};
+
+function handle401(error) {
+    if (error.code && error.code === 401) {
+        dispatcher.dispatch({
+            type: ACTION_TYPES.RECEIVE_UNAUTHORIZED,
+            error: error,
+        });
+
+        platformManagerActionCreators.clearAuthorization();
+    }
+};
+
+module.exports = platformChartActionCreators;
+
+
+},{"../constants/action-types":32,"../dispatcher":33,"../lib/rpc":36,"../stores/authorization-store":41}],6:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -607,7 +682,7 @@ function handle401(error) {
 module.exports = platformManagerActionCreators;
 
 
-},{"../action-creators/platform-action-creators":4,"../constants/action-types":31,"../dispatcher":32,"../lib/rpc":35,"../stores/authorization-store":40}],6:[function(require,module,exports){
+},{"../action-creators/platform-action-creators":4,"../constants/action-types":32,"../dispatcher":33,"../lib/rpc":36,"../stores/authorization-store":41}],7:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -690,9 +765,64 @@ var platformsPanelActionCreators = {
         }
 
         function loadPanelPoints(parent) {
+
+            var pointsList = [];
+
+            if (parent.type === "platform")
+            {
+                pointsList = [
+
+                    {
+                        "topic": "datalogger/log/platform/status/cpu/times_percent/guest_nice",
+                        "name": "times_percent / guest_nice"
+                    },
+                    {
+                        "topic": "datalogger/log/platform/status/cpu/times_percent/system",
+                        "name": "times_percent / system"
+                    },
+                    {
+                        "topic": "datalogger/log/platform/status/cpu/percent",
+                        "name": "cpu / percent"
+                    },
+                    {
+                        "topic": "datalogger/log/platform/status/cpu/times_percent/irq",
+                        "name": "times_percent / irq"
+                    },
+                    {
+                        "topic": "datalogger/log/platform/status/cpu/times_percent/steal",
+                        "name": "times_percent / steal"
+                    },
+                    {
+                        "topic": "datalogger/log/platform/status/cpu/times_percent/user",
+                        "name": "times_percent / user"
+                    },
+                    {
+                        "topic": "datalogger/log/platform/status/cpu/times_percent/nice",
+                        "name": "times_percent / nice"
+                    },
+                    {
+                        "topic": "datalogger/log/platform/status/cpu/times_percent/iowait",
+                        "name": "times_percent / iowait"
+                    },
+                    {
+                        "topic": "datalogger/log/platform/status/cpu/times_percent/idle",
+                        "name": "times_percent / idle"
+                    },
+                    {
+                        "topic": "datalogger/log/platform/status/cpu/times_percent/guest",
+                        "name": "times_percent / guest"
+                    },
+                    {
+                        "topic": "datalogger/log/platform/status/cpu/times_percent/softirq",
+                        "name": "times_percent / softirq"
+                    }
+                ]
+            }
+
             dispatcher.dispatch({
                 type: ACTION_TYPES.RECEIVE_POINT_STATUSES,
-                platform: parent
+                parent: parent,
+                points: pointsList
             });    
         }
 
@@ -761,10 +891,41 @@ var platformsPanelActionCreators = {
 
     addToChart: function(panelItem) {
 
-        dispatcher.dispatch({
-            type: ACTION_TYPES.ADD_TO_CHART,
-            panelItem: panelItem
-        });  
+        if (panelItem.parentType === "platform")
+        {
+            var authorization = authorizationStore.getAuthorization();
+
+            new rpc.Exchange({
+                method: 'platforms.uuid.' + panelItem.parentUuid + '.historian.query',
+                params: {
+                    topic: panelItem.topic,
+                    count: 20,
+                    order: 'LAST_TO_FIRST',
+                },
+                authorization: authorization,
+            }).promise
+                .then(function (result) {
+                    panelItem.data = result.values;
+
+                    panelItem.data.forEach(function (datum) {
+                        datum.name = panelItem.name;
+                        datum.parent = panelItem.parentPath;
+                        datum.uuid = panelItem.uuid;
+                    });
+                    dispatcher.dispatch({
+                        type: ACTION_TYPES.ADD_TO_CHART,
+                        panelItem: panelItem
+                    });
+                })
+                .catch(rpc.Error, handle401);
+        }  
+        else
+        {
+            dispatcher.dispatch({
+                type: ACTION_TYPES.ADD_TO_CHART,
+                panelItem: panelItem
+            });
+        }
 
     },
 
@@ -795,7 +956,7 @@ function handle401(error) {
 module.exports = platformsPanelActionCreators;
 
 
-},{"../constants/action-types":31,"../dispatcher":32,"../lib/rpc":35,"../stores/authorization-store":40}],7:[function(require,module,exports){
+},{"../constants/action-types":32,"../dispatcher":33,"../lib/rpc":36,"../stores/authorization-store":41}],8:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -867,7 +1028,7 @@ var AgentRow = React.createClass({displayName: "AgentRow",
 module.exports = AgentRow;
 
 
-},{"../action-creators/modal-action-creators":3,"../action-creators/platform-action-creators":4,"./remove-agent-form":30,"react":undefined}],8:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../action-creators/platform-action-creators":4,"./remove-agent-form":31,"react":undefined}],9:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -931,7 +1092,7 @@ function getStateFromStores(platform, chart) {
 module.exports = Chart;
 
 
-},{"../action-creators/platform-action-creators":4,"../stores/topic-data-store":49,"./line-chart":17,"react":undefined}],9:[function(require,module,exports){
+},{"../action-creators/platform-action-creators":4,"../stores/topic-data-store":50,"./line-chart":18,"react":undefined}],10:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1001,7 +1162,7 @@ function getStateFromStores() {
 module.exports = Composer;
 
 
-},{"../action-creators/console-action-creators":2,"../stores/console-store":41,"react":undefined}],10:[function(require,module,exports){
+},{"../action-creators/console-action-creators":2,"../stores/console-store":42,"react":undefined}],11:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1039,7 +1200,7 @@ var ConfirmForm = React.createClass({displayName: "ConfirmForm",
 module.exports = ConfirmForm;
 
 
-},{"../action-creators/modal-action-creators":3,"react":undefined}],11:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"react":undefined}],12:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1061,7 +1222,7 @@ var Console = React.createClass({displayName: "Console",
 module.exports = Console;
 
 
-},{"./composer":9,"./conversation":12,"react":undefined}],12:[function(require,module,exports){
+},{"./composer":10,"./conversation":13,"react":undefined}],13:[function(require,module,exports){
 'use strict';
 
 var $ = require('jquery');
@@ -1112,7 +1273,7 @@ function getStateFromStores() {
 module.exports = Conversation;
 
 
-},{"../stores/console-store":41,"./exchange":16,"jquery":undefined,"react":undefined}],13:[function(require,module,exports){
+},{"../stores/console-store":42,"./exchange":17,"jquery":undefined,"react":undefined}],14:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1122,6 +1283,8 @@ var platformsStore = require('../stores/platforms-store');
 var Chart = require('./chart');
 var EditChartForm = require('./edit-chart-form');
 var modalActionCreators = require('../action-creators/modal-action-creators');
+
+var PlatformChart = require('./platform-chart');
 
 var Dashboard = React.createClass({displayName: "Dashboard",
     getInitialState: getStateFromStores,
@@ -1139,6 +1302,7 @@ var Dashboard = React.createClass({displayName: "Dashboard",
     },
     render: function () {
         var charts;
+        var platformChart = React.createElement(PlatformChart, null)
 
         if (!this.state.platforms) {
             charts = (
@@ -1203,6 +1367,7 @@ var Dashboard = React.createClass({displayName: "Dashboard",
         return (
             React.createElement("div", {className: "view"}, 
                 React.createElement("h2", null, "Dashboard"), 
+                platformChart, 
                 charts
             )
         );
@@ -1218,7 +1383,7 @@ function getStateFromStores() {
 module.exports = Dashboard;
 
 
-},{"../action-creators/modal-action-creators":3,"../stores/platforms-store":48,"./chart":8,"./edit-chart-form":15,"react":undefined,"react-router":undefined}],14:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../stores/platforms-store":49,"./chart":9,"./edit-chart-form":16,"./platform-chart":23,"react":undefined,"react-router":undefined}],15:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1274,7 +1439,7 @@ function getStateFromStores() {
 module.exports = RegisterPlatformForm;
 
 
-},{"../action-creators/modal-action-creators":3,"../action-creators/platform-manager-action-creators":5,"../stores/platform-registration-store":45,"react":undefined}],15:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../action-creators/platform-manager-action-creators":6,"../stores/platform-registration-store":46,"react":undefined}],16:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1431,7 +1596,7 @@ var EditChartForm = React.createClass({displayName: "EditChartForm",
 module.exports = EditChartForm;
 
 
-},{"../action-creators/modal-action-creators":3,"../action-creators/platform-action-creators":4,"react":undefined}],16:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../action-creators/platform-action-creators":4,"react":undefined}],17:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1484,7 +1649,7 @@ var Exchange = React.createClass({displayName: "Exchange",
 module.exports = Exchange;
 
 
-},{"react":undefined}],17:[function(require,module,exports){
+},{"react":undefined}],18:[function(require,module,exports){
 'use strict';
 
 var d3 = require('d3');
@@ -1673,7 +1838,7 @@ var LineChart = React.createClass({displayName: "LineChart",
 module.exports = LineChart;
 
 
-},{"d3":undefined,"moment":undefined,"react":undefined}],18:[function(require,module,exports){
+},{"d3":undefined,"moment":undefined,"react":undefined}],19:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1751,7 +1916,7 @@ function getStateFromStores() {
 module.exports = LoginForm;
 
 
-},{"../action-creators/platform-manager-action-creators":5,"../stores/login-form-store":42,"react":undefined,"react-router":undefined}],19:[function(require,module,exports){
+},{"../action-creators/platform-manager-action-creators":6,"../stores/login-form-store":43,"react":undefined,"react-router":undefined}],20:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1778,7 +1943,7 @@ var Modal = React.createClass({displayName: "Modal",
 module.exports = Modal;
 
 
-},{"../action-creators/modal-action-creators":3,"react":undefined}],20:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"react":undefined}],21:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1855,7 +2020,7 @@ function getStateFromStores() {
 module.exports = Navigation;
 
 
-},{"../action-creators/platform-manager-action-creators":5,"../stores/authorization-store":40,"react":undefined,"react-router":undefined}],21:[function(require,module,exports){
+},{"../action-creators/platform-manager-action-creators":6,"../stores/authorization-store":41,"react":undefined,"react-router":undefined}],22:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1873,7 +2038,7 @@ var PageNotFound = React.createClass({displayName: "PageNotFound",
 module.exports = PageNotFound;
 
 
-},{"react":undefined}],22:[function(require,module,exports){
+},{"react":undefined}],23:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1883,97 +2048,120 @@ var nv = require('nvd3');
 
 
 var chartStore = require('../stores/platform-chart-store');
+// var chartDataStore = require('../stores/chart-data-store');
+var platformChartActionCreators = require('../action-creators/platform-chart-action-creators');
 
 var lineChart;
 
 
 var PlatformChart = React.createClass({displayName: "PlatformChart",
-    getInitialState: function () {
-        var state = {};
-        state.chartData = getChartsFromStores();
+    // getInitialState: function () {
+    //     var state = {
+    //         chartData: this.props.chart
+    //     };
 
-        return state;
-    },
-    componentWillMount: function () {
-        
-    },
+    //     return state;
+    // },
     componentDidMount: function () {
-        chartStore.addChangeListener(this._onStoreChange);
+        // chartDataStore.addChangeListener(this._onStoreChange);
+
+        if (!this._refreshChartTimeout) {
+            this._refreshChartTimeout = setTimeout(this._refreshChart, 0);
+        }
     },
     componentWillUnmount: function () {
-        chartStore.removeChangeListener(this._onStoreChange);
+        // chartDataStore.removeChangeListener(this._onStoreChange);
+        clearTimeout(this._refreshChartTimeout);
     },
-    _onStoreChange: function () {
-        var platformCharts = getChartsFromStores();
+    // _initTopicData: function () {
 
-        this.setState({chartData: platformCharts});
+    // },
+    // _onStoreChange: function () {
+    //     this.setState(getStateFromStores(this.props.chartKey));
+    // },
+    _refreshChart: function () {
+        platformChartActionCreators.refreshChart(
+            this.props.chart.series
+        );
+
+        if (this.props.chart.refreshInterval) {
+            this._refreshChartTimeout = setTimeout(this._refreshChart, this.props.chart.refreshInterval);
+        }
+    },
+    // componentWillMount: function () {
+        
+    // },
+    // componentDidMount: function () {
+    //     chartStore.addChangeListener(this._onStoreChange);
+    // },
+    // componentWillUnmount: function () {
+    //     chartStore.removeChangeListener(this._onStoreChange);
+    // },
+    // _onStoreChange: function () {
+    //     var platformCharts = getChartsFromStores();
+
+    //     this.setState({chartData: platformCharts});
+    // },
+    _onPinToggle: function () {
+        platformChartActionCreators.pinChart(this.props.chartKey);
     },
     render: function () {
-        var chartData = this.state.chartData; 
+        var chartData = this.props.chart; 
+        var platformChart;
 
-        var platformCharts = [];
-
-        // var count = 0;
-
-        // for (var key in chartData)
-        // {
-        //     ++count;
-        // }
-
-        for (var key in chartData)
+        if (chartData)
         {
-            if (chartData[key].length > 0)
+            var pinClasses = ["chart-pin"];
+
+            if (chartData.data.length > 0)
             {
-                var platformChart = React.createElement("div", {className: "platform-chart with-3d-shadow with-transitions"}, 
-                          React.createElement("label", {className: "chart-title"}, chartData[key][0].name), 
-                          React.createElement(Viz, {data: chartData[key], name: chartData[key][0].name}), 
-                          React.createElement("br", null)
-                      )
+                pinClasses.push(chartData.pinned ? "pinned-chart" : "unpinned-chart");
+                
+                platformChart = (React.createElement("div", {className: "platform-chart with-3d-shadow with-transitions"}, 
+                    React.createElement("label", {className: "chart-title"}, chartData.data[0].name), 
+                    
+                    React.createElement("div", {className: pinClasses.join(' '), 
+                        onClick: this._onPinToggle}, 
+                        React.createElement("i", {className: "fa fa-thumb-tack"})
+                    ), 
+                    React.createElement("div", {className: "viz"}, 
+                         chartData.data.length != 0 ? 
+                              React.createElement(GraphLineChart, {data: chartData.data, 
+                                  name: chartData.data[0].name}) : null
+                    ), 
 
-                platformCharts.push(platformChart);
+                    React.createElement("br", null)
+                ))
             }
-            
         }
-
-
-
-
-        // var vizGraph;
-
-        // if (graphs.length > 0)
-        // {
-        //     vizGraph = <div id="chart" class='with-3d-shadow with-transitions'>
-        //                   <Viz data={graphs}></Viz>
-        //               </div>
-        // }
-
 
         return (
             React.createElement("div", null, 
-                platformCharts
+                platformChart
             )
         );
     },
 });
 
 
-function getChartsFromStores() {
-    return chartStore.getData();
-}
+// function getChartsFromStores() {
+
+//     return chartStore.getData();
+// }
 
 
 var GraphLineChart = React.createClass({displayName: "GraphLineChart",
   getInitialState: function () {
       var state = {};
-      state.chartName = this.props.name + '_chart';
+      state.chartName = this.props.name.replace(" / ", "_") + '_chart';
 
       return state;
   },
   componentDidMount: function() {
-    drawLineChart(this.state.chartName, lineData(this.props.selection, getNested(this.props.data)));
+    drawLineChart(this.state.chartName, lineData(getNested(this.props.data)));
   },
   componentDidUpdate: function() {
-    updateLineChart(this.state.chartName, lineData(this.props.selection, getNested(this.props.data)));
+    updateLineChart(this.state.chartName, lineData(getNested(this.props.data)));
   },
   render: function() {
 
@@ -1994,58 +2182,58 @@ var GraphLineChart = React.createClass({displayName: "GraphLineChart",
   }
 });
 
-var Viz = React.createClass({displayName: "Viz",
-  getInitialState: function() {
-    return {
-      // data: this.props.data,
-      selection: 'avg_temp_f'
-    };
-  },
-  // loadData: function () {
-  //   d3.csv('/data/018_analytics_chart.csv',function(csv){
-  //     this.setState({
-  //       data: csv
-  //     });
-  //   }.bind(this));
-  // },
-  // componentDidMount: function () {
-  //   this.loadData();
-  // },
-  // loadData: function () {
+// var Viz = React.createClass({
+//   getInitialState: function() {
+//     return {
+//       // // data: this.props.data,
+//       // selection: "1"
+//     };
+//   },
+//   // loadData: function () {
+//   //   d3.csv('/data/018_analytics_chart.csv',function(csv){
+//   //     this.setState({
+//   //       data: csv
+//   //     });
+//   //   }.bind(this));
+//   // },
+//   // componentDidMount: function () {
+//   //   this.loadData();
+//   // },
+//   // loadData: function () {
     
-  //   this.setState({ data: this.props.data});
-  // },
-  // componentDidMount: function () {
-  //   // var datum = chartStore.getchartData();
-  //   this.loadData();
-  // },
+//   //   this.setState({ data: this.props.data});
+//   // },
+//   // componentDidMount: function () {
+//   //   // var datum = chartStore.getchartData();
+//   //   this.loadData();
+//   // },
 
-    // componentDidUpdate: function() {
+//     // componentDidUpdate: function() {
         
-    //     this.setState({data: this.props.data});
-    // },
+//     //     this.setState({data: this.props.data});
+//     // },
 
-  handleUserSelect: function (e) {
-    var selection = e.target.id;
-    $('#select-text').text(e.target.innerHTML);
-    $('.select').removeClass('current-selection');
-    $('#' + selection).addClass('current-selection');
-    this.setState({
-      selection: selection
-    });
-  },
-  render: function() {
-    return (
-      React.createElement("div", {className: "viz"}, 
+//   // handleUserSelect: function (e) {
+//   //   var selection = e.target.id;
+//   //   $('#select-text').text(e.target.innerHTML);
+//   //   $('.select').removeClass('current-selection');
+//   //   $('#' + selection).addClass('current-selection');
+//   //   this.setState({
+//   //     selection: selection
+//   //   });
+//   // },
+//   render: function() {
+//     return (
+//       <div className='viz'>
         
-         this.props.data.length != 0 ? React.createElement(GraphLineChart, {data: this.props.data, 
-                                                        selection: this.state.selection, 
-                                                        // count={this.props.count}
-                                                        name: this.props.name}) : null
-      )
-    );
-  }
-});
+//         { this.props.data.length != 0 ? <GraphLineChart data={this.props.data} 
+//                                                         // selection={this.state.selection} 
+//                                                         // count={this.props.count}
+//                                                         name={this.props.name} /> : null }
+//       </div>
+//     );
+//   }
+// });
 
 
 function drawLineChart (elementParent, data) {
@@ -2059,7 +2247,7 @@ function drawLineChart (elementParent, data) {
       .showYAxis(true)
       .showXAxis(true);
     lineChart.xAxis
-      .tickFormat(function (d) { return months[d - 1]; })
+      .tickFormat(d3.format('f'))
       .staggerLabels(false);
     lineChart.yAxis
       .tickFormat(d3.format('.1f'));
@@ -2082,7 +2270,7 @@ function updateLineChart (elementParent, data) {
 function getNested (data) {
   var keyYearMonth = d3.nest()
     .key(function(d){return d.parent; })
-    .key(function(d){return d.month; });
+    .key(function(d){return d["0"]; });
   var keyedData = keyYearMonth.entries(
     data.map(function(d) {
       return d;
@@ -2091,7 +2279,7 @@ function getNested (data) {
   return keyedData;
 }
 
-function lineData (selection, data) {
+function lineData (data) {
   var colors = ['DarkOrange', 'ForestGreen', 'DeepPink', 'DarkViolet', 'Teal', 'Maroon', 'RoyalBlue', 'Silver', 'MediumPurple', 'Red', 'Lime', 'Tan', 'LightGoldenrodYellow', 'Turquoise', 'Pink', 'DeepSkyBlue', 'OrangeRed', 'LightGrey', 'Olive'];
   data = data.sort(function(a,b){ return a.key > b.key; });
   var lineDataArr = [];
@@ -2101,7 +2289,7 @@ function lineData (selection, data) {
     for (var j = 0; j <= currentValues.length-1; j++) {
       lineDataElement.push({
         'x': +currentValues[j].key,
-        'y': +currentValues[j].values[0][selection]
+        'y': +currentValues[j].values[0][1]
       });
     }
     lineDataArr.push({
@@ -2117,48 +2305,72 @@ function lineData (selection, data) {
 module.exports = PlatformChart;
 
 
-},{"../stores/platform-chart-store":44,"d3":undefined,"nvd3":undefined,"react":undefined,"react-router":undefined}],23:[function(require,module,exports){
+},{"../action-creators/platform-chart-action-creators":5,"../stores/platform-chart-store":45,"d3":undefined,"nvd3":undefined,"react":undefined,"react-router":undefined}],24:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
 var Router = require('react-router');
 var PlatformChart = require('./platform-chart');
 
-// var chartStore = require('../stores/platform-chart-store');
+var chartStore = require('../stores/platform-chart-store');
 
 var PlatformCharts = React.createClass({displayName: "PlatformCharts",
-    // getInitialState: getStateFromStores,
+    getInitialState: function () {
+        var state = {
+            chartData: getChartsFromStores()
+        };
+
+        return state;
+    },
+    componentWillMount: function () {
+        
+    },
     componentDidMount: function () {
-        // chartStore.addChangeListener(this._onStoreChange);
+        chartStore.addChangeListener(this._onStoreChange);
     },
     componentWillUnmount: function () {
-        // chartStore.removeChangeListener(this._onStoreChange);
+        chartStore.removeChangeListener(this._onStoreChange);
     },
     _onStoreChange: function () {
-        // this.setState(getStateFromStores());
+        var platformCharts = getChartsFromStores();
+
+        this.setState({chartData: platformCharts});
     },
     render: function () {
-        // var charts  = [];
 
-        var platformChart = React.createElement(PlatformChart, null)
+        var chartData = this.state.chartData; 
+
+        var platformCharts = [];
+
+        for (var key in chartData)
+        {
+            if (chartData[key].data.length > 0)
+            {
+                var platformChart = React.createElement(PlatformChart, {chart: chartData[key], chartKey: key})
+                platformCharts.push(platformChart);
+            }
+        }
 
         return (
                 React.createElement("div", null, 
                     React.createElement("div", {className: "view"}, 
                         React.createElement("h2", null, "Points"), 
-                        platformChart
+                        platformCharts
                     )
                 )
         );
     },
 });
 
+function getChartsFromStores() {
 
+    return chartStore.getData();
+}
 
 module.exports = PlatformCharts;
 
 
-},{"./platform-chart":22,"react":undefined,"react-router":undefined}],24:[function(require,module,exports){
+},{"../stores/platform-chart-store":45,"./platform-chart":23,"react":undefined,"react-router":undefined}],25:[function(require,module,exports){
 'use strict';
 
 var $ = require('jquery');
@@ -2295,7 +2507,7 @@ function getStateFromStores() {
 module.exports = PlatformManager;
 
 
-},{"../action-creators/console-action-creators":2,"../action-creators/modal-action-creators":3,"../action-creators/platform-manager-action-creators":5,"../stores/authorization-store":40,"../stores/console-store":41,"../stores/modal-store":43,"../stores/platforms-panel-store":47,"./console":11,"./modal":19,"./navigation":20,"./platforms-panel":27,"jquery":undefined,"react":undefined,"react-router":undefined}],25:[function(require,module,exports){
+},{"../action-creators/console-action-creators":2,"../action-creators/modal-action-creators":3,"../action-creators/platform-manager-action-creators":6,"../stores/authorization-store":41,"../stores/console-store":42,"../stores/modal-store":44,"../stores/platforms-panel-store":48,"./console":12,"./modal":20,"./navigation":21,"./platforms-panel":28,"jquery":undefined,"react":undefined,"react-router":undefined}],26:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2499,7 +2711,7 @@ function getStateFromStores(component) {
 module.exports = Platform;
 
 
-},{"../action-creators/modal-action-creators":3,"../action-creators/platform-action-creators":4,"../stores/platforms-store":48,"./agent-row":7,"./chart":8,"./confirm-form":10,"./edit-chart-form":15,"react":undefined,"react-router":undefined}],26:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../action-creators/platform-action-creators":4,"../stores/platforms-store":49,"./agent-row":8,"./chart":9,"./confirm-form":11,"./edit-chart-form":16,"react":undefined,"react-router":undefined}],27:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2685,29 +2897,12 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
             }          
         }
 
-        var listItem;
+        var itemClass = (!panelItem.hasOwnProperty("uuid") ? "item_type" : "item_label ");
 
-        if (!panelItem.hasOwnProperty("uuid"))
-        {
-            listItem = 
-                React.createElement("div", null, 
-                    React.createElement("b", null, 
-                        panelItem.name
-                    )
-                );
-        }
-        else
-        {
-            listItem = 
-                React.createElement("div", {className: "platform-link"}, 
-                    React.createElement(Router.Link, {
-                        to: "platform-charts", 
-                        params: {uuid: panelItem.uuid}
-                    }, 
+        var listItem = 
+                React.createElement("div", {className: itemClass}, 
                     panelItem.name
-                    )
-                );            
-        }
+                );
 
         return (
             React.createElement("li", {
@@ -2720,7 +2915,7 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
                         onDoubleClick: this._expandAll, 
                         onClick: this._toggleItem}, 
                         arrowContent
-                        ), 
+                    ), 
                     ChartCheckbox, 
                     React.createElement("div", {className: "tooltip_outer", 
                         style: tooltipStyle}, 
@@ -2759,7 +2954,7 @@ function getItemFromStore(itemPath) {
 module.exports = PlatformsPanelItem;
 
 
-},{"../action-creators/platforms-panel-action-creators":6,"../stores/platforms-panel-items-store":46,"react":undefined,"react-router":undefined}],27:[function(require,module,exports){
+},{"../action-creators/platforms-panel-action-creators":7,"../stores/platforms-panel-items-store":47,"react":undefined,"react-router":undefined}],28:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2971,7 +3166,7 @@ function getFilteredPlatforms(filterTerm, filterStatus, platforms) {
 module.exports = PlatformsPanel;
 
 
-},{"../action-creators/platforms-panel-action-creators":6,"../stores/platforms-panel-items-store":46,"../stores/platforms-panel-store":47,"./platforms-panel-item":26,"react":undefined,"react-router":undefined}],28:[function(require,module,exports){
+},{"../action-creators/platforms-panel-action-creators":7,"../stores/platforms-panel-items-store":47,"../stores/platforms-panel-store":48,"./platforms-panel-item":27,"react":undefined,"react-router":undefined}],29:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -3086,7 +3281,7 @@ function getStateFromStores() {
 module.exports = Platforms;
 
 
-},{"../action-creators/modal-action-creators":3,"../components/deregister-platform-confirmation":14,"../components/register-platform-form":29,"../stores/platforms-store":48,"react":undefined,"react-router":undefined}],29:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../components/deregister-platform-confirmation":15,"../components/register-platform-form":30,"../stores/platforms-store":49,"react":undefined,"react-router":undefined}],30:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -3292,7 +3487,7 @@ function getStateFromStores() {
 module.exports = RegisterPlatformForm;
 
 
-},{"../action-creators/modal-action-creators":3,"../action-creators/platform-manager-action-creators":5,"../stores/platform-registration-store":45,"react":undefined}],30:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../action-creators/platform-manager-action-creators":6,"../stores/platform-registration-store":46,"react":undefined}],31:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -3351,7 +3546,7 @@ var RemoveAgentForm = React.createClass({displayName: "RemoveAgentForm",
 module.exports = RemoveAgentForm;
 
 
-},{"../action-creators/modal-action-creators":3,"../action-creators/platform-action-creators":4,"react":undefined}],31:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../action-creators/platform-action-creators":4,"react":undefined}],32:[function(require,module,exports){
 'use strict';
 
 var keyMirror = require('react/lib/keyMirror');
@@ -3392,6 +3587,8 @@ module.exports = keyMirror({
 
     ADD_TO_CHART: null,
     REMOVE_FROM_CHART: null,
+    PIN_CHART: null,
+    REFRESH_CHART: null,
 
     EXPAND_ALL: null,
     TOGGLE_ITEM: null,
@@ -3402,7 +3599,7 @@ module.exports = keyMirror({
 });
 
 
-},{"react/lib/keyMirror":undefined}],32:[function(require,module,exports){
+},{"react/lib/keyMirror":undefined}],33:[function(require,module,exports){
 'use strict';
 
 var Dispatcher = require('flux').Dispatcher;
@@ -3422,7 +3619,7 @@ dispatcher.dispatch = function (action) {
 module.exports = dispatcher;
 
 
-},{"../constants/action-types":31,"flux":undefined}],33:[function(require,module,exports){
+},{"../constants/action-types":32,"flux":undefined}],34:[function(require,module,exports){
 'use strict';
 
 function RpcError(error) {
@@ -3437,7 +3634,7 @@ RpcError.prototype.constructor = RpcError;
 module.exports = RpcError;
 
 
-},{}],34:[function(require,module,exports){
+},{}],35:[function(require,module,exports){
 'use strict';
 
 var uuid = require('node-uuid');
@@ -3525,7 +3722,7 @@ function RpcExchange(request, redactedParams) {
 module.exports = RpcExchange;
 
 
-},{"../../constants/action-types":31,"../../dispatcher":32,"../xhr":38,"./error":33,"node-uuid":undefined}],35:[function(require,module,exports){
+},{"../../constants/action-types":32,"../../dispatcher":33,"../xhr":39,"./error":34,"node-uuid":undefined}],36:[function(require,module,exports){
 'use strict';
 
 module.exports = {
@@ -3534,7 +3731,7 @@ module.exports = {
 };
 
 
-},{"./error":33,"./exchange":34}],36:[function(require,module,exports){
+},{"./error":34,"./exchange":35}],37:[function(require,module,exports){
 'use strict';
 
 var EventEmitter = require('events').EventEmitter;
@@ -3562,7 +3759,7 @@ Store.prototype.removeChangeListener = function (callback) {
 module.exports = Store;
 
 
-},{"events":undefined}],37:[function(require,module,exports){
+},{"events":undefined}],38:[function(require,module,exports){
 'use strict';
 
 function XhrError(message, response) {
@@ -3576,7 +3773,7 @@ XhrError.prototype.constructor = XhrError;
 module.exports = XhrError;
 
 
-},{}],38:[function(require,module,exports){
+},{}],39:[function(require,module,exports){
 'use strict';
 
 module.exports = {
@@ -3585,7 +3782,7 @@ module.exports = {
 };
 
 
-},{"./error":37,"./request":39}],39:[function(require,module,exports){
+},{"./error":38,"./request":40}],40:[function(require,module,exports){
 'use strict';
 
 var jQuery = require('jquery');
@@ -3616,7 +3813,7 @@ function XhrRequest(opts) {
 module.exports = XhrRequest;
 
 
-},{"./error":37,"bluebird":undefined,"jquery":undefined}],40:[function(require,module,exports){
+},{"./error":38,"bluebird":undefined,"jquery":undefined}],41:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -3654,7 +3851,7 @@ authorizationStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = authorizationStore;
 
 
-},{"../constants/action-types":31,"../dispatcher":32,"../lib/store":36}],41:[function(require,module,exports){
+},{"../constants/action-types":32,"../dispatcher":33,"../lib/store":37}],42:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -3747,7 +3944,7 @@ consoleStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = consoleStore;
 
 
-},{"../constants/action-types":31,"../dispatcher":32,"../lib/store":36,"../stores/authorization-store":40}],42:[function(require,module,exports){
+},{"../constants/action-types":32,"../dispatcher":33,"../lib/store":37,"../stores/authorization-store":41}],43:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -3782,7 +3979,7 @@ loginFormStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = loginFormStore;
 
 
-},{"../constants/action-types":31,"../dispatcher":32,"../lib/store":36,"./authorization-store":40}],43:[function(require,module,exports){
+},{"../constants/action-types":32,"../dispatcher":33,"../lib/store":37,"./authorization-store":41}],44:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -3815,7 +4012,7 @@ modalStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = modalStore;
 
 
-},{"../constants/action-types":31,"../dispatcher":32,"../lib/store":36}],44:[function(require,module,exports){
+},{"../constants/action-types":32,"../dispatcher":33,"../lib/store":37}],45:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -3824,15 +4021,14 @@ var dispatcher = require('../dispatcher');
 var Store = require('../lib/store');
 
 
-var _chartVisible = false;
 var _chartData = {};
+var _pinnedCharts = {};
 
 var chartStore = new Store();
 
-chartStore.getCharts = function (uuid) {
+chartStore.getPinnedCharts = function () {
     
-
-    return null;
+    return _pinnedCharts;
 };
 
 chartStore.getLastError = function (uuid) {
@@ -3846,33 +4042,36 @@ chartStore.getData = function () {
 chartStore.dispatchToken = dispatcher.register(function (action) {
     switch (action.type) {
 
-        case ACTION_TYPES.ADD_TO_CHART:  
+        case ACTION_TYPES.ADD_TO_CHART:             
 
             if (_chartData.hasOwnProperty(action.panelItem.name))
             {
-                var chartItems = _chartData[action.panelItem.name].filter(function (item) { return item.uuid === action.panelItem.uuid });
-
-                if (chartItems.length === 0)
-                {
-                    if (action.panelItem.hasOwnProperty("data"))
-                    {
-                        _chartData[action.panelItem.name] = _chartData[action.panelItem.name].concat(action.panelItem.data);
-                    }
-
-                    if (_chartData[action.panelItem.name].length > 0)
-                    {
-                        _chartVisible = true;
-                    }
-
-                    chartStore.emitChange();
-                }
+                insertSeries(action.panelItem);
+                chartStore.emitChange();
             }
             else
             {
                 if (action.panelItem.hasOwnProperty("data"))
                 {
-                    _chartData[action.panelItem.name] = JSON.parse(JSON.stringify(action.panelItem.data));
+                    // _chartData[action.panelItem.name] = JSON.parse(JSON.stringify(action.panelItem.data));
+                    
+                    var chartObj = {
+                        refreshInterval: 15000,
+                        pinned: false, 
+                        data: convertTimeToSeconds(action.panelItem.data),
+                        series: [
+                            { 
+                                name: action.panelItem.name, 
+                                uuid: action.panelItem.uuid, 
+                                parentUuid: action.panelItem.parentUuid,
+                                parentType: action.panelItem.parentType,
+                                parentPath: action.panelItem.parentPath,
+                                topic: action.panelItem.topic 
+                            }
+                        ]
+                    };
 
+                    _chartData[action.panelItem.name] = chartObj;
                     chartStore.emitChange();
                 }
             }
@@ -3880,34 +4079,96 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
             break;
 
         case ACTION_TYPES.REMOVE_FROM_CHART:
+            
+            removeSeries(action.panelItem.name, action.panelItem.uuid);
+            chartStore.emitChange();
 
-            if (_chartData[action.panelItem.name].length > 0)
-            {
-                // _chartData[action.panelItem.name].forEach(function(item, index) {
-                //     if (item.uuid === action.panelItem.uuid)
-                //     {
-                //         _chartData[action.panelItem.name].splice(index, 1);
-                //     }
-                // });
+            break;
 
-                for (var i = _chartData[action.panelItem.name].length - 1; i >= 0; i--)
-                {
-                    if (_chartData[action.panelItem.name][i].uuid === action.panelItem.uuid)
-                    {
-                        _chartData[action.panelItem.name].splice(i, 1);
-                    }                    
-                }
+        case ACTION_TYPES.REFRESH_CHART:
 
-                if (_chartData[action.panelItem.name].length === 0)
-                {
-                    _chartVisible = false;
-                }
-
-                chartStore.emitChange();  
-            }
+            removeSeries(action.item.name, action.item.uuid);
+            insertSeries(action.item);
+            chartStore.emitChange();
 
             break;
     } 
+
+    function insertSeries(item) {
+
+        var chartItems = _chartData[item.name].data.filter(function (datum) { 
+            return datum.uuid === item.uuid 
+        });
+
+        if (chartItems.length === 0)
+        {
+            if (action.item.hasOwnProperty("data"))
+            {
+                _chartData[item.name].data = _chartData[item.name].data.concat(convertTimeToSeconds(item.data));
+                _chartData[item.name].series.push(
+                    { 
+                        name: item.name, 
+                        uuid: item.uuid, 
+                        parentUuid: item.parentUuid,
+                        parentType: item.parentType,
+                        parentPath: item.parentPath,
+                        topic: item.topic  
+                    }
+                );
+            }
+        }
+
+    }
+
+    function removeSeries(name, uuid) {
+
+        if (_chartData[name].data.length > 0)
+        {
+            for (var i = _chartData[name].data.length - 1; i >= 0; i--)
+            {
+                if (_chartData[name].data[i].uuid === uuid)
+                {
+                    _chartData[name].data.splice(i, 1);
+                }                    
+            }
+
+            for (var i = 0; i < _chartData[name].series.length; i++)
+            {
+                if (_chartData[name].series[i].uuid === uuid)
+                {
+                    _chartData[name].series.splice(i, 1);
+
+                    break;
+                }
+            }
+        }
+    }
+
+    function convertTimeToSeconds(data) {
+        var dataList = [];
+
+        for (var key in data)
+        {
+            var newItem = {};
+
+            for (var skey in data[key])
+            {
+                var value = data[key][skey];
+                
+                if (skey === "0" && typeof value === 'string' &&
+                    Date.parse(value + 'Z')) {
+                    value = Date.parse(value + 'Z');
+                    // initialState.xDates = true;
+                }
+
+                newItem[skey] = value;    
+            }
+
+            dataList.push(newItem);
+        }
+
+        return dataList;
+    }
     
 });
 
@@ -3916,7 +4177,7 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = chartStore;
 
 
-},{"../constants/action-types":31,"../dispatcher":32,"../lib/store":36,"../stores/authorization-store":40}],45:[function(require,module,exports){
+},{"../constants/action-types":32,"../dispatcher":33,"../lib/store":37,"../stores/authorization-store":41}],46:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -3962,7 +4223,7 @@ platformRegistrationStore.dispatchToken = dispatcher.register(function (action) 
 module.exports = platformRegistrationStore;
 
 
-},{"../constants/action-types":31,"../dispatcher":32,"../lib/store":36,"./authorization-store":40}],46:[function(require,module,exports){
+},{"../constants/action-types":32,"../dispatcher":33,"../lib/store":37,"./authorization-store":41}],47:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -5482,13 +5743,70 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             //     _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"][action.device.uuid]["points"][key]["children"] = [];
             //     _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"][action.device.uuid]["points"][key]["path"] = ["platforms", action.platform.uuid, "buildings", action.building.uuid, "devices", action.device.uuid, "points"];
             // }
-            var item = platformsPanelItemsStore.getItem(action.platform.path);
+            // var item = platformsPanelItemsStore.getItem(action.platform.path);
 
-            // var platform = _items["platforms"][action.platform.uuid];
+            // // var platform = _items["platforms"][action.platform.uuid];
 
-            if (item.children.length > 0)
+            // if (item.children.length > 0)
+            // {
+            //     item.expanded = true;
+            // }
+
+            switch (action.parent.type)
             {
-                item.expanded = true;
+                case "platform":
+            
+                    var platform = _items["platforms"][action.parent.uuid];
+
+                    if (action.points.length > 0)
+                    {
+                        platform.expanded = true;
+                        platform.points = {};
+                        platform.points.path = platform.path.slice(0);
+                        platform.points.path.push("points");
+                        platform.points.name = "Points";
+                        platform.points.expanded = false;
+                        platform.points.visible = true;
+                        platform.points.children = [];
+                        platform.points.type = "type";
+                        platform.points.sortOrder = _pointsOrder;
+
+                        if (platform.children.indexOf("points") < 0)
+                        {
+                            platform.children.push("points");
+                        }
+
+                        action.points.forEach(function (point)
+                        {
+                            //TODO: add UUID to points rpc?
+
+                            var pointProps = point;
+                            pointProps.expanded = false;
+                            pointProps.visible = true;
+                            pointProps.path = platform.points.path.slice(0);
+
+                            var uuid = (point.hasOwnProperty("topic") ? point.topic : point.uuid);
+                            
+                            pointProps.uuid = uuid;
+                            pointProps.path.push(uuid);
+                            pointProps.topic = point.topic;
+
+                            pointProps.parentPath = getParentPath(platform);
+                            
+                            pointProps.parentType = platform.type;
+                            pointProps.parentUuid = platform.uuid;
+
+                            // point.status = "GOOD";
+                            pointProps.children = [];
+                            pointProps.type = "point";
+                            pointProps.sortOrder = 0;
+                            platform.points.children.push(uuid); 
+                            platform.points[uuid] = pointProps;
+                        });
+
+                    }
+
+                    break;
             }
 
             platformsPanelItemsStore.emitChange();
@@ -5513,12 +5831,33 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             platformsPanelItemsStore.emitChange();
             break;
     }
+
+    function getParentPath(parent)
+    {
+        var path = parent.path;
+
+        var pathParts = [];
+
+        var item = _items;
+
+        path.forEach(function (part) {
+            item = item[part];
+            if (_itemTypes.indexOf(part) < 0)
+            {
+                pathParts.push(item.name);
+            } 
+        });
+
+        var pathStr = pathParts.join(" > ");
+
+        return pathStr;
+    }
 });
 
 module.exports = platformsPanelItemsStore;
 
 
-},{"../constants/action-types":31,"../dispatcher":32,"../lib/store":36}],47:[function(require,module,exports){
+},{"../constants/action-types":32,"../dispatcher":33,"../lib/store":37}],48:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -5547,7 +5886,7 @@ platformsPanelStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = platformsPanelStore;
 
 
-},{"../constants/action-types":31,"../dispatcher":32,"../lib/store":36}],48:[function(require,module,exports){
+},{"../constants/action-types":32,"../dispatcher":33,"../lib/store":37}],49:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -5616,7 +5955,7 @@ platformsStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = platformsStore;
 
 
-},{"../constants/action-types":31,"../dispatcher":32,"../lib/store":36,"../stores/authorization-store":40}],49:[function(require,module,exports){
+},{"../constants/action-types":32,"../dispatcher":33,"../lib/store":37,"../stores/authorization-store":41}],50:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -5656,4 +5995,4 @@ topicDataStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = topicDataStore;
 
 
-},{"../constants/action-types":31,"../dispatcher":32,"../lib/store":36,"./authorization-store":40}]},{},[1]);
+},{"../constants/action-types":32,"../dispatcher":33,"../lib/store":37,"./authorization-store":41}]},{},[1]);

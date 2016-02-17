@@ -8,6 +8,8 @@ var Chart = require('./chart');
 var EditChartForm = require('./edit-chart-form');
 var modalActionCreators = require('../action-creators/modal-action-creators');
 
+var PlatformChart = require('./platform-chart');
+
 var Dashboard = React.createClass({
     getInitialState: getStateFromStores,
     componentDidMount: function () {
@@ -24,6 +26,7 @@ var Dashboard = React.createClass({
     },
     render: function () {
         var charts;
+        var platformChart = <PlatformChart/>
 
         if (!this.state.platforms) {
             charts = (
@@ -88,6 +91,7 @@ var Dashboard = React.createClass({
         return (
             <div className="view">
                 <h2>Dashboard</h2>
+                {platformChart}
                 {charts}
             </div>
         );

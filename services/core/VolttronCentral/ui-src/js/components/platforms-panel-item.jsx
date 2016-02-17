@@ -183,29 +183,12 @@ var PlatformsPanelItem = React.createClass({
             }          
         }
 
-        var listItem;
+        var itemClass = (!panelItem.hasOwnProperty("uuid") ? "item_type" : "item_label ");
 
-        if (!panelItem.hasOwnProperty("uuid"))
-        {
-            listItem = 
-                <div>
-                    <b>
-                        {panelItem.name}
-                    </b>
-                </div>;
-        }
-        else
-        {
-            listItem = 
-                <div className="platform-link">
-                    <Router.Link
-                        to="platform-charts"
-                        params={{uuid: panelItem.uuid}}
-                    >
+        var listItem = 
+                <div className={itemClass}>
                     {panelItem.name}
-                    </Router.Link>
-                </div>;            
-        }
+                </div>;
 
         return (
             <li
@@ -218,8 +201,8 @@ var PlatformsPanelItem = React.createClass({
                         onDoubleClick={this._expandAll}
                         onClick={this._toggleItem}>
                         {arrowContent}
-                        </div>  
-                    {ChartCheckbox}                   
+                    </div>  
+                    {ChartCheckbox}
                     <div className="tooltip_outer" 
                         style={tooltipStyle}>
                         <div className="tooltip_inner">

@@ -1517,13 +1517,70 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             //     _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"][action.device.uuid]["points"][key]["children"] = [];
             //     _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"][action.device.uuid]["points"][key]["path"] = ["platforms", action.platform.uuid, "buildings", action.building.uuid, "devices", action.device.uuid, "points"];
             // }
-            var item = platformsPanelItemsStore.getItem(action.platform.path);
+            // var item = platformsPanelItemsStore.getItem(action.platform.path);
 
-            // var platform = _items["platforms"][action.platform.uuid];
+            // // var platform = _items["platforms"][action.platform.uuid];
 
-            if (item.children.length > 0)
+            // if (item.children.length > 0)
+            // {
+            //     item.expanded = true;
+            // }
+
+            switch (action.parent.type)
             {
-                item.expanded = true;
+                case "platform":
+            
+                    var platform = _items["platforms"][action.parent.uuid];
+
+                    if (action.points.length > 0)
+                    {
+                        platform.expanded = true;
+                        platform.points = {};
+                        platform.points.path = platform.path.slice(0);
+                        platform.points.path.push("points");
+                        platform.points.name = "Points";
+                        platform.points.expanded = false;
+                        platform.points.visible = true;
+                        platform.points.children = [];
+                        platform.points.type = "type";
+                        platform.points.sortOrder = _pointsOrder;
+
+                        if (platform.children.indexOf("points") < 0)
+                        {
+                            platform.children.push("points");
+                        }
+
+                        action.points.forEach(function (point)
+                        {
+                            //TODO: add UUID to points rpc?
+
+                            var pointProps = point;
+                            pointProps.expanded = false;
+                            pointProps.visible = true;
+                            pointProps.path = platform.points.path.slice(0);
+
+                            var uuid = (point.hasOwnProperty("topic") ? point.topic : point.uuid);
+                            
+                            pointProps.uuid = uuid;
+                            pointProps.path.push(uuid);
+                            pointProps.topic = point.topic;
+
+                            pointProps.parentPath = getParentPath(platform);
+                            
+                            pointProps.parentType = platform.type;
+                            pointProps.parentUuid = platform.uuid;
+
+                            // point.status = "GOOD";
+                            pointProps.children = [];
+                            pointProps.type = "point";
+                            pointProps.sortOrder = 0;
+                            platform.points.children.push(uuid); 
+                            platform.points[uuid] = pointProps;
+                        });
+
+                    }
+
+                    break;
             }
 
             platformsPanelItemsStore.emitChange();
@@ -1547,6 +1604,27 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
             platformsPanelItemsStore.emitChange();
             break;
+    }
+
+    function getParentPath(parent)
+    {
+        var path = parent.path;
+
+        var pathParts = [];
+
+        var item = _items;
+
+        path.forEach(function (part) {
+            item = item[part];
+            if (_itemTypes.indexOf(part) < 0)
+            {
+                pathParts.push(item.name);
+            } 
+        });
+
+        var pathStr = pathParts.join(" > ");
+
+        return pathStr;
     }
 });
 

@@ -6,15 +6,14 @@ var dispatcher = require('../dispatcher');
 var Store = require('../lib/store');
 
 
-var _chartVisible = false;
 var _chartData = {};
+var _pinnedCharts = {};
 
 var chartStore = new Store();
 
-chartStore.getCharts = function (uuid) {
+chartStore.getPinnedCharts = function () {
     
-
-    return null;
+    return _pinnedCharts;
 };
 
 chartStore.getLastError = function (uuid) {
@@ -28,33 +27,36 @@ chartStore.getData = function () {
 chartStore.dispatchToken = dispatcher.register(function (action) {
     switch (action.type) {
 
-        case ACTION_TYPES.ADD_TO_CHART:  
+        case ACTION_TYPES.ADD_TO_CHART:             
 
             if (_chartData.hasOwnProperty(action.panelItem.name))
             {
-                var chartItems = _chartData[action.panelItem.name].filter(function (item) { return item.uuid === action.panelItem.uuid });
-
-                if (chartItems.length === 0)
-                {
-                    if (action.panelItem.hasOwnProperty("data"))
-                    {
-                        _chartData[action.panelItem.name] = _chartData[action.panelItem.name].concat(action.panelItem.data);
-                    }
-
-                    if (_chartData[action.panelItem.name].length > 0)
-                    {
-                        _chartVisible = true;
-                    }
-
-                    chartStore.emitChange();
-                }
+                insertSeries(action.panelItem);
+                chartStore.emitChange();
             }
             else
             {
                 if (action.panelItem.hasOwnProperty("data"))
                 {
-                    _chartData[action.panelItem.name] = JSON.parse(JSON.stringify(action.panelItem.data));
+                    // _chartData[action.panelItem.name] = JSON.parse(JSON.stringify(action.panelItem.data));
+                    
+                    var chartObj = {
+                        refreshInterval: 15000,
+                        pinned: false, 
+                        data: convertTimeToSeconds(action.panelItem.data),
+                        series: [
+                            { 
+                                name: action.panelItem.name, 
+                                uuid: action.panelItem.uuid, 
+                                parentUuid: action.panelItem.parentUuid,
+                                parentType: action.panelItem.parentType,
+                                parentPath: action.panelItem.parentPath,
+                                topic: action.panelItem.topic 
+                            }
+                        ]
+                    };
 
+                    _chartData[action.panelItem.name] = chartObj;
                     chartStore.emitChange();
                 }
             }
@@ -62,34 +64,96 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
             break;
 
         case ACTION_TYPES.REMOVE_FROM_CHART:
+            
+            removeSeries(action.panelItem.name, action.panelItem.uuid);
+            chartStore.emitChange();
 
-            if (_chartData[action.panelItem.name].length > 0)
-            {
-                // _chartData[action.panelItem.name].forEach(function(item, index) {
-                //     if (item.uuid === action.panelItem.uuid)
-                //     {
-                //         _chartData[action.panelItem.name].splice(index, 1);
-                //     }
-                // });
+            break;
 
-                for (var i = _chartData[action.panelItem.name].length - 1; i >= 0; i--)
-                {
-                    if (_chartData[action.panelItem.name][i].uuid === action.panelItem.uuid)
-                    {
-                        _chartData[action.panelItem.name].splice(i, 1);
-                    }                    
-                }
+        case ACTION_TYPES.REFRESH_CHART:
 
-                if (_chartData[action.panelItem.name].length === 0)
-                {
-                    _chartVisible = false;
-                }
-
-                chartStore.emitChange();  
-            }
+            removeSeries(action.item.name, action.item.uuid);
+            insertSeries(action.item);
+            chartStore.emitChange();
 
             break;
     } 
+
+    function insertSeries(item) {
+
+        var chartItems = _chartData[item.name].data.filter(function (datum) { 
+            return datum.uuid === item.uuid 
+        });
+
+        if (chartItems.length === 0)
+        {
+            if (action.item.hasOwnProperty("data"))
+            {
+                _chartData[item.name].data = _chartData[item.name].data.concat(convertTimeToSeconds(item.data));
+                _chartData[item.name].series.push(
+                    { 
+                        name: item.name, 
+                        uuid: item.uuid, 
+                        parentUuid: item.parentUuid,
+                        parentType: item.parentType,
+                        parentPath: item.parentPath,
+                        topic: item.topic  
+                    }
+                );
+            }
+        }
+
+    }
+
+    function removeSeries(name, uuid) {
+
+        if (_chartData[name].data.length > 0)
+        {
+            for (var i = _chartData[name].data.length - 1; i >= 0; i--)
+            {
+                if (_chartData[name].data[i].uuid === uuid)
+                {
+                    _chartData[name].data.splice(i, 1);
+                }                    
+            }
+
+            for (var i = 0; i < _chartData[name].series.length; i++)
+            {
+                if (_chartData[name].series[i].uuid === uuid)
+                {
+                    _chartData[name].series.splice(i, 1);
+
+                    break;
+                }
+            }
+        }
+    }
+
+    function convertTimeToSeconds(data) {
+        var dataList = [];
+
+        for (var key in data)
+        {
+            var newItem = {};
+
+            for (var skey in data[key])
+            {
+                var value = data[key][skey];
+                
+                if (skey === "0" && typeof value === 'string' &&
+                    Date.parse(value + 'Z')) {
+                    value = Date.parse(value + 'Z');
+                    // initialState.xDates = true;
+                }
+
+                newItem[skey] = value;    
+            }
+
+            dataList.push(newItem);
+        }
+
+        return dataList;
+    }
     
 });
 

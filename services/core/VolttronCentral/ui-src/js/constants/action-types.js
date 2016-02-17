@@ -38,6 +38,8 @@ module.exports = keyMirror({
 
     ADD_TO_CHART: null,
     REMOVE_FROM_CHART: null,
+    PIN_CHART: null,
+    REFRESH_CHART: null,
 
     EXPAND_ALL: null,
     TOGGLE_ITEM: null,

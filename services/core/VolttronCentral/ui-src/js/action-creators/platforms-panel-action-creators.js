@@ -80,9 +80,64 @@ var platformsPanelActionCreators = {
         }
 
         function loadPanelPoints(parent) {
+
+            var pointsList = [];
+
+            if (parent.type === "platform")
+            {
+                pointsList = [
+
+                    {
+                        "topic": "datalogger/log/platform/status/cpu/times_percent/guest_nice",
+                        "name": "times_percent / guest_nice"
+                    },
+                    {
+                        "topic": "datalogger/log/platform/status/cpu/times_percent/system",
+                        "name": "times_percent / system"
+                    },
+                    {
+                        "topic": "datalogger/log/platform/status/cpu/percent",
+                        "name": "cpu / percent"
+                    },
+                    {
+                        "topic": "datalogger/log/platform/status/cpu/times_percent/irq",
+                        "name": "times_percent / irq"
+                    },
+                    {
+                        "topic": "datalogger/log/platform/status/cpu/times_percent/steal",
+                        "name": "times_percent / steal"
+                    },
+                    {
+                        "topic": "datalogger/log/platform/status/cpu/times_percent/user",
+                        "name": "times_percent / user"
+                    },
+                    {
+                        "topic": "datalogger/log/platform/status/cpu/times_percent/nice",
+                        "name": "times_percent / nice"
+                    },
+                    {
+                        "topic": "datalogger/log/platform/status/cpu/times_percent/iowait",
+                        "name": "times_percent / iowait"
+                    },
+                    {
+                        "topic": "datalogger/log/platform/status/cpu/times_percent/idle",
+                        "name": "times_percent / idle"
+                    },
+                    {
+                        "topic": "datalogger/log/platform/status/cpu/times_percent/guest",
+                        "name": "times_percent / guest"
+                    },
+                    {
+                        "topic": "datalogger/log/platform/status/cpu/times_percent/softirq",
+                        "name": "times_percent / softirq"
+                    }
+                ]
+            }
+
             dispatcher.dispatch({
                 type: ACTION_TYPES.RECEIVE_POINT_STATUSES,
-                platform: parent
+                parent: parent,
+                points: pointsList
             });    
         }
 
@@ -151,10 +206,41 @@ var platformsPanelActionCreators = {
 
     addToChart: function(panelItem) {
 
-        dispatcher.dispatch({
-            type: ACTION_TYPES.ADD_TO_CHART,
-            panelItem: panelItem
-        });  
+        if (panelItem.parentType === "platform")
+        {
+            var authorization = authorizationStore.getAuthorization();
+
+            new rpc.Exchange({
+                method: 'platforms.uuid.' + panelItem.parentUuid + '.historian.query',
+                params: {
+                    topic: panelItem.topic,
+                    count: 20,
+                    order: 'LAST_TO_FIRST',
+                },
+                authorization: authorization,
+            }).promise
+                .then(function (result) {
+                    panelItem.data = result.values;
+
+                    panelItem.data.forEach(function (datum) {
+                        datum.name = panelItem.name;
+                        datum.parent = panelItem.parentPath;
+                        datum.uuid = panelItem.uuid;
+                    });
+                    dispatcher.dispatch({
+                        type: ACTION_TYPES.ADD_TO_CHART,
+                        panelItem: panelItem
+                    });
+                })
+                .catch(rpc.Error, handle401);
+        }  
+        else
+        {
+            dispatcher.dispatch({
+                type: ACTION_TYPES.ADD_TO_CHART,
+                panelItem: panelItem
+            });
+        }
 
     },
 
