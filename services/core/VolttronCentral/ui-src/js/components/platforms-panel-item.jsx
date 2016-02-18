@@ -14,7 +14,6 @@ var PlatformsPanelItem = React.createClass({
         state.showTooltip = false;
         state.tooltipX = null;
         state.tooltipY = null;
-        state.keepTooltip = false;
         state.checked = (this.props.panelItem.hasOwnProperty("checked") ? this.props.panelItem.checked : false);
         state.panelItem = this.props.panelItem;
         state.children = this.props.panelChildren;
@@ -88,12 +87,6 @@ var PlatformsPanelItem = React.createClass({
         this.setState({tooltipX: evt.clientX - 20});
         this.setState({tooltipY: evt.clientY - 70});
     },
-    _keepTooltip: function () {
-        this.setState({keepTooltip: true});
-    },
-    _unkeepTooltip: function () {
-        this.setState({keepTooltip: false});
-    },
     render: function () {
         var panelItem = this.state.panelItem;
         var itemPath = this.props.itemPath;
@@ -123,7 +116,7 @@ var PlatformsPanelItem = React.createClass({
         }
 
         var tooltipStyle = {
-            display: (panelItem.type !== "type" ? (this.state.showTooltip || this.state.keepTooltip ? "block" : "none") : "none"),
+            display: (panelItem.type !== "type" ? (this.state.showTooltip ? "block" : "none") : "none"),
             position: "absolute",
             top: this.state.tooltipY + "px",
             left: this.state.tooltipX + "px"
@@ -210,15 +203,14 @@ var PlatformsPanelItem = React.createClass({
                         onDoubleClick={this._expandAll}
                         onClick={this._toggleItem}>
                         {arrowContent}
-                        </div>  
-                            {ChartCheckbox}                   
-                        <div className={toolTipClasses}
+                    </div>  
+                    {ChartCheckbox}                   
+                    <div className={toolTipClasses}
                         style={tooltipStyle}>
                         <div className="tooltip_inner">
-                            {panelItem.uuid}
-                        </div>
-                        <div className="tooltip_point">
-                            &#9654;
+                            <div className="opaque_inner">
+                                {panelItem.uuid}
+                            </div>
                         </div>
                     </div>
                     <div className="tooltip_target"

@@ -2052,14 +2052,12 @@ var React = require('react');
 var Router = require('react-router');
 var d3 = require('d3');
 var nv = require('nvd3');
+var moment = require('moment');
 
 
 var chartStore = require('../stores/platform-chart-store');
 // var chartDataStore = require('../stores/chart-data-store');
 var platformChartActionCreators = require('../action-creators/platform-chart-action-creators');
-
-var lineChart;
-
 
 var PlatformChart = React.createClass({displayName: "PlatformChart",
     componentDidMount: function () {
@@ -2083,36 +2081,27 @@ var PlatformChart = React.createClass({displayName: "PlatformChart",
             }    
         }
     },
-    _onPinToggle: function () {
-        platformChartActionCreators.pinChart(this.props.chartKey);
-    },
     render: function () {
         var chartData = this.props.chart; 
         var platformChart;
 
         if (chartData)
         {
-            var pinClasses = ["chart-pin"];
-
             if (chartData.data.length > 0)
             {
-                pinClasses.push(chartData.pinned ? "pinned-chart" : "unpinned-chart");
-                
-                platformChart = (React.createElement("div", {className: "platform-chart with-3d-shadow with-transitions"}, 
-                    React.createElement("label", {className: "chart-title"}, chartData.data[0].name), 
-                    
-                    React.createElement("div", {className: pinClasses.join(' '), 
-                        onClick: this._onPinToggle}, 
-                        React.createElement("i", {className: "fa fa-thumb-tack"})
-                    ), 
-                    React.createElement("div", {className: "viz"}, 
-                         chartData.data.length != 0 ? 
-                              React.createElement(GraphLineChart, {data: chartData.data, 
-                                  name: chartData.data[0].name}) : null
-                    ), 
+                platformChart = (
+                  React.createElement("div", {className: "platform-chart with-3d-shadow with-transitions"}, 
+                      React.createElement("label", {className: "chart-title"}, chartData.data[0].name), 
+                      React.createElement("div", null, 
+                          React.createElement("div", {className: "viz"}, 
+                               chartData.data.length != 0 ? 
+                                    React.createElement(GraphLineChart, {data: chartData.data, 
+                                        name: chartData.data[0].name}) : null
+                          ), 
 
-                    React.createElement("br", null)
-                ))
+                          React.createElement("br", null)
+                      )
+                  ))
             }
         }
 
@@ -2126,17 +2115,52 @@ var PlatformChart = React.createClass({displayName: "PlatformChart",
 
 
 var GraphLineChart = React.createClass({displayName: "GraphLineChart",
+
   getInitialState: function () {
       var state = {};
       state.chartName = this.props.name.replace(" / ", "_") + '_chart';
+      state.type = "line";
+      state.lineChart = null;
+      state.pinned = false;
+      state.showTaptip = false;
+      state.taptipX = 0;
+      state.taptipY = 0;
 
       return state;
   },
   componentDidMount: function() {
-    drawLineChart(this.state.chartName, lineData(getNested(this.props.data)));
+      
+      var lineChart = this._drawLineChart(this.state.chartName, this.state.type, this._lineData(this._getNested(this.props.data)));
+      this.setState({lineChart: lineChart});
   },
   componentDidUpdate: function() {
-    updateLineChart(this.state.chartName, lineData(getNested(this.props.data)));
+      if (this.state.lineChart)
+      {
+          this._updateLineChart(this.state.lineChart, this.state.chartName, this._lineData(this._getNested(this.props.data)));
+      }
+  },
+  _showTaptip: function (evt) {
+
+      if (!this.state.showTaptip)
+      {
+          this.setState({taptipX: evt.clientX - 60});
+          this.setState({taptipY: evt.clientY - 100});
+      }
+
+      this.setState({showTaptip: !this.state.showTaptip});
+  },
+  _onChartChange: function (e) {
+      var chartType = e.target.value;
+      
+      var lineChart = this._drawLineChart(this.state.chartName, chartType, this._lineData(this._getNested(this.props.data)));
+
+      this.setState({ type: e.target.value});
+      this.setState({lineChart: lineChart});
+      this.setState({showTaptip: false});
+  },
+  _onPinToggle: function () {
+      this.setState({pinned: !this.state.pinned});
+      // platformChartActionCreators.pinChart(this.props.chartKey);
   },
   render: function() {
 
@@ -2144,90 +2168,202 @@ var GraphLineChart = React.createClass({displayName: "GraphLineChart",
 
     var chartStyle = {
         // height: chartHeight.toString() + "%",
-        width: "100%"
+        width: "90%"
     }
 
+    var svgStyle = {
+      padding: "0px 50px"
+    }
+
+    var controlStyle = {
+      width: "100%",
+      textAlign: "left"
+    }
+
+    var pinClasses = ["chart-pin inlineBlock"];
+    pinClasses.push(this.state.pinned ? "pinned-chart" : "unpinned-chart");
+
+    var taptipStyle = {
+        display: (this.state.showTaptip ? "block" : "none"),
+        position: "absolute",
+        left: this.state.taptipX + "px",
+        top: this.state.taptipY + "px"
+    };
+
+    var tapTipClasses = "taptip_outer";
+    
     return (
-      React.createElement("div", {id: this.state.chartName, 
-            className: "platform-line-chart", 
-            style: chartStyle}, 
-        React.createElement("svg", null)
+      React.createElement("div", {className: "platform-line-chart", 
+          style: chartStyle}, 
+          React.createElement("svg", {id: this.state.chartName, style: svgStyle}), 
+          React.createElement("div", {className: "displayBlock", 
+              style: controlStyle}, 
+              React.createElement("div", {className: "filter_button", 
+                  onClick: this._changeChartType}, 
+                  React.createElement("div", {className: "centeredDiv"}, 
+                      React.createElement("div", {className: pinClasses.join(' '), 
+                          onClick: this._onPinToggle}, 
+                          React.createElement("i", {className: "fa fa-thumb-tack"})
+                      )
+                  )
+              ), 
+              React.createElement("div", {className: tapTipClasses, 
+                  style: taptipStyle}, 
+                  React.createElement("div", {className: "taptip_inner"}, 
+                      React.createElement("div", {className: "opaque_inner"}, 
+                          React.createElement("h4", null, "Chart Type"), 
+                          React.createElement("br", null), 
+                          React.createElement("select", {
+                              id: "type", 
+                              onChange: this._onChartChange, 
+                              value: this.state.type, 
+                              autoFocus: true, 
+                              required: true
+                          }, 
+                              React.createElement("option", {value: "line"}, "Line"), 
+                              React.createElement("option", {value: "lineWithFocus"}, "Line with View Finder"), 
+                              React.createElement("option", {value: "stackedArea"}, "Stacked Area"), 
+                              React.createElement("option", {value: "cumulativeLine"}, "Cumulative Line")
+                          )
+                      )
+                  )
+              ), 
+              React.createElement("div", {className: "inlineBlock"}, 
+                  React.createElement("div", {className: "filter_button", 
+                      onClick: this._showTaptip}, 
+                      React.createElement("div", {className: "centeredDiv"}, 
+                          React.createElement("i", {className: "fa fa-line-chart"})
+                      )
+                  )
+              )
+          )
       )
     );
-  }
+  },
+  _drawLineChart: function (elementParent, type, data) {
+      var tickCount = 0;
+      var lineChart;
+
+      switch (type)
+      {
+          case "line":
+              lineChart = nv.models.lineChart();
+              break;
+          case "lineWithFocus":
+              lineChart = nv.models.lineWithFocusChart();
+              break;
+          case "stackedArea":
+              lineChart = nv.models.stackedAreaChart();
+              break;
+          case "cumulativeLine":
+              lineChart = nv.models.cumulativeLineChart();
+              break;
+      }
+
+      lineChart.margin({left: 25, right: 25})
+          .x(function(d) {return d.x})
+          .y(function(d) {return d.y})
+          .useInteractiveGuideline(true)
+          .showYAxis(true)
+          .showXAxis(true);
+      lineChart.xAxis
+        .tickFormat(function (d, i) {
+
+            var tickValue;
+
+            if (typeof i === "undefined")
+            {
+                if (tickCount === 0)
+                {
+                    tickValue = moment(d).fromNow();
+                    tickCount++;
+                }
+                else if (tickCount === 1)
+                {
+                    tickValue = moment(d).fromNow();
+                    tickCount = 0;
+                }
+            }
+            else
+            {
+                tickValue = "";
+            }
+
+            return tickValue;
+        })
+        .staggerLabels(false);
+      lineChart.yAxis
+        .tickFormat(d3.format('.1f'));
+
+      switch (type)
+      {        
+          case "lineWithFocus":            
+              lineChart.x2Axis
+                .tickFormat(function (d) {
+                    return d3.time.format('%X')(new Date(d));
+                });
+              break;
+      }
+
+      d3.selectAll('#' + elementParent + ' > *').remove();
+      d3.select('#' + elementParent)
+        .datum(data)
+        .call(lineChart);
+      nv.utils.windowResize(function() { lineChart.update() });
+
+      nv.addGraph(function() {
+        return lineChart;
+      });
+
+      return lineChart;
+    },
+    _updateLineChart: function (lineChart, elementParent, data) {
+      d3.select('#' + elementParent)
+        .datum(data)
+        .call(lineChart);
+    },
+    _getNested: function (data) {
+      var keyYearMonth = d3.nest()
+        .key(function(d){return d.parent; })
+        .key(function(d){return d["0"]; });
+      var keyedData = keyYearMonth.entries(
+        data.map(function(d) {
+          return d;
+        })
+      );
+      return keyedData;
+    },
+    _lineData: function (data) {
+      var colors = ['DarkOrange', 'ForestGreen', 'DeepPink', 'DarkViolet', 'Teal', 'Maroon', 'RoyalBlue', 'Silver', 'MediumPurple', 'Red', 'Lime', 'Tan', 'LightGoldenrodYellow', 'Turquoise', 'Pink', 'DeepSkyBlue', 'OrangeRed', 'LightGrey', 'Olive'];
+      data = data.sort(function(a,b){ return a.key > b.key; });
+      var lineDataArr = [];
+      for (var i = 0; i <= data.length-1; i++) {
+        var lineDataElement = [];
+        var currentValues = data[i].values.sort(function(a,b){ return +a.key - +b.key; });
+        for (var j = 0; j <= currentValues.length-1; j++) {
+          lineDataElement.push({
+            'x': +currentValues[j].key,
+            'y': +currentValues[j].values[0][1]
+          });
+        }
+        lineDataArr.push({
+          key: data[i].key,
+          color: colors[i],
+          values: lineDataElement
+        });
+      }
+      return lineDataArr;
+    }
+  
 });
 
 
-function drawLineChart (elementParent, data) {
-  var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  nv.addGraph(function() {
-    lineChart = nv.models.lineWithFocusChart()
-      .margin({left: 25, right: 25})
-      .x(function(d) {return d.x})
-      .y(function(d) {return d.y})
-      .useInteractiveGuideline(true)
-      .showYAxis(true)
-      .showXAxis(true);
-    lineChart.xAxis
-      .tickFormat(d3.format('f'))
-      .staggerLabels(false);
-    lineChart.yAxis
-      .tickFormat(d3.format('.1f'));
-    d3.select('#' + elementParent + ' svg')
-      .datum(data)
-      .call(lineChart);
-    nv.utils.windowResize(function() { lineChart.update() });
-    return lineChart;
-  });
-}
-
-function updateLineChart (elementParent, data) {
-  d3.select('#' + elementParent + ' svg')
-    .datum(data)
-    .call(lineChart);
-}
-
-
-//line data
-function getNested (data) {
-  var keyYearMonth = d3.nest()
-    .key(function(d){return d.parent; })
-    .key(function(d){return d["0"]; });
-  var keyedData = keyYearMonth.entries(
-    data.map(function(d) {
-      return d;
-    })
-  );
-  return keyedData;
-}
-
-function lineData (data) {
-  var colors = ['DarkOrange', 'ForestGreen', 'DeepPink', 'DarkViolet', 'Teal', 'Maroon', 'RoyalBlue', 'Silver', 'MediumPurple', 'Red', 'Lime', 'Tan', 'LightGoldenrodYellow', 'Turquoise', 'Pink', 'DeepSkyBlue', 'OrangeRed', 'LightGrey', 'Olive'];
-  data = data.sort(function(a,b){ return a.key > b.key; });
-  var lineDataArr = [];
-  for (var i = 0; i <= data.length-1; i++) {
-    var lineDataElement = [];
-    var currentValues = data[i].values.sort(function(a,b){ return +a.key - +b.key; });
-    for (var j = 0; j <= currentValues.length-1; j++) {
-      lineDataElement.push({
-        'x': +currentValues[j].key,
-        'y': +currentValues[j].values[0][1]
-      });
-    }
-    lineDataArr.push({
-      key: data[i].key,
-      color: colors[i],
-      values: lineDataElement
-    });
-  }
-  return lineDataArr;
-}
 
 
 module.exports = PlatformChart;
 
 
-},{"../action-creators/platform-chart-action-creators":5,"../stores/platform-chart-store":45,"d3":undefined,"nvd3":undefined,"react":undefined,"react-router":undefined}],24:[function(require,module,exports){
+},{"../action-creators/platform-chart-action-creators":5,"../stores/platform-chart-store":45,"d3":undefined,"moment":undefined,"nvd3":undefined,"react":undefined,"react-router":undefined}],24:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2650,7 +2786,6 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
         state.showTooltip = false;
         state.tooltipX = null;
         state.tooltipY = null;
-        state.keepTooltip = false;
         state.checked = (this.props.panelItem.hasOwnProperty("checked") ? this.props.panelItem.checked : false);
         state.panelItem = this.props.panelItem;
         state.children = this.props.panelChildren;
@@ -2724,12 +2859,6 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
         this.setState({tooltipX: evt.clientX - 20});
         this.setState({tooltipY: evt.clientY - 70});
     },
-    _keepTooltip: function () {
-        this.setState({keepTooltip: true});
-    },
-    _unkeepTooltip: function () {
-        this.setState({keepTooltip: false});
-    },
     render: function () {
         var panelItem = this.state.panelItem;
         var itemPath = this.props.itemPath;
@@ -2759,7 +2888,7 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
         }
 
         var tooltipStyle = {
-            display: (panelItem.type !== "type" ? (this.state.showTooltip || this.state.keepTooltip ? "block" : "none") : "none"),
+            display: (panelItem.type !== "type" ? (this.state.showTooltip ? "block" : "none") : "none"),
             position: "absolute",
             top: this.state.tooltipY + "px",
             left: this.state.tooltipX + "px"
@@ -2846,15 +2975,14 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
                         onDoubleClick: this._expandAll, 
                         onClick: this._toggleItem}, 
                         arrowContent
-                        ), 
-                            ChartCheckbox, 
-                        React.createElement("div", {className: toolTipClasses, 
+                    ), 
+                    ChartCheckbox, 
+                    React.createElement("div", {className: toolTipClasses, 
                         style: tooltipStyle}, 
                         React.createElement("div", {className: "tooltip_inner"}, 
-                            panelItem.uuid
-                        ), 
-                        React.createElement("div", {className: "tooltip_point"}, 
-                            "▶"
+                            React.createElement("div", {className: "opaque_inner"}, 
+                                panelItem.uuid
+                            )
                         )
                     ), 
                     React.createElement("div", {className: "tooltip_target", 
@@ -3042,7 +3170,7 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
                             onChange: this._onFilterBoxChange, 
                             value:  this.state.filterValue}
                         ), 
-                        React.createElement("div", {className: "filter_buttons"}, 
+                        React.createElement("div", {className: "inlineBlock"}, 
                             React.createElement("div", {className: "filter_button status-good", 
                                 onClick: this._onFilterGood, 
                                 style: filterGood}, 

@@ -154,7 +154,7 @@ var PlatformsPanel = React.createClass({
                             onChange={this._onFilterBoxChange}
                             value={ this.state.filterValue }
                         />
-                        <div className="filter_buttons">
+                        <div className="inlineBlock">
                             <div className="filter_button status-good"
                                 onClick={this._onFilterGood}
                                 style={filterGood}>
