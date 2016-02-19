@@ -496,8 +496,7 @@ def gen_keypair(opts):
     keystore = KeyStore(opts.keystore_file)
     if os.path.isfile(opts.keystore_file):
         _stdout.write('{} already exists.\n'.format(opts.keystore_file))
-        choice = raw_input('Overwrite (y/n)? ')
-        if not choice or choice.lower()[0] != 'y':
+        if not _ask_yes_no('Overwrite?', default='no'):
             return
     keystore.generate()
     _stdout.write('public key: {}\n'.format(keystore.public()))
@@ -553,21 +552,28 @@ def _ask_for_auth_fields(domain=None, address=None, user_id=None,
         def __init__(self):
             self._fields = {}
 
-        def add(self, name, default=None, note=None, callback=lambda x: x):
+        def add(self, name, default=None, note=None, callback=lambda x: x,
+                validate=lambda x: (True, '')):
             self._fields[name] = {'note': note, 'default': default,
-                                  'callback': callback}
+                                  'callback': callback, 'validate': validate}
 
         def ask(self):
             for name in self._fields:
                 note = self._fields[name]['note']
                 default = self._fields[name]['default']
-                note = '({}) '.format(note) if note else ''
-                default = default if default else ''
-                question = '{} {}[{}]: '.format(name, note, default)
                 callback = self._fields[name]['callback']
-                response = callback(raw_input(question).rstrip())
-                if not response:
-                    response = self._fields[name]['default']
+                validate = self._fields[name]['validate']
+
+                note = '({}) '.format(note) if note else ''
+                question = '{} {}[{}]: '.format(name, note,
+                                                default if default else '')
+                valid = False
+                while not valid:
+                    response = callback(raw_input(question).rstrip()) or default
+                    valid, msg = validate(response)
+                    if not valid:
+                        _stderr.write('{}\n'.format(msg))
+
                 self._fields[name]['response'] = response
             return {k : self._fields[k]['response'] for k in self._fields}
 
@@ -582,7 +588,7 @@ def _ask_for_auth_fields(domain=None, address=None, user_id=None,
               comma_split)
     asker.add('groups', groups, 'delimit multiple entries with comma',
               comma_split)
-    asker.add('credentials', credentials)
+    asker.add('credentials', credentials, validate=AuthEntry.valid_credentials)
 
     return asker.ask()
 

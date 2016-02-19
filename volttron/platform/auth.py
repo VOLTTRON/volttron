@@ -364,16 +364,22 @@ class AuthEntry(object):
         cls = self.__class__
         return '%s.%s(%s)' % (cls.__module__, cls.__name__, self)
 
+    @staticmethod
+    def valid_credentials(cred):
+        if cred is None:
+            return False, 'credentials parameter is required'
+        if not (cred == 'NULL' or
+                cred.startswith('PLAIN:') or
+                cred.startswith('CURVE:')):
+            return False, ('credentials must either begin with "PLAIN:" or "CURVE:" '
+                    'or it must be "NULL"')
+        return True, ''
+
     def invalid(self):
         '''Returns error string if the entry is invalid; None if it is valid'''
-        if self.credentials is None:
-            return 'credentials parameter is required'
-        if not (self.credentials == 'NULL' or
-                self.credentials.startswith('PLAIN:') or
-                self.credentials.startswith('CURVE:')):
-            return ('credentials must either begin with "PLAIN:" or "CURVE:" '
-                    'or it must be "NULL"')
-
+        valid, msg = AuthEntry.valid_credentials(self.credentials)
+        if not valid:
+            return msg
 
 class AuthFile(object):
     def __init__(self, auth_file):
