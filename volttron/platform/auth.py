@@ -141,6 +141,8 @@ class AuthService(Agent):
         except Exception:
             _log.exception('error loading %s', self.auth_file)
         else:
+            groups = auth_data.get('groups', {})
+            roles = auth_data.get('roles', {})
             try:
                 allowed = auth_data['allow']
             except KeyError:
@@ -149,7 +151,17 @@ class AuthService(Agent):
             entries = []
             for entry in allowed:
                 try:
-                    entries.append(AuthEntry(**entry))
+                    auth_entry = AuthEntry(**entry)
+                    entry_roles = auth_entry.roles
+                    # Each group is a list of roles
+                    for group in auth_entry.groups:
+                        entry_roles += groups.get(group, [])
+                    capabilities = []
+                    # Each role is a list of capabilities
+                    for role in entry_roles:
+                        capabilities += roles.get(role, [])
+                    auth_entry.add_capabilities(list(set(capabilities)))
+                    entries.append(auth_entry)
                 except TypeError:
                     _log.warn('invalid entry %r in auth file %s',
                               entry, self.auth_file)
@@ -312,23 +324,30 @@ class AuthEntry(object):
     def __init__(self, domain=None, address=None, credentials=None,
                  user_id=None, groups=None, roles=None,
                  capabilities=None, **kwargs):
-        def build(value, list_class=List, str_class=String):
-            if not value:
-                return None
-            if isinstance(value, basestring):
-                return String(value)
-            return List(String(elem) for elem in value)
 
-        self.domain = build(domain)
-        self.address = build(address)
-        self.credentials = build(credentials)
-        self.groups = build(groups, list, str) or []
-        self.roles = build(roles, list, str) or []
-        self.capabilities = build(capabilities, list, str) or []
+        self.domain = AuthEntry.build(domain)
+        self.address = AuthEntry.build(address)
+        self.credentials = AuthEntry.build(credentials)
+        self.groups = AuthEntry.build(groups, list, str) or []
+        self.roles = AuthEntry.build(roles, list, str) or []
+        self.capabilities = AuthEntry.build(capabilities, list, str) or []
         self.user_id = None if user_id is None else user_id.encode('utf-8')
         if kwargs:
             _log.debug(
                 'auth record has unrecognized keys: %r' % (kwargs.keys(),))
+
+    @staticmethod
+    def build(value, list_class=List, str_class=String):
+        if not value:
+            return None
+        if isinstance(value, basestring):
+            return String(value)
+        return List(String(elem) for elem in value)
+
+    def add_capabilities(self, capabilities):
+        caps_set = set(capabilities)
+        caps_set |= set(self.capabilities)
+        self.capabilities = AuthEntry.build(list(caps_set), list, str) or []
 
     def match(self, domain, address, mechanism, credentials):
         creds = ':'.join([mechanism] + credentials)
