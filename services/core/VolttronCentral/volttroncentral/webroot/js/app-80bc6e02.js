@@ -1287,6 +1287,7 @@ var React = require('react');
 var Router = require('react-router');
 
 var platformsStore = require('../stores/platforms-store');
+var platformChartStore = require('../stores/platform-chart-store');
 var Chart = require('./chart');
 var EditChartForm = require('./edit-chart-form');
 var modalActionCreators = require('../action-creators/modal-action-creators');
@@ -1297,9 +1298,11 @@ var Dashboard = React.createClass({displayName: "Dashboard",
     getInitialState: getStateFromStores,
     componentDidMount: function () {
         platformsStore.addChangeListener(this._onStoreChange);
+        platformChartStore.addChangeListener(this._onStoreChange);
     },
     componentWillUnmount: function () {
         platformsStore.removeChangeListener(this._onStoreChange);
+        platformChartStore.removeChangeListener(this._onStoreChange);
     },
     _onStoreChange: function () {
         this.setState(getStateFromStores());
@@ -1309,7 +1312,19 @@ var Dashboard = React.createClass({displayName: "Dashboard",
     },
     render: function () {
         var charts;
-        var platformChart = React.createElement(PlatformChart, null)
+        
+        var pinnedCharts = this.state.platformCharts; 
+
+        var platformCharts = [];
+
+        for (var key in pinnedCharts)
+        {
+            if (pinnedCharts[key].data.length > 0)
+            {
+                var platformChart = React.createElement(PlatformChart, {chart: pinnedCharts[key], chartKey: key, hideControls: true})
+                platformCharts.push(platformChart);
+            }
+        }
 
         if (!this.state.platforms) {
             charts = (
@@ -1362,8 +1377,8 @@ var Dashboard = React.createClass({displayName: "Dashboard",
                         }, this);
                 }, this);
 
-            if (!charts.length) {
-                charts = (
+            if (pinnedCharts.length === 0) {
+                platformCharts = (
                     React.createElement("p", {className: "empty-help"}, 
                         "Pin a platform chart to have it appear on the dashboard"
                     )
@@ -1374,8 +1389,8 @@ var Dashboard = React.createClass({displayName: "Dashboard",
         return (
             React.createElement("div", {className: "view"}, 
                 React.createElement("h2", null, "Dashboard"), 
-                platformChart, 
-                charts
+                platformCharts
+                
             )
         );
     },
@@ -1384,13 +1399,14 @@ var Dashboard = React.createClass({displayName: "Dashboard",
 function getStateFromStores() {
     return {
         platforms: platformsStore.getPlatforms(),
+        platformCharts: platformChartStore.getPinnedCharts()
     };
 }
 
 module.exports = Dashboard;
 
 
-},{"../action-creators/modal-action-creators":3,"../stores/platforms-store":49,"./chart":9,"./edit-chart-form":16,"./platform-chart":23,"react":undefined,"react-router":undefined}],15:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../stores/platform-chart-store":45,"../stores/platforms-store":49,"./chart":9,"./edit-chart-form":16,"./platform-chart":23,"react":undefined,"react-router":undefined}],15:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2056,7 +2072,7 @@ var moment = require('moment');
 
 
 var chartStore = require('../stores/platform-chart-store');
-// var chartDataStore = require('../stores/chart-data-store');
+var platformChartStore = require('../stores/platform-chart-store');
 var platformChartActionCreators = require('../action-creators/platform-chart-action-creators');
 
 var PlatformChart = React.createClass({displayName: "PlatformChart",
@@ -2095,8 +2111,10 @@ var PlatformChart = React.createClass({displayName: "PlatformChart",
                       React.createElement("div", null, 
                           React.createElement("div", {className: "viz"}, 
                                chartData.data.length != 0 ? 
-                                    React.createElement(GraphLineChart, {data: chartData.data, 
-                                        name: chartData.data[0].name}) : null
+                                    React.createElement(GraphLineChart, {
+                                        data: chartData.data, 
+                                        name: chartData.data[0].name, 
+                                        hideControls: this.props.hideControls}) : null
                           ), 
 
                           React.createElement("br", null)
@@ -2129,7 +2147,7 @@ var GraphLineChart = React.createClass({displayName: "GraphLineChart",
       return state;
   },
   componentDidMount: function() {
-      
+      platformChartStore.addChangeListener(this._onStoresChange);
       var lineChart = this._drawLineChart(this.state.chartName, this.state.type, this._lineData(this._getNested(this.props.data)));
       this.setState({lineChart: lineChart});
   },
@@ -2138,6 +2156,9 @@ var GraphLineChart = React.createClass({displayName: "GraphLineChart",
       {
           this._updateLineChart(this.state.lineChart, this.state.chartName, this._lineData(this._getNested(this.props.data)));
       }
+  },
+  _onStoresChange: function () {
+      this.setState({pinned: platformChartStore.getPinned(this.props.name)});
   },
   _showTaptip: function (evt) {
 
@@ -2159,8 +2180,8 @@ var GraphLineChart = React.createClass({displayName: "GraphLineChart",
       this.setState({showTaptip: false});
   },
   _onPinToggle: function () {
-      this.setState({pinned: !this.state.pinned});
-      // platformChartActionCreators.pinChart(this.props.chartKey);
+      // this.setState({pinned: !this.state.pinned});
+      platformChartActionCreators.pinChart(this.props.name);
   },
   render: function() {
 
@@ -2192,51 +2213,59 @@ var GraphLineChart = React.createClass({displayName: "GraphLineChart",
 
     var tapTipClasses = "taptip_outer";
     
+    var controlButtons;
+
+    if (!this.props.hideControls)
+    {
+        controlButtons = (
+            React.createElement("div", {className: "displayBlock", 
+                style: controlStyle}, 
+                React.createElement("div", {className: "filter_button", 
+                    onClick: this._changeChartType}, 
+                    React.createElement("div", {className: "centeredDiv"}, 
+                        React.createElement("div", {className: pinClasses.join(' '), 
+                            onClick: this._onPinToggle}, 
+                            React.createElement("i", {className: "fa fa-thumb-tack"})
+                        )
+                    )
+                ), 
+                React.createElement("div", {className: tapTipClasses, 
+                    style: taptipStyle}, 
+                    React.createElement("div", {className: "taptip_inner"}, 
+                        React.createElement("div", {className: "opaque_inner"}, 
+                            React.createElement("h4", null, "Chart Type"), 
+                            React.createElement("br", null), 
+                            React.createElement("select", {
+                                id: "type", 
+                                onChange: this._onChartChange, 
+                                value: this.state.type, 
+                                autoFocus: true, 
+                                required: true
+                            }, 
+                                React.createElement("option", {value: "line"}, "Line"), 
+                                React.createElement("option", {value: "lineWithFocus"}, "Line with View Finder"), 
+                                React.createElement("option", {value: "stackedArea"}, "Stacked Area"), 
+                                React.createElement("option", {value: "cumulativeLine"}, "Cumulative Line")
+                            )
+                        )
+                    )
+                ), 
+                React.createElement("div", {className: "inlineBlock"}, 
+                    React.createElement("div", {className: "filter_button", 
+                        onClick: this._showTaptip}, 
+                        React.createElement("div", {className: "centeredDiv"}, 
+                            React.createElement("i", {className: "fa fa-line-chart"})
+                        )
+                    )
+                )
+            ))
+    }
+
     return (
       React.createElement("div", {className: "platform-line-chart", 
           style: chartStyle}, 
           React.createElement("svg", {id: this.state.chartName, style: svgStyle}), 
-          React.createElement("div", {className: "displayBlock", 
-              style: controlStyle}, 
-              React.createElement("div", {className: "filter_button", 
-                  onClick: this._changeChartType}, 
-                  React.createElement("div", {className: "centeredDiv"}, 
-                      React.createElement("div", {className: pinClasses.join(' '), 
-                          onClick: this._onPinToggle}, 
-                          React.createElement("i", {className: "fa fa-thumb-tack"})
-                      )
-                  )
-              ), 
-              React.createElement("div", {className: tapTipClasses, 
-                  style: taptipStyle}, 
-                  React.createElement("div", {className: "taptip_inner"}, 
-                      React.createElement("div", {className: "opaque_inner"}, 
-                          React.createElement("h4", null, "Chart Type"), 
-                          React.createElement("br", null), 
-                          React.createElement("select", {
-                              id: "type", 
-                              onChange: this._onChartChange, 
-                              value: this.state.type, 
-                              autoFocus: true, 
-                              required: true
-                          }, 
-                              React.createElement("option", {value: "line"}, "Line"), 
-                              React.createElement("option", {value: "lineWithFocus"}, "Line with View Finder"), 
-                              React.createElement("option", {value: "stackedArea"}, "Stacked Area"), 
-                              React.createElement("option", {value: "cumulativeLine"}, "Cumulative Line")
-                          )
-                      )
-                  )
-              ), 
-              React.createElement("div", {className: "inlineBlock"}, 
-                  React.createElement("div", {className: "filter_button", 
-                      onClick: this._showTaptip}, 
-                      React.createElement("div", {className: "centeredDiv"}, 
-                          React.createElement("i", {className: "fa fa-line-chart"})
-                      )
-                  )
-              )
-          )
+          controlButtons
       )
     );
   },
@@ -2404,7 +2433,7 @@ var PlatformCharts = React.createClass({displayName: "PlatformCharts",
         {
             if (chartData[key].data.length > 0)
             {
-                var platformChart = React.createElement(PlatformChart, {chart: chartData[key], chartKey: key})
+                var platformChart = React.createElement(PlatformChart, {chart: chartData[key], chartKey: key, hideControls: false})
                 platformCharts.push(platformChart);
             }
         }
@@ -4082,13 +4111,21 @@ var Store = require('../lib/store');
 
 
 var _chartData = {};
-var _pinnedCharts = {};
 
 var chartStore = new Store();
 
 chartStore.getPinnedCharts = function () {
-    
-    return _pinnedCharts;
+    var pinnedCharts = [];
+
+    for (var key in _chartData)
+    {
+        if (_chartData[key].hasOwnProperty("pinned") && _chartData[key].pinned === true)
+        {
+            pinnedCharts.push(_chartData[key]);
+        }
+    }
+
+    return pinnedCharts;
 };
 
 chartStore.getLastError = function (uuid) {
@@ -4097,6 +4134,10 @@ chartStore.getLastError = function (uuid) {
 
 chartStore.getData = function () {
     return _chartData;
+}
+
+chartStore.getPinned = function (chartKey) {
+    return _chartData[chartKey].pinned;
 }
 
 chartStore.dispatchToken = dispatcher.register(function (action) {
@@ -4149,6 +4190,21 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
 
             removeSeries(action.item.name, action.item.uuid);
             insertSeries(action.item);
+            chartStore.emitChange();
+
+            break;
+
+        case ACTION_TYPES.PIN_CHART:
+
+            if (_chartData[action.chartKey].hasOwnProperty("pinned"))
+            {
+                _chartData[action.chartKey].pinned = !_chartData[action.chartKey].pinned;
+            }
+            else
+            {
+                _chartData[action.chartKey].pinned = true;   
+            }
+
             chartStore.emitChange();
 
             break;

@@ -7,13 +7,21 @@ var Store = require('../lib/store');
 
 
 var _chartData = {};
-var _pinnedCharts = {};
 
 var chartStore = new Store();
 
 chartStore.getPinnedCharts = function () {
-    
-    return _pinnedCharts;
+    var pinnedCharts = [];
+
+    for (var key in _chartData)
+    {
+        if (_chartData[key].hasOwnProperty("pinned") && _chartData[key].pinned === true)
+        {
+            pinnedCharts.push(_chartData[key]);
+        }
+    }
+
+    return pinnedCharts;
 };
 
 chartStore.getLastError = function (uuid) {
@@ -22,6 +30,10 @@ chartStore.getLastError = function (uuid) {
 
 chartStore.getData = function () {
     return _chartData;
+}
+
+chartStore.getPinned = function (chartKey) {
+    return _chartData[chartKey].pinned;
 }
 
 chartStore.dispatchToken = dispatcher.register(function (action) {
@@ -74,6 +86,21 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
 
             removeSeries(action.item.name, action.item.uuid);
             insertSeries(action.item);
+            chartStore.emitChange();
+
+            break;
+
+        case ACTION_TYPES.PIN_CHART:
+
+            if (_chartData[action.chartKey].hasOwnProperty("pinned"))
+            {
+                _chartData[action.chartKey].pinned = !_chartData[action.chartKey].pinned;
+            }
+            else
+            {
+                _chartData[action.chartKey].pinned = true;   
+            }
+
             chartStore.emitChange();
 
             break;

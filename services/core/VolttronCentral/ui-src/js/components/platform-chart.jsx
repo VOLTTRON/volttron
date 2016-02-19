@@ -8,7 +8,7 @@ var moment = require('moment');
 
 
 var chartStore = require('../stores/platform-chart-store');
-// var chartDataStore = require('../stores/chart-data-store');
+var platformChartStore = require('../stores/platform-chart-store');
 var platformChartActionCreators = require('../action-creators/platform-chart-action-creators');
 
 var PlatformChart = React.createClass({
@@ -47,8 +47,10 @@ var PlatformChart = React.createClass({
                       <div>
                           <div className='viz'>        
                               { chartData.data.length != 0 ? 
-                                    <GraphLineChart data={chartData.data} 
-                                        name={chartData.data[0].name } /> : null }
+                                    <GraphLineChart 
+                                        data={chartData.data} 
+                                        name={chartData.data[0].name }
+                                        hideControls={this.props.hideControls} /> : null }
                           </div>
 
                           <br/>
@@ -81,7 +83,7 @@ var GraphLineChart = React.createClass({
       return state;
   },
   componentDidMount: function() {
-      
+      platformChartStore.addChangeListener(this._onStoresChange);
       var lineChart = this._drawLineChart(this.state.chartName, this.state.type, this._lineData(this._getNested(this.props.data)));
       this.setState({lineChart: lineChart});
   },
@@ -90,6 +92,9 @@ var GraphLineChart = React.createClass({
       {
           this._updateLineChart(this.state.lineChart, this.state.chartName, this._lineData(this._getNested(this.props.data)));
       }
+  },
+  _onStoresChange: function () {
+      this.setState({pinned: platformChartStore.getPinned(this.props.name)});
   },
   _showTaptip: function (evt) {
 
@@ -111,8 +116,8 @@ var GraphLineChart = React.createClass({
       this.setState({showTaptip: false});
   },
   _onPinToggle: function () {
-      this.setState({pinned: !this.state.pinned});
-      // platformChartActionCreators.pinChart(this.props.chartKey);
+      // this.setState({pinned: !this.state.pinned});
+      platformChartActionCreators.pinChart(this.props.name);
   },
   render: function() {
 
@@ -144,51 +149,59 @@ var GraphLineChart = React.createClass({
 
     var tapTipClasses = "taptip_outer";
     
+    var controlButtons;
+
+    if (!this.props.hideControls)
+    {
+        controlButtons = (
+            <div className="displayBlock"
+                style={controlStyle}>
+                <div className="filter_button"
+                    onClick={this._changeChartType}>
+                    <div className="centeredDiv">
+                        <div className={pinClasses.join(' ')}
+                            onClick={this._onPinToggle}>
+                            <i className="fa fa-thumb-tack"></i>
+                        </div>
+                    </div>
+                </div>
+                <div className={tapTipClasses}
+                    style={taptipStyle}>
+                    <div className="taptip_inner">
+                        <div className="opaque_inner">
+                            <h4>Chart Type</h4>
+                            <br/>
+                            <select
+                                id="type"
+                                onChange={this._onChartChange}
+                                value={this.state.type}
+                                autoFocus
+                                required
+                            >
+                                <option value="line">Line</option>
+                                <option value="lineWithFocus">Line with View Finder</option>
+                                <option value="stackedArea">Stacked Area</option>
+                                <option value="cumulativeLine">Cumulative Line</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div className="inlineBlock">
+                    <div className="filter_button"
+                        onClick={this._showTaptip}>
+                        <div className="centeredDiv">
+                            <i className="fa fa-line-chart"></i>
+                        </div>
+                    </div>                  
+                </div>
+            </div>)
+    }
+
     return (
       <div className='platform-line-chart'
           style={chartStyle}>
           <svg id={this.state.chartName} style={svgStyle}></svg>
-          <div className="displayBlock"
-              style={controlStyle}>
-              <div className="filter_button"
-                  onClick={this._changeChartType}>
-                  <div className="centeredDiv">
-                      <div className={pinClasses.join(' ')}
-                          onClick={this._onPinToggle}>
-                          <i className="fa fa-thumb-tack"></i>
-                      </div>
-                  </div>
-              </div>
-              <div className={tapTipClasses}
-                  style={taptipStyle}>
-                  <div className="taptip_inner">
-                      <div className="opaque_inner">
-                          <h4>Chart Type</h4>
-                          <br/>
-                          <select
-                              id="type"
-                              onChange={this._onChartChange}
-                              value={this.state.type}
-                              autoFocus
-                              required
-                          >
-                              <option value="line">Line</option>
-                              <option value="lineWithFocus">Line with View Finder</option>
-                              <option value="stackedArea">Stacked Area</option>
-                              <option value="cumulativeLine">Cumulative Line</option>
-                          </select>
-                      </div>
-                  </div>
-              </div>
-              <div className="inlineBlock">
-                  <div className="filter_button"
-                      onClick={this._showTaptip}>
-                      <div className="centeredDiv">
-                          <i className="fa fa-line-chart"></i>
-                      </div>
-                  </div>                  
-              </div>
-          </div>
+          {controlButtons}
       </div>
     );
   },
