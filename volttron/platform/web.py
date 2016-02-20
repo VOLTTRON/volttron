@@ -93,10 +93,16 @@ class MasterWebService(Agent):
 
     @RPC.export
     def register_agent_route(self, regex, peer, fn):
-        _log.info('Registering agent route expression: {}'.format(regex))
+        ''' Register an agent route to an exported function.
+
+        When a http request is executed and matches the passed regular
+        expression then the function on peer is executed.
+        '''
+        _log.info('Registering agent route expression: {} peer: {} function: {}'
+            .format(regex, peer, fn))
         compiled = re.compile(regex)
         self.peerroutes[peer].append(compiled)
-        self.registeredroutes.append((compiled, 'peer_route', (peer, fn)))
+        self.registeredroutes.insert(0, (compiled, 'peer_route', (peer, fn)))
 
     @RPC.export
     def unregister_all_agent_routes(self, peer):
