@@ -6,12 +6,16 @@
 Welcome to VOLTTRON's documentation!
 ====================================
 
+
 Contents:
 
 .. toctree::
    :maxdepth: 2
 
-   README
+   install
+   license
+
+   platform-api
 
 =======
 Support

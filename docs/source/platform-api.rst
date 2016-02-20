@@ -10,5 +10,17 @@ volttron.platform
 volttron.platform.vip
 -----------------
 
-.. automodule:: volttron.platform
+.. automodule:: volttron.platform.vip
+    :members:
+
+volttron.platform.vip.agent
+---------------------------
+
+.. automodule:: volttron.platform.vip.agent
+    :members:
+
+volttron.platform.vip.agent.subsystems
+---------------------------
+
+.. automodule:: volttron.platform.vip.agent.subsystems
     :members:
