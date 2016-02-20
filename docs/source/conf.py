@@ -52,7 +52,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'VOLTTRON'
-copyright = u'2016, The VOLTTRON Developer Team'
+copyright = u'2016, 2016, Battelle Memorial Institute'
 author = u'The VOLTTRON Developer Team'
 
 # The version info for the project you're documenting, acts as replacement for
