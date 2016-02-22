@@ -10,15 +10,38 @@ var moment = require('moment');
 var chartStore = require('../stores/platform-chart-store');
 var platformChartStore = require('../stores/platform-chart-store');
 var platformChartActionCreators = require('../action-creators/platform-chart-action-creators');
+var ControlButton = require('./control-button');
 
 var PlatformChart = React.createClass({
+    getInitialState: function () {
+        var state = {};
+
+        state.refreshInterval = this.props.chart.refreshInterval;
+
+        return state;
+    },
     componentDidMount: function () {
-        if (!this._refreshChartTimeout) {
+        // if (!this._refreshChartTimeout) {
             this._refreshChartTimeout = setTimeout(this._refreshChart, 0);
-        }
+        // }
+
+        platformChartStore.addChangeListener(this._onStoresChange);
     },
     componentWillUnmount: function () {
         clearTimeout(this._refreshChartTimeout);
+        platformChartStore.removeChangeListener(this._onStoresChange);
+    },
+    _onStoresChange: function () {
+        var refreshInterval = platformChartStore.getRefreshRate(this.props.chart.data[0].name);
+
+        if (refreshInterval !== this.state.refreshInterval)
+        {
+            this.setState({refreshInterval: refreshInterval}); 
+
+            clearTimeout(this._refreshChartTimeout);
+            this._refreshChartTimeout = setTimeout(this._refreshChart, refreshInterval);
+        }
+        
     },
     _refreshChart: function () {
         
@@ -28,8 +51,8 @@ var PlatformChart = React.createClass({
                 this.props.chart.series
             );
 
-            if (this.props.chart.refreshInterval) {
-                this._refreshChartTimeout = setTimeout(this._refreshChart, this.props.chart.refreshInterval);
+            if (this.state.refreshInterval) {
+                this._refreshChartTimeout = setTimeout(this._refreshChart, this.state.refreshInterval);
             }    
         }
     },
@@ -50,7 +73,8 @@ var PlatformChart = React.createClass({
                                     <GraphLineChart 
                                         data={chartData.data} 
                                         name={chartData.data[0].name }
-                                        hideControls={this.props.hideControls} /> : null }
+                                        hideControls={this.props.hideControls}
+                                        refreshInterval={this.props.chart.refreshInterval} /> : null }
                           </div>
 
                           <br/>
@@ -87,6 +111,9 @@ var GraphLineChart = React.createClass({
       var lineChart = this._drawLineChart(this.state.chartName, this.state.type, this._lineData(this._getNested(this.props.data)));
       this.setState({lineChart: lineChart});
   },
+  componentWillUnmount: function () {
+      platformChartStore.removeChangeListener(this._onStoresChange);
+  },
   componentDidUpdate: function() {
       if (this.state.lineChart)
       {
@@ -95,16 +122,6 @@ var GraphLineChart = React.createClass({
   },
   _onStoresChange: function () {
       this.setState({pinned: platformChartStore.getPinned(this.props.name)});
-  },
-  _showTaptip: function (evt) {
-
-      if (!this.state.showTaptip)
-      {
-          this.setState({taptipX: evt.clientX - 60});
-          this.setState({taptipY: evt.clientY - 100});
-      }
-
-      this.setState({showTaptip: !this.state.showTaptip});
   },
   _onChartChange: function (e) {
       var chartType = e.target.value;
@@ -118,6 +135,9 @@ var GraphLineChart = React.createClass({
   _onPinToggle: function () {
       // this.setState({pinned: !this.state.pinned});
       platformChartActionCreators.pinChart(this.props.name);
+  },
+  _onRefreshChange: function (e) {
+      platformChartActionCreators.changeRefreshRate(e.target.value, this.props.name);
   },
   render: function() {
 
@@ -139,62 +159,125 @@ var GraphLineChart = React.createClass({
 
     var pinClasses = ["chart-pin inlineBlock"];
     pinClasses.push(this.state.pinned ? "pinned-chart" : "unpinned-chart");
-
-    var taptipStyle = {
-        display: (this.state.showTaptip ? "block" : "none"),
-        position: "absolute",
-        left: this.state.taptipX + "px",
-        top: this.state.taptipY + "px"
-    };
-
-    var tapTipClasses = "taptip_outer";
-    
+  
     var controlButtons;
 
     if (!this.props.hideControls)
     {
+        var chartTypeSelect = (
+            <select
+                onChange={this._onChartChange}
+                value={this.state.type}
+                autoFocus
+                required
+            >
+                <option value="line">Line</option>
+                <option value="lineWithFocus">Line with View Finder</option>
+                <option value="stackedArea">Stacked Area</option>
+                <option value="cumulativeLine">Cumulative Line</option>
+            </select>
+        );
+
+        var chartTypeTaptip = { "title": "Chart Type", "content": chartTypeSelect };
+        var chartTypeIcon = (
+            <i className="fa fa-line-chart"></i>
+        );
+
+        var chartTypeControlButton = (
+            <ControlButton 
+                taptip={chartTypeTaptip} 
+                icon={chartTypeIcon}></ControlButton>
+        );
+
+        
+        var pinChartIcon = (
+            <div className={pinClasses.join(' ')}>
+                <i className="fa fa-thumb-tack"></i>
+            </div>
+        );
+
+        var pinChartControlButton = (
+            <ControlButton 
+                icon={pinChartIcon}
+                clickAction={this._onPinToggle}></ControlButton>
+        );
+        
+        var refreshChart = (
+            <div>
+                <input
+                    type="number"
+                    onChange={this._onRefreshChange}
+                    value={this.props.refreshInterval}
+                    min="250"
+                    step="1"
+                    placeholder="disabled"
+                /> (ms)
+                <br/>
+                <span>
+                    Omit to disable
+                </span>
+            </div>
+        );
+
+        var refreshChartTaptip = { "title": "Refresh Rate", "content": refreshChart };
+        var refreshChartIcon = (
+            <i className="fa fa-refresh"></i>
+        );
+        var refreshChartControlButton = (
+            <ControlButton 
+                taptip={refreshChartTaptip}
+                icon={refreshChartIcon}></ControlButton>
+        );
+
+
+        var chartMaxMinRange = (
+            <div>
+                <input
+                    type="number"
+                    min="250"
+                    step="1"
+                /> 
+            </div>
+        );
+
+        var minRangeTaptip = { "title": "Minimum Range", "content": chartMaxMinRange };
+        var minRangeIcon = (
+            <i className="fa fa-arrow-left"></i>
+        );
+        var minRangeControlButton = (
+            <ControlButton 
+                taptip={minRangeTaptip}
+                icon={minRangeIcon}></ControlButton>
+        );
+        
+        var maxRangeTaptip = { "title": "Maximum Range", "content": chartMaxMinRange };        
+        var maxRangeIcon = (
+            <i className="fa fa-arrow-right"></i>
+        );
+        var maxRangeControlButton = (
+            <ControlButton 
+                taptip={maxRangeTaptip}
+                icon={maxRangeIcon}></ControlButton>
+        );
+
+
+        var spaceStyle = {
+            width: "20px",
+            height: "2px"
+        }
+
         controlButtons = (
             <div className="displayBlock"
                 style={controlStyle}>
-                <div className="filter_button"
-                    onClick={this._changeChartType}>
-                    <div className="centeredDiv">
-                        <div className={pinClasses.join(' ')}
-                            onClick={this._onPinToggle}>
-                            <i className="fa fa-thumb-tack"></i>
-                        </div>
-                    </div>
-                </div>
-                <div className={tapTipClasses}
-                    style={taptipStyle}>
-                    <div className="taptip_inner">
-                        <div className="opaque_inner">
-                            <h4>Chart Type</h4>
-                            <br/>
-                            <select
-                                id="type"
-                                onChange={this._onChartChange}
-                                value={this.state.type}
-                                autoFocus
-                                required
-                            >
-                                <option value="line">Line</option>
-                                <option value="lineWithFocus">Line with View Finder</option>
-                                <option value="stackedArea">Stacked Area</option>
-                                <option value="cumulativeLine">Cumulative Line</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-                <div className="inlineBlock">
-                    <div className="filter_button"
-                        onClick={this._showTaptip}>
-                        <div className="centeredDiv">
-                            <i className="fa fa-line-chart"></i>
-                        </div>
-                    </div>                  
-                </div>
-            </div>)
+                {pinChartControlButton}
+                {chartTypeControlButton}
+                {refreshChartControlButton}
+                <div className="inlineBlock"
+                      style={spaceStyle}></div>
+                {minRangeControlButton}
+                {maxRangeControlButton}
+            </div>
+        );
     }
 
     return (
@@ -206,6 +289,7 @@ var GraphLineChart = React.createClass({
     );
   },
   _drawLineChart: function (elementParent, type, data) {
+      
       var tickCount = 0;
       var lineChart;
 

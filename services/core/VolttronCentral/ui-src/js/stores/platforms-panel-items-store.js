@@ -252,6 +252,9 @@ var _items = {
                             "sortOrder": 0,
                             "children": [],
                             "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "points", "5461fedc-65ba-43fe-21dc-111765bafedl"],
+                            "parentPath": "PNNL > ISB1",
+                            "parentType": "building",
+                            "parentUuid": "1111fedc-65ba-43fe-21dc-098765bafede",
                             "data": [
                                 {
                                     "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
@@ -994,14 +997,17 @@ var _items = {
                         "5461fedc-65ba-43fe-21dc-098765bafedl":
                         {
                             "uuid": "5461fedc-65ba-43fe-21dc-098765bafedl",
-                            "name": "WholeBuildingElectricity",
+                            "name": "OutdoorAirTemperature",
                             "expanded": null,
                             "visible": true,
                             "status": "GOOD",
                             "type": "point",
                             "sortOrder": 0,
                             "children": [],
-                            "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "points", "5461fedc-65ba-43fe-21dc-098765bafedl"]
+                            "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "points", "5461fedc-65ba-43fe-21dc-098765bafedl"],
+                            "parentPath": "WSU > BSEL",
+                            "parentType": "building",
+                            "parentUuid": "1111fedc-65ba-43fe-21dc-098765bafede"
                         },
                         "6451fedc-65ba-43fe-21dc-098765bafedl":
                         {

@@ -642,6 +642,18 @@ br + .form__control-help {
     content: "\f201";
 }
 
+.fa-arrow-left:before {
+  content: "\f060";
+}
+
+.fa-arrow-right:before {
+  content: "\f061";
+}
+
+.fa-refresh:before {
+  content: "\f021";
+}
+
 /*.tooltip_show {
     display: "block";
 }
@@ -704,7 +716,7 @@ br + .form__control-help {
     display: block;
 }
 
-.filter_button {
+.control_button {
     display: inline-block;
     margin: 0px 1px;
     cursor: pointer;

@@ -155,28 +155,28 @@ var PlatformsPanel = React.createClass({
                             value={ this.state.filterValue }
                         />
                         <div className="inlineBlock">
-                            <div className="filter_button status-good"
+                            <div className="control_button status-good"
                                 onClick={this._onFilterGood}
                                 style={filterGood}>
                                 <div className="centeredDiv">
                                     <span>&#9654;</span>
                                 </div>
                             </div>
-                            <div className="filter_button status-bad"
+                            <div className="control_button status-bad"
                                 onClick={this._onFilterBad}
                                 style={filterBad}>
                                 <div className="centeredDiv">
                                     <i className="fa fa-minus-circle"></i>
                                 </div>
                             </div>
-                            <div className="filter_button status-unknown"
+                            <div className="control_button status-unknown"
                                 onClick={this._onFilterUnknown}
                                 style={filterUnknown}>
                                 <div className="centeredDiv">
                                     <span>&#9644;</span>
                                 </div>
                             </div>
-                            <div className="filter_button"
+                            <div className="control_button"
                                 onClick={this._onFilterOff}>
                                 <div className="centeredDiv">
                                     <i className="fa fa-ban"></i>

@@ -77,7 +77,7 @@ router.run(function (Handler) {
 });
 
 
-},{"./components/dashboard":14,"./components/login-form":19,"./components/page-not-found":22,"./components/platform":26,"./components/platform-charts":24,"./components/platform-manager":25,"./components/platforms":29,"./stores/authorization-store":41,"react":undefined,"react-router":undefined}],2:[function(require,module,exports){
+},{"./components/dashboard":15,"./components/login-form":20,"./components/page-not-found":23,"./components/platform":27,"./components/platform-charts":25,"./components/platform-manager":26,"./components/platforms":30,"./stores/authorization-store":42,"react":undefined,"react-router":undefined}],2:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -104,7 +104,7 @@ var consoleActionCreators = {
 module.exports = consoleActionCreators;
 
 
-},{"../constants/action-types":32,"../dispatcher":33,"../lib/rpc/exchange":35}],3:[function(require,module,exports){
+},{"../constants/action-types":33,"../dispatcher":34,"../lib/rpc/exchange":36}],3:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -127,7 +127,7 @@ var modalActionCreators = {
 module.exports = modalActionCreators;
 
 
-},{"../constants/action-types":32,"../dispatcher":33}],4:[function(require,module,exports){
+},{"../constants/action-types":33,"../dispatcher":34}],4:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -479,7 +479,7 @@ function handle401(error) {
 module.exports = platformActionCreators;
 
 
-},{"../constants/action-types":32,"../dispatcher":33,"../lib/rpc":36,"../stores/authorization-store":41}],5:[function(require,module,exports){
+},{"../constants/action-types":33,"../dispatcher":34,"../lib/rpc":37,"../stores/authorization-store":42}],5:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -492,6 +492,13 @@ var platformChartActionCreators = {
 		dispatcher.dispatch({
 			type: ACTION_TYPES.PIN_CHART,
 			chartKey: chartKey,
+		});
+	},
+	changeRefreshRate: function (rate, chartKey) {
+		dispatcher.dispatch({
+			type: ACTION_TYPES.CHANGE_CHART_REFRESH,
+			rate: rate,
+			chartKey: chartKey
 		});
 	},
 	refreshChart: function (series) {
@@ -530,10 +537,34 @@ var platformChartActionCreators = {
 	        }  
 	        else
 	        {
-	            dispatcher.dispatch({
-	                type: ACTION_TYPES.REFRESH_CHART,
-	                item: item
-	            });
+	            if (item.uuid === "5461fedc-65ba-43fe-21dc-098765bafedl")
+	            {
+	                item.data = [['2016-02-19T01:00:31.630626',31.4],['2016-02-19T01:00:16.632151',23],['2016-02-19T01:00:01.627188',16.5],['2016-02-19T00:59:46.641500',42.8],['2016-02-19T00:59:31.643573',21.2],['2016-02-19T00:59:16.643254',9.3],['2016-02-19T00:59:01.639104',8.5],['2016-02-19T00:58:46.638238',16],['2016-02-19T00:58:31.633733',12.4],['2016-02-19T00:58:16.632418',23],['2016-02-19T00:58:01.630463',16.7],['2016-02-19T00:57:46.648439',9.1],['2016-02-19T00:57:31.640824',10.5],['2016-02-19T00:57:16.636578',8.2],['2016-02-19T00:57:01.644842',2.2],['2016-02-19T00:56:46.635059',2.5],['2016-02-19T00:56:31.639332',2.4],['2016-02-19T00:56:16.647604',2.3],['2016-02-19T00:56:01.643571',11.2],['2016-02-19T00:55:46.644522',9.8]];
+	                item.data.forEach(function (datum) {
+	                    datum.name = item.name;
+	                    datum.parent = item.parentPath;
+	                    datum.uuid = item.uuid;
+	                });
+
+	                dispatcher.dispatch({
+	                    type: ACTION_TYPES.REFRESH_CHART,
+	                    item: item
+	                });
+	            }
+	            else if (item.uuid === "5461fedc-65ba-43fe-21dc-111765bafedl")
+	            {
+	                item.data = [['2016-02-19T01:00:31.630626',73.6],['2016-02-19T01:00:16.632151',71],['2016-02-19T01:00:01.627188',69.4],['2016-02-19T00:59:46.641500',60],['2016-02-19T00:59:31.643573',67],['2016-02-19T00:59:16.643254',68.6],['2016-02-19T00:59:01.639104',77],['2016-02-19T00:58:46.638238',83.5],['2016-02-19T00:58:31.633733',57.2],['2016-02-19T00:58:16.632418',78.7],['2016-02-19T00:58:01.630463',90.7],['2016-02-19T00:57:46.648439',91.5],['2016-02-19T00:57:31.640824',84],['2016-02-19T00:57:16.636578',87.6],['2016-02-19T00:57:01.644842',77],['2016-02-19T00:56:46.635059',83.3],['2016-02-19T00:56:31.639332',90.9],['2016-02-19T00:56:16.647604',89.5],['2016-02-19T00:56:01.643571',91.8],['2016-02-19T00:55:46.644522',97.7]];
+	                item.data.forEach(function (datum) {
+	                    datum.name = item.name;
+	                    datum.parent = item.parentPath;
+	                    datum.uuid = item.uuid;
+	                });
+
+	                dispatcher.dispatch({
+	                    type: ACTION_TYPES.REFRESH_CHART,
+	                    item: item
+	                });
+	            }
 	        }
 		});
 		
@@ -554,7 +585,7 @@ function handle401(error) {
 module.exports = platformChartActionCreators;
 
 
-},{"../constants/action-types":32,"../dispatcher":33,"../lib/rpc":36,"../stores/authorization-store":41}],6:[function(require,module,exports){
+},{"../constants/action-types":33,"../dispatcher":34,"../lib/rpc":37,"../stores/authorization-store":42}],6:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -682,7 +713,7 @@ function handle401(error) {
 module.exports = platformManagerActionCreators;
 
 
-},{"../action-creators/platform-action-creators":4,"../constants/action-types":32,"../dispatcher":33,"../lib/rpc":36,"../stores/authorization-store":41}],7:[function(require,module,exports){
+},{"../action-creators/platform-action-creators":4,"../constants/action-types":33,"../dispatcher":34,"../lib/rpc":37,"../stores/authorization-store":42}],7:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -928,10 +959,34 @@ var platformsPanelActionCreators = {
         }  
         else
         {
-            dispatcher.dispatch({
-                type: ACTION_TYPES.ADD_TO_CHART,
-                panelItem: panelItem
-            });
+            if (panelItem.uuid === "5461fedc-65ba-43fe-21dc-098765bafedl")
+            {
+                panelItem.data = [['2016-02-19T01:00:31.630626',31.4],['2016-02-19T01:00:16.632151',23],['2016-02-19T01:00:01.627188',16.5],['2016-02-19T00:59:46.641500',42.8],['2016-02-19T00:59:31.643573',21.2],['2016-02-19T00:59:16.643254',9.3],['2016-02-19T00:59:01.639104',8.5],['2016-02-19T00:58:46.638238',16],['2016-02-19T00:58:31.633733',12.4],['2016-02-19T00:58:16.632418',23],['2016-02-19T00:58:01.630463',16.7],['2016-02-19T00:57:46.648439',9.1],['2016-02-19T00:57:31.640824',10.5],['2016-02-19T00:57:16.636578',8.2],['2016-02-19T00:57:01.644842',2.2],['2016-02-19T00:56:46.635059',2.5],['2016-02-19T00:56:31.639332',2.4],['2016-02-19T00:56:16.647604',2.3],['2016-02-19T00:56:01.643571',11.2],['2016-02-19T00:55:46.644522',9.8]];
+                panelItem.data.forEach(function (datum) {
+                    datum.name = panelItem.name;
+                    datum.parent = panelItem.parentPath;
+                    datum.uuid = panelItem.uuid;
+                });
+
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.ADD_TO_CHART,
+                    panelItem: panelItem
+                });
+            }
+            else if (panelItem.uuid === "5461fedc-65ba-43fe-21dc-111765bafedl")
+            {
+                panelItem.data = [['2016-02-19T01:01:46.625663',73.6],['2016-02-19T01:01:31.633847',71],['2016-02-19T01:01:16.627160',69.4],['2016-02-19T01:01:01.639623',60],['2016-02-19T01:00:46.626307',67],['2016-02-19T01:00:31.630768',68.6],['2016-02-19T01:00:16.632203',77],['2016-02-19T01:00:01.627241',83.5],['2016-02-19T00:59:46.641688',57.2],['2016-02-19T00:59:31.643709',78.7],['2016-02-19T00:59:16.643448',90.7],['2016-02-19T00:59:01.640538',91.5],['2016-02-19T00:58:46.638353',84],['2016-02-19T00:58:31.633809',87.6],['2016-02-19T00:58:16.632515',77],['2016-02-19T00:58:01.630531',83.3],['2016-02-19T00:57:46.648567',90.9],['2016-02-19T00:57:31.640947',89.5],['2016-02-19T00:57:16.636686',91.8],['2016-02-19T00:57:01.645023',97.7]];
+                panelItem.data.forEach(function (datum) {
+                    datum.name = panelItem.name;
+                    datum.parent = panelItem.parentPath;
+                    datum.uuid = panelItem.uuid;
+                });
+
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.ADD_TO_CHART,
+                    panelItem: panelItem
+                });
+            }
         }
 
     },
@@ -963,7 +1018,7 @@ function handle401(error) {
 module.exports = platformsPanelActionCreators;
 
 
-},{"../constants/action-types":32,"../dispatcher":33,"../lib/rpc":36,"../stores/authorization-store":41}],8:[function(require,module,exports){
+},{"../constants/action-types":33,"../dispatcher":34,"../lib/rpc":37,"../stores/authorization-store":42}],8:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1035,7 +1090,7 @@ var AgentRow = React.createClass({displayName: "AgentRow",
 module.exports = AgentRow;
 
 
-},{"../action-creators/modal-action-creators":3,"../action-creators/platform-action-creators":4,"./remove-agent-form":31,"react":undefined}],9:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../action-creators/platform-action-creators":4,"./remove-agent-form":32,"react":undefined}],9:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1099,7 +1154,7 @@ function getStateFromStores(platform, chart) {
 module.exports = Chart;
 
 
-},{"../action-creators/platform-action-creators":4,"../stores/topic-data-store":50,"./line-chart":18,"react":undefined}],10:[function(require,module,exports){
+},{"../action-creators/platform-action-creators":4,"../stores/topic-data-store":51,"./line-chart":19,"react":undefined}],10:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1169,7 +1224,7 @@ function getStateFromStores() {
 module.exports = Composer;
 
 
-},{"../action-creators/console-action-creators":2,"../stores/console-store":42,"react":undefined}],11:[function(require,module,exports){
+},{"../action-creators/console-action-creators":2,"../stores/console-store":43,"react":undefined}],11:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1229,7 +1284,93 @@ var Console = React.createClass({displayName: "Console",
 module.exports = Console;
 
 
-},{"./composer":10,"./conversation":13,"react":undefined}],13:[function(require,module,exports){
+},{"./composer":10,"./conversation":14,"react":undefined}],13:[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+var Router = require('react-router');
+
+
+var ControlButton = React.createClass({displayName: "ControlButton",
+	getInitialState: function () {
+		var state = {};
+
+		state.showTaptip = false;
+		state.taptipX = 0;
+		state.taptipY = 0;
+
+		return state;
+	},
+	_showTaptip: function (evt) {
+
+		if (!this.state.showTaptip)
+		{
+			this.setState({taptipX: evt.clientX - 60});
+			this.setState({taptipY: evt.clientY - 120});
+		}
+
+		this.setState({showTaptip: !this.state.showTaptip});
+	},
+    render: function () {
+        
+        var taptip;
+        var clickAction;
+
+        if (this.props.taptip)
+        {
+        	var taptipStyle = {
+		        display: (this.state.showTaptip ? "block" : "none"),
+		        position: "absolute",
+		        left: this.state.taptipX + "px",
+		        top: this.state.taptipY + "px"
+		    };
+
+		    var tapTipClasses = "taptip_outer";
+
+		    taptip = (
+		    	React.createElement("div", {className: tapTipClasses, 
+	                style: taptipStyle}, 
+	                React.createElement("div", {className: "taptip_inner"}, 
+	                    React.createElement("div", {className: "opaque_inner"}, 
+	                        React.createElement("h4", null, this.props.taptip.title), 
+	                        React.createElement("br", null), 
+	                        this.props.taptip.content
+	                    )
+	                )
+	            )
+        	);
+
+        	clickAction = (this.props.taptip.action ? this.props.taptip.action : this._showTaptip);
+        }
+        else if (this.props.clickAction)
+        {
+        	clickAction = this.props.clickAction;
+        }
+
+        return (
+            React.createElement("div", {className: "inlineBlock"}, 
+            	taptip, 
+                React.createElement("div", {className: "control_button", 
+                    onClick: clickAction}, 
+                    React.createElement("div", {className: "centeredDiv"}, 
+                        this.props.icon
+                    )
+                )
+            )
+        );
+    },
+});
+
+
+
+
+
+
+
+module.exports = ControlButton;
+
+
+},{"react":undefined,"react-router":undefined}],14:[function(require,module,exports){
 'use strict';
 
 var $ = require('jquery');
@@ -1280,7 +1421,7 @@ function getStateFromStores() {
 module.exports = Conversation;
 
 
-},{"../stores/console-store":42,"./exchange":17,"jquery":undefined,"react":undefined}],14:[function(require,module,exports){
+},{"../stores/console-store":43,"./exchange":18,"jquery":undefined,"react":undefined}],15:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1406,7 +1547,7 @@ function getStateFromStores() {
 module.exports = Dashboard;
 
 
-},{"../action-creators/modal-action-creators":3,"../stores/platform-chart-store":45,"../stores/platforms-store":49,"./chart":9,"./edit-chart-form":16,"./platform-chart":23,"react":undefined,"react-router":undefined}],15:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../stores/platform-chart-store":46,"../stores/platforms-store":50,"./chart":9,"./edit-chart-form":17,"./platform-chart":24,"react":undefined,"react-router":undefined}],16:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1462,7 +1603,7 @@ function getStateFromStores() {
 module.exports = RegisterPlatformForm;
 
 
-},{"../action-creators/modal-action-creators":3,"../action-creators/platform-manager-action-creators":6,"../stores/platform-registration-store":46,"react":undefined}],16:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../action-creators/platform-manager-action-creators":6,"../stores/platform-registration-store":47,"react":undefined}],17:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1619,7 +1760,7 @@ var EditChartForm = React.createClass({displayName: "EditChartForm",
 module.exports = EditChartForm;
 
 
-},{"../action-creators/modal-action-creators":3,"../action-creators/platform-action-creators":4,"react":undefined}],17:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../action-creators/platform-action-creators":4,"react":undefined}],18:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1672,7 +1813,7 @@ var Exchange = React.createClass({displayName: "Exchange",
 module.exports = Exchange;
 
 
-},{"react":undefined}],18:[function(require,module,exports){
+},{"react":undefined}],19:[function(require,module,exports){
 'use strict';
 
 var d3 = require('d3');
@@ -1861,7 +2002,7 @@ var LineChart = React.createClass({displayName: "LineChart",
 module.exports = LineChart;
 
 
-},{"d3":undefined,"moment":undefined,"react":undefined}],19:[function(require,module,exports){
+},{"d3":undefined,"moment":undefined,"react":undefined}],20:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1939,7 +2080,7 @@ function getStateFromStores() {
 module.exports = LoginForm;
 
 
-},{"../action-creators/platform-manager-action-creators":6,"../stores/login-form-store":43,"react":undefined,"react-router":undefined}],20:[function(require,module,exports){
+},{"../action-creators/platform-manager-action-creators":6,"../stores/login-form-store":44,"react":undefined,"react-router":undefined}],21:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1966,7 +2107,7 @@ var Modal = React.createClass({displayName: "Modal",
 module.exports = Modal;
 
 
-},{"../action-creators/modal-action-creators":3,"react":undefined}],21:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"react":undefined}],22:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2043,7 +2184,7 @@ function getStateFromStores() {
 module.exports = Navigation;
 
 
-},{"../action-creators/platform-manager-action-creators":6,"../stores/authorization-store":41,"react":undefined,"react-router":undefined}],22:[function(require,module,exports){
+},{"../action-creators/platform-manager-action-creators":6,"../stores/authorization-store":42,"react":undefined,"react-router":undefined}],23:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2061,7 +2202,7 @@ var PageNotFound = React.createClass({displayName: "PageNotFound",
 module.exports = PageNotFound;
 
 
-},{"react":undefined}],23:[function(require,module,exports){
+},{"react":undefined}],24:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2074,15 +2215,38 @@ var moment = require('moment');
 var chartStore = require('../stores/platform-chart-store');
 var platformChartStore = require('../stores/platform-chart-store');
 var platformChartActionCreators = require('../action-creators/platform-chart-action-creators');
+var ControlButton = require('./control-button');
 
 var PlatformChart = React.createClass({displayName: "PlatformChart",
+    getInitialState: function () {
+        var state = {};
+
+        state.refreshInterval = this.props.chart.refreshInterval;
+
+        return state;
+    },
     componentDidMount: function () {
-        if (!this._refreshChartTimeout) {
+        // if (!this._refreshChartTimeout) {
             this._refreshChartTimeout = setTimeout(this._refreshChart, 0);
-        }
+        // }
+
+        platformChartStore.addChangeListener(this._onStoresChange);
     },
     componentWillUnmount: function () {
         clearTimeout(this._refreshChartTimeout);
+        platformChartStore.removeChangeListener(this._onStoresChange);
+    },
+    _onStoresChange: function () {
+        var refreshInterval = platformChartStore.getRefreshRate(this.props.chart.data[0].name);
+
+        if (refreshInterval !== this.state.refreshInterval)
+        {
+            this.setState({refreshInterval: refreshInterval}); 
+
+            clearTimeout(this._refreshChartTimeout);
+            this._refreshChartTimeout = setTimeout(this._refreshChart, refreshInterval);
+        }
+        
     },
     _refreshChart: function () {
         
@@ -2092,8 +2256,8 @@ var PlatformChart = React.createClass({displayName: "PlatformChart",
                 this.props.chart.series
             );
 
-            if (this.props.chart.refreshInterval) {
-                this._refreshChartTimeout = setTimeout(this._refreshChart, this.props.chart.refreshInterval);
+            if (this.state.refreshInterval) {
+                this._refreshChartTimeout = setTimeout(this._refreshChart, this.state.refreshInterval);
             }    
         }
     },
@@ -2114,7 +2278,8 @@ var PlatformChart = React.createClass({displayName: "PlatformChart",
                                     React.createElement(GraphLineChart, {
                                         data: chartData.data, 
                                         name: chartData.data[0].name, 
-                                        hideControls: this.props.hideControls}) : null
+                                        hideControls: this.props.hideControls, 
+                                        refreshInterval: this.props.chart.refreshInterval}) : null
                           ), 
 
                           React.createElement("br", null)
@@ -2151,6 +2316,9 @@ var GraphLineChart = React.createClass({displayName: "GraphLineChart",
       var lineChart = this._drawLineChart(this.state.chartName, this.state.type, this._lineData(this._getNested(this.props.data)));
       this.setState({lineChart: lineChart});
   },
+  componentWillUnmount: function () {
+      platformChartStore.removeChangeListener(this._onStoresChange);
+  },
   componentDidUpdate: function() {
       if (this.state.lineChart)
       {
@@ -2159,16 +2327,6 @@ var GraphLineChart = React.createClass({displayName: "GraphLineChart",
   },
   _onStoresChange: function () {
       this.setState({pinned: platformChartStore.getPinned(this.props.name)});
-  },
-  _showTaptip: function (evt) {
-
-      if (!this.state.showTaptip)
-      {
-          this.setState({taptipX: evt.clientX - 60});
-          this.setState({taptipY: evt.clientY - 100});
-      }
-
-      this.setState({showTaptip: !this.state.showTaptip});
   },
   _onChartChange: function (e) {
       var chartType = e.target.value;
@@ -2182,6 +2340,9 @@ var GraphLineChart = React.createClass({displayName: "GraphLineChart",
   _onPinToggle: function () {
       // this.setState({pinned: !this.state.pinned});
       platformChartActionCreators.pinChart(this.props.name);
+  },
+  _onRefreshChange: function (e) {
+      platformChartActionCreators.changeRefreshRate(e.target.value, this.props.name);
   },
   render: function() {
 
@@ -2203,62 +2364,125 @@ var GraphLineChart = React.createClass({displayName: "GraphLineChart",
 
     var pinClasses = ["chart-pin inlineBlock"];
     pinClasses.push(this.state.pinned ? "pinned-chart" : "unpinned-chart");
-
-    var taptipStyle = {
-        display: (this.state.showTaptip ? "block" : "none"),
-        position: "absolute",
-        left: this.state.taptipX + "px",
-        top: this.state.taptipY + "px"
-    };
-
-    var tapTipClasses = "taptip_outer";
-    
+  
     var controlButtons;
 
     if (!this.props.hideControls)
     {
+        var chartTypeSelect = (
+            React.createElement("select", {
+                onChange: this._onChartChange, 
+                value: this.state.type, 
+                autoFocus: true, 
+                required: true
+            }, 
+                React.createElement("option", {value: "line"}, "Line"), 
+                React.createElement("option", {value: "lineWithFocus"}, "Line with View Finder"), 
+                React.createElement("option", {value: "stackedArea"}, "Stacked Area"), 
+                React.createElement("option", {value: "cumulativeLine"}, "Cumulative Line")
+            )
+        );
+
+        var chartTypeTaptip = { "title": "Chart Type", "content": chartTypeSelect };
+        var chartTypeIcon = (
+            React.createElement("i", {className: "fa fa-line-chart"})
+        );
+
+        var chartTypeControlButton = (
+            React.createElement(ControlButton, {
+                taptip: chartTypeTaptip, 
+                icon: chartTypeIcon})
+        );
+
+        
+        var pinChartIcon = (
+            React.createElement("div", {className: pinClasses.join(' ')}, 
+                React.createElement("i", {className: "fa fa-thumb-tack"})
+            )
+        );
+
+        var pinChartControlButton = (
+            React.createElement(ControlButton, {
+                icon: pinChartIcon, 
+                clickAction: this._onPinToggle})
+        );
+        
+        var refreshChart = (
+            React.createElement("div", null, 
+                React.createElement("input", {
+                    type: "number", 
+                    onChange: this._onRefreshChange, 
+                    value: this.props.refreshInterval, 
+                    min: "250", 
+                    step: "1", 
+                    placeholder: "disabled"}
+                ), " (ms)", 
+                React.createElement("br", null), 
+                React.createElement("span", null, 
+                    "Omit to disable"
+                )
+            )
+        );
+
+        var refreshChartTaptip = { "title": "Refresh Rate", "content": refreshChart };
+        var refreshChartIcon = (
+            React.createElement("i", {className: "fa fa-refresh"})
+        );
+        var refreshChartControlButton = (
+            React.createElement(ControlButton, {
+                taptip: refreshChartTaptip, 
+                icon: refreshChartIcon})
+        );
+
+
+        var chartMaxMinRange = (
+            React.createElement("div", null, 
+                React.createElement("input", {
+                    type: "number", 
+                    min: "250", 
+                    step: "1"}
+                )
+            )
+        );
+
+        var minRangeTaptip = { "title": "Minimum Range", "content": chartMaxMinRange };
+        var minRangeIcon = (
+            React.createElement("i", {className: "fa fa-arrow-left"})
+        );
+        var minRangeControlButton = (
+            React.createElement(ControlButton, {
+                taptip: minRangeTaptip, 
+                icon: minRangeIcon})
+        );
+        
+        var maxRangeTaptip = { "title": "Maximum Range", "content": chartMaxMinRange };        
+        var maxRangeIcon = (
+            React.createElement("i", {className: "fa fa-arrow-right"})
+        );
+        var maxRangeControlButton = (
+            React.createElement(ControlButton, {
+                taptip: maxRangeTaptip, 
+                icon: maxRangeIcon})
+        );
+
+
+        var spaceStyle = {
+            width: "20px",
+            height: "2px"
+        }
+
         controlButtons = (
             React.createElement("div", {className: "displayBlock", 
                 style: controlStyle}, 
-                React.createElement("div", {className: "filter_button", 
-                    onClick: this._changeChartType}, 
-                    React.createElement("div", {className: "centeredDiv"}, 
-                        React.createElement("div", {className: pinClasses.join(' '), 
-                            onClick: this._onPinToggle}, 
-                            React.createElement("i", {className: "fa fa-thumb-tack"})
-                        )
-                    )
-                ), 
-                React.createElement("div", {className: tapTipClasses, 
-                    style: taptipStyle}, 
-                    React.createElement("div", {className: "taptip_inner"}, 
-                        React.createElement("div", {className: "opaque_inner"}, 
-                            React.createElement("h4", null, "Chart Type"), 
-                            React.createElement("br", null), 
-                            React.createElement("select", {
-                                id: "type", 
-                                onChange: this._onChartChange, 
-                                value: this.state.type, 
-                                autoFocus: true, 
-                                required: true
-                            }, 
-                                React.createElement("option", {value: "line"}, "Line"), 
-                                React.createElement("option", {value: "lineWithFocus"}, "Line with View Finder"), 
-                                React.createElement("option", {value: "stackedArea"}, "Stacked Area"), 
-                                React.createElement("option", {value: "cumulativeLine"}, "Cumulative Line")
-                            )
-                        )
-                    )
-                ), 
-                React.createElement("div", {className: "inlineBlock"}, 
-                    React.createElement("div", {className: "filter_button", 
-                        onClick: this._showTaptip}, 
-                        React.createElement("div", {className: "centeredDiv"}, 
-                            React.createElement("i", {className: "fa fa-line-chart"})
-                        )
-                    )
-                )
-            ))
+                pinChartControlButton, 
+                chartTypeControlButton, 
+                refreshChartControlButton, 
+                React.createElement("div", {className: "inlineBlock", 
+                      style: spaceStyle}), 
+                minRangeControlButton, 
+                maxRangeControlButton
+            )
+        );
     }
 
     return (
@@ -2270,6 +2494,7 @@ var GraphLineChart = React.createClass({displayName: "GraphLineChart",
     );
   },
   _drawLineChart: function (elementParent, type, data) {
+      
       var tickCount = 0;
       var lineChart;
 
@@ -2392,7 +2617,7 @@ var GraphLineChart = React.createClass({displayName: "GraphLineChart",
 module.exports = PlatformChart;
 
 
-},{"../action-creators/platform-chart-action-creators":5,"../stores/platform-chart-store":45,"d3":undefined,"moment":undefined,"nvd3":undefined,"react":undefined,"react-router":undefined}],24:[function(require,module,exports){
+},{"../action-creators/platform-chart-action-creators":5,"../stores/platform-chart-store":46,"./control-button":13,"d3":undefined,"moment":undefined,"nvd3":undefined,"react":undefined,"react-router":undefined}],25:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2457,7 +2682,7 @@ function getChartsFromStores() {
 module.exports = PlatformCharts;
 
 
-},{"../stores/platform-chart-store":45,"./platform-chart":23,"react":undefined,"react-router":undefined}],25:[function(require,module,exports){
+},{"../stores/platform-chart-store":46,"./platform-chart":24,"react":undefined,"react-router":undefined}],26:[function(require,module,exports){
 'use strict';
 
 var $ = require('jquery');
@@ -2594,7 +2819,7 @@ function getStateFromStores() {
 module.exports = PlatformManager;
 
 
-},{"../action-creators/console-action-creators":2,"../action-creators/modal-action-creators":3,"../action-creators/platform-manager-action-creators":6,"../stores/authorization-store":41,"../stores/console-store":42,"../stores/modal-store":44,"../stores/platforms-panel-store":48,"./console":12,"./modal":20,"./navigation":21,"./platforms-panel":28,"jquery":undefined,"react":undefined,"react-router":undefined}],26:[function(require,module,exports){
+},{"../action-creators/console-action-creators":2,"../action-creators/modal-action-creators":3,"../action-creators/platform-manager-action-creators":6,"../stores/authorization-store":42,"../stores/console-store":43,"../stores/modal-store":45,"../stores/platforms-panel-store":49,"./console":12,"./modal":21,"./navigation":22,"./platforms-panel":29,"jquery":undefined,"react":undefined,"react-router":undefined}],27:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2798,7 +3023,7 @@ function getStateFromStores(component) {
 module.exports = Platform;
 
 
-},{"../action-creators/modal-action-creators":3,"../action-creators/platform-action-creators":4,"../stores/platforms-store":49,"./agent-row":8,"./chart":9,"./confirm-form":11,"./edit-chart-form":16,"react":undefined,"react-router":undefined}],27:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../action-creators/platform-action-creators":4,"../stores/platforms-store":50,"./agent-row":8,"./chart":9,"./confirm-form":11,"./edit-chart-form":17,"react":undefined,"react-router":undefined}],28:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -3042,7 +3267,7 @@ function getItemFromStore(itemPath) {
 module.exports = PlatformsPanelItem;
 
 
-},{"../action-creators/platforms-panel-action-creators":7,"../stores/platforms-panel-items-store":47,"react":undefined,"react-router":undefined}],28:[function(require,module,exports){
+},{"../action-creators/platforms-panel-action-creators":7,"../stores/platforms-panel-items-store":48,"react":undefined,"react-router":undefined}],29:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -3200,28 +3425,28 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
                             value:  this.state.filterValue}
                         ), 
                         React.createElement("div", {className: "inlineBlock"}, 
-                            React.createElement("div", {className: "filter_button status-good", 
+                            React.createElement("div", {className: "control_button status-good", 
                                 onClick: this._onFilterGood, 
                                 style: filterGood}, 
                                 React.createElement("div", {className: "centeredDiv"}, 
                                     React.createElement("span", null, "▶")
                                 )
                             ), 
-                            React.createElement("div", {className: "filter_button status-bad", 
+                            React.createElement("div", {className: "control_button status-bad", 
                                 onClick: this._onFilterBad, 
                                 style: filterBad}, 
                                 React.createElement("div", {className: "centeredDiv"}, 
                                     React.createElement("i", {className: "fa fa-minus-circle"})
                                 )
                             ), 
-                            React.createElement("div", {className: "filter_button status-unknown", 
+                            React.createElement("div", {className: "control_button status-unknown", 
                                 onClick: this._onFilterUnknown, 
                                 style: filterUnknown}, 
                                 React.createElement("div", {className: "centeredDiv"}, 
                                     React.createElement("span", null, "▬")
                                 )
                             ), 
-                            React.createElement("div", {className: "filter_button", 
+                            React.createElement("div", {className: "control_button", 
                                 onClick: this._onFilterOff}, 
                                 React.createElement("div", {className: "centeredDiv"}, 
                                     React.createElement("i", {className: "fa fa-ban"})
@@ -3254,7 +3479,7 @@ function getFilteredPlatforms(filterTerm, filterStatus, platforms) {
 module.exports = PlatformsPanel;
 
 
-},{"../action-creators/platforms-panel-action-creators":7,"../stores/platforms-panel-items-store":47,"../stores/platforms-panel-store":48,"./platforms-panel-item":27,"react":undefined,"react-router":undefined}],29:[function(require,module,exports){
+},{"../action-creators/platforms-panel-action-creators":7,"../stores/platforms-panel-items-store":48,"../stores/platforms-panel-store":49,"./platforms-panel-item":28,"react":undefined,"react-router":undefined}],30:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -3369,7 +3594,7 @@ function getStateFromStores() {
 module.exports = Platforms;
 
 
-},{"../action-creators/modal-action-creators":3,"../components/deregister-platform-confirmation":15,"../components/register-platform-form":30,"../stores/platforms-store":49,"react":undefined,"react-router":undefined}],30:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../components/deregister-platform-confirmation":16,"../components/register-platform-form":31,"../stores/platforms-store":50,"react":undefined,"react-router":undefined}],31:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -3575,7 +3800,7 @@ function getStateFromStores() {
 module.exports = RegisterPlatformForm;
 
 
-},{"../action-creators/modal-action-creators":3,"../action-creators/platform-manager-action-creators":6,"../stores/platform-registration-store":46,"react":undefined}],31:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../action-creators/platform-manager-action-creators":6,"../stores/platform-registration-store":47,"react":undefined}],32:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -3634,7 +3859,7 @@ var RemoveAgentForm = React.createClass({displayName: "RemoveAgentForm",
 module.exports = RemoveAgentForm;
 
 
-},{"../action-creators/modal-action-creators":3,"../action-creators/platform-action-creators":4,"react":undefined}],32:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../action-creators/platform-action-creators":4,"react":undefined}],33:[function(require,module,exports){
 'use strict';
 
 var keyMirror = require('react/lib/keyMirror');
@@ -3676,6 +3901,7 @@ module.exports = keyMirror({
     ADD_TO_CHART: null,
     REMOVE_FROM_CHART: null,
     PIN_CHART: null,
+    CHANGE_CHART_REFRESH: null,
     REFRESH_CHART: null,
 
     EXPAND_ALL: null,
@@ -3688,7 +3914,7 @@ module.exports = keyMirror({
 });
 
 
-},{"react/lib/keyMirror":undefined}],33:[function(require,module,exports){
+},{"react/lib/keyMirror":undefined}],34:[function(require,module,exports){
 'use strict';
 
 var Dispatcher = require('flux').Dispatcher;
@@ -3708,7 +3934,7 @@ dispatcher.dispatch = function (action) {
 module.exports = dispatcher;
 
 
-},{"../constants/action-types":32,"flux":undefined}],34:[function(require,module,exports){
+},{"../constants/action-types":33,"flux":undefined}],35:[function(require,module,exports){
 'use strict';
 
 function RpcError(error) {
@@ -3723,7 +3949,7 @@ RpcError.prototype.constructor = RpcError;
 module.exports = RpcError;
 
 
-},{}],35:[function(require,module,exports){
+},{}],36:[function(require,module,exports){
 'use strict';
 
 var uuid = require('node-uuid');
@@ -3811,7 +4037,7 @@ function RpcExchange(request, redactedParams) {
 module.exports = RpcExchange;
 
 
-},{"../../constants/action-types":32,"../../dispatcher":33,"../xhr":39,"./error":34,"node-uuid":undefined}],36:[function(require,module,exports){
+},{"../../constants/action-types":33,"../../dispatcher":34,"../xhr":40,"./error":35,"node-uuid":undefined}],37:[function(require,module,exports){
 'use strict';
 
 module.exports = {
@@ -3820,7 +4046,7 @@ module.exports = {
 };
 
 
-},{"./error":34,"./exchange":35}],37:[function(require,module,exports){
+},{"./error":35,"./exchange":36}],38:[function(require,module,exports){
 'use strict';
 
 var EventEmitter = require('events').EventEmitter;
@@ -3848,7 +4074,7 @@ Store.prototype.removeChangeListener = function (callback) {
 module.exports = Store;
 
 
-},{"events":undefined}],38:[function(require,module,exports){
+},{"events":undefined}],39:[function(require,module,exports){
 'use strict';
 
 function XhrError(message, response) {
@@ -3862,7 +4088,7 @@ XhrError.prototype.constructor = XhrError;
 module.exports = XhrError;
 
 
-},{}],39:[function(require,module,exports){
+},{}],40:[function(require,module,exports){
 'use strict';
 
 module.exports = {
@@ -3871,7 +4097,7 @@ module.exports = {
 };
 
 
-},{"./error":38,"./request":40}],40:[function(require,module,exports){
+},{"./error":39,"./request":41}],41:[function(require,module,exports){
 'use strict';
 
 var jQuery = require('jquery');
@@ -3902,7 +4128,7 @@ function XhrRequest(opts) {
 module.exports = XhrRequest;
 
 
-},{"./error":38,"bluebird":undefined,"jquery":undefined}],41:[function(require,module,exports){
+},{"./error":39,"bluebird":undefined,"jquery":undefined}],42:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -3940,7 +4166,7 @@ authorizationStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = authorizationStore;
 
 
-},{"../constants/action-types":32,"../dispatcher":33,"../lib/store":37}],42:[function(require,module,exports){
+},{"../constants/action-types":33,"../dispatcher":34,"../lib/store":38}],43:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -4033,7 +4259,7 @@ consoleStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = consoleStore;
 
 
-},{"../constants/action-types":32,"../dispatcher":33,"../lib/store":37,"../stores/authorization-store":41}],43:[function(require,module,exports){
+},{"../constants/action-types":33,"../dispatcher":34,"../lib/store":38,"../stores/authorization-store":42}],44:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -4068,7 +4294,7 @@ loginFormStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = loginFormStore;
 
 
-},{"../constants/action-types":32,"../dispatcher":33,"../lib/store":37,"./authorization-store":41}],44:[function(require,module,exports){
+},{"../constants/action-types":33,"../dispatcher":34,"../lib/store":38,"./authorization-store":42}],45:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -4101,7 +4327,7 @@ modalStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = modalStore;
 
 
-},{"../constants/action-types":32,"../dispatcher":33,"../lib/store":37}],45:[function(require,module,exports){
+},{"../constants/action-types":33,"../dispatcher":34,"../lib/store":38}],46:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -4138,6 +4364,10 @@ chartStore.getData = function () {
 
 chartStore.getPinned = function (chartKey) {
     return _chartData[chartKey].pinned;
+}
+
+chartStore.getRefreshRate = function (chartKey) {
+    return _chartData[chartKey].refreshInterval;
 }
 
 chartStore.dispatchToken = dispatcher.register(function (action) {
@@ -4192,6 +4422,17 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
             insertSeries(action.item);
             chartStore.emitChange();
 
+            break;
+
+        case ACTION_TYPES.CHANGE_CHART_REFRESH:
+
+            if (_chartData[action.chartKey].hasOwnProperty("refreshInterval"))
+            {
+                _chartData[action.chartKey].refreshInterval = action.rate;
+            }
+
+            chartStore.emitChange();
+            
             break;
 
         case ACTION_TYPES.PIN_CHART:
@@ -4293,7 +4534,7 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = chartStore;
 
 
-},{"../constants/action-types":32,"../dispatcher":33,"../lib/store":37,"../stores/authorization-store":41}],46:[function(require,module,exports){
+},{"../constants/action-types":33,"../dispatcher":34,"../lib/store":38,"../stores/authorization-store":42}],47:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -4339,7 +4580,7 @@ platformRegistrationStore.dispatchToken = dispatcher.register(function (action) 
 module.exports = platformRegistrationStore;
 
 
-},{"../constants/action-types":32,"../dispatcher":33,"../lib/store":37,"./authorization-store":41}],47:[function(require,module,exports){
+},{"../constants/action-types":33,"../dispatcher":34,"../lib/store":38,"./authorization-store":42}],48:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -4594,6 +4835,9 @@ var _items = {
                             "sortOrder": 0,
                             "children": [],
                             "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "points", "5461fedc-65ba-43fe-21dc-111765bafedl"],
+                            "parentPath": "PNNL > ISB1",
+                            "parentType": "building",
+                            "parentUuid": "1111fedc-65ba-43fe-21dc-098765bafede",
                             "data": [
                                 {
                                     "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
@@ -5336,14 +5580,17 @@ var _items = {
                         "5461fedc-65ba-43fe-21dc-098765bafedl":
                         {
                             "uuid": "5461fedc-65ba-43fe-21dc-098765bafedl",
-                            "name": "WholeBuildingElectricity",
+                            "name": "OutdoorAirTemperature",
                             "expanded": null,
                             "visible": true,
                             "status": "GOOD",
                             "type": "point",
                             "sortOrder": 0,
                             "children": [],
-                            "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "points", "5461fedc-65ba-43fe-21dc-098765bafedl"]
+                            "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "points", "5461fedc-65ba-43fe-21dc-098765bafedl"],
+                            "parentPath": "WSU > BSEL",
+                            "parentType": "building",
+                            "parentUuid": "1111fedc-65ba-43fe-21dc-098765bafede"
                         },
                         "6451fedc-65ba-43fe-21dc-098765bafedl":
                         {
@@ -5982,7 +6229,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = platformsPanelItemsStore;
 
 
-},{"../constants/action-types":32,"../dispatcher":33,"../lib/store":37}],48:[function(require,module,exports){
+},{"../constants/action-types":33,"../dispatcher":34,"../lib/store":38}],49:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -6011,7 +6258,7 @@ platformsPanelStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = platformsPanelStore;
 
 
-},{"../constants/action-types":32,"../dispatcher":33,"../lib/store":37}],49:[function(require,module,exports){
+},{"../constants/action-types":33,"../dispatcher":34,"../lib/store":38}],50:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -6080,7 +6327,7 @@ platformsStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = platformsStore;
 
 
-},{"../constants/action-types":32,"../dispatcher":33,"../lib/store":37,"../stores/authorization-store":41}],50:[function(require,module,exports){
+},{"../constants/action-types":33,"../dispatcher":34,"../lib/store":38,"../stores/authorization-store":42}],51:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -6120,4 +6367,4 @@ topicDataStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = topicDataStore;
 
 
-},{"../constants/action-types":32,"../dispatcher":33,"../lib/store":37,"./authorization-store":41}]},{},[1]);
+},{"../constants/action-types":33,"../dispatcher":34,"../lib/store":38,"./authorization-store":42}]},{},[1]);

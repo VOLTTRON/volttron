@@ -36,6 +36,10 @@ chartStore.getPinned = function (chartKey) {
     return _chartData[chartKey].pinned;
 }
 
+chartStore.getRefreshRate = function (chartKey) {
+    return _chartData[chartKey].refreshInterval;
+}
+
 chartStore.dispatchToken = dispatcher.register(function (action) {
     switch (action.type) {
 
@@ -88,6 +92,17 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
             insertSeries(action.item);
             chartStore.emitChange();
 
+            break;
+
+        case ACTION_TYPES.CHANGE_CHART_REFRESH:
+
+            if (_chartData[action.chartKey].hasOwnProperty("refreshInterval"))
+            {
+                _chartData[action.chartKey].refreshInterval = action.rate;
+            }
+
+            chartStore.emitChange();
+            
             break;
 
         case ACTION_TYPES.PIN_CHART:
