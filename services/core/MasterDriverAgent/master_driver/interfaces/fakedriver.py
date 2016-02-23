@@ -53,7 +53,7 @@ under Contract DE-AC05-76RL01830
 
 import random
 
-from master_driver.interfaces import BaseInterface, BaseRegister
+from master_driver.interfaces import BaseInterface, BaseRegister, BasicRevert
 from csv import DictReader
 from StringIO import StringIO
 import logging
@@ -82,7 +82,7 @@ class FakeRegister(BaseRegister):
                 self._value = self.reg_type()
 
 
-class Interface(BaseInterface):
+class Interface(BaseInterface, BasicRevert):
     def __init__(self, **kwargs):
         super(Interface, self).__init__(**kwargs)
 
