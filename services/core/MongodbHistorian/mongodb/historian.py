@@ -59,7 +59,7 @@ import logging
 import sys
 import dateutil
 import pymongo
-from pymongo import ReplaceOne
+from pymongo import ReplaceOne, InsertOne
 from bson.objectid import ObjectId
 
 import gevent
@@ -131,8 +131,7 @@ def historian(config_path, **kwargs):
             _log.debug("publish_to_historian number of items: {}"
                        .format(len(to_publish_list)))
 
-            # Use the db instance to insert/update the topics and data
-            #collections
+            # Use the db instance to insert/update the topics and data collections
             db = self.mongoclient[self.database_name]
             bulk_publish = []
             for x in to_publish_list:
@@ -145,7 +144,6 @@ def historian(config_path, **kwargs):
                 topic_id = self.topic_map.get(topic, None)
 
                 if topic_id is None:
-                    _log.debug('Inserting topic: {}'.format(topic))
                     row  = db.topics.insert_one({'topic_name': topic})# self.insert_topic(topic)
                     topic_id = row.inserted_id
                     # topic map should hold both a lookup from topic name
@@ -154,9 +152,8 @@ def historian(config_path, **kwargs):
                     self.topic_map[topic_id] = topic
 
                 # Reformat to a filter tha bulk inserter.
-                bulk_publish.append(ReplaceOne({'ts': ts, 'topic_id': topic},
-                    {'ts': ts, 'topic_id': topic_id, 'value': value},
-                    upsert=True))
+                bulk_publish.append(InsertOne(
+                    {'ts': ts, 'topic_id': topic_id, 'value': value}))
 
             # http://api.mongodb.org/python/current/api/pymongo/collection.html#pymongo.collection.Collection.bulk_write
             result = db['data'].bulk_write(bulk_publish)
@@ -166,7 +163,7 @@ def historian(config_path, **kwargs):
                 self.report_all_handled()
             else:
                 # TODO handle when something happens during writing of data.
-                _log.error('SOME THINGS DIDNT WORK')
+                _log.error('SOME THINGS DID NOT WORK')
 
         def query_historian(self, topic, start=None, end=None, skip=0,
                             count=None, order="FIRST_TO_LAST"):
@@ -183,12 +180,11 @@ def historian(config_path, **kwargs):
              metadata is not required (The caller will normalize this to {}
              for you)
             """
-
             try:
                 topic_id = self.topic_map.get(topic, None)
             except:
                 self.topic_map = {}
-
+                _log.debug('CONNECTED TO {}'.format(self.database_name))
                 for row in self.mongoclient[self.database_name]['topics'].find():
                     self.topic_map[row['topic_name']] = row['_id']
                     self.topic_map[row['_id']] = row['topic_name']
@@ -196,9 +192,11 @@ def historian(config_path, **kwargs):
                 topic_id = self.topic_map.get(topic, None)
 
             if not topic_id:
+                _log.debug('Topic id was None for topic: {}'.format(topic))
                 return {}
 
             if self.mongoclient is None:
+                _log.debug('No mongo client available')
                 return {}
 
             db = self.mongoclient[self.database_name]
@@ -224,36 +222,78 @@ def historian(config_path, **kwargs):
             cursor = db["data"].find(find_params)
             cursor = cursor.skip(skip_count).limit(count)
             cursor = cursor.sort( [ ("ts", order_by) ] )
+            _log.debug('cursor count is: {}'.format(cursor.count()))
 
             # Create list of tuples for return values.
             values = [(row['ts'].isoformat(), row['value']) for row in cursor]
 
             return {'values': values}
 
+        def query_topic_list(self):
+            if self.mongoclient is None:
+                _log.debug('self.mongo was None')
+                return None
+
+            items = self.get_topic_map()
+            _log.debug('topic_list: {}'.format(items))
+            #_log.debug(items)
+            #items = ['abcdef'] # self.get_topic_map().keys()
+            return items.keys()
+
         def get_topic_map(self):
             if self.mongoclient is None:
-                return False
-            db = self.mongoclient[self.__connect_params["database"]]
+                self.mongoclient = self.get_mongo_client()
+
+            _log.debug('getting topic map')
+            db = self.mongoclient.get_default_database()
             cursor = db["topics"].find()
-            res = dict([(document["topic_name"], document["_id"])
-                for document in cursor])
+            _log.debug("Topic count {}".format(cursor.count()))
+            res = {}
+            for document in cursor:
+                res[document['topic_name']] = document['_id']
+            _log.debug('RETURNING {}'.format(res))
             return res
 
-        def historian_setup(self):
-            self.mongoclient = None
-            self.__connect_params = connection['params']
-            self.database_name = self.__connect_params['database']
+        def get_mongo_client(self):
+            self._params = connection['params']
+            self.database_name = self._params['database']
+            hosts = connection['params']['host']
+            ports = connection['params']['port']
+            user = connection['params']['user']
+            passwd = connection['params']['passwd']
 
-            mongo_uri = "mongodb://{user}:{passwd}@{host}:{port}/{database}".format(**self.__connect_params)
-            if 'replicaset' in self.__connect_params:
-                _log.debug('connecting to replicaset: {}'.format(self.__connect_params['replicaset']))
-                self.mongoclient = pymongo.MongoClient(mongo_uri,
-                    replicaset=self.__connect_params['replicaset'])
+            if isinstance(hosts, list):
+                if not ports:
+                    hosts=','.join(hosts)
+    	        else:
+                    if len(ports) != len(hosts):
+                        _log.exception('port an hosts must have the same number of items')
+                        self.core.stop()
+    	            hostports = zip(hosts,ports)
+                    hostports = [str(e[0])+':'+str(e[1]) for e in hostports]
+                    hosts = ','.join(hostports)
             else:
-                self.mongoclient = pymongo.MongoClient(mongo_uri)
+    	        if isinstance(ports, list):
+                    _log.exception('port cannot be a list if hosts is not also a list.')
+                    self.core.stop()
+                hosts = '{}:{}'.format(hosts,ports)
+
+            self._params = {'hostsandports': hosts, 'user': user,
+                'passwd': passwd, 'database': self.database_name}
+
+            mongo_uri = "mongodb://{user}:{passwd}@{hostsandports}/{database}"
+            mongo_uri = mongo_uri.format(**self._params)
+            print(mongo_uri)
+            self.mongoclient = pymongo.MongoClient(mongo_uri)
             if self.mongoclient == None:
                 _log.exception("Couldn't connect using specified configuration credentials")
                 self.core.stop()
+
+            return self.mongoclient
+
+        def historian_setup(self):
+            _log.debug("HISTORIAN SETUP")
+            self.mongoclient = self.get_mongo_client()
             self.topic_map = self.get_topic_map()
 
 
