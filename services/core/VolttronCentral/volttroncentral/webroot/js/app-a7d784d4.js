@@ -111,18 +111,6 @@ var ACTION_TYPES = require('../constants/action-types');
 var dispatcher = require('../dispatcher');
 
 var controlButtonActionCreators = {
-	// addControlButton: function (name) {
-	// 	dispatcher.dispatch({
-	// 		type: ACTION_TYPES.ADD_CONTROL_BUTTON,
-	// 		name: name,
-	// 	});
-	// },
-	// removeControlButton: function (name) {
-	// 	dispatcher.dispatch({
-	// 		type: ACTION_TYPES.REMOVE_CONTROL_BUTTON,
-	// 		name: name,
-	// 	});
-	// },
 	toggleTaptip: function (name) {
 		dispatcher.dispatch({
 			type: ACTION_TYPES.TOGGLE_TAPTIP,
@@ -1381,12 +1369,48 @@ var ControlButton = React.createClass({displayName: "ControlButton",
 	        controlButtonActionCreators.hideTaptip(this.props.name);
         }
 	},
+    _showTooltip: function (evt) {
+        this.setState({showTooltip: true});
+        this.setState({tooltipX: evt.clientX - 60});
+        this.setState({tooltipY: evt.clientY - 120});
+    },
+    _hideTooltip: function () {
+        this.setState({showTooltip: false});
+    },
     render: function () {
         
         var taptip;
+        var tooltip;
         var clickAction;
-
         var selectedStyle;
+
+        var tooltipShow;
+        var tooltipHide;
+
+        if (this.props.tooltip)
+        {
+        	var tooltipStyle = {
+	            display: (this.state.showTooltip ? "block" : "none"),
+	            position: "absolute",
+	            top: this.state.tooltipY + "px",
+	            left: this.state.tooltipX + "px"
+	        };
+
+	        var toolTipClasses = (this.state.showTooltip ? "tooltip_outer delayed-show-slow" : "tooltip_outer");
+
+	        tooltipShow = this._showTooltip;
+	        tooltipHide = this._hideTooltip;
+
+        	tooltip = (React.createElement("div", {className: toolTipClasses, 
+                        style: tooltipStyle}, 
+                        React.createElement("div", {className: "tooltip_inner"}, 
+                            React.createElement("div", {className: "opaque_inner"}, 
+                                this.props.tooltip.content
+                            )
+                        )
+                    ))
+        }
+        
 
         if (this.props.taptip)
         {
@@ -1424,13 +1448,18 @@ var ControlButton = React.createClass({displayName: "ControlButton",
         else if (this.props.clickAction)
         {
         	clickAction = this.props.clickAction;
+
+        	selectedStyle = this.props.selectedStyle;
         }
 
         return (
             React.createElement("div", {className: "inlineBlock"}, 
             	taptip, 
+            	tooltip, 
                 React.createElement("div", {className: "control_button", 
                     onClick: clickAction, 
+                    onMouseEnter: tooltipShow, 
+                    onMouseLeave: tooltipHide, 
                     style: selectedStyle}, 
                     React.createElement("div", {className: "centeredDiv"}, 
                         this.props.icon
@@ -3362,6 +3391,7 @@ var platformsPanelStore = require('../stores/platforms-panel-store');
 var platformsPanelItemsStore = require('../stores/platforms-panel-items-store');
 var platformsPanelActionCreators = require('../action-creators/platforms-panel-action-creators');
 var PlatformsPanelItem = require('./platforms-panel-item');
+var ControlButton = require('./control-button');
 
 
 var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
@@ -3472,6 +3502,71 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
                 break;
         }
 
+        var filterGoodIcon = (
+            React.createElement("div", {className: "status-good"}, 
+                React.createElement("span", null, "▶")
+            )
+        );
+        var filterGoodTooltip = {
+            "content": "Healthy"
+        };
+        var filterGoodControlButton = (
+            React.createElement(ControlButton, {
+                name: "filterGoodControlButton", 
+                icon: filterGoodIcon, 
+                selectedStyle: filterGood, 
+                tooltip: filterGoodTooltip, 
+                clickAction: this._onFilterGood})
+        );
+
+        var filterBadIcon = (
+            React.createElement("div", {className: "status-bad"}, 
+                React.createElement("i", {className: "fa fa-minus-circle"})
+            )
+        );
+        var filterBadTooltip = {
+            "content": "Unhealthy"
+        };
+        var filterBadControlButton = (
+            React.createElement(ControlButton, {
+                name: "filterBadControlButton", 
+                icon: filterBadIcon, 
+                selectedStyle: filterBad, 
+                tooltip: filterBadTooltip, 
+                clickAction: this._onFilterBad})
+        );
+
+        var filterUnknownIcon = (
+            React.createElement("div", {className: "status-unknown"}, 
+                React.createElement("span", null, "▬")
+            )
+        );
+        var filterUnknownTooltip = {
+            "content": "Unknown Status"
+        };
+        var filterUnknownControlButton = (
+            React.createElement(ControlButton, {
+                name: "filterUnknownControlButton", 
+                icon: filterUnknownIcon, 
+                selectedStyle: filterUnknown, 
+                tooltip: filterUnknownTooltip, 
+                clickAction: this._onFilterUnknown})
+        );
+
+        var filterOffIcon = (
+            React.createElement("i", {className: "fa fa-ban"})
+        );
+        var filterOffTooltip = {
+            "content": "Clear Filter"
+        };
+        var filterOffControlButton = (
+            React.createElement(ControlButton, {
+                name: "filterOffControlButton", 
+                icon: filterOffIcon, 
+                tooltip: filterOffTooltip, 
+                clickAction: this._onFilterOff})
+        );
+
         if (!this.state.platforms) {
             platforms = (
                 React.createElement("p", null, "Loading platforms panel ...")
@@ -3510,33 +3605,10 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
                             value:  this.state.filterValue}
                         ), 
                         React.createElement("div", {className: "inlineBlock"}, 
-                            React.createElement("div", {className: "control_button status-good", 
-                                onClick: this._onFilterGood, 
-                                style: filterGood}, 
-                                React.createElement("div", {className: "centeredDiv"}, 
-                                    React.createElement("span", null, "▶")
-                                )
-                            ), 
-                            React.createElement("div", {className: "control_button status-bad", 
-                                onClick: this._onFilterBad, 
-                                style: filterBad}, 
-                                React.createElement("div", {className: "centeredDiv"}, 
-                                    React.createElement("i", {className: "fa fa-minus-circle"})
-                                )
-                            ), 
-                            React.createElement("div", {className: "control_button status-unknown", 
-                                onClick: this._onFilterUnknown, 
-                                style: filterUnknown}, 
-                                React.createElement("div", {className: "centeredDiv"}, 
-                                    React.createElement("span", null, "▬")
-                                )
-                            ), 
-                            React.createElement("div", {className: "control_button", 
-                                onClick: this._onFilterOff}, 
-                                React.createElement("div", {className: "centeredDiv"}, 
-                                    React.createElement("i", {className: "fa fa-ban"})
-                                )
-                            )
+                            filterGoodControlButton, 
+                            filterBadControlButton, 
+                            filterUnknownControlButton, 
+                            filterOffControlButton
                         )
                     ), 
                     React.createElement("ul", {className: "platform-panel-list"}, 
@@ -3564,7 +3636,7 @@ function getFilteredPlatforms(filterTerm, filterStatus, platforms) {
 module.exports = PlatformsPanel;
 
 
-},{"../action-creators/platforms-panel-action-creators":8,"../stores/platforms-panel-items-store":50,"../stores/platforms-panel-store":51,"./platforms-panel-item":29,"react":undefined,"react-router":undefined}],31:[function(require,module,exports){
+},{"../action-creators/platforms-panel-action-creators":8,"../stores/platforms-panel-items-store":50,"../stores/platforms-panel-store":51,"./control-button":14,"./platforms-panel-item":29,"react":undefined,"react-router":undefined}],31:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -4381,25 +4453,6 @@ controlButtonStore.getTaptip = function (name) {
 
 controlButtonStore.dispatchToken = dispatcher.register(function (action) {
     switch (action.type) {
-
-        // case ACTION_TYPES.ADD_CONTROL_BUTTON:
-
-        //     if (!_controlButtons.hasOwnProperty(action.name))
-        //     {
-        //         _controlButtons[action.name] = {};
-        //         _controlButtons[action.name].showTaptip = false;
-        //     }
-
-        //     break;
-
-        // case ACTION_TYPES.REMOVE_CONTROL_BUTTON:
-
-        //     if (_controlButtons.hasOwnProperty(action.name))
-        //     {
-        //         delete _controlButtons[action.name];
-        //     }
-            
-        //     break;
 
         case ACTION_TYPES.TOGGLE_TAPTIP:             
 

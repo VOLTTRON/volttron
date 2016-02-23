@@ -7,6 +7,7 @@ var platformsPanelStore = require('../stores/platforms-panel-store');
 var platformsPanelItemsStore = require('../stores/platforms-panel-items-store');
 var platformsPanelActionCreators = require('../action-creators/platforms-panel-action-creators');
 var PlatformsPanelItem = require('./platforms-panel-item');
+var ControlButton = require('./control-button');
 
 
 var PlatformsPanel = React.createClass({
@@ -117,6 +118,71 @@ var PlatformsPanel = React.createClass({
                 break;
         }
 
+        var filterGoodIcon = (
+            <div className="status-good">
+                <span>&#9654;</span>
+            </div>
+        );
+        var filterGoodTooltip = {
+            "content": "Healthy"
+        };
+        var filterGoodControlButton = (
+            <ControlButton 
+                name="filterGoodControlButton"
+                icon={filterGoodIcon}
+                selectedStyle={filterGood}
+                tooltip={filterGoodTooltip}
+                clickAction={this._onFilterGood}></ControlButton>
+        );
+
+        var filterBadIcon = (
+            <div className="status-bad">
+                <i className="fa fa-minus-circle"></i>
+            </div>
+        );
+        var filterBadTooltip = {
+            "content": "Unhealthy"
+        };
+        var filterBadControlButton = (
+            <ControlButton 
+                name="filterBadControlButton"
+                icon={filterBadIcon}
+                selectedStyle={filterBad}
+                tooltip={filterBadTooltip}
+                clickAction={this._onFilterBad}></ControlButton>
+        );
+
+        var filterUnknownIcon = (
+            <div className="status-unknown">
+                <span>&#9644;</span>
+            </div>
+        );
+        var filterUnknownTooltip = {
+            "content": "Unknown Status"
+        };
+        var filterUnknownControlButton = (
+            <ControlButton 
+                name="filterUnknownControlButton"
+                icon={filterUnknownIcon}
+                selectedStyle={filterUnknown}
+                tooltip={filterUnknownTooltip}
+                clickAction={this._onFilterUnknown}></ControlButton>
+        );
+
+        var filterOffIcon = (
+            <i className="fa fa-ban"></i>
+        );
+        var filterOffTooltip = {
+            "content": "Clear Filter"
+        };
+        var filterOffControlButton = (
+            <ControlButton 
+                name="filterOffControlButton"
+                icon={filterOffIcon}
+                tooltip={filterOffTooltip}
+                clickAction={this._onFilterOff}></ControlButton>
+        );
+
         if (!this.state.platforms) {
             platforms = (
                 <p>Loading platforms panel ...</p>
@@ -155,33 +221,10 @@ var PlatformsPanel = React.createClass({
                             value={ this.state.filterValue }
                         />
                         <div className="inlineBlock">
-                            <div className="control_button status-good"
-                                onClick={this._onFilterGood}
-                                style={filterGood}>
-                                <div className="centeredDiv">
-                                    <span>&#9654;</span>
-                                </div>
-                            </div>
-                            <div className="control_button status-bad"
-                                onClick={this._onFilterBad}
-                                style={filterBad}>
-                                <div className="centeredDiv">
-                                    <i className="fa fa-minus-circle"></i>
-                                </div>
-                            </div>
-                            <div className="control_button status-unknown"
-                                onClick={this._onFilterUnknown}
-                                style={filterUnknown}>
-                                <div className="centeredDiv">
-                                    <span>&#9644;</span>
-                                </div>
-                            </div>
-                            <div className="control_button"
-                                onClick={this._onFilterOff}>
-                                <div className="centeredDiv">
-                                    <i className="fa fa-ban"></i>
-                                </div>
-                            </div>
+                            {filterGoodControlButton}
+                            {filterBadControlButton}
+                            {filterUnknownControlButton}
+                            {filterOffControlButton}
                         </div>
                     </div>
                     <ul className="platform-panel-list">

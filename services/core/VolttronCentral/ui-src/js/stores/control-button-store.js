@@ -30,25 +30,6 @@ controlButtonStore.getTaptip = function (name) {
 controlButtonStore.dispatchToken = dispatcher.register(function (action) {
     switch (action.type) {
 
-        // case ACTION_TYPES.ADD_CONTROL_BUTTON:
-
-        //     if (!_controlButtons.hasOwnProperty(action.name))
-        //     {
-        //         _controlButtons[action.name] = {};
-        //         _controlButtons[action.name].showTaptip = false;
-        //     }
-
-        //     break;
-
-        // case ACTION_TYPES.REMOVE_CONTROL_BUTTON:
-
-        //     if (_controlButtons.hasOwnProperty(action.name))
-        //     {
-        //         delete _controlButtons[action.name];
-        //     }
-            
-        //     break;
-
         case ACTION_TYPES.TOGGLE_TAPTIP:             
 
             var showTaptip;

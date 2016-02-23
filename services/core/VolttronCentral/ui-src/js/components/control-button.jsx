@@ -56,12 +56,48 @@ var ControlButton = React.createClass({
 	        controlButtonActionCreators.hideTaptip(this.props.name);
         }
 	},
+    _showTooltip: function (evt) {
+        this.setState({showTooltip: true});
+        this.setState({tooltipX: evt.clientX - 60});
+        this.setState({tooltipY: evt.clientY - 120});
+    },
+    _hideTooltip: function () {
+        this.setState({showTooltip: false});
+    },
     render: function () {
         
         var taptip;
+        var tooltip;
         var clickAction;
-
         var selectedStyle;
+
+        var tooltipShow;
+        var tooltipHide;
+
+        if (this.props.tooltip)
+        {
+        	var tooltipStyle = {
+	            display: (this.state.showTooltip ? "block" : "none"),
+	            position: "absolute",
+	            top: this.state.tooltipY + "px",
+	            left: this.state.tooltipX + "px"
+	        };
+
+	        var toolTipClasses = (this.state.showTooltip ? "tooltip_outer delayed-show-slow" : "tooltip_outer");
+
+	        tooltipShow = this._showTooltip;
+	        tooltipHide = this._hideTooltip;
+
+        	tooltip = (<div className={toolTipClasses}
+                        style={tooltipStyle}>
+                        <div className="tooltip_inner">
+                            <div className="opaque_inner">
+                                {this.props.tooltip.content}
+                            </div>
+                        </div>
+                    </div>)
+        }
+        
 
         if (this.props.taptip)
         {
@@ -99,13 +135,18 @@ var ControlButton = React.createClass({
         else if (this.props.clickAction)
         {
         	clickAction = this.props.clickAction;
+
+        	selectedStyle = this.props.selectedStyle;
         }
 
         return (
             <div className="inlineBlock">
             	{taptip}
+            	{tooltip}
                 <div className="control_button"
-                    onClick={clickAction}
+                    onClick={clickAction}                  
+                    onMouseEnter={tooltipShow}
+                    onMouseLeave={tooltipHide}
                     style={selectedStyle}>
                     <div className="centeredDiv">
                         {this.props.icon}
