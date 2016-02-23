@@ -60,11 +60,8 @@ import datetime
 import errno
 import logging
 import sys
-import requests
-import threading
 import os
 import os.path as p
-import uuid
 
 import gevent
 from zmq.utils import jsonapi
@@ -72,23 +69,17 @@ from zmq.utils import jsonapi
 from authenticate import Authenticate
 from registry import PlatformRegistry
 
+from volttron.platform import jsonrpc
 from volttron.platform.agent import utils
-from volttron.platform.async import AsyncCall
 from volttron.platform.vip.agent import *
 from volttron.platform.vip.agent.subsystems import query
-
-# from volttron.platform import vip, jsonrpc
-# from volttron.platform.agent.vipagent import (BaseAgent, RPCAgent, periodic,
-#                                               onevent, jsonapi, export)
-# from volttron.platform.agent import utils
-
-# from webserver import (ManagerWebApplication, ManagerRequestHandler,
-#                        StatusHandler, LogHandler, SessionHandler, RpcResponse)
+from sessions import SessionHandler
 
 from volttron.platform.control import list_agents
 from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
                                        INVALID_REQUEST, METHOD_NOT_FOUND,
-                                       PARSE_ERROR, UNHANDLED_EXCEPTION)
+                                       PARSE_ERROR, UNHANDLED_EXCEPTION,
+                                       UNAUTHORIZED)
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
@@ -117,7 +108,6 @@ def volttron_central_agent(config_path, **kwargs):
     if WEB_ROOT.endswith('/'):
         WEB_ROOT = WEB_ROOT[:-1]
 
-
     agent_id = config.get('agentid', 'Volttron Central')
 
     # Required users.
@@ -126,30 +116,10 @@ def volttron_central_agent(config_path, **kwargs):
     if user_map is None:
         raise ValueError('users not specified within the config file.')
 
-    # def startWebServer(manager):
-    #     '''Starts the webserver to allow http/RpcParser calls.
-    #
-    #     This is where the tornado IOLoop instance is officially started.  It
-    #     does block here so one should call this within a thread or process if
-    #     one doesn't want it to block.
-    #
-    #     One can stop the server by calling stopWebServer or by issuing an
-    #     IOLoop.stop() call.
-    #     '''
-    #     session_handler = SessionHandler(Authenticate(user_map))
-    #     webserver = ManagerWebApplication(session_handler, manager,
-    #                                       hander_config, debug=True)
-    #     webserver.listen(server_conf.get('port', server_conf.get('port', 8080)),
-    #                      server_conf.get('host', ''))
-    #     tornado.ioloop.IOLoop.instance().start()
-    #
-    # def stopWebServer():
-    #     '''Stops the webserver by calling IOLoop.stop
-    #     '''
-    #     tornado.ioloop.IOLoop.stop()
 
     class VolttronCentralAgent(Agent):
-        """Agent for querying WeatherUndergrounds API"""
+        """ Agent for exposing and managing many platform.agent's through a web interface.
+        """
 
         def __init__(self, **kwargs):
             super(VolttronCentralAgent, self).__init__(**kwargs)
@@ -157,10 +127,13 @@ def volttron_central_agent(config_path, **kwargs):
                        .format(self.core.address, self.core.identity))
             # a list of peers that have checked in with this agent.
             self.registry = PlatformRegistry()
+            # An object that allows the checking of currently authenticated
+            # sessions.
+            self._sessions = SessionHandler(Authenticate(user_map))
             self.valid_data = False
-            self._vip_channels = {}
             self.persistence_path = ''
             self._external_addresses = None
+            self._vip_channels = {}
 
 
         def list_agents(self, uuid):
@@ -241,6 +214,7 @@ def volttron_central_agent(config_path, **kwargs):
 
         @Core.receiver('onsetup')
         def setup(self, sender, **kwargs):
+            _log.debug('SETUP STUF NOW HERE DUDE!')
             if not os.environ.get('VOLTTRON_HOME', None):
                 raise ValueError('VOLTTRON_HOME environment must be set!')
 
@@ -259,17 +233,63 @@ def volttron_central_agent(config_path, **kwargs):
             if registered:
                 self.registry.unpackage(registered)
 
+        def _to_jsonrpc_obj(self, data):
+            """ Convert data string into a JsonRpcData named tuple.
+
+            :param object data: Either a string or a dictionary representing a json document.
+            """
+            try:
+                jsonstr = jsonapi.loads(data)
+            except:
+                jsonstr = data
+
+            data = jsonrpc.JsonRpcData(jsonstr.get('id', None),
+                jsonstr.get('jsonrpc', None),
+                jsonstr.get('method', None),
+                jsonstr.get('params', None))
+
+            return data
+
         @RPC.export
-        def echoresponse(self, environ, data):
-            _log.debug(environ)
-            _log.debug(data)
-            package = {'environ': environ, 'data': data}
-            return jsonapi.dumps(environ)
+        def jsonrpc(self, env, data):
+            """ The main entry point for ^jsonrpc data
+
+            This method will only accept rpcdata.  The first time this method is
+            called for a session it must be using get_authorization.  That will
+            return a session token that must be included in every request
+            after that.  The session is validated based upon ip address.
+            """
+            if env['REQUEST_METHOD'].upper() != 'POST':
+                return jsonapi.dumps(jsonrpc.json_error('NA', INVALID_REQUEST,
+                    'Invalid request method'))
+
+            try:
+                rpcdata = self._to_jsonrpc_obj(data)
+                jsonrpc.validate(rpcdata)
+
+                if rpcdata.method == 'get_authorization':
+                    args = {'username': rpcdata.params['username'],
+                            'password': rpcdata.params['password'],
+                            'ip': env['REMOTE_ADDR']}
+                    sess = self._sessions.authenticate(**args)
+                    if not sess:
+                        _log.info('Invalid username/password for {}'.format(rpcdata.params['username']))
+                        return jsonapi.dumps(jsonrpc.json_error(rpcdata.id, UNAUTHORIZED))
+                    _log.info('Session created for {}'.format(rpcdata.params['username']))
+                    return jsonapi.dumps(jsonrpc.json_result(rpcdata.id, sess))
+
+
+            except AssertionError:
+                return jsonapi.dumps(jsonrpc.json_error('NA', INVALID_REQUEST,
+                    'Invalid rpc data {}'.format(data)))
+
+            return jsonapi.dumps(rpcdata)
 
         @Core.receiver('onstart')
         def starting(self, sender, **kwargs):
             '''This event is triggered when the platform is ready for the agent
             '''
+            _log.debug('DoING STARTUP!')
 
             q = query.Query(self.core)
             result = q.query('addresses').get(timeout=10)
@@ -287,19 +307,15 @@ def volttron_central_agent(config_path, **kwargs):
 
             #TODO: Use all addresses for fallback, #114
             self._external_addresses = (result and result[0]) or self.core.address
-            _log.debug('Registering dummy')
+
+            _log.debug('Registering jsonrpc and /.* routes')
             self.vip.rpc.call('volttron.web', 'register_agent_route',
                             r'^/jsonrpc.*',
                             self.core.identity,
-                            'echoresponse').get(timeout=5)
+                            'jsonrpc').get(timeout=5)
 
             self.vip.rpc.call('volttron.web', 'register_path_route',
                             r'^/.*', WEB_ROOT).get(timeout=5)
-            _log.debug('Serving files from: '+WEB_ROOT)
-            # Start server in own thread.
-            # th = threading.Thread(target=startWebServer, args=(self,))
-            # th.daemon = True
-            # th.start()
 
 
         def __load_persist_data(self):

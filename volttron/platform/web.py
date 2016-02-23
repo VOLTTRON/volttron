@@ -126,14 +126,20 @@ class MasterWebService(Agent):
         return json.dumps({"serverkey": encode_key(self.serverkey)})
 
     def app_routing(self, env, start_response):
+        """The main routing function that maps the incoming request to a response.
 
+        Depending on the registered routes map the request data onto an rpc function
+        or a specific named file.
+        """
         path_info = env['PATH_INFO']
-        _log.debug("PATHINFO: {}".format(path_info))
+
         if path_info.startswith('/http://'):
             path_info = path_info[path_info.index('/', len('/http://')):]
             _log.debug('Path info is: {}'.format(path_info))
+        # only expose a partial list of the env variables to the registered
+        # agents.
         envlist = ['HTTP_USER_AGENT', 'PATH_INFO', 'QUERY_STRING',
-            'REQUEST_METHOD', 'SERVER_PROTOCOL']
+            'REQUEST_METHOD', 'SERVER_PROTOCOL', 'REMOTE_ADDR']
         data = env['wsgi.input'].read()
         passenv = dict((envlist[i], env[envlist[i]]) for i in range(0, len(envlist)))
         for k, t, v in self.registeredroutes:
@@ -143,6 +149,7 @@ class MasterWebService(Agent):
                 if t == 'callable': # Generally for locally called items.
                     return v(env, start_response)
                 elif t == 'peer_route': # RPC calls from agents on the platform.
+                    _log.debug('Matched peer_route with pattern {}'.format(k.pattern))
                     peer, fn = (v[0], v[1])
                     res = self.vip.rpc.call(peer, fn, passenv, data).get(timeout=4)
                     start_response('200 OK', [('Content-Type', 'application/json')])

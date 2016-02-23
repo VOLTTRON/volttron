@@ -1,10 +1,16 @@
-import hashlib
-
 '''
     A simple authorization for authenticating users with known credentials.
 
     @author: Craig Allwardt
 '''
+import hashlib
+import logging
+
+from volttron.platform.agent import utils
+
+utils.setup_logging()
+_log = logging.getLogger(__name__)
+
 class Authenticate:
 
     def __init__(self, user_map):
