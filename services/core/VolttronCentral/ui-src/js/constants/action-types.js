@@ -47,6 +47,11 @@ module.exports = keyMirror({
     CHECK_ITEM: null,
     FILTER_ITEMS: null,
 
+    // ADD_CONTROL_BUTTON: null,
+    // REMOVE_CONTROL_BUTTON: null,
+    TOGGLE_TAPTIP: null,
+    HIDE_TAPTIP: null,
+
 
     RECEIVE_PLATFORM_TOPIC_DATA: null,
 });

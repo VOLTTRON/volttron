@@ -185,6 +185,7 @@ var GraphLineChart = React.createClass({
 
         var chartTypeControlButton = (
             <ControlButton 
+                name={this.state.chartName + "_chartTypeControlButton"}
                 taptip={chartTypeTaptip} 
                 icon={chartTypeIcon}></ControlButton>
         );
@@ -198,6 +199,7 @@ var GraphLineChart = React.createClass({
 
         var pinChartControlButton = (
             <ControlButton 
+                name={this.state.chartName + "_pinChartControlButton"}
                 icon={pinChartIcon}
                 clickAction={this._onPinToggle}></ControlButton>
         );
@@ -225,6 +227,7 @@ var GraphLineChart = React.createClass({
         );
         var refreshChartControlButton = (
             <ControlButton 
+                name={this.state.chartName + "_refreshChartControlButton"}
                 taptip={refreshChartTaptip}
                 icon={refreshChartIcon}></ControlButton>
         );
@@ -246,6 +249,7 @@ var GraphLineChart = React.createClass({
         );
         var minRangeControlButton = (
             <ControlButton 
+                name={this.state.chartName + "_minRangeControlButton"}
                 taptip={minRangeTaptip}
                 icon={minRangeIcon}></ControlButton>
         );
@@ -256,6 +260,7 @@ var GraphLineChart = React.createClass({
         );
         var maxRangeControlButton = (
             <ControlButton 
+                name={this.state.chartName + "_maxRangeControlButton"}
                 taptip={maxRangeTaptip}
                 icon={maxRangeIcon}></ControlButton>
         );

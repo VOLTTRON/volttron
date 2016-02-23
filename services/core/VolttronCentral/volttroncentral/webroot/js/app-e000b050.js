@@ -77,7 +77,7 @@ router.run(function (Handler) {
 });
 
 
-},{"./components/dashboard":15,"./components/login-form":20,"./components/page-not-found":23,"./components/platform":27,"./components/platform-charts":25,"./components/platform-manager":26,"./components/platforms":30,"./stores/authorization-store":42,"react":undefined,"react-router":undefined}],2:[function(require,module,exports){
+},{"./components/dashboard":16,"./components/login-form":21,"./components/page-not-found":24,"./components/platform":28,"./components/platform-charts":26,"./components/platform-manager":27,"./components/platforms":31,"./stores/authorization-store":43,"react":undefined,"react-router":undefined}],2:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -104,7 +104,45 @@ var consoleActionCreators = {
 module.exports = consoleActionCreators;
 
 
-},{"../constants/action-types":33,"../dispatcher":34,"../lib/rpc/exchange":36}],3:[function(require,module,exports){
+},{"../constants/action-types":34,"../dispatcher":35,"../lib/rpc/exchange":37}],3:[function(require,module,exports){
+'use strict';
+
+var ACTION_TYPES = require('../constants/action-types');
+var dispatcher = require('../dispatcher');
+
+var controlButtonActionCreators = {
+	// addControlButton: function (name) {
+	// 	dispatcher.dispatch({
+	// 		type: ACTION_TYPES.ADD_CONTROL_BUTTON,
+	// 		name: name,
+	// 	});
+	// },
+	// removeControlButton: function (name) {
+	// 	dispatcher.dispatch({
+	// 		type: ACTION_TYPES.REMOVE_CONTROL_BUTTON,
+	// 		name: name,
+	// 	});
+	// },
+	toggleTaptip: function (name) {
+		dispatcher.dispatch({
+			type: ACTION_TYPES.TOGGLE_TAPTIP,
+			name: name,
+		});
+	},
+	hideTaptip: function (name) {
+		dispatcher.dispatch({
+			type: ACTION_TYPES.HIDE_TAPTIP,
+			name: name,
+		});
+	},
+};
+
+
+
+module.exports = controlButtonActionCreators;
+
+
+},{"../constants/action-types":34,"../dispatcher":35}],4:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -127,7 +165,7 @@ var modalActionCreators = {
 module.exports = modalActionCreators;
 
 
-},{"../constants/action-types":33,"../dispatcher":34}],4:[function(require,module,exports){
+},{"../constants/action-types":34,"../dispatcher":35}],5:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -479,7 +517,7 @@ function handle401(error) {
 module.exports = platformActionCreators;
 
 
-},{"../constants/action-types":33,"../dispatcher":34,"../lib/rpc":37,"../stores/authorization-store":42}],5:[function(require,module,exports){
+},{"../constants/action-types":34,"../dispatcher":35,"../lib/rpc":38,"../stores/authorization-store":43}],6:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -585,7 +623,7 @@ function handle401(error) {
 module.exports = platformChartActionCreators;
 
 
-},{"../constants/action-types":33,"../dispatcher":34,"../lib/rpc":37,"../stores/authorization-store":42}],6:[function(require,module,exports){
+},{"../constants/action-types":34,"../dispatcher":35,"../lib/rpc":38,"../stores/authorization-store":43}],7:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -713,7 +751,7 @@ function handle401(error) {
 module.exports = platformManagerActionCreators;
 
 
-},{"../action-creators/platform-action-creators":4,"../constants/action-types":33,"../dispatcher":34,"../lib/rpc":37,"../stores/authorization-store":42}],7:[function(require,module,exports){
+},{"../action-creators/platform-action-creators":5,"../constants/action-types":34,"../dispatcher":35,"../lib/rpc":38,"../stores/authorization-store":43}],8:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -1018,7 +1056,7 @@ function handle401(error) {
 module.exports = platformsPanelActionCreators;
 
 
-},{"../constants/action-types":33,"../dispatcher":34,"../lib/rpc":37,"../stores/authorization-store":42}],8:[function(require,module,exports){
+},{"../constants/action-types":34,"../dispatcher":35,"../lib/rpc":38,"../stores/authorization-store":43}],9:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1090,7 +1128,7 @@ var AgentRow = React.createClass({displayName: "AgentRow",
 module.exports = AgentRow;
 
 
-},{"../action-creators/modal-action-creators":3,"../action-creators/platform-action-creators":4,"./remove-agent-form":32,"react":undefined}],9:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":4,"../action-creators/platform-action-creators":5,"./remove-agent-form":33,"react":undefined}],10:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1154,7 +1192,7 @@ function getStateFromStores(platform, chart) {
 module.exports = Chart;
 
 
-},{"../action-creators/platform-action-creators":4,"../stores/topic-data-store":51,"./line-chart":19,"react":undefined}],10:[function(require,module,exports){
+},{"../action-creators/platform-action-creators":5,"../stores/topic-data-store":53,"./line-chart":20,"react":undefined}],11:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1224,7 +1262,7 @@ function getStateFromStores() {
 module.exports = Composer;
 
 
-},{"../action-creators/console-action-creators":2,"../stores/console-store":43,"react":undefined}],11:[function(require,module,exports){
+},{"../action-creators/console-action-creators":2,"../stores/console-store":44,"react":undefined}],12:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1262,7 +1300,7 @@ var ConfirmForm = React.createClass({displayName: "ConfirmForm",
 module.exports = ConfirmForm;
 
 
-},{"../action-creators/modal-action-creators":3,"react":undefined}],12:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":4,"react":undefined}],13:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1284,11 +1322,13 @@ var Console = React.createClass({displayName: "Console",
 module.exports = Console;
 
 
-},{"./composer":10,"./conversation":14,"react":undefined}],13:[function(require,module,exports){
+},{"./composer":11,"./conversation":15,"react":undefined}],14:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
 var Router = require('react-router');
+var controlButtonStore = require('../stores/control-button-store');
+var controlButtonActionCreators = require('../action-creators/control-button-action-creators');
 
 
 var ControlButton = React.createClass({displayName: "ControlButton",
@@ -1301,6 +1341,30 @@ var ControlButton = React.createClass({displayName: "ControlButton",
 
 		return state;
 	},
+    componentDidMount: function () {
+    	// controlButtonActionCreators.addControlButton(this.props.name);
+        controlButtonStore.addChangeListener(this._onStoresChange);
+
+        window.addEventListener('keydown', this._hideTaptip);
+    },
+    componentWillUnmount: function () {
+    	// controlButtonActionCreators.removeControlButton(this.props.name)
+        controlButtonStore.removeChangeListener(this._onStoresChange);
+
+        window.removeEventListener('keydown', this._hideTaptip);
+    },
+    _onStoresChange: function () {
+
+    	var showTaptip = controlButtonStore.getTaptip(this.props.name);
+
+    	if (showTaptip !== null)
+    	{
+	    	if (showTaptip !== this.state.showTaptip)
+	    	{
+	    		this.setState({ showTaptip: showTaptip });	
+	    	}
+	    }
+    },
 	_showTaptip: function (evt) {
 
 		if (!this.state.showTaptip)
@@ -1309,15 +1373,30 @@ var ControlButton = React.createClass({displayName: "ControlButton",
 			this.setState({taptipY: evt.clientY - 120});
 		}
 
-		this.setState({showTaptip: !this.state.showTaptip});
+		controlButtonActionCreators.toggleTaptip(this.props.name);
+	},
+	_hideTaptip: function (evt) {
+		if (evt.keyCode === 27) 
+		{
+	        controlButtonActionCreators.hideTaptip(this.props.name);
+        }
 	},
     render: function () {
         
         var taptip;
         var clickAction;
 
+        var selectedStyle;
+
         if (this.props.taptip)
         {
+        	if (this.state.showTaptip === true)
+        	{
+        		selectedStyle = {
+		        	backgroundColor: "#ccc"
+		        }
+        	}
+
         	var taptipStyle = {
 		        display: (this.state.showTaptip ? "block" : "none"),
 		        position: "absolute",
@@ -1351,7 +1430,8 @@ var ControlButton = React.createClass({displayName: "ControlButton",
             React.createElement("div", {className: "inlineBlock"}, 
             	taptip, 
                 React.createElement("div", {className: "control_button", 
-                    onClick: clickAction}, 
+                    onClick: clickAction, 
+                    style: selectedStyle}, 
                     React.createElement("div", {className: "centeredDiv"}, 
                         this.props.icon
                     )
@@ -1370,7 +1450,7 @@ var ControlButton = React.createClass({displayName: "ControlButton",
 module.exports = ControlButton;
 
 
-},{"react":undefined,"react-router":undefined}],14:[function(require,module,exports){
+},{"../action-creators/control-button-action-creators":3,"../stores/control-button-store":45,"react":undefined,"react-router":undefined}],15:[function(require,module,exports){
 'use strict';
 
 var $ = require('jquery');
@@ -1421,7 +1501,7 @@ function getStateFromStores() {
 module.exports = Conversation;
 
 
-},{"../stores/console-store":43,"./exchange":18,"jquery":undefined,"react":undefined}],15:[function(require,module,exports){
+},{"../stores/console-store":44,"./exchange":19,"jquery":undefined,"react":undefined}],16:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1547,7 +1627,7 @@ function getStateFromStores() {
 module.exports = Dashboard;
 
 
-},{"../action-creators/modal-action-creators":3,"../stores/platform-chart-store":46,"../stores/platforms-store":50,"./chart":9,"./edit-chart-form":17,"./platform-chart":24,"react":undefined,"react-router":undefined}],16:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":4,"../stores/platform-chart-store":48,"../stores/platforms-store":52,"./chart":10,"./edit-chart-form":18,"./platform-chart":25,"react":undefined,"react-router":undefined}],17:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1603,7 +1683,7 @@ function getStateFromStores() {
 module.exports = RegisterPlatformForm;
 
 
-},{"../action-creators/modal-action-creators":3,"../action-creators/platform-manager-action-creators":6,"../stores/platform-registration-store":47,"react":undefined}],17:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":4,"../action-creators/platform-manager-action-creators":7,"../stores/platform-registration-store":49,"react":undefined}],18:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1760,7 +1840,7 @@ var EditChartForm = React.createClass({displayName: "EditChartForm",
 module.exports = EditChartForm;
 
 
-},{"../action-creators/modal-action-creators":3,"../action-creators/platform-action-creators":4,"react":undefined}],18:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":4,"../action-creators/platform-action-creators":5,"react":undefined}],19:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1813,7 +1893,7 @@ var Exchange = React.createClass({displayName: "Exchange",
 module.exports = Exchange;
 
 
-},{"react":undefined}],19:[function(require,module,exports){
+},{"react":undefined}],20:[function(require,module,exports){
 'use strict';
 
 var d3 = require('d3');
@@ -2002,7 +2082,7 @@ var LineChart = React.createClass({displayName: "LineChart",
 module.exports = LineChart;
 
 
-},{"d3":undefined,"moment":undefined,"react":undefined}],20:[function(require,module,exports){
+},{"d3":undefined,"moment":undefined,"react":undefined}],21:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2080,7 +2160,7 @@ function getStateFromStores() {
 module.exports = LoginForm;
 
 
-},{"../action-creators/platform-manager-action-creators":6,"../stores/login-form-store":44,"react":undefined,"react-router":undefined}],21:[function(require,module,exports){
+},{"../action-creators/platform-manager-action-creators":7,"../stores/login-form-store":46,"react":undefined,"react-router":undefined}],22:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2107,7 +2187,7 @@ var Modal = React.createClass({displayName: "Modal",
 module.exports = Modal;
 
 
-},{"../action-creators/modal-action-creators":3,"react":undefined}],22:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":4,"react":undefined}],23:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2184,7 +2264,7 @@ function getStateFromStores() {
 module.exports = Navigation;
 
 
-},{"../action-creators/platform-manager-action-creators":6,"../stores/authorization-store":42,"react":undefined,"react-router":undefined}],23:[function(require,module,exports){
+},{"../action-creators/platform-manager-action-creators":7,"../stores/authorization-store":43,"react":undefined,"react-router":undefined}],24:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2202,7 +2282,7 @@ var PageNotFound = React.createClass({displayName: "PageNotFound",
 module.exports = PageNotFound;
 
 
-},{"react":undefined}],24:[function(require,module,exports){
+},{"react":undefined}],25:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2390,6 +2470,7 @@ var GraphLineChart = React.createClass({displayName: "GraphLineChart",
 
         var chartTypeControlButton = (
             React.createElement(ControlButton, {
+                name: this.state.chartName + "_chartTypeControlButton", 
                 taptip: chartTypeTaptip, 
                 icon: chartTypeIcon})
         );
@@ -2403,6 +2484,7 @@ var GraphLineChart = React.createClass({displayName: "GraphLineChart",
 
         var pinChartControlButton = (
             React.createElement(ControlButton, {
+                name: this.state.chartName + "_pinChartControlButton", 
                 icon: pinChartIcon, 
                 clickAction: this._onPinToggle})
         );
@@ -2430,6 +2512,7 @@ var GraphLineChart = React.createClass({displayName: "GraphLineChart",
         );
         var refreshChartControlButton = (
             React.createElement(ControlButton, {
+                name: this.state.chartName + "_refreshChartControlButton", 
                 taptip: refreshChartTaptip, 
                 icon: refreshChartIcon})
         );
@@ -2451,6 +2534,7 @@ var GraphLineChart = React.createClass({displayName: "GraphLineChart",
         );
         var minRangeControlButton = (
             React.createElement(ControlButton, {
+                name: this.state.chartName + "_minRangeControlButton", 
                 taptip: minRangeTaptip, 
                 icon: minRangeIcon})
         );
@@ -2461,6 +2545,7 @@ var GraphLineChart = React.createClass({displayName: "GraphLineChart",
         );
         var maxRangeControlButton = (
             React.createElement(ControlButton, {
+                name: this.state.chartName + "_maxRangeControlButton", 
                 taptip: maxRangeTaptip, 
                 icon: maxRangeIcon})
         );
@@ -2617,7 +2702,7 @@ var GraphLineChart = React.createClass({displayName: "GraphLineChart",
 module.exports = PlatformChart;
 
 
-},{"../action-creators/platform-chart-action-creators":5,"../stores/platform-chart-store":46,"./control-button":13,"d3":undefined,"moment":undefined,"nvd3":undefined,"react":undefined,"react-router":undefined}],25:[function(require,module,exports){
+},{"../action-creators/platform-chart-action-creators":6,"../stores/platform-chart-store":48,"./control-button":14,"d3":undefined,"moment":undefined,"nvd3":undefined,"react":undefined,"react-router":undefined}],26:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2682,7 +2767,7 @@ function getChartsFromStores() {
 module.exports = PlatformCharts;
 
 
-},{"../stores/platform-chart-store":46,"./platform-chart":24,"react":undefined,"react-router":undefined}],26:[function(require,module,exports){
+},{"../stores/platform-chart-store":48,"./platform-chart":25,"react":undefined,"react-router":undefined}],27:[function(require,module,exports){
 'use strict';
 
 var $ = require('jquery');
@@ -2819,7 +2904,7 @@ function getStateFromStores() {
 module.exports = PlatformManager;
 
 
-},{"../action-creators/console-action-creators":2,"../action-creators/modal-action-creators":3,"../action-creators/platform-manager-action-creators":6,"../stores/authorization-store":42,"../stores/console-store":43,"../stores/modal-store":45,"../stores/platforms-panel-store":49,"./console":12,"./modal":21,"./navigation":22,"./platforms-panel":29,"jquery":undefined,"react":undefined,"react-router":undefined}],27:[function(require,module,exports){
+},{"../action-creators/console-action-creators":2,"../action-creators/modal-action-creators":4,"../action-creators/platform-manager-action-creators":7,"../stores/authorization-store":43,"../stores/console-store":44,"../stores/modal-store":47,"../stores/platforms-panel-store":51,"./console":13,"./modal":22,"./navigation":23,"./platforms-panel":30,"jquery":undefined,"react":undefined,"react-router":undefined}],28:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -3023,7 +3108,7 @@ function getStateFromStores(component) {
 module.exports = Platform;
 
 
-},{"../action-creators/modal-action-creators":3,"../action-creators/platform-action-creators":4,"../stores/platforms-store":50,"./agent-row":8,"./chart":9,"./confirm-form":11,"./edit-chart-form":17,"react":undefined,"react-router":undefined}],28:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":4,"../action-creators/platform-action-creators":5,"../stores/platforms-store":52,"./agent-row":9,"./chart":10,"./confirm-form":12,"./edit-chart-form":18,"react":undefined,"react-router":undefined}],29:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -3267,7 +3352,7 @@ function getItemFromStore(itemPath) {
 module.exports = PlatformsPanelItem;
 
 
-},{"../action-creators/platforms-panel-action-creators":7,"../stores/platforms-panel-items-store":48,"react":undefined,"react-router":undefined}],29:[function(require,module,exports){
+},{"../action-creators/platforms-panel-action-creators":8,"../stores/platforms-panel-items-store":50,"react":undefined,"react-router":undefined}],30:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -3479,7 +3564,7 @@ function getFilteredPlatforms(filterTerm, filterStatus, platforms) {
 module.exports = PlatformsPanel;
 
 
-},{"../action-creators/platforms-panel-action-creators":7,"../stores/platforms-panel-items-store":48,"../stores/platforms-panel-store":49,"./platforms-panel-item":28,"react":undefined,"react-router":undefined}],30:[function(require,module,exports){
+},{"../action-creators/platforms-panel-action-creators":8,"../stores/platforms-panel-items-store":50,"../stores/platforms-panel-store":51,"./platforms-panel-item":29,"react":undefined,"react-router":undefined}],31:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -3594,7 +3679,7 @@ function getStateFromStores() {
 module.exports = Platforms;
 
 
-},{"../action-creators/modal-action-creators":3,"../components/deregister-platform-confirmation":16,"../components/register-platform-form":31,"../stores/platforms-store":50,"react":undefined,"react-router":undefined}],31:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":4,"../components/deregister-platform-confirmation":17,"../components/register-platform-form":32,"../stores/platforms-store":52,"react":undefined,"react-router":undefined}],32:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -3800,7 +3885,7 @@ function getStateFromStores() {
 module.exports = RegisterPlatformForm;
 
 
-},{"../action-creators/modal-action-creators":3,"../action-creators/platform-manager-action-creators":6,"../stores/platform-registration-store":47,"react":undefined}],32:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":4,"../action-creators/platform-manager-action-creators":7,"../stores/platform-registration-store":49,"react":undefined}],33:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -3859,7 +3944,7 @@ var RemoveAgentForm = React.createClass({displayName: "RemoveAgentForm",
 module.exports = RemoveAgentForm;
 
 
-},{"../action-creators/modal-action-creators":3,"../action-creators/platform-action-creators":4,"react":undefined}],33:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":4,"../action-creators/platform-action-creators":5,"react":undefined}],34:[function(require,module,exports){
 'use strict';
 
 var keyMirror = require('react/lib/keyMirror');
@@ -3909,12 +3994,17 @@ module.exports = keyMirror({
     CHECK_ITEM: null,
     FILTER_ITEMS: null,
 
+    // ADD_CONTROL_BUTTON: null,
+    // REMOVE_CONTROL_BUTTON: null,
+    TOGGLE_TAPTIP: null,
+    HIDE_TAPTIP: null,
+
 
     RECEIVE_PLATFORM_TOPIC_DATA: null,
 });
 
 
-},{"react/lib/keyMirror":undefined}],34:[function(require,module,exports){
+},{"react/lib/keyMirror":undefined}],35:[function(require,module,exports){
 'use strict';
 
 var Dispatcher = require('flux').Dispatcher;
@@ -3934,7 +4024,7 @@ dispatcher.dispatch = function (action) {
 module.exports = dispatcher;
 
 
-},{"../constants/action-types":33,"flux":undefined}],35:[function(require,module,exports){
+},{"../constants/action-types":34,"flux":undefined}],36:[function(require,module,exports){
 'use strict';
 
 function RpcError(error) {
@@ -3949,7 +4039,7 @@ RpcError.prototype.constructor = RpcError;
 module.exports = RpcError;
 
 
-},{}],36:[function(require,module,exports){
+},{}],37:[function(require,module,exports){
 'use strict';
 
 var uuid = require('node-uuid');
@@ -4037,7 +4127,7 @@ function RpcExchange(request, redactedParams) {
 module.exports = RpcExchange;
 
 
-},{"../../constants/action-types":33,"../../dispatcher":34,"../xhr":40,"./error":35,"node-uuid":undefined}],37:[function(require,module,exports){
+},{"../../constants/action-types":34,"../../dispatcher":35,"../xhr":41,"./error":36,"node-uuid":undefined}],38:[function(require,module,exports){
 'use strict';
 
 module.exports = {
@@ -4046,7 +4136,7 @@ module.exports = {
 };
 
 
-},{"./error":35,"./exchange":36}],38:[function(require,module,exports){
+},{"./error":36,"./exchange":37}],39:[function(require,module,exports){
 'use strict';
 
 var EventEmitter = require('events').EventEmitter;
@@ -4074,7 +4164,7 @@ Store.prototype.removeChangeListener = function (callback) {
 module.exports = Store;
 
 
-},{"events":undefined}],39:[function(require,module,exports){
+},{"events":undefined}],40:[function(require,module,exports){
 'use strict';
 
 function XhrError(message, response) {
@@ -4088,7 +4178,7 @@ XhrError.prototype.constructor = XhrError;
 module.exports = XhrError;
 
 
-},{}],40:[function(require,module,exports){
+},{}],41:[function(require,module,exports){
 'use strict';
 
 module.exports = {
@@ -4097,7 +4187,7 @@ module.exports = {
 };
 
 
-},{"./error":39,"./request":41}],41:[function(require,module,exports){
+},{"./error":40,"./request":42}],42:[function(require,module,exports){
 'use strict';
 
 var jQuery = require('jquery');
@@ -4128,7 +4218,7 @@ function XhrRequest(opts) {
 module.exports = XhrRequest;
 
 
-},{"./error":39,"bluebird":undefined,"jquery":undefined}],42:[function(require,module,exports){
+},{"./error":40,"bluebird":undefined,"jquery":undefined}],43:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -4166,7 +4256,7 @@ authorizationStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = authorizationStore;
 
 
-},{"../constants/action-types":33,"../dispatcher":34,"../lib/store":38}],43:[function(require,module,exports){
+},{"../constants/action-types":34,"../dispatcher":35,"../lib/store":39}],44:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -4259,7 +4349,113 @@ consoleStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = consoleStore;
 
 
-},{"../constants/action-types":33,"../dispatcher":34,"../lib/store":38,"../stores/authorization-store":42}],44:[function(require,module,exports){
+},{"../constants/action-types":34,"../dispatcher":35,"../lib/store":39,"../stores/authorization-store":43}],45:[function(require,module,exports){
+'use strict';
+
+var ACTION_TYPES = require('../constants/action-types');
+var authorizationStore = require('../stores/authorization-store');
+var dispatcher = require('../dispatcher');
+var Store = require('../lib/store');
+
+
+var _controlButtons = {};
+
+var controlButtonStore = new Store();
+
+
+
+controlButtonStore.getTaptip = function (name) {
+    
+    var showTaptip = null;
+
+    if (_controlButtons.hasOwnProperty([name]))
+    {
+        if (_controlButtons[name].hasOwnProperty("showTaptip"))
+        {
+            showTaptip = _controlButtons[name].showTaptip;
+        }
+    }
+
+    return showTaptip;
+}
+
+controlButtonStore.dispatchToken = dispatcher.register(function (action) {
+    switch (action.type) {
+
+        // case ACTION_TYPES.ADD_CONTROL_BUTTON:
+
+        //     if (!_controlButtons.hasOwnProperty(action.name))
+        //     {
+        //         _controlButtons[action.name] = {};
+        //         _controlButtons[action.name].showTaptip = false;
+        //     }
+
+        //     break;
+
+        // case ACTION_TYPES.REMOVE_CONTROL_BUTTON:
+
+        //     if (_controlButtons.hasOwnProperty(action.name))
+        //     {
+        //         delete _controlButtons[action.name];
+        //     }
+            
+        //     break;
+
+        case ACTION_TYPES.TOGGLE_TAPTIP:             
+
+            var showTaptip;
+
+            if (_controlButtons.hasOwnProperty(action.name))
+            {
+                _controlButtons[action.name].showTaptip = showTaptip = !_controlButtons[action.name].showTaptip;
+            }
+            else
+            {
+                _controlButtons[action.name] = { "showTaptip": true };
+                showTaptip = true;
+            }
+
+            if (showTaptip === true) // if we're showing this taptip, close any others
+            {                
+                for (var key in _controlButtons)
+                {
+                    if (key !== action.name)
+                    {
+                        _controlButtons[key].showTaptip = false;
+                    }
+                }
+            }
+
+            controlButtonStore.emitChange();
+
+            break;
+
+        case ACTION_TYPES.HIDE_TAPTIP:             
+
+            if (_controlButtons.hasOwnProperty(action.name))
+            {
+                if (_controlButtons[action.name].hasOwnProperty("showTaptip"))
+                {
+                    _controlButtons[action.name].showTaptip = false;
+                    // delete _controlButtons[action.name];   
+                }
+            }
+
+            controlButtonStore.emitChange();
+
+            break;
+    } 
+
+    
+    
+});
+
+
+
+module.exports = controlButtonStore;
+
+
+},{"../constants/action-types":34,"../dispatcher":35,"../lib/store":39,"../stores/authorization-store":43}],46:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -4294,7 +4490,7 @@ loginFormStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = loginFormStore;
 
 
-},{"../constants/action-types":33,"../dispatcher":34,"../lib/store":38,"./authorization-store":42}],45:[function(require,module,exports){
+},{"../constants/action-types":34,"../dispatcher":35,"../lib/store":39,"./authorization-store":43}],47:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -4327,7 +4523,7 @@ modalStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = modalStore;
 
 
-},{"../constants/action-types":33,"../dispatcher":34,"../lib/store":38}],46:[function(require,module,exports){
+},{"../constants/action-types":34,"../dispatcher":35,"../lib/store":39}],48:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -4534,7 +4730,7 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = chartStore;
 
 
-},{"../constants/action-types":33,"../dispatcher":34,"../lib/store":38,"../stores/authorization-store":42}],47:[function(require,module,exports){
+},{"../constants/action-types":34,"../dispatcher":35,"../lib/store":39,"../stores/authorization-store":43}],49:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -4580,7 +4776,7 @@ platformRegistrationStore.dispatchToken = dispatcher.register(function (action) 
 module.exports = platformRegistrationStore;
 
 
-},{"../constants/action-types":33,"../dispatcher":34,"../lib/store":38,"./authorization-store":42}],48:[function(require,module,exports){
+},{"../constants/action-types":34,"../dispatcher":35,"../lib/store":39,"./authorization-store":43}],50:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -6229,7 +6425,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = platformsPanelItemsStore;
 
 
-},{"../constants/action-types":33,"../dispatcher":34,"../lib/store":38}],49:[function(require,module,exports){
+},{"../constants/action-types":34,"../dispatcher":35,"../lib/store":39}],51:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -6258,7 +6454,7 @@ platformsPanelStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = platformsPanelStore;
 
 
-},{"../constants/action-types":33,"../dispatcher":34,"../lib/store":38}],50:[function(require,module,exports){
+},{"../constants/action-types":34,"../dispatcher":35,"../lib/store":39}],52:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -6327,7 +6523,7 @@ platformsStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = platformsStore;
 
 
-},{"../constants/action-types":33,"../dispatcher":34,"../lib/store":38,"../stores/authorization-store":42}],51:[function(require,module,exports){
+},{"../constants/action-types":34,"../dispatcher":35,"../lib/store":39,"../stores/authorization-store":43}],53:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -6367,4 +6563,4 @@ topicDataStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = topicDataStore;
 
 
-},{"../constants/action-types":33,"../dispatcher":34,"../lib/store":38,"./authorization-store":42}]},{},[1]);
+},{"../constants/action-types":34,"../dispatcher":35,"../lib/store":39,"./authorization-store":43}]},{},[1]);
