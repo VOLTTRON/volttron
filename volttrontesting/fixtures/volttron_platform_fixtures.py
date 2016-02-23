@@ -3,6 +3,13 @@ import json
 import pytest
 from volttrontesting.utils.platformwrapper import PlatformWrapper
 
+PRINT_LOG_ON_SHUTDOWN = True
+
+def print_log(volttron_home):
+    if PRINT_LOG_ON_SHUTDOWN:
+        with open(volttron_home+"/volttron.log") as fin:
+            print(fin.read())
+
 
 def get_rand_port():
     from random import randint
@@ -69,6 +76,7 @@ def volttron_instance1_encrypt(request):
 
     def cleanup():
         print('Shutting down instance: {}'.format(wrapper.volttron_home))
+        print_log(wrapper.volttron_home)
         wrapper.shutdown_platform(True)
     request.addfinalizer(cleanup)
     return wrapper
