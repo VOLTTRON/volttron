@@ -32,14 +32,18 @@ var PlatformChart = React.createClass({
         platformChartStore.removeChangeListener(this._onStoresChange);
     },
     _onStoresChange: function () {
-        var refreshInterval = platformChartStore.getRefreshRate(this.props.chart.data[0].name);
 
-        if (refreshInterval !== this.state.refreshInterval)
+        if (this.props.chart.data.length > 0)
         {
-            this.setState({refreshInterval: refreshInterval}); 
+            var refreshInterval = platformChartStore.getRefreshRate(this.props.chart.data[0].name);
 
-            clearTimeout(this._refreshChartTimeout);
-            this._refreshChartTimeout = setTimeout(this._refreshChart, refreshInterval);
+            if (refreshInterval !== this.state.refreshInterval)
+            {
+                this.setState({refreshInterval: refreshInterval}); 
+
+                clearTimeout(this._refreshChartTimeout);
+                this._refreshChartTimeout = setTimeout(this._refreshChart, refreshInterval);
+            }
         }
         
     },
@@ -232,40 +236,6 @@ var GraphLineChart = React.createClass({
                 icon={refreshChartIcon}></ControlButton>
         );
 
-
-        var chartMaxMinRange = (
-            <div>
-                <input
-                    type="number"
-                    min="250"
-                    step="1"
-                /> 
-            </div>
-        );
-
-        var minRangeTaptip = { "title": "Minimum Range", "content": chartMaxMinRange };
-        var minRangeIcon = (
-            <i className="fa fa-arrow-left"></i>
-        );
-        var minRangeControlButton = (
-            <ControlButton 
-                name={this.state.chartName + "_minRangeControlButton"}
-                taptip={minRangeTaptip}
-                icon={minRangeIcon}></ControlButton>
-        );
-        
-        var maxRangeTaptip = { "title": "Maximum Range", "content": chartMaxMinRange };        
-        var maxRangeIcon = (
-            <i className="fa fa-arrow-right"></i>
-        );
-        var maxRangeControlButton = (
-            <ControlButton 
-                name={this.state.chartName + "_maxRangeControlButton"}
-                taptip={maxRangeTaptip}
-                icon={maxRangeIcon}></ControlButton>
-        );
-
-
         var spaceStyle = {
             width: "20px",
             height: "2px"
@@ -279,8 +249,6 @@ var GraphLineChart = React.createClass({
                 {refreshChartControlButton}
                 <div className="inlineBlock"
                       style={spaceStyle}></div>
-                {minRangeControlButton}
-                {maxRangeControlButton}
             </div>
         );
     }

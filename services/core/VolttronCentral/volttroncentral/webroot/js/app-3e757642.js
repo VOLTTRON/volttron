@@ -1372,7 +1372,7 @@ var ControlButton = React.createClass({displayName: "ControlButton",
     _showTooltip: function (evt) {
         this.setState({showTooltip: true});
         this.setState({tooltipX: evt.clientX - 60});
-        this.setState({tooltipY: evt.clientY - 120});
+        this.setState({tooltipY: evt.clientY - 190});
     },
     _hideTooltip: function () {
         this.setState({showTooltip: false});
@@ -2346,14 +2346,18 @@ var PlatformChart = React.createClass({displayName: "PlatformChart",
         platformChartStore.removeChangeListener(this._onStoresChange);
     },
     _onStoresChange: function () {
-        var refreshInterval = platformChartStore.getRefreshRate(this.props.chart.data[0].name);
 
-        if (refreshInterval !== this.state.refreshInterval)
+        if (this.props.chart.data.length > 0)
         {
-            this.setState({refreshInterval: refreshInterval}); 
+            var refreshInterval = platformChartStore.getRefreshRate(this.props.chart.data[0].name);
 
-            clearTimeout(this._refreshChartTimeout);
-            this._refreshChartTimeout = setTimeout(this._refreshChart, refreshInterval);
+            if (refreshInterval !== this.state.refreshInterval)
+            {
+                this.setState({refreshInterval: refreshInterval}); 
+
+                clearTimeout(this._refreshChartTimeout);
+                this._refreshChartTimeout = setTimeout(this._refreshChart, refreshInterval);
+            }
         }
         
     },
@@ -2546,40 +2550,6 @@ var GraphLineChart = React.createClass({displayName: "GraphLineChart",
                 icon: refreshChartIcon})
         );
 
-
-        var chartMaxMinRange = (
-            React.createElement("div", null, 
-                React.createElement("input", {
-                    type: "number", 
-                    min: "250", 
-                    step: "1"}
-                )
-            )
-        );
-
-        var minRangeTaptip = { "title": "Minimum Range", "content": chartMaxMinRange };
-        var minRangeIcon = (
-            React.createElement("i", {className: "fa fa-arrow-left"})
-        );
-        var minRangeControlButton = (
-            React.createElement(ControlButton, {
-                name: this.state.chartName + "_minRangeControlButton", 
-                taptip: minRangeTaptip, 
-                icon: minRangeIcon})
-        );
-        
-        var maxRangeTaptip = { "title": "Maximum Range", "content": chartMaxMinRange };        
-        var maxRangeIcon = (
-            React.createElement("i", {className: "fa fa-arrow-right"})
-        );
-        var maxRangeControlButton = (
-            React.createElement(ControlButton, {
-                name: this.state.chartName + "_maxRangeControlButton", 
-                taptip: maxRangeTaptip, 
-                icon: maxRangeIcon})
-        );
-
-
         var spaceStyle = {
             width: "20px",
             height: "2px"
@@ -2592,9 +2562,7 @@ var GraphLineChart = React.createClass({displayName: "GraphLineChart",
                 chartTypeControlButton, 
                 refreshChartControlButton, 
                 React.createElement("div", {className: "inlineBlock", 
-                      style: spaceStyle}), 
-                minRangeControlButton, 
-                maxRangeControlButton
+                      style: spaceStyle})
             )
         );
     }
@@ -2772,7 +2740,7 @@ var PlatformCharts = React.createClass({displayName: "PlatformCharts",
         {
             if (chartData[key].data.length > 0)
             {
-                var platformChart = React.createElement(PlatformChart, {chart: chartData[key], chartKey: key, hideControls: false})
+                var platformChart = React.createElement(PlatformChart, {key: key, chart: chartData[key], chartKey: key, hideControls: false})
                 platformCharts.push(platformChart);
             }
         }

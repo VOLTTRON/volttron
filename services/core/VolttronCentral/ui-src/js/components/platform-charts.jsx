@@ -38,7 +38,7 @@ var PlatformCharts = React.createClass({
         {
             if (chartData[key].data.length > 0)
             {
-                var platformChart = <PlatformChart chart={chartData[key]} chartKey={key} hideControls={false}/>
+                var platformChart = <PlatformChart key={key} chart={chartData[key]} chartKey={key} hideControls={false}/>
                 platformCharts.push(platformChart);
             }
         }
