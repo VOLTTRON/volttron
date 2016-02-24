@@ -172,7 +172,7 @@ def test_schedule_error_int_agentid(publish_agent):
     assert result['info'] == 'MALFORMED_REQUEST: TypeError: agentid must be a nonempty string'
 
 
-@pytest.mark.dev
+@pytest.mark.actuator
 def test_schedule_empty_taskid(publish_agent, cancel_schedules):
     """
     Test responses for successful schedule request when task id is an empty string
