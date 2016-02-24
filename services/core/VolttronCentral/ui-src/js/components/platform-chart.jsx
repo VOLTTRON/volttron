@@ -98,7 +98,7 @@ var GraphLineChart = React.createClass({
   getInitialState: function () {
       var state = {};
       state.chartName = this.props.name.replace(" / ", "_") + '_chart';
-      state.type = "line";
+      state.type = platformChartStore.getType(this.props.name);
       state.lineChart = null;
       state.pinned = false;
       state.showTaptip = false;
@@ -123,15 +123,18 @@ var GraphLineChart = React.createClass({
   },
   _onStoresChange: function () {
       this.setState({pinned: platformChartStore.getPinned(this.props.name)});
+      this.setState({type: platformChartStore.getType(this.props.name)});
   },
   _onChartChange: function (e) {
       var chartType = e.target.value;
       
       var lineChart = this._drawLineChart(this.state.chartName, chartType, this._lineData(this._getNested(this.props.data)));
 
-      this.setState({ type: e.target.value});
+      // this.setState({ type: e.target.value});
       this.setState({lineChart: lineChart});
       this.setState({showTaptip: false});
+
+      platformChartActionCreators.setType(this.props.name, chartType);
   },
   _onPinToggle: function () {
       platformChartActionCreators.pinChart(this.props.name);

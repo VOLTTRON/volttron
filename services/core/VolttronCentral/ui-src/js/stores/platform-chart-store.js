@@ -36,6 +36,17 @@ chartStore.getPinned = function (chartKey) {
     return _chartData[chartKey].pinned;
 }
 
+chartStore.getType = function (chartKey) {
+    var type = "line";
+
+    if (_chartData[chartKey].hasOwnProperty("type"))
+    {
+        type = _chartData[chartKey].type;
+    }
+
+    return type;
+}
+
 chartStore.getRefreshRate = function (chartKey) {
     return _chartData[chartKey].refreshInterval;
 }
@@ -102,7 +113,7 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
             }
 
             chartStore.emitChange();
-            
+
             break;
 
         case ACTION_TYPES.PIN_CHART:
@@ -114,6 +125,17 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
             else
             {
                 _chartData[action.chartKey].pinned = true;   
+            }
+
+            chartStore.emitChange();
+
+            break;
+
+        case ACTION_TYPES.CHANGE_CHART_TYPE:
+
+            if (_chartData[action.chartKey].type !== action.chartType)
+            {
+                _chartData[action.chartKey].type = action.chartType;
             }
 
             chartStore.emitChange();

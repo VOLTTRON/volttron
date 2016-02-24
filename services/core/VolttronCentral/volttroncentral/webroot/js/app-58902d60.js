@@ -520,6 +520,13 @@ var platformChartActionCreators = {
 			chartKey: chartKey,
 		});
 	},
+	setType: function (chartKey, chartType) {
+		dispatcher.dispatch({
+			type: ACTION_TYPES.CHANGE_CHART_TYPE,
+			chartKey: chartKey,
+			chartType: chartType
+		});
+	},
 	changeRefreshRate: function (rate, chartKey) {
 		dispatcher.dispatch({
 			type: ACTION_TYPES.CHANGE_CHART_REFRESH,
@@ -2438,7 +2445,7 @@ var GraphLineChart = React.createClass({displayName: "GraphLineChart",
   getInitialState: function () {
       var state = {};
       state.chartName = this.props.name.replace(" / ", "_") + '_chart';
-      state.type = "line";
+      state.type = platformChartStore.getType(this.props.name);
       state.lineChart = null;
       state.pinned = false;
       state.showTaptip = false;
@@ -2463,15 +2470,18 @@ var GraphLineChart = React.createClass({displayName: "GraphLineChart",
   },
   _onStoresChange: function () {
       this.setState({pinned: platformChartStore.getPinned(this.props.name)});
+      this.setState({type: platformChartStore.getType(this.props.name)});
   },
   _onChartChange: function (e) {
       var chartType = e.target.value;
       
       var lineChart = this._drawLineChart(this.state.chartName, chartType, this._lineData(this._getNested(this.props.data)));
 
-      this.setState({ type: e.target.value});
+      // this.setState({ type: e.target.value});
       this.setState({lineChart: lineChart});
       this.setState({showTaptip: false});
+
+      platformChartActionCreators.setType(this.props.name, chartType);
   },
   _onPinToggle: function () {
       platformChartActionCreators.pinChart(this.props.name);
@@ -4087,6 +4097,7 @@ module.exports = keyMirror({
     ADD_TO_CHART: null,
     REMOVE_FROM_CHART: null,
     PIN_CHART: null,
+    CHANGE_CHART_TYPE: null,
     CHANGE_CHART_REFRESH: null,
     REFRESH_CHART: null,
 
@@ -4645,6 +4656,17 @@ chartStore.getPinned = function (chartKey) {
     return _chartData[chartKey].pinned;
 }
 
+chartStore.getType = function (chartKey) {
+    var type = "line";
+
+    if (_chartData[chartKey].hasOwnProperty("type"))
+    {
+        type = _chartData[chartKey].type;
+    }
+
+    return type;
+}
+
 chartStore.getRefreshRate = function (chartKey) {
     return _chartData[chartKey].refreshInterval;
 }
@@ -4711,7 +4733,7 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
             }
 
             chartStore.emitChange();
-            
+
             break;
 
         case ACTION_TYPES.PIN_CHART:
@@ -4723,6 +4745,17 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
             else
             {
                 _chartData[action.chartKey].pinned = true;   
+            }
+
+            chartStore.emitChange();
+
+            break;
+
+        case ACTION_TYPES.CHANGE_CHART_TYPE:
+
+            if (_chartData[action.chartKey].type !== action.chartType)
+            {
+                _chartData[action.chartKey].type = action.chartType;
             }
 
             chartStore.emitChange();

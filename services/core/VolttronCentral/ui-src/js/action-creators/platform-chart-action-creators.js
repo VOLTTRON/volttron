@@ -12,6 +12,13 @@ var platformChartActionCreators = {
 			chartKey: chartKey,
 		});
 	},
+	setType: function (chartKey, chartType) {
+		dispatcher.dispatch({
+			type: ACTION_TYPES.CHANGE_CHART_TYPE,
+			chartKey: chartKey,
+			chartType: chartType
+		});
+	},
 	changeRefreshRate: function (rate, chartKey) {
 		dispatcher.dispatch({
 			type: ACTION_TYPES.CHANGE_CHART_REFRESH,
