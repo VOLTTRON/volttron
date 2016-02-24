@@ -44,8 +44,9 @@ controlButtonStore.dispatchToken = dispatcher.register(function (action) {
                 showTaptip = true;
             }
 
-            if (showTaptip === true) // if we're showing this taptip, close any others
-            {                
+            if (showTaptip === true) 
+            {            
+                //close other taptips    
                 for (var key in _controlButtons)
                 {
                     if (key !== action.name)

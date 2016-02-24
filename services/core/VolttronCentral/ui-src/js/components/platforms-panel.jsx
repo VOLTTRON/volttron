@@ -96,27 +96,24 @@ var PlatformsPanel = React.createClass({
             textAlign: "left"
         };
 
-        var selectedColor = "#ccc";
-        var filterGood, filterBad, filterUnknown = {};
+        var filterGood, filterBad, filterUnknown;
+        filterGood = filterBad = filterUnknown = false;
 
         switch (this.state.filterStatus)
         {
             case "GOOD":
-                filterGood = {
-                    backgroundColor: selectedColor
-                }
+                filterGood = true;
                 break;
             case "BAD":
-                filterBad = {
-                    backgroundColor: selectedColor
-                }
+                filterBad = true;
                 break;
             case "UNKNOWN":
-                filterUnknown = {
-                    backgroundColor: selectedColor
-                }
+                filterUnknown = true;
                 break;
         }
+
+        var tooltipX = 60;
+        var tooltipY = 190;
 
         var filterGoodIcon = (
             <div className="status-good">
@@ -124,13 +121,15 @@ var PlatformsPanel = React.createClass({
             </div>
         );
         var filterGoodTooltip = {
-            "content": "Healthy"
+            "content": "Healthy",
+            "xOffset": tooltipX,
+            "yOffset": tooltipY
         };
         var filterGoodControlButton = (
             <ControlButton 
                 name="filterGoodControlButton"
                 icon={filterGoodIcon}
-                selectedStyle={filterGood}
+                selected={filterGood}
                 tooltip={filterGoodTooltip}
                 clickAction={this._onFilterGood}></ControlButton>
         );
@@ -141,13 +140,15 @@ var PlatformsPanel = React.createClass({
             </div>
         );
         var filterBadTooltip = {
-            "content": "Unhealthy"
+            "content": "Unhealthy",
+            "xOffset": tooltipX,
+            "yOffset": tooltipY
         };
         var filterBadControlButton = (
             <ControlButton 
                 name="filterBadControlButton"
                 icon={filterBadIcon}
-                selectedStyle={filterBad}
+                selected={filterBad}
                 tooltip={filterBadTooltip}
                 clickAction={this._onFilterBad}></ControlButton>
         );
@@ -158,13 +159,15 @@ var PlatformsPanel = React.createClass({
             </div>
         );
         var filterUnknownTooltip = {
-            "content": "Unknown Status"
+            "content": "Unknown Status",
+            "xOffset": tooltipX,
+            "yOffset": tooltipY
         };
         var filterUnknownControlButton = (
             <ControlButton 
                 name="filterUnknownControlButton"
                 icon={filterUnknownIcon}
-                selectedStyle={filterUnknown}
+                selected={filterUnknown}
                 tooltip={filterUnknownTooltip}
                 clickAction={this._onFilterUnknown}></ControlButton>
         );
@@ -173,7 +176,9 @@ var PlatformsPanel = React.createClass({
             <i className="fa fa-ban"></i>
         );
         var filterOffTooltip = {
-            "content": "Clear Filter"
+            "content": "Clear Filter",
+            "xOffset": tooltipX,
+            "yOffset": tooltipY
         };
         var filterOffControlButton = (
             <ControlButton 

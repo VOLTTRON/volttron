@@ -1324,32 +1324,61 @@ var ControlButton = React.createClass({displayName: "ControlButton",
 		var state = {};
 
 		state.showTaptip = false;
+		state.showTooltip = false;
+		state.deactivateTooltip = false;
 		state.taptipX = 0;
 		state.taptipY = 0;
+		state.selected = (this.props.selected === true);
+
+		state.tooltipOffsetX = (this.props.hasOwnProperty("tooltip") ? 
+									(this.props.tooltip.hasOwnProperty("xOffset") ? 
+										this.props.tooltip.xOffset : 0) : 0);
+		state.tooltipOffsetY = (this.props.hasOwnProperty("tooltip") ? 
+									(this.props.tooltip.hasOwnProperty("yOffset") ? 
+										this.props.tooltip.yOffset : 0) : 0);
+		state.taptipOffsetX = (this.props.hasOwnProperty("taptip") ? 
+									(this.props.taptip.hasOwnProperty("xOffset") ? 
+										this.props.taptip.xOffset : 0) : 0);
+		state.taptipOffsetY = (this.props.hasOwnProperty("taptip") ? 
+									(this.props.taptip.hasOwnProperty("yOffset") ? 
+										this.props.taptip.yOffset : 0) : 0);
 
 		return state;
 	},
     componentDidMount: function () {
-    	// controlButtonActionCreators.addControlButton(this.props.name);
         controlButtonStore.addChangeListener(this._onStoresChange);
 
         window.addEventListener('keydown', this._hideTaptip);
     },
     componentWillUnmount: function () {
-    	// controlButtonActionCreators.removeControlButton(this.props.name)
         controlButtonStore.removeChangeListener(this._onStoresChange);
 
         window.removeEventListener('keydown', this._hideTaptip);
     },
+    componentWillReceiveProps: function (nextProps) {
+    	this.setState({ selected: (nextProps.selected === true) });
+
+    	if (nextProps.selected === true) 
+    	{
+    		this.setState({ showTooltip: false });
+    	}    	
+    },
     _onStoresChange: function () {
 
     	var showTaptip = controlButtonStore.getTaptip(this.props.name);
-
+    	
     	if (showTaptip !== null)
     	{
 	    	if (showTaptip !== this.state.showTaptip)
 	    	{
 	    		this.setState({ showTaptip: showTaptip });	
+	    	}
+
+	    	this.setState({ selected: (showTaptip === true) }); 
+
+	    	if (showTaptip === true)
+	    	{
+	    		this.setState({ showTooltip: false });	
 	    	}
 	    }
     },
@@ -1357,8 +1386,8 @@ var ControlButton = React.createClass({displayName: "ControlButton",
 
 		if (!this.state.showTaptip)
 		{
-			this.setState({taptipX: evt.clientX - 60});
-			this.setState({taptipY: evt.clientY - 120});
+			this.setState({taptipX: evt.clientX - this.state.taptipOffsetX});
+			this.setState({taptipY: evt.clientY - this.state.taptipOffsetY});
 		}
 
 		controlButtonActionCreators.toggleTaptip(this.props.name);
@@ -1371,8 +1400,8 @@ var ControlButton = React.createClass({displayName: "ControlButton",
 	},
     _showTooltip: function (evt) {
         this.setState({showTooltip: true});
-        this.setState({tooltipX: evt.clientX - 60});
-        this.setState({tooltipY: evt.clientY - 190});
+        this.setState({tooltipX: evt.clientX - this.state.tooltipOffsetX});
+        this.setState({tooltipY: evt.clientY - this.state.tooltipOffsetY});
     },
     _hideTooltip: function () {
         this.setState({showTooltip: false});
@@ -1387,7 +1416,13 @@ var ControlButton = React.createClass({displayName: "ControlButton",
         var tooltipShow;
         var tooltipHide;
 
-        if (this.props.tooltip)
+        if (this.state.selected === true || this.state.showTaptip === true)
+        {
+        	selectedStyle = {
+	        	backgroundColor: "#ccc"
+	        }
+        }
+        else if (this.props.tooltip)
         {
         	var tooltipStyle = {
 	            display: (this.state.showTooltip ? "block" : "none"),
@@ -1414,13 +1449,6 @@ var ControlButton = React.createClass({displayName: "ControlButton",
 
         if (this.props.taptip)
         {
-        	if (this.state.showTaptip === true)
-        	{
-        		selectedStyle = {
-		        	backgroundColor: "#ccc"
-		        }
-        	}
-
         	var taptipStyle = {
 		        display: (this.state.showTaptip ? "block" : "none"),
 		        position: "absolute",
@@ -1448,8 +1476,6 @@ var ControlButton = React.createClass({displayName: "ControlButton",
         else if (this.props.clickAction)
         {
         	clickAction = this.props.clickAction;
-
-        	selectedStyle = this.props.selectedStyle;
         }
 
         return (
@@ -2335,10 +2361,7 @@ var PlatformChart = React.createClass({displayName: "PlatformChart",
         return state;
     },
     componentDidMount: function () {
-        // if (!this._refreshChartTimeout) {
-            this._refreshChartTimeout = setTimeout(this._refreshChart, 0);
-        // }
-
+        this._refreshChartTimeout = setTimeout(this._refreshChart, 0);
         platformChartStore.addChangeListener(this._onStoresChange);
     },
     componentWillUnmount: function () {
@@ -2451,7 +2474,6 @@ var GraphLineChart = React.createClass({displayName: "GraphLineChart",
       this.setState({showTaptip: false});
   },
   _onPinToggle: function () {
-      // this.setState({pinned: !this.state.pinned});
       platformChartActionCreators.pinChart(this.props.name);
   },
   _onRefreshChange: function (e) {
@@ -2459,10 +2481,7 @@ var GraphLineChart = React.createClass({displayName: "GraphLineChart",
   },
   render: function() {
 
-    // var chartHeight = 70 / this.props.count;
-
     var chartStyle = {
-        // height: chartHeight.toString() + "%",
         width: "90%"
     }
 
@@ -2482,6 +2501,12 @@ var GraphLineChart = React.createClass({displayName: "GraphLineChart",
 
     if (!this.props.hideControls)
     {
+        var taptipX = 60;
+        var taptipY = 120;
+
+        var tooltipX = 60;
+        var tooltipY = 60;
+
         var chartTypeSelect = (
             React.createElement("select", {
                 onChange: this._onChartChange, 
@@ -2496,15 +2521,26 @@ var GraphLineChart = React.createClass({displayName: "GraphLineChart",
             )
         );
 
-        var chartTypeTaptip = { "title": "Chart Type", "content": chartTypeSelect };
+        var chartTypeTaptip = { 
+            "title": "Chart Type", 
+            "content": chartTypeSelect,
+            "xOffset": taptipX,
+            "yOffset": taptipY
+        };
         var chartTypeIcon = (
             React.createElement("i", {className: "fa fa-line-chart"})
         );
+        var chartTypeTooltip = {
+            "content": "Chart Type",
+            "xOffset": tooltipX,
+            "yOffset": tooltipY
+        };
 
         var chartTypeControlButton = (
             React.createElement(ControlButton, {
                 name: this.state.chartName + "_chartTypeControlButton", 
                 taptip: chartTypeTaptip, 
+                tooltip: chartTypeTooltip, 
                 icon: chartTypeIcon})
         );
 
@@ -2514,11 +2550,17 @@ var GraphLineChart = React.createClass({displayName: "GraphLineChart",
                 React.createElement("i", {className: "fa fa-thumb-tack"})
             )
         );
+        var pinChartTooltip = {
+            "content": "Pin to Dashboard",
+            "xOffset": tooltipX,
+            "yOffset": tooltipY
+        };
 
         var pinChartControlButton = (
             React.createElement(ControlButton, {
                 name: this.state.chartName + "_pinChartControlButton", 
                 icon: pinChartIcon, 
+                tooltip: pinChartTooltip, 
                 clickAction: this._onPinToggle})
         );
         
@@ -2539,14 +2581,26 @@ var GraphLineChart = React.createClass({displayName: "GraphLineChart",
             )
         );
 
-        var refreshChartTaptip = { "title": "Refresh Rate", "content": refreshChart };
+        var refreshChartTaptip = { 
+            "title": "Refresh Rate", 
+            "content": refreshChart,
+            "xOffset": taptipX,
+            "yOffset": taptipY
+        };
         var refreshChartIcon = (
             React.createElement("i", {className: "fa fa-refresh"})
         );
+        var refreshChartTooltip = {
+            "content": "Refresh Rate",
+            "xOffset": tooltipX,
+            "yOffset": tooltipY
+        };
+
         var refreshChartControlButton = (
             React.createElement(ControlButton, {
                 name: this.state.chartName + "_refreshChartControlButton", 
                 taptip: refreshChartTaptip, 
+                tooltip: refreshChartTooltip, 
                 icon: refreshChartIcon})
         );
 
@@ -3185,14 +3239,14 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
     },
     _showTooltip: function (evt) {
         this.setState({showTooltip: true});
-        this.setState({tooltipX: evt.clientX - 20});
+        this.setState({tooltipX: evt.clientX - 60});
         this.setState({tooltipY: evt.clientY - 70});
     },
     _hideTooltip: function () {
         this.setState({showTooltip: false});
     },
     _moveTooltip: function (evt) {
-        this.setState({tooltipX: evt.clientX - 20});
+        this.setState({tooltipX: evt.clientX - 60});
         this.setState({tooltipY: evt.clientY - 70});
     },
     render: function () {
@@ -3448,27 +3502,24 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
             textAlign: "left"
         };
 
-        var selectedColor = "#ccc";
-        var filterGood, filterBad, filterUnknown = {};
+        var filterGood, filterBad, filterUnknown;
+        filterGood = filterBad = filterUnknown = false;
 
         switch (this.state.filterStatus)
         {
             case "GOOD":
-                filterGood = {
-                    backgroundColor: selectedColor
-                }
+                filterGood = true;
                 break;
             case "BAD":
-                filterBad = {
-                    backgroundColor: selectedColor
-                }
+                filterBad = true;
                 break;
             case "UNKNOWN":
-                filterUnknown = {
-                    backgroundColor: selectedColor
-                }
+                filterUnknown = true;
                 break;
         }
+
+        var tooltipX = 60;
+        var tooltipY = 190;
 
         var filterGoodIcon = (
             React.createElement("div", {className: "status-good"}, 
@@ -3476,13 +3527,15 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
             )
         );
         var filterGoodTooltip = {
-            "content": "Healthy"
+            "content": "Healthy",
+            "xOffset": tooltipX,
+            "yOffset": tooltipY
         };
         var filterGoodControlButton = (
             React.createElement(ControlButton, {
                 name: "filterGoodControlButton", 
                 icon: filterGoodIcon, 
-                selectedStyle: filterGood, 
+                selected: filterGood, 
                 tooltip: filterGoodTooltip, 
                 clickAction: this._onFilterGood})
         );
@@ -3493,13 +3546,15 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
             )
         );
         var filterBadTooltip = {
-            "content": "Unhealthy"
+            "content": "Unhealthy",
+            "xOffset": tooltipX,
+            "yOffset": tooltipY
         };
         var filterBadControlButton = (
             React.createElement(ControlButton, {
                 name: "filterBadControlButton", 
                 icon: filterBadIcon, 
-                selectedStyle: filterBad, 
+                selected: filterBad, 
                 tooltip: filterBadTooltip, 
                 clickAction: this._onFilterBad})
         );
@@ -3510,13 +3565,15 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
             )
         );
         var filterUnknownTooltip = {
-            "content": "Unknown Status"
+            "content": "Unknown Status",
+            "xOffset": tooltipX,
+            "yOffset": tooltipY
         };
         var filterUnknownControlButton = (
             React.createElement(ControlButton, {
                 name: "filterUnknownControlButton", 
                 icon: filterUnknownIcon, 
-                selectedStyle: filterUnknown, 
+                selected: filterUnknown, 
                 tooltip: filterUnknownTooltip, 
                 clickAction: this._onFilterUnknown})
         );
@@ -3525,7 +3582,9 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
             React.createElement("i", {className: "fa fa-ban"})
         );
         var filterOffTooltip = {
-            "content": "Clear Filter"
+            "content": "Clear Filter",
+            "xOffset": tooltipX,
+            "yOffset": tooltipY
         };
         var filterOffControlButton = (
             React.createElement(ControlButton, {
@@ -4436,8 +4495,9 @@ controlButtonStore.dispatchToken = dispatcher.register(function (action) {
                 showTaptip = true;
             }
 
-            if (showTaptip === true) // if we're showing this taptip, close any others
-            {                
+            if (showTaptip === true) 
+            {            
+                //close other taptips    
                 for (var key in _controlButtons)
                 {
                     if (key !== action.name)

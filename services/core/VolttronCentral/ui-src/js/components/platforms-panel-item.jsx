@@ -77,14 +77,14 @@ var PlatformsPanelItem = React.createClass({
     },
     _showTooltip: function (evt) {
         this.setState({showTooltip: true});
-        this.setState({tooltipX: evt.clientX - 20});
+        this.setState({tooltipX: evt.clientX - 60});
         this.setState({tooltipY: evt.clientY - 70});
     },
     _hideTooltip: function () {
         this.setState({showTooltip: false});
     },
     _moveTooltip: function (evt) {
-        this.setState({tooltipX: evt.clientX - 20});
+        this.setState({tooltipX: evt.clientX - 60});
         this.setState({tooltipY: evt.clientY - 70});
     },
     render: function () {

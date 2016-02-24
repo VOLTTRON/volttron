@@ -21,10 +21,7 @@ var PlatformChart = React.createClass({
         return state;
     },
     componentDidMount: function () {
-        // if (!this._refreshChartTimeout) {
-            this._refreshChartTimeout = setTimeout(this._refreshChart, 0);
-        // }
-
+        this._refreshChartTimeout = setTimeout(this._refreshChart, 0);
         platformChartStore.addChangeListener(this._onStoresChange);
     },
     componentWillUnmount: function () {
@@ -137,7 +134,6 @@ var GraphLineChart = React.createClass({
       this.setState({showTaptip: false});
   },
   _onPinToggle: function () {
-      // this.setState({pinned: !this.state.pinned});
       platformChartActionCreators.pinChart(this.props.name);
   },
   _onRefreshChange: function (e) {
@@ -145,10 +141,7 @@ var GraphLineChart = React.createClass({
   },
   render: function() {
 
-    // var chartHeight = 70 / this.props.count;
-
     var chartStyle = {
-        // height: chartHeight.toString() + "%",
         width: "90%"
     }
 
@@ -168,6 +161,12 @@ var GraphLineChart = React.createClass({
 
     if (!this.props.hideControls)
     {
+        var taptipX = 60;
+        var taptipY = 120;
+
+        var tooltipX = 60;
+        var tooltipY = 60;
+
         var chartTypeSelect = (
             <select
                 onChange={this._onChartChange}
@@ -182,15 +181,26 @@ var GraphLineChart = React.createClass({
             </select>
         );
 
-        var chartTypeTaptip = { "title": "Chart Type", "content": chartTypeSelect };
+        var chartTypeTaptip = { 
+            "title": "Chart Type", 
+            "content": chartTypeSelect,
+            "xOffset": taptipX,
+            "yOffset": taptipY
+        };
         var chartTypeIcon = (
             <i className="fa fa-line-chart"></i>
         );
+        var chartTypeTooltip = {
+            "content": "Chart Type",
+            "xOffset": tooltipX,
+            "yOffset": tooltipY
+        };
 
         var chartTypeControlButton = (
             <ControlButton 
                 name={this.state.chartName + "_chartTypeControlButton"}
                 taptip={chartTypeTaptip} 
+                tooltip={chartTypeTooltip}
                 icon={chartTypeIcon}></ControlButton>
         );
 
@@ -200,11 +210,17 @@ var GraphLineChart = React.createClass({
                 <i className="fa fa-thumb-tack"></i>
             </div>
         );
+        var pinChartTooltip = {
+            "content": "Pin to Dashboard",
+            "xOffset": tooltipX,
+            "yOffset": tooltipY
+        };
 
         var pinChartControlButton = (
             <ControlButton 
                 name={this.state.chartName + "_pinChartControlButton"}
                 icon={pinChartIcon}
+                tooltip={pinChartTooltip}
                 clickAction={this._onPinToggle}></ControlButton>
         );
         
@@ -225,14 +241,26 @@ var GraphLineChart = React.createClass({
             </div>
         );
 
-        var refreshChartTaptip = { "title": "Refresh Rate", "content": refreshChart };
+        var refreshChartTaptip = { 
+            "title": "Refresh Rate", 
+            "content": refreshChart,
+            "xOffset": taptipX,
+            "yOffset": taptipY
+        };
         var refreshChartIcon = (
             <i className="fa fa-refresh"></i>
         );
+        var refreshChartTooltip = {
+            "content": "Refresh Rate",
+            "xOffset": tooltipX,
+            "yOffset": tooltipY
+        };
+
         var refreshChartControlButton = (
             <ControlButton 
                 name={this.state.chartName + "_refreshChartControlButton"}
                 taptip={refreshChartTaptip}
+                tooltip={refreshChartTooltip}
                 icon={refreshChartIcon}></ControlButton>
         );
 

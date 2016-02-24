@@ -11,32 +11,61 @@ var ControlButton = React.createClass({
 		var state = {};
 
 		state.showTaptip = false;
+		state.showTooltip = false;
+		state.deactivateTooltip = false;
 		state.taptipX = 0;
 		state.taptipY = 0;
+		state.selected = (this.props.selected === true);
+
+		state.tooltipOffsetX = (this.props.hasOwnProperty("tooltip") ? 
+									(this.props.tooltip.hasOwnProperty("xOffset") ? 
+										this.props.tooltip.xOffset : 0) : 0);
+		state.tooltipOffsetY = (this.props.hasOwnProperty("tooltip") ? 
+									(this.props.tooltip.hasOwnProperty("yOffset") ? 
+										this.props.tooltip.yOffset : 0) : 0);
+		state.taptipOffsetX = (this.props.hasOwnProperty("taptip") ? 
+									(this.props.taptip.hasOwnProperty("xOffset") ? 
+										this.props.taptip.xOffset : 0) : 0);
+		state.taptipOffsetY = (this.props.hasOwnProperty("taptip") ? 
+									(this.props.taptip.hasOwnProperty("yOffset") ? 
+										this.props.taptip.yOffset : 0) : 0);
 
 		return state;
 	},
     componentDidMount: function () {
-    	// controlButtonActionCreators.addControlButton(this.props.name);
         controlButtonStore.addChangeListener(this._onStoresChange);
 
         window.addEventListener('keydown', this._hideTaptip);
     },
     componentWillUnmount: function () {
-    	// controlButtonActionCreators.removeControlButton(this.props.name)
         controlButtonStore.removeChangeListener(this._onStoresChange);
 
         window.removeEventListener('keydown', this._hideTaptip);
     },
+    componentWillReceiveProps: function (nextProps) {
+    	this.setState({ selected: (nextProps.selected === true) });
+
+    	if (nextProps.selected === true) 
+    	{
+    		this.setState({ showTooltip: false });
+    	}    	
+    },
     _onStoresChange: function () {
 
     	var showTaptip = controlButtonStore.getTaptip(this.props.name);
-
+    	
     	if (showTaptip !== null)
     	{
 	    	if (showTaptip !== this.state.showTaptip)
 	    	{
 	    		this.setState({ showTaptip: showTaptip });	
+	    	}
+
+	    	this.setState({ selected: (showTaptip === true) }); 
+
+	    	if (showTaptip === true)
+	    	{
+	    		this.setState({ showTooltip: false });	
 	    	}
 	    }
     },
@@ -44,8 +73,8 @@ var ControlButton = React.createClass({
 
 		if (!this.state.showTaptip)
 		{
-			this.setState({taptipX: evt.clientX - 60});
-			this.setState({taptipY: evt.clientY - 120});
+			this.setState({taptipX: evt.clientX - this.state.taptipOffsetX});
+			this.setState({taptipY: evt.clientY - this.state.taptipOffsetY});
 		}
 
 		controlButtonActionCreators.toggleTaptip(this.props.name);
@@ -58,8 +87,8 @@ var ControlButton = React.createClass({
 	},
     _showTooltip: function (evt) {
         this.setState({showTooltip: true});
-        this.setState({tooltipX: evt.clientX - 60});
-        this.setState({tooltipY: evt.clientY - 190});
+        this.setState({tooltipX: evt.clientX - this.state.tooltipOffsetX});
+        this.setState({tooltipY: evt.clientY - this.state.tooltipOffsetY});
     },
     _hideTooltip: function () {
         this.setState({showTooltip: false});
@@ -74,7 +103,13 @@ var ControlButton = React.createClass({
         var tooltipShow;
         var tooltipHide;
 
-        if (this.props.tooltip)
+        if (this.state.selected === true || this.state.showTaptip === true)
+        {
+        	selectedStyle = {
+	        	backgroundColor: "#ccc"
+	        }
+        }
+        else if (this.props.tooltip)
         {
         	var tooltipStyle = {
 	            display: (this.state.showTooltip ? "block" : "none"),
@@ -101,13 +136,6 @@ var ControlButton = React.createClass({
 
         if (this.props.taptip)
         {
-        	if (this.state.showTaptip === true)
-        	{
-        		selectedStyle = {
-		        	backgroundColor: "#ccc"
-		        }
-        	}
-
         	var taptipStyle = {
 		        display: (this.state.showTaptip ? "block" : "none"),
 		        position: "absolute",
@@ -135,8 +163,6 @@ var ControlButton = React.createClass({
         else if (this.props.clickAction)
         {
         	clickAction = this.props.clickAction;
-
-        	selectedStyle = this.props.selectedStyle;
         }
 
         return (
