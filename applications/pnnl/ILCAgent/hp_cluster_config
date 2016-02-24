@@ -37,18 +37,21 @@
 			        "conditional_args" =  ["OccupancyMode"],
 				    "point": "SP",
 				    "value": 78.0,
+				    "offset": -2,
 				    "load": 10
 				},
 				{	"condition": "OccupancyMode == False",
 				    "conditional_args" =  ["OccupancyMode"],
                     "point": "SP",
                     "value": 82.0,
+				    "offset": -2,
                     "load": 10
                 }
 			],
 			"curtail": {
 				"point": "SP",
 				"value": 82.0,
+				"offset": -2,
 				"load": 10
 			}
 		}
