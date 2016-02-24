@@ -81,7 +81,9 @@ def build_configs():
                                                                 env.host,
                                                                 count,
                                                                 reg_path,
-                                                                config_full_path)
+                                                                config_full_path,
+                                                                60,
+                                                                True)
         
         
         config_paths.extend(configs)
@@ -90,7 +92,10 @@ def build_configs():
     #config_builder.build_master_config(test_settings.master_driver_file, config_dir, config_paths)
     config_builder.build_master_config(test_settings.master_driver_file,
                                        config_full_path,
-                                       config_paths)
+                                       config_paths,
+                                       True,
+                                       5,
+                                       None)
 
 def get_command_lines():
     global command_lines
