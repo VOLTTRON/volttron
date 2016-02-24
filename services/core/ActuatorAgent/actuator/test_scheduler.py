@@ -129,7 +129,7 @@ def print_test_header(name, time):
 
 now = datetime(year=2013, month=11, day=27, hour=11, minute=30)
 
-@pytest.mark.dev
+#@pytest.mark.dev
 def test_basic():
     print_test_header('Basic Test', now)
     sch_man = ScheduleManager(60, now=now)
