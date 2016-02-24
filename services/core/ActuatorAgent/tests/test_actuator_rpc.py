@@ -111,7 +111,7 @@ def test_schedule_success(publish_agent, cancel_schedules):
     assert result['result'] == SUCCESS
 
 
-@pytest.mark.dev
+@pytest.mark.actuator
 def test_schedule_error_int_taskid(publish_agent):
     """
     Test responses for successful schedule request when integer task id

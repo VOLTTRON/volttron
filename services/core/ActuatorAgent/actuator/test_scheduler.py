@@ -69,7 +69,7 @@ import pytest
 # args = parser.parse_args()
 #
 # verbose = args.verbose
-verbose = True
+verbose = False
 def print_task(agent_id, requests, priority):
     print 'Agent:', agent_id
     print 'Priority:', priority
@@ -129,12 +129,12 @@ def print_test_header(name, time):
 
 now = datetime(year=2013, month=11, day=27, hour=11, minute=30)
 
-#@pytest.mark.dev
+@pytest.mark.dev
 def test_basic():
     print_test_header('Basic Test', now)
     sch_man = ScheduleManager(60, now=now)
     ag = ('Agent1', 'Task1',
-          (['campus/building/rtu1','2013-11-27 12:00:00','2013-11-27 13:00:00'],),
+          (['campus/building/rtu1',parse('2013-11-27 12:00:00'),parse('2013-11-27 13:00:00')],),
           PRIORITY_HIGH,
           now)
     result1, event_time1= verify_add_task(sch_man, *ag)
@@ -148,13 +148,13 @@ def test_basic():
     state = sch_man.get_schedule_state(now + timedelta(minutes=60))
     assert state == {'campus/building/rtu1': DeviceState('Agent1', 'Task1', 1800.0)}
 
-
+@pytest.mark.dev
 def test_two_devices():
     print_test_header('Basic Test: Two devices', now)
     sch_man = ScheduleManager(60, now=now)
     ag = ('Agent1', 'Task1',
-          (['campus/building/rtu1','2013-11-27 12:00:00','2013-11-27 13:00:00'],
-          ['campus/building/rtu2','2013-11-27 12:00:00','2013-11-27 13:00:00']),
+          (['campus/building/rtu1',parse('2013-11-27 12:00:00'),parse('2013-11-27 13:00:00')],
+          ['campus/building/rtu2',parse('2013-11-27 12:00:00'),parse('2013-11-27 13:00:00')]),
           PRIORITY_HIGH,
           now)
     result1, event_time1= verify_add_task(sch_man, *ag)
