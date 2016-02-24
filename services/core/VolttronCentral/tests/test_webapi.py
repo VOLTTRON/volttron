@@ -116,15 +116,30 @@ def vc_agent_with_auth(request, volttron_instance1_web):
     return retvalue
 
 @pytest.fixture
-def platform_agent_installed(request, volttron_instance1_web):
+def platform_agent_on_instance1(request, volttron_instance1_web):
     agent_uuid = volttron_instance1_web.install_agent(
-        agent_dir="services/core/VolttronCentral",
-        config_file=VC_CONFIG,
+        agent_dir="services/core/Platform",
+        config_file=PLATFORM_AGENT_CONFIG,
         start=True
     )
 
     def cleanup():
         volttron_instance1_web.remove_agent(agent_uuid)
+
+    request.addfinalizer(cleanup)
+
+    return agent_uuid
+
+@pytest.fixture
+def platform_agent_on_instance2(request, volttron_instance2_web):
+    agent_uuid = volttron_instance2_web.install_agent(
+        agent_dir="services/core/Platform",
+        config_file=PLATFORM_AGENT_CONFIG,
+        start=True
+    )
+
+    def cleanup():
+        volttron_instance2_web.remove_agent(agent_uuid)
 
     request.addfinalizer(cleanup)
 
@@ -159,21 +174,36 @@ def do_rpc(method, params=None, auth_token=None, rpc_root=None):
 
     return requests.post(rpc_root, data=data)
 
-@pytest.mark.web
-def test_register_local_instance(request, vc_agent_with_auth,
-                                 platform_agent_installed):
+# @pytest.mark.web
+# def test_register_local_instance(request, vc_agent_with_auth,
+#                                  platform_agent_on_instance1):
+#
+#     if vc_agent_with_auth['username'] == 'reader':
+#         pytest.fail("Modify so that we know that it should fail from response")
+#     else:
+#         pytest.fail("Add success criteria here for admin")
+#     #print(vc_agent_with_auth, platform_agent_on_instance1)
+#     #assert platform_agent_on_instance1
 
+@pytest.mark.web
+@pytest.mark.xfail(reason="We haven't finished implementing yet!")
+def test_register_instance(volttron_instance1_web, volttron_instance2_web,
+                           vc_agent_with_auth, platform_agent_on_instance1,
+                           platform_agent_on_instance2):
     if vc_agent_with_auth['username'] == 'reader':
-        pytest.fail("Modify so that we know that it should fail from response")
-    else:
-        pytest.fail("Add success criteria here for admin")
-    #print(vc_agent_with_auth, platform_agent_installed)
-    #assert platform_agent_installed
+        pytest.skip("user: reader can't register new instances.")
 
+    # the root jsonrpc
+    rpc_addr = vc_agent_with_auth['jsonrpc']
 
+    assert rpc_addr
+    assert vc_agent_with_auth['username'] == 'admin'
+    assert volttron_instance2_web.bind_web_address !=\
+           volttron_instance1_web.bind_web_address
+    pytest.faile('Now we need to actually do the registration rpc call')
 
 @pytest.mark.web
-def test_can_login_as_admin(vc_agent, platform_agent_installed):
+def test_can_login_as_admin(vc_agent, platform_agent_on_instance1):
     p = {"username": "admin", "password": "admin"}
     rpc_root = vc_agent["jsonrpc"]
     response = do_rpc(method="get_authorization", params=p, rpc_root=rpc_root)

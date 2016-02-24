@@ -64,6 +64,7 @@ import os
 import os.path as p
 
 import gevent
+import requests
 from zmq.utils import jsonapi
 
 from authenticate import Authenticate
@@ -163,6 +164,30 @@ def volttron_central_agent(config_path, **kwargs):
                 value = 'Success'
 
             return value
+
+        @RPC.export
+        def register_instance(self, uri, display_name=None):
+            """ Register an instance with VOLTTRON Central.
+
+            The registration of the instance will fail in the following cases:
+            - no discoverable instance at the passed uri
+            - no platform.agent installed at the discoverable instance
+            - is a different volttron central managing the discoverable instance.
+
+            If the display name is not set then the display name becomes the
+            same as the uri.  This will be used in the volttron central ui.
+
+            :param uri: A ip:port for an instance of volttron.
+            :param display_name:
+            :return:
+            """
+            request_uri = "http://{}/discovery/".format(uri)
+            res = requests.get(uri)
+            if not res.ok:
+                return 'Unreachable'
+
+
+
 
         @RPC.export
         def register_platform(self, peer_identity, name, peer_address):

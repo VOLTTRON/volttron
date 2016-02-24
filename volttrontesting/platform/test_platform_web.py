@@ -16,10 +16,10 @@ def test_can_discover_key(volttron_instance1_web):
     assert vi.is_running()
     # must sleep because the web server takes a bit to get going.
     gevent.sleep(1)
-    url = "http://{}/discovery/"\
-        .format(volttron_instance1_web.bind_web_address)
+    url = "http://{}/discovery/".format(vi.bind_web_address)
     res = requests.get(url)
     assert res.ok
 
     d = res.json()
     assert vi.publickey == d['serverkey']
+    assert d['vip-address']

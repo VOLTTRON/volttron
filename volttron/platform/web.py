@@ -65,10 +65,28 @@ import mimetypes
 from zmq.utils import jsonapi
 
 from .vip.agent import Agent, Core, RPC
+from .vip.agent.subsystems import query
 from .jsonrpc import UNAUTHORIZED
 from .vip.socket import encode_key
 
 _log = logging.getLogger(__name__)
+
+def is_ip_private(vip_address):
+    """ Determines if the passed vip_address is a private ip address or not.
+
+    :param vip_address: A valid ip address.
+    :return: True if an internal ip address.
+    """
+    ip = vip_address.strip().lower().split("tcp://")[1]
+
+    # https://en.wikipedia.org/wiki/Private_network
+
+    priv_lo = re.compile("^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
+    priv_24 = re.compile("^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
+    priv_20 = re.compile("^192\.168\.\d{1,3}.\d{1,3}$")
+    priv_16 = re.compile("^172.(1[6-9]|2[0-9]|3[0-1]).[0-9]{1,3}.[0-9]{1,3}$")
+
+    return priv_lo.match(ip) != None or priv_24.match(ip) != None or priv_20.match(ip) != None or priv_16.match(ip) != None
 
 
 class MasterWebService(Agent):
@@ -123,8 +141,16 @@ class MasterWebService(Agent):
         return ['1']
 
     def _get_serverkey(self, environ, start_response):
+        q = query.Query(self.core)
+        result = q.query('addresses').get(timeout=10)
+        external_vip = None
+        for x in result:
+            if not is_ip_private(x):
+                external_vip = x
+                break
         start_response('200 OK', [('Content-Type', 'application/json')])
-        return jsonapi.dumps({"serverkey": encode_key(self.serverkey)})
+        return jsonapi.dumps({"serverkey": encode_key(self.serverkey),
+                              "vip-address": external_vip})
 
     def app_routing(self, env, start_response):
         """The main routing function that maps the incoming request to a response.
@@ -197,7 +223,8 @@ class MasterWebService(Agent):
             _log.info('Web server not started.')
             return
 
-        _log.debug('Starting web server.')
+        _log.debug('Starting web server binding to {}.'\
+                   .format(self.bind_web_address))
         self.registeredroutes.append((re.compile('^/discovery/$'), 'callable',
             self._get_serverkey))
         self.registeredroutes.append((re.compile('^/$'), 'callable',
