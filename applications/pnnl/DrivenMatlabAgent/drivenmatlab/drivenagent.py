@@ -184,8 +184,9 @@ def driven_agent(config_path, **kwargs):
             return not (len(self._needed_subdevices) > 0 or
                         len(self._needed_devices) > 0)
 
+                
         @matching.match_regex(devices_topic)
-        def on_rec_analysis_message(self, topic, headers, message, matched):
+        def on_rec_analysis_message(self, peer, sender, bus, topic, headers, message):
             '''Subscribe to device data and assemble data set to pass
 
             to applications.
@@ -318,130 +319,109 @@ def driven_agent(config_path, **kwargs):
                                                     'units': 'float',
                                                     }
                                             }]
-                                self.vip.pubsub.publish(headers=headers,
-                                        topic=analysis_topic,
-                                        message=message)
+                                self.vip.pubsub.publish(peer="pubsub", topic=analysis_topic,
+                                                  headers=headers, message=message)
 
             if results.commands and mode:
                 self.commands = results.commands
                 if self.keys is None:
                     self.keys = self.commands.keys()
-                self.schedule_task()
+               _log.debug("we have commands")
+                #self.schedule_task()
 
-        def schedule_task(self):
-            '''Schedule access to modify device controls.'''
-            _log.debug('Schedule Device Access')
-            headers = {
-                'type':  'NEW_SCHEDULE',
-                'requesterID': agent_id,
-                'taskID': actuator_id,
-                'priority': 'LOW'
-                }
-            start = datetime.now()
-            end = start + td(seconds=30)
-            start = str(start)
-            end = str(end)
-            self.vip.pubsub.publish(headers=headers,
-                                        topic=opics.ACTUATOR_SCHEDULE_REQUEST(),
-                                        message=[["{campus}/{building}/{unit}".format(**device),
-                                                  start, end]])
+#         def schedule_task(self):
+#             '''Schedule access to modify device controls.'''
+#             _log.debug('Schedule Device Access')
+#             headers = {
+#                 'type':  'NEW_SCHEDULE',
+#                 'requesterID': agent_id,
+#                 'taskID': actuator_id,
+#                 'priority': 'LOW'
+#                 }
+#             start = datetime.now()
+#             end = start + td(seconds=30)
+#             start = str(start)
+#             end = str(end)
+#             self.vip.pubsub.publish(peer="pubsub", 
+#                                     topic=topics.ACTUATOR_SCHEDULE_REQUEST(),
+#                                     headers=headers, 
+#                                     message=[["{campus}/{building}/{unit}".format(**device),start, end]])
 
-        def command_equip(self):
-            '''Execute commands on configured device.'''
-            self.current_key = self.keys[0]
-            value = self.commands[self.current_key]
-            headers = {
-                'Content-Type': 'text/plain',
-                'requesterID': agent_id,
-                }
-            self.publish(topics.ACTUATOR_SET(point=self.current_key, **device),
-                         headers, str(value))
-
-        #@matching.match_headers({headers_mod.REQUESTER_ID: agent_id})
-        #@matching.match_exact(topics.ACTUATOR_SCHEDULE_RESULT())
-        def schedule_result(self, peer, sender, bus, topic, headers, message):
-            '''Actuator response (FAILURE, SUCESS).'''
-            self.match_header(headers, {headers_mod.REQUESTER_ID: agent_id})
-            if not topic == topics.ACTUATOR_SCHEDULE_RESULT(): 
-                return
-            _log.debug('Actuator Response')
-            msg = jsonapi.loads(message[0])
-            msg = msg['result']
-            _log.debug('Schedule Device ACCESS')
-            if self.keys:
-                if msg == "SUCCESS":
-                    self.command_equip()
-                elif msg == "FAILURE":
-                    _log.debug('Auto-correction of device failed.')
-
-        MATCH_TOPIC = re.compile(topics.ACTUATOR_VALUE(point='*', **device))
-        #@matching.match_headers({headers_mod.REQUESTER_ID: agent_id})
-        #@matching.match_glob(topics.ACTUATOR_VALUE(point='*', **device))
-        def on_set_result(self, peer, sender, bus, topic, headers, message):
-            '''Setting of point on device was successful.'''
-            self.match_header(headers, {headers_mod.REQUESTER_ID: agent_id})
-            if not MATCH_TOPIC.match(topic):
-                return
-            _log.debug('Set Success:  {point} - {value}'
-                       .format(point=self.current_key,
-                               value=str(self.commands[self.current_key])))
-            _log.debug('set_point({}, {})'.
-                       format(self.current_key,
-                              self.commands[self.current_key]))
-            self.keys.remove(self.current_key)
-            if self.keys:
-                self.command_equip()
-            else:
-                _log.debug('Done with Commands - Release device lock.')
-                headers = {
-                    'type': 'CANCEL_SCHEDULE',
-                    'requesterID': agent_id,
-                    'taskID': actuator_id
-                    }
-                self.vip.pubsub.publish(headers=headers,
-                                        topic=topics.ACTUATOR_SCHEDULE_REQUEST(),
-                                        message={})
-                
-                self.keys = None
-
-        MATCH_TOPIC = re.compile(topics.ACTUATOR_ERROR(point='*', **device))
-        #@matching.match_headers({headers_mod.REQUESTER_ID: agent_id})
-        #@matching.match_glob(topics.ACTUATOR_ERROR(point='*', **device))
-        def on_set_error(self, peer, sender, bus, topic, headers, message):
-            '''Setting of point on device failed, log failure message.'''
-            self.match_header(headers, {headers_mod.REQUESTER_ID: agent_id})
-            if not MATCH_TOPIC.match(topic):
-                return
-            _log.debug('Set ERROR')
-            msg = jsonapi.loads(message[0])
-            msg = msg['type']
-            _log.debug('Actuator Error: ({}, {}, {})'.
-                       format(msg,
-                              self.current_key,
-                              self.commands[self.current_key]))
-            self.keys.remove(self.current_key)
-            if self.keys:
-                self.command_equip()
-            else:
-                headers = {
-                    'type':  'CANCEL_SCHEDULE',
-                    'requesterID': agent_id,
-                    'taskID': actuator_id
-                    }
-                self.vip.pubsub.publish(headers=headers,
-                                        topic=topics.ACTUATOR_SCHEDULE_REQUEST(),
-                                        message={})
-                self.keys = None
+#         def command_equip(self):
+#             '''Execute commands on configured device.'''
+#             self.current_key = self.keys[0]
+#             value = self.commands[self.current_key]
+#             headers = {
+#                 'Content-Type': 'text/plain',
+#                 'requesterID': agent_id,
+#                 }
+#             self.vip.pubsub.publish(peer="pubsub", 
+#                                     topic=topics.ACTUATOR_SET(point=self.current_key, **device),
+#                                     headers=headers, 
+#                                     message=str(value))
         
-        def match_header(self, headers, required_headers):
-            for key, required_value in required_headers.iteritems():
-                try:
-                    value = headers[key]
-                except KeyError:
-                    return
-                if value != required_value:
-                    return
-        
+
+#         @matching.match_headers({headers_mod.REQUESTER_ID: agent_id})
+#         @matching.match_exact(topics.ACTUATOR_SCHEDULE_RESULT())
+#         def schedule_result(self, peer, sender, bus, topic, headers, message):
+#             '''Actuator response (FAILURE, SUCESS).'''
+#             _log.debug('Actuator Response')
+#             msg = jsonapi.loads(message[0])
+#             msg = msg['result']
+#             _log.debug('Schedule Device ACCESS')
+#             if self.keys:
+#                 if msg == "SUCCESS":
+#                     self.command_equip()
+#                 elif msg == "FAILURE":
+#                     _log.debug('Auto-correction of device failed.')
+
+#         @matching.match_headers({headers_mod.REQUESTER_ID: agent_id})
+#         @matching.match_glob(topics.ACTUATOR_VALUE(point='*', **device))
+#         def on_set_result(self, peer, sender, bus, topic, headers, message):
+#             '''Setting of point on device was successful.'''
+#             _log.debug('Set Success:  {point} - {value}'
+#                        .format(point=self.current_key,
+#                                value=str(self.commands[self.current_key])))
+#             _log.debug('set_point({}, {})'.
+#                        format(self.current_key,
+#                               self.commands[self.current_key]))
+#             self.keys.remove(self.current_key)
+#             if self.keys:
+#                 self.command_equip()
+#             else:
+#                 _log.debug('Done with Commands - Release device lock.')
+#                 headers = {
+#                     'type': 'CANCEL_SCHEDULE',
+#                     'requesterID': agent_id,
+#                     'taskID': actuator_id
+#                     }
+#                 self.publish_json(topics.ACTUATOR_SCHEDULE_REQUEST(),
+#                                   headers, {})
+#                 self.keys = None
+# 
+#         @matching.match_headers({headers_mod.REQUESTER_ID: agent_id})
+#         @matching.match_glob(topics.ACTUATOR_ERROR(point='*', **device))
+#         def on_set_error(self, topic, headers, message, match):
+#             '''Setting of point on device failed, log failure message.'''
+#             _log.debug('Set ERROR')
+#             msg = jsonapi.loads(message[0])
+#             msg = msg['type']
+#             _log.debug('Actuator Error: ({}, {}, {})'.
+#                        format(msg,
+#                               self.current_key,
+#                               self.commands[self.current_key]))
+#             self.keys.remove(self.current_key)
+#             if self.keys:
+#                 self.command_equip()
+#             else:
+#                 headers = {
+#                     'type':  'CANCEL_SCHEDULE',
+#                     'requesterID': agent_id,
+#                     'taskID': actuator_id
+#                     }
+#                 self.publish_json(topics.ACTUATOR_SCHEDULE_REQUEST(),
+#                                   headers, {})
+#                 self.keys = None
 
     DrivenMatlabAgent.__name__ = 'DrivenMatlabAgent'
     return DrivenMatlabAgent(**kwargs)

@@ -74,8 +74,6 @@ class Application(AbstractDrivenAgent):
         self.data_socket.connect(data_url)
         
         self.config_params = kwargs
-
-    def run(self, cur_time, points):
         
         print "Checking for config request from Matlab"
         event = config_socket.poll(self.recv_timeout)
@@ -124,3 +122,44 @@ class Application(AbstractDrivenAgent):
                         
         else:
             print('Config request not received. Exiting.')
+
+    def run(self, cur_time, points):
+        
+        try: 
+            print("Sending data")
+            #TODO: Correct json format
+            data = {"current_time": cur_time,
+                    "points": points}
+            data_socket.send_json(data,zmq.NOBLOCK)
+            
+        except ZMQError:
+            print("No Matlab process running to send message. Exiting.")
+                
+        print("Waiting for matlab results")        
+        event = data_socket.poll(recv_timeout)
+        if event > 0:
+            matlab_result = data_socket.recv_json()
+            result = Results()
+            if 'commands' in matlab_result:
+                commands = matlab_result['commands']
+                for point, value in commands:
+                    result.command(point, value);
+                    
+            if 'logs' in matlab_result:
+                logs = matlab_result['logs']
+                for message in logs:
+                    result.log(message);
+                    
+            if 'table_data' in matlab_result:
+                table_data = matlab_result['table_data']
+                for table in table_data:
+                    rows = table_data[table]
+                    for row in rows:
+                        print(row)
+                        result.insert_table_row(table, row)  
+            
+            #print(result.commands)
+            #print(result.log_messages)
+            #print(result.table_output)
+            
+            return matlab_result

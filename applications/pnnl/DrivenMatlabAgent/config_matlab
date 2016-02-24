@@ -1,0 +1,29 @@
+{
+    "agentid": "matlab",
+    "application": "drivenmatlab.matlab.Application",
+
+    "device": {
+        "campus": "pnnl",
+        "building": "isb1",
+        "zones": ["zone1","zone2","zone3"]
+    },
+    "output_file": "./matlab_output.csv",
+    "mode": "PASSIVE",
+    "arguments": {
+    	"zone_temperature_list": ["zoneTemp1", "zoneTemp2","zoneTemp3"],
+    	"zone_setpoint_list": ["zoneSP1", "zoneSP2","zoneSP3"],
+    	"config_url": "tcp://localhost:5556",
+    	"data_url": "tcp://localhost:5557",
+    	"recv_timeout": 10000
+        
+    },
+    "conversion_map": {
+        ".*Temp.*": "float",
+        ".*SP.*": "float"
+    },
+    "unittype_map": {
+        ".*Temp.*": "Farenheit",
+        ".*SP.*": "Farenheit"
+    }
+
+}
