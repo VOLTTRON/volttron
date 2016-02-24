@@ -311,7 +311,7 @@ def volttron_central_agent(config_path, **kwargs):
 
             _log.debug('Registering jsonrpc and /.* routes')
             self.vip.rpc.call('volttron.web', 'register_agent_route',
-                            r'^/jsonrpc.*',
+                            r'^/api/jsonrpc.*',
                             self.core.identity,
                             'jsonrpc').get(timeout=5)
 
