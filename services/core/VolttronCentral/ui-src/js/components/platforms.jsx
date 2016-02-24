@@ -91,13 +91,15 @@ var Platforms = React.createClass({
 
         return (
             <div className="view">
-                <h2>Platforms</h2>
-                <div className="view__actions">
-                    <button className="button" onClick={this._onRegisterClick}>
-                        Register platform
-                    </button>
+                <div className="absolute_anchor">
+                    <h2>Platforms</h2>
+                    <div className="view__actions">
+                        <button className="button" onClick={this._onRegisterClick}>
+                            Register platform
+                        </button>
+                    </div>
+                    {platforms}
                 </div>
-                {platforms}
             </div>
         );
     },

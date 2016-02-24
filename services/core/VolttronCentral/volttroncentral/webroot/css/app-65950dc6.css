@@ -654,6 +654,10 @@ br + .form__control-help {
   content: "\f021";
 }
 
+.fa-hourglass:before {
+  content: "\f254";
+}
+
 /*.tooltip_show {
     display: "block";
 }
@@ -924,6 +928,7 @@ br + .form__control-help {
     border-radius: 0.3333em;
     box-sizing: border-box;
     margin-bottom: 1rem;
+    margin-top: 1rem;
 }
 
 .view__item--list {
@@ -1011,8 +1016,12 @@ a.view__item:hover::before {
 
 .view__actions {
     position: absolute;
-    top: 1.5em;
-    right: 2.5em;
+    top: 0;
+    right: 0;
+}
+
+.absolute_anchor {
+    position: relative;
 }
 
 .view--list .view__item + .view__item {

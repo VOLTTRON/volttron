@@ -1299,9 +1299,29 @@ platformsPanelItemsStore.loadFilteredItems = function (filterTerm, filterStatus)
         {
             notAMatch = function (parent, filterTerm)
             {
-                var upperParent = parent.name.toUpperCase();
+                var upperParent = parent.name.toUpperCase();;
+                var filterStr = filterTerm;
 
-                return (upperParent.indexOf(filterTerm.toUpperCase()) < 0);
+                var filterParts = filterTerm.split(" ");
+                var foundColon = (filterParts[0].indexOf(":") > -1);
+
+                if (foundColon)
+                {
+                    var index = filterTerm.indexOf(":");
+                    var filterKey = filterTerm.substring(0, index);
+                    filterStr = filterTerm.substring(index + 1);
+
+                    if (parent.hasOwnProperty(filterKey))
+                    {
+                        upperParent = parent[filterKey].toUpperCase();    
+                    }
+                    else
+                    {
+                        return true;
+                    }
+                }               
+
+                return (upperParent.trim().indexOf(filterStr.trim().toUpperCase()) < 0);
             }
 
             compareTerm = filterTerm;

@@ -164,7 +164,7 @@ var GraphLineChart = React.createClass({
         var taptipX = 60;
         var taptipY = 120;
 
-        var tooltipX = 60;
+        var tooltipX = 20;
         var tooltipY = 60;
 
         var chartTypeSelect = (
@@ -248,7 +248,7 @@ var GraphLineChart = React.createClass({
             "yOffset": taptipY
         };
         var refreshChartIcon = (
-            <i className="fa fa-refresh"></i>
+            <i className="fa fa-hourglass"></i>
         );
         var refreshChartTooltip = {
             "content": "Refresh Rate",

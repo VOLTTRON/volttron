@@ -2504,7 +2504,7 @@ var GraphLineChart = React.createClass({displayName: "GraphLineChart",
         var taptipX = 60;
         var taptipY = 120;
 
-        var tooltipX = 60;
+        var tooltipX = 20;
         var tooltipY = 60;
 
         var chartTypeSelect = (
@@ -2588,7 +2588,7 @@ var GraphLineChart = React.createClass({displayName: "GraphLineChart",
             "yOffset": taptipY
         };
         var refreshChartIcon = (
-            React.createElement("i", {className: "fa fa-refresh"})
+            React.createElement("i", {className: "fa fa-hourglass"})
         );
         var refreshChartTooltip = {
             "content": "Refresh Rate",
@@ -3757,13 +3757,15 @@ var Platforms = React.createClass({displayName: "Platforms",
 
         return (
             React.createElement("div", {className: "view"}, 
-                React.createElement("h2", null, "Platforms"), 
-                React.createElement("div", {className: "view__actions"}, 
-                    React.createElement("button", {className: "button", onClick: this._onRegisterClick}, 
-                        "Register platform"
-                    )
-                ), 
-                platforms
+                React.createElement("div", {className: "absolute_anchor"}, 
+                    React.createElement("h2", null, "Platforms"), 
+                    React.createElement("div", {className: "view__actions"}, 
+                        React.createElement("button", {className: "button", onClick: this._onRegisterClick}, 
+                            "Register platform"
+                        )
+                    ), 
+                    platforms
+                )
             )
         );
     },
@@ -6159,9 +6161,29 @@ platformsPanelItemsStore.loadFilteredItems = function (filterTerm, filterStatus)
         {
             notAMatch = function (parent, filterTerm)
             {
-                var upperParent = parent.name.toUpperCase();
+                var upperParent = parent.name.toUpperCase();;
+                var filterStr = filterTerm;
 
-                return (upperParent.indexOf(filterTerm.toUpperCase()) < 0);
+                var filterParts = filterTerm.split(" ");
+                var foundColon = (filterParts[0].indexOf(":") > -1);
+
+                if (foundColon)
+                {
+                    var index = filterTerm.indexOf(":");
+                    var filterKey = filterTerm.substring(0, index);
+                    filterStr = filterTerm.substring(index + 1);
+
+                    if (parent.hasOwnProperty(filterKey))
+                    {
+                        upperParent = parent[filterKey].toUpperCase();    
+                    }
+                    else
+                    {
+                        return true;
+                    }
+                }               
+
+                return (upperParent.trim().indexOf(filterStr.trim().toUpperCase()) < 0);
             }
 
             compareTerm = filterTerm;
