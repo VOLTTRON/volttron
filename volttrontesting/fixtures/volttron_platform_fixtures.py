@@ -80,3 +80,46 @@ def volttron_instance1_encrypt(request):
         wrapper.shutdown_platform(True)
     request.addfinalizer(cleanup)
     return wrapper
+
+@pytest.fixture(scope="function")
+def volttron_instance2_encrypt(request):
+    print("building instance 2 (using encryption)")
+    address = "tcp://127.0.0.1:{}".format(get_rand_port())
+    wrapper = build_wrapper(address, encrypt=True)
+
+    def cleanup():
+        print('Shutting down instance: {}'.format(wrapper.volttron_home))
+        print_log(wrapper.volttron_home)
+        wrapper.shutdown_platform(True)
+    request.addfinalizer(cleanup)
+    return wrapper
+
+@pytest.fixture(scope="function")
+def volttron_instance1_web(request):
+    print("building instance 1 (using web)")
+    address = "tcp://127.0.0.1:{}".format(get_rand_port())
+    web_address = "127.0.0.1:{}".format(get_rand_port())
+    wrapper = build_wrapper(address, encrypt=True,
+                            bind_web_address=web_address)
+
+    def cleanup():
+        print('Shutting down instance: {}'.format(wrapper.volttron_home))
+        print_log(wrapper.volttron_home)
+        wrapper.shutdown_platform(True)
+    request.addfinalizer(cleanup)
+    return wrapper
+
+@pytest.fixture(scope="function")
+def volttron_instance2_web(request):
+    print("building instance 2 (using web)")
+    address = "tcp://127.0.0.2:{}".format(get_rand_port())
+    web_address = "127.0.0.2:{}".format(get_rand_port())
+    wrapper = build_wrapper(address, encrypt=True,
+                            bind_web_address=web_address)
+
+    def cleanup():
+        print('Shutting down instance: {}'.format(wrapper.volttron_home))
+        print_log(wrapper.volttron_home)
+        wrapper.shutdown_platform(True)
+    request.addfinalizer(cleanup)
+    return wrapper

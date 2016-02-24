@@ -78,14 +78,14 @@ class MasterWebService(Agent):
     that will be called during the request process.
     """
 
-
-    def __init__(self, serverkey, identity, address):
+    def __init__(self, serverkey, identity, address, bind_web_address):
         """Initialize the discovery service with the serverkey
 
         serverkey is the public key in order to access this volttron's bus.
         """
         super(MasterWebService, self).__init__(identity, address)
 
+        self.bind_web_address = bind_web_address
         self.serverkey = serverkey
         self.registeredroutes = []
         self.peerroutes = defaultdict(list)
@@ -192,11 +192,18 @@ class MasterWebService(Agent):
 
     @Core.receiver('onstart')
     def startupagent(self, sender, **kwargs):
+
+        if not self.bind_web_address:
+            _log.info('Web server not started.')
+            return
+
         _log.debug('Starting web server.')
         self.registeredroutes.append((re.compile('^/discovery/$'), 'callable',
             self._get_serverkey))
         self.registeredroutes.append((re.compile('^/$'), 'callable',
             self._redirect_index))
 
-        self.server = pywsgi.WSGIServer(('0.0.0.0', 8080), self.app_routing)
+        addr, port = self.bind_web_address.split(":")
+        port = int(port)
+        self.server = pywsgi.WSGIServer((addr, port), self.app_routing)
         self.server.serve_forever()

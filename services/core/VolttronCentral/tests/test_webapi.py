@@ -4,6 +4,24 @@ import pytest
 import requests
 from zmq.utils import jsonapi
 
+PLATFORM_AGENT_CONFIG = {
+    # Agent id is used in the display on volttron central.
+    "agentid": "Platform Agent",
+
+    # Set the Platform agents identity
+    #
+    # Default "identity": "platform.agent"
+    "identity": "platform.agent",
+
+    # Configuration parameters.
+    #
+    # The period of time to go between attempting to report status to the
+    # platform.historian.
+    #
+    # Default "report_status_period": 30
+    "report_status_period": 15
+}
+
 VC_CONFIG = {
     # The agentid is used during display on the VOLTTRON central platform
     # it does not need to be unique.
@@ -28,12 +46,6 @@ VC_CONFIG = {
                 "reader"
             ]
         },
-        "writer": {
-            "password": "f7c31a682a838bbe0957cfa0bb060daff83c488fa5646eb541d334f241418af3611ff621b5a1b0d327f1ee80da25e04099376d3bc533a72d2280964b4fab2a32",
-            "groups": [
-                "writer"
-            ]
-        },
         "admin": {
             "password": "c7ad44cbad762a5da0a452f9e854fdc1e0e7a52a38015f23f3eab1d80b931dd472634dfac71cd34ebc35d16ab7fb8a90c81f975113d6c7538dc69dd8de9077ec",
             "groups": [
@@ -51,56 +63,72 @@ VC_CONFIG = {
 
 
 @pytest.fixture
-def vc_agent(request, volttron_instance1_encrypt):
-    agent_uuid = volttron_instance1_encrypt.install_agent(
+def vc_agent(request, volttron_instance1_web):
+    agent_uuid = volttron_instance1_web.install_agent(
         agent_dir="services/core/VolttronCentral",
         config_file=VC_CONFIG,
         start=True
     )
 
+    rpc_addr = "http://{}/api/jsonrpc"\
+        .format(volttron_instance1_web.bind_web_address)
     retvalue = {
-        "jsonrpc": "http://127.0.0.1:8080/api/jsonrpc"
+        "jsonrpc":rpc_addr
     }
 
     def cleanup():
-        print('VC_AGENT TEARDOWN!')
-        volttron_instance1_encrypt.remove_agent(agent_uuid)
+        volttron_instance1_web.remove_agent(agent_uuid)
 
     request.addfinalizer(cleanup)
-    print("VC_AGENT FIXTURE!")
-
     return retvalue
 
-
 @pytest.fixture(params=["admin:admin",
-                        "writer:writer",
                         "reader:reader"])
-def vc_agent_with_auth(request, volttron_instance1_encrypt):
-    agent_uuid = volttron_instance1_encrypt.install_agent(
+def vc_agent_with_auth(request, volttron_instance1_web):
+    agent_uuid = volttron_instance1_web.install_agent(
         agent_dir="services/core/VolttronCentral",
         config_file=VC_CONFIG,
         start=True
     )
 
+    rpc_addr = "http://{}/api/jsonrpc"\
+        .format(volttron_instance1_web.bind_web_address)
+
     retvalue = {
-        "jsonrpc": "http://127.0.0.1:8080/api/jsonrpc"
+        "jsonrpc": rpc_addr
     }
 
     user, passwd = request.param.split(':')
 
     response = do_rpc("get_authorization", {'username': user,
-                                            'password': passwd})
+                                            'password': passwd},
+                      rpc_root=rpc_addr)
 
     assert response.ok
     retvalue['username'] = user
     retvalue['auth_token'] = jsonapi.loads(response.text)['result']
 
     def cleanup():
-        volttron_instance1_encrypt.remove_agent(agent_uuid)
+        volttron_instance1_web.remove_agent(agent_uuid)
 
     request.addfinalizer(cleanup)
 
     return retvalue
+
+@pytest.fixture
+def platform_agent_installed(request, volttron_instance1_web):
+    agent_uuid = volttron_instance1_web.install_agent(
+        agent_dir="services/core/VolttronCentral",
+        config_file=VC_CONFIG,
+        start=True
+    )
+
+    def cleanup():
+        volttron_instance1_web.remove_agent(agent_uuid)
+
+    request.addfinalizer(cleanup)
+
+    return agent_uuid
 
 
 def do_rpc(method, params=None, auth_token=None, rpc_root=None):
@@ -109,13 +137,11 @@ def do_rpc(method, params=None, auth_token=None, rpc_root=None):
     :param method: The method to call
     :param params: the parameters to the method
     :param auth_token: A token if the user has one.
-    :param rpc_root: Override the http root location url.
+    :param rpc_root: Root of jsonrpc api.
     :return: The result of the rpc method.
     """
-    url_root = 'http://localhost:8080/jsonrpc'
 
-    if rpc_root:
-        url_root = rpc_root
+    assert rpc_root, "Must pass a jsonrpc url in to the function."
 
     json_package = {
         'jsonrpc': '2.0',
@@ -131,13 +157,26 @@ def do_rpc(method, params=None, auth_token=None, rpc_root=None):
 
     data = jsonapi.dumps(json_package)
 
-    return requests.post(url_root, data=jsonapi.dumps(json_package))
+    return requests.post(rpc_root, data=data)
+
+@pytest.mark.web
+def test_register_local_instance(request, vc_agent_with_auth,
+                                 platform_agent_installed):
+
+    if vc_agent_with_auth['username'] == 'reader':
+        pytest.fail("Modify so that we know that it should fail from response")
+    else:
+        pytest.fail("Add success criteria here for admin")
+    #print(vc_agent_with_auth, platform_agent_installed)
+    #assert platform_agent_installed
+
 
 
 @pytest.mark.web
-def test_can_login_as_admin(vc_agent):
+def test_can_login_as_admin(vc_agent, platform_agent_installed):
     p = {"username": "admin", "password": "admin"}
-    response = do_rpc(method="get_authorization", params=p)
+    rpc_root = vc_agent["jsonrpc"]
+    response = do_rpc(method="get_authorization", params=p, rpc_root=rpc_root)
 
     assert response.ok
     assert response.text
@@ -149,7 +188,8 @@ def test_can_login_as_admin(vc_agent):
 @pytest.mark.web
 def test_login_rejected_for_foo(vc_agent):
     p = {"username": "foo", "password": ""}
-    response = do_rpc(method="get_authorization", params=p)
+    rpc_root = vc_agent["jsonrpc"]
+    response = do_rpc(method="get_authorization", params=p, rpc_root=rpc_root)
 
     assert 'Unauthorized' in response.text
     assert response.status_code == 401 # Unauthorized.

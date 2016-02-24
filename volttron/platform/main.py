@@ -357,6 +357,8 @@ def start_volttron_process(opts):
     opts.subscribe_address = config.expandall(opts.subscribe_address)
     opts.vip_address = [config.expandall(addr) for addr in opts.vip_address]
     opts.vip_local_address = config.expandall(opts.vip_local_address)
+    if opts.bind_web_address:
+        opts.bind_web_address = config.expandall(opts.bind_web_address)
     if getattr(opts, 'show_config', False):
         for name, value in sorted(vars(opts).iteritems()):
             print(name, repr(value))
@@ -497,7 +499,8 @@ def start_volttron_process(opts):
                          publish_address=opts.publish_address,
                          subscribe_address=opts.subscribe_address),
             MasterWebService(serverkey=publickey, identity='volttron.web',
-                             address=address)
+                             address=address,
+                             bind_web_address=opts.bind_web_address)
         ]
         events = [gevent.event.Event() for service in services]
         tasks = [gevent.spawn(service.core.run, event)
@@ -521,6 +524,7 @@ def start_volttron_process(opts):
             gevent.wait(tasks)
     finally:
         opts.aip.finish()
+
 
 def main(argv=sys.argv):
     # Refuse to run as root
@@ -599,7 +603,9 @@ def main(argv=sys.argv):
     agents.add_argument(
         '--vip-local-address', metavar='ZMQADDR',
         help='ZeroMQ URL to bind for local agent VIP connections')
-
+    agents.add_argument(
+        '--bind-web-address', metavar='BINDWEBADDR', default=None,
+        help='Bind a web server to the specified ip:port passed')
     # XXX: re-implement control options
     #on
     #control.add_argument(
@@ -666,6 +672,8 @@ def main(argv=sys.argv):
         subscribe_address=ipc + 'subscribe',
         vip_address=[],
         vip_local_address=ipc + 'vip.socket',
+        # This is used to start the web server from the web module.
+        bind_web_address = None,
         #allow_root=False,
         #allow_users=None,
         #allow_groups=None,

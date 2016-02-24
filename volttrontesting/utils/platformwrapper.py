@@ -116,6 +116,9 @@ class PlatformWrapper:
         self.env = os.environ.copy()
         self.env['VOLTTRON_HOME'] = self.volttron_home
 
+        # By default no web server should be started.
+        self.bind_web_address = None
+
         self._p_process = None
         self._t_process = None
         self.publickey = self.generate_key()
@@ -179,7 +182,7 @@ class PlatformWrapper:
                 fd.write(json.dumps(auth_dict))
 
     def startup_platform(self, vip_address, auth_dict=None, use_twistd=False,
-        mode=UNRESTRICTED, encrypt=False):
+        mode=UNRESTRICTED, encrypt=False, bind_web_address=None):
         # if not isinstance(vip_address, list):
         #     self.vip_address = [vip_address]
         # else:
@@ -187,7 +190,7 @@ class PlatformWrapper:
 
         self.vip_address = [vip_address]
         self.mode = mode
-
+        self.bind_web_address = bind_web_address
         assert self.mode in MODES, 'Invalid platform mode set: '+str(mode)
         opts = None
 
@@ -209,6 +212,7 @@ class PlatformWrapper:
                 'vip_local_address': ipc + 'vip.socket',
                 'publish_address': ipc + 'publish',
                 'subscribe_address': ipc + 'subscribe',
+                'bind_web_address': bind_web_address,
                 'developer_mode': not encrypt,
                 'log': os.path.join(self.volttron_home,'volttron.log'),
                 'log_config': None,
@@ -223,7 +227,8 @@ class PlatformWrapper:
         parser =  configparser.ConfigParser()
         parser.add_section('volttron')
         parser.set('volttron', 'vip-address', vip_address)
-
+        if bind_web_address:
+            parser.set('volttron', 'bind-web-address', bind_web_address)
         if self.mode == UNRESTRICTED:
             if RESTRICTED_AVAILABLE:
                 config['mobility'] = False
