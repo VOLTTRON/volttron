@@ -146,3 +146,10 @@ def test_can_login_as_admin(vc_agent):
     assert retval['result']
     assert retval['id']
 
+@pytest.mark.web
+def test_login_rejected_for_foo(vc_agent):
+    p = {"username": "foo", "password": ""}
+    response = do_rpc(method="get_authorization", params=p)
+
+    assert 'Unauthorized' in response.text
+    assert response.status_code == 401 # Unauthorized.

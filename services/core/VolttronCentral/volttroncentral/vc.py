@@ -260,8 +260,8 @@ def volttron_central_agent(config_path, **kwargs):
             after that.  The session is validated based upon ip address.
             """
             if env['REQUEST_METHOD'].upper() != 'POST':
-                return jsonapi.dumps(jsonrpc.json_error('NA', INVALID_REQUEST,
-                    'Invalid request method'))
+                return jsonrpc.json_error('NA', INVALID_REQUEST,
+                                          'Invalid request method')
 
             try:
                 rpcdata = self._to_jsonrpc_obj(data)
@@ -274,16 +274,17 @@ def volttron_central_agent(config_path, **kwargs):
                     sess = self._sessions.authenticate(**args)
                     if not sess:
                         _log.info('Invalid username/password for {}'.format(rpcdata.params['username']))
-                        return jsonapi.dumps(jsonrpc.json_error(rpcdata.id, UNAUTHORIZED))
+                        return jsonrpc.json_error(rpcdata.id, UNAUTHORIZED,
+                                                  "Invalid username/password specified.")
                     _log.info('Session created for {}'.format(rpcdata.params['username']))
-                    return jsonapi.dumps(jsonrpc.json_result(rpcdata.id, sess))
+                    return jsonrpc.json_result(rpcdata.id, sess)
 
 
             except AssertionError:
                 return jsonapi.dumps(jsonrpc.json_error('NA', INVALID_REQUEST,
                     'Invalid rpc data {}'.format(data)))
 
-            return jsonapi.dumps(rpcdata)
+            return rpcdata
 
         @Core.receiver('onstart')
         def starting(self, sender, **kwargs):

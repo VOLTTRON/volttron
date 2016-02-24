@@ -62,9 +62,10 @@ import re
 
 from gevent import pywsgi
 import mimetypes
-from zmq.utils import jsonapi as json
+from zmq.utils import jsonapi
 
 from .vip.agent import Agent, Core, RPC
+from .jsonrpc import UNAUTHORIZED
 from .vip.socket import encode_key
 
 _log = logging.getLogger(__name__)
@@ -123,7 +124,7 @@ class MasterWebService(Agent):
 
     def _get_serverkey(self, environ, start_response):
         start_response('200 OK', [('Content-Type', 'application/json')])
-        return json.dumps({"serverkey": encode_key(self.serverkey)})
+        return jsonapi.dumps({"serverkey": encode_key(self.serverkey)})
 
     def app_routing(self, env, start_response):
         """The main routing function that maps the incoming request to a response.
@@ -152,8 +153,13 @@ class MasterWebService(Agent):
                     _log.debug('Matched peer_route with pattern {}'.format(k.pattern))
                     peer, fn = (v[0], v[1])
                     res = self.vip.rpc.call(peer, fn, passenv, data).get(timeout=4)
+                    if isinstance(res, dict):
+                        if 'error' in res.keys():
+                            if res['error']['code'] == UNAUTHORIZED:
+                                start_response('401 Unauthorized', [('Content-Type', 'text/html')])
+                                return [b'<h1>Unauthorized</h1>']
                     start_response('200 OK', [('Content-Type', 'application/json')])
-                    return res
+                    return jsonapi.dumps(res)
                 elif t == 'path': # File service from agents on the platform.
                     server_path = v + path_info #os.path.join(v, path_info)
                     _log.debug('Serverpath: {}'.format(server_path))
