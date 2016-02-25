@@ -53,111 +53,77 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-#}}}
+# }}}
 
-from scheduler import ScheduleManager, DeviceState, PRIORITY_HIGH, PRIORITY_LOW, PRIORITY_LOW_PREEMPT
 from datetime import datetime, timedelta
-from dateutil.parser import parse 
 
-import argparse
 import pytest
+from dateutil.parser import parse
+from scheduler import ScheduleManager, DeviceState, PRIORITY_HIGH, PRIORITY_LOW, PRIORITY_LOW_PREEMPT
 
-#if __name__ == '__main__':
-# parser = argparse.ArgumentParser(description='Test the scheduler.')
-# parser.add_argument('--verbose', '-v', action='store_true', default=False,
-#                     help = 'Verbose test output.')
-# args = parser.parse_args()
+
+# def print_state(state):
+#     print 'Schedule state:'
+#     for device_name, device_state in state.items():
+#         print ' ', device_name, ' '.join(str(x) for x in device_state)
 #
-# verbose = args.verbose
-verbose = False
-def print_task(agent_id, requests, priority):
-    print 'Agent:', agent_id
-    print 'Priority:', priority
-    print 'Request List:'
-    for request in requests:
-        print ' ', request
-    print
-
-def print_state(state):
-    print 'Schedule state:'
-    for device_name, device_state in state.items():
-        print ' ', device_name, ' '.join(str(x) for x in device_state)
-
-def print_add_task_result(result):
-    success, data, info_string = result
-    print 'Success:', success
-#         print 'Task ID:', result.task_id
-    print 'Data: ', data
-    print 'Info:', info_string
-    if success:
-        event_time, preemted_task_ids, state = data
-        print 'Next event time:', event_time
-        print 'Preempted task IDs: ', ' '.join(str(x) for x in preemted_task_ids)
-        print_state(state)
-
-
-    else:
-        if result.data:
-            print 'Conflicts:'
-            for agent, conflict in result.data.iteritems():
-                print ' ', agent, '->', conflict
+# def print_add_task_result(result):
+#     success, data, info_string = result
+#     print 'Success:', success
+# #         print 'Task ID:', result.task_id
+#     print 'Data: ', data
+#     print 'Info:', info_string
+#     if success:
+#         event_time, preemted_task_ids, state = data
+#         print 'Next event time:', event_time
+#         print 'Preempted task IDs: ', ' '.join(str(x) for x in preemted_task_ids)
+#         print_state(state)
+#     else:
+#         if result.data:
+#             print 'Conflicts:'
+#             for agent, conflict in result.data.iteritems():
+#                 print ' ', agent, '->', conflict
 
 def verify_add_task(schedule_manager, agent_id, task_id, requests, priority, now):
-    if verbose:
-        print_task(agent_id, requests, priority)
     state = schedule_manager.get_schedule_state(now)
 
     result = schedule_manager.request_slots(agent_id, task_id, requests, priority, now)
     schedule_manager.get_schedule_state(now)
     schedule_next_event_time = schedule_manager.get_next_event_time(now)
-    if verbose:
-        print_add_task_result(result)
     return result, schedule_next_event_time
-
-def print_test_header(name, time):
-    if verbose:
-        print
-        print '**************************'
-        print name
-        print 'Start time:', time
-        print '**************************'
-        print
-    else:
-        print name
-
 
 
 now = datetime(year=2013, month=11, day=27, hour=11, minute=30)
 
-@pytest.mark.dev
+
+
 def test_basic():
-    print_test_header('Basic Test', now)
+    print('Basic Test', now)
     sch_man = ScheduleManager(60, now=now)
     ag = ('Agent1', 'Task1',
-          (['campus/building/rtu1',parse('2013-11-27 12:00:00'),parse('2013-11-27 13:00:00')],),
+          (['campus/building/rtu1', parse('2013-11-27 12:00:00'), parse('2013-11-27 13:00:00')],),
           PRIORITY_HIGH,
           now)
-    result1, event_time1= verify_add_task(sch_man, *ag)
+    result1, event_time1 = verify_add_task(sch_man, *ag)
     success, data, info_string = result1
-    #success1, data1, info_string1 = result1
+    # success1, data1, info_string1 = result1
     assert all((success, not data, not info_string, event_time1 == parse('2013-11-27 12:00:00')))
-    #dict: {'campus/building/rtu1': DeviceState(agent_id='Agent1', task_id='Task1', time_remaining=3600.0)}
+    # dict: {'campus/building/rtu1': DeviceState(agent_id='Agent1', task_id='Task1', time_remaining=3600.0)}
 
     state = sch_man.get_schedule_state(now + timedelta(minutes=30))
     assert state == {'campus/building/rtu1': DeviceState('Agent1', 'Task1', 3600.0)}
     state = sch_man.get_schedule_state(now + timedelta(minutes=60))
     assert state == {'campus/building/rtu1': DeviceState('Agent1', 'Task1', 1800.0)}
 
-@pytest.mark.dev
 def test_two_devices():
-    print_test_header('Basic Test: Two devices', now)
+    print('Basic Test: Two devices', now)
     sch_man = ScheduleManager(60, now=now)
     ag = ('Agent1', 'Task1',
-          (['campus/building/rtu1',parse('2013-11-27 12:00:00'),parse('2013-11-27 13:00:00')],
-          ['campus/building/rtu2',parse('2013-11-27 12:00:00'),parse('2013-11-27 13:00:00')]),
+          (['campus/building/rtu1', parse('2013-11-27 12:00:00'), parse('2013-11-27 13:00:00')],
+           ['campus/building/rtu2', parse('2013-11-27 12:00:00'), parse('2013-11-27 13:00:00')]),
           PRIORITY_HIGH,
           now)
-    result1, event_time1= verify_add_task(sch_man, *ag)
+    result1, event_time1 = verify_add_task(sch_man, *ag)
     success, data, info_string = result1
     assert all((success, not data, not info_string, event_time1 == parse('2013-11-27 12:00:00')))
 
@@ -170,20 +136,20 @@ def test_two_devices():
 
 
 def test_two_agents_two_devices():
-    print_test_header('Test requests: Two agents different devices', now)
+    print('Test requests: Two agents different devices', now)
     sch_man = ScheduleManager(60, now=now)
-    ag1 = ('Agent1','Task1',
-          (['campus/building/rtu1','2013-11-27 12:00:00','2013-11-27 12:30:00'],),
-          PRIORITY_HIGH,
-          now)
-    ag2 = ('Agent2','Task2',
-          (['campus/building/rtu2','2013-11-27 12:00:00','2013-11-27 13:00:00'],),
-          PRIORITY_HIGH,
-          now)
+    ag1 = ('Agent1', 'Task1',
+           (['campus/building/rtu1', parse('2013-11-27 12:00:00'), parse('2013-11-27 12:30:00')],),
+           PRIORITY_HIGH,
+           now)
+    ag2 = ('Agent2', 'Task2',
+           (['campus/building/rtu2', parse('2013-11-27 12:00:00'), parse('2013-11-27 13:00:00')],),
+           PRIORITY_HIGH,
+           now)
     result1, event_time1 = verify_add_task(sch_man, *ag1)
     success1, data1, info_string1 = result1
     success, data, info_string = result1
-#     success1, data1, info_string1 = result1
+    #     success1, data1, info_string1 = result1
     assert all((success, not data, not info_string, event_time1 == parse('2013-11-27 12:00:00')))
     result2, event_time2 = verify_add_task(sch_man, *ag2)
     success2, data2, info_string2 = result2
@@ -195,17 +161,18 @@ def test_two_agents_two_devices():
     state = sch_man.get_schedule_state(now + timedelta(minutes=60))
     assert state == {'campus/building/rtu2': DeviceState('Agent2', 'Task2', 1800.0)}
 
+
 def test_touching_requests():
-    print_test_header('Test touching requests: Two agents', now)
+    print('Test touching requests: Two agents', now)
     sch_man = ScheduleManager(60, now=now)
-    ag1 = ('Agent1','Task1',
-          (['campus/building/rtu1','2013-11-27 12:00:00','2013-11-27 12:30:00'],),
-          PRIORITY_HIGH,
-          now)
-    ag2 = ('Agent2','Task2',
-          (['campus/building/rtu1','2013-11-27 12:30:00','2013-11-27 13:00:00'],),
-          PRIORITY_HIGH,
-          now)
+    ag1 = ('Agent1', 'Task1',
+           (['campus/building/rtu1', parse('2013-11-27 12:00:00'), parse('2013-11-27 12:30:00')],),
+           PRIORITY_HIGH,
+           now)
+    ag2 = ('Agent2', 'Task2',
+           (['campus/building/rtu1', parse('2013-11-27 12:30:00'), parse('2013-11-27 13:00:00')],),
+           PRIORITY_HIGH,
+           now)
     result1, event_time1 = verify_add_task(sch_man, *ag1)
     success1, data1, info_string1 = result1
     assert all((success1, not data1, not info_string1, event_time1 == parse('2013-11-27 12:00:00')))
@@ -218,12 +185,13 @@ def test_touching_requests():
     state = sch_man.get_schedule_state(now + timedelta(minutes=60))
     assert state == {'campus/building/rtu1': DeviceState('Agent2', 'Task2', 1800.0)}
 
+
 def test_schedule_self_conflict():
-    print_test_header('Testing self conflicting schedule', now)
+    print('Testing self conflicting schedule', now)
     sch_man = ScheduleManager(60, now=now)
-    ag = ('Agent1','Task1',
-          (['campus/building/rtu1','2013-11-27 12:00:00','2013-11-27 12:45:00'],
-          ['campus/building/rtu1','2013-11-27 12:30:00','2013-11-27 13:00:00']),
+    ag = ('Agent1', 'Task1',
+          (['campus/building/rtu1', parse('2013-11-27 12:00:00'), parse('2013-11-27 12:45:00')],
+           ['campus/building/rtu1', parse('2013-11-27 12:30:00'), parse('2013-11-27 13:00:00')]),
           PRIORITY_HIGH,
           now)
 
@@ -234,10 +202,11 @@ def test_schedule_self_conflict():
     print (info_string1.startswith('REQUEST_CONFLICTS_WITH_SELF'))
     assert all((not success1, data1 == {}, info_string1.startswith('REQUEST_CONFLICTS_WITH_SELF')))
 
+
 def test_malformed_schedule():
-    print_test_header('Testing malformed schedule: Empty', now)
+    print('Testing malformed schedule: Empty', now)
     sch_man = ScheduleManager(60, now=now)
-    ag = ('Agent1','Task1',
+    ag = ('Agent1', 'Task1',
           (),
           PRIORITY_HIGH,
           now)
@@ -248,10 +217,10 @@ def test_malformed_schedule():
 
 
 def test_malformed_schdeule_bad_timestr():
-    print_test_header('Testing malformed schedule: Bad time strings', now)
+    print('Testing malformed schedule: Bad time strings', now)
     sch_man = ScheduleManager(60, now=now)
-    ag = ('Agent1','Task1',
-          (['campus/building/rtu1','fdhkdfyug', 'Twinkle, twinkle, little bat...'],),
+    ag = ('Agent1', 'Task1',
+          (['campus/building/rtu1', 'fdhkdfyug', 'Twinkle, twinkle, little bat...'],),
           PRIORITY_HIGH,
           now)
 
@@ -261,27 +230,28 @@ def test_malformed_schdeule_bad_timestr():
 
 
 def test_malformed_bad_device():
-    print_test_header('Testing malformed schedule: Bad device', now)
+    print('Testing malformed schedule: Bad device', now)
     sch_man = ScheduleManager(60, now=now)
-    ag = ('Agent1','Task1',
-          ([1,'2013-11-27 12:00:00','2013-11-27 12:35:00'],),
+    ag = ('Agent1', 'Task1',
+          ([1, parse('2013-11-27 12:00:00'), parse('2013-11-27 12:35:00')],),
           PRIORITY_HIGH,
           now)
     result1, event_time1 = verify_add_task(sch_man, *ag)
     success1, data1, info_string1 = result1
     assert all((not success1, data1 == {}, info_string1.startswith('MALFORMED_REQUEST')))
 
+
 def test_schedule_conflict():
-    print_test_header('Test conflicting requests: Two agents', now)
+    print('Test conflicting requests: Two agents', now)
     sch_man = ScheduleManager(60, now=now)
-    ag1 = ('Agent1','Task1',
-          (['campus/building/rtu1','2013-11-27 12:00:00','2013-11-27 12:35:00'],),
-          PRIORITY_HIGH,
-          now)
-    ag2 = ('Agent2','Task2',
-          (['campus/building/rtu1','2013-11-27 12:30:00','2013-11-27 13:00:00'],),
-          PRIORITY_HIGH,
-          now)
+    ag1 = ('Agent1', 'Task1',
+           (['campus/building/rtu1', parse('2013-11-27 12:00:00'), parse('2013-11-27 12:35:00')],),
+           PRIORITY_HIGH,
+           now)
+    ag2 = ('Agent2', 'Task2',
+           (['campus/building/rtu1', parse('2013-11-27 12:30:00'), parse('2013-11-27 13:00:00')],),
+           PRIORITY_HIGH,
+           now)
     result1, event_time1 = verify_add_task(sch_man, *ag1)
     success1, data1, info_string1 = result1
 
@@ -290,19 +260,20 @@ def test_schedule_conflict():
     success2, data2, info_string2 = result2
     conflicts2 = data2
     assert not success2
-    assert conflicts2 == {'Agent1':{'Task1': [['campus/building/rtu1','2013-11-27 12:00:00','2013-11-27 12:35:00']]}}
+    assert conflicts2 == {'Agent1': {'Task1': [['campus/building/rtu1', '2013-11-27 12:00:00', '2013-11-27 12:35:00']]}}
+
 
 def test_conflict_override():
-    print_test_header('Test conflicting requests: Agent2 overrides Agent1', now)
+    print('Test conflicting requests: Agent2 overrides Agent1', now)
     sch_man = ScheduleManager(60, now=now)
-    ag1 = ('Agent1','Task1',
-          (['campus/building/rtu1','2013-11-27 12:00:00','2013-11-27 12:35:00'],),
-          PRIORITY_LOW,
-          now)
-    ag2 = ('Agent2','Task2',
-          (['campus/building/rtu1','2013-11-27 12:30:00','2013-11-27 13:00:00'],),
-          PRIORITY_HIGH,
-          now)
+    ag1 = ('Agent1', 'Task1',
+           (['campus/building/rtu1', parse('2013-11-27 12:00:00'), parse('2013-11-27 12:35:00')],),
+           PRIORITY_LOW,
+           now)
+    ag2 = ('Agent2', 'Task2',
+           (['campus/building/rtu1', parse('2013-11-27 12:30:00'), parse('2013-11-27 13:00:00')],),
+           PRIORITY_HIGH,
+           now)
     result1, event_time1 = verify_add_task(sch_man, *ag1)
     success1, data1, info_string1 = result1
     success1, data1, info_string1 = result1
@@ -314,17 +285,18 @@ def test_conflict_override():
     assert not info_string2
     assert event_time2 == parse('2013-11-27 12:30:00')
 
+
 def test_conflict_override_fail_on_running_agent():
-    print_test_header('Test conflicting requests: Agent2 fails to override running Agent1', now)
+    print('Test conflicting requests: Agent2 fails to override running Agent1', now)
     sch_man = ScheduleManager(60, now=now)
-    ag1 = ('Agent1','Task1',
-          (['campus/building/rtu1','2013-11-27 12:00:00','2013-11-27 12:35:00'],),
-          PRIORITY_LOW,
-          now)
-    ag2 = ('Agent2','Task2',
-          (['campus/building/rtu1','2013-11-27 12:30:00','2013-11-27 13:00:00'],),
-          PRIORITY_HIGH,
-          now+timedelta(minutes=45))
+    ag1 = ('Agent1', 'Task1',
+           (['campus/building/rtu1', parse('2013-11-27 12:00:00'), parse('2013-11-27 12:35:00')],),
+           PRIORITY_LOW,
+           now)
+    ag2 = ('Agent2', 'Task2',
+           (['campus/building/rtu1', parse('2013-11-27 12:30:00'), parse('2013-11-27 13:00:00')],),
+           PRIORITY_HIGH,
+           now + timedelta(minutes=45))
     result1, event_time1 = verify_add_task(sch_man, *ag1)
     success1, data1, info_string1 = result1
 
@@ -333,27 +305,28 @@ def test_conflict_override_fail_on_running_agent():
     success2, data2, info_string2 = result2
     conflicts2 = data2
     assert not success2
-    assert conflicts2 == {'Agent1':{'Task1': [['campus/building/rtu1','2013-11-27 12:00:00','2013-11-27 12:35:00']]}}
+    assert conflicts2 == {'Agent1': {'Task1': [['campus/building/rtu1', '2013-11-27 12:00:00', '2013-11-27 12:35:00']]}}
+
 
 def test_conflict_override_success_running_agent():
-    print_test_header('Test conflicting requests: Agent2 overrides running Agent1', now)
+    print('Test conflicting requests: Agent2 overrides running Agent1', now)
     sch_man = ScheduleManager(60, now=now)
-    ag1 = ('Agent1','Task1',
-          (['campus/building/rtu1','2013-11-27 12:00:00','2013-11-27 12:35:00'],),
-          PRIORITY_LOW_PREEMPT,
-          now)
-    now2 = now+timedelta(minutes=45)
-    ag2 = ('Agent2','Task2',
-          (['campus/building/rtu1','2013-11-27 12:05:00','2013-11-27 13:00:00'],),
-          PRIORITY_HIGH,
-          now2)
+    ag1 = ('Agent1', 'Task1',
+           (['campus/building/rtu1', parse('2013-11-27 12:00:00'), parse('2013-11-27 12:35:00')],),
+           PRIORITY_LOW_PREEMPT,
+           now)
+    now2 = now + timedelta(minutes=45)
+    ag2 = ('Agent2', 'Task2',
+           (['campus/building/rtu1', parse('2013-11-27 12:05:00'), parse('2013-11-27 13:00:00')],),
+           PRIORITY_HIGH,
+           now2)
     result1, event_time1 = verify_add_task(sch_man, *ag1)
     success1, data1, info_string1 = result1
     assert all((success1, not data1, not info_string1, event_time1 == parse('2013-11-27 12:00:00')))
     result2, event_time2 = verify_add_task(sch_man, *ag2)
     success2, data2, info_string2 = result2
     assert success2
-    assert data2 == set([('Agent1','Task1')])
+    assert data2 == set([('Agent1', 'Task1')])
     assert info_string2 == ''
     assert event_time2 == parse('2013-11-27 12:16:00')
 
@@ -362,17 +335,18 @@ def test_conflict_override_success_running_agent():
     state = sch_man.get_schedule_state(now2 + timedelta(seconds=60))
     assert state == {'campus/building/rtu1': DeviceState('Agent2', 'Task2', 2640.0)}
 
+
 def test_conflict_override_error():
-    print_test_header('Test conflicting requests: Agent2 fails to override running Agent1 because of non high priority.', now)
+    print('Test conflicting requests: Agent2 fails to override running Agent1 because of non high priority.', now)
     sch_man = ScheduleManager(60, now=now)
-    ag1 = ('Agent1','Task1',
-          (['campus/building/rtu1','2013-11-27 12:00:00','2013-11-27 12:35:00'],),
-          PRIORITY_LOW_PREEMPT,
-          now)
-    ag2 = ('Agent2','Task2',
-          (['campus/building/rtu1','2013-11-27 12:30:00','2013-11-27 13:00:00'],),
-          PRIORITY_LOW,
-          now)
+    ag1 = ('Agent1', 'Task1',
+           (['campus/building/rtu1', parse('2013-11-27 12:00:00'), parse('2013-11-27 12:35:00')],),
+           PRIORITY_LOW_PREEMPT,
+           now)
+    ag2 = ('Agent2', 'Task2',
+           (['campus/building/rtu1', parse('2013-11-27 12:30:00'), parse('2013-11-27 13:00:00')],),
+           PRIORITY_LOW,
+           now)
     result1, event_time1 = verify_add_task(sch_man, *ag1)
     success1, data1, info_string1 = result1
     assert all((success1, not data1, not info_string1, event_time1 == parse('2013-11-27 12:00:00')))
@@ -380,22 +354,23 @@ def test_conflict_override_error():
     success2, data2, info_string2 = result2
     conflicts2 = data2
     assert not success2
-    assert conflicts2 == {'Agent1':{'Task1': [['campus/building/rtu1','2013-11-27 12:00:00','2013-11-27 12:35:00']]}}
+    assert conflicts2 == {'Agent1': {'Task1': [['campus/building/rtu1', '2013-11-27 12:00:00', '2013-11-27 12:35:00']]}}
+
 
 def test_non_conflict_schedule():
-    print_test_header('Test non-conflicting requests: Agent2 and Agent1 live in harmony', now)
+    print('Test non-conflicting requests: Agent2 and Agent1 live in harmony', now)
     sch_man = ScheduleManager(60, now=now)
-    ag1 = ('Agent1','Task1',
-          (['campus/building/rtu1','2013-11-27 12:00:00','2013-11-27 12:15:00'],
-           ['campus/building/rtu2','2013-11-27 12:00:00','2013-11-27 13:00:00'],
-           ['campus/building/rtu3','2013-11-27 12:45:00','2013-11-27 13:00:00'],),
-          PRIORITY_LOW_PREEMPT,
-          now)
-    now2 = now+timedelta(minutes=55)
-    ag2 = ('Agent2','Task2',
-          (['campus/building/rtu1','2013-11-27 12:30:00','2013-11-27 13:00:00'],),
-          PRIORITY_HIGH,
-          now2)
+    ag1 = ('Agent1', 'Task1',
+           (['campus/building/rtu1', parse('2013-11-27 12:00:00'), parse('2013-11-27 12:15:00')],
+            ['campus/building/rtu2', parse('2013-11-27 12:00:00'), parse('2013-11-27 13:00:00')],
+            ['campus/building/rtu3', parse('2013-11-27 12:45:00'), parse('2013-11-27 13:00:00')],),
+           PRIORITY_LOW_PREEMPT,
+           now)
+    now2 = now + timedelta(minutes=55)
+    ag2 = ('Agent2', 'Task2',
+           (['campus/building/rtu1', parse('2013-11-27 12:30:00'), parse('2013-11-27 13:00:00')],),
+           PRIORITY_HIGH,
+           now2)
     result1, event_time1 = verify_add_task(sch_man, *ag1)
     success1, data1, info_string1 = result1
     success1, data1, info_string1 = result1
@@ -407,20 +382,21 @@ def test_non_conflict_schedule():
     assert info_string2 == ''
     assert event_time2 == parse('2013-11-27 12:30:00')
 
+
 def test_conflict_override_success_running_agent2():
-    print_test_header('Test conflicting requests: Agent2 overrides running Agent1 which has more than one device', now)
+    print('Test conflicting requests: Agent2 overrides running Agent1 which has more than one device', now)
     sch_man = ScheduleManager(60, now=now)
-    ag1 = ('Agent1','Task1',
-          (['campus/building/rtu1','2013-11-27 12:00:00','2013-11-27 12:15:00'],
-           ['campus/building/rtu2','2013-11-27 12:00:00','2013-11-27 13:00:00'],
-           ['campus/building/rtu3','2013-11-27 12:45:00','2013-11-27 13:00:00'],),
-          PRIORITY_LOW_PREEMPT,
-          now)
-    now2 = now+timedelta(minutes=55)
-    ag2 = ('Agent2','Task2',
-          (['campus/building/rtu3','2013-11-27 12:30:00','2013-11-27 13:00:00'],),
-          PRIORITY_HIGH,
-          now2)
+    ag1 = ('Agent1', 'Task1',
+           (['campus/building/rtu1', parse('2013-11-27 12:00:00'), parse('2013-11-27 12:15:00')],
+            ['campus/building/rtu2', parse('2013-11-27 12:00:00'), parse('2013-11-27 13:00:00')],
+            ['campus/building/rtu3', parse('2013-11-27 12:45:00'), parse('2013-11-27 13:00:00')],),
+           PRIORITY_LOW_PREEMPT,
+           now)
+    now2 = now + timedelta(minutes=55)
+    ag2 = ('Agent2', 'Task2',
+           (['campus/building/rtu3', parse('2013-11-27 12:30:00'), parse('2013-11-27 13:00:00')],),
+           PRIORITY_HIGH,
+           now2)
     result1, event_time1 = verify_add_task(sch_man, *ag1)
     success1, data1, info_string1 = result1
     success1, data1, info_string1 = result1
@@ -428,6 +404,6 @@ def test_conflict_override_success_running_agent2():
     result2, event_time2 = verify_add_task(sch_man, *ag2)
     success2, data2, info_string2 = result2
     assert success2
-    assert data2 == set([('Agent1','Task1')])
+    assert data2 == set([('Agent1', 'Task1')])
     assert info_string2 == ''
     assert event_time2 == parse('2013-11-27 12:26:00')
