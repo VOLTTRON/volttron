@@ -63,7 +63,6 @@ from volttron.platform.agent import utils
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
-
 def schedule_builder(current_time, start_time, end_time,
                      current_spacetemp=77.0,
                      pre_csp=67.0,
@@ -118,58 +117,59 @@ def schedule_builder(current_time, start_time, end_time,
     
     event_time = end_time + (num_restore_timesteps * timestep_length)
     _log.debug('Cleanup Event: {} {}'.format(event_time, normal_coolingstpt))
-    
-_log.debug('Normal scheduling')
-schedule_builder(0, 5*3600, 11*3600,
-                     current_spacetemp=77.0,
-                     pre_csp=67.0,
-                     building_thermal_constant=4.0,
-                     normal_coolingstpt=76.0,
-                     timestep_length=15*60,
-                     dr_csp=80.0)    
 
-_log.debug('In precool start normal scheduling')
-schedule_builder(0, 4*3600, 10*3600,
-                     current_spacetemp=77.0,
-                     pre_csp=67.0,
-                     building_thermal_constant=4.0,
-                     normal_coolingstpt=76.0,
-                     timestep_length=15*60,
-                     dr_csp=80.0)  
+def test_scheduler():
+    _log.debug('Normal scheduling')
+    schedule_builder(0, 5*3600, 11*3600,
+                         current_spacetemp=77.0,
+                         pre_csp=67.0,
+                         building_thermal_constant=4.0,
+                         normal_coolingstpt=76.0,
+                         timestep_length=15*60,
+                         dr_csp=80.0)
 
-_log.debug('In precool short scheduling')
-schedule_builder(0, 3600, 7*3600,
-                     current_spacetemp=77.0,
-                     pre_csp=67.0,
-                     building_thermal_constant=4.0,
-                     normal_coolingstpt=76.0,
-                     timestep_length=15*60,
-                     dr_csp=80.0) 
+    _log.debug('In precool start normal scheduling')
+    schedule_builder(0, 4*3600, 10*3600,
+                         current_spacetemp=77.0,
+                         pre_csp=67.0,
+                         building_thermal_constant=4.0,
+                         normal_coolingstpt=76.0,
+                         timestep_length=15*60,
+                         dr_csp=80.0)
 
-_log.debug('In precool short offset scheduling')
-schedule_builder(0, 3600-200, (7*3600)-200,
-                     current_spacetemp=77.0,
-                     pre_csp=67.0,
-                     building_thermal_constant=4.0,
-                     normal_coolingstpt=76.0,
-                     timestep_length=15*60,
-                     dr_csp=80.0) 
+    _log.debug('In precool short scheduling')
+    schedule_builder(0, 3600, 7*3600,
+                         current_spacetemp=77.0,
+                         pre_csp=67.0,
+                         building_thermal_constant=4.0,
+                         normal_coolingstpt=76.0,
+                         timestep_length=15*60,
+                         dr_csp=80.0)
 
-_log.debug('In precool short offset scheduling')
-schedule_builder(100, 0, 6*3600,
-                     current_spacetemp=77.0,
-                     pre_csp=67.0,
-                     building_thermal_constant=4.0,
-                     normal_coolingstpt=76.0,
-                     timestep_length=15*60,
-                     dr_csp=80.0) 
+    _log.debug('In precool short offset scheduling')
+    schedule_builder(0, 3600-200, (7*3600)-200,
+                         current_spacetemp=77.0,
+                         pre_csp=67.0,
+                         building_thermal_constant=4.0,
+                         normal_coolingstpt=76.0,
+                         timestep_length=15*60,
+                         dr_csp=80.0)
 
-_log.debug('In precool short offset scheduling')
-schedule_builder(3601, 0, 3600,
-                     current_spacetemp=77.0,
-                     pre_csp=67.0,
-                     building_thermal_constant=4.0,
-                     normal_coolingstpt=76.0,
-                     timestep_length=15*60,
-                     dr_csp=80.0) 
+    _log.debug('In precool short offset scheduling')
+    schedule_builder(100, 0, 6*3600,
+                         current_spacetemp=77.0,
+                         pre_csp=67.0,
+                         building_thermal_constant=4.0,
+                         normal_coolingstpt=76.0,
+                         timestep_length=15*60,
+                         dr_csp=80.0)
+
+    _log.debug('In precool short offset scheduling')
+    schedule_builder(3601, 0, 3600,
+                         current_spacetemp=77.0,
+                         pre_csp=67.0,
+                         building_thermal_constant=4.0,
+                         normal_coolingstpt=76.0,
+                         timestep_length=15*60,
+                         dr_csp=80.0)
     
