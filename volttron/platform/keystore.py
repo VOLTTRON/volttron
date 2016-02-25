@@ -61,12 +61,13 @@
 
 
 import json
+import os
 import urlparse
 
 from zmq import curve_keypair
 
 from .vip.socket import encode_key
-
+from volttron.platform import get_home
 
 class BaseJSONStore(object):
     '''JSON-file-backed store for dictionaries'''
@@ -95,6 +96,11 @@ class BaseJSONStore(object):
 
 class KeyStore(BaseJSONStore):
     '''Handle generation, storage, and retrival of keys'''
+
+    def __init__(self, filename=None):
+        if filename is None:
+            filename = os.path.join(get_home(), 'keystore')
+        super(KeyStore, self).__init__(filename)
 
     def generate(self):
         public, secret = curve_keypair()

@@ -81,6 +81,9 @@ from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
                                        INVALID_REQUEST, METHOD_NOT_FOUND,
                                        PARSE_ERROR, UNHANDLED_EXCEPTION,
                                        UNAUTHORIZED)
+
+from volttron.platform.keystore import KeyStore
+
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
@@ -134,14 +137,15 @@ def volttron_central_agent(config_path, **kwargs):
             self.persistence_path = ''
             self._external_addresses = None
             self._vip_channels = {}
+            self._keystore = KeyStore()
 
         @property
         def _secret_key(self):
-            return "nLmch7ojRGnbnUnnB27N01WTFPaaNY48r1tAPm2Q5Vc"
+            return self._keystore.secret()
 
         @property
         def _public_key(self):
-            return "zhvTPwcAei7A14j_jyvviUNea-ZdXWmYqxSVHTHUoRY"
+            return self._keystore.public()
 
         def list_agents(self, uuid):
             platform = self.registry.get_platform(uuid)
