@@ -57,9 +57,8 @@
 
 from datetime import datetime, timedelta
 
-import pytest
 from dateutil.parser import parse
-from scheduler import ScheduleManager, DeviceState, PRIORITY_HIGH, PRIORITY_LOW, PRIORITY_LOW_PREEMPT
+from services.core.ActuatorAgent.actuator.scheduler import ScheduleManager, DeviceState, PRIORITY_HIGH, PRIORITY_LOW, PRIORITY_LOW_PREEMPT
 
 
 # def print_state(state):
