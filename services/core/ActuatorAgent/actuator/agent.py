@@ -137,6 +137,14 @@ def actuator_agent(config_path, **kwargs):
             self.vip.pubsub.subscribe(peer='pubsub',
                                       prefix=topics.ACTUATOR_SCHEDULE_REQUEST(),
                                       callback=self.handle_schedule_request)
+            
+            self.vip.pubsub.subscribe(peer='pubsub',
+                                      prefix=topics.ACTUATOR_REVERT_POINT(),
+                                      callback=self.handle_revert_point)
+            
+            self.vip.pubsub.subscribe(peer='pubsub',
+                                      prefix=topics.ACTUATOR_REVERT_DEVICE(),
+                                      callback=self.handle_revert_device)
 
         def setup_schedule(self):
             now = datetime.datetime.now()
@@ -270,7 +278,7 @@ def actuator_agent(config_path, **kwargs):
             return result
         
         def handle_revert_point(self, peer, sender, bus, topic, headers, message):
-            point = topic.replace(topics.ACTUATOR_SET()+'/', '', 1)
+            point = topic.replace(topics.ACTUATOR_REVERT_POINT()+'/', '', 1)
             requester = headers.get('requesterID')
             headers = self.get_headers(requester)
             
@@ -278,9 +286,11 @@ def actuator_agent(config_path, **kwargs):
                 self.revert_point(requester, point)
             except RemoteError as ex:
                 self._handle_remote_error(ex, point, headers)
+            except StandardError as ex:
+                self._handle_standard_error(ex, point, headers)
                 
         def handle_revert_device(self, peer, sender, bus, topic, headers, message):
-            point = topic.replace(topics.ACTUATOR_SET()+'/', '', 1)
+            point = topic.replace(topics.ACTUATOR_REVERT_DEVICE()+'/', '', 1)
             requester = headers.get('requesterID')
             headers = self.get_headers(requester)
             
@@ -288,6 +298,8 @@ def actuator_agent(config_path, **kwargs):
                 self.revert_device(requester, point)
             except RemoteError as ex:
                 self._handle_remote_error(ex, point, headers)
+            except StandardError as ex:
+                self._handle_standard_error(ex, point, headers)
         
         @RPC.export
         def revert_point(self, requester_id, topic, **kwargs):  
