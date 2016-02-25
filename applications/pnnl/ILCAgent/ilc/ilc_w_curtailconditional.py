@@ -246,7 +246,78 @@ class HistoryCriterion(BaseCriterion):
         self.history_time = time_stamp - self.previous_time_delta
         self.current_value = data[self.point_name]
         self.history.appendleft((time_stamp, self.current_value))
+        
+        
+class CurtailmentSetting(object):
+    def __init__(self, point = None, value = None, load = None, offset=None):
+        if None in (point, value, load):
+            raise ValueError('Missing parameter')
+        self.point = point
+        self.load = load
+        self.value = value
+        self.offset = offset
+        
+    def ingest_data(self, data):
+        if self.offset is not None:
+            self.value = data[self.point] + self.offset
+            
+    def get_curtailment_dict(self):
+        return {"point": self.point,
+                "value": self.value,
+                "load": self.load}
 
+class ConditionalCurtailment(object):
+    def __init__(self, condition = None, conditional_args = None, **kwargs):
+        if None in (condition, conditional_args):
+            raise ValueError('Missing parameter')
+        self.conditional_args = conditional_args
+        self.points = symbols(conditional_args)
+        self.expr = parse_expr(condition)
+        
+        self.curtailment = CurtailmentSetting(**kwargs)
+
+    def check_condition(self):
+        if self.pt_list:
+            val = self.expr.subs(self.pt_list)
+        else:
+            val = False
+        return val
+
+    def ingest_data(self, data):
+        pt_list = []
+        for item in self.conditional_args:
+            pt_list.append((item, data[item]))
+        self.pt_list = pt_list
+        self.curtailment.ingest_data(data)
+        
+    def get_curtailment(self):
+        return self.curtailment.get_curtailment_dict()
+    
+class CurtailmentManager(object):
+    def __init__(self, conditional_curtailment_settings = [], **kwargs):
+        
+        self.default_curtailment = CurtailmentSetting(**kwargs)
+        
+        self.conditional_curtailments = []
+        for settings in conditional_curtailment_settings:
+            conditional_curtailment = ConditionalCurtailment(**settings)
+            self.conditional_curtailments.append(conditional_curtailment)
+            
+    def ingest_data(self, data):
+        for conditional_curtailment in self.conditional_curtailments:
+            conditional_curtailment.ingest_data(data)
+            
+        self.curtailment.ingest_data(data)
+            
+    def get_curtailment(self):
+        curtailment = self.default_curtailment.get_curtailment_dict()
+        
+        for conditional_curtailment in self.conditional_curtailments:
+            if conditional_curtailment.check_condition():
+                curtailment = conditional_curtailment.get_curtailment_dict()
+                break
+            
+        return curtailment
 
 class Criteria(object):
     def __init__(self, criteria):
@@ -254,12 +325,16 @@ class Criteria(object):
         self.criteria = {}
         criteria = deepcopy(criteria)
 
-        self.curtailment = criteria.pop('curtail')
+        default_curtailment = criteria.pop('curtail')
+        conditional_curtailment = criteria.pop('conditional_curtail', [])
+        
+        self.curtailment_manager = CurtailmentManager(conditional_curtailment_settings = conditional_curtailment,
+                                                      **default_curtailment)
 
         # Verify all curtailment parameters.
         for key in ('point', 'value', 'load'):
             if key not in self.curtailment:
-                raise Exception('Missing {key} parameter from curtailment settings.'.format(key=key))
+                raise Exception('Missing {key} parameter from default curtailment settings.'.format(key=key))
 
         self.curtail_count = 0
 
@@ -283,6 +358,8 @@ class Criteria(object):
     def ingest_data(self, time_stamp, data):
         for criterion in self.criteria.values():
             criterion.ingest_data(time_stamp, data)
+            
+        self.curtailment_manager.ingest_data(data)
 
     def reset_curtail_count(self):
         self.curtail_count = 0.0
@@ -292,7 +369,7 @@ class Criteria(object):
         self.curtail_count += 1.0
 
     def get_curtailment(self):
-        return self.curtailment.copy()
+        return self.curtailment_manager.get_curtailment()
 
     def reset_currently_curtailed(self):
         self.currently_curtailed = True
