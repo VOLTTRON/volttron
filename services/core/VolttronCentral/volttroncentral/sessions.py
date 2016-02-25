@@ -46,7 +46,6 @@ class SessionHandler:
         """Check if a user token has been authenticated."""
         if not self._session_tokens:
             self._load_auths()
-
         session = self._session_tokens.get(str(token))
         if session:
             return session['ip'] == ip

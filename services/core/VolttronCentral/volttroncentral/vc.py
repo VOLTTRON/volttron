@@ -88,7 +88,6 @@ _log = logging.getLogger(__name__)
 # current agent's installed path
 WEB_ROOT = p.abspath(p.join(p.dirname(__file__), 'webroot'))
 
-
 def volttron_central_agent(config_path, **kwargs):
     '''The main entry point for the volttron central agent
 
@@ -136,6 +135,13 @@ def volttron_central_agent(config_path, **kwargs):
             self._external_addresses = None
             self._vip_channels = {}
 
+        @property
+        def _secret_key(self):
+            return "nLmch7ojRGnbnUnnB27N01WTFPaaNY48r1tAPm2Q5Vc"
+
+        @property
+        def _public_key(self):
+            return "zhvTPwcAei7A14j_jyvviUNea-ZdXWmYqxSVHTHUoRY"
 
         def list_agents(self, uuid):
             platform = self.registry.get_platform(uuid)
@@ -165,6 +171,7 @@ def volttron_central_agent(config_path, **kwargs):
 
             return value
 
+
         @RPC.export
         def register_instance(self, uri, display_name=None):
             """ Register an instance with VOLTTRON Central.
@@ -181,12 +188,32 @@ def volttron_central_agent(config_path, **kwargs):
             :param display_name:
             :return:
             """
+
+            _log.info('Attempting to register {}'.format(uri))
+            # Make sure that the agent is reachable.
             request_uri = "http://{}/discovery/".format(uri)
-            res = requests.get(uri)
+            res = requests.get(request_uri)
             if not res.ok:
                 return 'Unreachable'
 
+            serverkey = res.json()['serverkey']
+            vip_address = res.json()['vip-address']
+            _log.debug("VIPADDRESS: {}".format(vip_address))
 
+            # TODO see if we are running in developer mode or not.
+            agent = Agent(address=vip_address, identity='volttron.central',
+                          publickey=self._public_key,
+                          secretkey=self._secret_key, serverkey=serverkey)
+
+            event = gevent.event.Event()
+            gevent.spawn(agent.core.run, event)#.join(0)
+            event.wait(timeout=30)
+
+            hello = agent.vip.hello().get(timeout=30)
+
+            ping_response = agent.vip.ping('platform.agent').get(timeout=5)
+            _log.debug("PING RESPONSE")
+            _log.debug(ping_response)
 
 
         @RPC.export
@@ -304,6 +331,21 @@ def volttron_central_agent(config_path, **kwargs):
                     _log.info('Session created for {}'.format(rpcdata.params['username']))
                     return jsonrpc.json_result(rpcdata.id, sess)
 
+                _log.debug(data)
+                jsondata = jsonapi.loads(data)
+                token = jsondata.get('authorization', None)
+                ip = env['REMOTE_ADDR']
+
+                if not self._sessions.check_session(token, ip):
+                    return jsonrpc.json_error(rpcdata.id, UNAUTHORIZED,
+                                              "Invalid authentication token")
+
+                if rpcdata.method == 'register_instance':
+                    _log.debug("**rpcdata.params")
+                    _log.debug(rpcdata.params)
+                    return self.register_instance(**rpcdata.params)
+
+
 
             except AssertionError:
                 return jsonapi.dumps(jsonrpc.json_error('NA', INVALID_REQUEST,
@@ -315,21 +357,10 @@ def volttron_central_agent(config_path, **kwargs):
         def starting(self, sender, **kwargs):
             '''This event is triggered when the platform is ready for the agent
             '''
-            _log.debug('DoING STARTUP!')
+            _log.info('Starting Volttron Central Agent')
 
             q = query.Query(self.core)
             result = q.query('addresses').get(timeout=10)
-
-# hander_config = [
-#     (r'/jsonrpc', ManagerRequestHandler),
-#     (r'/jsonrpc/', ManagerRequestHandler),
-#     (r'/websocket', StatusHandler),
-#     (r'/websocket/', StatusHandler),
-#     (r'/log', LogHandler),
-#     (r'/log/', LogHandler),
-#     (r"/(.*)", tornado.web.StaticFileHandler,
-#      {"path": WEB_ROOT, "default_filename": "index.html"})
-# ]
 
             #TODO: Use all addresses for fallback, #114
             self._external_addresses = (result and result[0]) or self.core.address

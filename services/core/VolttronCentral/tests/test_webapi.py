@@ -82,8 +82,9 @@ def vc_agent(request, volttron_instance1_web):
     request.addfinalizer(cleanup)
     return retvalue
 
-@pytest.fixture(params=["admin:admin",
-                        "reader:reader"])
+# @pytest.fixture(params=["admin:admin",
+#                         "reader:reader"])
+@pytest.fixture(params=["admin:admin"])
 def vc_agent_with_auth(request, volttron_instance1_web):
     agent_uuid = volttron_instance1_web.install_agent(
         agent_dir="services/core/VolttronCentral",
@@ -174,6 +175,13 @@ def do_rpc(method, params=None, auth_token=None, rpc_root=None):
 
     return requests.post(rpc_root, data=data)
 
+def validate_response(response):
+    assert response.ok
+    rpcdict = response.json()
+    assert rpcdict['jsonrpc'] == '2.0'
+    assert rpcdict['id']
+    assert 'error' in rpcdict.keys() or 'result' in rpcdict.keys()
+
 # @pytest.mark.web
 # def test_register_local_instance(request, vc_agent_with_auth,
 #                                  platform_agent_on_instance1):
@@ -186,21 +194,35 @@ def do_rpc(method, params=None, auth_token=None, rpc_root=None):
 #     #assert platform_agent_on_instance1
 
 @pytest.mark.web
-@pytest.mark.xfail(reason="We haven't finished implementing yet!")
 def test_register_instance(volttron_instance1_web, volttron_instance2_web,
-                           vc_agent_with_auth, platform_agent_on_instance1,
-                           platform_agent_on_instance2):
+                           vc_agent_with_auth):
+    # , platform_agent_on_instance1,
+    #                       platform_agent_on_instance2):
     if vc_agent_with_auth['username'] == 'reader':
         pytest.skip("user: reader can't register new instances.")
 
     # the root jsonrpc
     rpc_addr = vc_agent_with_auth['jsonrpc']
 
+    # Make smaller names for the instances so that it's easier to deal with
+    vi1 = volttron_instance1_web
+    vi2 = volttron_instance2_web
+
     assert rpc_addr
     assert vc_agent_with_auth['username'] == 'admin'
-    assert volttron_instance2_web.bind_web_address !=\
-           volttron_instance1_web.bind_web_address
-    pytest.faile('Now we need to actually do the registration rpc call')
+    assert vi1.bind_web_address
+    assert vi2.bind_web_address != vi1.bind_web_address
+
+    # This is where we make the request to the vc server to register the
+    # secondary platform.
+    p = {'uri': vi2.bind_web_address}
+    res = do_rpc(auth_token=vc_agent_with_auth['auth_token'],
+                 method="register_instance", params=p, rpc_root=rpc_addr )
+    assert res.ok
+    validate_response(res)
+    result = res.json()['result']
+    assert result['status'] == 'SUCCESS'
+
 
 @pytest.mark.web
 def test_can_login_as_admin(vc_agent, platform_agent_on_instance1):
