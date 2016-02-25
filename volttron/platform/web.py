@@ -149,7 +149,12 @@ class MasterWebService(Agent):
                 external_vip = x
                 break
         start_response('200 OK', [('Content-Type', 'application/json')])
-        return jsonapi.dumps({"serverkey": encode_key(self.serverkey),
+        if self.serverkey:
+            sk = encode_key(self.serverkey)
+        else:
+            sk = None
+
+        return jsonapi.dumps({"serverkey": sk,
                               "vip-address": external_vip})
 
     def app_routing(self, env, start_response):

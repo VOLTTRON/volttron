@@ -413,6 +413,7 @@ def start_volttron_process(opts):
     # Get or generate encryption key
     if opts.developer_mode:
         secretkey = None
+        publickey = None
         _log.warning('developer mode enabled; '
                      'authentication and encryption are disabled!')
     else:
