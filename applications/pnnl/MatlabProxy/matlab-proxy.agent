@@ -5,14 +5,14 @@
     "activemq_port": 61613,
     "activemq_user": "admin",
     "activemq_password": "password",
-    "request_queue": "/topic/matlab/request",
-    "response_queue": "/topic/matlab/response",
+    "request_queue": "/topic/matlab/request1",
+    "response_queue": "/topic/matlab/response1",
    
-    "status_format": [["RTU1Compressor1",{"ThermostatSetPointTemperature":0,"ThermostatZoneTemperature":1,"RTUOnOffStatus":2}],
-    					["RTU1Compressor2",{"ThermostatSetPointTemperature":0,"ThermostatZoneTemperature":1,"RTUOnOffStatus":2}],
-    					["RTU2",{"ThermostatSetPointTemperature":0,"ThermostatZoneTemperature":1,"RTUOnOffStatus":2}],
-    					["RTU3",{"ThermostatSetPointTemperature":0,"ThermostatZoneTemperature":1,"RTUOnOffStatus":2}],
-    					["RTU4",{"ThermostatSetPointTemperature":0,"ThermostatZoneTemperature":1,"RTUOnOffStatus":2}]],
+    "status_format": [["RTU1Compressor1",{"ThermostatSetPointTemperature":0,"ThermostatZoneTemperature":1,"RTUOnOffStatus":2, "OccupancyMode":3}],
+    					["RTU1Compressor2",{"ThermostatSetPointTemperature":0,"ThermostatZoneTemperature":1,"RTUOnOffStatus":2, "OccupancyMode":3}],
+    					["RTU2",{"ThermostatSetPointTemperature":0,"ThermostatZoneTemperature":1,"RTUOnOffStatus":2, "OccupancyMode":3}],
+    					["RTU3",{"ThermostatSetPointTemperature":0,"ThermostatZoneTemperature":1,"RTUOnOffStatus":2, "OccupancyMode":3}],
+    					["RTU4",{"ThermostatSetPointTemperature":0,"ThermostatZoneTemperature":1,"RTUOnOffStatus":2, "OccupancyMode":3}]],
     					
     "defaults": {
     			"RTU1Compressor1":{"ThermostatSetPointTemperature":71.6},
@@ -23,12 +23,12 @@
 				},
    
    "building_power_format":{
-   							"building_power_row_index":3,
+   							"building_power_row_index":4,
    							"building_power_device":"PowerMeter",
    							"building_power_point":"power"
    							},
    
-	"timestamp_row": 4,
+	"timestamp_row": 5,
 	
 	"interval": 0.25
 	
