@@ -60,6 +60,7 @@
 import argparse
 from dateutil.parser import parse
 from datetime import timedelta
+import errno
 import logging
 import os
 import pytz
@@ -73,6 +74,7 @@ import gevent
 
 from zmq.utils import jsonapi
 
+from ..lib.inotify.green import inotify, IN_MODIFY
 
 __all__ = ['load_config', 'run_agent', 'start_agent_thread']
 
@@ -302,3 +304,27 @@ def process_timestamp(timestamp_string):
         original_tz = timestamp.tzinfo
         timestamp = timestamp.astimezone(pytz.UTC)
     return timestamp, original_tz
+
+def watch_file(fullpath, callback):
+    '''Run callback method whenever the file changes'''
+    dirname, filename = os.path.split(fullpath)
+    with inotify() as inot:
+        inot.add_watch(dirname, IN_MODIFY)
+        for event in inot:
+            if event.name == filename and event.mask & IN_MODIFY:
+                callback()
+
+def create_file_if_missing(path, permission=0o660, contents=None):
+    try:
+        fil = open(path)
+    except IOError as exc:
+        if exc.errno != errno.ENOENT:
+            raise
+        _log.debug('missing file %s', path)
+        _log.info('creating file %s', path)
+        fd = os.open(path, os.O_CREAT|os.O_WRONLY, permission)
+        try:
+            if contents:
+                os.write(fd, contents)
+        finally:
+            os.close(fd)
