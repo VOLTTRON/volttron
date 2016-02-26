@@ -307,14 +307,14 @@ class CurtailmentManager(object):
         for conditional_curtailment in self.conditional_curtailments:
             conditional_curtailment.ingest_data(data)
             
-        self.curtailment.ingest_data(data)
+        self.default_curtailment.ingest_data(data)
             
     def get_curtailment(self):
         curtailment = self.default_curtailment.get_curtailment_dict()
         
         for conditional_curtailment in self.conditional_curtailments:
             if conditional_curtailment.check_condition():
-                curtailment = conditional_curtailment.get_curtailment_dict()
+                curtailment = conditional_curtailment.get_curtailment()
                 break
             
         return curtailment
@@ -332,9 +332,9 @@ class Criteria(object):
                                                       **default_curtailment)
 
         # Verify all curtailment parameters.
-        for key in ('point', 'value', 'load'):
-            if key not in self.curtailment:
-                raise Exception('Missing {key} parameter from default curtailment settings.'.format(key=key))
+        # for key in ('point', 'value', 'load'):
+            # if key not in self.curtailment:
+                # raise Exception('Missing {key} parameter from default curtailment settings.'.format(key=key))
 
         self.curtail_count = 0
 
