@@ -409,9 +409,6 @@ class Device(object):
     def get_curtailment(self, command):
         return self.criteria[command].get_curtailment()
 
-    def get_off_commands(self):
-        return [command for command, state in self.command_status.iteritems() if not state]
-
     def get_on_commands(self):
         return [command for command, state in self.command_status.iteritems() if state]
 
@@ -450,13 +447,6 @@ class Clusters(object):
     def get_device(self, device_name):
         return self.devices[device_name]
 
-    def get_off_device_set(self):
-        results = set()
-        for name, device in self.devices.iteritems():
-            results.update(((name, command) for command in device.get_off_commands()))
-
-        return results
-
     def reset_curtail_count(self):
         for device in self.devices.itervalues():
             device.reset_curtail_count()
@@ -464,13 +454,6 @@ class Clusters(object):
     def reset_currently_curtailed(self):
         for device in self.devices.itervalues():
             device.reset_currently_curtailed()
-
-    def get_on_device_set(self):
-        results = set()
-        for name, device in self.devices.iteritems():
-            results.update(((name, command) for command in device.get_on_commands()))
-
-        return results
 
     def get_score_order(self):
         all_scored_devices = []
@@ -595,8 +578,6 @@ def ilc_agent(config_path, **kwargs):
             super(AHP, self).__init__(**kwargs)
             self.running_ahp = False
             self.row_average = None
-            self.remaining_devices = []
-            self.saved_off_device_set = set()
             self.next_curtail_confirm = None
             self.curtail_end = None
             self.break_end = None
@@ -716,15 +697,13 @@ def ilc_agent(config_path, **kwargs):
             if bldg_power > demand_limit:
                 _log.info('Current load ({load}) exceeds limit or {limit}.'.format(load=bldg_power, limit=demand_limit))
 
-                self.saved_off_device_set = clusters.get_off_device_set()
-
                 score_order = clusters.get_score_order()
                 if not score_order:
                     _log.info('All devices are off, nothing to curtail.')
                     return
 
                 scored_devices = self.actuator_request(score_order)
-                self.remaining_devices = self.curtail(scored_devices, bldg_power, now)
+                self.curtail(scored_devices, bldg_power, now)
 
         def curtail(self, scored_devices, bldg_power, now):
             '''Curtail loads by turning off device (or device components)'''
@@ -739,6 +718,10 @@ def ilc_agent(config_path, **kwargs):
             if not self.running_ahp:
                 _log.info('Starting AHP')
                 self.running_ahp = True
+                
+            if not remaining_devices:
+                _log.debug("Everything available has already been curtailed")
+                return 
 
             self.curtail_end = now + curtail_time
             self.break_end = now + curtail_break + curtail_time
@@ -778,11 +761,7 @@ def ilc_agent(config_path, **kwargs):
                 if est_curtailed >= need_curtailed:
                     break
 
-            for device in self.devices_curtailed:
-                if device in remaining_devices:
-                    remaining_devices.remove(device)
-
-            return remaining_devices
+            return
 
         def curtail_confirm(self, cur_pwr, now):
             '''Check if load shed has been met.  If the demand goal is not
@@ -794,18 +773,7 @@ def ilc_agent(config_path, **kwargs):
                 _log.info('Curtail goal for building load met.')
             else:
                 _log.info('Curtail goal for building load NOT met.')
-                on_device_set = clusters.get_on_device_set()
-                new_on_device_set = self.saved_off_device_set.union(on_device_set)
-
-                if not new_on_device_set:
-                    if self.remaining_devices:
-                        self.remaining_devices = self.curtail(self.remaining_devices, cur_pwr, now)
-                    else:
-                        _log.info('Did not meet load curtailment '
-                                  'goal but there are no further '
-                                  'available loads to remove.')
-                else:
-                    self.check_load(cur_pwr, now)
+                self.check_load(cur_pwr, now)
 
         def actuator_request(self, score_order):
             '''request access to devices.'''
