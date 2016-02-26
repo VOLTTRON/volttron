@@ -50,10 +50,13 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-
 #}}}
 
+
 from __future__ import absolute_import, print_function
+
+__version__ = '3.1'
+
 import base64
 from datetime import datetime
 import gevent
@@ -74,7 +77,8 @@ import gevent
 from zmq.utils import jsonapi
 from volttron.platform.vip.agent import *
 
-from volttron.platform import vip, jsonrpc, control
+from volttron.platform import jsonrpc, control
+from volttron.platform.keystore import KeyStore
 from volttron.platform.control import Connection
 from volttron.platform.agent import utils
 
@@ -84,12 +88,6 @@ from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-
-def get_error_response(code, message, data=None):
-    return {'jsonrpc': '2.0',
-            'error': {'code': code, 'message': message, 'data': data}
-            }
-
 
 def platform_agent(config_path, **kwargs):
     config = utils.load_config(config_path)
@@ -121,6 +119,14 @@ def platform_agent(config_path, **kwargs):
             self._agent_configurations = {}
             self._sibling_cache = {}
             self._vip_channels = {}
+            self._keystore = KeyStore()
+
+            if os.path.exists("volttron.central"):
+                with open("volttron.central",'r') as fin:
+                    self._vc = jsonapi.loads(fin.read())
+            else:
+                self._vc = None
+
 
         def _store_settings(self):
             with open('platform.settings', 'wb') as f:
@@ -151,6 +157,34 @@ def platform_agent(config_path, **kwargs):
                 agent = self._vip_channels[address]
             return agent
 
+        @RPC.export
+        def manage_platform(self, uri, vc_pubkey):
+            """ Manage this platform.
+
+            The uri is the ip:port that has a volttron.central agent running
+            on the instance.
+
+            :param uri: discovery uri for the volttron central instance.
+            :param vc_pubkey: public key for the volttron.central agent.
+            :return:
+            """
+            if not self._vc:
+                res = requests.get("http://{}/discovery/".format(uri))
+                assert res.ok
+                tmpvc = jsonapi.loads(res.json())
+                assert tmpvc == vc_pubkey
+                self._vc = tmpvc
+                with open("volttron.central", 'w') as fout:
+                    fout.write(jsonapi.dumps(tmpvc))
+            else:
+                assert vc_pubkey == self._vc['serverkey']
+
+            return self._keystore.public()
+            # if I am alreay managed throw error
+
+            # Add vc_pubkey to known hosts
+            # register vc_pubkey with manager capability.
+            #pass
 
         @RPC.export
         def set_setting(self, key, value):
@@ -309,7 +343,7 @@ def platform_agent(config_path, **kwargs):
                 _log.debug('We are trying to exectute method {}'.format(method))
                 if isinstance(params, list) and len(params) != 1 or \
                     isinstance(params, dict) and 'uuid' not in params.keys():
-                    result['code'] = INVALID_PARAMS
+                    result = jsonrpc.json_error(ident=id, code=INVALID_PARAMS)
                 else:
                     if isinstance(params, list):
                         uuid = params[0]
@@ -327,7 +361,7 @@ def platform_agent(config_path, **kwargs):
             elif method in ('install'):
 
                 if not 'files' in params:
-                    result = {'code': INVALID_PARAMS}
+                    result = jsonrpc.json_error(ident=id, code=INVALID_PARAMS)
                 else:
                     result = self._install_agents(params['files'])
 
@@ -345,10 +379,10 @@ def platform_agent(config_path, **kwargs):
 
                 else:
 
-                    result = {'code': METHOD_NOT_FOUND}
+                    result = jsonrpc.json_error(ident=id, code=METHOD_NOT_FOUND)
 
                     if len(fields) < 3:
-                        result = result = {'code': METHOD_NOT_FOUND}
+                        result = jsonrpc.json_error(ident=id, code=METHOD_NOT_FOUND)
                     else:
                         agent_uuid = fields[2]
                         agent_method = '.'.join(fields[3:])
@@ -369,7 +403,8 @@ def platform_agent(config_path, **kwargs):
 
         @RPC.export
         def list_agent_methods(self, method, params, id, agent_uuid):
-            return get_error_response(id, INTERNAL_ERROR, 'Not implemented')
+            return jsonrpc.json_error(ident=id, code=INTERNAL_ERROR,
+                                      message='Not implemented')
 
         @RPC.export
         def manage(self, address, identity):
