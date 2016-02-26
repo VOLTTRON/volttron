@@ -331,11 +331,6 @@ class Criteria(object):
         self.curtailment_manager = CurtailmentManager(conditional_curtailment_settings = conditional_curtailment,
                                                       **default_curtailment)
 
-        # Verify all curtailment parameters.
-        # for key in ('point', 'value', 'load'):
-            # if key not in self.curtailment:
-                # raise Exception('Missing {key} parameter from default curtailment settings.'.format(key=key))
-
         self.curtail_count = 0
 
         for name, criterion in criteria.items():
