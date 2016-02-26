@@ -59,7 +59,9 @@ from __future__ import absolute_import
 
 from base64 import b64encode, b64decode
 import inspect
+import logging
 import random
+import re
 import weakref
 
 from zmq import green as zmq
@@ -74,6 +76,7 @@ from .... import jsonrpc
 
 __all__ = ['PubSub']
 
+_log = logging.getLogger(__name__)
 
 def encode_peer(peer):
     if peer.startswith('\x00'):
@@ -93,6 +96,7 @@ class PubSub(SubsystemBase):
         self.peerlist = weakref.ref(peerlist_subsys)
         self._peer_subscriptions = {}
         self._my_subscriptions = {}
+        self.protected_topics = ProtectedPubSubTopics()
 
         def setup(sender, **kwargs):
             # pylint: disable=unused-argument
@@ -219,6 +223,7 @@ class PubSub(SubsystemBase):
         self._distribute(peer, topic, headers, message, bus)
 
     def _distribute(self, peer, topic, headers, message=None, bus=''):
+        self._check_if_protected_topic(topic)
         subscriptions = self._peer_subscriptions[bus]
         subscribers = set()
         for prefix, subscription in subscriptions.iteritems():
@@ -373,9 +378,42 @@ class PubSub(SubsystemBase):
         if headers is None:
             headers = {}
         if peer is None:
-            self._distribute(self.core().socket.identity,
-                             topic, headers, message, bus)
+            peer = 'pubsub'
+        return self.rpc().call(
+            peer, 'pubsub.publish', topic=topic, headers=headers,
+            message=message, bus=bus)
+
+    def _check_if_protected_topic(self, topic):
+        required_caps = self.protected_topics.get(topic)
+        if required_caps:
+            user = str(self.rpc().context.vip_message.user)
+            caps = self.rpc().call('auth', 'get_capabilities',
+                                   user_id=user).get(timeout=5)
+            if not set(required_caps) <= set(caps):
+                msg = ('to publish to topic "{}" requires capabilities {},'
+                      ' but capability list {} was'
+                      ' provided').format(topic, required_caps, caps)
+                raise jsonrpc.exception_from_json(jsonrpc.UNAUTHORIZED, msg)
+
+class ProtectedPubSubTopics(object):
+    '''Simple class to contain protected pubsub topics'''
+    def __init__(self):
+        self._dict = {}
+        self._re_list = []
+
+    def add(self, topic, capabilities):
+        if isinstance(capabilities, basestring):
+            capabilities = [capabilities]
+        if len(topic) > 1 and topic[0] == topic[-1] == '/':
+            regex = re.compile('^' + topic[1:-1] + '$')
+            self._re_list.append((regex, capabilities))
         else:
-            return self.rpc().call(
-                peer, 'pubsub.publish', topic=topic, headers=headers,
-                message=message, bus=bus)
+            self._dict[topic] = capabilities
+
+    def get(self, topic):
+        if topic in self._dict:
+            return self._dict[topic]
+        for regex, capabilities in self._re_list:
+            if regex.match(topic):
+                return capabilities
+        return None
