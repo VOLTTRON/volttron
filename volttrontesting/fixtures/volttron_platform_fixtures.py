@@ -11,18 +11,20 @@ def print_log(volttron_home):
             print(fin.read())
 
 
-def get_rand_port():
+def get_rand_port(ip=None):
     from random import randint
     port = randint(5000, 6000)
-    while is_port_open(port):
+    while is_port_open(ip, port):
         port = randint(5000, 6000)
     return port
 
 
-def is_port_open(port):
+def is_port_open(ip, port):
     import socket
+    if not ip:
+        ip = '127.0.0.1'
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    result = sock.connect_ex(('127.0.0.1',port))
+    result = sock.connect_ex((ip, port))
     return result == 0
 
 
