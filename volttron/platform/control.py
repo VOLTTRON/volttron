@@ -60,6 +60,7 @@ from __future__ import absolute_import, print_function
 
 import argparse
 import collections
+import json
 import logging
 import logging.handlers
 import os
@@ -77,6 +78,7 @@ from .vip.agent import Agent as BaseAgent, Core, RPC
 from . import aip as aipmod
 from . import config
 from .jsonrpc import RemoteError
+from .auth import AuthEntry, AuthFile
 from .keystore import KeyStore, KnownHostsStore
 
 try:
@@ -494,8 +496,7 @@ def gen_keypair(opts):
     keystore = KeyStore(opts.keystore_file)
     if os.path.isfile(opts.keystore_file):
         _stdout.write('{} already exists.\n'.format(opts.keystore_file))
-        choice = raw_input('Overwrite (y/n)? ')
-        if not choice or choice.lower()[0] != 'y':
+        if not _ask_yes_no('Overwrite?', default='no'):
             return
     keystore.generate()
     _stdout.write('public key: {}\n'.format(keystore.public()))
@@ -520,6 +521,126 @@ def do_stats(opts):
     else:
         call('stats.' + opts.op)
         _stdout.write('%sabled\n' % ('en' if call('stats.enabled') else 'dis'))
+
+def _get_auth_file(volttron_home):
+    path = os.path.join(volttron_home, 'auth.json')
+    return AuthFile(path)
+
+def _print_result(success, msg):
+    if success:
+        _stdout.write('%s\n' % msg)
+    else:
+        _stderr.write('ERROR: %s\n' % msg)
+
+def list_auth(opts, indices=None):
+    auth_file = _get_auth_file(opts.volttron_home)
+    entries = auth_file.read()
+    print_out = []
+    if entries:
+        for index, entry in enumerate(entries):
+            if indices is None or index in indices:
+                _stdout.write('\nINDEX: {}\n'.format(index))
+                _stdout.write('{}\n'.format(json.dumps(vars(entry), indent=2)))
+    else:
+        _stdout.write('No entries in {}\n'.format(auth_file.auth_file))
+
+def _ask_for_auth_fields(domain=None, address=None, user_id=None,
+                        capabilities=None, roles=None, groups=None,
+                        credentials='NULL', **kwargs):
+
+    class Asker(object):
+        def __init__(self):
+            self._fields = {}
+
+        def add(self, name, default=None, note=None, callback=lambda x: x,
+                validate=lambda x: (True, '')):
+            self._fields[name] = {'note': note, 'default': default,
+                                  'callback': callback, 'validate': validate}
+
+        def ask(self):
+            for name in self._fields:
+                note = self._fields[name]['note']
+                default = self._fields[name]['default']
+                callback = self._fields[name]['callback']
+                validate = self._fields[name]['validate']
+
+                note = '({}) '.format(note) if note else ''
+                question = '{} {}[{}]: '.format(name, note,
+                                                default if default else '')
+                valid = False
+                while not valid:
+                    response = callback(raw_input(question).rstrip()) or default
+                    valid, msg = validate(response)
+                    if not valid:
+                        _stderr.write('{}\n'.format(msg))
+
+                self._fields[name]['response'] = response
+            return {k : self._fields[k]['response'] for k in self._fields}
+
+    comma_split = lambda x: x.split(',') if x else []
+    asker = Asker()
+    asker.add('domain', domain)
+    asker.add('address', address)
+    asker.add('user_id', user_id)
+    asker.add('capabilities', capabilities,
+              'delimit multiple entries with comma', comma_split)
+    asker.add('roles', roles, 'delimit multiple entries with comma',
+              comma_split)
+    asker.add('groups', groups, 'delimit multiple entries with comma',
+              comma_split)
+    asker.add('credentials', credentials, validate=AuthEntry.valid_credentials)
+
+    return asker.ask()
+
+def add_auth(opts):
+    responses = _ask_for_auth_fields()
+    entry = AuthEntry(**responses)
+    auth_file = _get_auth_file(opts.volttron_home)
+    _print_result(*auth_file.add(entry))
+
+def _ask_yes_no(question, default='yes'):
+    yes = set(['yes', 'ye', 'y'])
+    no = set(['no', 'n'])
+    y = 'y'
+    n = 'n'
+    if default in yes:
+        y = 'Y'
+    elif default in no:
+        n = 'N'
+    else:
+        raise ValueError("invalid default answer: '%s'" %  default)
+    while True:
+        choice = raw_input('{} [{}/{}] '.format(question, y, n)).lower()
+        if choice == '':
+            choice = default
+        if choice in yes:
+            return True
+        if choice in no:
+            return False
+        _stderr.write("Please respond with 'yes' or 'no'\n")
+
+def remove_auth(opts):
+    auth_file = _get_auth_file(opts.volttron_home)
+    entry_count = len(auth_file.read())
+    if all(i >= 0 and i < entry_count for i in opts.indices):
+        entry_str = 'entries' if len(opts.indices) > 1 else 'entry'
+        _stdout.write('This action will delete the following '
+                      '{}:\n'.format(entry_str))
+        list_auth(opts, opts.indices)
+        if not _ask_yes_no('Do you wish to delete the {}?'.format(entry_str)):
+            return
+    _print_result(*auth_file.remove_by_indices(opts.indices))
+
+def update_auth(opts):
+    auth_file = _get_auth_file(opts.volttron_home)
+    entries = auth_file.read()
+    try:
+        entry = entries[opts.index]
+        response = _ask_for_auth_fields(**entry.__dict__)
+    except IndexError:
+        _stderr.write('ERROR: invalid index %s\n' % opts.index)
+    else:
+        _print_result(*auth_file.update_by_index(AuthEntry(**response), opts.index))
 
 
 # XXX: reimplement over VIP
@@ -795,6 +916,24 @@ def main(argv=sys.argv):
     op = stats.add_argument(
         'op', choices=['status', 'enable', 'disable', 'dump', 'pprint'], nargs='?')
     stats.set_defaults(func=do_stats, op='status')
+
+    auth_list = add_parser('auth-list', help='list authentication records')
+    auth_list.set_defaults(func=list_auth)
+
+    auth_add = add_parser('auth-add', help='add new authentication record')
+    auth_add.set_defaults(func=add_auth)
+
+    auth_remove = add_parser('auth-remove',
+        help='removes one or more authentication records by indices')
+    auth_remove.add_argument('indices', nargs='+', type=int,
+        help='index or indices of record(s) to remove')
+    auth_remove.set_defaults(func=remove_auth)
+
+    auth_update = add_parser('auth-update',
+        help='updates one authentication record by index')
+    auth_update.add_argument('index', type=int,
+        help='index of record to update')
+    auth_update.set_defaults(func=update_auth)
 
     if HAVE_RESTRICTED:
         cgroup = add_parser('create-cgroups',
