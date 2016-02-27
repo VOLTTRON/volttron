@@ -193,14 +193,18 @@ class BasicRevert(object):
     def __init__(self, **kwargs):
         super(BasicRevert, self).__init__(**kwargs)
         self._tracker = RevertTracker()
+        
+    def update_clean_values(self, points):
+        self._tracker.update_clean_values(points)
     
     def set_default(self, point, value):    
         self._tracker.set_default(point, value)
         
     
     def set_point(self, point_name, value):
-        self._set_point(self, point_name, value)        
+        result = self._set_point(point_name, value)        
         self._tracker.mark_dirty_point(point_name)
+        return result
     
     @abc.abstractmethod    
     def _set_point(self, point_name, value):

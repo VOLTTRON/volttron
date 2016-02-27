@@ -82,7 +82,7 @@ class FakeRegister(BaseRegister):
                 self._value = self.reg_type()
 
 
-class Interface(BaseInterface, BasicRevert):
+class Interface(BasicRevert, BaseInterface):
     def __init__(self, **kwargs):
         super(Interface, self).__init__(**kwargs)
 
@@ -94,14 +94,13 @@ class Interface(BaseInterface, BasicRevert):
 
         return register._value
 
-    def set_point(self, point_name, value):
+    def _set_point(self, point_name, value):
         register = self.get_register_by_name(point_name)
         if register.read_only:
             raise IOError("Trying to write to a point configured read only: " + point_name)
 
         register._value = register.reg_type(value)
-        result = value
-        return result
+        return register._value
 
     def scrape_all(self):
         result = {}
@@ -109,6 +108,8 @@ class Interface(BaseInterface, BasicRevert):
         write_registers = self.get_registers_by_type("byte", False)
         for register in read_registers + write_registers:
             result[register.point_name] = register._value
+            
+        self.update_clean_values(result)
 
         return result
 
@@ -142,5 +143,8 @@ class Interface(BaseInterface, BasicRevert):
                 reg_type,
                 default_value=default_value,
                 description=description)
+            
+            if default_value is not None:
+                self.set_default(point_name, register._value)
 
             self.insert_register(register)
