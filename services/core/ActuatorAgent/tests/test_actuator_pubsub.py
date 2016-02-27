@@ -36,13 +36,32 @@ def cancel_schedules(request, publish_agent):
     request.addfinalizer(cleanup)
     return cleanup_parameters
 
+@pytest.fixture(scope="function")
+def revert_devices(request, publish_agent):
+    cleanup_parameters = []
+
+    def cleanup():
+        for device in cleanup_parameters:
+            print('Requesting revert on device:', device['device'], 'from agent:', device['agentid'])
+            publish_agent.vip.rpc.call(
+                PLATFORM_ACTUATOR,  # Target agent
+                'revert_device',  # Method
+                device['agentid'],  # Requestor
+                device['device']  # Point to revert
+            ).get(timeout=10)
+            gevent.sleep(
+                1)  # sleep so that the message is sent to pubsub before next test monitors callback method calls
+
+    request.addfinalizer(cleanup)
+    return cleanup_parameters
+
 
 @pytest.fixture(scope="module")
 def publish_agent(request, volttron_instance1):
     global actuator_uuid
     # Create master driver config and 4 fake devices each with 6 points
     process = Popen(['python', 'config_builder.py', '--count=4', '--publish-only-depth-all',
-                     'fake', 'fake6.csv', 'null'], env=volttron_instance1.env, cwd='scripts/scalability-testing',
+                     'fake', 'fake_unit_testing.csv', 'null'], env=volttron_instance1.env, cwd='scripts/scalability-testing',
                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     result = process.wait()
     print result
@@ -1538,7 +1557,7 @@ def test_get_error_invalid_point(publish_agent):
 
 
 @pytest.mark.actuator_pubsub
-def test_set_value_bool(publish_agent, cancel_schedules):
+def test_set_value_bool(publish_agent, cancel_schedules, revert_devices):
     """
     Test setting a float value of a point through pubsub
     Format of expected result
@@ -1555,13 +1574,15 @@ def test_set_value_bool(publish_agent, cancel_schedules):
     print ("\n**** test_set_value_bool ****")
     agentid = TEST_AGENT
     taskid = 'task_set_bool_value'
+    device = 'fakedriver3'
     cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
+    revert_devices.append({'agentid': agentid, 'device': device})
 
     # Mock callback methods
     publish_agent.callback = MagicMock(name="callback")
     # Subscribe to result of set
-    value_topic = topics.ACTUATOR_VALUE(campus='', building='', unit='fakedriver3', point='SampleWritableBool1')
-    error_topic = topics.ACTUATOR_ERROR(campus='', building='', unit='fakedriver3', point='SampleWritableBool1')
+    value_topic = topics.ACTUATOR_VALUE(campus='', building='', unit=device, point='SampleWritableBool1')
+    error_topic = topics.ACTUATOR_ERROR(campus='', building='', unit=device, point='SampleWritableBool1')
     print ('value topic', value_topic)
     publish_agent.vip.pubsub.subscribe(peer='pubsub',
                                        prefix=value_topic,
@@ -1572,7 +1593,7 @@ def test_set_value_bool(publish_agent, cancel_schedules):
     start = str(datetime.now())
     end = str(datetime.now() + timedelta(seconds=3))
     msg = [
-        ['fakedriver3', start, end]
+        [device, start, end]
     ]
     result = publish_agent.vip.rpc.call(
         'platform.actuator',
@@ -1589,7 +1610,7 @@ def test_set_value_bool(publish_agent, cancel_schedules):
     }
 
     publish_agent.vip.pubsub.publish('pubsub',
-                                     topics.ACTUATOR_SET(campus='', building='', unit='fakedriver3',
+                                     topics.ACTUATOR_SET(campus='', building='', unit=device,
                                                          point='SampleWritableBool1'),
                                      headers=header,
                                      message=True).get(timeout=10)
@@ -1606,7 +1627,7 @@ def test_set_value_bool(publish_agent, cancel_schedules):
 
 
 @pytest.mark.actuator_pubsub
-def test_set_value_array(publish_agent, cancel_schedules):
+def test_set_value_array(publish_agent, cancel_schedules, revert_devices):
     """
     Test setting point through pubsub. Set value as array with length=1
     Format of expected result
@@ -1630,13 +1651,15 @@ def test_set_value_array(publish_agent, cancel_schedules):
     print ("\n**** test_set_value_array ****")
     agentid = TEST_AGENT
     taskid = 'task_set_array_value'
+    device = 'fakedriver0'
     cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
+    revert_devices.append({'agentid': agentid, 'device': device})
 
     # Mock callback methods
     publish_agent.callback = MagicMock(name="callback")
     # Subscribe to result of set
-    value_topic = topics.ACTUATOR_VALUE(campus='', building='', unit='fakedriver0', point='SampleWritableFloat1')
-    error_topic = topics.ACTUATOR_ERROR(campus='', building='', unit='fakedriver0', point='SampleWritableFloat1')
+    value_topic = topics.ACTUATOR_VALUE(campus='', building='', unit=device, point='SampleWritableFloat1')
+    error_topic = topics.ACTUATOR_ERROR(campus='', building='', unit=device, point='SampleWritableFloat1')
     print ('value topic', value_topic)
     publish_agent.vip.pubsub.subscribe(peer='pubsub',
                                        prefix=value_topic,
@@ -1647,7 +1670,7 @@ def test_set_value_array(publish_agent, cancel_schedules):
     start = str(datetime.now())
     end = str(datetime.now() + timedelta(seconds=3))
     msg = [
-        ['fakedriver0', start, end]
+        [device, start, end]
     ]
     result = publish_agent.vip.rpc.call(
         'platform.actuator',
@@ -1664,7 +1687,7 @@ def test_set_value_array(publish_agent, cancel_schedules):
         'requesterID': agentid
     }
 
-    set_topic = topics.ACTUATOR_SET(campus='', building='', unit='fakedriver0', point='SampleWritableFloat1')
+    set_topic = topics.ACTUATOR_SET(campus='', building='', unit=device, point='SampleWritableFloat1')
     print("set topic: ", set_topic)
     publish_agent.vip.pubsub.publish('pubsub',
                                      set_topic,
@@ -1683,7 +1706,7 @@ def test_set_value_array(publish_agent, cancel_schedules):
 
 
 @pytest.mark.actuator_pubsub
-def test_set_value_float(publish_agent, cancel_schedules):
+def test_set_value_float(publish_agent, cancel_schedules, revert_devices):
     """
     Test setting a float value of a point  through pubsub.
     Value is set without enclosing it in an list
@@ -1708,13 +1731,15 @@ def test_set_value_float(publish_agent, cancel_schedules):
     print ("\n**** test_set_value_float ****")
     agentid = TEST_AGENT
     taskid = 'task_set_float_value'
+    device = 'fakedriver2'
     cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
+    revert_devices.append({'agentid': agentid, 'device': device})
 
     # Mock callback methods
     publish_agent.callback = MagicMock(name="callback")
     # Subscribe to result of set
-    value_topic = topics.ACTUATOR_VALUE(campus='', building='', unit='fakedriver2', point='SampleWritableFloat1')
-    error_topic = topics.ACTUATOR_ERROR(campus='', building='', unit='fakedriver2', point='SampleWritableFloat1')
+    value_topic = topics.ACTUATOR_VALUE(campus='', building='', unit=device, point='SampleWritableFloat1')
+    error_topic = topics.ACTUATOR_ERROR(campus='', building='', unit=device, point='SampleWritableFloat1')
     print ('value topic', value_topic)
     publish_agent.vip.pubsub.subscribe(peer='pubsub',
                                        prefix=value_topic,
@@ -1725,7 +1750,7 @@ def test_set_value_float(publish_agent, cancel_schedules):
     start = str(datetime.now())
     end = str(datetime.now() + timedelta(seconds=3))
     msg = [
-        ['fakedriver2', start, end]
+        [device, start, end]
     ]
     result = publish_agent.vip.rpc.call(
         'platform.actuator',
@@ -1742,7 +1767,7 @@ def test_set_value_float(publish_agent, cancel_schedules):
         'requesterID': TEST_AGENT
     }
 
-    set_topic = topics.ACTUATOR_SET(campus='', building='', unit='fakedriver2', point='SampleWritableFloat1')
+    set_topic = topics.ACTUATOR_SET(campus='', building='', unit=device, point='SampleWritableFloat1')
     print("set topic: ", set_topic)
     publish_agent.vip.pubsub.publish('pubsub',
                                      set_topic,
@@ -1758,6 +1783,245 @@ def test_set_value_float(publish_agent, cancel_schedules):
     result_message = publish_agent.callback.call_args[0][5]
     assert result_header['requesterID'] == agentid
     assert result_message == 0.2
+
+@pytest.mark.dev
+def test_revert_point(publish_agent, cancel_schedules):
+    """
+    Test setting a float value of a point  through pubsub.
+    Value is set without enclosing it in an list
+    Format of expected result
+    Expected Header
+    {
+    'type': <'NEW_SCHEDULE', 'CANCEL_SCHEDULE'>
+    'requesterID': <Agent ID from the request>,
+    'taskID': <Task ID from the request>
+    }
+    Expected message
+    {
+    'result': <'SUCCESS', 'FAILURE', 'PREEMPTED'>,
+    'info': <Failure reason, if any>,
+    'data': <Data about the failure or cancellation, if any>
+    }
+    :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
+    of Agent object used for publishing
+    :param cancel_schedules: fixture used to cancel the schedule at the end of test so that other tests can use the same
+    device and time slot
+    """
+    print ("\n**** test_set_value_float ****")
+    agentid = TEST_AGENT
+    taskid = 'task_set_float_value'
+    device = 'fakedriver2'
+    point = 'SampleWritableFloat1'
+    cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
+
+    # Mock callback methods
+    publish_agent.callback = MagicMock(name="callback")
+    # Subscribe to result of set
+    value_topic = topics.ACTUATOR_VALUE(campus='', building='', unit=device, point=point)
+    reverted_topic = topics.ACTUATOR_REVERTED_POINT(campus='', building='', unit=device, point=point)
+    print ('value topic', value_topic)
+    publish_agent.vip.pubsub.subscribe(peer='pubsub',
+                                       prefix=value_topic,
+                                       callback=publish_agent.callback).get()
+    publish_agent.vip.pubsub.subscribe(peer='pubsub',
+                                       prefix=reverted_topic,
+                                       callback=publish_agent.callback).get()
+    start = str(datetime.now())
+    end = str(datetime.now() + timedelta(seconds=10))
+    msg = [
+        [device, start, end]
+    ]
+    result = publish_agent.vip.rpc.call(
+        'platform.actuator',
+        REQUEST_NEW_SCHEDULE,
+        agentid,
+        taskid,
+        'LOW',
+        msg).get(timeout=10)
+    # expected result {'info': u'', 'data': {}, 'result': 'SUCCESS'}
+    # print result
+    assert result['result'] == 'SUCCESS'
+    
+    initial_value = publish_agent.vip.rpc.call(
+        PLATFORM_ACTUATOR,  # Target agent
+        'get_point',  # Method
+        'fakedriver2/SampleWritableFloat1',  # Point to get
+    ).get(timeout=10)
+    
+    test_value = initial_value + 1.0
+    
+    result = publish_agent.vip.rpc.call(
+        PLATFORM_ACTUATOR,  # Target agent
+        'set_point',  # Method
+        agentid,  # Requestor
+        'fakedriver2/SampleWritableFloat1',  # Point to set
+        test_value  # New value
+    ).get(timeout=10)
+    
+    assert result == test_value
+    gevent.sleep(1)
+    
+    print ('call args list ', publish_agent.callback.call_args_list)
+    assert publish_agent.callback.call_count == 1
+    assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
+    assert publish_agent.callback.call_args[0][3] == value_topic
+    result_header = publish_agent.callback.call_args[0][4]
+    result_message = publish_agent.callback.call_args[0][5]
+    assert result_header['requesterID'] == agentid
+    assert result_message == test_value
+    
+    publish_agent.callback.reset_mock()
+    
+    # set value
+    header = {
+        'requesterID': TEST_AGENT
+    }
+
+    revert_topic = topics.ACTUATOR_REVERT_POINT(campus='', building='', unit=device, point=point)
+    print("revert topic: ", revert_topic)
+    publish_agent.vip.pubsub.publish('pubsub',
+                                     revert_topic,
+                                     headers=header).get(timeout=10)
+    gevent.sleep(1)
+    
+    print ('call args list ', publish_agent.callback.call_args_list)
+    assert publish_agent.callback.call_count == 1
+    assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
+    assert publish_agent.callback.call_args[0][3] == reverted_topic
+    result_header = publish_agent.callback.call_args[0][4]
+    result_message = publish_agent.callback.call_args[0][5]
+    assert result_header['requesterID'] == agentid
+    assert result_message == None
+    
+    publish_agent.callback.reset_mock()
+    
+    result = publish_agent.vip.rpc.call(
+        PLATFORM_ACTUATOR,  # Target agent
+        'get_point',  # Method
+        'fakedriver2/SampleWritableFloat1',  # Point to get
+    ).get(timeout=10)
+    #Value taken from fake_unit_testing.csv
+    assert result == initial_value
+
+
+@pytest.mark.dev
+def test_revert_device(publish_agent, cancel_schedules):
+    """
+    Test setting a float value of a point  through pubsub.
+    Value is set without enclosing it in an list
+    Format of expected result
+    Expected Header
+    {
+    'type': <'NEW_SCHEDULE', 'CANCEL_SCHEDULE'>
+    'requesterID': <Agent ID from the request>,
+    'taskID': <Task ID from the request>
+    }
+    Expected message
+    {
+    'result': <'SUCCESS', 'FAILURE', 'PREEMPTED'>,
+    'info': <Failure reason, if any>,
+    'data': <Data about the failure or cancellation, if any>
+    }
+    :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
+    of Agent object used for publishing
+    :param cancel_schedules: fixture used to cancel the schedule at the end of test so that other tests can use the same
+    device and time slot
+    """
+    print ("\n**** test_set_value_float ****")
+    agentid = TEST_AGENT
+    taskid = 'task_set_float_value'
+    device = 'fakedriver2'
+    point = 'SampleWritableFloat1'
+    cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
+
+    # Mock callback methods
+    publish_agent.callback = MagicMock(name="callback")
+    # Subscribe to result of set
+    value_topic = topics.ACTUATOR_VALUE(campus='', building='', unit=device, point=point)
+    reverted_topic = topics.ACTUATOR_REVERTED_DEVICE(campus='', building='', unit=device)
+    print ('value topic', value_topic)
+    publish_agent.vip.pubsub.subscribe(peer='pubsub',
+                                       prefix=value_topic,
+                                       callback=publish_agent.callback).get()
+    publish_agent.vip.pubsub.subscribe(peer='pubsub',
+                                       prefix=reverted_topic,
+                                       callback=publish_agent.callback).get()
+    start = str(datetime.now())
+    end = str(datetime.now() + timedelta(seconds=10))
+    msg = [
+        [device, start, end]
+    ]
+    result = publish_agent.vip.rpc.call(
+        'platform.actuator',
+        REQUEST_NEW_SCHEDULE,
+        agentid,
+        taskid,
+        'LOW',
+        msg).get(timeout=10)
+    # expected result {'info': u'', 'data': {}, 'result': 'SUCCESS'}
+    # print result
+    assert result['result'] == 'SUCCESS'
+    
+    initial_value = publish_agent.vip.rpc.call(
+        PLATFORM_ACTUATOR,  # Target agent
+        'get_point',  # Method
+        'fakedriver2/SampleWritableFloat1',  # Point to get
+    ).get(timeout=10)
+    
+    test_value = initial_value + 1.0
+    
+    result = publish_agent.vip.rpc.call(
+        PLATFORM_ACTUATOR,  # Target agent
+        'set_point',  # Method
+        agentid,  # Requestor
+        'fakedriver2/SampleWritableFloat1',  # Point to set
+        test_value  # New value
+    ).get(timeout=10)
+    
+    assert result == test_value
+    gevent.sleep(1)
+    
+    print ('call args list ', publish_agent.callback.call_args_list)
+    assert publish_agent.callback.call_count == 1
+    assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
+    assert publish_agent.callback.call_args[0][3] == value_topic
+    result_header = publish_agent.callback.call_args[0][4]
+    result_message = publish_agent.callback.call_args[0][5]
+    assert result_header['requesterID'] == agentid
+    assert result_message == test_value
+    
+    publish_agent.callback.reset_mock()
+    
+    # set value
+    header = {
+        'requesterID': TEST_AGENT
+    }
+
+    revert_topic = topics.ACTUATOR_REVERT_DEVICE(campus='', building='', unit=device)
+    print("revert topic: ", revert_topic)
+    publish_agent.vip.pubsub.publish('pubsub',
+                                     revert_topic,
+                                     headers=header).get(timeout=10)
+    gevent.sleep(1)
+    
+    print ('call args list ', publish_agent.callback.call_args_list)
+    assert publish_agent.callback.call_count == 1
+    assert publish_agent.callback.call_args[0][1] == PLATFORM_ACTUATOR
+    assert publish_agent.callback.call_args[0][3] == reverted_topic
+    result_header = publish_agent.callback.call_args[0][4]
+    result_message = publish_agent.callback.call_args[0][5]
+    assert result_header['requesterID'] == agentid
+    assert result_message == None
+    
+    publish_agent.callback.reset_mock()
+    
+    result = publish_agent.vip.rpc.call(
+        PLATFORM_ACTUATOR,  # Target agent
+        'get_point',  # Method
+        'fakedriver2/SampleWritableFloat1',  # Point to get
+    ).get(timeout=10)
+    #Value taken from fake_unit_testing.csv
+    assert result == initial_value    
 
 
 @pytest.mark.actuator_pubsub
