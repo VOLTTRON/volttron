@@ -58,33 +58,34 @@ from __future__ import absolute_import, print_function
 __version__ = '3.1'
 
 import base64
-from datetime import datetime
-import gevent
 import gevent.event
 import logging
 import sys
 import requests
 import os
-import os.path as p
 import re
 import shutil
 import tempfile
-import uuid
 
 import psutil
 
 import gevent
+from gevent.fileobject import FileObject
 from zmq.utils import jsonapi
 from volttron.platform.vip.agent import *
 
 from volttron.platform import jsonrpc, control
 from volttron.platform.keystore import KeyStore
-from volttron.platform.control import Connection
 from volttron.platform.agent import utils
 
 from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
                                        INVALID_REQUEST, METHOD_NOT_FOUND,
                                        PARSE_ERROR, UNHANDLED_EXCEPTION)
+
+class AlreadyManagedError(Exception):
+    """ Raised when a different volttron central tries to register.
+    """
+    pass
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -119,14 +120,56 @@ def platform_agent(config_path, **kwargs):
             self._agent_configurations = {}
             self._sibling_cache = {}
             self._vip_channels = {}
-            self._keystore = KeyStore()
 
+            self._keystore = KeyStore("platform_agent.keystore")
+
+            if not os.path.exists(("platform_agent.keystore")):
+                self._keystore.generate()
+
+            # Load up the vc information.  If manage_platform is called with
+            # different public key then there is an error.
             if os.path.exists("volttron.central"):
                 with open("volttron.central",'r') as fin:
                     self._vc = jsonapi.loads(fin.read())
             else:
                 self._vc = None
+        def _read_auth_file(self):
+            auth_path = os.path.join(self.volttron_home, 'auth.json')
+            try:
+                with open(auth_path, 'r') as fd:
+                    data = utils.strip_comments(FileObject(fd, close=False).read())
+                    auth = jsonapi.loads(data)
+            except IOError:
+                auth = {}
+            if not 'allow' in auth:
+                auth['allow'] = []
+            return auth, auth_path
 
+        def _append_allow_curve_key(self, publickey, capabilities=None):
+            auth, auth_path = self._read_auth_file()
+            cred = 'CURVE:{}'.format(publickey)
+            allow = auth['allow']
+            if not any(record['credentials'] == cred for record in allow):
+                allow.append({'credentials': cred})
+
+            with open(auth_path, 'w+') as fd:
+                jsonapi.dump(auth, fd)
+
+            if capabilities:
+                self._add_capabilities(capabilities)
+
+        def _add_capabilities(self, publickey, capabilities):
+            if isinstance(capabilities, basestring):
+                capabilities = [capabilities]
+            auth, auth_path = self._read_auth_file()
+            cred = 'CURVE:{}'.format(publickey)
+            allow = auth['allow']
+            entry = next((item for item in allow if item['credentials'] == cred), {})
+            caps = entry.get('capabilities', [])
+            entry['capabilities'] = list(set(caps + capabilities))
+
+            with open(auth_path, 'w+') as fd:
+                jsonapi.dump(auth, fd)
 
         def _store_settings(self):
             with open('platform.settings', 'wb') as f:
@@ -166,18 +209,29 @@ def platform_agent(config_path, **kwargs):
 
             :param uri: discovery uri for the volttron central instance.
             :param vc_pubkey: public key for the volttron.central agent.
-            :return:
+            :return: The public key for the platform.agent
+            :raises: AlreadyManagedError if trying to regegister with
+                    different volttron central instance.
             """
+            _log.info("Request to manage came from {} with pk {}".format(
+                uri, vc_pubkey))
+
+            # The variable self._vc will be loadded when the object is
+            # created.
             if not self._vc:
                 res = requests.get("http://{}/discovery/".format(uri))
                 assert res.ok
-                tmpvc = jsonapi.loads(res.json())
-                assert tmpvc == vc_pubkey
+                _log.debug('RESPONSE: {} {}'.format(type(res.json()), res.json()))
+                tmpvc = res.json()
+                assert 'vip-address' in tmpvc.keys()
+                assert 'serverkey' in tmpvc.keys()
                 self._vc = tmpvc
+                _log.debug("vctmp: {}".format(self._vc))
                 with open("volttron.central", 'w') as fout:
                     fout.write(jsonapi.dumps(tmpvc))
             else:
-                assert vc_pubkey == self._vc['serverkey']
+                if not vc_pubkey == self._vc['serverkey']:
+                    raise AlreadyManagedError()
 
             return self._keystore.public()
             # if I am alreay managed throw error
