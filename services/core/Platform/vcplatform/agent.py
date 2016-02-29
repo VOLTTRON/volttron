@@ -120,7 +120,7 @@ def platform_agent(config_path, **kwargs):
             self._agent_configurations = {}
             self._sibling_cache = {}
             self._vip_channels = {}
-
+            self.volttron_home = os.environ['VOLTTRON_HOME']
             self._keystore = KeyStore("platform_agent.keystore")
 
             if not os.path.exists(("platform_agent.keystore")):
@@ -153,12 +153,13 @@ def platform_agent(config_path, **kwargs):
                 allow.append({'credentials': cred})
 
             with open(auth_path, 'w+') as fd:
-                jsonapi.dump(auth, fd)
+                fd.write(jsonapi.dumps(auth))
 
             if capabilities:
-                self._add_capabilities(capabilities)
+                self._add_capabilities(publickey, capabilities)
 
         def _add_capabilities(self, publickey, capabilities):
+            _log.info("Adding capability {}, {}".format(publickey, capabilities))
             if isinstance(capabilities, basestring):
                 capabilities = [capabilities]
             auth, auth_path = self._read_auth_file()
@@ -169,7 +170,7 @@ def platform_agent(config_path, **kwargs):
             entry['capabilities'] = list(set(caps + capabilities))
 
             with open(auth_path, 'w+') as fd:
-                jsonapi.dump(auth, fd)
+                fd.write(jsonapi.dumps(auth))
 
         def _store_settings(self):
             with open('platform.settings', 'wb') as f:
@@ -229,16 +230,15 @@ def platform_agent(config_path, **kwargs):
                 _log.debug("vctmp: {}".format(self._vc))
                 with open("volttron.central", 'w') as fout:
                     fout.write(jsonapi.dumps(tmpvc))
+                # Add the can manage to the key file
+                self._append_allow_curve_key(vc_pubkey, 'can_manage')
             else:
                 if not vc_pubkey == self._vc['serverkey']:
                     raise AlreadyManagedError()
 
+            #
             return self._keystore.public()
-            # if I am alreay managed throw error
 
-            # Add vc_pubkey to known hosts
-            # register vc_pubkey with manager capability.
-            #pass
 
         @RPC.export
         def set_setting(self, key, value):

@@ -123,6 +123,9 @@ def test_registration_creation(volttron_instance1_web, platform_uuid):
                                 ks.public()).get(timeout=3)
     assert 'AlreadyManagedError' in str(excinfo)
 
+    # check the auth file for a can_manage capability in it.
+    auth_json = open(os.path.join(vi1.volttron_home, "auth.json")).read()
+    assert "can_manage" in auth_json
 
 
 # def test_setting_creation(volttron_instance1, platform_uuid):
