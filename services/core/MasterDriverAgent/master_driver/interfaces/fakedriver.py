@@ -102,14 +102,12 @@ class Interface(BasicRevert, BaseInterface):
         register._value = register.reg_type(value)
         return register._value
 
-    def scrape_all(self):
+    def _scrape_all(self):
         result = {}
         read_registers = self.get_registers_by_type("byte", True)
         write_registers = self.get_registers_by_type("byte", False)
         for register in read_registers + write_registers:
             result[register.point_name] = register._value
-            
-        self.update_clean_values(result)
 
         return result
 

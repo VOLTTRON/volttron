@@ -171,6 +171,8 @@ class RevertTracker(object):
         if point not in self.clean_values:
             raise DriverInterfaceError("Nothing to revert to for {}".format(point))
         
+        return self.clean_values[point]
+        
     def clear_dirty_point(self, point):   
         self.dirty_points.discard(point)
         
@@ -194,7 +196,7 @@ class BasicRevert(object):
         super(BasicRevert, self).__init__(**kwargs)
         self._tracker = RevertTracker()
         
-    def update_clean_values(self, points):
+    def _update_clean_values(self, points):
         self._tracker.update_clean_values(points)
     
     def set_default(self, point, value):    
@@ -206,9 +208,20 @@ class BasicRevert(object):
         self._tracker.mark_dirty_point(point_name)
         return result
     
+    def scrape_all(self):
+        result = self._scrape_all()   
+        self._update_clean_values(result)
+
+        return result
+    
     @abc.abstractmethod    
     def _set_point(self, point_name, value):
         pass
+    
+    @abc.abstractmethod    
+    def _scrape_all(self):
+        pass    
+    
          
     def revert_all(self, **kwargs):
         """Revert entrire device to it's default state"""
@@ -228,6 +241,8 @@ class BasicRevert(object):
             value = self._tracker.get_revert_value(point_name)
         except DriverInterfaceError:
             return
+        
+        _log.debug("Reverting {} to {}".format(point_name, value))
         
         self._set_point(point_name, value)   
         self._tracker.clear_dirty_point(point_name) 
