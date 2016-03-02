@@ -54,22 +54,27 @@
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 
-#}}}
+# }}}
 
 from setuptools import setup, find_packages
 
-#get environ for agent name/identifier
 packages = find_packages('.')
 package = packages[0]
 
+agent_module = package+'.agent'
+
+_temp = __import__(agent_module, globals(), locals(), ['__version__'], -1)
+__version__ = _temp.__version__
+
 setup(
+    include_package_data=True,
     name = package + 'agent',
-    version = "3.0",
+    version = __version__,
     install_requires = ['volttron', 'psutil'],
     packages = packages,
     entry_points = {
         'setuptools.installation': [
-            'eggsecutable = ' + package + '.agent:main',
+            'eggsecutable = ' + agent_module + ':main',
         ]
     }
 )
