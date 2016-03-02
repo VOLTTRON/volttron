@@ -5,8 +5,8 @@
     "activemq_port": 61613,
     "activemq_user": "admin",
     "activemq_password": "password",
-    "request_queue": "/topic/matlab/request1",
-    "response_queue": "/topic/matlab/response1",
+    "request_queue": "/topic/matlab/request2",
+    "response_queue": "/topic/matlab/response2",
    
     "status_format": [["RTU1Compressor1",{"ThermostatSetPointTemperature":0,"ThermostatZoneTemperature":1,"RTUOnOffStatus":2, "OccupancyMode":3}],
     					["RTU1Compressor2",{"ThermostatSetPointTemperature":0,"ThermostatZoneTemperature":1,"RTUOnOffStatus":2, "OccupancyMode":3}],
@@ -30,7 +30,7 @@
    
 	"timestamp_row": 5,
 	
-	"interval": 0.25
+	"interval": 0.5
 	
     
 }

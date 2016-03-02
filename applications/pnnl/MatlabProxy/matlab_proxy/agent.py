@@ -222,7 +222,7 @@ def matlab_proxy_agent(config_path, **kwargs):
             building_power = rows[building_power_row_index]
             timestamp_value = rows[timestamp_row]
             
-            for rows_string in rows[:3]:
+            for rows_string in rows[:4]:
                 row = [float(x) for x in rows_string.split()]
                 matrix.append(row)
             
