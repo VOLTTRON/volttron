@@ -149,4 +149,43 @@ def test_revert_all_no_default():
     temp_value = interface.get_point("FloatNoDefault")
     assert temp_value == initial_value
     
+@pytest.mark.revert
+def test_revert_no_default_changing_value():
+    interface = Interface()
+    interface.configure({}, registry_config_string)
+    initial_value = interface.get_point("FloatNoDefault")
+    
+    #Initialize the revert value.
+    interface.scrape_all()
+        
+    new_value = initial_value + 1.0
+    
+    #Manually update the register values to give us something different to revert to.
+    register = interface.get_register_by_name("FloatNoDefault")
+    register._value = new_value
+    
+    #Update the revert value.
+    interface.scrape_all()
+    
+    test_value = new_value + 1.0
+    
+    interface.set_point("FloatNoDefault", test_value)
+    temp_value = interface.get_point("FloatNoDefault")
+    assert temp_value == test_value
+    
+    interface.revert_point("FloatNoDefault")
+    temp_value = interface.get_point("FloatNoDefault")
+    assert temp_value == new_value
+    
+    assert temp_value != initial_value
+    
+    #Do it twice to make sure it restores state after revert
+    interface.set_point("FloatNoDefault", test_value)
+    temp_value = interface.get_point("FloatNoDefault")
+    assert temp_value == test_value
+    
+    interface.revert_point("FloatNoDefault")
+    temp_value = interface.get_point("FloatNoDefault")
+    assert temp_value == new_value
+    
     
