@@ -137,7 +137,11 @@ class AuthService(Agent):
             with open(self.auth_file) as fil:
                 # Use gevent FileObject to avoid blocking the thread
                 data = strip_comments(FileObject(fil, close=False).read())
-                auth_data = jsonapi.loads(data)
+                if not data:
+                    _log.debug("auth.json file was empty.")
+                    auth_data = {"allow":[]}
+                else:
+                    auth_data = jsonapi.loads(data)
         except Exception:
             _log.exception('error loading %s', self.auth_file)
         else:
