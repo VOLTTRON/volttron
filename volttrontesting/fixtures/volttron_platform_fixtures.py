@@ -1,6 +1,8 @@
 import os
 import json
 import pytest
+from random import randint
+
 from volttrontesting.utils.platformwrapper import PlatformWrapper
 
 PRINT_LOG_ON_SHUTDOWN = True
@@ -10,9 +12,13 @@ def print_log(volttron_home):
         with open(volttron_home+"/volttron.log") as fin:
             print(fin.read())
 
+def get_rand_ip_and_port():
+    ip = "127.0.0.{}".format(randint(1, 254))
+    port = get_rand_port(ip)
+    return ip+":{}".format(port)
 
 def get_rand_port(ip=None):
-    from random import randint
+
     port = randint(5000, 6000)
     while is_port_open(ip, port):
         port = randint(5000, 6000)
@@ -114,8 +120,8 @@ def volttron_instance1_web(request):
 @pytest.fixture
 def volttron_instance2_web(request):
     print("building instance 2 (using web)")
-    address = "tcp://127.0.0.2:{}".format(get_rand_port())
-    web_address = "127.0.0.2:{}".format(get_rand_port())
+    address = "tcp://{}".format(get_rand_ip_and_port())
+    web_address = "{}".format(get_rand_ip_and_port())
     wrapper = build_wrapper(address, encrypt=True,
                             bind_web_address=web_address)
 
