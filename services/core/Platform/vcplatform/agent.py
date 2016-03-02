@@ -202,20 +202,20 @@ def platform_agent(config_path, **kwargs):
             return agent
 
         @RPC.export
-        def manage_platform(self, uri, vc_pubkey):
+        def manage_platform(self, uri, vc_publickey):
             """ Manage this platform.
 
             The uri is the ip:port that has a volttron.central agent running
             on the instance.
 
             :param uri: discovery uri for the volttron central instance.
-            :param vc_pubkey: public key for the volttron.central agent.
+            :param vc_publickey: public key for the volttron.central agent.
             :return: The public key for the platform.agent
             :raises: AlreadyManagedError if trying to regegister with
                     different volttron central instance.
             """
             _log.info("Request to manage came from {} with pk {}".format(
-                uri, vc_pubkey))
+                uri, vc_publickey))
 
             # The variable self._vc will be loadded when the object is
             # created.
@@ -231,9 +231,9 @@ def platform_agent(config_path, **kwargs):
                 with open("volttron.central", 'w') as fout:
                     fout.write(jsonapi.dumps(tmpvc))
                 # Add the can manage to the key file
-                self._append_allow_curve_key(vc_pubkey, 'can_manage')
+                self._append_allow_curve_key(vc_publickey, 'can_manage')
             else:
-                if not vc_pubkey == self._vc['serverkey']:
+                if not vc_publickey == self._vc['serverkey']:
                     raise AlreadyManagedError()
 
             #

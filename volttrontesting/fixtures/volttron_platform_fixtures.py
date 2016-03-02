@@ -96,7 +96,7 @@ def volttron_instance2_encrypt(request):
     request.addfinalizer(cleanup)
     return wrapper
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def volttron_instance1_web(request):
     print("building instance 1 (using web)")
     address = "tcp://127.0.0.1:{}".format(get_rand_port())
@@ -111,7 +111,7 @@ def volttron_instance1_web(request):
     request.addfinalizer(cleanup)
     return wrapper
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def volttron_instance2_web(request):
     print("building instance 2 (using web)")
     address = "tcp://127.0.0.2:{}".format(get_rand_port())

@@ -70,7 +70,7 @@ from zmq.utils import jsonapi
 from authenticate import Authenticate
 from registry import PlatformRegistry
 
-from volttron.platform import jsonrpc
+from volttron.platform import jsonrpc, get_home
 from volttron.platform.agent import utils
 from volttron.platform.vip.agent import *
 from volttron.platform.vip.agent.subsystems import query
@@ -90,6 +90,9 @@ _log = logging.getLogger(__name__)
 # Web root is going to be relative to the volttron central agents
 # current agent's installed path
 WEB_ROOT = p.abspath(p.join(p.dirname(__file__), 'webroot'))
+
+class CouldNotRegister(Exception):
+    pass
 
 def volttron_central_agent(config_path, **kwargs):
     '''The main entry point for the volttron central agent
@@ -137,14 +140,14 @@ def volttron_central_agent(config_path, **kwargs):
             self.persistence_path = ''
             self._external_addresses = None
             self._vip_channels = {}
-            self._keystore = KeyStore()
+            self._keystore = KeyStore("vc.keystore")
 
         @property
-        def _secret_key(self):
+        def _secretkey(self):
             return self._keystore.secret()
 
         @property
-        def _public_key(self):
+        def _publickey(self):
             return self._keystore.public()
 
         def list_agents(self, uuid):
@@ -188,36 +191,65 @@ def volttron_central_agent(config_path, **kwargs):
             If the display name is not set then the display name becomes the
             same as the uri.  This will be used in the volttron central ui.
 
-            :param uri: A ip:port for an instance of volttron.
+            :param uri: A ip:port for an instance of volttron discovery..
             :param display_name:
             :return:
             """
 
-            _log.info('Attempting to register {}'.format(uri))
+            _log.info('Attempting to register name: {}\nwith address: {}'.format(
+                display_name, uri))
             # Make sure that the agent is reachable.
             request_uri = "http://{}/discovery/".format(uri)
             res = requests.get(request_uri)
+            _log.debug("Requesting discovery from: {}".format(request_uri))
             if not res.ok:
                 return 'Unreachable'
 
-            serverkey = res.json()['serverkey']
-            vip_address = res.json()['vip-address']
-            _log.debug("VIPADDRESS: {}".format(vip_address))
+            tmpres = res.json()
+            pa_instance_serverkey = tmpres['serverkey']
+            vip_address = tmpres['vip-address']
+            _log.debug("pa platform vip-address: {}\nserverkey: {}".format(
+                vip_address, pa_instance_serverkey
+            ))
+            _log.debug('keypairs to connect to pa agent:\npublickey: {}\nsecretkey: {}'.format(
+                self._publickey, self._secretkey
+            ))
 
+            assert self._publickey
+            assert self._secretkey
+            assert pa_instance_serverkey
+
+            authfile = os.path.join(get_home(), "auth.json")
+            with open(authfile) as f:
+                _log.debug("The {} file: {}".format(
+                    os.path.join(get_home(), "auth.json"),
+                    f.read()))
+
+            full_vip = "{}?serverkey={}&publickey={}&secretkey={}".format(
+                vip_address, pa_instance_serverkey, self._publickey,
+                self._secretkey
+            )
+            _log.debug('Connecting vip address: {}'.format(full_vip))
+            _log.debug("vc external address is: {}".format(self._external_addresses[0]))
             # TODO see if we are running in developer mode or not.
-            agent = Agent(address=vip_address, identity='volttron.central',
-                          publickey=self._public_key,
-                          secretkey=self._secret_key, serverkey=serverkey)
-
+            agent = Agent(address=full_vip)
             event = gevent.event.Event()
             gevent.spawn(agent.core.run, event)#.join(0)
-            event.wait(timeout=30)
+            event.wait(timeout=3)
+            del event
+            web_addr = self.vip.rpc.call("volttron.web", "get_bind_web_address").get(timeout=2)
+            #uri = self._external_addresses[0].replace("tcp://", "")
+            result = agent.vip.rpc.call(peer='platform.agent',
+                                        method='manage_platform',
+                                        uri=web_addr,
+                                        vc_publickey=self._publickey).get(timeout=5)
+            if not result:
+                raise CouldNotRegister(
+                    "display_name={}, uri={}".format(display_name, uri)
+                )
 
-            hello = agent.vip.hello().get(timeout=30)
+            return dict(success=True, display_name=display_name)
 
-            ping_response = agent.vip.ping('platform.agent').get(timeout=5)
-            _log.debug("PING RESPONSE")
-            _log.debug(ping_response)
 
 
         @RPC.export
@@ -367,9 +399,11 @@ def volttron_central_agent(config_path, **kwargs):
             result = q.query('addresses').get(timeout=10)
 
             #TODO: Use all addresses for fallback, #114
-            self._external_addresses = (result and result[0]) or self.core.address
-
+            _log.debug("external addresses are: {}".format(result))
+            self._external_addresses = result #(result and result[0]) or self.core.address
+            _log.debug('External addresses are: {}'.format(self._external_addresses))
             _log.debug('Registering jsonrpc and /.* routes')
+            _log.debug("it would be awsome if we got here! {}".format(result))
             self.vip.rpc.call('volttron.web', 'register_agent_route',
                             r'^/api/jsonrpc.*',
                             self.core.identity,
@@ -439,7 +473,7 @@ def volttron_central_agent(config_path, **kwargs):
             fields = method.split('.')
 
             if len(fields) < 3:
-                return RpcResponse(id=id, code=METHOD_NOT_FOUND)
+                return jsonrpc.json_error(ident=id, code=METHOD_NOT_FOUND)
 
 
             platform_uuid = fields[2]
@@ -447,8 +481,8 @@ def volttron_central_agent(config_path, **kwargs):
             platform = self.registry.get_platform(platform_uuid)
 
             if not platform:
-                return RpcResponse(id=id, code=METHOD_NOT_FOUND,
-                                   message="Unknown platform {}".format(platform_uuid))
+                return jsonrpc.json_error(ident=id, code=METHOD_NOT_FOUND,
+                                          message="Unknown platform {}".format(platform_uuid))
 
             platform_method = '.'.join(fields[3:])
 

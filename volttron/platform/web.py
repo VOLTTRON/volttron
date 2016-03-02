@@ -111,6 +111,10 @@ class MasterWebService(Agent):
             mimetypes.init()
 
     @RPC.export
+    def get_bind_web_address(self):
+        return self.bind_web_address
+
+    @RPC.export
     def register_agent_route(self, regex, peer, fn):
         ''' Register an agent route to an exported function.
 
