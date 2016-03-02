@@ -76,6 +76,7 @@ INTERNAL_ERROR = -32603
 # implementation-defined server-errors:
 UNHANDLED_EXCEPTION = -32000
 UNAUTHORIZED = -32001
+UNABLE_TO_REGISTER_INSTANCE = -32002
 
 JsonRpcData = namedtuple('JsonRpcData', 'id jsonrpc method params')
 

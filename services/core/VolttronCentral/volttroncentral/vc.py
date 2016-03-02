@@ -80,7 +80,8 @@ from volttron.platform.control import list_agents
 from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
                                        INVALID_REQUEST, METHOD_NOT_FOUND,
                                        PARSE_ERROR, UNHANDLED_EXCEPTION,
-                                       UNAUTHORIZED)
+                                       UNAUTHORIZED,
+                                       UNABLE_TO_REGISTER_INSTANCE)
 
 from volttron.platform.keystore import KeyStore
 
@@ -141,6 +142,7 @@ def volttron_central_agent(config_path, **kwargs):
             self._external_addresses = None
             self._vip_channels = {}
             self._keystore = KeyStore("vc.keystore")
+            self.__serverkey = None
 
         @property
         def _secretkey(self):
@@ -149,6 +151,14 @@ def volttron_central_agent(config_path, **kwargs):
         @property
         def _publickey(self):
             return self._keystore.public()
+
+        @property
+        def _serverkey(self):
+            if not self.__serverkey:
+                self.__serverkey = self.vip.rpc.call("volttron.web",
+                                                    "get_serverkey"
+                                                    ).get(timeout=3)
+            return self.__serverkey
 
         def list_agents(self, uuid):
             platform = self.registry.get_platform(uuid)
@@ -194,6 +204,7 @@ def volttron_central_agent(config_path, **kwargs):
             :param uri: A ip:port for an instance of volttron discovery..
             :param display_name:
             :return:
+            :raises CouldNotRegister if the platform couldn't be registered.
             """
 
             _log.info('Attempting to register name: {}\nwith address: {}'.format(
@@ -379,9 +390,20 @@ def volttron_central_agent(config_path, **kwargs):
                 if rpcdata.method == 'register_instance':
                     _log.debug("**rpcdata.params")
                     _log.debug(rpcdata.params)
-                    return self.register_instance(**rpcdata.params)
-
-
+                    try:
+                        # real_params = dict(uri=rpcdata.params['uri'],
+                        #                    vc_serverkey=self._serverkey)
+                        result = self.register_instance(**rpcdata.params)
+                    except CouldNotRegister as expinfo:
+                        return jsonrpc.json_error(rpcdata.id,
+                                                  UNABLE_TO_REGISTER_INSTANCE ,
+                            "Unable to register platform {}".format(expinfo),
+                                                  rpcdata.params)
+                    else:
+                        return jsonrpc.json_result(rpcdata.id, {
+                            "status": "SUCCESS",
+                            "context": "Registered instance {}".format(result['display_name'])
+                        })
 
             except AssertionError:
                 return jsonapi.dumps(jsonrpc.json_error('NA', INVALID_REQUEST,
