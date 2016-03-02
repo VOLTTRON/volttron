@@ -127,21 +127,50 @@ class PlatformWrapper:
         self._t_process = None
         self.publickey = self.generate_key()
         self._started_pids = []
+        self.local_vip_address = None
+        self.vip_address = None
         print('Creating Platform Wrapper at: {}'.format(self.volttron_home))
+
+    def allow_all_connections(self):
+        allow = {"allow":[
+            {"credentials": "/CURVE:.*/"}
+        ]}
+        auth = os.path.join(self.volttron_home, "auth.json")
+
+        with open(auth, 'w') as f:
+            f.write(jsonapi.dumps(allow))
+
+
 
     def build_agent(self, address=None, should_spawn=True, identity=None,
                     publickey=None, secretkey=None, serverkey=None):
+        """ Build an agent connnected to the passed bus.
+
+        By default the current instance that this class wraps will be the
+        vip address of the agent.
+
+        :param address:
+        :param should_spawn:
+        :param identity:
+        :param publickey:
+        :param secretkey:
+        :param serverkey:
+        :return:
+        """
         _log.debug('BUILD GENERIC AGENT')
         if address is None:
             address = self.vip_address[0]
 
         agent = Agent(address=address, identity=identity, publickey=publickey,
                       secretkey=secretkey, serverkey=serverkey)
-        print('platformwrapper.build_agent.address: {}'.format(address))
+        print('full tcp address: {}'.format(agent.core.address))
 
         # Automatically add agent's credentials to auth.json file
         if publickey:
-            self._append_allow_curve_key(publickey)
+            print('Adding publickey to auth.json')
+            gevent.spawn(self._append_allow_curve_key, publickey)
+            gevent.sleep(0.1)
+
 
         if should_spawn:
             print('platformwrapper.build_agent spawning')
@@ -217,7 +246,7 @@ class PlatformWrapper:
         ipc = 'ipc://{}{}/run/'.format(
             '@' if sys.platform.startswith('linux') else '',
             self.volttron_home)
-
+        self.local_vip_address = ipc + 'vip.socket'
         if not encrypt:
             # Remove connection encryption
             with open(os.path.join(self.volttron_home, 'curve.key'), 'w'):
