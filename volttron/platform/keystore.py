@@ -116,6 +116,9 @@ class KeyStore(BaseJSONStore):
     def secret(self):
         return self.load().get('secret', None)
 
+    def isvalid(self):
+        return self.public() and self.secret()
+
 
 class KnownHostsStore(BaseJSONStore):
     '''Handle storage and retrival of known hosts'''
