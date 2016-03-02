@@ -10,7 +10,7 @@
 	    "point": "kill"
     },
 	"agent_id": "ahp",
-	"demand_limit": 27.0,
+	"demand_limit": 18.0,
 	"curtailment_time": 20.0,
 	"curtailment_confirm": 10.0,
 	"curtailment_break": 5.0,

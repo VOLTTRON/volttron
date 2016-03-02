@@ -32,9 +32,19 @@
 				"minimum": 0,
 				"maximum": 10
 			},
+			"conditional_curtail": [
+			    {   "condition": "OccupancyMode", 
+			        "conditional_args": ["OccupancyMode"],
+				    "point": "ThermostatSetPointTemperature",
+				    "value": 78.0,
+				    "offset": 2,
+				    "load": 5.9
+				}
+			],
 			"curtail": {
 				"point": "ThermostatSetPointTemperature",
-				"value": 78.0,
+				"value": 82.0,
+				"offset": 10,
 				"load": 5.9
 			}
 		}
@@ -71,9 +81,19 @@
 				"minimum": 0,
 				"maximum": 10
 			},
+			"conditional_curtail": [
+			    {   "condition": "OccupancyMode", 
+			        "conditional_args": ["OccupancyMode"],
+				    "point": "ThermostatSetPointTemperature",
+				    "value": 78.0,
+				    "offset": 2,
+				    "load": 5.9
+				}
+			],
 			"curtail": {
 				"point": "ThermostatSetPointTemperature",
-				"value": 78.0,
+				"value": 82.0,
+				"offset": 10,
 				"load": 5.9
 			}
 		}
@@ -110,9 +130,19 @@
 				"minimum": 0,
 				"maximum": 10
 			},
+			"conditional_curtail": [
+			    {   "condition": "OccupancyMode", 
+			        "conditional_args": ["OccupancyMode"],
+				    "point": "ThermostatSetPointTemperature",
+				    "value": 78.0,
+				    "offset": 2,
+				    "load": 4.5
+				}
+			],
 			"curtail": {
 				"point": "ThermostatSetPointTemperature",
-				"value": 78.0,
+				"value": 82.0,
+				"offset": 10,
 				"load": 4.5
 			}
 		}
@@ -149,9 +179,19 @@
 				"minimum": 0,
 				"maximum": 10
 			},
+			"conditional_curtail": [
+			    {   "condition": "OccupancyMode", 
+			        "conditional_args": ["OccupancyMode"],
+				    "point": "ThermostatSetPointTemperature",
+				    "value": 78.0,
+				    "offset": 2,
+				    "load": 4.5
+				}
+			],
 			"curtail": {
 				"point": "ThermostatSetPointTemperature",
-				"value": 78.0,
+				"value": 82.0,
+				"offset": 10,
 				"load": 4.5
 			}
 		}
@@ -188,9 +228,19 @@
 				"minimum": 0,
 				"maximum": 10
 			},
+			"conditional_curtail": [
+			    {   "condition": "OccupancyMode", 
+			        "conditional_args": ["OccupancyMode"],
+				    "point": "ThermostatSetPointTemperature",
+				    "value": 78.0,
+				    "offset": 2,
+				    "load": 4.5
+				}
+			],
 			"curtail": {
 				"point": "ThermostatSetPointTemperature",
-				"value": 78.0,
+				"value": 82.0,
+				"offset": 10,
 				"load": 4.5
 			}
 		}

@@ -259,7 +259,9 @@ class CurtailmentSetting(object):
         
     def ingest_data(self, data):
         if self.offset is not None:
-            self.value = data[self.point] + self.offset
+            base = data[self.point]
+            self.value = base + self.offset
+            _log.debug("Setting offest value for curtail: Base value: {}, Offset: {}, New value: {}".format(base, self.offset, self.value))
             
     def get_curtailment_dict(self):
         return {"point": self.point,
@@ -273,12 +275,14 @@ class ConditionalCurtailment(object):
         self.conditional_args = conditional_args
         self.points = symbols(conditional_args)
         self.expr = parse_expr(condition)
+        self.condition = condition
         
         self.curtailment = CurtailmentSetting(**kwargs)
 
     def check_condition(self):
         if self.pt_list:
             val = self.expr.subs(self.pt_list)
+            _log.debug("{} evaluated to {}".format(self.condition, val))
         else:
             val = False
         return val
@@ -292,6 +296,9 @@ class ConditionalCurtailment(object):
         
     def get_curtailment(self):
         return self.curtailment.get_curtailment_dict()
+    
+#     def __str__(self):
+#         
     
 class CurtailmentManager(object):
     def __init__(self, conditional_curtailment_settings = [], **kwargs):
