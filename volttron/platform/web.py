@@ -115,6 +115,10 @@ class MasterWebService(Agent):
         return self.bind_web_address
 
     @RPC.export
+    def get_serverkey(self):
+        return self.serverkey
+
+    @RPC.export
     def register_agent_route(self, regex, peer, fn):
         ''' Register an agent route to an exported function.
 
