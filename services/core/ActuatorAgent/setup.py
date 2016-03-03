@@ -54,22 +54,37 @@
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 
-#}}}
+# }}}
 
 from setuptools import setup, find_packages
+from os import path
 
+MAIN_MODULE = 'agent.py'
+
+# Find the agent package
 packages = find_packages('.')
-package = packages[0]
+agent_package = ''
+for package in find_packages():
+    # Because there could be other packages such as tests
+    if path.isfile(package + '/' + MAIN_MODULE) is True:
+        agent_package = package
+if not agent_package:
+    raise RuntimeError(
+        'No {main_module} file found in any of the packages under {dir}'.format(
+            main_module=MAIN_MODULE, dir=path.abspath('.')))
 
+# Find the version number
+agent_module = agent_package + '.agent'
+_temp = __import__(agent_module, globals(), locals(), ['__version__'], -1)
+__version__ = _temp.__version__
 setup(
-    name = package + 'agent',
-    version = "0.1",
-    install_requires = ['volttron'],
-    packages = packages,
-    entry_points = {
+    name=agent_package + 'agent',
+    version=__version__,
+    install_requires=['volttron'],
+    packages=packages,
+    entry_points={
         'setuptools.installation': [
-            'eggsecutable = ' + package + '.agent:main',
+            'eggsecutable = ' + agent_module + ':main',
         ]
     }
 )
-
