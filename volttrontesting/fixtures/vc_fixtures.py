@@ -3,6 +3,8 @@ import sys
 import pytest
 from zmq.utils import jsonapi
 
+from .volttron_platform_fixtures import print_log
+
 PLATFORM_AGENT_CONFIG = {
     # Agent id is used in the display on volttron central.
     "agentid": "Platform Agent",
@@ -73,13 +75,16 @@ def vc_instance(request, volttron_instance1_web):
         .format(volttron_instance1_web.bind_web_address)
     retvalue = {
         "jsonrpc":rpc_addr,
+        "vc_uuid": agent_uuid,
         "wrapper": volttron_instance1_web
     }
     # Allow all incoming connections that are encrypted.
     volttron_instance1_web.allow_all_connections()
 
     def cleanup():
+        print('Cleanup vc_instance')
         volttron_instance1_web.remove_agent(agent_uuid)
+        print_log(volttron_instance1_web.volttron_home)
 
     request.addfinalizer(cleanup)
     return retvalue
@@ -135,7 +140,9 @@ def pa_instance(request, volttron_instance2_web):
     }
 
     def cleanup():
+        print('Cleanup pa_instance')
         volttron_instance2_web.remove_agent(agent_uuid)
+        print_log(volttron_instance2_web.volttron_home)
 
     request.addfinalizer(cleanup)
 
