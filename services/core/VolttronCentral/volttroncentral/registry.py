@@ -56,7 +56,7 @@ class RegistryEntry(object):
 
 class PlatformRegistry:
     """ Container class holding registered platforms and services.
-    
+
     The goal of this class is to allow a single point of knowlege of
     all of the platforms and services registered with the volttron
     central agent.
@@ -113,19 +113,21 @@ class PlatformRegistry:
         :return:
         """
 
-        if entry.platform_uuid in self._uuids.keys():
+        if entry.platform_uuid in self._platform_entries.keys():
             raise DuplicateUUIDError()
 
         self._platform_entries[entry.platform_uuid] = entry
         self._vip_to_uuid[entry.vip_address] = entry.platform_uuid
 
     def package(self):
-        return {'vip_addresses': self._vips,
-                'uuids':self._uuids}
+        return {}
+            # {'vip_addresses': self._vips,
+            #     'uuids':self._uuids}
 
     def unpackage(self, data):
-        self._vips = data['vip_addresses']
-        self._uuids = data['uuids']
+        pass
+        # self._vips = data['vip_addresses']
+        # self._uuids = data['uuids']
 
     # def register(self, vip_address, vip_identity, agentid, **kwargs):
     #     """ Registers a platform agent with the registry.

@@ -161,7 +161,7 @@ def volttron_central_agent(config_path, **kwargs):
             return self.__serverkey
 
         def list_agents(self, uuid):
-            platform = self.registry.get_platform(uuid)
+            platform = self._registry.get_platform(uuid)
             results = []
             if platform:
                 agent = self._get_rpc_agent(platform['vip_address'])
@@ -173,16 +173,17 @@ def volttron_central_agent(config_path, **kwargs):
 
         @RPC.export
         def list_platform_details(self):
-            print('list_platform_details', self.registry._vips)
-            return self.registry._vips.keys()
+            print('list_platform_details', self._registry.get_platforms())
+            return {}
+            #return self._registry.get_platforms().keys()
 
         @RPC.export
         def unregister_platform(self, platform_uuid):
             value = 'Failure'
-            platform = self.registry.get_platform(platform_uuid)
+            platform = self._registry.get_platform(platform_uuid)
 
             if platform:
-                self.registry.unregister(platform['vip_address'])
+                self._registry.unregister(platform['vip_address'])
                 self._store_registry()
                 value = 'Success'
 
@@ -278,7 +279,7 @@ def volttron_central_agent(config_path, **kwargs):
         #     return value
 
         def _store_registry(self):
-            self._store('registry', self.registry.package())
+            self._store('registry', self._registry.package())
 
         def _handle_register_platform(self, address, identity=None, agentid='platform.agent'):
             _log.debug('Registering platform identity {} at vip address {} with name {}'
@@ -292,7 +293,7 @@ def volttron_central_agent(config_path, **kwargs):
                                         address=self._external_addresses,
                                         identity=self.core.identity)
             if result.get(timeout=10):
-                node = self.registry.register(address, identity, agentid)
+                node = self._registry.register(address, identity, agentid)
 
                 if node:
                     self._store_registry()
@@ -331,7 +332,7 @@ def volttron_central_agent(config_path, **kwargs):
             # Returns None if there has been no registration of any platforms.
             registered = self._load('registry')
             if registered:
-                self.registry.unpackage(registered)
+                self._registry.unpackage(registered)
 
         def _to_jsonrpc_obj(self, data):
             """ Convert data string into a JsonRpcData named tuple.
@@ -479,7 +480,7 @@ def volttron_central_agent(config_path, **kwargs):
         def _handle_list_platforms(self):
             return [{'uuid': x['uuid'],
                          'name': x['agentid']}
-                        for x in self.registry.get_platforms()]
+                        for x in self._registry.get_platforms()]
 
         def route_request(self, id, method, params):
             '''Route request to either a registered platform or handle here.'''
@@ -499,7 +500,7 @@ def volttron_central_agent(config_path, **kwargs):
 
             platform_uuid = fields[2]
 
-            platform = self.registry.get_platform(platform_uuid)
+            platform = self._registry.get_platform(platform_uuid)
 
             if not platform:
                 return jsonrpc.json_error(ident=id, code=METHOD_NOT_FOUND,
