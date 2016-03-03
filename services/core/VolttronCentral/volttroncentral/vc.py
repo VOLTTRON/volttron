@@ -68,7 +68,7 @@ import requests
 from zmq.utils import jsonapi
 
 from authenticate import Authenticate
-from registry import PlatformRegistry
+from registry import PlatformRegistry, RegistryEntry
 
 from volttron.platform import jsonrpc, get_home
 from volttron.platform.agent import utils
@@ -133,7 +133,7 @@ def volttron_central_agent(config_path, **kwargs):
             _log.debug("Registering (address, identity) ({}, {})"
                        .format(self.core.address, self.core.identity))
             # a list of peers that have checked in with this agent.
-            self.registry = PlatformRegistry()
+            self._registry = PlatformRegistry()
             # An object that allows the checking of currently authenticated
             # sessions.
             self._sessions = SessionHandler(Authenticate(user_map))
@@ -209,6 +209,7 @@ def volttron_central_agent(config_path, **kwargs):
 
             _log.info('Attempting to register name: {}\nwith address: {}'.format(
                 display_name, uri))
+
             # Make sure that the agent is reachable.
             request_uri = "http://{}/discovery/".format(uri)
             res = requests.get(request_uri)
@@ -221,9 +222,6 @@ def volttron_central_agent(config_path, **kwargs):
             vip_address = tmpres['vip-address']
             _log.debug("pa platform vip-address: {}\nserverkey: {}".format(
                 vip_address, pa_instance_serverkey
-            ))
-            _log.debug('keypairs to connect to pa agent:\npublickey: {}\nsecretkey: {}'.format(
-                self._publickey, self._secretkey
             ))
 
             assert self._publickey
@@ -240,16 +238,13 @@ def volttron_central_agent(config_path, **kwargs):
                 vip_address, pa_instance_serverkey, self._publickey,
                 self._secretkey
             )
-            _log.debug('Connecting vip address: {}'.format(full_vip))
-            _log.debug("vc external address is: {}".format(self._external_addresses[0]))
-            # TODO see if we are running in developer mode or not.
+
             agent = Agent(address=full_vip)
             event = gevent.event.Event()
             gevent.spawn(agent.core.run, event)#.join(0)
-            event.wait(timeout=3)
+            event.wait(timeout=30)
             del event
             web_addr = self.vip.rpc.call("volttron.web", "get_bind_web_address").get(timeout=2)
-            #uri = self._external_addresses[0].replace("tcp://", "")
             result = agent.vip.rpc.call(peer='platform.agent',
                                         method='manage_platform',
                                         uri=web_addr,
@@ -259,22 +254,28 @@ def volttron_central_agent(config_path, **kwargs):
                     "display_name={}, uri={}".format(display_name, uri)
                 )
 
+
+            entry = RegistryEntry(vip_address=vip_address,
+                                  serverkey=pa_instance_serverkey,
+                                  display_name=display_name)
+            self._registry.register(entry)
+
             return dict(success=True, display_name=display_name)
 
 
 
-        @RPC.export
-        def register_platform(self, peer_identity, name, peer_address):
-            '''Agents will call this to register with the platform.
-
-            This method is successful unless an error is raised.
-            '''
-            value = self._handle_register_platform(peer_address, peer_identity, name)
-
-            if not value:
-                return 'Platform Unavailable'
-
-            return value
+        # @RPC.export
+        # def register_platform(self, peer_identity, name, peer_address):
+        #     '''Agents will call this to register with the platform.
+        #
+        #     This method is successful unless an error is raised.
+        #     '''
+        #     value = self._handle_register_platform(peer_address, peer_identity, name)
+        #
+        #     if not value:
+        #         return 'Platform Unavailable'
+        #
+        #     return value
 
         def _store_registry(self):
             self._store('registry', self.registry.package())
@@ -388,8 +389,6 @@ def volttron_central_agent(config_path, **kwargs):
                                               "Invalid authentication token")
 
                 if rpcdata.method == 'register_instance':
-                    _log.debug("**rpcdata.params")
-                    _log.debug(rpcdata.params)
                     try:
                         # real_params = dict(uri=rpcdata.params['uri'],
                         #                    vc_serverkey=self._serverkey)
@@ -415,8 +414,8 @@ def volttron_central_agent(config_path, **kwargs):
         def starting(self, sender, **kwargs):
             '''This event is triggered when the platform is ready for the agent
             '''
-            _log.info('Starting Volttron Central Agent')
-
+            _, _, my_id = self.vip.hello().get(timeout=2)
+            _log.info('Starting Volttron Central Agent ({})'.format(my_id))
             q = query.Query(self.core)
             result = q.query('addresses').get(timeout=10)
 

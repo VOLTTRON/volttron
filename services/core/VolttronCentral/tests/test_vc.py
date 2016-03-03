@@ -37,6 +37,32 @@ def test_discovery(vc_instance, pa_instance):
     assert data['serverkey']
     assert data['vip-address']
 
+
+@pytest.mark.vc
+def test_vc_started(vc_instance):
+    vc_wrapper = vc_instance['wrapper']
+    vc_uuid = vc_instance['vc_uuid']
+
+    assert vc_wrapper.is_agent_running(vc_uuid)
+    tf = tempfile.NamedTemporaryFile()
+    ks = KeyStore(tf.name)
+    ks.generate()  #needed because using a temp file!!!!
+    print('Checking peers on vc using:\nserverkey: {}\npublickey: {}\n'
+          'secretkey: {}'.format(
+        vc_wrapper.publickey,
+        ks.public(),
+        ks.secret()
+    ))
+    paagent = vc_wrapper.build_agent(serverkey=vc_wrapper.publickey,
+                                     publickey=ks.public(),
+                                     secretkey=ks.secret())
+    peers = paagent.vip.peerlist().get(timeout=3)
+    print(peers)
+    assert "volttron.central" in peers
+    paagent.core.stop()
+    del paagent
+
+
 @pytest.mark.vc
 def test_register_instance(vc_instance, pa_instance):
     vc_wrapper = vc_instance['wrapper']
@@ -94,6 +120,15 @@ def test_register_instance(vc_instance, pa_instance):
     assert retval
     assert 'hushpuppy' == retval['display_name']
     assert retval['success']
+
+    print('Testing that we now have a single entry in the platform_details')
+    retval = controlagent.vip.rpc.call("volttron.central",
+                                       "list_platform_details").get(timeout=10)
+
+
+    assert retval
+
+
     controlagent.core.stop()
 
     # # build agent to interact with the vc agent on the vc_wrapper instance.
