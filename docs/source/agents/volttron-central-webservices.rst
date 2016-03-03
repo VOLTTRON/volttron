@@ -10,62 +10,151 @@ exposed via the VOLTTRON web service module.
 Expectation of API
 ==================
 * All communication with the api will be done through a post request.
-* All messages sent to the api will be according to `jsonrpc-2.0 protocol <http://www.jsonrpc.org/specification>`_.
+* All messages sent to the api will be according to `jsonrpc-2.0 protocol
+<http://www.jsonrpc.org/specification>`_.
 
 Messages
 ========
 
+Register A Volttron Platform Instance (Using Discovery)
+    .. code-block:: Python
+
+        # POST /api/jsonrpc
+        {
+            "jsonrpc": "2.0",
+            "method": "register_instance",
+            "params": {
+                "uri": "127.0.0.2:8080",
+                "display_name": "foo" # Optional
+            }
+            "authorization": "someAuthorizationToken",
+            "id": #
+
+        }
+
+    Success
+        .. code-block:: Python
+
+            200 OK
+            {
+                "jsonrpc": "2.0",
+                "result": {
+                    "status": {
+                        "code": "SUCCESS"
+                        "context": "Registered instance foo" # or the uri
+                    }
+                },
+                "id": #
+            }
+
+    Failure Unavailable
+        .. code-block:: Python
+
+            200 OK
+            {
+                "jsonrpc": "2.0",
+                "result": {
+                    "status": {
+                        "code": "ERROR"
+                        "context": "Could not connect to 127.0.0.2:8080"
+                    }
+                },
+                "id": #
+            }
+
+    Failure No Platform Agent
+        .. code-block:: Python
+
+            200 OK
+            {
+                "jsonrpc": "2.0",
+                "result": {
+                    "status": {
+                        "code": "ERROR"
+                        "context": "Could not connect to 127.0.0.2:8080"
+                    }
+                },
+                "id": #
+            }
+
+
+
+
+Request Registration of an External Platform (Using Discovery)
+    .. code-block:: Python
+
+        # POST /api/jsonrpc
+        {
+            "jsonrpc": "2.0",
+            "method": "register_platform",
+            "params": {
+                "uri": "127.0.0.2:8080"
+            }
+            "authorization": "someAuthorizationToken",
+            "id": #
+        }
+
+
+
 Retrieve Authorization Token
-{
-    "jsonrpc": "2.0",
-    "method": "get_authorization",
-    "params": {
-        "username": "dorothy",
-        "password": "toto123"
-    },
-    "id": #
-}
+    .. code-block:: Python
 
-Response Success
-{
-    "jsonrpc": "2.0",
-    "method": "list_platforms",
-    "authorization": "someAuthorizationToken",
-    "id": #
-}
+        {
+            "jsonrpc": "2.0",
+            "method": "get_authorization",
+            "params": {
+                "username": "dorothy",
+                "password": "toto123"
+            },
+            "id": #
+        }
 
-Failure
-Http Response Code 401
+    Response Success
+        .. code-block:: Python
+
+            {
+                "jsonrpc": "2.0",
+                "method": "list_platforms",
+                "authorization": "someAuthorizationToken",
+                "id": #
+            }
+
+    Failure
+        Http Status Code 401
 
 Retrieve Managed Instances
-POST /jsonrpc
-{
-    "jsonrpc": "2.0",
-    "method": "list_platforms",
-    "authorization": "someAuthorizationToken",
-    "id": #
-}
+    .. code-block:: Python
 
-Response Success
-200 OK
-{
-    "jsonrpc": "2.0",
-    "result": [
+        #POST /jsonrpc
         {
-            "name": "platform1",
-            "uuid": "abcd1234-ef56-ab78-cd90-efabcd123456"
-        },
-        {
-            "name": "platform2",
-            "uuid": "0987fedc-65ba-43fe-21dc-098765bafedc"
-        },
-        {
-            "name": "platform3",
-            "uuid": "0000aaaa-1111-bbbb-2222-cccc3333dddd"
+            "jsonrpc": "2.0",
+            "method": "list_platforms",
+            "authorization": "someAuthorizationToken",
+            "id": #
         }
-    ],
-    "id": #
-}
+
+    Response Success
+        .. code-block:: Python
+
+            200 OK
+            {
+                "jsonrpc": "2.0",
+                "result": [
+                    {
+                        "name": "platform1",
+                        "uuid": "abcd1234-ef56-ab78-cd90-efabcd123456"
+                    },
+                    {
+                        "name": "platform2",
+                        "uuid": "0987fedc-65ba-43fe-21dc-098765bafedc"
+                    },
+                    {
+                        "name": "platform3",
+                        "uuid": "0000aaaa-1111-bbbb-2222-cccc3333dddd"
+                    }
+                ],
+                "id": #
+            }
 
 Retrieve Installed Agents From platform1
 POST /jsonrpc
