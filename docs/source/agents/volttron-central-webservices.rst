@@ -2,16 +2,117 @@
 VOLTTRON Central Web Services Api Documentation
 ===============================================
 
-VOLTTRON Central is meant to be the hub of communcation within a cluster of
-VOLTTRON instances.  Through it's api one can control platforms at different
-locations throughout an organization.  This document describes the json api
-exposed via the VOLTTRON web service module.
+VOLTTRON Central (VC) is meant to be the hub of communcation within a cluster of
+VOLTTRON instances. VC exposes a
+`JSON-RPC 2.0 <http://www.jsonrpc.org/specification/>`_ based api that allows
+a user to control multple instances of VOLTTRON.
 
-Expectation of API
-==================
-* All communication with the api will be done through a post request.
-* All messages sent to the api will be according to `jsonrpc-2.0 protocol
-<http://www.jsonrpc.org/specification>`_.
+
+Why JSON-RPC
+============
+
+SOAP messaging is unfriendly to many developers, especially those wanting to
+make calls in a browser from AJAX environment. We have therefore have
+implemented a JSON-RPC API capability to VC, as a more JSON/JavaScript
+friendly mechanism.
+
+
+How the API is Implemented
+==========================
+
+* All calls are made through a POST.
+* All calls (not including the call to authenticate) will
+  include an authorization token (a json-rpc extension).
+
+JSON-RPC Request Payload
+========================
+
+All posted JSON payloads will look like the following block:
+
+.. code-block:: JSON
+
+    {
+        "jsonrpc": "2.0",
+        "method": "method_to_invoke",
+        "params": {
+            "param1name": "param1value",
+            "param2name": "param2value"
+        },
+        "id": "unique_message_id",
+        "authorization": "server_authorization_token"
+    }
+
+As an alternative, the params can be an array as illistrated by the following:
+
+.. code-block:: JSON
+
+    {
+        "jsonrpc": "2.0",
+        "method": "method_to_invoke",
+        "params": [
+            "param1value",
+            "param2value"
+        ],
+        "id": "unique_message_id",
+        "authorization": "server_authorization_token"
+    }
+
+For full documentation of the Request object please see section 4 of the
+`JSON-RPC 2.0 <http://www.jsonrpc.org/specification/>`_ specification.
+
+JSON-RPC Response Payload
+=========================
+
+All responses shall have either an either an error response or a result
+response.  The result key shown below can be a single instance of a json
+type, an array or a JSON object.
+
+A result response will have the following format:
+
+.. code-block:: JSON
+
+    {
+        "jsonrpc": "2.0",
+        "result": "method_results",
+        "id": "sent_in_unique_message_id"
+    }
+
+An error response will have the following format:
+
+.. code-block:: JSON
+
+    {
+        "jsonrpc": "2.0",
+        "error": {
+            "code": "standard_code_or_extended_code",
+            "message": "error message"
+        }
+        "id": "sent_in_unique_message_id_or_null"
+    }
+
+For full documenation of the Response object please see section 5 of the
+`JSON-RPC 2.0 <http://www.jsonrpc.org/specification/>`_ specification.
+
+JSON-RPC Data Objects
+=====================
+
+.. csv-table:: Platform
+    :header: "Key", "Type", "Value"
+    :widths: 10, 10, 40
+
+    "uuid", "string", "A unique identifier for the platform."
+    "name", "string", "A user defined string for the platform."
+
+JSON-RPC API Methods
+====================
+
+.. csv-table:: Methods
+    :header: "method", "parameters", "returns"
+    :widths: 10, 10, 40
+
+    "get_authentication", "(username, password)", "authentication token"
+
+
 
 Messages
 ========
