@@ -71,7 +71,7 @@ import settings
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-
+__version__ = '0.1'
 
 class ProcessAgent(BaseAgent):
     def __init__(self, subscribe_address, process, **kwargs):
