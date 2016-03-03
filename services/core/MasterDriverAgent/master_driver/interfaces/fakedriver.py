@@ -128,7 +128,7 @@ class Interface(BasicRevert, BaseInterface):
             point_name = regDef['Volttron Point Name']
             description = regDef['Notes']
             units = regDef['Units']
-            default_value = regDef.get("Starting Value", '')
+            default_value = regDef.get("Starting Value", '').strip()
             if not default_value:
                 default_value = None
             type_name = regDef.get("Type", 'string')
