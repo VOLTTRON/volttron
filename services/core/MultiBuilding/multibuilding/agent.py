@@ -74,7 +74,7 @@ from volttron.platform import messaging
 
 
 _log = logging.getLogger(__name__)
-
+__version__ ='0.1'
 
 def MultiBuildingAgent(config_path=None, **kwargs):
     '''Return agent object providing multi-building messaging.

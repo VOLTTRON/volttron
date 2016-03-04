@@ -73,7 +73,7 @@ from volttron.platform.messaging import topics, headers as headers_mod
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-
+__version__ = '3.0'
 
 def historian(config_path, **kwargs):
     config = utils.load_config(config_path)
