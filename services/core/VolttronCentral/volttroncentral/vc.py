@@ -65,6 +65,7 @@ import os.path as p
 
 import gevent
 import requests
+import jsonpickle
 from zmq.utils import jsonapi
 
 from authenticate import Authenticate
@@ -174,8 +175,8 @@ def volttron_central_agent(config_path, **kwargs):
         @RPC.export
         def list_platform_details(self):
             print('list_platform_details', self._registry.get_platforms())
-            return {}
-            #return self._registry.get_platforms().keys()
+            return jsonpickle.encode(self._registry.get_platforms())
+            # return self._registry.get_platforms().keys()
 
         @RPC.export
         def unregister_platform(self, platform_uuid):
