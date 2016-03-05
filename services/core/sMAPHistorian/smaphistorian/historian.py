@@ -77,6 +77,7 @@ from smap.util import periodicSequentialCall
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
+__version__ = '3.0'
 
 
 def SMAPHistorianAgent(config_path, **kwargs):

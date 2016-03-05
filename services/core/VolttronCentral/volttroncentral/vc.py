@@ -93,6 +93,7 @@ from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
                                        PARSE_ERROR, UNHANDLED_EXCEPTION)
 utils.setup_logging()
 _log = logging.getLogger(__name__)
+__version__ = '3.0'
 
 # Web root is going to be relative to the volttron central agents
 # current agent's installed path

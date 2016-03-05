@@ -76,8 +76,7 @@ from twisted.spread.pb import respond
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-
-
+__version__ = '3.0'
 
 def historian(config_path, **kwargs):
 
