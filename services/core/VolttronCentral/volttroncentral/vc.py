@@ -87,6 +87,7 @@ from volttron.platform.keystore import KeyStore
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
+__version__ = '3.0'
 
 # Web root is going to be relative to the volttron central agents
 # current agent's installed path

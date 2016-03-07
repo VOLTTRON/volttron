@@ -68,7 +68,7 @@ import settings
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-
+__version__ = '0.1'
 
 class GreeterAgent(PublishMixin, BaseAgent):
     '''Publishes a hello message to all receiving platforms
