@@ -65,7 +65,6 @@ import os.path as p
 
 import gevent
 import requests
-import jsonpickle
 from zmq.utils import jsonapi
 
 from authenticate import Authenticate
@@ -175,8 +174,7 @@ def volttron_central_agent(config_path, **kwargs):
         @RPC.export
         def list_platform_details(self):
             print('list_platform_details', self._registry.get_platforms())
-            return jsonpickle.encode(self._registry.get_platforms())
-            # return self._registry.get_platforms().keys()
+            return self._registry.get_platforms() #[x.to_json() for x in self._registry.get_platforms()]
 
         @RPC.export
         def unregister_platform(self, platform_uuid):
@@ -192,28 +190,31 @@ def volttron_central_agent(config_path, **kwargs):
 
 
         @RPC.export
-        def register_instance(self, uri, display_name=None):
+        def register_instance(self, discovery_address, display_name=None):
             """ Register an instance with VOLTTRON Central.
 
             The registration of the instance will fail in the following cases:
             - no discoverable instance at the passed uri
             - no platform.agent installed at the discoverable instance
-            - is a different volttron central managing the discoverable instance.
+            - is a different volttron central managing the discoverable
+              instance.
 
             If the display name is not set then the display name becomes the
-            same as the uri.  This will be used in the volttron central ui.
+            same as the discovery_address.  This will be used in the
+            volttron central ui.
 
-            :param uri: A ip:port for an instance of volttron discovery..
+            :param discovery_address: A ip:port for an instance of volttron
+                   discovery.
             :param display_name:
             :return:
             :raises CouldNotRegister if the platform couldn't be registered.
             """
 
             _log.info('Attempting to register name: {}\nwith address: {}'.format(
-                display_name, uri))
+                display_name, discovery_address))
 
             # Make sure that the agent is reachable.
-            request_uri = "http://{}/discovery/".format(uri)
+            request_uri = "http://{}/discovery/".format(discovery_address)
             res = requests.get(request_uri)
             _log.debug("Requesting discovery from: {}".format(request_uri))
             if not res.ok:
@@ -247,24 +248,28 @@ def volttron_central_agent(config_path, **kwargs):
             event.wait(timeout=30)
             del event
             web_addr = self.vip.rpc.call("volttron.web", "get_bind_web_address").get(timeout=2)
+            if not display_name:
+                display_name = discovery_address
+            _log.debug("")
             result = agent.vip.rpc.call(peer='platform.agent',
                                         method='manage_platform',
                                         uri=web_addr,
                                         vc_publickey=self._publickey).get(timeout=5)
             if not result:
                 raise CouldNotRegister(
-                    "display_name={}, uri={}".format(display_name, uri)
+                    "display_name={}, discovery_address={}".format(
+                        display_name, discovery_address)
                 )
 
-
+            # datetime_now = datetime.datetime.utcnow()
+            # _log.debug(datetime_now)
             entry = RegistryEntry(vip_address=vip_address,
                                   serverkey=pa_instance_serverkey,
+                                  discovery_address=web_addr,
                                   display_name=display_name)
             self._registry.register(entry)
 
             return dict(success=True, display_name=display_name)
-
-
 
         # @RPC.export
         # def register_platform(self, peer_identity, name, peer_address):
@@ -392,23 +397,26 @@ def volttron_central_agent(config_path, **kwargs):
 
                 if rpcdata.method == 'register_instance':
                     try:
-                        # real_params = dict(uri=rpcdata.params['uri'],
-                        #                    vc_serverkey=self._serverkey)
+                        # internal use discovery address rather than uri
+                        rpcdata.params['discovery_address'] = rpcdata.params['uri']
+                        del rpcdata.params['uri']
+                        print("RPCDATA.PARAMS: {}".format(rpcdata.params))
                         result = self.register_instance(**rpcdata.params)
                     except CouldNotRegister as expinfo:
-                        return jsonrpc.json_error(rpcdata.id,
-                                                  UNABLE_TO_REGISTER_INSTANCE ,
+                        return jsonrpc.json_error(
+                            rpcdata.id, UNABLE_TO_REGISTER_INSTANCE,
                             "Unable to register platform {}".format(expinfo),
-                                                  rpcdata.params)
+                            rpcdata.params)
                     else:
                         return jsonrpc.json_result(rpcdata.id, {
                             "status": "SUCCESS",
-                            "context": "Registered instance {}".format(result['display_name'])
+                            "context": "Registered instance {}".format(
+                                result['display_name'])
                         })
 
             except AssertionError:
-                return jsonapi.dumps(jsonrpc.json_error('NA', INVALID_REQUEST,
-                    'Invalid rpc data {}'.format(data)))
+                return jsonapi.dumps(jsonrpc.json_error(
+                    'NA', INVALID_REQUEST, 'Invalid rpc data {}'.format(data)))
 
             return rpcdata
 
