@@ -158,6 +158,10 @@ br + .form__control-help {
     margin-top: 0.5em;
 }
 
+.form__link a {
+    cursor: pointer;
+}
+
 .form__actions {
     margin-top: 1.5em;
     text-align: right;
@@ -508,7 +512,7 @@ br + .form__control-help {
 
 .cellDiv {
     display: table-cell;
-    padding: 0 10px 10px 0;
+    padding: 0px 0px 10px 10px;
 }
 
 .firstCell {
