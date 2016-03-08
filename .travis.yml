@@ -1,8 +1,22 @@
 language: python
 
-dist: trusty
-sudo: required
-
+matrix:
+  include:
+    #precise with ones that don't include dist
+    - python: "2.7.3"
+      sudo: required
+    - python: "2.7.6"
+      sudo: required
+    - python: "2.7.11"
+      sudo: required
+      
+    - dist: trusty
+      sudo: required
+      python: "2.7.6"
+    - dist: trusty
+      sudo: required
+      python: "2.7.11"
+      
 before_install:
   - sudo apt-get update -qq
   - sudo apt-get install -y build-essential python-dev openssl libssl-dev libevent-dev
@@ -12,27 +26,3 @@ install:
   - python2 bootstrap.py
 
 script: scripts/run-tests.sh
-
-#notifications:
-#  email:
-#    - craig.allwardt@pnnl.gov
-#    - zachary.beech@pnnl.gov
-#    recipients:
-#      - craig.allwardt@pnnl.gov
-      #- zachary.beech@pnnl.gov
-      #- jereme.haack@pnnl.gov
-      #- kyle.monson@pnnl.gov
-      #- joseph.chapman@pnnl.gov
-      #- poorva.sharma@pnnl.gov
-      #- michael.roup@pnnl.gov
-      #- bora.akyol@pnnl.gov
-      #- robert.lutes@pnnl.gov
-#      on_success: change
-#      on_failure: change
-
-#language: python
-#matrix:
-#  include:
-#    - python: "2.7"
-#      env: TEST_SUITE=suite_2_7
-# script: env/bin/python
