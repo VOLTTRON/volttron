@@ -61,7 +61,7 @@ from collections import defaultdict, namedtuple
 from copy import deepcopy
 from cPickle import dump, load
 
-import bisect, uuid
+import bisect
 
 PRIORITY_HIGH = 'HIGH'
 PRIORITY_LOW = 'LOW'
