@@ -63,8 +63,35 @@ var platformManagerActionCreators = {
             authorization: authorization,
             params: {
                 identity: 'platform.agent',
-                agentid: name,
+                agentId: name,
                 address: address,
+            },
+        }).promise
+            .then(function () {
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.CLOSE_MODAL,
+                });
+
+                platformManagerActionCreators.loadPlatforms();
+            })
+            .catch(rpc.Error, function (error) {
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.REGISTER_PLATFORM_ERROR,
+                    error: error,
+                });
+
+                handle401(error);
+            });
+    },
+    registerInstance: function (name, address) {
+        var authorization = authorizationStore.getAuthorization();
+
+        new rpc.Exchange({
+            method: 'register_instance',
+            authorization: authorization,
+            params: {
+                display_name: name,
+                discovery_address: address,
             },
         }).promise
             .then(function () {

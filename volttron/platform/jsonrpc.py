@@ -62,7 +62,7 @@ See http://www.jsonrpc.org/specification for the complete specification.
 
 import sys
 from contextlib import contextmanager
-
+from collections import namedtuple
 
 __all__ = ['Error', 'MethodNotFound', 'RemoteError', 'Dispatcher']
 
@@ -76,7 +76,14 @@ INTERNAL_ERROR = -32603
 # implementation-defined server-errors:
 UNHANDLED_EXCEPTION = -32000
 UNAUTHORIZED = -32001
+UNABLE_TO_REGISTER_INSTANCE = -32002
 
+JsonRpcData = namedtuple('JsonRpcData', 'id jsonrpc method params')
+
+def validate(rpcdata):
+    assert rpcdata.id is not None
+    assert rpcdata.jsonrpc == '2.0'
+    assert rpcdata.method is not None
 
 def json_method(ident, method, args, kwargs):
     '''Builds a JSON-RPC request object (dictionary).'''

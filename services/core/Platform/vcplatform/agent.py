@@ -50,46 +50,46 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-
 #}}}
 
+
 from __future__ import absolute_import, print_function
+
+__version__ = '3.1'
+
 import base64
-from datetime import datetime
-import gevent
 import gevent.event
 import logging
 import sys
 import requests
 import os
-import os.path as p
 import re
 import shutil
 import tempfile
-import uuid
 
 import psutil
 
 import gevent
+from gevent.fileobject import FileObject
 from zmq.utils import jsonapi
 from volttron.platform.vip.agent import *
 
-from volttron.platform import vip, jsonrpc, control
-from volttron.platform.control import Connection
+from volttron.platform import jsonrpc, control
+from volttron.platform.keystore import KeyStore
 from volttron.platform.agent import utils
 
 from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
                                        INVALID_REQUEST, METHOD_NOT_FOUND,
                                        PARSE_ERROR, UNHANDLED_EXCEPTION)
 
+class AlreadyManagedError(Exception):
+    """ Raised when a different volttron central tries to register.
+    """
+    pass
+
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-
-def get_error_response(code, message, data=None):
-    return {'jsonrpc': '2.0',
-            'error': {'code': code, 'message': message, 'data': data}
-            }
-
+__version__ = '3.5'
 
 def platform_agent(config_path, **kwargs):
     config = utils.load_config(config_path)
@@ -121,6 +121,84 @@ def platform_agent(config_path, **kwargs):
             self._agent_configurations = {}
             self._sibling_cache = {}
             self._vip_channels = {}
+            self.volttron_home = os.environ['VOLTTRON_HOME']
+            self._keystore = KeyStore("platform_agent.keystore")
+
+            if not os.path.exists(("platform_agent.keystore")):
+                self._keystore.generate()
+
+            # By default not managed by vc, but if the file is available then
+            # read and store it as an object.
+            self._vc = None
+
+        def _get_vc_info(self):
+            """ Loads the VOLTTRON Central keys if available.
+
+            :return:
+            """
+            # Load up the vc information.  If manage_platform is called with
+            # different public key then there is an error.
+            if os.path.exists("volttron.central"):
+                with open("volttron.central",'r') as fin:
+                    self._vc = jsonapi.loads(fin.read())
+            else:
+                self._vc = None
+
+        def _read_auth_file(self):
+            auth_path = os.path.join(self.volttron_home, 'auth.json')
+            try:
+                with open(auth_path, 'r') as fd:
+                    data = utils.strip_comments(FileObject(fd, close=False).read())
+                    auth = jsonapi.loads(data)
+            except IOError:
+                auth = {}
+            if not 'allow' in auth:
+                auth['allow'] = []
+            return auth, auth_path
+
+        def _append_allow_curve_key(self, publickey, capabilities=None):
+            auth, auth_path = self._read_auth_file()
+            cred = 'CURVE:{}'.format(publickey)
+            allow = auth['allow']
+            if not any(record['credentials'] == cred for record in allow):
+                _log.debug("Appending new cred: {}".format(cred))
+                allow.append({'credentials': cred})
+
+            with open(auth_path, 'w+') as fd:
+                fd.write(jsonapi.dumps(auth))
+
+            if capabilities:
+                self._add_capabilities(publickey, capabilities)
+
+        def _add_capabilities(self, publickey, capabilities):
+            _log.info("Adding capability {}, {}".format(publickey, capabilities))
+            if isinstance(capabilities, basestring):
+                capabilities = [capabilities]
+            auth, auth_path = self._read_auth_file()
+            cred = 'CURVE:{}'.format(publickey)
+            allow = auth['allow']
+            entry = {}
+            for item in allow:
+                if item['credentials'] == cred:
+                    entry = item
+                    break
+            if entry:
+                _log.debug('Found cred for pubkey: {}'.format(publickey))
+                _log.debug("entry is: {}".format(entry))
+            #entry = next((item for item in allow if item['credentials'] == cred), {})
+            caps = entry.get('capabilities', [])
+            entry['capabilities'] = list(set(caps + capabilities))
+            _log.debug("entry after update is: {}".format(entry))
+            _log.debug("Auth after all is now: {}".format(auth))
+
+            with open(auth_path, 'w') as fd:
+                fd.write(jsonapi.dumps(auth))
+
+            with open(auth_path) as fd:
+                auth_json = fd.read()
+
+            _log.debug("AUTH PATH IS: {}".format(auth_path))
+            _log.debug("Auth after all is now: {}".format(auth_json))
 
         def _store_settings(self):
             with open('platform.settings', 'wb') as f:
@@ -151,13 +229,60 @@ def platform_agent(config_path, **kwargs):
                 agent = self._vip_channels[address]
             return agent
 
+        @RPC.export
+        def manage_platform(self, uri, vc_publickey):
+            """ Manage this platform.
+
+            The uri is the ip:port that has a volttron.central agent running
+            on the instance.
+
+            :param uri: discovery uri for the volttron central instance.
+            :param vc_publickey: public key for the volttron.central agent.
+            :return: The public key for the platform.agent
+            :raises: AlreadyManagedError if trying to regegister with
+                    different volttron central instance.
+            """
+            _log.info("Request to manage came from {} with pk {}".format(
+                uri, vc_publickey))
+
+            # Refresh the file to see if we are now managed or not.
+            if not self._vc:
+                self._get_vc_info()
+            else:
+                _log.info("Already registered with: {}".format(
+                    self._vc['serverkey']))
+                if not vc_publickey == self._vc['serverkey']:
+                    err = "Attempted to register with different key: {}".format(
+                        vc_publickey
+                    )
+                    raise AlreadyManagedError(err)
+
+            # The variable self._vc will be loadded when the object is
+            # created.
+            res = requests.get("http://{}/discovery/".format(uri))
+            assert res.ok
+            _log.debug('RESPONSE: {} {}'.format(type(res.json()), res.json()))
+            tmpvc = res.json()
+            assert 'vip-address' in tmpvc.keys()
+            assert 'serverkey' in tmpvc.keys()
+            # Overwrite the default server key with the agent specific key
+            # so that the platform can be directly connected to.
+            tmpvc['serverkey'] = vc_publickey
+            self._vc = tmpvc
+            _log.debug("vctmp: {}".format(self._vc))
+            with open("volttron.central", 'w') as fout:
+                fout.write(jsonapi.dumps(tmpvc))
+
+            # Add the can manage to the key file
+            self._append_allow_curve_key(vc_publickey, 'can_manage')
+
+            return self._keystore.public()
 
         @RPC.export
         def set_setting(self, key, value):
             _log.debug("Setting key: {} to value: {}".format(key, value))
             self._settings[key] = value
             self._store_settings()
-
 
         @RPC.export
         def get_setting(self, key):
@@ -166,20 +291,9 @@ def platform_agent(config_path, **kwargs):
 
         @Core.periodic(period=15, wait=30)
         def write_status(self):
-            historian_present = False
 
-            try:
-                ping = self.vip.ping('platform.historian', 'awake?').get(timeout=2)
-                historian_present = True
-            except Unreachable:
-                _log.warning('platform.historian unavailable no logging of data will occur.')
-                return
-            _log.debug('publishing data')
             base_topic = 'datalogger/log/platform/status'
             cpu = base_topic + '/cpu'
-            virtual_memory = base_topic + "/virtual_memory"
-            disk_partitions = base_topic + "/disk_partiions"
-
             points = {}
 
             for k, v in psutil.cpu_times_percent().__dict__.items():
@@ -189,7 +303,6 @@ def platform_agent(config_path, **kwargs):
             points['percent'] = {'Readings': psutil.cpu_percent(),
                                  'Units': 'double'}
 
-            message = jsonapi.dumps(points)
             self.vip.pubsub.publish(peer='pubsub',
                                     topic=cpu,
                                     message=points)
@@ -237,9 +350,6 @@ def platform_agent(config_path, **kwargs):
                 except StandardError as ex:
                     _log.error("Unhandled Exception: "+str(ex))
 
-
-
-
         @RPC.export
         def register_service(self, vip_identity):
             # make sure that we get a ping reply
@@ -253,15 +363,87 @@ def platform_agent(config_path, **kwargs):
 
             self._services[alias] = vip_identity
 
-        @RPC.export
-        def services(self):
-            return self._services
+        # @RPC.export
+        # def services(self):
+        #     return self.@RPC.allow("can_manage")
 
-
         @RPC.export
+        # @RPC.allow("can_manage")
         def list_agents(self):
-            result = self.vip.rpc.call("control", "list_agents").get()
-            return result
+            """ List the agents that are installed on the platform.
+
+            Note this does not take into account agents that are connected
+            with the instance, but only the ones that are installed and
+            have a uuid.
+
+            :return: A list of agents.
+            """
+            agents = self.vip.rpc.call("control", "list_agents").get()
+
+            agents_status = self.vip.rpc.call("control",
+                                              "status_agents").get()
+            _log.debug('List Agent: {}'.format(agents))
+            # ['uuid', 'vcplatformagent-3.5', [15958, None]]s
+            _log.debug("Status Agents: {}".format(agents_status))
+            uuid_to_status = {}
+            for s in agents_status:
+                # 'uuid', 'vcplatformagent-3.5', [16206, None]]
+                if s[2][0] > 0:
+                    uuid_to_status[s[0]] = {'process_id': s[2][0],
+                                            "error_code": 0}
+                elif s[2][0] <= 0:
+                    uuid_to_status[s[0]] = {'process_id': 0,
+                                            "error_code": s[2][0]}
+
+            for a in agents:
+                a.update(uuid_to_status[a['uuid']])
+
+            return agents
+
+        @RPC.export
+        # @RPC.allow("can_manage")
+        def start_agent(self, agent_uuid):
+            agents = self.list_agents()
+            for k in agents:
+                if agent_uuid in k['uuid'] \
+                        and k['process_id'] <= 0:
+                    proc_result = self.vip.rpc.call("control",
+                                                     "start_agent",
+                                                     agent_uuid).get()
+                    return proc_result
+            return []
+
+        @RPC.export
+        # @RPC.allow("can_manage")
+        def stop_agent(self, agent_uuid):
+            agents = self.list_agents()
+            for k in agents:
+                if agent_uuid in k['uuid'] \
+                        and k['process_id'] >= 0:
+                    proc_result = self.vip.rpc.call("control",
+                                                     "stop_agent",
+                                                     agent_uuid).get()
+                    return proc_result
+            return []
+
+        @RPC.export
+        # @RPC.allow("can_manage")
+        def restart_agent(self, agent_uuid):
+            agents = self.list_agents()
+            for k in agents:
+                if agent_uuid in k['uuid'] \
+                        and k['process_id'] <= 0:
+                    proc_result = self.vip.rpc.call("control",
+                                                     "restart_agent",
+                                                     agent_uuid).get()
+                    return proc_result
+            return []
+
+        @RPC.export
+        def agent_status(self, agent_uuid):
+            return self.vip.rpc.call("control", "agent_status",
+                                      agent_uuid).get()
+
 
         def _install_agents(self, agent_files):
             tmpdir = tempfile.mkdtemp()
@@ -309,7 +491,7 @@ def platform_agent(config_path, **kwargs):
                 _log.debug('We are trying to exectute method {}'.format(method))
                 if isinstance(params, list) and len(params) != 1 or \
                     isinstance(params, dict) and 'uuid' not in params.keys():
-                    result['code'] = INVALID_PARAMS
+                    result = jsonrpc.json_error(ident=id, code=INVALID_PARAMS)
                 else:
                     if isinstance(params, list):
                         uuid = params[0]
@@ -327,7 +509,7 @@ def platform_agent(config_path, **kwargs):
             elif method in ('install'):
 
                 if not 'files' in params:
-                    result = {'code': INVALID_PARAMS}
+                    result = jsonrpc.json_error(ident=id, code=INVALID_PARAMS)
                 else:
                     result = self._install_agents(params['files'])
 
@@ -345,10 +527,10 @@ def platform_agent(config_path, **kwargs):
 
                 else:
 
-                    result = {'code': METHOD_NOT_FOUND}
+                    result = jsonrpc.json_error(ident=id, code=METHOD_NOT_FOUND)
 
                     if len(fields) < 3:
-                        result = result = {'code': METHOD_NOT_FOUND}
+                        result = jsonrpc.json_error(ident=id, code=METHOD_NOT_FOUND)
                     else:
                         agent_uuid = fields[2]
                         agent_method = '.'.join(fields[3:])
@@ -369,7 +551,8 @@ def platform_agent(config_path, **kwargs):
 
         @RPC.export
         def list_agent_methods(self, method, params, id, agent_uuid):
-            return get_error_response(id, INTERNAL_ERROR, 'Not implemented')
+            return jsonrpc.json_error(ident=id, code=INTERNAL_ERROR,
+                                      message='Not implemented')
 
         @RPC.export
         def manage(self, address, identity):

@@ -70,7 +70,7 @@ import settings
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-
+__version__ = '0.1'
 
 def DatetimeFromValue(ts):
     ''' Utility for dealing with time

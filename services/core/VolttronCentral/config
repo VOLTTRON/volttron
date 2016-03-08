@@ -2,10 +2,16 @@
     # The agentid is used during display on the VOLTTRON central platform
     # it does not need to be unique.
     "agentid": "volttron central",
-    
+
     # Must be unique on a given instance of VOLTTRON
     "vip_identity": "volttron.central",
-    
+    "identity": "volttron.central",
+
+    # By default the webroot will be relative to the installation directory
+    # of the agent when it is installed.  One can override this by specifying
+    # the root directory here.
+    # "webroot": "path/to/webroot", 
+
     # Tornado server settings.  These options are passed to the
     # tornado webserver during agent start up.
     "server" : {
@@ -13,7 +19,7 @@
         "port": 8080,
         "debug": "False"
     },
-    
+
     # Authentication for users is handled through a naive password algorithm
     # import hashlib
     # hashlib.sha512(password).hexdigest() where password is the plain text password.

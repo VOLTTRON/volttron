@@ -3,6 +3,7 @@ import json
 import os
 import shutil
 import logging
+from gevent.fileobject import FileObject
 import gevent.subprocess as subprocess
 from gevent.subprocess import Popen
 import sys
@@ -15,8 +16,11 @@ from contextlib import closing
 from StringIO import StringIO
 
 import zmq
+from zmq.utils import jsonapi
+
 import gevent
 
+from volttron.platform.agent.utils import strip_comments
 from volttron.platform.messaging import topics
 from volttron.platform.main import start_volttron_process
 from volttron.platform.vip.agent import Agent
@@ -116,25 +120,57 @@ class PlatformWrapper:
         self.env = os.environ.copy()
         self.env['VOLTTRON_HOME'] = self.volttron_home
 
+        # By default no web server should be started.
+        self.bind_web_address = None
+
         self._p_process = None
         self._t_process = None
         self.publickey = self.generate_key()
         self._started_pids = []
+        self.local_vip_address = None
+        self.vip_address = None
         print('Creating Platform Wrapper at: {}'.format(self.volttron_home))
+
+    def allow_all_connections(self):
+        allow = {"allow":[
+            {"credentials": "/CURVE:.*/"}
+        ]}
+        auth = os.path.join(self.volttron_home, "auth.json")
+
+        with open(auth, 'w') as f:
+            f.write(jsonapi.dumps(allow))
+
+
 
     def build_agent(self, address=None, should_spawn=True, identity=None,
                     publickey=None, secretkey=None, serverkey=None):
+        """ Build an agent connnected to the passed bus.
+
+        By default the current instance that this class wraps will be the
+        vip address of the agent.
+
+        :param address:
+        :param should_spawn:
+        :param identity:
+        :param publickey:
+        :param secretkey:
+        :param serverkey:
+        :return:
+        """
         _log.debug('BUILD GENERIC AGENT')
         if address is None:
             address = self.vip_address[0]
 
         agent = Agent(address=address, identity=identity, publickey=publickey,
                       secretkey=secretkey, serverkey=serverkey)
-        print('platformwrapper.build_agent.address: {}'.format(address))
+        print('full tcp address: {}'.format(agent.core.address))
 
         # Automatically add agent's credentials to auth.json file
         if publickey:
-            self._append_allow_curve_key(publickey)
+            print('Adding publickey to auth.json')
+            gevent.spawn(self._append_allow_curve_key, publickey)
+            gevent.sleep(0.1)
+
 
         if should_spawn:
             print('platformwrapper.build_agent spawning')
@@ -153,22 +189,37 @@ class PlatformWrapper:
             fd.write(key)
         return encode_key(key[:40]) # public key
 
-    def _append_allow_curve_key(self, publickey):
-        cred = 'CURVE:{}'.format(publickey)
+    def _read_auth_file(self):
         auth_path = os.path.join(self.volttron_home, 'auth.json')
-
         try:
             with open(auth_path, 'r') as fd:
-                auth = json.load(fd)
+                data = strip_comments(FileObject(fd, close=False).read())
+                auth = jsonapi.loads(data)
         except IOError:
             auth = {}
-
         if not 'allow' in auth:
             auth['allow'] = []
+        return auth, auth_path
 
+    def _append_allow_curve_key(self, publickey):
+        auth, auth_path = self._read_auth_file()
+        cred = 'CURVE:{}'.format(publickey)
         allow = auth['allow']
         if not any(record['credentials'] == cred for record in allow):
             allow.append({'credentials': cred})
+
+        with open(auth_path, 'w+') as fd:
+            json.dump(auth, fd)
+
+    def add_capabilities(self, publickey, capabilities):
+        if isinstance(capabilities, basestring):
+            capabilities = [capabilities]
+        auth, auth_path = self._read_auth_file()
+        cred = 'CURVE:{}'.format(publickey)
+        allow = auth['allow']
+        entry = next((item for item in allow if item['credentials'] == cred), {})
+        caps = entry.get('capabilities', [])
+        entry['capabilities'] = list(set(caps + capabilities))
 
         with open(auth_path, 'w+') as fd:
             json.dump(auth, fd)
@@ -179,7 +230,7 @@ class PlatformWrapper:
                 fd.write(json.dumps(auth_dict))
 
     def startup_platform(self, vip_address, auth_dict=None, use_twistd=False,
-        mode=UNRESTRICTED, encrypt=False):
+        mode=UNRESTRICTED, encrypt=False, bind_web_address=None):
         # if not isinstance(vip_address, list):
         #     self.vip_address = [vip_address]
         # else:
@@ -187,7 +238,7 @@ class PlatformWrapper:
 
         self.vip_address = [vip_address]
         self.mode = mode
-
+        self.bind_web_address = bind_web_address
         assert self.mode in MODES, 'Invalid platform mode set: '+str(mode)
         opts = None
 
@@ -195,7 +246,7 @@ class PlatformWrapper:
         ipc = 'ipc://{}{}/run/'.format(
             '@' if sys.platform.startswith('linux') else '',
             self.volttron_home)
-
+        self.local_vip_address = ipc + 'vip.socket'
         if not encrypt:
             # Remove connection encryption
             with open(os.path.join(self.volttron_home, 'curve.key'), 'w'):
@@ -209,6 +260,7 @@ class PlatformWrapper:
                 'vip_local_address': ipc + 'vip.socket',
                 'publish_address': ipc + 'publish',
                 'subscribe_address': ipc + 'subscribe',
+                'bind_web_address': bind_web_address,
                 'developer_mode': not encrypt,
                 'log': os.path.join(self.volttron_home,'volttron.log'),
                 'log_config': None,
@@ -223,7 +275,8 @@ class PlatformWrapper:
         parser =  configparser.ConfigParser()
         parser.add_section('volttron')
         parser.set('volttron', 'vip-address', vip_address)
-
+        if bind_web_address:
+            parser.set('volttron', 'bind-web-address', bind_web_address)
         if self.mode == UNRESTRICTED:
             if RESTRICTED_AVAILABLE:
                 config['mobility'] = False
@@ -551,10 +604,12 @@ class PlatformWrapper:
             except:
                 print('could not kill: {} '.format(pid))
         if self._p_process != None:
-
-            gevent.sleep(0.1)
-            self._p_process.terminate()
-            gevent.sleep(0.1)
+            try:
+                gevent.sleep(0.1)
+                self._p_process.terminate()
+                gevent.sleep(0.1)
+            except OSError:
+                print('Platform process was terminated.')
         else:
             print "platform process was null"
 

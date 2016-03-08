@@ -58,6 +58,7 @@
 from __future__ import absolute_import, print_function
 
 from contextlib import contextmanager
+from datetime import datetime
 from errno import ENOENT
 import heapq
 import inspect
@@ -71,6 +72,7 @@ import urlparse
 import gevent.event
 from zmq import green as zmq
 from zmq.green import ZMQError, EAGAIN
+from zmq.utils import jsonapi as json
 from zmq.utils.monitor import recv_monitor_message
 
 from .decorators import annotate, annotations, dualmethod
@@ -80,6 +82,9 @@ from .. import green as vip
 from .. import router
 from .... import platform
 
+STATUS_GOOD = 'Good'
+STATUS_BAD = 'Bad'
+STATUS_UNKNOWN = 'Unknown'
 
 __all__ = ['BasicCore', 'Core', 'killing']
 
@@ -180,6 +185,18 @@ class BasicCore(object):
         self.onstop = Signal()
         self.onfinish = Signal()
         self._owner = owner
+        self._status = {}  # status will be a json serialized string.
+        self._set_status(STATUS_GOOD, 'Initialization of object')
+
+    def _set_status(self, status, context=None):
+        self._status = {
+            'status': status,
+            'context': context,
+            'last_updated': datetime.utcnow().isoformat()
+        }
+
+    def status(self):
+        return json.dumps(self._status)
 
     def setup(self):
         # Split out setup from __init__ to give oportunity to add
@@ -403,7 +420,10 @@ class Core(BasicCore):
         super(Core, self).__init__(owner)
         self.context = context or zmq.Context.instance()
         self.address = address
-        self._add_keys_to_addr(publickey, secretkey, serverkey)
+        if publickey and secretkey and serverkey:
+            self._add_keys_to_addr(publickey, secretkey, serverkey)
+        else:
+            _log.warn('Encryption not established... no publickey, secretkey, or serverkey provided.')
         self.identity = identity
         self.socket = None
         self.subsystems = {'error': self.handle_error}

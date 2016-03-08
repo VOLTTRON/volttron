@@ -72,6 +72,7 @@ import settings
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
+__version__ = '3.0'
 
 HEADER_NAME_DATE = headers_mod.DATE
 HEADER_NAME_CONTENT_TYPE = headers_mod.CONTENT_TYPE

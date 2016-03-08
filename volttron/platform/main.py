@@ -71,6 +71,7 @@ import threading
 import uuid
 
 import gevent
+from gevent.fileobject import FileObject
 import zmq
 from zmq import curve_keypair, green
 # Create a context common to the green and non-green zmq modules.
@@ -88,7 +89,9 @@ from .vip.socket import encode_key, Address
 from .vip.tracking import Tracker
 from .auth import AuthService
 from .control import ControlService
+from .web import MasterWebService
 from .agent import utils
+from .vip.agent.subsystems.pubsub import ProtectedPubSubTopics
 
 try:
     import volttron.restricted
@@ -328,10 +331,50 @@ class Router(BaseRouter):
             return frames
 
 
+_SAMPLE_PROTECTED_TOPICS_FILE = r'''{
+    "write-protect": [
+    # {"topic": "foo", "capabilities": ["can_publish_to_foo"]}
+    ]
+}
+'''
+
 class PubSubService(Agent):
+    def __init__(self, protected_topics_file, *args, **kwargs):
+        super(PubSubService, self).__init__(*args, **kwargs)
+        self._protected_topics_file = os.path.abspath(protected_topics_file)
+
     @Core.receiver('onstart')
     def setup_agent(self, sender, **kwargs):
+        self._read_protected_topics_file()
+        self.core.spawn(utils.watch_file, self._protected_topics_file,
+                        self._read_protected_topics_file)
         self.vip.pubsub.add_bus('')
+
+    def _read_protected_topics_file(self):
+        _log.info('loading protected-topics file %s',
+                  self._protected_topics_file)
+        try:
+            utils.create_file_if_missing(self._protected_topics_file)
+            with open(self._protected_topics_file) as fil:
+                # Use gevent FileObject to avoid blocking the thread
+                data = utils.strip_comments(FileObject(fil, close=False).read())
+                topics_data = jsonapi.loads(data) if data else {}
+        except Exception:
+            _log.exception('error loading %s', self._protected_topics_file)
+        else:
+            write_protect = topics_data.get('write-protect', [])
+            topics = ProtectedPubSubTopics()
+            try:
+                for entry in write_protect:
+                    topics.add(entry['topic'], entry['capabilities'])
+            except KeyError:
+                _log.exception('invalid format for protected topics '
+                               'file {}'.format(self._protected_topics_file))
+            else:
+                self.vip.pubsub.protected_topics = topics
+                _log.info('protected-topics file %s loaded',
+                          self._protected_topics_file)
+
 
 def start_volttron_process(opts):
     '''Start the main volttron process.
@@ -355,6 +398,8 @@ def start_volttron_process(opts):
     opts.subscribe_address = config.expandall(opts.subscribe_address)
     opts.vip_address = [config.expandall(addr) for addr in opts.vip_address]
     opts.vip_local_address = config.expandall(opts.vip_local_address)
+    if opts.bind_web_address:
+        opts.bind_web_address = config.expandall(opts.bind_web_address)
     if getattr(opts, 'show_config', False):
         for name, value in sorted(vars(opts).iteritems()):
             print(name, repr(value))
@@ -409,6 +454,7 @@ def start_volttron_process(opts):
     # Get or generate encryption key
     if opts.developer_mode:
         secretkey = None
+        publickey = None
         _log.warning('developer mode enabled; '
                      'authentication and encryption are disabled!')
     else:
@@ -472,6 +518,7 @@ def start_volttron_process(opts):
         auth = AuthService(
             auth_file, opts.aip, address=address, identity='auth',
             allow_any=opts.developer_mode)
+
         event = gevent.event.Event()
         auth_task = gevent.spawn(auth.core.run, event)
         event.wait()
@@ -486,14 +533,20 @@ def start_volttron_process(opts):
         if not thread.isAlive():
             sys.exit()
 
+        protected_topics_file = os.path.join(opts.volttron_home, 'protected_topics.json')
+        _log.debug('protected topics file %s', protected_topics_file)
+
         # Launch additional services and wait for them to start before
         # auto-starting agents
         services = [
             ControlService(opts.aip, address=address, identity='control', tracker=tracker),
-            PubSubService(address=address, identity='pubsub'),
+            PubSubService(protected_topics_file, address=address, identity='pubsub'),
             CompatPubSub(address=address, identity='pubsub.compat',
                          publish_address=opts.publish_address,
                          subscribe_address=opts.subscribe_address),
+            MasterWebService(serverkey=publickey, identity='volttron.web',
+                             address=address,
+                             bind_web_address=opts.bind_web_address)
         ]
         events = [gevent.event.Event() for service in services]
         tasks = [gevent.spawn(service.core.run, event)
@@ -517,6 +570,7 @@ def start_volttron_process(opts):
             gevent.wait(tasks)
     finally:
         opts.aip.finish()
+
 
 def main(argv=sys.argv):
     # Refuse to run as root
@@ -595,7 +649,9 @@ def main(argv=sys.argv):
     agents.add_argument(
         '--vip-local-address', metavar='ZMQADDR',
         help='ZeroMQ URL to bind for local agent VIP connections')
-
+    agents.add_argument(
+        '--bind-web-address', metavar='BINDWEBADDR', default=None,
+        help='Bind a web server to the specified ip:port passed')
     # XXX: re-implement control options
     #on
     #control.add_argument(
@@ -662,6 +718,8 @@ def main(argv=sys.argv):
         subscribe_address=ipc + 'subscribe',
         vip_address=[],
         vip_local_address=ipc + 'vip.socket',
+        # This is used to start the web server from the web module.
+        bind_web_address = None,
         #allow_root=False,
         #allow_users=None,
         #allow_groups=None,

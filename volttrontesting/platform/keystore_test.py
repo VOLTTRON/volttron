@@ -1,6 +1,8 @@
+import tempfile
+
 import pytest
 
-from .. import keystore
+from volttron.platform import keystore
 
 host_pair1 = {'addr': 'tcp://127.0.0.1:1234', 'key': 'ABCDEFG'}
 host_pair2 = {'addr': 'tcp://192.168.0.2:1234', 'key': '123456789'}
@@ -14,8 +16,15 @@ def keystore_instance1(tmpdir_factory):
     return keys
 
 @pytest.mark.keystore
+def test_keystore_generated_when_created(tmpdir_factory):
+    kspath = str(tmpdir_factory.mktemp('keys').join('keys.json'))
+    ks = keystore.KeyStore(kspath)
+    assert ks.secret()
+    assert ks.public()
+
+@pytest.mark.keystore
 def test_generated_keys_length(keystore_instance1):
-    '''The keys should be the length of an encoded curve-key (43)'''
+    '''The keys should be the len:gth of an encoded curve-key (43)'''
     assert len(keystore_instance1.public()) == 43
     assert len(keystore_instance1.secret()) == 43
 

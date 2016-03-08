@@ -1,3 +1,4 @@
+
 '''
 Copyright (c) 2014, Battelle Memorial Institute
 All rights reserved.
@@ -215,29 +216,30 @@ class Application(AbstractDrivenAgent):
         # Verify data availability and map to correct array
         for key, value in device_dict.items():
             parts = key.split('_')
+            point_name = parts[0]
             tag = ''.join([parts[1], '/', parts[0], '/'])
-            if key.startswith(self.duct_stp_stpt_name) and value is not None:
+            if point_name == self.duct_stp_stpt_name and value is not None:
                 validate.update({tag: value})
                 sched_val.update(validate)
                 stcpr_sp_data.append(value)
-            elif key.startswith(self.duct_stp_name) and value is not None:
-                validate.update({tag: value})
-                sched_val.update(validate)
-                stc_pr_data.append(value)
-            elif key.startswith(self.zone_damper_name) and value is not None:
-                validate.update({tag: value})
-                zn_dmpr_data.append(value)
-            elif key.startswith(self.sat_stpt_name) and value is not None:
+            elif point_name == self.sat_stpt_name and value is not None:
                 validate.update({tag: value})
                 sched_val.update(validate)
                 sat_stpt_data.append(value)
-            elif key.startswith(self.sa_temp_name) and value is not None:
+            elif point_name == self.duct_stp_name and value is not None:
+                validate.update({tag: value})
+                sched_val.update(validate)
+                stc_pr_data.append(value)
+            elif point_name == self.sa_temp_name and value is not None:
                 validate.update({tag: value})
                 sched_val.update(validate)
                 satemp_data.append(value)
-            elif key.startswith(self.zone_reheat_name) and value is not None:
+            elif point_name.startswith(self.zone_reheat_name) and value is not None:
                 validate.update({tag: value})
                 rht_data.append(value)
+            elif point_name.startswith(self.zone_damper_name) and value is not None:
+                validate.update({tag: value})
+                zn_dmpr_data.append(value)
 
         if not stc_pr_data:
             self.pre_msg.append(self.pre_msg2)

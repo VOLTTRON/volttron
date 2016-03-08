@@ -1,13 +1,18 @@
 {
     # Agent id is used in the display on volttron central.
-    "agentid": "Central Platform",
-    
+    "agentid": "Platform Agent",
+
+    # Set the Platform agents identity
+    #
+    # Default "identity": "platform.agent"
+    "identity": "platform.agent"
+
     # Configuration parameters.
     #
-    # The period of time to go between attempting to report status to the 
+    # The period of time to go between attempting to report status to the
     # platform.historian.
     #
     # Default "report_status_period": 30
     "report_status_period": 15
-    
+
 }

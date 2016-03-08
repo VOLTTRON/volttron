@@ -11,7 +11,7 @@ var PageNotFound = require('./components/page-not-found');
 var Platform = require('./components/platform');
 var PlatformManager = require('./components/platform-manager');
 var Platforms = require('./components/platforms');
-var PlatformCharts = require('./components/platform-charts');
+var Graphs = require('./components/graphs');
 
 var _afterLoginPath = '/dashboard';
 
@@ -53,7 +53,7 @@ var routes = (
         React.createElement(Router.Route, {name: "dashboard", path: "dashboard", handler: checkAuth(Dashboard)}), 
         React.createElement(Router.Route, {name: "platforms", path: "platforms", handler: checkAuth(Platforms)}), 
         React.createElement(Router.Route, {name: "platform", path: "platforms/:uuid", handler: checkAuth(Platform)}), 
-        React.createElement(Router.Route, {name: "platform-charts", path: "platform-charts", handler: checkAuth(PlatformCharts)}), 
+        React.createElement(Router.Route, {name: "graphs", path: "graphs", handler: checkAuth(Graphs)}), 
         React.createElement(Router.NotFoundRoute, {handler: checkAuth(PageNotFound)}), 
         React.createElement(Router.DefaultRoute, {handler: AfterLogin})
     )
@@ -77,7 +77,7 @@ router.run(function (Handler) {
 });
 
 
-},{"./components/dashboard":16,"./components/login-form":21,"./components/page-not-found":24,"./components/platform":28,"./components/platform-charts":26,"./components/platform-manager":27,"./components/platforms":31,"./stores/authorization-store":43,"react":undefined,"react-router":undefined}],2:[function(require,module,exports){
+},{"./components/dashboard":13,"./components/graphs":18,"./components/login-form":20,"./components/page-not-found":23,"./components/platform":25,"./components/platform-manager":24,"./components/platforms":28,"./stores/authorization-store":40,"react":undefined,"react-router":undefined}],2:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -104,33 +104,7 @@ var consoleActionCreators = {
 module.exports = consoleActionCreators;
 
 
-},{"../constants/action-types":34,"../dispatcher":35,"../lib/rpc/exchange":37}],3:[function(require,module,exports){
-'use strict';
-
-var ACTION_TYPES = require('../constants/action-types');
-var dispatcher = require('../dispatcher');
-
-var controlButtonActionCreators = {
-	toggleTaptip: function (name) {
-		dispatcher.dispatch({
-			type: ACTION_TYPES.TOGGLE_TAPTIP,
-			name: name,
-		});
-	},
-	hideTaptip: function (name) {
-		dispatcher.dispatch({
-			type: ACTION_TYPES.HIDE_TAPTIP,
-			name: name,
-		});
-	},
-};
-
-
-
-module.exports = controlButtonActionCreators;
-
-
-},{"../constants/action-types":34,"../dispatcher":35}],4:[function(require,module,exports){
+},{"../constants/action-types":31,"../dispatcher":32,"../lib/rpc/exchange":34}],3:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -153,7 +127,7 @@ var modalActionCreators = {
 module.exports = modalActionCreators;
 
 
-},{"../constants/action-types":34,"../dispatcher":35}],5:[function(require,module,exports){
+},{"../constants/action-types":31,"../dispatcher":32}],4:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -505,120 +479,7 @@ function handle401(error) {
 module.exports = platformActionCreators;
 
 
-},{"../constants/action-types":34,"../dispatcher":35,"../lib/rpc":38,"../stores/authorization-store":43}],6:[function(require,module,exports){
-'use strict';
-
-var ACTION_TYPES = require('../constants/action-types');
-var dispatcher = require('../dispatcher');
-var authorizationStore = require('../stores/authorization-store');
-var rpc = require('../lib/rpc');
-
-var platformChartActionCreators = {
-	pinChart: function (chartKey) {
-		dispatcher.dispatch({
-			type: ACTION_TYPES.PIN_CHART,
-			chartKey: chartKey,
-		});
-	},
-	setType: function (chartKey, chartType) {
-		dispatcher.dispatch({
-			type: ACTION_TYPES.CHANGE_CHART_TYPE,
-			chartKey: chartKey,
-			chartType: chartType
-		});
-	},
-	changeRefreshRate: function (rate, chartKey) {
-		dispatcher.dispatch({
-			type: ACTION_TYPES.CHANGE_CHART_REFRESH,
-			rate: rate,
-			chartKey: chartKey
-		});
-	},
-	refreshChart: function (series) {
-
-		var authorization = authorizationStore.getAuthorization();
-
-		series.forEach(function (item) {
-
-			if (item.parentType === "platform")
-	        {
-	            var authorization = authorizationStore.getAuthorization();
-
-	            new rpc.Exchange({
-	                method: 'platforms.uuid.' + item.parentUuid + '.historian.query',
-	                params: {
-	                    topic: item.topic,
-	                    count: 20,
-	                    order: 'LAST_TO_FIRST',
-	                },
-	                authorization: authorization,
-	            }).promise
-	                .then(function (result) {
-	                	item.data = result.values;
-
-	                    item.data.forEach(function (datum) {
-	                        datum.name = item.name;
-	                        datum.parent = item.parentPath;
-                        	datum.uuid = item.uuid;
-	                    });
-	                    dispatcher.dispatch({
-	                        type: ACTION_TYPES.REFRESH_CHART,
-	                        item: item
-	                    });
-	                })
-	                .catch(rpc.Error, handle401);
-	        }  
-	        else
-	        {
-	            if (item.uuid === "5461fedc-65ba-43fe-21dc-098765bafedl")
-	            {
-	                item.data = [['2016-02-19T01:00:31.630626',31.4],['2016-02-19T01:00:16.632151',23],['2016-02-19T01:00:01.627188',16.5],['2016-02-19T00:59:46.641500',42.8],['2016-02-19T00:59:31.643573',21.2],['2016-02-19T00:59:16.643254',9.3],['2016-02-19T00:59:01.639104',8.5],['2016-02-19T00:58:46.638238',16],['2016-02-19T00:58:31.633733',12.4],['2016-02-19T00:58:16.632418',23],['2016-02-19T00:58:01.630463',16.7],['2016-02-19T00:57:46.648439',9.1],['2016-02-19T00:57:31.640824',10.5],['2016-02-19T00:57:16.636578',8.2],['2016-02-19T00:57:01.644842',2.2],['2016-02-19T00:56:46.635059',2.5],['2016-02-19T00:56:31.639332',2.4],['2016-02-19T00:56:16.647604',2.3],['2016-02-19T00:56:01.643571',11.2],['2016-02-19T00:55:46.644522',9.8]];
-	                item.data.forEach(function (datum) {
-	                    datum.name = item.name;
-	                    datum.parent = item.parentPath;
-	                    datum.uuid = item.uuid;
-	                });
-
-	                dispatcher.dispatch({
-	                    type: ACTION_TYPES.REFRESH_CHART,
-	                    item: item
-	                });
-	            }
-	            else if (item.uuid === "5461fedc-65ba-43fe-21dc-111765bafedl")
-	            {
-	                item.data = [['2016-02-19T01:00:31.630626',73.6],['2016-02-19T01:00:16.632151',71],['2016-02-19T01:00:01.627188',69.4],['2016-02-19T00:59:46.641500',60],['2016-02-19T00:59:31.643573',67],['2016-02-19T00:59:16.643254',68.6],['2016-02-19T00:59:01.639104',77],['2016-02-19T00:58:46.638238',83.5],['2016-02-19T00:58:31.633733',57.2],['2016-02-19T00:58:16.632418',78.7],['2016-02-19T00:58:01.630463',90.7],['2016-02-19T00:57:46.648439',91.5],['2016-02-19T00:57:31.640824',84],['2016-02-19T00:57:16.636578',87.6],['2016-02-19T00:57:01.644842',77],['2016-02-19T00:56:46.635059',83.3],['2016-02-19T00:56:31.639332',90.9],['2016-02-19T00:56:16.647604',89.5],['2016-02-19T00:56:01.643571',91.8],['2016-02-19T00:55:46.644522',97.7]];
-	                item.data.forEach(function (datum) {
-	                    datum.name = item.name;
-	                    datum.parent = item.parentPath;
-	                    datum.uuid = item.uuid;
-	                });
-
-	                dispatcher.dispatch({
-	                    type: ACTION_TYPES.REFRESH_CHART,
-	                    item: item
-	                });
-	            }
-	        }
-		});
-		
-	},
-};
-
-function handle401(error) {
-    if (error.code && error.code === 401) {
-        dispatcher.dispatch({
-            type: ACTION_TYPES.RECEIVE_UNAUTHORIZED,
-            error: error,
-        });
-
-        platformManagerActionCreators.clearAuthorization();
-    }
-};
-
-module.exports = platformChartActionCreators;
-
-
-},{"../constants/action-types":34,"../dispatcher":35,"../lib/rpc":38,"../stores/authorization-store":43}],7:[function(require,module,exports){
+},{"../constants/action-types":31,"../dispatcher":32,"../lib/rpc":35,"../stores/authorization-store":40}],5:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -684,8 +545,35 @@ var platformManagerActionCreators = {
             authorization: authorization,
             params: {
                 identity: 'platform.agent',
-                agentid: name,
+                agentId: name,
                 address: address,
+            },
+        }).promise
+            .then(function () {
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.CLOSE_MODAL,
+                });
+
+                platformManagerActionCreators.loadPlatforms();
+            })
+            .catch(rpc.Error, function (error) {
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.REGISTER_PLATFORM_ERROR,
+                    error: error,
+                });
+
+                handle401(error);
+            });
+    },
+    registerInstance: function (name, address) {
+        var authorization = authorizationStore.getAuthorization();
+
+        new rpc.Exchange({
+            method: 'register_instance',
+            authorization: authorization,
+            params: {
+                display_name: name,
+                discovery_address: address,
             },
         }).promise
             .then(function () {
@@ -746,7 +634,7 @@ function handle401(error) {
 module.exports = platformManagerActionCreators;
 
 
-},{"../action-creators/platform-action-creators":5,"../constants/action-types":34,"../dispatcher":35,"../lib/rpc":38,"../stores/authorization-store":43}],8:[function(require,module,exports){
+},{"../action-creators/platform-action-creators":4,"../constants/action-types":31,"../dispatcher":32,"../lib/rpc":35,"../stores/authorization-store":40}],6:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -804,89 +692,22 @@ var platformsPanelActionCreators = {
                 loadPanelPoints(parent);
                 loadPanelDevices(parent);
                 break;
-            // case "type":
+            case "type":
 
-            //     for (var i = 0; i < parent.children.length; i++)
-            //     {
-            //         platformsPanelActionCreators.loadChildren(parent[parent.children[i]].type, parent[parent.children[i]]);
-            //     }
+                for (var i = 0; i < parent.children.length; i++)
+                {
+                    platformsPanelActionCreators.loadChildren(parent[parent.children[i]].type, parent[parent.children[i]]);
+                }
                 
-            //     break;
+                break;
             default:
 
-                loadPanelChildren(parent);
-
-                break;
-
-        }
-
-
-        function loadPanelChildren(parent) {
-            dispatcher.dispatch({
-                type: ACTION_TYPES.RECEIVE_PANEL_CHILDREN,
-                platform: parent
-            });    
         }
 
         function loadPanelPoints(parent) {
-
-            var pointsList = [];
-
-            if (parent.type === "platform")
-            {
-                pointsList = [
-
-                    {
-                        "topic": "datalogger/log/platform/status/cpu/times_percent/guest_nice",
-                        "name": "times_percent / guest_nice"
-                    },
-                    {
-                        "topic": "datalogger/log/platform/status/cpu/times_percent/system",
-                        "name": "times_percent / system"
-                    },
-                    {
-                        "topic": "datalogger/log/platform/status/cpu/percent",
-                        "name": "cpu / percent"
-                    },
-                    {
-                        "topic": "datalogger/log/platform/status/cpu/times_percent/irq",
-                        "name": "times_percent / irq"
-                    },
-                    {
-                        "topic": "datalogger/log/platform/status/cpu/times_percent/steal",
-                        "name": "times_percent / steal"
-                    },
-                    {
-                        "topic": "datalogger/log/platform/status/cpu/times_percent/user",
-                        "name": "times_percent / user"
-                    },
-                    {
-                        "topic": "datalogger/log/platform/status/cpu/times_percent/nice",
-                        "name": "times_percent / nice"
-                    },
-                    {
-                        "topic": "datalogger/log/platform/status/cpu/times_percent/iowait",
-                        "name": "times_percent / iowait"
-                    },
-                    {
-                        "topic": "datalogger/log/platform/status/cpu/times_percent/idle",
-                        "name": "times_percent / idle"
-                    },
-                    {
-                        "topic": "datalogger/log/platform/status/cpu/times_percent/guest",
-                        "name": "times_percent / guest"
-                    },
-                    {
-                        "topic": "datalogger/log/platform/status/cpu/times_percent/softirq",
-                        "name": "times_percent / softirq"
-                    }
-                ]
-            }
-
             dispatcher.dispatch({
                 type: ACTION_TYPES.RECEIVE_POINT_STATUSES,
-                parent: parent,
-                points: pointsList
+                platform: parent
             });    
         }
 
@@ -923,111 +744,64 @@ var platformsPanelActionCreators = {
                 })
                 .catch(rpc.Error, handle401);    
         }
+
+
+
+
+    // },
     
+    // loadPanelPoints: function (parent) {
+    //     dispatcher.dispatch({
+    //         type: ACTION_TYPES.RECEIVE_POINT_STATUSES,
+    //         platform: parent
+    //     });
+    // },
+    // loadPanelDevices: function (parent) {
+    //     dispatcher.dispatch({
+    //         type: ACTION_TYPES.RECEIVE_DEVICE_STATUSES,
+    //         platform: parent
+    //     });
+    // },
+    // loadPanelBuildings: function (platform) {
+    //     dispatcher.dispatch({
+    //         type: ACTION_TYPES.RECEIVE_BUILDING_STATUSES,
+    //         platform: platform
+    //     });
+    // },
+    // loadPanelAgents: function (platform) {
+    //     var authorization = authorizationStore.getAuthorization();
+
+    //     new rpc.Exchange({
+    //         method: 'platforms.uuid.' + platform.uuid + '.list_agents',
+    //         authorization: authorization,
+    //     }).promise
+    //         .then(function (agentsList) {
+                
+    //             dispatcher.dispatch({
+    //                 type: ACTION_TYPES.RECEIVE_AGENT_STATUSES,
+    //                 platform: platform,
+    //                 agents: agentsList
+    //             });
+
+                
+    //         })
+    //         .catch(rpc.Error, handle401);
+    // },
     },
 
-    loadFilteredItems: function (filterTerm, filterStatus)
-    {
-        dispatcher.dispatch({
-            type: ACTION_TYPES.FILTER_ITEMS,
-            filterTerm: filterTerm,
-            filterStatus: filterStatus
-        });
-    },
-
-    expandAll: function (itemPath) {
-
-        dispatcher.dispatch({
-            type: ACTION_TYPES.EXPAND_ALL,
-            itemPath: itemPath
-        });
-    },
-
-    toggleItem: function (itemPath) {
-
-        dispatcher.dispatch({
-            type: ACTION_TYPES.TOGGLE_ITEM,
-            itemPath: itemPath
-        });
-    },
-
-    checkItem: function (itemPath, checked) {
-
-        dispatcher.dispatch({
-            type: ACTION_TYPES.CHECK_ITEM,
-            itemPath: itemPath,
-            checked: checked
-        });
-    },
-
-    addToChart: function(panelItem) {
-
-        if (panelItem.parentType === "platform")
-        {
-            var authorization = authorizationStore.getAuthorization();
-
-            new rpc.Exchange({
-                method: 'platforms.uuid.' + panelItem.parentUuid + '.historian.query',
-                params: {
-                    topic: panelItem.topic,
-                    count: 20,
-                    order: 'LAST_TO_FIRST',
-                },
-                authorization: authorization,
-            }).promise
-                .then(function (result) {
-                    panelItem.data = result.values;
-
-                    panelItem.data.forEach(function (datum) {
-                        datum.name = panelItem.name;
-                        datum.parent = panelItem.parentPath;
-                        datum.uuid = panelItem.uuid;
-                    });
-                    dispatcher.dispatch({
-                        type: ACTION_TYPES.ADD_TO_CHART,
-                        panelItem: panelItem
-                    });
-                })
-                .catch(rpc.Error, handle401);
-        }  
-        else
-        {
-            if (panelItem.uuid === "5461fedc-65ba-43fe-21dc-098765bafedl")
-            {
-                panelItem.data = [['2016-02-19T01:00:31.630626',31.4],['2016-02-19T01:00:16.632151',23],['2016-02-19T01:00:01.627188',16.5],['2016-02-19T00:59:46.641500',42.8],['2016-02-19T00:59:31.643573',21.2],['2016-02-19T00:59:16.643254',9.3],['2016-02-19T00:59:01.639104',8.5],['2016-02-19T00:58:46.638238',16],['2016-02-19T00:58:31.633733',12.4],['2016-02-19T00:58:16.632418',23],['2016-02-19T00:58:01.630463',16.7],['2016-02-19T00:57:46.648439',9.1],['2016-02-19T00:57:31.640824',10.5],['2016-02-19T00:57:16.636578',8.2],['2016-02-19T00:57:01.644842',2.2],['2016-02-19T00:56:46.635059',2.5],['2016-02-19T00:56:31.639332',2.4],['2016-02-19T00:56:16.647604',2.3],['2016-02-19T00:56:01.643571',11.2],['2016-02-19T00:55:46.644522',9.8]];
-                panelItem.data.forEach(function (datum) {
-                    datum.name = panelItem.name;
-                    datum.parent = panelItem.parentPath;
-                    datum.uuid = panelItem.uuid;
-                });
-
-                dispatcher.dispatch({
-                    type: ACTION_TYPES.ADD_TO_CHART,
-                    panelItem: panelItem
-                });
-            }
-            else if (panelItem.uuid === "5461fedc-65ba-43fe-21dc-111765bafedl")
-            {
-                panelItem.data = [['2016-02-19T01:01:46.625663',73.6],['2016-02-19T01:01:31.633847',71],['2016-02-19T01:01:16.627160',69.4],['2016-02-19T01:01:01.639623',60],['2016-02-19T01:00:46.626307',67],['2016-02-19T01:00:31.630768',68.6],['2016-02-19T01:00:16.632203',77],['2016-02-19T01:00:01.627241',83.5],['2016-02-19T00:59:46.641688',57.2],['2016-02-19T00:59:31.643709',78.7],['2016-02-19T00:59:16.643448',90.7],['2016-02-19T00:59:01.640538',91.5],['2016-02-19T00:58:46.638353',84],['2016-02-19T00:58:31.633809',87.6],['2016-02-19T00:58:16.632515',77],['2016-02-19T00:58:01.630531',83.3],['2016-02-19T00:57:46.648567',90.9],['2016-02-19T00:57:31.640947',89.5],['2016-02-19T00:57:16.636686',91.8],['2016-02-19T00:57:01.645023',97.7]];
-                panelItem.data.forEach(function (datum) {
-                    datum.name = panelItem.name;
-                    datum.parent = panelItem.parentPath;
-                    datum.uuid = panelItem.uuid;
-                });
-
-                dispatcher.dispatch({
-                    type: ACTION_TYPES.ADD_TO_CHART,
-                    panelItem: panelItem
-                });
-            }
-        }
-
-    },
-
-    removeFromChart: function(panelItem) {
+    addToGraph: function(panelItem) {
 
         dispatcher.dispatch({
-            type: ACTION_TYPES.REMOVE_FROM_CHART,
+            type: ACTION_TYPES.ADD_TO_GRAPH,
+            panelItem: panelItem
+        });  
+
+    },
+
+    removeFromGraph: function(panelItem) {
+
+        dispatcher.dispatch({
+            type: ACTION_TYPES.REMOVE_FROM_GRAPH,
             panelItem: panelItem
         });  
 
@@ -1051,7 +825,7 @@ function handle401(error) {
 module.exports = platformsPanelActionCreators;
 
 
-},{"../constants/action-types":34,"../dispatcher":35,"../lib/rpc":38,"../stores/authorization-store":43}],9:[function(require,module,exports){
+},{"../constants/action-types":31,"../dispatcher":32,"../lib/rpc":35,"../stores/authorization-store":40}],7:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1123,7 +897,7 @@ var AgentRow = React.createClass({displayName: "AgentRow",
 module.exports = AgentRow;
 
 
-},{"../action-creators/modal-action-creators":4,"../action-creators/platform-action-creators":5,"./remove-agent-form":33,"react":undefined}],10:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../action-creators/platform-action-creators":4,"./remove-agent-form":30,"react":undefined}],8:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1187,7 +961,7 @@ function getStateFromStores(platform, chart) {
 module.exports = Chart;
 
 
-},{"../action-creators/platform-action-creators":5,"../stores/topic-data-store":53,"./line-chart":20,"react":undefined}],11:[function(require,module,exports){
+},{"../action-creators/platform-action-creators":4,"../stores/topic-data-store":49,"./line-chart":19,"react":undefined}],9:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1257,7 +1031,7 @@ function getStateFromStores() {
 module.exports = Composer;
 
 
-},{"../action-creators/console-action-creators":2,"../stores/console-store":44,"react":undefined}],12:[function(require,module,exports){
+},{"../action-creators/console-action-creators":2,"../stores/console-store":41,"react":undefined}],10:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1295,7 +1069,7 @@ var ConfirmForm = React.createClass({displayName: "ConfirmForm",
 module.exports = ConfirmForm;
 
 
-},{"../action-creators/modal-action-creators":4,"react":undefined}],13:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"react":undefined}],11:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1317,202 +1091,7 @@ var Console = React.createClass({displayName: "Console",
 module.exports = Console;
 
 
-},{"./composer":11,"./conversation":15,"react":undefined}],14:[function(require,module,exports){
-'use strict';
-
-var React = require('react');
-var Router = require('react-router');
-var controlButtonStore = require('../stores/control-button-store');
-var controlButtonActionCreators = require('../action-creators/control-button-action-creators');
-
-
-var ControlButton = React.createClass({displayName: "ControlButton",
-	getInitialState: function () {
-		var state = {};
-
-		state.showTaptip = false;
-		state.showTooltip = false;
-		state.deactivateTooltip = false;
-		state.taptipX = 0;
-		state.taptipY = 0;
-		state.selected = (this.props.selected === true);
-
-		state.tooltipOffsetX = (this.props.hasOwnProperty("tooltip") ? 
-									(this.props.tooltip.hasOwnProperty("xOffset") ? 
-										this.props.tooltip.xOffset : 0) : 0);
-		state.tooltipOffsetY = (this.props.hasOwnProperty("tooltip") ? 
-									(this.props.tooltip.hasOwnProperty("yOffset") ? 
-										this.props.tooltip.yOffset : 0) : 0);
-		state.taptipOffsetX = (this.props.hasOwnProperty("taptip") ? 
-									(this.props.taptip.hasOwnProperty("xOffset") ? 
-										this.props.taptip.xOffset : 0) : 0);
-		state.taptipOffsetY = (this.props.hasOwnProperty("taptip") ? 
-									(this.props.taptip.hasOwnProperty("yOffset") ? 
-										this.props.taptip.yOffset : 0) : 0);
-
-		return state;
-	},
-    componentDidMount: function () {
-        controlButtonStore.addChangeListener(this._onStoresChange);
-
-        window.addEventListener('keydown', this._hideTaptip);
-    },
-    componentWillUnmount: function () {
-        controlButtonStore.removeChangeListener(this._onStoresChange);
-
-        window.removeEventListener('keydown', this._hideTaptip);
-    },
-    componentWillReceiveProps: function (nextProps) {
-    	this.setState({ selected: (nextProps.selected === true) });
-
-    	if (nextProps.selected === true) 
-    	{
-    		this.setState({ showTooltip: false });
-    	}    	
-    },
-    _onStoresChange: function () {
-
-    	var showTaptip = controlButtonStore.getTaptip(this.props.name);
-    	
-    	if (showTaptip !== null)
-    	{
-	    	if (showTaptip !== this.state.showTaptip)
-	    	{
-	    		this.setState({ showTaptip: showTaptip });	
-	    	}
-
-	    	this.setState({ selected: (showTaptip === true) }); 
-
-	    	if (showTaptip === true)
-	    	{
-	    		this.setState({ showTooltip: false });	
-	    	}
-	    }
-    },
-	_showTaptip: function (evt) {
-
-		if (!this.state.showTaptip)
-		{
-			this.setState({taptipX: evt.clientX - this.state.taptipOffsetX});
-			this.setState({taptipY: evt.clientY - this.state.taptipOffsetY});
-		}
-
-		controlButtonActionCreators.toggleTaptip(this.props.name);
-	},
-	_hideTaptip: function (evt) {
-		if (evt.keyCode === 27) 
-		{
-	        controlButtonActionCreators.hideTaptip(this.props.name);
-        }
-	},
-    _showTooltip: function (evt) {
-        this.setState({showTooltip: true});
-        this.setState({tooltipX: evt.clientX - this.state.tooltipOffsetX});
-        this.setState({tooltipY: evt.clientY - this.state.tooltipOffsetY});
-    },
-    _hideTooltip: function () {
-        this.setState({showTooltip: false});
-    },
-    render: function () {
-        
-        var taptip;
-        var tooltip;
-        var clickAction;
-        var selectedStyle;
-
-        var tooltipShow;
-        var tooltipHide;
-
-        if (this.state.selected === true || this.state.showTaptip === true)
-        {
-        	selectedStyle = {
-	        	backgroundColor: "#ccc"
-	        }
-        }
-        else if (this.props.tooltip)
-        {
-        	var tooltipStyle = {
-	            display: (this.state.showTooltip ? "block" : "none"),
-	            position: "absolute",
-	            top: this.state.tooltipY + "px",
-	            left: this.state.tooltipX + "px"
-	        };
-
-	        var toolTipClasses = (this.state.showTooltip ? "tooltip_outer delayed-show-slow" : "tooltip_outer");
-
-	        tooltipShow = this._showTooltip;
-	        tooltipHide = this._hideTooltip;
-
-        	tooltip = (React.createElement("div", {className: toolTipClasses, 
-                        style: tooltipStyle}, 
-                        React.createElement("div", {className: "tooltip_inner"}, 
-                            React.createElement("div", {className: "opaque_inner"}, 
-                                this.props.tooltip.content
-                            )
-                        )
-                    ))
-        }
-        
-
-        if (this.props.taptip)
-        {
-        	var taptipStyle = {
-		        display: (this.state.showTaptip ? "block" : "none"),
-		        position: "absolute",
-		        left: this.state.taptipX + "px",
-		        top: this.state.taptipY + "px"
-		    };
-
-		    var tapTipClasses = "taptip_outer";
-
-		    taptip = (
-		    	React.createElement("div", {className: tapTipClasses, 
-	                style: taptipStyle}, 
-	                React.createElement("div", {className: "taptip_inner"}, 
-	                    React.createElement("div", {className: "opaque_inner"}, 
-	                        React.createElement("h4", null, this.props.taptip.title), 
-	                        React.createElement("br", null), 
-	                        this.props.taptip.content
-	                    )
-	                )
-	            )
-        	);
-
-        	clickAction = (this.props.taptip.action ? this.props.taptip.action : this._showTaptip);
-        }
-        else if (this.props.clickAction)
-        {
-        	clickAction = this.props.clickAction;
-        }
-
-        return (
-            React.createElement("div", {className: "inlineBlock"}, 
-            	taptip, 
-            	tooltip, 
-                React.createElement("div", {className: "control_button", 
-                    onClick: clickAction, 
-                    onMouseEnter: tooltipShow, 
-                    onMouseLeave: tooltipHide, 
-                    style: selectedStyle}, 
-                    React.createElement("div", {className: "centeredDiv"}, 
-                        this.props.icon
-                    )
-                )
-            )
-        );
-    },
-});
-
-
-
-
-
-
-
-module.exports = ControlButton;
-
-
-},{"../action-creators/control-button-action-creators":3,"../stores/control-button-store":45,"react":undefined,"react-router":undefined}],15:[function(require,module,exports){
+},{"./composer":9,"./conversation":12,"react":undefined}],12:[function(require,module,exports){
 'use strict';
 
 var $ = require('jquery');
@@ -1563,29 +1142,24 @@ function getStateFromStores() {
 module.exports = Conversation;
 
 
-},{"../stores/console-store":44,"./exchange":19,"jquery":undefined,"react":undefined}],16:[function(require,module,exports){
+},{"../stores/console-store":41,"./exchange":16,"jquery":undefined,"react":undefined}],13:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
 var Router = require('react-router');
 
 var platformsStore = require('../stores/platforms-store');
-var platformChartStore = require('../stores/platform-chart-store');
 var Chart = require('./chart');
 var EditChartForm = require('./edit-chart-form');
 var modalActionCreators = require('../action-creators/modal-action-creators');
-
-var PlatformChart = require('./platform-chart');
 
 var Dashboard = React.createClass({displayName: "Dashboard",
     getInitialState: getStateFromStores,
     componentDidMount: function () {
         platformsStore.addChangeListener(this._onStoreChange);
-        platformChartStore.addChangeListener(this._onStoreChange);
     },
     componentWillUnmount: function () {
         platformsStore.removeChangeListener(this._onStoreChange);
-        platformChartStore.removeChangeListener(this._onStoreChange);
     },
     _onStoreChange: function () {
         this.setState(getStateFromStores());
@@ -1595,19 +1169,6 @@ var Dashboard = React.createClass({displayName: "Dashboard",
     },
     render: function () {
         var charts;
-        
-        var pinnedCharts = this.state.platformCharts; 
-
-        var platformCharts = [];
-
-        for (var key in pinnedCharts)
-        {
-            if (pinnedCharts[key].data.length > 0)
-            {
-                var platformChart = React.createElement(PlatformChart, {chart: pinnedCharts[key], chartKey: key, hideControls: true})
-                platformCharts.push(platformChart);
-            }
-        }
 
         if (!this.state.platforms) {
             charts = (
@@ -1660,8 +1221,8 @@ var Dashboard = React.createClass({displayName: "Dashboard",
                         }, this);
                 }, this);
 
-            if (pinnedCharts.length === 0) {
-                platformCharts = (
+            if (!charts.length) {
+                charts = (
                     React.createElement("p", {className: "empty-help"}, 
                         "Pin a platform chart to have it appear on the dashboard"
                     )
@@ -1672,8 +1233,7 @@ var Dashboard = React.createClass({displayName: "Dashboard",
         return (
             React.createElement("div", {className: "view"}, 
                 React.createElement("h2", null, "Dashboard"), 
-                platformCharts
-                
+                charts
             )
         );
     },
@@ -1682,14 +1242,13 @@ var Dashboard = React.createClass({displayName: "Dashboard",
 function getStateFromStores() {
     return {
         platforms: platformsStore.getPlatforms(),
-        platformCharts: platformChartStore.getPinnedCharts()
     };
 }
 
 module.exports = Dashboard;
 
 
-},{"../action-creators/modal-action-creators":4,"../stores/platform-chart-store":48,"../stores/platforms-store":52,"./chart":10,"./edit-chart-form":18,"./platform-chart":25,"react":undefined,"react-router":undefined}],17:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../stores/platforms-store":48,"./chart":8,"./edit-chart-form":15,"react":undefined,"react-router":undefined}],14:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1745,7 +1304,7 @@ function getStateFromStores() {
 module.exports = RegisterPlatformForm;
 
 
-},{"../action-creators/modal-action-creators":4,"../action-creators/platform-manager-action-creators":7,"../stores/platform-registration-store":49,"react":undefined}],18:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../action-creators/platform-manager-action-creators":5,"../stores/platform-registration-store":45,"react":undefined}],15:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1902,7 +1461,7 @@ var EditChartForm = React.createClass({displayName: "EditChartForm",
 module.exports = EditChartForm;
 
 
-},{"../action-creators/modal-action-creators":4,"../action-creators/platform-action-creators":5,"react":undefined}],19:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../action-creators/platform-action-creators":4,"react":undefined}],16:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1955,7 +1514,250 @@ var Exchange = React.createClass({displayName: "Exchange",
 module.exports = Exchange;
 
 
-},{"react":undefined}],20:[function(require,module,exports){
+},{"react":undefined}],17:[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+var Router = require('react-router');
+var d3 = require('d3');
+var nv = require('nvd3');
+
+
+var graphStore = require('../stores/graph-store');
+
+var lineChart;
+
+
+var Graph = React.createClass({displayName: "Graph",
+    getInitialState: function () {
+        var state = {};
+        state.graphs = getGraphsFromStores();
+
+        return state;
+    },
+    componentWillMount: function () {
+        
+    },
+    componentDidMount: function () {
+        graphStore.addChangeListener(this._onStoreChange);
+    },
+    componentWillUnmount: function () {
+        graphStore.removeChangeListener(this._onStoreChange);
+    },
+    _onStoreChange: function () {
+        var graphs = getGraphsFromStores();
+
+        this.setState({graphs: graphs});
+    },
+    render: function () {
+        var graphs  = this.state.graphs;  
+
+        var vizGraph;
+
+        if (graphs.length > 0)
+        {
+            vizGraph = React.createElement("div", {id: "chart", class: "with-3d-shadow with-transitions"}, 
+                          React.createElement(Viz, {data: graphs})
+                      )
+        }
+
+
+        return (
+            React.createElement("div", null, 
+                vizGraph
+            )
+        );
+    },
+});
+
+
+function getGraphsFromStores() {
+    return graphStore.getData();
+}
+
+
+var GraphLineChart = React.createClass({displayName: "GraphLineChart",
+  componentDidMount: function() {
+    drawLineChart('graph-line-chart', lineData(this.props.selection, keyToYearThenMonth(this.props.data)));
+  },
+  componentDidUpdate: function() {
+    updateLineChart('graph-line-chart', lineData(this.props.selection, keyToYearThenMonth(this.props.data)));
+  },
+  render: function() {
+    return (
+      React.createElement("div", {id: "graph-line-chart"}, 
+        React.createElement("svg", null)
+      )
+    );
+  }
+});
+
+var Viz = React.createClass({displayName: "Viz",
+  getInitialState: function() {
+    return {
+      // data: this.props.data,
+      selection: 'avg_temp_f'
+    };
+  },
+  // loadData: function () {
+  //   d3.csv('/data/018_analytics_chart.csv',function(csv){
+  //     this.setState({
+  //       data: csv
+  //     });
+  //   }.bind(this));
+  // },
+  // componentDidMount: function () {
+  //   this.loadData();
+  // },
+  // loadData: function () {
+    
+  //   this.setState({ data: this.props.data});
+  // },
+  // componentDidMount: function () {
+  //   // var datum = graphStore.getGraphData();
+  //   this.loadData();
+  // },
+
+    // componentDidUpdate: function() {
+        
+    //     this.setState({data: this.props.data});
+    // },
+
+  handleUserSelect: function (e) {
+    var selection = e.target.id;
+    $('#select-text').text(e.target.innerHTML);
+    $('.select').removeClass('current-selection');
+    $('#' + selection).addClass('current-selection');
+    this.setState({
+      selection: selection
+    });
+  },
+  render: function() {
+    return (
+      React.createElement("div", {id: "viz"}, 
+        
+         this.props.data.length != 0 ? React.createElement(GraphLineChart, {data: this.props.data, selection: this.state.selection}) : null
+      )
+    );
+  }
+});
+
+
+function drawLineChart (elementParent, data) {
+  var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  nv.addGraph(function() {
+    lineChart = nv.models.lineChart()
+      .margin({left: 25, right: 25})
+      .x(function(d) {return d.x})
+      .y(function(d) {return d.y})
+      .useInteractiveGuideline(true)
+      .showYAxis(true)
+      .showXAxis(true);
+    lineChart.xAxis
+      .tickFormat(function (d) { return months[d - 1]; })
+      .staggerLabels(false);
+    lineChart.yAxis
+      .tickFormat(d3.format('.1f'));
+    d3.select('#' + elementParent + ' svg')
+      .datum(data)
+      .call(lineChart);
+    nv.utils.windowResize(function() { lineChart.update() });
+    return lineChart;
+  });
+}
+
+function updateLineChart (elementParent, data) {
+  d3.select('#' + elementParent + ' svg')
+    .datum(data)
+    .call(lineChart);
+}
+
+
+//line data
+function keyToYearThenMonth (data) {
+  var keyYearMonth = d3.nest()
+    .key(function(d){return d.name; })
+    .key(function(d){return d.month; });
+  var keyedData = keyYearMonth.entries(
+    data.map(function(d) {
+      return d;
+    })
+  );
+  return keyedData;
+}
+
+function lineData (selection, data) {
+  var colors = ['#ff7f00','#984ea3','#4daf4a','#377eb8','#e41a1c'];
+  data = data.sort(function(a,b){ return a.key > b.key; });
+  var lineDataArr = [];
+  for (var i = 0; i <= data.length-1; i++) {
+    var lineDataElement = [];
+    var currentValues = data[i].values.sort(function(a,b){ return +a.key - +b.key; });
+    for (var j = 0; j <= currentValues.length-1; j++) {
+      lineDataElement.push({
+        'x': +currentValues[j].key,
+        'y': +currentValues[j].values[0][selection]
+      });
+    }
+    lineDataArr.push({
+      key: data[i].key,
+      color: colors[i],
+      values: lineDataElement
+    });
+  }
+  return lineDataArr;
+}
+
+
+module.exports = Graph;
+
+
+},{"../stores/graph-store":42,"d3":undefined,"nvd3":undefined,"react":undefined,"react-router":undefined}],18:[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+var Router = require('react-router');
+var Graph = require('./graph');
+
+var graphStore = require('../stores/graph-store');
+
+var Graphs = React.createClass({displayName: "Graphs",
+    getInitialState: getStateFromStores,
+    componentDidMount: function () {
+        graphStore.addChangeListener(this._onStoreChange);
+    },
+    componentWillUnmount: function () {
+        graphStore.removeChangeListener(this._onStoreChange);
+    },
+    _onStoreChange: function () {
+        this.setState(getStateFromStores());
+    },
+    render: function () {
+        var graphs  = [];
+
+        var graph = React.createElement(Graph, null)
+
+        return (
+                React.createElement("div", null, 
+                    React.createElement("div", {className: "view"}, 
+                        React.createElement("h2", null, "Graphs"), 
+                        graph
+                    )
+                )
+        );
+    },
+});
+
+function getStateFromStores() {
+    return {
+        graphs: graphStore.getGraphs(),
+    };
+}
+
+module.exports = Graphs;
+
+
+},{"../stores/graph-store":42,"./graph":17,"react":undefined,"react-router":undefined}],19:[function(require,module,exports){
 'use strict';
 
 var d3 = require('d3');
@@ -2144,7 +1946,7 @@ var LineChart = React.createClass({displayName: "LineChart",
 module.exports = LineChart;
 
 
-},{"d3":undefined,"moment":undefined,"react":undefined}],21:[function(require,module,exports){
+},{"d3":undefined,"moment":undefined,"react":undefined}],20:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2222,7 +2024,7 @@ function getStateFromStores() {
 module.exports = LoginForm;
 
 
-},{"../action-creators/platform-manager-action-creators":7,"../stores/login-form-store":46,"react":undefined,"react-router":undefined}],22:[function(require,module,exports){
+},{"../action-creators/platform-manager-action-creators":5,"../stores/login-form-store":43,"react":undefined,"react-router":undefined}],21:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2249,7 +2051,7 @@ var Modal = React.createClass({displayName: "Modal",
 module.exports = Modal;
 
 
-},{"../action-creators/modal-action-creators":4,"react":undefined}],23:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"react":undefined}],22:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2326,7 +2128,7 @@ function getStateFromStores() {
 module.exports = Navigation;
 
 
-},{"../action-creators/platform-manager-action-creators":7,"../stores/authorization-store":43,"react":undefined,"react-router":undefined}],24:[function(require,module,exports){
+},{"../action-creators/platform-manager-action-creators":5,"../stores/authorization-store":40,"react":undefined,"react-router":undefined}],23:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2344,491 +2146,7 @@ var PageNotFound = React.createClass({displayName: "PageNotFound",
 module.exports = PageNotFound;
 
 
-},{"react":undefined}],25:[function(require,module,exports){
-'use strict';
-
-var React = require('react');
-var Router = require('react-router');
-var d3 = require('d3');
-var nv = require('nvd3');
-var moment = require('moment');
-
-
-var chartStore = require('../stores/platform-chart-store');
-var platformChartStore = require('../stores/platform-chart-store');
-var platformChartActionCreators = require('../action-creators/platform-chart-action-creators');
-var ControlButton = require('./control-button');
-
-var PlatformChart = React.createClass({displayName: "PlatformChart",
-    getInitialState: function () {
-        var state = {};
-
-        state.refreshInterval = this.props.chart.refreshInterval;
-
-        return state;
-    },
-    componentDidMount: function () {
-        this._refreshChartTimeout = setTimeout(this._refreshChart, 0);
-        platformChartStore.addChangeListener(this._onStoresChange);
-    },
-    componentWillUnmount: function () {
-        clearTimeout(this._refreshChartTimeout);
-        platformChartStore.removeChangeListener(this._onStoresChange);
-    },
-    _onStoresChange: function () {
-
-        if (this.props.chart.data.length > 0)
-        {
-            var refreshInterval = platformChartStore.getRefreshRate(this.props.chart.data[0].name);
-
-            if (refreshInterval !== this.state.refreshInterval)
-            {
-                this.setState({refreshInterval: refreshInterval}); 
-
-                clearTimeout(this._refreshChartTimeout);
-                this._refreshChartTimeout = setTimeout(this._refreshChart, refreshInterval);
-            }
-        }
-        
-    },
-    _refreshChart: function () {
-        
-        if (this.props.hasOwnProperty("chart"))
-        {
-            platformChartActionCreators.refreshChart(
-                this.props.chart.series
-            );
-
-            if (this.state.refreshInterval) {
-                this._refreshChartTimeout = setTimeout(this._refreshChart, this.state.refreshInterval);
-            }    
-        }
-    },
-    render: function () {
-        var chartData = this.props.chart; 
-        var platformChart;
-
-        if (chartData)
-        {
-            if (chartData.data.length > 0)
-            {
-                platformChart = (
-                  React.createElement("div", {className: "platform-chart with-3d-shadow with-transitions"}, 
-                      React.createElement("label", {className: "chart-title"}, chartData.data[0].name), 
-                      React.createElement("div", null, 
-                          React.createElement("div", {className: "viz"}, 
-                               chartData.data.length != 0 ? 
-                                    React.createElement(GraphLineChart, {
-                                        data: chartData.data, 
-                                        name: chartData.data[0].name, 
-                                        hideControls: this.props.hideControls, 
-                                        refreshInterval: this.props.chart.refreshInterval}) : null
-                          ), 
-
-                          React.createElement("br", null)
-                      )
-                  ))
-            }
-        }
-
-        return (
-            React.createElement("div", null, 
-                platformChart
-            )
-        );
-    },
-});
-
-
-var GraphLineChart = React.createClass({displayName: "GraphLineChart",
-
-  getInitialState: function () {
-      var state = {};
-      state.chartName = this.props.name.replace(" / ", "_") + '_chart';
-      state.type = platformChartStore.getType(this.props.name);
-      state.lineChart = null;
-      state.pinned = false;
-      state.showTaptip = false;
-      state.taptipX = 0;
-      state.taptipY = 0;
-
-      return state;
-  },
-  componentDidMount: function() {
-      platformChartStore.addChangeListener(this._onStoresChange);
-      var lineChart = this._drawLineChart(this.state.chartName, this.state.type, this._lineData(this._getNested(this.props.data)));
-      this.setState({lineChart: lineChart});
-  },
-  componentWillUnmount: function () {
-      platformChartStore.removeChangeListener(this._onStoresChange);
-  },
-  componentDidUpdate: function() {
-      if (this.state.lineChart)
-      {
-          this._updateLineChart(this.state.lineChart, this.state.chartName, this._lineData(this._getNested(this.props.data)));
-      }
-  },
-  _onStoresChange: function () {
-      this.setState({pinned: platformChartStore.getPinned(this.props.name)});
-      this.setState({type: platformChartStore.getType(this.props.name)});
-  },
-  _onChartChange: function (e) {
-      var chartType = e.target.value;
-      
-      var lineChart = this._drawLineChart(this.state.chartName, chartType, this._lineData(this._getNested(this.props.data)));
-
-      // this.setState({ type: e.target.value});
-      this.setState({lineChart: lineChart});
-      this.setState({showTaptip: false});
-
-      platformChartActionCreators.setType(this.props.name, chartType);
-  },
-  _onPinToggle: function () {
-      platformChartActionCreators.pinChart(this.props.name);
-  },
-  _onRefreshChange: function (e) {
-      platformChartActionCreators.changeRefreshRate(e.target.value, this.props.name);
-  },
-  render: function() {
-
-    var chartStyle = {
-        width: "90%"
-    }
-
-    var svgStyle = {
-      padding: "0px 50px"
-    }
-
-    var controlStyle = {
-      width: "100%",
-      textAlign: "left"
-    }
-
-    var pinClasses = ["chart-pin inlineBlock"];
-    pinClasses.push(this.state.pinned ? "pinned-chart" : "unpinned-chart");
-  
-    var controlButtons;
-
-    if (!this.props.hideControls)
-    {
-        var taptipX = 60;
-        var taptipY = 120;
-
-        var tooltipX = 20;
-        var tooltipY = 60;
-
-        var chartTypeSelect = (
-            React.createElement("select", {
-                onChange: this._onChartChange, 
-                value: this.state.type, 
-                autoFocus: true, 
-                required: true
-            }, 
-                React.createElement("option", {value: "line"}, "Line"), 
-                React.createElement("option", {value: "lineWithFocus"}, "Line with View Finder"), 
-                React.createElement("option", {value: "stackedArea"}, "Stacked Area"), 
-                React.createElement("option", {value: "cumulativeLine"}, "Cumulative Line")
-            )
-        );
-
-        var chartTypeTaptip = { 
-            "title": "Chart Type", 
-            "content": chartTypeSelect,
-            "xOffset": taptipX,
-            "yOffset": taptipY
-        };
-        var chartTypeIcon = (
-            React.createElement("i", {className: "fa fa-line-chart"})
-        );
-        var chartTypeTooltip = {
-            "content": "Chart Type",
-            "xOffset": tooltipX,
-            "yOffset": tooltipY
-        };
-
-        var chartTypeControlButton = (
-            React.createElement(ControlButton, {
-                name: this.state.chartName + "_chartTypeControlButton", 
-                taptip: chartTypeTaptip, 
-                tooltip: chartTypeTooltip, 
-                icon: chartTypeIcon})
-        );
-
-        
-        var pinChartIcon = (
-            React.createElement("div", {className: pinClasses.join(' ')}, 
-                React.createElement("i", {className: "fa fa-thumb-tack"})
-            )
-        );
-        var pinChartTooltip = {
-            "content": "Pin to Dashboard",
-            "xOffset": tooltipX,
-            "yOffset": tooltipY
-        };
-
-        var pinChartControlButton = (
-            React.createElement(ControlButton, {
-                name: this.state.chartName + "_pinChartControlButton", 
-                icon: pinChartIcon, 
-                tooltip: pinChartTooltip, 
-                clickAction: this._onPinToggle})
-        );
-        
-        var refreshChart = (
-            React.createElement("div", null, 
-                React.createElement("input", {
-                    type: "number", 
-                    onChange: this._onRefreshChange, 
-                    value: this.props.refreshInterval, 
-                    min: "250", 
-                    step: "1", 
-                    placeholder: "disabled"}
-                ), " (ms)", 
-                React.createElement("br", null), 
-                React.createElement("span", null, 
-                    "Omit to disable"
-                )
-            )
-        );
-
-        var refreshChartTaptip = { 
-            "title": "Refresh Rate", 
-            "content": refreshChart,
-            "xOffset": taptipX,
-            "yOffset": taptipY
-        };
-        var refreshChartIcon = (
-            React.createElement("i", {className: "fa fa-hourglass"})
-        );
-        var refreshChartTooltip = {
-            "content": "Refresh Rate",
-            "xOffset": tooltipX,
-            "yOffset": tooltipY
-        };
-
-        var refreshChartControlButton = (
-            React.createElement(ControlButton, {
-                name: this.state.chartName + "_refreshChartControlButton", 
-                taptip: refreshChartTaptip, 
-                tooltip: refreshChartTooltip, 
-                icon: refreshChartIcon})
-        );
-
-        var spaceStyle = {
-            width: "20px",
-            height: "2px"
-        }
-
-        controlButtons = (
-            React.createElement("div", {className: "displayBlock", 
-                style: controlStyle}, 
-                pinChartControlButton, 
-                chartTypeControlButton, 
-                refreshChartControlButton, 
-                React.createElement("div", {className: "inlineBlock", 
-                      style: spaceStyle})
-            )
-        );
-    }
-
-    return (
-      React.createElement("div", {className: "platform-line-chart", 
-          style: chartStyle}, 
-          React.createElement("svg", {id: this.state.chartName, style: svgStyle}), 
-          controlButtons
-      )
-    );
-  },
-  _drawLineChart: function (elementParent, type, data) {
-      
-      var tickCount = 0;
-      var lineChart;
-
-      switch (type)
-      {
-          case "line":
-              lineChart = nv.models.lineChart();
-              break;
-          case "lineWithFocus":
-              lineChart = nv.models.lineWithFocusChart();
-              break;
-          case "stackedArea":
-              lineChart = nv.models.stackedAreaChart();
-              break;
-          case "cumulativeLine":
-              lineChart = nv.models.cumulativeLineChart();
-              break;
-      }
-
-      lineChart.margin({left: 25, right: 25})
-          .x(function(d) {return d.x})
-          .y(function(d) {return d.y})
-          .useInteractiveGuideline(true)
-          .showYAxis(true)
-          .showXAxis(true);
-      lineChart.xAxis
-        .tickFormat(function (d, i) {
-
-            var tickValue;
-
-            if (typeof i === "undefined")
-            {
-                if (tickCount === 0)
-                {
-                    tickValue = moment(d).fromNow();
-                    tickCount++;
-                }
-                else if (tickCount === 1)
-                {
-                    tickValue = moment(d).fromNow();
-                    tickCount = 0;
-                }
-            }
-            else
-            {
-                tickValue = "";
-            }
-
-            return tickValue;
-        })
-        .staggerLabels(false);
-      lineChart.yAxis
-        .tickFormat(d3.format('.1f'));
-
-      switch (type)
-      {        
-          case "lineWithFocus":            
-              lineChart.x2Axis
-                .tickFormat(function (d) {
-                    return d3.time.format('%X')(new Date(d));
-                });
-              break;
-      }
-
-      d3.selectAll('#' + elementParent + ' > *').remove();
-      d3.select('#' + elementParent)
-        .datum(data)
-        .call(lineChart);
-      nv.utils.windowResize(function() { lineChart.update() });
-
-      nv.addGraph(function() {
-        return lineChart;
-      });
-
-      return lineChart;
-    },
-    _updateLineChart: function (lineChart, elementParent, data) {
-      d3.select('#' + elementParent)
-        .datum(data)
-        .call(lineChart);
-    },
-    _getNested: function (data) {
-      var keyYearMonth = d3.nest()
-        .key(function(d){return d.parent; })
-        .key(function(d){return d["0"]; });
-      var keyedData = keyYearMonth.entries(
-        data.map(function(d) {
-          return d;
-        })
-      );
-      return keyedData;
-    },
-    _lineData: function (data) {
-      var colors = ['DarkOrange', 'ForestGreen', 'DeepPink', 'DarkViolet', 'Teal', 'Maroon', 'RoyalBlue', 'Silver', 'MediumPurple', 'Red', 'Lime', 'Tan', 'LightGoldenrodYellow', 'Turquoise', 'Pink', 'DeepSkyBlue', 'OrangeRed', 'LightGrey', 'Olive'];
-      data = data.sort(function(a,b){ return a.key > b.key; });
-      var lineDataArr = [];
-      for (var i = 0; i <= data.length-1; i++) {
-        var lineDataElement = [];
-        var currentValues = data[i].values.sort(function(a,b){ return +a.key - +b.key; });
-        for (var j = 0; j <= currentValues.length-1; j++) {
-          lineDataElement.push({
-            'x': +currentValues[j].key,
-            'y': +currentValues[j].values[0][1]
-          });
-        }
-        lineDataArr.push({
-          key: data[i].key,
-          color: colors[i],
-          values: lineDataElement
-        });
-      }
-      return lineDataArr;
-    }
-  
-});
-
-
-
-
-module.exports = PlatformChart;
-
-
-},{"../action-creators/platform-chart-action-creators":6,"../stores/platform-chart-store":48,"./control-button":14,"d3":undefined,"moment":undefined,"nvd3":undefined,"react":undefined,"react-router":undefined}],26:[function(require,module,exports){
-'use strict';
-
-var React = require('react');
-var Router = require('react-router');
-var PlatformChart = require('./platform-chart');
-
-var chartStore = require('../stores/platform-chart-store');
-
-var PlatformCharts = React.createClass({displayName: "PlatformCharts",
-    getInitialState: function () {
-        var state = {
-            chartData: getChartsFromStores()
-        };
-
-        return state;
-    },
-    componentWillMount: function () {
-        
-    },
-    componentDidMount: function () {
-        chartStore.addChangeListener(this._onStoreChange);
-    },
-    componentWillUnmount: function () {
-        chartStore.removeChangeListener(this._onStoreChange);
-    },
-    _onStoreChange: function () {
-        var platformCharts = getChartsFromStores();
-
-        this.setState({chartData: platformCharts});
-    },
-    render: function () {
-
-        var chartData = this.state.chartData; 
-
-        var platformCharts = [];
-
-        for (var key in chartData)
-        {
-            if (chartData[key].data.length > 0)
-            {
-                var platformChart = React.createElement(PlatformChart, {key: key, chart: chartData[key], chartKey: key, hideControls: false})
-                platformCharts.push(platformChart);
-            }
-        }
-
-        return (
-                React.createElement("div", null, 
-                    React.createElement("div", {className: "view"}, 
-                        React.createElement("h2", null, "Points"), 
-                        platformCharts
-                    )
-                )
-        );
-    },
-});
-
-function getChartsFromStores() {
-
-    return chartStore.getData();
-}
-
-module.exports = PlatformCharts;
-
-
-},{"../stores/platform-chart-store":48,"./platform-chart":25,"react":undefined,"react-router":undefined}],27:[function(require,module,exports){
+},{"react":undefined}],24:[function(require,module,exports){
 'use strict';
 
 var $ = require('jquery');
@@ -2965,7 +2283,7 @@ function getStateFromStores() {
 module.exports = PlatformManager;
 
 
-},{"../action-creators/console-action-creators":2,"../action-creators/modal-action-creators":4,"../action-creators/platform-manager-action-creators":7,"../stores/authorization-store":43,"../stores/console-store":44,"../stores/modal-store":47,"../stores/platforms-panel-store":51,"./console":13,"./modal":22,"./navigation":23,"./platforms-panel":30,"jquery":undefined,"react":undefined,"react-router":undefined}],28:[function(require,module,exports){
+},{"../action-creators/console-action-creators":2,"../action-creators/modal-action-creators":3,"../action-creators/platform-manager-action-creators":5,"../stores/authorization-store":40,"../stores/console-store":41,"../stores/modal-store":44,"../stores/platforms-panel-store":47,"./console":11,"./modal":21,"./navigation":22,"./platforms-panel":27,"jquery":undefined,"react":undefined,"react-router":undefined}],25:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -3169,7 +2487,7 @@ function getStateFromStores(component) {
 module.exports = Platform;
 
 
-},{"../action-creators/modal-action-creators":4,"../action-creators/platform-action-creators":5,"../stores/platforms-store":52,"./agent-row":9,"./chart":10,"./confirm-form":12,"./edit-chart-form":18,"react":undefined,"react-router":undefined}],29:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../action-creators/platform-action-creators":4,"../stores/platforms-store":48,"./agent-row":7,"./chart":8,"./confirm-form":10,"./edit-chart-form":15,"react":undefined,"react-router":undefined}],26:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -3178,211 +2496,295 @@ var Router = require('react-router');
 var platformsPanelItemsStore = require('../stores/platforms-panel-items-store');
 var platformsPanelActionCreators = require('../action-creators/platforms-panel-action-creators');
 
-
 var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
     getInitialState: function () {
         var state = {};
         
+        state.expanded = (this.props.panelItem.hasOwnProperty("expanded") ? this.props.panelItem.expanded : null);
+
         state.showTooltip = false;
         state.tooltipX = null;
         state.tooltipY = null;
-        state.checked = (this.props.panelItem.hasOwnProperty("checked") ? this.props.panelItem.checked : false);
-        state.panelItem = this.props.panelItem;
-        state.children = this.props.panelChildren;
+        state.keepTooltip = false;
+        state.expandedChildren;
+        state.checked = false;
+
+        state.children = getChildrenFromStore(this.props.panelItem, this.props.itemPath);
 
         return state;
     },
     componentDidMount: function () {
         platformsPanelItemsStore.addChangeListener(this._onStoresChange);
     },
+    componentWillMount: function () {
+        if (!this.props.hasOwnProperty("children"))
+        { 
+            platformsPanelActionCreators.loadChildren(this.props.panelItem.type, this.props.panelItem);
+        }
+    },
     componentWillUnmount: function () {
         platformsPanelItemsStore.removeChangeListener(this._onStoresChange);
     },
     _onStoresChange: function () {
 
-        var panelItem = getItemFromStore(this.props.itemPath);
-        var panelChildren = getChildrenFromStore(this.props.panelItem, this.props.itemPath)
+        var children = getChildrenFromStore(this.props.panelItem, this.props.itemPath);
 
-        this.setState({panelItem: panelItem});
-        this.setState({children: panelChildren});
-        this.setState({checked: panelItem.checked});
+        this.setState({children: children});
     },
     _expandAll : function () {
-        
-        platformsPanelActionCreators.expandAll(this.props.itemPath);
-    },
-    _toggleItem: function () {
+        var expandedOn = ((this.state.expanded === null) ? true : !this.state.expanded);
 
-        if (this.state.panelItem.expanded === null)
-        {
-            platformsPanelActionCreators.loadChildren(this.props.panelItem.type, this.props.panelItem);
-        }
-        else
-        {
-            if (this.state.panelItem.expanded)
-            {
-                platformsPanelActionCreators.expandAll(this.props.itemPath);
-            }
-            else
-            {
-                platformsPanelActionCreators.toggleItem(this.props.itemPath);    
-            }
-        }
+        // this.setState({expandedOn: expandedOn});
+        this.setState({expanded: expandedOn});
+        
+        this.setState({expandedChildren: expandAllChildren(expandedOn, this.props.panelItem)});
     },
     _checkItem: function (e) {
 
         var checked = e.target.checked;
 
-        platformsPanelActionCreators.checkItem(this.props.itemPath, checked);
-
         this.setState({checked: checked});
 
         if (checked)
         {
-            platformsPanelActionCreators.addToChart(this.props.panelItem);
-            window.location = '/#/platform-charts';
+            platformsPanelActionCreators.addToGraph(this.props.panelItem);
         }
         else
         {
-            platformsPanelActionCreators.removeFromChart(this.props.panelItem);
+            platformsPanelActionCreators.removeFromGraph(this.props.panelItem);
         }
+    },
+    _toggleItem: function () {
+
+        if (this.state.children.length > 0)
+        {
+            this.setState({expanded: !this.state.expanded});
+        }
+        else
+        {
+            if (this.props.hasOwnProperty("children"))
+            {
+                if (this.state.expanded === null)
+                {
+                    this.setState({expanded: !this.props.panelItem.expanded});
+                }
+                else
+                {
+                    this.setState({expanded: !this.state.expanded});
+                }
+            }
+        }
+        
     },
     _showTooltip: function (evt) {
         this.setState({showTooltip: true});
-        this.setState({tooltipX: evt.clientX - 60});
+        this.setState({tooltipX: evt.clientX - 20});
         this.setState({tooltipY: evt.clientY - 70});
     },
     _hideTooltip: function () {
         this.setState({showTooltip: false});
     },
     _moveTooltip: function (evt) {
-        this.setState({tooltipX: evt.clientX - 60});
+        this.setState({tooltipX: evt.clientX - 20});
         this.setState({tooltipY: evt.clientY - 70});
     },
+    _keepTooltip: function () {
+        this.setState({keepTooltip: true});
+    },
+    _unkeepTooltip: function () {
+        this.setState({keepTooltip: false});
+    },
     render: function () {
-        var panelItem = this.state.panelItem;
+        var panelItem = this.props.panelItem;
         var itemPath = this.props.itemPath;
-        var propChildren = this.state.children;
+
+        var items;
         var children;
 
-        var visibleStyle = {};
+        var propChildren = this.state.expandedChildren;
 
-        if (panelItem.visible !== true)
+        if (typeof propChildren === "undefined" || propChildren === null)
         {
-            visibleStyle = {
-                display: "none"
-            }
+            propChildren = this.props.children;
         }
+
+        var filterTerm = this.props.filter;
 
         var itemClasses;
         var arrowClasses = ["arrowButton", "noRotate"];
 
-        var ChartCheckbox;
+        var checkboxClass = "panelItemCheckbox";
 
-        if (["point"].indexOf(panelItem.type) > -1)
-        {
-            ChartCheckbox = (React.createElement("input", {className: "panelItemCheckbox", 
-                                    type: "checkbox", 
-                                    onChange: this._checkItem, 
-                                    checked: this.state.checked}));
-        }
+        var checkboxStyle = {
+            display : (["point"].indexOf(panelItem.type) < 0 ? "none" : "block")
+        };
 
         var tooltipStyle = {
-            display: (panelItem.type !== "type" ? (this.state.showTooltip ? "block" : "none") : "none"),
+            display: (panelItem.type !== "type" ? (this.state.showTooltip || this.state.keepTooltip ? "block" : "none") : "none"),
             position: "absolute",
             top: this.state.tooltipY + "px",
             left: this.state.tooltipX + "px"
         };
-
-        var toolTipClasses = (this.state.showTooltip ? "tooltip_outer delayed-show-slow" : "tooltip_outer");
 
         arrowClasses.push( ((panelItem.status === "GOOD") ? "status-good" :
                                 ( (panelItem.status === "BAD") ? "status-bad" : 
                                     "status-unknown")) );
 
         var arrowContent;
-        var arrowContentStyle = {
-            width: "14px"
-        }
 
         if (panelItem.status === "GOOD")
         {
-            arrowContent = React.createElement("span", {style: arrowContentStyle}, "▶");
+            arrowContent = React.createElement("span", null, "▶");
         } 
         else if (panelItem.status === "BAD") 
         {
-            arrowContent = React.createElement("span", {style: arrowContentStyle}, React.createElement("i", {className: "fa fa-minus-circle"}));
+            arrowContent = React.createElement("i", {className: "fa fa-minus-circle"});
         }
         else
         {
-            arrowContent = React.createElement("span", {style: arrowContentStyle}, "▬");
+            arrowContent = React.createElement("span", null, "▬");
         }
-          
-        if (this.state.panelItem.expanded === true )
-        {
-            children = propChildren
-                .sort(function (a, b) {
-                    if (a.name.toUpperCase() > b.name.toUpperCase()) { return 1; }
-                    if (a.name.toUpperCase() < b.name.toUpperCase()) { return -1; }
-                    return 0;
-                })
-                .sort(function (a, b) {
-                    if (a.sortOrder > b.sortOrder) { return 1; }
-                    if (a.sortOrder < b.sortOrder) { return -1; }
-                    return 0;
-                })
-                .map(function (propChild) {
-                    
-                    var grandchildren = [];
-                    propChild.children.forEach(function (childString) {
-                        grandchildren.push(propChild[childString]);
-                    });
-
-                    return (
-                        React.createElement(PlatformsPanelItem, {panelItem: propChild, itemPath: propChild.path, panelChildren: grandchildren})
-                    );
-                }); 
-
-            if (children.length > 0)
+        
+        if (typeof propChildren !== "undefined" && propChildren !== null)
+        {   
+            if (this.state.expanded || this.props.panelItem.expanded === true)
             {
-                var classIndex = arrowClasses.indexOf("noRotate");
-                
-                if (classIndex > -1)
-                {
-                    arrowClasses.splice(classIndex, 1);
-                }
+                children = propChildren
+                    .sort(function (a, b) {
+                        if (a.name.toUpperCase() > b.name.toUpperCase()) { return 1; }
+                        if (a.name.toUpperCase() < b.name.toUpperCase()) { return -1; }
+                        return 0;
+                    })
+                    .sort(function (a, b) {
+                        if (a.sortOrder > b.sortOrder) { return 1; }
+                        if (a.sortOrder < b.sortOrder) { return -1; }
+                        return 0;
+                    })
+                    .map(function (propChild) {
+                        
+                        var grandchildren = [];
+                        propChild.children.forEach(function (childString) {
+                            grandchildren.push(propChild[childString]);
+                        });
 
-                arrowClasses.push("rotateDown");
-                itemClasses = "showItems";                    
-            }          
+                        return (
+                            React.createElement(PlatformsPanelItem, {panelItem: propChild, itemPath: propChild.path, children: grandchildren})
+                        );
+                    }); 
+
+                if (children.length > 0)
+                {
+                    var classIndex = arrowClasses.indexOf("noRotate");
+                    
+                    if (classIndex > -1)
+                    {
+                        arrowClasses.splice(classIndex, 1);
+                    }
+
+                    arrowClasses.push("rotateDown");
+                    itemClasses = "showItems";                    
+                }          
+            }
+        }
+        else
+        {
+            if (this.state.expanded !== null)
+            {                   
+                if (this.state.expanded)
+                {                
+                    if (this.state.children !== null)
+                    {
+                        var childItems = this.state.children;
+                        
+                        children = childItems
+                            .sort(function (a, b) {
+                                if (a.name.toUpperCase() > b.name.toUpperCase()) { return 1; }
+                                if (a.name.toUpperCase() < b.name.toUpperCase()) { return -1; }
+                                return 0;
+                            })
+                            .sort(function (a, b) {
+                                if (a.sortOrder > b.sortOrder) { return 1; }
+                                if (a.sortOrder < b.sortOrder) { return -1; }
+                                return 0;
+                            })
+                            .map(function (child) {                            
+                                return (
+                                    React.createElement(PlatformsPanelItem, {panelItem: child, itemPath: child.path})
+                                );}, this);
+
+                        if (children.length > 0)
+                        {
+                            itemClasses = "showItems";
+
+                            var classIndex = arrowClasses.indexOf("noRotate");
+                            
+                            if (classIndex > -1)
+                            {
+                                arrowClasses.splice(classIndex, 1);
+                            }
+
+                            arrowClasses.push("rotateDown");
+                        }                            
+                    }
+                }
+                else
+                {
+                    if (this.state.children) 
+                    {
+                        itemClasses = "hideItems";
+
+                        arrowClasses.push("rotateRight");
+                    }
+                }
+            }
         }
 
-        var itemClass = (!panelItem.hasOwnProperty("uuid") ? "item_type" : "item_label ");
+        var listItem;
 
-        var listItem = 
-                React.createElement("div", {className: itemClass}, 
-                    panelItem.name
+        if (!panelItem.hasOwnProperty("uuid"))
+        {
+            listItem = 
+                React.createElement("div", null, 
+                    React.createElement("b", null, 
+                        panelItem.name
+                    )
                 );
+        }
+        else
+        {
+            listItem = 
+                React.createElement("div", {className: "platform-link"}, 
+                    React.createElement(Router.Link, {
+                        to: "graphs", 
+                        params: {uuid: panelItem.uuid}
+                    }, 
+                    panelItem.name
+                    )
+                );            
+        }
 
         return (
             React.createElement("li", {
                 key: panelItem.uuid, 
-                className: "panel-item", 
-                style: visibleStyle
+                className: "panel-item"
             }, 
                 React.createElement("div", {className: "platform-info"}, 
                     React.createElement("div", {className: arrowClasses.join(' '), 
                         onDoubleClick: this._expandAll, 
                         onClick: this._toggleItem}, 
                         arrowContent
-                    ), 
-                    ChartCheckbox, 
-                    React.createElement("div", {className: toolTipClasses, 
+                        ), 
+                    React.createElement("input", {className: checkboxClass, 
+                        style: checkboxStyle, 
+                        type: "checkbox", 
+                        onChange: this._checkItem}), 
+                    React.createElement("div", {className: "tooltip_outer", 
                         style: tooltipStyle}, 
                         React.createElement("div", {className: "tooltip_inner"}, 
-                            React.createElement("div", {className: "opaque_inner"}, 
-                                panelItem.uuid
-                            )
+                            panelItem.uuid
+                        ), 
+                        React.createElement("div", {className: "tooltip_point"}, 
+                            "▶"
                         )
                     ), 
                     React.createElement("div", {className: "tooltip_target", 
@@ -3402,18 +2804,27 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
     },
 });
 
-function getChildrenFromStore(parentItem, parentPath) {
-    return platformsPanelItemsStore.getChildren(parentItem, parentPath);
+function expandAllChildren(expandOn, parent)
+{
+    var expandedParent = platformsPanelItemsStore.getExpandedChildren(expandOn, parent);
+    var expandedChildren = [];
+
+    expandedParent.children.forEach(function(childString) {
+        expandedChildren.push(expandedParent[childString]);
+    })
+
+    return expandedChildren;
+
 }
 
-function getItemFromStore(itemPath) {
-    return platformsPanelItemsStore.getItem(itemPath);
+function getChildrenFromStore(parentItem, parentPath) {
+    return platformsPanelItemsStore.getItems(parentItem, parentPath);
 }
 
 module.exports = PlatformsPanelItem;
 
 
-},{"../action-creators/platforms-panel-action-creators":8,"../stores/platforms-panel-items-store":50,"react":undefined,"react-router":undefined}],30:[function(require,module,exports){
+},{"../action-creators/platforms-panel-action-creators":6,"../stores/platforms-panel-items-store":46,"react":undefined,"react-router":undefined}],27:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -3423,16 +2834,15 @@ var platformsPanelStore = require('../stores/platforms-panel-store');
 var platformsPanelItemsStore = require('../stores/platforms-panel-items-store');
 var platformsPanelActionCreators = require('../action-creators/platforms-panel-action-creators');
 var PlatformsPanelItem = require('./platforms-panel-item');
-var ControlButton = require('./control-button');
 
 
 var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
     getInitialState: function () {
         var state = {};
-        state.platforms = [];     
+        state.platforms = [];  
+        state.filteredPlatforms = null;   
         state.expanded = getExpandedFromStore();
         state.filterValue = "";
-        state.filterStatus = "";
 
         return state;
     },
@@ -3465,35 +2875,27 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
     },
     _onFilterBoxChange: function (e) {
         this.setState({ filterValue: e.target.value });
-        platformsPanelActionCreators.loadFilteredItems(e.target.value, "");
-        this.setState({ filterStatus: "" });
+        this.setState({ filteredPlatforms: getFilteredPlatforms(e.target.value, "") });
     },
     _onFilterGood: function (e) {
-        platformsPanelActionCreators.loadFilteredItems("", "GOOD");
-        this.setState({ filterStatus: "GOOD" });
-        this.setState({ filterValue: "" });
+        this.setState({ filteredPlatforms: getFilteredPlatforms("", "GOOD") });
     },
     _onFilterBad: function (e) {
-        platformsPanelActionCreators.loadFilteredItems("", "BAD");
-        this.setState({ filterStatus: "BAD" });
-        this.setState({ filterValue: "" });
+        this.setState({ filteredPlatforms: getFilteredPlatforms("", "BAD") });
     },
     _onFilterUnknown: function (e) {
-        platformsPanelActionCreators.loadFilteredItems("", "UNKNOWN");
-        this.setState({ filterStatus: "UNKNOWN" });
-        this.setState({ filterValue: "" });
+        this.setState({ filteredPlatforms: getFilteredPlatforms("", "UNKNOWN") });
     },
     _onFilterOff: function (e) {
-        platformsPanelActionCreators.loadFilteredItems("", "");
-        this.setState({ filterValue: "" });
-        this.setState({ filterStatus: "" });
+        this.setState({ filteredPlatforms: getFilteredPlatforms("", "") });
     },
     _togglePanel: function () {
         platformsPanelActionCreators.togglePanel();
     },
     render: function () {
         var platforms;
-        
+        var filteredPlatforms = this.state.filteredPlatforms;
+
         var classes = (this.state.expanded === null ? 
                         "platform-statuses platform-collapsed" : 
                         (this.state.expanded ? 
@@ -3512,98 +2914,6 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
             textAlign: "left"
         };
 
-        var filterGood, filterBad, filterUnknown;
-        filterGood = filterBad = filterUnknown = false;
-
-        switch (this.state.filterStatus)
-        {
-            case "GOOD":
-                filterGood = true;
-                break;
-            case "BAD":
-                filterBad = true;
-                break;
-            case "UNKNOWN":
-                filterUnknown = true;
-                break;
-        }
-
-        var tooltipX = 60;
-        var tooltipY = 190;
-
-        var filterGoodIcon = (
-            React.createElement("div", {className: "status-good"}, 
-                React.createElement("span", null, "▶")
-            )
-        );
-        var filterGoodTooltip = {
-            "content": "Healthy",
-            "xOffset": tooltipX,
-            "yOffset": tooltipY
-        };
-        var filterGoodControlButton = (
-            React.createElement(ControlButton, {
-                name: "filterGoodControlButton", 
-                icon: filterGoodIcon, 
-                selected: filterGood, 
-                tooltip: filterGoodTooltip, 
-                clickAction: this._onFilterGood})
-        );
-
-        var filterBadIcon = (
-            React.createElement("div", {className: "status-bad"}, 
-                React.createElement("i", {className: "fa fa-minus-circle"})
-            )
-        );
-        var filterBadTooltip = {
-            "content": "Unhealthy",
-            "xOffset": tooltipX,
-            "yOffset": tooltipY
-        };
-        var filterBadControlButton = (
-            React.createElement(ControlButton, {
-                name: "filterBadControlButton", 
-                icon: filterBadIcon, 
-                selected: filterBad, 
-                tooltip: filterBadTooltip, 
-                clickAction: this._onFilterBad})
-        );
-
-        var filterUnknownIcon = (
-            React.createElement("div", {className: "status-unknown"}, 
-                React.createElement("span", null, "▬")
-            )
-        );
-        var filterUnknownTooltip = {
-            "content": "Unknown Status",
-            "xOffset": tooltipX,
-            "yOffset": tooltipY
-        };
-        var filterUnknownControlButton = (
-            React.createElement(ControlButton, {
-                name: "filterUnknownControlButton", 
-                icon: filterUnknownIcon, 
-                selected: filterUnknown, 
-                tooltip: filterUnknownTooltip, 
-                clickAction: this._onFilterUnknown})
-        );
-
-        var filterOffIcon = (
-            React.createElement("i", {className: "fa fa-ban"})
-        );
-        var filterOffTooltip = {
-            "content": "Clear Filter",
-            "xOffset": tooltipX,
-            "yOffset": tooltipY
-        };
-        var filterOffControlButton = (
-            React.createElement(ControlButton, {
-                name: "filterOffControlButton", 
-                icon: filterOffIcon, 
-                tooltip: filterOffTooltip, 
-                clickAction: this._onFilterOff})
-        );
-
         if (!this.state.platforms) {
             platforms = (
                 React.createElement("p", null, "Loading platforms panel ...")
@@ -3614,18 +2924,41 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
             );
         } 
         else 
-        {            
-            platforms = this.state.platforms
-                .sort(function (a, b) {
-                    if (a.name.toUpperCase() > b.name.toUpperCase()) { return 1; }
-                    if (a.name.toUpperCase() < b.name.toUpperCase()) { return -1; }
-                    return 0;
-                })
-                .map(function (platform) {
-                    return (
-                        React.createElement(PlatformsPanelItem, {panelItem: platform, itemPath: platform.path})
-                    );
+        {
+            if (filteredPlatforms !== null)
+            {
+                platforms = filteredPlatforms
+                    .sort(function (a, b) {
+                        if (a.name.toUpperCase() > b.name.toUpperCase()) { return 1; }
+                        if (a.name.toUpperCase() < b.name.toUpperCase()) { return -1; }
+                        return 0;
+                    })
+                    .map(function (filteredPlatform) {
+                        
+                        var children = [];
+                        filteredPlatform.children.forEach(function (childString) {
+                            children.push(filteredPlatform[childString]);
+                        });
+
+                        return (
+                            React.createElement(PlatformsPanelItem, {panelItem: filteredPlatform, itemPath: filteredPlatform.path, children: children})
+                        );
                 });
+            }
+            else
+            {
+                platforms = this.state.platforms
+                    .sort(function (a, b) {
+                        if (a.name.toUpperCase() > b.name.toUpperCase()) { return 1; }
+                        if (a.name.toUpperCase() < b.name.toUpperCase()) { return -1; }
+                        return 0;
+                    })
+                    .map(function (platform) {
+                        return (
+                            React.createElement(PlatformsPanelItem, {panelItem: platform, itemPath: platform.path})
+                        );
+                    });
+            }
         }
 
         return (
@@ -3641,11 +2974,31 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
                             onChange: this._onFilterBoxChange, 
                             value:  this.state.filterValue}
                         ), 
-                        React.createElement("div", {className: "inlineBlock"}, 
-                            filterGoodControlButton, 
-                            filterBadControlButton, 
-                            filterUnknownControlButton, 
-                            filterOffControlButton
+                        React.createElement("div", {className: "filter_buttons"}, 
+                            React.createElement("div", {className: "filter_button status-good", 
+                                onClick: this._onFilterGood}, 
+                                React.createElement("div", {className: "centeredDiv"}, 
+                                    React.createElement("span", null, "▶")
+                                )
+                            ), 
+                            React.createElement("div", {className: "filter_button status-bad", 
+                                onClick: this._onFilterBad}, 
+                                React.createElement("div", {className: "centeredDiv"}, 
+                                    React.createElement("i", {className: "fa fa-minus-circle"})
+                                )
+                            ), 
+                            React.createElement("div", {className: "filter_button status-unknown", 
+                                onClick: this._onFilterUnknown}, 
+                                React.createElement("div", {className: "centeredDiv"}, 
+                                    React.createElement("span", null, "▬")
+                                )
+                            ), 
+                            React.createElement("div", {className: "filter_button", 
+                                onClick: this._onFilterOff}, 
+                                React.createElement("div", {className: "centeredDiv"}, 
+                                    React.createElement("i", {className: "fa fa-ban"})
+                                )
+                            )
                         )
                     ), 
                     React.createElement("ul", {className: "platform-panel-list"}, 
@@ -3657,23 +3010,79 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
     },
 });
 
+function getItemsFromStore(parentItem, parentPath) {
+    return platformsPanelItemsStore.getItems(parentItem, parentPath);
+};
+
 function getPlatformsFromStore() {
-    return platformsPanelItemsStore.getChildren("platforms", null);
+    return platformsPanelItemsStore.getItems("platforms", null);
 };
 
 function getExpandedFromStore() {
     return platformsPanelStore.getExpanded();
 };
 
-function getFilteredPlatforms(filterTerm, filterStatus, platforms) {
-    return platformsPanelItemsStore.getFilteredItems(filterTerm, filterStatus, platforms);
+function getFilteredPlatforms(filterTerm, filterStatus) {
+
+    var platformsList = [];
+
+    if (filterTerm !== "" || filterStatus !== "")
+    {
+        var treeCopy = platformsPanelItemsStore.getTreeCopy();
+
+        var platforms = treeCopy["platforms"];
+
+        for (var key in platforms)
+        {
+            var filteredPlatform = platformsPanelItemsStore.getFilteredItems(platforms[key], filterTerm, filterStatus);
+
+            if (filteredPlatform)
+            {
+                var upperName = filteredPlatform.name.toUpperCase();
+
+                if ((filteredPlatform.children.length === 0) && (upperName.indexOf(filterTerm.toUpperCase()) < 0))
+                {
+                    filteredPlatform = null;
+                }
+            }
+
+            if (filteredPlatform)
+            {
+                platformsList.push(filteredPlatform);
+            }
+        }
+    }
+    else
+    {
+        platformsList = null;
+    }
+
+    return platformsList;
 }
 
+
+// function filteredPlatform(platform, filterTerm) {
+
+//     var treeCopy = platformsPanelItemsStore.getTreeCopy();
+
+//     var filteredPlatform = platformsPanelItemsStore.getFilteredItems(treeCopy["platforms"][platform.uuid], filterTerm);
+
+
+//     if (filteredPlatform)
+//     {
+//         if ((filteredPlatform.children.length === 0) && (filteredPlatform.name.indexOf(filterTerm) < 0))
+//         {
+//             filteredPlatform = null;
+//         }
+//     }
+
+//     return filteredPlatform;
+// };
 
 module.exports = PlatformsPanel;
 
 
-},{"../action-creators/platforms-panel-action-creators":8,"../stores/platforms-panel-items-store":50,"../stores/platforms-panel-store":51,"./control-button":14,"./platforms-panel-item":29,"react":undefined,"react-router":undefined}],31:[function(require,module,exports){
+},{"../action-creators/platforms-panel-action-creators":6,"../stores/platforms-panel-items-store":46,"../stores/platforms-panel-store":47,"./platforms-panel-item":26,"react":undefined,"react-router":undefined}],28:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -3767,15 +3176,13 @@ var Platforms = React.createClass({displayName: "Platforms",
 
         return (
             React.createElement("div", {className: "view"}, 
-                React.createElement("div", {className: "absolute_anchor"}, 
-                    React.createElement("h2", null, "Platforms"), 
-                    React.createElement("div", {className: "view__actions"}, 
-                        React.createElement("button", {className: "button", onClick: this._onRegisterClick}, 
-                            "Register platform"
-                        )
-                    ), 
-                    platforms
-                )
+                React.createElement("h2", null, "Platforms"), 
+                React.createElement("div", {className: "view__actions"}, 
+                    React.createElement("button", {className: "button", onClick: this._onRegisterClick}, 
+                        "Register platform"
+                    )
+                ), 
+                platforms
             )
         );
     },
@@ -3790,7 +3197,7 @@ function getStateFromStores() {
 module.exports = Platforms;
 
 
-},{"../action-creators/modal-action-creators":4,"../components/deregister-platform-confirmation":17,"../components/register-platform-form":32,"../stores/platforms-store":52,"react":undefined,"react-router":undefined}],32:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../components/deregister-platform-confirmation":14,"../components/register-platform-form":29,"../stores/platforms-store":48,"react":undefined,"react-router":undefined}],29:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -3803,7 +3210,9 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
     getInitialState: function () {
         var state = getStateFromStores();
         
-        state.name = state.ipaddress = state.serverKey = state.publicKey = state.secretKey = '';
+        state.method = 'discovery';
+
+        state.name = state.discovery_address = state.ipaddress = state.serverKey = state.publicKey = state.secretKey = '';
         state.protocol = 'tcp';
 
         return state;
@@ -3822,6 +3231,7 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
     },
     _onAddressChange: function (e) {
         this.setState({ ipaddress: e.target.value });
+        this.setState({ discovery_address: e.target.value });
     },
     _onProtocolChange: function (e) {
         this.setState({ protocol: e.target.value });
@@ -3835,11 +3245,21 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
     _onSecretKeyChange: function (e) {
         this.setState({ secretKey: e.target.value });
     },
+    _toggleMethod: function (e) {
+        this.setState({ method: (this.state.method === "discovery" ? "advanced" : "discovery") });
+    },
     _onCancelClick: modalActionCreators.closeModal,
-    _onSubmit: function () {
+    _onSubmitDiscovery: function () {
+
+        platformManagerActionCreators.registerInstance(
+            this.state.name, 
+            this.state.discovery_address);
+        
+    },
+    _onSubmitAdvanced: function () {
 
         platformManagerActionCreators.registerPlatform(
-            this.state.name, 
+            this.state.name,             
             this._formatAddress());
         
     },
@@ -3868,122 +3288,218 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
         
         var fullAddress = this._formatAddress();
 
+        var registerForm;
+
+        var submitMethod;
+
+        switch (this.state.method)
+        {
+            case "discovery":
+                submitMethod = this._onSubmitDiscovery;
+
+                registerForm = (
+                    React.createElement("div", null, 
+                        React.createElement("div", {className: "tableDiv"}, 
+                            React.createElement("div", {className: "rowDiv"}, 
+                                React.createElement("div", {className: "cellDiv firstCell"}, 
+                                    React.createElement("label", {className: "formLabel"}, "Name"), 
+                                    React.createElement("input", {
+                                        className: "form__control form__control--block", 
+                                        type: "text", 
+                                        onChange: this._onNameChange, 
+                                        value: this.state.name, 
+                                        autoFocus: true, 
+                                        required: true}
+                                    )
+                                ), 
+                                React.createElement("div", {className: "cellDiv", 
+                                    width: "70%"}, 
+                                    React.createElement("label", {className: "formLabel"}, "Address"), 
+                                    React.createElement("input", {
+                                        className: "form__control form__control--block", 
+                                        type: "text", 
+                                        onChange: this._onAddressChange, 
+                                        value: this.state.discovery_address, 
+                                        required: true}
+                                    )
+                                )
+                            )
+                        ), 
+                        
+                        React.createElement("div", {className: "tableDiv"}, 
+                            React.createElement("div", {className: "rowDiv"}, 
+                                React.createElement("div", {className: "cellDiv firstCell"}, 
+                                    React.createElement("div", {className: "form__link", 
+                                        onClick: this._toggleMethod}, 
+                                        React.createElement("a", null, "Advanced")
+                                    )
+                                ), 
+                                React.createElement("div", {className: "cellDiv", 
+                                    width: "70%"}, 
+                                    React.createElement("div", {className: "form__actions"}, 
+                                        React.createElement("button", {
+                                            className: "button button--secondary", 
+                                            type: "button", 
+                                            onClick: this._onCancelClick
+                                        }, 
+                                            "Cancel"
+                                        ), 
+                                        React.createElement("button", {
+                                            className: "button", 
+                                            disabled: !this.state.name || !this.state.discovery_address
+                                        }, 
+                                            "Register"
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    )
+                )
+                break;
+            case "advanced":
+
+                submitMethod = this._onSubmitAdvanced;
+
+                registerForm = (
+                    React.createElement("div", null, 
+                        React.createElement("div", {className: "tableDiv"}, 
+                            React.createElement("div", {className: "rowDiv"}, 
+                                React.createElement("div", {className: "cellDiv firstCell"}, 
+                                    React.createElement("label", {className: "formLabel"}, "Name"), 
+                                    React.createElement("input", {
+                                        className: "form__control form__control--block", 
+                                        type: "text", 
+                                        onChange: this._onNameChange, 
+                                        value: this.state.name, 
+                                        autoFocus: true, 
+                                        required: true}
+                                    )
+                                ), 
+                                React.createElement("div", {className: "cellDiv", 
+                                    width: "10%"}, 
+                                    React.createElement("label", {className: "formLabel"}, "Protocol"), React.createElement("br", null), 
+                                    React.createElement("select", {
+                                        className: "form__control", 
+                                        onChange: this._onProtocolChange, 
+                                        value: this.state.protocol, 
+                                        required: true
+                                    }, 
+                                        React.createElement("option", {value: "tcp"}, "TCP"), 
+                                        React.createElement("option", {value: "ipc"}, "IPC")
+                                    )
+                                ), 
+                                React.createElement("div", {className: "cellDiv", 
+                                    width: "56%"}, 
+                                    React.createElement("label", {className: "formLabel"}, "VIP address"), 
+                                    React.createElement("input", {
+                                        className: "form__control form__control--block", 
+                                        type: "text", 
+                                        onChange: this._onAddressChange, 
+                                        value: this.state.ipaddress, 
+                                        required: true}
+                                    )
+                                )
+                            )
+                        ), 
+                        React.createElement("div", {className: "tableDiv"}, 
+                            React.createElement("div", {className: "rowDiv"}, 
+                                React.createElement("div", {className: "cellDiv", 
+                                    width: "80%"}, 
+                                    React.createElement("label", {className: "formLabel"}, "Server Key"), 
+                                    React.createElement("input", {
+                                        className: "form__control form__control--block", 
+                                        type: "text", 
+                                        onChange: this._onServerKeyChange, 
+                                        value: this.state.serverKey}
+                                    )
+                                )
+                            )
+                        ), 
+                        React.createElement("div", {className: "tableDiv"}, 
+                            React.createElement("div", {className: "rowDiv"}, 
+                                React.createElement("div", {className: "cellDiv", 
+                                    width: "80%"}, 
+                                    React.createElement("label", {className: "formLabel"}, "Public Key"), 
+                                    React.createElement("input", {
+                                        className: "form__control form__control--block", 
+                                        type: "text", 
+                                        onChange: this._onPublicKeyChange, 
+                                        value: this.state.publicKey}
+                                    )
+                                )
+                            )
+                        ), 
+                        React.createElement("div", {className: "tableDiv"}, 
+                            React.createElement("div", {className: "rowDiv"}, 
+                                React.createElement("div", {className: "cellDiv", 
+                                    width: "80%"}, 
+                                    React.createElement("label", {className: "formLabel"}, "Secret Key"), 
+                                    React.createElement("input", {
+                                        className: "form__control form__control--block", 
+                                        type: "text", 
+                                        onChange: this._onSecretKeyChange, 
+                                        value: this.state.secretKey}
+                                    )
+                                )
+                            )
+                        ), 
+                        React.createElement("div", {className: "tableDiv"}, 
+                            React.createElement("div", {className: "rowDiv"}, 
+                                React.createElement("div", {className: "cellDiv", 
+                                    width: "100%"}, 
+                                    React.createElement("label", {className: "formLabel"}, "Preview"), 
+                                    React.createElement("div", {
+                                        className: "preview"}, 
+                                        fullAddress
+                                    )
+                                )
+                            )
+                        ), 
+                        
+                        React.createElement("div", {className: "tableDiv"}, 
+                            React.createElement("div", {className: "rowDiv"}, 
+                                React.createElement("div", {className: "cellDiv firstCell"}, 
+                                    React.createElement("div", {className: "form__link", 
+                                        onClick: this._toggleMethod}, 
+                                        React.createElement("a", null, "Discover")
+                                    )
+                                ), 
+                                React.createElement("div", {className: "cellDiv", 
+                                    width: "70%"}, 
+                                    React.createElement("div", {className: "form__actions"}, 
+                                        React.createElement("button", {
+                                            className: "button button--secondary", 
+                                            type: "button", 
+                                            onClick: this._onCancelClick
+                                        }, 
+                                            "Cancel"
+                                        ), 
+                                        React.createElement("button", {
+                                            className: "button", 
+                                            disabled: !this.state.name || !this.state.protocol || !this.state.ipaddress 
+                                                || !((this.state.serverKey && this.state.publicKey && this.state.secretKey) 
+                                                        || (!this.state.publicKey && !this.state.secretKey))
+                                        }, 
+                                            "Register"
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    )
+                )
+                break;
+        }
+
         return (
-            React.createElement("form", {className: "register-platform-form", onSubmit: this._onSubmit}, 
+            React.createElement("form", {className: "register-platform-form", onSubmit: submitMethod}, 
                 React.createElement("h1", null, "Register platform"), 
                 this.state.error && (
                     React.createElement("div", {className: "error"}, this.state.error.message)
                 ), 
-                React.createElement("div", {className: "tableDiv"}, 
-                    React.createElement("div", {className: "rowDiv"}, 
-                        React.createElement("div", {className: "cellDiv firstCell"}, 
-                            React.createElement("label", {className: "formLabel"}, "Name"), 
-                            React.createElement("input", {
-                                className: "form__control form__control--block", 
-                                type: "text", 
-                                onChange: this._onNameChange, 
-                                value: this.state.name, 
-                                autoFocus: true, 
-                                required: true}
-                            )
-                        ), 
-                        React.createElement("div", {className: "cellDiv", 
-                            width: "10%"}, 
-                            React.createElement("label", {className: "formLabel"}, "Protocol"), React.createElement("br", null), 
-                            React.createElement("select", {
-                                className: "form__control", 
-                                onChange: this._onProtocolChange, 
-                                value: this.state.protocol, 
-                                required: true
-                            }, 
-                                React.createElement("option", {value: "tcp"}, "TCP"), 
-                                React.createElement("option", {value: "ipc"}, "IPC")
-                            )
-                        ), 
-                        React.createElement("div", {className: "cellDiv", 
-                            width: "56%"}, 
-                            React.createElement("label", {className: "formLabel"}, "VIP address"), 
-                            React.createElement("input", {
-                                className: "form__control form__control--block", 
-                                type: "text", 
-                                onChange: this._onAddressChange, 
-                                value: this.state.ipaddress, 
-                                required: true}
-                            )
-                        )
-                    )
-                ), 
-                React.createElement("div", {className: "tableDiv"}, 
-                    React.createElement("div", {className: "rowDiv"}, 
-                        React.createElement("div", {className: "cellDiv", 
-                            width: "80%"}, 
-                            React.createElement("label", {className: "formLabel"}, "Server Key"), 
-                            React.createElement("input", {
-                                className: "form__control form__control--block", 
-                                type: "text", 
-                                onChange: this._onServerKeyChange, 
-                                value: this.state.serverKey}
-                            )
-                        )
-                    )
-                ), 
-                React.createElement("div", {className: "tableDiv"}, 
-                    React.createElement("div", {className: "rowDiv"}, 
-                        React.createElement("div", {className: "cellDiv", 
-                            width: "80%"}, 
-                            React.createElement("label", {className: "formLabel"}, "Public Key"), 
-                            React.createElement("input", {
-                                className: "form__control form__control--block", 
-                                type: "text", 
-                                onChange: this._onPublicKeyChange, 
-                                value: this.state.publicKey}
-                            )
-                        )
-                    )
-                ), 
-                React.createElement("div", {className: "tableDiv"}, 
-                    React.createElement("div", {className: "rowDiv"}, 
-                        React.createElement("div", {className: "cellDiv", 
-                            width: "80%"}, 
-                            React.createElement("label", {className: "formLabel"}, "Secret Key"), 
-                            React.createElement("input", {
-                                className: "form__control form__control--block", 
-                                type: "text", 
-                                onChange: this._onSecretKeyChange, 
-                                value: this.state.secretKey}
-                            )
-                        )
-                    )
-                ), 
-                React.createElement("div", {className: "tableDiv"}, 
-                    React.createElement("div", {className: "rowDiv"}, 
-                        React.createElement("div", {className: "cellDiv", 
-                            width: "100%"}, 
-                            React.createElement("label", {className: "formLabel"}, "Preview"), 
-                            React.createElement("div", {
-                                className: "preview"}, 
-                                fullAddress
-                            )
-                        )
-                    )
-                ), 
-                React.createElement("div", {className: "form__actions"}, 
-                    React.createElement("button", {
-                        className: "button button--secondary", 
-                        type: "button", 
-                        onClick: this._onCancelClick
-                    }, 
-                        "Cancel"
-                    ), 
-                    React.createElement("button", {
-                        className: "button", 
-                        disabled: !this.state.name || !this.state.protocol || !this.state.ipaddress 
-                            || !((this.state.serverKey && this.state.publicKey && this.state.secretKey) 
-                                    || (!this.state.publicKey && !this.state.secretKey))
-                    }, 
-                        "Register"
-                    )
-                )
+                registerForm
+
             )
         );
     },
@@ -3996,7 +3512,7 @@ function getStateFromStores() {
 module.exports = RegisterPlatformForm;
 
 
-},{"../action-creators/modal-action-creators":4,"../action-creators/platform-manager-action-creators":7,"../stores/platform-registration-store":49,"react":undefined}],33:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../action-creators/platform-manager-action-creators":5,"../stores/platform-registration-store":45,"react":undefined}],30:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -4055,7 +3571,7 @@ var RemoveAgentForm = React.createClass({displayName: "RemoveAgentForm",
 module.exports = RemoveAgentForm;
 
 
-},{"../action-creators/modal-action-creators":4,"../action-creators/platform-action-creators":5,"react":undefined}],34:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":3,"../action-creators/platform-action-creators":4,"react":undefined}],31:[function(require,module,exports){
 'use strict';
 
 var keyMirror = require('react/lib/keyMirror');
@@ -4092,31 +3608,14 @@ module.exports = keyMirror({
     RECEIVE_POINT_STATUSES: null,
     RECEIVE_BUILDING_STATUSES: null,
 
-    RECEIVE_PANEL_CHILDREN: null,
-
-    ADD_TO_CHART: null,
-    REMOVE_FROM_CHART: null,
-    PIN_CHART: null,
-    CHANGE_CHART_TYPE: null,
-    CHANGE_CHART_REFRESH: null,
-    REFRESH_CHART: null,
-
-    EXPAND_ALL: null,
-    TOGGLE_ITEM: null,
-    CHECK_ITEM: null,
-    FILTER_ITEMS: null,
-
-    // ADD_CONTROL_BUTTON: null,
-    // REMOVE_CONTROL_BUTTON: null,
-    TOGGLE_TAPTIP: null,
-    HIDE_TAPTIP: null,
-
+    ADD_TO_GRAPH: null,
+    REMOVE_FROM_GRAPH: null,
 
     RECEIVE_PLATFORM_TOPIC_DATA: null,
 });
 
 
-},{"react/lib/keyMirror":undefined}],35:[function(require,module,exports){
+},{"react/lib/keyMirror":undefined}],32:[function(require,module,exports){
 'use strict';
 
 var Dispatcher = require('flux').Dispatcher;
@@ -4136,7 +3635,7 @@ dispatcher.dispatch = function (action) {
 module.exports = dispatcher;
 
 
-},{"../constants/action-types":34,"flux":undefined}],36:[function(require,module,exports){
+},{"../constants/action-types":31,"flux":undefined}],33:[function(require,module,exports){
 'use strict';
 
 function RpcError(error) {
@@ -4151,7 +3650,7 @@ RpcError.prototype.constructor = RpcError;
 module.exports = RpcError;
 
 
-},{}],37:[function(require,module,exports){
+},{}],34:[function(require,module,exports){
 'use strict';
 
 var uuid = require('node-uuid');
@@ -4239,7 +3738,7 @@ function RpcExchange(request, redactedParams) {
 module.exports = RpcExchange;
 
 
-},{"../../constants/action-types":34,"../../dispatcher":35,"../xhr":41,"./error":36,"node-uuid":undefined}],38:[function(require,module,exports){
+},{"../../constants/action-types":31,"../../dispatcher":32,"../xhr":38,"./error":33,"node-uuid":undefined}],35:[function(require,module,exports){
 'use strict';
 
 module.exports = {
@@ -4248,7 +3747,7 @@ module.exports = {
 };
 
 
-},{"./error":36,"./exchange":37}],39:[function(require,module,exports){
+},{"./error":33,"./exchange":34}],36:[function(require,module,exports){
 'use strict';
 
 var EventEmitter = require('events').EventEmitter;
@@ -4276,7 +3775,7 @@ Store.prototype.removeChangeListener = function (callback) {
 module.exports = Store;
 
 
-},{"events":undefined}],40:[function(require,module,exports){
+},{"events":undefined}],37:[function(require,module,exports){
 'use strict';
 
 function XhrError(message, response) {
@@ -4290,7 +3789,7 @@ XhrError.prototype.constructor = XhrError;
 module.exports = XhrError;
 
 
-},{}],41:[function(require,module,exports){
+},{}],38:[function(require,module,exports){
 'use strict';
 
 module.exports = {
@@ -4299,7 +3798,7 @@ module.exports = {
 };
 
 
-},{"./error":40,"./request":42}],42:[function(require,module,exports){
+},{"./error":37,"./request":39}],39:[function(require,module,exports){
 'use strict';
 
 var jQuery = require('jquery');
@@ -4330,7 +3829,7 @@ function XhrRequest(opts) {
 module.exports = XhrRequest;
 
 
-},{"./error":40,"bluebird":undefined,"jquery":undefined}],43:[function(require,module,exports){
+},{"./error":37,"bluebird":undefined,"jquery":undefined}],40:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -4368,7 +3867,7 @@ authorizationStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = authorizationStore;
 
 
-},{"../constants/action-types":34,"../dispatcher":35,"../lib/store":39}],44:[function(require,module,exports){
+},{"../constants/action-types":31,"../dispatcher":32,"../lib/store":36}],41:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -4461,7 +3960,7 @@ consoleStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = consoleStore;
 
 
-},{"../constants/action-types":34,"../dispatcher":35,"../lib/store":39,"../stores/authorization-store":43}],45:[function(require,module,exports){
+},{"../constants/action-types":31,"../dispatcher":32,"../lib/store":36,"../stores/authorization-store":40}],42:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -4470,86 +3969,87 @@ var dispatcher = require('../dispatcher');
 var Store = require('../lib/store');
 
 
-var _controlButtons = {};
+var _graphVisible = false;
+var _graphData = [];
 
-var controlButtonStore = new Store();
+var graphStore = new Store();
 
-
-
-controlButtonStore.getTaptip = function (name) {
+graphStore.getGraphs = function (uuid) {
     
-    var showTaptip = null;
 
-    if (_controlButtons.hasOwnProperty([name]))
-    {
-        if (_controlButtons[name].hasOwnProperty("showTaptip"))
-        {
-            showTaptip = _controlButtons[name].showTaptip;
-        }
-    }
+    return null;
+};
 
-    return showTaptip;
+graphStore.getLastError = function (uuid) {
+    return _lastErrors[uuid] || null;
+};
+
+graphStore.getData = function () {
+    return _graphData;
 }
 
-controlButtonStore.dispatchToken = dispatcher.register(function (action) {
+graphStore.dispatchToken = dispatcher.register(function (action) {
     switch (action.type) {
 
-        case ACTION_TYPES.TOGGLE_TAPTIP:             
+        case ACTION_TYPES.ADD_TO_GRAPH:  
 
-            var showTaptip;
+            var graphItems = _graphData.filter(function (item) { return item.uuid === action.panelItem.uuid });
 
-            if (_controlButtons.hasOwnProperty(action.name))
+            if (graphItems.length === 0)
             {
-                _controlButtons[action.name].showTaptip = showTaptip = !_controlButtons[action.name].showTaptip;
-            }
-            else
-            {
-                _controlButtons[action.name] = { "showTaptip": true };
-                showTaptip = true;
-            }
-
-            if (showTaptip === true) 
-            {            
-                //close other taptips    
-                for (var key in _controlButtons)
+                if (action.panelItem.hasOwnProperty("data"))
                 {
-                    if (key !== action.name)
-                    {
-                        _controlButtons[key].showTaptip = false;
-                    }
+                    _graphData = _graphData.concat(action.panelItem.data);
                 }
-            }
 
-            controlButtonStore.emitChange();
+                if (_graphData.length > 0)
+                {
+                    _graphVisible = true;
+                }
+
+                graphStore.emitChange();
+            }
 
             break;
 
-        case ACTION_TYPES.HIDE_TAPTIP:             
+        case ACTION_TYPES.REMOVE_FROM_GRAPH:
 
-            if (_controlButtons.hasOwnProperty(action.name))
+            if (_graphData.length > 0)
             {
-                if (_controlButtons[action.name].hasOwnProperty("showTaptip"))
-                {
-                    _controlButtons[action.name].showTaptip = false;
-                    // delete _controlButtons[action.name];   
-                }
-            }
+                _graphData.forEach(function(item, index) {
+                    if (item.uuid === action.panelItem.uuid)
+                    {
+                        _graphData.splice(index, 1);
+                    }
+                });
 
-            controlButtonStore.emitChange();
+                for (var i = _graphData.length - 1; i >= 0; i--)
+                {
+                    if (_graphData[i].uuid === action.panelItem.uuid)
+                    {
+                        _graphData.splice(i, 1);
+                    }                    
+                }
+
+                if (_graphData.length === 0)
+                {
+                    _graphVisible = false;
+                }
+
+                graphStore.emitChange();  
+            }
 
             break;
     } 
-
-    
     
 });
 
 
 
-module.exports = controlButtonStore;
+module.exports = graphStore;
 
 
-},{"../constants/action-types":34,"../dispatcher":35,"../lib/store":39,"../stores/authorization-store":43}],46:[function(require,module,exports){
+},{"../constants/action-types":31,"../dispatcher":32,"../lib/store":36,"../stores/authorization-store":40}],43:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -4584,7 +4084,7 @@ loginFormStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = loginFormStore;
 
 
-},{"../constants/action-types":34,"../dispatcher":35,"../lib/store":39,"./authorization-store":43}],47:[function(require,module,exports){
+},{"../constants/action-types":31,"../dispatcher":32,"../lib/store":36,"./authorization-store":40}],44:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -4617,236 +4117,7 @@ modalStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = modalStore;
 
 
-},{"../constants/action-types":34,"../dispatcher":35,"../lib/store":39}],48:[function(require,module,exports){
-'use strict';
-
-var ACTION_TYPES = require('../constants/action-types');
-var authorizationStore = require('../stores/authorization-store');
-var dispatcher = require('../dispatcher');
-var Store = require('../lib/store');
-
-
-var _chartData = {};
-
-var chartStore = new Store();
-
-chartStore.getPinnedCharts = function () {
-    var pinnedCharts = [];
-
-    for (var key in _chartData)
-    {
-        if (_chartData[key].hasOwnProperty("pinned") && _chartData[key].pinned === true)
-        {
-            pinnedCharts.push(_chartData[key]);
-        }
-    }
-
-    return pinnedCharts;
-};
-
-chartStore.getLastError = function (uuid) {
-    return _lastErrors[uuid] || null;
-};
-
-chartStore.getData = function () {
-    return _chartData;
-}
-
-chartStore.getPinned = function (chartKey) {
-    return _chartData[chartKey].pinned;
-}
-
-chartStore.getType = function (chartKey) {
-    var type = "line";
-
-    if (_chartData[chartKey].hasOwnProperty("type"))
-    {
-        type = _chartData[chartKey].type;
-    }
-
-    return type;
-}
-
-chartStore.getRefreshRate = function (chartKey) {
-    return _chartData[chartKey].refreshInterval;
-}
-
-chartStore.dispatchToken = dispatcher.register(function (action) {
-    switch (action.type) {
-
-        case ACTION_TYPES.ADD_TO_CHART:             
-
-            if (_chartData.hasOwnProperty(action.panelItem.name))
-            {
-                insertSeries(action.panelItem);
-                chartStore.emitChange();
-            }
-            else
-            {
-                if (action.panelItem.hasOwnProperty("data"))
-                {
-                    // _chartData[action.panelItem.name] = JSON.parse(JSON.stringify(action.panelItem.data));
-                    
-                    var chartObj = {
-                        refreshInterval: 15000,
-                        pinned: false, 
-                        data: convertTimeToSeconds(action.panelItem.data),
-                        series: [
-                            { 
-                                name: action.panelItem.name, 
-                                uuid: action.panelItem.uuid, 
-                                parentUuid: action.panelItem.parentUuid,
-                                parentType: action.panelItem.parentType,
-                                parentPath: action.panelItem.parentPath,
-                                topic: action.panelItem.topic 
-                            }
-                        ]
-                    };
-
-                    _chartData[action.panelItem.name] = chartObj;
-                    chartStore.emitChange();
-                }
-            }
-
-            break;
-
-        case ACTION_TYPES.REMOVE_FROM_CHART:
-            
-            removeSeries(action.panelItem.name, action.panelItem.uuid);
-            chartStore.emitChange();
-
-            break;
-
-        case ACTION_TYPES.REFRESH_CHART:
-
-            removeSeries(action.item.name, action.item.uuid);
-            insertSeries(action.item);
-            chartStore.emitChange();
-
-            break;
-
-        case ACTION_TYPES.CHANGE_CHART_REFRESH:
-
-            if (_chartData[action.chartKey].hasOwnProperty("refreshInterval"))
-            {
-                _chartData[action.chartKey].refreshInterval = action.rate;
-            }
-
-            chartStore.emitChange();
-
-            break;
-
-        case ACTION_TYPES.PIN_CHART:
-
-            if (_chartData[action.chartKey].hasOwnProperty("pinned"))
-            {
-                _chartData[action.chartKey].pinned = !_chartData[action.chartKey].pinned;
-            }
-            else
-            {
-                _chartData[action.chartKey].pinned = true;   
-            }
-
-            chartStore.emitChange();
-
-            break;
-
-        case ACTION_TYPES.CHANGE_CHART_TYPE:
-
-            if (_chartData[action.chartKey].type !== action.chartType)
-            {
-                _chartData[action.chartKey].type = action.chartType;
-            }
-
-            chartStore.emitChange();
-
-            break;
-    } 
-
-    function insertSeries(item) {
-
-        var chartItems = _chartData[item.name].data.filter(function (datum) { 
-            return datum.uuid === item.uuid 
-        });
-
-        if (chartItems.length === 0)
-        {
-            if (item.hasOwnProperty("data"))
-            {
-                _chartData[item.name].data = _chartData[item.name].data.concat(convertTimeToSeconds(item.data));
-                _chartData[item.name].series.push(
-                    { 
-                        name: item.name, 
-                        uuid: item.uuid, 
-                        parentUuid: item.parentUuid,
-                        parentType: item.parentType,
-                        parentPath: item.parentPath,
-                        topic: item.topic  
-                    }
-                );
-            }
-        }
-
-    }
-
-    function removeSeries(name, uuid) {
-
-        if (_chartData[name].data.length > 0)
-        {
-            for (var i = _chartData[name].data.length - 1; i >= 0; i--)
-            {
-                if (_chartData[name].data[i].uuid === uuid)
-                {
-                    _chartData[name].data.splice(i, 1);
-                }                    
-            }
-
-            for (var i = 0; i < _chartData[name].series.length; i++)
-            {
-                if (_chartData[name].series[i].uuid === uuid)
-                {
-                    _chartData[name].series.splice(i, 1);
-
-                    break;
-                }
-            }
-        }
-    }
-
-    function convertTimeToSeconds(data) {
-        var dataList = [];
-
-        for (var key in data)
-        {
-            var newItem = {};
-
-            for (var skey in data[key])
-            {
-                var value = data[key][skey];
-                
-                if (skey === "0" && typeof value === 'string' &&
-                    Date.parse(value + 'Z')) {
-                    value = Date.parse(value + 'Z');
-                    // initialState.xDates = true;
-                }
-
-                newItem[skey] = value;    
-            }
-
-            dataList.push(newItem);
-        }
-
-        return dataList;
-    }
-    
-});
-
-
-
-module.exports = chartStore;
-
-
-},{"../constants/action-types":34,"../dispatcher":35,"../lib/store":39,"../stores/authorization-store":43}],49:[function(require,module,exports){
+},{"../constants/action-types":31,"../dispatcher":32,"../lib/store":36}],45:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -4892,7 +4163,7 @@ platformRegistrationStore.dispatchToken = dispatcher.register(function (action) 
 module.exports = platformRegistrationStore;
 
 
-},{"../constants/action-types":34,"../dispatcher":35,"../lib/store":39,"./authorization-store":43}],50:[function(require,module,exports){
+},{"../constants/action-types":31,"../dispatcher":32,"../lib/store":36,"./authorization-store":40}],46:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -4910,8 +4181,6 @@ var _items = {
         "4687fedc-65ba-43fe-21dc-098765bafedc": {
             "uuid": "4687fedc-65ba-43fe-21dc-098765bafedc",
             "name": "PNNL",
-            "expanded": null,
-            "visible": true,
             "status": "GOOD",
             "type": "platform",
             "sortOrder": 0,
@@ -4920,8 +4189,6 @@ var _items = {
             "points": {
                 "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "points"],
                 "name": "Points",
-                "expanded": null,
-                "visible": true,
                 "status": "GOOD",
                 "type": "type",
                 "sortOrder": _pointsOrder,
@@ -4930,8 +4197,6 @@ var _items = {
                 {
                     "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
                     "name": "OutdoorAirTemperature",
-                    "expanded": null,
-                    "visible": true,
                     "status": "GOOD",
                     "type": "point",
                     "sortOrder": 0,
@@ -4941,7 +4206,6 @@ var _items = {
                                 {
                                     "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
                                     "name": "OutdoorAirTemperature",
-                                    "parent": "PNNL",
                                     "month": 1,
                                     "avg_max_temp_f": 46.83,
                                     "avg_min_temp_f": 28.1,
@@ -4952,7 +4216,6 @@ var _items = {
                                 {
                                     "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
                                     "name": "OutdoorAirTemperature",
-                                    "parent": "PNNL",
                                     "month": 2,
                                     "avg_max_temp_f": 47.58,
                                     "avg_min_temp_f": 26.35,
@@ -4963,7 +4226,6 @@ var _items = {
                                 {
                                     "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
                                     "name": "OutdoorAirTemperature",
-                                    "parent": "PNNL",
                                     "month": 3,
                                     "avg_max_temp_f": 51.45,
                                     "avg_min_temp_f": 31.39,
@@ -4974,7 +4236,6 @@ var _items = {
                                 {
                                     "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
                                     "name": "OutdoorAirTemperature",
-                                    "parent": "PNNL",
                                     "month": 4,
                                     "avg_max_temp_f": 61.5,
                                     "avg_min_temp_f": 35.13,
@@ -4985,7 +4246,6 @@ var _items = {
                                 {
                                     "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
                                     "name": "OutdoorAirTemperature",
-                                    "parent": "PNNL",
                                     "month": 5,
                                     "avg_max_temp_f": 64.9,
                                     "avg_min_temp_f": 40.68,
@@ -4996,7 +4256,6 @@ var _items = {
                                 {
                                     "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
                                     "name": "OutdoorAirTemperature",
-                                    "parent": "PNNL",
                                     "month": 6,
                                     "avg_max_temp_f": 73.79,
                                     "avg_min_temp_f": 48.18,
@@ -5007,7 +4266,6 @@ var _items = {
                                 {
                                     "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
                                     "name": "OutdoorAirTemperature",
-                                    "parent": "PNNL",
                                     "month": 7,
                                     "avg_max_temp_f": 85.07,
                                     "avg_min_temp_f": 56.1,
@@ -5018,7 +4276,6 @@ var _items = {
                                 {
                                     "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
                                     "name": "OutdoorAirTemperature",
-                                    "parent": "PNNL",
                                     "month": 8,
                                     "avg_max_temp_f": 88.1,
                                     "avg_min_temp_f": 56.45,
@@ -5029,7 +4286,6 @@ var _items = {
                                 {
                                     "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
                                     "name": "OutdoorAirTemperature",
-                                    "parent": "PNNL",
                                     "month": 9,
                                     "avg_max_temp_f": 84.47,
                                     "avg_min_temp_f": 54.13,
@@ -5040,7 +4296,6 @@ var _items = {
                                 {
                                     "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
                                     "name": "OutdoorAirTemperature",
-                                    "parent": "PNNL",
                                     "month": 10,
                                     "avg_max_temp_f": 71.14,
                                     "avg_min_temp_f": 43.54,
@@ -5051,7 +4306,6 @@ var _items = {
                                 {
                                     "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
                                     "name": "OutdoorAirTemperature",
-                                    "parent": "PNNL",
                                     "month": 11,
                                     "avg_max_temp_f": 53.62,
                                     "avg_min_temp_f": 32.07,
@@ -5062,7 +4316,6 @@ var _items = {
                                 {
                                     "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
                                     "name": "OutdoorAirTemperature",
-                                    "parent": "PNNL",
                                     "month": 12,
                                     "avg_max_temp_f": 48.97,
                                     "avg_min_temp_f": 25.42,
@@ -5076,8 +4329,6 @@ var _items = {
             "agents": {                
                 "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "agents"],
                 "name": "Agents",
-                "expanded": null,
-                "visible": true,
                 "status": "GOOD",
                 "type": "type",
                 "sortOrder": _agentsOrder,
@@ -5086,8 +4337,6 @@ var _items = {
                 {
                     "uuid": "2461fedc-65ba-43fe-21dc-098765bafede",
                     "name": "Platform Agent",
-                    "expanded": null,
-                    "visible": true,
                     "status": "GOOD",
                     "type": "agent",
                     "sortOrder": 0,
@@ -5098,8 +4347,6 @@ var _items = {
                 {
                     "uuid": "7897fedc-65ba-43fe-21dc-098765bafedf",
                     "name": "SqlHistorian",
-                    "expanded": null,
-                    "visible": true,
                     "status": "GOOD",
                     "type": "agent",
                     "sortOrder": 0,
@@ -5110,8 +4357,6 @@ var _items = {
             "buildings": {             
                 "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings"],
                 "name": "Buildings",
-                "expanded": null,
-                "visible": true,
                 "status": "GOOD",
                 "type": "type",
                 "sortOrder": _buildingsOrder,
@@ -5120,8 +4365,6 @@ var _items = {
                 {
                     "uuid": "1111fedc-65ba-43fe-21dc-098765bafede",
                     "name": "ISB1",
-                    "expanded": null,
-                    "visible": true,
                     "status": "GOOD",
                     "type": "building",
                     "sortOrder": 0,
@@ -5130,8 +4373,6 @@ var _items = {
                     "points": {         
                         "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "points"],
                         "name": "Points",
-                        "expanded": null,
-                        "visible": true,
                         "status": "GOOD",
                         "type": "type",
                         "sortOrder": _pointsOrder,
@@ -5140,148 +4381,131 @@ var _items = {
                         {
                             "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
                             "name": "OutdoorAirTemperature",
-                            "expanded": null,
-                            "visible": true,
                             "status": "GOOD",
                             "type": "point",
                             "sortOrder": 0,
                             "children": [],
                             "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "points", "5461fedc-65ba-43fe-21dc-111765bafedl"],
-                            "parentPath": "PNNL > ISB1",
-                            "parentType": "building",
-                            "parentUuid": "1111fedc-65ba-43fe-21dc-098765bafede",
                             "data": [
                                 {
                                     "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
                                     "name": "OutdoorAirTemperature",
-                                    "parent": "ISB1",
                                     "month": 1,
-                                    "avg_max_temp_f": 44.25,
-                                    "avg_min_temp_f": 23.25,
-                                    "avg_temp_f": 33.75,
-                                    "total_percipitation_in": 0.91,
-                                    "total_snowfall_in": 2
-                                },
-                                {
-                                    "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
-                                    "name": "OutdoorAirTemperature",
-                                    "parent": "ISB1",
-                                    "month": 2,
-                                    "avg_max_temp_f": 53.14,
-                                    "avg_min_temp_f": 27.9,
-                                    "avg_temp_f": 40.52,
-                                    "total_percipitation_in": 0.5,
+                                    "avg_max_temp_f": 51.5,
+                                    "avg_min_temp_f": 28.2,
+                                    "avg_temp_f": 39.85,
+                                    "total_percipitation_in": 4.98,
                                     "total_snowfall_in": 1.1
                                 },
                                 {
                                     "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
                                     "name": "OutdoorAirTemperature",
-                                    "parent": "ISB1",
+                                    "month": 2,
+                                    "avg_max_temp_f": 54.32,
+                                    "avg_min_temp_f": 29.86,
+                                    "avg_temp_f": 42.09,
+                                    "total_percipitation_in": 0.9,
+                                    "total_snowfall_in": 11
+                                },
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
+                                    "name": "OutdoorAirTemperature",
                                     "month": 3,
-                                    "avg_max_temp_f": 61.18,
-                                    "avg_min_temp_f": 36.18,
-                                    "avg_temp_f": 48.68,
-                                    "total_percipitation_in": 2.99,
-                                    "total_snowfall_in": 0
+                                    "avg_max_temp_f": 54.45,
+                                    "avg_min_temp_f": 32.62,
+                                    "avg_temp_f": 43.53,
+                                    "total_percipitation_in": 5.76,
+                                    "total_snowfall_in": 24.5
                                 },
                                 {
                                     "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
                                     "name": "OutdoorAirTemperature",
-                                    "parent": "ISB1",
                                     "month": 4,
-                                    "avg_max_temp_f": 67.76,
-                                    "avg_min_temp_f": 41.24,
-                                    "avg_temp_f": 54.5,
-                                    "total_percipitation_in": 1.64,
-                                    "total_snowfall_in": 0.5
+                                    "avg_max_temp_f": 63.69,
+                                    "avg_min_temp_f": 38.83,
+                                    "avg_temp_f": 51.12,
+                                    "total_percipitation_in": 4.45,
+                                    "total_snowfall_in": 5.5
                                 },
                                 {
                                     "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
                                     "name": "OutdoorAirTemperature",
-                                    "parent": "ISB1",
                                     "month": 5,
-                                    "avg_max_temp_f": 73.55,
-                                    "avg_min_temp_f": 47.86,
-                                    "avg_temp_f": 60.7,
-                                    "total_percipitation_in": 2.96,
+                                    "avg_max_temp_f": 75.45,
+                                    "avg_min_temp_f": 46.57,
+                                    "avg_temp_f": 61.16,
+                                    "total_percipitation_in": 0.33,
                                     "total_snowfall_in": 0
                                 },
                                 {
                                     "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
                                     "name": "OutdoorAirTemperature",
-                                    "parent": "ISB1",
                                     "month": 6,
-                                    "avg_max_temp_f": 84.77,
-                                    "avg_min_temp_f": 55.1,
-                                    "avg_temp_f": 69.93,
-                                    "total_percipitation_in": 0.16,
+                                    "avg_max_temp_f": 82.21,
+                                    "avg_min_temp_f": 51.36,
+                                    "avg_temp_f": 66.79,
+                                    "total_percipitation_in": 0.67,
                                     "total_snowfall_in": 0
                                 },
                                 {
                                     "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
                                     "name": "OutdoorAirTemperature",
-                                    "parent": "ISB1",
                                     "month": 7,
-                                    "avg_max_temp_f": 93.69,
-                                    "avg_min_temp_f": 61.81,
-                                    "avg_temp_f": 77.75,
-                                    "total_percipitation_in": 0.02,
+                                    "avg_max_temp_f": 89.3,
+                                    "avg_min_temp_f": 57.4,
+                                    "avg_temp_f": 73.35,
+                                    "total_percipitation_in": 0.01,
                                     "total_snowfall_in": 0
                                 },
                                 {
                                     "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
                                     "name": "OutdoorAirTemperature",
-                                    "parent": "ISB1",
                                     "month": 8,
-                                    "avg_max_temp_f": 89.25,
-                                    "avg_min_temp_f": 55.89,
-                                    "avg_temp_f": 72.57,
+                                    "avg_max_temp_f": 93.14,
+                                    "avg_min_temp_f": 60.62,
+                                    "avg_temp_f": 76.88,
+                                    "total_percipitation_in": 0.06,
+                                    "total_snowfall_in": 0
+                                },
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
+                                    "name": "OutdoorAirTemperature",
+                                    "month": 9,
+                                    "avg_max_temp_f": 87.41,
+                                    "avg_min_temp_f": 56.1,
+                                    "avg_temp_f": 71.76,
                                     "total_percipitation_in": 0,
                                     "total_snowfall_in": 0
                                 },
                                 {
                                     "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
                                     "name": "OutdoorAirTemperature",
-                                    "parent": "ISB1",
-                                    "month": 9,
-                                    "avg_max_temp_f": 82,
-                                    "avg_min_temp_f": 50.78,
-                                    "avg_temp_f": 66.39,
-                                    "total_percipitation_in": 0.92,
-                                    "total_snowfall_in": 0
-                                },
-                                {
-                                    "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
-                                    "name": "OutdoorAirTemperature",
-                                    "parent": "ISB1",
                                     "month": 10,
-                                    "avg_max_temp_f": 69.5,
-                                    "avg_min_temp_f": 39.5,
-                                    "avg_temp_f": 54.5,
-                                    "total_percipitation_in": 0.94,
+                                    "avg_max_temp_f": 72.04,
+                                    "avg_min_temp_f": 44.89,
+                                    "avg_temp_f": 58.46,
+                                    "total_percipitation_in": 1.47,
                                     "total_snowfall_in": 0
                                 },
                                 {
                                     "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
                                     "name": "OutdoorAirTemperature",
-                                    "parent": "ISB1",
                                     "month": 11,
-                                    "avg_max_temp_f": 60.32,
-                                    "avg_min_temp_f": 33.63,
-                                    "avg_temp_f": 46.97,
-                                    "total_percipitation_in": 0.73,
-                                    "total_snowfall_in": 0
+                                    "avg_max_temp_f": 56.04,
+                                    "avg_min_temp_f": 35.39,
+                                    "avg_temp_f": 45.71,
+                                    "total_percipitation_in": 5.06,
+                                    "total_snowfall_in": 6.5
                                 },
                                 {
                                     "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
                                     "name": "OutdoorAirTemperature",
-                                    "parent": "ISB1",
                                     "month": 12,
-                                    "avg_max_temp_f": 48.81,
-                                    "avg_min_temp_f": 24.95,
-                                    "avg_temp_f": 36.88,
-                                    "total_percipitation_in": 1.53,
-                                    "total_snowfall_in": 10.5
+                                    "avg_max_temp_f": 42.64,
+                                    "avg_min_temp_f": 29.93,
+                                    "avg_temp_f": 36.29,
+                                    "total_percipitation_in": 11.91,
+                                    "total_snowfall_in": 18.5
                                 }
                             ]
                         },
@@ -5289,8 +4513,6 @@ var _items = {
                         {
                             "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
                             "name": "WholeBuildingPower",
-                            "expanded": null,
-                            "visible": true,
                             "status": "GOOD",
                             "type": "point",
                             "sortOrder": 0,
@@ -5300,7 +4522,6 @@ var _items = {
                                 {
                                     "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
                                     "name": "WholeBuildingPower",
-                                    "parent": "ISB1",
                                     "month": 1,
                                     "avg_max_temp_f": 44.25,
                                     "avg_min_temp_f": 23.25,
@@ -5311,7 +4532,6 @@ var _items = {
                                 {
                                     "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
                                     "name": "WholeBuildingPower",
-                                    "parent": "ISB1",
                                     "month": 2,
                                     "avg_max_temp_f": 53.14,
                                     "avg_min_temp_f": 27.9,
@@ -5322,7 +4542,6 @@ var _items = {
                                 {
                                     "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
                                     "name": "WholeBuildingPower",
-                                    "parent": "ISB1",
                                     "month": 3,
                                     "avg_max_temp_f": 61.18,
                                     "avg_min_temp_f": 36.18,
@@ -5333,7 +4552,6 @@ var _items = {
                                 {
                                     "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
                                     "name": "WholeBuildingPower",
-                                    "parent": "ISB1",
                                     "month": 4,
                                     "avg_max_temp_f": 67.76,
                                     "avg_min_temp_f": 41.24,
@@ -5344,7 +4562,6 @@ var _items = {
                                 {
                                     "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
                                     "name": "WholeBuildingPower",
-                                    "parent": "ISB1",
                                     "month": 5,
                                     "avg_max_temp_f": 73.55,
                                     "avg_min_temp_f": 47.86,
@@ -5355,7 +4572,6 @@ var _items = {
                                 {
                                     "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
                                     "name": "WholeBuildingPower",
-                                    "parent": "ISB1",
                                     "month": 6,
                                     "avg_max_temp_f": 84.77,
                                     "avg_min_temp_f": 55.1,
@@ -5366,7 +4582,6 @@ var _items = {
                                 {
                                     "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
                                     "name": "WholeBuildingPower",
-                                    "parent": "ISB1",
                                     "month": 7,
                                     "avg_max_temp_f": 93.69,
                                     "avg_min_temp_f": 61.81,
@@ -5377,7 +4592,6 @@ var _items = {
                                 {
                                     "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
                                     "name": "WholeBuildingPower",
-                                    "parent": "ISB1",
                                     "month": 8,
                                     "avg_max_temp_f": 89.25,
                                     "avg_min_temp_f": 55.89,
@@ -5388,7 +4602,6 @@ var _items = {
                                 {
                                     "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
                                     "name": "WholeBuildingPower",
-                                    "parent": "ISB1",
                                     "month": 9,
                                     "avg_max_temp_f": 82,
                                     "avg_min_temp_f": 50.78,
@@ -5399,7 +4612,6 @@ var _items = {
                                 {
                                     "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
                                     "name": "WholeBuildingPower",
-                                    "parent": "ISB1",
                                     "month": 10,
                                     "avg_max_temp_f": 69.5,
                                     "avg_min_temp_f": 39.5,
@@ -5410,7 +4622,6 @@ var _items = {
                                 {
                                     "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
                                     "name": "WholeBuildingPower",
-                                    "parent": "ISB1",
                                     "month": 11,
                                     "avg_max_temp_f": 60.32,
                                     "avg_min_temp_f": 33.63,
@@ -5421,7 +4632,6 @@ var _items = {
                                 {
                                     "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
                                     "name": "WholeBuildingPower",
-                                    "parent": "ISB1",
                                     "month": 12,
                                     "avg_max_temp_f": 48.81,
                                     "avg_min_temp_f": 24.95,
@@ -5435,8 +4645,6 @@ var _items = {
                     "devices": {       
                         "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices"],
                         "name": "Devices",
-                        "expanded": null,
-                        "visible": true,
                         "status": "GOOD",
                         "type": "type",
                         "sortOrder": _devicesOrder,
@@ -5445,8 +4653,6 @@ var _items = {
                         {
                             "uuid": "1231fedc-65ba-43fe-21dc-098765bafedl",
                             "name": "RTU1",
-                            "expanded": null,
-                            "visible": true,
                             "status": "GOOD",
                             "type": "device",
                             "sortOrder": 0,
@@ -5455,8 +4661,6 @@ var _items = {
                             "points": {      
                                 "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "points"],
                                 "name": "Points",
-                                "expanded": null,
-                                "visible": true,
                                 "status": "GOOD",
                                 "type": "type",
                                 "sortOrder": _pointsOrder,
@@ -5465,8 +4669,6 @@ var _items = {
                                 {
                                     "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
                                     "name": "CoolingCall",
-                                    "expanded": null,
-                                    "visible": true,
                                     "status": "GOOD",
                                     "type": "point",
                                     "sortOrder": 0,
@@ -5476,7 +4678,6 @@ var _items = {
                                         {
                                             "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
                                             "name": "CoolingCall",
-                                            "parent": "RTU1",
                                             "month": 1,
                                             "avg_max_temp_f": 57.13,
                                             "avg_min_temp_f": 31.32,
@@ -5487,7 +4688,6 @@ var _items = {
                                         {
                                             "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
                                             "name": "CoolingCall",
-                                            "parent": "RTU1",
                                             "month": 2,
                                             "avg_max_temp_f": 54.64,
                                             "avg_min_temp_f": 34.82,
@@ -5498,7 +4698,6 @@ var _items = {
                                         {
                                             "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
                                             "name": "CoolingCall",
-                                            "parent": "RTU1",
                                             "month": 3,
                                             "avg_max_temp_f": 62.48,
                                             "avg_min_temp_f": 37.44,
@@ -5509,7 +4708,6 @@ var _items = {
                                         {
                                             "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
                                             "name": "CoolingCall",
-                                            "parent": "RTU1",
                                             "month": 4,
                                             "avg_max_temp_f": 66.56,
                                             "avg_min_temp_f": 40.5,
@@ -5520,7 +4718,6 @@ var _items = {
                                         {
                                             "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
                                             "name": "CoolingCall",
-                                            "parent": "RTU1",
                                             "month": 5,
                                             "avg_max_temp_f": 75.83,
                                             "avg_min_temp_f": 46.83,
@@ -5531,7 +4728,6 @@ var _items = {
                                         {
                                             "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
                                             "name": "CoolingCall",
-                                            "parent": "RTU1",
                                             "month": 6,
                                             "avg_max_temp_f": 85.28,
                                             "avg_min_temp_f": 53.39,
@@ -5542,7 +4738,6 @@ var _items = {
                                         {
                                             "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
                                             "name": "CoolingCall",
-                                            "parent": "RTU1",
                                             "month": 7,
                                             "avg_max_temp_f": 91,
                                             "avg_min_temp_f": 60.93,
@@ -5553,7 +4748,6 @@ var _items = {
                                         {
                                             "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
                                             "name": "CoolingCall",
-                                            "parent": "RTU1",
                                             "month": 8,
                                             "avg_max_temp_f": 88.85,
                                             "avg_min_temp_f": 57.8,
@@ -5564,7 +4758,6 @@ var _items = {
                                         {
                                             "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
                                             "name": "CoolingCall",
-                                            "parent": "RTU1",
                                             "month": 9,
                                             "avg_max_temp_f": 85.04,
                                             "avg_min_temp_f": 53.5,
@@ -5575,7 +4768,6 @@ var _items = {
                                         {
                                             "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
                                             "name": "CoolingCall",
-                                            "parent": "RTU1",
                                             "month": 10,
                                             "avg_max_temp_f": 76.79,
                                             "avg_min_temp_f": 36.18,
@@ -5586,7 +4778,6 @@ var _items = {
                                         {
                                             "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
                                             "name": "CoolingCall",
-                                            "parent": "RTU1",
                                             "month": 11,
                                             "avg_max_temp_f": 59.27,
                                             "avg_min_temp_f": 33.53,
@@ -5597,7 +4788,6 @@ var _items = {
                                         {
                                             "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
                                             "name": "CoolingCall",
-                                            "parent": "RTU1",
                                             "month": 12,
                                             "avg_max_temp_f": 48.86,
                                             "avg_min_temp_f": 32.79,
@@ -5611,8 +4801,6 @@ var _items = {
                                 {
                                     "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
                                     "name": "CondenserFanPower",
-                                    "expanded": null,
-                                    "visible": true,
                                     "status": "GOOD",
                                     "type": "point",
                                     "sortOrder": 0,
@@ -5622,7 +4810,6 @@ var _items = {
                                         {
                                             "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
                                             "name": "CondenserFanPower",
-                                            "parent": "RTU1",
                                             "month": 1,
                                             "avg_max_temp_f": 56.96,
                                             "avg_min_temp_f": 30.39,
@@ -5633,7 +4820,6 @@ var _items = {
                                         {
                                             "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
                                             "name": "CondenserFanPower",
-                                            "parent": "RTU1",
                                             "month": 2,
                                             "avg_max_temp_f": 64.82,
                                             "avg_min_temp_f": 36,
@@ -5644,7 +4830,6 @@ var _items = {
                                         {
                                             "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
                                             "name": "CondenserFanPower",
-                                            "parent": "RTU1",
                                             "month": 3,
                                             "avg_max_temp_f": 67.29,
                                             "avg_min_temp_f": 38.33,
@@ -5655,7 +4840,6 @@ var _items = {
                                         {
                                             "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
                                             "name": "CondenserFanPower",
-                                            "parent": "RTU1",
                                             "month": 4,
                                             "avg_max_temp_f": 66.35,
                                             "avg_min_temp_f": 37.73,
@@ -5666,7 +4850,6 @@ var _items = {
                                         {
                                             "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
                                             "name": "CondenserFanPower",
-                                            "parent": "RTU1",
                                             "month": 5,
                                             "avg_max_temp_f": 68.81,
                                             "avg_min_temp_f": 43.96,
@@ -5677,7 +4860,6 @@ var _items = {
                                         {
                                             "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
                                             "name": "CondenserFanPower",
-                                            "parent": "RTU1",
                                             "month": 6,
                                             "avg_max_temp_f": 87.97,
                                             "avg_min_temp_f": 57.23,
@@ -5688,7 +4870,6 @@ var _items = {
                                         {
                                             "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
                                             "name": "CondenserFanPower",
-                                            "parent": "RTU1",
                                             "month": 7,
                                             "avg_max_temp_f": 87.68,
                                             "avg_min_temp_f": 59.71,
@@ -5699,7 +4880,6 @@ var _items = {
                                         {
                                             "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
                                             "name": "CondenserFanPower",
-                                            "parent": "RTU1",
                                             "month": 8,
                                             "avg_max_temp_f": 91.39,
                                             "avg_min_temp_f": 58.68,
@@ -5710,7 +4890,6 @@ var _items = {
                                         {
                                             "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
                                             "name": "CondenserFanPower",
-                                            "parent": "RTU1",
                                             "month": 9,
                                             "avg_max_temp_f": 85.07,
                                             "avg_min_temp_f": 55.86,
@@ -5721,7 +4900,6 @@ var _items = {
                                         {
                                             "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
                                             "name": "CondenserFanPower",
-                                            "parent": "RTU1",
                                             "month": 10,
                                             "avg_max_temp_f": 73.26,
                                             "avg_min_temp_f": 46.17,
@@ -5732,7 +4910,6 @@ var _items = {
                                         {
                                             "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
                                             "name": "CondenserFanPower",
-                                            "parent": "RTU1",
                                             "month": 11,
                                             "avg_max_temp_f": 50.5,
                                             "avg_min_temp_f": 29.36,
@@ -5743,22 +4920,18 @@ var _items = {
                                         {
                                             "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
                                             "name": "CondenserFanPower",
-                                            "parent": "RTU1",
                                             "month": 12,
                                             "avg_max_temp_f": 43.42,
                                             "avg_min_temp_f": 24.65,
                                             "avg_temp_f": 34.03,
                                             "total_percipitation_in": 5.18,
                                             "total_snowfall_in": 0
-                                        }
-                                    ]
+                                        }]
                                 }
                             },
                             "devices": {    
                                 "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "devices"],
                                 "name": "Devices",
-                                "expanded": null,
-                                "visible": true,
                                 "status": "GOOD",
                                 "type": "type",
                                 "sortOrder": _devicesOrder,
@@ -5767,8 +4940,6 @@ var _items = {
                                 {
                                     "uuid": "4488fedc-65ba-43fe-21dc-098765bafedl",
                                     "name": "Zone",
-                                    "expanded": null,
-                                    "visible": true,
                                     "status": "GOOD",
                                     "type": "device",
                                     "sortOrder": 0,
@@ -5777,8 +4948,6 @@ var _items = {
                                     "points": {  
                                         "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "devices", "4488fedc-65ba-43fe-21dc-098765bafedl", "points"],
                                         "name": "Points",
-                                        "expanded": null,
-                                        "visible": true,
                                         "status": "GOOD",
                                         "type": "type",
                                         "sortOrder": _pointsOrder,
@@ -5787,8 +4956,6 @@ var _items = {
                                         {
                                             "uuid": "5461fedc-65ba-43fe-21dc-098765bafedl",
                                             "name": "FirstStageAuxilaryHeat",
-                                            "expanded": null,
-                                            "visible": true,
                                             "status": "GOOD",
                                             "type": "point",
                                             "sortOrder": 0,
@@ -5799,8 +4966,6 @@ var _items = {
                                         {
                                             "uuid": "6451fedc-65ba-43fe-21dc-098765bafedl",
                                             "name": "SecondStageAuxilaryHeat",
-                                            "expanded": null,
-                                            "visible": true,
                                             "status": "GOOD",
                                             "type": "point",
                                             "sortOrder": 0,
@@ -5819,8 +4984,6 @@ var _items = {
         {
             "uuid": "9757fedc-65ba-43fe-21dc-098765bafedc",
             "name": "WSU",
-            "expanded": null,
-            "visible": true,
             "status": "BAD",
             "type": "platform",
             "sortOrder": 0,
@@ -5829,8 +4992,6 @@ var _items = {
             "agents": {                
                 "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "agents"],
                 "name": "Agents",
-                "expanded": null,
-                "visible": true,
                 "status": "GOOD",
                 "type": "type",
                 "sortOrder": _agentsOrder,
@@ -5839,8 +5000,6 @@ var _items = {
                 {
                     "uuid": "2461fedc-65ba-43fe-21dc-098765bafede",
                     "name": "Platform Agent",
-                    "expanded": null,
-                    "visible": true,
                     "status": "GOOD",
                     "type": "agent",
                     "sortOrder": 0,
@@ -5851,8 +5010,6 @@ var _items = {
                 {
                     "uuid": "7897fedc-65ba-43fe-21dc-098765bafedf",
                     "name": "SqlHistorian",
-                    "expanded": null,
-                    "visible": true,
                     "status": "GOOD",
                     "type": "agent",
                     "sortOrder": 0,
@@ -5863,8 +5020,6 @@ var _items = {
             "buildings": {             
                 "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings"],
                 "name": "Buildings",
-                "expanded": null,
-                "visible": true,
                 "status": "BAD",
                 "type": "type",
                 "sortOrder": _buildingsOrder,
@@ -5873,8 +5028,6 @@ var _items = {
                 {
                     "uuid": "1111fedc-65ba-43fe-21dc-098765bafede",
                     "name": "BSEL",
-                    "expanded": null,
-                    "visible": true,
                     "status": "BAD",
                     "type": "building",
                     "sortOrder": 0,
@@ -5883,8 +5036,6 @@ var _items = {
                     "points": {         
                         "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "points"],
                         "name": "Points",
-                        "expanded": null,
-                        "visible": true,
                         "status": "UNKNOWN",
                         "type": "type",
                         "sortOrder": _pointsOrder,
@@ -5892,24 +5043,17 @@ var _items = {
                         "5461fedc-65ba-43fe-21dc-098765bafedl":
                         {
                             "uuid": "5461fedc-65ba-43fe-21dc-098765bafedl",
-                            "name": "OutdoorAirTemperature",
-                            "expanded": null,
-                            "visible": true,
+                            "name": "WholeBuildingElectricity",
                             "status": "GOOD",
                             "type": "point",
                             "sortOrder": 0,
                             "children": [],
-                            "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "points", "5461fedc-65ba-43fe-21dc-098765bafedl"],
-                            "parentPath": "WSU > BSEL",
-                            "parentType": "building",
-                            "parentUuid": "1111fedc-65ba-43fe-21dc-098765bafede"
+                            "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "points", "5461fedc-65ba-43fe-21dc-098765bafedl"]
                         },
                         "6451fedc-65ba-43fe-21dc-098765bafedl":
                         {
                             "uuid": "6451fedc-65ba-43fe-21dc-098765bafedl",
                             "name": "LightingStatus",
-                            "expanded": null,
-                            "visible": true,
                             "status": "UNKNOWN",
                             "type": "point",
                             "sortOrder": 0,
@@ -5920,8 +5064,6 @@ var _items = {
                     "devices": {       
                         "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices"],
                         "name": "Devices",
-                        "expanded": null,
-                        "visible": true,
                         "status": "BAD",
                         "type": "type",
                         "sortOrder": _devicesOrder,
@@ -5930,8 +5072,6 @@ var _items = {
                         {
                             "uuid": "1231fedc-65ba-43fe-21dc-098765bafedl",
                             "name": "AHU",
-                            "expanded": null,
-                            "visible": true,
                             "status": "BAD",
                             "type": "device",
                             "sortOrder": 0,
@@ -5940,8 +5080,6 @@ var _items = {
                             "points": {      
                                 "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "points"],
                                 "name": "Points",
-                                "expanded": null,
-                                "visible": true,
                                 "status": "GOOD",
                                 "type": "type",
                                 "sortOrder": _pointsOrder,
@@ -5950,8 +5088,6 @@ var _items = {
                                 {
                                     "uuid": "6451fedc-65ba-43fe-21dc-098765bafedl",
                                     "name": "DuctStaticPressureSetPoint",
-                                    "expanded": null,
-                                    "visible": true,
                                     "status": "GOOD",
                                     "type": "point",
                                     "sortOrder": 0,
@@ -5962,8 +5098,6 @@ var _items = {
                             "devices": {    
                                 "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "devices"],
                                 "name": "Devices",
-                                "expanded": null,
-                                "visible": true,
                                 "status": "BAD",
                                 "type": "type",
                                 "sortOrder": _devicesOrder,
@@ -5972,8 +5106,6 @@ var _items = {
                                 {
                                     "uuid": "4488fedc-65ba-43fe-21dc-098765bafedl",
                                     "name": "Zone",
-                                    "expanded": null,
-                                    "visible": true,
                                     "status": "BAD",
                                     "type": "device",
                                     "sortOrder": 0,
@@ -5982,8 +5114,6 @@ var _items = {
                                     "points": {  
                                         "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "devices", "4488fedc-65ba-43fe-21dc-098765bafedl", "points"],
                                         "name": "Points",
-                                        "expanded": null,
-                                        "visible": true,
                                         "status": "BAD",
                                         "type": "type",
                                         "sortOrder": _pointsOrder,
@@ -5992,8 +5122,6 @@ var _items = {
                                         {
                                             "uuid": "5461fedc-65ba-43fe-21dc-098765bafedl",
                                             "name": "TerminalBoxDamperCommand",
-                                            "expanded": null,
-                                            "visible": true,
                                             "status": "BAD",
                                             "type": "point",
                                             "sortOrder": 0,
@@ -6004,8 +5132,6 @@ var _items = {
                                         {
                                             "uuid": "6451fedc-65ba-43fe-21dc-098765bafedl",
                                             "name": "ZoneTemperature",
-                                            "expanded": null,
-                                            "visible": true,
                                             "status": "GOOD",
                                             "type": "point",
                                             "sortOrder": 0,
@@ -6022,8 +5148,6 @@ var _items = {
                 {
                     "uuid": "1333fedc-65ba-43fe-21dc-098765bafede",
                     "name": "CIC",
-                    "expanded": null,
-                    "visible": true,
                     "status": "GOOD",
                     "type": "building",
                     "sortOrder": 0,
@@ -6032,8 +5156,6 @@ var _items = {
                     "points": {         
                         "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1333fedc-65ba-43fe-21dc-098765bafede", "points"],
                         "name": "Points",
-                        "expanded": null,
-                        "visible": true,
                         "status": "GOOD",
                         "type": "type",
                         "sortOrder": _pointsOrder,
@@ -6042,8 +5164,6 @@ var _items = {
                         {
                             "uuid": "5461fedc-65ba-43fe-21dc-098765bafedl",
                             "name": "WholeBuildingGas",
-                            "expanded": null,
-                            "visible": true,
                             "status": "GOOD",
                             "type": "point",
                             "sortOrder": 0,
@@ -6054,8 +5174,6 @@ var _items = {
                         {
                             "uuid": "6451fedc-65ba-43fe-21dc-098765bafedl",
                             "name": "OutdoorAirRelativeHumidity",
-                            "expanded": null,
-                            "visible": true,
                             "status": "GOOD",
                             "type": "point",
                             "sortOrder": 0,
@@ -6066,8 +5184,6 @@ var _items = {
                     "devices": {       
                         "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1333fedc-65ba-43fe-21dc-098765bafede", "devices"],
                         "name": "Devices",
-                        "expanded": null,
-                        "visible": true,
                         "status": "GOOD",
                         "type": "type",
                         "sortOrder": _devicesOrder,
@@ -6076,8 +5192,6 @@ var _items = {
                         {
                             "uuid": "1231fedc-65ba-43fe-21dc-098765bafedl",
                             "name": "Chilled_Water_Distribution_System",
-                            "expanded": null,
-                            "visible": true,
                             "status": "GOOD",
                             "type": "device",
                             "sortOrder": 0,
@@ -6086,8 +5200,6 @@ var _items = {
                             "points": {      
                                 "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1333fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "points"],
                                 "name": "Points",
-                                "expanded": null,
-                                "visible": true,
                                 "status": "GOOD",
                                 "type": "type",
                                 "sortOrder": _pointsOrder,
@@ -6096,8 +5208,6 @@ var _items = {
                                 {
                                     "uuid": "6451fedc-65ba-43fe-21dc-098765bafedl",
                                     "name": "NaturalGasEnergy",
-                                    "expanded": null,
-                                    "visible": true,
                                     "status": "GOOD",
                                     "type": "point",
                                     "sortOrder": 0,
@@ -6118,23 +5228,8 @@ var _itemTypes = ["platforms", "buildings", "agents", "devices", "points"];
 
 var platformsPanelItemsStore = new Store();
 
-platformsPanelItemsStore.getItem = function (itemPath)
-{
-    var itemsList = [];
-    var item = _items;
-    
-    for (var i = 0; i < itemPath.length; i++)
-    {
-        if (item.hasOwnProperty(itemPath[i]))
-        {
-            item = item[itemPath[i]];
-        }
-    }
 
-    return item;
-}  
-
-platformsPanelItemsStore.getChildren = function (parent, parentPath) {
+platformsPanelItemsStore.getItems = function (parent, parentPath) {
 
     var itemsList = [];
     var item = _items;
@@ -6167,131 +5262,112 @@ platformsPanelItemsStore.getChildren = function (parent, parentPath) {
     return itemsList;
 };
 
-platformsPanelItemsStore.loadFilteredItems = function (filterTerm, filterStatus) {
+platformsPanelItemsStore.getTreeCopy = function() {
 
-    var filterItems = function (parent, filterTerm, filterStatus) {
+    return JSON.parse(JSON.stringify(_items));
+}
 
-        var notAMatch;
-        var compareTerm;
+platformsPanelItemsStore.getFilteredItems = function (parent, filterTerm, filterStatus) {
 
-        if (filterTerm === "")
+    var compareFunct;
+    var compareTerm;
+
+    if (filterTerm === "")
+    {
+        compareFunct = function (parent, filterStatus)
         {
-            notAMatch = function (parent, filterStatus)
+            if (parent.hasOwnProperty("status"))
             {
-                if (parent.hasOwnProperty("status"))
-                {
-                    return (parent.status !== filterStatus);                
-                }
-                else
-                {
-                    return (filterStatus !== "UNKNOWN");
-                }
-            }
-
-            compareTerm = filterStatus;
-        }
-        else if (filterStatus === "")
-        {
-            notAMatch = function (parent, filterTerm)
-            {
-                var upperParent = parent.name.toUpperCase();;
-                var filterStr = filterTerm;
-
-                var filterParts = filterTerm.split(" ");
-                var foundColon = (filterParts[0].indexOf(":") > -1);
-
-                if (foundColon)
-                {
-                    var index = filterTerm.indexOf(":");
-                    var filterKey = filterTerm.substring(0, index);
-                    filterStr = filterTerm.substring(index + 1);
-
-                    if (parent.hasOwnProperty(filterKey))
-                    {
-                        upperParent = parent[filterKey].toUpperCase();    
-                    }
-                    else
-                    {
-                        return true;
-                    }
-                }               
-
-                return (upperParent.trim().indexOf(filterStr.trim().toUpperCase()) < 0);
-            }
-
-            compareTerm = filterTerm;
-        }
-
-        if (parent.children.length === 0)
-        {
-            parent.visible = !notAMatch(parent, compareTerm);
-            parent.expanded = null;
-
-            return parent;
-        }
-        else
-        {
-            var childrenToHide = 0;
-
-            for (var i = 0; i < parent.children.length; i++)
-            {
-                var childString = parent.children[i];
-                var filteredChild = filterItems(parent[childString], filterTerm, filterStatus);
-
-                if (!filteredChild.visible)
-                {
-                    ++childrenToHide;
-                }
-            }
-            
-            if (childrenToHide === parent.children.length)
-            {
-                parent.visible = !notAMatch(parent, compareTerm);
-                parent.expanded = false;
+                return (parent.status !== filterStatus);                
             }
             else
             {
-                parent.visible = true;
-                parent.expanded = true;
-            }        
-
-            return parent;
+                return (filterStatus !== "UNKNOWN");
+            }
         }
+
+        compareTerm = filterStatus;
+    }
+    else if (filterStatus === "")
+    {
+        compareFunct = function (parent, filterTerm)
+        {
+            var upperParent = parent.name.toUpperCase();
+
+            return (upperParent.indexOf(filterTerm.toUpperCase()) < 0);
+        }
+
+        compareTerm = filterTerm;
     }
 
-    for (var key in _items.platforms)
+    if (parent.children.length === 0)
     {
-        if (filterTerm !== "" || filterStatus !== "")
+        if (compareFunct(parent, compareTerm))
         {
-            filterItems(_items.platforms[key], filterTerm, filterStatus);
+            return null;
         }
         else
         {
-            expandAllChildren(_items.platforms[key], false);
-            _items.platforms[key].visible = true;
-        }        
-    }
-
-}
-
-var expandAllChildren = function (parent, expanded) {
-    
-    for (var i = 0; i < parent.children.length; i++)
-    {
-        var childString = parent.children[i];
-        expandAllChildren(parent[childString], expanded);
-    }
-
-    if (parent.children.length > 0)
-    {
-        parent.expanded = expanded;
+            return parent;
+        }
     }
     else
     {
-        parent.expanded = null;
-    }
+        var childrenToDelete = [];
 
-    parent.visible = true;
+        for (var i = 0; i < parent.children.length; i++)
+        {
+            var childString = parent.children[i];
+            var filteredChild = platformsPanelItemsStore.getFilteredItems(parent[childString], filterTerm, filterStatus);
+
+            if (filteredChild === null)
+            {
+                delete parent[childString];
+
+                childrenToDelete.push(childString);
+            }
+        }
+        
+        for (var i = 0; i < childrenToDelete.length; i++)
+        {
+            var index = parent.children.indexOf(childrenToDelete[i]);
+            parent.children.splice(index, 1);
+        }
+
+        if ((parent.children.length === 0) && (compareFunct(parent, compareTerm)))
+        {
+            parent = null;
+        }
+        else
+        {
+            if (parent.children.length > 0)
+            {
+                parent.expanded = true;
+            }
+        }
+
+        return parent;
+    }
+};
+
+platformsPanelItemsStore.getExpandedChildren = function (expandedOn, parent) {
+
+    if (parent.children.length === 0)
+    {
+        return parent;
+    }
+    else
+    {
+        for (var i = 0; i < parent.children.length; i++)
+        {
+            var childString = parent.children[i];
+            var expandedChild = platformsPanelItemsStore.getExpandedChildren(expandedOn, parent[childString]);
+        }
+        
+        parent.expanded = expandedOn;
+
+        return parent;
+    }
 };
 
 
@@ -6302,45 +5378,6 @@ platformsPanelItemsStore.getExpanded = function () {
 platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
     switch (action.type) {
-
-        case ACTION_TYPES.FILTER_ITEMS:
-
-            var filterTerm = action.filterTerm;
-            var filterStatus = action.filterStatus;
-            platformsPanelItemsStore.loadFilteredItems(filterTerm, filterStatus);
-
-            platformsPanelItemsStore.emitChange();
-
-            break;
-        case ACTION_TYPES.EXPAND_ALL:
-
-            var item = platformsPanelItemsStore.getItem(action.itemPath);
-            
-            var expanded = (item.expanded !== null ? !item.expanded : true);
-
-            expandAllChildren(item, expanded);
-
-            platformsPanelItemsStore.emitChange();
-
-            break;
-
-        case ACTION_TYPES.TOGGLE_ITEM:
-
-            var item = platformsPanelItemsStore.getItem(action.itemPath);
-            item.expanded = !item.expanded;
-
-            platformsPanelItemsStore.emitChange();
-
-            break;
-
-        case ACTION_TYPES.CHECK_ITEM:
-
-            var item = platformsPanelItemsStore.getItem(action.itemPath);
-            item.checked = action.checked;
-
-            platformsPanelItemsStore.emitChange();
-
-            break;
 
         case ACTION_TYPES.RECEIVE_PLATFORM_STATUSES:
             
@@ -6355,8 +5392,6 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                 // platformItem.status = "GOOD";
                 platformItem.children = [];
                 platformItem.type = "platform";
-                platformItem.visible = true;
-                platformItem.expanded = null;
             });
             
             platformsPanelItemsStore.emitChange();
@@ -6369,12 +5404,6 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             //     _items["platforms"][action.platform.uuid]["buildings"][key]["children"] = ["agents", "devices"];                
             //     _items["platforms"][action.platform.uuid]["buildings"][key]["path"] = ["platforms", action.platform.uuid, "buildings"];
             // }
-            var platform = _items["platforms"][action.platform.uuid];
-
-            if (platform.children.length > 0)
-            {
-                platform.expanded = true;
-            }
             
             platformsPanelItemsStore.emitChange();
             break;
@@ -6384,13 +5413,10 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
             if (action.agents.length > 0)
             {
-                platform.expanded = true;
                 platform.agents = {};
                 platform.agents.path = platform.path.slice(0);
                 platform.agents.path.push("agents");
                 platform.agents.name = "Agents";
-                platform.agents.expanded = false;
-                platform.agents.visible = true;
                 platform.agents.children = [];
                 platform.agents.type = "type";
                 platform.agents.sortOrder = _agentsOrder;
@@ -6403,8 +5429,6 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                 action.agents.forEach(function (agent)
                 {
                     var agentProps = agent;
-                    agentProps.expanded = false;
-                    agentProps.visible = true;
                     agentProps.path = platform.agents.path.slice(0);
                     agentProps.path.push(agent.uuid);
                     // agent.status = "GOOD";
@@ -6420,15 +5444,6 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             platformsPanelItemsStore.emitChange();
             break;
         case ACTION_TYPES.RECEIVE_DEVICE_STATUSES:
-
-            var item = platformsPanelItemsStore.getItem(action.platform.path);
-
-            // var platform = _items["platforms"][action.platform.uuid];
-
-            if (item.children.length > 0)
-            {
-                item.expanded = true;
-            }
             // _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"] = action.devices;
 
             // for (var key in _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"])
@@ -6447,121 +5462,16 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             //     _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"][action.device.uuid]["points"][key]["children"] = [];
             //     _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"][action.device.uuid]["points"][key]["path"] = ["platforms", action.platform.uuid, "buildings", action.building.uuid, "devices", action.device.uuid, "points"];
             // }
-            // var item = platformsPanelItemsStore.getItem(action.platform.path);
-
-            // // var platform = _items["platforms"][action.platform.uuid];
-
-            // if (item.children.length > 0)
-            // {
-            //     item.expanded = true;
-            // }
-
-            switch (action.parent.type)
-            {
-                case "platform":
-            
-                    var platform = _items["platforms"][action.parent.uuid];
-
-                    if (action.points.length > 0)
-                    {
-                        platform.expanded = true;
-                        platform.points = {};
-                        platform.points.path = platform.path.slice(0);
-                        platform.points.path.push("points");
-                        platform.points.name = "Points";
-                        platform.points.expanded = false;
-                        platform.points.visible = true;
-                        platform.points.children = [];
-                        platform.points.type = "type";
-                        platform.points.sortOrder = _pointsOrder;
-
-                        if (platform.children.indexOf("points") < 0)
-                        {
-                            platform.children.push("points");
-                        }
-
-                        action.points.forEach(function (point)
-                        {
-                            //TODO: add UUID to points rpc?
-
-                            var pointProps = point;
-                            pointProps.expanded = false;
-                            pointProps.visible = true;
-                            pointProps.path = platform.points.path.slice(0);
-
-                            var uuid = (point.hasOwnProperty("topic") ? point.topic : point.uuid);
-                            
-                            pointProps.uuid = uuid;
-                            pointProps.path.push(uuid);
-                            pointProps.topic = point.topic;
-
-                            pointProps.parentPath = getParentPath(platform);
-                            
-                            pointProps.parentType = platform.type;
-                            pointProps.parentUuid = platform.uuid;
-
-                            // point.status = "GOOD";
-                            pointProps.children = [];
-                            pointProps.type = "point";
-                            pointProps.sortOrder = 0;
-                            platform.points.children.push(uuid); 
-                            platform.points[uuid] = pointProps;
-                        });
-
-                    }
-
-                    break;
-            }
 
             platformsPanelItemsStore.emitChange();
             break;
-        case ACTION_TYPES.RECEIVE_PANEL_CHILDREN:
-            // _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"][action.device.uuid]["points"] = action.points;
-
-            // for (var key in _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"][action.device.uuid]["points"])
-            // {
-            //     _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"][action.device.uuid]["points"][key]["children"] = [];
-            //     _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"][action.device.uuid]["points"][key]["path"] = ["platforms", action.platform.uuid, "buildings", action.building.uuid, "devices", action.device.uuid, "points"];
-            // }
-            var item = platformsPanelItemsStore.getItem(action.platform.path);
-
-            // var platform = _items["platforms"][action.platform.uuid];
-
-            if (item.children.length > 0)
-            {
-                item.expanded = true;
-            }
-
-            platformsPanelItemsStore.emitChange();
-            break;
-    }
-
-    function getParentPath(parent)
-    {
-        var path = parent.path;
-
-        var pathParts = [];
-
-        var item = _items;
-
-        path.forEach(function (part) {
-            item = item[part];
-            if (_itemTypes.indexOf(part) < 0)
-            {
-                pathParts.push(item.name);
-            } 
-        });
-
-        var pathStr = pathParts.join(" > ");
-
-        return pathStr;
     }
 });
 
 module.exports = platformsPanelItemsStore;
 
 
-},{"../constants/action-types":34,"../dispatcher":35,"../lib/store":39}],51:[function(require,module,exports){
+},{"../constants/action-types":31,"../dispatcher":32,"../lib/store":36}],47:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -6590,7 +5500,7 @@ platformsPanelStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = platformsPanelStore;
 
 
-},{"../constants/action-types":34,"../dispatcher":35,"../lib/store":39}],52:[function(require,module,exports){
+},{"../constants/action-types":31,"../dispatcher":32,"../lib/store":36}],48:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -6659,7 +5569,7 @@ platformsStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = platformsStore;
 
 
-},{"../constants/action-types":34,"../dispatcher":35,"../lib/store":39,"../stores/authorization-store":43}],53:[function(require,module,exports){
+},{"../constants/action-types":31,"../dispatcher":32,"../lib/store":36,"../stores/authorization-store":40}],49:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -6699,4 +5609,4 @@ topicDataStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = topicDataStore;
 
 
-},{"../constants/action-types":34,"../dispatcher":35,"../lib/store":39,"./authorization-store":43}]},{},[1]);
+},{"../constants/action-types":31,"../dispatcher":32,"../lib/store":36,"./authorization-store":40}]},{},[1]);
