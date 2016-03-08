@@ -21,14 +21,17 @@ FAILURE = 'FAILURE'
 @pytest.fixture(scope="module")
 def publish_agent(request, volttron_instance1):
     # Create master driver config and 2 fake devices each with 6 points
-    process = Popen(['python', 'config_builder.py', '--count=4', '--publish-only-depth-all',
-                     'fake', 'fake6.csv', 'null'], env=volttron_instance1.env, cwd='scripts/scalability-testing',
-                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    process = Popen(
+        ['python', 'config_builder.py', '--count=4', '--publish-only-depth-all',
+         'fake', 'fake6.csv', 'null'], env=volttron_instance1.env,
+        cwd='scripts/scalability-testing',
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     result = process.wait()
     print result
     assert result == 0
 
-    # Start the master driver agent which would intern start the fake driver using the configs created above
+    # Start the master driver agent which would intern start the fake driver
+    #  using the configs created above
     master_uuid = volttron_instance1.install_agent(
         agent_dir="services/core/MasterDriverAgent",
         config_file="scripts/scalability-testing/configs/master-driver.agent",
@@ -36,8 +39,9 @@ def publish_agent(request, volttron_instance1):
     print("agent id: ", master_uuid)
     gevent.sleep(2)  # wait for the agent to start and start the devices
 
-    # Start the actuator agent through which publish agent should communicate to fake device
-    # Start the master driver agent which would intern start the fake driver using the configs created above
+    # Start the actuator agent through which publish agent should communicate
+    # to fake device. Start the master driver agent which would intern start
+    # the fake driver using the configs created above
     actuator_uuid = volttron_instance1.install_agent(
         agent_dir="services/core/ActuatorAgent",
         config_file="services/core/ActuatorAgent/tests/actuator.config",
@@ -47,7 +51,8 @@ def publish_agent(request, volttron_instance1):
     # 3: Start a fake agent to publish to message bus
     publish_agent = volttron_instance1.build_agent()
 
-    # 4: add a tear down method to stop sqlhistorian agent and the fake agent that published to message bus
+    # 4: add a tear down method to stop sqlhistorian agent and the fake agent
+    #  \that published to message bus
     def stop_agent():
         print("In teardown method of module")
         volttron_instance1.stop_agent(actuator_uuid)
@@ -64,14 +69,16 @@ def cancel_schedules(request, publish_agent):
 
     def cleanup():
         for schedule in cleanup_parameters:
-            print('Requesting cancel for task:', schedule['taskid'], 'from agent:', schedule['agentid'])
+            print('Requesting cancel for task:', schedule['taskid'],
+                  'from agent:', schedule['agentid'])
             result = publish_agent.vip.rpc.call(
                 PLATFORM_ACTUATOR,
                 REQUEST_CANCEL_SCHEDULE,
                 schedule['agentid'],
                 schedule['taskid']).get(timeout=10)
-            gevent.sleep(
-                1)  # sleep so that the message is sent to pubsub before next test monitors callback method calls
+            # sleep so that the message is sent to pubsub before next
+            gevent.sleep(1)
+            # test monitors callback method calls
             print ("result of cancel ", result)
 
     request.addfinalizer(cleanup)
@@ -83,10 +90,10 @@ def test_schedule_success(publish_agent, cancel_schedules):
     """
     Test responses for successful schedule request
  
-    :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
-    of Agent object used for publishing
-    :param cancel_schedules: fixture used to cancel the schedule at the end of test so that other tests can use
-    the same device and time slot
+    :param publish_agent: fixture invoked to setup all agents necessary and
+    returns an instance of Agent object used for publishing
+    :param cancel_schedules: fixture used to cancel the schedule at the end of
+    test so that other tests can use the same device and time slot
     """
     print ("\n**** test_schedule_success ****")
     # used by cancel_schedules
@@ -138,7 +145,8 @@ def test_schedule_error_int_taskid(publish_agent):
     # expected result {'info': u'', 'data': {}, 'result': SUCCESS}
     print result
     assert result['result'] == FAILURE
-    assert result['info'] == 'MALFORMED_REQUEST: TypeError: taskid must be a nonempty string'
+    assert result['info'] == \
+           'MALFORMED_REQUEST: TypeError: taskid must be a nonempty string'
 
 
 @pytest.mark.actuator
@@ -169,7 +177,8 @@ def test_schedule_error_int_agentid(publish_agent):
     # expected result {'info': u'', 'data': {}, 'result': SUCCESS}
     print result
     assert result['result'] == FAILURE
-    assert result['info'] == 'MALFORMED_REQUEST: TypeError: agentid must be a nonempty string'
+    assert result['info'] == \
+           'MALFORMED_REQUEST: TypeError: agentid must be a nonempty string'
 
 
 @pytest.mark.actuator
@@ -203,7 +212,8 @@ def test_schedule_empty_taskid(publish_agent, cancel_schedules):
     # expected result {'info': u'', 'data': {}, 'result': SUCCESS}
     print result
     assert result['result'] == FAILURE
-    assert result['info'] == 'MALFORMED_REQUEST: TypeError: taskid must be a nonempty string'
+    assert result['info'] == \
+           'MALFORMED_REQUEST: TypeError: taskid must be a nonempty string'
 
 
 @pytest.mark.actuator
@@ -237,7 +247,8 @@ def test_schedule_empty_agentid(publish_agent, cancel_schedules):
     # expected result {'info': u'', 'data': {}, 'result': SUCCESS}
     print result
     assert result['result'] == FAILURE
-    assert result['info'] == 'MALFORMED_REQUEST: TypeError: agentid must be a nonempty string'
+    assert result['info'] == \
+           'MALFORMED_REQUEST: TypeError: agentid must be a nonempty string'
 
 
 @pytest.mark.actuator
@@ -531,7 +542,8 @@ def test_schedule_premept_self(publish_agent, cancel_schedules):
     # expected result {'info': u'', 'data': {}, 'result': SUCCESS}
     print result
     assert result['result'] == SUCCESS
-    gevent.sleep(1)  # wait for above call's success response to publish_agent.callback method
+    gevent.sleep(
+        1)  # wait for above call's success response to publish_agent.callback method
     publish_agent.callback.reset_mock()
 
     result = publish_agent.vip.rpc.call(
@@ -543,7 +555,8 @@ def test_schedule_premept_self(publish_agent, cancel_schedules):
         msg).get(timeout=10)
     assert result['result'] == SUCCESS
 
-    gevent.sleep(6)  # wait for 2 callbacks - success msg for task_high_priority and preempt msg for task_low_priority
+    gevent.sleep(
+        6)  # wait for 2 callbacks - success msg for task_high_priority and preempt msg for task_low_priority
     print ('call args list:', publish_agent.callback.call_args_list)
     assert publish_agent.callback.call_count == 2
 
@@ -601,7 +614,8 @@ def test_schedule_premept_active_task(publish_agent, cancel_schedules):
     taskid = 'task_high_priority2'
     cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
     # add low prority task as well  since it won't get cancelled till end of grace time
-    cancel_schedules.append({'agentid': TEST_AGENT, 'taskid': 'task_low_priority2'})
+    cancel_schedules.append(
+        {'agentid': TEST_AGENT, 'taskid': 'task_low_priority2'})
 
     publish_agent.callback = MagicMock(name="callback")
     publish_agent.callback.reset_mock()
@@ -625,7 +639,8 @@ def test_schedule_premept_active_task(publish_agent, cancel_schedules):
     # expected result {'info': u'', 'data': {}, 'result': SUCCESS}
     print result
     assert result['result'] == SUCCESS
-    gevent.sleep(1)  # wait for above call's success response to publish_agent.callback method
+    gevent.sleep(
+        1)  # wait for above call's success response to publish_agent.callback method
     publish_agent.callback.reset_mock()
 
     result = publish_agent.vip.rpc.call(
@@ -637,7 +652,8 @@ def test_schedule_premept_active_task(publish_agent, cancel_schedules):
         msg).get(timeout=10)
     assert result['result'] == SUCCESS
 
-    gevent.sleep(6)  # wait for 2 callbacks - success msg for task_high_priority and preempt msg for task_low_priority
+    gevent.sleep(
+        6)  # wait for 2 callbacks - success msg for task_high_priority and preempt msg for task_low_priority
     print ('call args list:', publish_agent.callback.call_args_list)
     assert publish_agent.callback.call_count == 2
 
@@ -679,7 +695,8 @@ def test_schedule_premept_active_task(publish_agent, cancel_schedules):
 
 
 @pytest.mark.actuator
-def test_schedule_premept_active_task_gracetime(publish_agent, cancel_schedules):
+def test_schedule_premept_active_task_gracetime(publish_agent,
+                                                cancel_schedules):
     """
     Test error response for schedule request.
     Test schedule preemption of a actively running task with priority LOW by a higher priority task
@@ -697,7 +714,8 @@ def test_schedule_premept_active_task_gracetime(publish_agent, cancel_schedules)
     taskid = 'task_high_priority3'
     cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
     # add low prority task as well  since it won't get cancelled till end of grace time
-    cancel_schedules.append({'agentid': TEST_AGENT, 'taskid': 'task_low_priority3'})
+    cancel_schedules.append(
+        {'agentid': TEST_AGENT, 'taskid': 'task_low_priority3'})
 
     publish_agent.callback = MagicMock(name="callback")
     publish_agent.callback.reset_mock()
@@ -721,7 +739,8 @@ def test_schedule_premept_active_task_gracetime(publish_agent, cancel_schedules)
     # expected result {'info': u'', 'data': {}, 'result': SUCCESS}
     print result
     assert result['result'] == SUCCESS
-    gevent.sleep(1)  # wait for above call's success response to publish_agent.callback method
+    gevent.sleep(
+        1)  # wait for above call's success response to publish_agent.callback method
     publish_agent.callback.reset_mock()
 
     result = publish_agent.vip.rpc.call(
@@ -734,7 +753,8 @@ def test_schedule_premept_active_task_gracetime(publish_agent, cancel_schedules)
 
     assert result['result'] == SUCCESS
 
-    gevent.sleep(6)  # wait for 2 callbacks - success msg for task_high_priority and preempt msg for task_low_priority
+    gevent.sleep(
+        6)  # wait for 2 callbacks - success msg for task_high_priority and preempt msg for task_low_priority
     print ('call args list:', publish_agent.callback.call_args_list)
     assert publish_agent.callback.call_count == 2
 
@@ -786,7 +806,8 @@ def test_schedule_premept_active_task_gracetime(publish_agent, cancel_schedules)
         pytest.fail('Expecting LockError. Code returned: {}'.format(result))
     except RemoteError as e:
         assert e.exc_info['exc_type'] == 'actuator.agent.LockError'
-        assert e.message == 'caller ({}) does not have this lock'.format(agentid)
+        assert e.message == 'caller ({}) does not have this lock'.format(
+            agentid)
 
 
 @pytest.mark.actuator
@@ -829,7 +850,8 @@ def test_schedule_premept_error_active_task(publish_agent, cancel_schedules):
     # expected result {'info': u'', 'data': {}, 'result': SUCCESS}
     print result
     assert result['result'] == SUCCESS
-    gevent.sleep(1)  # wait for above call's success response to publish_agent.callback method
+    gevent.sleep(
+        1)  # wait for above call's success response to publish_agent.callback method
     publish_agent.callback.reset_mock()
 
     result = publish_agent.vip.rpc.call(
@@ -863,7 +885,8 @@ def test_schedule_premept_future_task(publish_agent, cancel_schedules):
     taskid = 'task_high_priority4'
     cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
     # add low prority task as well  since it won't get cancelled till end of grace time
-    cancel_schedules.append({'agentid': TEST_AGENT, 'taskid': 'task_low_priority4'})
+    cancel_schedules.append(
+        {'agentid': TEST_AGENT, 'taskid': 'task_low_priority4'})
 
     publish_agent.callback = MagicMock(name="callback")
     publish_agent.callback.reset_mock()
@@ -887,7 +910,8 @@ def test_schedule_premept_future_task(publish_agent, cancel_schedules):
     # expected result {'info': u'', 'data': {}, 'result': SUCCESS}
     print result
     assert result['result'] == SUCCESS
-    gevent.sleep(1)  # wait for above call's success response to publish_agent.callback method
+    gevent.sleep(
+        1)  # wait for above call's success response to publish_agent.callback method
     publish_agent.callback.reset_mock()
 
     result = publish_agent.vip.rpc.call(
@@ -899,7 +923,8 @@ def test_schedule_premept_future_task(publish_agent, cancel_schedules):
         msg).get(timeout=10)
     assert result['result'] == SUCCESS
 
-    gevent.sleep(6)  # wait for 2 callbacks - success msg for task_high_priority and preempt msg for task_low_priority
+    gevent.sleep(
+        6)  # wait for 2 callbacks - success msg for task_high_priority and preempt msg for task_low_priority
     print ('call args list:', publish_agent.callback.call_args_list)
     assert publish_agent.callback.call_count == 2
 
@@ -1242,10 +1267,13 @@ def test_get_error_invalid_point(publish_agent):
             PLATFORM_ACTUATOR,  # Target agent
             'get_point',  # Method
             'fakedriver1/SampleWritableFloat123').get(timeout=10)
-        pytest.fail('Expecting RemoteError for accessing invalid point. Code returned {}'.format(result))
+        pytest.fail(
+            'Expecting RemoteError for accessing invalid point. Code returned {}'.format(
+                result))
     except RemoteError as e:
         # assert e.exc_info['exc_type'] == 'master_driver.interfaces.DriverInterfaceError'
-        assert e.message.find('Point not configured on device: SampleWritableFloat123') != -1
+        assert e.message.find(
+            'Point not configured on device: SampleWritableFloat123') != -1
 
 
 @pytest.mark.actuator
@@ -1359,7 +1387,8 @@ def test_set_lock_error(publish_agent):
         pytest.fail('Expecting LockError. Code returned: {}'.format(result))
     except RemoteError as e:
         assert e.exc_info['exc_type'] == 'actuator.agent.LockError'
-        assert e.message == 'caller ({}) does not have this lock'.format(TEST_AGENT)
+        assert e.message == 'caller ({}) does not have this lock'.format(
+            TEST_AGENT)
 
 
 @pytest.mark.actuator
@@ -1448,7 +1477,8 @@ def test_set_error_none_agent(publish_agent, cancel_schedules):
             'fakedriver0/SampleWritableFloat1',  # Point to set
             'On'  # New value
         ).get(timeout=10)
-        pytest.fail("Expecting value error but code returned: {}".format(result))
+        pytest.fail(
+            "Expecting value error but code returned: {}".format(result))
     except RemoteError as e:
         assert e.message == 'Agent id must be a nonempty string'
         assert e.exc_info['exc_type'] == 'TypeError'
@@ -1494,6 +1524,7 @@ def test_set_error_read_only_point(publish_agent, cancel_schedules):
             'fakedriver0/OutsideAirTemperature1',  # Point to set
             1.2  # New value
         ).get(timeout=10)
-        pytest.fail('Expecting RemoteError but code returned: {}'.format(result))
+        pytest.fail(
+            'Expecting RemoteError but code returned: {}'.format(result))
     except RemoteError as e:
         assert e.message == "IOError('Trying to write to a point configured read only: OutsideAirTemperature1')"
