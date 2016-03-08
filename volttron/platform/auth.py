@@ -60,6 +60,7 @@
 from __future__ import absolute_import, print_function
 
 import bisect
+import errno
 import logging
 import os
 import random
