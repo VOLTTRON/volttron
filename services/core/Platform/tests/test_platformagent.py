@@ -29,12 +29,26 @@ def simulated_vc(wrapper, do_manage=False):
         # Expected to return the platform.agent public key.
         pk = vc_agent.vip.rpc.call(PLATFORM_ID, "manage_platform",
                                    wrapper.bind_web_address,
-                                   wrapper.publickey).get(timeout=3)
+                                   ks.public()).get(timeout=3)
         assert pk
-
         # check the auth file for a can_manage capability in it.
-        auth_json = open(os.path.join(wrapper.volttron_home, "auth.json")).read()
-        assert "can_manage" in auth_json
+        auth_path = os.path.join(wrapper.volttron_home, "auth.json")
+        print('ThE AUTH PATH: {}'.format(auth_path))
+        with open(auth_path) as fd:
+            auth_json = fd.read()
+
+        auth_dict = jsonapi.loads(auth_json)
+        print("auth_dict is", auth_dict)
+        found = False
+        for k in auth_dict['allow']:
+            if k['credentials'].endswith(ks.public()):
+                print('Found vc_publickey:', ks.public())
+                print("The agent k is: {}".format(k))
+                capabilities =k.get('capabilities', None)
+                assert capabilities
+                assert 'can_manage' in capabilities
+                found = True
+        assert found, "No vc agent ({}) found with can_manage capability.".format(vc_publickey)
 
     return vc_agent, ks.secret(), ks.public()
 

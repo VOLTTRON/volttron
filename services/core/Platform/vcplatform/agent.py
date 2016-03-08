@@ -157,6 +157,7 @@ def platform_agent(config_path, **kwargs):
             cred = 'CURVE:{}'.format(publickey)
             allow = auth['allow']
             if not any(record['credentials'] == cred for record in allow):
+                _log.debug("Appending new cred: {}".format(cred))
                 allow.append({'credentials': cred})
 
             with open(auth_path, 'w+') as fd:
@@ -172,12 +173,28 @@ def platform_agent(config_path, **kwargs):
             auth, auth_path = self._read_auth_file()
             cred = 'CURVE:{}'.format(publickey)
             allow = auth['allow']
-            entry = next((item for item in allow if item['credentials'] == cred), {})
+            entry = {}
+            for item in allow:
+                if item['credentials'] == cred:
+                    entry = item
+                    break
+            if entry:
+                _log.debug('Found cred for pubkey: {}'.format(publickey))
+                _log.debug("entry is: {}".format(entry))
+            #entry = next((item for item in allow if item['credentials'] == cred), {})
             caps = entry.get('capabilities', [])
             entry['capabilities'] = list(set(caps + capabilities))
+            _log.debug("entry after update is: {}".format(entry))
+            _log.debug("Auth after all is now: {}".format(auth))
 
-            with open(auth_path, 'w+') as fd:
+            with open(auth_path, 'w') as fd:
                 fd.write(jsonapi.dumps(auth))
+
+            with open(auth_path) as fd:
+                auth_json = fd.read()
+
+            _log.debug("AUTH PATH IS: {}".format(auth_path))
+            _log.debug("Auth after all is now: {}".format(auth_json))
 
         def _store_settings(self):
             with open('platform.settings', 'wb') as f:
