@@ -148,7 +148,8 @@ class AuthService(Agent):
                     for role in entry_roles:
                         capabilities += roles.get(role, [])
                     auth_entry.add_capabilities(list(set(capabilities)))
-                    entries.append(auth_entry)
+                    if auth_entry.enabled:
+                        entries.append(auth_entry)
                 except TypeError:
                     _log.warn('invalid entry %r in auth file %s',
                               entry, self.auth_file)
@@ -302,7 +303,7 @@ class List(list):
 class AuthEntry(object):
     def __init__(self, domain=None, address=None, credentials=None,
                  user_id=None, groups=None, roles=None,
-                 capabilities=None, comments=None, **kwargs):
+                 capabilities=None, comments=None, enabled=True, **kwargs):
 
         self.domain = AuthEntry.build(domain)
         self.address = AuthEntry.build(address)
@@ -312,6 +313,7 @@ class AuthEntry(object):
         self.capabilities = AuthEntry.build(capabilities, list, str) or []
         self.comments = AuthEntry.build(comments)
         self.user_id = None if user_id is None else user_id.encode('utf-8')
+        self.enabled = enabled
         if kwargs:
             _log.debug(
                 'auth record has unrecognized keys: %r' % (kwargs.keys(),))

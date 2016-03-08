@@ -546,7 +546,8 @@ def list_auth(opts, indices=None):
 
 def _ask_for_auth_fields(domain=None, address=None, user_id=None,
                         capabilities=None, roles=None, groups=None,
-                        credentials='NULL', comments=None, **kwargs):
+                        credentials='NULL', comments=None, enabled=True,
+                        **kwargs):
 
     class Asker(object):
         def __init__(self):
@@ -563,21 +564,44 @@ def _ask_for_auth_fields(domain=None, address=None, user_id=None,
                 default = self._fields[name]['default']
                 callback = self._fields[name]['callback']
                 validate = self._fields[name]['validate']
-
+                if isinstance(default, list):
+                    default_str = '{}'.format(','.join(default))
+                elif default is None:
+                    default_str = ''
+                else:
+                    default_str = default
                 note = '({}) '.format(note) if note else ''
-                question = '{} {}[{}]: '.format(name, note,
-                                                default if default else '')
+                question = '{} {}[{}]: '.format(name, note, default_str)
                 valid = False
                 while not valid:
-                    response = callback(raw_input(question).rstrip()) or default
+                    response = raw_input(question).strip()
+                    if response == '':
+                        response = default
                     valid, msg = validate(response)
                     if not valid:
                         _stderr.write('{}\n'.format(msg))
 
-                self._fields[name]['response'] = response
+                self._fields[name]['response'] = callback(response)
             return {k : self._fields[k]['response'] for k in self._fields}
 
-    comma_split = lambda x: x.split(',') if x else []
+    def comma_split(response):
+        if not isinstance(response, basestring):
+            return response
+        response = response.strip()
+        if not response:
+            return []
+        return [word.strip() for word in response.split(',')]
+
+    def to_true_or_false(response):
+        if isinstance(response, basestring):
+            return {'true': True, 'false': False}[response.lower()]
+        return response
+
+    def is_true_or_false(response):
+        if isinstance(response, bool) or response.lower() in ['true', 'false']:
+            return True, None
+        return False, 'Please respond with True or False'
+
     asker = Asker()
     asker.add('domain', domain)
     asker.add('address', address)
@@ -590,6 +614,8 @@ def _ask_for_auth_fields(domain=None, address=None, user_id=None,
               comma_split)
     asker.add('credentials', credentials, validate=AuthEntry.valid_credentials)
     asker.add('comments', comments)
+    asker.add('enabled', enabled, callback=to_true_or_false,
+              validate=is_true_or_false)
 
     return asker.ask()
 
