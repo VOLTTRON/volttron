@@ -477,6 +477,7 @@ class AIPplatform(object):
         environ['AGENT_PUB_ADDR'] = self.publish_address
         environ['AGENT_UUID'] = agent_uuid
         environ['_LAUNCHED_BY_PLATFORM'] = '1'
+        environ['AGENT_PATH'] = agent_path
 
         module, _, func = module.partition(':')
         if func:
