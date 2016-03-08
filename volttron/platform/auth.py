@@ -89,6 +89,9 @@ _SAMPLE_AUTH_FILE = r'''{
 _dump_re = re.compile(r'([,\\])')
 _load_re = re.compile(r'\\(.)|,')
 
+def isregex(obj):
+    return len(obj) > 1 and obj[0] == obj[-1] == '/'
+
 def dump_user(*args):
     return ','.join([_dump_re.sub(r'\\\1', arg) for arg in args])
 
@@ -154,6 +157,7 @@ class AuthService(Agent):
                 except TypeError:
                     _log.warn('invalid entry %r in auth file %s',
                               entry, self.auth_file)
+            entries.sort()
             self.auth_entries = entries
             _log.info('auth file %s loaded', self.auth_file)
 
@@ -284,7 +288,7 @@ class AuthService(Agent):
 class String(unicode):
     def __new__(cls, value):
         obj = super(String, cls).__new__(cls, value)
-        if len(obj) > 1 and obj[0] == obj[-1] == '/':
+        if isregex(obj):
             obj.regex = regex = re.compile('^' + obj[1:-1] + '$')
             obj.match = lambda val: bool(regex.match(val))
         return obj
@@ -319,6 +323,14 @@ class AuthEntry(object):
             _log.debug(
                 'auth record has unrecognized keys: %r' % (kwargs.keys(),))
 
+    def __lt__(self, other):
+        '''Entries with non-regex credentials will be less than'''
+        try:
+            self.credentials.regex
+        except AttributeError:
+            return True
+        return False
+
     @staticmethod
     def build(value, list_class=List, str_class=String):
         if not value:
@@ -351,6 +363,8 @@ class AuthEntry(object):
     def valid_credentials(cred):
         if cred is None:
             return False, 'credentials parameter is required'
+        if isregex(cred):
+            return True, ''
         if not (cred == 'NULL' or
                 cred.startswith('PLAIN:') or
                 cred.startswith('CURVE:')):
@@ -484,4 +498,4 @@ class AuthFile(object):
     def _write(self, entries):
         auth = {'allow': entries}
         with open(self.auth_file, 'w') as fp:
-            fp.write(jsonapi.dumps(auth))
+            fp.write(jsonapi.dumps(auth, indent=2))
