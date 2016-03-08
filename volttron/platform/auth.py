@@ -327,7 +327,7 @@ class List(list):
 class AuthEntry(object):
     def __init__(self, domain=None, address=None, credentials=None,
                  user_id=None, groups=None, roles=None,
-                 capabilities=None, **kwargs):
+                 capabilities=None, comments=None, **kwargs):
 
         self.domain = AuthEntry.build(domain)
         self.address = AuthEntry.build(address)
@@ -335,6 +335,7 @@ class AuthEntry(object):
         self.groups = AuthEntry.build(groups, list, str) or []
         self.roles = AuthEntry.build(roles, list, str) or []
         self.capabilities = AuthEntry.build(capabilities, list, str) or []
+        self.comments = AuthEntry.build(comments)
         self.user_id = None if user_id is None else user_id.encode('utf-8')
         if kwargs:
             _log.debug(

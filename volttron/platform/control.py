@@ -546,7 +546,7 @@ def list_auth(opts, indices=None):
 
 def _ask_for_auth_fields(domain=None, address=None, user_id=None,
                         capabilities=None, roles=None, groups=None,
-                        credentials='NULL', **kwargs):
+                        credentials='NULL', comments=None, **kwargs):
 
     class Asker(object):
         def __init__(self):
@@ -589,6 +589,7 @@ def _ask_for_auth_fields(domain=None, address=None, user_id=None,
     asker.add('groups', groups, 'delimit multiple entries with comma',
               comma_split)
     asker.add('credentials', credentials, validate=AuthEntry.valid_credentials)
+    asker.add('comments', comments)
 
     return asker.ask()
 
