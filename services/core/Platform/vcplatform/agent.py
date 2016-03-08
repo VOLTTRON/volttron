@@ -403,21 +403,47 @@ def platform_agent(config_path, **kwargs):
         @RPC.export
         # @RPC.allow("can_manage")
         def start_agent(self, agent_uuid):
-            agents = self.vip.rpc.call("control", "list_agents").get()
-
-        @RPC.export
-        def agent_status(self, uuid):
-            return self.vip.rpc.call("control", "agent_status", uuid).get()
+            agents = self.list_agents()
+            for k in agents:
+                if agent_uuid in k['uuid'] \
+                        and k['process_id'] <= 0:
+                    proc_result = self.vip.rpc.call("control",
+                                                     "start_agent",
+                                                     agent_uuid).get()
+                    return proc_result
+            return []
 
         @RPC.export
         # @RPC.allow("can_manage")
         def stop_agent(self, agent_uuid):
-            pass
+            agents = self.list_agents()
+            for k in agents:
+                if agent_uuid in k['uuid'] \
+                        and k['process_id'] >= 0:
+                    proc_result = self.vip.rpc.call("control",
+                                                     "stop_agent",
+                                                     agent_uuid).get()
+                    return proc_result
+            return []
 
         @RPC.export
         # @RPC.allow("can_manage")
         def restart_agent(self, agent_uuid):
-            pass
+            agents = self.list_agents()
+            for k in agents:
+                if agent_uuid in k['uuid'] \
+                        and k['process_id'] <= 0:
+                    proc_result = self.vip.rpc.call("control",
+                                                     "restart_agent",
+                                                     agent_uuid).get()
+                    return proc_result
+            return []
+
+        @RPC.export
+        def agent_status(self, agent_uuid):
+            return self.vip.rpc.call("control", "agent_status",
+                                      agent_uuid).get()
+
 
         def _install_agents(self, agent_files):
             tmpdir = tempfile.mkdtemp()

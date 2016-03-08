@@ -122,7 +122,8 @@ JSON-RPC Data Objects
     "name", "string", "Defaults to the agentid of the installed agent"
     "tag", "string", "A shortcut that can be used for referencing the agent"
     "priority", "int", "If this is set the agent will autostart on the instance."
-    "status",
+    "process_id", "int", "The process id or null if not running."
+    "status", "string", "A status string made by the status rpc call, on an agent."
 
 
 .. csv-table:: DiscoveryRegistratyEntry
