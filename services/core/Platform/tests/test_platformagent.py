@@ -53,7 +53,7 @@ def simulated_vc(wrapper, do_manage=False):
     return vc_agent, ks.secret(), ks.public()
 
 @pytest.mark.pa
-def test_listagents(pa_instance):
+def test_list_agents(pa_instance):
     pa_wrapper = pa_instance['wrapper']
 
     vc_agent, secret_key, public_key = simulated_vc(pa_wrapper, do_manage=True)
@@ -65,7 +65,13 @@ def test_listagents(pa_instance):
     # Note since the vc is simulated the list_agents only should have the
     # platformagent
     assert results
+    keys = results[0].keys()
     assert 'platformagent' in results[0]['name']
+    assert 'process_id' in keys
+    assert 'uuid' in keys
+    assert 'priority' in keys
+    assert 'error_code' in keys
+    assert results[0]['process_id'] > 0
 
 
 
