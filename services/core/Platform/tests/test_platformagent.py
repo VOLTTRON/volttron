@@ -9,7 +9,31 @@ from volttron.platform.keystore import KeyStore
 # The default platform identity
 PLATFORM_ID = 'platform.agent'
 
-@pytest.mark.vc
+
+def simulated_vc(wrapper, do_manage=False):
+    tf = tempfile.NamedTemporaryFile()
+    ks = KeyStore(tf.name)
+    ks.generate()
+
+    # This agent will act as a volttron central agent for the purposes
+    # of this test.
+    vc_agent = wrapper.build_agent(serverkey=wrapper.publickey,
+                                      secretkey=ks.secret(),
+                                      publickey=ks.public())
+
+    peers = vc_agent.vip.peerlist().get(timeout=3)
+    assert 'platform.agent' in peers
+
+    if do_manage:
+        # Expected to return the platform.agent public key.
+        pk = vc_agent.vip.rpc.call(PLATFORM_ID, "manage_platform",
+                                   wrapper.bind_web_address,
+                                   wrapper.publickey).get(timeout=3)
+        assert pk
+
+    return vc_agent
+
+@pytest.mark.pa
 def test_manage_platform(pa_instance):
     """ Test the ability for a platform to be registered from an entity.
 
@@ -17,30 +41,15 @@ def test_manage_platform(pa_instance):
     :return: The public key for the agent (currently the platform key)
     """
 
-    tf = tempfile.NamedTemporaryFile()
-    ks = KeyStore(tf.name)
-    ks.generate()
-
     pa_wrapper = pa_instance['wrapper']
 
+    vc_agent = simulated_vc(pa_wrapper)
 
-    print("SECRET:",ks.secret())
-    print("PUBLIC:",ks.public())
-    print("SERVER:",pa_wrapper.publickey)
-
-    # This agent will act as a volttron central agent for the purposes
-    # of this test.
-    vc_agent = pa_wrapper.build_agent(serverkey=pa_wrapper.publickey,
-                                      secretkey=ks.secret(),
-                                      publickey=ks.public())
-
-    peers = vc_agent.vip.peerlist().get(timeout=3)
-    assert 'platform.agent' in peers
 
     # Expected to return the platform.agent public key.
     pk = vc_agent.vip.rpc.call(PLATFORM_ID, "manage_platform",
-                                pa_wrapper.bind_web_address,
-                                pa_wrapper.publickey).get(timeout=3)
+                               pa_wrapper.bind_web_address,
+                               pa_wrapper.publickey).get(timeout=3)
     assert pk
 
     # Test that once it's registered a new call to manage_platform will
