@@ -89,7 +89,7 @@ class AlreadyManagedError(Exception):
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-__version__ = '3.0'
+__version__ = '3.5'
 
 def platform_agent(config_path, **kwargs):
     config = utils.load_config(config_path)
@@ -278,13 +278,11 @@ def platform_agent(config_path, **kwargs):
 
             return self._keystore.public()
 
-
         @RPC.export
         def set_setting(self, key, value):
             _log.debug("Setting key: {} to value: {}".format(key, value))
             self._settings[key] = value
             self._store_settings()
-
 
         @RPC.export
         def get_setting(self, key):
@@ -382,6 +380,24 @@ def platform_agent(config_path, **kwargs):
             """
             agents = self.vip.rpc.call("control", "list_agents").get()
 
+            agents_status = self.vip.rpc.call("control",
+                                              "status_agents").get()
+            _log.debug('List Agent: {}'.format(agents))
+            # ['uuid', 'vcplatformagent-3.5', [15958, None]]s
+            _log.debug("Status Agents: {}".format(agents_status))
+            uuid_to_status = {}
+            for s in agents_status:
+                # 'uuid', 'vcplatformagent-3.5', [16206, None]]
+                if s[2][0] > 0:
+                    uuid_to_status[s[0]] = {'process_id': s[2][0],
+                                            "error_code": 0}
+                elif s[2][0] <= 0:
+                    uuid_to_status[s[0]] = {'process_id': 0,
+                                            "error_code": s[2][0]}
+
+            for a in agents:
+                a.update(uuid_to_status[a['uuid']])
+
             return agents
 
         @RPC.export
@@ -389,6 +405,9 @@ def platform_agent(config_path, **kwargs):
         def start_agent(self, agent_uuid):
             agents = self.vip.rpc.call("control", "list_agents").get()
 
+        @RPC.export
+        def agent_status(self, uuid):
+            return self.vip.rpc.call("control", "agent_status", uuid).get()
 
         @RPC.export
         # @RPC.allow("can_manage")
