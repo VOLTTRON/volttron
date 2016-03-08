@@ -63,7 +63,7 @@ var platformManagerActionCreators = {
             authorization: authorization,
             params: {
                 identity: 'platform.agent',
-                agentid: name,
+                agentId: name,
                 address: address,
             },
         }).promise
@@ -90,9 +90,8 @@ var platformManagerActionCreators = {
             method: 'register_instance',
             authorization: authorization,
             params: {
-                identity: 'platform.agent',
-                agentid: name,
-                address: address,
+                display_name: name,
+                discovery_address: address,
             },
         }).promise
             .then(function () {

@@ -399,8 +399,6 @@ def volttron_central_agent(config_path, **kwargs):
                 if rpcdata.method == 'register_instance':
                     try:
                         # internal use discovery address rather than uri
-                        rpcdata.params['discovery_address'] = rpcdata.params['uri']
-                        del rpcdata.params['uri']
                         print("RPCDATA.PARAMS: {}".format(rpcdata.params))
                         result = self.register_instance(**rpcdata.params)
                     except CouldNotRegister as expinfo:
@@ -437,7 +435,7 @@ def volttron_central_agent(config_path, **kwargs):
             _log.debug('Registering jsonrpc and /.* routes')
             _log.debug("it would be awsome if we got here! {}".format(result))
             self.vip.rpc.call('volttron.web', 'register_agent_route',
-                            r'^/api/jsonrpc.*',
+                            r'^/jsonrpc.*',
                             self.core.identity,
                             'jsonrpc').get(timeout=5)
 

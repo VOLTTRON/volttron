@@ -51,15 +51,15 @@ var RegisterPlatformForm = React.createClass({
     _onCancelClick: modalActionCreators.closeModal,
     _onSubmitDiscovery: function () {
 
-        platformManagerActionCreators.registerPlatform(
+        platformManagerActionCreators.registerInstance(
             this.state.name, 
             this.state.discovery_address);
         
     },
     _onSubmitAdvanced: function () {
 
-        platformManagerActionCreators.registerInstance(
-            this.state.name, 
+        platformManagerActionCreators.registerPlatform(
+            this.state.name,             
             this._formatAddress());
         
     },

@@ -545,8 +545,35 @@ var platformManagerActionCreators = {
             authorization: authorization,
             params: {
                 identity: 'platform.agent',
-                agentid: name,
+                agentId: name,
                 address: address,
+            },
+        }).promise
+            .then(function () {
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.CLOSE_MODAL,
+                });
+
+                platformManagerActionCreators.loadPlatforms();
+            })
+            .catch(rpc.Error, function (error) {
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.REGISTER_PLATFORM_ERROR,
+                    error: error,
+                });
+
+                handle401(error);
+            });
+    },
+    registerInstance: function (name, address) {
+        var authorization = authorizationStore.getAuthorization();
+
+        new rpc.Exchange({
+            method: 'register_instance',
+            authorization: authorization,
+            params: {
+                display_name: name,
+                discovery_address: address,
             },
         }).promise
             .then(function () {
@@ -3183,7 +3210,9 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
     getInitialState: function () {
         var state = getStateFromStores();
         
-        state.name = state.ipaddress = state.serverKey = state.publicKey = state.secretKey = '';
+        state.method = 'discovery';
+
+        state.name = state.discovery_address = state.ipaddress = state.serverKey = state.publicKey = state.secretKey = '';
         state.protocol = 'tcp';
 
         return state;
@@ -3202,6 +3231,7 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
     },
     _onAddressChange: function (e) {
         this.setState({ ipaddress: e.target.value });
+        this.setState({ discovery_address: e.target.value });
     },
     _onProtocolChange: function (e) {
         this.setState({ protocol: e.target.value });
@@ -3215,11 +3245,21 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
     _onSecretKeyChange: function (e) {
         this.setState({ secretKey: e.target.value });
     },
+    _toggleMethod: function (e) {
+        this.setState({ method: (this.state.method === "discovery" ? "advanced" : "discovery") });
+    },
     _onCancelClick: modalActionCreators.closeModal,
-    _onSubmit: function () {
+    _onSubmitDiscovery: function () {
+
+        platformManagerActionCreators.registerInstance(
+            this.state.name, 
+            this.state.discovery_address);
+        
+    },
+    _onSubmitAdvanced: function () {
 
         platformManagerActionCreators.registerPlatform(
-            this.state.name, 
+            this.state.name,             
             this._formatAddress());
         
     },
@@ -3248,122 +3288,218 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
         
         var fullAddress = this._formatAddress();
 
+        var registerForm;
+
+        var submitMethod;
+
+        switch (this.state.method)
+        {
+            case "discovery":
+                submitMethod = this._onSubmitDiscovery;
+
+                registerForm = (
+                    React.createElement("div", null, 
+                        React.createElement("div", {className: "tableDiv"}, 
+                            React.createElement("div", {className: "rowDiv"}, 
+                                React.createElement("div", {className: "cellDiv firstCell"}, 
+                                    React.createElement("label", {className: "formLabel"}, "Name"), 
+                                    React.createElement("input", {
+                                        className: "form__control form__control--block", 
+                                        type: "text", 
+                                        onChange: this._onNameChange, 
+                                        value: this.state.name, 
+                                        autoFocus: true, 
+                                        required: true}
+                                    )
+                                ), 
+                                React.createElement("div", {className: "cellDiv", 
+                                    width: "70%"}, 
+                                    React.createElement("label", {className: "formLabel"}, "Address"), 
+                                    React.createElement("input", {
+                                        className: "form__control form__control--block", 
+                                        type: "text", 
+                                        onChange: this._onAddressChange, 
+                                        value: this.state.discovery_address, 
+                                        required: true}
+                                    )
+                                )
+                            )
+                        ), 
+                        
+                        React.createElement("div", {className: "tableDiv"}, 
+                            React.createElement("div", {className: "rowDiv"}, 
+                                React.createElement("div", {className: "cellDiv firstCell"}, 
+                                    React.createElement("div", {className: "form__link", 
+                                        onClick: this._toggleMethod}, 
+                                        React.createElement("a", null, "Advanced")
+                                    )
+                                ), 
+                                React.createElement("div", {className: "cellDiv", 
+                                    width: "70%"}, 
+                                    React.createElement("div", {className: "form__actions"}, 
+                                        React.createElement("button", {
+                                            className: "button button--secondary", 
+                                            type: "button", 
+                                            onClick: this._onCancelClick
+                                        }, 
+                                            "Cancel"
+                                        ), 
+                                        React.createElement("button", {
+                                            className: "button", 
+                                            disabled: !this.state.name || !this.state.discovery_address
+                                        }, 
+                                            "Register"
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    )
+                )
+                break;
+            case "advanced":
+
+                submitMethod = this._onSubmitAdvanced;
+
+                registerForm = (
+                    React.createElement("div", null, 
+                        React.createElement("div", {className: "tableDiv"}, 
+                            React.createElement("div", {className: "rowDiv"}, 
+                                React.createElement("div", {className: "cellDiv firstCell"}, 
+                                    React.createElement("label", {className: "formLabel"}, "Name"), 
+                                    React.createElement("input", {
+                                        className: "form__control form__control--block", 
+                                        type: "text", 
+                                        onChange: this._onNameChange, 
+                                        value: this.state.name, 
+                                        autoFocus: true, 
+                                        required: true}
+                                    )
+                                ), 
+                                React.createElement("div", {className: "cellDiv", 
+                                    width: "10%"}, 
+                                    React.createElement("label", {className: "formLabel"}, "Protocol"), React.createElement("br", null), 
+                                    React.createElement("select", {
+                                        className: "form__control", 
+                                        onChange: this._onProtocolChange, 
+                                        value: this.state.protocol, 
+                                        required: true
+                                    }, 
+                                        React.createElement("option", {value: "tcp"}, "TCP"), 
+                                        React.createElement("option", {value: "ipc"}, "IPC")
+                                    )
+                                ), 
+                                React.createElement("div", {className: "cellDiv", 
+                                    width: "56%"}, 
+                                    React.createElement("label", {className: "formLabel"}, "VIP address"), 
+                                    React.createElement("input", {
+                                        className: "form__control form__control--block", 
+                                        type: "text", 
+                                        onChange: this._onAddressChange, 
+                                        value: this.state.ipaddress, 
+                                        required: true}
+                                    )
+                                )
+                            )
+                        ), 
+                        React.createElement("div", {className: "tableDiv"}, 
+                            React.createElement("div", {className: "rowDiv"}, 
+                                React.createElement("div", {className: "cellDiv", 
+                                    width: "80%"}, 
+                                    React.createElement("label", {className: "formLabel"}, "Server Key"), 
+                                    React.createElement("input", {
+                                        className: "form__control form__control--block", 
+                                        type: "text", 
+                                        onChange: this._onServerKeyChange, 
+                                        value: this.state.serverKey}
+                                    )
+                                )
+                            )
+                        ), 
+                        React.createElement("div", {className: "tableDiv"}, 
+                            React.createElement("div", {className: "rowDiv"}, 
+                                React.createElement("div", {className: "cellDiv", 
+                                    width: "80%"}, 
+                                    React.createElement("label", {className: "formLabel"}, "Public Key"), 
+                                    React.createElement("input", {
+                                        className: "form__control form__control--block", 
+                                        type: "text", 
+                                        onChange: this._onPublicKeyChange, 
+                                        value: this.state.publicKey}
+                                    )
+                                )
+                            )
+                        ), 
+                        React.createElement("div", {className: "tableDiv"}, 
+                            React.createElement("div", {className: "rowDiv"}, 
+                                React.createElement("div", {className: "cellDiv", 
+                                    width: "80%"}, 
+                                    React.createElement("label", {className: "formLabel"}, "Secret Key"), 
+                                    React.createElement("input", {
+                                        className: "form__control form__control--block", 
+                                        type: "text", 
+                                        onChange: this._onSecretKeyChange, 
+                                        value: this.state.secretKey}
+                                    )
+                                )
+                            )
+                        ), 
+                        React.createElement("div", {className: "tableDiv"}, 
+                            React.createElement("div", {className: "rowDiv"}, 
+                                React.createElement("div", {className: "cellDiv", 
+                                    width: "100%"}, 
+                                    React.createElement("label", {className: "formLabel"}, "Preview"), 
+                                    React.createElement("div", {
+                                        className: "preview"}, 
+                                        fullAddress
+                                    )
+                                )
+                            )
+                        ), 
+                        
+                        React.createElement("div", {className: "tableDiv"}, 
+                            React.createElement("div", {className: "rowDiv"}, 
+                                React.createElement("div", {className: "cellDiv firstCell"}, 
+                                    React.createElement("div", {className: "form__link", 
+                                        onClick: this._toggleMethod}, 
+                                        React.createElement("a", null, "Discover")
+                                    )
+                                ), 
+                                React.createElement("div", {className: "cellDiv", 
+                                    width: "70%"}, 
+                                    React.createElement("div", {className: "form__actions"}, 
+                                        React.createElement("button", {
+                                            className: "button button--secondary", 
+                                            type: "button", 
+                                            onClick: this._onCancelClick
+                                        }, 
+                                            "Cancel"
+                                        ), 
+                                        React.createElement("button", {
+                                            className: "button", 
+                                            disabled: !this.state.name || !this.state.protocol || !this.state.ipaddress 
+                                                || !((this.state.serverKey && this.state.publicKey && this.state.secretKey) 
+                                                        || (!this.state.publicKey && !this.state.secretKey))
+                                        }, 
+                                            "Register"
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    )
+                )
+                break;
+        }
+
         return (
-            React.createElement("form", {className: "register-platform-form", onSubmit: this._onSubmit}, 
+            React.createElement("form", {className: "register-platform-form", onSubmit: submitMethod}, 
                 React.createElement("h1", null, "Register platform"), 
                 this.state.error && (
                     React.createElement("div", {className: "error"}, this.state.error.message)
                 ), 
-                React.createElement("div", {className: "tableDiv"}, 
-                    React.createElement("div", {className: "rowDiv"}, 
-                        React.createElement("div", {className: "cellDiv firstCell"}, 
-                            React.createElement("label", {className: "formLabel"}, "Name"), 
-                            React.createElement("input", {
-                                className: "form__control form__control--block", 
-                                type: "text", 
-                                onChange: this._onNameChange, 
-                                value: this.state.name, 
-                                autoFocus: true, 
-                                required: true}
-                            )
-                        ), 
-                        React.createElement("div", {className: "cellDiv", 
-                            width: "10%"}, 
-                            React.createElement("label", {className: "formLabel"}, "Protocol"), React.createElement("br", null), 
-                            React.createElement("select", {
-                                className: "form__control", 
-                                onChange: this._onProtocolChange, 
-                                value: this.state.protocol, 
-                                required: true
-                            }, 
-                                React.createElement("option", {value: "tcp"}, "TCP"), 
-                                React.createElement("option", {value: "ipc"}, "IPC")
-                            )
-                        ), 
-                        React.createElement("div", {className: "cellDiv", 
-                            width: "56%"}, 
-                            React.createElement("label", {className: "formLabel"}, "VIP address"), 
-                            React.createElement("input", {
-                                className: "form__control form__control--block", 
-                                type: "text", 
-                                onChange: this._onAddressChange, 
-                                value: this.state.ipaddress, 
-                                required: true}
-                            )
-                        )
-                    )
-                ), 
-                React.createElement("div", {className: "tableDiv"}, 
-                    React.createElement("div", {className: "rowDiv"}, 
-                        React.createElement("div", {className: "cellDiv", 
-                            width: "80%"}, 
-                            React.createElement("label", {className: "formLabel"}, "Server Key"), 
-                            React.createElement("input", {
-                                className: "form__control form__control--block", 
-                                type: "text", 
-                                onChange: this._onServerKeyChange, 
-                                value: this.state.serverKey}
-                            )
-                        )
-                    )
-                ), 
-                React.createElement("div", {className: "tableDiv"}, 
-                    React.createElement("div", {className: "rowDiv"}, 
-                        React.createElement("div", {className: "cellDiv", 
-                            width: "80%"}, 
-                            React.createElement("label", {className: "formLabel"}, "Public Key"), 
-                            React.createElement("input", {
-                                className: "form__control form__control--block", 
-                                type: "text", 
-                                onChange: this._onPublicKeyChange, 
-                                value: this.state.publicKey}
-                            )
-                        )
-                    )
-                ), 
-                React.createElement("div", {className: "tableDiv"}, 
-                    React.createElement("div", {className: "rowDiv"}, 
-                        React.createElement("div", {className: "cellDiv", 
-                            width: "80%"}, 
-                            React.createElement("label", {className: "formLabel"}, "Secret Key"), 
-                            React.createElement("input", {
-                                className: "form__control form__control--block", 
-                                type: "text", 
-                                onChange: this._onSecretKeyChange, 
-                                value: this.state.secretKey}
-                            )
-                        )
-                    )
-                ), 
-                React.createElement("div", {className: "tableDiv"}, 
-                    React.createElement("div", {className: "rowDiv"}, 
-                        React.createElement("div", {className: "cellDiv", 
-                            width: "100%"}, 
-                            React.createElement("label", {className: "formLabel"}, "Preview"), 
-                            React.createElement("div", {
-                                className: "preview"}, 
-                                fullAddress
-                            )
-                        )
-                    )
-                ), 
-                React.createElement("div", {className: "form__actions"}, 
-                    React.createElement("button", {
-                        className: "button button--secondary", 
-                        type: "button", 
-                        onClick: this._onCancelClick
-                    }, 
-                        "Cancel"
-                    ), 
-                    React.createElement("button", {
-                        className: "button", 
-                        disabled: !this.state.name || !this.state.protocol || !this.state.ipaddress 
-                            || !((this.state.serverKey && this.state.publicKey && this.state.secretKey) 
-                                    || (!this.state.publicKey && !this.state.secretKey))
-                    }, 
-                        "Register"
-                    )
-                )
+                registerForm
+
             )
         );
     },
