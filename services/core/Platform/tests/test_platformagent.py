@@ -2,6 +2,7 @@ import logging
 import os
 import tempfile
 
+from zmq.utils import jsonapi
 import pytest
 import gevent
 from volttron.platform.keystore import KeyStore
@@ -31,33 +32,68 @@ def simulated_vc(wrapper, do_manage=False):
                                    wrapper.publickey).get(timeout=3)
         assert pk
 
-    return vc_agent
+        # check the auth file for a can_manage capability in it.
+        auth_json = open(os.path.join(wrapper.volttron_home, "auth.json")).read()
+        assert "can_manage" in auth_json
+
+    return vc_agent, ks.secret(), ks.public()
+
+@pytest.mark.pa
+def test_listagents(pa_instance):
+    pa_wrapper = pa_instance['wrapper']
+
+    vc_agent, secret_key, public_key = simulated_vc(pa_wrapper, do_manage=True)
+
+    assert vc_agent
+
+    results = vc_agent.vip.rpc.call(PLATFORM_ID, "list_agents").get(timeout=10)
+
+    assert results
+    print(results)
+
+
+
+
+@pytest.mark.pa
+def test_start_agent(pa_instance):
+    pass
+
+@pytest.mark.pa
+def test_end_agent(pa_instance):
+    pass
+
+@pytest.mark.pa
+def test_restart_agent(pa_instance):
+    pass
+
+
+
 
 @pytest.mark.pa
 def test_manage_platform(pa_instance):
     """ Test the ability for a platform to be registered from an entity.
 
     :param pa_instance: {platform_uuid: uuid, wrapper: instance_wrapper}
-    :return: The public key for the agent (currently the platform key)
+    :return: None
     """
 
     pa_wrapper = pa_instance['wrapper']
-
-    vc_agent = simulated_vc(pa_wrapper)
-
+    vc_agent, vc_secretkey, vc_publickey = simulated_vc(pa_wrapper)
 
     # Expected to return the platform.agent public key.
-    pk = vc_agent.vip.rpc.call(PLATFORM_ID, "manage_platform",
-                               pa_wrapper.bind_web_address,
-                               pa_wrapper.publickey).get(timeout=3)
-    assert pk
+    papubkey = vc_agent.vip.rpc.call(PLATFORM_ID, "manage_platform",
+                                     pa_wrapper.bind_web_address,
+                                     vc_publickey).get(timeout=3)
+    assert papubkey
 
     # Test that once it's registered a new call to manage_platform will
     # return the same result.
     pk1 = vc_agent.vip.rpc.call(PLATFORM_ID, "manage_platform",
                                 pa_wrapper.bind_web_address,
-                                pa_wrapper.publickey).get(timeout=3)
-    assert pk == pk1
+                                vc_publickey).get(timeout=3)
+
+    # The pakey returned should be the same.
+    assert papubkey == pk1
 
     # Make sure that the error returned is correct when we don't have the
     # the correct public key
@@ -75,7 +111,17 @@ def test_manage_platform(pa_instance):
 
     # check the auth file for a can_manage capability in it.
     auth_json = open(os.path.join(pa_wrapper.volttron_home, "auth.json")).read()
-    assert "can_manage" in auth_json
+    auth_dict = jsonapi.loads(auth_json)
+
+    found = False
+    for k in auth_dict['allow']:
+        if k['credentials'].endswith(vc_publickey):
+            print('Found vc_publickey')
+            capabilities =k.get('capabilities', None)
+            assert capabilities
+            assert 'can_manage' in capabilities
+            found = True
+    assert found, "No vc agent ({}) found with can_manage capability.".format(vc_publickey)
 
 
 # def test_setting_creation(volttron_instance1, platform_uuid):

@@ -127,6 +127,11 @@ def platform_agent(config_path, **kwargs):
             if not os.path.exists(("platform_agent.keystore")):
                 self._keystore.generate()
 
+            # By default not managed by vc, but if the file is available then
+            # read and store it as an object.
+            self._vc = None
+
+        def _get_vc_info(self):
             # Load up the vc information.  If manage_platform is called with
             # different public key then there is an error.
             if os.path.exists("volttron.central"):
@@ -134,6 +139,7 @@ def platform_agent(config_path, **kwargs):
                     self._vc = jsonapi.loads(fin.read())
             else:
                 self._vc = None
+
         def _read_auth_file(self):
             auth_path = os.path.join(self.volttron_home, 'auth.json')
             try:
@@ -218,6 +224,13 @@ def platform_agent(config_path, **kwargs):
             _log.info("Request to manage came from {} with pk {}".format(
                 uri, vc_publickey))
 
+            # Refresh the file to see if we are now managed or not.
+            if not self._vc:
+                self._get_vc_info()
+            else:
+                _log.info("Already registered with: {}".format(
+                    self._vc['serverkey']))
+
             # The variable self._vc will be loadded when the object is
             # created.
             if not self._vc:
@@ -227,6 +240,9 @@ def platform_agent(config_path, **kwargs):
                 tmpvc = res.json()
                 assert 'vip-address' in tmpvc.keys()
                 assert 'serverkey' in tmpvc.keys()
+                # Overwrite the default server key with the agent specific key
+                # so that the platform can be directly connected to.
+                tmpvc['serverkey'] = vc_publickey
                 self._vc = tmpvc
                 _log.debug("vctmp: {}".format(self._vc))
                 with open("volttron.central", 'w') as fout:
@@ -234,6 +250,7 @@ def platform_agent(config_path, **kwargs):
                 # Add the can manage to the key file
                 self._append_allow_curve_key(vc_publickey, 'can_manage')
             else:
+                _log.debug('SERVER KEY FOR VC IS:', self._vc['serverkey'], vc_publickey )
                 if not vc_publickey == self._vc['serverkey']:
                     raise AlreadyManagedError()
 
@@ -342,15 +359,34 @@ def platform_agent(config_path, **kwargs):
 
             self._services[alias] = vip_identity
 
-        @RPC.export
-        def services(self):
-            return self._services
+        # @RPC.export
+        # def services(self):
+        #     return self.@RPC.allow("can_manage")
 
-
         @RPC.export
+        @RPC.allow("can_manage")
         def list_agents(self):
             result = self.vip.rpc.call("control", "list_agents").get()
+            _log.debu("Listing agents.")
+            _log.debug(result)
             return result
+
+        @RPC.export
+        @RPC.allow("can_manage")
+        def start_agent(self, agent_uuid):
+            pass
+
+        @RPC.export
+        @RPC.allow("can_manage")
+        def stop_agent(self, agent_uuid):
+            pass
+
+        @RPC.export
+        @RPC.allow("can_manage")
+        def stop_agent(self, agent_uuid):
+            pass
+
+
 
         def _install_agents(self, agent_files):
             tmpdir = tempfile.mkdtemp()
