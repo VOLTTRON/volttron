@@ -111,8 +111,19 @@ JSON-RPC Data Objects
     "uuid", "string", "A unique identifier for the platform."
     "name", "string", "A user defined string for the platform."
     "status", "Status", "A status object for the platform."
-    "agents",
-    "devices"
+#    "agents",
+#    "devices"
+
+.. csv-table:: Agent
+    :header: "Key", "Type", "Value"
+    :widths: 10, 10, 40
+
+    "uuid", "string", "A unique identifier for the agent."
+    "name", "string", "Defaults to the agentid of the installed agent"
+    "tag", "string", "A shortcut that can be used for referencing the agent"
+    "priority", "int", "If this is set the agent will autostart on the instance."
+    "status",
+
 
 .. csv-table:: DiscoveryRegistratyEntry
     :header: "Key", "Type", "Value"

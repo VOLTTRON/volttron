@@ -132,6 +132,10 @@ def platform_agent(config_path, **kwargs):
             self._vc = None
 
         def _get_vc_info(self):
+            """ Loads the VOLTTRON Central keys if available.
+
+            :return:
+            """
             # Load up the vc information.  If manage_platform is called with
             # different public key then there is an error.
             if os.path.exists("volttron.central"):
@@ -289,20 +293,9 @@ def platform_agent(config_path, **kwargs):
 
         @Core.periodic(period=15, wait=30)
         def write_status(self):
-            historian_present = False
 
-            try:
-                ping = self.vip.ping('platform.historian', 'awake?').get(timeout=2)
-                historian_present = True
-            except Unreachable:
-                _log.warning('platform.historian unavailable no logging of data will occur.')
-                return
-            _log.debug('publishing data')
             base_topic = 'datalogger/log/platform/status'
             cpu = base_topic + '/cpu'
-            virtual_memory = base_topic + "/virtual_memory"
-            disk_partitions = base_topic + "/disk_partiions"
-
             points = {}
 
             for k, v in psutil.cpu_times_percent().__dict__.items():
@@ -312,7 +305,6 @@ def platform_agent(config_path, **kwargs):
             points['percent'] = {'Readings': psutil.cpu_percent(),
                                  'Units': 'double'}
 
-            message = jsonapi.dumps(points)
             self.vip.pubsub.publish(peer='pubsub',
                                     topic=cpu,
                                     message=points)
@@ -388,14 +380,15 @@ def platform_agent(config_path, **kwargs):
 
             :return: A list of agents.
             """
-            result = self.vip.rpc.call("control", "list_agents").get()
+            agents = self.vip.rpc.call("control", "list_agents").get()
 
-            return result
+            return agents
 
         @RPC.export
         # @RPC.allow("can_manage")
         def start_agent(self, agent_uuid):
-            pass
+            agents = self.vip.rpc.call("control", "list_agents").get()
+
 
         @RPC.export
         # @RPC.allow("can_manage")
