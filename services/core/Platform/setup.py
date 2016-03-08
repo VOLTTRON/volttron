@@ -81,11 +81,11 @@ __version__ = _temp.__version__
 
 setup(
     include_package_data=True,
-    name = package + 'agent',
-    version = __version__,
-    install_requires = ['volttron', 'psutil'],
-    packages = packages,
-    entry_points = {
+    name=package + 'agent',
+    version=__version__,
+    install_requires=['volttron', 'psutil'],
+    packages=packages,
+    entry_points={
         'setuptools.installation': [
             'eggsecutable = ' + agent_module + ':main',
         ]
