@@ -247,31 +247,31 @@ def platform_agent(config_path, **kwargs):
             else:
                 _log.info("Already registered with: {}".format(
                     self._vc['serverkey']))
+                if not vc_publickey == self._vc['serverkey']:
+                    err = "Attempted to register with different key: {}".format(
+                        vc_publickey
+                    )
+                    raise AlreadyManagedError(err)
 
             # The variable self._vc will be loadded when the object is
             # created.
-            if not self._vc:
-                res = requests.get("http://{}/discovery/".format(uri))
-                assert res.ok
-                _log.debug('RESPONSE: {} {}'.format(type(res.json()), res.json()))
-                tmpvc = res.json()
-                assert 'vip-address' in tmpvc.keys()
-                assert 'serverkey' in tmpvc.keys()
-                # Overwrite the default server key with the agent specific key
-                # so that the platform can be directly connected to.
-                tmpvc['serverkey'] = vc_publickey
-                self._vc = tmpvc
-                _log.debug("vctmp: {}".format(self._vc))
-                with open("volttron.central", 'w') as fout:
-                    fout.write(jsonapi.dumps(tmpvc))
-                # Add the can manage to the key file
-                self._append_allow_curve_key(vc_publickey, 'can_manage')
-            else:
-                _log.debug('SERVER KEY FOR VC IS:', self._vc['serverkey'], vc_publickey )
-                if not vc_publickey == self._vc['serverkey']:
-                    raise AlreadyManagedError()
+            res = requests.get("http://{}/discovery/".format(uri))
+            assert res.ok
+            _log.debug('RESPONSE: {} {}'.format(type(res.json()), res.json()))
+            tmpvc = res.json()
+            assert 'vip-address' in tmpvc.keys()
+            assert 'serverkey' in tmpvc.keys()
+            # Overwrite the default server key with the agent specific key
+            # so that the platform can be directly connected to.
+            tmpvc['serverkey'] = vc_publickey
+            self._vc = tmpvc
+            _log.debug("vctmp: {}".format(self._vc))
+            with open("volttron.central", 'w') as fout:
+                fout.write(jsonapi.dumps(tmpvc))
 
-            #
+            # Add the can manage to the key file
+            self._append_allow_curve_key(vc_publickey, 'can_manage')
+
             return self._keystore.public()
 
 
@@ -360,9 +360,6 @@ def platform_agent(config_path, **kwargs):
                 except StandardError as ex:
                     _log.error("Unhandled Exception: "+str(ex))
 
-
-
-
         @RPC.export
         def register_service(self, vip_identity):
             # make sure that we get a ping reply
@@ -381,29 +378,34 @@ def platform_agent(config_path, **kwargs):
         #     return self.@RPC.allow("can_manage")
 
         @RPC.export
-        @RPC.allow("can_manage")
+        # @RPC.allow("can_manage")
         def list_agents(self):
+            """ List the agents that are installed on the platform.
+
+            Note this does not take into account agents that are connected
+            with the instance, but only the ones that are installed and
+            have a uuid.
+
+            :return: A list of agents.
+            """
             result = self.vip.rpc.call("control", "list_agents").get()
-            _log.debu("Listing agents.")
-            _log.debug(result)
+
             return result
 
         @RPC.export
-        @RPC.allow("can_manage")
+        # @RPC.allow("can_manage")
         def start_agent(self, agent_uuid):
             pass
 
         @RPC.export
-        @RPC.allow("can_manage")
+        # @RPC.allow("can_manage")
         def stop_agent(self, agent_uuid):
             pass
 
         @RPC.export
-        @RPC.allow("can_manage")
-        def stop_agent(self, agent_uuid):
+        # @RPC.allow("can_manage")
+        def restart_agent(self, agent_uuid):
             pass
-
-
 
         def _install_agents(self, agent_files):
             tmpdir = tempfile.mkdtemp()

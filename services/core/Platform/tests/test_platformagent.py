@@ -62,8 +62,10 @@ def test_listagents(pa_instance):
 
     results = vc_agent.vip.rpc.call(PLATFORM_ID, "list_agents").get(timeout=10)
 
+    # Note since the vc is simulated the list_agents only should have the
+    # platformagent
     assert results
-    print(results)
+    assert 'platformagent' in results[0]['name']
 
 
 
