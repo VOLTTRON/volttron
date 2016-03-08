@@ -4,6 +4,7 @@ import gevent
 import os
 import pytest
 import requests
+from zmq.utils import jsonapi
 
 from volttron.platform.keystore import KeyStore
 from volttron.platform.vip.agent import Agent
@@ -64,7 +65,8 @@ def test_vc_started(vc_instance):
 
 
 @pytest.mark.vc
-def test_register_instance(vc_instance, pa_instance):
+@pytest.mark.parametrize("display_name", [None, "happydays"])
+def test_register_instance(vc_instance, pa_instance, display_name):
     vc_wrapper = vc_instance['wrapper']
     pa_wrapper = pa_instance['wrapper']
 
@@ -113,21 +115,37 @@ def test_register_instance(vc_instance, pa_instance):
     assert "volttron.central" in plist
 
     print('Attempting to manage platform now.')
-    retval = controlagent.vip.rpc.call("volttron.central", "register_instance",
-                                        uri=pa_wrapper.bind_web_address,
-                                        display_name="hushpuppy").get(timeout=10)
+    print('display_name is now: ', display_name)
+    dct = dict(peer="volttron.central", method="register_instance",
+                                        discovery_address=pa_wrapper.bind_web_address,
+                                        display_name=display_name)
+    print(jsonapi.dumps(dct))
+    if display_name:
+        retval = controlagent.vip.rpc.call("volttron.central", "register_instance",
+                                        discovery_address=pa_wrapper.bind_web_address,
+                                        display_name=display_name).get(timeout=10)
+    else:
+        
+        retval = controlagent.vip.rpc.call("volttron.central", "register_instance",
+                                        discovery_address=pa_wrapper.bind_web_address).get(timeout=10)
 
     assert retval
-    assert 'hushpuppy' == retval['display_name']
+    if display_name:
+        assert display_name == retval['display_name']
+    else:
+        assert pa_wrapper.bind_web_address == retval['display_name']
     assert retval['success']
 
     print('Testing that we now have a single entry in the platform_details')
     retval = controlagent.vip.rpc.call("volttron.central",
                                        "list_platform_details").get(timeout=10)
+    print("From vc list_platform_details: {}".format(retval))
 
-
-    assert retval
-
+    assert len(retval) == 1
+    assert 'hushpuppy' == retval[0]['display_name']
+    assert retval[0]['vip_address']
+    assert not retval[0]['tags']
+    assert retval[0]['serverkey']
 
     controlagent.core.stop()
 

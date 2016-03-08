@@ -89,6 +89,7 @@ class AlreadyManagedError(Exception):
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
+__version__ = '3.0'
 
 def platform_agent(config_path, **kwargs):
     config = utils.load_config(config_path)

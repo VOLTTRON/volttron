@@ -65,7 +65,7 @@ from volttron.platform.agent import utils, matching
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-
+__version__ = '0.1'
 
 def PingPongAgent(config_path, **kwargs):
     '''Agent to demonstrate agent-initiated mobility.

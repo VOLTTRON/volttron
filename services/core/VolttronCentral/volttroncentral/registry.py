@@ -1,6 +1,8 @@
 import logging
 import uuid
 
+from zmq.utils import jsonapi
+
 from volttron.platform.agent import utils
 
 utils.setup_logging()
@@ -11,48 +13,34 @@ class DuplicateUUIDError(Exception):
     pass
 
 
-class RegistryEntry(object):
-    def __init__(self, vip_address, serverkey, platform_uuid=None,
-                 display_name=None, **kwargs):
+class RegistryEntry:
+    def __init__(self, vip_address, serverkey, discovery_address,
+                 platform_uuid=None, display_name=None, **kwargs):
 
         assert vip_address
         assert serverkey
+        assert discovery_address
 
-        self._vip_address = vip_address
-        if not platform_uuid:
-            platform_uuid = uuid.uuid4()
+        self.display_name = display_name
+        self.vip_address = vip_address
+        self.platform_uuid = platform_uuid
+        self.serverkey = serverkey
+        self.discovery_address = discovery_address
+        self.tags = {}
 
-        self._uuid = platform_uuid
-        self._display_name = display_name
-        self._serverkey = serverkey
-        self._tags = {}
 
-        # Pop off all extra tags for a platform.
-        for k, v in kwargs:
-            self._tag[k] = kwargs.pop(k)
+        while len(kwargs.items()):
+            item = kwargs.popitem()
+            self.add_update_tag(item[0], item[1])
 
     def add_update_tag(self, name, value):
-        self._tag[name] = value
+        self.tags[name] = value
 
     def has_tag(self, name):
-        return name in self._tags.keys()
+        return name in self.tags.keys()
 
-    @property
-    def vip_address(self):
-        return self._vip_address
-
-    @property
-    def platform_uuid(self):
-        return self._uuid
-
-    @property
-    def serverkey(self):
-        return self._serverkey
-
-    @property
-    def tags(self):
-        return self._tags
-
+    def to_json(self):
+        return jsonapi.dumps(self.__dict__)
 
 class PlatformRegistry:
     """ Container class holding registered platforms and services.

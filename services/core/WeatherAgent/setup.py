@@ -52,18 +52,36 @@
 
 
 from setuptools import setup, find_packages
+from os import path
 
+MAIN_MODULE = 'weatheragent'
+
+# Find the agent package that contains the main module
 packages = find_packages('.')
-package = packages[0]
+agent_package = ''
+for package in find_packages():
+    # Because there could be other packages such as tests
+    if path.isfile(package + '/' + MAIN_MODULE + '.py') is True:
+        agent_package = package
+if not agent_package:
+    raise RuntimeError(
+        'None of the packages under {dir} contain the file {main_module}'.format(
+            main_module=MAIN_MODULE + '.py', dir=path.abspath('.')))
 
+# Find the version number from the main module
+agent_module = agent_package + '.' + MAIN_MODULE
+_temp = __import__(agent_module, globals(), locals(), ['__version__'], -1)
+__version__ = _temp.__version__
+
+# Setup
 setup(
-    name=package + "agent",
-    version="3.0",
-    packages=packages,
-    install_requires=['volttron'],
-    entry_points={
+    name = agent_package + 'agent',
+    version = __version__,
+    packages = packages,
+    install_requires = ['volttron'],
+    entry_points = {
         'setuptools.installation': [
-            'eggsecutable = ' + package + '.weatheragent:main',
+            'eggsecutable = ' + agent_module + ':main',
         ]
     }
 )

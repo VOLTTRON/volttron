@@ -102,6 +102,87 @@ JSON-RPC Data Objects
 
     "uuid", "string", "A unique identifier for the platform."
     "name", "string", "A user defined string for the platform."
+    "status", "Status", "A status object for the platform."
+
+.. csv-table:: PlatformDetails
+    :header: "Key", "Type", "Value"
+    :widths: 10, 10, 40
+
+    "uuid", "string", "A unique identifier for the platform."
+    "name", "string", "A user defined string for the platform."
+    "status", "Status", "A status object for the platform."
+    "agents",
+    "devices"
+
+.. csv-table:: DiscoveryRegistratyEntry
+    :header: "Key", "Type", "Value"
+    :widths: 10, 10, 40
+
+    "name",
+    "discovery_address":
+
+.. csv-table:: AdvancedRegistratyEntry
+    :header: "Key", "Type", "Value"
+    :widths: 10, 10, 40
+
+    "name",
+    "vip_address":
+# separate fields???
+
+    "
+    "uuid", "string", "A unique identifier for the platform."
+    "name", "string", "A user defined string for the platform."
+    "status", "Status", "A status object for the platform."
+    "agents",
+    "devices",
+
+.. csv-table:: Agent
+    :header: "Key", "Type", "Value"
+    :widths: 10, 10, 40
+
+    "uuid", "string", "A unique identifier for the platform."
+    "name", "string", "A user defined string for the platform."
+    "status", "Status", "A status object for the platform."
+    "agents",
+    "devices"
+
+.. csv-table:: Building
+    :header: "Key", "Type", "Value"
+    :widths: 10, 10, 40
+
+    "uuid", "string", "A unique identifier for the platform."
+    "name", "string", "A user defined string for the platform."
+    "status", "Status", "A status object for the platform."
+    "agents",
+    "devices"
+
+.. csv-table:: Device
+    :header: "Key", "Type", "Value"
+    :widths: 10, 10, 40
+
+    "uuid", "string", "A unique identifier for the platform."
+    "name", "string", "A user defined string for the platform."
+    "status", "Status", "A status object for the platform."
+    "agents",
+    "devices"
+
+.. csv-table:: PlatformDetails
+    :header: "Key", "Type", "Value"
+    :widths: 10, 10, 40
+
+    "uuid", "string", "A unique identifier for the platform."
+    "name", "string", "A user defined string for the platform."
+    "status", "Status", "A status object for the platform."
+    "agents",
+    "devices",
+
+.. csv-table:: Status
+    :header: "Key", "Type", "Value"
+    :widths: 10, 10, 40
+
+    "status", "string", "A value of GOOD, BAD, UNKNOWN, SUCCESS, FAIL"
+    "context", "string", "Provides context about what the status means (optional)"
+
 
 JSON-RPC API Methods
 ====================
@@ -142,7 +223,7 @@ Register A Volttron Platform Instance (Using Discovery)
                 "result": {
                     "status": {
                         "code": "SUCCESS"
-                        "context": "Registered instance foo" # or the uri
+                        "context": "Registered instance foo" # or the uri if not specified.
                     }
                 },
                 "id": #
