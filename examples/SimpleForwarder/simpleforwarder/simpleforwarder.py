@@ -81,7 +81,7 @@ from __builtin__ import list
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-
+__version__ = '3.0'
 
 
 def simpleforwarder(config_path, **kwargs):

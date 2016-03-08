@@ -68,7 +68,7 @@ from . import settings
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-
+__version__ = '3.0'
 
 class ListenerAgent(Agent):
     '''Listens to everything and publishes a heartbeat according to the

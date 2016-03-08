@@ -72,6 +72,7 @@ headers = {'time','host','process'}
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
+__version__ = '0.1'
 
 
 def MobileExampleAgent(config_path, **kwargs):
