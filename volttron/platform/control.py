@@ -534,7 +534,7 @@ def _print_result(success, msg):
 
 def list_auth(opts, indices=None):
     auth_file = _get_auth_file(opts.volttron_home)
-    entries = auth_file.read()
+    entries, _, _ = auth_file.read()
     print_out = []
     if entries:
         for index, entry in enumerate(entries):
@@ -660,7 +660,7 @@ def remove_auth(opts):
 
 def update_auth(opts):
     auth_file = _get_auth_file(opts.volttron_home)
-    entries = auth_file.read()
+    entries, _, _  = auth_file.read()
     try:
         entry = entries[opts.index]
         response = _ask_for_auth_fields(**entry.__dict__)
