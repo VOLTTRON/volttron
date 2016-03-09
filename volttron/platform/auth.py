@@ -325,6 +325,9 @@ class AuthEntry(object):
             return False, 'credentials parameter is required'
         if isregex(cred):
             return True, ''
+        if cred.startswith('CURVE:') and len(cred) != 49:
+            # 49 = len(encoded_key) + len('CURVE:')
+            return False, 'Inavlid CURVE public key'
         if not (cred == 'NULL' or
                 cred.startswith('PLAIN:') or
                 cred.startswith('CURVE:')):
@@ -344,7 +347,6 @@ class AuthFile(object):
 
     def read(self):
         '''Returns the allowed entries, groups, and roles from the auth file'''
-        _log.info('loading auth file %s', self.auth_file)
         try:
             create_file_if_missing(self.auth_file)
             with open(self.auth_file) as fil:
@@ -365,7 +367,6 @@ class AuthFile(object):
         groups = auth_data.get('groups', {})
         roles = auth_data.get('roles', {})
         entries = self._load_entries(auth_data, groups, roles)
-        _log.info('auth file %s loaded', self.auth_file)
         return entries, groups, roles
 
     def _load_entries(self, auth_data, groups, roles):
