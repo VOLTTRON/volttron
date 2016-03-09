@@ -78,14 +78,6 @@ from .vip.socket import encode_key
 
 _log = logging.getLogger(__name__)
 
-
-_SAMPLE_AUTH_FILE = r'''{
-    "allow": [
-        # {"credentials": "CURVE:wk2BXQdHkAlMIoXthOPhFOqWpapD1eWsBQYY7h4-bXw", "domain": "vip", "address": "/192\\.168\\.1\\..*/"}
-    ]
-}
-'''
-
 _dump_re = re.compile(r'([,\\])')
 _load_re = re.compile(r'\\(.)|,')
 
@@ -124,6 +116,7 @@ class AuthService(Agent):
         _log.info('loading auth file %s', self.auth_file)
         entries, _, _ = AuthFile(self.auth_file).read()
         entries = [entry for entry in entries if entry.enabled]
+        # sort the entries so the regex credentails follow the concrete creds
         entries.sort()
         self.auth_entries = entries
         _log.info('auth file %s loaded', self.auth_file)
@@ -353,10 +346,14 @@ class AuthFile(object):
         '''Returns the allowed entries, groups, and roles from the auth file'''
         _log.info('loading auth file %s', self.auth_file)
         try:
-            create_file_if_missing(self.auth_file, contents=_SAMPLE_AUTH_FILE)
+            create_file_if_missing(self.auth_file)
             with open(self.auth_file) as fil:
                 # Use gevent FileObject to avoid blocking the thread
-                data = strip_comments(FileObject(fil, close=False).read())
+                before_strip_comments = FileObject(fil, close=False).read()
+                data = strip_comments(before_strip_comments)
+                if data != before_strip_comments:
+                    _log.warn('Comments in %s are deprecated and will not be '
+                        'preserved', self.auth_file)
                 if data:
                     auth_data = jsonapi.loads(data)
                 else:
