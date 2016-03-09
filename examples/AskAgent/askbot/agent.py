@@ -86,7 +86,7 @@ from volttron.platform.agent import utils
 
 
 _log = logging.getLogger(__name__)
-
+__version__ = '0.1'
 
 class AskAgent(PublishMixin, BaseAgent):
     '''Example agent to demonstrate user interaction.'''

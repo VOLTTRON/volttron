@@ -1,8 +1,20 @@
 language: python
 
-dist: trusty
-sudo: required
-
+matrix:
+  include:
+    #precise with ones that don't include dist
+    - python: "2.7.6"
+      sudo: required
+    - python: "2.7.11"
+      sudo: required
+      
+    - dist: trusty
+      sudo: required
+      python: "2.7.6"
+    - dist: trusty
+      sudo: required
+      python: "2.7.11"
+      
 before_install:
   - sudo apt-get update -qq
   - sudo apt-get install -y build-essential python-dev openssl libssl-dev libevent-dev
