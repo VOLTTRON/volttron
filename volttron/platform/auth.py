@@ -97,7 +97,8 @@ class AuthService(Agent):
     def __init__(self, auth_file, aip, *args, **kwargs):
         self.allow_any = kwargs.pop('allow_any', False)
         super(AuthService, self).__init__(*args, **kwargs)
-        self.auth_file = os.path.abspath(auth_file)
+        self.auth_file_path = os.path.abspath(auth_file)
+        self.auth_file = AuthFile(self.auth_file_path)
         self.aip = aip
         self.zap_socket = None
         self._zap_greenlet = None
@@ -110,16 +111,16 @@ class AuthService(Agent):
         if self.allow_any:
             _log.warn('insecure permissive authentication enabled')
         self.read_auth_file()
-        self.core.spawn(watch_file, self.auth_file, self.read_auth_file)
+        self.core.spawn(watch_file, self.auth_file_path, self.read_auth_file)
 
     def read_auth_file(self):
-        _log.info('loading auth file %s', self.auth_file)
-        entries, _, _ = AuthFile(self.auth_file).read()
+        _log.info('loading auth file %s', self.auth_file_path)
+        entries, _, _ = self.auth_file.read()
         entries = [entry for entry in entries if entry.enabled]
         # sort the entries so the regex credentails follow the concrete creds
         entries.sort()
         self.auth_entries = entries
-        _log.info('auth file %s loaded', self.auth_file)
+        _log.info('auth file %s loaded', self.auth_file_path)
 
     @Core.receiver('onstop')
     def stop_zap(self, sender, **kwargs):
@@ -446,7 +447,7 @@ class AuthFile(object):
         return True, 'updated entry at index %d' % index
 
     def _read_entries(self):
-        entries, groups, roles = self.read() # TODO: maybe the file should be locked here
+        entries, groups, roles = self.read()
         return [vars(x) for x in entries], groups, roles
 
     def _find(self, entry):
