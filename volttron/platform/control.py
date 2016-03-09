@@ -493,12 +493,12 @@ def send_agent(opts):
         _stdout.write('Agent {} started as {}\n'.format(wheel, uuid))
 
 def gen_keypair(opts):
-    keystore = KeyStore(opts.keystore_file)
     if os.path.isfile(opts.keystore_file):
         _stdout.write('{} already exists.\n'.format(opts.keystore_file))
         if not _ask_yes_no('Overwrite?', default='no'):
             return
-    keystore.generate()
+    keystore = KeyStore(opts.keystore_file)
+    keystore.generate() # call generate to force new keys to be generated
     _stdout.write('public key: {}\n'.format(keystore.public()))
     _stdout.write('keys written to {}\n'.format(opts.keystore_file))
 
