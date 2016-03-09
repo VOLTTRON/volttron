@@ -7,15 +7,16 @@ var platformsPanelStore = require('../stores/platforms-panel-store');
 var platformsPanelItemsStore = require('../stores/platforms-panel-items-store');
 var platformsPanelActionCreators = require('../action-creators/platforms-panel-action-creators');
 var PlatformsPanelItem = require('./platforms-panel-item');
+var ControlButton = require('./control-button');
 
 
 var PlatformsPanel = React.createClass({
     getInitialState: function () {
         var state = {};
-        state.platforms = [];  
-        state.filteredPlatforms = null;   
+        state.platforms = [];     
         state.expanded = getExpandedFromStore();
         state.filterValue = "";
+        state.filterStatus = "";
 
         return state;
     },
@@ -48,27 +49,35 @@ var PlatformsPanel = React.createClass({
     },
     _onFilterBoxChange: function (e) {
         this.setState({ filterValue: e.target.value });
-        this.setState({ filteredPlatforms: getFilteredPlatforms(e.target.value, "") });
+        platformsPanelActionCreators.loadFilteredItems(e.target.value, "");
+        this.setState({ filterStatus: "" });
     },
     _onFilterGood: function (e) {
-        this.setState({ filteredPlatforms: getFilteredPlatforms("", "GOOD") });
+        platformsPanelActionCreators.loadFilteredItems("", "GOOD");
+        this.setState({ filterStatus: "GOOD" });
+        this.setState({ filterValue: "" });
     },
     _onFilterBad: function (e) {
-        this.setState({ filteredPlatforms: getFilteredPlatforms("", "BAD") });
+        platformsPanelActionCreators.loadFilteredItems("", "BAD");
+        this.setState({ filterStatus: "BAD" });
+        this.setState({ filterValue: "" });
     },
     _onFilterUnknown: function (e) {
-        this.setState({ filteredPlatforms: getFilteredPlatforms("", "UNKNOWN") });
+        platformsPanelActionCreators.loadFilteredItems("", "UNKNOWN");
+        this.setState({ filterStatus: "UNKNOWN" });
+        this.setState({ filterValue: "" });
     },
     _onFilterOff: function (e) {
-        this.setState({ filteredPlatforms: getFilteredPlatforms("", "") });
+        platformsPanelActionCreators.loadFilteredItems("", "");
+        this.setState({ filterValue: "" });
+        this.setState({ filterStatus: "" });
     },
     _togglePanel: function () {
         platformsPanelActionCreators.togglePanel();
     },
     render: function () {
         var platforms;
-        var filteredPlatforms = this.state.filteredPlatforms;
-
+        
         var classes = (this.state.expanded === null ? 
                         "platform-statuses platform-collapsed" : 
                         (this.state.expanded ? 
@@ -87,6 +96,98 @@ var PlatformsPanel = React.createClass({
             textAlign: "left"
         };
 
+        var filterGood, filterBad, filterUnknown;
+        filterGood = filterBad = filterUnknown = false;
+
+        switch (this.state.filterStatus)
+        {
+            case "GOOD":
+                filterGood = true;
+                break;
+            case "BAD":
+                filterBad = true;
+                break;
+            case "UNKNOWN":
+                filterUnknown = true;
+                break;
+        }
+
+        var tooltipX = 60;
+        var tooltipY = 190;
+
+        var filterGoodIcon = (
+            <div className="status-good">
+                <span>&#9654;</span>
+            </div>
+        );
+        var filterGoodTooltip = {
+            "content": "Healthy",
+            "xOffset": tooltipX,
+            "yOffset": tooltipY
+        };
+        var filterGoodControlButton = (
+            <ControlButton 
+                name="filterGoodControlButton"
+                icon={filterGoodIcon}
+                selected={filterGood}
+                tooltip={filterGoodTooltip}
+                clickAction={this._onFilterGood}></ControlButton>
+        );
+
+        var filterBadIcon = (
+            <div className="status-bad">
+                <i className="fa fa-minus-circle"></i>
+            </div>
+        );
+        var filterBadTooltip = {
+            "content": "Unhealthy",
+            "xOffset": tooltipX,
+            "yOffset": tooltipY
+        };
+        var filterBadControlButton = (
+            <ControlButton 
+                name="filterBadControlButton"
+                icon={filterBadIcon}
+                selected={filterBad}
+                tooltip={filterBadTooltip}
+                clickAction={this._onFilterBad}></ControlButton>
+        );
+
+        var filterUnknownIcon = (
+            <div className="status-unknown">
+                <span>&#9644;</span>
+            </div>
+        );
+        var filterUnknownTooltip = {
+            "content": "Unknown Status",
+            "xOffset": tooltipX,
+            "yOffset": tooltipY
+        };
+        var filterUnknownControlButton = (
+            <ControlButton 
+                name="filterUnknownControlButton"
+                icon={filterUnknownIcon}
+                selected={filterUnknown}
+                tooltip={filterUnknownTooltip}
+                clickAction={this._onFilterUnknown}></ControlButton>
+        );
+
+        var filterOffIcon = (
+            <i className="fa fa-ban"></i>
+        );
+        var filterOffTooltip = {
+            "content": "Clear Filter",
+            "xOffset": tooltipX,
+            "yOffset": tooltipY
+        };
+        var filterOffControlButton = (
+            <ControlButton 
+                name="filterOffControlButton"
+                icon={filterOffIcon}
+                tooltip={filterOffTooltip}
+                clickAction={this._onFilterOff}></ControlButton>
+        );
+
         if (!this.state.platforms) {
             platforms = (
                 <p>Loading platforms panel ...</p>
@@ -97,41 +198,18 @@ var PlatformsPanel = React.createClass({
             );
         } 
         else 
-        {
-            if (filteredPlatforms !== null)
-            {
-                platforms = filteredPlatforms
-                    .sort(function (a, b) {
-                        if (a.name.toUpperCase() > b.name.toUpperCase()) { return 1; }
-                        if (a.name.toUpperCase() < b.name.toUpperCase()) { return -1; }
-                        return 0;
-                    })
-                    .map(function (filteredPlatform) {
-                        
-                        var children = [];
-                        filteredPlatform.children.forEach(function (childString) {
-                            children.push(filteredPlatform[childString]);
-                        });
-
-                        return (
-                            <PlatformsPanelItem panelItem={filteredPlatform} itemPath={filteredPlatform.path} children={children}/>
-                        );
+        {            
+            platforms = this.state.platforms
+                .sort(function (a, b) {
+                    if (a.name.toUpperCase() > b.name.toUpperCase()) { return 1; }
+                    if (a.name.toUpperCase() < b.name.toUpperCase()) { return -1; }
+                    return 0;
+                })
+                .map(function (platform) {
+                    return (
+                        <PlatformsPanelItem panelItem={platform} itemPath={platform.path}/>
+                    );
                 });
-            }
-            else
-            {
-                platforms = this.state.platforms
-                    .sort(function (a, b) {
-                        if (a.name.toUpperCase() > b.name.toUpperCase()) { return 1; }
-                        if (a.name.toUpperCase() < b.name.toUpperCase()) { return -1; }
-                        return 0;
-                    })
-                    .map(function (platform) {
-                        return (
-                            <PlatformsPanelItem panelItem={platform} itemPath={platform.path}/>
-                        );
-                    });
-            }
         }
 
         return (
@@ -147,31 +225,11 @@ var PlatformsPanel = React.createClass({
                             onChange={this._onFilterBoxChange}
                             value={ this.state.filterValue }
                         />
-                        <div className="filter_buttons">
-                            <div className="filter_button status-good"
-                                onClick={this._onFilterGood}>
-                                <div className="centeredDiv">
-                                    <span>&#9654;</span>
-                                </div>
-                            </div>
-                            <div className="filter_button status-bad"
-                                onClick={this._onFilterBad}>
-                                <div className="centeredDiv">
-                                    <i className="fa fa-minus-circle"></i>
-                                </div>
-                            </div>
-                            <div className="filter_button status-unknown"
-                                onClick={this._onFilterUnknown}>
-                                <div className="centeredDiv">
-                                    <span>&#9644;</span>
-                                </div>
-                            </div>
-                            <div className="filter_button"
-                                onClick={this._onFilterOff}>
-                                <div className="centeredDiv">
-                                    <i className="fa fa-ban"></i>
-                                </div>
-                            </div>
+                        <div className="inlineBlock">
+                            {filterGoodControlButton}
+                            {filterBadControlButton}
+                            {filterUnknownControlButton}
+                            {filterOffControlButton}
                         </div>
                     </div>
                     <ul className="platform-panel-list">
@@ -183,73 +241,17 @@ var PlatformsPanel = React.createClass({
     },
 });
 
-function getItemsFromStore(parentItem, parentPath) {
-    return platformsPanelItemsStore.getItems(parentItem, parentPath);
-};
-
 function getPlatformsFromStore() {
-    return platformsPanelItemsStore.getItems("platforms", null);
+    return platformsPanelItemsStore.getChildren("platforms", null);
 };
 
 function getExpandedFromStore() {
     return platformsPanelStore.getExpanded();
 };
 
-function getFilteredPlatforms(filterTerm, filterStatus) {
-
-    var platformsList = [];
-
-    if (filterTerm !== "" || filterStatus !== "")
-    {
-        var treeCopy = platformsPanelItemsStore.getTreeCopy();
-
-        var platforms = treeCopy["platforms"];
-
-        for (var key in platforms)
-        {
-            var filteredPlatform = platformsPanelItemsStore.getFilteredItems(platforms[key], filterTerm, filterStatus);
-
-            if (filteredPlatform)
-            {
-                var upperName = filteredPlatform.name.toUpperCase();
-
-                if ((filteredPlatform.children.length === 0) && (upperName.indexOf(filterTerm.toUpperCase()) < 0))
-                {
-                    filteredPlatform = null;
-                }
-            }
-
-            if (filteredPlatform)
-            {
-                platformsList.push(filteredPlatform);
-            }
-        }
-    }
-    else
-    {
-        platformsList = null;
-    }
-
-    return platformsList;
+function getFilteredPlatforms(filterTerm, filterStatus, platforms) {
+    return platformsPanelItemsStore.getFilteredItems(filterTerm, filterStatus, platforms);
 }
 
-
-// function filteredPlatform(platform, filterTerm) {
-
-//     var treeCopy = platformsPanelItemsStore.getTreeCopy();
-
-//     var filteredPlatform = platformsPanelItemsStore.getFilteredItems(treeCopy["platforms"][platform.uuid], filterTerm);
-
-
-//     if (filteredPlatform)
-//     {
-//         if ((filteredPlatform.children.length === 0) && (filteredPlatform.name.indexOf(filterTerm) < 0))
-//         {
-//             filteredPlatform = null;
-//         }
-//     }
-
-//     return filteredPlatform;
-// };
 
 module.exports = PlatformsPanel;

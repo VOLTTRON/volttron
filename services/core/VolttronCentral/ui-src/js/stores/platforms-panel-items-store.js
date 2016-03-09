@@ -15,6 +15,8 @@ var _items = {
         "4687fedc-65ba-43fe-21dc-098765bafedc": {
             "uuid": "4687fedc-65ba-43fe-21dc-098765bafedc",
             "name": "PNNL",
+            "expanded": null,
+            "visible": true,
             "status": "GOOD",
             "type": "platform",
             "sortOrder": 0,
@@ -23,6 +25,8 @@ var _items = {
             "points": {
                 "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "points"],
                 "name": "Points",
+                "expanded": null,
+                "visible": true,
                 "status": "GOOD",
                 "type": "type",
                 "sortOrder": _pointsOrder,
@@ -31,6 +35,8 @@ var _items = {
                 {
                     "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
                     "name": "OutdoorAirTemperature",
+                    "expanded": null,
+                    "visible": true,
                     "status": "GOOD",
                     "type": "point",
                     "sortOrder": 0,
@@ -40,6 +46,7 @@ var _items = {
                                 {
                                     "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
                                     "name": "OutdoorAirTemperature",
+                                    "parent": "PNNL",
                                     "month": 1,
                                     "avg_max_temp_f": 46.83,
                                     "avg_min_temp_f": 28.1,
@@ -50,6 +57,7 @@ var _items = {
                                 {
                                     "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
                                     "name": "OutdoorAirTemperature",
+                                    "parent": "PNNL",
                                     "month": 2,
                                     "avg_max_temp_f": 47.58,
                                     "avg_min_temp_f": 26.35,
@@ -60,6 +68,7 @@ var _items = {
                                 {
                                     "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
                                     "name": "OutdoorAirTemperature",
+                                    "parent": "PNNL",
                                     "month": 3,
                                     "avg_max_temp_f": 51.45,
                                     "avg_min_temp_f": 31.39,
@@ -70,6 +79,7 @@ var _items = {
                                 {
                                     "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
                                     "name": "OutdoorAirTemperature",
+                                    "parent": "PNNL",
                                     "month": 4,
                                     "avg_max_temp_f": 61.5,
                                     "avg_min_temp_f": 35.13,
@@ -80,6 +90,7 @@ var _items = {
                                 {
                                     "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
                                     "name": "OutdoorAirTemperature",
+                                    "parent": "PNNL",
                                     "month": 5,
                                     "avg_max_temp_f": 64.9,
                                     "avg_min_temp_f": 40.68,
@@ -90,6 +101,7 @@ var _items = {
                                 {
                                     "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
                                     "name": "OutdoorAirTemperature",
+                                    "parent": "PNNL",
                                     "month": 6,
                                     "avg_max_temp_f": 73.79,
                                     "avg_min_temp_f": 48.18,
@@ -100,6 +112,7 @@ var _items = {
                                 {
                                     "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
                                     "name": "OutdoorAirTemperature",
+                                    "parent": "PNNL",
                                     "month": 7,
                                     "avg_max_temp_f": 85.07,
                                     "avg_min_temp_f": 56.1,
@@ -110,6 +123,7 @@ var _items = {
                                 {
                                     "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
                                     "name": "OutdoorAirTemperature",
+                                    "parent": "PNNL",
                                     "month": 8,
                                     "avg_max_temp_f": 88.1,
                                     "avg_min_temp_f": 56.45,
@@ -120,6 +134,7 @@ var _items = {
                                 {
                                     "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
                                     "name": "OutdoorAirTemperature",
+                                    "parent": "PNNL",
                                     "month": 9,
                                     "avg_max_temp_f": 84.47,
                                     "avg_min_temp_f": 54.13,
@@ -130,6 +145,7 @@ var _items = {
                                 {
                                     "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
                                     "name": "OutdoorAirTemperature",
+                                    "parent": "PNNL",
                                     "month": 10,
                                     "avg_max_temp_f": 71.14,
                                     "avg_min_temp_f": 43.54,
@@ -140,6 +156,7 @@ var _items = {
                                 {
                                     "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
                                     "name": "OutdoorAirTemperature",
+                                    "parent": "PNNL",
                                     "month": 11,
                                     "avg_max_temp_f": 53.62,
                                     "avg_min_temp_f": 32.07,
@@ -150,6 +167,7 @@ var _items = {
                                 {
                                     "uuid": "5461fedc-65ba-43fe-21dc-000765bafedl",
                                     "name": "OutdoorAirTemperature",
+                                    "parent": "PNNL",
                                     "month": 12,
                                     "avg_max_temp_f": 48.97,
                                     "avg_min_temp_f": 25.42,
@@ -163,6 +181,8 @@ var _items = {
             "agents": {                
                 "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "agents"],
                 "name": "Agents",
+                "expanded": null,
+                "visible": true,
                 "status": "GOOD",
                 "type": "type",
                 "sortOrder": _agentsOrder,
@@ -171,6 +191,8 @@ var _items = {
                 {
                     "uuid": "2461fedc-65ba-43fe-21dc-098765bafede",
                     "name": "Platform Agent",
+                    "expanded": null,
+                    "visible": true,
                     "status": "GOOD",
                     "type": "agent",
                     "sortOrder": 0,
@@ -181,6 +203,8 @@ var _items = {
                 {
                     "uuid": "7897fedc-65ba-43fe-21dc-098765bafedf",
                     "name": "SqlHistorian",
+                    "expanded": null,
+                    "visible": true,
                     "status": "GOOD",
                     "type": "agent",
                     "sortOrder": 0,
@@ -191,6 +215,8 @@ var _items = {
             "buildings": {             
                 "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings"],
                 "name": "Buildings",
+                "expanded": null,
+                "visible": true,
                 "status": "GOOD",
                 "type": "type",
                 "sortOrder": _buildingsOrder,
@@ -199,6 +225,8 @@ var _items = {
                 {
                     "uuid": "1111fedc-65ba-43fe-21dc-098765bafede",
                     "name": "ISB1",
+                    "expanded": null,
+                    "visible": true,
                     "status": "GOOD",
                     "type": "building",
                     "sortOrder": 0,
@@ -207,6 +235,8 @@ var _items = {
                     "points": {         
                         "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "points"],
                         "name": "Points",
+                        "expanded": null,
+                        "visible": true,
                         "status": "GOOD",
                         "type": "type",
                         "sortOrder": _pointsOrder,
@@ -215,131 +245,148 @@ var _items = {
                         {
                             "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
                             "name": "OutdoorAirTemperature",
+                            "expanded": null,
+                            "visible": true,
                             "status": "GOOD",
                             "type": "point",
                             "sortOrder": 0,
                             "children": [],
                             "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "points", "5461fedc-65ba-43fe-21dc-111765bafedl"],
+                            "parentPath": "PNNL > ISB1",
+                            "parentType": "building",
+                            "parentUuid": "1111fedc-65ba-43fe-21dc-098765bafede",
                             "data": [
                                 {
                                     "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
                                     "name": "OutdoorAirTemperature",
+                                    "parent": "ISB1",
                                     "month": 1,
-                                    "avg_max_temp_f": 51.5,
-                                    "avg_min_temp_f": 28.2,
-                                    "avg_temp_f": 39.85,
-                                    "total_percipitation_in": 4.98,
+                                    "avg_max_temp_f": 44.25,
+                                    "avg_min_temp_f": 23.25,
+                                    "avg_temp_f": 33.75,
+                                    "total_percipitation_in": 0.91,
+                                    "total_snowfall_in": 2
+                                },
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
+                                    "name": "OutdoorAirTemperature",
+                                    "parent": "ISB1",
+                                    "month": 2,
+                                    "avg_max_temp_f": 53.14,
+                                    "avg_min_temp_f": 27.9,
+                                    "avg_temp_f": 40.52,
+                                    "total_percipitation_in": 0.5,
                                     "total_snowfall_in": 1.1
                                 },
                                 {
                                     "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
                                     "name": "OutdoorAirTemperature",
-                                    "month": 2,
-                                    "avg_max_temp_f": 54.32,
-                                    "avg_min_temp_f": 29.86,
-                                    "avg_temp_f": 42.09,
-                                    "total_percipitation_in": 0.9,
-                                    "total_snowfall_in": 11
-                                },
-                                {
-                                    "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
-                                    "name": "OutdoorAirTemperature",
+                                    "parent": "ISB1",
                                     "month": 3,
-                                    "avg_max_temp_f": 54.45,
-                                    "avg_min_temp_f": 32.62,
-                                    "avg_temp_f": 43.53,
-                                    "total_percipitation_in": 5.76,
-                                    "total_snowfall_in": 24.5
+                                    "avg_max_temp_f": 61.18,
+                                    "avg_min_temp_f": 36.18,
+                                    "avg_temp_f": 48.68,
+                                    "total_percipitation_in": 2.99,
+                                    "total_snowfall_in": 0
                                 },
                                 {
                                     "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
                                     "name": "OutdoorAirTemperature",
+                                    "parent": "ISB1",
                                     "month": 4,
-                                    "avg_max_temp_f": 63.69,
-                                    "avg_min_temp_f": 38.83,
-                                    "avg_temp_f": 51.12,
-                                    "total_percipitation_in": 4.45,
-                                    "total_snowfall_in": 5.5
+                                    "avg_max_temp_f": 67.76,
+                                    "avg_min_temp_f": 41.24,
+                                    "avg_temp_f": 54.5,
+                                    "total_percipitation_in": 1.64,
+                                    "total_snowfall_in": 0.5
                                 },
                                 {
                                     "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
                                     "name": "OutdoorAirTemperature",
+                                    "parent": "ISB1",
                                     "month": 5,
-                                    "avg_max_temp_f": 75.45,
-                                    "avg_min_temp_f": 46.57,
-                                    "avg_temp_f": 61.16,
-                                    "total_percipitation_in": 0.33,
+                                    "avg_max_temp_f": 73.55,
+                                    "avg_min_temp_f": 47.86,
+                                    "avg_temp_f": 60.7,
+                                    "total_percipitation_in": 2.96,
                                     "total_snowfall_in": 0
                                 },
                                 {
                                     "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
                                     "name": "OutdoorAirTemperature",
+                                    "parent": "ISB1",
                                     "month": 6,
-                                    "avg_max_temp_f": 82.21,
-                                    "avg_min_temp_f": 51.36,
-                                    "avg_temp_f": 66.79,
-                                    "total_percipitation_in": 0.67,
+                                    "avg_max_temp_f": 84.77,
+                                    "avg_min_temp_f": 55.1,
+                                    "avg_temp_f": 69.93,
+                                    "total_percipitation_in": 0.16,
                                     "total_snowfall_in": 0
                                 },
                                 {
                                     "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
                                     "name": "OutdoorAirTemperature",
+                                    "parent": "ISB1",
                                     "month": 7,
-                                    "avg_max_temp_f": 89.3,
-                                    "avg_min_temp_f": 57.4,
-                                    "avg_temp_f": 73.35,
-                                    "total_percipitation_in": 0.01,
+                                    "avg_max_temp_f": 93.69,
+                                    "avg_min_temp_f": 61.81,
+                                    "avg_temp_f": 77.75,
+                                    "total_percipitation_in": 0.02,
                                     "total_snowfall_in": 0
                                 },
                                 {
                                     "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
                                     "name": "OutdoorAirTemperature",
+                                    "parent": "ISB1",
                                     "month": 8,
-                                    "avg_max_temp_f": 93.14,
-                                    "avg_min_temp_f": 60.62,
-                                    "avg_temp_f": 76.88,
-                                    "total_percipitation_in": 0.06,
-                                    "total_snowfall_in": 0
-                                },
-                                {
-                                    "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
-                                    "name": "OutdoorAirTemperature",
-                                    "month": 9,
-                                    "avg_max_temp_f": 87.41,
-                                    "avg_min_temp_f": 56.1,
-                                    "avg_temp_f": 71.76,
+                                    "avg_max_temp_f": 89.25,
+                                    "avg_min_temp_f": 55.89,
+                                    "avg_temp_f": 72.57,
                                     "total_percipitation_in": 0,
                                     "total_snowfall_in": 0
                                 },
                                 {
                                     "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
                                     "name": "OutdoorAirTemperature",
-                                    "month": 10,
-                                    "avg_max_temp_f": 72.04,
-                                    "avg_min_temp_f": 44.89,
-                                    "avg_temp_f": 58.46,
-                                    "total_percipitation_in": 1.47,
+                                    "parent": "ISB1",
+                                    "month": 9,
+                                    "avg_max_temp_f": 82,
+                                    "avg_min_temp_f": 50.78,
+                                    "avg_temp_f": 66.39,
+                                    "total_percipitation_in": 0.92,
                                     "total_snowfall_in": 0
                                 },
                                 {
                                     "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
                                     "name": "OutdoorAirTemperature",
-                                    "month": 11,
-                                    "avg_max_temp_f": 56.04,
-                                    "avg_min_temp_f": 35.39,
-                                    "avg_temp_f": 45.71,
-                                    "total_percipitation_in": 5.06,
-                                    "total_snowfall_in": 6.5
+                                    "parent": "ISB1",
+                                    "month": 10,
+                                    "avg_max_temp_f": 69.5,
+                                    "avg_min_temp_f": 39.5,
+                                    "avg_temp_f": 54.5,
+                                    "total_percipitation_in": 0.94,
+                                    "total_snowfall_in": 0
                                 },
                                 {
                                     "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
                                     "name": "OutdoorAirTemperature",
+                                    "parent": "ISB1",
+                                    "month": 11,
+                                    "avg_max_temp_f": 60.32,
+                                    "avg_min_temp_f": 33.63,
+                                    "avg_temp_f": 46.97,
+                                    "total_percipitation_in": 0.73,
+                                    "total_snowfall_in": 0
+                                },
+                                {
+                                    "uuid": "5461fedc-65ba-43fe-21dc-111765bafedl",
+                                    "name": "OutdoorAirTemperature",
+                                    "parent": "ISB1",
                                     "month": 12,
-                                    "avg_max_temp_f": 42.64,
-                                    "avg_min_temp_f": 29.93,
-                                    "avg_temp_f": 36.29,
-                                    "total_percipitation_in": 11.91,
-                                    "total_snowfall_in": 18.5
+                                    "avg_max_temp_f": 48.81,
+                                    "avg_min_temp_f": 24.95,
+                                    "avg_temp_f": 36.88,
+                                    "total_percipitation_in": 1.53,
+                                    "total_snowfall_in": 10.5
                                 }
                             ]
                         },
@@ -347,6 +394,8 @@ var _items = {
                         {
                             "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
                             "name": "WholeBuildingPower",
+                            "expanded": null,
+                            "visible": true,
                             "status": "GOOD",
                             "type": "point",
                             "sortOrder": 0,
@@ -356,6 +405,7 @@ var _items = {
                                 {
                                     "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
                                     "name": "WholeBuildingPower",
+                                    "parent": "ISB1",
                                     "month": 1,
                                     "avg_max_temp_f": 44.25,
                                     "avg_min_temp_f": 23.25,
@@ -366,6 +416,7 @@ var _items = {
                                 {
                                     "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
                                     "name": "WholeBuildingPower",
+                                    "parent": "ISB1",
                                     "month": 2,
                                     "avg_max_temp_f": 53.14,
                                     "avg_min_temp_f": 27.9,
@@ -376,6 +427,7 @@ var _items = {
                                 {
                                     "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
                                     "name": "WholeBuildingPower",
+                                    "parent": "ISB1",
                                     "month": 3,
                                     "avg_max_temp_f": 61.18,
                                     "avg_min_temp_f": 36.18,
@@ -386,6 +438,7 @@ var _items = {
                                 {
                                     "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
                                     "name": "WholeBuildingPower",
+                                    "parent": "ISB1",
                                     "month": 4,
                                     "avg_max_temp_f": 67.76,
                                     "avg_min_temp_f": 41.24,
@@ -396,6 +449,7 @@ var _items = {
                                 {
                                     "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
                                     "name": "WholeBuildingPower",
+                                    "parent": "ISB1",
                                     "month": 5,
                                     "avg_max_temp_f": 73.55,
                                     "avg_min_temp_f": 47.86,
@@ -406,6 +460,7 @@ var _items = {
                                 {
                                     "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
                                     "name": "WholeBuildingPower",
+                                    "parent": "ISB1",
                                     "month": 6,
                                     "avg_max_temp_f": 84.77,
                                     "avg_min_temp_f": 55.1,
@@ -416,6 +471,7 @@ var _items = {
                                 {
                                     "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
                                     "name": "WholeBuildingPower",
+                                    "parent": "ISB1",
                                     "month": 7,
                                     "avg_max_temp_f": 93.69,
                                     "avg_min_temp_f": 61.81,
@@ -426,6 +482,7 @@ var _items = {
                                 {
                                     "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
                                     "name": "WholeBuildingPower",
+                                    "parent": "ISB1",
                                     "month": 8,
                                     "avg_max_temp_f": 89.25,
                                     "avg_min_temp_f": 55.89,
@@ -436,6 +493,7 @@ var _items = {
                                 {
                                     "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
                                     "name": "WholeBuildingPower",
+                                    "parent": "ISB1",
                                     "month": 9,
                                     "avg_max_temp_f": 82,
                                     "avg_min_temp_f": 50.78,
@@ -446,6 +504,7 @@ var _items = {
                                 {
                                     "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
                                     "name": "WholeBuildingPower",
+                                    "parent": "ISB1",
                                     "month": 10,
                                     "avg_max_temp_f": 69.5,
                                     "avg_min_temp_f": 39.5,
@@ -456,6 +515,7 @@ var _items = {
                                 {
                                     "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
                                     "name": "WholeBuildingPower",
+                                    "parent": "ISB1",
                                     "month": 11,
                                     "avg_max_temp_f": 60.32,
                                     "avg_min_temp_f": 33.63,
@@ -466,6 +526,7 @@ var _items = {
                                 {
                                     "uuid": "6451fedc-65ba-43fe-21dc-000765bafedl",
                                     "name": "WholeBuildingPower",
+                                    "parent": "ISB1",
                                     "month": 12,
                                     "avg_max_temp_f": 48.81,
                                     "avg_min_temp_f": 24.95,
@@ -479,6 +540,8 @@ var _items = {
                     "devices": {       
                         "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices"],
                         "name": "Devices",
+                        "expanded": null,
+                        "visible": true,
                         "status": "GOOD",
                         "type": "type",
                         "sortOrder": _devicesOrder,
@@ -487,6 +550,8 @@ var _items = {
                         {
                             "uuid": "1231fedc-65ba-43fe-21dc-098765bafedl",
                             "name": "RTU1",
+                            "expanded": null,
+                            "visible": true,
                             "status": "GOOD",
                             "type": "device",
                             "sortOrder": 0,
@@ -495,6 +560,8 @@ var _items = {
                             "points": {      
                                 "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "points"],
                                 "name": "Points",
+                                "expanded": null,
+                                "visible": true,
                                 "status": "GOOD",
                                 "type": "type",
                                 "sortOrder": _pointsOrder,
@@ -503,6 +570,8 @@ var _items = {
                                 {
                                     "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
                                     "name": "CoolingCall",
+                                    "expanded": null,
+                                    "visible": true,
                                     "status": "GOOD",
                                     "type": "point",
                                     "sortOrder": 0,
@@ -512,6 +581,7 @@ var _items = {
                                         {
                                             "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
                                             "name": "CoolingCall",
+                                            "parent": "RTU1",
                                             "month": 1,
                                             "avg_max_temp_f": 57.13,
                                             "avg_min_temp_f": 31.32,
@@ -522,6 +592,7 @@ var _items = {
                                         {
                                             "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
                                             "name": "CoolingCall",
+                                            "parent": "RTU1",
                                             "month": 2,
                                             "avg_max_temp_f": 54.64,
                                             "avg_min_temp_f": 34.82,
@@ -532,6 +603,7 @@ var _items = {
                                         {
                                             "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
                                             "name": "CoolingCall",
+                                            "parent": "RTU1",
                                             "month": 3,
                                             "avg_max_temp_f": 62.48,
                                             "avg_min_temp_f": 37.44,
@@ -542,6 +614,7 @@ var _items = {
                                         {
                                             "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
                                             "name": "CoolingCall",
+                                            "parent": "RTU1",
                                             "month": 4,
                                             "avg_max_temp_f": 66.56,
                                             "avg_min_temp_f": 40.5,
@@ -552,6 +625,7 @@ var _items = {
                                         {
                                             "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
                                             "name": "CoolingCall",
+                                            "parent": "RTU1",
                                             "month": 5,
                                             "avg_max_temp_f": 75.83,
                                             "avg_min_temp_f": 46.83,
@@ -562,6 +636,7 @@ var _items = {
                                         {
                                             "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
                                             "name": "CoolingCall",
+                                            "parent": "RTU1",
                                             "month": 6,
                                             "avg_max_temp_f": 85.28,
                                             "avg_min_temp_f": 53.39,
@@ -572,6 +647,7 @@ var _items = {
                                         {
                                             "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
                                             "name": "CoolingCall",
+                                            "parent": "RTU1",
                                             "month": 7,
                                             "avg_max_temp_f": 91,
                                             "avg_min_temp_f": 60.93,
@@ -582,6 +658,7 @@ var _items = {
                                         {
                                             "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
                                             "name": "CoolingCall",
+                                            "parent": "RTU1",
                                             "month": 8,
                                             "avg_max_temp_f": 88.85,
                                             "avg_min_temp_f": 57.8,
@@ -592,6 +669,7 @@ var _items = {
                                         {
                                             "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
                                             "name": "CoolingCall",
+                                            "parent": "RTU1",
                                             "month": 9,
                                             "avg_max_temp_f": 85.04,
                                             "avg_min_temp_f": 53.5,
@@ -602,6 +680,7 @@ var _items = {
                                         {
                                             "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
                                             "name": "CoolingCall",
+                                            "parent": "RTU1",
                                             "month": 10,
                                             "avg_max_temp_f": 76.79,
                                             "avg_min_temp_f": 36.18,
@@ -612,6 +691,7 @@ var _items = {
                                         {
                                             "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
                                             "name": "CoolingCall",
+                                            "parent": "RTU1",
                                             "month": 11,
                                             "avg_max_temp_f": 59.27,
                                             "avg_min_temp_f": 33.53,
@@ -622,6 +702,7 @@ var _items = {
                                         {
                                             "uuid": "5461fedc-65ba-43fe-21dc-222765bafedl",
                                             "name": "CoolingCall",
+                                            "parent": "RTU1",
                                             "month": 12,
                                             "avg_max_temp_f": 48.86,
                                             "avg_min_temp_f": 32.79,
@@ -635,6 +716,8 @@ var _items = {
                                 {
                                     "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
                                     "name": "CondenserFanPower",
+                                    "expanded": null,
+                                    "visible": true,
                                     "status": "GOOD",
                                     "type": "point",
                                     "sortOrder": 0,
@@ -644,6 +727,7 @@ var _items = {
                                         {
                                             "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
                                             "name": "CondenserFanPower",
+                                            "parent": "RTU1",
                                             "month": 1,
                                             "avg_max_temp_f": 56.96,
                                             "avg_min_temp_f": 30.39,
@@ -654,6 +738,7 @@ var _items = {
                                         {
                                             "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
                                             "name": "CondenserFanPower",
+                                            "parent": "RTU1",
                                             "month": 2,
                                             "avg_max_temp_f": 64.82,
                                             "avg_min_temp_f": 36,
@@ -664,6 +749,7 @@ var _items = {
                                         {
                                             "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
                                             "name": "CondenserFanPower",
+                                            "parent": "RTU1",
                                             "month": 3,
                                             "avg_max_temp_f": 67.29,
                                             "avg_min_temp_f": 38.33,
@@ -674,6 +760,7 @@ var _items = {
                                         {
                                             "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
                                             "name": "CondenserFanPower",
+                                            "parent": "RTU1",
                                             "month": 4,
                                             "avg_max_temp_f": 66.35,
                                             "avg_min_temp_f": 37.73,
@@ -684,6 +771,7 @@ var _items = {
                                         {
                                             "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
                                             "name": "CondenserFanPower",
+                                            "parent": "RTU1",
                                             "month": 5,
                                             "avg_max_temp_f": 68.81,
                                             "avg_min_temp_f": 43.96,
@@ -694,6 +782,7 @@ var _items = {
                                         {
                                             "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
                                             "name": "CondenserFanPower",
+                                            "parent": "RTU1",
                                             "month": 6,
                                             "avg_max_temp_f": 87.97,
                                             "avg_min_temp_f": 57.23,
@@ -704,6 +793,7 @@ var _items = {
                                         {
                                             "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
                                             "name": "CondenserFanPower",
+                                            "parent": "RTU1",
                                             "month": 7,
                                             "avg_max_temp_f": 87.68,
                                             "avg_min_temp_f": 59.71,
@@ -714,6 +804,7 @@ var _items = {
                                         {
                                             "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
                                             "name": "CondenserFanPower",
+                                            "parent": "RTU1",
                                             "month": 8,
                                             "avg_max_temp_f": 91.39,
                                             "avg_min_temp_f": 58.68,
@@ -724,6 +815,7 @@ var _items = {
                                         {
                                             "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
                                             "name": "CondenserFanPower",
+                                            "parent": "RTU1",
                                             "month": 9,
                                             "avg_max_temp_f": 85.07,
                                             "avg_min_temp_f": 55.86,
@@ -734,6 +826,7 @@ var _items = {
                                         {
                                             "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
                                             "name": "CondenserFanPower",
+                                            "parent": "RTU1",
                                             "month": 10,
                                             "avg_max_temp_f": 73.26,
                                             "avg_min_temp_f": 46.17,
@@ -744,6 +837,7 @@ var _items = {
                                         {
                                             "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
                                             "name": "CondenserFanPower",
+                                            "parent": "RTU1",
                                             "month": 11,
                                             "avg_max_temp_f": 50.5,
                                             "avg_min_temp_f": 29.36,
@@ -754,18 +848,22 @@ var _items = {
                                         {
                                             "uuid": "6451fedc-65ba-43fe-21dc-11165bafedl",
                                             "name": "CondenserFanPower",
+                                            "parent": "RTU1",
                                             "month": 12,
                                             "avg_max_temp_f": 43.42,
                                             "avg_min_temp_f": 24.65,
                                             "avg_temp_f": 34.03,
                                             "total_percipitation_in": 5.18,
                                             "total_snowfall_in": 0
-                                        }]
+                                        }
+                                    ]
                                 }
                             },
                             "devices": {    
                                 "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "devices"],
                                 "name": "Devices",
+                                "expanded": null,
+                                "visible": true,
                                 "status": "GOOD",
                                 "type": "type",
                                 "sortOrder": _devicesOrder,
@@ -774,6 +872,8 @@ var _items = {
                                 {
                                     "uuid": "4488fedc-65ba-43fe-21dc-098765bafedl",
                                     "name": "Zone",
+                                    "expanded": null,
+                                    "visible": true,
                                     "status": "GOOD",
                                     "type": "device",
                                     "sortOrder": 0,
@@ -782,6 +882,8 @@ var _items = {
                                     "points": {  
                                         "path": ["platforms", "4687fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "devices", "4488fedc-65ba-43fe-21dc-098765bafedl", "points"],
                                         "name": "Points",
+                                        "expanded": null,
+                                        "visible": true,
                                         "status": "GOOD",
                                         "type": "type",
                                         "sortOrder": _pointsOrder,
@@ -790,6 +892,8 @@ var _items = {
                                         {
                                             "uuid": "5461fedc-65ba-43fe-21dc-098765bafedl",
                                             "name": "FirstStageAuxilaryHeat",
+                                            "expanded": null,
+                                            "visible": true,
                                             "status": "GOOD",
                                             "type": "point",
                                             "sortOrder": 0,
@@ -800,6 +904,8 @@ var _items = {
                                         {
                                             "uuid": "6451fedc-65ba-43fe-21dc-098765bafedl",
                                             "name": "SecondStageAuxilaryHeat",
+                                            "expanded": null,
+                                            "visible": true,
                                             "status": "GOOD",
                                             "type": "point",
                                             "sortOrder": 0,
@@ -818,6 +924,8 @@ var _items = {
         {
             "uuid": "9757fedc-65ba-43fe-21dc-098765bafedc",
             "name": "WSU",
+            "expanded": null,
+            "visible": true,
             "status": "BAD",
             "type": "platform",
             "sortOrder": 0,
@@ -826,6 +934,8 @@ var _items = {
             "agents": {                
                 "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "agents"],
                 "name": "Agents",
+                "expanded": null,
+                "visible": true,
                 "status": "GOOD",
                 "type": "type",
                 "sortOrder": _agentsOrder,
@@ -834,6 +944,8 @@ var _items = {
                 {
                     "uuid": "2461fedc-65ba-43fe-21dc-098765bafede",
                     "name": "Platform Agent",
+                    "expanded": null,
+                    "visible": true,
                     "status": "GOOD",
                     "type": "agent",
                     "sortOrder": 0,
@@ -844,6 +956,8 @@ var _items = {
                 {
                     "uuid": "7897fedc-65ba-43fe-21dc-098765bafedf",
                     "name": "SqlHistorian",
+                    "expanded": null,
+                    "visible": true,
                     "status": "GOOD",
                     "type": "agent",
                     "sortOrder": 0,
@@ -854,6 +968,8 @@ var _items = {
             "buildings": {             
                 "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings"],
                 "name": "Buildings",
+                "expanded": null,
+                "visible": true,
                 "status": "BAD",
                 "type": "type",
                 "sortOrder": _buildingsOrder,
@@ -862,6 +978,8 @@ var _items = {
                 {
                     "uuid": "1111fedc-65ba-43fe-21dc-098765bafede",
                     "name": "BSEL",
+                    "expanded": null,
+                    "visible": true,
                     "status": "BAD",
                     "type": "building",
                     "sortOrder": 0,
@@ -870,6 +988,8 @@ var _items = {
                     "points": {         
                         "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "points"],
                         "name": "Points",
+                        "expanded": null,
+                        "visible": true,
                         "status": "UNKNOWN",
                         "type": "type",
                         "sortOrder": _pointsOrder,
@@ -877,17 +997,24 @@ var _items = {
                         "5461fedc-65ba-43fe-21dc-098765bafedl":
                         {
                             "uuid": "5461fedc-65ba-43fe-21dc-098765bafedl",
-                            "name": "WholeBuildingElectricity",
+                            "name": "OutdoorAirTemperature",
+                            "expanded": null,
+                            "visible": true,
                             "status": "GOOD",
                             "type": "point",
                             "sortOrder": 0,
                             "children": [],
-                            "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "points", "5461fedc-65ba-43fe-21dc-098765bafedl"]
+                            "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "points", "5461fedc-65ba-43fe-21dc-098765bafedl"],
+                            "parentPath": "WSU > BSEL",
+                            "parentType": "building",
+                            "parentUuid": "1111fedc-65ba-43fe-21dc-098765bafede"
                         },
                         "6451fedc-65ba-43fe-21dc-098765bafedl":
                         {
                             "uuid": "6451fedc-65ba-43fe-21dc-098765bafedl",
                             "name": "LightingStatus",
+                            "expanded": null,
+                            "visible": true,
                             "status": "UNKNOWN",
                             "type": "point",
                             "sortOrder": 0,
@@ -898,6 +1025,8 @@ var _items = {
                     "devices": {       
                         "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices"],
                         "name": "Devices",
+                        "expanded": null,
+                        "visible": true,
                         "status": "BAD",
                         "type": "type",
                         "sortOrder": _devicesOrder,
@@ -906,6 +1035,8 @@ var _items = {
                         {
                             "uuid": "1231fedc-65ba-43fe-21dc-098765bafedl",
                             "name": "AHU",
+                            "expanded": null,
+                            "visible": true,
                             "status": "BAD",
                             "type": "device",
                             "sortOrder": 0,
@@ -914,6 +1045,8 @@ var _items = {
                             "points": {      
                                 "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "points"],
                                 "name": "Points",
+                                "expanded": null,
+                                "visible": true,
                                 "status": "GOOD",
                                 "type": "type",
                                 "sortOrder": _pointsOrder,
@@ -922,6 +1055,8 @@ var _items = {
                                 {
                                     "uuid": "6451fedc-65ba-43fe-21dc-098765bafedl",
                                     "name": "DuctStaticPressureSetPoint",
+                                    "expanded": null,
+                                    "visible": true,
                                     "status": "GOOD",
                                     "type": "point",
                                     "sortOrder": 0,
@@ -932,6 +1067,8 @@ var _items = {
                             "devices": {    
                                 "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "devices"],
                                 "name": "Devices",
+                                "expanded": null,
+                                "visible": true,
                                 "status": "BAD",
                                 "type": "type",
                                 "sortOrder": _devicesOrder,
@@ -940,6 +1077,8 @@ var _items = {
                                 {
                                     "uuid": "4488fedc-65ba-43fe-21dc-098765bafedl",
                                     "name": "Zone",
+                                    "expanded": null,
+                                    "visible": true,
                                     "status": "BAD",
                                     "type": "device",
                                     "sortOrder": 0,
@@ -948,6 +1087,8 @@ var _items = {
                                     "points": {  
                                         "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1111fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "devices", "4488fedc-65ba-43fe-21dc-098765bafedl", "points"],
                                         "name": "Points",
+                                        "expanded": null,
+                                        "visible": true,
                                         "status": "BAD",
                                         "type": "type",
                                         "sortOrder": _pointsOrder,
@@ -956,6 +1097,8 @@ var _items = {
                                         {
                                             "uuid": "5461fedc-65ba-43fe-21dc-098765bafedl",
                                             "name": "TerminalBoxDamperCommand",
+                                            "expanded": null,
+                                            "visible": true,
                                             "status": "BAD",
                                             "type": "point",
                                             "sortOrder": 0,
@@ -966,6 +1109,8 @@ var _items = {
                                         {
                                             "uuid": "6451fedc-65ba-43fe-21dc-098765bafedl",
                                             "name": "ZoneTemperature",
+                                            "expanded": null,
+                                            "visible": true,
                                             "status": "GOOD",
                                             "type": "point",
                                             "sortOrder": 0,
@@ -982,6 +1127,8 @@ var _items = {
                 {
                     "uuid": "1333fedc-65ba-43fe-21dc-098765bafede",
                     "name": "CIC",
+                    "expanded": null,
+                    "visible": true,
                     "status": "GOOD",
                     "type": "building",
                     "sortOrder": 0,
@@ -990,6 +1137,8 @@ var _items = {
                     "points": {         
                         "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1333fedc-65ba-43fe-21dc-098765bafede", "points"],
                         "name": "Points",
+                        "expanded": null,
+                        "visible": true,
                         "status": "GOOD",
                         "type": "type",
                         "sortOrder": _pointsOrder,
@@ -998,6 +1147,8 @@ var _items = {
                         {
                             "uuid": "5461fedc-65ba-43fe-21dc-098765bafedl",
                             "name": "WholeBuildingGas",
+                            "expanded": null,
+                            "visible": true,
                             "status": "GOOD",
                             "type": "point",
                             "sortOrder": 0,
@@ -1008,6 +1159,8 @@ var _items = {
                         {
                             "uuid": "6451fedc-65ba-43fe-21dc-098765bafedl",
                             "name": "OutdoorAirRelativeHumidity",
+                            "expanded": null,
+                            "visible": true,
                             "status": "GOOD",
                             "type": "point",
                             "sortOrder": 0,
@@ -1018,6 +1171,8 @@ var _items = {
                     "devices": {       
                         "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1333fedc-65ba-43fe-21dc-098765bafede", "devices"],
                         "name": "Devices",
+                        "expanded": null,
+                        "visible": true,
                         "status": "GOOD",
                         "type": "type",
                         "sortOrder": _devicesOrder,
@@ -1026,6 +1181,8 @@ var _items = {
                         {
                             "uuid": "1231fedc-65ba-43fe-21dc-098765bafedl",
                             "name": "Chilled_Water_Distribution_System",
+                            "expanded": null,
+                            "visible": true,
                             "status": "GOOD",
                             "type": "device",
                             "sortOrder": 0,
@@ -1034,6 +1191,8 @@ var _items = {
                             "points": {      
                                 "path": ["platforms", "9757fedc-65ba-43fe-21dc-098765bafedc", "buildings", "1333fedc-65ba-43fe-21dc-098765bafede", "devices", "1231fedc-65ba-43fe-21dc-098765bafedl", "points"],
                                 "name": "Points",
+                                "expanded": null,
+                                "visible": true,
                                 "status": "GOOD",
                                 "type": "type",
                                 "sortOrder": _pointsOrder,
@@ -1042,6 +1201,8 @@ var _items = {
                                 {
                                     "uuid": "6451fedc-65ba-43fe-21dc-098765bafedl",
                                     "name": "NaturalGasEnergy",
+                                    "expanded": null,
+                                    "visible": true,
                                     "status": "GOOD",
                                     "type": "point",
                                     "sortOrder": 0,
@@ -1062,8 +1223,23 @@ var _itemTypes = ["platforms", "buildings", "agents", "devices", "points"];
 
 var platformsPanelItemsStore = new Store();
 
+platformsPanelItemsStore.getItem = function (itemPath)
+{
+    var itemsList = [];
+    var item = _items;
+    
+    for (var i = 0; i < itemPath.length; i++)
+    {
+        if (item.hasOwnProperty(itemPath[i]))
+        {
+            item = item[itemPath[i]];
+        }
+    }
 
-platformsPanelItemsStore.getItems = function (parent, parentPath) {
+    return item;
+}  
+
+platformsPanelItemsStore.getChildren = function (parent, parentPath) {
 
     var itemsList = [];
     var item = _items;
@@ -1096,112 +1272,131 @@ platformsPanelItemsStore.getItems = function (parent, parentPath) {
     return itemsList;
 };
 
-platformsPanelItemsStore.getTreeCopy = function() {
+platformsPanelItemsStore.loadFilteredItems = function (filterTerm, filterStatus) {
 
-    return JSON.parse(JSON.stringify(_items));
-}
+    var filterItems = function (parent, filterTerm, filterStatus) {
 
-platformsPanelItemsStore.getFilteredItems = function (parent, filterTerm, filterStatus) {
+        var notAMatch;
+        var compareTerm;
 
-    var compareFunct;
-    var compareTerm;
-
-    if (filterTerm === "")
-    {
-        compareFunct = function (parent, filterStatus)
+        if (filterTerm === "")
         {
-            if (parent.hasOwnProperty("status"))
+            notAMatch = function (parent, filterStatus)
             {
-                return (parent.status !== filterStatus);                
+                if (parent.hasOwnProperty("status"))
+                {
+                    return (parent.status !== filterStatus);                
+                }
+                else
+                {
+                    return (filterStatus !== "UNKNOWN");
+                }
+            }
+
+            compareTerm = filterStatus;
+        }
+        else if (filterStatus === "")
+        {
+            notAMatch = function (parent, filterTerm)
+            {
+                var upperParent = parent.name.toUpperCase();;
+                var filterStr = filterTerm;
+
+                var filterParts = filterTerm.split(" ");
+                var foundColon = (filterParts[0].indexOf(":") > -1);
+
+                if (foundColon)
+                {
+                    var index = filterTerm.indexOf(":");
+                    var filterKey = filterTerm.substring(0, index);
+                    filterStr = filterTerm.substring(index + 1);
+
+                    if (parent.hasOwnProperty(filterKey))
+                    {
+                        upperParent = parent[filterKey].toUpperCase();    
+                    }
+                    else
+                    {
+                        return true;
+                    }
+                }               
+
+                return (upperParent.trim().indexOf(filterStr.trim().toUpperCase()) < 0);
+            }
+
+            compareTerm = filterTerm;
+        }
+
+        if (parent.children.length === 0)
+        {
+            parent.visible = !notAMatch(parent, compareTerm);
+            parent.expanded = null;
+
+            return parent;
+        }
+        else
+        {
+            var childrenToHide = 0;
+
+            for (var i = 0; i < parent.children.length; i++)
+            {
+                var childString = parent.children[i];
+                var filteredChild = filterItems(parent[childString], filterTerm, filterStatus);
+
+                if (!filteredChild.visible)
+                {
+                    ++childrenToHide;
+                }
+            }
+            
+            if (childrenToHide === parent.children.length)
+            {
+                parent.visible = !notAMatch(parent, compareTerm);
+                parent.expanded = false;
             }
             else
             {
-                return (filterStatus !== "UNKNOWN");
-            }
-        }
+                parent.visible = true;
+                parent.expanded = true;
+            }        
 
-        compareTerm = filterStatus;
-    }
-    else if (filterStatus === "")
-    {
-        compareFunct = function (parent, filterTerm)
-        {
-            var upperParent = parent.name.toUpperCase();
-
-            return (upperParent.indexOf(filterTerm.toUpperCase()) < 0);
-        }
-
-        compareTerm = filterTerm;
-    }
-
-    if (parent.children.length === 0)
-    {
-        if (compareFunct(parent, compareTerm))
-        {
-            return null;
-        }
-        else
-        {
             return parent;
         }
     }
-    else
+
+    for (var key in _items.platforms)
     {
-        var childrenToDelete = [];
-
-        for (var i = 0; i < parent.children.length; i++)
+        if (filterTerm !== "" || filterStatus !== "")
         {
-            var childString = parent.children[i];
-            var filteredChild = platformsPanelItemsStore.getFilteredItems(parent[childString], filterTerm, filterStatus);
-
-            if (filteredChild === null)
-            {
-                delete parent[childString];
-
-                childrenToDelete.push(childString);
-            }
-        }
-        
-        for (var i = 0; i < childrenToDelete.length; i++)
-        {
-            var index = parent.children.indexOf(childrenToDelete[i]);
-            parent.children.splice(index, 1);
-        }
-
-        if ((parent.children.length === 0) && (compareFunct(parent, compareTerm)))
-        {
-            parent = null;
+            filterItems(_items.platforms[key], filterTerm, filterStatus);
         }
         else
         {
-            if (parent.children.length > 0)
-            {
-                parent.expanded = true;
-            }
-        }
-
-        return parent;
+            expandAllChildren(_items.platforms[key], false);
+            _items.platforms[key].visible = true;
+        }        
     }
-};
 
-platformsPanelItemsStore.getExpandedChildren = function (expandedOn, parent) {
+}
 
-    if (parent.children.length === 0)
+var expandAllChildren = function (parent, expanded) {
+    
+    for (var i = 0; i < parent.children.length; i++)
     {
-        return parent;
+        var childString = parent.children[i];
+        expandAllChildren(parent[childString], expanded);
+    }
+
+    if (parent.children.length > 0)
+    {
+        parent.expanded = expanded;
     }
     else
     {
-        for (var i = 0; i < parent.children.length; i++)
-        {
-            var childString = parent.children[i];
-            var expandedChild = platformsPanelItemsStore.getExpandedChildren(expandedOn, parent[childString]);
-        }
-        
-        parent.expanded = expandedOn;
-
-        return parent;
+        parent.expanded = null;
     }
+
+    parent.visible = true;
 };
 
 
@@ -1212,6 +1407,45 @@ platformsPanelItemsStore.getExpanded = function () {
 platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
     switch (action.type) {
+
+        case ACTION_TYPES.FILTER_ITEMS:
+
+            var filterTerm = action.filterTerm;
+            var filterStatus = action.filterStatus;
+            platformsPanelItemsStore.loadFilteredItems(filterTerm, filterStatus);
+
+            platformsPanelItemsStore.emitChange();
+
+            break;
+        case ACTION_TYPES.EXPAND_ALL:
+
+            var item = platformsPanelItemsStore.getItem(action.itemPath);
+            
+            var expanded = (item.expanded !== null ? !item.expanded : true);
+
+            expandAllChildren(item, expanded);
+
+            platformsPanelItemsStore.emitChange();
+
+            break;
+
+        case ACTION_TYPES.TOGGLE_ITEM:
+
+            var item = platformsPanelItemsStore.getItem(action.itemPath);
+            item.expanded = !item.expanded;
+
+            platformsPanelItemsStore.emitChange();
+
+            break;
+
+        case ACTION_TYPES.CHECK_ITEM:
+
+            var item = platformsPanelItemsStore.getItem(action.itemPath);
+            item.checked = action.checked;
+
+            platformsPanelItemsStore.emitChange();
+
+            break;
 
         case ACTION_TYPES.RECEIVE_PLATFORM_STATUSES:
             
@@ -1226,6 +1460,8 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                 // platformItem.status = "GOOD";
                 platformItem.children = [];
                 platformItem.type = "platform";
+                platformItem.visible = true;
+                platformItem.expanded = null;
             });
             
             platformsPanelItemsStore.emitChange();
@@ -1238,6 +1474,12 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             //     _items["platforms"][action.platform.uuid]["buildings"][key]["children"] = ["agents", "devices"];                
             //     _items["platforms"][action.platform.uuid]["buildings"][key]["path"] = ["platforms", action.platform.uuid, "buildings"];
             // }
+            var platform = _items["platforms"][action.platform.uuid];
+
+            if (platform.children.length > 0)
+            {
+                platform.expanded = true;
+            }
             
             platformsPanelItemsStore.emitChange();
             break;
@@ -1247,10 +1489,13 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
             if (action.agents.length > 0)
             {
+                platform.expanded = true;
                 platform.agents = {};
                 platform.agents.path = platform.path.slice(0);
                 platform.agents.path.push("agents");
                 platform.agents.name = "Agents";
+                platform.agents.expanded = false;
+                platform.agents.visible = true;
                 platform.agents.children = [];
                 platform.agents.type = "type";
                 platform.agents.sortOrder = _agentsOrder;
@@ -1263,6 +1508,8 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                 action.agents.forEach(function (agent)
                 {
                     var agentProps = agent;
+                    agentProps.expanded = false;
+                    agentProps.visible = true;
                     agentProps.path = platform.agents.path.slice(0);
                     agentProps.path.push(agent.uuid);
                     // agent.status = "GOOD";
@@ -1278,6 +1525,15 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             platformsPanelItemsStore.emitChange();
             break;
         case ACTION_TYPES.RECEIVE_DEVICE_STATUSES:
+
+            var item = platformsPanelItemsStore.getItem(action.platform.path);
+
+            // var platform = _items["platforms"][action.platform.uuid];
+
+            if (item.children.length > 0)
+            {
+                item.expanded = true;
+            }
             // _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"] = action.devices;
 
             // for (var key in _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"])
@@ -1296,9 +1552,114 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             //     _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"][action.device.uuid]["points"][key]["children"] = [];
             //     _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"][action.device.uuid]["points"][key]["path"] = ["platforms", action.platform.uuid, "buildings", action.building.uuid, "devices", action.device.uuid, "points"];
             // }
+            // var item = platformsPanelItemsStore.getItem(action.platform.path);
+
+            // // var platform = _items["platforms"][action.platform.uuid];
+
+            // if (item.children.length > 0)
+            // {
+            //     item.expanded = true;
+            // }
+
+            switch (action.parent.type)
+            {
+                case "platform":
+            
+                    var platform = _items["platforms"][action.parent.uuid];
+
+                    if (action.points.length > 0)
+                    {
+                        platform.expanded = true;
+                        platform.points = {};
+                        platform.points.path = platform.path.slice(0);
+                        platform.points.path.push("points");
+                        platform.points.name = "Points";
+                        platform.points.expanded = false;
+                        platform.points.visible = true;
+                        platform.points.children = [];
+                        platform.points.type = "type";
+                        platform.points.sortOrder = _pointsOrder;
+
+                        if (platform.children.indexOf("points") < 0)
+                        {
+                            platform.children.push("points");
+                        }
+
+                        action.points.forEach(function (point)
+                        {
+                            //TODO: add UUID to points rpc?
+
+                            var pointProps = point;
+                            pointProps.expanded = false;
+                            pointProps.visible = true;
+                            pointProps.path = platform.points.path.slice(0);
+
+                            var uuid = (point.hasOwnProperty("topic") ? point.topic : point.uuid);
+                            
+                            pointProps.uuid = uuid;
+                            pointProps.path.push(uuid);
+                            pointProps.topic = point.topic;
+
+                            pointProps.parentPath = getParentPath(platform);
+                            
+                            pointProps.parentType = platform.type;
+                            pointProps.parentUuid = platform.uuid;
+
+                            // point.status = "GOOD";
+                            pointProps.children = [];
+                            pointProps.type = "point";
+                            pointProps.sortOrder = 0;
+                            platform.points.children.push(uuid); 
+                            platform.points[uuid] = pointProps;
+                        });
+
+                    }
+
+                    break;
+            }
 
             platformsPanelItemsStore.emitChange();
             break;
+        case ACTION_TYPES.RECEIVE_PANEL_CHILDREN:
+            // _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"][action.device.uuid]["points"] = action.points;
+
+            // for (var key in _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"][action.device.uuid]["points"])
+            // {
+            //     _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"][action.device.uuid]["points"][key]["children"] = [];
+            //     _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"][action.device.uuid]["points"][key]["path"] = ["platforms", action.platform.uuid, "buildings", action.building.uuid, "devices", action.device.uuid, "points"];
+            // }
+            var item = platformsPanelItemsStore.getItem(action.platform.path);
+
+            // var platform = _items["platforms"][action.platform.uuid];
+
+            if (item.children.length > 0)
+            {
+                item.expanded = true;
+            }
+
+            platformsPanelItemsStore.emitChange();
+            break;
+    }
+
+    function getParentPath(parent)
+    {
+        var path = parent.path;
+
+        var pathParts = [];
+
+        var item = _items;
+
+        path.forEach(function (part) {
+            item = item[part];
+            if (_itemTypes.indexOf(part) < 0)
+            {
+                pathParts.push(item.name);
+            } 
+        });
+
+        var pathStr = pathParts.join(" > ");
+
+        return pathStr;
     }
 });
 

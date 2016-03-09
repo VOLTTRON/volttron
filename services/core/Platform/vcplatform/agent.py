@@ -89,7 +89,7 @@ class AlreadyManagedError(Exception):
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-__version__ = '3.0'
+__version__ = '3.5'
 
 def platform_agent(config_path, **kwargs):
     config = utils.load_config(config_path)
@@ -132,6 +132,10 @@ def platform_agent(config_path, **kwargs):
             self._vc = None
 
         def _get_vc_info(self):
+            """ Loads the VOLTTRON Central keys if available.
+
+            :return:
+            """
             # Load up the vc information.  If manage_platform is called with
             # different public key then there is an error.
             if os.path.exists("volttron.central"):
@@ -247,40 +251,38 @@ def platform_agent(config_path, **kwargs):
             else:
                 _log.info("Already registered with: {}".format(
                     self._vc['serverkey']))
+                if not vc_publickey == self._vc['serverkey']:
+                    err = "Attempted to register with different key: {}".format(
+                        vc_publickey
+                    )
+                    raise AlreadyManagedError(err)
 
             # The variable self._vc will be loadded when the object is
             # created.
-            if not self._vc:
-                res = requests.get("http://{}/discovery/".format(uri))
-                assert res.ok
-                _log.debug('RESPONSE: {} {}'.format(type(res.json()), res.json()))
-                tmpvc = res.json()
-                assert 'vip-address' in tmpvc.keys()
-                assert 'serverkey' in tmpvc.keys()
-                # Overwrite the default server key with the agent specific key
-                # so that the platform can be directly connected to.
-                tmpvc['serverkey'] = vc_publickey
-                self._vc = tmpvc
-                _log.debug("vctmp: {}".format(self._vc))
-                with open("volttron.central", 'w') as fout:
-                    fout.write(jsonapi.dumps(tmpvc))
-                # Add the can manage to the key file
-                self._append_allow_curve_key(vc_publickey, 'can_manage')
-            else:
-                _log.debug('SERVER KEY FOR VC IS:', self._vc['serverkey'], vc_publickey )
-                if not vc_publickey == self._vc['serverkey']:
-                    raise AlreadyManagedError()
+            res = requests.get("http://{}/discovery/".format(uri))
+            assert res.ok
+            _log.debug('RESPONSE: {} {}'.format(type(res.json()), res.json()))
+            tmpvc = res.json()
+            assert 'vip-address' in tmpvc.keys()
+            assert 'serverkey' in tmpvc.keys()
+            # Overwrite the default server key with the agent specific key
+            # so that the platform can be directly connected to.
+            tmpvc['serverkey'] = vc_publickey
+            self._vc = tmpvc
+            _log.debug("vctmp: {}".format(self._vc))
+            with open("volttron.central", 'w') as fout:
+                fout.write(jsonapi.dumps(tmpvc))
 
-            #
+            # Add the can manage to the key file
+            self._append_allow_curve_key(vc_publickey, 'can_manage')
+
             return self._keystore.public()
-
 
         @RPC.export
         def set_setting(self, key, value):
             _log.debug("Setting key: {} to value: {}".format(key, value))
             self._settings[key] = value
             self._store_settings()
-
 
         @RPC.export
         def get_setting(self, key):
@@ -289,20 +291,9 @@ def platform_agent(config_path, **kwargs):
 
         @Core.periodic(period=15, wait=30)
         def write_status(self):
-            historian_present = False
 
-            try:
-                ping = self.vip.ping('platform.historian', 'awake?').get(timeout=2)
-                historian_present = True
-            except Unreachable:
-                _log.warning('platform.historian unavailable no logging of data will occur.')
-                return
-            _log.debug('publishing data')
             base_topic = 'datalogger/log/platform/status'
             cpu = base_topic + '/cpu'
-            virtual_memory = base_topic + "/virtual_memory"
-            disk_partitions = base_topic + "/disk_partiions"
-
             points = {}
 
             for k, v in psutil.cpu_times_percent().__dict__.items():
@@ -312,7 +303,6 @@ def platform_agent(config_path, **kwargs):
             points['percent'] = {'Readings': psutil.cpu_percent(),
                                  'Units': 'double'}
 
-            message = jsonapi.dumps(points)
             self.vip.pubsub.publish(peer='pubsub',
                                     topic=cpu,
                                     message=points)
@@ -360,9 +350,6 @@ def platform_agent(config_path, **kwargs):
                 except StandardError as ex:
                     _log.error("Unhandled Exception: "+str(ex))
 
-
-
-
         @RPC.export
         def register_service(self, vip_identity):
             # make sure that we get a ping reply
@@ -381,28 +368,81 @@ def platform_agent(config_path, **kwargs):
         #     return self.@RPC.allow("can_manage")
 
         @RPC.export
-        @RPC.allow("can_manage")
+        # @RPC.allow("can_manage")
         def list_agents(self):
-            result = self.vip.rpc.call("control", "list_agents").get()
-            _log.debu("Listing agents.")
-            _log.debug(result)
-            return result
+            """ List the agents that are installed on the platform.
+
+            Note this does not take into account agents that are connected
+            with the instance, but only the ones that are installed and
+            have a uuid.
+
+            :return: A list of agents.
+            """
+            agents = self.vip.rpc.call("control", "list_agents").get()
+
+            agents_status = self.vip.rpc.call("control",
+                                              "status_agents").get()
+            _log.debug('List Agent: {}'.format(agents))
+            # ['uuid', 'vcplatformagent-3.5', [15958, None]]s
+            _log.debug("Status Agents: {}".format(agents_status))
+            uuid_to_status = {}
+            for s in agents_status:
+                # 'uuid', 'vcplatformagent-3.5', [16206, None]]
+                if s[2][0] > 0:
+                    uuid_to_status[s[0]] = {'process_id': s[2][0],
+                                            "error_code": 0}
+                elif s[2][0] <= 0:
+                    uuid_to_status[s[0]] = {'process_id': 0,
+                                            "error_code": s[2][0]}
+
+            for a in agents:
+                a.update(uuid_to_status[a['uuid']])
+
+            return agents
 
         @RPC.export
-        @RPC.allow("can_manage")
+        # @RPC.allow("can_manage")
         def start_agent(self, agent_uuid):
-            pass
+            agents = self.list_agents()
+            for k in agents:
+                if agent_uuid in k['uuid'] \
+                        and k['process_id'] <= 0:
+                    proc_result = self.vip.rpc.call("control",
+                                                     "start_agent",
+                                                     agent_uuid).get()
+                    return proc_result
+            return []
 
         @RPC.export
-        @RPC.allow("can_manage")
+        # @RPC.allow("can_manage")
         def stop_agent(self, agent_uuid):
-            pass
+            agents = self.list_agents()
+            for k in agents:
+                if agent_uuid in k['uuid'] \
+                        and k['process_id'] >= 0:
+                    proc_result = self.vip.rpc.call("control",
+                                                     "stop_agent",
+                                                     agent_uuid).get()
+                    return proc_result
+            return []
 
         @RPC.export
-        @RPC.allow("can_manage")
-        def stop_agent(self, agent_uuid):
-            pass
+        # @RPC.allow("can_manage")
+        def restart_agent(self, agent_uuid):
+            agents = self.list_agents()
+            for k in agents:
+                if agent_uuid in k['uuid'] \
+                        and k['process_id'] <= 0:
+                    proc_result = self.vip.rpc.call("control",
+                                                     "restart_agent",
+                                                     agent_uuid).get()
+                    return proc_result
+            return []
 
+        @RPC.export
+        def agent_status(self, agent_uuid):
+            return self.vip.rpc.call("control", "agent_status",
+                                      agent_uuid).get()
 
 
         def _install_agents(self, agent_files):

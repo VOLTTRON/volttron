@@ -53,7 +53,7 @@ def simulated_vc(wrapper, do_manage=False):
     return vc_agent, ks.secret(), ks.public()
 
 @pytest.mark.pa
-def test_listagents(pa_instance):
+def test_list_agents(pa_instance):
     pa_wrapper = pa_instance['wrapper']
 
     vc_agent, secret_key, public_key = simulated_vc(pa_wrapper, do_manage=True)
@@ -62,19 +62,103 @@ def test_listagents(pa_instance):
 
     results = vc_agent.vip.rpc.call(PLATFORM_ID, "list_agents").get(timeout=10)
 
+    # Note since the vc is simulated the list_agents only should have the
+    # platformagent
     assert results
-    print(results)
+    keys = results[0].keys()
+    assert 'platformagent' in results[0]['name']
+    assert 'process_id' in keys
+    assert 'uuid' in keys
+    assert 'priority' in keys
+    assert 'error_code' in keys
+    assert results[0]['process_id'] > 0
 
 
+# @pytest.mark.pa
+# def test_status_agents(pa_instance):
+#     pa_wrapper = pa_instance['wrapper']
+#
+#     vc_agent, secret_key, public_key = simulated_vc(pa_wrapper, do_manage=True)
+#
+#     assert vc_agent
+#
+#     results = vc_agent.vip.rpc.call(PLATFORM_ID, "status_agents").get(timeout=10)
+#
+#     # Note since the vc is simulated the list_agents only should have the
+#     # platformagent
+#     assert results
+#     assert 'platformagent' in results[0]['name']
 
 
 @pytest.mark.pa
 def test_start_agent(pa_instance):
-    pass
+    pa_wrapper = pa_instance['wrapper']
+
+    vc_agent, secret_key, public_key = simulated_vc(pa_wrapper, do_manage=True)
+
+    assert vc_agent
+    listener_dir = "examples/ListenerAgent"
+    config = "examples/ListenerAgent/config"
+    pa_wrapper.install_agent(agent_dir=listener_dir, config_file=config)
+
+    results = vc_agent.vip.rpc.call(PLATFORM_ID, "list_agents").get(timeout=10)
+    assert len(results) == 2
+
+    agent = [r for r in results if 'listener' in r['name']][0]
+
+    assert agent
+
+    result = vc_agent.vip.rpc.call(PLATFORM_ID,
+                                    "start_agent",
+                                    agent['uuid']).get(timeout=10)
+
+    status = vc_agent.vip.rpc.call(PLATFORM_ID,
+                                   "agent_status",
+                                   agent['uuid']).get(timeout=10)
+    assert status
+
 
 @pytest.mark.pa
-def test_end_agent(pa_instance):
-    pass
+def test_stop_agent(pa_instance):
+    pa_wrapper = pa_instance['wrapper']
+
+    vc_agent, secret_key, public_key = simulated_vc(pa_wrapper, do_manage=True)
+
+    assert vc_agent
+    listener_dir = "examples/ListenerAgent"
+    config = "examples/ListenerAgent/config"
+    pa_wrapper.install_agent(agent_dir=listener_dir, config_file=config)
+
+    results = vc_agent.vip.rpc.call(PLATFORM_ID, "list_agents").get(timeout=10)
+    assert len(results) == 2
+
+    agent = [r for r in results if 'listener' in r['name']][0]
+
+    assert agent
+
+    result = vc_agent.vip.rpc.call(PLATFORM_ID,
+                                    "start_agent",
+                                    agent['uuid']).get(timeout=10)
+
+    status = vc_agent.vip.rpc.call(PLATFORM_ID,
+                                   "agent_status",
+                                   agent['uuid']).get(timeout=10)
+    assert status
+
+    result = vc_agent.vip.rpc.call(PLATFORM_ID,
+                                   "stop_agent",
+                                   agent['uuid']).get(timeout=10)
+
+    gevent.sleep(4)
+    status = vc_agent.vip.rpc.call(PLATFORM_ID,
+                                   "agent_status",
+                                   agent['uuid']).get(timeout=10)
+
+    print("STATUS IS: {}".format(status))
+    pytest.fail()
+    assert status
+
+
 
 @pytest.mark.pa
 def test_restart_agent(pa_instance):

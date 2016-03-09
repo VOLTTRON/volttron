@@ -158,6 +158,10 @@ br + .form__control-help {
     margin-top: 0.5em;
 }
 
+.form__link a {
+    cursor: pointer;
+}
+
 .form__actions {
     margin-top: 1.5em;
     text-align: right;
@@ -254,7 +258,7 @@ br + .form__control-help {
     height: 100%;
     z-index: 1;
     box-sizing: border-box;
-    overflow: auto;
+    overflow: hidden;
     background-color: #f8f8f8;
 }
 
@@ -393,11 +397,19 @@ br + .form__control-help {
     display: inline-block;
     padding: 5px;
     box-sizing: border-box;
+
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
 }
 
 .platform-panel-list {
     list-style-type: none;
     padding-left: 20px;
+    width: 100%;
 }
 
 .platform-panel-sublist {
@@ -469,9 +481,9 @@ br + .form__control-help {
 
 .arrowButton {
     float: left;
-    margin-right: 10px;
+    margin-right: 5px;
     cursor: pointer;
-    font-size: 16px;
+    font-size: 12px;
     display: inline-block;
 
     -webkit-touch-callout: none;
@@ -563,18 +575,34 @@ br + .form__control-help {
     {100% height: 0px;}
 } 
 
-.tooltip_inner {
-    background-color: #D6D5A3;
-    padding: 10px;
-    border-radius: 5px;
+.item_label {
+    font-size: 12px;
+    cursor: default;
 }
 
-.tooltip_point {
-    color: #D6D5A3;
+.item_type {
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.tooltip_inner, .taptip_inner {
+    background-color: rgba(255, 255, 255, .8);
+    padding: 10px;
+    border-radius: 5px;    
+
+    border: 1px black solid;
+    box-shadow: 0px 2px 10px 2px #ccc;
+}
+
+
+
+.tooltip_point, .taptip_point {
+    /*color: #ffffff;
     transform: rotate(90deg);
     transform-origin: 20px 20px;
     margin: 0px;
     padding: 0px;
+    opacity: .5;*/
 }
 
 @font-face {
@@ -610,6 +638,30 @@ br + .form__control-help {
   content: "\f002";
 }
 
+.fa-thumb-tack:before {
+  content: "\f08d";
+}
+
+.fa-line-chart:before {
+    content: "\f201";
+}
+
+.fa-arrow-left:before {
+  content: "\f060";
+}
+
+.fa-arrow-right:before {
+  content: "\f061";
+}
+
+.fa-refresh:before {
+  content: "\f021";
+}
+
+.fa-hourglass:before {
+  content: "\f254";
+}
+
 /*.tooltip_show {
     display: "block";
 }
@@ -618,8 +670,30 @@ br + .form__control-help {
     display: "none";
 }*/
 
-.tooltip_outer {
+.tooltip_outer, .taptip_outer {
     z-index: 100;
+    position: relative;
+}
+
+.delayed-show-slow {
+    animation-name: delayed-fade-in;
+    animation-duration: 1.5s;
+
+    -webkit-animation: delayed-fade-in 1.5s;
+}
+
+@keyframes delayed-fade-in {
+    0% {opacity: 0;}
+    30% {opacity: 0;}
+    100% {opacity: 1;}
+
+}
+
+@-webkit-keyframes delayed-fade-in {
+    0% {opacity: 0;}
+    30% {opacity: 0;}
+    100% {opacity: 1;}
+
 }
 
 .boldText {
@@ -642,11 +716,15 @@ br + .form__control-help {
     color: #707070;
 }
 
-.filter_buttons {
+.inlineBlock {
     display: inline-block;
 }
 
-.filter_button {
+.displayBlock {
+    display: block;
+}
+
+.control_button {
     display: inline-block;
     margin: 0px 1px;
     cursor: pointer;
@@ -724,10 +802,10 @@ br + .form__control-help {
 .view {
     padding: 1.5em 2.5em;
     border-top: 1px solid #fff;
-    position: relative;
-    height: 100%;
-    width: 70%;
+    height: 80vh;
+    width: 100%;
     float: left;
+    overflow: auto;
 }
 
 .view > * {
@@ -737,7 +815,6 @@ br + .form__control-help {
 .panel-exterior {
     padding: 1.5em 2.5em;
     border-top: 1px solid #fff;
-    position: relative;
     height: 100%;
     float: left;
 }
@@ -855,6 +932,7 @@ br + .form__control-help {
     border-radius: 0.3333em;
     box-sizing: border-box;
     margin-bottom: 1rem;
+    margin-top: 1rem;
 }
 
 .view__item--list {
@@ -890,7 +968,7 @@ br + .form__control-help {
 
 .cellDiv {
     display: table-cell;
-    padding: 0 10px 10px 0;
+    padding: 0px 0px 10px 10px;
 }
 
 .firstCell {
@@ -942,8 +1020,12 @@ a.view__item:hover::before {
 
 .view__actions {
     position: absolute;
-    top: 1.5em;
-    right: 2.5em;
+    top: 0;
+    right: 0;
+}
+
+.absolute_anchor {
+    position: relative;
 }
 
 .view--list .view__item + .view__item {
@@ -1113,8 +1195,30 @@ a.view__item:hover::before {
 
 /* our nvd3-related styles */
 
-#graph-line-chart {
-    height: 60vh;
+.platform-line-chart {
+    /*height: 60vh;*/
+}
+
+.platform-chart {
+    text-align: center;
+}
+
+.chart-title {
+    font-size: 12px;
+    color: #7D7D7D;
+}
+
+.chart-pin {
+    
+}
+
+.unpinned-chart {
+    transform: rotate(45deg);
+    color: #7D7D7D;
+}
+
+.pinned-chart {
+    /*transform: rotate(0deg);*/
 }
 
 /* end nvd3-related styles */

@@ -6,295 +6,211 @@ var Router = require('react-router');
 var platformsPanelItemsStore = require('../stores/platforms-panel-items-store');
 var platformsPanelActionCreators = require('../action-creators/platforms-panel-action-creators');
 
+
 var PlatformsPanelItem = React.createClass({
     getInitialState: function () {
         var state = {};
         
-        state.expanded = (this.props.panelItem.hasOwnProperty("expanded") ? this.props.panelItem.expanded : null);
-
         state.showTooltip = false;
         state.tooltipX = null;
         state.tooltipY = null;
-        state.keepTooltip = false;
-        state.expandedChildren;
-        state.checked = false;
-
-        state.children = getChildrenFromStore(this.props.panelItem, this.props.itemPath);
+        state.checked = (this.props.panelItem.hasOwnProperty("checked") ? this.props.panelItem.checked : false);
+        state.panelItem = this.props.panelItem;
+        state.children = this.props.panelChildren;
 
         return state;
     },
     componentDidMount: function () {
         platformsPanelItemsStore.addChangeListener(this._onStoresChange);
     },
-    componentWillMount: function () {
-        if (!this.props.hasOwnProperty("children"))
-        { 
-            platformsPanelActionCreators.loadChildren(this.props.panelItem.type, this.props.panelItem);
-        }
-    },
     componentWillUnmount: function () {
         platformsPanelItemsStore.removeChangeListener(this._onStoresChange);
     },
     _onStoresChange: function () {
 
-        var children = getChildrenFromStore(this.props.panelItem, this.props.itemPath);
+        var panelItem = getItemFromStore(this.props.itemPath);
+        var panelChildren = getChildrenFromStore(this.props.panelItem, this.props.itemPath)
 
-        this.setState({children: children});
+        this.setState({panelItem: panelItem});
+        this.setState({children: panelChildren});
+        this.setState({checked: panelItem.checked});
     },
     _expandAll : function () {
-        var expandedOn = ((this.state.expanded === null) ? true : !this.state.expanded);
-
-        // this.setState({expandedOn: expandedOn});
-        this.setState({expanded: expandedOn});
         
-        this.setState({expandedChildren: expandAllChildren(expandedOn, this.props.panelItem)});
+        platformsPanelActionCreators.expandAll(this.props.itemPath);
+    },
+    _toggleItem: function () {
+
+        if (this.state.panelItem.expanded === null)
+        {
+            platformsPanelActionCreators.loadChildren(this.props.panelItem.type, this.props.panelItem);
+        }
+        else
+        {
+            if (this.state.panelItem.expanded)
+            {
+                platformsPanelActionCreators.expandAll(this.props.itemPath);
+            }
+            else
+            {
+                platformsPanelActionCreators.toggleItem(this.props.itemPath);    
+            }
+        }
     },
     _checkItem: function (e) {
 
         var checked = e.target.checked;
 
+        platformsPanelActionCreators.checkItem(this.props.itemPath, checked);
+
         this.setState({checked: checked});
 
         if (checked)
         {
-            platformsPanelActionCreators.addToGraph(this.props.panelItem);
+            platformsPanelActionCreators.addToChart(this.props.panelItem);
+            window.location = '/#/platform-charts';
         }
         else
         {
-            platformsPanelActionCreators.removeFromGraph(this.props.panelItem);
+            platformsPanelActionCreators.removeFromChart(this.props.panelItem);
         }
-    },
-    _toggleItem: function () {
-
-        if (this.state.children.length > 0)
-        {
-            this.setState({expanded: !this.state.expanded});
-        }
-        else
-        {
-            if (this.props.hasOwnProperty("children"))
-            {
-                if (this.state.expanded === null)
-                {
-                    this.setState({expanded: !this.props.panelItem.expanded});
-                }
-                else
-                {
-                    this.setState({expanded: !this.state.expanded});
-                }
-            }
-        }
-        
     },
     _showTooltip: function (evt) {
         this.setState({showTooltip: true});
-        this.setState({tooltipX: evt.clientX - 20});
+        this.setState({tooltipX: evt.clientX - 60});
         this.setState({tooltipY: evt.clientY - 70});
     },
     _hideTooltip: function () {
         this.setState({showTooltip: false});
     },
     _moveTooltip: function (evt) {
-        this.setState({tooltipX: evt.clientX - 20});
+        this.setState({tooltipX: evt.clientX - 60});
         this.setState({tooltipY: evt.clientY - 70});
     },
-    _keepTooltip: function () {
-        this.setState({keepTooltip: true});
-    },
-    _unkeepTooltip: function () {
-        this.setState({keepTooltip: false});
-    },
     render: function () {
-        var panelItem = this.props.panelItem;
+        var panelItem = this.state.panelItem;
         var itemPath = this.props.itemPath;
-
-        var items;
+        var propChildren = this.state.children;
         var children;
 
-        var propChildren = this.state.expandedChildren;
+        var visibleStyle = {};
 
-        if (typeof propChildren === "undefined" || propChildren === null)
+        if (panelItem.visible !== true)
         {
-            propChildren = this.props.children;
+            visibleStyle = {
+                display: "none"
+            }
         }
-
-        var filterTerm = this.props.filter;
 
         var itemClasses;
         var arrowClasses = ["arrowButton", "noRotate"];
 
-        var checkboxClass = "panelItemCheckbox";
+        var ChartCheckbox;
 
-        var checkboxStyle = {
-            display : (["point"].indexOf(panelItem.type) < 0 ? "none" : "block")
-        };
+        if (["point"].indexOf(panelItem.type) > -1)
+        {
+            ChartCheckbox = (<input className="panelItemCheckbox"
+                                    type="checkbox"
+                                    onChange={this._checkItem}
+                                    checked={this.state.checked}></input>);
+        }
 
         var tooltipStyle = {
-            display: (panelItem.type !== "type" ? (this.state.showTooltip || this.state.keepTooltip ? "block" : "none") : "none"),
+            display: (panelItem.type !== "type" ? (this.state.showTooltip ? "block" : "none") : "none"),
             position: "absolute",
             top: this.state.tooltipY + "px",
             left: this.state.tooltipX + "px"
         };
+
+        var toolTipClasses = (this.state.showTooltip ? "tooltip_outer delayed-show-slow" : "tooltip_outer");
 
         arrowClasses.push( ((panelItem.status === "GOOD") ? "status-good" :
                                 ( (panelItem.status === "BAD") ? "status-bad" : 
                                     "status-unknown")) );
 
         var arrowContent;
+        var arrowContentStyle = {
+            width: "14px"
+        }
 
         if (panelItem.status === "GOOD")
         {
-            arrowContent = <span>&#9654;</span>;
+            arrowContent = <span style={arrowContentStyle}>&#9654;</span>;
         } 
         else if (panelItem.status === "BAD") 
         {
-            arrowContent = <i className="fa fa-minus-circle"></i>;
+            arrowContent = <span style={arrowContentStyle}><i className="fa fa-minus-circle"></i></span>;
         }
         else
         {
-            arrowContent = <span>&#9644;</span>;
+            arrowContent = <span style={arrowContentStyle}>&#9644;</span>;
         }
-        
-        if (typeof propChildren !== "undefined" && propChildren !== null)
-        {   
-            if (this.state.expanded || this.props.panelItem.expanded === true)
-            {
-                children = propChildren
-                    .sort(function (a, b) {
-                        if (a.name.toUpperCase() > b.name.toUpperCase()) { return 1; }
-                        if (a.name.toUpperCase() < b.name.toUpperCase()) { return -1; }
-                        return 0;
-                    })
-                    .sort(function (a, b) {
-                        if (a.sortOrder > b.sortOrder) { return 1; }
-                        if (a.sortOrder < b.sortOrder) { return -1; }
-                        return 0;
-                    })
-                    .map(function (propChild) {
-                        
-                        var grandchildren = [];
-                        propChild.children.forEach(function (childString) {
-                            grandchildren.push(propChild[childString]);
-                        });
-
-                        return (
-                            <PlatformsPanelItem panelItem={propChild} itemPath={propChild.path} children={grandchildren}/>
-                        );
-                    }); 
-
-                if (children.length > 0)
-                {
-                    var classIndex = arrowClasses.indexOf("noRotate");
+          
+        if (this.state.panelItem.expanded === true )
+        {
+            children = propChildren
+                .sort(function (a, b) {
+                    if (a.name.toUpperCase() > b.name.toUpperCase()) { return 1; }
+                    if (a.name.toUpperCase() < b.name.toUpperCase()) { return -1; }
+                    return 0;
+                })
+                .sort(function (a, b) {
+                    if (a.sortOrder > b.sortOrder) { return 1; }
+                    if (a.sortOrder < b.sortOrder) { return -1; }
+                    return 0;
+                })
+                .map(function (propChild) {
                     
-                    if (classIndex > -1)
-                    {
-                        arrowClasses.splice(classIndex, 1);
-                    }
+                    var grandchildren = [];
+                    propChild.children.forEach(function (childString) {
+                        grandchildren.push(propChild[childString]);
+                    });
 
-                    arrowClasses.push("rotateDown");
-                    itemClasses = "showItems";                    
-                }          
-            }
-        }
-        else
-        {
-            if (this.state.expanded !== null)
-            {                   
-                if (this.state.expanded)
-                {                
-                    if (this.state.children !== null)
-                    {
-                        var childItems = this.state.children;
-                        
-                        children = childItems
-                            .sort(function (a, b) {
-                                if (a.name.toUpperCase() > b.name.toUpperCase()) { return 1; }
-                                if (a.name.toUpperCase() < b.name.toUpperCase()) { return -1; }
-                                return 0;
-                            })
-                            .sort(function (a, b) {
-                                if (a.sortOrder > b.sortOrder) { return 1; }
-                                if (a.sortOrder < b.sortOrder) { return -1; }
-                                return 0;
-                            })
-                            .map(function (child) {                            
-                                return (
-                                    <PlatformsPanelItem panelItem={child} itemPath={child.path}/>
-                                );}, this);
+                    return (
+                        <PlatformsPanelItem panelItem={propChild} itemPath={propChild.path} panelChildren={grandchildren}/>
+                    );
+                }); 
 
-                        if (children.length > 0)
-                        {
-                            itemClasses = "showItems";
-
-                            var classIndex = arrowClasses.indexOf("noRotate");
-                            
-                            if (classIndex > -1)
-                            {
-                                arrowClasses.splice(classIndex, 1);
-                            }
-
-                            arrowClasses.push("rotateDown");
-                        }                            
-                    }
-                }
-                else
+            if (children.length > 0)
+            {
+                var classIndex = arrowClasses.indexOf("noRotate");
+                
+                if (classIndex > -1)
                 {
-                    if (this.state.children) 
-                    {
-                        itemClasses = "hideItems";
-
-                        arrowClasses.push("rotateRight");
-                    }
+                    arrowClasses.splice(classIndex, 1);
                 }
-            }
+
+                arrowClasses.push("rotateDown");
+                itemClasses = "showItems";                    
+            }          
         }
 
-        var listItem;
+        var itemClass = (!panelItem.hasOwnProperty("uuid") ? "item_type" : "item_label ");
 
-        if (!panelItem.hasOwnProperty("uuid"))
-        {
-            listItem = 
-                <div>
-                    <b>
-                        {panelItem.name}
-                    </b>
-                </div>;
-        }
-        else
-        {
-            listItem = 
-                <div className="platform-link">
-                    <Router.Link
-                        to="graphs"
-                        params={{uuid: panelItem.uuid}}
-                    >
+        var listItem = 
+                <div className={itemClass}>
                     {panelItem.name}
-                    </Router.Link>
-                </div>;            
-        }
+                </div>;
 
         return (
             <li
                 key={panelItem.uuid}
                 className="panel-item"
+                style={visibleStyle}
             >
                 <div className="platform-info">
                     <div className={arrowClasses.join(' ')}
                         onDoubleClick={this._expandAll}
                         onClick={this._toggleItem}>
                         {arrowContent}
-                        </div>  
-                    <input className={checkboxClass}
-                        style={checkboxStyle}
-                        type="checkbox"
-                        onChange={this._checkItem}></input>                    
-                    <div className="tooltip_outer" 
+                    </div>  
+                    {ChartCheckbox}                   
+                    <div className={toolTipClasses}
                         style={tooltipStyle}>
                         <div className="tooltip_inner">
-                            {panelItem.uuid}
-                        </div>
-                        <div className="tooltip_point">
-                            &#9654;
+                            <div className="opaque_inner">
+                                {panelItem.uuid}
+                            </div>
                         </div>
                     </div>
                     <div className="tooltip_target"
@@ -314,21 +230,12 @@ var PlatformsPanelItem = React.createClass({
     },
 });
 
-function expandAllChildren(expandOn, parent)
-{
-    var expandedParent = platformsPanelItemsStore.getExpandedChildren(expandOn, parent);
-    var expandedChildren = [];
-
-    expandedParent.children.forEach(function(childString) {
-        expandedChildren.push(expandedParent[childString]);
-    })
-
-    return expandedChildren;
-
+function getChildrenFromStore(parentItem, parentPath) {
+    return platformsPanelItemsStore.getChildren(parentItem, parentPath);
 }
 
-function getChildrenFromStore(parentItem, parentPath) {
-    return platformsPanelItemsStore.getItems(parentItem, parentPath);
+function getItemFromStore(itemPath) {
+    return platformsPanelItemsStore.getItem(itemPath);
 }
 
 module.exports = PlatformsPanelItem;
