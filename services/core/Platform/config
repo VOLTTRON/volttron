@@ -5,7 +5,7 @@
     # Set the Platform agents identity
     #
     # Default "identity": "platform.agent"
-    "identity": "platform.agent"
+    "identity": "platform.agent",
 
     # Configuration parameters.
     #

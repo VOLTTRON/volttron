@@ -125,6 +125,9 @@ def platform_agent(config_path, **kwargs):
             # By default not managed by vc, but if the file is available then
             # read and store it as an object.
             self._vc = None
+            # This agent will hold a connection to the vc router so that we
+            # can send information to it.
+            self._vc_agent = None
 
         def _get_vc_info(self):
             """ Loads the VOLTTRON Central keys if available.
@@ -224,6 +227,10 @@ def platform_agent(config_path, **kwargs):
                 agent = self._vip_channels[address]
             return agent
 
+        def report_to_vc(self):
+            self._vc_agent.pubsub.publish(peer="pubsub", topic="platform/status", message={"alpha": "beta"})
+
+
         @RPC.export
         def manage_platform(self, uri, vc_publickey):
             """ Manage this platform.
@@ -270,6 +277,12 @@ def platform_agent(config_path, **kwargs):
 
             # Add the can manage to the key file
             self._append_allow_curve_key(vc_publickey, 'can_manage')
+
+            self._vc_agent = Agent(address=self._vc['vip-address'], serverkey=self._vc['serverkey'],
+                                   secretkey=self.core.secretkey)
+            event = gevent.event.Event()
+            gevent.spawn(self._vc_agent.core.run, event)
+            event.wait(timeout=2)
 
             return self.core.publickey
 

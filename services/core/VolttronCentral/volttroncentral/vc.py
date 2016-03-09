@@ -239,23 +239,27 @@ def volttron_central_agent(config_path, **kwargs):
                     f.read()))
 
             full_vip = "{}?serverkey={}&publickey={}&secretkey={}".format(
-                vip_address, pa_instance_serverkey, self._publickey,
-                self._secretkey
+                vip_address, pa_instance_serverkey, self.core.publickey,
+                self.core.secretkey
             )
 
-            agent = Agent(address=full_vip)
+            agent = Agent(address=vip_address, serverkey=pa_instance_serverkey, secretkey=self.core.secretkey,
+                          publickey=self.core.publickey)
             event = gevent.event.Event()
             gevent.spawn(agent.core.run, event)#.join(0)
             event.wait(timeout=30)
             del event
-            web_addr = self.vip.rpc.call("volttron.web", "get_bind_web_address").get(timeout=2)
+
+            _log.debug("Agent connected to peers: {}".format(agent.vip.peerlist().get(timeout=3)))
+
+            web_addr = "127.0.0.1:8080" # self.vip.rpc.call("volttron.web", "get_bind_web_address").get(timeout=2)
             if not display_name:
                 display_name = discovery_address
-            _log.debug("")
+
             result = agent.vip.rpc.call(peer='platform.agent',
                                         method='manage_platform',
                                         uri=web_addr,
-                                        vc_publickey=self._publickey).get(timeout=5)
+                                        vc_publickey=self.core.publickey).get(timeout=5)
             if not result:
                 raise CouldNotRegister(
                     "display_name={}, discovery_address={}".format(
