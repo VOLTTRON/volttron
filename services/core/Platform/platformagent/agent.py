@@ -84,6 +84,7 @@ from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
+__version__ = '3.0'
 
 def get_error_response(code, message, data=None):
     return {'jsonrpc': '2.0',

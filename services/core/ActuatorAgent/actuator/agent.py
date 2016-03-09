@@ -59,14 +59,12 @@
 
 import datetime
 import sys
-import time
 import logging
 
 from volttron.platform.vip.agent import Agent, Core, RPC, compat
 from volttron.platform.messaging import topics
 from volttron.platform.agent import utils
 from volttron.platform.messaging.utils import normtopic
-from volttron.platform.agent.sched import EventWithTime
 from actuator.scheduler import ScheduleManager
 
 from volttron.platform.jsonrpc import RemoteError
@@ -93,6 +91,7 @@ ACTUATOR_COLLECTION = 'actuators'
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
+__version__ = "0.2"
 
 class LockError(StandardError):
     pass

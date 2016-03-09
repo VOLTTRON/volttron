@@ -1,6 +1,6 @@
 import pytest
 
-from .. import keystore
+from volttron.platform import keystore
 
 host_pair1 = {'addr': 'tcp://127.0.0.1:1234', 'key': 'ABCDEFG'}
 host_pair2 = {'addr': 'tcp://192.168.0.2:1234', 'key': '123456789'}

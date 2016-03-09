@@ -63,7 +63,7 @@ from volttron.platform.agent import utils
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-
+__version__ ='0.1'
 
 def heartbeat_agent(config_path, **kwargs):
     config = utils.load_config(config_path)
