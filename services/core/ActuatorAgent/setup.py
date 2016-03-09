@@ -56,8 +56,8 @@
 
 # }}}
 
-from setuptools import setup, find_packages
 from os import path
+from setuptools import setup, find_packages
 
 MAIN_MODULE = 'agent'
 
@@ -69,9 +69,9 @@ for package in find_packages():
     if path.isfile(package + '/' + MAIN_MODULE + '.py') is True:
         agent_package = package
 if not agent_package:
-    raise RuntimeError(
-        'None of the packages under {dir} contain the file {main_module}'.format(
-            main_module=MAIN_MODULE + '.py', dir=path.abspath('.')))
+    raise RuntimeError('None of the packages under {dir} contain the file '
+                       '{main_module}'.format(main_module=MAIN_MODULE + '.py',
+                                              dir=path.abspath('.')))
 
 # Find the version number from the main module
 agent_module = agent_package + '.' + MAIN_MODULE
@@ -80,11 +80,11 @@ __version__ = _temp.__version__
 
 # Setup
 setup(
-    name = agent_package + 'agent',
-    version = __version__,
-    install_requires = ['volttron'],
-    packages = packages,
-    entry_points = {
+    name=agent_package + 'agent',
+    version=__version__,
+    install_requires=['volttron'],
+    packages=packages,
+    entry_points={
         'setuptools.installation': [
             'eggsecutable = ' + agent_module + ':main',
         ]
