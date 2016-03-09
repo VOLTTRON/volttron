@@ -1592,17 +1592,8 @@ def test_set_value_bool(publish_agent, cancel_schedules, revert_devices):
     # Mock callback methods
     publish_agent.callback = MagicMock(name="callback")
     # Subscribe to result of set
-<<<<<<< HEAD
     value_topic = topics.ACTUATOR_VALUE(campus='', building='', unit=device, point='SampleWritableBool1')
     error_topic = topics.ACTUATOR_ERROR(campus='', building='', unit=device, point='SampleWritableBool1')
-=======
-    value_topic = topics.ACTUATOR_VALUE(campus='', building='',
-                                        unit='fakedriver3',
-                                        point='SampleWritableBool1')
-    error_topic = topics.ACTUATOR_ERROR(campus='', building='',
-                                        unit='fakedriver3',
-                                        point='SampleWritableBool1')
->>>>>>> develop
     print ('value topic', value_topic)
     publish_agent.vip.pubsub.subscribe(peer='pubsub',
                                        prefix=value_topic,
