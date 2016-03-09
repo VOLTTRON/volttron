@@ -577,6 +577,9 @@ def _ask_for_auth_fields(domain=None, address=None, user_id=None,
                     response = raw_input(question).strip()
                     if response == '':
                         response = default
+                    if response == 'clear':
+                        if _ask_yes_no('Do you want to clear this field?'):
+                            response = None
                     valid, msg = validate(response)
                     if not valid:
                         _stderr.write('{}\n'.format(msg))
@@ -597,10 +600,11 @@ def _ask_for_auth_fields(domain=None, address=None, user_id=None,
             return {'true': True, 'false': False}[response.lower()]
         return response
 
-    def is_true_or_false(response):
-        if isinstance(response, bool) or response.lower() in ['true', 'false']:
-            return True, None
-        return False, 'Please respond with True or False'
+    def is_true_or_false(x):
+        if x is not None:
+            if isinstance(x, bool) or x.lower() in ['true', 'false']:
+                return True, None
+        return False, 'Please enter True or False'
 
     asker = Asker()
     asker.add('domain', domain)
@@ -663,6 +667,7 @@ def update_auth(opts):
     entries, _, _  = auth_file.read()
     try:
         entry = entries[opts.index]
+        _stdout.write('(For any field type "clear" to clear the value.)\n')
         response = _ask_for_auth_fields(**entry.__dict__)
     except IndexError:
         _stderr.write('ERROR: invalid index %s\n' % opts.index)
