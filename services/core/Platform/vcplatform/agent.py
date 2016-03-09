@@ -75,7 +75,6 @@ from zmq.utils import jsonapi
 from volttron.platform.vip.agent import *
 
 from volttron.platform import jsonrpc, control
-from volttron.platform.keystore import KeyStore
 from volttron.platform.agent import utils
 
 from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
@@ -122,10 +121,6 @@ def platform_agent(config_path, **kwargs):
             self._sibling_cache = {}
             self._vip_channels = {}
             self.volttron_home = os.environ['VOLTTRON_HOME']
-            self._keystore = KeyStore("platform_agent.keystore")
-
-            if not os.path.exists(("platform_agent.keystore")):
-                self._keystore.generate()
 
             # By default not managed by vc, but if the file is available then
             # read and store it as an object.
@@ -276,7 +271,7 @@ def platform_agent(config_path, **kwargs):
             # Add the can manage to the key file
             self._append_allow_curve_key(vc_publickey, 'can_manage')
 
-            return self._keystore.public()
+            return self.core.publickey
 
         @RPC.export
         def set_setting(self, key, value):

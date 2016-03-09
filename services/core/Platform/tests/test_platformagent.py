@@ -154,8 +154,6 @@ def test_stop_agent(pa_instance):
                                    "agent_status",
                                    agent['uuid']).get(timeout=10)
 
-    print("STATUS IS: {}".format(status))
-    pytest.fail()
     assert status
 
 
