@@ -1621,15 +1621,8 @@ def test_set_value_bool(publish_agent, cancel_schedules, revert_devices):
     }
 
     publish_agent.vip.pubsub.publish('pubsub',
-<<<<<<< HEAD
                                      topics.ACTUATOR_SET(campus='', building='', unit=device,
                                                          point='SampleWritableBool1'),
-=======
-                                     topics.ACTUATOR_SET(
-                                         campus='', building='',
-                                         unit='fakedriver3',
-                                         point='SampleWritableBool1'),
->>>>>>> develop
                                      headers=header,
                                      message=True).get(timeout=10)
     gevent.sleep(1)
@@ -1676,17 +1669,8 @@ def test_set_value_array(publish_agent, cancel_schedules, revert_devices):
     # Mock callback methods
     publish_agent.callback = MagicMock(name="callback")
     # Subscribe to result of set
-<<<<<<< HEAD
     value_topic = topics.ACTUATOR_VALUE(campus='', building='', unit=device, point='SampleWritableFloat1')
     error_topic = topics.ACTUATOR_ERROR(campus='', building='', unit=device, point='SampleWritableFloat1')
-=======
-    value_topic = topics.ACTUATOR_VALUE(campus='', building='',
-                                        unit='fakedriver0',
-                                        point='SampleWritableFloat1')
-    error_topic = topics.ACTUATOR_ERROR(campus='', building='',
-                                        unit='fakedriver0',
-                                        point='SampleWritableFloat1')
->>>>>>> develop
     print ('value topic', value_topic)
     publish_agent.vip.pubsub.subscribe(peer='pubsub',
                                        prefix=value_topic,
@@ -1714,12 +1698,7 @@ def test_set_value_array(publish_agent, cancel_schedules, revert_devices):
         'requesterID': agentid
     }
 
-<<<<<<< HEAD
     set_topic = topics.ACTUATOR_SET(campus='', building='', unit=device, point='SampleWritableFloat1')
-=======
-    set_topic = topics.ACTUATOR_SET(campus='', building='', unit='fakedriver0',
-                                    point='SampleWritableFloat1')
->>>>>>> develop
     print("set topic: ", set_topic)
     publish_agent.vip.pubsub.publish('pubsub',
                                      set_topic,
@@ -1772,17 +1751,8 @@ def test_set_value_float(publish_agent, cancel_schedules, revert_devices):
     # Mock callback methods
     publish_agent.callback = MagicMock(name="callback")
     # Subscribe to result of set
-<<<<<<< HEAD
     value_topic = topics.ACTUATOR_VALUE(campus='', building='', unit=device, point='SampleWritableFloat1')
     error_topic = topics.ACTUATOR_ERROR(campus='', building='', unit=device, point='SampleWritableFloat1')
-=======
-    value_topic = topics.ACTUATOR_VALUE(campus='', building='',
-                                        unit='fakedriver2',
-                                        point='SampleWritableFloat1')
-    error_topic = topics.ACTUATOR_ERROR(campus='', building='',
-                                        unit='fakedriver2',
-                                        point='SampleWritableFloat1')
->>>>>>> develop
     print ('value topic', value_topic)
     publish_agent.vip.pubsub.subscribe(peer='pubsub',
                                        prefix=value_topic,
@@ -1810,12 +1780,7 @@ def test_set_value_float(publish_agent, cancel_schedules, revert_devices):
         'requesterID': TEST_AGENT
     }
 
-<<<<<<< HEAD
     set_topic = topics.ACTUATOR_SET(campus='', building='', unit=device, point='SampleWritableFloat1')
-=======
-    set_topic = topics.ACTUATOR_SET(campus='', building='', unit='fakedriver2',
-                                    point='SampleWritableFloat1')
->>>>>>> develop
     print("set topic: ", set_topic)
     publish(publish_agent, set_topic, header, 0.2)
     gevent.sleep(1)
