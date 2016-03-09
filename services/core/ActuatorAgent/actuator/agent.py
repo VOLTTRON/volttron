@@ -97,7 +97,7 @@ class LockError(StandardError):
 
 def actuator_agent(config_path, **kwargs):
     config = utils.load_config(config_path)
-    heartbeat_interval = int(config.get('period', 60))
+    heartbeat_interval = int(config.get('heartbeat_period', 60))
     schedule_publish_interval = int(config.get('schedule_publish_interval', 60))
     schedule_state_file = config.get('schedule_state_file')
     preempt_grace_time = config.get('preempt_grace_time', 60)
