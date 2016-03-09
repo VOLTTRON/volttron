@@ -56,6 +56,12 @@
 
 # }}}
 
+__docformat__ = 'reStructuredText'
+
+"""The Actuator Agent regulates control of devices by other agents. Agents
+request a schedule and then issue commands to the device through
+this agent."""
+
 
 import datetime
 import sys
@@ -91,9 +97,11 @@ ACTUATOR_COLLECTION = 'actuators'
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
-__version__ = "0.2"
+__version__ = "0.3"
 
 class LockError(StandardError):
+    """Error raised when the user does not have a device scheuled
+    and tries to use methods that require exclusive access."""
     pass
 
 
@@ -108,8 +116,6 @@ def actuator_agent(config_path, **kwargs):
     kwargs.pop('identity', None)
 
     class ActuatorAgent(Agent):
-        '''Agent to listen for requests to talk to the sMAP driver.'''
-
         def __init__(self, **kwargs):
             super(ActuatorAgent, self).__init__(**kwargs)
             _log.debug("vip_identity: " + vip_identity)
@@ -247,6 +253,17 @@ def actuator_agent(config_path, **kwargs):
 
         @RPC.export
         def get_point(self, topic, **kwargs):
+            """RPC method
+            
+            Gets the value of a specific point on a device. 
+            Does not require the device be scheduled. 
+            
+            :param topic: The topic of the point to grab in the 
+                          format <device topic>/<point name>
+            :param **kwargs: Any driver specific parameters
+            :type topic: str
+            :returns: point value
+            :rtype: any base python type"""
             topic = topic.strip('/')
             _log.debug('handle_get: {topic}'.format(topic=topic))
             path, point_name = topic.rsplit('/', 1)
@@ -254,6 +271,27 @@ def actuator_agent(config_path, **kwargs):
 
         @RPC.export
         def set_point(self, requester_id, topic, value, **kwargs):
+            """RPC method
+            
+            Sets the value of a specific point on a device. 
+            Requires the device be scheduled by the calling agent.
+            
+            :param requester_id: Identifier given when requesting schedule. 
+            :param topic: The topic of the point to set in the 
+                          format <device topic>/<point name>
+            :param value: Value to set point to.
+            :param **kwargs: Any driver specific parameters
+            :type topic: str
+            :type requester_id: str
+            :type value: any basic python type
+            :returns: value point was actually set to. Usually invalid values 
+                    cause an error but some drivers (MODBUS) will return a different
+                    value with what the value was actually set to.
+            :rtype: any base python type
+            
+            .. warning:: Calling without previously scheduling a device and not within 
+                         the time allotted will raise a LockError"""
+                         
             topic = topic.strip('/')
             _log.debug('handle_set: {topic},{requester_id}, {value}'.
                        format(topic=topic, requester_id=requester_id, value=value))
@@ -302,6 +340,21 @@ def actuator_agent(config_path, **kwargs):
         
         @RPC.export
         def revert_point(self, requester_id, topic, **kwargs):  
+            """RPC method
+            
+            Reverts the value of a specific point on a device to a default state. 
+            Requires the device be scheduled by the calling agent.
+            
+            :param requester_id: Identifier given when requesting schedule. 
+            :param topic: The topic of the point to revert in the 
+                          format <device topic>/<point name>
+            :param **kwargs: Any driver specific parameters
+            :type topic: str
+            :type requester_id: str
+            
+            .. warning:: Calling without previously scheduling a device and not within 
+                         the time allotted will raise a LockError"""
+                         
             topic = topic.strip('/')
             _log.debug('handle_revert: {topic},{requester_id}'.
                        format(topic=topic, requester_id=requester_id))
@@ -321,6 +374,20 @@ def actuator_agent(config_path, **kwargs):
             
         @RPC.export
         def revert_device(self, requester_id, topic, **kwargs):  
+            """RPC method
+            
+            Reverts all points on a device to a default state. 
+            Requires the device be scheduled by the calling agent.
+            
+            :param requester_id: Identifier given when requesting schedule. 
+            :param topic: The topic of the device to revert
+            :param **kwargs: Any driver specific parameters
+            :type topic: str
+            :type requester_id: str
+            
+            .. warning:: Calling without previously scheduling a device and not within 
+                         the time allotted will raise a LockError"""
+                         
             topic = topic.strip('/')
             _log.debug('handle_revert: {topic},{requester_id}'.
                        format(topic=topic, requester_id=requester_id))
