@@ -93,6 +93,11 @@ def load_user(string):
     return _load_re.sub(sub, string).split('\x00')
 
 
+class AuthException(Exception):
+    '''General exception for any auth error'''
+    pass
+
+
 class AuthService(Agent):
     def __init__(self, auth_file, aip, *args, **kwargs):
         self.allow_any = kwargs.pop('allow_any', False)
@@ -266,6 +271,11 @@ class List(list):
         return False
 
 
+class AuthEntryInvalid(AuthException):
+    '''Exception for invalid AuthEntry objects'''
+    pass
+
+
 class AuthEntry(object):
     def __init__(self, domain=None, address=None, credentials=None,
                  user_id=None, groups=None, roles=None,
@@ -283,6 +293,7 @@ class AuthEntry(object):
         if kwargs:
             _log.debug(
                 'auth record has unrecognized keys: %r' % (kwargs.keys(),))
+        self._check_validity()
 
     def __lt__(self, other):
         '''Entries with non-regex credentials will be less than'''
@@ -322,28 +333,30 @@ class AuthEntry(object):
 
     @staticmethod
     def valid_credentials(cred):
+        '''Raises AuthEntryInvalid if credentials are invalid'''
         if cred is None:
-            return False, 'credentials parameter is required'
+            raise AuthEntryInvalid('credentials parameter is required')
         if isregex(cred):
-            return True, ''
+            return
         if cred.startswith('CURVE:') and len(cred) != 49:
             # 49 = len(encoded_key) + len('CURVE:')
-            return False, 'Inavlid CURVE public key'
+            raise AuthEntryInvalid('Invalid CURVE public key')
         if not (cred == 'NULL' or
                 cred.startswith('PLAIN:') or
                 cred.startswith('CURVE:')):
-            return False, ('credentials must either begin with "PLAIN:" or "CURVE:" '
-                    'or it must be "NULL"')
-        return True, ''
+           raise AuthEntryInvalid('credentials must either begin with '
+                   '"PLAIN:" or "CURVE:" or it must be "NULL"')
 
-    def invalid(self):
-        '''Returns error string if the entry is invalid; None if it is valid'''
-        valid, msg = AuthEntry.valid_credentials(self.credentials)
-        if not valid:
-            return msg
+    def _check_validity(self):
+        '''Raises AuthEntryInvalid if entry is invalid'''
+        AuthEntry.valid_credentials(self.credentials)
+
 
 class AuthFile(object):
-    def __init__(self, auth_file):
+    def __init__(self, auth_file=None):
+        if auth_file is None:
+            auth_file_dir = os.environ.get('VOLTTRON_HOME', '~/.volttron')
+            auth_file = os.path.join(auth_file_dir, 'auth.json')
         self.auth_file = auth_file
 
     def read(self):
@@ -383,11 +396,10 @@ class AuthFile(object):
             except TypeError:
                 _log.warn('invalid entry %r in auth file %s',
                           file_entry, self.auth_file)
+            except AuthEntryInvalid as e:
+                _log.warn('invalid entry %r in auth file %s (%s)',
+                        file_entry, self.auth_file, e.message)
             else:
-                error_msg = entry.invalid()
-                if error_msg:
-                    _log.warn('invalid entry %r in auth file %s (%s)',
-                              file_entry, self.auth_file, error_msg)
                 self._use_groups_and_roles(entry, groups, roles)
                 entries.append(entry)
         return entries
@@ -404,28 +416,37 @@ class AuthFile(object):
             capabilities += roles.get(role, [])
         entry.add_capabilities(list(set(capabilities)))
 
+    def _check_if_exists(self, entry):
+        '''Raises AuthFileEntryAlreadyExists if entry is already in file'''
+        matching_indices = self._find(entry)
+        if matching_indices:
+            raise AuthFileEntryAlreadyExists(matching_indices)
+
+    def _update_by_indices(auth_entry, indices):
+        '''Updates all entries at given indices with auth_entry'''
+        for index in indices:
+            self.update_by_index(auth_entry, index)
+
     def add(self, auth_entry, overwrite=True):
         '''Adds an AuthEntry to the auth file'''
-        error_msg = auth_entry.invalid()
-        if error_msg:
-            return False, error_msg
-        same_list = self._find(auth_entry)
-        if same_list:
-            entry_word = 'entry' if len(same_list) == 1 else 'entries'
-            return False, ('entry matches domain, address and credentials of '
-                           'existing %s %s') % (entry_word, same_list)
+        try:
+            self._check_if_exists(auth_entry)
+        except AuthFileEntryAlreadyExists as err:
+            if overwrite:
+                self._update_by_indices(auth_entry, err.indices)
+            else:
+                raise err
         entries, groups, roles = self._read_entries_as_list()
         entry_dict = vars(auth_entry)
         entries.append(entry_dict)
         self._write(entries, groups, roles)
-        return True, 'added entry %s' % entry_dict
 
     def remove_by_index(self, index):
         '''Removes entry from auth file by index'''
         return self.remove_by_indices([index])
 
     def remove_by_indices(self, indices):
-        '''Removes entry from auth file by indices as shown by list command'''
+        '''Removes entry from auth file by indices'''
         indices = list(set(indices))
         indices.sort(reverse=True)
         entries, groups, roles = self._read_entries_as_list()
@@ -433,26 +454,16 @@ class AuthFile(object):
             try:
                 del entries[index]
             except IndexError:
-                return False, 'invalid index %d' % index
-        else:
-            self._write(entries, groups, roles)
-            if len(indices) > 1:
-                msg = 'removed entries at indices {}'
-            else:
-                msg = 'removed entry at index {}'
-            return True, msg.format(indices)
+                raise AuthFileIndexError(index)
+        self._write(entries, groups, roles)
 
     def update_by_index(self, auth_entry, index):
-        error_msg = auth_entry.invalid()
-        if error_msg:
-            return False, error_msg
         entries, groups, roles = self._read_entries_as_list()
         try:
             entries[index] = vars(auth_entry)
         except IndexError:
-            return False, 'invalid index %d' % index
+            raise AuthFileIndexError(index)
         self._write(entries, groups, roles)
-        return True, 'updated entry at index %d' % index
 
     def _read_entries_as_list(self):
         entries, groups, roles = self.read()
@@ -475,3 +486,25 @@ class AuthFile(object):
         auth = {'groups': groups, 'roles': roles, 'allow': entries}
         with open(self.auth_file, 'w') as fp:
             fp.write(jsonapi.dumps(auth, indent=2))
+
+
+class AuthFileIndexError(AuthException, IndexError):
+    '''Exception for invalid indices provided to AuthFile'''
+    def __init__(self, indices, message=None):
+        if message is None:
+            message = 'Invalid {}: {}'.format(
+                'indicies' if len(indices) > 1 else 'index', indices)
+        super(AuthFileInvalidIndex).__init__(message)
+        self.indices = indices
+
+
+class AuthFileEntryAlreadyExists(AuthFileIndexError):
+    '''Exception if adding an entry that already exists'''
+    def __init__(self, indicies, message=None):
+        if message is None:
+            message = ('entry matches domain, address and '
+                'credentials of {} at {}').format(
+                    'entry' if len(same_list) == 1 else 'entries',
+                    indicies)
+
+        super(AuthFileEntryAlreadyExists).__init__(indicies, message)
