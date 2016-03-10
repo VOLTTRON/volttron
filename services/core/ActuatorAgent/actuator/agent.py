@@ -451,6 +451,111 @@ def actuator_agent(config_path, **kwargs):
 
         @RPC.export
         def request_new_schedule(self, requester_id, task_id, priority, requests):
+            """RPC method
+            
+            Requests one or more blocks on time on one or more device.
+            
+            :param requester_id: Requester name. 
+            :param task_id: Task name.
+            :param priority: Priority of the task. Must be either HIGH, LOW, or LOW_PREEMPT
+            :param requests: A list of time slot requests
+            
+            :type requester_id: str
+            :type task_id: str
+            :type priority: str
+            :type request: list
+            :returns: Request result
+            :rtype: dict
+            
+            
+            :Example request set:
+            
+                [
+                    ["campus/building/device1", #First time slot.
+                     "2013-12-06 16:00:00",     #Start of time slot.
+                     "2013-12-06 16:20:00"],    #End of time slot.
+                    ["campus/building/device1", #Second time slot.
+                     "2013-12-06 18:00:00",     #Start of time slot.
+                     "2013-12-06 18:20:00"],    #End of time slot.
+                    ["campus/building/device2", #Third time slot.
+                     "2013-12-06 16:00:00",     #Start of time slot.
+                     "2013-12-06 16:20:00"],    #End of time slot.
+                ]
+            
+            .. note:: 
+                There are some things to be aware of when requesting a schedule:
+                    * Task id and requester id (agentid) should be a non empty value of type string
+                    * A Task schedule must have at least one time slot.
+                    * The start and end times are parsed with dateutil's date/time parser. The default string representation of a python datetime object will parse without issue.
+                    * Two Tasks are considered conflicted if at least one time slot on a device from one task overlaps the time slot of the other on the same device.
+                    * The end time of one time slot can be the same as the start time of another time slot for the same device. This will not be considered a conflict. For example, time_slot1(device0, time1, time2) and time_slot2(device0,time2, time3) are not considered a conflict
+                    * A request must not conflict with itself.
+                
+            :Task Priorities:
+            
+            There are three valid prioirity levels:
+            
+                HIGH
+                    This Task cannot be preempted under any circumstance. 
+                    This task may preempt other conflicting preemptable Tasks.
+                LOW
+                    This Task cannot be preempted **once it has started**. 
+                    A Task is considered started once the earliest time slot on any 
+                    device has been reached. This Task may not preempt other Tasks.
+                LOW_PREEMPT
+                    This Task may be preempted at any time. 
+                    If the Task is preempted once it has begun running any current 
+                    time slots will be given a grace period (configurable in the 
+                    ActuatorAgent configuration file, defaults to 60 seconds) before 
+                    being revoked. This Task may not preempt other Tasks.
+            
+            :Return Values:
+            
+            The return values has the following format:
+            
+                {
+                    'result': <'SUCCESS', 'FAILURE'>,
+                    'info': <Failure reason, if any>,
+                    'data': <Data about the failure or cancellation, if any>
+                }
+                
+            :Schedule Request Failures:
+            
+            If an attempt submit a schedule fails than the "info" item will have any of the
+            following values:
+                TASK_ID_ALREADY_EXISTS
+                    The supplied taskID already belongs to an existing task.  
+                MISSING_PRIORITY
+                    Failed to supply a priority for a Task schedule request. 
+                INVALID_PRIORITY
+                    Priority not one of "HIGH", "LOW", or "LOW_PREEMPT". 
+                MALFORMED_REQUEST_EMPTY
+                    Request list is missing or empty. 
+                REQUEST_CONFLICTS_WITH_SELF
+                    Requested time slots on the same device overlap. 
+                MALFORMED_REQUEST
+                    Reported when the request parser raises an unhandled exception. The exception name and info are appended to this info string. 
+                CONFLICTS_WITH_EXISTING_SCHEDULES
+                    This schedule conflict with an existing schedules that it cannot preempt. The data item for the results will contain info about the conflicts in this form (after parsing json):
+            
+                    {
+                        '<agentID1>': 
+                        {
+                            '<taskID1>':
+                            [
+                                ["campus/building/device1", 
+                                 "2013-12-06 16:00:00",     
+                                 "2013-12-06 16:20:00"],
+                                ["campus/building/device1", 
+                                 "2013-12-06 18:00:00",     
+                                 "2013-12-06 18:20:00"]     
+                            ]
+                            '<taskID2>':[...]
+                        }
+                        '<agentID2>': {...}
+                    }
+            """
+                         
             now = datetime.datetime.now()
 
             topic = topics.ACTUATOR_SCHEDULE_RESULT()
@@ -504,6 +609,43 @@ def actuator_agent(config_path, **kwargs):
 
         @RPC.export
         def request_cancel_schedule(self, requester_id, task_id):
+            """RPC method
+            
+            Requests the cancelation of the specified task id.
+            
+            :param requester_id: Requester name. 
+            :param task_id: Task name.
+            
+            :type requester_id: str
+            :type task_id: str
+            :returns: Request result
+            :rtype: dict
+            
+            :Return Values:
+            
+            The return values has the following format:
+            
+                {
+                    'result': <'SUCCESS', 'FAILURE'>,
+                    'info': <Failure reason, if any>,
+                    'data': {}
+                }
+                
+            .. note:: 
+                There are some things to be aware of when canceling a schedule:
+                    * The requesterID and taskID must match the original values from the original request header.
+                    * After a Tasks time has passed there is no need to cancel it. Doing so will result in a "TASK_ID_DOES_NOT_EXIST" error.
+                    
+            :Schedule Cancel Failures:
+            
+            If an attempt cancel a schedule fails than the "info" item will have any of the
+            following values:
+                TASK_ID_DOES_NOT_EXIST
+                    Trying to cancel a Task which does not exist. This error can also occur when trying to cancel a finished Task.
+                AGENT_ID_TASK_ID_MISMATCH
+                    A different agent ID is being used when trying to cancel a Task.
+            
+            """
             now = datetime.datetime.now()
             headers = self.get_headers(requester_id, task_id=task_id)
             headers['type'] = SCHEDULE_ACTION_CANCEL
