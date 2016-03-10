@@ -1,7 +1,8 @@
+from collections import namedtuple
+from datetime import datetime
 import logging
 import uuid
 
-from zmq.utils import jsonapi
 
 from volttron.platform.agent import utils
 
@@ -12,37 +13,12 @@ _log = logging.getLogger(__name__)
 class DuplicateUUIDError(Exception):
     pass
 
-
-class RegistryEntry:
-    def __init__(self, vip_address, serverkey, discovery_address,
-                 platform_uuid=None, display_name=None, **kwargs):
-
-        assert vip_address
-        assert serverkey
-        assert discovery_address
-
-        self.display_name = display_name
-        self.vip_address = vip_address
-        self.platform_uuid = platform_uuid
-        self.serverkey = serverkey
-        self.discovery_address = discovery_address
-        self.tags = {}
+RegistryEntry = namedtuple(
+    'RegistryEntry', ['vip_address', 'serverkey', 'discovery_address',
+                      'is_local', 'platform_uuid', 'tags'])
 
 
-        while len(kwargs.items()):
-            item = kwargs.popitem()
-            self.add_update_tag(item[0], item[1])
-
-    def add_update_tag(self, name, value):
-        self.tags[name] = value
-
-    def has_tag(self, name):
-        return name in self.tags.keys()
-
-    def to_json(self):
-        return jsonapi.dumps(self.__dict__)
-
-class PlatformRegistry:
+class PlatformRegistry(object):
     """ Container class holding registered platforms and services.
 
     The goal of this class is to allow a single point of knowlege of
@@ -68,6 +44,12 @@ class PlatformRegistry:
 
         return self._vip_to_uuid.keys()
 
+    def get_platform_by_address(self, vip_address):
+        _log.debug('Getting address: {}'.format(vip_address))
+        uuid = self._vip_to_uuid[vip_address]
+        entry = self._platform_entries[uuid]
+        return entry
+
     def get_platforms(self):
         """ Returns all of the registerd platforms dictionaries.
 
@@ -84,6 +66,28 @@ class PlatformRegistry:
         """
         self._platform_entries[platform_uuid].add_update_tag(
             'agent_list', agent_list.get())
+
+    @staticmethod
+    def build_entry(vip_address, serverkey, discovery_address,
+                    is_local=False):
+        if not is_local:
+            if not vip_address:
+                raise ValueError(
+                    'vip_address cannot be null for non-local platforms')
+            if not serverkey:
+                raise ValueError(
+                    'serverkey cannot be null for no-local platforms'
+                )
+        return RegistryEntry(
+            vip_address=vip_address, serverkey=serverkey,
+            discovery_address=discovery_address, is_local=is_local,
+            platform_uuid=str(uuid.uuid4()),
+            tags={
+                'created': datetime.utcnow().isoformat(),
+                'available': True
+            }
+        )
+
 
     def unregister(self, vip_address):
         if vip_address in self._platform_entries.keys():

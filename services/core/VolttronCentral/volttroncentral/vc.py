@@ -68,7 +68,8 @@ import requests
 from zmq.utils import jsonapi
 
 from authenticate import Authenticate
-from registry import PlatformRegistry, RegistryEntry
+from .resource_directory import ResourceDirectory
+from .registry import PlatformRegistry
 
 from volttron.platform import jsonrpc, get_home
 from volttron.platform.agent import utils
@@ -131,10 +132,12 @@ def volttron_central_agent(config_path, **kwargs):
 
         def __init__(self, **kwargs):
             super(VolttronCentralAgent, self).__init__(**kwargs)
-            _log.debug("Registering (address, identity) ({}, {})"
-                       .format(self.core.address, self.core.identity))
-            # a list of peers that have checked in with this agent.
-            self._registry = PlatformRegistry()
+
+            # A resource directory that contains everything that can be looked
+            # up.
+            self._resources = ResourceDirectory()
+            self._registry = self._resources.platform_registry
+
             # An object that allows the checking of currently authenticated
             # sessions.
             self._sessions = SessionHandler(Authenticate(user_map))
@@ -142,24 +145,53 @@ def volttron_central_agent(config_path, **kwargs):
             self.persistence_path = ''
             self._external_addresses = None
             self._vip_channels = {}
-            self._keystore = KeyStore("vc.keystore")
-            self.__serverkey = None
+            self._peer_platform_exists = False
 
-        @property
-        def _secretkey(self):
-            return self._keystore.secret()
+            # These are going to be populated in the starting method.
+            self._external_addresses = None
+            self._local_address = None
 
-        @property
-        def _publickey(self):
-            return self._keystore.public()
+            # connect a periodic to check for the existence of a platform_peer
+            self.core.onstart.connect(
+                lambda s, **kwargs:
+                    self.core.periodic(1, self._check_for_peer_platform))
 
-        @property
-        def _serverkey(self):
-            if not self.__serverkey:
-                self.__serverkey = self.vip.rpc.call("volttron.web",
-                                                    "get_serverkey"
-                                                    ).get(timeout=3)
-            return self.__serverkey
+        def _check_for_peer_platform(self):
+            """ Check the list of peers for a platform.agent
+
+            Registers the platform_peer if it hasn't been registered.
+            """
+            peers = self.vip.peerlist().get()
+            if "platform.agent" in peers:
+                if not self._peer_platform_exists:
+                    _log.info("peer_platform available")
+                    self._peer_platform_exists = True
+                    try:
+                        entry = self._registry.get_platform_by_address(
+                            self._local_address)
+                    except KeyError:
+                        assert "ipc" in self._local_address
+                        entry = PlatformRegistry.build_entry(
+                            vip_address=self._local_address, serverkey=None,
+                            discovery_address=None, is_local=True
+                        )
+                        self._registry.register(entry)
+
+            elif "platform.agent" not in peers:
+                if self._peer_platform_exists:
+                    _log.info("peer_platform unavailable")
+                    self._peer_platform_exists = False
+
+        @RPC.export
+        def get_platforms(self):
+            _log.debug('Getting platforms via rpc')
+            return self._registry.get_platforms()
+
+        @RPC.export
+        def get_platform(self, platform_uuid):
+            return self._registry.get_platform(platform_uuid)
+
+        #@Core.periodic(5)
 
         def list_agents(self, uuid):
             platform = self._registry.get_platform(uuid)
@@ -430,14 +462,15 @@ def volttron_central_agent(config_path, **kwargs):
             _, _, my_id = self.vip.hello().get(timeout=2)
             _log.info('Starting Volttron Central Agent ({})'.format(my_id))
             q = query.Query(self.core)
-            result = q.query('addresses').get(timeout=10)
+            self._external_addresses = q.query('addresses').get(timeout=10)
 
             #TODO: Use all addresses for fallback, #114
-            _log.debug("external addresses are: {}".format(result))
-            self._external_addresses = result #(result and result[0]) or self.core.address
-            _log.debug('External addresses are: {}'.format(self._external_addresses))
+            _log.debug("external addresses are: {}".format(
+                self._external_addresses
+            ))
+            self._local_address = q.query('local_address').get(timeout=10)
+            _log.debug('Local address is? {}'.format(self._local_address))
             _log.debug('Registering jsonrpc and /.* routes')
-            _log.debug("it would be awsome if we got here! {}".format(result))
             self.vip.rpc.call('volttron.web', 'register_agent_route',
                             r'^/jsonrpc.*',
                             self.core.identity,

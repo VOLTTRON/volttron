@@ -1,13 +1,13 @@
+import os
 import tempfile
 
 import gevent
-import os
 import pytest
 import requests
 from zmq.utils import jsonapi
 
 from volttron.platform.keystore import KeyStore
-from volttron.platform.vip.agent import Agent
+from volttrontesting.fixtures.vc_fixtures import PLATFORM_AGENT_CONFIG
 
 
 def validate_instances(wrapper1, wrapper2):
@@ -17,6 +17,37 @@ def validate_instances(wrapper1, wrapper2):
     assert wrapper1.volttron_home
     assert wrapper2.volttron_home
     assert wrapper1.volttron_home != wrapper2.volttron_home
+
+
+@pytest.mark.vc
+def test_autoregistered_peer_platform(vc_instance):
+    vc_wrapper = vc_instance['wrapper']
+
+    caller_agent = vc_wrapper.build_agent(
+        address=vc_wrapper.local_vip_address)
+    assert caller_agent
+
+    platforms = caller_agent.vip.rpc.call(
+        'volttron.central', 'get_platforms').get(timeout=2)
+
+    assert not platforms # no platforms should be registered.
+
+    platform_uuid = vc_wrapper.install_agent(
+        agent_dir="services/core/Platform", config_file=PLATFORM_AGENT_CONFIG)
+
+    # must wait for the registration to be added.
+    gevent.sleep(6)
+    platforms = caller_agent.vip.rpc.call(
+        'volttron.central', 'get_platforms').get(timeout=2)
+
+    assert platforms
+    p = platforms[0]
+    print('A PLATFORM IS: {}'.format(p))
+    assert p['is_local']
+    assert p['tags']['available']
+    assert p['tags']['created']
+    assert p['vip_address'] == vc_wrapper.local_vip_address
+
 
 @pytest.mark.vc
 def test_discovery(vc_instance, pa_instance):
