@@ -5,3 +5,9 @@ SampleLong1,SampleLong1,Enumeration,1 through 13,FALSE,50,int,Status indicator o
 SampleWritableShort1,SampleWritableShort1,%,0.00 to 100.00 (20 default),TRUE,20,int,Minimum damper position during the standard mode
 SampleBool1,SampleBool1,On / Off,on/off,FALSE,TRUE,boolean,Status indidcator of cooling stage 1
 SampleWritableBool1,SampleWritableBool1,On / Off,on/off,TRUE,TRUE,boolean,Status indicator
+OutsideAirTemperatureNoDefault,OutsideAirTemperatureNoDefault,F,-100 to 300,FALSE,,float,CO2 Reading 0.00-2000.0 ppm
+SampleWritableFloatNoDefault,SampleWritableFloatNoDefault,PPM,1000.00 (default),TRUE,,float,Setpoint to enable demand control ventilation 
+SampleLongNoDefault,SampleLongNoDefault,Enumeration,1 through 13,FALSE,,int,Status indicator of service switch
+SampleWritableShortNoDefault,SampleWritableShortNoDefault,%,0.00 to 100.00 (20 default),TRUE,,int,Minimum damper position during the standard mode
+SampleBoolNoDefault,SampleBoolNoDefault,On / Off,on/off,FALSE,,boolean,Status indidcator of cooling stage 1
+SampleWritableBoolNoDefault,SampleWritableBoolNoDefault,On / Off,on/off,TRUE,,boolean,Status indicator
