@@ -69,7 +69,7 @@ from zmq.utils import jsonapi
 
 from authenticate import Authenticate
 from .resource_directory import ResourceDirectory
-from .registry import PlatformRegistry
+from .registry import PlatformRegistry, RegistryEntry
 
 from volttron.platform import jsonrpc, get_home
 from volttron.platform.agent import utils
@@ -398,10 +398,15 @@ def volttron_central_agent(config_path, **kwargs):
         def jsonrpc(self, env, data):
             """ The main entry point for ^jsonrpc data
 
-            This method will only accept rpcdata.  The first time this method is
-            called for a session it must be using get_authorization.  That will
-            return a session token that must be included in every request
-            after that.  The session is validated based upon ip address.
+            This method will only accept rpcdata.  The first time this method
+            is called, per session, it must be using get_authorization.  That
+            will return a session token that must be included in every
+            subsequent request.  The session is tied to the ip address
+            of the caller.
+
+            :param object env: Environment dictionary for the request.
+            :param object data: The JSON-RPC 2.0 method to call.
+            :return object: An JSON-RPC 2.0 response.
             """
             if env['REQUEST_METHOD'].upper() != 'POST':
                 return jsonrpc.json_error('NA', INVALID_REQUEST,
@@ -436,24 +441,51 @@ def volttron_central_agent(config_path, **kwargs):
                     try:
                         # internal use discovery address rather than uri
                         print("RPCDATA.PARAMS: {}".format(rpcdata.params))
-                        result = self.register_instance(**rpcdata.params)
+                        result = self._register_instance(**rpcdata.params)
                     except CouldNotRegister as expinfo:
                         return jsonrpc.json_error(
                             rpcdata.id, UNABLE_TO_REGISTER_INSTANCE,
                             "Unable to register platform {}".format(expinfo),
-                            rpcdata.params)
+                            **rpcdata.params)
                     else:
                         return jsonrpc.json_result(rpcdata.id, {
                             "status": "SUCCESS",
                             "context": "Registered instance {}".format(
                                 result['display_name'])
                         })
+                elif rpcdata.method == 'get_platforms':
+                    return self._get_platforms_json(rpcdata.id)
 
             except AssertionError:
                 return jsonapi.dumps(jsonrpc.json_error(
                     'NA', INVALID_REQUEST, 'Invalid rpc data {}'.format(data)))
 
             return rpcdata
+
+        def _get_platforms_json(self, message_id):
+            platforms = []
+            keys = []
+            for p in self.get_platforms():
+                # entry = RegistryEntry(**p)
+                if p.tags['available']:
+                    s = self.vip.rpc.call('platform.agent',
+                                          'get_status').get(timeout=2)
+                    status = s
+                else:
+                    status = {"status": "UNKNOWN",
+                              "context": "Platform currently unavailable.",
+                              "last_updated": None}
+                r = {
+                    'name': p.display_name,
+                    'uuid': p.platform_uuid,
+                    'agents': p.tags.get('agents', []),
+                    'devices': p.tags.get('devices', []),
+                    'status': status
+                }
+
+                platforms.append(r)
+
+            return jsonrpc.json_result(message_id, platforms)
 
         @Core.receiver('onstart')
         def starting(self, sender, **kwargs):

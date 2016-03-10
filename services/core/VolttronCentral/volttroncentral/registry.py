@@ -15,7 +15,7 @@ class DuplicateUUIDError(Exception):
 
 RegistryEntry = namedtuple(
     'RegistryEntry', ['vip_address', 'serverkey', 'discovery_address',
-                      'is_local', 'platform_uuid', 'tags'])
+                      'is_local', 'platform_uuid', 'display_name', 'tags'])
 
 
 class PlatformRegistry(object):
@@ -69,7 +69,7 @@ class PlatformRegistry(object):
 
     @staticmethod
     def build_entry(vip_address, serverkey, discovery_address,
-                    is_local=False):
+                    display_name=None, is_local=False):
         if not is_local:
             if not vip_address:
                 raise ValueError(
@@ -80,8 +80,8 @@ class PlatformRegistry(object):
                 )
         return RegistryEntry(
             vip_address=vip_address, serverkey=serverkey,
-            discovery_address=discovery_address, is_local=is_local,
-            platform_uuid=str(uuid.uuid4()),
+            display_name=display_name, discovery_address=discovery_address,
+            is_local=is_local, platform_uuid=str(uuid.uuid4()),
             tags={
                 'created': datetime.utcnow().isoformat(),
                 'available': True
