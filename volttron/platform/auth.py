@@ -115,7 +115,7 @@ class AuthService(Agent):
 
     def read_auth_file(self):
         _log.info('loading auth file %s', self.auth_file_path)
-        entries, _, _ = self.auth_file.read()
+        entries = self.auth_file.read_allow_entries()
         entries = [entry for entry in entries if entry.enabled]
         # sort the entries so the regex credentails follow the concrete creds
         entries.sort()
@@ -367,10 +367,14 @@ class AuthFile(object):
 
         groups = auth_data.get('groups', {})
         roles = auth_data.get('roles', {})
-        entries = self._load_entries(auth_data, groups, roles)
+        entries = self._get_entries(auth_data, groups, roles)
         return entries, groups, roles
 
-    def _load_entries(self, auth_data, groups, roles):
+    def read_allow_entries(self):
+        '''Returns the allowed entries from the auth file'''
+        return self.read()[0]
+
+    def _get_entries(self, auth_data, groups, roles):
         allowed = auth_data.get('allow', [])
         entries = []
         for file_entry in allowed:
@@ -410,7 +414,7 @@ class AuthFile(object):
             entry_word = 'entry' if len(same_list) == 1 else 'entries'
             return False, ('entry matches domain, address and credentials of '
                            'existing %s %s') % (entry_word, same_list)
-        entries, groups, roles = self._read_entries()
+        entries, groups, roles = self._read_entries_as_list()
         entry_dict = vars(auth_entry)
         entries.append(entry_dict)
         self._write(entries, groups, roles)
@@ -420,7 +424,7 @@ class AuthFile(object):
         '''Removes entry from auth file by indices as shown by list command'''
         indices = list(set(indices))
         indices.sort(reverse=True)
-        entries, groups, roles = self._read_entries()
+        entries, groups, roles = self._read_entries_as_list()
         for index in indices:
             try:
                 del entries[index]
@@ -438,7 +442,7 @@ class AuthFile(object):
         error_msg = auth_entry.invalid()
         if error_msg:
             return False, error_msg
-        entries, groups, roles = self._read_entries()
+        entries, groups, roles = self._read_entries_as_list()
         try:
             entries[index] = vars(auth_entry)
         except IndexError:
@@ -446,7 +450,7 @@ class AuthFile(object):
         self._write(entries, groups, roles)
         return True, 'updated entry at index %d' % index
 
-    def _read_entries(self):
+    def _read_entries_as_list(self):
         entries, groups, roles = self.read()
         return [vars(x) for x in entries], groups, roles
 
@@ -457,7 +461,7 @@ class AuthFile(object):
             mech = 'NULL'
             cred = ''
         match_list = []
-        entries , _, _ = self.read()
+        entries = self.read_allow_entries()
         for index, prev_entry in enumerate(entries):
             if prev_entry.match(entry.domain, entry.address, mech, [cred]):
                 match_list.append(index)

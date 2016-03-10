@@ -534,7 +534,7 @@ def _print_result(success, msg):
 
 def list_auth(opts, indices=None):
     auth_file = _get_auth_file(opts.volttron_home)
-    entries, _, _ = auth_file.read()
+    entries = auth_file.read_allow_entries()
     print_out = []
     if entries:
         for index, entry in enumerate(entries):
@@ -664,7 +664,7 @@ def remove_auth(opts):
 
 def update_auth(opts):
     auth_file = _get_auth_file(opts.volttron_home)
-    entries, _, _  = auth_file.read()
+    entries = auth_file.read_allow_entries()
     try:
         entry = entries[opts.index]
         _stdout.write('(For any field type "clear" to clear the value.)\n')
