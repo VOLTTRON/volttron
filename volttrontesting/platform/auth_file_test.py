@@ -7,18 +7,6 @@ import pytest
 from volttron.platform import jsonrpc
 from volttron.platform.auth import AuthEntry, AuthFile
 
-def build_agent(platform, identity):
-    keys = keystore.KeyStore(os.path.join(platform.volttron_home,
-                                          identity + '.keys'))
-    keys.generate()
-    agent = platform.build_agent(identity=identity,
-                                  serverkey=platform.publickey,
-                                  publickey=keys.public(),
-                                  secretkey=keys.secret())
-    # Make publickey easily accessible for these tests
-    agent.publickey = keys.public()
-    return agent
-
 @pytest.fixture(scope='function')
 def auth_file_platform_tuple(volttron_instance1_encrypt):
     platform = volttron_instance1_encrypt
