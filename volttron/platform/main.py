@@ -324,6 +324,8 @@ class Router(BaseRouter):
                         value = [addr.base for addr in self.addresses]
                     else:
                         value = [self.local_address.base]
+                elif name == b'local_address':
+                    value = self.local_address.base
                 else:
                     value = None
             frames[6:] = [b'', jsonapi.dumps(value)]

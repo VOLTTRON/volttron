@@ -1,7 +1,5 @@
-import sys
 
 import pytest
-from zmq.utils import jsonapi
 
 from .volttron_platform_fixtures import print_log
 
@@ -29,7 +27,6 @@ VC_CONFIG = {
     "agentid": "volttron central",
 
     # Must be unique on a given instance of VOLTTRON
-    "vip_identity": "volttron.central",
     "identity": "volttron.central",
 
     # By default the webroot will be relative to the installation directory
