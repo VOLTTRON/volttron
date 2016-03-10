@@ -3,7 +3,6 @@ from datetime import datetime
 import logging
 import uuid
 
-
 from volttron.platform.agent import utils
 
 utils.setup_logging()
@@ -35,6 +34,22 @@ class PlatformRegistry(object):
         self._platform_entries = {}
         self._vip_to_uuid = {}
 
+    def add_update_tag(self, platform_uuid, key, value):
+        """ Add a tag to the specified platform's entry.
+
+        :param platform_uuid:
+        :param key:
+        :param value:
+        :return:
+        """
+        if platform_uuid not in self._platform_entries.keys():
+            raise KeyError("{} not found".format(platform_uuid))
+        if not key:
+            raise ValueError("key cannot be null")
+        self._platform_entries[platform_uuid].tags[key] = value
+
+    def get_tag(self, platform_uuid, key):
+        return self._platform_entries[platform_uuid].tags[key]
 
     def get_vip_addresses(self):
         """ Return all of the different vip addresses available.

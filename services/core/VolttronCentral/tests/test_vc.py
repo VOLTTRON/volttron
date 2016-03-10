@@ -38,7 +38,7 @@ def test_autoregistered_peer_platform(vc_instance):
     # must wait for the registration to be added.
     gevent.sleep(6)
     platforms = caller_agent.vip.rpc.call(
-        'volttron.central', 'get_platforms').get(timeout=2)
+        'volttron.central', 'list_platforms').get(timeout=2)
 
     assert platforms
     p = platforms[0]

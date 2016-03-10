@@ -58,6 +58,7 @@ from __future__ import absolute_import, print_function
 __version__ = '3.1'
 
 import base64
+from collections import namedtuple
 import gevent.event
 import logging
 import sys
@@ -81,7 +82,17 @@ from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
                                        INVALID_REQUEST, METHOD_NOT_FOUND,
                                        PARSE_ERROR, UNHANDLED_EXCEPTION)
 
+class CannotConnectError(Exception):
+    """ Raised if the connection parameters are not set or invalid
+    """
+    pass
+
 class AlreadyManagedError(Exception):
+    """ Raised when a different volttron central tries to register.n
+    """
+    pass
+
+class DiscoveryError(Exception):
     """ Raised when a different volttron central tries to register.
     """
     pass
@@ -90,24 +101,26 @@ utils.setup_logging()
 _log = logging.getLogger(__name__)
 __version__ = '3.5'
 
+VCInfo = namedtuple("VCInfo", ["discovery_address",
+                               "vip_address",
+                               "serverkey"])
+
 def platform_agent(config_path, **kwargs):
     config = utils.load_config(config_path)
 
     agentid = config.get('agentid', 'platform')
     agent_type = config.get('agent_type', 'platform')
-    vc_vip_address = config.get('volttron_central_vip_address', None)
-    vc_vip_identity = config.get('volttron_central_vip_identity',
-                                 "volttron.central")
-    vip_identity = config.get('vip_identity', 'platform.agent')
-    kwargs.pop('identity',None)
+
+    discovery_address = config.get('discovery-address', None)
+    display_name = config.get('display-name', None)
+
+    identity = config.get('identity', 'platform.agent')
+    kwargs.pop('identity', None)
 
     class PlatformAgent(Agent):
 
-        def __init__(self, vc_vip_address=vc_vip_address,
-                     vc_vip_identity=vc_vip_address, **kwargs):
+        def __init__(self, **kwargs):
             super(PlatformAgent, self).__init__(**kwargs)
-            self.vc_vip_identity = vc_vip_identity
-            self.vc_vip_address = vc_vip_address
 
             _log.info('my identity {} address: {}'.format(self.core.identity,
                                                       self.core.address))
@@ -122,6 +135,11 @@ def platform_agent(config_path, **kwargs):
             self._vip_channels = {}
             self.volttron_home = os.environ['VOLTTRON_HOME']
 
+            # These properties are used to be able to register this platform
+            # agent with a volttron central instance.
+            self._vc_discovery_address = discovery_address
+            self._display_name = display_name
+
             # By default not managed by vc, but if the file is available then
             # read and store it as an object.
             self._vc = None
@@ -129,107 +147,24 @@ def platform_agent(config_path, **kwargs):
             # can send information to it.
             self._vc_agent = None
 
-        def _get_vc_info(self):
-            """ Loads the VOLTTRON Central keys if available.
+        @RPC.export
+        def assign_platform_uuid(self, platform_uuid):
+            self.platform_uuid = platform_uuid
+            self.core.periodic(10,
+                lambda s, **kwargs: self._publish_agent_list)
+            self.core.periodic(10,
+                lambda s, **kwargs: self._publish_status_list)
 
-            :return:
-            """
-            # Load up the vc information.  If manage_platform is called with
-            # different public key then there is an error.
-            if os.path.exists("volttron.central"):
-                with open("volttron.central",'r') as fin:
-                    self._vc = jsonapi.loads(fin.read())
-            else:
-                self._vc = None
+        def _publish_agent_list(self):
+            _log.info('Publishing new agent list.')
+            self.vip.pubsub.publish(
+                topic="platforms/{}/agents".format(self.platform_uuid),
+                message=self.list_agents()
+            )
 
-        def _read_auth_file(self):
-            auth_path = os.path.join(self.volttron_home, 'auth.json')
-            try:
-                with open(auth_path, 'r') as fd:
-                    data = utils.strip_comments(FileObject(fd, close=False).read())
-                    auth = jsonapi.loads(data)
-            except IOError:
-                auth = {}
-            if not 'allow' in auth:
-                auth['allow'] = []
-            return auth, auth_path
-
-        def _append_allow_curve_key(self, publickey, capabilities=None):
-            auth, auth_path = self._read_auth_file()
-            cred = 'CURVE:{}'.format(publickey)
-            allow = auth['allow']
-            if not any(record['credentials'] == cred for record in allow):
-                _log.debug("Appending new cred: {}".format(cred))
-                allow.append({'credentials': cred})
-
-            with open(auth_path, 'w+') as fd:
-                fd.write(jsonapi.dumps(auth))
-
-            if capabilities:
-                self._add_capabilities(publickey, capabilities)
-
-        def _add_capabilities(self, publickey, capabilities):
-            _log.info("Adding capability {}, {}".format(publickey, capabilities))
-            if isinstance(capabilities, basestring):
-                capabilities = [capabilities]
-            auth, auth_path = self._read_auth_file()
-            cred = 'CURVE:{}'.format(publickey)
-            allow = auth['allow']
-            entry = {}
-            for item in allow:
-                if item['credentials'] == cred:
-                    entry = item
-                    break
-            if entry:
-                _log.debug('Found cred for pubkey: {}'.format(publickey))
-                _log.debug("entry is: {}".format(entry))
-            #entry = next((item for item in allow if item['credentials'] == cred), {})
-            caps = entry.get('capabilities', [])
-            entry['capabilities'] = list(set(caps + capabilities))
-            _log.debug("entry after update is: {}".format(entry))
-            _log.debug("Auth after all is now: {}".format(auth))
-
-            with open(auth_path, 'w') as fd:
-                fd.write(jsonapi.dumps(auth))
-
-            with open(auth_path) as fd:
-                auth_json = fd.read()
-
-            _log.debug("AUTH PATH IS: {}".format(auth_path))
-            _log.debug("Auth after all is now: {}".format(auth_json))
-
-        def _store_settings(self):
-            with open('platform.settings', 'wb') as f:
-                f.write(jsonapi.dumps(self._settings))
-                f.close()
-
-        def _load_settings(self):
-            try:
-                with open('platform.settings', 'rb') as f:
-                    self._settings = self._settings = jsonapi.loads(f.read())
-                f.close()
-            except Exception as e:
-                _log.debug('Exception '+ e.message)
-                self._settings = {}
-
-        def _get_rpc_agent(self, address):
-            if address == self.core.address:
-                agent = self
-            elif address not in self._vip_channels:
-                agent = Agent(address=address)
-                event = gevent.event.Event()
-                agent.core.onstart.connect(lambda *a, **kw: event.set(), event)
-                gevent.spawn(agent.core.run)
-                event.wait()
-                self._vip_channels[address] = agent
-
-            else:
-                agent = self._vip_channels[address]
-            return agent
-
-        def report_to_vc(self):
-            self._vc_agent.pubsub.publish(peer="pubsub", topic="platform/status", message={"alpha": "beta"})
-
+        @RPC.export
+        def get_status(self):
+            return self.core.status()
 
         @RPC.export
         def manage_platform(self, uri, vc_publickey):
@@ -249,7 +184,7 @@ def platform_agent(config_path, **kwargs):
 
             # Refresh the file to see if we are now managed or not.
             if not self._vc:
-                self._get_vc_info()
+                self._get_vc_info_from_file()
             else:
                 _log.info("Already registered with: {}".format(
                     self._vc['serverkey']))
@@ -259,21 +194,7 @@ def platform_agent(config_path, **kwargs):
                     )
                     raise AlreadyManagedError(err)
 
-            # The variable self._vc will be loadded when the object is
-            # created.
-            res = requests.get("http://{}/discovery/".format(uri))
-            assert res.ok
-            _log.debug('RESPONSE: {} {}'.format(type(res.json()), res.json()))
-            tmpvc = res.json()
-            assert 'vip-address' in tmpvc.keys()
-            assert 'serverkey' in tmpvc.keys()
-            # Overwrite the default server key with the agent specific key
-            # so that the platform can be directly connected to.
-            tmpvc['serverkey'] = vc_publickey
-            self._vc = tmpvc
-            _log.debug("vctmp: {}".format(self._vc))
-            with open("volttron.central", 'w') as fout:
-                fout.write(jsonapi.dumps(tmpvc))
+            self._fetch_vc_discovery_info(uri, vc_publickey)
 
             # Add the can manage to the key file
             self._append_allow_curve_key(vc_publickey, 'can_manage')
@@ -339,7 +260,7 @@ def platform_agent(config_path, **kwargs):
                                    format(peer_address))
 
         #TODO: Make configurable
-        @Core.periodic(30)
+        #@Core.periodic(30)
         def update_sibling_address_cache(self):
             _log.debug('update_sibling_address_cache '+str(self._managers))
             for manager in self._managers:
@@ -453,29 +374,6 @@ def platform_agent(config_path, **kwargs):
                                       agent_uuid).get()
 
 
-        def _install_agents(self, agent_files):
-            tmpdir = tempfile.mkdtemp()
-            results = []
-            for f in agent_files:
-                try:
-
-                    path = os.path.join(tmpdir, f['file_name'])
-                    with open(path, 'wb') as fout:
-                        fout.write(base64.decodestring(f['file'].split('base64,')[1]))
-
-                    agent_uuid = control._send_agent(self, 'control', path).get(timeout=15)
-                    results.append({'uuid': agent_uuid})
-
-                except Exception as e:
-                    results.append({'error': e.message})
-                    _log.error("EXCEPTION: "+e.message)
-
-            try:
-                shutil.rmtree(tmpdir)
-            except:
-                pass
-            return results
-
         @RPC.export
         def route_request(self, id, method, params):
             _log.debug('platform agent routing request: {}, {}'.format(id, method))
@@ -569,8 +467,174 @@ def platform_agent(config_path, **kwargs):
             self._managers_reachable[key] = True
             return True
 
+        def report_to_vc(self):
+            self._vc_agent.pubsub.publish(peer="pubsub", topic="platform/status", message={"alpha": "beta"})
+
+        def _connect_to_vc(self):
+            """ Attempt to connect to volttorn central.
+
+            Creates an agent to connect to the volttron central instance.
+            Uses the member self._vc to determine the vip_address and
+            serverkey to use to connect to the instance.  The agent that is
+            connecting to the volttron central instance will use the same
+            private/public key pair as this agent.
+
+            This method will return true if the connection to the volttron
+            central instance and the volttron.central peer is running on
+            that platform (e.g. volttron.central is one of the peers).
+
+            :return:
+            """
+            if not self._vc:
+                raise CannotConnectError('Invalid _vc variable member.')
+
+            if not self._vc_agent:
+                _log.debug("Attempting to connect to vc.")
+                _log.debug("address: {} serverkey: {}"
+                           .format(self._vc.vip_address,
+                                   self._vc.serverkey))
+                _log.debug("publickey: {} secretkey: {}"
+                           .format(self.core.publickey, self.core.secretkey))
+                self._vc_agent = Agent(address=self._vc.vip_address,
+                                       serverkey=self._vc.serverkey,
+                                       publickey=self.core.publickey,
+                                       secretkey=self.core.secretkey)
+                event = gevent.event.Event()
+                gevent.spawn(self._vc_agent.core.run, event)
+                event.wait(timeout=10)
+                del event
+
+            connected = False
+            if self._vc_agent:
+                peers = self._vc_agent.vip.peerlist().get(timeout=10)
+
+        def _fetch_vc_discovery_info(self):
+            """ Retrieves the serverkey and vip-address from the vc instance.
+
+            This method retrieves the discovery payload from the volttron
+            central instance.  It then stores that information in a
+            volttron.central file.
+
+            If this method succeeds the _vc member will be a VCInfo
+            object.
+
+            :return:
+            """
+            # The variable self._vc will be loadded when the object is
+            # created.
+
+            uri = "http://{}/discovery/".format(self._vc_discovery_address)
+            res = requests.get(uri)
+            assert res.ok
+            _log.debug('RESPONSE: {} {}'.format(type(res.json()), res.json()))
+            tmpvc = res.json()
+            assert tmpvc['vip-address']
+            assert tmpvc['serverkey']
+
+            self._vc = VCInfo(discovery_address=self._vc_discovery_address,
+                              serverkey=tmpvc['serverkey'],
+                              vip_address=tmpvc['vip-address'])
+            _log.debug("vctmp: {}".format(self._vc))
+            with open("volttron.central", 'w') as fout:
+                fout.write(jsonapi.dumps(tmpvc))
+
+        def _get_vc_info_from_file(self):
+            """ Loads the VOLTTRON Central keys if available.
+
+            :return:
+            """
+            # Load up the vc information.  If manage_platform is called with
+            # different public key then there is an error.
+            if os.path.exists("volttron.central"):
+                with open("volttron.central",'r') as fin:
+                    vcdict = jsonapi.loads(fin.read())
+                    self._vc = VCInfo(
+                        discovery_address=vcdict['discovery_address'],
+                        vip_address=vcdict['vip-address'],
+                        serverkey=vcdict['serverkey']
+                    )
+                _log.info("vc info loaded from file.")
+            else:
+                self._vc = None
+
+        def _install_agents(self, agent_files):
+            tmpdir = tempfile.mkdtemp()
+            results = []
+            for f in agent_files:
+                try:
+
+                    path = os.path.join(tmpdir, f['file_name'])
+                    with open(path, 'wb') as fout:
+                        fout.write(base64.decodestring(f['file'].split('base64,')[1]))
+
+                    agent_uuid = control._send_agent(self, 'control', path).get(timeout=15)
+                    results.append({'uuid': agent_uuid})
+
+                except Exception as e:
+                    results.append({'error': e.message})
+                    _log.error("EXCEPTION: "+e.message)
+
+            try:
+                shutil.rmtree(tmpdir)
+            except:
+                pass
+            return results
+
+        def _store_settings(self):
+            with open('platform.settings', 'wb') as f:
+                f.write(jsonapi.dumps(self._settings))
+                f.close()
+
+        def _load_settings(self):
+            try:
+                with open('platform.settings', 'rb') as f:
+                    self._settings = self._settings = jsonapi.loads(f.read())
+                f.close()
+            except Exception as e:
+                _log.debug('Exception '+ e.message)
+                self._settings = {}
+
+        def _get_rpc_agent(self, address):
+            if address == self.core.address:
+                agent = self
+            elif address not in self._vip_channels:
+                agent = Agent(address=address)
+                event = gevent.event.Event()
+                agent.core.onstart.connect(lambda *a, **kw: event.set(), event)
+                gevent.spawn(agent.core.run)
+                event.wait()
+                self._vip_channels[address] = agent
+
+            else:
+                agent = self._vip_channels[address]
+            return agent
+
+        def _register_with_vc(self):
+            """ Handle the process of registering with volttron central.
+
+            In order to use this method, the platform agent must not have
+            been registered and the _discovery_address must have a valid
+            ip address/hostname.
+
+            :return:
+            """
+
+            if self._vc:
+                raise AlreadyManagedError()
+            if not self._vc_discovery_address:
+                raise CannotConnectError("Invalid discovery address.")
+
+            self._fetch_vc_discovery_info()
+            self._connect_to_vc()
+
         @Core.receiver('onstart')
         def starting(self, sender, **kwargs):
+            _log.info('onstart')
+            self._get_vc_info_from_file()
+
+            if not self._vc and self._vc_discovery_address:
+                _log.debug("Before _register_with_vc()")
+                self._register_with_vc()
 
             psutil.cpu_times_percent()
             psutil.cpu_percent()
@@ -583,7 +647,7 @@ def platform_agent(config_path, **kwargs):
                                     message='leaving')
 
     PlatformAgent.__name__ = 'PlatformAgent'
-    return PlatformAgent(identity=vip_identity, **kwargs)
+    return PlatformAgent(identity=identity, **kwargs)
 
 
 def is_ip_private(vip_address):
@@ -625,6 +689,72 @@ def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
     #utils.vip_main(platform_agent)
     utils.vip_main(platform_agent)
+
+class AuthModifications(object):
+
+    def __init__(self):
+        self.volttron_home = os.environ['VOLTTRON_HOME']
+
+    def add_capabilities(self, publickey, capabilities=None):
+        self._append_allow_curve_key(publickey=publickey,
+                                     capabilities=capabilities)
+
+    def _read_auth_file(self):
+        auth_path = os.path.join(self.volttron_home, 'auth.json')
+        try:
+            with open(auth_path, 'r') as fd:
+                data = utils.strip_comments(FileObject(fd, close=False).read())
+                auth = jsonapi.loads(data)
+        except IOError:
+            auth = {}
+        if not 'allow' in auth:
+            auth['allow'] = []
+        return auth, auth_path
+
+    def _append_allow_curve_key(self, publickey, capabilities=None):
+        auth, auth_path = self._read_auth_file()
+        cred = 'CURVE:{}'.format(publickey)
+        allow = auth['allow']
+        if not any(record['credentials'] == cred for record in allow):
+            _log.debug("Appending new cred: {}".format(cred))
+            allow.append({'credentials': cred})
+
+        with open(auth_path, 'w+') as fd:
+            fd.write(jsonapi.dumps(auth))
+
+        if capabilities:
+            self._add_capabilities(publickey, capabilities)
+
+    def _add_capabilities(self, publickey, capabilities):
+        _log.info("Adding capability {}, {}".format(publickey, capabilities))
+        if isinstance(capabilities, basestring):
+            capabilities = [capabilities]
+        auth, auth_path = self._read_auth_file()
+        cred = 'CURVE:{}'.format(publickey)
+        allow = auth['allow']
+        entry = {}
+        for item in allow:
+            if item['credentials'] == cred:
+                entry = item
+                break
+        if entry:
+            _log.debug('Found cred for pubkey: {}'.format(publickey))
+            _log.debug("entry is: {}".format(entry))
+        #entry = next((item for item in allow if item['credentials'] == cred), {})
+        caps = entry.get('capabilities', [])
+        entry['capabilities'] = list(set(caps + capabilities))
+        _log.debug("entry after update is: {}".format(entry))
+        _log.debug("Auth after all is now: {}".format(auth))
+
+        with open(auth_path, 'w') as fd:
+            fd.write(jsonapi.dumps(auth))
+
+        with open(auth_path) as fd:
+            auth_json = fd.read()
+
+        _log.debug("AUTH PATH IS: {}".format(auth_path))
+        _log.debug("Auth after all is now: {}".format(auth_json))
+
 
 
 if __name__ == '__main__':

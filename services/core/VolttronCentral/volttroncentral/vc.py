@@ -94,8 +94,10 @@ __version__ = '3.0'
 # current agent's installed path
 WEB_ROOT = p.abspath(p.join(p.dirname(__file__), 'webroot'))
 
+
 class CouldNotRegister(Exception):
     pass
+
 
 def volttron_central_agent(config_path, **kwargs):
     '''The main entry point for the volttron central agent
@@ -119,7 +121,7 @@ def volttron_central_agent(config_path, **kwargs):
 
     agent_id = config.get('agentid', 'Volttron Central')
 
-    # Required users.
+    # Required users
     user_map = config.get('users', None)
 
     if user_map is None:
@@ -182,6 +184,12 @@ def volttron_central_agent(config_path, **kwargs):
                     _log.info("peer_platform unavailable")
                     self._peer_platform_exists = False
 
+        @PubSub.subscribe("pubsub", "platforms")
+        def on_platoforms_message(self, peer, sender, bus,  topic, headers,
+                                  message):
+            _log.debug('Got message: {}'.format(message))
+
+
         @RPC.export
         def get_platforms(self):
             _log.debug('Getting platforms via rpc')
@@ -192,6 +200,28 @@ def volttron_central_agent(config_path, **kwargs):
             return self._registry.get_platform(platform_uuid)
 
         #@Core.periodic(5)
+        def _auto_register_peer(self):
+            if not self._peer_platform:
+                peers = self.vip.peerlist().get(timeout=2)
+                if 'platform.agent' in peers:
+                    _log.debug('Auto connecting platform.agent on vc')
+                    self._peer_platform = Agent()
+                    self._peer_platform.core.onstop.connect(
+                        self._peer_platform)
+                    self._peer_platform.core.ondisconnected.connect(
+                        lambda sender, **kwargs: _log.debug("disconnected")
+                    )
+                    self._peer_platform.core.onconnected.connect(
+                        lambda sender, **kwargs: _log.debug("connected")
+                    )
+                    event = gevent.event.Event()
+                    gevent.spawn(self._peer_platform.core.run, event)
+                    event.wait(timeout=2)
+                    del event
+
+        def _disconnect_peer_platform(self, sender, **kwargs):
+            _log.debug("disconnecting peer_platform")
+            self._peer_platform = None
 
         def list_agents(self, uuid):
             platform = self._registry.get_platform(uuid)
@@ -221,9 +251,23 @@ def volttron_central_agent(config_path, **kwargs):
 
             return value
 
-
         @RPC.export
-        def register_instance(self, discovery_address, display_name=None):
+        def register_instance(self, discovery_address, display_name):
+            """ An rpc call to register from the platform agent.
+
+            This method allows an external platform to register itself with
+            the volttron central instance that is specified in the
+            Platform agent's configuration file.
+
+            :param discovery_address:
+            :param display_name:
+            :return:
+            """
+            self._register_instance(discovery_address, display_name,
+                                    provisional=True)
+
+        def _register_instance(self, discovery_address, display_name=None,
+                              provisional=False):
             """ Register an instance with VOLTTRON Central.
 
             The registration of the instance will fail in the following cases:
@@ -260,8 +304,6 @@ def volttron_central_agent(config_path, **kwargs):
                 vip_address, pa_instance_serverkey
             ))
 
-            assert self._publickey
-            assert self._secretkey
             assert pa_instance_serverkey
 
             authfile = os.path.join(get_home(), "auth.json")
@@ -275,7 +317,9 @@ def volttron_central_agent(config_path, **kwargs):
                 self.core.secretkey
             )
 
-            agent = Agent(address=vip_address, serverkey=pa_instance_serverkey, secretkey=self.core.secretkey,
+            agent = Agent(address=vip_address,
+                          serverkey=pa_instance_serverkey,
+                          secretkey=self.core.secretkey,
                           publickey=self.core.publickey)
             event = gevent.event.Event()
             gevent.spawn(agent.core.run, event)#.join(0)
@@ -303,7 +347,8 @@ def volttron_central_agent(config_path, **kwargs):
             entry = RegistryEntry(vip_address=vip_address,
                                   serverkey=pa_instance_serverkey,
                                   discovery_address=web_addr,
-                                  display_name=display_name)
+                                  display_name=display_name,
+                                  provisional=provisional)
             self._registry.register(entry)
 
             return dict(success=True, display_name=display_name)
@@ -453,7 +498,7 @@ def volttron_central_agent(config_path, **kwargs):
                             "context": "Registered instance {}".format(
                                 result['display_name'])
                         })
-                elif rpcdata.method == 'get_platforms':
+                elif rpcdata.method == 'list_platforms':
                     return self._get_platforms_json(rpcdata.id)
 
             except AssertionError:
@@ -463,6 +508,11 @@ def volttron_central_agent(config_path, **kwargs):
             return rpcdata
 
         def _get_platforms_json(self, message_id):
+            """ Composes the json response for the listing of the platforms.
+
+            :param message_id:
+            :return:
+            """
             platforms = []
             keys = []
             for p in self.get_platforms():
@@ -471,14 +521,20 @@ def volttron_central_agent(config_path, **kwargs):
                     s = self.vip.rpc.call('platform.agent',
                                           'get_status').get(timeout=2)
                     status = s
+                    can_reach = True
                 else:
+                    can_reach = False
                     status = {"status": "UNKNOWN",
                               "context": "Platform currently unavailable.",
                               "last_updated": None}
+                agents = []
+                if can_reach:
+                    agents = p.tags.get('agents',
+                                        self._get_agents(p.platform_uuid))
                 r = {
                     'name': p.display_name,
                     'uuid': p.platform_uuid,
-                    'agents': p.tags.get('agents', []),
+                    'agents': agents,
                     'devices': p.tags.get('devices', []),
                     'status': status
                 }
@@ -486,6 +542,23 @@ def volttron_central_agent(config_path, **kwargs):
                 platforms.append(r)
 
             return jsonrpc.json_result(message_id, platforms)
+
+        def _get_agents(self, platform_uuid):
+            agents = self.vip.rpc.call('platform.agent',
+                                       'list_agents').get(timeout=2)
+            for a in agents:
+                if "platformagent" in a['name'] or \
+                        "volttroncentral" in a['name']:
+                    a['vc_can_start'] = False
+                    a['vc_can_stop'] = False
+                    a['vc_can_restart'] = True
+                else:
+                    a['vc_can_start'] = True
+                    a['vc_can_stop'] = True
+                    a['vc_can_restart'] = True
+
+            _log.debug('Agents returned: {}'.format(agents))
+            return agents
 
         @Core.receiver('onstart')
         def starting(self, sender, **kwargs):
@@ -510,7 +583,6 @@ def volttron_central_agent(config_path, **kwargs):
 
             self.vip.rpc.call('volttron.web', 'register_path_route',
                             r'^/.*', WEB_ROOT).get(timeout=5)
-
 
         def __load_persist_data(self):
             persist_kv = None
