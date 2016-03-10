@@ -420,6 +420,10 @@ class AuthFile(object):
         self._write(entries, groups, roles)
         return True, 'added entry %s' % entry_dict
 
+    def remove_by_index(self, index):
+        '''Removes entry from auth file by index'''
+        return self.remove_by_indices([index])
+
     def remove_by_indices(self, indices):
         '''Removes entry from auth file by indices as shown by list command'''
         indices = list(set(indices))
