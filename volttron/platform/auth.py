@@ -271,13 +271,13 @@ class AuthEntry(object):
                  user_id=None, groups=None, roles=None,
                  capabilities=None, comments=None, enabled=True, **kwargs):
 
-        self.domain = AuthEntry.build(domain)
-        self.address = AuthEntry.build(address)
-        self.credentials = AuthEntry.build(credentials)
-        self.groups = AuthEntry.build(groups, list, str) or []
-        self.roles = AuthEntry.build(roles, list, str) or []
-        self.capabilities = AuthEntry.build(capabilities, list, str) or []
-        self.comments = AuthEntry.build(comments)
+        self.domain = AuthEntry._build_field(domain)
+        self.address = AuthEntry._build_field(address)
+        self.credentials = AuthEntry._build_field(credentials)
+        self.groups = AuthEntry._build_field(groups, list, str) or []
+        self.roles = AuthEntry._build_field(roles, list, str) or []
+        self.capabilities = AuthEntry._build_field(capabilities, list, str) or []
+        self.comments = AuthEntry._build_field(comments)
         self.user_id = None if user_id is None else user_id.encode('utf-8')
         self.enabled = enabled
         if kwargs:
@@ -293,7 +293,7 @@ class AuthEntry(object):
         return False
 
     @staticmethod
-    def build(value, list_class=List, str_class=String):
+    def _build_field(value, list_class=List, str_class=String):
         if not value:
             return None
         if isinstance(value, basestring):
@@ -303,7 +303,7 @@ class AuthEntry(object):
     def add_capabilities(self, capabilities):
         caps_set = set(capabilities)
         caps_set |= set(self.capabilities)
-        self.capabilities = AuthEntry.build(list(caps_set), list, str) or []
+        self.capabilities = AuthEntry._build_field(list(caps_set), list, str) or []
 
     def match(self, domain, address, mechanism, credentials):
         creds = ':'.join([mechanism] + credentials)
@@ -404,7 +404,7 @@ class AuthFile(object):
             capabilities += roles.get(role, [])
         entry.add_capabilities(list(set(capabilities)))
 
-    def add(self, auth_entry):
+    def add(self, auth_entry, overwrite=True):
         '''Adds an AuthEntry to the auth file'''
         error_msg = auth_entry.invalid()
         if error_msg:
