@@ -56,6 +56,12 @@
 
 # }}}
 
+__docformat__ = 'reStructuredText'
+
+"""The Actuator Agent regulates control of devices by other agents. Agents
+request a schedule and then issue commands to the device through
+this agent."""
+
 
 import datetime
 import sys
@@ -72,6 +78,8 @@ from volttron.platform.jsonrpc import RemoteError
 from dateutil.parser import parse
 
 VALUE_RESPONSE_PREFIX = topics.ACTUATOR_VALUE()
+REVERT_POINT_RESPONSE_PREFIX = topics.ACTUATOR_REVERTED_POINT()
+REVERT_DEVICE_RESPONSE_PREFIX = topics.ACTUATOR_REVERTED_DEVICE()
 ERROR_RESPONSE_PREFIX = topics.ACTUATOR_ERROR()
 
 WRITE_ATTEMPT_PREFIX = topics.ACTUATOR_WRITE()
@@ -89,9 +97,11 @@ ACTUATOR_COLLECTION = 'actuators'
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
-__version__ = "0.2"
+__version__ = "0.3"
 
 class LockError(StandardError):
+    """Error raised when the user does not have a device scheuled
+    and tries to use methods that require exclusive access."""
     pass
 
 
@@ -106,8 +116,6 @@ def actuator_agent(config_path, **kwargs):
     kwargs.pop('identity', None)
 
     class ActuatorAgent(Agent):
-        '''Agent to listen for requests to talk to the sMAP driver.'''
-
         def __init__(self, **kwargs):
             super(ActuatorAgent, self).__init__(**kwargs)
             _log.debug("vip_identity: " + vip_identity)
@@ -134,6 +142,14 @@ def actuator_agent(config_path, **kwargs):
             self.vip.pubsub.subscribe(peer='pubsub',
                                       prefix=topics.ACTUATOR_SCHEDULE_REQUEST(),
                                       callback=self.handle_schedule_request)
+            
+            self.vip.pubsub.subscribe(peer='pubsub',
+                                      prefix=topics.ACTUATOR_REVERT_POINT(),
+                                      callback=self.handle_revert_point)
+            
+            self.vip.pubsub.subscribe(peer='pubsub',
+                                      prefix=topics.ACTUATOR_REVERT_DEVICE(),
+                                      callback=self.handle_revert_device)
 
         def setup_schedule(self):
             now = datetime.datetime.now()
@@ -237,6 +253,17 @@ def actuator_agent(config_path, **kwargs):
 
         @RPC.export
         def get_point(self, topic, **kwargs):
+            """RPC method
+            
+            Gets the value of a specific point on a device. 
+            Does not require the device be scheduled. 
+            
+            :param topic: The topic of the point to grab in the 
+                          format <device topic>/<point name>
+            :param **kwargs: Any driver specific parameters
+            :type topic: str
+            :returns: point value
+            :rtype: any base python type"""
             topic = topic.strip('/')
             _log.debug('handle_get: {topic}'.format(topic=topic))
             path, point_name = topic.rsplit('/', 1)
@@ -244,6 +271,27 @@ def actuator_agent(config_path, **kwargs):
 
         @RPC.export
         def set_point(self, requester_id, topic, value, **kwargs):
+            """RPC method
+            
+            Sets the value of a specific point on a device. 
+            Requires the device be scheduled by the calling agent.
+            
+            :param requester_id: Identifier given when requesting schedule. 
+            :param topic: The topic of the point to set in the 
+                          format <device topic>/<point name>
+            :param value: Value to set point to.
+            :param **kwargs: Any driver specific parameters
+            :type topic: str
+            :type requester_id: str
+            :type value: any basic python type
+            :returns: value point was actually set to. Usually invalid values 
+                    cause an error but some drivers (MODBUS) will return a different
+                    value with what the value was actually set to.
+            :rtype: any base python type
+            
+            .. warning:: Calling without previously scheduling a device and not within 
+                         the time allotted will raise a LockError"""
+                         
             topic = topic.strip('/')
             _log.debug('handle_set: {topic},{requester_id}, {value}'.
                        format(topic=topic, requester_id=requester_id, value=value))
@@ -265,6 +313,97 @@ def actuator_agent(config_path, **kwargs):
                 raise LockError("caller ({}) does not have this lock".format(requester_id))
 
             return result
+        
+        def handle_revert_point(self, peer, sender, bus, topic, headers, message):
+            point = topic.replace(topics.ACTUATOR_REVERT_POINT()+'/', '', 1)
+            requester = headers.get('requesterID')
+            headers = self.get_headers(requester)
+            
+            try:
+                self.revert_point(requester, point)
+            except RemoteError as ex:
+                self._handle_remote_error(ex, point, headers)
+            except StandardError as ex:
+                self._handle_standard_error(ex, point, headers)
+                
+        def handle_revert_device(self, peer, sender, bus, topic, headers, message):
+            point = topic.replace(topics.ACTUATOR_REVERT_DEVICE()+'/', '', 1)
+            requester = headers.get('requesterID')
+            headers = self.get_headers(requester)
+            
+            try:
+                self.revert_device(requester, point)
+            except RemoteError as ex:
+                self._handle_remote_error(ex, point, headers)
+            except StandardError as ex:
+                self._handle_standard_error(ex, point, headers)
+        
+        @RPC.export
+        def revert_point(self, requester_id, topic, **kwargs):  
+            """RPC method
+            
+            Reverts the value of a specific point on a device to a default state. 
+            Requires the device be scheduled by the calling agent.
+            
+            :param requester_id: Identifier given when requesting schedule. 
+            :param topic: The topic of the point to revert in the 
+                          format <device topic>/<point name>
+            :param **kwargs: Any driver specific parameters
+            :type topic: str
+            :type requester_id: str
+            
+            .. warning:: Calling without previously scheduling a device and not within 
+                         the time allotted will raise a LockError"""
+                         
+            topic = topic.strip('/')
+            _log.debug('handle_revert: {topic},{requester_id}'.
+                       format(topic=topic, requester_id=requester_id))
+            
+            path, point_name = topic.rsplit('/', 1)
+            
+            headers = self.get_headers(requester_id)
+            
+            if self.check_lock(path, requester_id):
+                self.vip.rpc.call(driver_vip_identity, 'revert_point', path, point_name, **kwargs).get()
+        
+                headers = self.get_headers(requester_id)
+                self.push_result_topic_pair(REVERT_POINT_RESPONSE_PREFIX,
+                                            topic, headers, None)
+            else:
+                raise LockError("caller does not have this lock")
+            
+        @RPC.export
+        def revert_device(self, requester_id, topic, **kwargs):  
+            """RPC method
+            
+            Reverts all points on a device to a default state. 
+            Requires the device be scheduled by the calling agent.
+            
+            :param requester_id: Identifier given when requesting schedule. 
+            :param topic: The topic of the device to revert
+            :param **kwargs: Any driver specific parameters
+            :type topic: str
+            :type requester_id: str
+            
+            .. warning:: Calling without previously scheduling a device and not within 
+                         the time allotted will raise a LockError"""
+                         
+            topic = topic.strip('/')
+            _log.debug('handle_revert: {topic},{requester_id}'.
+                       format(topic=topic, requester_id=requester_id))
+            
+            path = topic
+            
+            headers = self.get_headers(requester_id)
+            
+            if self.check_lock(path, requester_id):
+                self.vip.rpc.call(driver_vip_identity, 'revert_device', path, **kwargs).get()
+        
+                headers = self.get_headers(requester_id)
+                self.push_result_topic_pair(REVERT_DEVICE_RESPONSE_PREFIX,
+                                            topic, headers, None)
+            else:
+                raise LockError("caller does not have this lock")
 
         def check_lock(self, device, requester):
             _log.debug('check_lock: {device}, {requester}'.format(device=device,
@@ -312,6 +451,111 @@ def actuator_agent(config_path, **kwargs):
 
         @RPC.export
         def request_new_schedule(self, requester_id, task_id, priority, requests):
+            """RPC method
+            
+            Requests one or more blocks on time on one or more device.
+            
+            :param requester_id: Requester name. 
+            :param task_id: Task name.
+            :param priority: Priority of the task. Must be either HIGH, LOW, or LOW_PREEMPT
+            :param requests: A list of time slot requests
+            
+            :type requester_id: str
+            :type task_id: str
+            :type priority: str
+            :type request: list
+            :returns: Request result
+            :rtype: dict
+            
+            
+            :Example request set:
+            
+                [
+                    ["campus/building/device1", #First time slot.
+                     "2013-12-06 16:00:00",     #Start of time slot.
+                     "2013-12-06 16:20:00"],    #End of time slot.
+                    ["campus/building/device1", #Second time slot.
+                     "2013-12-06 18:00:00",     #Start of time slot.
+                     "2013-12-06 18:20:00"],    #End of time slot.
+                    ["campus/building/device2", #Third time slot.
+                     "2013-12-06 16:00:00",     #Start of time slot.
+                     "2013-12-06 16:20:00"],    #End of time slot.
+                ]
+            
+            .. note:: 
+                There are some things to be aware of when requesting a schedule:
+                    * Task id and requester id (agentid) should be a non empty value of type string
+                    * A Task schedule must have at least one time slot.
+                    * The start and end times are parsed with dateutil's date/time parser. The default string representation of a python datetime object will parse without issue.
+                    * Two Tasks are considered conflicted if at least one time slot on a device from one task overlaps the time slot of the other on the same device.
+                    * The end time of one time slot can be the same as the start time of another time slot for the same device. This will not be considered a conflict. For example, time_slot1(device0, time1, time2) and time_slot2(device0,time2, time3) are not considered a conflict
+                    * A request must not conflict with itself.
+                
+            :Task Priorities:
+            
+            There are three valid prioirity levels:
+            
+                HIGH
+                    This Task cannot be preempted under any circumstance. 
+                    This task may preempt other conflicting preemptable Tasks.
+                LOW
+                    This Task cannot be preempted **once it has started**. 
+                    A Task is considered started once the earliest time slot on any 
+                    device has been reached. This Task may not preempt other Tasks.
+                LOW_PREEMPT
+                    This Task may be preempted at any time. 
+                    If the Task is preempted once it has begun running any current 
+                    time slots will be given a grace period (configurable in the 
+                    ActuatorAgent configuration file, defaults to 60 seconds) before 
+                    being revoked. This Task may not preempt other Tasks.
+            
+            :Return Values:
+            
+            The return values has the following format:
+            
+                {
+                    'result': <'SUCCESS', 'FAILURE'>,
+                    'info': <Failure reason, if any>,
+                    'data': <Data about the failure or cancellation, if any>
+                }
+                
+            :Schedule Request Failures:
+            
+            If an attempt submit a schedule fails than the "info" item will have any of the
+            following values:
+                TASK_ID_ALREADY_EXISTS
+                    The supplied taskID already belongs to an existing task.  
+                MISSING_PRIORITY
+                    Failed to supply a priority for a Task schedule request. 
+                INVALID_PRIORITY
+                    Priority not one of "HIGH", "LOW", or "LOW_PREEMPT". 
+                MALFORMED_REQUEST_EMPTY
+                    Request list is missing or empty. 
+                REQUEST_CONFLICTS_WITH_SELF
+                    Requested time slots on the same device overlap. 
+                MALFORMED_REQUEST
+                    Reported when the request parser raises an unhandled exception. The exception name and info are appended to this info string. 
+                CONFLICTS_WITH_EXISTING_SCHEDULES
+                    This schedule conflict with an existing schedules that it cannot preempt. The data item for the results will contain info about the conflicts in this form (after parsing json):
+            
+                    {
+                        '<agentID1>': 
+                        {
+                            '<taskID1>':
+                            [
+                                ["campus/building/device1", 
+                                 "2013-12-06 16:00:00",     
+                                 "2013-12-06 16:20:00"],
+                                ["campus/building/device1", 
+                                 "2013-12-06 18:00:00",     
+                                 "2013-12-06 18:20:00"]     
+                            ]
+                            '<taskID2>':[...]
+                        }
+                        '<agentID2>': {...}
+                    }
+            """
+                         
             now = datetime.datetime.now()
 
             topic = topics.ACTUATOR_SCHEDULE_RESULT()
@@ -365,6 +609,43 @@ def actuator_agent(config_path, **kwargs):
 
         @RPC.export
         def request_cancel_schedule(self, requester_id, task_id):
+            """RPC method
+            
+            Requests the cancelation of the specified task id.
+            
+            :param requester_id: Requester name. 
+            :param task_id: Task name.
+            
+            :type requester_id: str
+            :type task_id: str
+            :returns: Request result
+            :rtype: dict
+            
+            :Return Values:
+            
+            The return values has the following format:
+            
+                {
+                    'result': <'SUCCESS', 'FAILURE'>,
+                    'info': <Failure reason, if any>,
+                    'data': {}
+                }
+                
+            .. note:: 
+                There are some things to be aware of when canceling a schedule:
+                    * The requesterID and taskID must match the original values from the original request header.
+                    * After a Tasks time has passed there is no need to cancel it. Doing so will result in a "TASK_ID_DOES_NOT_EXIST" error.
+                    
+            :Schedule Cancel Failures:
+            
+            If an attempt cancel a schedule fails than the "info" item will have any of the
+            following values:
+                TASK_ID_DOES_NOT_EXIST
+                    Trying to cancel a Task which does not exist. This error can also occur when trying to cancel a finished Task.
+                AGENT_ID_TASK_ID_MISMATCH
+                    A different agent ID is being used when trying to cancel a Task.
+            
+            """
             now = datetime.datetime.now()
             headers = self.get_headers(requester_id, task_id=task_id)
             headers['type'] = SCHEDULE_ACTION_CANCEL
