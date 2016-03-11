@@ -1794,7 +1794,7 @@ def test_set_value_float(publish_agent, cancel_schedules, revert_devices):
     assert result_header['requesterID'] == agentid
     assert result_message == 0.2
 
-@pytest.mark.dev
+@pytest.mark.actuator_pubsub
 def test_revert_point(publish_agent, cancel_schedules):
     """
     Test setting a float value of a point  through pubsub.
@@ -1914,7 +1914,7 @@ def test_revert_point(publish_agent, cancel_schedules):
     assert result == initial_value
 
 
-@pytest.mark.dev
+@pytest.mark.actuator_pubsub
 def test_revert_device(publish_agent, cancel_schedules):
     """
     Test setting a float value of a point  through pubsub.
