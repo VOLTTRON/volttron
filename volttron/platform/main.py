@@ -535,8 +535,8 @@ def start_volttron_process(opts):
         # Launch additional services and wait for them to start before
         # auto-starting agents
         services = [
-            ControlService(opts.aip, address=address, identity='control', tracker=tracker),
-            PubSubService(protected_topics_file, address=address, identity='pubsub'),
+            ControlService(opts.aip, address=address, identity='control', tracker=tracker, heartbeat_autostart=True),
+            PubSubService(protected_topics_file, address=address, identity='pubsub', heartbeat_autostart=True),
             CompatPubSub(address=address, identity='pubsub.compat',
                          publish_address=opts.publish_address,
                          subscribe_address=opts.subscribe_address),

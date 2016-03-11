@@ -127,13 +127,13 @@ class PlatformWrapper:
         print('Creating Platform Wrapper at: {}'.format(self.volttron_home))
 
     def build_agent(self, address=None, should_spawn=True, identity=None,
-                    publickey=None, secretkey=None, serverkey=None):
+                    publickey=None, secretkey=None, serverkey=None, **kwargs):
         _log.debug('BUILD GENERIC AGENT')
         if address is None:
             address = self.vip_address[0]
 
         agent = Agent(address=address, identity=identity, publickey=publickey,
-                      secretkey=secretkey, serverkey=serverkey)
+                      secretkey=secretkey, serverkey=serverkey, **kwargs)
         print('platformwrapper.build_agent.address: {}'.format(address))
 
         # Automatically add agent's credentials to auth.json file

@@ -221,7 +221,7 @@ def master_driver_agent(config_path, **kwargs):
                 device.heart_beat()
                 
             
-    return MasterDriverAgent(identity=vip_identity, **kwargs)
+    return MasterDriverAgent(identity=vip_identity, heartbeat_autostart=True, **kwargs)
 
 
 
