@@ -112,18 +112,35 @@ def historian(config_path, **kwargs):
         of the BaseHistorianAgent.
         '''
 
+        def __init__(self, **kwargs):
+            """ Initialise the historian.
+
+            The historian makes two connections to the data store.  Both of
+            these connections are available across the main and processing
+            thread of the historian.
+
+            :param kwargs:
+            :return:
+            """
+            self.reader = DbFuncts(**connection['params'])
+            self.writer = DbFuncts(**connection['params'])
+            self.topic_map = {}
+
+            super(SQLHistorian, self).__init__(**kwargs)
+
         @Core.receiver("onstart")
         def starting(self, sender, **kwargs):
-            
-            print('Starting address: {} identity: {}'.format(self.core.address, self.core.identity))
-            try:
-                self.reader = DbFuncts(**connection['params'])
-            except AttributeError:
-                _log.exception('bad connection parameters')
-                self.core.stop()
-                return
-                        
-            self.topic_map = self.reader.get_topic_map()
+            """ Called right after connections to the Router occured.
+
+            :param sender:
+            :param kwargs:
+            :return:
+            """
+            _log.info("Starting historian with identity: {}".format(
+                self.core.identity
+            ))
+
+            self.topic_map.update(self.reader.get_topic_map())
 
             if self.core.identity == 'platform.historian':
                 # Check to see if the platform agent is available, if it isn't then
@@ -214,15 +231,9 @@ def historian(config_path, **kwargs):
                                      count=count, order=order)
 
         def historian_setup(self):
-            try:
-                self.writer = DbFuncts(**connection['params'])
-            except AttributeError as exc:
-                print(exc)
-                self.core.stop()
 
     SQLHistorian.__name__ = 'SQLHistorian'
-    return SQLHistorian(identity=identity, **kwargs)
-
+    return SQLHistorian(**kwargs)
 
 
 def main(argv=sys.argv):
