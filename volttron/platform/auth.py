@@ -219,6 +219,14 @@ class AuthService(Agent):
 
     @RPC.export
     def get_authorizations(self, user_id):
+        """RPC method
+
+        Gets capabilities, groups, and roles for a given user.
+
+        :param user_id: user id field from VOLTTRON Interconnect Protocol
+        :type user_id: str
+        :returns: tuple of capabiliy-list, group-list, role-list
+        :rtype: tuple"""
         use_parts = True
         try:
             domain, address, mechanism, credentials = load_user(user_id)
@@ -229,7 +237,7 @@ class AuthService(Agent):
                 return [entry.capabilities, entry.groups, entry.roles]
             elif use_parts:
                 if entry.match(domain, address, mechanism, [credentials]):
-                    return [entry.capabilities, entry.groups, entry.roles]
+                    return entry.capabilities, entry.groups, entry.roles
 
     def _get_authorizations(self, user_id, index):
         '''Convenience method for getting authorization component by index'''
@@ -240,14 +248,38 @@ class AuthService(Agent):
 
     @RPC.export
     def get_capabilities(self, user_id):
+        """RPC method
+
+        Gets capabilities for a given user.
+
+        :param user_id: user id field from VOLTTRON Interconnect Protocol
+        :type user_id: str
+        :returns: list of capabilities
+        :rtype: list"""
         return self._get_authorizations(user_id, 0)
 
     @RPC.export
     def get_groups(self, user_id):
+        """RPC method
+
+        Gets groups for a given user.
+
+        :param user_id: user id field from VOLTTRON Interconnect Protocol
+        :type user_id: str
+        :returns: list of groups
+        :rtype: list"""
         return self._get_authorizations(user_id, 1)
 
     @RPC.export
     def get_roles(self, user_id):
+        """RPC method
+
+        Gets roles for a given user.
+
+        :param user_id: user id field from VOLTTRON Interconnect Protocol
+        :type user_id: str
+        :returns: list of roles
+        :rtype: list"""
         return self._get_authorizations(user_id, 2)
 
 
@@ -360,7 +392,11 @@ class AuthFile(object):
         self.auth_file = auth_file
 
     def read(self):
-        '''Returns the allowed entries, groups, and roles from the auth file'''
+        """
+        Gets the allowed entries, groups, and roles from the auth file.
+
+        :returns: tuple of allow-entries-list, groups-dict, roles-dict
+        :rtype: tuple"""
         try:
             create_file_if_missing(self.auth_file)
             with open(self.auth_file) as fil:
@@ -384,7 +420,11 @@ class AuthFile(object):
         return entries, groups, roles
 
     def read_allow_entries(self):
-        '''Returns the allowed entries from the auth file'''
+        """
+        Gets the allowed entries from the auth file.
+
+        :returns: list of allow-entries
+        :rtype: list"""
         return self.read()[0]
 
     def _get_entries(self, auth_data, groups, roles):
@@ -428,7 +468,17 @@ class AuthFile(object):
             self.update_by_index(auth_entry, index)
 
     def add(self, auth_entry, overwrite=True):
-        '''Adds an AuthEntry to the auth file'''
+        """
+        Adds an AuthEntry to the auth file
+
+        :param auth_entry: authentication entry
+        :param overwrite: set to true to overwrite matching entries
+        :type auth_entry: AuthEntry
+        :type overwrite: bool
+
+        .. warning:: If overwrite is set to False and if auth_entry matches an
+                     existing entry then this method will raise
+                     AuthFileEntryAlreadyExists"""
         try:
             self._check_if_exists(auth_entry)
         except AuthFileEntryAlreadyExists as err:
@@ -442,11 +492,25 @@ class AuthFile(object):
         self._write(entries, groups, roles)
 
     def remove_by_index(self, index):
-        '''Removes entry from auth file by index'''
-        return self.remove_by_indices([index])
+        '''
+        Removes entry from auth file by index
+
+        :param index: index of entry to remove
+        :type index: int
+
+        .. warning:: Calling with out-of-range index will raise
+                     AuthFileIndexError'''
+        self.remove_by_indices([index])
 
     def remove_by_indices(self, indices):
-        '''Removes entry from auth file by indices'''
+        '''
+        Removes entry from auth file by indices
+
+        :param indices: list of indicies of entries to remove
+        :type indices: list
+
+        .. warning:: Calling with out-of-range index will raise
+                     AuthFileIndexError'''
         indices = list(set(indices))
         indices.sort(reverse=True)
         entries, groups, roles = self._read_entries_as_list()
@@ -458,6 +522,16 @@ class AuthFile(object):
         self._write(entries, groups, roles)
 
     def update_by_index(self, auth_entry, index):
+        '''
+        Updates entry will given auth entry at given index
+
+        :param auth_entry: new authorization entry
+        :param index: index of entry to update
+        :type auth_entry: AuthEntry
+        :type index: int
+
+        .. warning:: Calling with out-of-range index will raise
+                     AuthFileIndexError'''
         entries, groups, roles = self._read_entries_as_list()
         try:
             entries[index] = vars(auth_entry)
