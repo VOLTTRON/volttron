@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*- {{{
+	# -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
 # Copyright (c) 2015, Battelle Memorial Institute
@@ -107,6 +107,7 @@ class LockError(StandardError):
 
 def actuator_agent(config_path, **kwargs):
     config = utils.load_config(config_path)
+    heartbeat_interval = int(config.get('heartbeat_period', 60))
     schedule_publish_interval = int(config.get('schedule_publish_interval', 60))
     schedule_state_file = config.get('schedule_state_file')
     preempt_grace_time = config.get('preempt_grace_time', 60)
@@ -122,8 +123,8 @@ def actuator_agent(config_path, **kwargs):
 
             self._update_event = None
             self._device_states = {}
-
-        @RPC.export
+                    
+        @Core.periodic(heartbeat_interval)
         def heart_beat(self):
             _log.debug("sending heartbeat")
             self.vip.rpc.call(driver_vip_identity, 'heart_beat')
