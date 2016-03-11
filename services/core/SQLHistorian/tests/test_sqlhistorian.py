@@ -146,6 +146,11 @@ def connect_mysql(request):
                              topic_name varchar(512) NOT NULL,\
                              PRIMARY KEY (topic_id),\
                              UNIQUE(topic_name))')
+
+    cursor.execute('CREATE TABLE IF NOT EXISTS meta (topic_id INTEGER NOT NULL AUTO_INCREMENT, \
+                             metadata varchar(512) NOT NULL,\
+                             PRIMARY KEY (topic_id))')
+
     db_connection.commit()
     print("created mysql tables")
     # clean up any rows from older runs
@@ -206,12 +211,15 @@ def test_basic_function(volttron_instance1, sqlhistorian, clean):
     mixed_reading = oat_reading + random.uniform(-5, 5)
     damper_reading = random.uniform(0, 100)
 
+    float_meta = {'units': 'F', 'tz': 'UTC', 'type': 'float'}
+    percent_meta = {'units': '%', 'tz': 'UTC', 'type': 'float'}
+
     # Create a message for all points.
     all_message = [{'OutsideAirTemperature': oat_reading, 'MixedAirTemperature': mixed_reading,
                     'DamperSignal': damper_reading},
-                   {'OutsideAirTemperature': {'units': 'F', 'tz': 'UTC', 'type': 'float'},
-                    'MixedAirTemperature': {'units': 'F', 'tz': 'UTC', 'type': 'float'},
-                    'DamperSignal': {'units': '%', 'tz': 'UTC', 'type': 'float'}
+                   {'OutsideAirTemperature': float_meta,
+                    'MixedAirTemperature': float_meta,
+                    'DamperSignal': percent_meta
                     }]
 
     # Create timestamp
@@ -239,6 +247,7 @@ def test_basic_function(volttron_instance1, sqlhistorian, clean):
     (now_date, now_time) = now.split(" ")
     assert_timestamp(result['values'][0][0], now_date, now_time)
     assert (result['values'][0][1] == oat_reading)
+    assert set(result['metadata'].items()) == set(float_meta.items())
 
     # Query the historian
     result = publish_agent.vip.rpc.call('platform.historian',
@@ -251,6 +260,7 @@ def test_basic_function(volttron_instance1, sqlhistorian, clean):
     (now_date, now_time) = now.split(" ")
     assert_timestamp(result['values'][0][0], now_date, now_time)
     assert (result['values'][0][1] == mixed_reading)
+    assert set(result['metadata'].items()) == set(float_meta.items())
 
     # Query the historian
     result = publish_agent.vip.rpc.call('platform.historian',
@@ -263,6 +273,7 @@ def test_basic_function(volttron_instance1, sqlhistorian, clean):
     (now_date, now_time) = now.split(" ")
     assert_timestamp(result['values'][0][0], now_date, now_time)
     assert (result['values'][0][1] == damper_reading)
+    assert set(result['metadata'].items()) == set(percent_meta.items())
 
 
 @pytest.mark.historian

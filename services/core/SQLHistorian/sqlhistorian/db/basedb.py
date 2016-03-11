@@ -71,6 +71,24 @@ class DbDriver(object):
     @abstractmethod
     def insert_topic_query(self):
         pass
+
+    @abstractmethod
+    def insert_meta_query(self):
+        pass
+
+    def insert_meta(self, topic_id, metadata):
+        self.__connect()
+
+        if self.__connection is None:
+            return False
+
+        if not self.__cursor:
+            self.__cursor = self.__connection.cursor()
+
+        self.__cursor.execute(
+            self.insert_meta_query(), (topic_id, jsonapi.dumps(metadata))
+        )
+        return True
     
     def insert_data(self, ts, topic_id, data):
         
@@ -104,11 +122,11 @@ class DbDriver(object):
         return row
     
     def commit(self):
+        successful = False
         try:
-            retValue = False
             if self.__connection is not None:
                 self.__connection.commit()
-                retValue = True
+                successful = True
             else:
                 _log.warn('connection was null during commit phase.')
         finally:
@@ -120,13 +138,14 @@ class DbDriver(object):
                                                             
             self.__cursor = None
             self.__connection = None
-        return retValue
+        return successful
+
     def rollback(self):
+        successful = False
         try:
-            retValue = False
             if self.__connection is not None:
                 self.__connection.rollback()
-                retValue = True
+                successful = True
             else:
                 _log.warn('connection was null during rollback phase.')
         finally:
@@ -135,10 +154,10 @@ class DbDriver(object):
                     self.__connection.close()
                 except:
                     pass
-                                                            
+
             self.__cursor = None
             self.__connection = None
-        return retValue
+        return successful
     
     def select(self, query, args):
         conn = self.__connect(True)
@@ -150,8 +169,7 @@ class DbDriver(object):
         rows = cursor.fetchall()
         conn.close()
         return rows
-    
-    
+
     @abstractmethod                        
     def query(self, topic, start=None, end=None, skip=0,
                             count=None, order="FIRST_TO_LAST"):

@@ -131,6 +131,7 @@ def historian(config_path, **kwargs):
             self.reader = DbFuncts(**connection['params'])
             self.writer = DbFuncts(**connection['params'])
             self.topic_map = {}
+            self.topic_meta = {}
 
             super(SQLHistorian, self).__init__(**kwargs)
 
@@ -195,6 +196,7 @@ def historian(config_path, **kwargs):
                     ts = x['timestamp']
                     topic = x['topic']
                     value = x['value']
+                    meta = x['meta']
 
                     # look at the topics that are stored in the database
                     # already to see if this topic has a value
@@ -206,10 +208,19 @@ def historian(config_path, **kwargs):
                         topic_id = row[0]
                         self.topic_map[topic] = topic_id
                         _log.debug('TopicId: {} => {}'.format(topic_id, topic))
+
+                    old_meta = self.topic_meta.get(topic_id, {})
+                    if set(old_meta.items()) != set(meta.items()):
+                        _log.debug('Updating meta for topic: {} {}'.format(
+                            topic, meta
+                        ))
+                        self.writer.insert_meta(topic_id, meta)
+                        self.topic_meta[topic_id] = meta
                     
                     if self.writer.insert_data(ts,topic_id, value):
                         # _log.debug('item was inserted')
                         real_published.append(x)
+
                 if len(real_published) > 0:            
                     if self.writer.commit():
                         _log.debug('published {} data values'.format(
@@ -250,9 +261,14 @@ def historian(config_path, **kwargs):
             _log.debug("query_historian Thread is: {}".format(
                 threading.currentThread().getName())
             )
-            
-            return self.reader.query(topic, start=start, end=end, skip=skip,
-                                     count=count, order=order)
+
+            results = self.reader.query(
+                topic, start=start, end=end, skip=skip, count=count,
+                order=order)
+
+            topic_id = self.topic_map[topic]
+            results['metadata'] = self.topic_meta.get(topic_id, {})
+            return results
 
         def historian_setup(self):
             thread_name = threading.currentThread().getName()

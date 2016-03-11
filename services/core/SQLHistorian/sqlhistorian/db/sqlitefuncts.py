@@ -59,6 +59,7 @@ import errno
 import logging
 import os
 import sqlite3
+import threading
 
 from zmq.utils import jsonapi
 
@@ -68,19 +69,22 @@ from volttron.platform.agent import utils
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
+
 class SqlLiteFuncts(DbDriver):
 
     def __init__(self, database, **kwargs):
-        print ("initializing historian database")
+        thread_name = threading.currentThread().getName()
+        _log.debug(
+            "initializing sqlitefuncts in thread {}".format(thread_name))
         if database == ':memory:':
             self.__database = database
         else:
 
             self.__database = os.path.expandvars(os.path.expanduser(database))
-            db_dir  = os.path.dirname(self.__database)
+            db_dir = os.path.dirname(self.__database)
 
-            #If the db does not exist create it
-            # in case we are started before the historian.
+            # If the db does not exist create it in case we are started
+            # before the historian.
             try:
                 if db_dir == '':
                     db_dir = './data'
@@ -91,7 +95,10 @@ class SqlLiteFuncts(DbDriver):
                 if exc.errno != errno.EEXIST or not os.path.isdir(db_dir):
                     raise
             
-        conn = sqlite3.connect(self.__database, detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
+        conn = sqlite3.connect(
+            self.__database,
+            detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES
+        )
         cursor = conn.cursor()
         cursor.execute('''CREATE TABLE IF NOT EXISTS data
                                 (ts timestamp NOT NULL,
@@ -106,6 +113,10 @@ class SqlLiteFuncts(DbDriver):
                                 (topic_id INTEGER PRIMARY KEY,
                                  topic_name TEXT NOT NULL,
                                  UNIQUE(topic_name))''')
+
+        cursor.execute('''CREATE TABLE IF NOT EXISTS meta
+                                (topic_id INTEGER PRIMARY KEY,
+                                 metadata TEXT NOT NULL)''')
         conn.commit()
         conn.close()
         
@@ -121,8 +132,6 @@ class SqlLiteFuncts(DbDriver):
         
         print (kwargs)    
         super(SqlLiteFuncts, self).__init__('sqlite3', **kwargs)
-        
-
 
     def query(self, topic, start=None, end=None, skip=0,
                             count=None, order="FIRST_TO_LAST"):
@@ -176,8 +185,6 @@ class SqlLiteFuncts(DbDriver):
             offset_statement = 'OFFSET ?'
             args.append(skip)
 
-        _log.debug("About to do real_query")
-
         real_query = query.format(where=where_statement,
                                   limit=limit_statement,
                                   offset=offset_statement,
@@ -190,7 +197,10 @@ class SqlLiteFuncts(DbDriver):
 
         values = [(ts.isoformat(), jsonapi.loads(value)) for ts, value in rows]
         _log.debug("QueryResults: " + str(values))
-        return {'values':values}
+        return {'values': values}
+
+    def insert_meta_query(self):
+        return '''INSERT OR REPLACE INTO meta values(?, ?)'''
 
     def insert_data_query(self):
         return '''INSERT OR REPLACE INTO data values(?, ?, ?)'''
