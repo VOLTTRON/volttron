@@ -58,6 +58,7 @@ import datetime
 import errno
 import inspect
 import logging
+import threading
 import os, os.path
 from pprint import pprint
 import sys
@@ -88,11 +89,15 @@ def historian(config_path, **kwargs):
     assert databaseType is not None
     params = connection.get('params', None)
     assert params is not None
-    identity = config.get('identity', kwargs.pop('identity', None))
 
-    
+    # determine if identity is specified in the config file.  If so, then
+    # add it identity to the kwargs.
+    identity = config.get('identity', None)
+    if identity:
+        kwargs['identity'] = identity
+
     mod_name = databaseType+"functs"
-    mod_name_path = "sqlhistorian.db."+mod_name
+    mod_name_path = "sqlhistorian.db.{}".format(mod_name)
     loaded_mod = __import__(mod_name_path, fromlist=[mod_name])
     
     for name, cls in inspect.getmembers(loaded_mod):
@@ -105,7 +110,7 @@ def historian(config_path, **kwargs):
     except NameError:
         functerror = 'Invalid module named '+mod_name_path+ "."
         raise Exception(functerror)
-            
+
     class SQLHistorian(BaseHistorian):
         '''This is a simple example of a historian agent that writes stuff
         to a SQLite database. It is designed to test some of the functionality
@@ -139,43 +144,49 @@ def historian(config_path, **kwargs):
             _log.info("Starting historian with identity: {}".format(
                 self.core.identity
             ))
+            _log.debug("starting Thread is: {}".format(
+                threading.currentThread().getName())
+            )
 
             self.topic_map.update(self.reader.get_topic_map())
 
             if self.core.identity == 'platform.historian':
-                # Check to see if the platform agent is available, if it isn't then
-                # subscribe to the /platform topic to be notified when the platform
-                # agent becomes available.
-                try:
-                    ping = self.vip.ping('platform.agent',
-                                         'awake?').get(timeout=3)
-                    _log.debug("Ping response was? "+ str(ping))
+                if 'platform.agent' in self.vip.peerlist().get(timeout=2):
+                    _log.info(
+                        'Registering with platform.agent as a  service.'
+                    )
                     self.vip.rpc.call('platform.agent', 'register_service',
-                                      self.core.identity).get(timeout=3)
-                except Unreachable:
-                    _log.debug('Could not register historian service')
-                finally:
-                    self.vip.pubsub.subscribe('pubsub', '/platform',
-                                              self.__platform)
-                    _log.debug("Listening to /platform")
+                                      self.core.identity).get(timeout=2)
+                else:
+                    _log.info('No platform.agent available to register with.')
+                # # Check to see if the platform agent is available, if it isn't then
+                # # subscribe to the /platform topic to be notified when the platform
+                # # agent becomes available.
+                # try:
+                #     ping = self.vip.ping('platform.agent',
+                #                          'awake?').get(timeout=3)
+                #     _log.debug("Ping response was? "+ str(ping))
+                #     self.vip.rpc.call('platform.agent', 'register_service',
+                #                       self.core.identity).get(timeout=3)
+                # except Unreachable:
+                #     _log.debug('Could not register historian service')
+                # finally:
+                #     self.vip.pubsub.subscribe('pubsub', '/platform',
+                #                               self.__platform)
+                #     _log.debug("Listening to /platform")
 
-        def __platform(self, peer, sender, bus, topic, headers, message):
-            _log.debug('Platform is now: {}'.format(message))
-            if message == 'available' and \
-                    self.core.identity == 'platform.historian':
-                gevent.spawn(self.vip.rpc.call, 'platform.agent', 'register_service',
-                                   self.core.identity)
-                gevent.sleep(0)
+        # def __platform(self, peer, sender, bus, topic, headers, message):
+        #     _log.debug('Platform is now: {}'.format(message))
+        #     if message == 'available' and \
+        #             self.core.identity == 'platform.historian':
+        #         gevent.spawn(self.vip.rpc.call, 'platform.agent', 'register_service',
+        #                            self.core.identity)
+        #         gevent.sleep(0)
 
         def publish_to_historian(self, to_publish_list):
-            _log.debug("publish_to_historian number of items: {}"
-                       .format(len(to_publish_list)))
-            
-            # load a topic map if there isn't one yet.
-            try:
-                self.topic_map.items()
-            except:
-                self.topic_map = self.reader.get_topic_map()
+            thread_name = threading.currentThread().getName()
+            _log.debug("publish_to_historian number of items: {} Thread: {}"
+                       .format(len(to_publish_list), thread_name))
 
             try:
                 real_published = []
@@ -183,26 +194,30 @@ def historian(config_path, **kwargs):
                     ts = x['timestamp']
                     topic = x['topic']
                     value = x['value']
-                    # look at the topics that are stored in the database already
-                    # to see if this topic has a value
+
+                    # look at the topics that are stored in the database
+                    # already to see if this topic has a value
                     topic_id = self.topic_map.get(topic, None)
     
                     if topic_id is None:
                         _log.debug('Inserting topic: {}'.format(topic))
-                        row  = self.writer.insert_topic(topic)
+                        row = self.writer.insert_topic(topic)
                         topic_id = row[0]
                         self.topic_map[topic] = topic_id
                         _log.debug('TopicId: {} => {}'.format(topic_id, topic))
                     
                     if self.writer.insert_data(ts,topic_id, value):
-                        #_log.debug('item was inserted')
+                        # _log.debug('item was inserted')
                         real_published.append(x)
                 if len(real_published) > 0:            
                     if self.writer.commit():
-                        _log.debug('published {} data values'.format(len(to_publish_list)))
+                        _log.debug('published {} data values'.format(
+                            len(to_publish_list))
+                        )
                         self.report_all_handled()
                     else:
-                        _log.debug('failed to commit so rolling back {} data values'.format(len(to_publish_list)))
+                        msg = 'commit error. rolling back {} values.'
+                        _log.debug(msg.format(len(to_publish_list)))
                         self.writer.rollback()
                 else:
                     _log.debug('Unable to publish {}'.format(len(to_publish_list)))
@@ -210,9 +225,13 @@ def historian(config_path, **kwargs):
                 self.writer.rollback()
                 # Raise to the platform so it is logged properly.
                 raise
-                
-                
+
         def query_topic_list(self):
+
+            _log.debug("query_topic_list Thread is: {}".format(
+                threading.currentThread().getName())
+            )
+            _log.debug("The topic_map is: ".format(self.topic_map))
             if len(self.topic_map) > 0:
                 return self.topic_map.keys()
             else:
@@ -227,10 +246,16 @@ def historian(config_path, **kwargs):
 
              metadata is not required (The caller will normalize this to {} for you)
             """
+            _log.debug("query_historian Thread is: {}".format(
+                threading.currentThread().getName())
+            )
+            
             return self.reader.query(topic, start=start, end=end, skip=skip,
                                      count=count, order=order)
 
         def historian_setup(self):
+            thread_name = threading.currentThread().getName()
+            _log.debug("historian_setup on Thread: {}".format(thread_name))
 
     SQLHistorian.__name__ = 'SQLHistorian'
     return SQLHistorian(**kwargs)

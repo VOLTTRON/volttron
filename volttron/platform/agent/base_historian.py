@@ -62,6 +62,7 @@ import sqlite3
 from Queue import Queue, Empty
 from collections import defaultdict
 from datetime import datetime, timedelta
+import threading
 from threading import Thread
 
 import pytz
@@ -641,7 +642,11 @@ class BaseQueryHistorianAgent(Agent):
         """
 
 class BaseHistorian(BaseHistorianAgent, BaseQueryHistorianAgent):
-    pass
+    def __init__(self, **kwargs):
+        _log.debug('Constructor of BaseHistorian thread: {}'.format(
+            threading.currentThread().getName()
+        ))
+        super(BaseHistorian, self).__init__(**kwargs)
 
 #The following code is
 #Copyright (c) 2011, 2012, Regents of the University of California
