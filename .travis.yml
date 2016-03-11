@@ -25,10 +25,6 @@ install:
 
 script: scripts/run-tests.sh
 
-notifications:
-  email:
-    - craig.allwardt@pnnl.gov
-    - zachary.beech@pnnl.gov
 #notifications:
 #  email:
 #    - craig.allwardt@pnnl.gov
