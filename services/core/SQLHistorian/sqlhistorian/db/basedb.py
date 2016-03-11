@@ -2,6 +2,7 @@ from __future__ import absolute_import, print_function
 from abc import abstractmethod
 import importlib
 import logging
+import threading
 
 from zmq.utils import jsonapi
 
@@ -10,11 +11,15 @@ from volttron.platform.agent import utils
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
+
 class DbDriver(object):
-    
+
     def __init__(self, dbapimodule, **kwargs):
-        _log.debug("Constructing Driver for "+ dbapimodule)
-        
+        thread_name = threading.currentThread().getName()
+        _log.debug("Constructing Driver for {} in thread: {}".format(
+            dbapimodule, thread_name)
+        )
+
         self.__dbmodule = importlib.import_module(dbapimodule)
         self.__connection = None
         self.__cursor = None  
@@ -23,12 +28,11 @@ class DbDriver(object):
         try:
             if not self.__check_connection():
                 raise AttributeError(
-                        "Couldn't connect using specified configuration" 
-                        " credentials")
+                    "Couldn't connect using specified configuration.")
+
         except Exception as e:
-            _log.exception(e)
-            raise AttributeError("Couldn't connect using specified " 
-                        "configuration credentials")
+            raise AttributeError(
+                "Couldn't connect using specified configuration.")
             
     def __check_connection(self):
         can_connect = False
@@ -75,10 +79,12 @@ class DbDriver(object):
         if self.__connection is None:
             return False
         
-        if self.__cursor == None:
+        if not self.__cursor:
             self.__cursor = self.__connection.cursor()
         
-        self.__cursor.execute(self.insert_data_query(), (ts,topic_id,jsonapi.dumps(data)))
+        self.__cursor.execute(
+            self.insert_data_query(), (ts, topic_id, jsonapi.dumps(data))
+        )
         return True
 
     def insert_topic(self, topic):
@@ -88,10 +94,10 @@ class DbDriver(object):
         if self.__connection is None:
             return False
         
-        if self.__cursor == None:
+        if not self.__cursor:
             self.__cursor = self.__connection.cursor()
         
-        self.__cursor.execute(self.insert_topic_query(), (topic,))
+        self.__cursor.execute(self.insert_topic_query(), (topic, ))
         
         row = [self.__cursor.lastrowid]
 

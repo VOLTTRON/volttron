@@ -122,7 +122,8 @@ def historian(config_path, **kwargs):
 
             The historian makes two connections to the data store.  Both of
             these connections are available across the main and processing
-            thread of the historian.
+            thread of the historian.  topic_map and topic_meta are used as
+            cache for the meta data and topic maps.
 
             :param kwargs:
             :return:
