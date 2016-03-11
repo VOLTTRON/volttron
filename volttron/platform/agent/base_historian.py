@@ -373,11 +373,11 @@ class BaseHistorianAgent(Agent):
         # are syncronized between
 
 
-        #Based on the state of the back log and whether or not sucessful
-        #publishing is currently happening (and how long it's taking)
-        #we may or may not want to wait on the event queue for more input
-        #before proceeding with the rest of the loop.
-        #wait_for_input = not bool(self._get_outstanding_to_publish())
+        # Based on the state of the back log and whether or not sucessful
+        # publishing is currently happening (and how long it's taking)
+        # we may or may not want to wait on the event queue for more input
+        # before proceeding with the rest of the loop.
+        # wait_for_input = not bool(self._get_outstanding_to_publish())
         wait_for_input = not bool(backupdb.get_outstanding_to_publish(self._submit_size_limit))
 
         while True:
@@ -403,22 +403,24 @@ class BaseHistorianAgent(Agent):
             
             _log.debug("Calling publish_to_historian.")
             while True:
-                to_publish_list = backupdb.get_outstanding_to_publish(self._submit_size_limit)
+                to_publish_list = backupdb.get_outstanding_to_publish(
+                    self._submit_size_limit)
                 if not to_publish_list or not self._started:
                     break
                 
                 try:
                     self.publish_to_historian(to_publish_list)
                 except Exception as exp:
-                     _log.exception("An unhandled exception occured while " \
-                               "publishing to the historian.")
+                     _log.exception(
+                         "An unhandled exception occured while publishing.")
                 
-                # if the successfule queue is empty then we need not remove them from the database.
+                # if the successfule queue is empty then we need not remove
+                # them from the database.
                 if not self._successful_published:
                     break
                 
-                backupdb.remove_successfully_published(self._successful_published,
-                                                       self._submit_size_limit)
+                backupdb.remove_successfully_published(
+                    self._successful_published, self._submit_size_limit)
 
                 now = datetime.utcnow()
                 if now - start_time > self._max_time_publishing:
@@ -443,6 +445,7 @@ class BaseHistorianAgent(Agent):
     def historian_setup(self):
         '''Optional setup routine, run in the processing thread before
            main processing loop starts.'''
+
 
 class BackupDatabase:
     def __init__(self, success_queue):
@@ -508,8 +511,6 @@ class BackupDatabase:
 
         self._connection.commit()
 
-
-    
     def get_outstanding_to_publish(self, size_limit):
         _log.debug("Getting oldest outstanding to publish.")
         c = self._connection.cursor()
