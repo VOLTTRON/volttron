@@ -51,7 +51,7 @@
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 
-#}}}
+# }}}
 from __future__ import absolute_import, print_function
 
 import datetime
@@ -71,16 +71,11 @@ from volttron.platform.agent.base_historian import BaseHistorian
 from volttron.platform.agent import utils
 from volttron.platform.messaging import topics, headers as headers_mod
 
-#import sqlhistorian
-#import sqlhistorian.settings
-#import settings
-
-__version__ = "3.0.2"
+__version__ = "3.5.0"
 
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-
 
 
 def historian(config_path, **kwargs):
@@ -231,13 +226,14 @@ def historian(config_path, **kwargs):
 
 
 def main(argv=sys.argv):
-    '''Main method called by the eggsecutable.'''
+    """ Main entry point for the agent.
+
+    :param argv:
+    :return:
+    """
+
     try:
         utils.vip_main(historian)
-        #utils.default_main(historian,
-        #                   description='Historian agent that saves a history to a sqlite db.',
-        #                   argv=argv,
-        #                   no_pub_sub_socket=True)
     except Exception as e:
         print(e)
         _log.exception('unhandled exception')
