@@ -139,10 +139,13 @@ def historian(config_path, **kwargs):
             _log.debug('prepayload: {}'.format(message))
             payload = jsonapi.dumps({'headers': headers, 'message': data})
             _log.debug('postpayload: {}'.format(payload))
+            
+            utcnow = utils.get_aware_utc_now()
+            timestamp_string = utils.format_timestamp(utcnow)
 
             self._event_queue.put({'source': "forwarded",
                                    'topic': topic,
-                                   'readings': [(str(datetime.datetime.utcnow()), payload)]})
+                                   'readings': [(timestamp_string, payload)]})
 
         def __platform(self, peer, sender, bus, topic, headers, message):
             _log.debug('Platform is now: {}'.format(message))
