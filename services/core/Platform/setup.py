@@ -80,12 +80,8 @@ _temp = __import__(agent_module, globals(), locals(), ['__version__'], -1)
 __version__ = _temp.__version__
 
 setup(
-<<<<<<< HEAD
     include_package_data=True,
-    name=package + 'agent',
-=======
     name=agent_package + 'agent',
->>>>>>> develop
     version=__version__,
     install_requires=['volttron', 'psutil'],
     packages=packages,

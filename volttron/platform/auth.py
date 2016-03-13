@@ -117,63 +117,6 @@ class AuthService(Agent):
         if self.allow_any:
             _log.warn('insecure permissive authentication enabled')
         self.read_auth_file()
-<<<<<<< HEAD
-        self.core.spawn(self._watch_auth_file)
-
-    def read_auth_file(self):
-        _log.info('loading auth file %s', self.auth_file)
-        try:
-            try:
-                fil = open(self.auth_file)
-            except IOError as exc:
-                if exc.errno != errno.ENOENT:
-                    raise
-                _log.debug('missing auth file %s', self.auth_file)
-                _log.info('creating auth file %s', self.auth_file)
-                fd = os.open(self.auth_file, os.O_CREAT|os.O_WRONLY, 0o660)
-                try:
-                    os.write(fd, _SAMPLE_AUTH_FILE)
-                finally:
-                    os.close(fd)
-                self.auth_entries = []
-            with open(self.auth_file) as fil:
-                # Use gevent FileObject to avoid blocking the thread
-                data = strip_comments(FileObject(fil, close=False).read())
-                if not data:
-                    _log.debug("auth.json file was empty.")
-                    auth_data = {"allow":[]}
-                else:
-                    auth_data = jsonapi.loads(data)
-        except Exception:
-            _log.exception('error loading %s', self.auth_file)
-        else:
-            groups = auth_data.get('groups', {})
-            roles = auth_data.get('roles', {})
-            try:
-                allowed = auth_data['allow']
-            except KeyError:
-                _log.warn("missing 'allow' key in auth file %s", self.auth_file)
-                allowed = []
-            entries = []
-            for entry in allowed:
-                try:
-                    auth_entry = AuthEntry(**entry)
-                    entry_roles = auth_entry.roles
-                    # Each group is a list of roles
-                    for group in auth_entry.groups:
-                        entry_roles += groups.get(group, [])
-                    capabilities = []
-                    # Each role is a list of capabilities
-                    for role in entry_roles:
-                        capabilities += roles.get(role, [])
-                    auth_entry.add_capabilities(list(set(capabilities)))
-                    entries.append(auth_entry)
-                except TypeError:
-                    _log.warn('invalid entry %r in auth file %s',
-                              entry, self.auth_file)
-            self.auth_entries = entries
-            _log.info('auth file %s loaded', self.auth_file)
-=======
         self.core.spawn(watch_file, self.auth_file_path, self.read_auth_file)
 
     def read_auth_file(self):
@@ -184,7 +127,6 @@ class AuthService(Agent):
         entries.sort()
         self.auth_entries = entries
         _log.info('auth file %s loaded', self.auth_file_path)
->>>>>>> develop
 
     def _watch_auth_file(self):
         dirname, filename = os.path.split(self.auth_file)

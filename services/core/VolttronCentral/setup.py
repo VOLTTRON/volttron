@@ -82,26 +82,14 @@ _temp = __import__(package+'.vc', globals(), locals(), ['__version__'], -1)
 __version__ = _temp.__version__
 
 setup(
-<<<<<<< HEAD
-    name=package + 'agent',
-    version=__version__,
-    install_requires=['volttron'],
-
-    packages=packages,
-    package_data={
-        package: ['webroot/*.*', 'webroot/css/*.css', 'webroot/js/*.js',
-                    'webroot/fonts/*.*']
-   },
-=======
     name=agent_package + 'agent',
     version=__version__,
-    install_requires=['volttron', 'tornado'],
+    install_requires=['volttron'],
     packages=packages,
     package_data={
         package: ['webroot/*.*', 'webroot/font/*.*', 'webroot/css/*.css',
                   'webroot/js/*.js']
     },
->>>>>>> develop
     entry_points={
         'setuptools.installation': [
             'eggsecutable = ' + agent_module + ':main',
