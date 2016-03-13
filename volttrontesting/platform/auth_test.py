@@ -111,6 +111,7 @@ def test_authorized_rpc_call2(volttron_instance1_encrypt):
     assert result == 42
 
 def build_two_agents_pubsub_agents(volttron_instance1_encrypt, topic='foo'):
+<<<<<<< HEAD
     """ Return two agents for testing protected pubsub
 
     The first agent is the subscriber.
@@ -120,6 +121,13 @@ def build_two_agents_pubsub_agents(volttron_instance1_encrypt, topic='foo'):
     :param topic:
     :return:
     """
+=======
+    '''Return two agents for testing protected pubsub
+
+    The first agent is the subscriber.
+    The second agent is the publisher.
+    '''
+>>>>>>> develop
     agent1, agent2 = build_two_test_agents(volttron_instance1_encrypt)
 
     msgs = []

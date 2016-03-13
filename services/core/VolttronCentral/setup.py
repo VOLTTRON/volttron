@@ -54,10 +54,10 @@
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 
-#}}}
+# }}}
 
-from setuptools import setup, find_packages
 from os import path
+from setuptools import setup, find_packages
 
 MAIN_MODULE = 'vc'
 
@@ -69,9 +69,9 @@ for package in find_packages():
     if path.isfile(package + '/' + MAIN_MODULE + '.py') is True:
         agent_package = package
 if not agent_package:
-    raise RuntimeError(
-        'None of the packages under {dir} contain the file {main_module}'.format(
-            main_module=MAIN_MODULE + '.py', dir=path.abspath('.')))
+    raise RuntimeError('None of the packages under {dir} contain the file '
+                       '{main_module}'.format(main_module=MAIN_MODULE + '.py',
+                                              dir=path.abspath('.')))
 
 # Find the version number from the main module
 agent_module = agent_package + '.' + MAIN_MODULE
@@ -82,6 +82,7 @@ _temp = __import__(package+'.vc', globals(), locals(), ['__version__'], -1)
 __version__ = _temp.__version__
 
 setup(
+<<<<<<< HEAD
     name=package + 'agent',
     version=__version__,
     install_requires=['volttron'],
@@ -91,6 +92,16 @@ setup(
         package: ['webroot/*.*', 'webroot/css/*.css', 'webroot/js/*.js',
                     'webroot/fonts/*.*']
    },
+=======
+    name=agent_package + 'agent',
+    version=__version__,
+    install_requires=['volttron', 'tornado'],
+    packages=packages,
+    package_data={
+        package: ['webroot/*.*', 'webroot/font/*.*', 'webroot/css/*.css',
+                  'webroot/js/*.js']
+    },
+>>>>>>> develop
     entry_points={
         'setuptools.installation': [
             'eggsecutable = ' + agent_module + ':main',

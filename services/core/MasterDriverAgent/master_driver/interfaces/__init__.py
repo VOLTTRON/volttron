@@ -52,6 +52,9 @@ under Contract DE-AC05-76RL01830
 '''
 
 import abc
+import logging
+
+_log = logging.getLogger(__name__)
 
 class DriverInterfaceError(Exception):
     pass
@@ -118,14 +121,131 @@ class BaseInterface(object):
         self.registers[register_type].append(register)        
         
     @abc.abstractmethod
-    def get_point(self, point_name):    
+    def get_point(self, point_name, **kwargs):    
         pass
     
     @abc.abstractmethod
-    def set_point(self, point_name, value): 
+    def set_point(self, point_name, value, **kwargs): 
         pass
     
     @abc.abstractmethod        
     def scrape_all(self):
         """Return a dictionary of point names:values for device"""
         pass
+    
+    @abc.abstractmethod        
+    def revert_all(self, **kwargs):
+        """Revert entrire device to it's default state"""
+        pass
+    
+    @abc.abstractmethod        
+    def revert_point(self, point_name, **kwargs):
+        """Revert point to it's default state"""
+        pass
+    
+
+#Used to track how to revert values on a device.
+#Choose not to integrate this into BaseRegister as some
+# interfaces (BACnet) have no use for it and it would clutter
+# up the interface needlessly. 
+class RevertTracker(object):
+    def __init__(self):
+        self.defaults = {}
+        self.clean_values = {}
+        self.dirty_points = set()
+    
+    def update_clean_values(self, points):
+        clean_values = {}
+        for k, v in points.iteritems():
+            if k not in self.dirty_points and k not in self.defaults:
+                clean_values[k] = v
+        self.clean_values.update(clean_values)
+        
+    def set_default(self, point, value):
+        self.defaults[point] = value
+        
+    def get_revert_value(self, point):
+        """Gets the value to revert the point to."""
+        if point in self.defaults:
+            return self.defaults[point]
+        if point not in self.clean_values:
+            raise DriverInterfaceError("Nothing to revert to for {}".format(point))
+        
+        return self.clean_values[point]
+        
+    def clear_dirty_point(self, point):   
+        self.dirty_points.discard(point)
+        
+    def mark_dirty_point(self, point):
+        if point not in self.defaults:
+            self.dirty_points.add(point)
+        
+    def get_all_revert_values(self):
+        results = {}
+        for point in self.dirty_points.union(self.defaults):
+            try:
+                results[point] = self.get_revert_value(point)
+            except DriverInterfaceError:
+                results[point] = DriverInterfaceError()
+            
+        return results
+    
+class BasicRevert(object):
+    __metaclass__ = abc.ABCMeta
+    def __init__(self, **kwargs):
+        super(BasicRevert, self).__init__(**kwargs)
+        self._tracker = RevertTracker()
+        
+    def _update_clean_values(self, points):
+        self._tracker.update_clean_values(points)
+    
+    def set_default(self, point, value):    
+        self._tracker.set_default(point, value)
+        
+    
+    def set_point(self, point_name, value):
+        result = self._set_point(point_name, value)        
+        self._tracker.mark_dirty_point(point_name)
+        return result
+    
+    def scrape_all(self):
+        result = self._scrape_all()   
+        self._update_clean_values(result)
+
+        return result
+    
+    @abc.abstractmethod    
+    def _set_point(self, point_name, value):
+        pass
+    
+    @abc.abstractmethod    
+    def _scrape_all(self):
+        pass    
+    
+         
+    def revert_all(self, **kwargs):
+        """Revert entrire device to it's default state"""
+        points = self._tracker.get_all_revert_values()
+        for point_name, value in points.iteritems():
+            if not isinstance(value, DriverInterfaceError):
+                try:
+                    self._set_point(point_name, value)
+                    self._tracker.clear_dirty_point(point_name)
+                except Exception as e:
+                    _log.warning("Error while reverting point {}: {}".format(point_name, str(e)))
+                
+          
+    def revert_point(self, point_name, **kwargs):
+        """Revert point to it's default state"""
+        try:
+            value = self._tracker.get_revert_value(point_name)
+        except DriverInterfaceError:
+            return
+        
+        _log.debug("Reverting {} to {}".format(point_name, value))
+        
+        self._set_point(point_name, value)   
+        self._tracker.clear_dirty_point(point_name) 
+        
+        
+        

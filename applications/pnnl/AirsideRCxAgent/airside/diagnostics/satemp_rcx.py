@@ -99,6 +99,16 @@ class SupplyTempRcx(object):
         self.min_sat_stpt = float(min_sat_stpt)
         self.sat_retuning = float(sat_retuning)
 
+    def reinitialize(self):
+        '''Reinitialize data arrays.'''
+        self.ts = []
+        self.sat_stpt_arr = []
+        self.satemp_arr = []
+        self.rht_arr = []
+        self.rht = []
+        self.percent_rht = []
+        self.percent_dmpr = []
+
     def sat_rcx(self, current_time, sat_data, sat_stpt_data,
                 rht_data, zn_dmpr, dx_result,
                 sat_override_check, validate):
@@ -154,14 +164,13 @@ class SupplyTempRcx(object):
                                            {SA_TEMP_RCX2 + DX: 56.2})
                 data.update({SA_VALIDATE + DATA + ST: 2})
                 dx_result.insert_table_row(self.analysis, data)
+                self.reinitialize()
                 return dx_result
             dx_result = self.low_sat(dx_result, avg_sat_stpt,
                                      sat_override_check)
             dx_result = self.high_sat(dx_result, avg_sat_stpt,
                                       sat_override_check)
-            self.percent_rht = []
-            self.percent_dmpr = []
-            self.rht_arr = []
+            self.reinitialize()
             data.update({SA_VALIDATE + DATA + ST: 1})
             dx_result.insert_table_row(self.analysis, data)
             return dx_result
@@ -275,15 +284,4 @@ class SupplyTempRcx(object):
         }
         result.insert_table_row(self.analysis, dx_table)
         result.log(msg, logging.INFO)
-        self.sat_stpt_arr = []
-        self.satemp_arr = []
-        self.ts = []
-#         temp1 = []
-#         temp2 = []
-#         for message in range(0, len(Application.pre_requiste_messages) - 1):
-#             if SCHED_RCx in Application.pre_requiste_messages[message]:
-#                 temp1.append(Application.pre_requiste_messages[message])
-#                 temp2.append(Application.pre_msg_time[message])
-#         Application.pre_requiste_messages = temp1
-#         Application.pre_msg_time = temp2
         return result

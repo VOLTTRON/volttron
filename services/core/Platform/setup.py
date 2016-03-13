@@ -56,8 +56,8 @@
 
 # }}}
 
-from setuptools import setup, find_packages
 from os import path
+from setuptools import setup, find_packages
 
 MAIN_MODULE = 'agent'
 
@@ -70,9 +70,9 @@ for package in find_packages():
         agent_package = package
 
 if not agent_package:
-    raise RuntimeError(
-        'None of the packages under {dir} contain the file {main_module}'.format(
-            main_module=MAIN_MODULE + '.py', dir=path.abspath('.')))
+    raise RuntimeError('None of the packages under {dir} contain the file '
+                       '{main_module}'.format(main_module=MAIN_MODULE + '.py',
+                                              dir=path.abspath('.')))
 
 # Find the version number from the main module
 agent_module = agent_package + '.' + MAIN_MODULE
@@ -80,8 +80,12 @@ _temp = __import__(agent_module, globals(), locals(), ['__version__'], -1)
 __version__ = _temp.__version__
 
 setup(
+<<<<<<< HEAD
     include_package_data=True,
     name=package + 'agent',
+=======
+    name=agent_package + 'agent',
+>>>>>>> develop
     version=__version__,
     install_requires=['volttron', 'psutil'],
     packages=packages,
