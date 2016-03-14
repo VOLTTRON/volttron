@@ -169,59 +169,86 @@ def test_startstoprestart_agent(volttron_instance1):
     # TODO: What should the real value be?
     #assert result[1] == 0
 
- @pytest.mark.pa
-def test_manage_platform(volttro_instance1):
-    """ Test the ability for a platform to be registered from an entity.
 
-    :param pa_instance: {platform_uuid: uuid, wrapper: instance_wrapper}
-    :return: None
-    """
+@pytest.mark.pa
+def test_automanage(volttron_instance1):
 
-    pa_wrapper = pa_instance['wrapper']
-    vc_agent, vc_secretkey, vc_publickey = simulated_vc(pa_wrapper)
+    install_platform(volttron_instance1)
+    volttron_instance1.install_agent(
+        agent_dir='services/core/VolttronCentral',
+        config_file='services/core/VolttronCentral/config')
 
-    # Expected to return the platform.agent public key.
-    papubkey = vc_agent.vip.rpc.call(PLATFORM_ID, "manage_platform",
-                                     pa_wrapper.bind_web_address,
-                                     vc_publickey).get(timeout=3)
-    assert papubkey
+    caller = volttron_instance1.build_agent()
+    assert caller
 
-    # Test that once it's registered a new call to manage_platform will
-    # return the same result.
-    pk1 = vc_agent.vip.rpc.call(PLATFORM_ID, "manage_platform",
-                                pa_wrapper.bind_web_address,
-                                vc_publickey).get(timeout=3)
+    managed = caller.vip.rpc(PLATFORM_ID,'is_managed').get(timeout=10)
+    assert managed
 
-    # The pakey returned should be the same.
-    assert papubkey == pk1
 
-    # Make sure that the error returned is correct when we don't have the
-    # the correct public key
-    tf = tempfile.NamedTemporaryFile()
-    ks = KeyStore(tf.name)
-    ks.generate()
-
-    # if for some reason you can't import the specific exception class,
-    # catch it as generic and verify it's in the str(excinfo)
-    with pytest.raises(Exception) as excinfo:
-        pk1 = vc_agent.vip.rpc.call(PLATFORM_ID, "manage_platform",
-                                pa_wrapper.bind_web_address,
-                                ks.public()).get(timeout=3)
-    assert 'AlreadyManagedError' in str(excinfo)
-
-    # check the auth file for a can_manage capability in it.
-    auth_json = open(os.path.join(pa_wrapper.volttron_home, "auth.json")).read()
-    auth_dict = jsonapi.loads(auth_json)
-
-    found = False
-    for k in auth_dict['allow']:
-        if k['credentials'].endswith(vc_publickey):
-            print('Found vc_publickey')
-            capabilities =k.get('capabilities', None)
-            assert capabilities
-            assert 'can_manage' in capabilities
-            found = True
-    assert found, "No vc agent ({}) found with can_manage capability.".format(vc_publickey)
+# @pytest.mark.pa
+# def test_manage_platform(volttron_instance1):
+#     """ Test the ability for a platform to be registered from an entity.
+#
+#     :param pa_instance: {platform_uuid: uuid, wrapper: instance_wrapper}
+#     :return: None
+#     """
+#
+#     # Platform installed on volttron_instance2
+#     install_platform(volttron_instance1)
+#
+#     caller = volttron_instance1.build_agent()
+#     assert caller
+#
+#     caller.vip.rpc.call(PLATFORM_ID, 'manage_platform')
+#
+#
+#
+#
+#     pa_wrapper = pa_instance['wrapper']
+#     vc_agent, vc_secretkey, vc_publickey = simulated_vc(pa_wrapper)
+#
+#     # Expected to return the platform.agent public key.
+#     papubkey = vc_agent.vip.rpc.call(PLATFORM_ID, "manage_platform",
+#                                      pa_wrapper.bind_web_address,
+#                                      vc_publickey).get(timeout=3)
+#     assert papubkey
+#
+#     # Test that once it's registered a new call to manage_platform will
+#     # return the same result.
+#     pk1 = vc_agent.vip.rpc.call(PLATFORM_ID, "manage_platform",
+#                                 pa_wrapper.bind_web_address,
+#                                 vc_publickey).get(timeout=3)
+#
+#     # The pakey returned should be the same.
+#     assert papubkey == pk1
+#
+#     # Make sure that the error returned is correct when we don't have the
+#     # the correct public key
+#     tf = tempfile.NamedTemporaryFile()
+#     ks = KeyStore(tf.name)
+#     ks.generate()
+#
+#     # if for some reason you can't import the specific exception class,
+#     # catch it as generic and verify it's in the str(excinfo)
+#     with pytest.raises(Exception) as excinfo:
+#         pk1 = vc_agent.vip.rpc.call(PLATFORM_ID, "manage_platform",
+#                                 pa_wrapper.bind_web_address,
+#                                 ks.public()).get(timeout=3)
+#     assert 'AlreadyManagedError' in str(excinfo)
+#
+#     # check the auth file for a can_manage capability in it.
+#     auth_json = open(os.path.join(pa_wrapper.volttron_home, "auth.json")).read()
+#     auth_dict = jsonapi.loads(auth_json)
+#
+#     found = False
+#     for k in auth_dict['allow']:
+#         if k['credentials'].endswith(vc_publickey):
+#             print('Found vc_publickey')
+#             capabilities =k.get('capabilities', None)
+#             assert capabilities
+#             assert 'can_manage' in capabilities
+#             found = True
+#     assert found, "No vc agent ({}) found with can_manage capability.".format(vc_publickey)
 
 
 # def test_setting_creation(volttron_instance1, platform_uuid):

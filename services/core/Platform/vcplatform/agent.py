@@ -149,6 +149,7 @@ def platform_agent(config_path, **kwargs):
             # This agent will hold a connection to the vc router so that we
             # can send information to it.
             self._vc_agent = None
+            self._is_local_vc = False
 
         @RPC.export
         def assign_platform_uuid(self, platform_uuid):
@@ -172,6 +173,14 @@ def platform_agent(config_path, **kwargs):
                 'context': 'Initial Set',
                 'last_updated': datetime.utcnow().isoformat()
             }
+
+        @RPC.export
+        def is_managed(self):
+            return self._vc or 'volttron.central' in self.vip.peerlist().get()
+
+        # @RPC.export
+        # def manage_local(self):
+        #     self._is_local_vc = True
 
         @RPC.export
         def manage_platform(self, uri, vc_publickey):
