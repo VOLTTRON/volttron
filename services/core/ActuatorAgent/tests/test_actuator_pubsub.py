@@ -35,6 +35,7 @@ from gevent.subprocess import Popen
 from mock import MagicMock
 from volttron.platform.agent import PublishMixin
 from volttron.platform.messaging import topics
+from volttron.platform.agent import utils
 
 '''
 This material was prepared as an account of work sponsored by an
@@ -338,10 +339,8 @@ def test_schedule_announce(publish_agent, volttron_instance1):
             'taskID'] == 'task_schedule_announce'
         assert args_list1[4]['requesterID'] == args_list2[4][
             'requesterID'] == TEST_AGENT
-        datetime1 = datetime.strptime(args_list1[4]['time'],
-                                      '%Y-%m-%d %H:%M:%S')
-        datetime2 = datetime.strptime(args_list2[4]['time'],
-                                      '%Y-%m-%d %H:%M:%S')
+        datetime1 = utils.parse_timestamp_string(args_list1[4]['time'])
+        datetime2 = utils.parse_timestamp_string(args_list2[4]['time'])
         delta = datetime2 - datetime1
         assert delta.seconds == 2
 
