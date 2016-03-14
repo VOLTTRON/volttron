@@ -59,6 +59,7 @@ __version__ = '3.1'
 
 import base64
 from collections import namedtuple
+from datetime import datetime
 import gevent.event
 import logging
 import sys
@@ -73,6 +74,8 @@ import psutil
 import gevent
 from gevent.fileobject import FileObject
 from zmq.utils import jsonapi
+from volttron.platform.vip.agent.core import (STATUS_GOOD, STATUS_BAD,
+                                              STATUS_UNKNOWN)
 from volttron.platform.vip.agent import *
 
 from volttron.platform import jsonrpc, control
@@ -163,8 +166,12 @@ def platform_agent(config_path, **kwargs):
             )
 
         @RPC.export
-        def get_status(self):
-            return self.core.status()
+        def get_health(self):
+            return {
+                'health': "GOOD",
+                'context': 'Initial Set',
+                'last_updated': datetime.utcnow().isoformat()
+            }
 
         @RPC.export
         def manage_platform(self, uri, vc_publickey):
@@ -204,6 +211,8 @@ def platform_agent(config_path, **kwargs):
             event = gevent.event.Event()
             gevent.spawn(self._vc_agent.core.run, event)
             event.wait(timeout=2)
+
+            self.core._set_status(STATUS_GOOD, "Platform is managed" )
 
             return self.core.publickey
 
@@ -307,22 +316,34 @@ def platform_agent(config_path, **kwargs):
 
             :return: A list of agents.
             """
+            _log.debug('LISTING AGENTS!')
             agents = self.vip.rpc.call("control", "list_agents").get()
 
-            agents_status = self.vip.rpc.call("control",
-                                              "status_agents").get()
-            _log.debug('List Agent: {}'.format(agents))
-            # ['uuid', 'vcplatformagent-3.5', [15958, None]]s
-            _log.debug("Status Agents: {}".format(agents_status))
+            status_all = self.status_agents()
+
             uuid_to_status = {}
-            for s in agents_status:
-                # 'uuid', 'vcplatformagent-3.5', [16206, None]]
-                if s[2][0] > 0:
-                    uuid_to_status[s[0]] = {'process_id': s[2][0],
-                                            "error_code": 0}
-                elif s[2][0] <= 0:
-                    uuid_to_status[s[0]] = {'process_id': 0,
-                                            "error_code": s[2][0]}
+            # proc_info has a list of [startproc, endprox]
+            for uuid, name, proc_info in status_all:
+                _log.debug('Agent {} status: {}'.format(uuid, proc_info))
+                is_running = proc_info[0] > 0 and proc_info[1] == None
+                uuid_to_status[uuid] = {
+                    'process_id': proc_info[0],
+                    'error_code': proc_info[1],
+                    'is_running': is_running,
+                    'can_stop': True,
+                    'can_start': True,
+                    'can_restart': True
+                }
+
+                if 'volttroncentral' in name or \
+                    'vcplatform' in name:
+                    uuid_to_status[uuid]['can_stop'] = False
+
+                uuid_to_status[uuid]['health'] = {
+                    'health': "GOOD",
+                    'context': 'Initial Set',
+                    'last_updated': datetime.utcnow().isoformat()
+                }
 
             for a in agents:
                 a.update(uuid_to_status[a['uuid']])
@@ -332,47 +353,27 @@ def platform_agent(config_path, **kwargs):
         @RPC.export
         # @RPC.allow("can_manage")
         def start_agent(self, agent_uuid):
-            agents = self.list_agents()
-            for k in agents:
-                if agent_uuid in k['uuid'] \
-                        and k['process_id'] <= 0:
-                    proc_result = self.vip.rpc.call("control",
-                                                     "start_agent",
-                                                     agent_uuid).get()
-                    return proc_result
-            return []
+            self.vip.rpc.call("control", "start_agent", agent_uuid)
 
         @RPC.export
         # @RPC.allow("can_manage")
         def stop_agent(self, agent_uuid):
-            agents = self.list_agents()
-            for k in agents:
-                if agent_uuid in k['uuid'] \
-                        and k['process_id'] >= 0:
-                    proc_result = self.vip.rpc.call("control",
-                                                     "stop_agent",
-                                                     agent_uuid).get()
-                    return proc_result
-            return []
+            proc_result = self.vip.rpc.call("control", "stop_agent",
+                                            agent_uuid)
 
         @RPC.export
         # @RPC.allow("can_manage")
         def restart_agent(self, agent_uuid):
-            agents = self.list_agents()
-            for k in agents:
-                if agent_uuid in k['uuid'] \
-                        and k['process_id'] <= 0:
-                    proc_result = self.vip.rpc.call("control",
-                                                     "restart_agent",
-                                                     agent_uuid).get()
-                    return proc_result
-            return []
+            self.vip.rpc.call("control", "restart_agent", agent_uuid)
 
         @RPC.export
         def agent_status(self, agent_uuid):
             return self.vip.rpc.call("control", "agent_status",
-                                      agent_uuid).get()
+                                     agent_uuid).get()
 
+        @RPC.export
+        def status_agents(self):
+            return self.vip.rpc.call('control', 'status_agents').get()
 
         @RPC.export
         def route_request(self, id, method, params):

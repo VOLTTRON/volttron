@@ -104,8 +104,10 @@ RUN_DIR = 'run'
 PUBLISH_TO = RUN_DIR+'/publish'
 SUBSCRIBE_TO = RUN_DIR+'/subscribe'
 
+
 class PlatformWrapperError(Exception):
     pass
+
 
 class PlatformWrapper:
     def __init__(self):
@@ -114,22 +116,47 @@ class PlatformWrapper:
         Creates a temporary VOLTTRON_HOME directory with a packaged directory for
         agents that are built.
         '''
-        self.volttron_home = tempfile.mkdtemp()
-        self.packaged_dir = os.path.join(self.volttron_home, "packaged")
-        os.makedirs(self.packaged_dir)
+        self.__volttron_home = tempfile.mkdtemp()
+        self.__packaged_dir = os.path.join(self.volttron_home, "packaged")
+        os.makedirs(self.__packaged_dir)
         self.env = os.environ.copy()
         self.env['VOLTTRON_HOME'] = self.volttron_home
 
         # By default no web server should be started.
-        self.bind_web_address = None
+        self.__bind_web_address = None
 
         self._p_process = None
         self._t_process = None
-        self.publickey = self.generate_key()
+        self.__publickey = self.generate_key()
         self._started_pids = []
-        self.local_vip_address = None
-        self.vip_address = None
+        self.__local_vip_address = None
+        self.__vip_address = None
         print('Creating Platform Wrapper at: {}'.format(self.volttron_home))
+
+    @property
+    def bind_web_address(self):
+        return self.__bind_web_address
+
+    @property
+    def local_vip_address(self):
+        return self.__local_vip_address
+
+    @property
+    def packaged_dir(self):
+        return self.__packaged_dir
+
+
+    @property
+    def publickey(self):
+        return self.__publickey
+
+    @property
+    def vip_address(self):
+        return self.__vip_address
+
+    @property
+    def volttron_home(self):
+        return self.__volttron_home
 
     def allow_all_connections(self):
         allow = {"allow":[

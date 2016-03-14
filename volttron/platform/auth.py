@@ -71,7 +71,7 @@ from gevent.fileobject import FileObject
 from zmq import green as zmq
 from zmq.utils import jsonapi
 
-from .agent.utils import strip_comments
+from .agent.utils import strip_comments, create_file_if_missing, watch_file
 from .lib.inotify.green import inotify, IN_MODIFY
 from .vip.agent import Agent, Core, RPC
 from .vip.socket import encode_key
