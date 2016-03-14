@@ -220,6 +220,14 @@ def master_driver_agent(config_path, **kwargs):
             for device in self.instances.values():
                 device.heart_beat()
                 
+        @RPC.export
+        def revert_point(self, path, point_name, **kwargs):
+            self.instances[path].revert_point(point_name, **kwargs)
+        
+        @RPC.export
+        def revert_device(self, path, **kwargs):
+            self.instances[path].revert_all(**kwargs)
+                
             
     return MasterDriverAgent(identity=vip_identity, **kwargs)
 
