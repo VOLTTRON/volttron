@@ -54,6 +54,8 @@
 import os
 import weakref
 
+from datetime import datetime
+
 from .base import SubsystemBase
 
 class Heartbeat(SubsystemBase):
@@ -109,4 +111,6 @@ class Heartbeat(SubsystemBase):
         except KeyError:
             pass
 
-        self.pubsub().publish('pubsub', topic)
+        message = str(datetime.now().isoformat(' '))
+
+        self.pubsub().publish('pubsub', topic, {}, message)
