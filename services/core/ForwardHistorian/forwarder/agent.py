@@ -57,7 +57,6 @@ from __future__ import absolute_import, print_function
 import datetime
 import errno
 import logging
-import os, os.path
 from pprint import pprint
 import sqlite3
 import sys
@@ -77,13 +76,19 @@ __version__ = '3.0'
 
 def historian(config_path, **kwargs):
     config = utils.load_config(config_path)
-
+    services_topic_list = config.get('services_topic_list', ['all'])
+    custom_topic_list = config.get('custom_topic_list', [])
     destination_vip = config.get('destination-vip')
     identity = config.get('identity', kwargs.pop('identity', None))
+    if 'all' in services_topic_list:
+        services_topic_list = [topics.DRIVER_TOPIC_BASE, topics.LOGGER_BASE,
+                               topics.ACTUATOR, topics.ANALYSIS_TOPIC_BASE]
 
     class ForwardHistorian(BaseHistorian):
         '''This historian forwards data to another platform.
         '''
+        def __init__(self, **kwargs):
+            super(ForwardHistorian, self).__init__(**kwargs)
 
         @Core.receiver("onstart")
         def starting_base(self, sender, **kwargs):
@@ -91,33 +96,22 @@ def historian(config_path, **kwargs):
             Subscribes to the platform message bus on the actuator, record,
             datalogger, and device topics to capture data.
             '''
+            def subscriber(subscription, callback_method):
+                _log.debug("subscribing to {}".format(subscription))
+                self.vip.pubsub.subscribe(peer='pubsub',
+                                          prefix=subscription,
+                                          callback=callback_method)
+
             _log.debug("Starting Forward historian")
+            for topic_subscriptions in services_topic_list:
+                subscriber(topic_subscriptions, self.capture_data)
 
-            driver_prefix = topics.DRIVER_TOPIC_BASE
-            _log.debug("subscribing to {}".format(driver_prefix))
-            self.vip.pubsub.subscribe(peer='pubsub',
-                                      prefix=driver_prefix,
-                                      callback=self.capture_data)
+            for custom_topic in custom_topic_list:
+                subscriber(custom_topic, self.capture_data)
 
-            _log.debug('Subscribing to: {}'.format(topics.LOGGER_BASE))
-            self.vip.pubsub.subscribe(peer='pubsub',
-                                      prefix=topics.LOGGER_BASE,  # "datalogger",
-                                      callback=self.capture_data)
-
-            _log.debug('Subscribing to: '.format(topics.ACTUATOR))
-            self.vip.pubsub.subscribe(peer='pubsub',
-                                      prefix=topics.ACTUATOR,  # actuators/*
-                                      callback=self.capture_data)
-
-            _log.debug('Subscribing to: {}'.format(topics.ANALYSIS_TOPIC_BASE))
-            self.vip.pubsub.subscribe(peer='pubsub',
-                                      prefix=topics.ANALYSIS_TOPIC_BASE,  # anaysis/*
-                                      callback=self.capture_data)
             self._started = True
 
         def capture_data(self, peer, sender, bus, topic, headers, message):
-            if 'X-Forwarded-For' in headers.keys():
-                return
             data = message
             try:
                 # 2.0 agents compatability layer makes sender == pubsub.compat so
