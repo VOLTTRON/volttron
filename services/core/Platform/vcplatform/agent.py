@@ -58,7 +58,7 @@ from __future__ import absolute_import, print_function
 __version__ = '3.1'
 
 import base64
-from collections import namedtuple
+from urlparse import urlparse
 from datetime import datetime
 import gevent.event
 import logging
@@ -81,21 +81,25 @@ from volttron.platform.vip.agent import *
 from volttron.platform import jsonrpc, control
 from volttron.platform.agent import utils
 
+from volttron.platform.auth import AuthEntry, AuthFile
 from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
                                        INVALID_REQUEST, METHOD_NOT_FOUND,
                                        PARSE_ERROR, UNHANDLED_EXCEPTION)
 
-class CannotConnectError(Exception):
+
+class CannotConnectError(StandardError):
     """ Raised if the connection parameters are not set or invalid
     """
     pass
 
-class AlreadyManagedError(Exception):
+
+class AlreadyManagedError(StandardError):
     """ Raised when a different volttron central tries to register.n
     """
     pass
 
-class DiscoveryError(Exception):
+
+class DiscoveryError(StandardError):
     """ Raised when a different volttron central tries to register.
     """
     pass
@@ -104,9 +108,19 @@ utils.setup_logging()
 _log = logging.getLogger(__name__)
 __version__ = '3.5'
 
-VCInfo = namedtuple("VCInfo", ["discovery_address",
-                               "vip_address",
-                               "serverkey"])
+
+class VCInfo(object):
+
+    def __init__(self, discovery_address, vip_address, serverkey):
+
+        self.discovery_address = discovery_address
+        self.vip_address = vip_address
+        self.serverkey = serverkey
+
+    def __str__(self):
+        return '''discovery_address: {discovery_address},
+vip_address: {vip_address},
+serverkey: {serverkey}'''.format(**self.__dict__)
 
 def platform_agent(config_path, **kwargs):
     config = utils.load_config(config_path)
@@ -125,31 +139,50 @@ def platform_agent(config_path, **kwargs):
         def __init__(self, **kwargs):
             super(PlatformAgent, self).__init__(**kwargs)
 
-            _log.info('my identity {} address: {}'.format(self.core.identity,
-                                                      self.core.address))
-            # a list of registered managers of this platform.
-            self._managers = set()
-            self._managers_reachable = {}
-            self._services = {}
-            self._settings = {}
-            self._load_settings()
-            self._agent_configurations = {}
-            self._sibling_cache = {}
-            self._vip_channels = {}
-            self.volttron_home = os.environ['VOLTTRON_HOME']
-
-            # These properties are used to be able to register this platform
-            # agent with a volttron central instance.
-            self._vc_discovery_address = discovery_address
-            self._display_name = display_name
-
-            # By default not managed by vc, but if the file is available then
-            # read and store it as an object.
-            self._vc = None
-            # This agent will hold a connection to the vc router so that we
-            # can send information to it.
+            self._vc_discovery_address = None
             self._vc_agent = None
-            self._is_local_vc = False
+            self._vc_info = None
+            self._discover_vc_info()
+
+            # # a list of registered managers of this platform.
+            # self._managers = set()
+            # self._managers_reachable = {}
+            # self._services = {}
+            # self._settings = {}
+            # #self._load_settings()
+            # self._agent_configurations = {}
+            # self._sibling_cache = {}
+            # self._vip_channels = {}
+            # self.volttron_home = os.environ['VOLTTRON_HOME']
+            #
+            # # These properties are used to be able to register this platform
+            # # agent with a volttron central instance.
+            # self._vc_discovery_address = discovery_address
+            # self._display_name = display_name
+            #
+            # # By default not managed by vc, but if the file is available then
+            # # read and store it as an object.
+            # self._vc = None
+            # # This agent will hold a connection to the vc router so that we
+            # # can send information to it.
+            # self._vc_agent = None
+            # self._is_local_vc = False
+
+        def _discover_vc_info(self):
+            parsed = urlparse(discovery_address+"/discovery/")
+            #_log.debug('Discovery address schema: {}'.format(parsed.scheme))
+            if parsed.scheme not in ('http', 'https'):
+                AttributeError(
+                    'Invalid discovery url (must start with http or https.')
+
+            self._vc_discovery_address = parsed.geturl()
+            response = requests.get(self._vc_discovery_address)
+            print('response {}'.format(response.text))
+            dct = response.json()
+            self._vc_info = VCInfo(
+                self._vc_discovery_address, vip_address=dct['vip-address'],
+                serverkey=dct['serverkey'])
+
 
         @RPC.export
         def assign_platform_uuid(self, platform_uuid):
@@ -175,6 +208,11 @@ def platform_agent(config_path, **kwargs):
             }
 
         @RPC.export
+        def get_publickey(self):
+            _log.debug('Returning publickey: {}'.format(self.core.publickey))
+            return self.core.publickey
+
+        @RPC.export
         def is_managed(self):
             return self._vc or 'volttron.central' in self.vip.peerlist().get()
 
@@ -195,35 +233,46 @@ def platform_agent(config_path, **kwargs):
             :raises: AlreadyManagedError if trying to regegister with
                     different volttron central instance.
             """
-            _log.info("Request to manage came from {} with pk {}".format(
-                uri, vc_publickey))
+            _log.info("Request to be managed came from {} with pk {}".format(
+                uri, vc_publickey)
+            )
 
-            # Refresh the file to see if we are now managed or not.
-            if not self._vc:
-                self._get_vc_info_from_file()
-            else:
-                _log.info("Already registered with: {}".format(
-                    self._vc['serverkey']))
-                if not vc_publickey == self._vc['serverkey']:
-                    err = "Attempted to register with different key: {}".format(
-                        vc_publickey
-                    )
-                    raise AlreadyManagedError(err)
+            auth_file = AuthFile()
+            auth_entry = AuthEntry(
+                credentials="CURVE:{}".format(vc_publickey),
+                capabilities=['can_manage']
+            )
+            _log.debug('Storing auth_entry in auth.json')
+            auth_file.add(auth_entry)
 
-            self._fetch_vc_discovery_info(uri, vc_publickey)
 
-            # Add the can manage to the key file
-            self._append_allow_curve_key(vc_publickey, 'can_manage')
 
-            self._vc_agent = Agent(address=self._vc['vip-address'], serverkey=self._vc['serverkey'],
-                                   secretkey=self.core.secretkey)
-            event = gevent.event.Event()
-            gevent.spawn(self._vc_agent.core.run, event)
-            event.wait(timeout=2)
-
-            self.core._set_status(STATUS_GOOD, "Platform is managed" )
-
-            return self.core.publickey
+            # # Refresh the file to see if we are now managed or not.
+            # if not self._vc:
+            #     self._get_vc_info_from_file()
+            # else:
+            #     _log.info("Already registered with: {}".format(
+            #         self._vc['serverkey']))
+            #     if not vc_publickey == self._vc['serverkey']:
+            #         err = "Attempted to register with different key: {}".format(
+            #             vc_publickey
+            #         )
+            #         raise AlreadyManagedError(err)
+            #
+            # self._fetch_vc_discovery_info(uri, vc_publickey)
+            #
+            # # Add the can manage to the key file
+            # self._append_allow_curve_key(vc_publickey, 'can_manage')
+            #
+            # self._vc_agent = Agent(address=self._vc['vip-address'], serverkey=self._vc['serverkey'],
+            #                        secretkey=self.core.secretkey)
+            # event = gevent.event.Event()
+            # gevent.spawn(self._vc_agent.core.run, event)
+            # event.wait(timeout=2)
+            #
+            # self.core._set_status(STATUS_GOOD, "Platform is managed" )
+            #
+            # return self.core.publickey
 
         @RPC.export
         def set_setting(self, key, value):
@@ -637,20 +686,20 @@ def platform_agent(config_path, **kwargs):
             self._fetch_vc_discovery_info()
             self._connect_to_vc()
 
-        @Core.receiver('onstart')
-        def starting(self, sender, **kwargs):
-            _log.info('onstart')
-            self._get_vc_info_from_file()
-
-            if not self._vc and self._vc_discovery_address:
-                _log.debug("Before _register_with_vc()")
-                self._register_with_vc()
-
-            psutil.cpu_times_percent()
-            psutil.cpu_percent()
-            _, _, my_id = self.vip.hello().get(timeout=3)
-            self.vip.pubsub.publish(peer='pubsub', topic='/platform',
-                                    message='available')
+        # @Core.receiver('onstart')
+        # def starting(self, sender, **kwargs):
+        #     _log.info('onstart')
+        #     self._get_vc_info_from_file()
+        #
+        #     if not self._vc and self._vc_discovery_address:
+        #         _log.debug("Before _register_with_vc()")
+        #         self._register_with_vc()
+        #
+        #     psutil.cpu_times_percent()
+        #     psutil.cpu_percent()
+        #     _, _, my_id = self.vip.hello().get(timeout=3)
+        #     self.vip.pubsub.publish(peer='pubsub', topic='/platform',
+        #                             message='available')
         @Core.receiver('onstop')
         def stoping(self, sender, **kwargs):
             self.vip.pubsub.publish(peer='pubsub', topic='/platform',
