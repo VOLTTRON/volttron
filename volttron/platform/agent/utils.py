@@ -328,3 +328,15 @@ def create_file_if_missing(path, permission=0o660, contents=None):
                 os.write(fd, contents)
         finally:
             os.close(fd)
+            
+def fix_sqlite3_datetime(sql=None):
+    """Primarily for fixing the base historian cache on certain versions of python. 
+    
+    Registers a new datetime converter to that uses dateutil parse. This should 
+    better resolve #216, #174, and #91 without the goofy workarounds that change data.
+    
+    Optional sql argument is for testing only.
+    """
+    if sql is None:
+        import sqlite3 as sql
+    sql.register_converter("timestamp", parse)

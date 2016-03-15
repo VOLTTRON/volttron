@@ -68,7 +68,7 @@ import pytz
 import re
 from abc import abstractmethod
 from dateutil.parser import parse
-from volttron.platform.agent.utils import process_timestamp
+from volttron.platform.agent.utils import process_timestamp, fix_sqlite3_datetime
 from volttron.platform.messaging import topics, headers as headers_mod
 from volttron.platform.vip.agent import *
 from zmq.utils import jsonapi
@@ -78,7 +78,8 @@ _log = logging.getLogger(__name__)
 ACTUATOR_TOPIC_PREFIX_PARTS = len(topics.ACTUATOR_VALUE.split('/'))
 ALL_REX = re.compile('.*/all$')
 
-
+#Register a better datetime parser in sqlite3.
+fix_sqlite3_datetime()
 
 class BaseHistorianAgent(Agent):
     '''This is the base agent for historian Agents.
