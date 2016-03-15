@@ -72,6 +72,7 @@ from .resource_directory import ResourceDirectory
 from .registry import PlatformRegistry, RegistryEntry
 
 from volttron.platform.vip.socket import encode_key
+from volttron.platform.auth import AuthEntry, AuthFile
 from volttron.platform import jsonrpc, get_home
 from volttron.platform.agent import utils
 from volttron.platform.vip.agent import *
@@ -300,10 +301,7 @@ def volttron_central_agent(config_path, **kwargs):
 
             tmpres = res.json()
             pa_instance_serverkey = tmpres['serverkey']
-            vip_address = tmpres['vip-address']
-            _log.debug("pa platform vip-address: {}\nserverkey: {}".format(
-                vip_address, pa_instance_serverkey
-            ))
+            pa_vip_address = tmpres['vip-address']
 
             assert pa_instance_serverkey
 
@@ -311,42 +309,38 @@ def volttron_central_agent(config_path, **kwargs):
                 address=pa_vip_address, serverkey=pa_instance_serverkey,
                 secretkey=encode_key(self.core.secretkey),
                 publickey=encode_key(self.core.publickey)
-            authfile = os.path.join(get_home(), "auth.json")
-            with open(authfile) as f:
-                _log.debug("The {} file: {}".format(
-                    os.path.join(get_home(), "auth.json"),
-                    f.read()))
-
-            full_vip = "{}?serverkey={}&publickey={}&secretkey={}".format(
-                vip_address, pa_instance_serverkey, self.core.publickey,
-                self.core.secretkey
             )
 
-            agent = Agent(address=vip_address,
-                          serverkey=pa_instance_serverkey,
-                          secretkey=self.core.secretkey,
-                          publickey=self.core.publickey)
             event = gevent.event.Event()
-            gevent.spawn(agent.core.run, event)#.join(0)
-            event.wait(timeout=30)
+            gevent.spawn(connected_to_pa.core.run, event)
+            event.wait(timeout=2)
             del event
 
+            peers = connected_to_pa.vip.peerlist().get(timeout=1)
+            assert 'platform.agent' in peers
             _log.debug("Agent connected to peers: {}".format(agent.vip.peerlist().get(timeout=3)))
 
+            result = connected_to_pa.vip.rpc.call(
+                'platform.agent', 'get_publickey'
+            ).get(timeout=2)
             web_addr = "127.0.0.1:8080" # self.vip.rpc.call("volttron.web", "get_bind_web_address").get(timeout=2)
             if not display_name:
                 display_name = discovery_address
 
-            result = agent.vip.rpc.call(peer='platform.agent',
-                                        method='manage_platform',
-                                        uri=web_addr,
-                                        vc_publickey=self.core.publickey).get(timeout=5)
             if not result:
                 raise CouldNotRegister(
                     "display_name={}, discovery_address={}".format(
                         display_name, discovery_address)
                 )
 
+            # Add the pa's public key so it can connect back to us.
+            auth_file = AuthFile()
+            auth_entry = AuthEntry(credentials="CURVE:{}".format(result),
+                capabilities=['is_managed']
+            )
+            auth_file.add(auth_entry)
+
+            vc_webaddr = os.environ.get('VOLTTRON_WEB_ADDR', None)
             # datetime_now = datetime.datetime.utcnow()
             # _log.debug(datetime_now)
             entry = RegistryEntry(vip_address=vip_address,
@@ -355,6 +349,15 @@ def volttron_central_agent(config_path, **kwargs):
                                   display_name=display_name,
                                   provisional=provisional)
             self._registry.register(entry)
+            assert vc_webaddr
+            _log.debug('Calling manage_platform from vc.')
+            result = connected_to_pa.vip.rpc.call(
+                'platform.agent', 'manage_platform', vc_webaddr,
+                self.core.publickey
+
+            ).get(timeout=2)
+
+
 
             return dict(success=True, display_name=display_name)
 
@@ -408,7 +411,6 @@ def volttron_central_agent(config_path, **kwargs):
 
         @Core.receiver('onsetup')
         def setup(self, sender, **kwargs):
-            _log.debug('SETUP STUF NOW HERE DUDE!')
             if not os.environ.get('VOLTTRON_HOME', None):
                 raise ValueError('VOLTTRON_HOME environment must be set!')
 
@@ -484,8 +486,10 @@ def volttron_central_agent(config_path, **kwargs):
                 ip = env['REMOTE_ADDR']
 
                 if not self._sessions.check_session(token, ip):
+                    _log.debug("Session Check Failed for Token: {}".format(token))
                     return jsonrpc.json_error(rpcdata.id, UNAUTHORIZED,
                                               "Invalid authentication token")
+                _log.debug('RPC METHOD IS: {}'.format(rpcdata.method))
 
                 if rpcdata.method == 'register_instance':
                     try:
