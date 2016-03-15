@@ -71,6 +71,7 @@ from authenticate import Authenticate
 from .resource_directory import ResourceDirectory
 from .registry import PlatformRegistry, RegistryEntry
 
+from volttron.platform.vip.socket import encode_key
 from volttron.platform import jsonrpc, get_home
 from volttron.platform.agent import utils
 from volttron.platform.vip.agent import *
@@ -306,6 +307,10 @@ def volttron_central_agent(config_path, **kwargs):
 
             assert pa_instance_serverkey
 
+            connected_to_pa =Agent(
+                address=pa_vip_address, serverkey=pa_instance_serverkey,
+                secretkey=encode_key(self.core.secretkey),
+                publickey=encode_key(self.core.publickey)
             authfile = os.path.join(get_home(), "auth.json")
             with open(authfile) as f:
                 _log.debug("The {} file: {}".format(
