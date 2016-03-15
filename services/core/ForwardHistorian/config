@@ -5,5 +5,8 @@
     "custom_topic_list": [],   
     "services_topic_list": [
         "devices", "analysis", "record", "datalogger", "actuators"
+    ],
+    "topic_text_replace": [
+	{"from": "PNNL/SEB", "to": "PNNL/BUILDING1"} 
     ]
 }
