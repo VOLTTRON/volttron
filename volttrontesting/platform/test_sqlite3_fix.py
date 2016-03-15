@@ -99,9 +99,17 @@ def test_sqlite_fixes():
     
     cur.execute("delete from test")  
     cur.execute("insert into test(ts) values (?)", (now,))
+    
+    cur.execute("select * from test")
+    test_now = cur.fetchone()[0]
+    
+    cur.execute("delete from test")  
     cur.execute("insert into test(ts) values (?)", (now_tz,))
     
     cur.execute("select * from test")
-    cur.fetchone()
-    cur.fetchone()
+    test_now_tz = cur.fetchone()[0]
+    
+    assert test_now == now
+    assert test_now_tz == now_tz
+    
 
