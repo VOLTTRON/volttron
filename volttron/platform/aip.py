@@ -239,6 +239,7 @@ class AIPplatform(object):
 
     subscribe_address = property(lambda me: me.env.subscribe_address)
     publish_address = property(lambda me: me.env.publish_address)
+    bind_web_address = property(lambda me: me.env.bind_web_address)
 
     config_dir = property(lambda me: os.path.abspath(me.env.volttron_home))
     install_dir = property(lambda me: os.path.join(me.config_dir, 'agents'))
@@ -476,6 +477,7 @@ class AIPplatform(object):
         environ['AGENT_SUB_ADDR'] = self.subscribe_address
         environ['AGENT_PUB_ADDR'] = self.publish_address
         environ['AGENT_UUID'] = agent_uuid
+        environ['VOLTTRON_WEB_ADDR'] = self.bind_web_address
         environ['_LAUNCHED_BY_PLATFORM'] = '1'
         environ['AGENT_PATH'] = agent_path
 
