@@ -162,8 +162,7 @@ class MySqlFuncts(DbDriver):
         rows = self.select(real_query, args)
 
         if rows:
-            values = [(ts.isoformat(),
-                       jsonapi.loads(value)) for ts, value in rows]
+            values = [(utils.format_timestamp(ts), jsonapi.loads(value)) for ts, value in rows]
         else:
             values = {}
 

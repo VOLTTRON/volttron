@@ -638,6 +638,8 @@ class BaseQueryHistorianAgent(Agent):
         """This function should return the results of a query in the form:
         {"values": [(timestamp1: value1), (timestamp2: value2), ...],
          "metadata": {"key1": value1, "key2": value2, ...}}
+         
+        timestamp should be the timestamp value formatted by volttron.platform.agent.utils.format_timestamp
 
          metadata is not required (The caller will normalize this to {} for you)
         """

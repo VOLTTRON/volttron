@@ -174,7 +174,7 @@ def actuator_agent(config_path, **kwargs):
             new_update_event_time = self._get_ajusted_next_event_time(now, schedule_next_event_time)
 
             for device, state in self._device_states.iteritems():
-                header = self.get_headers(state.agent_id, time=str(now), task_id=state.task_id)
+                header = self.get_headers(state.agent_id, time=utils.format_timestamp(now), task_id=state.task_id)
                 header['window'] = state.time_remaining
                 topic = topics.ACTUATOR_SCHEDULE_ANNOUNCE_RAW.replace('{device}', device)
                 self.vip.pubsub.publish('pubsub', topic, headers=header)
@@ -468,7 +468,6 @@ def actuator_agent(config_path, **kwargs):
             :returns: Request result
             :rtype: dict
             
-            
             :Example request set:
             
                 [
@@ -566,7 +565,7 @@ def actuator_agent(config_path, **kwargs):
             try:
                 if requests and isinstance(requests[0], basestring):
                     requests = [requests]
-                requests = [[r[0].strip('/'), parse(r[1]), parse(r[2])] for r in requests]
+                requests = [[r[0].strip('/'),utils.parse_timestamp_string(r[1]),utils.parse_timestamp_string(r[2])] for r in requests]
 
             except StandardError as ex:
                 return self._handle_unknown_schedule_error(ex, headers, requests)
@@ -672,7 +671,8 @@ def actuator_agent(config_path, **kwargs):
             if time is not None:
                 headers['time'] = time
             else:
-                headers = {'time': str(datetime.datetime.utcnow())}
+                utcnow = datetime.datetime.utcnow()
+                headers = {'time': utils.format_timestamp(utcnow)}
             if requester is not None:
                 headers['requesterID'] = requester
             if task_id is not None:

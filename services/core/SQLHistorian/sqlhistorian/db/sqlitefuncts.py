@@ -202,7 +202,7 @@ class SqlLiteFuncts(DbDriver):
             detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
         rows = c.execute(real_query, args)
 
-        values = [(ts.isoformat(), jsonapi.loads(value)) for ts, value in rows]
+        values = [(utils.format_timestamp(ts), jsonapi.loads(value)) for ts, value in rows]
         _log.debug("QueryResults: " + str(values))
         return {'values': values}
 
