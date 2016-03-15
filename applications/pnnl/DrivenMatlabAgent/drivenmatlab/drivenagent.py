@@ -101,11 +101,14 @@ def driven_agent(config_path, **kwargs):
     multiple_dev = isinstance(conf['device']['unit'], dict)
     if multiple_dev:
         units = conf['device']['unit'].keys()
+    try:
 
-    for item in units:
-
-        # modify the device dict so that unit is now pointing to unit_name
-        subdevices.extend(conf['device']['unit'][item]['subdevices'])
+        for item in units:
+    
+            # modify the device dict so that unit is now pointing to unit_name
+            subdevices.extend(conf['device']['unit'][item]['subdevices'])
+    except:
+        pass
 
     agent_id = conf.get('agentid')
     device.update({'unit': units})
@@ -148,7 +151,9 @@ def driven_agent(config_path, **kwargs):
         '''Agent listens to message bus device and runs when data is published.
         '''
         def __init__(self, **kwargs):
-            super(Agent, self).__init__(**kwargs)
+            print("************************")
+            print(kwargs)
+            super(DrivenMatlabAgent, self).__init__(**kwargs)
             self._update_event = None
             self._update_event_time = None
             self.keys = None
@@ -170,6 +175,12 @@ def driven_agent(config_path, **kwargs):
                 with open(output_file, 'w') as writer:
                     writer.close()
             self._header_written = False
+            print("*****************************");
+            print(conf)
+            
+            results = app_instance.run(conf.get('cur_time'),conf.get('points'))
+            self._process_results(results)
+            self._initialize_devices()
 
         def _initialize_devices(self):
             self._needed_subdevices = deepcopy(self._master_subdevices)
@@ -326,7 +337,7 @@ def driven_agent(config_path, **kwargs):
                 self.commands = results.commands
                 if self.keys is None:
                     self.keys = self.commands.keys()
-               _log.debug("we have commands")
+                _log.debug("we have commands")
                 #self.schedule_task()
 
 #         def schedule_task(self):
@@ -424,6 +435,8 @@ def driven_agent(config_path, **kwargs):
 #                 self.keys = None
 
     DrivenMatlabAgent.__name__ = 'DrivenMatlabAgent'
+    print("Before return ")
+    print(kwargs)
     return DrivenMatlabAgent(**kwargs)
 
 
@@ -439,9 +452,7 @@ def _get_class(kls):
 
 def main(argv=sys.argv):
     ''' Main method.'''
-    utils.default_main(driven_agent,
-                       description='driven agent',
-                       argv=argv)
+    utils.vip_main(driven_agent)
 
 
 if __name__ == '__main__':

@@ -52,10 +52,9 @@ import datetime
 from datetime import timedelta as td
 import logging
 from volttron.platform.agent.driven import Results, AbstractDrivenAgent
-from airside.diagnostics.satemp_rcx import SupplyTempRcx
-from airside.diagnostics.stcpr_rcx import DuctStaticRcx
-from airside.diagnostics.reset_sched_rcx import SchedResetRcx
-
+import zmq
+import time
+import json
 
 class Application(AbstractDrivenAgent):
     
@@ -73,53 +72,17 @@ class Application(AbstractDrivenAgent):
         self.data_socket = context.socket(zmq.PAIR)
         self.data_socket.connect(data_url)
         
-        self.config_params = kwargs
-        
         print "Checking for config request from Matlab"
-        event = config_socket.poll(self.recv_timeout)
-        if event > 0 and config_socket.recv_string() == "config":
+        event = self.config_socket.poll(self.recv_timeout)
+        if event > 0 and self.config_socket.recv_string() == "config":
             try:
-                print("Sending config_params")
-                config_socket.send_json(self.config_params,zmq.NOBLOCK)
+                print("Sending config params")
+                self.config_socket.send_json(kwargs,zmq.NOBLOCK)
                 
-                print("Sending data")
-                #TODO: Correct json format
-                data = {"current_time": cur_time,
-                        "points": points}
-                data_socket.send_json(data,zmq.NOBLOCK)
-            
-            except ZMQError:
+            except :
                 print("No Matlab process running to send message. Exiting.")
                 
-            print("Waiting for matlab results")        
-            event = data_socket.poll(recv_timeout)
-            if event > 0:
-                matlab_result = data_socket.recv_json()
-                result = Results()
-                if 'commands' in matlab_result:
-                    commands = matlab_result['commands']
-                    for point, value in commands:
-                        result.command(point, value);
-                        
-                if 'logs' in matlab_result:
-                    logs = matlab_result['logs']
-                    for message in logs:
-                        result.log(message);
-                        
-                if 'table_data' in matlab_result:
-                    table_data = matlab_result['table_data']
-                    for table in table_data:
-                        rows = table_data[table]
-                        for row in rows:
-                            print(row)
-                            result.insert_table_row(table, row)  
-                
-                #print(result.commands)
-                #print(result.log_messages)
-                #print(result.table_output)
-                
-                return matlab_result
-                        
+                                    
         else:
             print('Config request not received. Exiting.')
 
@@ -130,16 +93,20 @@ class Application(AbstractDrivenAgent):
             #TODO: Correct json format
             data = {"current_time": cur_time,
                     "points": points}
-            data_socket.send_json(data,zmq.NOBLOCK)
+            self.data_socket.send_json(data,zmq.NOBLOCK)
             
         except ZMQError:
             print("No Matlab process running to send message. Exiting.")
                 
         print("Waiting for matlab results")        
-        event = data_socket.poll(recv_timeout)
+        event = self.data_socket.poll(self.recv_timeout)
         if event > 0:
-            matlab_result = data_socket.recv_json()
+            matlab_result = self.data_socket.recv_json()
+            matlab_result = eval(matlab_result)
+            #print(matlab_result)
             result = Results()
+            for key in matlab_result:
+                print(key)
             if 'commands' in matlab_result:
                 commands = matlab_result['commands']
                 for point, value in commands:
@@ -155,7 +122,6 @@ class Application(AbstractDrivenAgent):
                 for table in table_data:
                     rows = table_data[table]
                     for row in rows:
-                        print(row)
                         result.insert_table_row(table, row)  
             
             #print(result.commands)
