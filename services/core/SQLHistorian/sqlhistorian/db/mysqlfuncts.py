@@ -55,9 +55,7 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-import errno
 import logging
-import os
 
 # from mysql import connector
 import re
@@ -71,10 +69,13 @@ _log = logging.getLogger(__name__)
 
 
 class MySqlFuncts(DbDriver):
-    def __init__(self, **kwargs):
+    def __init__(self, connect_params, tables_def):
         # kwargs['dbapimodule'] = 'mysql.connector'
-        super(MySqlFuncts, self).__init__('mysql.connector', **kwargs)
+        super(MySqlFuncts, self).__init__('mysql.connector', **connect_params)
         self.MICROSECOND_SUPPORT = None
+        self.data_table = tables_def['data_table']
+        self.topics_table = tables_def['topics_table']
+        self.meta_table = tables_def['meta_table']
 
     def init_microsecond_support(self):
         rows = self.select("SELECT version()", None)
@@ -95,19 +96,22 @@ class MySqlFuncts(DbDriver):
         {"values": [(timestamp1, value1), (timestamp2, value2), ...],
          "metadata": {"key1": value1, "key2": value2, ...}}
 
-         metadata is not required (The caller will normalize this to {} for you)
+         metadata is not required (The caller will normalize this to {}
+         for you)
         """
         query = '''SELECT data.ts, data.value_string
-                   FROM data, topics
-                   {where}
-                   {order_by}
-                   {limit}
-                   {offset}'''
+                FROM ''' + self.data_table + ''' AS
+                data, ''' + self.topics_table + ''' AS topics
+                {where}
+                {order_by}
+                {limit}
+                {offset}'''
 
-        if self.MICROSECOND_SUPPORT == None:
+        if self.MICROSECOND_SUPPORT is None:
             self.init_microsecond_support()
 
-        where_clauses = ["WHERE topics.topic_name = %s", "topics.topic_id = data.topic_id"]
+        where_clauses = ["WHERE topics.topic_name = %s",
+                         "topics.topic_id = data.topic_id"]
         args = [topic]
 
         if start is not None:
@@ -158,19 +162,25 @@ class MySqlFuncts(DbDriver):
         rows = self.select(real_query, args)
 
         if rows:
-            values = [(ts.isoformat(), jsonapi.loads(value)) for ts, value in rows]
+            values = [(ts.isoformat(),
+                       jsonapi.loads(value)) for ts, value in rows]
         else:
             values = {}
 
         return {'values': values}
 
+    def insert_meta_query(self):
+        return '''REPLACE INTO ''' + self.meta_table + ''' values(%s, %s)'''
+
     def insert_data_query(self):
-        return '''REPLACE INTO data values(%s, %s, %s)'''
+        return '''REPLACE INTO ''' + self.data_table + \
+            '''  values(%s, %s, %s)'''
 
     def insert_topic_query(self):
-        return '''INSERT INTO topics (topic_name) values (%s)'''
+        return '''INSERT INTO ''' + self.topics_table + ''' (topic_name)
+            values (%s)'''
 
     def get_topic_map(self):
-        q = "SELECT topic_id, topic_name FROM topics;"
+        q = "SELECT topic_id, topic_name FROM " + self.topics_table + ";"
         rows = self.select(q, None)
         return dict([(n, t) for t, n in rows])

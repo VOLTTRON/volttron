@@ -7,26 +7,27 @@
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 #
-# 1. Redistributions of source code must retain the above copyright notice, this
-#    list of conditions and the following disclaimer.
+# 1. Redistributions of source code must retain the above copyright notice,
+#    this list of conditions and the following disclaimer.
 # 2. Redistributions in binary form must reproduce the above copyright notice,
 #    this list of conditions and the following disclaimer in the documentation
 #    and/or other materials provided with the distribution.
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-# ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+# THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+# CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
+# OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# The views and conclusions contained in the software and documentation are those
-# of the authors and should not be interpreted as representing official policies,
-# either expressed or implied, of the FreeBSD Project.
+# The views and conclusions contained in the software and documentation are
+# those of the authors and should not be interpreted as representing
+# official policies, either expressed or implied, of the FreeBSD Project.
 #
 
 # This material was prepared as an account of work sponsored by an
@@ -54,23 +55,14 @@
 # }}}
 from __future__ import absolute_import, print_function
 
-import datetime
-import errno
 import inspect
 import logging
-import threading
-import os, os.path
-from pprint import pprint
 import sys
-import uuid
+import threading
 
-import gevent
-from zmq.utils import jsonapi
-
-from volttron.platform.vip.agent import *
-from volttron.platform.agent.base_historian import BaseHistorian
 from volttron.platform.agent import utils
-from volttron.platform.messaging import topics, headers as headers_mod
+from volttron.platform.agent.base_historian import BaseHistorian
+from volttron.platform.vip.agent import *
 
 __version__ = "3.5.0"
 
@@ -82,11 +74,15 @@ _log = logging.getLogger(__name__)
 def historian(config_path, **kwargs):
 
     config = utils.load_config(config_path)
-    connection = config.get('connection', None);
-
+    connection = config.get('connection', None)
+    default_table_def = {"table_prefix": "",
+                         "data_table": "data",
+                         "topics_table": "topics",
+                         "meta_table": "meta"}
+    tables_def = config.get('tables_def', default_table_def)
     assert connection is not None
-    databaseType = connection.get('type', None)
-    assert databaseType is not None
+    database_type = connection.get('type', None)
+    assert database_type is not None
     params = connection.get('params', None)
     assert params is not None
 
@@ -96,7 +92,7 @@ def historian(config_path, **kwargs):
     if identity:
         kwargs['identity'] = identity
 
-    mod_name = databaseType+"functs"
+    mod_name = database_type + "functs"
     mod_name_path = "sqlhistorian.db.{}".format(mod_name)
     loaded_mod = __import__(mod_name_path, fromlist=[mod_name])
     
@@ -106,16 +102,16 @@ def historian(config_path, **kwargs):
             DbFuncts = cls
             break
     try:
-        _log.debug('Historian using module: '+DbFuncts.__name__)
+        _log.debug('Historian using module: ' + DbFuncts.__name__)
     except NameError:
-        functerror = 'Invalid module named '+mod_name_path+ "."
+        functerror = 'Invalid module named ' + mod_name_path + "."
         raise Exception(functerror)
 
     class SQLHistorian(BaseHistorian):
-        '''This is a simple example of a historian agent that writes stuff
+        """This is a simple example of a historian agent that writes stuff
         to a SQLite database. It is designed to test some of the functionality
         of the BaseHistorianAgent.
-        '''
+        """
 
         def __init__(self, **kwargs):
             """ Initialise the historian.
@@ -128,8 +124,17 @@ def historian(config_path, **kwargs):
             :param kwargs:
             :return:
             """
-            self.reader = DbFuncts(**connection['params'])
-            self.writer = DbFuncts(**connection['params'])
+            if tables_def['table_prefix']:
+                tables_def['data_table'] = tables_def['table_prefix'] + \
+                    "_" + tables_def['data_table']
+                tables_def['topics_table'] = tables_def['table_prefix'] + \
+                                             "_" + tables_def['topics_table']
+                tables_def['meta_table'] = tables_def['table_prefix'] + \
+                                           "_" + tables_def['meta_table']
+
+            tables_def.pop('table_prefix', None)
+            self.reader = DbFuncts(connection['params'], tables_def)
+            self.writer = DbFuncts(connection['params'], tables_def)
             self.topic_map = {}
             self.topic_meta = {}
 
@@ -161,9 +166,10 @@ def historian(config_path, **kwargs):
                                       self.core.identity).get(timeout=2)
                 else:
                     _log.info('No platform.agent available to register with.')
-                # # Check to see if the platform agent is available, if it isn't then
-                # # subscribe to the /platform topic to be notified when the platform
-                # # agent becomes available.
+                # # Check to see if the platform agent is available,
+                # # if it isn't then
+                # # subscribe to the /platform topic to be notified when
+                # # the platform agent becomes available.
                 # try:
                 #     ping = self.vip.ping('platform.agent',
                 #                          'awake?').get(timeout=3)
@@ -181,8 +187,9 @@ def historian(config_path, **kwargs):
         #     _log.debug('Platform is now: {}'.format(message))
         #     if message == 'available' and \
         #             self.core.identity == 'platform.historian':
-        #         gevent.spawn(self.vip.rpc.call, 'platform.agent', 'register_service',
-        #                            self.core.identity)
+        #         gevent.spawn(self.vip.rpc.call, 'platform.agent',
+        #                      'register_service',
+        #                      self.core.identity)
         #         gevent.sleep(0)
 
         def publish_to_historian(self, to_publish_list):
@@ -217,7 +224,7 @@ def historian(config_path, **kwargs):
                         self.writer.insert_meta(topic_id, meta)
                         self.topic_meta[topic_id] = meta
                     
-                    if self.writer.insert_data(ts,topic_id, value):
+                    if self.writer.insert_data(ts, topic_id, value):
                         # _log.debug('item was inserted')
                         real_published.append(x)
 
@@ -232,7 +239,8 @@ def historian(config_path, **kwargs):
                         _log.debug(msg.format(len(to_publish_list)))
                         self.writer.rollback()
                 else:
-                    _log.debug('Unable to publish {}'.format(len(to_publish_list)))
+                    _log.debug('Unable to publish {}'.format(len(
+                        to_publish_list)))
             except:
                 self.writer.rollback()
                 # Raise to the platform so it is logged properly.
@@ -256,7 +264,8 @@ def historian(config_path, **kwargs):
             {"values": [(timestamp1, value1), (timestamp2, value2), ...],
              "metadata": {"key1": value1, "key2": value2, ...}}
 
-             metadata is not required (The caller will normalize this to {} for you)
+             metadata is not required (The caller will normalize this to {}
+             for you)
             """
             _log.debug("query_historian Thread is: {}".format(
                 threading.currentThread().getName())

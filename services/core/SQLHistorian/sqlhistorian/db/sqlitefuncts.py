@@ -53,7 +53,7 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-#}}}
+# }}}
 
 import errno
 import logging
@@ -72,7 +72,8 @@ _log = logging.getLogger(__name__)
 
 class SqlLiteFuncts(DbDriver):
 
-    def __init__(self, database, **kwargs):
+    def __init__(self, connect_params, tables_def):
+        database = connect_params['database']
         thread_name = threading.currentThread().getName()
         _log.debug(
             "initializing sqlitefuncts in thread {}".format(thread_name))
@@ -88,50 +89,51 @@ class SqlLiteFuncts(DbDriver):
             try:
                 if db_dir == '':
                     db_dir = './data'
-                    self.__database=os.path.join(db_dir, self.__database)
+                    self.__database = os.path.join(db_dir, self.__database)
                     
                 os.makedirs(db_dir)
             except OSError as exc:
                 if exc.errno != errno.EEXIST or not os.path.isdir(db_dir):
                     raise
-            
+
+        self.data_table = tables_def['data_table']
+        self.topics_table = tables_def['topics_table']
+        self.meta_table = tables_def['meta_table']
+
         conn = sqlite3.connect(
             self.__database,
-            detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES
+            detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
         )
         cursor = conn.cursor()
-        cursor.execute('''CREATE TABLE IF NOT EXISTS data
-                                (ts timestamp NOT NULL,
-                                 topic_id INTEGER NOT NULL,
-                                 value_string TEXT NOT NULL,
-                                 UNIQUE(ts, topic_id))''')
+        cursor.execute('''CREATE TABLE IF NOT EXISTS ''' + self.data_table +
+                       ''' (ts timestamp NOT NULL,
+                       topic_id INTEGER NOT NULL,
+                       value_string TEXT NOT NULL,
+                       UNIQUE(ts, topic_id))''')
 
         cursor.execute('''CREATE INDEX IF NOT EXISTS data_idx
-                                ON data (ts ASC)''')
+                                ON ''' + self.data_table + ''' (ts ASC)''')
 
-        cursor.execute('''CREATE TABLE IF NOT EXISTS topics
-                                (topic_id INTEGER PRIMARY KEY,
-                                 topic_name TEXT NOT NULL,
-                                 UNIQUE(topic_name))''')
+        cursor.execute('''CREATE TABLE IF NOT EXISTS ''' +
+                        self.topics_table +
+                       ''' (topic_id INTEGER PRIMARY KEY,
+                            topic_name TEXT NOT NULL,
+                            UNIQUE(topic_name))''')
 
-        cursor.execute('''CREATE TABLE IF NOT EXISTS meta
-                                (topic_id INTEGER PRIMARY KEY,
+        cursor.execute('''CREATE TABLE IF NOT EXISTS ''' + self.meta_table +
+                                '''(topic_id INTEGER PRIMARY KEY,
                                  metadata TEXT NOT NULL)''')
         conn.commit()
         conn.close()
         
-        try:
-            kwargs.pop('database')
-        except:
-            pass
-        finally:
-            kwargs['database'] = self.__database
+        connect_params['database'] = self.__database
         
-        if 'detect_types' not in kwargs.keys():
-            kwargs['detect_types'] = sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES
+        if 'detect_types' not in connect_params.keys():
+            connect_params['detect_types'] = \
+                sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
         
-        print (kwargs)    
-        super(SqlLiteFuncts, self).__init__('sqlite3', **kwargs)
+        print (connect_params)
+        super(SqlLiteFuncts, self).__init__('sqlite3', **connect_params)
 
     def query(self, topic, start=None, end=None, skip=0,
                             count=None, order="FIRST_TO_LAST"):
@@ -139,30 +141,33 @@ class SqlLiteFuncts(DbDriver):
         {"values": [(timestamp1, value1), (timestamp2, value2), ...],
          "metadata": {"key1": value1, "key2": value2, ...}}
 
-         metadata is not required (The caller will normalize this to {} for you)
+         metadata is not required (The caller will normalize this to {}
+         for you)
         """
         query = '''SELECT data.ts, data.value_string
-                   FROM data, topics
+                   FROM ''' + self.data_table + ''' AS data, ''' + \
+                    self.topics_table + ''' AS topics
                    {where}
                    {order_by}
                    {limit}
                    {offset}'''
 
-        where_clauses = ["WHERE topics.topic_name = ?", "topics.topic_id = data.topic_id"]
+        where_clauses = ["WHERE topics.topic_name = ?",
+                         "topics.topic_id = data.topic_id"]
         args = [topic]
 
         if start is not None:
-            start_str=start.isoformat(' ')
+            start_str = start.isoformat(' ')
             where_clauses.append("data.ts >= ?")
             if start_str[-6:] != "+00:00":
-                start_str = start_str + "+00:00"
+                start_str += "+00:00"
             args.append(start_str)
 
         if end is not None:
             end_str = end.isoformat(' ')
             where_clauses.append("data.ts <= ?")
             if end_str[-6:] != "+00:00":
-                end_str = end_str + "+00:00"
+                end_str += "+00:00"
             args.append(end_str)
 
         where_statement = ' AND '.join(where_clauses)
@@ -171,7 +176,7 @@ class SqlLiteFuncts(DbDriver):
         if order == 'LAST_TO_FIRST':
             order_by = ' ORDER BY data.ts DESC'
 
-        #can't have an offset without a limit
+        # can't have an offset without a limit
         # -1 = no limit and allows the user to
         # provied just an offset
         if count is None:
@@ -190,25 +195,30 @@ class SqlLiteFuncts(DbDriver):
                                   offset=offset_statement,
                                   order_by=order_by)
         _log.debug("Real Query: " + real_query)
-        _log.debug("args: "+str(args))
+        _log.debug("args: " + str(args))
 
-        c = sqlite3.connect(self.__database, detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
-        rows = c.execute(real_query,args)
+        c = sqlite3.connect(
+            self.__database,
+            detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
+        rows = c.execute(real_query, args)
 
         values = [(ts.isoformat(), jsonapi.loads(value)) for ts, value in rows]
         _log.debug("QueryResults: " + str(values))
         return {'values': values}
 
     def insert_meta_query(self):
-        return '''INSERT OR REPLACE INTO meta values(?, ?)'''
+        return '''INSERT OR REPLACE INTO ''' + self.meta_table + \
+            ''' values(?, ?)'''
 
     def insert_data_query(self):
-        return '''INSERT OR REPLACE INTO data values(?, ?, ?)'''
+        return '''INSERT OR REPLACE INTO ''' + self.data_table + \
+               ''' values(?, ?, ?)'''
     
     def insert_topic_query(self):
-        return '''INSERT INTO topics (topic_name) values (?)'''
+        return '''INSERT INTO ''' + self.topics_table + \
+            ''' (topic_name) values (?)'''
 
     def get_topic_map(self):
-        q = "SELECT topic_id, topic_name FROM topics"
+        q = "SELECT topic_id, topic_name FROM " + self.topics_table
         rows = self.select(q, None)
         return dict([(n, t) for t, n in rows])

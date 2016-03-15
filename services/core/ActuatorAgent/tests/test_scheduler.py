@@ -58,7 +58,13 @@
 from datetime import datetime, timedelta
 
 from dateutil.parser import parse
-from services.core.ActuatorAgent.actuator.scheduler import ScheduleManager, DeviceState, PRIORITY_HIGH, PRIORITY_LOW, PRIORITY_LOW_PREEMPT
+import os
+import sys
+
+test_dir = os.path.dirname(os.path.realpath(__file__))
+sys.path.append(test_dir + '/../actuator')
+from scheduler import ScheduleManager, DeviceState, PRIORITY_HIGH, \
+    PRIORITY_LOW, PRIORITY_LOW_PREEMPT
 
 
 # def print_state(state):

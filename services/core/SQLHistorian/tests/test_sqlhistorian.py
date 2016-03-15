@@ -23,7 +23,13 @@ except:
     HAS_MYSQL_CONNECTOR = False
 # Module level variables
 ALL_TOPIC = "devices/Building/LAB/Device/all"
-sqlite_platform = {
+query_points = {
+    "oat_point": "Building/LAB/Device/OutsideAirTemperature",
+    "mixed_point": "Building/LAB/Device/MixedAirTemperature",
+    "damper_point": "Building/LAB/Device/DamperSignal"
+}
+# default table_defs
+sqlite_platform1 = {
     "agentid": "sqlhistorian-sqlite",
     "identity": "platform.historian",
     "connection": {
@@ -33,15 +39,46 @@ sqlite_platform = {
         }
     }
 }
-query_points = {
-    "oat_point": "Building/LAB/Device/OutsideAirTemperature",
-    "mixed_point": "Building/LAB/Device/MixedAirTemperature",
-    "damper_point": "Building/LAB/Device/DamperSignal"
+# table_defs without prefix
+sqlite_platform2 = {
+    "agentid": "sqlhistorian-sqlite",
+    "identity": "platform.historian",
+    "connection": {
+        "type": "sqlite",
+        "params": {
+            "database": 'test.sqlite'
+        }
+    },
+    "tables_def": {
+        "table_prefix": "",
+        "data_table": "data_table",
+        "topics_table": "topics_table",
+        "meta_table": "meta_table",
+    }
+}
+# table_defs with prefix
+sqlite_platform3 = {
+    "agentid": "sqlhistorian-sqlite",
+    "identity": "platform.historian",
+    "connection": {
+        "type": "sqlite",
+        "params": {
+            "database": 'test.sqlite'
+        }
+    },
+    "tables_def": {
+        "table_prefix": "prefix",
+        "data_table": "data_table",
+        "topics_table": "topics_table",
+        "meta_table": "meta_table",
+    }
 }
 
 # Create a database "historian", create user "historian" with passwd
 # "historian" and grant historian user access to "historian" database
-mysql_platform = {
+
+# config without table_defs
+mysql_platform1 = {
     "agentid": "sqlhistorian-mysql",
     "identity": "platform.historian",
     "connection": {
@@ -55,10 +92,58 @@ mysql_platform = {
         }
     }
 }
+# table_defs without prefix
+mysql_platform2 = {
+    "agentid": "sqlhistorian-mysql",
+    "identity": "platform.historian",
+    "connection": {
+        "type": "mysql",
+        "params": {
+            "host": "localhost",
+            "port": 3306,
+            "database": "test_historian",
+            "user": "historian",
+            "passwd": "historian"
+        }
+    },
+    "tables_def": {
+        "table_prefix": "",
+        "data_table": "data_table",
+        "topics_table": "topics_table",
+        "meta_table": "meta_table",
+    }
+}
+# table_defs with prefix
+mysql_platform3 = {
+    "agentid": "sqlhistorian-mysql",
+    "identity": "platform.historian",
+    "connection": {
+        "type": "mysql",
+        "params": {
+            "host": "localhost",
+            "port": 3306,
+            "database": "test_historian",
+            "user": "historian",
+            "passwd": "historian"
+        }
+    },
+    "tables_def": {
+        "table_prefix": "prefix",
+        "data_table": "data_table",
+        "topics_table": "topics_table",
+        "meta_table": "meta_table",
+    }
+}
 
 offset = timedelta(seconds=3)
 db_connection = None
 MICROSECOND_SUPPORT = True
+
+# Don't like declaring this global but I am not able to find a way
+# to introspect this using pytest request object in the clean fixture
+data_table = 'data'
+topics_table = 'topics'
+meta_table = 'meta'
 
 
 # Fixtures for setup and teardown
@@ -66,11 +151,20 @@ MICROSECOND_SUPPORT = True
                 params=[
                     pytest.mark.skipif(
                         not HAS_MYSQL_CONNECTOR,
-                        reason='No mysql client available.')(mysql_platform),
-                    sqlite_platform
+                        reason='No mysql client available.')(mysql_platform1),
+                    pytest.mark.skipif(
+                        not HAS_MYSQL_CONNECTOR,
+                        reason='No mysql client available.')(mysql_platform2),
+                    pytest.mark.skipif(
+                        not HAS_MYSQL_CONNECTOR,
+                        reason='No mysql client available.')(mysql_platform3),
+                    sqlite_platform1,
+                    sqlite_platform2,
+                    sqlite_platform3
                 ])
 def sqlhistorian(request, volttron_instance1):
-    global db_connection, publish_agent, agent_uuid
+    global db_connection, publish_agent, agent_uuid, data_table, \
+        topics_table, meta_table
     print("** Setting up test_sqlhistorian module **")
     # Make database connection
     print("request param", request.param)
@@ -86,8 +180,26 @@ def sqlhistorian(request, volttron_instance1):
         start=True)
     print("agent id: ", agent_uuid)
 
+    # figure out table names from config
+    # Set this hear so that cleanup fixture can use it
+    if request.param.get('tables_def', None) is None:
+        data_table = 'data'
+        topics_table = 'topics'
+        meta_table = 'meta'
+    elif request.param['tables_def']['table_prefix']:
+        data_table = request.param['tables_def']['table_prefix'] + "_" + \
+            request.param['tables_def']['data_table']
+        topics_table = request.param['tables_def']['table_prefix'] + "_" + \
+            request.param['tables_def']['topics_table']
+        meta_table = request.param['tables_def']['table_prefix'] + "_" + \
+            request.param['tables_def']['meta_table']
+    else:
+        data_table = request.param['tables_def']['data_table']
+        topics_table = request.param['tables_def']['topics_table']
+        meta_table = request.param['tables_def']['meta_table']
+
     # 2: Open db connection that can be used for row deletes after
-    # each test method
+    # each test method. Create tables in case of mysql
     if request.param['connection']['type'] == "sqlite":
         connect_sqlite(request)
     elif request.param['connection']['type'] == "mysql":
@@ -117,7 +229,8 @@ def sqlhistorian(request, volttron_instance1):
 
 
 def connect_mysql(request):
-    global db_connection, MICROSECOND_SUPPORT
+    global db_connection, MICROSECOND_SUPPORT, data_table, topics_table, \
+        meta_table
     print "connect to mysql"
     db_connection = mysql.connect(**request.param['connection']['params'])
     cursor = db_connection.cursor()
@@ -135,26 +248,35 @@ def connect_mysql(request):
         MICROSECOND_SUPPORT = False
     else:
         MICROSECOND_SUPPORT = True
+
     cursor = db_connection.cursor()
     print("MICROSECOND_SUPPORT ", MICROSECOND_SUPPORT)
     if MICROSECOND_SUPPORT:
         cursor.execute(
-            'CREATE TABLE IF NOT EXISTS data (ts timestamp(6) NOT NULL,\
-                 topic_id INTEGER NOT NULL, \
-                 value_string TEXT NOT NULL, \
-                 UNIQUE(ts, topic_id))')
+            'CREATE TABLE IF NOT EXISTS ' + data_table +
+            ' (ts timestamp(6) NOT NULL,\
+             topic_id INTEGER NOT NULL, \
+             value_string TEXT NOT NULL, \
+             UNIQUE(ts, topic_id))')
     else:
         cursor.execute(
-            'CREATE TABLE IF NOT EXISTS data (ts timestamp NOT NULL,\
-                 topic_id INTEGER NOT NULL, \
-                 value_string TEXT NOT NULL, \
-                 UNIQUE(ts, topic_id))')
+            'CREATE TABLE IF NOT EXISTS ' + data_table +
+            ' (ts timestamp NOT NULL,\
+             topic_id INTEGER NOT NULL, \
+             value_string TEXT NOT NULL, \
+             UNIQUE(ts, topic_id))')
     cursor.execute(
-        'CREATE TABLE IF NOT EXISTS topics \
-            (topic_id INTEGER NOT NULL AUTO_INCREMENT, \
-             topic_name varchar(512) NOT NULL,\
-             PRIMARY KEY (topic_id),\
-             UNIQUE(topic_name))')
+        'CREATE TABLE IF NOT EXISTS ' + topics_table +
+        ' (topic_id INTEGER NOT NULL AUTO_INCREMENT, \
+         topic_name varchar(512) NOT NULL, \
+         PRIMARY KEY (topic_id),\
+         UNIQUE(topic_name))')
+
+    cursor.execute(
+        'CREATE TABLE IF NOT EXISTS ' + meta_table +
+        '(topic_id INTEGER NOT NULL, \
+          metadata TEXT NOT NULL, \
+          PRIMARY KEY(topic_id));')
     db_connection.commit()
     print("created mysql tables")
     # clean up any rows from older runs
@@ -164,7 +286,7 @@ def connect_mysql(request):
 
 
 def connect_sqlite(request):
-    global db_connection, MICROSECOND_SUPPORT
+    global db_connection, MICROSECOND_SUPPORT, data_table
 
     database_path = request.param['connection']['params']['database']
     print "connecting to sqlite path " + database_path
@@ -176,11 +298,11 @@ def connect_sqlite(request):
 @pytest.fixture()
 def clean(request):
     def delete_rows():
-        global db_connection
+        global db_connection, data_table
         cursor = db_connection.cursor()
-        cursor.execute("DELETE FROM data")
+        cursor.execute("DELETE FROM " + data_table)
         db_connection.commit()
-        print("deleted test records")
+        print("deleted test records from " + data_table)
 
     request.addfinalizer(delete_rows)
 
@@ -765,6 +887,7 @@ def test_zero_timestamp(volttron_instance1, sqlhistorian, clean):
     assert_timestamp(result['values'][0][0], now_date, now_time)
     assert (result['values'][0][1] == mixed_reading)
 
+
 @pytest.mark.xfail(reason="Related to issue #234. Does not work as expected")
 @pytest.mark.historian
 def test_topic_name_case_change(volttron_instance1, sqlhistorian, clean):
@@ -993,9 +1116,6 @@ def test_record_topic_query(volttron_instance1, sqlhistorian, clean):
     now = datetime.utcnow().isoformat() + 'Z'
     print("now is ", now)
 
-    headers = {
-        headers_mod.DATE: now
-    }
     # Publish messages
     publish_agent.vip.pubsub.publish(
         'pubsub', topics.RECORD, None, 1).get(timeout=10)
