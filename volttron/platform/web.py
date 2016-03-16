@@ -53,7 +53,7 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-#}}}
+# }}}
 
 from collections import defaultdict
 import logging
@@ -71,6 +71,7 @@ from .vip.socket import encode_key
 
 _log = logging.getLogger(__name__)
 
+
 def is_ip_private(vip_address):
     """ Determines if the passed vip_address is a private ip address or not.
 
@@ -86,7 +87,9 @@ def is_ip_private(vip_address):
     priv_20 = re.compile("^192\.168\.\d{1,3}.\d{1,3}$")
     priv_16 = re.compile("^172.(1[6-9]|2[0-9]|3[0-1]).[0-9]{1,3}.[0-9]{1,3}$")
 
-    return priv_lo.match(ip) != None or priv_24.match(ip) != None or priv_20.match(ip) != None or priv_16.match(ip) != None
+    return priv_lo.match(ip) is not None or priv_24.match(
+        ip) is not None or priv_20.match(ip) is not None or priv_16.match(
+        ip) is not None
 
 
 class MasterWebService(Agent):
@@ -125,8 +128,9 @@ class MasterWebService(Agent):
         When a http request is executed and matches the passed regular
         expression then the function on peer is executed.
         '''
-        _log.info('Registering agent route expression: {} peer: {} function: {}'
-            .format(regex, peer, fn))
+        _log.info(
+            'Registering agent route expression: {} peer: {} function: {}'
+                .format(regex, peer, fn))
         compiled = re.compile(regex)
         self.peerroutes[peer].append(compiled)
         self.registeredroutes.insert(0, (compiled, 'peer_route', (peer, fn)))
@@ -145,7 +149,7 @@ class MasterWebService(Agent):
         self.registeredroutes.append((compiled, 'path', root_dir))
 
     def _redirect_index(self, env, start_response):
-        start_response('302 Found', [('Location','/index.html')])
+        start_response('302 Found', [('Location', '/index.html')])
         return ['1']
 
     def _get_serverkey(self, environ, start_response):
@@ -179,31 +183,35 @@ class MasterWebService(Agent):
         # only expose a partial list of the env variables to the registered
         # agents.
         envlist = ['HTTP_USER_AGENT', 'PATH_INFO', 'QUERY_STRING',
-            'REQUEST_METHOD', 'SERVER_PROTOCOL', 'REMOTE_ADDR']
+                   'REQUEST_METHOD', 'SERVER_PROTOCOL', 'REMOTE_ADDR']
         data = env['wsgi.input'].read()
-        passenv = dict((envlist[i], env[envlist[i]]) for i in range(0, len(envlist)))
+        passenv = dict(
+            (envlist[i], env[envlist[i]]) for i in range(0, len(envlist)))
         for k, t, v in self.registeredroutes:
             if k.match(path_info):
                 _log.debug("MATCHED:\npattern: {}, path_info: {}\n v: {}"
-                    .format(k.pattern, path_info, v))
-                if t == 'callable': # Generally for locally called items.
+                           .format(k.pattern, path_info, v))
+                if t == 'callable':  # Generally for locally called items.
                     return v(env, start_response)
-                elif t == 'peer_route': # RPC calls from agents on the platform.
-                    _log.debug('Matched peer_route with pattern {}'.format(k.pattern))
+                elif t == 'peer_route':  # RPC calls from agents on the platform.
+                    _log.debug('Matched peer_route with pattern {}'.format(
+                        k.pattern))
                     peer, fn = (v[0], v[1])
-                    res = self.vip.rpc.call(peer, fn, passenv, data).get(timeout=4)
+                    res = self.vip.rpc.call(peer, fn, passenv, data).get(
+                        timeout=4)
                     if isinstance(res, dict):
                         if 'error' in res.keys():
                             if res['error']['code'] == UNAUTHORIZED:
-                                start_response('401 Unauthorized', [('Content-Type', 'text/html')])
+                                start_response('401 Unauthorized', [
+                                    ('Content-Type', 'text/html')])
                                 return [b'<h1>Unauthorized</h1>']
-                    start_response('200 OK', [('Content-Type', 'application/json')])
+                    start_response('200 OK',
+                                   [('Content-Type', 'application/json')])
                     return jsonapi.dumps(res)
-                elif t == 'path': # File service from agents on the platform.
-                    server_path = v + path_info #os.path.join(v, path_info)
+                elif t == 'path':  # File service from agents on the platform.
+                    server_path = v + path_info  # os.path.join(v, path_info)
                     _log.debug('Serverpath: {}'.format(server_path))
                     return self._sendfile(env, start_response, server_path)
-
 
         start_response('404 Not Found', [('Content-Type', 'text/html')])
         return [b'<h1>Not Found</h1>']
@@ -236,12 +244,12 @@ class MasterWebService(Agent):
             _log.info('Web server not started.')
             return
 
-        _log.debug('Starting web server binding to {}.'\
+        _log.debug('Starting web server binding to {}.' \
                    .format(self.bind_web_address))
         self.registeredroutes.append((re.compile('^/discovery/$'), 'callable',
-            self._get_serverkey))
+                                      self._get_serverkey))
         self.registeredroutes.append((re.compile('^/$'), 'callable',
-            self._redirect_index))
+                                      self._redirect_index))
 
         addr, port = self.bind_web_address.split(":")
         port = int(port)
