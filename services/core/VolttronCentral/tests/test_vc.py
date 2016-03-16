@@ -18,6 +18,43 @@ def validate_instances(wrapper1, wrapper2):
     assert wrapper2.volttron_home
     assert wrapper1.volttron_home != wrapper2.volttron_home
 
+@pytest.mark.vc
+def test_publickey_retrieval(vc_instance, pa_instance):
+    """ This method tests that the /discovery addresses.
+
+    The discovery now should return the server key for the bus as well as
+    for the volttron.central and platform.agent public keys if they are
+    available.
+
+    :param vc_instance:
+    :param pa_instance:
+    :return:
+    """
+    vc_discovery = vc_instance['wrapper'].bind_web_address+"/discovery/"
+    pa_discovery = pa_instance['wrapper'].bind_web_address+"/discovery/"
+    response = requests.get(vc_discovery)
+    assert response.json()['serverkey']
+    assert response.json()['vcpublickey']
+    assert response.json()['vcpublickey'] != response.json()['serverkey']
+
+    response2 = requests.get(pa_discovery)
+    assert response2.json()['serverkey']
+    assert response2.json()['papublickey']
+    assert response2.json()['papublickey'] != response.json()['serverkey']
+
+    assert response2.json()['serverkey'] != response.json()['serverkey']
+    assert response2.json()['papublickey'] != response.json()['vcpublickey']
+
+    vc_wrapper = vc_instance['wrapper']
+    vc_wrapper.install_agent(
+        agent_dir='services/core/Platform',
+        config_file=PLATFORM_AGENT_CONFIG)
+    response3 = requests.get(vc_discovery)
+    assert response3.json()['serverkey'] == response.json()['serverkey']
+    assert response3.json()['vcpublickey'] == response.json()['vcpublickey']
+    assert response3.json()['papublickey']
+    assert response3.json()['vcpublickey'] != response2.json()['papublickey']
+
 
 @pytest.mark.vc
 def test_autoregistered_peer_platform(vc_instance):

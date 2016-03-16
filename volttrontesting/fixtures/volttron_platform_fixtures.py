@@ -105,8 +105,8 @@ def volttron_instance2_encrypt(request):
 @pytest.fixture
 def volttron_instance1_web(request):
     print("building instance 1 (using web)")
-    address = "tcp://127.0.0.1:{}".format(get_rand_port())
-    web_address = "127.0.0.1:{}".format(get_rand_port())
+    address = "tcp://{}".format(get_rand_ip_and_port())
+    web_address = "http://{}".format(get_rand_ip_and_port())
     wrapper = build_wrapper(address, encrypt=True,
                             bind_web_address=web_address)
 
@@ -121,7 +121,7 @@ def volttron_instance1_web(request):
 def volttron_instance2_web(request):
     print("building instance 2 (using web)")
     address = "tcp://{}".format(get_rand_ip_and_port())
-    web_address = "{}".format(get_rand_ip_and_port())
+    web_address = "http://{}".format(get_rand_ip_and_port())
     wrapper = build_wrapper(address, encrypt=True,
                             bind_web_address=web_address)
 
