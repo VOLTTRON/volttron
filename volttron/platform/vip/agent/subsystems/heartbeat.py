@@ -51,6 +51,11 @@
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 
+__docformat__ = 'reStructuredText'
+
+"""The heartbeat subsystem adds an optional periodic publish to all agents.
+Heartbeats can be started with agents and toggled on and off at runtime."""
+
 import os
 import weakref
 
@@ -82,20 +87,36 @@ class Heartbeat(SubsystemBase):
         core.onstart.connect(onstart, self)
 
     def start(self):
+        """RPC method
+
+        Starts an agent's heartbeat."""
         if not self.enabled:
             self.greenlet = self.core().periodic(self.period, self.publish)
             self.enabled = True
 
     def start_with_period(self, period):
+        """RPC method
+
+        Set period and start heartbeat.
+
+        :param period: Time in seconds between publishes."""
         self.set_period(period)
         self.start()
 
     def stop(self):
+        """RPC method
+
+        Stop an agent's heartbeat."""
         if self.enabled:
             self.greenlet.kill()
             self.enabled = False
 
     def set_period(self, period):
+        """RPC method
+
+        Set heartbeat period.
+
+        :param period: Time in seconds between publishes."""
         if self.enabled:
             self.stop()
             self.period = period
