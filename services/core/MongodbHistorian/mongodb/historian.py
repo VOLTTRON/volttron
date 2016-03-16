@@ -225,7 +225,7 @@ def historian(config_path, **kwargs):
             _log.debug('cursor count is: {}'.format(cursor.count()))
 
             # Create list of tuples for return values.
-            values = [(row['ts'].isoformat(), row['value']) for row in cursor]
+            values = [(utils.format_timestamp(row['ts']), row['value']) for row in cursor]
 
             return {'values': values}
 
