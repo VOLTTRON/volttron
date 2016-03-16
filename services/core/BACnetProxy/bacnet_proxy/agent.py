@@ -313,7 +313,7 @@ def bacnet_proxy_agent(config_path, **kwargs):
     class BACnetProxyAgent(Agent):
         '''This agent creates a virtual bacnet device that is used by
         the bacnet driver interface to communicate with devices.
-        '''o
+        '''
         def __init__(self, **kwargs):
             super(BACnetProxyAgent, self).__init__(identity=vip_identity, **kwargs)
             
