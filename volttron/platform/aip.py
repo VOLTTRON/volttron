@@ -86,6 +86,7 @@ from . import messaging
 from .messaging import topics
 from .packages import UnpackedPackage
 from .vip.agent import Agent
+from .keystore import KeyStore
 
 try:
     from volttron.restricted import auth
@@ -185,9 +186,11 @@ class ExecutionEnvironment(object):
     '''
     def __init__(self):
         self.process = None
+        self.env = None
 
     def execute(self, *args, **kwargs):
         try:
+            self.env = kwargs.get('env', None)
             self.process = subprocess.Popen(*args, **kwargs)
         except OSError as e:
             if e.filename:
@@ -528,6 +531,26 @@ class AIPplatform(object):
         if execenv is None:
             return (None, None)
         return (execenv.process.pid, execenv.process.poll())
+
+    def agent_publickey(self, identity):
+        agent_uuid = self.identity_to_uuid(identity)
+        if agent_uuid not in os.listdir(self.install_dir):
+            raise ValueError('agent not found: {}'.format(agent_uuid))
+        name = self.agent_name(agent_uuid)
+        keypath = os.path.join(self.install_dir, agent_uuid, 'keystore.json')
+        ks = KeyStore(keypath)
+        return ks.public()
+
+    def identity_to_uuid(self, identity):
+        for agent_uuid, execenv in self.active_agents().items():
+            identity_file = os.path.join(
+                self.install_dir, agent_uuid, 'IDENTITY')
+            with ignore_enoent, open(identity_file, 'r') as f:
+                file_ident = f.readline()
+            print("comparing {} == {}".format(file_ident, identity))
+            if identity == file_ident:
+                return agent_uuid
+        ValueError('Unknown identity: {}'.format(identity))
 
     def start_agent(self, agent_uuid):
         name = self.agent_name(agent_uuid)

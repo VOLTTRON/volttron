@@ -394,6 +394,11 @@ def start_volttron_process(opts):
     opts.vip_address = [config.expandall(addr) for addr in opts.vip_address]
     opts.vip_local_address = config.expandall(opts.vip_local_address)
     if opts.bind_web_address:
+        import urlparse
+        parsed = urlparse.urlparse(opts.bind_web_address)
+        if not parsed.scheme:
+            raise StandardError(
+                'bind-web-address must begin with http or https.')
         opts.bind_web_address = config.expandall(opts.bind_web_address)
     if getattr(opts, 'show_config', False):
         for name, value in sorted(vars(opts).iteritems()):
@@ -541,7 +546,8 @@ def start_volttron_process(opts):
                          subscribe_address=opts.subscribe_address),
             MasterWebService(serverkey=publickey, identity='volttron.web',
                              address=address,
-                             bind_web_address=opts.bind_web_address)
+                             bind_web_address=opts.bind_web_address,
+                             aip=opts.aip)
         ]
         events = [gevent.event.Event() for service in services]
         tasks = [gevent.spawn(service.core.run, event)

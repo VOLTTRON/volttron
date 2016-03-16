@@ -99,7 +99,7 @@ class MasterWebService(Agent):
     that will be called during the request process.
     """
 
-    def __init__(self, serverkey, identity, address, bind_web_address):
+    def __init__(self, serverkey, identity, address, bind_web_address, aip):
         """Initialize the discovery service with the serverkey
 
         serverkey is the public key in order to access this volttron's bus.
@@ -110,6 +110,7 @@ class MasterWebService(Agent):
         self.serverkey = serverkey
         self.registeredroutes = []
         self.peerroutes = defaultdict(list)
+        self.aip = aip
         if not mimetypes.inited:
             mimetypes.init()
 
@@ -123,14 +124,14 @@ class MasterWebService(Agent):
 
     @RPC.export
     def register_agent_route(self, regex, peer, fn):
-        ''' Register an agent route to an exported function.
+        """ Register an agent route to an exported function.
 
         When a http request is executed and matches the passed regular
         expression then the function on peer is executed.
-        '''
+        """
         _log.info(
             'Registering agent route expression: {} peer: {} function: {}'
-                .format(regex, peer, fn))
+            .format(regex, peer, fn))
         compiled = re.compile(regex)
         self.peerroutes[peer].append(compiled)
         self.registeredroutes.insert(0, (compiled, 'peer_route', (peer, fn)))
@@ -152,22 +153,41 @@ class MasterWebService(Agent):
         start_response('302 Found', [('Location', '/index.html')])
         return ['1']
 
-    def _get_serverkey(self, environ, start_response):
+    def _get_discovery(self, environ, start_response):
         q = query.Query(self.core)
-        result = q.query('addresses').get(timeout=10)
+        result = q.query('addresses').get(timeout=2)
         external_vip = None
         for x in result:
             if not is_ip_private(x):
                 external_vip = x
                 break
-        start_response('200 OK', [('Content-Type', 'application/json')])
+        peers = self.vip.peerlist().get(timeout=2)
+
+        return_dict = {}
+        vc_publickey = None
+        pa_publickey = None
+        if 'volttron.central' in peers:
+            print('doing vc public key')
+            vc_publickey = self.aip.agent_publickey('volttron.central')
+            #vc_publickey = q.query(b'publickey', b'volttron.central').get(timeout=2)
+            return_dict['vcpublickey'] = vc_publickey
+        if 'platform.agent' in peers:
+            print('doing pa public key')
+            pa_publickey = self.aip.agent_publickey('platform.agent')
+            #pa_publickey = q.query(b'publickey', b'platform.agent').get(timeout=2)
+            return_dict['papublickey'] = pa_publickey
+
+        _log.debug("PRINTING DICT: ")
+        _log.debug(return_dict)
         if self.serverkey:
-            sk = encode_key(self.serverkey)
+            return_dict['serverkey'] = encode_key(self.serverkey)
         else:
             sk = None
 
-        return jsonapi.dumps({"serverkey": sk,
-                              "vip-address": external_vip})
+        return_dict['vip-address'] = external_vip
+
+        start_response('200 OK', [('Content-Type', 'application/json')])
+        return jsonapi.dumps(return_dict)
 
     def app_routing(self, env, start_response):
         """The main routing function that maps the incoming request to a response.
@@ -243,15 +263,17 @@ class MasterWebService(Agent):
         if not self.bind_web_address:
             _log.info('Web server not started.')
             return
+        import urlparse
+        parsed = urlparse.urlparse(self.bind_web_address)
+        hostname = parsed.hostname
+        port = parsed.port
 
-        _log.debug('Starting web server binding to {}.' \
-                   .format(self.bind_web_address))
+        _log.debug('Starting web server binding to {}:{}.' \
+                   .format(hostname, port))
         self.registeredroutes.append((re.compile('^/discovery/$'), 'callable',
-                                      self._get_serverkey))
+                                      self._get_discovery))
         self.registeredroutes.append((re.compile('^/$'), 'callable',
                                       self._redirect_index))
-
-        addr, port = self.bind_web_address.split(":")
         port = int(port)
-        self.server = pywsgi.WSGIServer((addr, port), self.app_routing)
-        self.server.serve_forever()
+        server = pywsgi.WSGIServer((hostname, port), self.app_routing)
+        server.serve_forever()

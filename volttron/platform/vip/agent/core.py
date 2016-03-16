@@ -430,6 +430,14 @@ class Core(BasicCore):
         self.publickey = publickey
         self.secretkey = secretkey
         self.identity = identity
+        self.agent_uuid = os.environ.get('AGENT_UUID', None)
+
+        if self.agent_uuid:
+            installed_path = os.path.join(
+                os.environ['VOLTTRON_HOME'], 'agents', self.agent_uuid)
+            with open(os.path.join(installed_path, 'IDENTITY'), 'w') as fp:
+                fp.write(self.identity)
+
         self.socket = None
         self.subsystems = {'error': self.handle_error}
         self.__connected = False
@@ -457,7 +465,7 @@ class Core(BasicCore):
         keystore_dir = os.environ.get('AGENT_PATH')
         if keystore_dir is None:
             return None, None
-        keystore_path = os.path.join(keystore_dir, 'keystore.json')
+        keystore_path = os.path.join(keystore_dir, os.pardir, 'keystore.json')
         keystore = KeyStore(keystore_path)
         return keystore.public(), keystore.secret()
 
