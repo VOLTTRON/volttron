@@ -13,6 +13,13 @@ var platformsPanelActionCreators = {
         });
     },
 
+    closePanel: function() {
+
+        dispatcher.dispatch({
+            type: ACTION_TYPES.CLOSE_PLATFORMS_PANEL,
+        });
+    },
+
     loadPanelPlatforms: function () {
         if (!authorizationStore.getAuthorization()) { return; }
 
@@ -25,6 +32,14 @@ var platformsPanelActionCreators = {
             authorization: authorization,
         }).promise
             .then(function (platforms) {
+
+                platforms.forEach(function (platform, i) {
+                    if (platform.name === null || platform.name === "")
+                    {
+                        platform.name = "vc" + (i + 1);
+                    }
+                });
+
                 dispatcher.dispatch({
                     type: ACTION_TYPES.RECEIVE_PLATFORM_STATUSES,
                     platforms: platforms,
@@ -43,7 +58,7 @@ var platformsPanelActionCreators = {
         switch (type)
         {
             case "platform":
-                loadPanelAgents(parent);
+                // loadPanelAgents(parent);
                 loadPanelBuildings(parent);
                 loadPanelPoints(parent);
                 break;
@@ -156,23 +171,28 @@ var platformsPanelActionCreators = {
         }
 
         function loadPanelAgents(platform) {
-            var authorization = authorizationStore.getAuthorization();
+        //     var authorization = authorizationStore.getAuthorization();
 
-            new rpc.Exchange({
-                method: 'platforms.uuid.' + platform.uuid + '.list_agents',
-                authorization: authorization,
-            }).promise
-                .then(function (agentsList) {
+        //     new rpc.Exchange({
+        //         method: 'platforms.uuid.' + platform.uuid + '.list_agents',
+        //         authorization: authorization,
+        //     }).promise
+        //         .then(function (agentsList) {
                     
-                    dispatcher.dispatch({
-                        type: ACTION_TYPES.RECEIVE_AGENT_STATUSES,
-                        platform: platform,
-                        agents: agentsList
-                    });
+        //             dispatcher.dispatch({
+        //                 type: ACTION_TYPES.RECEIVE_AGENT_STATUSES,
+        //                 platform: platform,
+        //                 agents: agentsList
+        //             });
 
                     
-                })
-                .catch(rpc.Error, handle401);    
+        //         })
+        //         .catch(rpc.Error, handle401);    
+        // }
+            dispatcher.dispatch({
+                type: ACTION_TYPES.RECEIVE_AGENT_STATUSES,
+                platform: platform
+            });
         }
     
     },

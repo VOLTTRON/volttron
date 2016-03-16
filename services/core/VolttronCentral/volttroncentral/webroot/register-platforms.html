@@ -176,10 +176,11 @@ Discovery Address: <input type="text" id="discovery_address" value="127.0.0.1:80
              data: JSON.stringify(pdata),
              dataType: 'json',
              success: function(data){
-                 $('#output_data').text(data.message.toString());
+                console.log(data);
+                 $('#output_data').val(JSON.stringify(data));
              },
              failure: function(data){
-                 $('#output_data').text('failure');
+                 $('#output_data').val('failure');
                   console.log('failure '+data.toString());}
 
          });

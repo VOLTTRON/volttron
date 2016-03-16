@@ -68,7 +68,6 @@ var PlatformsPanelItem = React.createClass({
         if (checked)
         {
             platformsPanelActionCreators.addToChart(this.props.panelItem);
-            window.location = '/#/platform-charts';
         }
         else
         {
@@ -204,7 +203,7 @@ var PlatformsPanelItem = React.createClass({
                         onClick={this._toggleItem}>
                         {arrowContent}
                     </div>  
-                    {ChartCheckbox}                   
+                        <Router.Link to="charts">{ChartCheckbox}</Router.Link>                  
                     <div className={toolTipClasses}
                         style={tooltipStyle}>
                         <div className="tooltip_inner">
