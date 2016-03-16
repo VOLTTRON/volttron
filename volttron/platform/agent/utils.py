@@ -280,18 +280,13 @@ def setup_logging(level=logging.DEBUG):
         root.addHandler(handler)
     root.setLevel(level)
     
-def process_timestamp(timestamp_string):
+def process_timestamp(timestamp_string, topic=''):
     if timestamp_string is None:
         _log.error("message for {topic} missing timetamp".format(topic=topic))
         return
     
     try:
         timestamp = parse(timestamp_string)
-        
-        #The following addresses #174: error with dbapi2
-        if not timestamp.microsecond:
-            _log.warn("No microsecond in timestamp. Adding 1 to prevent dbapi2 bug.")
-            timestamp = timestamp + timedelta(microseconds = 1)
     except (ValueError, TypeError) as e:
         _log.error("message for {topic} bad timetamp string: {ts_string}".format(topic=topic,
                                                                                  ts_string=timestamp_string))
