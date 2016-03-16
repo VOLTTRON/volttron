@@ -1817,7 +1817,6 @@ def test_set_value_float(publish_agent, cancel_schedules, revert_devices):
     assert result_header['requesterID'] == agentid
     assert result_message == 0.2
 
-
 @pytest.mark.actuator_pubsub
 def test_revert_point(publish_agent, cancel_schedules):
     """
