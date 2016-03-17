@@ -54,7 +54,8 @@
 __docformat__ = 'reStructuredText'
 
 """The heartbeat subsystem adds an optional periodic publish to all agents.
-Heartbeats can be started with agents and toggled on and off at runtime."""
+Heartbeats can be started with agents and toggled on and off at runtime.
+"""
 
 import os
 import weakref
@@ -89,7 +90,8 @@ class Heartbeat(SubsystemBase):
     def start(self):
         """RPC method
 
-        Starts an agent's heartbeat."""
+        Starts an agent's heartbeat.
+        """
         if not self.enabled:
             self.greenlet = self.core().periodic(self.period, self.publish)
             self.enabled = True
@@ -99,14 +101,16 @@ class Heartbeat(SubsystemBase):
 
         Set period and start heartbeat.
 
-        :param period: Time in seconds between publishes."""
+        :param period: Time in seconds between publishes.
+        """
         self.set_period(period)
         self.start()
 
     def stop(self):
         """RPC method
 
-        Stop an agent's heartbeat."""
+        Stop an agent's heartbeat.
+        """
         if self.enabled:
             self.greenlet.kill()
             self.enabled = False
@@ -116,7 +120,8 @@ class Heartbeat(SubsystemBase):
 
         Set heartbeat period.
 
-        :param period: Time in seconds between publishes."""
+        :param period: Time in seconds between publishes.
+        """
         if self.enabled:
             self.stop()
             self.period = period
