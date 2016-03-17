@@ -686,8 +686,9 @@ def platform_agent(config_path, **kwargs):
             self._fetch_vc_discovery_info()
             self._connect_to_vc()
 
-        # @Core.receiver('onstart')
-        # def starting(self, sender, **kwargs):
+        @Core.receiver('onstart')
+        def starting(self, sender, **kwargs):
+	    self.vip.heartbeat.start()
         #     _log.info('onstart')
         #     self._get_vc_info_from_file()
         #
