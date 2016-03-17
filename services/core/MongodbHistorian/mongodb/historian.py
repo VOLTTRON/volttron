@@ -214,7 +214,7 @@ def historian(config_path, **kwargs):
                 topic_id = self._topic_map.get(topic.lower(), None)
 
                 if topic_id is None:
-                    row  = db.topics.insert_one({'topic_name': topic})
+                    row  = db[self._topic_collection].insert_one({'topic_name': topic})
                     topic_id = row.inserted_id
                     # topic map should hold both a lookup from topic name
                     # and from id to topic_name.
@@ -226,7 +226,7 @@ def historian(config_path, **kwargs):
                     _log.debug('Updating meta for topic: {} {}'.format(
                         topic, meta
                     ))
-                    row  = db.meta.insert_one(
+                    row  = db[self._meta_collection].insert_one(
                         {'topic_id': topic_id, 'meta': meta})
                     self._topic_meta[topic_id] = meta
 
@@ -235,7 +235,7 @@ def historian(config_path, **kwargs):
                     {'ts': ts, 'topic_id': topic_id, 'value': value}))
 
             # http://api.mongodb.org/python/current/api/pymongo/collection.html#pymongo.collection.Collection.bulk_write
-            result = db['data'].bulk_write(bulk_publish)
+            result = db[self._data_collection].bulk_write(bulk_publish)
 
             # No write errros here when
             if not result.bulk_api_result['writeErrors']:
@@ -299,7 +299,7 @@ def historian(config_path, **kwargs):
             if ts_filter:
                 find_params['ts'] = ts_filter
 
-            cursor = db["data"].find(find_params)
+            cursor = db[self._data_collection].find(find_params)
             cursor = cursor.skip(skip_count).limit(count)
             cursor = cursor.sort( [ ("ts", order_by) ] )
             _log.debug('cursor count is: {}'.format(cursor.count()))
@@ -314,7 +314,7 @@ def historian(config_path, **kwargs):
 
         def query_topic_list(self):
             db = self._client.get_default_database()
-            cursor = db["topics"].find()
+            cursor = db[self._topic_collection].find()
 
             res = []
             for document in cursor:
@@ -325,7 +325,7 @@ def historian(config_path, **kwargs):
         def _load_topic_map(self):
             _log.debug('loading topic map')
             db = self._client.get_default_database()
-            cursor = db["topics"].find()
+            cursor = db[self._topic_collection].find()
 
             for document in cursor:
                 self._topic_map[document['topic_name'].lower()] = document['_id']
@@ -333,7 +333,7 @@ def historian(config_path, **kwargs):
         def _load_meta_map(self):
             _log.debug('loading meta map')
             db = self._client.get_default_database()
-            cursor = db["meta"].find()
+            cursor = db[self._meta_collection].find()
 
             for document in cursor:
                 self._topic_meta[document['topic_id']] = document['meta']
