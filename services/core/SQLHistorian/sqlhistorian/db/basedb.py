@@ -2,6 +2,7 @@ from __future__ import absolute_import, print_function
 from abc import abstractmethod
 import importlib
 import logging
+import threading
 
 from zmq.utils import jsonapi
 
@@ -10,11 +11,15 @@ from volttron.platform.agent import utils
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
+
 class DbDriver(object):
-    
+
     def __init__(self, dbapimodule, **kwargs):
-        _log.debug("Constructing Driver for "+ dbapimodule)
-        
+        thread_name = threading.currentThread().getName()
+        _log.debug("Constructing Driver for {} in thread: {}".format(
+            dbapimodule, thread_name)
+        )
+
         self.__dbmodule = importlib.import_module(dbapimodule)
         self.__connection = None
         self.__cursor = None  
@@ -23,12 +28,11 @@ class DbDriver(object):
         try:
             if not self.__check_connection():
                 raise AttributeError(
-                        "Couldn't connect using specified configuration" 
-                        " credentials")
+                    "Couldn't connect using specified configuration.")
+
         except Exception as e:
-            _log.exception(e)
-            raise AttributeError("Couldn't connect using specified " 
-                        "configuration credentials")
+            raise AttributeError(
+                "Couldn't connect using specified configuration.")
             
     def __check_connection(self):
         can_connect = False
@@ -67,6 +71,24 @@ class DbDriver(object):
     @abstractmethod
     def insert_topic_query(self):
         pass
+
+    @abstractmethod
+    def insert_meta_query(self):
+        pass
+
+    def insert_meta(self, topic_id, metadata):
+        self.__connect()
+
+        if self.__connection is None:
+            return False
+
+        if not self.__cursor:
+            self.__cursor = self.__connection.cursor()
+
+        self.__cursor.execute(
+            self.insert_meta_query(), (topic_id, jsonapi.dumps(metadata))
+        )
+        return True
     
     def insert_data(self, ts, topic_id, data):
         
@@ -75,10 +97,12 @@ class DbDriver(object):
         if self.__connection is None:
             return False
         
-        if self.__cursor == None:
+        if not self.__cursor:
             self.__cursor = self.__connection.cursor()
         
-        self.__cursor.execute(self.insert_data_query(), (ts,topic_id,jsonapi.dumps(data)))
+        self.__cursor.execute(
+            self.insert_data_query(), (ts, topic_id, jsonapi.dumps(data))
+        )
         return True
 
     def insert_topic(self, topic):
@@ -88,21 +112,21 @@ class DbDriver(object):
         if self.__connection is None:
             return False
         
-        if self.__cursor == None:
+        if not self.__cursor:
             self.__cursor = self.__connection.cursor()
         
-        self.__cursor.execute(self.insert_topic_query(), (topic,))
+        self.__cursor.execute(self.insert_topic_query(), (topic, ))
         
         row = [self.__cursor.lastrowid]
 
         return row
     
     def commit(self):
+        successful = False
         try:
-            retValue = False
             if self.__connection is not None:
                 self.__connection.commit()
-                retValue = True
+                successful = True
             else:
                 _log.warn('connection was null during commit phase.')
         finally:
@@ -114,13 +138,14 @@ class DbDriver(object):
                                                             
             self.__cursor = None
             self.__connection = None
-        return retValue
+        return successful
+
     def rollback(self):
+        successful = False
         try:
-            retValue = False
             if self.__connection is not None:
                 self.__connection.rollback()
-                retValue = True
+                successful = True
             else:
                 _log.warn('connection was null during rollback phase.')
         finally:
@@ -129,10 +154,10 @@ class DbDriver(object):
                     self.__connection.close()
                 except:
                     pass
-                                                            
+
             self.__cursor = None
             self.__connection = None
-        return retValue
+        return successful
     
     def select(self, query, args):
         conn = self.__connect(True)
@@ -144,8 +169,7 @@ class DbDriver(object):
         rows = cursor.fetchall()
         conn.close()
         return rows
-    
-    
+
     @abstractmethod                        
     def query(self, topic, start=None, end=None, skip=0,
                             count=None, order="FIRST_TO_LAST"):

@@ -63,7 +63,6 @@ import sys
 
 test_dir = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(test_dir + '/../actuator')
-print sys.path
 from scheduler import ScheduleManager, DeviceState, PRIORITY_HIGH, \
     PRIORITY_LOW, PRIORITY_LOW_PREEMPT
 

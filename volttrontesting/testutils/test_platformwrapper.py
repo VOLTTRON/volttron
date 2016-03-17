@@ -33,22 +33,49 @@ def test_can_install_listener(volttron_instance1):
     print('STARTED: ', started)
     listening = vi.build_agent()
     listening.vip.pubsub.subscribe(peer='pubsub',
-        prefix='heartbeat/listeneragent', callback=onmessage)
+        prefix='heartbeat/ListenerAgent', callback=onmessage)
     # sleep for 10 seconds and at least one heartbeat should have been published
     # because it's set to 5 seconds.
     time_start = time.time()
 
     print('Awaiting heartbeat response.')
-    while not 'heartbeat/listeneragent' in messages.keys() and \
-        time.time() < time_start + 10:
+    while not messages_contains_prefix('heartbeat/ListenerAgent') and time.time() < time_start + 10:
         gevent.sleep(0.2)
 
-    assert 'heartbeat/listeneragent' in messages.keys()
+    assert messages_contains_prefix('heartbeat/ListenerAgent')
 
     stopped = vi.stop_agent(auuid)
     print('STOPPED: ', stopped)
     removed = vi.remove_agent(auuid)
     print('REMOVED: ', removed)
+
+@pytest.mark.wrapper
+def test_can_stop_vip_heartbeat(volttron_instance1):
+    clear_messages()
+    vi = volttron_instance1
+    assert vi is not None
+    assert vi.is_running()
+
+    agent = vi.build_agent(heartbeat_autostart=True, heartbeat_period=5)
+    agent.vip.pubsub.subscribe(peer='pubsub', prefix='heartbeat/Agent', callback=onmessage)
+
+    # Make sure heartbeat is recieved
+    time_start = time.time()
+    print('Awaiting heartbeat response.')
+    while not messages_contains_prefix('heartbeat/Agent') and time.time() < time_start + 10:
+        gevent.sleep(0.2)
+
+    assert messages_contains_prefix('heartbeat/Agent')
+
+    # Make sure heartbeat is stopped
+
+    agent.vip.heartbeat.stop()
+    clear_messages()
+    time_start = time.time()
+    while not messages_contains_prefix('heartbeat/Agent') and time.time() < time_start + 10:
+        gevent.sleep(0.2)
+
+    assert not messages_contains_prefix('heartbeat/Agent')
 
 @pytest.mark.wrapper
 def test_can_ping_pubsub(volttron_instance1):
@@ -83,6 +110,10 @@ def onmessage(peer, sender, bus, topic, headers, message):
 def clear_messages():
     global messages
     messages = {}
+
+def messages_contains_prefix(prefix):
+    global messages
+    return any(map(lambda x: x.startswith(prefix), messages.keys()))
 
 @pytest.mark.wrapper
 def test_can_publish(volttron_instance1):
@@ -121,18 +152,13 @@ def test_can_install_listener_on_two_platforms(volttron_instance1, volttron_inst
     print('STARTED: ', started)
     listening = volttron_instance1.build_agent()
     listening.vip.pubsub.subscribe(peer='pubsub',
-        prefix='heartbeat/listeneragent', callback=onmessage)
+        prefix='heartbeat/ListenerAgent', callback=onmessage)
 
     # sleep for 10 seconds and at least one heartbeat should have been published
     # because it's set to 5 seconds.
     time_start = time.time()
 
-    print('Awaiting heartbeat response for platform1.')
-    while not 'heartbeat/listeneragent' in messages.keys() and \
-        time.time() < time_start + 10:
-        gevent.sleep(0.2)
 
-    assert 'heartbeat/listeneragent' in messages.keys()
 
     clear_messages()
     auuid2 = volttron_instance2.install_agent(agent_dir="examples/ListenerAgent",
@@ -142,20 +168,17 @@ def test_can_install_listener_on_two_platforms(volttron_instance1, volttron_inst
     print('STARTED: ', started2)
     listening = volttron_instance2.build_agent()
     listening.vip.pubsub.subscribe(peer='pubsub',
-        prefix='heartbeat/listeneragent', callback=onmessage)
+        prefix='heartbeat/ListenerAgent', callback=onmessage)
 
     # sleep for 10 seconds and at least one heartbeat should have been published
     # because it's set to 5 seconds.
     time_start = time.time()
 
-    print('Awaiting heartbeat response for platform2.')
-    while not 'heartbeat/listeneragent' in messages.keys() and \
-        time.time() < time_start + 10:
+    print('Awaiting heartbeat response.')
+    while not messages_contains_prefix('heartbeat/ListenerAgent') and time.time() < time_start + 10:
         gevent.sleep(0.2)
 
-    assert 'heartbeat/listeneragent' in messages.keys()
-
-
+    assert messages_contains_prefix('heartbeat/ListenerAgent')
 
 # def test_can_ping_control(volttron_instance2):
 #     agent = volttron_instance2.build_agent()
