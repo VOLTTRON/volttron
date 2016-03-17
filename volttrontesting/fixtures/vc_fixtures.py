@@ -68,7 +68,7 @@ def vc_instance(request, volttron_instance1_web):
         start=True
     )
 
-    rpc_addr = "http://{}/api/jsonrpc"\
+    rpc_addr = "http://{}/jsonrpc"\
         .format(volttron_instance1_web.bind_web_address)
     retvalue = {
         "jsonrpc":rpc_addr,

@@ -6,10 +6,6 @@ from zmq.utils import jsonapi
 import pytest
 import gevent
 
-from volttron.platform.auth import AuthEntry, AuthFile
-from volttron.platform.keystore import KeyStore
-from volttrontesting.utils.testutils import get_new_keypair
-
 # The default platform identity
 PLATFORM_ID = 'platform.agent'
 
@@ -61,6 +57,7 @@ def install_platform(wrapper):
         agent_dir="services/core/Platform",
         config_file="services/core/Platform/config")
     return agent_uuid
+
 
 @pytest.mark.pa
 def test_list_agents(volttron_instance1):

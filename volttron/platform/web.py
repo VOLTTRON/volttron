@@ -59,6 +59,8 @@ from collections import defaultdict
 import logging
 import os
 import re
+import requests
+from urlparse import urlparse, urljoin
 
 from gevent import pywsgi
 import mimetypes
@@ -70,6 +72,73 @@ from .jsonrpc import UNAUTHORIZED
 from .vip.socket import encode_key
 
 _log = logging.getLogger(__name__)
+
+class CouldNotRegister(StandardError):
+    pass
+
+
+class DiscoveryError(StandardError):
+    """ Raised when a different volttron central tries to register.
+    """
+    pass
+
+
+class DiscoveryInfo(object):
+    """ A DiscoveryInfo class.
+
+    The DiscoveryInfo class provides a wrapper around the return values from
+    a call to the /discovery/ endpoint of the `volttron.platform.web.
+    """
+
+    def __init__(self, **kwargs):
+
+        self.discovery_address = kwargs.pop('discovery_address')
+        self.vip_address = kwargs.pop('vip_address')
+        self.serverkey = kwargs.pop('serverkey')
+        self.vcpublickey = kwargs.pop('vcpublickey', None)
+        self.papublickey = kwargs.pop('papublickey', None)
+        assert len(kwargs) == 0
+
+    @staticmethod
+    def get_discovery_info(discovery_address):
+        """  Construct a `DiscoveryInfo` object.
+
+        Requests a response from discovery_address and constructs a
+        `DiscoveryInfo` object with the returned json.
+
+        :param discovery_address: An http(s) address with volttron running.
+        :return:
+        """
+        parsed = urlparse(discovery_address)
+
+        assert parsed.scheme
+        assert not parsed.path
+
+        real_url = urljoin(discovery_address, "/discovery/")
+        response = requests.get(real_url)
+
+        if not response.ok:
+            raise CouldNotRegister(
+                "Invalid discovery response from {}".format(real_url)
+            )
+
+        return DiscoveryInfo(**(response.json()))
+
+
+    def __str__(self):
+        dk = {
+            'discovery_address': self.discovery_address,
+            'vip_address': self.vip_address,
+            'serverkey': self.serverkey
+        }
+
+        if self.vcpublickey:
+            dk['vcpublickey'] = self.vcpublickey
+
+        if self.papublickey:
+            dk['papublickey'] = self.papublickey
+
+        return jsonapi.dumps(dk)
 
 
 def is_ip_private(vip_address):

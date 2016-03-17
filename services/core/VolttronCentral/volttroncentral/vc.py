@@ -74,6 +74,7 @@ from .registry import PlatformRegistry, RegistryEntry
 from volttron.platform.vip.socket import encode_key
 from volttron.platform.auth import AuthEntry, AuthFile
 from volttron.platform import jsonrpc, get_home
+from volttron.platform.web import DiscoveryInfo
 from volttron.platform.agent import utils
 from volttron.platform.vip.agent import *
 from volttron.platform.vip.agent.subsystems import query
@@ -97,8 +98,6 @@ __version__ = '3.0'
 WEB_ROOT = p.abspath(p.join(p.dirname(__file__), 'webroot'))
 
 
-class CouldNotRegister(Exception):
-    pass
 
 
 def volttron_central_agent(config_path, **kwargs):
@@ -158,7 +157,7 @@ def volttron_central_agent(config_path, **kwargs):
             # connect a periodic to check for the existence of a platform_peer
             self.core.onstart.connect(
                 lambda s, **kwargs:
-                    self.core.periodic(1, self._check_for_peer_platform))
+                    self.core.periodic(20, self._check_for_peer_platform))
 
         def _check_for_peer_platform(self):
             """ Check the list of peers for a platform.agent
@@ -254,7 +253,7 @@ def volttron_central_agent(config_path, **kwargs):
             return value
 
         @RPC.export
-        def register_instance(self, discovery_address, display_name):
+        def register_instance(self, discovery_address, display_name=None):
             """ An rpc call to register from the platform agent.
 
             This method allows an external platform to register itself with
@@ -265,8 +264,12 @@ def volttron_central_agent(config_path, **kwargs):
             :param display_name:
             :return:
             """
-            self._register_instance(discovery_address, display_name,
-                                    provisional=True)
+
+            info = DiscoveryInfo.get_discovery_info(discovery_address)
+
+
+            #self._register_instance(discovery_address, display_name,
+            #                        provisional=True)
 
         def _register_instance(self, discovery_address, display_name=None,
                               provisional=False):
@@ -289,11 +292,12 @@ def volttron_central_agent(config_path, **kwargs):
             :raises CouldNotRegister if the platform couldn't be registered.
             """
 
-            _log.info('Attempting to register name: {}\nwith address: {}'.format(
+            _log.info(
+                'Attempting to register name: {}\nwith address: {}'.format(
                 display_name, discovery_address))
 
             # Make sure that the agent is reachable.
-            request_uri = "http://{}/discovery/".format(discovery_address)
+            request_uri = "{}/discovery/".format(discovery_address)
             res = requests.get(request_uri)
             _log.debug("Requesting discovery from: {}".format(request_uri))
             if not res.ok:
@@ -304,7 +308,7 @@ def volttron_central_agent(config_path, **kwargs):
             pa_vip_address = tmpres['vip-address']
 
             assert pa_instance_serverkey
-
+            _log.debug('connecting to pa_instance')
             connected_to_pa =Agent(
                 address=pa_vip_address, serverkey=pa_instance_serverkey,
                 secretkey=encode_key(self.core.secretkey),
@@ -315,15 +319,16 @@ def volttron_central_agent(config_path, **kwargs):
             gevent.spawn(connected_to_pa.core.run, event)
             event.wait(timeout=2)
             del event
-
+            _log.debug('Connected to address')
             peers = connected_to_pa.vip.peerlist().get(timeout=1)
             assert 'platform.agent' in peers
-            _log.debug("Agent connected to peers: {}".format(agent.vip.peerlist().get(timeout=3)))
+            _log.debug("Agent connected to peers: {}".format(
+                connected_to_pa.vip.peerlist().get(timeout=3)))
 
             result = connected_to_pa.vip.rpc.call(
                 'platform.agent', 'get_publickey'
             ).get(timeout=2)
-            web_addr = "127.0.0.1:8080" # self.vip.rpc.call("volttron.web", "get_bind_web_address").get(timeout=2)
+            _log.debug('RESULT: {}'.format(result))
             if not display_name:
                 display_name = discovery_address
 
@@ -332,6 +337,7 @@ def volttron_central_agent(config_path, **kwargs):
                     "display_name={}, discovery_address={}".format(
                         display_name, discovery_address)
                 )
+            _log.debug('publickey from platform: {}'.format(result))
 
             # Add the pa's public key so it can connect back to us.
             auth_file = AuthFile()
@@ -341,15 +347,15 @@ def volttron_central_agent(config_path, **kwargs):
             auth_file.add(auth_entry)
 
             vc_webaddr = os.environ.get('VOLTTRON_WEB_ADDR', None)
-            # datetime_now = datetime.datetime.utcnow()
-            # _log.debug(datetime_now)
-            entry = RegistryEntry(vip_address=vip_address,
-                                  serverkey=pa_instance_serverkey,
-                                  discovery_address=web_addr,
-                                  display_name=display_name,
-                                  provisional=provisional)
-            self._registry.register(entry)
-            assert vc_webaddr
+            # # datetime_now = datetime.datetime.utcnow()
+            # # _log.debug(datetime_now)
+            # entry = RegistryEntry(vip_address=vip_address,
+            #                       serverkey=pa_instance_serverkey,
+            #                       discovery_address=web_addr,
+            #                       display_name=display_name,
+            #                       provisional=provisional)
+            # self._registry.register(entry)
+            # assert vc_webaddr
             _log.debug('Calling manage_platform from vc.')
             result = connected_to_pa.vip.rpc.call(
                 'platform.agent', 'manage_platform', vc_webaddr,
@@ -359,7 +365,7 @@ def volttron_central_agent(config_path, **kwargs):
 
 
 
-            return dict(success=True, display_name=display_name)
+            return {}
 
         # @RPC.export
         # def register_platform(self, peer_identity, name, peer_address):
