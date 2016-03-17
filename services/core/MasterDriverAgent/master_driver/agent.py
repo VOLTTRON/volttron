@@ -229,7 +229,7 @@ def master_driver_agent(config_path, **kwargs):
             self.instances[path].revert_all(**kwargs)
                 
             
-    return MasterDriverAgent(identity=vip_identity, **kwargs)
+    return MasterDriverAgent(identity=vip_identity, heartbeat_autostart=True, **kwargs)
 
 
 

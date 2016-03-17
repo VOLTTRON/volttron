@@ -35,6 +35,7 @@ from gevent.subprocess import Popen
 from mock import MagicMock
 from volttron.platform.agent import PublishMixin
 from volttron.platform.messaging import topics
+from volttron.platform.agent import utils
 
 '''
 This material was prepared as an account of work sponsored by an
@@ -338,10 +339,8 @@ def test_schedule_announce(publish_agent, volttron_instance1):
             'taskID'] == 'task_schedule_announce'
         assert args_list1[4]['requesterID'] == args_list2[4][
             'requesterID'] == TEST_AGENT
-        datetime1 = datetime.strptime(args_list1[4]['time'],
-                                      '%Y-%m-%d %H:%M:%S')
-        datetime2 = datetime.strptime(args_list2[4]['time'],
-                                      '%Y-%m-%d %H:%M:%S')
+        datetime1 = utils.parse_timestamp_string(args_list1[4]['time'])
+        datetime2 = utils.parse_timestamp_string(args_list2[4]['time'])
         delta = datetime2 - datetime1
         assert delta.seconds == 2
 
@@ -1817,7 +1816,6 @@ def test_set_value_float(publish_agent, cancel_schedules, revert_devices):
     result_message = publish_agent.callback.call_args[0][5]
     assert result_header['requesterID'] == agentid
     assert result_message == 0.2
-
 
 @pytest.mark.actuator_pubsub
 def test_revert_point(publish_agent, cancel_schedules):

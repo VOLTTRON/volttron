@@ -573,8 +573,8 @@ def volttron_central_agent(config_path, **kwargs):
         def starting(self, sender, **kwargs):
             '''This event is triggered when the platform is ready for the agent
             '''
-            _, _, my_id = self.vip.hello().get(timeout=2)
-            _log.info('Starting Volttron Central Agent ({})'.format(my_id))
+            self.vip.heartbeat.start()
+
             q = query.Query(self.core)
             self._external_addresses = q.query('addresses').get(timeout=10)
 

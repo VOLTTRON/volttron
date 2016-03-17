@@ -506,7 +506,7 @@ def bacnet_proxy_agent(config_path, **kwargs):
             return result_dict
         
                     
-    return BACnetProxyAgent(**kwargs)
+    return BACnetProxyAgent(heartbeat_autostart=True, **kwargs)
             
     
     

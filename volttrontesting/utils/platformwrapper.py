@@ -170,7 +170,7 @@ class PlatformWrapper:
 
 
     def build_agent(self, address=None, should_spawn=True, identity=None,
-                    publickey=None, secretkey=None, serverkey=None):
+                    publickey=None, secretkey=None, serverkey=None, **kwargs):
         """ Build an agent connnected to the passed bus.
 
         By default the current instance that this class wraps will be the
@@ -189,8 +189,8 @@ class PlatformWrapper:
             address = self.vip_address[0]
 
         agent = Agent(address=address, identity=identity, publickey=publickey,
-                      secretkey=secretkey, serverkey=serverkey)
-        print('full tcp address: {}'.format(agent.core.address))
+                      secretkey=secretkey, serverkey=serverkey, **kwargs)
+        print('platformwrapper.build_agent.address: {}'.format(address))
 
         # Automatically add agent's credentials to auth.json file
         if publickey:
