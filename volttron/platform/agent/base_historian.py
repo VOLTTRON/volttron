@@ -69,7 +69,7 @@ import pytz
 import re
 from abc import abstractmethod
 from dateutil.parser import parse
-from volttron.platform.agent.utils import process_timestamp
+from volttron.platform.agent.utils import process_timestamp, fix_sqlite3_datetime
 from volttron.platform.messaging import topics, headers as headers_mod
 from volttron.platform.vip.agent import *
 from zmq.utils import jsonapi
@@ -79,7 +79,8 @@ _log = logging.getLogger(__name__)
 ACTUATOR_TOPIC_PREFIX_PARTS = len(topics.ACTUATOR_VALUE.split('/'))
 ALL_REX = re.compile('.*/all$')
 
-
+#Register a better datetime parser in sqlite3.
+fix_sqlite3_datetime()
 
 class BaseHistorianAgent(Agent):
     '''This is the base agent for historian Agents.
@@ -214,7 +215,7 @@ class BaseHistorianAgent(Agent):
             if not isinstance(readings, list):
                 readings = [(datetime.utcnow(), readings)]
             elif isinstance(readings[0],str):
-                my_ts, my_tz = process_timestamp(readings[0])
+                my_ts, my_tz = process_timestamp(readings[0], topic)
                 readings = [(my_ts,readings[1])]
                 if tz:
                     meta['tz'] = tz
@@ -263,7 +264,7 @@ class BaseHistorianAgent(Agent):
     def _capture_data(self, peer, sender, bus, topic, headers, message, device):
         
         timestamp_string = headers.get(headers_mod.DATE)
-        timestamp, my_tz = process_timestamp(timestamp_string)
+        timestamp, my_tz = process_timestamp(timestamp_string, topic)
         
         try:
             # 2.0 agents compatability layer makes sender == pubsub.compat so 

@@ -13,6 +13,7 @@ import pytest
 import re
 from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.messaging import topics
+from volttron.platform.agent import utils
 
 try:
     import mysql.connector as mysql
@@ -637,7 +638,7 @@ def test_query_start_time_with_z(volttron_instance1, sqlhistorian, clean):
         'pubsub', ALL_TOPIC, headers, all_message).get(timeout=10)
     gevent.sleep(0.5)
     time2 = datetime.utcnow() + offset
-    time2 = time2.isoformat(' ') + 'Z'
+    time2 = utils.format_timestamp(time2)
     headers = {
         headers_mod.DATE: time2
     }
@@ -657,11 +658,8 @@ def test_query_start_time_with_z(volttron_instance1, sqlhistorian, clean):
     print ("time2:", time2)
     print('Query Result', result)
     assert (len(result['values']) == 2)
-    (time2_date, time2_time) = time2.split(" ")
-    if time2_time[-1:] == 'Z':
-        time2_time = time2_time[:-1]
     # Verify order LAST_TO_FIRST.
-    assert_timestamp(result['values'][0][0], time2_date, time2_time)
+    assert (result['values'][0][0] ==  time2)
     assert (result['values'][0][1] == oat_reading)
 
 

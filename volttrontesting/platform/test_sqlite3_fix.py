@@ -55,75 +55,92 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-import json
-import os
-
-import gevent
+import python_2_7_3_sqlite3 as sql_old
+from dateutil.parser import parse
+from  volttron.platform.agent.utils import fix_sqlite3_datetime 
 import pytest
+import sqlite3 as sql
 
-from volttron.platform import jsonrpc
-from volttron.platform.auth import AuthEntry, AuthFile
-
-@pytest.fixture(scope='function')
-def auth_file_platform_tuple(volttron_instance1_encrypt):
-    platform = volttron_instance1_encrypt
-    auth_file = AuthFile(os.path.join(platform.volttron_home, 'auth.json'))
-
-    allow_entries, groups, roles = auth_file.read()
-    assert len(allow_entries) == 0
-    assert len(groups) == 0
-    assert len(roles) == 0
-    return auth_file, platform
-
-@pytest.fixture(scope='module')
-def auth_entry1():
-    return AuthEntry(domain='domain1', address='tcp://127.0.0.1', 
-            credentials='NULL', user_id='user1', groups=['group1'],
-            roles=['role1'], capabilities=['cap1'], comments='comment1',
-            enabled=True)
-
-@pytest.fixture(scope='module')
-def auth_entry2():
-    return AuthEntry(domain='domain2', address='tcp://127.0.0.2',
-            credentials='CURVE:' + 'A'*43,
-            user_id='user2', groups=['group2'], roles=['role2'], 
-            capabilities=['cap2'], comments='comment2', enabled=False)
-
-@pytest.fixture(scope='module')
-def auth_entry3():
-    return AuthEntry(domain='domain3', address='tcp://127.0.0.3',
-            credentials='CURVE:' + 'A'*43,
-            user_id='user3', groups=['group3'], roles=['role3'], 
-            capabilities=['cap3'], comments='comment3', enabled=False)
-
-def assert_attributes_match(list1, list2):
-    assert len(list1) == len(list2)
-    for i in range(len(list1)):
-        for key in vars(list1[i]):
-            assert vars(list1[i])[key] == vars(list2[i])[key]
-
-@pytest.mark.auth
-def test_auth_file_api(auth_file_platform_tuple, auth_entry1,
-        auth_entry2, auth_entry3):
-    auth_file, platform = auth_file_platform_tuple
+@pytest.mark.dev
+def test_sqlite_fixes():
+    """This is all in a single test so we don't have to muck around with 
+    reloading modules."""
+    conn = sql_old.connect(':memory:', detect_types=sql_old.PARSE_DECLTYPES|sql_old.PARSE_COLNAMES)
     
-    # add entries
-    auth_file.add(auth_entry1)
-    auth_file.add(auth_entry2)
-    entries = auth_file.read_allow_entries()
-    assert len(entries) == 2
-
-    my_entries = [auth_entry1, auth_entry2]
-    assert_attributes_match(entries, my_entries)
-
-    # update entries
-    auth_file.update_by_index(auth_entry3, 0)
-    entries = auth_file.read_allow_entries()
-    my_entries = [auth_entry3, auth_entry2]
-    assert_attributes_match(entries, my_entries)
-
-    # remove entries
-    auth_file.remove_by_index(1)
-    entries = auth_file.read_allow_entries()
-    my_entries = [auth_entry3]
-    assert_attributes_match(entries, my_entries)
+    cur = conn.cursor()
+    cur.execute("create table test(ts timestamp)")
+    
+    now_string = '2015-12-17 00:00:00.000005Z'
+    now = parse(now_string)
+    
+    now_string_tz = '2015-12-17 00:00:00Z'
+    now_tz = parse(now_string_tz)
+    
+    cur.execute("insert into test(ts) values (?)", (now,))
+    
+    #Verify that our private copy of sqlite3 from 2.7.3 does indeed break.    
+    try:
+        cur.execute("select * from test")
+        print "Did not raise expected exception"
+        assert False
+    except ValueError as e:
+        assert e.message == "invalid literal for int() with base 10: '000005+00:00'"
+     
+    cur.execute("delete from test")   
+    
+    cur.execute("insert into test(ts) values (?)", (now_tz,))
+    
+    try:
+        cur.execute("select * from test")
+        print "Did not raise expected exception"
+        assert False
+    except ValueError as e:
+        assert e.message == "invalid literal for int() with base 10: '00+00'"
+        
+    fix_sqlite3_datetime(sql_old)
+    
+    cur.execute("delete from test")  
+    cur.execute("insert into test(ts) values (?)", (now,))
+    
+    cur.execute("select * from test")
+    test_now = cur.fetchone()[0]
+    
+    cur.execute("delete from test")  
+    cur.execute("insert into test(ts) values (?)", (now_tz,))
+    
+    cur.execute("select * from test")
+    test_now_tz = cur.fetchone()[0]
+    
+    assert test_now == now
+    assert test_now_tz == now_tz
+    
+@pytest.mark.dev
+def test_sqlite_fix_current():
+    now_string = '2015-12-17 00:00:00.000005Z'
+    now = parse(now_string)
+    
+    now_string_tz = '2015-12-17 00:00:00Z'
+    now_tz = parse(now_string_tz)
+    
+    #Patch the global sqlite3
+    fix_sqlite3_datetime()
+    
+    conn = sql.connect(':memory:', detect_types=sql.PARSE_DECLTYPES|sql.PARSE_COLNAMES)
+    
+    cur = conn.cursor()
+    cur.execute("create table test(ts timestamp)")
+    
+    cur.execute("delete from test")  
+    cur.execute("insert into test(ts) values (?)", (now,))
+    
+    cur.execute("select * from test")
+    test_now = cur.fetchone()[0]
+    
+    cur.execute("delete from test")  
+    cur.execute("insert into test(ts) values (?)", (now_tz,))
+    
+    cur.execute("select * from test")
+    test_now_tz = cur.fetchone()[0]
+    
+    assert test_now == now
+    assert test_now_tz == now_tz
