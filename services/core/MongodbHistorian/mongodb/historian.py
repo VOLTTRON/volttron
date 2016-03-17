@@ -207,18 +207,28 @@ def historian(config_path, **kwargs):
                 ts = x['timestamp']
                 topic = x['topic']
                 value = x['value']
+                meta = x['meta']
 
                 # look at the topics that are stored in the database already
                 # to see if this topic has a value
                 topic_id = self._topic_map.get(topic.lower(), None)
 
                 if topic_id is None:
-                    row  = db.topics.insert_one({'topic_name': topic})# self.insert_topic(topic)
+                    row  = db.topics.insert_one({'topic_name': topic})
                     topic_id = row.inserted_id
                     # topic map should hold both a lookup from topic name
                     # and from id to topic_name.
                     self._topic_map[topic.lower()] = topic_id
                     #self._topic_map[topic_id] = topic
+
+                old_meta = self._topic_meta.get(topic_id, {})
+                if set(old_meta.items()) != set(meta.items()):
+                    _log.debug('Updating meta for topic: {} {}'.format(
+                        topic, meta
+                    ))
+                    row  = db.meta.insert_one(
+                        {'topic_id': topic_id, 'meta': meta})
+                    self._topic_meta[topic_id] = meta
 
                 # Reformat to a filter tha bulk inserter.
                 bulk_publish.append(InsertOne(
@@ -297,32 +307,41 @@ def historian(config_path, **kwargs):
             # Create list of tuples for return values.
             values = [(utils.format_timestamp(row['ts']), row['value']) for row in cursor]
 
-            return {'values': values}
+            return {
+                'values': values,
+                'metadata': self._topic_meta.get(topic_id, {})
+            }
 
         def query_topic_list(self):
             db = self._client.get_default_database()
             cursor = db["topics"].find()
 
-            _log.debug('topic_list: {}'.format(items))
-            res = {}
+            res = []
             for document in cursor:
-                res[document['topic_name']] = document['_id']
-            return items.keys()
+                res.append(document['topic_name'])
 
-        def get_topic_map(self):
+            return res
 
-            _log.debug('getting topic map')
-            topic_list = query_topic_list()
+        def _load_topic_map(self):
+            _log.debug('loading topic map')
+            db = self._client.get_default_database()
+            cursor = db["topics"].find()
 
-            for k, v in topic_list:
-                self._topic_map[k.lower()] = v
+            for document in cursor:
+                self._topic_map[document['topic_name'].lower()] = document['_id']
 
-            return self._topic_map
+        def _load_meta_map(self):
+            _log.debug('loading meta map')
+            db = self._client.get_default_database()
+            cursor = db["meta"].find()
 
-
+            for document in cursor:
+                self._topic_meta[document['topic_id']] = document['meta']
 
         def historian_setup(self):
             _log.debug("HISTORIAN SETUP")
+            self._load_topic_map()
+            self._load_meta_map()
             #self.mongoclient = self.get_mongo_client()
             #self._topic_map = self.get_topic_map()
 
