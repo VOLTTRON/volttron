@@ -7,26 +7,27 @@
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 #
-# 1. Redistributions of source code must retain the above copyright notice, this
-#    list of conditions and the following disclaimer.
+# 1. Redistributions of source code must retain the above copyright notice,
+#    this list of conditions and the following disclaimer.
 # 2. Redistributions in binary form must reproduce the above copyright notice,
 #    this list of conditions and the following disclaimer in the documentation
 #    and/or other materials provided with the distribution.
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-# ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+# THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+# CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
+# OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# The views and conclusions contained in the software and documentation are those
-# of the authors and should not be interpreted as representing official policies,
-# either expressed or implied, of the FreeBSD Project.
+# The views and conclusions contained in the software and documentation are
+# those of the authors and should not be interpreted as representing
+# official policies, either expressed or implied, of the FreeBSD Project.
 #
 
 # This material was prepared as an account of work sponsored by an
@@ -51,35 +52,31 @@
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 
-#}}}
+# }}}
 from __future__ import absolute_import, print_function
 
-import datetime
 import logging
 import sys
-import dateutil
+
 import pymongo
-from pymongo import ReplaceOne, InsertOne
 from bson.objectid import ObjectId
+from pymongo import InsertOne
 
-import gevent
-
-from volttron.platform.vip.agent import *
-from volttron.platform.agent.base_historian import BaseHistorian
 from volttron.platform.agent import utils
+from volttron.platform.agent.base_historian import BaseHistorian
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 __version__ = '0.1'
 
-def historian(config_path, **kwargs):
 
+def historian(config_path, **kwargs):
     config = utils.load_config(config_path)
     connection = config.get('connection', None)
     assert connection is not None
 
-    databaseType = connection.get('type', None)
-    assert databaseType is not None
+    database_type = connection.get('type', None)
+    assert database_type is not None
 
     params = connection.get('params', None)
     assert params is not None
@@ -105,16 +102,6 @@ def historian(config_path, **kwargs):
             :param kwargs:
             :return:
             """
-            # if tables_def['table_prefix']:
-            #     tables_def['data_table'] = tables_def['table_prefix'] + \
-            #         "_" + tables_def['data_table']
-            #     tables_def['topics_table'] = tables_def['table_prefix'] + \
-            #                                  "_" + tables_def['topics_table']
-            #     tables_def['meta_table'] = tables_def['table_prefix'] + \
-            #                                "_" + tables_def['meta_table']
-            #
-            # tables_def.pop('table_prefix', None)
-            # self._data_collection_name =
 
             self._data_collection = 'data'
             self._meta_collection = 'meta'
@@ -139,24 +126,25 @@ def historian(config_path, **kwargs):
 
             if isinstance(hosts, list):
                 if not ports:
-                    hosts=','.join(hosts)
-    	        else:
+                    hosts = ','.join(hosts)
+                else:
                     if len(ports) != len(hosts):
                         raise StandardError(
                             'port an hosts must have the same number of items'
                         )
-    	            hostports = zip(hosts,ports)
-                    hostports = [str(e[0])+':'+str(e[1]) for e in hostports]
+                    hostports = zip(hosts, ports)
+                    hostports = [str(e[0]) + ':' + str(e[1]) for e in
+                                 hostports]
                     hosts = ','.join(hostports)
             else:
-    	        if isinstance(ports, list):
+                if isinstance(ports, list):
                     raise StandardError(
                         'port cannot be a list if hosts is not also a list.'
                     )
-                hosts = '{}:{}'.format(hosts,ports)
+                hosts = '{}:{}'.format(hosts, ports)
 
             params = {'hostsandports': hosts, 'user': user,
-                'passwd': passwd, 'database': database_name}
+                      'passwd': passwd, 'database': database_name}
 
             mongo_uri = "mongodb://{user}:{passwd}@{hostsandports}/{database}"
             mongo_uri = mongo_uri.format(**params)
@@ -164,42 +152,12 @@ def historian(config_path, **kwargs):
 
             return mongoclient
 
-        # @Core.receiver("onstart")
-        # def starting(self, sender, **kwargs):
-        #     _log.debug('Starting address: {} identity: {}'.format(self.core.address, self.core.identity))
-        #
-        #     if self.core.identity == 'platform.historian':
-        #         # Check to see if the platform agent is available, if it isn't then
-        #         # subscribe to the /platform topic to be notified when the platform
-        #         # agent becomes available.
-        #         try:
-        #             ping = self.vip.ping('platform.agent',
-        #                                  'awake?').get(timeout=3)
-        #             _log.debug("Ping response was? "+ str(ping))
-        #             self.vip.rpc.call('platform.agent', 'register_service',
-        #                               self.core.identity).get(timeout=3)
-        #         except Unreachable:
-        #             _log.debug('Could not register historian service')
-        #         finally:
-        #             self.vip.pubsub.subscribe('pubsub', '/platform',
-        #                                       self._connect_platform)
-        #             _log.debug("Listening to /platform")
-
-        # def _connect_platform(self, peer, sender, bus, topic, headers, message):
-        #     ''' Connect to the platform.agent and register service.
-        #     '''
-        #     _log.debug('Platform is now: {}'.format(message))
-        #     if message == 'available' and \
-        #             self.core.identity == 'platform.historian':
-        #         gevent.spawn(self.vip.rpc.call, 'platform.agent',
-        #             'register_service', self.core.identity)
-        #         gevent.sleep(0)
-
         def publish_to_historian(self, to_publish_list):
             _log.debug("publish_to_historian number of items: {}"
                        .format(len(to_publish_list)))
 
-            # Use the db instance to insert/update the topics and data collections
+            # Use the db instance to insert/update the topics
+            # and data collections
             db = self._client.get_default_database()
 
             bulk_publish = []
@@ -214,19 +172,20 @@ def historian(config_path, **kwargs):
                 topic_id = self._topic_map.get(topic.lower(), None)
 
                 if topic_id is None:
-                    row  = db[self._topic_collection].insert_one({'topic_name': topic})
+                    row = db[self._topic_collection].insert_one(
+                        {'topic_name': topic})
                     topic_id = row.inserted_id
                     # topic map should hold both a lookup from topic name
                     # and from id to topic_name.
                     self._topic_map[topic.lower()] = topic_id
-                    #self._topic_map[topic_id] = topic
+                    # self._topic_map[topic_id] = topic
 
                 old_meta = self._topic_meta.get(topic_id, {})
                 if set(old_meta.items()) != set(meta.items()):
                     _log.debug('Updating meta for topic: {} {}'.format(
                         topic, meta
                     ))
-                    row  = db[self._meta_collection].insert_one(
+                    db[self._meta_collection].insert_one(
                         {'topic_id': topic_id, 'meta': meta})
                     self._topic_meta[topic_id] = meta
 
@@ -258,26 +217,20 @@ def historian(config_path, **kwargs):
 
              metadata is not required (The caller will normalize this to {}
              for you)
+             @param order:
+             @param count:
+             @param skip:
+             @param end:
+             @param start:
+             @param topic:
             """
 
             topic_lower = topic.lower()
             topic_id = self._topic_map.get(topic_lower, None)
-            # except:
-            #     self._topic_map = {}
-            #     _log.debug('CONNECTED TO {}'.format(self.database_name))
-            #     for row in self.mongoclient[self.database_name]['topics'].find():
-            #         self._topic_map[row['topic_name'].lower()] = row['_id']
-            #         self._topic_map[row['_id']] = row['topic_name']
-            #
-            #     topic_id = self._topic_map.get(topic, None)
 
             if not topic_id:
                 _log.debug('Topic id was None for topic: {}'.format(topic))
                 return {}
-
-            # if self.mongoclient is None:
-            #     _log.debug('No mongo client available')
-            #     return {}
 
             db = self._client.get_default_database()
 
@@ -301,11 +254,12 @@ def historian(config_path, **kwargs):
 
             cursor = db[self._data_collection].find(find_params)
             cursor = cursor.skip(skip_count).limit(count)
-            cursor = cursor.sort( [ ("ts", order_by) ] )
+            cursor = cursor.sort([("ts", order_by)])
             _log.debug('cursor count is: {}'.format(cursor.count()))
 
             # Create list of tuples for return values.
-            values = [(utils.format_timestamp(row['ts']), row['value']) for row in cursor]
+            values = [(utils.format_timestamp(row['ts']), row['value']) for row
+                      in cursor]
 
             return {
                 'values': values,
@@ -328,7 +282,8 @@ def historian(config_path, **kwargs):
             cursor = db[self._topic_collection].find()
 
             for document in cursor:
-                self._topic_map[document['topic_name'].lower()] = document['_id']
+                self._topic_map[document['topic_name'].lower()] = document[
+                    '_id']
 
         def _load_meta_map(self):
             _log.debug('loading meta map')
@@ -342,17 +297,15 @@ def historian(config_path, **kwargs):
             _log.debug("HISTORIAN SETUP")
             self._load_topic_map()
             self._load_meta_map()
-            #self.mongoclient = self.get_mongo_client()
-            #self._topic_map = self.get_topic_map()
-
 
     MongodbHistorian.__name__ = 'MongodbHistorian'
     return MongodbHistorian(identity=identity, **kwargs)
 
 
-
 def main(argv=sys.argv):
-    '''Main method called by the eggsecutable.'''
+    """Main method called by the eggsecutable.
+    @param argv:
+    """
     try:
         utils.vip_main(historian)
     except Exception as e:
