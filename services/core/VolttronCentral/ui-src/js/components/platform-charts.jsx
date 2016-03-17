@@ -43,10 +43,16 @@ var PlatformCharts = React.createClass({
             }
         }
 
+        if (platformCharts.length === 0)
+        {
+            var noCharts = <div>No charts have been loaded. Add charts by selecting points in the side panel.</div>
+            platformCharts.push(noCharts);
+        }
+
         return (
                 <div>
                     <div className="view">
-                        <h2>Points</h2>
+                        <h2>Charts</h2>
                         {platformCharts}
                     </div>
                 </div>

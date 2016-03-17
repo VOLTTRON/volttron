@@ -49,8 +49,14 @@ var platformManagerActionCreators = {
                     platforms: platforms,
                 });
 
-                platforms.forEach(function (platform) {
-                    platformActionCreators.loadPlatform(platform);
+                platforms.forEach(function (platform, i) {
+                    if (platform.name === null || platform.name === "")
+                    {
+                        platform.name = "vc" + (i + 1);
+                    }
+                    
+                    // platformActionCreators.loadPlatform(platform);
+                    platformActionCreators.initializeAgents(platform);
                 });
             })
             .catch(rpc.Error, handle401);
