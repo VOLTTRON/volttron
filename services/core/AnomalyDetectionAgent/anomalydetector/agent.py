@@ -55,6 +55,7 @@
 
 import logging
 import sys
+import uuid
 
 from volttron.platform.vip.agent import Agent, Core, PubSub, RPC, compat
 from volttron.platform.agent import utils
@@ -65,22 +66,44 @@ _log = logging.getLogger(__name__)
 __version__ = '3.5'
 
 
-class AnomalyDetectionAgent(Agent):
-    '''Listens to specified topics and publishes alerts when anomalies are
-    detected.
-    '''
+def anomalydetection_agent(config_path, **kwargs):
+    config = utils.load_config(config_path)
+    identity = config.get('identity', 'anomalydetection')
+    kwargs.pop('identity', None)
 
-    def __init__(self, config_path, **kwargs):
-        super(AnomalyDetectionAgent, self).__init__(**kwargs)
-        self.config = utils.load_config(config_path)
+    class AnomalyDetectionAgent(Agent):
+        '''Listens to specified topics and publishes alerts when anomalies are
+        detected.
+        '''
 
-    @RPC.export
-    def watch_topic(self, topic):
-        pass
+        def __init__(self, **kwargs):
+            super(AnomalyDetectionAgent, self).__init__(**kwargs)
+            self._topics = {}
+
+        @RPC.export
+        def watch_max(self, prefix, max_value):
+            alert_topic = '{}'.format(uuid.uuid4())
+
+            def callback(peer, sender, bus, topic, headers, message):
+                if message > max_value:
+                    msg = 'Value from {} ({}) passed threshold ({})'.format(
+                            topic, message, max_value)
+                    self.vip.pubsub.publish('pubsub', alert_topic, message=msg)
+
+            self.vip.pubsub.subscribe('pubsub', prefix, callback)
+            return alert_topic
+
+        @RPC.export
+        def unwatch(self, alert_topic):
+            self.vip.pubsub.unsubscribe('pubsub', alert_topic, callback=None)
+
+    AnomalyDetectionAgent.__name__ = 'AnomalyDetectionAgent'
+    return AnomalyDetectionAgent(identity=identity)
+
 
 def main(argv=sys.argv):
     '''Main method called by the platform.'''
-    utils.vip_main(AnomalyDetectionAgent)
+    utils.vip_main(anomalydetection_agent)
 
 if __name__ == '__main__':
     # Entry point for script

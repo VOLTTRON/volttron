@@ -66,48 +66,54 @@ utils.setup_logging()
 _log = logging.getLogger(__name__)
 __version__ = '3.5'
 
+def sysmon_agent(config_path, **kwargs):
+    config = utils.load_config(config_path)
+    identity = config.get('identity', 'sysmon')
+    kwargs.pop('identity', None)
 
-class SysMonAgent(Agent):
-    '''Monitors system utilization (CPU, memory, disks, network)'''
+    class SysMonAgent(Agent):
+        '''Monitors system utilization (CPU, memory, disks, network)'''
 
-    def __init__(self, config_path, **kwargs):
-        super(SysMonAgent, self).__init__(**kwargs)
-        self.config = utils.load_config(config_path)
-        self._base_topic = self.config.get('base_topic',
-            'datalogger/log/platform/status')
+        def __init__(self, **kwargs):
+            super(SysMonAgent, self).__init__(**kwargs)
+            self._base_topic = config.get('base_topic',
+                'datalogger/log/platform/status')
 
-    @Core.receiver('onstart')
-    def start(self, sender, **kwargs):
-        self._periodic_pub(self.cpu_percent, 'cpu_percent', 
-            self.config.get('cpu_check_period', 5))
-        self._periodic_pub(self.memory_percent, 'memory_percent',
-            self.config.get('memory_check_period', 5))
-        self._periodic_pub(self.disk_percent, 'disk_percent',
-            self.config.get('disk_check_period', 5))
+        @Core.receiver('onstart')
+        def start(self, sender, **kwargs):
+            self._periodic_pub(self.cpu_percent,
+                    config.get('cpu_check_period', 5))
+            self._periodic_pub(self.memory_percent,
+                    config.get('memory_check_period', 5))
+            self._periodic_pub(self.disk_percent,
+                    config.get('disk_check_period', 5))
 
-    def _periodic_pub(self, func, sub_topic, period, wait=0):
-        def pub_wrapper():
-            data = func()
-            topic = self._base_topic + '/' + sub_topic
-            self.vip.pubsub.publish(peer='pubsub', topic=topic, message=data)
-        self.core.periodic(period, pub_wrapper, wait=wait)
+        def _periodic_pub(self, func, period, wait=0):
+            def pub_wrapper():
+                data = func()
+                topic = self._base_topic + '/' + func.__name__
+                self.vip.pubsub.publish(peer='pubsub', topic=topic, message=data)
+            self.core.periodic(period, pub_wrapper, wait=wait)
 
-    @RPC.export
-    def cpu_percent(self):
-        return psutil.cpu_percent()
+        @RPC.export
+        def cpu_percent(self):
+            return psutil.cpu_percent()
 
-    @RPC.export
-    def memory_percent(self):
-        return psutil.virtual_memory().percent
+        @RPC.export
+        def memory_percent(self):
+            return psutil.virtual_memory().percent
 
-    @RPC.export
-    def disk_percent(self):
-        return psutil.disk_usage(self.config.get('disk_path', '/')).percent
+        @RPC.export
+        def disk_percent(self):
+            return psutil.disk_usage(config.get('disk_path', '/')).percent
+
+    SysMonAgent.__name__ = 'SysMonAgent'
+    return SysMonAgent(identity=identity, **kwargs)
 
 
 def main(argv=sys.argv):
     '''Main method called by the platform.'''
-    utils.vip_main(SysMonAgent)
+    utils.vip_main(sysmon_agent)
 
 if __name__ == '__main__':
     # Entry point for script
