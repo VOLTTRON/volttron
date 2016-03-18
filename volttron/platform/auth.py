@@ -387,7 +387,8 @@ class AuthEntry(object):
 class AuthFile(object):
     def __init__(self, auth_file=None):
         if auth_file is None:
-            auth_file_dir = os.environ.get('VOLTTRON_HOME', '~/.volttron')
+            auth_file_dir = os.path.expanduser(
+                    os.environ.get('VOLTTRON_HOME', '~/.volttron'))
             auth_file = os.path.join(auth_file_dir, 'auth.json')
         self.auth_file = auth_file
 
@@ -462,7 +463,7 @@ class AuthFile(object):
         if matching_indices:
             raise AuthFileEntryAlreadyExists(matching_indices)
 
-    def _update_by_indices(auth_entry, indices):
+    def _update_by_indices(self, auth_entry, indices):
         '''Updates all entries at given indices with auth_entry'''
         for index in indices:
             self.update_by_index(auth_entry, index)
@@ -568,7 +569,7 @@ class AuthFileIndexError(AuthException, IndexError):
         if message is None:
             message = 'Invalid {}: {}'.format(
                 'indicies' if len(indices) > 1 else 'index', indices)
-        super(AuthFileInvalidIndex).__init__(message)
+        super(AuthFileIndexError, self).__init__(message)
         self.indices = indices
 
 
@@ -578,7 +579,7 @@ class AuthFileEntryAlreadyExists(AuthFileIndexError):
         if message is None:
             message = ('entry matches domain, address and '
                 'credentials of {} at {}').format(
-                    'entry' if len(same_list) == 1 else 'entries',
+                    'entry' if len(indicies) == 1 else 'entries',
                     indicies)
 
-        super(AuthFileEntryAlreadyExists).__init__(indicies, message)
+        super(AuthFileEntryAlreadyExists, self).__init__(indicies, message)
