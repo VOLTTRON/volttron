@@ -61,7 +61,7 @@ from  volttron.platform.agent.utils import fix_sqlite3_datetime
 import pytest
 import sqlite3 as sql
 
-@pytest.mark.dev
+#@pytest.mark.dev
 def test_sqlite_fixes():
     """This is all in a single test so we don't have to muck around with 
     reloading modules."""
@@ -114,7 +114,7 @@ def test_sqlite_fixes():
     assert test_now == now
     assert test_now_tz == now_tz
     
-@pytest.mark.dev
+#@pytest.mark.dev
 def test_sqlite_fix_current():
     now_string = '2015-12-17 00:00:00.000005Z'
     now = parse(now_string)

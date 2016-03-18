@@ -159,9 +159,9 @@ meta_table = 'meta'
                     pytest.mark.skipif(
                         not HAS_MYSQL_CONNECTOR,
                         reason='No mysql client available.')(mysql_platform3),
-                    sqlite_platform1,
-                    sqlite_platform2,
-                    sqlite_platform3
+                    # sqlite_platform1,
+                    # sqlite_platform2,
+                    # sqlite_platform3
                 ])
 def sqlhistorian(request, volttron_instance1):
     global db_connection, publish_agent, agent_uuid, data_table, \
@@ -300,9 +300,9 @@ def connect_sqlite(request):
 def clean(request):
     def delete_rows():
         global db_connection, data_table
-        cursor = db_connection.cursor()
-        cursor.execute("DELETE FROM " + data_table)
-        db_connection.commit()
+        # cursor = db_connection.cursor()
+        # cursor.execute("DELETE FROM " + data_table)
+        # db_connection.commit()
         print("deleted test records from " + data_table)
 
     request.addfinalizer(delete_rows)
@@ -316,7 +316,7 @@ def assert_timestamp(result, expected_date, expected_time):
     if MICROSECOND_SUPPORT:
         assert (result == expected_date + 'T' + expected_time)
     else:
-        assert (result == expected_date + 'T' + expected_time[:-7])
+        assert (result == expected_date + 'T' + expected_time[:-7] + '.000000')
 
 
 @pytest.mark.historian
@@ -637,8 +637,9 @@ def test_query_start_time_with_z(volttron_instance1, sqlhistorian, clean):
     publish_agent.vip.pubsub.publish(
         'pubsub', ALL_TOPIC, headers, all_message).get(timeout=10)
     gevent.sleep(0.5)
-    time2 = datetime.utcnow() + offset
-    time2 = utils.format_timestamp(time2)
+
+    time2 = utils.format_timestamp(datetime.utcnow() + offset)
+    print ('time2', time2)
     headers = {
         headers_mod.DATE: time2
     }
@@ -659,7 +660,8 @@ def test_query_start_time_with_z(volttron_instance1, sqlhistorian, clean):
     print('Query Result', result)
     assert (len(result['values']) == 2)
     # Verify order LAST_TO_FIRST.
-    assert (result['values'][0][0] ==  time2)
+    (time2_date, time2_time) = time2.split("T")
+    assert_timestamp(result['values'][0][0], time2_date, time2_time)
     assert (result['values'][0][1] == oat_reading)
 
 
@@ -855,7 +857,7 @@ def test_zero_timestamp(volttron_instance1, sqlhistorian, clean):
     print('Query Result', result)
     assert (len(result['values']) == 1)
     (now_date, now_time) = now.split(" ")
-    now_time = now_time[:-2] + '1'
+    now_time = now_time[:-1]
     assert_timestamp(result['values'][0][0], now_date, now_time)
     assert (result['values'][0][1] == mixed_reading)
 
@@ -881,12 +883,10 @@ def test_zero_timestamp(volttron_instance1, sqlhistorian, clean):
     print('Query Result', result)
     assert (len(result['values']) == 1)
     (now_date, now_time) = now.split(" ")
-    now_time = now_time[:-1] + '1'
     assert_timestamp(result['values'][0][0], now_date, now_time)
     assert (result['values'][0][1] == mixed_reading)
 
 
-@pytest.mark.xfail(reason="Related to issue #234. Does not work as expected")
 @pytest.mark.historian
 def test_topic_name_case_change(volttron_instance1, sqlhistorian, clean):
     """
@@ -943,7 +943,11 @@ def test_topic_name_case_change(volttron_instance1, sqlhistorian, clean):
     # Publish messages
     publish_agent.vip.pubsub.publish(
         'pubsub', ALL_TOPIC, headers, all_message).get(timeout=10)
+
+    gevent.sleep(0.5)
+
     # Query the historian
+    print("query time ", time1)
     result = publish_agent.vip.rpc.call(
         'platform.historian',
         'query',
@@ -952,24 +956,10 @@ def test_topic_name_case_change(volttron_instance1, sqlhistorian, clean):
         count=20,
         order="FIRST_TO_LAST").get(timeout=10)
     print('Query Result', result)
-    assert (len(result['values']) == 1)
+    assert (len(result['values']) == 2)
     (time1_date, time1_time) = time1.split(" ")
     time1_time = time1_time[:-2] + '1'
     assert_timestamp(result['values'][0][0], time1_date, time1_time)
-    assert (result['values'][0][1] == oat_reading)
-
-    result = publish_agent.vip.rpc.call(
-        'platform.historian',
-        'query',
-        topic="Building/LAB/Device/Outsideairtemperature",
-        start=time2,
-        count=20,
-        order="FIRST_TO_LAST").get(timeout=10)
-    print('Query Result', result)
-    assert (len(result['values']) == 1)
-    (time2_date, time2_time) = time2.split(" ")
-    time2_time = time2_time[:-2] + '1'
-    assert_timestamp(result['values'][0][0], time2_date, time2_time)
     assert (result['values'][0][1] == oat_reading)
 
 

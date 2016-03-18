@@ -90,7 +90,7 @@ class MySqlFuncts(DbDriver):
         else:
             self.MICROSECOND_SUPPORT = True
 
-    def query(self, topic, start=None, end=None, skip=0,
+    def query(self, topic_id, start=None, end=None, skip=0,
               count=None, order="FIRST_TO_LAST"):
         """This function should return the results of a query in the form:
         {"values": [(timestamp1, value1), (timestamp2, value2), ...],
@@ -99,9 +99,8 @@ class MySqlFuncts(DbDriver):
          metadata is not required (The caller will normalize this to {}
          for you)
         """
-        query = '''SELECT data.ts, data.value_string
-                FROM ''' + self.data_table + ''' AS
-                data, ''' + self.topics_table + ''' AS topics
+        query = '''SELECT ts, value_string
+                FROM ''' + self.data_table + '''
                 {where}
                 {order_by}
                 {limit}
@@ -110,12 +109,11 @@ class MySqlFuncts(DbDriver):
         if self.MICROSECOND_SUPPORT is None:
             self.init_microsecond_support()
 
-        where_clauses = ["WHERE topics.topic_name = %s",
-                         "topics.topic_id = data.topic_id"]
-        args = [topic]
+        where_clauses = ["WHERE topic_id = %s"]
+        args = [topic_id]
 
         if start is not None:
-            where_clauses.append("data.ts >= %s")
+            where_clauses.append("ts >= %s")
             if self.MICROSECOND_SUPPORT:
                 args.append(start)
             else:
@@ -123,7 +121,7 @@ class MySqlFuncts(DbDriver):
                 args.append(start_str[:start_str.rfind('.')])
 
         if end is not None:
-            where_clauses.append("data.ts <= %s")
+            where_clauses.append("ts <= %s")
             if self.MICROSECOND_SUPPORT:
                 args.append(end)
             else:
@@ -132,9 +130,9 @@ class MySqlFuncts(DbDriver):
 
         where_statement = ' AND '.join(where_clauses)
 
-        order_by = 'ORDER BY data.ts ASC'
+        order_by = 'ORDER BY ts ASC'
         if order == 'LAST_TO_FIRST':
-            order_by = ' ORDER BY data.ts DESC'
+            order_by = ' ORDER BY ts DESC'
 
         # can't have an offset without a limit
         # -1 = no limit and allows the user to
@@ -179,7 +177,21 @@ class MySqlFuncts(DbDriver):
         return '''INSERT INTO ''' + self.topics_table + ''' (topic_name)
             values (%s)'''
 
+    def update_topic_query(self):
+        return '''UPDATE ''' + self.topics_table + ''' SET topic_name = %s
+            WHERE topic_id = %s'''
+
+    #@property
     def get_topic_map(self):
+        _log.debug("in get_topic_map")
         q = "SELECT topic_id, topic_name FROM " + self.topics_table + ";"
         rows = self.select(q, None)
-        return dict([(n, t) for t, n in rows])
+        _log.debug("loading topic map from db")
+        id_map = dict()
+        name_map = dict()
+        for t, n in rows:
+            id_map[n.lower()] = t
+            name_map[n.lower()] = n
+        _log.debug(id_map)
+        _log.debug(name_map)
+        return id_map, name_map

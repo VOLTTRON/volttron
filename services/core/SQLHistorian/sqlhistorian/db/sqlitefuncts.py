@@ -135,7 +135,7 @@ class SqlLiteFuncts(DbDriver):
         print (connect_params)
         super(SqlLiteFuncts, self).__init__('sqlite3', **connect_params)
 
-    def query(self, topic, start=None, end=None, skip=0,
+    def query(self, topic_id, start=None, end=None, skip=0,
                             count=None, order="FIRST_TO_LAST"):
         """This function should return the results of a query in the form:
         {"values": [(timestamp1, value1), (timestamp2, value2), ...],
@@ -144,17 +144,15 @@ class SqlLiteFuncts(DbDriver):
          metadata is not required (The caller will normalize this to {}
          for you)
         """
-        query = '''SELECT data.ts, data.value_string
-                   FROM ''' + self.data_table + ''' AS data, ''' + \
-                    self.topics_table + ''' AS topics
+        query = '''SELECT ts, value_string
+                   FROM ''' + self.data_table + '''
                    {where}
                    {order_by}
                    {limit}
                    {offset}'''
 
-        where_clauses = ["WHERE topics.topic_name = ?",
-                         "topics.topic_id = data.topic_id"]
-        args = [topic]
+        where_clauses = ["WHERE topic_id = ?"]
+        args = [topic_id]
 
         if start is not None:
             start_str = start.isoformat(' ')
@@ -218,7 +216,16 @@ class SqlLiteFuncts(DbDriver):
         return '''INSERT INTO ''' + self.topics_table + \
             ''' (topic_name) values (?)'''
 
+    def update_topic_query(self):
+        return '''UPDATE ''' + self.topics_table + ''' SET topic_name = ?
+            WHERE topic_id = ?'''
+
     def get_topic_map(self):
+        _log.debug("in get_topic_map")
         q = "SELECT topic_id, topic_name FROM " + self.topics_table
         rows = self.select(q, None)
-        return dict([(n, t) for t, n in rows])
+        _log.debug("loading topic map from db")
+        _log.debug(rows)
+        d = dict([(n.lower(), t) for t, n in rows])
+        _log.debug(d)
+        return d

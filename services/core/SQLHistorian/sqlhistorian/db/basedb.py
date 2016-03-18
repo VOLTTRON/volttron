@@ -120,6 +120,20 @@ class DbDriver(object):
         row = [self.__cursor.lastrowid]
 
         return row
+
+    def update_topic(self, topic, topic_id):
+
+        self.__connect()
+
+        if self.__connection is None:
+            return False
+
+        if not self.__cursor:
+            self.__cursor = self.__connection.cursor()
+
+        self.__cursor.execute(self.update_topic_query(), (topic, topic_id))
+
+        return True
     
     def commit(self):
         successful = False
@@ -171,7 +185,7 @@ class DbDriver(object):
         return rows
 
     @abstractmethod                        
-    def query(self, topic, start=None, end=None, skip=0,
+    def query(self, topic_id, start=None, end=None, skip=0,
                             count=None, order="FIRST_TO_LAST"):
         """This function should return the results of a query in the form:
         {"values": [(timestamp1, value1), (timestamp2, value2), ...],
