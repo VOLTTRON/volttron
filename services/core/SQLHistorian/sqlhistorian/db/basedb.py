@@ -22,52 +22,29 @@ class DbDriver(object):
 
         self.__dbmodule = importlib.import_module(dbapimodule)
         self.__connection = None
-        self.__cursor = None  
+        self.__cursor = None
         self.__connect_params = kwargs
-                
+
+    def __connect(self):
         try:
-            if not self.__check_connection():
-                raise AttributeError(
-                    "Couldn't connect using specified configuration.")
+            if self.__connection is None:
+                self.__connection = self.__dbmodule.connect(**self.__connect_params)
+            if self.__cursor is None:
+                self.__cursor = self.__connection.cursor()
 
         except Exception as e:
-            raise AttributeError(
-                "Couldn't connect using specified configuration.")
-            
-    def __check_connection(self):
-        can_connect = False
-        
-        conn = self.__dbmodule.connect(**self.__connect_params)
-        
-        if conn:
-            can_connect = True        
-        else:
-            raise AttributeError("Could not connect to specified mysql " 
-                                 "instance.")
-        if can_connect:
-            conn.close()
-        
-        return can_connect
+            _log.warning(e.__class__.__name__ + "couldn't connect to database")
 
-    def __connect(self, return_val=False):
-        
-        if return_val:
-            return self.__dbmodule.connect(**self.__connect_params)
-        
-        if self.__connection == None:
-            self.__connection = self.__dbmodule.connect(**self.__connect_params)        
-            
+        return self.__connection is not None
+
     @abstractmethod
     def get_topic_map(self):
-        '''
-        Data
-        '''
         pass
-    
+
     @abstractmethod
     def insert_data_query(self):
         pass
-    
+
     @abstractmethod
     def insert_topic_query(self):
         pass
@@ -77,90 +54,63 @@ class DbDriver(object):
         pass
 
     def insert_meta(self, topic_id, metadata):
-        self.__connect()
-
-        if self.__connection is None:
+        if not self.__connect():
             return False
 
-        if not self.__cursor:
-            self.__cursor = self.__connection.cursor()
-
-        self.__cursor.execute(
-            self.insert_meta_query(), (topic_id, jsonapi.dumps(metadata))
-        )
+        self.__cursor.execute(self.insert_meta_query(), (topic_id, jsonapi.dumps(metadata)))
         return True
-    
-    def insert_data(self, ts, topic_id, data):
-        
-        self.__connect()
 
-        if self.__connection is None:
+    def insert_data(self, ts, topic_id, data):
+        if not self.__connect():
             return False
-        
-        if not self.__cursor:
-            self.__cursor = self.__connection.cursor()
-        
-        self.__cursor.execute(
-            self.insert_data_query(), (ts, topic_id, jsonapi.dumps(data))
-        )
+
+        self.__cursor.execute(self.insert_data_query(), (ts, topic_id, jsonapi.dumps(data)))
         return True
 
     def insert_topic(self, topic):
-        
-        self.__connect()
-        
-        if self.__connection is None:
+        if not self.__connect():
             return False
-        
-        if not self.__cursor:
-            self.__cursor = self.__connection.cursor()
-        
-        self.__cursor.execute(self.insert_topic_query(), (topic, ))
-        
-        row = [self.__cursor.lastrowid]
 
+        self.__cursor.execute(self.insert_topic_query(), (topic, ))
+        row = [self.__cursor.lastrowid]
         return row
-    
+
     def commit(self):
         successful = False
-        try:
-            if self.__connection is not None:
-                self.__connection.commit()
-                successful = True
-            else:
-                _log.warn('connection was null during commit phase.')
-        finally:
-            if self.__connection is not None:
-                try:
-                    self.__connection.close()
-                except:
-                    pass
-                                                            
-            self.__cursor = None
-            self.__connection = None
+        if self.__connection is not None:
+            self.__connection.commit()
+            self.__connection.close()
+            successful = True
+        else:
+            _log.warning('connection was null during commit phase.')
+
+        self.__cursor = None
+        self.__connection = None
         return successful
 
     def rollback(self):
         successful = False
-        try:
-            if self.__connection is not None:
-                self.__connection.rollback()
-                successful = True
-            else:
-                _log.warn('connection was null during rollback phase.')
-        finally:
-            if self.__connection is not None:
-                try:
-                    self.__connection.close()
-                except:
-                    pass
+        if self.__connection is not None:
+            self.__connection.rollback()
+            self.__connection.close()
+            successful = True
+        else:
+            _log.warning('connection was null during rollback phase.')
 
-            self.__cursor = None
-            self.__connection = None
+        self.__cursor = None
+        self.__connection = None
         return successful
-    
+
     def select(self, query, args):
-        conn = self.__connect(True)
+        try:
+            conn = self.__dbmodule.connect(**self.__connect_params)
+        except Exception as e:
+            _log.warning(e.__class__.__name__ + "couldn't connect to database")
+            conn = None
+
+        if conn is None:
+            return []
+
         cursor = conn.cursor()
         if args is not None:
             cursor.execute(query, args)
@@ -170,7 +120,7 @@ class DbDriver(object):
         conn.close()
         return rows
 
-    @abstractmethod                        
+    @abstractmethod
     def query(self, topic, start=None, end=None, skip=0,
                             count=None, order="FIRST_TO_LAST"):
         """This function should return the results of a query in the form:
