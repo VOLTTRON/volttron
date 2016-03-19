@@ -139,6 +139,7 @@ mysql_platform3 = {
 offset = timedelta(seconds=3)
 db_connection = None
 MICROSECOND_SUPPORT = True
+EXPLICIT_TIMEZONE = True
 
 # Don't like declaring this global but I am not able to find a way
 # to introspect this using pytest request object in the clean fixture
@@ -159,9 +160,9 @@ meta_table = 'meta'
                     pytest.mark.skipif(
                         not HAS_MYSQL_CONNECTOR,
                         reason='No mysql client available.')(mysql_platform3),
-                    # sqlite_platform1,
-                    # sqlite_platform2,
-                    # sqlite_platform3
+                    sqlite_platform1,
+                    sqlite_platform2,
+                    sqlite_platform3
                 ])
 def sqlhistorian(request, volttron_instance1):
     global db_connection, publish_agent, agent_uuid, data_table, \
@@ -230,8 +231,8 @@ def sqlhistorian(request, volttron_instance1):
 
 
 def connect_mysql(request):
-    global db_connection, MICROSECOND_SUPPORT, data_table, topics_table, \
-        meta_table
+    global db_connection, MICROSECOND_SUPPORT, EXPLICIT_TIMEZONE, data_table,\
+        topics_table, meta_table
     print "connect to mysql"
     db_connection = mysql.connect(**request.param['connection']['params'])
     cursor = db_connection.cursor()
@@ -252,6 +253,7 @@ def connect_mysql(request):
 
     cursor = db_connection.cursor()
     print("MICROSECOND_SUPPORT ", MICROSECOND_SUPPORT)
+    EXPLICIT_TIMEZONE = False
     if MICROSECOND_SUPPORT:
         cursor.execute(
             'CREATE TABLE IF NOT EXISTS ' + data_table +
@@ -287,35 +289,42 @@ def connect_mysql(request):
 
 
 def connect_sqlite(request):
-    global db_connection, MICROSECOND_SUPPORT, data_table
+    global db_connection, MICROSECOND_SUPPORT, EXPLICIT_TIMEZONE, data_table
 
     database_path = request.param['connection']['params']['database']
     print "connecting to sqlite path " + database_path
     db_connection = sqlite3.connect(database_path)
     print "successfully connected to sqlite"
     MICROSECOND_SUPPORT = True
+    EXPLICIT_TIMEZONE = True
 
 
 @pytest.fixture()
 def clean(request):
     def delete_rows():
         global db_connection, data_table
-        # cursor = db_connection.cursor()
-        # cursor.execute("DELETE FROM " + data_table)
-        # db_connection.commit()
+        cursor = db_connection.cursor()
+        cursor.execute("DELETE FROM " + data_table)
+        db_connection.commit()
         print("deleted test records from " + data_table)
 
     request.addfinalizer(delete_rows)
 
 
 def assert_timestamp(result, expected_date, expected_time):
-    global MICROSECOND_SUPPORT
+    global MICROSECOND_SUPPORT, EXPLICIT_TIMEZONE
     print("MICROSECOND SUPPORT ", MICROSECOND_SUPPORT)
     print("TIMESTAMP with microseconds ", expected_time)
     print("TIMESTAMP without microseconds ", expected_time[:-7])
     if MICROSECOND_SUPPORT:
-        assert (result == expected_date + 'T' + expected_time)
+        if EXPLICIT_TIMEZONE:
+            # sqlite
+            assert (result == expected_date + 'T' + expected_time + '+00:00')
+        else:
+            # mysql version >= 5.6.4. mysql always store info in UTC in db
+            assert (result == expected_date + 'T' + expected_time)
     else:
+        # mysql version < 5.6.4
         assert (result == expected_date + 'T' + expected_time[:-7] + '.000000')
 
 
@@ -958,7 +967,7 @@ def test_topic_name_case_change(volttron_instance1, sqlhistorian, clean):
     print('Query Result', result)
     assert (len(result['values']) == 2)
     (time1_date, time1_time) = time1.split(" ")
-    time1_time = time1_time[:-2] + '1'
+    time1_time = time1_time[:-1]
     assert_timestamp(result['values'][0][0], time1_date, time1_time)
     assert (result['values'][0][1] == oat_reading)
 
