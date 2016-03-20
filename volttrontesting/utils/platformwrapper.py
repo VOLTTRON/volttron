@@ -294,7 +294,7 @@ class PlatformWrapper:
         #self._p_process.daemon = True
         #self._p_process.start()
 
-        #gevent.sleep(0.2)
+        gevent.sleep(0.2)
         self.use_twistd = use_twistd
 
         #TODO: Revise this to start twistd with platform.
@@ -574,10 +574,12 @@ class PlatformWrapper:
             except:
                 print('could not kill: {} '.format(pid))
         if self._p_process != None:
-
-            gevent.sleep(0.1)
-            self._p_process.terminate()
-            gevent.sleep(0.1)
+            try:
+                gevent.sleep(0.2)
+                self._p_process.terminate()
+                gevent.sleep(0.2)
+            except OSError:
+                print('Platform process was terminated.')
         else:
             print "platform process was null"
 

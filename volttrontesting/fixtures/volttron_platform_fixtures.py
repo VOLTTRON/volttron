@@ -132,8 +132,7 @@ def volttron_instance2_web(request):
         cleanup_wrapper(wrapper)
     request.addfinalizer(cleanup)
     return wrapper
-<<<<<<< HEAD
-=======
+
 
 @pytest.fixture(scope="function")
 def volttron_instance2_encrypt(request):
