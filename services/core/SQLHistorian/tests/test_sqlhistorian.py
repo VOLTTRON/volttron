@@ -139,7 +139,6 @@ mysql_platform3 = {
 offset = timedelta(seconds=3)
 db_connection = None
 MICROSECOND_SUPPORT = True
-EXPLICIT_TIMEZONE = True
 
 # Don't like declaring this global but I am not able to find a way
 # to introspect this using pytest request object in the clean fixture
@@ -231,7 +230,7 @@ def sqlhistorian(request, volttron_instance1):
 
 
 def connect_mysql(request):
-    global db_connection, MICROSECOND_SUPPORT, EXPLICIT_TIMEZONE, data_table,\
+    global db_connection, MICROSECOND_SUPPORT, data_table,\
         topics_table, meta_table
     print "connect to mysql"
     db_connection = mysql.connect(**request.param['connection']['params'])
@@ -253,7 +252,7 @@ def connect_mysql(request):
 
     cursor = db_connection.cursor()
     print("MICROSECOND_SUPPORT ", MICROSECOND_SUPPORT)
-    EXPLICIT_TIMEZONE = False
+
     if MICROSECOND_SUPPORT:
         cursor.execute(
             'CREATE TABLE IF NOT EXISTS ' + data_table +
@@ -289,14 +288,13 @@ def connect_mysql(request):
 
 
 def connect_sqlite(request):
-    global db_connection, MICROSECOND_SUPPORT, EXPLICIT_TIMEZONE, data_table
+    global db_connection, MICROSECOND_SUPPORT, data_table
 
     database_path = request.param['connection']['params']['database']
     print "connecting to sqlite path " + database_path
     db_connection = sqlite3.connect(database_path)
     print "successfully connected to sqlite"
     MICROSECOND_SUPPORT = True
-    EXPLICIT_TIMEZONE = True
 
 
 @pytest.fixture()
@@ -312,17 +310,12 @@ def clean(request):
 
 
 def assert_timestamp(result, expected_date, expected_time):
-    global MICROSECOND_SUPPORT, EXPLICIT_TIMEZONE
+    global MICROSECOND_SUPPORT
     print("MICROSECOND SUPPORT ", MICROSECOND_SUPPORT)
     print("TIMESTAMP with microseconds ", expected_time)
     print("TIMESTAMP without microseconds ", expected_time[:-7])
     if MICROSECOND_SUPPORT:
-        if EXPLICIT_TIMEZONE:
-            # sqlite
-            assert (result == expected_date + 'T' + expected_time + '+00:00')
-        else:
-            # mysql version >= 5.6.4. mysql always store info in UTC in db
-            assert (result == expected_date + 'T' + expected_time)
+        assert (result == expected_date + 'T' + expected_time + '+00:00')
     else:
         # mysql version < 5.6.4
         assert (result == expected_date + 'T' + expected_time[:-7] + '.000000')
