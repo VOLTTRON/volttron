@@ -349,7 +349,10 @@ class AuthEntry(object):
         self.capabilities = AuthEntry._build_field(list(caps_set), list, str) or []
 
     def match(self, domain, address, mechanism, credentials):
-        creds = ':'.join([mechanism] + credentials)
+        if mechanism == 'NULL':
+            creds = 'NULL'
+        else:
+            creds = ':'.join([mechanism] + credentials)
         return ((self.domain is None or self.domain.match(domain)) and
                 (self.address is None or self.address.match(address)) and
                 (self.credentials and self.credentials.match(creds)))
@@ -566,6 +569,8 @@ class AuthFile(object):
 class AuthFileIndexError(AuthException, IndexError):
     '''Exception for invalid indices provided to AuthFile'''
     def __init__(self, indices, message=None):
+        if not isinstance(indices, list):
+            indices = [indices]
         if message is None:
             message = 'Invalid {}: {}'.format(
                 'indicies' if len(indices) > 1 else 'index', indices)
