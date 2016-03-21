@@ -105,6 +105,14 @@ class DriverAgent(BasicAgent):
         self.setup_device()
         
         interval = self.config.get("interval", 60)
+
+        failover_array_size = self.parent.failover_array_size
+        failover_instance_id = self.parent.failover_instance_id
+
+        if failover_array_size is not None:
+            gevent.sleep(failover_instance_id * interval)
+            interval *= failover_array_size
+
         self.core.periodic(interval, self.periodic_read, wait=None)
             
         self.all_path_depth, self.all_path_breadth = self.get_paths_for_point(DRIVER_TOPIC_ALL)

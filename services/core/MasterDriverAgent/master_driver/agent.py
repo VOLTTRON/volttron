@@ -134,10 +134,15 @@ def master_driver_agent(config_path, **kwargs):
     
     staggered_start = get_config('staggered_start', None)
 
+    failover_array_size = get_config('failover_array_size')
+    failover_instance_id = get_config('failover_instance_id')
+
     class MasterDriverAgent(Agent):
         def __init__(self, **kwargs):
             super(MasterDriverAgent, self).__init__(**kwargs)
             self.instances = {}
+            self.failover_array_size = failover_array_size
+            self.failover_instance_id = failover_instance_id
             if scalability_test:
                 self.waiting_to_finish = set()
                 self.test_iterations = 0
