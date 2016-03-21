@@ -3,6 +3,7 @@ import os
 
 import gevent
 import pytest
+from py.test import raises
 
 from volttron.platform import jsonrpc
 from volttron.platform.auth import (AuthEntry, AuthFile, AuthFileIndexError,
@@ -17,7 +18,12 @@ def auth_file_platform_tuple(volttron_instance1_encrypt):
     assert len(allow_entries) == 0
     assert len(groups) == 0
     assert len(roles) == 0
+    gevent.sleep(0.5)
     return auth_file, platform
+
+@pytest.fixture(scope='module')
+def auth_entry_only_creds():
+    return AuthEntry(credentials='CURVE:'+'B'*43)
 
 @pytest.fixture(scope='module')
 def auth_entry1():
@@ -26,12 +32,14 @@ def auth_entry1():
             roles=['role1'], capabilities=['cap1'], comments='comment1',
             enabled=True)
 
+
 @pytest.fixture(scope='module')
 def auth_entry2():
     return AuthEntry(domain='domain2', address='tcp://127.0.0.2',
             credentials='CURVE:' + 'A'*43,
             user_id='user2', groups=['group2'], roles=['role2'], 
             capabilities=['cap2'], comments='comment2', enabled=False)
+
 
 @pytest.fixture(scope='module')
 def auth_entry3():
@@ -40,11 +48,23 @@ def auth_entry3():
             user_id='user3', groups=['group3'], roles=['role3'], 
             capabilities=['cap3'], comments='comment3', enabled=False)
 
+
 def assert_attributes_match(list1, list2):
     assert len(list1) == len(list2)
     for i in range(len(list1)):
         for key in vars(list1[i]):
             assert vars(list1[i])[key] == vars(list2[i])[key]
+
+
+
+@pytest.mark.auth
+def test_auth_file_overwrite(auth_file_platform_tuple, auth_entry_only_creds):
+    authfile, platform = auth_file_platform_tuple
+    authfile.add(auth_entry_only_creds)
+    authfile.add(auth_entry_only_creds)
+    with raises(AuthFileEntryAlreadyExists):
+        authfile.add(auth_entry_only_creds, False)
+
 
 @pytest.mark.auth
 def test_auth_file_api(auth_file_platform_tuple, auth_entry1,
