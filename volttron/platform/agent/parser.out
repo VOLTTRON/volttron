@@ -1,0 +1,204 @@
+Created by PLY version 3.8 (http://www.dabeaz.com/ply)
+
+Grammar
+
+Rule 0     S' -> query
+Rule 1     query -> ( timeref , timeref )
+Rule 2     query -> timeref
+Rule 3     timeref -> abstime
+Rule 4     timeref -> abstime reltime
+Rule 5     abstime -> NUMBER
+Rule 6     abstime -> QSTRING
+Rule 7     abstime -> NOW
+Rule 8     reltime -> NUMBER LVALUE
+Rule 9     reltime -> NUMBER LVALUE reltime
+
+Terminals, with rules where they appear
+
+(                    : 1
+)                    : 1
+,                    : 1
+LVALUE               : 8 9
+NOW                  : 7
+NUMBER               : 5 8 9
+QSTRING              : 6
+error                : 
+
+Nonterminals, with rules where they appear
+
+abstime              : 3 4
+query                : 0
+reltime              : 4 9
+timeref              : 1 1 2
+
+Parsing method: LALR
+
+state 0
+
+    (0) S' -> . query
+    (1) query -> . ( timeref , timeref )
+    (2) query -> . timeref
+    (3) timeref -> . abstime
+    (4) timeref -> . abstime reltime
+    (5) abstime -> . NUMBER
+    (6) abstime -> . QSTRING
+    (7) abstime -> . NOW
+
+    (               shift and go to state 2
+    NUMBER          shift and go to state 4
+    QSTRING         shift and go to state 5
+    NOW             shift and go to state 7
+
+    query                          shift and go to state 6
+    abstime                        shift and go to state 1
+    timeref                        shift and go to state 3
+
+state 1
+
+    (3) timeref -> abstime .
+    (4) timeref -> abstime . reltime
+    (8) reltime -> . NUMBER LVALUE
+    (9) reltime -> . NUMBER LVALUE reltime
+
+    $end            reduce using rule 3 (timeref -> abstime .)
+    )               reduce using rule 3 (timeref -> abstime .)
+    ,               reduce using rule 3 (timeref -> abstime .)
+    NUMBER          shift and go to state 9
+
+    reltime                        shift and go to state 8
+
+state 2
+
+    (1) query -> ( . timeref , timeref )
+    (3) timeref -> . abstime
+    (4) timeref -> . abstime reltime
+    (5) abstime -> . NUMBER
+    (6) abstime -> . QSTRING
+    (7) abstime -> . NOW
+
+    NUMBER          shift and go to state 4
+    QSTRING         shift and go to state 5
+    NOW             shift and go to state 7
+
+    abstime                        shift and go to state 1
+    timeref                        shift and go to state 10
+
+state 3
+
+    (2) query -> timeref .
+
+    $end            reduce using rule 2 (query -> timeref .)
+
+
+state 4
+
+    (5) abstime -> NUMBER .
+
+    NUMBER          reduce using rule 5 (abstime -> NUMBER .)
+    )               reduce using rule 5 (abstime -> NUMBER .)
+    $end            reduce using rule 5 (abstime -> NUMBER .)
+    ,               reduce using rule 5 (abstime -> NUMBER .)
+
+
+state 5
+
+    (6) abstime -> QSTRING .
+
+    NUMBER          reduce using rule 6 (abstime -> QSTRING .)
+    )               reduce using rule 6 (abstime -> QSTRING .)
+    $end            reduce using rule 6 (abstime -> QSTRING .)
+    ,               reduce using rule 6 (abstime -> QSTRING .)
+
+
+state 6
+
+    (0) S' -> query .
+
+
+
+state 7
+
+    (7) abstime -> NOW .
+
+    NUMBER          reduce using rule 7 (abstime -> NOW .)
+    )               reduce using rule 7 (abstime -> NOW .)
+    $end            reduce using rule 7 (abstime -> NOW .)
+    ,               reduce using rule 7 (abstime -> NOW .)
+
+
+state 8
+
+    (4) timeref -> abstime reltime .
+
+    $end            reduce using rule 4 (timeref -> abstime reltime .)
+    )               reduce using rule 4 (timeref -> abstime reltime .)
+    ,               reduce using rule 4 (timeref -> abstime reltime .)
+
+
+state 9
+
+    (8) reltime -> NUMBER . LVALUE
+    (9) reltime -> NUMBER . LVALUE reltime
+
+    LVALUE          shift and go to state 11
+
+
+state 10
+
+    (1) query -> ( timeref . , timeref )
+
+    ,               shift and go to state 12
+
+
+state 11
+
+    (8) reltime -> NUMBER LVALUE .
+    (9) reltime -> NUMBER LVALUE . reltime
+    (8) reltime -> . NUMBER LVALUE
+    (9) reltime -> . NUMBER LVALUE reltime
+
+    $end            reduce using rule 8 (reltime -> NUMBER LVALUE .)
+    ,               reduce using rule 8 (reltime -> NUMBER LVALUE .)
+    )               reduce using rule 8 (reltime -> NUMBER LVALUE .)
+    NUMBER          shift and go to state 9
+
+    reltime                        shift and go to state 13
+
+state 12
+
+    (1) query -> ( timeref , . timeref )
+    (3) timeref -> . abstime
+    (4) timeref -> . abstime reltime
+    (5) abstime -> . NUMBER
+    (6) abstime -> . QSTRING
+    (7) abstime -> . NOW
+
+    NUMBER          shift and go to state 4
+    QSTRING         shift and go to state 5
+    NOW             shift and go to state 7
+
+    abstime                        shift and go to state 1
+    timeref                        shift and go to state 14
+
+state 13
+
+    (9) reltime -> NUMBER LVALUE reltime .
+
+    $end            reduce using rule 9 (reltime -> NUMBER LVALUE reltime .)
+    ,               reduce using rule 9 (reltime -> NUMBER LVALUE reltime .)
+    )               reduce using rule 9 (reltime -> NUMBER LVALUE reltime .)
+
+
+state 14
+
+    (1) query -> ( timeref , timeref . )
+
+    )               shift and go to state 15
+
+
+state 15
+
+    (1) query -> ( timeref , timeref ) .
+
+    $end            reduce using rule 1 (query -> ( timeref , timeref ) .)
+
