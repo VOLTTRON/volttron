@@ -93,21 +93,6 @@ def test_auth_file_api(auth_file_platform_tuple, auth_entry1,
     assert_attributes_match(entries, my_entries)
 
 @pytest.mark.auth
-def test_add_duplicate(auth_file_platform_tuple, auth_entry1):
-    auth_file, _ = auth_file_platform_tuple
-    auth_file.add(auth_entry1)
-    auth_file.add(auth_entry1)
-    entries = auth_file.read_allow_entries()
-    assert len(entries) == 2
-
-@pytest.mark.auth
-def test_add_duplicate_no_overwrite(auth_file_platform_tuple, auth_entry1):
-    auth_file, _ = auth_file_platform_tuple
-    auth_file.add(auth_entry1)
-    with pytest.raises(AuthFileEntryAlreadyExists):
-        auth_file.add(auth_entry1, overwrite=False)
-
-@pytest.mark.auth
 def test_remove_invalid_index(auth_file_platform_tuple):
     auth_file, _ = auth_file_platform_tuple
     with pytest.raises(AuthFileIndexError):
