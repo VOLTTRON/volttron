@@ -52,12 +52,13 @@ import numpy as np
 import datetime
 import re
 import logging
-
+from .common import validation_builder
 SCHED_VALIDATE = 'Schedule-Reset ACCx'
 DUCT_STC_RCX3 = 'No Static Pressure Reset Dx'
 SA_TEMP_RCX3 = 'No Supply-air Temperature Reset Dx'
 SCHED_RCX = 'Operational Schedule Dx'
 DX = '/diagnostic message'
+VALIDATE_FILE_TOKEN = 'reset-scheule'
 DATA = '/data/'
 ST = 'state'
 
@@ -67,7 +68,7 @@ class SchedResetRcx(object):
     '''
     def __init__(self, unocc_time_threshold, unocc_stp_threshold,
                  monday_sch, tuesday_sch, wednesday_sch, thursday_sch,
-                 friday_sch, saturday_sch, sunday_sch, data_window,
+                 friday_sch, saturday_sch, sunday_sch,
                  no_req_data, stpr_reset_threshold, sat_reset_threshold,
                  analysis):
 
@@ -102,84 +103,77 @@ class SchedResetRcx(object):
                         'unit is operating correctly.')
 
         # Application thresholds (Configurable)
-        self.data_window = float(data_window)
         self.no_req_data = no_req_data
         self.unocc_time_threshold = float(unocc_time_threshold)
         self.unocc_stp_threshold = float(unocc_stp_threshold)
         self.stpr_reset_threshold = float(stpr_reset_threshold)
         self.sat_reset_threshold = float(sat_reset_threshold)
 
-    def sched_rcx_alg(self, cur_time, stcpr_data, stcpr_sp_data,
+    def reinitialize(self, avg_sat_stpt, avg_stcpr_stpt, duct_stcpr, fan_status):
+        """Reinitialize data arrays"""
+        self.sat_stpt_arr = []
+        self.stcpr_arr = []
+        self.stcpr_stpt_arr = []
+        self.fanstat_values = []
+        self.sched_time = []
+        self.dx_time = None
+        if avg_stcpr_stpt is not None:
+            self.sat_stpt_arr.append(avg_sat_stpt)
+            self.stcpr_stpt_arr.append(avg_stcpr_stpt)
+        if fan_status is not None:
+            self.fanstat_values.append(fan_status)
+            self.stcpr_arr.extend(duct_stcpr)
+        self.timestamp = [self.timestamp[-1]]
+
+    def sched_rcx_alg(self, cur_time, stcpr_data, stcpr_stpt_data,
                       sat_stpt_data, fan_stat_data, dx_result,
                       sched_val):
         '''Check schedule status and unit operational status.'''
-        def clear_old():
-            '''Clear old data'''
-            self.sat_stpt_arr = []
-            self.stcpr_arr = []
-            self.stcpr_stpt_arr = []
-            self.fanstat_values = []
-            self.sched_time = []
-            self.dx_time = None
-
-            if stcpr_sp_val is not None:
-                self.sat_stpt_arr.append(sat_stpt_val)
-                self.stcpr_stpt_arr.append(stcpr_sp_val)
-            if fan_stat is not None:
-                self.fanstat_values.append(fan_stat)
-                self.stcpr_arr.extend(duct_stp)
-            self.timestamp = [self.timestamp[-1]]
-
-        fan_stat = None
+        fan_status = None
         stcpr_sp_val = None
-        act_sch = self.schedule[cur_time.weekday()]
-        run = False
+        schedule = self.schedule[cur_time.weekday()]
+        run_diagnostic = False
+
         if self.timestamp and self.timestamp[-1].date() != cur_time.date():
-            self.dx_time = self.timestamp[-1].date()
-            run = True
-        if((cur_time.hour < act_sch[0] or
-           (cur_time.hour == act_sch[0] and cur_time.minute < act_sch[1])) or
-           (cur_time.hour > act_sch[2] or
-           (cur_time.hour == act_sch[2] and cur_time.minute < act_sch[3]))):
-            if not run:
+            self.start_of_next_analysis = self.timestamp[-1].date()
+            run_diagnostic = True
+
+        if((cur_time.hour < schedule[0] or
+           (cur_time.hour == schedule[0] and cur_time.minute < schedule[1])) or
+           (cur_time.hour > schedule[2] or
+           (cur_time.hour == schedule[2] and cur_time.minute < schedule[3]))):
+            if not run_diagnostic:
                 self.stcpr_arr.extend(stcpr_data)
                 self.fanstat_values.append(int(max(fan_stat_data)))
                 self.sched_time.append(cur_time)
-            fan_stat = int(max(fan_stat_data))
-            duct_stp = stcpr_data
+            fan_status = int(max(fan_stat_data))
+            duct_stcpr = stcpr_data
         else:
             if int(max(fan_stat_data)):
-                if not run:
-                    self.stcpr_stpt_arr.append(np.mean(stcpr_sp_data))
+                if not run_diagnostic:
+                    self.stcpr_stpt_arr.append(np.mean(stcpr_stpt_data))
                     self.sat_stpt_arr.append(np.mean(sat_stpt_data))
-                stcpr_sp_val = np.mean(stcpr_sp_data)
-                sat_stpt_val = np.mean(sat_stpt_data)
+                avg_stcpr_stpt = np.mean(stcpr_stpt_data)
+                avg_sat_stpt = np.mean(sat_stpt_data)
         self.timestamp.append(cur_time)
 
-        data = {}
-        for key, value in sched_val.items():
-            tag = SCHED_VALIDATE + DATA + key
-            data.update({tag: value})
+        data = validation_builder(sched_val, SCHED_VALIDATE, DATA)
 
-        if run and len(self.sched_time) >= self.no_req_data and len(self.sat_stpt_arr) >= self.no_req_data:
+        if run_diagnostic and len(self.sched_time) >= self.no_req_data and len(self.sat_stpt_arr) >= self.no_req_data:
             dx_result = self.unocc_fan_operation(dx_result)
             dx_result = self.no_static_pr_reset(dx_result)
             dx_result = self.no_sat_sp_reset(dx_result)
             data.update({SCHED_VALIDATE + DATA + ST: 1})
-            dx_result.insert_table_row(self.analysis, data)
-            clear_old()
-        elif run:
+            self.reinitialize(avg_sat_stpt, avg_stcpr_stpt, duct_stcpr, fan_status)
+        elif run_diagnostic:
             dx_msg = 61.2
-            dx_table = {
-                SCHED_RCX + DX:  dx_msg
-            }
+            dx_table = {SCHED_RCX + DX:  dx_msg}
             dx_result.insert_table_row(self.analysis, dx_table)
             data.update({SCHED_VALIDATE + DATA + ST: 2})
-            dx_result.insert_table_row(self.analysis, data)
-            clear_old()
+            self.reinitialize(avg_sat_stpt, avg_stcpr_stpt, duct_stcpr, fan_status)
         else:
             data.update({SCHED_VALIDATE + DATA + ST: 0})
-            dx_result.insert_table_row(self.analysis, data)
+        dx_result.insert_table_row(VALIDATE_FILE_TOKEN, data)
         return dx_result
 
     def unocc_fan_operation(self, result):
@@ -208,9 +202,7 @@ class SchedResetRcx(object):
                        'pressure sensor.')
                 dx_msg = 64.2
         for item in self.sched_time:
-            dx_table = {
-                SCHED_RCX + DX:  dx_msg
-            }
+            dx_table = {SCHED_RCX + DX:  dx_msg}
             result.insert_table_row(self.analysis, dx_table)
         result.log(msg, logging.INFO)
         return result
@@ -231,9 +223,7 @@ class SchedResetRcx(object):
         else:
             msg = 'No problem detected.'
             dx_msg = 70.0
-        dx_table = {
-            DUCT_STC_RCX3 + DX:  dx_msg
-        }
+        dx_table = {DUCT_STC_RCX3 + DX:  dx_msg}
         result.insert_table_row(self.analysis, dx_table)
         result.log(msg, logging.INFO)
         return result
@@ -253,9 +243,7 @@ class SchedResetRcx(object):
         else:
             msg = 'No problems detected for this diagnostic.'
             dx_msg = 80.0
-        dx_table = {
-            SA_TEMP_RCX3 + DX:  dx_msg
-        }
+        dx_table = {SA_TEMP_RCX3 + DX:  dx_msg}
         result.insert_table_row(self.analysis, dx_table)
         result.log(msg, logging.INFO)
         return result

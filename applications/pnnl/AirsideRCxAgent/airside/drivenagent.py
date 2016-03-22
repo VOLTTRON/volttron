@@ -67,6 +67,7 @@ from volttron.platform.agent.driven import ConversionMapper
 from volttron.platform.agent.utils import jsonapi
 from volttron.platform.messaging import (headers as headers_mod, topics)
 from copy import deepcopy
+import sys
 
 __author1__ = 'Craig Allwardt <craig.allwardt@pnnl.gov>'
 __author2__ = 'Robert Lutes <robert.lutes@pnnl.gov>'
@@ -79,7 +80,7 @@ def DrivenAgent(config_path, **kwargs):
     conf = utils.load_config(config_path)
     arguments = conf.get('arguments', None)
     assert arguments
-    from_file = arguments.get('From File', False)
+    from_file = arguments.get('From File', True)
     mode = True if conf.get('mode', 'PASSIVE') == 'ACTIVE' else False
     utils.setup_logging()
     _log = logging.getLogger(__name__)
@@ -165,10 +166,11 @@ def DrivenAgent(config_path, **kwargs):
             self.commands = {}
             self.current_point = None
             self.current_key = None
-            if output_file is not None:
-                with open(output_file, 'w') as writer:
-                    writer.close()
+            # if output_file is not None:
+            #     with open(output_file, 'w') as writer:
+            #         writer.close()
             self._header_written = False
+            self.creating_file = set()
 
         def _initialize_devices(self):
             self._needed_subdevices = deepcopy(self._master_subdevices)
@@ -265,21 +267,22 @@ def DrivenAgent(config_path, **kwargs):
                 _log.debug("LOG: {}".format(value))
             for key, value in results.table_output.iteritems():
                 _log.debug("TABLE: {}->{}".format(key, value))
-            if output_file is not None:
-                if len(results.table_output.keys()) > 0:
-                    for _, v in results.table_output.items():
-                        fname = output_file  # +"-"+k+".csv"
-                        for r in v:
-                            with open(fname, 'a+') as f:
-                                keys = r.keys()
-                                fout = csv.DictWriter(f, keys)
-                                if not self._header_written:
-                                    fout.writeheader()
-                                    self._header_written = True
-                                # if not header_written:
-                                    # fout.writerow(keys)
-                                fout.writerow(r)
-                                f.close()
+            if output_file is not None and len(results.table_output.keys()) > 0:
+                for key, value in results.table_output.items():
+
+                    file_name = output_file +"-" + key + ".csv"
+                    if file_name not in self.creating_file:
+                        self._header_written = False
+                    self.creating_file.update([file_name])
+                    for row in value:
+                        with open(file_name, 'a+') as f:
+                            _keys = row.keys()
+                            fout = csv.DictWriter(f, _keys)
+                            if not self._header_written:
+                                fout.writeheader()
+                                self._header_written = True
+                            fout.writerow(row)
+                    f.close()
 
             def get_unit(point):
                 ''' Get a unit type based upon the regular expression in the config file.
