@@ -972,6 +972,59 @@ def test_invalid_query(sqlhistorian, clean):
         print ("exception: {}".format(error))
         assert "No route to host: platform.historian1" in str(error)
 
+@pytest.mark.historian
+def test_invalid_time(sqlhistorian, clean):
+    """
+    Test query with invalid input
+
+    :param sqlhistorian: instance of the sql historian tested
+    :param clean: teardown function
+    """
+    global publish_agent, query_points, ALL_TOPIC
+    # print('HOME', volttron_instance1.volttron_home)
+    print("\n** test_invalid_time **")
+    # Publish fake data. The format mimics the format used by VOLTTRON drivers.
+    # Make some random readings
+    oat_reading = random.uniform(30, 100)
+    mixed_reading = oat_reading + random.uniform(-5, 5)
+
+    # Create a message for all points.
+    all_message = [{'MixedAirTemperature': mixed_reading},
+                   {'MixedAirTemperature': {'units': 'F', 'tz': 'UTC',
+                                            'type': 'float'}
+                    }]
+
+    # Create timestamp
+    now = '2015-12-17 60:00:00.000000'
+    headers = {
+        headers_mod.DATE: now
+    }
+
+    # Publish messages
+    try:
+        result = publish_agent.vip.pubsub.publish(
+        'pubsub', ALL_TOPIC, headers, all_message).get(timeout=5)
+        pytest.fail(msg="pytest is expecting Exception for publishing with "
+                            "wrong date")
+    except Exception as e:
+        if e.message ==\
+                "pytest is expecting Exception for publishing with wrong date":
+            raise
+        else:
+            print("Exception publishing: {} ".format(e))
+
+    try:
+        #query with invalid timestamp
+        publish_agent.vip.rpc.call('platform.historian',
+                                   'query',
+                                   topic=query_points['mixed_point'],
+                                   start=now,
+                                   count=20,
+                                   order="LAST_TO_FIRST").get(timeout=10)
+    except RemoteError as error:
+        print ("exception: {}".format(error))
+        assert 'hour must be in 0..23' == error.message
+
 
 @pytest.mark.historian
 def test_analysis_topic(sqlhistorian, clean):
