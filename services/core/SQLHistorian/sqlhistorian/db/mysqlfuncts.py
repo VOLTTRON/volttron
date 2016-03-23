@@ -56,8 +56,7 @@
 # }}}
 
 import logging
-
-# from mysql import connector
+import pytz
 import re
 from zmq.utils import jsonapi
 
@@ -158,9 +157,10 @@ class MySqlFuncts(DbDriver):
         _log.debug("args: " + str(args))
 
         rows = self.select(real_query, args)
-
         if rows:
-            values = [(utils.format_timestamp(ts), jsonapi.loads(value)) for ts, value in rows]
+            values = [(utils.format_timestamp(ts.replace(tzinfo=pytz.UTC)),
+                       jsonapi.loads(
+                value)) for ts, value in rows]
         else:
             values = {}
 

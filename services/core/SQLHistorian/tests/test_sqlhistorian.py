@@ -155,15 +155,15 @@ meta_table = 'meta'
                     pytest.mark.skipif(
                         not HAS_MYSQL_CONNECTOR,
                         reason='No mysql client available.')(mysql_platform1),
-                    # pytest.mark.skipif(
-                    #     not HAS_MYSQL_CONNECTOR,
-                    #     reason='No mysql client available.')(mysql_platform2),
-                    # pytest.mark.skipif(
-                    #     not HAS_MYSQL_CONNECTOR,
-                    #     reason='No mysql client available.')(mysql_platform3),
-                    # sqlite_platform1,
-                    # sqlite_platform2,
-                    # sqlite_platform3
+                    pytest.mark.skipif(
+                        not HAS_MYSQL_CONNECTOR,
+                        reason='No mysql client available.')(mysql_platform2),
+                    pytest.mark.skipif(
+                        not HAS_MYSQL_CONNECTOR,
+                        reason='No mysql client available.')(mysql_platform3),
+                    sqlite_platform1,
+                    sqlite_platform2,
+                     sqlite_platform3
                 ])
 def sqlhistorian(request, volttron_instance1):
     global db_connection, publish_agent, data_table, \
@@ -320,7 +320,8 @@ def assert_timestamp(result, expected_date, expected_time):
         assert (result == expected_date + 'T' + expected_time + '+00:00')
     else:
         # mysql version < 5.6.4
-        assert (result == expected_date + 'T' + expected_time[:-7] + '.000000')
+        assert (result == expected_date + 'T' + expected_time[:-7] +
+                '.000000+00:00')
 
 
 @pytest.mark.historian
@@ -996,22 +997,6 @@ def test_invalid_time(sqlhistorian, clean):
 
     # Create timestamp
     now = '2015-12-17 60:00:00.000000'
-    headers = {
-        headers_mod.DATE: now
-    }
-
-    # Publish messages
-    try:
-        result = publish_agent.vip.pubsub.publish(
-        'pubsub', ALL_TOPIC, headers, all_message).get(timeout=5)
-        pytest.fail(msg="pytest is expecting Exception for publishing with "
-                            "wrong date")
-    except Exception as e:
-        if e.message ==\
-                "pytest is expecting Exception for publishing with wrong date":
-            raise
-        else:
-            print("Exception publishing: {} ".format(e))
 
     try:
         #query with invalid timestamp

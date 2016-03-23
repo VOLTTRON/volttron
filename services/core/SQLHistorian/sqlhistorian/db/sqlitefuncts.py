@@ -156,23 +156,23 @@ class SqlLiteFuncts(DbDriver):
 
         if start is not None:
             start_str = start.isoformat(' ')
-            where_clauses.append("data.ts >= ?")
+            where_clauses.append("ts >= ?")
             if start_str[-6:] != "+00:00":
                 start_str += "+00:00"
             args.append(start_str)
 
         if end is not None:
             end_str = end.isoformat(' ')
-            where_clauses.append("data.ts <= ?")
+            where_clauses.append("ts <= ?")
             if end_str[-6:] != "+00:00":
                 end_str += "+00:00"
             args.append(end_str)
 
         where_statement = ' AND '.join(where_clauses)
 
-        order_by = 'ORDER BY data.ts ASC'
+        order_by = 'ORDER BY ts ASC'
         if order == 'LAST_TO_FIRST':
-            order_by = ' ORDER BY data.ts DESC'
+            order_by = ' ORDER BY ts DESC'
 
         # can't have an offset without a limit
         # -1 = no limit and allows the user to
