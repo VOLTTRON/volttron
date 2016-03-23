@@ -291,7 +291,22 @@ def format_timestamp(time_stamp):
     :returns: datetime in string format
     :rtype: str
     """
-    return time_stamp.strftime("%Y-%m-%dT%H:%M:%S.%f%z")
+    
+    time_str = time_stamp.strftime("%Y-%m-%dT%H:%M:%S.%f")
+    
+    if time_stamp.tzinfo is not None:
+        sign = '+'
+        td = time_stamp.tzinfo.utcoffset(time_stamp)
+        if td.days < 0:
+            sign = '-'
+            td = -td
+            
+        seconds = td.seconds
+        minutes, seconds = divmod(seconds, 60)
+        hours, minutes = divmod(minutes, 60)
+        time_str += "{sign}{HH:02}:{MM:02}".format(sign=sign, HH=hours, MM=minutes)
+    
+    return time_str
 
 def parse_timestamp_string(time_stamp_str):
     """Create a datetime object from the supplied date/time string.
