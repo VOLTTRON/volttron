@@ -5,9 +5,10 @@ import gevent
 import pytest
 from py.test import raises
 
-from volttron.platform import jsonrpc
-from volttron.platform.auth import (AuthEntry, AuthFile, AuthFileIndexError,
-        AuthFileEntryAlreadyExists, AuthEntryInvalid)
+from volttron.platform.auth import (
+    AuthEntry, AuthFile, AuthFileIndexError, AuthFileEntryAlreadyExists,
+    AuthEntryInvalid)
+
 
 @pytest.fixture(scope='function')
 def auth_file_platform_tuple(volttron_instance1_encrypt):
@@ -21,9 +22,11 @@ def auth_file_platform_tuple(volttron_instance1_encrypt):
     gevent.sleep(0.5)
     return auth_file, platform
 
+
 @pytest.fixture(scope='module')
 def auth_entry_only_creds():
     return AuthEntry(credentials='CURVE:'+'B'*43)
+
 
 @pytest.fixture(scope='module')
 def auth_entry1():
@@ -54,7 +57,6 @@ def assert_attributes_match(list1, list2):
     for i in range(len(list1)):
         for key in vars(list1[i]):
             assert vars(list1[i])[key] == vars(list2[i])[key]
-
 
 
 @pytest.mark.auth
@@ -92,17 +94,20 @@ def test_auth_file_api(auth_file_platform_tuple, auth_entry1,
     my_entries = [auth_entry3]
     assert_attributes_match(entries, my_entries)
 
+
 @pytest.mark.auth
 def test_remove_invalid_index(auth_file_platform_tuple):
     auth_file, _ = auth_file_platform_tuple
     with pytest.raises(AuthFileIndexError):
         auth_file.remove_by_index(1)
 
+
 @pytest.mark.auth
 def test_update_invalid_index(auth_file_platform_tuple, auth_entry1):
     auth_file, _ = auth_file_platform_tuple
     with pytest.raises(AuthFileIndexError):
         auth_file.update_by_index(auth_entry1, 1)
+
 
 @pytest.mark.auth
 def test_invalid_auth_entries(auth_file_platform_tuple):
