@@ -1,13 +1,132 @@
 import logging
+
 import os
+import requests
 import tempfile
 
 from zmq.utils import jsonapi
 import pytest
 import gevent
 
+from zmq.utils import jsonapi
+from volttron.platform.auth import AuthEntry, AuthFile
+from volttron.platform.keystore import KeyStore
+from volttron.platform.web import DiscoveryInfo
+from volttron.platform.jsonrpc import json_method
+from volttron.platform.vip.agent.utils import build_agent
+
 # The default platform identity
 PLATFORM_ID = 'platform.agent'
+
+
+def get_new_keypair():
+    tf = tempfile.NamedTemporaryFile()
+    ks = KeyStore(tf.name)
+    ks.generate()
+    return ks.public(), ks.secret()
+
+def add_to_auth(volttron_home, publickey, capabilities=None):
+    authfile = AuthFile(os.path.join(volttron_home, 'auth.json'))
+    entry = AuthEntry(
+        credentials="CURVE:{}".format(publickey), capabilities=capabilities
+    )
+    authfile.add(entry)
+
+def do_rpc(jsonrpc_address, method, params=None, authentication=None ):
+
+    json_package = {
+        'jsonrpc': '2.0',
+        'id': '2503402',
+        'method': method,
+    }
+
+    if authentication:
+        json_package['authorization'] = authentication
+
+    if params:
+        json_package['params'] = params
+
+    return requests.post(jsonrpc_address, data=jsonapi.dumps(json_package))
+
+
+def get_auth_token(jsonrpc_address):
+
+    params = {'username': 'admin', 'password': 'admin'}
+
+    return do_rpc(jsonrpc_address, 'get_authorization', params).json()['result']
+
+
+@pytest.mark.pa
+def test_agent_can_be_managed(pa_instance):
+    wrapper = pa_instance['wrapper']
+    publickey, secretkey = get_new_keypair()
+    add_to_auth(wrapper.volttron_home, publickey, capabilities=['managed_by'])
+    agent = wrapper.build_agent(
+        serverkey=wrapper.publickey, publickey=publickey, secretkey=secretkey)
+    peers = agent.vip.peerlist().get(timeout=2)
+    assert PLATFORM_ID in peers
+
+    # This step is required because internally we are really connecting
+    # to the same platform.  If this were two separate installments this
+    # transaction would be easier.
+    pa_info = DiscoveryInfo.request_discovery_info(wrapper.bind_web_address)
+    add_to_auth(wrapper.volttron_home, pa_info.papublickey,
+                capabilities=['can_be_managed'])
+    print(wrapper.vip_address)
+    returnedid = agent.vip.rpc.call(
+        PLATFORM_ID, 'manage', wrapper.vip_address[0],
+        wrapper.publickey).get(timeout=2)
+    assert returnedid
+
+
+# @pytest.mark.pa
+# def test_agent_data(pa_instance, vc_instance):
+#     pa_wrapper = pa_instance['wrapper']
+#     agent_uuid = pa_instance['platform-uuid']
+#     vc_wrapper = vc_instance['wrapper']
+#     jsonrpc_address = vc_instance['jsonrpc']
+#
+#     assert pa_wrapper
+#     assert vc_wrapper
+#     assert pa_wrapper.bind_web_address
+#
+#     authtoken = get_auth_token(jsonrpc_address)
+#     assert authtoken
+#
+#     register = do_rpc(jsonrpc_address, 'register_instance',
+#                       authentication=authtoken,
+#                       params={
+#                           'discovery_address': pa_wrapper.bind_web_address})
+#
+#     assert register
+    #
+    # tf = tempfile.NamedTemporaryFile()
+    # ks = KeyStore(tf.name)
+    # ks.generate()
+    #
+    # entry = AuthEntry(credentials="CURVE:{}".format(ks.public()))
+    # authfile = AuthFile(os.path.join(pa_wrapper.volttron_home, "auth.json"))
+    # authfile.add(entry)
+    # gevent.sleep(0.1)
+    #
+    # agent = pa_wrapper.build_agent(
+    #     serverkey=pa_wrapper.publickey,
+    #     secretkey=ks.secret(),
+    #     publickey=ks.public()
+    # )
+    #
+    # peers = agent.vip.peerlist().get(timeout=2)
+    # assert PLATFORM_ID in peers
+    # assert agent.core.address.startswith('tcp://')
+    #
+    # print('Calling manage')
+    # registered_uuid = agent.vip.rpc.call(
+    #     PLATFORM_ID, 'manage', pa_wrapper.vip_address,
+    #     pa_wrapper.publickey).get(timeout=2)
+    #
+    # assert registered_uuid
+
+
 
 
 # def simulated_vc(wrapper, do_manage=False):
@@ -52,40 +171,40 @@ PLATFORM_ID = 'platform.agent'
 #
 #     return vc_agent, secretkey, publickey
 
-def install_platform(wrapper):
-    agent_uuid = wrapper.install_agent(
-        agent_dir="services/core/Platform",
-        config_file="services/core/Platform/config")
-    return agent_uuid
-
-
-@pytest.mark.pa
-def test_list_agents(volttron_instance1):
-
-    agent_uuid = install_platform(volttron_instance1)
-
-    caller = volttron_instance1.build_agent()
-
-    results = caller.vip.rpc.call(
-        PLATFORM_ID, "list_agents").get(timeout=10)
-
-    statuses = caller.vip.rpc.call(
-        PLATFORM_ID, "status_agents").get(timeout=10)
-
-    # Note since the vc is simulated the list_agents only should have the
-    # platformagent
-    assert results
-    keys = results[0].keys()
-    assert 'platformagent' in results[0]['name']
-    assert 'process_id' in keys
-    assert 'uuid' in keys
-    assert 'priority' in keys
-    assert 'error_code' in keys
-    assert results[0]['process_id'] > 0
-    assert 'health' in keys
-    assert results[0]['health']['health'] == "GOOD"
-    assert results[0]['health']['context']
-    assert results[0]['health']['last_updated']
+# def install_platform(wrapper):
+#     agent_uuid = wrapper.install_agent(
+#         agent_dir="services/core/VolttronCentralPlatform",
+#         config_file="services/core/VolttronCentralPlatform/config")
+#     return agent_uuid
+#
+#
+# @pytest.mark.pa
+# def test_list_agents(volttron_instance1):
+#
+#     agent_uuid = install_platform(volttron_instance1)
+#
+#     caller = volttron_instance1.build_agent()
+#
+#     results = caller.vip.rpc.call(
+#         PLATFORM_ID, "list_agents").get(timeout=10)
+#
+#     statuses = caller.vip.rpc.call(
+#         PLATFORM_ID, "status_agents").get(timeout=10)
+#
+#     # Note since the vc is simulated the list_agents only should have the
+#     # platformagent
+#     assert results
+#     keys = results[0].keys()
+#     assert 'platformagent' in results[0]['name']
+#     assert 'process_id' in keys
+#     assert 'uuid' in keys
+#     assert 'priority' in keys
+#     assert 'error_code' in keys
+#     assert results[0]['process_id'] > 0
+#     assert 'health' in keys
+#     assert results[0]['health']['health'] == "GOOD"
+#     assert results[0]['health']['context']
+#     assert results[0]['health']['last_updated']
 
 
 
@@ -104,82 +223,82 @@ def test_list_agents(volttron_instance1):
 #     assert results
 #     assert 'platformagent' in results[0]['name']
 
-@pytest.mark.pa
-def test_platform_health(volttron_instance1):
-    agent_uuid = install_platform(volttron_instance1)
-    assert agent_uuid
+# @pytest.mark.pa
+# def test_platform_health(volttron_instance1):
+#     agent_uuid = install_platform(volttron_instance1)
+#     assert agent_uuid
+#
+#     caller = volttron_instance1.build_agent()
+#     assert caller
+#
+#     status = caller.vip.rpc.call('platform.agent',
+#                                  'get_health').get(timeout=2)
+#
+#     assert status['health'] == 'GOOD'
+#     assert status['context']
+#     assert status['last_updated']
+#
+#
+# @pytest.mark.pa
+# def test_startstoprestart_agent(volttron_instance1):
+#     agent_uuid = install_platform(volttron_instance1)
+#     assert agent_uuid
+#
+#     caller = volttron_instance1.build_agent()
+#     assert caller
+#
+#     listener_dir = "examples/ListenerAgent"
+#     config = "examples/ListenerAgent/config"
+#     listener_uuid = volttron_instance1.install_agent(agent_dir=listener_dir,
+#                                                      config_file=config,
+#                                                      start=False)
+#     result = caller.vip.rpc.call(PLATFORM_ID, "agent_status",
+#                                  listener_uuid).get(timeout=3)
+#     assert result == [None, None]
+#     assert listener_uuid
+#     caller.vip.rpc.call(PLATFORM_ID, "start_agent",
+#                         listener_uuid).get(timeout=3)
+#     gevent.sleep(.1)
+#     result = caller.vip.rpc.call(PLATFORM_ID, "agent_status",
+#                                  listener_uuid).get(timeout=3)
+#     assert result[0] > 0
+#     assert result[1] is None
+#     original_proc = result[0]
+#
+#     caller.vip.rpc.call(PLATFORM_ID, "restart_agent",
+#                         listener_uuid).get(timeout=3)
+#     gevent.sleep(0.1)
+#     result = caller.vip.rpc.call(PLATFORM_ID, "agent_status",
+#                                  listener_uuid).get(timeout=3)
+#     assert result[0] > 0
+#     assert result[1] is None
+#     # TODO: Figure out why the following test fails.
+#     #assert result[0] != original_proc
+#
+#     caller.vip.rpc.call(PLATFORM_ID, "stop_agent",
+#                         listener_uuid).get(timeout=3)
+#     gevent.sleep(0.1)
+#     result = caller.vip.rpc.call(PLATFORM_ID, "agent_status",
+#                                  listener_uuid).get(timeout=3)
+#     print("the result is: {}".format(result))
+#     assert result[0] > 0
+#     # TODO: What should the real value be?
+#     #assert result[1] == 0
 
-    caller = volttron_instance1.build_agent()
-    assert caller
 
-    status = caller.vip.rpc.call('platform.agent',
-                                 'get_health').get(timeout=2)
-
-    assert status['health'] == 'GOOD'
-    assert status['context']
-    assert status['last_updated']
-
-
-@pytest.mark.pa
-def test_startstoprestart_agent(volttron_instance1):
-    agent_uuid = install_platform(volttron_instance1)
-    assert agent_uuid
-
-    caller = volttron_instance1.build_agent()
-    assert caller
-
-    listener_dir = "examples/ListenerAgent"
-    config = "examples/ListenerAgent/config"
-    listener_uuid = volttron_instance1.install_agent(agent_dir=listener_dir,
-                                                     config_file=config,
-                                                     start=False)
-    result = caller.vip.rpc.call(PLATFORM_ID, "agent_status",
-                                 listener_uuid).get(timeout=3)
-    assert result == [None, None]
-    assert listener_uuid
-    caller.vip.rpc.call(PLATFORM_ID, "start_agent",
-                        listener_uuid).get(timeout=3)
-    gevent.sleep(.1)
-    result = caller.vip.rpc.call(PLATFORM_ID, "agent_status",
-                                 listener_uuid).get(timeout=3)
-    assert result[0] > 0
-    assert result[1] is None
-    original_proc = result[0]
-
-    caller.vip.rpc.call(PLATFORM_ID, "restart_agent",
-                        listener_uuid).get(timeout=3)
-    gevent.sleep(0.1)
-    result = caller.vip.rpc.call(PLATFORM_ID, "agent_status",
-                                 listener_uuid).get(timeout=3)
-    assert result[0] > 0
-    assert result[1] is None
-    # TODO: Figure out why the following test fails.
-    #assert result[0] != original_proc
-
-    caller.vip.rpc.call(PLATFORM_ID, "stop_agent",
-                        listener_uuid).get(timeout=3)
-    gevent.sleep(0.1)
-    result = caller.vip.rpc.call(PLATFORM_ID, "agent_status",
-                                 listener_uuid).get(timeout=3)
-    print("the result is: {}".format(result))
-    assert result[0] > 0
-    # TODO: What should the real value be?
-    #assert result[1] == 0
-
-
-@pytest.mark.pa
-def test_automanage(volttron_instance1):
-
-    install_platform(volttron_instance1)
-    volttron_instance1.install_agent(
-        agent_dir='services/core/VolttronCentral',
-        config_file='services/core/VolttronCentral/config')
-
-    caller = volttron_instance1.build_agent()
-    assert caller
-
-    managed = caller.vip.rpc(PLATFORM_ID,'is_managed').get(timeout=10)
-    assert managed
+# @pytest.mark.pa
+# def test_automanage(volttron_instance1):
+#
+#     install_platform(volttron_instance1)
+#     volttron_instance1.install_agent(
+#         agent_dir='services/core/VolttronCentral',
+#         config_file='services/core/VolttronCentral/config')
+#
+#     caller = volttron_instance1.build_agent()
+#     assert caller
+#
+#     managed = caller.vip.rpc(PLATFORM_ID,'is_managed').get(timeout=10)
+#     assert managed
 
 
 # @pytest.mark.pa
