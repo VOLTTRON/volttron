@@ -48,7 +48,7 @@ PACIFIC NORTHWEST NATIONAL LABORATORY
 operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 under Contract DE-AC05-76RL01830
 '''
-import numpy as np
+from volttron.platform.agent.math_utils import mean
 import datetime
 import logging
 import math
@@ -153,8 +153,8 @@ class DuctStaticRcx(object):
             dx_result.insert_table_row(VALIDATE_FILE_TOKEN, self.data)
             self.reinitialize()
 
-        self.stcpr_arr.append(np.mean(stcpr_data))
-        self.zn_dmpr_arr.append(np.mean(zn_dmpr_data))
+        self.stcpr_arr.append(mean(stcpr_data))
+        self.zn_dmpr_arr.append(mean(zn_dmpr_data))
         self.timestamp_arr.append(current_time)
 
         if self.data:
@@ -172,10 +172,10 @@ class DuctStaticRcx(object):
         zn_dmpr = deepcopy(self.zn_dmpr_arr)
         zn_dmpr.sort(reverse=False)
         zone_dmpr_lowtemp = zn_dmpr[:int(math.ceil(len(self.zn_dmpr_arr)*0.5)) if len(self.zn_dmpr_arr) != 1 else 1]
-        zn_dmpr_low_avg = np.mean(zone_dmpr_lowtemp)
+        zn_dmpr_low_avg = mean(zone_dmpr_lowtemp)
 
         zone_dmpr_hightemp = zn_dmpr[int(math.ceil(len(self.zn_dmpr_arr)*0.5)) - 1 if len(self.zn_dmpr_arr) != 1 else 0:]
-        zn_dmpr_high_avg = np.mean(zone_dmpr_hightemp)
+        zn_dmpr_high_avg = mean(zone_dmpr_hightemp)
         if zn_dmpr_high_avg > self.zone_high_dmpr_threshold and zn_dmpr_low_avg > self.zone_low_dmpr_threshold:
             if avg_stcpr_stpt is None:
                 # Create diagnostic message for fault
@@ -224,7 +224,7 @@ class DuctStaticRcx(object):
         zn_dmpr = deepcopy(self.zn_dmpr_arr)
         zn_dmpr.sort(reverse=True)
         zn_dmpr = zn_dmpr[:int(math.ceil(len(self.zn_dmpr_arr)*0.5))if len(self.zn_dmpr_arr) != 1 else 1]
-        avg_zone_damper = np.mean(zn_dmpr)
+        avg_zone_damper = mean(zn_dmpr)
 
         if avg_zone_damper <= self.hdzn_dmpr_thr:
             if avg_stcpr_stpt is None:

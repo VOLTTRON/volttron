@@ -49,7 +49,7 @@ operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 under Contract DE-AC05-76RL01830
 '''
 import logging
-from numpy import mean
+from volttron.platform.agent.math_utils import mean
 from .common import check_date, validation_builder, check_run_status, setpoint_control_check
 
 SA_VALIDATE = 'Supply-air Temperature ACCx'

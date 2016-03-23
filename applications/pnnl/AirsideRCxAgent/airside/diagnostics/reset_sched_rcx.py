@@ -48,10 +48,11 @@ PACIFIC NORTHWEST NATIONAL LABORATORY
 operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 under Contract DE-AC05-76RL01830
 '''
-import numpy as np
+from volttron.platform.agent.math_utils import mean
 import datetime
 import re
 import logging
+from dateutil.parser import parse
 from .common import validation_builder
 SCHED_VALIDATE = 'Schedule-Reset ACCx'
 DUCT_STC_RCX3 = 'No Static Pressure Reset Dx'
@@ -82,9 +83,8 @@ class SchedResetRcx(object):
         self.sched_time = []
         self.dx_time = None
 
-        def date_parse(date):
-            date = re.sub('[:;]', ',', date)
-            return [int(item) for item in (x.strip() for x in date.split(','))]
+        def date_parse(dates):
+            return [parse(timestamp).time() for timestamp in dates]
 
         self.analysis = analysis
         self.monday_sch = date_parse(monday_sch)
@@ -125,37 +125,35 @@ class SchedResetRcx(object):
             self.stcpr_arr.extend(duct_stcpr)
         self.timestamp = [self.timestamp[-1]]
 
-    def sched_rcx_alg(self, cur_time, stcpr_data, stcpr_stpt_data,
+    def sched_rcx_alg(self, current_time, stcpr_data, stcpr_stpt_data,
                       sat_stpt_data, fan_stat_data, dx_result,
                       sched_val):
         '''Check schedule status and unit operational status.'''
         fan_status = None
         stcpr_sp_val = None
-        schedule = self.schedule[cur_time.weekday()]
+        schedule = self.schedule[current_time.weekday()]
         run_diagnostic = False
 
-        if self.timestamp and self.timestamp[-1].date() != cur_time.date():
+        if self.timestamp and self.timestamp[-1].date() != current_time.date():
             self.start_of_next_analysis = self.timestamp[-1].date()
             run_diagnostic = True
 
-        if((cur_time.hour < schedule[0] or
-           (cur_time.hour == schedule[0] and cur_time.minute < schedule[1])) or
-           (cur_time.hour > schedule[2] or
-           (cur_time.hour == schedule[2] and cur_time.minute < schedule[3]))):
+        if current_time.hour < schedule[0] or current_time.hour > schedule[1]:
             if not run_diagnostic:
                 self.stcpr_arr.extend(stcpr_data)
                 self.fanstat_values.append(int(max(fan_stat_data)))
-                self.sched_time.append(cur_time)
+                self.sched_time.append(current_time)
             fan_status = int(max(fan_stat_data))
             duct_stcpr = stcpr_data
         else:
             if int(max(fan_stat_data)):
                 if not run_diagnostic:
-                    self.stcpr_stpt_arr.append(np.mean(stcpr_stpt_data))
-                    self.sat_stpt_arr.append(np.mean(sat_stpt_data))
-                avg_stcpr_stpt = np.mean(stcpr_stpt_data)
-                avg_sat_stpt = np.mean(sat_stpt_data)
-        self.timestamp.append(cur_time)
+                    self.stcpr_stpt_arr.append(mean(stcpr_stpt_data))
+
+                    self.sat_stpt_arr.append(mean(sat_stpt_data))
+                avg_stcpr_stpt = mean(stcpr_stpt_data)
+                avg_sat_stpt = mean(sat_stpt_data)
+        self.timestamp.append(current_time)
 
         data = validation_builder(sched_val, SCHED_VALIDATE, DATA)
 

@@ -50,7 +50,7 @@ under Contract DE-AC05-76RL01830
 """
 
 from datetime import timedelta as td
-from numpy import mean
+from volttron.platform.agent.math_utils import mean
 from volttron.platform.agent.driven import Results, AbstractDrivenAgent
 from diagnostics.satemp_rcx import SupplyTempRcx
 from diagnostics.stcpr_rcx import DuctStaticRcx
@@ -117,10 +117,10 @@ class Application(AbstractDrivenAgent):
             max_sat_stpt=75.0,
 
             unocc_time_threshold=30.0, unocc_stp_threshold=0.2,
-            monday_sch='6:30;18:30', tuesday_sch='6:30;18:30',
-            wednesday_sch='6:30;18:30', thursday_sch='6:30;18:30',
-            friday_sch='6:30;18:30', saturday_sch='0:00;0:00',
-            sunday_sch='0:00;0:00', **kwargs):
+            monday_sch=['5:30','18:30'], tuesday_sch=['5:30','18:30'],
+            wednesday_sch=['5:30','18:30'], thursday_sch=['5:30','18:30'],
+            friday_sch=['5:30','18:30'], saturday_sch=['0:00','0:00'],
+            sunday_sch=['0:00','0:00'], **kwargs):
 
         self.warm_up_start = None
         autocorrect_flag = True
