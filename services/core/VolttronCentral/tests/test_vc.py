@@ -4,9 +4,9 @@ import tempfile
 import gevent
 import pytest
 import requests
-from zmq.utils import jsonapi
 
 from volttron.platform.keystore import KeyStore
+from volttron.platform.web import DiscoveryInfo
 from volttrontesting.fixtures.vc_fixtures import PLATFORM_AGENT_CONFIG
 
 
@@ -17,6 +17,20 @@ def validate_instances(wrapper1, wrapper2):
     assert wrapper1.volttron_home
     assert wrapper2.volttron_home
     assert wrapper1.volttron_home != wrapper2.volttron_home
+
+
+@pytest.mark.vc
+def test_platform_responds_to_discover_endpoint(pa_instance):
+    """
+    Successful when the response is json and has the same server key as the
+    one in pa_instance.
+    """
+    wrapper = pa_instance['wrapper']
+    info = DiscoveryInfo.request_discovery_info(wrapper.bind_web_address)
+
+    assert wrapper.bind_web_address == info.discovery_address
+    assert wrapper.publickey == info.serverkey
+
 
 @pytest.mark.vc
 def test_publickey_retrieval(vc_instance, pa_instance):
