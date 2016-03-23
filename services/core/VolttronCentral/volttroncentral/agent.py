@@ -55,9 +55,7 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-__version__ = "3.1"
 
-import datetime
 import errno
 import logging
 import sys
@@ -75,10 +73,13 @@ from .registry import PlatformRegistry, RegistryEntry
 from volttron.platform.vip.socket import encode_key
 from volttron.platform.auth import AuthEntry, AuthFile
 from volttron.platform import jsonrpc, get_home
-from volttron.platform.web import DiscoveryInfo
+from volttron.platform.web import (DiscoveryInfo, CouldNotRegister,
+                                   build_vip_address_string)
+from volttron.platform.vip.agent.utils import build_agent
 from volttron.platform.agent import utils
-from volttron.platform.vip.agent import *
+from volttron.platform.vip.agent import Agent, RPC, PubSub, Core
 from volttron.platform.vip.agent.subsystems import query
+
 from sessions import SessionHandler
 
 from volttron.platform.control import list_agents
@@ -90,75 +91,67 @@ from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
 
 from volttron.platform.keystore import KeyStore
 
+__version__ = "3.5"
+
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-__version__ = '3.0'
+
 
 # Web root is going to be relative to the volttron central agents
 # current agent's installed path
-WEB_ROOT = p.abspath(p.join(p.dirname(__file__), 'webroot'))
+DEFAULT_WEB_ROOT = p.abspath(p.join(p.dirname(__file__), 'webroot'))
 
 
+class VolttronCentralAgent(Agent):
+    """ Agent for exposing and managing many platform.agent's through a web interface.
+    """
+    __name__ = 'VolttronCentralAgent'
 
+    def __init__(self, config_path, **kwargs):
+        """ Creates a `VolttronCentralAgent` object to manage instances.
 
-def volttron_central_agent(config_path, **kwargs):
-    '''The main entry point for the volttron central agent
+         Each instances that is registered must contain a running
+         `VolttronCentralPlatform`.  Through this conduit the
+         `VolttronCentralAgent` is able to communicate securly and
+         efficiently.
 
-    The config options requires a user_map section that should
-    hold a mapping of users to their hashed passwords.  Passwords
-    are currently hashed using hashlib.sha512(password).hexdigest().
-    '''
-    global WEB_ROOT
-
-    config = utils.load_config(config_path)
-
-    identity = kwargs.pop('identity', 'volttron.central')
-    identity = config.get('identity', identity)
-
-    # For debugging purposes overwrite the WEB_ROOT variable with what's
-    # from the configuration file.
-    WEB_ROOT = config.get('webroot', WEB_ROOT)
-    if WEB_ROOT.endswith('/'):
-        WEB_ROOT = WEB_ROOT[:-1]
-
-    agent_id = config.get('agentid', 'Volttron Central')
-
-    # Required users
-    user_map = config.get('users', None)
-
-    if user_map is None:
-        raise ValueError('users not specified within the config file.')
-
-
-    class VolttronCentralAgent(Agent):
-        """ Agent for exposing and managing many platform.agent's through a web interface.
+        :param config_path:
+        :param kwargs:
+        :return:
         """
+        _log.info("{} constructing...".format(self.__name__))
+        # Load the configuration into a dictionary
+        self._config = utils.load_config(config_path)
 
-        def __init__(self, **kwargs):
-            super(VolttronCentralAgent, self).__init__(**kwargs)
+        # Expose the webroot property to be customized through the config
+        # file.
+        self.webroot = self._config.get('webroot', DEFAULT_WEB_ROOT)
+        if self.webroot.endswith('/'):
+            self.webroot = self.webroot[:-1]
 
-            # A resource directory that contains everything that can be looked
-            # up.
-            self._resources = ResourceDirectory()
-            self._registry = self._resources.platform_registry
+        # Required users
+        self._user_map = self._config.get('users', None)
 
-            # An object that allows the checking of currently authenticated
-            # sessions.
-            self._sessions = SessionHandler(Authenticate(user_map))
-            self.valid_data = False
-            self.persistence_path = ''
-            self._external_addresses = None
-            self._vip_channels = {}
-            self._peer_platform_exists = False
+        _log.debug("User map is: {}".format(self._user_map))
+        if self._user_map is None:
+            raise ValueError('users not specified within the config file.')
 
-            # These are going to be populated in the starting method.
-            self._external_addresses = None
-            self._local_address = None
+        # Let the identity be overridden based upon identity in the
+        # configuration file otherwise default to volttron.central.
+        identity = kwargs.pop("identity", None)
+        identity = self._config.get("identity", "volttron.central")
 
-            # connect a periodic to check for the existence of a platform_peer
-            self.core.onstart.connect(
-                lambda s, **kwargs:
-                    self.core.periodic(20, self._check_for_peer_platform))
+        super(VolttronCentralAgent, self).__init__(identity=identity,
+                                                   **kwargs)
+
+        # A resource directory that contains everything that can be looked up.
+        self._resources = ResourceDirectory()
+        self._registry = self._resources.platform_registry
+
+        # An object that allows the checking of currently authenticated
+        # sessions.
+        self._sessions = SessionHandler(Authenticate(self._user_map))
+        self.webaddress = None
 
         def _check_for_peer_platform(self):
             """ Check the list of peers for a platform.agent
@@ -232,7 +225,7 @@ def volttron_central_agent(config_path, **kwargs):
                 agent = self._get_rpc_agent(platform['vip_address'])
 
                 results = agent.vip.rpc.call(platform['vip_identity'],
-                                         'list_agents').get(timeout=10)
+                                             'list_agents').get(timeout=10)
 
             return results
 
@@ -273,7 +266,7 @@ def volttron_central_agent(config_path, **kwargs):
             #                        provisional=True)
 
         def _register_instance(self, discovery_address, display_name=None,
-                              provisional=False):
+                               provisional=False):
             """ Register an instance with VOLTTRON Central.
 
             The registration of the instance will fail in the following cases:
@@ -295,7 +288,7 @@ def volttron_central_agent(config_path, **kwargs):
 
             _log.info(
                 'Attempting to register name: {}\nwith address: {}'.format(
-                display_name, discovery_address))
+                    display_name, discovery_address))
 
             # Make sure that the agent is reachable.
             request_uri = "{}/discovery/".format(discovery_address)
@@ -343,8 +336,8 @@ def volttron_central_agent(config_path, **kwargs):
             # Add the pa's public key so it can connect back to us.
             auth_file = AuthFile()
             auth_entry = AuthEntry(credentials="CURVE:{}".format(result),
-                capabilities=['is_managed']
-            )
+                                   capabilities=['is_managed']
+                                   )
             auth_file.add(auth_entry)
 
             vc_webaddr = os.environ.get('VOLTTRON_WEB_ADDR', None)
@@ -447,9 +440,9 @@ def volttron_central_agent(config_path, **kwargs):
                 jsonstr = data
 
             data = jsonrpc.JsonRpcData(jsonstr.get('id', None),
-                jsonstr.get('jsonrpc', None),
-                jsonstr.get('method', None),
-                jsonstr.get('params', None))
+                                       jsonstr.get('jsonrpc', None),
+                                       jsonstr.get('method', None),
+                                       jsonstr.get('params', None))
 
             return data
 
@@ -564,7 +557,7 @@ def volttron_central_agent(config_path, **kwargs):
                                        'list_agents').get(timeout=2)
             for a in agents:
                 if "platformagent" in a['name'] or \
-                        "volttroncentral" in a['name']:
+                                "volttroncentral" in a['name']:
                     a['vc_can_start'] = False
                     a['vc_can_stop'] = False
                     a['vc_can_restart'] = True
@@ -593,12 +586,12 @@ def volttron_central_agent(config_path, **kwargs):
             _log.debug('Local address is? {}'.format(self._local_address))
             _log.debug('Registering jsonrpc and /.* routes')
             self.vip.rpc.call('volttron.web', 'register_agent_route',
-                            r'^/jsonrpc.*',
-                            self.core.identity,
-                            'jsonrpc').get(timeout=5)
+                              r'^/jsonrpc.*',
+                              self.core.identity,
+                              'jsonrpc').get(timeout=5)
 
             self.vip.rpc.call('volttron.web', 'register_path_route',
-                            r'^/.*', WEB_ROOT).get(timeout=5)
+                              r'^/.*', WEB_ROOT).get(timeout=5)
 
         def __load_persist_data(self):
             persist_kv = None
@@ -640,12 +633,12 @@ def volttron_central_agent(config_path, **kwargs):
         @Core.receiver('onstop')
         def finish(self, sender, **kwargs):
             self.vip.rpc.call('volttron.web', 'unregister_all_agent_routes',
-                            self.core.identity).get(timeout=5)
+                              self.core.identity).get(timeout=5)
 
         def _handle_list_platforms(self):
             return [{'uuid': x['uuid'],
-                         'name': x['agentid']}
-                        for x in self._registry.get_platforms()]
+                     'name': x['agentid']}
+                    for x in self._registry.get_platforms()]
 
         def route_request(self, id, method, params):
             '''Route request to either a registered platform or handle here.'''
@@ -677,9 +670,9 @@ def volttron_central_agent(config_path, **kwargs):
             agent = self._get_rpc_agent(platform['vip_address'])
 
             _log.debug("calling identity {} with parameters {} {} {}"
-                   .format(platform['vip_identity'],
-                           id,
-                           platform_method, params))
+                       .format(platform['vip_identity'],
+                               id,
+                               platform_method, params))
             result = agent.vip.rpc.call(platform['vip_identity'],
                                         "route_request",
                                         id, platform_method, params).get(timeout=10)
@@ -687,13 +680,11 @@ def volttron_central_agent(config_path, **kwargs):
 
             return result
 
-    VolttronCentralAgent.__name__ = 'VolttronCentralAgent'
-    return VolttronCentralAgent(identity=identity, **kwargs)
 
 
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
-    utils.vip_main(volttron_central_agent)
+    utils.vip_main(VolttronCentralAgent)
 
 if __name__ == '__main__':
     # Entry point for script
