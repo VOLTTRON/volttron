@@ -221,7 +221,10 @@ class PlatformWrapper:
         try:
             with open(auth_path, 'r') as fd:
                 data = strip_comments(FileObject(fd, close=False).read())
-                auth = jsonapi.loads(data)
+                if data:
+                    auth = jsonapi.loads(data)
+                else:
+                    auth = {}
         except IOError:
             auth = {}
         if not 'allow' in auth:
@@ -347,12 +350,15 @@ class PlatformWrapper:
         # A negative means that the process exited with an error.
         assert self._p_process.poll() is None
 
+        # # make sure we don't return too quickly.
+        gevent.sleep(0.2)
+
         #os.environ['VOLTTRON_HOME'] = self.opts['volttron_home']
         #self._p_process = Process(target=start_volttron_process, args=(self.opts,))
         #self._p_process.daemon = True
         #self._p_process.start()
 
-        gevent.sleep()
+        gevent.sleep(0.2)
         self.use_twistd = use_twistd
 
         #TODO: Revise this to start twistd with platform.
@@ -368,6 +374,7 @@ class PlatformWrapper:
         #self._t_process = subprocess.Popen(["twistd", "-n", "smap", "test-smap.ini"])
 
     def is_running(self):
+        print("PROCESS IS RUNNING: {}".format(self._p_process))
         return self._p_process is not None and self._p_process.poll() is None
 
     def twistd_is_running(self):
@@ -632,9 +639,9 @@ class PlatformWrapper:
                 print('could not kill: {} '.format(pid))
         if self._p_process != None:
             try:
-                gevent.sleep(0.1)
+                gevent.sleep(0.2)
                 self._p_process.terminate()
-                gevent.sleep(0.1)
+                gevent.sleep(0.2)
             except OSError:
                 print('Platform process was terminated.')
         else:

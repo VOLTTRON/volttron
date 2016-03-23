@@ -66,12 +66,15 @@ from gevent import pywsgi
 import mimetypes
 from zmq.utils import jsonapi
 
+from .auth import AuthEntry, AuthFile
 from .vip.agent import Agent, Core, RPC
 from .vip.agent.subsystems import query
-from .jsonrpc import UNAUTHORIZED
+from .jsonrpc import (
+    json_result, json_error, json_validate_request, UNAUTHORIZED)
 from .vip.socket import encode_key
 
 _log = logging.getLogger(__name__)
+
 
 class CouldNotRegister(StandardError):
     pass
@@ -93,14 +96,14 @@ class DiscoveryInfo(object):
     def __init__(self, **kwargs):
 
         self.discovery_address = kwargs.pop('discovery_address')
-        self.vip_address = kwargs.pop('vip_address')
+        self.vip_address = kwargs.pop('vip-address')
         self.serverkey = kwargs.pop('serverkey')
         self.vcpublickey = kwargs.pop('vcpublickey', None)
         self.papublickey = kwargs.pop('papublickey', None)
         assert len(kwargs) == 0
 
     @staticmethod
-    def get_discovery_info(discovery_address):
+    def request_discovery_info(discovery_address):
         """  Construct a `DiscoveryInfo` object.
 
         Requests a response from discovery_address and constructs a
@@ -118,12 +121,12 @@ class DiscoveryInfo(object):
         response = requests.get(real_url)
 
         if not response.ok:
-            raise CouldNotRegister(
+            raise DiscoveryError(
                 "Invalid discovery response from {}".format(real_url)
             )
 
-        return DiscoveryInfo(**(response.json()))
-
+        return DiscoveryInfo(
+            discovery_address=discovery_address, **(response.json()))
 
     def __str__(self):
         dk = {
@@ -200,7 +203,7 @@ class MasterWebService(Agent):
         """
         _log.info(
             'Registering agent route expression: {} peer: {} function: {}'
-            .format(regex, peer, fn))
+                .format(regex, peer, fn))
         compiled = re.compile(regex)
         self.peerroutes[peer].append(compiled)
         self.registeredroutes.insert(0, (compiled, 'peer_route', (peer, fn)))
@@ -222,7 +225,36 @@ class MasterWebService(Agent):
         start_response('302 Found', [('Location', '/index.html')])
         return ['1']
 
-    def _get_discovery(self, environ, start_response):
+    def _allow(self, environ, start_response, data=None):
+        _log.info('Allowing new vc instance to connect to server.')
+        jsondata = jsonapi.loads(data)
+        json_validate_request(jsondata)
+
+        assert jsondata.get('method') == 'allowvc'
+        assert jsondata.get('params')
+
+        params = jsondata.get('params')
+        if isinstance(params, list):
+            vcpublickey = params[0]
+        else:
+            vcpublickey = params.get('vcpublickey')
+
+        assert vcpublickey
+        assert len(vcpublickey) == 43
+
+        authfile = AuthFile()
+        authentry = AuthEntry(
+            credentials="CURVE:{}".format(vcpublickey)
+        )
+
+        authfile.add(authentry)
+        start_response('200 OK',
+                       [('Content-Type', 'application/json')])
+        return jsonapi.dumps(
+            json_result(jsondata['id'], "Added")
+        )
+
+    def _get_discovery(self, environ, start_response, data=None):
         q = query.Query(self.core)
         result = q.query('addresses').get(timeout=2)
         external_vip = None
@@ -238,16 +270,12 @@ class MasterWebService(Agent):
         if 'volttron.central' in peers:
             print('doing vc public key')
             vc_publickey = self.aip.agent_publickey('volttron.central')
-            #vc_publickey = q.query(b'publickey', b'volttron.central').get(timeout=2)
             return_dict['vcpublickey'] = vc_publickey
         if 'platform.agent' in peers:
             print('doing pa public key')
             pa_publickey = self.aip.agent_publickey('platform.agent')
-            #pa_publickey = q.query(b'publickey', b'platform.agent').get(timeout=2)
             return_dict['papublickey'] = pa_publickey
 
-        _log.debug("PRINTING DICT: ")
-        _log.debug(return_dict)
         if self.serverkey:
             return_dict['serverkey'] = encode_key(self.serverkey)
         else:
@@ -281,7 +309,7 @@ class MasterWebService(Agent):
                 _log.debug("MATCHED:\npattern: {}, path_info: {}\n v: {}"
                            .format(k.pattern, path_info, v))
                 if t == 'callable':  # Generally for locally called items.
-                    return v(env, start_response)
+                    return v(env, start_response, data)
                 elif t == 'peer_route':  # RPC calls from agents on the platform.
                     _log.debug('Matched peer_route with pattern {}'.format(
                         k.pattern))
@@ -341,6 +369,9 @@ class MasterWebService(Agent):
                    .format(hostname, port))
         self.registeredroutes.append((re.compile('^/discovery/$'), 'callable',
                                       self._get_discovery))
+        self.registeredroutes.append((re.compile('^/discovery/allow$'),
+                                      'callable',
+                                      self._allow))
         self.registeredroutes.append((re.compile('^/$'), 'callable',
                                       self._redirect_index))
         port = int(port)
