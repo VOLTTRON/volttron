@@ -73,7 +73,7 @@ class Application(AbstractDrivenAgent):
         duct_stcpr_retuning (float): Amount to increment or decrement the duct
             static pressure set point high/low duct static pressure set point
             problem is detected (assumed to be in inches water column (gauge)).
-        max_duct_stcpr_stpt (floa): Maximum value for the duct static pressure set
+        max_duct_stcpr_stpt (float): Maximum value for the duct static pressure set
             point when applying auto-correction.
         high_sf_threshold (float): Auto-correction for low duct static pressure set point
             will not be effective if the supply fan for the AHU is operating at or near 100%
@@ -124,7 +124,7 @@ class Application(AbstractDrivenAgent):
 
         self.warm_up_start = None
         autocorrect_flag = True
-        self.warm_up_flag = None
+        self.warm_up_flag = True
 
         # Point names (Configurable)
         def get_or_none(name):
@@ -196,7 +196,6 @@ class Application(AbstractDrivenAgent):
 
         if self.fansp_name in device_dict:
             fan_speed = device_dict[self.fansp_name]
-            dx_result.log('myspeed' + str(fan_speed))
             fan_speed = mean([point[1] for point in fan_speed])
             if self.fan_status_name is None:
                 if not int(fan_speed):
@@ -287,7 +286,7 @@ class Application(AbstractDrivenAgent):
             self.static_dx.duct_static(cur_time, stcpr_sp_data, stc_pr_data,
                                        zn_dmpr_data, low_dx_cond, high_dx_cond,
                                        dx_result, validate))
-        # dx_result = (
-        #     self.sat_dx.sat_rcx(cur_time, satemp_data, sat_stpt_data, rht_data,
-        #                         zn_dmpr_data, dx_result, validate))
+        dx_result = (
+            self.sat_dx.sat_rcx(cur_time, satemp_data, sat_stpt_data, rht_data,
+                                zn_dmpr_data, dx_result, validate))
         return dx_result

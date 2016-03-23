@@ -131,6 +131,7 @@ class Results(object):
         self.log_messages = []
         self._terminate = terminate
         self.table_output = defaultdict(list)
+        self.file_output = defaultdict(list)
 
     def command(self, point, value):
         self.commands[point]=value
@@ -143,6 +144,9 @@ class Results(object):
 
     def insert_table_row(self, table, row):
         self.table_output[table].append(row)
+
+    def insert_file_row(self, _file, row):
+        self.file_output[_file].append(row)
 
 
 class ConversionMapper(object):

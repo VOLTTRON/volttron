@@ -50,7 +50,6 @@ under Contract DE-AC05-76RL01830
 '''
 from volttron.platform.agent.math_utils import mean
 import datetime
-import re
 import logging
 from dateutil.parser import parse
 from .common import validation_builder
@@ -64,15 +63,14 @@ DATA = '/data/'
 ST = 'state'
 
 class SchedResetRcx(object):
-    '''Schedule, supply-air temperature, and duct static pressure auto-detect
+    """Schedule, supply-air temperature, and duct static pressure auto-detect
     diagnostics for AHUs or RTUs.
-    '''
+    """
     def __init__(self, unocc_time_threshold, unocc_stp_threshold,
                  monday_sch, tuesday_sch, wednesday_sch, thursday_sch,
                  friday_sch, saturday_sch, sunday_sch,
                  no_req_data, stpr_reset_threshold, sat_reset_threshold,
                  analysis):
-
         self.act_sch = []
         self.fanstat_values = []
         self.schedule = {}
@@ -109,7 +107,7 @@ class SchedResetRcx(object):
         self.stpr_reset_threshold = float(stpr_reset_threshold)
         self.sat_reset_threshold = float(sat_reset_threshold)
 
-    def reinitialize(self, avg_sat_stpt, avg_stcpr_stpt, duct_stcpr, fan_status):
+    def reinitialize(self, avg_sat_stpt, avg_stcpr_stpt, stcpr_data, fan_status):
         """Reinitialize data arrays"""
         self.sat_stpt_arr = []
         self.stcpr_arr = []
@@ -122,13 +120,13 @@ class SchedResetRcx(object):
             self.stcpr_stpt_arr.append(avg_stcpr_stpt)
         if fan_status is not None:
             self.fanstat_values.append(fan_status)
-            self.stcpr_arr.extend(duct_stcpr)
+            self.stcpr_arr.extend(stcpr_data)
         self.timestamp = [self.timestamp[-1]]
 
     def sched_rcx_alg(self, current_time, stcpr_data, stcpr_stpt_data,
                       sat_stpt_data, fan_stat_data, dx_result,
                       sched_val):
-        '''Check schedule status and unit operational status.'''
+        """Check schedule status and unit operational status."""
         fan_status = None
         stcpr_sp_val = None
         schedule = self.schedule[current_time.weekday()]
@@ -141,10 +139,9 @@ class SchedResetRcx(object):
         if current_time.hour < schedule[0] or current_time.hour > schedule[1]:
             if not run_diagnostic:
                 self.stcpr_arr.extend(stcpr_data)
-                self.fanstat_values.append(int(max(fan_stat_data)))
+                self.fanstat_values.append((current_time, int(max(fan_stat_data))))
                 self.sched_time.append(current_time)
             fan_status = int(max(fan_stat_data))
-            duct_stcpr = stcpr_data
         else:
             if int(max(fan_stat_data)):
                 if not run_diagnostic:
@@ -162,31 +159,30 @@ class SchedResetRcx(object):
             dx_result = self.no_static_pr_reset(dx_result)
             dx_result = self.no_sat_sp_reset(dx_result)
             data.update({SCHED_VALIDATE + DATA + ST: 1})
-            self.reinitialize(avg_sat_stpt, avg_stcpr_stpt, duct_stcpr, fan_status)
+            self.reinitialize(avg_sat_stpt, avg_stcpr_stpt, stcpr_data, fan_status)
         elif run_diagnostic:
             dx_msg = 61.2
             dx_table = {SCHED_RCX + DX:  dx_msg}
             dx_result.insert_table_row(self.analysis, dx_table)
             data.update({SCHED_VALIDATE + DATA + ST: 2})
-            self.reinitialize(avg_sat_stpt, avg_stcpr_stpt, duct_stcpr, fan_status)
+            self.reinitialize(avg_sat_stpt, avg_stcpr_stpt, stcpr_data, fan_status)
         else:
             data.update({SCHED_VALIDATE + DATA + ST: 0})
         dx_result.insert_table_row(VALIDATE_FILE_TOKEN, data)
         return dx_result
 
-    def unocc_fan_operation(self, result):
-        '''If the AHU/RTU is operating during unoccupied periods inform the
+    def unocc_fan_operation(self, dx_result):
+        """If the AHU/RTU is operating during unoccupied periods inform the
         building operator.
-        '''
-        fanstat_on = [i for i in self.fanstat_values if int(i) == 1]
+        """
+        avg_duct_stpr = 0
+        percent_on = 0
+        fanstat_on = [(fan[0], fan[1]) for fan in self.fanstat_values if int(fan[1]) == 1]
         if self.fanstat_values:
             percent_on = (len(fanstat_on)/len(self.fanstat_values)) * 100.0
-        else:
-            percent_on = 0
         if self.stcpr_arr:
-            avg_duct_stpr = np.mean(self.stcpr_arr)
-        else:
-            avg_duct_stpr = 0
+            avg_duct_stpr = mean(self.stcpr_arr)
+
         if percent_on > self.unocc_time_threshold:
             msg = 'Supply fan is on during unoccupied times.'
             dx_msg = 63.1
@@ -201,47 +197,49 @@ class SchedResetRcx(object):
                 dx_msg = 64.2
         for item in self.sched_time:
             dx_table = {SCHED_RCX + DX:  dx_msg}
-            result.insert_table_row(self.analysis, dx_table)
-        result.log(msg, logging.INFO)
-        return result
+            dx_result.insert_table_row(self.analysis, dx_table)
+        dx_result.log(msg, logging.INFO)
+        return dx_result
 
-    def no_static_pr_reset(self, result):
-        '''Auto-RCx  to detect whether a static pressure set point
+    def no_static_pr_reset(self, dx_result):
+        """Auto-RCx  to detect whether a static pressure set point
 
         reset is implemented.
-        '''
+        """
         if not self.stcpr_stpt_arr:
-            return result
-        stp_diff = (max(self.stcpr_stpt_arr) - min(self.stcpr_stpt_arr))
+            return dx_result
+        stcpr_daily_range = (max(self.stcpr_stpt_arr) - min(self.stcpr_stpt_arr))
 
-        if stp_diff < self.stpr_reset_threshold:
+        if stcpr_daily_range < self.stpr_reset_threshold:
             msg = ('No duct static pressure reset detected. A duct static '
                    'pressure set point reset can save significant energy.')
             dx_msg = 71.1
         else:
-            msg = 'No problem detected.'
+            msg = ('No problems detected for duct static pressure set point '
+                   'reset diagnostic.')
             dx_msg = 70.0
         dx_table = {DUCT_STC_RCX3 + DX:  dx_msg}
-        result.insert_table_row(self.analysis, dx_table)
-        result.log(msg, logging.INFO)
-        return result
+        dx_result.insert_table_row(self.analysis, dx_table)
+        dx_result.log(msg, logging.INFO)
+        return dx_result
 
-    def no_sat_sp_reset(self, result):
-        '''Auto-RCx  to detect whether a supply-air temperature set point
+    def no_sat_sp_reset(self, dx_result):
+        """Auto-RCx  to detect whether a supply-air temperature set point
 
         reset is implemented.
-        '''
+        """
         if not self.sat_stpt_arr:
-            return result
-        satemp_diff = max(self.sat_stpt_arr) - min(self.sat_stpt_arr)
-        if satemp_diff <= self.sat_reset_threshold:
+            return dx_result
+        satemp_daily_range = max(self.sat_stpt_arr) - min(self.sat_stpt_arr)
+        if satemp_daily_range <= self.sat_reset_threshold:
             msg = ('A supply-air temperature reset was not detected. '
                    'This can result in excess energy consumption.')
             dx_msg = 81.1
         else:
-            msg = 'No problems detected for this diagnostic.'
+            msg = ('No problems detected for supply-air temperature set point '
+                   'reset diagnostic.')
             dx_msg = 80.0
         dx_table = {SA_TEMP_RCX3 + DX:  dx_msg}
-        result.insert_table_row(self.analysis, dx_table)
-        result.log(msg, logging.INFO)
-        return result
+        dx_result.insert_table_row(self.analysis, dx_table)
+        dx_result.log(msg, logging.INFO)
+        return dx_result

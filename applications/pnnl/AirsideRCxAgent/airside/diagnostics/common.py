@@ -33,8 +33,10 @@ def check_run_status(timestamp_array, current_time, no_required_data):
 
 
 def setpoint_control_check(setpoint_array, point_array, allowable_deviation,
-                           dx_name, dx_tag):
-    """Verify that point is tracking well with set point."""
+                           dx_name, dx_tag, token, token_offset):
+    """Verify that point is tracking well with set point.
+        ARGS:
+            setpoint_array (list(floats): """
     average_setpoint = None
     setpoint_array = [float(pt) for pt in setpoint_array if pt !=0]
     if setpoint_array:
@@ -45,21 +47,21 @@ def setpoint_control_check(setpoint_array, point_array, allowable_deviation,
 
         if stpt_tracking > allowable_deviation:
             # color_code = 'red'
-            msg = ('Supply-air temperature is deviating significantly '
-                   'from the supply-air temperature set point.')
-            dx_msg = 31.1
+            msg = ('{pt} is deviating significantly '
+                   'from the {pt} set point.'.format(pt=token))
+            dx_msg = 1.1 + token_offset
             dx_table = {dx_name + dx_tag: dx_msg}
         else:
             # color_code = 'green'
             msg = 'No problem detected.'
-            dx_msg = 30.0
+            dx_msg = 0.0 + token_offset
             dx_table = {dx_name + dx_tag: dx_msg}
     else:
         # color_code = 'grey'
-        msg = ('Supply-air temperature set point data is not available. '
-               'The Supply-air Temperature Set Point Control Loop '
-               'Diagnostic required supply-air temperature set point '
-               'data.')
-        dx_msg = 32.2
+        msg = ('{} set point data is not available. '
+               'The Set Point Control Loop Diagnostic'
+               'requires set point '
+               'data.'.format(token))
+        dx_msg = 2.2 + token_offset
         dx_table = {dx_name + dx_tag: dx_msg}
     return average_setpoint, msg, dx_table

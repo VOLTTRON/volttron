@@ -129,7 +129,7 @@ def DrivenAgent(config_path, **kwargs):
 
     conf.update(conf.get('arguments'))
     converter = ConversionMapper()
-    output_file = conf.get('output_file')
+    output_file_prefix = conf.get('output_file')
     base_dev = "devices/{campus}/{building}/".format(**device)
     devices_topic = (
         base_dev + '({})(/.*)?/all$'.format('|'.join(re.escape(p) for p in units)))
@@ -170,7 +170,7 @@ def DrivenAgent(config_path, **kwargs):
             #     with open(output_file, 'w') as writer:
             #         writer.close()
             self._header_written = False
-            self.creating_file = set()
+            self.file_creation_set = set()
 
         def _initialize_devices(self):
             self._needed_subdevices = deepcopy(self._master_subdevices)
@@ -256,6 +256,23 @@ def DrivenAgent(config_path, **kwargs):
                 _log.info("Still need {} before running."
                           .format(needed))
 
+        def create_file_output(self, results):
+            """Create results/data files for testing and algorithm validation."""
+            for key, value in results.file_output.items():
+                file_name = output_file_prefix + "-" + key + ".csv"
+                if file_name not in self.file_creation_set:
+                    self._header_written = False
+                self.file_creation_set.update([file_name])
+                for row in value:
+                    with open(file_name, 'a+') as file_to_write:
+                        _keys = row.keys()
+                        file_output = csv.DictWriter(file_to_write, _keys)
+                        if not self._header_written:
+                            file_output.writeheader()
+                            self._header_written = True
+                        file_output.writerow(row)
+                file_to_write.close()
+
         def _process_results(self, results):
             '''Run driven application with converted data and write the app
             results to a file or database.
@@ -267,22 +284,8 @@ def DrivenAgent(config_path, **kwargs):
                 _log.debug("LOG: {}".format(value))
             for key, value in results.table_output.iteritems():
                 _log.debug("TABLE: {}->{}".format(key, value))
-            if output_file is not None and len(results.table_output.keys()) > 0:
-                for key, value in results.table_output.items():
-
-                    file_name = output_file +"-" + key + ".csv"
-                    if file_name not in self.creating_file:
-                        self._header_written = False
-                    self.creating_file.update([file_name])
-                    for row in value:
-                        with open(file_name, 'a+') as f:
-                            _keys = row.keys()
-                            fout = csv.DictWriter(f, _keys)
-                            if not self._header_written:
-                                fout.writeheader()
-                                self._header_written = True
-                            fout.writerow(row)
-                    f.close()
+            if output_file_prefix is not None and len(results.file_output.keys()):
+                self.create_file_output(results)
 
             def get_unit(point):
                 ''' Get a unit type based upon the regular expression in the config file.
@@ -300,7 +303,8 @@ def DrivenAgent(config_path, **kwargs):
                     headers_mod.CONTENT_TYPE: headers_mod.CONTENT_TYPE.JSON,
                     headers_mod.DATE: str(self.received_input_datetime),
                 }
-                for _, v in results.table_output.items():
+                print results.table_output
+                for k, v in results.table_output.items():
                     for r in v:
                         for key, value in r.iteritems():
                             if isinstance(value, bool):

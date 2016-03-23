@@ -59,14 +59,21 @@ SA_TEMP_RCX2 = 'High Supply-air Temperature Dx'
 DX = '/diagnostic message'
 ST = 'State'
 CORRECT_SAT = 'Suggested SAT setpoint'
-VALIDATE_FILE_TOKEN = 'SAT-VALIDATE'
+VALIDATE_FILE_TOKEN = 'satemp-rcx'
 DATA = '/data/'
+SAT_NAME = 'supply-air temperature'
 
 
 class SupplyTempRcx(object):
     """Air-side HVAC Self-Correcting Diagnostic: Detect and correct supply-air
     temperature problems.
 
+    Args:
+        timestamp_arr (List[datetime]): timestamps for analysis period.
+        sat_stpt_arr (List[float]): supply-air temperature set point
+            for analysis period.
+        satemp_arr (List[float]): supply-air temperature for analysis period.
+        rht_arr (List[float]): terminal box reheat command for analysis period.
 
     """
     def __init__(self, no_req_data, auto_correct_flag, stpt_allowable_dev,
@@ -77,14 +84,13 @@ class SupplyTempRcx(object):
         self.sat_stpt_arr = []
         self.satemp_arr = []
         self.rht_arr = []
-        self.rht = []
         self.percent_rht = []
         self.percent_dmpr = []
         self.dx_table = {}
         self.data = {}
 
         # Common RCx parameters
-        self.analysis = analysis
+        self.analysis = analysis + '-' + VALIDATE_FILE_TOKEN
         self.sat_stpt_cname = sat_stpt_cname
         self.no_req_data = no_req_data
         self.auto_correct_flag = bool(auto_correct_flag)
@@ -102,6 +108,7 @@ class SupplyTempRcx(object):
         self.percent_dmpr_thr = float(percent_dmpr_thr)
         self.min_sat_stpt = float(min_sat_stpt)
         self.sat_retuning = float(sat_retuning)
+        self.token_offset = 30.0
 
     def reinitialize(self):
         """Reinitialize data arrays."""
@@ -109,7 +116,6 @@ class SupplyTempRcx(object):
         self.sat_stpt_arr = []
         self.satemp_arr = []
         self.rht_arr = []
-        self.rht = []
         self.percent_rht = []
         self.percent_dmpr = []
         self.dx_table = {}
@@ -122,13 +128,17 @@ class SupplyTempRcx(object):
         Args:
             current_time (datetime): current timestamp for trend data.
             sat_data (lst of floats): supply-air temperature measurement for
-                AHU
-            sat_stpt_data (lst of floats): supply-air temperature set point
-                data for AHU
-            zone_rht_data (lst of floats): reheat command for terminal boxes
-                served by AHU
-            zone_dmpr_data (lst of floats): damper command for terminal boxes
-                served by AHU
+                AHU.
+            sat_stpt_data (List[floats]): supply-air temperature set point
+                data for AHU.
+            zone_rht_data (List[floats]): reheat command for terminal boxes
+                served by AHU.
+            zone_dmpr_data (List[floats]): damper command for terminal boxes
+                served by AHU.
+            dx_result (Object): Object for interacting with platform and devices.
+
+        Returns:
+            Results object (dx_result) to Application.
 
         """
         if check_date(current_time, self.timestamp_arr):
@@ -150,19 +160,17 @@ class SupplyTempRcx(object):
             return dx_result
 
         if run_status:
-            avg_sat_stpt, msg, dx_table = setpoint_control_check(
-                self.sat_stpt_arr,
-                self.satemp_arr,
-                self.stpt_allowable_dev,
-                SA_TEMP_RCX, DX)
-
+            avg_sat_stpt, msg, dx_table = (
+                setpoint_control_check(self.sat_stpt_arr, self.satemp_arr,
+                                       self.stpt_allowable_dev, SA_TEMP_RCX,
+                                       DX, SAT_NAME,self.token_offset))
             self.dx_table.update(dx_table)
             dx_result.log(msg, logging.INFO)
             dx_result = self.low_sat(dx_result, avg_sat_stpt)
             dx_result = self.high_sat(dx_result, avg_sat_stpt)
-            dx_result.insert_table_row(self.analysis, self.dx_table)
+            dx_result.insert_file_row(self.analysis, self.dx_table)
             self.data.update({SA_VALIDATE + DATA + ST: 1})
-            dx_result.insert_table_row(VALIDATE_FILE_TOKEN, self.data)
+            dx_result.insert_file_row(VALIDATE_FILE_TOKEN, self.data)
             self.reinitialize()
 
         self.satemp_arr.append(mean(sat_data))
@@ -173,12 +181,12 @@ class SupplyTempRcx(object):
         self.timestamp_arr.append(current_time)
         if self.data:
             self.data.update({SA_VALIDATE + DATA + ST: 0})
-            dx_result.insert_table_row(VALIDATE_FILE_TOKEN, self.data)
+            dx_result.insert_file_row(VALIDATE_FILE_TOKEN, self.data)
         self.data = data
         self.data.update({VALIDATE_FILE_TOKEN: str(current_time)})
         return dx_result
 
-    def low_sat(self, result, avg_sat_stpt):
+    def low_sat(self, dx_result, avg_sat_stpt):
         """Diagnostic to identify and correct low supply-air temperature
 
         (correction by modifying SAT set point)
@@ -197,14 +205,14 @@ class SupplyTempRcx(object):
             elif self.auto_correct_flag:
                 autocorrect_sat_stpt = avg_sat_stpt + self.sat_retuning
                 if autocorrect_sat_stpt <= self.max_sat_stpt:
-                    result.command(self.sat_stpt_cname, autocorrect_sat_stpt)
+                    dx_result.command(self.sat_stpt_cname, autocorrect_sat_stpt)
                     sat_stpt = '%s' % float('%.2g' % autocorrect_sat_stpt)
                     msg = ('The SAT has been detected to be too low. '
                            'The SAT set point has been increased to: '
                            '{}{drg}F'.format(self.dgr_sym, sat_stpt))
                     dx_msg = 41.1
                 else:
-                    result.command(self.sat_stpt_cname, self.max_sat_stpt)
+                    dx_result.command(self.sat_stpt_cname, self.max_sat_stpt)
                     sat_stpt = '%s' % float('%.2g' % self.max_sat_stpt)
                     sat_stpt = str(sat_stpt)
                     msg = (
@@ -222,11 +230,12 @@ class SupplyTempRcx(object):
             msg = ('No problem detected for Low Supply-air '
                    'Temperature diagnostic.')
             dx_msg = 40.0
+        dx_result.insert_table_row(self.analysis, {SA_TEMP_RCX1 + DX: dx_msg})
         self.dx_table.update({SA_TEMP_RCX1 + DX: dx_msg})
-        result.log(msg, logging.INFO)
-        return result
+        dx_result.log(msg, logging.INFO)
+        return dx_result
 
-    def high_sat(self, result, avg_sat_stpt):
+    def high_sat(self, dx_result, avg_sat_stpt):
         """Diagnostic to identify and correct high supply-air temperature
 
         (correction by modifying SAT set point)
@@ -248,7 +257,7 @@ class SupplyTempRcx(object):
                 # Create diagnostic message for fault condition
                 # with auto-correction
                 if autocorrect_sat_stpt >= self.min_sat_stpt:
-                    result.command(self.sat_stpt_cname, autocorrect_sat_stpt)
+                    dx_result.command(self.sat_stpt_cname, autocorrect_sat_stpt)
                     sat_stpt = '%s' % float('%.2g' % autocorrect_sat_stpt)
                     msg = ('The SAT has been detected to be too high. The '
                            'SAT set point has been increased to: '
@@ -257,7 +266,7 @@ class SupplyTempRcx(object):
                 else:
                     # Create diagnostic message for fault condition
                     # where the maximum SAT has been reached
-                    result.command(self.sat_stpt_cname, self.min_sat_stpt)
+                    dx_result.command(self.sat_stpt_cname, self.min_sat_stpt)
                     sat_stpt = '%s' % float('%.2g' % self.min_sat_stpt)
                     msg = ('The SAT was detected to be too high, '
                            'auto-correction has increased the SAT to the '
@@ -274,7 +283,8 @@ class SupplyTempRcx(object):
             msg = ('No problem detected for High Supply-air '
                    'Temperature diagnostic.')
             dx_msg = 50.0
+        dx_result.insert_table_row(self.analysis, {SA_TEMP_RCX1 + DX: dx_msg})
         self.dx_table.update({SA_TEMP_RCX2 + DX: dx_msg})
         self.dx_table.update({'Timestamp': str(self.timestamp_arr[-1])})
-        result.log(msg, logging.INFO)
-        return result
+        dx_result.log(msg, logging.INFO)
+        return dx_result
