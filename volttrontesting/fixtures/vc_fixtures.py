@@ -123,7 +123,7 @@ def vc_instance(request, volttron_instance1_web):
 @pytest.fixture
 def pa_instance(request, volttron_instance2_web):
     agent_uuid = volttron_instance2_web.install_agent(
-        agent_dir="services/core/Platform",
+        agent_dir="services/core/VolttronCentralPlatform",
         config_file=PLATFORM_AGENT_CONFIG,
         start=True
     )
