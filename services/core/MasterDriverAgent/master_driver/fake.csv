@@ -1,4 +1,5 @@
 Point Name,Volttron Point Name,Units,Units Details,Writable,Starting Value,Notes
+Heartbeat,Heartbeat,On/Off,On/Off,TRUE,0,Point for heartbeat toggle
 OutsideAirTemperature1,OutsideAirTemperature1,F,-100 to 300,FALSE,50,CO2 Reading 0.00-2000.0 ppm
 SampleWritableFloat1,SampleWritableFloat1,PPM,1000.00 (default),TRUE,10,Setpoint to enable demand control ventilation 
 SampleLong1,SampleLong1,Enumeration,1 through 13,FALSE,50,Status indicator of service switch

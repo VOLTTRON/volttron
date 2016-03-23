@@ -62,7 +62,7 @@ import sys
 import time
 import logging
 
-from volttron.platform.vip.agent import Agent, Core, RPC
+from volttron.platform.vip.agent import Agent, Core, RPC, Unreachable
 from volttron.platform.messaging import topics
 from volttron.platform.agent import utils
 from volttron.platform.messaging.utils import normtopic
@@ -111,7 +111,7 @@ def actuator_agent(config_path, **kwargs):
 
         def __init__(self, **kwargs):
             super(ActuatorAgent, self).__init__(**kwargs)
-            _log.debug("vip_identity: "+vip_identity)
+            _log.debug("vip_identity: " + vip_identity)
             
             self._update_event = None
             self._device_states = {}
@@ -119,7 +119,12 @@ def actuator_agent(config_path, **kwargs):
         @Core.periodic(heartbeat_interval)
         def heart_beat(self):
             _log.debug("sending heartbeat")
-            self.vip.rpc.call(driver_vip_identity, 'heart_beat')
+            try:
+                self.vip.rpc.call(driver_vip_identity, 'heart_beat').get()
+            except Unreachable:
+                _log.warning("Master driver is not running")
+            except Exception as e:
+                _log.warning(''.join([e.__class__.__name__,'(',e.message,')']))
         
         @Core.receiver('onstart')
         def on_start(self, sender, **kwargs):
