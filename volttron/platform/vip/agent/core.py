@@ -435,8 +435,12 @@ class Core(BasicCore):
         if self.agent_uuid:
             installed_path = os.path.join(
                 os.environ['VOLTTRON_HOME'], 'agents', self.agent_uuid)
-            with open(os.path.join(installed_path, 'IDENTITY'), 'w') as fp:
-                fp.write(self.identity)
+            if not os.path.exists(os.path.join(installed_path, 'IDENTITY')):
+                _log.debug('CREATING IDENTITY FILE')
+                with open(os.path.join(installed_path, 'IDENTITY'), 'w') as fp:
+                    fp.write(self.identity)
+            else:
+                _log.debug('IDENTITY FILE EXISTS FOR {}'.format(self.agent_uuid))
 
         self.socket = None
         self.subsystems = {'error': self.handle_error}

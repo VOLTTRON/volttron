@@ -533,26 +533,38 @@ class AIPplatform(object):
         return (execenv.process.pid, execenv.process.poll())
 
     def agent_publickey(self, identity):
-        agent_uuid = self.identity_to_uuid(identity)
-        if agent_uuid not in os.listdir(self.install_dir):
-            raise ValueError('agent not found: {}'.format(agent_uuid))
-        name = self.agent_name(agent_uuid)
-        keypath = os.path.join(self.install_dir, agent_uuid, 'keystore.json')
-        ks = KeyStore(keypath)
-        return ks.public()
+        try:
+            _log.debug('Getting publickey for identity: {}'.format(identity))
+            agent_uuid = self.identity_to_uuid(identity)
+            agent_path = os.path.join(self.install_dir, agent_uuid)
+            _log.debug('Agent path is: {}'.format(agent_path))
+            if not os.path.exists(agent_path):
+                raise ValueError('agent not found: {}'.format(agent_uuid))
+            keypath = os.path.join(self.install_dir, agent_uuid, 'keystore.json')
+            ks = KeyStore(keypath)
+            return ks.public()
+        except ValueError:
+            return None
 
     def identity_to_uuid(self, identity):
+        assert identity
         for agent_uuid, execenv in self.active_agents().items():
+            _log.debug("AGENT ID IS: {}".format(agent_uuid))
             identity_file = os.path.join(
                 self.install_dir, agent_uuid, 'IDENTITY')
-            with ignore_enoent, open(identity_file, 'r') as f:
-                file_ident = f.readline()
-            print("comparing {} == {}".format(file_ident, identity))
-            if identity == file_ident:
-                return agent_uuid
+            if os.path.exists(identity_file):
+                with open(identity_file) as f:
+                    file_ident = f.readline()
+                _log.debug("FILE IDENT: {}".format(file_ident))
+                print("comparing {} == {}".format(file_ident, identity))
+                if identity == file_ident:
+                    return agent_uuid
+            else:
+                _log.debug('no IDENTITY FILE FOR {}'.format(agent_uuid))
         ValueError('Unknown identity: {}'.format(identity))
 
     def start_agent(self, agent_uuid):
+        _log.debug("start_agent: uuid: {}".format(agent_uuid))
         name = self.agent_name(agent_uuid)
         self._launch_agent(
             agent_uuid, os.path.join(self.install_dir, agent_uuid, name), name)
