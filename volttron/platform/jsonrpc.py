@@ -78,12 +78,11 @@ UNHANDLED_EXCEPTION = -32000
 UNAUTHORIZED = -32001
 UNABLE_TO_REGISTER_INSTANCE = -32002
 
-JsonRpcData = namedtuple('JsonRpcData', 'id jsonrpc method params')
 
-def validate(rpcdata):
-    assert rpcdata.id is not None
-    assert rpcdata.jsonrpc == '2.0'
-    assert rpcdata.method is not None
+def json_validate_request(jsonrequest):
+    assert jsonrequest.get('id', None)
+    assert jsonrequest.get('jsonrpc', None) == '2.0'
+    assert jsonrequest.get('method', None)
 
 def json_method(ident, method, args, kwargs):
     '''Builds a JSON-RPC request object (dictionary).'''
