@@ -7,11 +7,6 @@ PLATFORM_AGENT_CONFIG = {
     # Agent id is used in the display on volttron central.
     "agentid": "Platform Agent",
 
-    # Set the Platform agents identity
-    #
-    # Default "identity": "platform.agent"
-    "identity": "platform.agent",
-
     # Configuration parameters.
     #
     # The period of time to go between attempting to report status to the
@@ -24,10 +19,7 @@ PLATFORM_AGENT_CONFIG = {
 VC_CONFIG = {
     # The agentid is used during display on the VOLTTRON central platform
     # it does not need to be unique.
-    "agentid": "volttron central",
-
-    # Must be unique on a given instance of VOLTTRON
-    "identity": "volttron.central",
+    "agentid": "Volttron Central",
 
     # By default the webroot will be relative to the installation directory
     # of the agent when it is installed.  One can override this by specifying
@@ -62,19 +54,25 @@ VC_CONFIG = {
 
 @pytest.fixture
 def vc_instance(request, volttron_instance1_web):
+    """
+    Creates an instance of volttron with a `VolttronCentral` agent
+    already installed and started.
+
+    :returns tuple:
+        - the PlatformWrapper
+        - the uuid of the `VolttronCentral` agent.
+        - the jsonrpc address to be used for communicating with the
+          `VolttronCentral` agent.
+    """
     agent_uuid = volttron_instance1_web.install_agent(
         agent_dir="services/core/VolttronCentral",
         config_file=VC_CONFIG,
         start=True
     )
 
-    rpc_addr = "http://{}/jsonrpc"\
+    rpc_addr = "{}/jsonrpc"\
         .format(volttron_instance1_web.bind_web_address)
-    retvalue = {
-        "jsonrpc":rpc_addr,
-        "vc_uuid": agent_uuid,
-        "wrapper": volttron_instance1_web
-    }
+
     # Allow all incoming connections that are encrypted.
     volttron_instance1_web.allow_all_connections()
 
@@ -84,44 +82,17 @@ def vc_instance(request, volttron_instance1_web):
         print_log(volttron_instance1_web.volttron_home)
 
     request.addfinalizer(cleanup)
-    return retvalue
+    return volttron_instance1_web, agent_uuid, rpc_addr
 
-# @pytest.fixture(params=["admin:admin",
-#                         "reader:reader"])
-# @pytest.fixture(params=["admin:admin"])
-# def vc_agent_with_auth(request, volttron_instance1_web):
-#     agent_uuid = volttron_instance1_web.install_agent(
-#         agent_dir="services/core/VolttronCentral",
-#         config_file=VC_CONFIG,
-#         start=True
-#     )
-#
-#     rpc_addr = "http://{}/api/jsonrpc"\
-#         .format(volttron_instance1_web.bind_web_address)
-#
-#     retvalue = {
-#         "jsonrpc": rpc_addr
-#     }
-#
-#     user, passwd = request.param.split(':')
-#
-#     response = do_rpc("get_authorization", {'username': user,
-#                                             'password': passwd},
-#                       rpc_root=rpc_addr)
-#
-#     assert response.ok
-#     retvalue['username'] = user
-#     retvalue['auth_token'] = jsonapi.loads(response.text)['result']
-#
-#     def cleanup():
-#         volttron_instance1_web.remove_agent(agent_uuid)
-#
-#     request.addfinalizer(cleanup)
-#
-#     return retvalue
 
 @pytest.fixture
 def pa_instance(request, volttron_instance2_web):
+    """
+    Creates an instance of volttron with a `VolttronCentralPlatform` agent
+    already installed and started.
+
+    :returns tuple: the platformwrapper and the uuid of the agaent installed.
+    """
     agent_uuid = volttron_instance2_web.install_agent(
         agent_dir="services/core/VolttronCentralPlatform",
         config_file=PLATFORM_AGENT_CONFIG,
@@ -131,11 +102,6 @@ def pa_instance(request, volttron_instance2_web):
     # Allow all incoming encrypted connections
     volttron_instance2_web.allow_all_connections()
 
-    retval = {
-        "platform-uuid": agent_uuid,
-        "wrapper": volttron_instance2_web
-    }
-
     def cleanup():
         print('Cleanup pa_instance')
         volttron_instance2_web.remove_agent(agent_uuid)
@@ -143,19 +109,4 @@ def pa_instance(request, volttron_instance2_web):
 
     request.addfinalizer(cleanup)
 
-    return retval
-
-# @pytest.fixture
-# def platform_agent_on_instance2(request, volttron_instance2_web):
-#     agent_uuid = volttron_instance2_web.install_agent(
-#         agent_dir="services/core/Platform",
-#         config_file=PLATFORM_AGENT_CONFIG,
-#         start=True
-#     )
-#
-#     def cleanup():
-#         volttron_instance2_web.remove_agent(agent_uuid)
-#
-#     request.addfinalizer(cleanup)
-#
-#     return agent_uuid
+    return volttron_instance2_web, agent_uuid

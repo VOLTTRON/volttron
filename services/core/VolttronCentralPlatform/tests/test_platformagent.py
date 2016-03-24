@@ -28,6 +28,7 @@ def add_to_auth(volttron_home, publickey, capabilities=None):
     )
     authfile.add(entry)
 
+
 def do_rpc(jsonrpc_address, method, params=None, authentication=None ):
 
     json_package = {
@@ -61,7 +62,7 @@ def test_manage_agent(pa_instance):
     same platform.  Though in principal that should not matter.  We do this
     from a secondary platform in a diffferent integration test.
     """
-    wrapper = pa_instance['wrapper']
+    wrapper, agent_uuid = pa_instance
     publickey, secretkey = get_new_keypair()
 
     agent = wrapper.build_agent(
@@ -83,8 +84,7 @@ def test_can_get_agentlist(pa_instance):
 
     The agent must have the "manager" capability.
     """
-    wrapper = pa_instance['wrapper']
-    platform_agent_uuid = pa_instance['platform-uuid']
+    wrapper, agent_uuid = pa_instance
     publickey, secretkey = get_new_keypair()
 
     agent = wrapper.build_agent(
@@ -106,7 +106,7 @@ def test_can_get_agentlist(pa_instance):
     assert isinstance(agentlist, list)
     assert len(agentlist) == 1
     retagent = agentlist[0]
-    assert retagent['uuid'] == platform_agent_uuid
+    assert retagent['uuid'] == agent_uuid
     checkkeys = ('process_id', 'error_code', 'is_running', 'can_stop',
                  'can_start', 'can_restart', 'health')
     for k in checkkeys:
