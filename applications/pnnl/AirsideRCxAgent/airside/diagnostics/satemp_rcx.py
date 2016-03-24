@@ -90,7 +90,8 @@ class SupplyTempRcx(object):
         self.data = {}
 
         # Common RCx parameters
-        self.analysis = analysis + '-' + VALIDATE_FILE_TOKEN
+        self.analysis = analysis
+        self.file_name_id = analysis + '-' + VALIDATE_FILE_TOKEN
         self.sat_stpt_cname = sat_stpt_cname
         self.no_req_data = no_req_data
         self.auto_correct_flag = bool(auto_correct_flag)
@@ -168,7 +169,7 @@ class SupplyTempRcx(object):
             dx_result.log(msg, logging.INFO)
             dx_result = self.low_sat(dx_result, avg_sat_stpt)
             dx_result = self.high_sat(dx_result, avg_sat_stpt)
-            dx_result.insert_file_row(self.analysis, self.dx_table)
+            dx_result.insert_file_row(self.file_name_id, self.dx_table)
             self.data.update({SA_VALIDATE + DATA + ST: 1})
             dx_result.insert_file_row(VALIDATE_FILE_TOKEN, self.data)
             self.reinitialize()
@@ -288,3 +289,4 @@ class SupplyTempRcx(object):
         self.dx_table.update({'Timestamp': str(self.timestamp_arr[-1])})
         dx_result.log(msg, logging.INFO)
         return dx_result
+

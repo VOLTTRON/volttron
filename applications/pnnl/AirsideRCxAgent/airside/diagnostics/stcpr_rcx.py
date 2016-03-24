@@ -84,7 +84,8 @@ class DuctStaticRcx(object):
         self.dx_table = {}
 
         # Initialize configurable thresholds
-        self.analysis = analysis + '-' + VALIDATE_FILE_TOKEN
+        self.analysis = analysis
+        self.file_name_id = analysis + '-' + VALIDATE_FILE_TOKEN
         self.stcpr_sp_cname = stcpr_sp_cname
         self.no_req_data = no_req_data
         self.stpt_allowable_dev = float(stpt_allowable_dev)
@@ -149,7 +150,7 @@ class DuctStaticRcx(object):
             dx_result.log(msg, logging.INFO)
             dx_result = self.low_stcpr_dx(dx_result, avg_stcpr_stpt)
             dx_result = self.high_stcpr_dx(dx_result, avg_stcpr_stpt)
-            dx_result.insert_file_row(self.analysis, self.dx_table)
+            dx_result.insert_file_row(self.file_name_id, self.dx_table)
             self.data.update({STCPR_VALIDATE + DATA + ST: 1})
             dx_result.insert_file_row(VALIDATE_FILE_TOKEN, self.data)
             self.reinitialize()
@@ -272,3 +273,4 @@ class DuctStaticRcx(object):
         self.dx_table.update({'Timestamp': str(self.timestamp_arr[-1])})
         dx_result.log(msg, logging.INFO)
         return dx_result
+

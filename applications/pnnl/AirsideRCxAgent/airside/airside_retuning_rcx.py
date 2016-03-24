@@ -264,11 +264,11 @@ class Application(AbstractDrivenAgent):
             missing_data.append(self.zone_damper_name)
         if missing_data:
             raise Exception('Missing required data: {}'.format(missing_data))
-        # dx_result = (
-        #     self.sched_occ_dx.sched_rcx_alg(cur_time, stc_pr_data,
-        #                                     stcpr_sp_data, sat_stpt_data,
-        #                                     fan_status_data, dx_result,
-        #                                     sched_val))
+        dx_result = (
+            self.sched_occ_dx.sched_rcx_alg(cur_time, stc_pr_data,
+                                            stcpr_sp_data, sat_stpt_data,
+                                            fan_status_data, dx_result,
+                                            sched_val))
         if supply_fan_off:
             dx_result.log('Supply fan is off. Data will not be used for '
                           'retuning diagnostics.')

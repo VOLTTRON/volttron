@@ -259,6 +259,8 @@ def DrivenAgent(config_path, **kwargs):
         def create_file_output(self, results):
             """Create results/data files for testing and algorithm validation."""
             for key, value in results.file_output.items():
+                if isinstance(key, tuple):
+                    key = key[1]
                 file_name = output_file_prefix + "-" + key + ".csv"
                 if file_name not in self.file_creation_set:
                     self._header_written = False
@@ -272,6 +274,44 @@ def DrivenAgent(config_path, **kwargs):
                             self._header_written = True
                         file_output.writerow(row)
                 file_to_write.close()
+            return results
+
+        def publish_analysis_results(self, results):
+            """publish analysis results to the message bus for
+            capture by the data historian
+            """
+            headers = {
+                headers_mod.CONTENT_TYPE: headers_mod.CONTENT_TYPE.JSON,
+                headers_mod.DATE: str(self.received_input_datetime),
+            }
+            for application, analysis in results.table_output.items():
+                if isinstance(application, list):
+                    headers = {
+                        headers_mod.CONTENT_TYPE: headers_mod.CONTENT_TYPE.JSON,
+                        headers_mod.DATE: str(application[0]),
+                    }
+                for row in analysis:
+                    for key, value in row.items():
+                        if isinstance(value, bool):
+                            value = int(value)
+                        for item in units:
+                            _analysis['unit'] = item
+                            analysis_topic = topics.ANALYSIS_VALUE(
+                                point=key, **_analysis)
+
+                            datatype = 'float'
+                            if isinstance(value, int):
+                                datatype = 'int'
+                            kbase = key[key.rfind('/') + 1:]
+                            message = [{kbase: value},
+                                       {kbase: {'tz': 'US/Pacific',
+                                                'type': datatype,
+                                                'units': 'float',
+                                                }
+                                        }]
+                            self.publish_json(analysis_topic,
+                                              headers, message)
+            return results
 
         def _process_results(self, results):
             '''Run driven application with converted data and write the app
@@ -285,7 +325,9 @@ def DrivenAgent(config_path, **kwargs):
             for key, value in results.table_output.iteritems():
                 _log.debug("TABLE: {}->{}".format(key, value))
             if output_file_prefix is not None and len(results.file_output.keys()):
-                self.create_file_output(results)
+                results = self.create_file_output(results)
+            if len(results.table_output.keys()):
+                results = self.publish_analysis_results(results)
 
             def get_unit(point):
                 ''' Get a unit type based upon the regular expression in the config file.
@@ -296,36 +338,6 @@ def DrivenAgent(config_path, **kwargs):
                     if re.match(k, point):
                         return v
                 return 'percent'
-
-            # publish to message bus.
-            if len(results.table_output.keys()) > 0:
-                headers = {
-                    headers_mod.CONTENT_TYPE: headers_mod.CONTENT_TYPE.JSON,
-                    headers_mod.DATE: str(self.received_input_datetime),
-                }
-                print results.table_output
-                for k, v in results.table_output.items():
-                    for r in v:
-                        for key, value in r.iteritems():
-                            if isinstance(value, bool):
-                                value = int(value)
-                            for item in units:
-                                _analysis['unit'] = item
-                                analysis_topic = topics.ANALYSIS_VALUE(
-                                    point=key, **_analysis)
-
-                                datatype = 'float'
-                                if isinstance(value, int):
-                                    datatype = 'int'
-                                kbase = key[key.rfind('/')+1:]
-                                message = [{kbase: value},
-                                           {kbase: {'tz': 'US/Pacific',
-                                                    'type': datatype,
-                                                    'units': 'float',
-                                                    }
-                                            }]
-                                self.publish_json(analysis_topic,
-                                                  headers, message)
 
             if results.commands and mode:
                 self.commands = results.commands
@@ -450,3 +462,4 @@ if __name__ == '__main__':
         sys.exit(main())
     except KeyboardInterrupt:
         pass
+

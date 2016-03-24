@@ -50,15 +50,19 @@ under Contract DE-AC05-76RL01830
 '''
 from volttron.platform.agent.math_utils import mean
 import datetime
+from datetime import datetime
 import logging
 from dateutil.parser import parse
 from .common import validation_builder
+import sys
 SCHED_VALIDATE = 'Schedule-Reset ACCx'
 DUCT_STC_RCX3 = 'No Static Pressure Reset Dx'
 SA_TEMP_RCX3 = 'No Supply-air Temperature Reset Dx'
 SCHED_RCX = 'Operational Schedule Dx'
 DX = '/diagnostic message'
-VALIDATE_FILE_TOKEN = 'reset-scheule'
+VALIDATE_FILE_TOKEN = 'reset-schedule'
+RESET_FILE_TOKEN = 'reset'
+SCHEDULE_FILE_TOKEN = 'schedule'
 DATA = '/data/'
 ST = 'state'
 
@@ -71,7 +75,6 @@ class SchedResetRcx(object):
                  friday_sch, saturday_sch, sunday_sch,
                  no_req_data, stpr_reset_threshold, sat_reset_threshold,
                  analysis):
-        self.act_sch = []
         self.fanstat_values = []
         self.schedule = {}
         self.stcpr_arr = []
@@ -79,12 +82,14 @@ class SchedResetRcx(object):
         self.sat_stpt_arr = []
         self.timestamp = []
         self.sched_time = []
-        self.dx_time = None
+        self.dx_table = {}
 
         def date_parse(dates):
             return [parse(timestamp).time() for timestamp in dates]
 
         self.analysis = analysis
+        self.sched_file_name_id = analysis + '-' + SCHEDULE_FILE_TOKEN
+        self.reset_file_name_id = analysis + '-' + RESET_FILE_TOKEN
         self.monday_sch = date_parse(monday_sch)
         self.tuesday_sch = date_parse(tuesday_sch)
         self.wednesday_sch = date_parse(wednesday_sch)
@@ -114,7 +119,6 @@ class SchedResetRcx(object):
         self.stcpr_stpt_arr = []
         self.fanstat_values = []
         self.sched_time = []
-        self.dx_time = None
         if avg_stcpr_stpt is not None:
             self.sat_stpt_arr.append(avg_sat_stpt)
             self.stcpr_stpt_arr.append(avg_stcpr_stpt)
@@ -128,15 +132,16 @@ class SchedResetRcx(object):
                       sched_val):
         """Check schedule status and unit operational status."""
         fan_status = None
-        stcpr_sp_val = None
         schedule = self.schedule[current_time.weekday()]
         run_diagnostic = False
+        avg_sat_stpt = None
+        avg_stcpr_stpt = None
 
         if self.timestamp and self.timestamp[-1].date() != current_time.date():
-            self.start_of_next_analysis = self.timestamp[-1].date()
+            self.start_of_next_analysis = self.timestamp[-1]
             run_diagnostic = True
 
-        if current_time.hour < schedule[0] or current_time.hour > schedule[1]:
+        if current_time.time() < schedule[0] or current_time.time() > schedule[1]:
             if not run_diagnostic:
                 self.stcpr_arr.extend(stcpr_data)
                 self.fanstat_values.append((current_time, int(max(fan_stat_data))))
@@ -147,6 +152,7 @@ class SchedResetRcx(object):
                 if not run_diagnostic:
                     self.stcpr_stpt_arr.append(mean(stcpr_stpt_data))
 
+
                     self.sat_stpt_arr.append(mean(sat_stpt_data))
                 avg_stcpr_stpt = mean(stcpr_stpt_data)
                 avg_sat_stpt = mean(sat_stpt_data)
@@ -154,10 +160,11 @@ class SchedResetRcx(object):
 
         data = validation_builder(sched_val, SCHED_VALIDATE, DATA)
 
-        if run_diagnostic and len(self.sched_time) >= self.no_req_data and len(self.sat_stpt_arr) >= self.no_req_data:
+        if run_diagnostic and len(self.sched_time) >= self.no_req_data:
             dx_result = self.unocc_fan_operation(dx_result)
-            dx_result = self.no_static_pr_reset(dx_result)
-            dx_result = self.no_sat_sp_reset(dx_result)
+            if len(self.sat_stpt_arr) >= self.no_req_data:
+                dx_result = self.no_static_pr_reset(dx_result)
+                dx_result = self.no_sat_sp_reset(dx_result)
             data.update({SCHED_VALIDATE + DATA + ST: 1})
             self.reinitialize(avg_sat_stpt, avg_stcpr_stpt, stcpr_data, fan_status)
         elif run_diagnostic:
@@ -177,7 +184,18 @@ class SchedResetRcx(object):
         """
         avg_duct_stpr = 0
         percent_on = 0
-        fanstat_on = [(fan[0], fan[1]) for fan in self.fanstat_values if int(fan[1]) == 1]
+
+        fanstat_on = [(fan[0].hour, fan[1]) for fan in self.fanstat_values if int(fan[1]) == 1]
+        fanstat = [(fan[0].hour , fan[1]) for fan in self.fanstat_values]
+        hourly_counter = []
+        for counter in range(24):
+            fan_on_count = [fan_status_time[1] for fan_status_time in fanstat_on if fan_status_time[0] == counter]
+            fan_count = [fan_status_time[1] for fan_status_time in fanstat if fan_status_time[0] == counter]
+            if len(fan_count):
+                hourly_counter.append(fan_on_count.count(1)/len(fan_count)*100)
+            else:
+                hourly_counter.append(0)
+
         if self.fanstat_values:
             percent_on = (len(fanstat_on)/len(self.fanstat_values)) * 100.0
         if self.stcpr_arr:
@@ -195,9 +213,19 @@ class SchedResetRcx(object):
                        'pressure is high, check the functionality of the '
                        'pressure sensor.')
                 dx_msg = 64.2
-        for item in self.sched_time:
-            dx_table = {SCHED_RCX + DX:  dx_msg}
-            dx_result.insert_table_row(self.analysis, dx_table)
+
+        if dx_msg == 63.1:
+            for _hour in range(24):
+                if hourly_counter[_hour] > self.unocc_time_threshold:
+                    push_time =  self.sched_time[0].date()
+                    push_time = datetime.combine(push_time, datetime.min.time())
+                    push_time = push_time.replace(hour=_hour)
+                    dx_table = {SCHED_RCX + DX:  dx_msg}
+                    dx_result.insert_table_row((str(push_time), self.analysis), dx_table)
+                    dx_table.update({'Timestamp': str(push_time)})
+                    dx_result.insert_file_row(self.sched_file_name_id, dx_table)
+        else:
+            dx_result.insert_table_row(self.analysis, {SCHED_RCX + DX:  dx_msg})
         dx_result.log(msg, logging.INFO)
         return dx_result
 
@@ -220,6 +248,7 @@ class SchedResetRcx(object):
             dx_msg = 70.0
         dx_table = {DUCT_STC_RCX3 + DX:  dx_msg}
         dx_result.insert_table_row(self.analysis, dx_table)
+        self.dx_table = dx_table
         dx_result.log(msg, logging.INFO)
         return dx_result
 
@@ -241,5 +270,10 @@ class SchedResetRcx(object):
             dx_msg = 80.0
         dx_table = {SA_TEMP_RCX3 + DX:  dx_msg}
         dx_result.insert_table_row(self.analysis, dx_table)
+        self.dx_table.update(dx_table)
+        self.dx_table.update({'Timestamp': str(self.timestamp[0])})
+        dx_result.insert_file_row(self.reset_file_name_id, self.dx_table)
         dx_result.log(msg, logging.INFO)
         return dx_result
+
+
