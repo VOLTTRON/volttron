@@ -563,15 +563,18 @@ class VolttronCentralPlatform(Agent):
 
         When the user enters a discovery address in `VolttronCentral` it is
         implied that the user wants to manage a platform.
-        """
 
+        :returns publickey of the `VolttronCentralPlatform`
+        """
+        _log.info('Manage request from address: {} serverkey: {}'.format(
+            address, vcserverkey))
         # TODO: Verify address is in acceptable range for us to "Trust" it.
         # Attempt to connect to the passed address and serverkey.
         self._vc_agent = build_agent(
             address=address, serverkey=vcserverkey,
             publickey=self.core.publickey, secretkey=self.core.secretkey)
 
-        version, peer, identity = self._vc_agent.vip.hello()
+        version, peer, identity = self._vc_agent.vip.hello().get(timeout=2)
 
         # Add the vcpublickey to the auth file.
         # TODO: Add the vcserverkey to the auth.json file.

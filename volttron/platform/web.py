@@ -98,8 +98,6 @@ class DiscoveryInfo(object):
         self.discovery_address = kwargs.pop('discovery_address')
         self.vip_address = kwargs.pop('vip-address')
         self.serverkey = kwargs.pop('serverkey')
-        self.vcpublickey = kwargs.pop('vcpublickey', None)
-        self.papublickey = kwargs.pop('papublickey', None)
         assert len(kwargs) == 0
 
     @staticmethod
@@ -134,12 +132,6 @@ class DiscoveryInfo(object):
             'vip_address': self.vip_address,
             'serverkey': self.serverkey
         }
-
-        if self.vcpublickey:
-            dk['vcpublickey'] = self.vcpublickey
-
-        if self.papublickey:
-            dk['papublickey'] = self.papublickey
 
         return jsonapi.dumps(dk)
 
@@ -265,16 +257,6 @@ class MasterWebService(Agent):
         peers = self.vip.peerlist().get(timeout=2)
 
         return_dict = {}
-        vc_publickey = None
-        pa_publickey = None
-        if 'volttron.central' in peers:
-            print('doing vc public key')
-            vc_publickey = self.aip.agent_publickey('volttron.central')
-            return_dict['vcpublickey'] = vc_publickey
-        if 'platform.agent' in peers:
-            print('doing pa public key')
-            pa_publickey = self.aip.agent_publickey('platform.agent')
-            return_dict['papublickey'] = pa_publickey
 
         if self.serverkey:
             return_dict['serverkey'] = encode_key(self.serverkey)

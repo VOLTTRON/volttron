@@ -66,23 +66,22 @@ def test_manage_agent(pa_instance):
     """
     wrapper = pa_instance['wrapper']
     publickey, secretkey = get_new_keypair()
-    add_to_auth(wrapper.volttron_home, publickey, capabilities=['managed_by'])
+
     agent = wrapper.build_agent(
         serverkey=wrapper.publickey, publickey=publickey, secretkey=secretkey)
     peers = agent.vip.peerlist().get(timeout=2)
     assert PLATFORM_ID in peers
 
-    # # This step is required because internally we are really connecting
-    # # to the same platform.  If this were two separate installments this
-    # # transaction would be easier.
-    # pa_info = DiscoveryInfo.request_discovery_info(wrapper.bind_web_address)
-    # add_to_auth(wrapper.volttron_home, pa_info.papublickey,
-    #             capabilities=['can_be_managed'])
-    # print(wrapper.vip_address)
-    # returnedid = agent.vip.rpc.call(
-    #     PLATFORM_ID, 'manage', wrapper.vip_address[0],
-    #     wrapper.publickey).get(timeout=2)
-    # assert returnedid
+    # Make a call to manage which should return to us the publickey of the
+    # platform.agent on the instance.
+    papublickey = agent.vip.rpc.call(
+        PLATFORM_ID, 'manage', wrapper.vip_address[0],
+        wrapper.publickey, agent.core.publickey).get(timeout=2)
+    assert papublickey
+    add_to_auth(wrapper.volttron_home, papublickey,
+                capabilities=['can_be_managed'])
+
+    assert papublickey
 
 
 @pytest.mark.dev

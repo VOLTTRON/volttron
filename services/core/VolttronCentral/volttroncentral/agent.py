@@ -86,10 +86,6 @@ from volttron.platform.web import (DiscoveryInfo, CouldNotRegister,
 
 from sessions import SessionHandler
 
-from volttron.platform.control import list_agents
-
-from volttron.platform.keystore import KeyStore
-
 __version__ = "3.5"
 
 utils.setup_logging()
