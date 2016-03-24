@@ -162,7 +162,10 @@ class PlatformWrapper:
         try:
             with open(auth_path, 'r') as fd:
                 data = strip_comments(FileObject(fd, close=False).read())
-                auth = jsonapi.loads(data)
+                if data:
+                    auth = jsonapi.loads(data)
+                else:
+                    auth = {}
         except IOError:
             auth = {}
         if not 'allow' in auth:
