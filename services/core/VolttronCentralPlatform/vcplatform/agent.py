@@ -58,27 +58,30 @@
 
 from __future__ import absolute_import, print_function
 
-__version__ = '3.1'
 
 from datetime import datetime
 import gevent.event
 import logging
-import sys
 import re
-
-import psutil
+import sys
+import urlparse
 
 import gevent
+import psutil
 from zmq.utils import jsonapi
+
 from volttron.platform.vip.agent import *
 
 from volttron.platform import jsonrpc
+from volttron.platform.auth import AuthEntry, AuthFile
 from volttron.platform.agent import utils
 from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM
 
 from volttron.platform.vip.agent.utils import build_agent
 from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
                                        METHOD_NOT_FOUND)
+
+__version__ = '3.5'
 
 
 class CannotConnectError(StandardError):
@@ -399,7 +402,7 @@ class VolttronCentralPlatform(Agent):
     #     return self.@RPC.allow("can_manage")
 
     @RPC.export
-    # @RPC.allow("can_manage")
+    @RPC.allow("manager")
     def list_agents(self):
         """ List the agents that are installed on the platform.
 
@@ -409,7 +412,7 @@ class VolttronCentralPlatform(Agent):
 
         :return: A list of agents.
         """
-        _log.debug('LISTING AGENTS!')
+
         agents = self.vip.rpc.call("control", "list_agents").get()
 
         status_all = self.status_agents()
@@ -568,7 +571,7 @@ class VolttronCentralPlatform(Agent):
         """
         _log.info('Manage request from address: {} serverkey: {}'.format(
             address, vcserverkey))
-        # TODO: Verify address is in acceptable range for us to "Trust" it.
+        parsedaddress = urlparse.urlparse(address)
         # Attempt to connect to the passed address and serverkey.
         self._vc_agent = build_agent(
             address=address, serverkey=vcserverkey,
@@ -577,7 +580,11 @@ class VolttronCentralPlatform(Agent):
         version, peer, identity = self._vc_agent.vip.hello().get(timeout=2)
 
         # Add the vcpublickey to the auth file.
-        # TODO: Add the vcserverkey to the auth.json file.
+        entry = AuthEntry(
+            credentials="CURVE:{}".format(vcpublickey),
+            capabilities=['manager']) #, address=parsedaddress.hostname)
+        authfile = AuthFile()
+        authfile.add(entry)
 
         return self.core.publickey
 

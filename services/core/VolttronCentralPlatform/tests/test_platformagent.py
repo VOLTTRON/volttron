@@ -9,12 +9,9 @@ import gevent
 from zmq.utils import jsonapi
 
 from volttron.platform.auth import AuthEntry, AuthFile
+from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM
 from volttron.platform.keystore import KeyStore
 from volttron.platform.web import DiscoveryInfo
-
-
-# The default platform identity
-PLATFORM_ID = 'platform.agent'
 
 
 def get_new_keypair():
@@ -70,19 +67,53 @@ def test_manage_agent(pa_instance):
     agent = wrapper.build_agent(
         serverkey=wrapper.publickey, publickey=publickey, secretkey=secretkey)
     peers = agent.vip.peerlist().get(timeout=2)
-    assert PLATFORM_ID in peers
+    assert VOLTTRON_CENTRAL_PLATFORM in peers
 
     # Make a call to manage which should return to us the publickey of the
     # platform.agent on the instance.
     papublickey = agent.vip.rpc.call(
-        PLATFORM_ID, 'manage', wrapper.vip_address[0],
+        VOLTTRON_CENTRAL_PLATFORM, 'manage', wrapper.vip_address[0],
         wrapper.publickey, agent.core.publickey).get(timeout=2)
     assert papublickey
-    add_to_auth(wrapper.volttron_home, papublickey,
-                capabilities=['can_be_managed'])
 
+
+@pytest.mark.pa
+def test_can_get_agentlist(pa_instance):
+    """ Test that we can retrieve an agent list from an agent.
+
+    The agent must have the "manager" capability.
+    """
+    wrapper = pa_instance['wrapper']
+    platform_agent_uuid = pa_instance['platform-uuid']
+    publickey, secretkey = get_new_keypair()
+
+    agent = wrapper.build_agent(
+        serverkey=wrapper.publickey, publickey=publickey, secretkey=secretkey)
+    peers = agent.vip.peerlist().get(timeout=2)
+    assert VOLTTRON_CENTRAL_PLATFORM in peers
+
+    # Make a call to manage which should return to us the publickey of the
+    # platform.agent on the instance.
+    papublickey = agent.vip.rpc.call(
+        VOLTTRON_CENTRAL_PLATFORM, 'manage', wrapper.vip_address[0],
+        wrapper.publickey, agent.core.publickey).get(timeout=2)
     assert papublickey
 
+    agentlist = agent.vip.rpc.call(
+        VOLTTRON_CENTRAL_PLATFORM, "list_agents"
+    ).get(timeout=2)
+
+    assert isinstance(agentlist, list)
+    assert len(agentlist) == 1
+    retagent = agentlist[0]
+    assert retagent['uuid'] == platform_agent_uuid
+    checkkeys = ('process_id', 'error_code', 'is_running', 'can_stop',
+                 'can_start', 'can_restart', 'health')
+    for k in checkkeys:
+        assert k in retagent.keys()
+
+    # make sure can stop is determined to be false
+    assert retagent['can_stop'] == False
 
 @pytest.mark.dev
 def test_agent_can_be_managed(pa_instance):
