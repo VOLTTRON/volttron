@@ -120,10 +120,9 @@ class Application(AbstractDrivenAgent):
             monday_sch=['5:30','18:30'], tuesday_sch=['5:30','18:30'],
             wednesday_sch=['5:30','18:30'], thursday_sch=['5:30','18:30'],
             friday_sch=['5:30','18:30'], saturday_sch=['0:00','0:00'],
-            sunday_sch=['0:00','0:00'], **kwargs):
+            sunday_sch=['0:00','0:00'], autocorrect_flag=False, **kwargs):
 
         self.warm_up_start = None
-        autocorrect_flag = True
         self.warm_up_flag = True
 
         # Point names (Configurable)

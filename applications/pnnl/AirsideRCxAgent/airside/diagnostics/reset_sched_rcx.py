@@ -112,20 +112,21 @@ class SchedResetRcx(object):
         self.stpr_reset_threshold = float(stpr_reset_threshold)
         self.sat_reset_threshold = float(sat_reset_threshold)
 
-    def reinitialize(self, avg_sat_stpt, avg_stcpr_stpt, stcpr_data, fan_status):
+    def reinitialize(self, start_new_analysis_time, start_new_analysis_sat_stpt,
+                     start_new_analysis_stcpr_stpt, stcpr_data, fan_status):
         """Reinitialize data arrays"""
         self.sat_stpt_arr = []
         self.stcpr_arr = []
         self.stcpr_stpt_arr = []
         self.fanstat_values = []
         self.sched_time = []
-        if avg_stcpr_stpt is not None:
-            self.sat_stpt_arr.append(avg_sat_stpt)
-            self.stcpr_stpt_arr.append(avg_stcpr_stpt)
+        if start_new_analysis_stcpr_stpt is not None:
+            self.sat_stpt_arr.append(start_new_analysis_sat_stpt)
+            self.stcpr_stpt_arr.append(start_new_analysis_stcpr_stpt)
         if fan_status is not None:
             self.fanstat_values.append(fan_status)
             self.stcpr_arr.extend(stcpr_data)
-        self.timestamp = [self.timestamp[-1]]
+        self.timestamp = [start_new_analysis_time]
 
     def sched_rcx_alg(self, current_time, stcpr_data, stcpr_stpt_data,
                       sat_stpt_data, fan_stat_data, dx_result,
@@ -134,11 +135,11 @@ class SchedResetRcx(object):
         fan_status = None
         schedule = self.schedule[current_time.weekday()]
         run_diagnostic = False
-        avg_sat_stpt = None
-        avg_stcpr_stpt = None
+        start_new_analysis_sat_stpt = None
+        start_new_analysis_stcpr_stpt = None
 
         if self.timestamp and self.timestamp[-1].date() != current_time.date():
-            self.start_of_next_analysis = self.timestamp[-1]
+            start_new_analysis_time = current_time
             run_diagnostic = True
 
         if current_time.time() < schedule[0] or current_time.time() > schedule[1]:
@@ -151,11 +152,9 @@ class SchedResetRcx(object):
             if int(max(fan_stat_data)):
                 if not run_diagnostic:
                     self.stcpr_stpt_arr.append(mean(stcpr_stpt_data))
-
-
                     self.sat_stpt_arr.append(mean(sat_stpt_data))
-                avg_stcpr_stpt = mean(stcpr_stpt_data)
-                avg_sat_stpt = mean(sat_stpt_data)
+                start_new_analysis_sat_stpt = mean(stcpr_stpt_data)
+                start_new_analysis_stcpr_stpt = mean(sat_stpt_data)
         self.timestamp.append(current_time)
 
         data = validation_builder(sched_val, SCHED_VALIDATE, DATA)
@@ -166,13 +165,15 @@ class SchedResetRcx(object):
                 dx_result = self.no_static_pr_reset(dx_result)
                 dx_result = self.no_sat_sp_reset(dx_result)
             data.update({SCHED_VALIDATE + DATA + ST: 1})
-            self.reinitialize(avg_sat_stpt, avg_stcpr_stpt, stcpr_data, fan_status)
+            self.reinitialize(start_new_analysis_time, start_new_analysis_sat_stpt,
+                              start_new_analysis_stcpr_stpt, stcpr_data, fan_status)
         elif run_diagnostic:
             dx_msg = 61.2
             dx_table = {SCHED_RCX + DX:  dx_msg}
             dx_result.insert_table_row(self.analysis, dx_table)
             data.update({SCHED_VALIDATE + DATA + ST: 2})
-            self.reinitialize(avg_sat_stpt, avg_stcpr_stpt, stcpr_data, fan_status)
+            self.reinitialize(start_new_analysis_time, start_new_analysis_sat_stpt,
+                              start_new_analysis_stcpr_stpt, stcpr_data, fan_status)
         else:
             data.update({SCHED_VALIDATE + DATA + ST: 0})
         dx_result.insert_table_row(VALIDATE_FILE_TOKEN, data)
@@ -217,7 +218,7 @@ class SchedResetRcx(object):
         if dx_msg == 63.1:
             for _hour in range(24):
                 if hourly_counter[_hour] > self.unocc_time_threshold:
-                    push_time =  self.sched_time[0].date()
+                    push_time = self.sched_time[0].date()
                     push_time = datetime.combine(push_time, datetime.min.time())
                     push_time = push_time.replace(hour=_hour)
                     dx_table = {SCHED_RCX + DX:  dx_msg}
@@ -225,7 +226,8 @@ class SchedResetRcx(object):
                     dx_table.update({'Timestamp': str(push_time)})
                     dx_result.insert_file_row(self.sched_file_name_id, dx_table)
         else:
-            dx_result.insert_table_row(self.analysis, {SCHED_RCX + DX:  dx_msg})
+            push_time = str(self.sched_time[0].date())
+            dx_result.insert_table_row((push_time, self.analysis), {SCHED_RCX + DX:  dx_msg})
         dx_result.log(msg, logging.INFO)
         return dx_result
 
@@ -247,7 +249,8 @@ class SchedResetRcx(object):
                    'reset diagnostic.')
             dx_msg = 70.0
         dx_table = {DUCT_STC_RCX3 + DX:  dx_msg}
-        dx_result.insert_table_row(self.analysis, dx_table)
+        push_time = str(self.timestamp[0].date())
+        dx_result.insert_table_row((push_time, self.analysis), dx_table)
         self.dx_table = dx_table
         dx_result.log(msg, logging.INFO)
         return dx_result
@@ -269,7 +272,8 @@ class SchedResetRcx(object):
                    'reset diagnostic.')
             dx_msg = 80.0
         dx_table = {SA_TEMP_RCX3 + DX:  dx_msg}
-        dx_result.insert_table_row(self.analysis, dx_table)
+        push_time = str(self.timestamp[0].date())
+        dx_result.insert_table_row((push_time, self.analysis), dx_table)
         self.dx_table.update(dx_table)
         self.dx_table.update({'Timestamp': str(self.timestamp[0])})
         dx_result.insert_file_row(self.reset_file_name_id, self.dx_table)
