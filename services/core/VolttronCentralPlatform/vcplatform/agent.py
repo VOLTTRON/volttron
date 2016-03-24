@@ -60,37 +60,25 @@ from __future__ import absolute_import, print_function
 
 __version__ = '3.1'
 
-import base64
-from urlparse import urlparse
 from datetime import datetime
 import gevent.event
 import logging
 import sys
-import requests
-import os
 import re
-import shutil
-import tempfile
 
 import psutil
 
 import gevent
-from gevent.fileobject import FileObject
 from zmq.utils import jsonapi
-from volttron.platform.vip.agent.core import (STATUS_GOOD, STATUS_BAD,
-                                              STATUS_UNKNOWN)
 from volttron.platform.vip.agent import *
 
-from volttron.platform import jsonrpc, control
+from volttron.platform import jsonrpc
 from volttron.platform.agent import utils
-from volttron.platform.web import DiscoveryInfo, DiscoveryError
+from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM
 
 from volttron.platform.vip.agent.utils import build_agent
-from volttron.platform.vip.socket import encode_key, decode_key
-from volttron.platform.auth import AuthEntry, AuthFile
 from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
-                                       INVALID_REQUEST, METHOD_NOT_FOUND,
-                                       PARSE_ERROR, UNHANDLED_EXCEPTION)
+                                       METHOD_NOT_FOUND)
 
 
 class CannotConnectError(StandardError):
@@ -129,7 +117,8 @@ class VolttronCentralPlatform(Agent):
         # identity = config.get('identity', 'platform.agent')
         # kwargs.pop('identity', None)
 
-        identity = kwargs.pop('identity', 'platform.agent')
+        identity = kwargs.pop('identity', None)
+        identity = VOLTTRON_CENTRAL_PLATFORM
         super(VolttronCentralPlatform, self).__init__(
             identity=identity, **kwargs)
         # if not self._read_vc_info():

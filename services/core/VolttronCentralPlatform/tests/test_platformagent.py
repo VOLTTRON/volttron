@@ -4,16 +4,14 @@ import os
 import requests
 import tempfile
 
-from zmq.utils import jsonapi
 import pytest
 import gevent
-
 from zmq.utils import jsonapi
+
 from volttron.platform.auth import AuthEntry, AuthFile
 from volttron.platform.keystore import KeyStore
 from volttron.platform.web import DiscoveryInfo
-from volttron.platform.jsonrpc import json_method
-from volttron.platform.vip.agent.utils import build_agent
+
 
 # The default platform identity
 PLATFORM_ID = 'platform.agent'
@@ -24,6 +22,7 @@ def get_new_keypair():
     ks = KeyStore(tf.name)
     ks.generate()
     return ks.public(), ks.secret()
+
 
 def add_to_auth(volttron_home, publickey, capabilities=None):
     authfile = AuthFile(os.path.join(volttron_home, 'auth.json'))
@@ -53,10 +52,40 @@ def get_auth_token(jsonrpc_address):
 
     params = {'username': 'admin', 'password': 'admin'}
 
-    return do_rpc(jsonrpc_address, 'get_authorization', params).json()['result']
+    return do_rpc(jsonrpc_address, 'get_authorization',
+                  params).json()['result']
 
 
 @pytest.mark.pa
+def test_manage_agent(pa_instance):
+    """ Test that we can manage a `VolttronCentralPlatform`.
+
+    This test is concerned with managing a `VolttronCentralPlatform` from the
+    same platform.  Though in principal that should not matter.  We do this
+    from a secondary platform in a diffferent integration test.
+    """
+    wrapper = pa_instance['wrapper']
+    publickey, secretkey = get_new_keypair()
+    add_to_auth(wrapper.volttron_home, publickey, capabilities=['managed_by'])
+    agent = wrapper.build_agent(
+        serverkey=wrapper.publickey, publickey=publickey, secretkey=secretkey)
+    peers = agent.vip.peerlist().get(timeout=2)
+    assert PLATFORM_ID in peers
+
+    # # This step is required because internally we are really connecting
+    # # to the same platform.  If this were two separate installments this
+    # # transaction would be easier.
+    # pa_info = DiscoveryInfo.request_discovery_info(wrapper.bind_web_address)
+    # add_to_auth(wrapper.volttron_home, pa_info.papublickey,
+    #             capabilities=['can_be_managed'])
+    # print(wrapper.vip_address)
+    # returnedid = agent.vip.rpc.call(
+    #     PLATFORM_ID, 'manage', wrapper.vip_address[0],
+    #     wrapper.publickey).get(timeout=2)
+    # assert returnedid
+
+
+@pytest.mark.dev
 def test_agent_can_be_managed(pa_instance):
     wrapper = pa_instance['wrapper']
     publickey, secretkey = get_new_keypair()

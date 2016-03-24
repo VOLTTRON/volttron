@@ -70,24 +70,23 @@ from authenticate import Authenticate
 from .resource_directory import ResourceDirectory
 from .registry import PlatformRegistry, RegistryEntry
 
-from volttron.platform.vip.socket import encode_key
-from volttron.platform.auth import AuthEntry, AuthFile
-from volttron.platform import jsonrpc, get_home
-from volttron.platform.web import (DiscoveryInfo, CouldNotRegister,
-                                   build_vip_address_string)
-from volttron.platform.vip.agent.utils import build_agent
 from volttron.platform.agent import utils
+from volttron.platform.agent.known_identities import (
+    VOLTTRON_CENTRAL, VOLTTRON_CENTRAL_PLATFORM)
+from volttron.platform.auth import AuthEntry, AuthFile
+from volttron.platform.jsonrpc import (
+    INTERNAL_ERROR, INVALID_PARAMS, INVALID_REQUEST, METHOD_NOT_FOUND,
+    PARSE_ERROR, UNHANDLED_EXCEPTION, UNAUTHORIZED,
+    UNABLE_TO_REGISTER_INSTANCE)
 from volttron.platform.vip.agent import Agent, RPC, PubSub, Core
 from volttron.platform.vip.agent.subsystems import query
+from volttron.platform.vip.socket import encode_key
+from volttron.platform.web import (DiscoveryInfo, CouldNotRegister,
+                                   build_vip_address_string)
 
 from sessions import SessionHandler
 
 from volttron.platform.control import list_agents
-from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
-                                       INVALID_REQUEST, METHOD_NOT_FOUND,
-                                       PARSE_ERROR, UNHANDLED_EXCEPTION,
-                                       UNAUTHORIZED,
-                                       UNABLE_TO_REGISTER_INSTANCE)
 
 from volttron.platform.keystore import KeyStore
 
@@ -136,10 +135,8 @@ class VolttronCentralAgent(Agent):
         if self._user_map is None:
             raise ValueError('users not specified within the config file.')
 
-        # Let the identity be overridden based upon identity in the
-        # configuration file otherwise default to volttron.central.
-        identity = kwargs.pop("identity", None)
-        identity = self._config.get("identity", "volttron.central")
+        # This is a special object so only use it's identity.
+        identity = kwargs.pop("identity", VOLTTRON_CENTRAL)
 
         super(VolttronCentralAgent, self).__init__(identity=identity,
                                                    **kwargs)
@@ -356,8 +353,6 @@ class VolttronCentralAgent(Agent):
                 self.core.publickey
 
             ).get(timeout=2)
-
-
 
             return {}
 
@@ -591,7 +586,7 @@ class VolttronCentralAgent(Agent):
                               'jsonrpc').get(timeout=5)
 
             self.vip.rpc.call('volttron.web', 'register_path_route',
-                              r'^/.*', WEB_ROOT).get(timeout=5)
+                              r'^/.*', DEFAULT_WEB_ROOT).get(timeout=5)
 
         def __load_persist_data(self):
             persist_kv = None
