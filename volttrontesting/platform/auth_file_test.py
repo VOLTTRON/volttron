@@ -6,9 +6,8 @@ import pytest
 from py.test import raises
 
 from volttron.platform import jsonrpc
-from volttron.platform.auth import (
-    AuthEntry, AuthFile, AuthFileEntryAlreadyExists)
-
+from volttron.platform.auth import (AuthEntry, AuthFile, AuthFileIndexError,
+        AuthFileEntryAlreadyExists, AuthEntryInvalid)
 
 @pytest.fixture(scope='function')
 def auth_file_platform_tuple(volttron_instance1_encrypt):
@@ -92,3 +91,25 @@ def test_auth_file_api(auth_file_platform_tuple, auth_entry1,
     entries = auth_file.read_allow_entries()
     my_entries = [auth_entry3]
     assert_attributes_match(entries, my_entries)
+
+@pytest.mark.auth
+def test_remove_invalid_index(auth_file_platform_tuple):
+    auth_file, _ = auth_file_platform_tuple
+    with pytest.raises(AuthFileIndexError):
+        auth_file.remove_by_index(1)
+
+@pytest.mark.auth
+def test_update_invalid_index(auth_file_platform_tuple, auth_entry1):
+    auth_file, _ = auth_file_platform_tuple
+    with pytest.raises(AuthFileIndexError):
+        auth_file.update_by_index(auth_entry1, 1)
+
+@pytest.mark.auth
+def test_invalid_auth_entries(auth_file_platform_tuple):
+    auth_file, _ = auth_file_platform_tuple
+    with pytest.raises(AuthEntryInvalid):
+        AuthEntry()
+    with pytest.raises(AuthEntryInvalid):
+        AuthEntry(credentials='CURVE:invalid key')
+    with pytest.raises(AuthEntryInvalid):
+        AuthEntry(credentials='Not NULL or PLAIN: or CURVE:')

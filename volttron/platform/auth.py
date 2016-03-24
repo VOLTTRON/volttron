@@ -356,7 +356,10 @@ class AuthEntry(object):
                                                    str) or []
 
     def match(self, domain, address, mechanism, credentials):
-        creds = ':'.join([mechanism] + credentials)
+        if mechanism == 'NULL':
+            creds = 'NULL'
+        else:
+            creds = ':'.join([mechanism] + credentials)
         return ((self.domain is None or self.domain.match(domain)) and
                 (self.address is None or self.address.match(address)) and
                 (self.credentials and self.credentials.match(creds)))
@@ -394,7 +397,8 @@ class AuthEntry(object):
 class AuthFile(object):
     def __init__(self, auth_file=None):
         if auth_file is None:
-            auth_file_dir = os.environ.get('VOLTTRON_HOME', '~/.volttron')
+            auth_file_dir = os.path.expanduser(
+                    os.environ.get('VOLTTRON_HOME', '~/.volttron'))
             auth_file = os.path.join(auth_file_dir, 'auth.json')
         self.auth_file = auth_file
 
@@ -573,10 +577,13 @@ class AuthFileIndexError(AuthException, IndexError):
     '''Exception for invalid indices provided to AuthFile'''
 
     def __init__(self, indices, message=None):
+        if not isinstance(indices, list):
+            indices = [indices]
         if message is None:
             message = 'Invalid {}: {}'.format(
                 'indicies' if len(indices) > 1 else 'index', indices)
-        super(AuthFileIndexError, self).__init__(indices, message)
+        #super(AuthFileIndexError, self).__init__(indices, message)
+        super(AuthFileIndexError, self).__init__(message)
         self.indices = indices
 
 
@@ -587,5 +594,4 @@ class AuthFileEntryAlreadyExists(AuthFileIndexError):
         if message is None:
             message = ('entry matches domain, address and credentials at '
                        'index {}').format(indicies)
-
         super(AuthFileEntryAlreadyExists, self).__init__(indicies, message)
