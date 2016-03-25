@@ -75,6 +75,7 @@ from .... import jsonrpc
 
 
 __all__ = ['PubSub']
+min_compatible_version = '3.0'
 
 _log = logging.getLogger(__name__)
 
@@ -377,6 +378,8 @@ class PubSub(SubsystemBase):
         '''
         if headers is None:
             headers = {}
+        headers['min_compatible_version'] = min_compatible_version
+
         if peer is None:
             peer = 'pubsub'
         return self.rpc().call(
