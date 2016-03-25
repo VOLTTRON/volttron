@@ -4,4 +4,4 @@ requests>=2.2,<3
 psutil
 ply
 python-magic
-gevent=1.1
+gevent>=1.1,<1.2
