@@ -73,6 +73,7 @@ from volttron.platform.agent.utils import process_timestamp, fix_sqlite3_datetim
 from volttron.platform.messaging import topics, headers as headers_mod
 from volttron.platform.vip.agent import *
 from zmq.utils import jsonapi
+from volttron.platform.vip.agent import compat
 
 _log = logging.getLogger(__name__)
 
@@ -166,6 +167,9 @@ class BaseHistorianAgent(Agent):
     
     def _capture_record_data(self, peer, sender, bus, topic, headers, message):
         _log.debug('Capture record data {}'.format(message))
+
+        if sender == 'pubsub.compat':
+            message = compat.unpack_legacy_message(headers, message)
         self._event_queue.put(
             {'source': 'record',
              'topic': topic,
@@ -175,14 +179,11 @@ class BaseHistorianAgent(Agent):
     def _capture_log_data(self, peer, sender, bus, topic, headers, message):
         '''Capture log data and submit it to be published by a historian.'''
 
-#         parts = topic.split('/')
-#         location = '/'.join(reversed(parts[2:]))
-
         try:
             # 2.0 agents compatability layer makes sender == pubsub.compat so 
             # we can do the proper thing when it is here
             if sender == 'pubsub.compat':
-                data = jsonapi.loads(message)
+                data = compat.unpack_legacy_message(headers, message)
             else:
                 data = message
         except ValueError as e:
@@ -267,11 +268,16 @@ class BaseHistorianAgent(Agent):
         timestamp, my_tz = process_timestamp(timestamp_string, topic)
         
         try:
-            # 2.0 agents compatability layer makes sender == pubsub.compat so 
+            _log.debug("### In capture_data Actual message {} "
+                       "".format(message))
+            # 2.0 agents compatability layer makes sender == pubsub.compat so
             # we can do the proper thing when it is here
             if sender == 'pubsub.compat':
-                message = jsonapi.loads(message[0])
-                
+                #message = jsonapi.loads(message[0])
+                message = compat.unpack_legacy_message(headers, message)
+                _log.debug("### message after compat {}".format(message))
+
+
             if isinstance(message, dict):
                 values = message
             else:
@@ -289,21 +295,8 @@ class BaseHistorianAgent(Agent):
             return
 
         meta = {}
-        try:
-            # 2.0 agents compatability layer makes sender == pubsub.compat so 
-            # we can do the proper thing when it is here
-            if sender == 'pubsub.compat':
-                if isinstance(message[1], str):
-                    meta = jsonapi.loads(message[1])
-            
-            if not isinstance(message, dict):
-                meta = message[1]
-                
-        except ValueError as e:
-            _log.warning("meta data for {topic} bad message string: {message_string}".format(topic=topic,
-                                                                                     message_string=message[0]))
-        except IndexError as e:
-            _log.warning("meta data for {topic} missing message string".format(topic=topic))
+        if not isinstance(message, dict):
+            meta = message[1]
 
         if topic.startswith('analysis'):
             source = 'analysis'
