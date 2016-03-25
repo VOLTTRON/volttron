@@ -66,44 +66,53 @@ _log = logging.getLogger(__name__)
 __version__ = '3.5'
 
 
-def anomalydetection_agent(config_path, **kwargs):
+def thresholddetection_agent(config_path, **kwargs):
     config = utils.load_config(config_path)
-    identity = config.get('identity', 'anomalydetection')
+    identity = config.get('identity', 'thresholddetection')
     kwargs.pop('identity', None)
 
-    class AnomalyDetectionAgent(Agent):
-        '''Listens to specified topics and publishes alerts when anomalies are
-        detected.
-        '''
+    class ThresholdDetectionAgent(Agent):
+        """
+        Listens to specified topics and publishes alerts when
+        thresholds are passed.
+        """
 
         def __init__(self, **kwargs):
-            super(AnomalyDetectionAgent, self).__init__(**kwargs)
-            self._topics = {}
+            super(ThresholdDetectionAgent, self).__init__(**kwargs)
 
-        @RPC.export
-        def watch_max(self, prefix, max_value):
-            alert_topic = '{}'.format(uuid.uuid4())
+        @Core.receiver('onstart')
+        def start(self, sender, **kwargs):
 
-            def callback(peer, sender, bus, topic, headers, message):
-                if message > max_value:
-                    msg = 'Value from {} ({}) passed threshold ({})'.format(
-                            topic, message, max_value)
-                    self.vip.pubsub.publish('pubsub', alert_topic, message=msg)
+            def generate_callback(message, max_value):
+                def callback(peer, sender, bus, topic, headers, msg):
+                    if msg > max_value:
+                        alert_message = '{} ({} published {})\n'.format(
+                                message, topic, msg)
+                        self.alert(alert_message, topic)
+                return callback
 
-            self.vip.pubsub.subscribe('pubsub', prefix, callback)
-            return alert_topic
+            for watch in config.get("watch_max", []):
+                if watch.get('enabled', True):
+                    message = watch['message'].format(**watch)
+                    self.vip.pubsub.subscribe(
+                            'pubsub', watch['topic'],
+                            generate_callback(message, watch['max_value']))
 
-        @RPC.export
-        def unwatch(self, alert_topic):
-            self.vip.pubsub.unsubscribe('pubsub', alert_topic, callback=None)
+        def alert(self, message, topic):
+            """
+            TOOD: replace this method with a BaseAgent or subsystem
+            alert method
+            """
+            alert_topic = 'alert/' + topic
+            self.vip.pubsub.publish('pubsub', alert_topic, message=message)
 
-    AnomalyDetectionAgent.__name__ = 'AnomalyDetectionAgent'
-    return AnomalyDetectionAgent(identity=identity)
+    ThresholdDetectionAgent.__name__ = 'ThresholdDetectionAgent'
+    return ThresholdDetectionAgent(identity=identity)
 
 
 def main(argv=sys.argv):
     '''Main method called by the platform.'''
-    utils.vip_main(anomalydetection_agent)
+    utils.vip_main(thresholddetection_agent)
 
 if __name__ == '__main__':
     # Entry point for script
