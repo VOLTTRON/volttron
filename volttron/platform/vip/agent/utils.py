@@ -62,13 +62,14 @@ import gevent
 
 from volttron.platform.agent import utils
 from volttron.platform.vip.agent import Agent
+from volttron.platform.web import build_vip_address_string
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
 
 def build_agent(address=None, identity=None, publickey=None, secretkey=None,
-                timeout=10, **kwargs):
+                timeout=10, serverkey=None, **kwargs):
     """ Builds a dynamic agent connected to the specifiedd address.
 
     :param address:
@@ -83,8 +84,10 @@ def build_agent(address=None, identity=None, publickey=None, secretkey=None,
         address = os.environ['VOLTTRON_HOME']
 
     _log.debug('BUILDING AGENT VIP: {}'.format(address))
-    agent = Agent(address=address, identity=identity, publickey=publickey,
-                  secretkey=secretkey, **kwargs)
+    vip_address = build_vip_address_string(
+        vip_root=address, publickey=publickey, secretkey=secretkey,
+        serverkey=serverkey)
+    agent = Agent(address=vip_address, identity=identity)
     event = gevent.event.Event()
     gevent.spawn(agent.core.run, event)
     event.wait(timeout=timeout)

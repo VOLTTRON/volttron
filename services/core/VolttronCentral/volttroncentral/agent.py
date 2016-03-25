@@ -74,15 +74,17 @@ from volttron.platform.agent import utils
 from volttron.platform.agent.known_identities import (
     VOLTTRON_CENTRAL, VOLTTRON_CENTRAL_PLATFORM)
 from volttron.platform.auth import AuthEntry, AuthFile
+from volttron.platform import jsonrpc
 from volttron.platform.jsonrpc import (
     INTERNAL_ERROR, INVALID_PARAMS, INVALID_REQUEST, METHOD_NOT_FOUND,
     PARSE_ERROR, UNHANDLED_EXCEPTION, UNAUTHORIZED,
-    UNABLE_TO_REGISTER_INSTANCE)
+    UNABLE_TO_REGISTER_INSTANCE, DISCOVERY_ERROR)
 from volttron.platform.vip.agent import Agent, RPC, PubSub, Core
 from volttron.platform.vip.agent.subsystems import query
+from volttron.platform.vip.agent.utils import build_agent
 from volttron.platform.vip.socket import encode_key
 from volttron.platform.web import (DiscoveryInfo, CouldNotRegister,
-                                   build_vip_address_string)
+                                   build_vip_address_string, DiscoveryError)
 
 from sessions import SessionHandler
 
@@ -145,6 +147,7 @@ class VolttronCentralAgent(Agent):
         # sessions.
         self._sessions = SessionHandler(Authenticate(self._user_map))
         self.webaddress = None
+        self._web_info = None
 
     def _check_for_peer_platform(self):
         """ Check the list of peers for a platform.agent
@@ -240,27 +243,24 @@ class VolttronCentralAgent(Agent):
         return value
 
     @RPC.export
-    def register_instance(self, discovery_address, display_name=None):
-        """ An rpc call to register from the platform agent.
+    def register_instance(self, discovery_address):
+        """ Adds discovery_address to proposed list of agents.
 
-        This method allows an external platform to register itself with
-        the volttron central instance that is specified in the
-        Platform agent's configuration file.
+        This method is called from a configured agent to hone into the
+        `VolttronCentralAgent`.  An administrator must then choose to
+        accept the call from this agent before the agent will be granted
+        status.
 
-        :param discovery_address:
-        :param display_name:
-        :return:
+        :param string: The url of the discovery_address for the platform.
         """
+        pass
 
-        info = DiscoveryInfo.get_discovery_info(discovery_address)
-
-
-        #self._register_instance(discovery_address, display_name,
-        #                        provisional=True)
 
     def _register_instance(self, discovery_address, display_name=None,
                            provisional=False):
-        """ Register an instance with VOLTTRON Central.
+        """ Register an instance with VOLTTRON Central based on jsonrpc.
+
+        NOTE: This method is meant to be called from the jsonrpc method.
 
         The registration of the instance will fail in the following cases:
         - no discoverable instance at the passed uri
@@ -275,82 +275,77 @@ class VolttronCentralAgent(Agent):
         :param discovery_address: A ip:port for an instance of volttron
                discovery.
         :param display_name:
-        :return:
-        :raises CouldNotRegister if the platform couldn't be registered.
+        :return: dictionary:
+            The dictionary will hold either an error object or a result
+            object.
         """
 
         _log.info(
-            'Attempting to register name: {}\nwith address: {}'.format(
+            'Attempting to register name: {} with address: {}'.format(
                 display_name, discovery_address))
 
-        # Make sure that the agent is reachable.
-        request_uri = "{}/discovery/".format(discovery_address)
-        res = requests.get(request_uri)
-        _log.debug("Requesting discovery from: {}".format(request_uri))
-        if not res.ok:
-            return 'Unreachable'
+        try:
+            discovery_response = DiscoveryInfo.request_discovery_info(
+                discovery_address)
+        except DiscoveryError as e:
+            return {
+                'error': {
+                    'code': DISCOVERY_ERROR, 'message': e.message
+                }}
 
-        tmpres = res.json()
-        pa_instance_serverkey = tmpres['serverkey']
-        pa_vip_address = tmpres['vip-address']
+        pa_instance_serverkey = discovery_response.serverkey
+        pa_vip_address = discovery_response.vip_address
 
         assert pa_instance_serverkey
         _log.debug('connecting to pa_instance')
-        connected_to_pa =Agent(
-            address=pa_vip_address, serverkey=pa_instance_serverkey,
-            secretkey=encode_key(self.core.secretkey),
-            publickey=encode_key(self.core.publickey)
-        )
+        try:
+            connected_to_pa = build_agent(
+                address=pa_vip_address, serverkey=pa_instance_serverkey,
+                secretkey=self.core.secretkey,
+                publickey=self.core.publickey
+            )
+        except gevent.Timeout:
+            return {
+                'error': {
+                    'code': UNABLE_TO_REGISTER_INSTANCE,
+                    'message': 'Connection was unsuccessful to {}'
+                        .format(pa_vip_address)
+                }}
+        except Exception as ex:
+            return {'error': {'code': UNHANDLED_EXCEPTION,
+                              'message': ex.message
+                              }}
 
-        event = gevent.event.Event()
-        gevent.spawn(connected_to_pa.core.run, event)
-        event.wait(timeout=2)
-        del event
         _log.debug('Connected to address')
         peers = connected_to_pa.vip.peerlist().get(timeout=1)
-        assert 'platform.agent' in peers
-        _log.debug("Agent connected to peers: {}".format(
-            connected_to_pa.vip.peerlist().get(timeout=3)))
+        if VOLTTRON_CENTRAL_PLATFORM not in peers:
+            connected_to_pa.core.stop()
+            return {'error': {'code': UNABLE_TO_REGISTER_INSTANCE,
+                              'message': '{} not present.'.format(
+                                  VOLTTRON_CENTRAL_PLATFORM)
+                              }}
 
+        # The call to manage should return a public key for that agent
         result = connected_to_pa.vip.rpc.call(
-            'platform.agent', 'get_publickey'
-        ).get(timeout=2)
-        _log.debug('RESULT: {}'.format(result))
-        if not display_name:
-            display_name = discovery_address
+            VOLTTRON_CENTRAL_PLATFORM, 'manage', self._web_info.vip_address,
+            self._web_info.serverkey, self.core.publickey).get(timeout=4)
 
-        if not result:
-            raise CouldNotRegister(
-                "display_name={}, discovery_address={}".format(
-                    display_name, discovery_address)
-            )
-        _log.debug('publickey from platform: {}'.format(result))
+        # Magic number 43 is the length of a encoded public key.
+        if len(result) != 43:
+            return {'error': {'code': UNABLE_TO_REGISTER_INSTANCE,
+                              'message': 'Invalid publickey returned from {}'
+                                .format(VOLTTRON_CENTRAL_PLATFORM)
+                              }}
 
         # Add the pa's public key so it can connect back to us.
         auth_file = AuthFile()
         auth_entry = AuthEntry(credentials="CURVE:{}".format(result),
-                               capabilities=['is_managed']
+                               capabilities=['managing']
                                )
         auth_file.add(auth_entry)
 
-        vc_webaddr = os.environ.get('VOLTTRON_WEB_ADDR', None)
-        # # datetime_now = datetime.datetime.utcnow()
-        # # _log.debug(datetime_now)
-        # entry = RegistryEntry(vip_address=vip_address,
-        #                       serverkey=pa_instance_serverkey,
-        #                       discovery_address=web_addr,
-        #                       display_name=display_name,
-        #                       provisional=provisional)
-        # self._registry.register(entry)
-        # assert vc_webaddr
-        _log.debug('Calling manage_platform from vc.')
-        result = connected_to_pa.vip.rpc.call(
-            'platform.agent', 'manage_platform', vc_webaddr,
-            self.core.publickey
-
-        ).get(timeout=2)
-
-        return {}
+        # Return success that we made it this far!
+        return {'status': 'SUCCESS'}
 
     # @RPC.export
     # def register_platform(self, peer_identity, name, peer_address):
@@ -420,22 +415,13 @@ class VolttronCentralAgent(Agent):
         if registered:
             self._registry.unpackage(registered)
 
-    def _to_jsonrpc_obj(self, data):
+    def _to_jsonrpc_obj(self, jsonrpcstr):
         """ Convert data string into a JsonRpcData named tuple.
 
         :param object data: Either a string or a dictionary representing a json document.
         """
-        try:
-            jsonstr = jsonapi.loads(data)
-        except:
-            jsonstr = data
+        return jsonrpc.JsonRpcData.parse(jsonrpcstr)
 
-        data = jsonrpc.JsonRpcData(jsonstr.get('id', None),
-                                   jsonstr.get('jsonrpc', None),
-                                   jsonstr.get('method', None),
-                                   jsonstr.get('params', None))
-
-        return data
 
     @RPC.export
     def jsonrpc(self, env, data):
@@ -457,7 +443,6 @@ class VolttronCentralAgent(Agent):
 
         try:
             rpcdata = self._to_jsonrpc_obj(data)
-            jsonrpc.validate(rpcdata)
 
             if rpcdata.method == 'get_authorization':
                 args = {'username': rpcdata.params['username'],
@@ -471,9 +456,7 @@ class VolttronCentralAgent(Agent):
                 _log.info('Session created for {}'.format(rpcdata.params['username']))
                 return jsonrpc.json_result(rpcdata.id, sess)
 
-            _log.debug(data)
-            jsondata = jsonapi.loads(data)
-            token = jsondata.get('authorization', None)
+            token = rpcdata.authorization
             ip = env['REMOTE_ADDR']
 
             if not self._sessions.check_session(token, ip):
@@ -483,29 +466,34 @@ class VolttronCentralAgent(Agent):
             _log.debug('RPC METHOD IS: {}'.format(rpcdata.method))
 
             if rpcdata.method == 'register_instance':
-                try:
-                    # internal use discovery address rather than uri
-                    print("RPCDATA.PARAMS: {}".format(rpcdata.params))
-                    result = self._register_instance(**rpcdata.params)
-                except CouldNotRegister as expinfo:
-                    return jsonrpc.json_error(
-                        rpcdata.id, UNABLE_TO_REGISTER_INSTANCE,
-                        "Unable to register platform {}".format(expinfo),
-                        **rpcdata.params)
+                if isinstance(rpcdata.params, list):
+                    result_or_error = self._register_instance(
+                        *rpcdata.params)
                 else:
-                    return jsonrpc.json_result(rpcdata.id, {
-                        "status": "SUCCESS",
-                        "context": "Registered instance {}".format(
-                            result['display_name'])
-                    })
+                    result_or_error = self._register_instance(
+                        **rpcdata.params)
+
             elif rpcdata.method == 'list_platforms':
                 return self._get_platforms_json(rpcdata.id)
+
+            else:
+                result_or_error = {'error': {'code': METHOD_NOT_FOUND,
+                                             'message': 'Unknown method {}'
+                                             .format(rpcdata.method)} }
 
         except AssertionError:
             return jsonapi.dumps(jsonrpc.json_error(
                 'NA', INVALID_REQUEST, 'Invalid rpc data {}'.format(data)))
 
-        return rpcdata
+        _log.debug("RETURNING: {}".format(self._get_jsonrpc_response(rpcdata.id, result_or_error)))
+        return self._get_jsonrpc_response(rpcdata.id, result_or_error)
+
+    def _get_jsonrpc_response(self, id, result_or_error):
+        if 'error' in result_or_error:
+            error = result_or_error['error']
+            return jsonrpc.json_error(id, error['code'], error['message'])
+
+        return jsonrpc.json_result(id, result_or_error)
 
     def _get_platforms_json(self, message_id):
         """ Composes the json response for the listing of the platforms.
@@ -561,10 +549,10 @@ class VolttronCentralAgent(Agent):
         return agents
 
     @Core.receiver('onstart')
-    def starting(self, sender, **kwargs):
+    def _starting(self, sender, **kwargs):
         '''This event is triggered when the platform is ready for the agent
         '''
-        self.vip.heartbeat.start()
+        self.vip.heartbeat.start_with_period(10)
 
         q = query.Query(self.core)
         self._external_addresses = q.query('addresses').get(timeout=10)
@@ -583,6 +571,10 @@ class VolttronCentralAgent(Agent):
 
         self.vip.rpc.call('volttron.web', 'register_path_route',
                           r'^/.*', DEFAULT_WEB_ROOT).get(timeout=5)
+
+        self.webaddress = self.vip.rpc.call(
+            'volttron.web', 'get_bind_web_address').get(timeout=5)
+        self._web_info = DiscoveryInfo.request_discovery_info(self.webaddress)
 
     def __load_persist_data(self):
         persist_kv = None
