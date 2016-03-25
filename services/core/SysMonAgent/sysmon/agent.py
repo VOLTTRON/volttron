@@ -77,7 +77,7 @@ def sysmon_agent(config_path, **kwargs):
         def __init__(self, **kwargs):
             super(SysMonAgent, self).__init__(**kwargs)
             self._base_topic = config.get('base_topic',
-                'datalogger/log/platform/status')
+                'datalogger/log/platform')
 
         @Core.receiver('onstart')
         def start(self, sender, **kwargs):
