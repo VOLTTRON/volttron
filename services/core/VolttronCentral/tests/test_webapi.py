@@ -39,7 +39,7 @@ def authenticate(jsonrpcaddr, username, password):
     :param jsonrpcaddr:
     :param username:
     :param password:
-    :return a dictionary with usernam, auth_token and jsonrpcroot
+    :return a tuple with username and auth token
     """
 
     print('RPCADDR: ', jsonrpcaddr)
@@ -50,17 +50,7 @@ def authenticate(jsonrpcaddr, username, password):
     validate_response(response)
     jsonres = response.json()
 
-    retvalue={
-        "jsonrpcroot": jsonrpcaddr,
-        "username": username,
-        "auth_token": jsonres['result']
-    }
-
-    return retvalue
-
-
-def get_wrappers(instance1, instance2):
-    return instance1['wrapper'], instance2['wrapper']
+    return username, jsonres['result']
 
 
 def check_multiple_platforms(platformwrapper1, platformwrapper2):
@@ -93,25 +83,28 @@ def validate_response(response):
 #     #print(vc_agent_with_auth, platform_agent_on_instance1)
 #     #assert platform_agent_on_instance1
 
+
 @pytest.mark.vc
 def test_register_instance(vc_instance, pa_instance):
 
-    auth = authenticate(vc_instance['jsonrpc'], "admin", "admin")
-
-    # unwrap the platfromwrappers from the instances.
-    vc_wrapper, pa_wrapper = get_wrappers(vc_instance, pa_instance)
+    pa_wrapper, pa_uuid = pa_instance
+    vc_wrapper, vc_uuid, vc_jsonrpc = vc_instance
 
     check_multiple_platforms(vc_wrapper, pa_wrapper)
 
-    # This is where we make the request to the vc server to register the
-    # secondary platform.
-    p = {'uri': pa_wrapper.bind_web_address}
-    res = do_rpc(auth_token=auth['auth_token'],
-                 method="register_instance", params=p,
-                 rpc_root=vc_instance['jsonrpc'] )
-    assert res.ok
-    validate_response(res)
-    result = res.json()['result']
+    username, auth = authenticate(vc_jsonrpc, "admin", "admin")
+    assert auth
+
+    print("vip address of pa_agent: {}".format(pa_wrapper.vip_address[0]))
+    print("vip address of vc_agent: {}".format(vc_wrapper.vip_address[0]))
+
+    # Call register_instance rpc method on vc
+    response = do_rpc("register_instance", [pa_wrapper.bind_web_address],
+                      auth, vc_jsonrpc)
+
+    assert response.ok
+    validate_response(response)
+    result = response.json()['result']
     assert result['status'] == 'SUCCESS'
 #
 #
