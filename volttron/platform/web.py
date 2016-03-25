@@ -213,7 +213,13 @@ class MasterWebService(Agent):
         compiled = re.compile(regex)
         self.registeredroutes.append((compiled, 'path', root_dir))
 
-    def _redirect_index(self, env, start_response):
+    def _redirect_index(self, env, start_response, data):
+        """ Redirect to the index page.
+        @param env:
+        @param start_response:
+        @param data:
+        @return:
+        """
         start_response('302 Found', [('Location', '/index.html')])
         return ['1']
 
@@ -290,6 +296,7 @@ class MasterWebService(Agent):
             if k.match(path_info):
                 _log.debug("MATCHED:\npattern: {}, path_info: {}\n v: {}"
                            .format(k.pattern, path_info, v))
+                _log.debug('registered route t is: {}'.format(t))
                 if t == 'callable':  # Generally for locally called items.
                     return v(env, start_response, data)
                 elif t == 'peer_route':  # RPC calls from agents on the platform.

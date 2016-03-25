@@ -111,6 +111,9 @@ class VolttronCentralPlatform(Agent):
         self._vc_agent = None
         self._vc_info = None
 
+        # This is set from the volttron central instance.
+        self._platform_uuid = None
+
         # agentid = config.get('agentid', 'platform')
         # agent_type = config.get('agent_type', 'platform')
         #
@@ -183,12 +186,9 @@ class VolttronCentralPlatform(Agent):
 
 
     @RPC.export
+    @RPC.allow("manager")
     def assign_platform_uuid(self, platform_uuid):
-        self.platform_uuid = platform_uuid
-        self.core.periodic(10,
-            lambda s, **kwargs: self._publish_agent_list)
-        self.core.periodic(10,
-            lambda s, **kwargs: self._publish_status_list)
+        self._platform_uuid = platform_uuid
 
     def _publish_agent_list(self):
         _log.info('Publishing new agent list.')
