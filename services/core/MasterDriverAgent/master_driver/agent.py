@@ -145,10 +145,7 @@ def master_driver_agent(config_path, **kwargs):
                 self.current_test_start = None
             
         @Core.receiver('onstart')
-        def starting(self, sender, **kwargs):
-            env = os.environ.copy()
-            env.pop('AGENT_UUID', None)
-            
+        def starting(self, sender, **kwargs):            
             start_delay = None
             if staggered_start is not None:
                 start_delay = staggered_start / float(len(driver_config_list))
