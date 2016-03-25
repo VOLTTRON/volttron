@@ -59,79 +59,95 @@ from datetime import datetime, timedelta as td
 import logging
 import sys
 import re
-
-from dateutil.parser import parse
-
-from volttron.platform.agent import BaseAgent, PublishMixin, matching, utils
-from volttron.platform.agent.driven import ConversionMapper
-from volttron.platform.agent.utils import jsonapi
-from volttron.platform.messaging import (headers as headers_mod, topics)
 from copy import deepcopy
 import sys
+import gevent
+from dateutil.parser import parse
+
+from volttron.platform.messaging import topics
+from volttron.platform.agent import utils
+from volttron.platform.agent.utils import jsonapi, setup_logging
+from volttron.platform.vip.agent import Agent, Core
+from volttron.platform.jsonrpc import RemoteError
+from volttron.platform.agent.driven import ConversionMapper
+from volttron.platform.messaging import (headers as headers_mod, topics)
+
+
+__version__ = '3.0.0'
+
 
 __author1__ = 'Craig Allwardt <craig.allwardt@pnnl.gov>'
 __author2__ = 'Robert Lutes <robert.lutes@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2015, Battelle Memorial Institute'
 __license__ = 'FreeBSD'
 
+_log = logging.getLogger(__name__)
+utils.setup_logging()
+logging.basicConfig(level=logging.debug,
+                    format='%(asctime)s   %(levelname)-8s %(message)s',
+                    datefmt='%m-%d-%y %H:%M')
 
-def DrivenAgent(config_path, **kwargs):
+def driven_agent(config_path, **kwargs):
     """Driven harness for deployment of OpenEIS applications in VOLTTRON."""
-    conf = utils.load_config(config_path)
-    arguments = conf.get('arguments', None)
+    config = utils.load_config(config_path)
+    arguments = config.get('arguments', None)
+
     assert arguments
-    from_file = arguments.get('From File', True)
-    mode = True if conf.get('mode', 'PASSIVE') == 'ACTIVE' else False
-    utils.setup_logging()
-    _log = logging.getLogger(__name__)
-    logging.basicConfig(level=logging.debug,
-                        format='%(asctime)s   %(levelname)-8s %(message)s',
-                        datefmt='%m-%d-%y %H:%M:%S')
+    from_file = config.get('from file', False)
+    mode = True if config.get('mode', 'PASSIVE') == 'ACTIVE' else False
+    multiple_devices = isinstance(config['device']['unit'], dict)
     validation_error = ''
-    device = dict((key, conf['device'][key])
+    device = dict((key, config['device'][key])
                   for key in ['campus', 'building'])
-    subdevices = []
-    conv_map = conf.get('conversion_map')
+    device_config = config['device']
+    device_topic_list = []
+    subdevices_list = []
+    for device_name in config['device']['unit']:
+        device_topic = topics.DEVICES_VALUE(campus=device_config.get('campus'),
+                                            building=device_config.get('building'),
+                                            unit=device_name,
+                                            path='',
+                                            point='all')
+        device_topic_list.append(device_topic)
+        if multiple_devices:
+            for subdevice in config['device']['unit'][device_name]['subdevices']:
+                subdevices_list.append(subdevice)
+                device_topic = topics.DEVICES_VALUE(campus=device_config.get('campus'),
+                                                    building=device_config.get('building'),
+                                                    unit=device_name,
+                                                    path=subdevice,
+                                                    point='all')
+                device_topic_list.append(device_topic)
+    conversion_map = config.get('conversion_map')
     map_names = {}
-    for key, value in conv_map.items():
+    for key, value in conversion_map.items():
         map_names[key.lower() if isinstance(key, str) else key] = value
 
     # this implies a sub-device listing
-    multiple_devices = isinstance(conf['device']['unit'], dict)
     if multiple_devices:
-        units = conf['device']['unit'].keys()
+        units = config['device']['unit'].keys()
 
-    for item in units:
-        # modify the device dict so that unit is now pointing to unit_name
-        subdevices.extend(conf['device']['unit'][item]['subdevices'])
-
-    agent_id = conf.get('agentid')
+    agent_id = config.get('agentid')
     device.update({'unit': units})
     analysis = deepcopy(device)
-    analysis_name = conf.get('device').get('analysis_name', 'analysis_name')
+    analysis_name = config.get('device').get('analysis_name', 'analysis_name')
     analysis.update({'analysis_name': analysis_name})
 
     if not device:
-        validation_error += 'Invalid agent_id specified in config\n'
-    if not device:
         validation_error += 'Invalid device path specified in config\n'
-    actuator_id = (
-        agent_id + '_' + "{campus}/{building}/{unit}".format(**device))
 
-    application = conf.get('application')
+    actuator_id = agent_id
+    application = config.get('application')
     if not application:
         validation_error += 'Invalid application specified in config\n'
     if validation_error:
         _log.error(validation_error)
         raise ValueError(validation_error)
-    conf.update(conf.get('arguments'))
+    config.update(config.get('arguments'))
     converter = ConversionMapper()
-    output_file_prefix = conf.get('output_file')
-    base_dev = "devices/{campus}/{building}/".format(**device)
-    devices_topic = (
-        base_dev + '({})(/.*)?/all$'.format('|'.join(re.escape(p) for p in units)))
+    output_file_prefix = config.get('output_file')
 
-    unittype_map = conf.get('unittype_map', None)
+    unittype_map = config.get('unittype_map', None)
     #assert unittype_map
 
     klass = _get_class(application)
@@ -139,25 +155,24 @@ def DrivenAgent(config_path, **kwargs):
     # data comes in on the message bus.  It is constructed here
     # so that_process_results each time run is called the application
     # can keep it state.
-    app_instance = klass(**conf)
+    app_instance = klass(**config)
 
-    class Agent(PublishMixin, BaseAgent):
+    class DrivenAgent(Agent):
         '''Agent listens to message bus device and runs when data is published.
         '''
         def __init__(self, **kwargs):
-            super(Agent, self).__init__(**kwargs)
+            super(DrivenAgent, self).__init__(**kwargs)
             self._update_event = None
             self._update_event_time = None
             self.keys = None
             # master is where we copy from to get a poppable list of
             # subdevices that should be present before we run the analysis.
-            self._master_subdevices = subdevices
+            self._master_subdevices = subdevices_list
             self._needed_subdevices = []
             self._master_devices = units
             self._subdevice_values = {}
             self._needed_devices = []
             self._device_values = {}
-            self._initialize_devices()
             self.received_input_datetime = None
             self._kwargs = kwargs
             self.commands = {}
@@ -168,6 +183,16 @@ def DrivenAgent(config_path, **kwargs):
             #         writer.close()
             self._header_written = False
             self.file_creation_set = set()
+
+        @Core.receiver('onstart')
+        def starup(self, sender, **kwargs):
+            self._initialize_devices()
+            for device_topic in device_topic_list:
+                _log.debug('Subscribing to '+ device_topic)
+                self.vip.pubsub.subscribe(peer='pubsub',
+                                          prefix=device_topic,
+                                          callback=self.on_rec_analysis_message)
+
 
         def _initialize_devices(self):
             self._needed_subdevices = deepcopy(self._master_subdevices)
@@ -182,15 +207,14 @@ def DrivenAgent(config_path, **kwargs):
             return not (len(self._needed_subdevices) > 0 or
                         len(self._needed_devices) > 0)
 
-        @matching.match_regex(devices_topic)
-        def on_rec_analysis_message(self, topic, headers, message, matched):
+        def on_rec_analysis_message(self, peer, sender, bus, topic, headers, message):
             """Subscribe to device data and assemble data set to pass
 
             to applications.
             """
-            obj = jsonapi.loads(message[0])
-            if isinstance(obj, list):
-                obj = obj[0]
+            device_data = message[0]
+            if isinstance(device_data, list):
+                device_data = device_data[0]
             dev_list = topic.split('/')
             device_or_subdevice = dev_list[-2]
             device_id = [dev for dev in self._master_devices if dev == device_or_subdevice]
@@ -201,16 +225,16 @@ def DrivenAgent(config_path, **kwargs):
                 device_or_subdevice = (
                     device_or_subdevice.decode('utf-8').encode('ascii'))
 
-            def aggregate_subdevice(obj):
-                sub_obj = {}
-                for key, value in obj.items():
+            def aggregate_subdevice(device_data):
+                subdevice_data = {}
+                for key, value in device_data.items():
                     sub_key = ''.join([key, '_', device_or_subdevice])
-                    sub_obj[sub_key] = value
+                    subdevice_data[sub_key] = value
                 if len(dev_list) > 5:
-                    self._subdevice_values.update(sub_obj)
+                    self._subdevice_values.update(subdevice_data)
                     self._needed_subdevices.remove(device_or_subdevice)
                 else:
-                    self._device_values.update(sub_obj)
+                    self._device_values.update(subdevice_data)
                     self._needed_devices.remove(device_or_subdevice)
                 return
 
@@ -221,28 +245,24 @@ def DrivenAgent(config_path, **kwargs):
                 _log.error("Warning device values already present, "
                            "reinitializing")
                 self._initialize_devices()
-            aggregate_subdevice(obj)
+            aggregate_subdevice(device_data)
 
             if self._should_run_now():
                 field_names = {}
                 self._device_values.update(self._subdevice_values)
                 for k, v in self._device_values.items():
                     field_names[k.lower() if isinstance(k, str) else k] = v
-                if not converter.initialized and \
-                        conv_map is not None:
-                    converter.setup_conversion_map(
-                        map_names,
-                        field_names
-                    )
+                if not converter.initialized and conversion_map is not None:
+                    converter.setup_conversion_map(map_names, field_names)
                 if from_file:
-                    _timestamp = parse(headers.get('Date'), fuzzy=True)
+                    _timestamp = parse(headers.get('Date'))
                     self.received_input_datetime = _timestamp
                 else:
                     _timestamp = datetime.now()
                     self.received_input_datetime = datetime.utcnow()
 
-                obj = converter.process_row(field_names)
-                results = app_instance.run(_timestamp, obj)
+                device_data = converter.process_row(field_names)
+                results = app_instance.run(_timestamp, device_data)
                 # results = app_instance.run(
                 # dateutil.parser.parse(self._subdevice_values['Timestamp'],
                 #                       fuzzy=True), self._subdevice_values)
@@ -307,7 +327,6 @@ def DrivenAgent(config_path, **kwargs):
                             datatype = 'float'
                             if isinstance(value, int):
                                 datatype = 'int'
-                            print key
                             kbase = key[key.rfind('/') + 1:]
                             message = [{kbase: value},
                                        {kbase: {'tz': 'US/Pacific',
@@ -315,14 +334,15 @@ def DrivenAgent(config_path, **kwargs):
                                                 'units': 'float',
                                                 }
                                         }]
-                            self.publish_json(analysis_topic,
-                                              headers, message)
+                            self.vip.pubsub.publish(
+                                'pubsub', analysis_topic, headers, message)
             return results
 
         def _process_results(self, results):
-            '''Run driven application with converted data and write the app
+            """Run driven application with converted data and write the app
+
             results to a file or database.
-            '''
+            """
             _log.debug('Processing Results!')
             for key, value in results.commands.iteritems():
                 _log.debug("COMMAND: {}->{}".format(key, value))
@@ -335,114 +355,109 @@ def DrivenAgent(config_path, **kwargs):
             if len(results.table_output.keys()):
                 results = self.publish_analysis_results(results)
 
-            def get_unit(point):
-                ''' Get a unit type based upon the regular expression in the config file.
 
-                    if NOT found returns percent as a default unit.
-                '''
-                for k, v in unittype_map.items():
-                    if re.match(k, point):
-                        return v
-                return 'percent'
+        # TODO:  Update to use VIP and RPC methods and to allow control of both devices and subdevices.
 
-            if results.commands and mode:
-                self.commands = results.commands
-                if self.keys is None:
-                    self.keys = self.commands.keys()
-                self.schedule_task()
 
-        def schedule_task(self):
-            '''Schedule access to modify device controls.'''
-            _log.debug('Schedule Device Access')
-            headers = {
-                'type':  'NEW_SCHEDULE',
-                'requesterID': agent_id,
-                'taskID': actuator_id,
-                'priority': 'LOW'
-                }
-            start = datetime.now()
-            end = start + td(seconds=30)
-            start = str(start)
-            end = str(end)
-            self.publish_json(topics.ACTUATOR_SCHEDULE_REQUEST(), headers,
-                              [["{campus}/{building}/{unit}".format(**device),
-                                start, end]])
+        #     if results.commands and mode:
+        #         self.commands = results.commands
+        #         if self.keys is None:
+        #             self.keys = self.commands.keys()
+        #         self.schedule_task()
+        #
+        # def schedule_task(self):
+        #     """Schedule access to modify device controls."""
+        #     _log.debug('Schedule Device Access')
+        #     headers = {
+        #         'type':  'NEW_SCHEDULE',
+        #         'requesterID': agent_id,
+        #         'taskID': actuator_id,
+        #         'priority': 'LOW'
+        #         }
+        #     start = datetime.now()
+        #     end = start + td(seconds=30)
+        #     start = str(start)
+        #     end = str(end)
+        #     schedule_request = [[]]
+        #     self.publish_json(topics.ACTUATOR_SCHEDULE_REQUEST(), headers,
+        #                       [["{campus}/{building}/{unit}".format(**device),
+        #                         start, end]])
+        #
+        # def command_equip(self):
+        #     '''Execute commands on configured device.'''
+        #     self.current_key = self.keys[0]
+        #     value = self.commands[self.current_key]
+        #     headers = {
+        #         'Content-Type': 'text/plain',
+        #         'requesterID': agent_id,
+        #         }
+        #     self.publish(topics.ACTUATOR_SET(point=self.current_key, **device),
+        #                  headers, str(value))
+        #
+        # @matching.match_headers({headers_mod.REQUESTER_ID: agent_id})
+        # @matching.match_exact(topics.ACTUATOR_SCHEDULE_RESULT())
+        # def schedule_result(self, topic, headers, message, match):
+        #     '''Actuator response (FAILURE, SUCESS).'''
+        #     _log.debug('Actuator Response')
+        #     msg = jsonapi.loads(message[0])
+        #     msg = msg['result']
+        #     _log.debug('Schedule Device ACCESS')
+        #     if self.keys:
+        #         if msg == "SUCCESS":
+        #             self.command_equip()
+        #         elif msg == "FAILURE":
+        #             _log.debug('Auto-correction of device failed.')
+        #
+        # @matching.match_headers({headers_mod.REQUESTER_ID: agent_id})
+        # @matching.match_glob(topics.ACTUATOR_VALUE(point='*', **device))
+        # def on_set_result(self, topic, headers, message, match):
+        #     '''Setting of point on device was successful.'''
+        #     _log.debug('Set Success:  {point} - {value}'
+        #                .format(point=self.current_key,
+        #                        value=str(self.commands[self.current_key])))
+        #     _log.debug('set_point({}, {})'.
+        #                format(self.current_key,
+        #                       self.commands[self.current_key]))
+        #     self.keys.remove(self.current_key)
+        #     if self.keys:
+        #         self.command_equip()
+        #     else:
+        #         _log.debug('Done with Commands - Release device lock.')
+        #         headers = {
+        #             'type': 'CANCEL_SCHEDULE',
+        #             'requesterID': agent_id,
+        #             'taskID': actuator_id
+        #             }
+        #         self.publish_json(topics.ACTUATOR_SCHEDULE_REQUEST(),
+        #                           headers, {})
+        #         self.keys = None
+        #
+        # @matching.match_headers({headers_mod.REQUESTER_ID: agent_id})
+        # @matching.match_glob(topics.ACTUATOR_ERROR(point='*', **device))
+        # def on_set_error(self, topic, headers, message, match):
+        #     '''Setting of point on device failed, log failure message.'''
+        #     _log.debug('Set ERROR')
+        #     msg = jsonapi.loads(message[0])
+        #     msg = msg['type']
+        #     _log.debug('Actuator Error: ({}, {}, {})'.
+        #                format(msg,
+        #                       self.current_key,
+        #                       self.commands[self.current_key]))
+        #     self.keys.remove(self.current_key)
+        #     if self.keys:
+        #         self.command_equip()
+        #     else:
+        #         headers = {
+        #             'type':  'CANCEL_SCHEDULE',
+        #             'requesterID': agent_id,
+        #             'taskID': actuator_id
+        #             }
+        #         self.publish_json(topics.ACTUATOR_SCHEDULE_REQUEST(),
+        #                           headers, {})
+        #         self.keys = None
 
-        def command_equip(self):
-            '''Execute commands on configured device.'''
-            self.current_key = self.keys[0]
-            value = self.commands[self.current_key]
-            headers = {
-                'Content-Type': 'text/plain',
-                'requesterID': agent_id,
-                }
-            self.publish(topics.ACTUATOR_SET(point=self.current_key, **device),
-                         headers, str(value))
-
-        @matching.match_headers({headers_mod.REQUESTER_ID: agent_id})
-        @matching.match_exact(topics.ACTUATOR_SCHEDULE_RESULT())
-        def schedule_result(self, topic, headers, message, match):
-            '''Actuator response (FAILURE, SUCESS).'''
-            _log.debug('Actuator Response')
-            msg = jsonapi.loads(message[0])
-            msg = msg['result']
-            _log.debug('Schedule Device ACCESS')
-            if self.keys:
-                if msg == "SUCCESS":
-                    self.command_equip()
-                elif msg == "FAILURE":
-                    _log.debug('Auto-correction of device failed.')
-
-        @matching.match_headers({headers_mod.REQUESTER_ID: agent_id})
-        @matching.match_glob(topics.ACTUATOR_VALUE(point='*', **device))
-        def on_set_result(self, topic, headers, message, match):
-            '''Setting of point on device was successful.'''
-            _log.debug('Set Success:  {point} - {value}'
-                       .format(point=self.current_key,
-                               value=str(self.commands[self.current_key])))
-            _log.debug('set_point({}, {})'.
-                       format(self.current_key,
-                              self.commands[self.current_key]))
-            self.keys.remove(self.current_key)
-            if self.keys:
-                self.command_equip()
-            else:
-                _log.debug('Done with Commands - Release device lock.')
-                headers = {
-                    'type': 'CANCEL_SCHEDULE',
-                    'requesterID': agent_id,
-                    'taskID': actuator_id
-                    }
-                self.publish_json(topics.ACTUATOR_SCHEDULE_REQUEST(),
-                                  headers, {})
-                self.keys = None
-
-        @matching.match_headers({headers_mod.REQUESTER_ID: agent_id})
-        @matching.match_glob(topics.ACTUATOR_ERROR(point='*', **device))
-        def on_set_error(self, topic, headers, message, match):
-            '''Setting of point on device failed, log failure message.'''
-            _log.debug('Set ERROR')
-            msg = jsonapi.loads(message[0])
-            msg = msg['type']
-            _log.debug('Actuator Error: ({}, {}, {})'.
-                       format(msg,
-                              self.current_key,
-                              self.commands[self.current_key]))
-            self.keys.remove(self.current_key)
-            if self.keys:
-                self.command_equip()
-            else:
-                headers = {
-                    'type':  'CANCEL_SCHEDULE',
-                    'requesterID': agent_id,
-                    'taskID': actuator_id
-                    }
-                self.publish_json(topics.ACTUATOR_SCHEDULE_REQUEST(),
-                                  headers, {})
-                self.keys = None
-
-    Agent.__name__ = 'DrivenLoggerAgent'
-    return Agent(**kwargs)
+    DrivenAgent.__name__ = 'DrivenLoggerAgent'
+    return DrivenAgent(**kwargs)
 
 
 def _get_class(kls):
@@ -457,9 +472,7 @@ def _get_class(kls):
 
 def main(argv=sys.argv):
     ''' Main method.'''
-    utils.default_main(DrivenAgent,
-                       description='driven agent',
-                       argv=argv)
+    utils.vip_main(driven_agent)
 
 
 if __name__ == '__main__':
@@ -468,4 +481,3 @@ if __name__ == '__main__':
         sys.exit(main())
     except KeyboardInterrupt:
         pass
-

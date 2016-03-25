@@ -94,10 +94,10 @@ class SupplyTempRcx(object):
         self.table_key = None
         self.file_key = None
         self.data = {}
+        self.dx_table = {}
 
         # Common RCx parameters
-        self.analysis = analysis
-        self.file_name_id = analysis + '-' + VALIDATE_FILE_TOKEN
+        self.analysis = analysis + '-' + VALIDATE_FILE_TOKEN
         self.sat_stpt_cname = sat_stpt_cname
         self.no_req_data = no_req_data
         self.auto_correct_flag = bool(auto_correct_flag)
@@ -128,6 +128,7 @@ class SupplyTempRcx(object):
         self.percent_rht = []
         self.percent_dmpr = []
         self.data = {}
+        self.dx_table = {}
 
     def sat_rcx(self, current_time, sat_data, sat_stpt_data,
                 zone_rht_data, zone_dmpr_data, dx_result, validate):
@@ -176,9 +177,11 @@ class SupplyTempRcx(object):
                                                             SA_TEMP_RCX,
                                                             DX, SAT_NAME,
                                                             self.token_offset)
-            dx_result.insert_table_row(self.table_key, dx_table)
+            self.dx_table.update(dx_table)
             dx_result = self.low_sat(dx_result, avg_sat_stpt)
             dx_result = self.high_sat(dx_result, avg_sat_stpt)
+
+            dx_result.insert_table_row(self.table_key, self.dx_table)
             self.data.update({SA_VALIDATE + DATA + ST: 1})
             dx_result.insert_table_row(self.file_key, self.data)
             self.reinitialize()
@@ -241,7 +244,7 @@ class SupplyTempRcx(object):
                    'Temperature diagnostic.')
             dx_msg = 40.0
         table_key = create_table_key(self.analysis, self.timestamp_arr[-1])
-        dx_result.insert_table_row(table_key, {SA_TEMP_RCX1 + DX: dx_msg})
+        self.dx_table.update({SA_TEMP_RCX1 + DX: dx_msg})
         dx_result.log(msg, logging.INFO)
         return dx_result
 
@@ -293,7 +296,7 @@ class SupplyTempRcx(object):
             msg = ('No problem detected for High Supply-air '
                    'Temperature diagnostic.')
             dx_msg = 50.0
-        dx_result.insert_table_row(self.table_key, {SA_TEMP_RCX2 + DX: dx_msg})
+        self.dx_table.update({SA_TEMP_RCX2 + DX: dx_msg})
         dx_result.log(msg, logging.INFO)
         return dx_result
 

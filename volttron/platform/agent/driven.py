@@ -142,11 +142,9 @@ class Results(object):
     def terminate(self, terminate):
         self._terminate = bool(terminate)
 
+
     def insert_table_row(self, table, row):
         self.table_output[table].append(row)
-
-    def insert_file_row(self, _file, row):
-        self.file_output[_file].append(row)
 
 
 class ConversionMapper(object):

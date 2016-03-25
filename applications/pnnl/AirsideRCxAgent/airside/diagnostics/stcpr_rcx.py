@@ -66,6 +66,11 @@ DX = '/diagnostic message'
 ST = 'state'
 DATA = '/data/'
 STCPR_NAME = 'duct static pressure'
+DATE_FORMAT = '%m-%d-%y %H:%M'
+import sys
+
+def create_table_key(table_name, timestamp):
+    return '&'.join([table_name, timestamp.strftime(DATE_FORMAT)])
 
 class DuctStaticRcx(object):
     """Air-side HVAC Self-Correcting Diagnostic: Detect and correct
@@ -84,7 +89,7 @@ class DuctStaticRcx(object):
         self.dx_table = {}
 
         # Initialize configurable thresholds
-        self.analysis = analysis
+        self.analysis = analysis + '-' + VALIDATE_FILE_TOKEN
         self.file_name_id = analysis + '-' + VALIDATE_FILE_TOKEN
         self.stcpr_sp_cname = stcpr_sp_cname
         self.no_req_data = no_req_data
@@ -106,6 +111,8 @@ class DuctStaticRcx(object):
 
     def reinitialize(self):
         """Reinitialize data arrays"""
+        self.table_key = None
+        self.file_key = None
         self.zn_dmpr_arr = []
         self.stcpr_stpt_arr = []
         self.stcpr_arr = []
@@ -131,9 +138,10 @@ class DuctStaticRcx(object):
             dx_result.log(self.high_msg.format(current_time), logging.DEBUG)
             return dx_result
 
+        file_key = create_table_key(VALIDATE_FILE_TOKEN, current_time)
         data = validation_builder(validate, STCPR_VALIDATE, DATA)
-
         run_status = check_run_status(self.timestamp_arr, current_time, self.no_req_data)
+
         if run_status is None:
             dx_result.log('Current analysis data set has insufficient data '
                           'to produce a valid diagnostic result.')
@@ -141,18 +149,19 @@ class DuctStaticRcx(object):
             return dx_result
 
         if run_status:
-            avg_stcpr_stpt, msg, dx_table = (
-                setpoint_control_check(self.stcpr_stpt_arr, self.stcpr_arr,
-                                       self.stpt_allowable_dev, DUCT_STC_RCX,
-                                       DX, STCPR_NAME, self.token_offset))
+            self.table_key = create_table_key(self.analysis, self.timestamp_arr[-1])
+            avg_stcpr_stpt, dx_table = setpoint_control_check(self.stcpr_stpt_arr,
+                                                              self.stcpr_arr,
+                                                              self.stpt_allowable_dev,
+                                                              DUCT_STC_RCX, DX,
+                                                              STCPR_NAME, self.token_offset)
 
             self.dx_table.update(dx_table)
-            dx_result.log(msg, logging.INFO)
             dx_result = self.low_stcpr_dx(dx_result, avg_stcpr_stpt)
             dx_result = self.high_stcpr_dx(dx_result, avg_stcpr_stpt)
-            dx_result.insert_file_row(self.file_name_id, self.dx_table)
+            dx_result.insert_table_row(self.table_key, self.dx_table)
             self.data.update({STCPR_VALIDATE + DATA + ST: 1})
-            dx_result.insert_file_row(VALIDATE_FILE_TOKEN, self.data)
+            dx_result.insert_table_row(self.file_key, self.data)
             self.reinitialize()
 
         self.stcpr_stpt_arr.append(mean(stcpr_data))
@@ -162,9 +171,9 @@ class DuctStaticRcx(object):
 
         if self.data:
             self.data.update({STCPR_VALIDATE + DATA + ST: 0})
-            dx_result.insert_file_row(VALIDATE_FILE_TOKEN, self.data)
+            dx_result.insert_table_row(self.file_key, self.data)
         self.data = data
-        self.data.update({VALIDATE_FILE_TOKEN: str(current_time)})
+        self.file_key = file_key
         return dx_result
 
     def low_stcpr_dx(self, dx_result, avg_stcpr_stpt):
@@ -215,8 +224,8 @@ class DuctStaticRcx(object):
             msg = ('No re-tuning opportunity was detected during the low duct '
                    'static pressure diagnostic.')
             dx_msg = 10.0
+
         self.dx_table.update({DUCT_STC_RCX1 + DX: dx_msg})
-        dx_result.insert_table_row(self.analysis, {DUCT_STC_RCX1 + DX: dx_msg})
         dx_result.log(msg, logging.INFO)
         return dx_result
 
@@ -269,8 +278,6 @@ class DuctStaticRcx(object):
             dx_msg = 20.0
 
         self.dx_table.update({DUCT_STC_RCX2 + DX: dx_msg})
-        dx_result.insert_table_row(self.analysis, {DUCT_STC_RCX2 + DX: dx_msg})
-        self.dx_table.update({'Timestamp': str(self.timestamp_arr[-1])})
         dx_result.log(msg, logging.INFO)
         return dx_result
 
