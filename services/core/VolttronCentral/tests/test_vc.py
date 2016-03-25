@@ -25,7 +25,7 @@ def test_platform_responds_to_discover_endpoint(pa_instance):
     Successful when the response is json and has the same server key as the
     one in pa_instance.
     """
-    wrapper = pa_instance['wrapper']
+    wrapper, pa_uuid = pa_instance
     info = DiscoveryInfo.request_discovery_info(wrapper.bind_web_address)
 
     assert wrapper.bind_web_address == info.discovery_address
@@ -75,7 +75,7 @@ def test_publickey_retrieval(vc_instance, pa_instance):
 
 @pytest.mark.vc
 def test_autoregistered_peer_platform(vc_instance):
-    vc_wrapper = vc_instance['wrapper']
+    vc_wrapper, vc_uuid = vc_instance
 
     caller_agent = vc_wrapper.build_agent(
         address=vc_wrapper.local_vip_address)
@@ -105,8 +105,7 @@ def test_autoregistered_peer_platform(vc_instance):
 
 @pytest.mark.vc
 def test_vc_started(vc_instance):
-    vc_wrapper = vc_instance['wrapper']
-    vc_uuid = vc_instance['vc_uuid']
+    vc_wrapper, vc_uuid = vc_instance
 
     assert vc_wrapper.is_agent_running(vc_uuid)
     tf = tempfile.NamedTemporaryFile()
@@ -132,24 +131,24 @@ def onmessage(self, peer, sender, bus, topic, headers, message):
     print('topic: {} message: {}'.format(topic, message))
 
 
-@pytest.mark.vc
-@pytest.mark.parametrize("display_name", [None, "happydays"])
-def test_register_instance(vc_instance, pa_instance, display_name):
-    vc_wrapper = vc_instance['wrapper']
-    pa_wrapper = pa_instance['wrapper']
-
-    validate_instances(vc_wrapper, pa_wrapper)
-
-    print("connecting to vc instance with vip_adddress: {}".format(
-        pa_wrapper.vip_address)
-    )
-
-    controlagent = vc_wrapper.build_agent()
-    controlagent.vip.pubsub.subscribe('', onmessage)
-    controlagent.vip.rpc.call(
-        'volttron.central', pa_wrapper.bind_web_address).get(timeout=5)
-
-    gevent.sleep(20)
+# @pytest.mark.vc
+# @pytest.mark.parametrize("display_name", [None, "happydays"])
+# def test_register_instance(vc_instance, pa_instance, display_name):
+#     vc_wrapper = vc_instance['wrapper']
+#     pa_wrapper = pa_instance['wrapper']
+#
+#     validate_instances(vc_wrapper, pa_wrapper)
+#
+#     print("connecting to vc instance with vip_adddress: {}".format(
+#         pa_wrapper.vip_address)
+#     )
+#
+#     controlagent = vc_wrapper.build_agent()
+#     controlagent.vip.pubsub.subscribe('', onmessage)
+#     controlagent.vip.rpc.call(
+#         'volttron.central', pa_wrapper.bind_web_address).get(timeout=5)
+#
+#     gevent.sleep(20)
 
     # res = requests.get(pa_wrapper.bind_web_address+"/discovery/")
     #
