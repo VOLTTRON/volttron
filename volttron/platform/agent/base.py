@@ -505,7 +505,9 @@ class PublishMixin(AgentBase):
         send_ping()
 
     def publish(self, topic, headers, *msg_parts, **kwargs):
-        '''Publish a message to the publish channel.'''
+        '''Publish a message to the publish channel. Adds volttron platform
+        version compatibility information to header as variables
+        min_compatible_version and max_compatible version'''
         if headers is None:
             headers = {}
         headers['min_compatible_version'] = min_compatible_version
@@ -513,7 +515,9 @@ class PublishMixin(AgentBase):
         self._pub.send_message(topic, headers, *msg_parts, **kwargs)
 
     def publish_json(self, topic, headers, *msg_parts, **kwargs):
-        '''Publish JSON encoded message.'''
+        '''Publish JSON encoded message. Adds volttron platform version
+        compatibility information to header as variables
+        min_compatible_version and max_compatible version'''
         if headers is None:
             headers = {}
         headers['min_compatible_version'] = min_compatible_version
@@ -522,7 +526,9 @@ class PublishMixin(AgentBase):
         self._pub.send_message_ex(topic, headers, *msg, **kwargs)
 
     def publish_ex(self, topic, headers, *msg_tuples, **kwargs):
-        '''Publish messages given as (content-type, message) tuples.'''
+        '''Publish messages given as (content-type, message) tuples. Adds
+        volttron platform version compatibility information to header as
+        variables min_compatible_version and max_compatible version'''
         if headers is None:
             headers = {}
         headers['min_compatible_version'] = min_compatible_version

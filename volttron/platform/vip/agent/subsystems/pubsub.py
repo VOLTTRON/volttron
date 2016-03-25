@@ -76,6 +76,7 @@ from .... import jsonrpc
 
 __all__ = ['PubSub']
 min_compatible_version = '3.0'
+max_compatible_version = ''
 
 _log = logging.getLogger(__name__)
 
@@ -374,11 +375,14 @@ class PubSub(SubsystemBase):
         '''Publish a message to a given topic via a peer.
 
         Publish headers and message to all subscribers of topic on bus
-        at peer. If peer is None, use self.
+        at peer. If peer is None, use self. Adds volttron platform version
+        compatibility information to header as variables
+        min_compatible_version and max_compatible version
         '''
         if headers is None:
             headers = {}
         headers['min_compatible_version'] = min_compatible_version
+        headers['max_compatible_version'] = max_compatible_version
 
         if peer is None:
             peer = 'pubsub'
