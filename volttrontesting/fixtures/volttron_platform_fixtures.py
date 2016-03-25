@@ -10,12 +10,13 @@ PRINT_LOG_ON_SHUTDOWN = True
 
 def print_log(volttron_home):
     if PRINT_LOG_ON_SHUTDOWN:
-        log_path = volttron_home+"/volttron.log"
-        if os.path.exists(log_path):
-            with open(volttron_home+"/volttron.log") as fin:
-                print(fin.read())
-        else:
-            print('NO LOG FILE AVAILABLE.')
+        if os.environ.get('PRINT_LOGS', PRINT_LOG_ON_SHUTDOWN):
+            log_path = volttron_home+"/volttron.log"
+            if os.path.exists(log_path):
+                with open(volttron_home+"/volttron.log") as fin:
+                    print(fin.read())
+            else:
+                print('NO LOG FILE AVAILABLE.')
 
 
 def get_rand_ip_and_port():

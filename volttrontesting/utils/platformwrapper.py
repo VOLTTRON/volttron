@@ -1,25 +1,25 @@
 import ConfigParser as configparser
+from contextlib import closing
 import json
+import logging
 import os
 import shutil
-import logging
+import sys
+import tempfile
+import time
+
+import gevent
 from gevent.fileobject import FileObject
 import gevent.subprocess as subprocess
 from gevent.subprocess import Popen
-import sys
-import time
-import tempfile
-import unittest
 
 from os.path import dirname
-from contextlib import closing
-from StringIO import StringIO
 
 import zmq
 from zmq.utils import jsonapi
 
-import gevent
 
+from volttron.platform.auth import AuthFile, AuthEntry
 from volttron.platform.agent.utils import strip_comments
 from volttron.platform.messaging import topics
 from volttron.platform.main import start_volttron_process
@@ -159,14 +159,11 @@ class PlatformWrapper:
         return self.__volttron_home
 
     def allow_all_connections(self):
-        allow = {"allow":[
-            {"credentials": "/CURVE:.*/"}
-        ]}
-        auth = os.path.join(self.volttron_home, "auth.json")
-
-        with open(auth, 'w') as f:
-            f.write(jsonapi.dumps(allow))
-
+        """ Add a CURVE:.* entry to the auth.json file.
+        """
+        entry = AuthEntry(credentials="/CURVE:.*/")
+        authfile = AuthFile(self.volttron_home+"/auth.json")
+        authfile.add(entry)
 
 
     def build_agent(self, address=None, should_spawn=True, identity=None,
