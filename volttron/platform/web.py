@@ -178,6 +178,10 @@ class MasterWebService(Agent):
         if not mimetypes.inited:
             mimetypes.init()
 
+        authentry = AuthEntry(credentials="/CURVE:.*/")
+        authfile = AuthFile()
+        authfile.add(authentry)
+
     @RPC.export
     def get_bind_web_address(self):
         return self.bind_web_address
