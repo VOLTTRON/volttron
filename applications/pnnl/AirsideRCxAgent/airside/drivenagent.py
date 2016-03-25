@@ -76,7 +76,7 @@ __license__ = 'FreeBSD'
 
 
 def DrivenAgent(config_path, **kwargs):
-    '''Driven harness for deployment of OpenEIS applications in VOLTTRON.'''
+    """Driven harness for deployment of OpenEIS applications in VOLTTRON."""
     conf = utils.load_config(config_path)
     arguments = conf.get('arguments', None)
     assert arguments
@@ -87,7 +87,6 @@ def DrivenAgent(config_path, **kwargs):
     logging.basicConfig(level=logging.debug,
                         format='%(asctime)s   %(levelname)-8s %(message)s',
                         datefmt='%m-%d-%y %H:%M:%S')
-    mode = True if conf.get('mode', 'PASSIVE') == 'ACTIVE' else False
     validation_error = ''
     device = dict((key, conf['device'][key])
                   for key in ['campus', 'building'])
@@ -98,20 +97,19 @@ def DrivenAgent(config_path, **kwargs):
         map_names[key.lower() if isinstance(key, str) else key] = value
 
     # this implies a sub-device listing
-    multiple_dev = isinstance(conf['device']['unit'], dict)
-    if multiple_dev:
+    multiple_devices = isinstance(conf['device']['unit'], dict)
+    if multiple_devices:
         units = conf['device']['unit'].keys()
 
     for item in units:
-
         # modify the device dict so that unit is now pointing to unit_name
         subdevices.extend(conf['device']['unit'][item]['subdevices'])
 
     agent_id = conf.get('agentid')
     device.update({'unit': units})
-    _analysis = deepcopy(device)
-    _analysis_name = conf.get('device').get('analysis_name', 'analysis_name')
-    _analysis.update({'analysis_name': _analysis_name})
+    analysis = deepcopy(device)
+    analysis_name = conf.get('device').get('analysis_name', 'analysis_name')
+    analysis.update({'analysis_name': analysis_name})
 
     if not device:
         validation_error += 'Invalid agent_id specified in config\n'
@@ -126,7 +124,6 @@ def DrivenAgent(config_path, **kwargs):
     if validation_error:
         _log.error(validation_error)
         raise ValueError(validation_error)
-
     conf.update(conf.get('arguments'))
     converter = ConversionMapper()
     output_file_prefix = conf.get('output_file')
@@ -135,7 +132,7 @@ def DrivenAgent(config_path, **kwargs):
         base_dev + '({})(/.*)?/all$'.format('|'.join(re.escape(p) for p in units)))
 
     unittype_map = conf.get('unittype_map', None)
-    assert unittype_map
+    #assert unittype_map
 
     klass = _get_class(application)
     # This instances is used to call the applications run method when
@@ -187,10 +184,10 @@ def DrivenAgent(config_path, **kwargs):
 
         @matching.match_regex(devices_topic)
         def on_rec_analysis_message(self, topic, headers, message, matched):
-            '''Subscribe to device data and assemble data set to pass
+            """Subscribe to device data and assemble data set to pass
 
             to applications.
-            '''
+            """
             obj = jsonapi.loads(message[0])
             if isinstance(obj, list):
                 obj = obj[0]
@@ -204,7 +201,7 @@ def DrivenAgent(config_path, **kwargs):
                 device_or_subdevice = (
                     device_or_subdevice.decode('utf-8').encode('ascii'))
 
-            def agg_subdevice(obj):
+            def aggregate_subdevice(obj):
                 sub_obj = {}
                 for key, value in obj.items():
                     sub_key = ''.join([key, '_', device_or_subdevice])
@@ -216,6 +213,7 @@ def DrivenAgent(config_path, **kwargs):
                     self._device_values.update(sub_obj)
                     self._needed_devices.remove(device_or_subdevice)
                 return
+
             # The below if statement is used to distinguish between unit/all
             # and unit/sub-device/all
             if (device_or_subdevice not in self._needed_devices and
@@ -223,7 +221,7 @@ def DrivenAgent(config_path, **kwargs):
                 _log.error("Warning device values already present, "
                            "reinitializing")
                 self._initialize_devices()
-            agg_subdevice(obj)
+            aggregate_subdevice(obj)
 
             if self._should_run_now():
                 field_names = {}
@@ -258,22 +256,24 @@ def DrivenAgent(config_path, **kwargs):
 
         def create_file_output(self, results):
             """Create results/data files for testing and algorithm validation."""
-            for key, value in results.file_output.items():
-                if isinstance(key, tuple):
-                    key = key[1]
-                file_name = output_file_prefix + "-" + key + ".csv"
+            for key, value in results.table_output.items():
+                name_timestamp = key.split('&')
+                _name = name_timestamp[0]
+                timestamp = name_timestamp[1]
+                file_name = output_file_prefix + "-" + _name + ".csv"
                 if file_name not in self.file_creation_set:
                     self._header_written = False
                 self.file_creation_set.update([file_name])
                 for row in value:
                     with open(file_name, 'a+') as file_to_write:
+                        row.update({'Timestamp': timestamp})
                         _keys = row.keys()
                         file_output = csv.DictWriter(file_to_write, _keys)
                         if not self._header_written:
                             file_output.writeheader()
                             self._header_written = True
                         file_output.writerow(row)
-                file_to_write.close()
+                    file_to_write.close()
             return results
 
         def publish_analysis_results(self, results):
@@ -284,24 +284,30 @@ def DrivenAgent(config_path, **kwargs):
                 headers_mod.CONTENT_TYPE: headers_mod.CONTENT_TYPE.JSON,
                 headers_mod.DATE: str(self.received_input_datetime),
             }
-            for application, analysis in results.table_output.items():
-                if isinstance(application, list):
-                    headers = {
-                        headers_mod.CONTENT_TYPE: headers_mod.CONTENT_TYPE.JSON,
-                        headers_mod.DATE: str(application[0]),
-                    }
-                for row in analysis:
-                    for key, value in row.items():
+            for application, analysis_table in results.table_output.items():
+                try:
+                    name_timestamp = application.split('&')
+                    _name = name_timestamp[0]
+                    timestamp = name_timestamp[1]
+                except:
+                    _name = application
+                    timestamp = str(self.received_input_datetime)
+                headers = {
+                    headers_mod.CONTENT_TYPE: headers_mod.CONTENT_TYPE.JSON,
+                    headers_mod.DATE: timestamp,
+                }
+                for entry in analysis_table:
+                    for key, value in entry.items():
                         if isinstance(value, bool):
                             value = int(value)
                         for item in units:
-                            _analysis['unit'] = item
+                            analysis['unit'] = item
                             analysis_topic = topics.ANALYSIS_VALUE(
-                                point=key, **_analysis)
-
+                                point=key, **analysis)
                             datatype = 'float'
                             if isinstance(value, int):
                                 datatype = 'int'
+                            print key
                             kbase = key[key.rfind('/') + 1:]
                             message = [{kbase: value},
                                        {kbase: {'tz': 'US/Pacific',
@@ -324,7 +330,7 @@ def DrivenAgent(config_path, **kwargs):
                 _log.debug("LOG: {}".format(value))
             for key, value in results.table_output.iteritems():
                 _log.debug("TABLE: {}->{}".format(key, value))
-            if output_file_prefix is not None and len(results.file_output.keys()):
+            if output_file_prefix is not None:
                 results = self.create_file_output(results)
             if len(results.table_output.keys()):
                 results = self.publish_analysis_results(results)

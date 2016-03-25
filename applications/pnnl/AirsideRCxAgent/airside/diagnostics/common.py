@@ -3,10 +3,10 @@ from datetime import timedelta as td
 
 
 def check_date(current_time, timestamp_array):
-    '''Check current timestamp with previous timestamp
+    """Check current timestamp with previous timestamp
 
     to verify that there are no large missing data gaps.
-    '''
+    """
     if not timestamp_array:
         return False
     if current_time.date() != timestamp_array[-1].date():
@@ -36,7 +36,8 @@ def setpoint_control_check(setpoint_array, point_array, allowable_deviation,
                            dx_name, dx_tag, token, token_offset):
     """Verify that point is tracking well with set point.
         ARGS:
-            setpoint_array (list(floats): """
+            setpoint_array (list(floats):
+    """
     average_setpoint = None
     setpoint_array = [float(pt) for pt in setpoint_array if pt !=0]
     if setpoint_array:
@@ -64,4 +65,4 @@ def setpoint_control_check(setpoint_array, point_array, allowable_deviation,
                'data.'.format(token))
         dx_msg = 2.2 + token_offset
         dx_table = {dx_name + dx_tag: dx_msg}
-    return average_setpoint, msg, dx_table
+    return average_setpoint, dx_table
