@@ -143,6 +143,12 @@ class SqlLiteFuncts(DbDriver):
 
          metadata is not required (The caller will normalize this to {}
          for you)
+         @param order:
+         @param count:
+         @param skip:
+         @param end:
+         @param start:
+         @param topic_id:
         """
         query = '''SELECT ts, value_string
                    FROM ''' + self.data_table + '''
@@ -200,7 +206,8 @@ class SqlLiteFuncts(DbDriver):
             detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
         rows = c.execute(real_query, args)
 
-        values = [(utils.format_timestamp(ts), jsonapi.loads(value)) for ts, value in rows]
+        values = [(utils.format_timestamp(ts),
+                   jsonapi.loads(value)) for ts, value in rows]
         _log.debug("QueryResults: " + str(values))
         return {'values': values}
 
@@ -225,7 +232,4 @@ class SqlLiteFuncts(DbDriver):
         q = "SELECT topic_id, topic_name FROM " + self.topics_table
         rows = self.select(q, None)
         _log.debug("loading topic map from db")
-        _log.debug(rows)
-        d = dict([(n.lower(), t) for t, n in rows])
-        _log.debug(d)
-        return d
+        return dict([(n.lower(), t) for t, n in rows])
