@@ -123,6 +123,7 @@ class VolttronCentralAgent(Agent):
         # Expose the webroot property to be customized through the config
         # file.
         self.webroot = self._config.get('webroot', DEFAULT_WEB_ROOT)
+        _log.debug('The webroot is {}'.format(self.webroot))
         if self.webroot.endswith('/'):
             self.webroot = self.webroot[:-1]
 
@@ -570,7 +571,7 @@ class VolttronCentralAgent(Agent):
                           'jsonrpc').get(timeout=5)
 
         self.vip.rpc.call('volttron.web', 'register_path_route',
-                          r'^/.*', DEFAULT_WEB_ROOT).get(timeout=5)
+                          r'^/.*', self.webroot).get(timeout=5)
 
         self.webaddress = self.vip.rpc.call(
             'volttron.web', 'get_bind_web_address').get(timeout=5)
