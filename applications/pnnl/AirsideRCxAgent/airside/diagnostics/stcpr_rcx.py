@@ -99,6 +99,13 @@ class DuctStaticRcx(object):
         self.high_msg = ('The supply fan is running at the minimum speed, '
                          'data corresponding to {} will not be used.')
 
+    def reinitialize(self):
+        '''Reinitialize data arrays.'''
+        self.zn_dmpr_arr = []
+        self.stcpr_sp_arr = []
+        self.stcpr_arr = []
+        self.ts = []
+
     def duct_static(self, cur_time, stcpr_sp_data, stcpr_data, zn_dmpr_data,
                     stc_override_check, low_dx_cond, high_dx_cond, dx_result,
                     validate):
@@ -156,11 +163,13 @@ class DuctStaticRcx(object):
                     self.analysis, {DUCT_STC_RCX2 + DX: 26.2})
                 data.update({STCPR_VALIDATE + DATA + ST: 2})
                 dx_result.insert_table_row(self.analysis, data)
+                self.reinitialize()
                 return dx_result
             dx_result = self.low_stcpr_dx(dx_result, stc_override_check)
             dx_result = self.high_stcpr_dx(dx_result, stc_override_check)
             data.update({STCPR_VALIDATE + DATA + ST: 1})
             dx_result.insert_table_row(self.analysis, data)
+            self.reinitialize()
             return dx_result
         data.update({STCPR_VALIDATE + DATA + ST: 0})
         dx_result.insert_table_row(self.analysis, data)
@@ -289,8 +298,4 @@ class DuctStaticRcx(object):
         }
         result.insert_table_row(self.analysis, dx_table)
         result.log(msg, logging.INFO)
-        self.stcpr_sp_arr = []
-        self.stcpr_arr = []
-        self.zn_dmpr_arr = []
-        self.ts = []
         return result

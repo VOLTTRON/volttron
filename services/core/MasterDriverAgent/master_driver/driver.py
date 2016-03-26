@@ -180,11 +180,13 @@ class DriverAgent(BasicAgent):
         # XXX: Does a warning need to be printed?
         if not results:
             return
-
-        now = datetime.datetime.utcnow().isoformat(' ') + 'Z'
+        
+        utcnow = utils.get_aware_utc_now()
+        utcnow_string = utils.format_timestamp(utcnow)
         
         headers = {
-            headers_mod.DATE: now,
+            headers_mod.DATE: utcnow_string,
+            headers_mod.TIMESTAMP: utcnow_string,
         }
         
             
@@ -268,4 +270,10 @@ class DriverAgent(BasicAgent):
     
     def set_point(self, point_name, value, **kwargs):
         return self.interface.set_point(point_name, value, **kwargs)
+    
+    def revert_point(self, point_name, **kwargs):
+        self.interface.revert_point(point_name, **kwargs)
+    
+    def revert_all(self, **kwargs):
+        self.interface.revert_all(**kwargs)
         

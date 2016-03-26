@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*- {{{
-# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-
 # Copyright (c) 2015, Battelle Memorial Institute
 # All rights reserved.
 #
@@ -54,39 +51,92 @@
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 
-#}}}
+__docformat__ = 'reStructuredText'
 
-from setuptools import setup, find_packages
-from os import path
+"""The heartbeat subsystem adds an optional periodic publish to all agents.
+Heartbeats can be started with agents and toggled on and off at runtime.
+"""
 
-MAIN_MODULE = 'agent'
+import os
+import weakref
 
-# Find the agent package that contains the main module
-packages = find_packages('.')
-agent_package = ''
-for package in find_packages():
-    # Because there could be other packages such as tests
-    if path.isfile(package + '/' + MAIN_MODULE + '.py') is True:
-        agent_package = package
-if not agent_package:
-    raise RuntimeError(
-        'None of the packages under {dir} contain the file {main_module}'.format(
-            main_module=MAIN_MODULE + '.py', dir=path.abspath('.')))
+from datetime import datetime
 
-# Find the version number from the main module
-agent_module = agent_package + '.' + MAIN_MODULE
-_temp = __import__(agent_module, globals(), locals(), ['__version__'], -1)
-__version__ = _temp.__version__
+from .base import SubsystemBase
 
-# Setup
-setup(
-    name=agent_package + 'agent',
-    version=__version__,
-    install_requires=['volttron'],
-    packages=packages,
-    entry_points={
-        'setuptools.installation': [
-            'eggsecutable = ' + agent_module + ':main',
-        ]
-    }
-)
+class Heartbeat(SubsystemBase):
+    def __init__(self, owner, core, rpc, pubsub, heartbeat_autostart, heartbeat_period):
+        self.owner = owner
+        self.core = weakref.ref(core)
+        self.pubsub = weakref.ref(pubsub)
+
+        self.autostart = heartbeat_autostart
+        self.period = heartbeat_period
+        self.enabled = False
+
+        def onsetup(sender, **kwargs):
+            rpc.export(self.start, 'heartbeat.start')
+            rpc.export(self.start_with_period, 'heartbeat.start_with_period')
+            rpc.export(self.stop, 'heartbeat.stop')
+            rpc.export(self.set_period, 'heartbeat.set_period')
+
+        def onstart(sender, **kwargs):
+            if self.autostart:
+                self.start()
+
+        core.onsetup.connect(onsetup, self)
+        core.onstart.connect(onstart, self)
+
+    def start(self):
+        """RPC method
+
+        Starts an agent's heartbeat.
+        """
+        if not self.enabled:
+            self.greenlet = self.core().periodic(self.period, self.publish)
+            self.enabled = True
+
+    def start_with_period(self, period):
+        """RPC method
+
+        Set period and start heartbeat.
+
+        :param period: Time in seconds between publishes.
+        """
+        self.set_period(period)
+        self.start()
+
+    def stop(self):
+        """RPC method
+
+        Stop an agent's heartbeat.
+        """
+        if self.enabled:
+            self.greenlet.kill()
+            self.enabled = False
+
+    def set_period(self, period):
+        """RPC method
+
+        Set heartbeat period.
+
+        :param period: Time in seconds between publishes.
+        """
+        if self.enabled:
+            self.stop()
+            self.period = period
+            self.start()
+        else:
+            self.period = period
+
+    def publish(self):
+        topic = 'heartbeat/' + self.owner.__class__.__name__
+        try:
+            if os.environ['AGENT_UUID']:
+                topic += '/' + os.environ['AGENT_UUID']
+        except KeyError:
+            pass
+
+        message = str(datetime.now().isoformat(' '))
+
+        self.pubsub().publish('pubsub', topic, {}, message)

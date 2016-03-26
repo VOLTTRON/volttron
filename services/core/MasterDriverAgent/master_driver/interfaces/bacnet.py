@@ -135,6 +135,18 @@ class Interface(BaseInterface):
                                        self.max_per_request).get(timeout=10.0)
         return result
     
+    def revert_all(self, priority=None):
+        """Revert entrire device to it's default state"""
+        #TODO: Add multipoint write support
+        write_registers = self.get_registers_by_type("byte", False) 
+        for register in write_registers:             
+            self.revert_point(register.point_name, priority=priority)
+    
+    def revert_point(self, point_name, priority=None):
+        """Revert point to it's default state"""
+        self.set_point(point_name, None, priority=priority)
+        
+    
     def parse_config(self, config_string):
         if config_string is None:
             return
