@@ -125,6 +125,10 @@ class SynchronousApplication(BIPSimpleApplication):
     
 def get_iam(app, device_id, target_address = None):
     request = WhoIsRequest()
+    
+    request.deviceInstanceRangeLowLimit = device_id
+    request.deviceInstanceRangeHighLimit = device_id
+    
     if target_address is not None:
         request.pduDestination = Address(target_address)
     else:
