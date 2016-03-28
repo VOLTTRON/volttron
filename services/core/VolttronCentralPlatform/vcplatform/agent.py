@@ -108,7 +108,7 @@ class VolttronCentralPlatform(Agent):
 
         self._config = utils.load_config(config_path)
         self._vc_discovery_address = None
-        self._vc_agent = None
+        self._agent_connected_to_vc = None
         self._vc_info = None
 
         # This is set from the volttron central instance.
@@ -155,7 +155,7 @@ class VolttronCentralPlatform(Agent):
         # self._vc = None
         # # This agent will hold a connection to the vc router so that we
         # # can send information to it.
-        # self._vc_agent = None
+        # self._agent_connected_to_vc = None
         # self._is_local_vc = False
     #
     # @Core.periodic(period=5)
@@ -166,19 +166,19 @@ class VolttronCentralPlatform(Agent):
     # def _connect_to_vc(self):
     #     addr = self._build_address_string()
     #
-    #     self._vc_agent = Agent(address=addr)
+    #     self._agent_connected_to_vc = Agent(address=addr)
     #
     #     event = gevent.event.Event()
-    #     gevent.spawn(self._vc_agent.core.run, event)
+    #     gevent.spawn(self._agent_connected_to_vc.core.run, event)
     #     event.wait(timeout=3)
     #     del event
     #     try:
-    #         peerlist = self._vc_agent.vip.peerlist().get(timeout=3)
+    #         peerlist = self._agent_connected_to_vc.vip.peerlist().get(timeout=3)
     #         _log.debug(peerlist)
     #     except gevent.timeout.Timeout:
     #         _log.debug('TIMEOUT DATA?')
-    #         self._vc_agent.core.stop()
-    #         self._vc_agent = None
+    #         self._agent_connected_to_vc.core.stop()
+    #         self._agent_connected_to_vc = None
     #         return False
     #
     #     return True
@@ -270,14 +270,14 @@ class VolttronCentralPlatform(Agent):
     #     _log.debug('Storing auth_entry in auth.json')
     #     auth_file.add(auth_entry)
     #
-    #     self._vc_agent = Agent(address=self._build_address_string())
+    #     self._agent_connected_to_vc = Agent(address=self._build_address_string())
     #     event = gevent.event.Event()
-    #     gevent.spawn(self._vc_agent.core.run, event)
+    #     gevent.spawn(self._agent_connected_to_vc.core.run, event)
     #     event.wait(timeout=10)
-    #     peers = self._vc_agent.vip.peerlist().get(timeout=10)
+    #     peers = self._agent_connected_to_vc.vip.peerlist().get(timeout=10)
     #     if not 'volttron.central' in peers:
-    #         self._vc_agent.core.stop()
-    #         self._vc_agent = None
+    #         self._agent_connected_to_vc.core.stop()
+    #         self._agent_connected_to_vc = None
     #         raise CannotConnectError('No volttron central available.')
     #
     #     _log.debug('Connected to volttron central!')
@@ -300,10 +300,10 @@ class VolttronCentralPlatform(Agent):
         # # Add the can manage to the key file
         # self._append_allow_curve_key(vc_publickey, 'can_manage')
         #
-        # self._vc_agent = Agent(address=self._vc['vip-address'], serverkey=self._vc['serverkey'],
+        # self._agent_connected_to_vc = Agent(address=self._vc['vip-address'], serverkey=self._vc['serverkey'],
         #                        secretkey=self.core.secretkey)
         # event = gevent.event.Event()
-        # gevent.spawn(self._vc_agent.core.run, event)
+        # gevent.spawn(self._agent_connected_to_vc.core.run, event)
         # event.wait(timeout=2)
         #
         # self.core._set_status(STATUS_GOOD, "Platform is managed" )
@@ -573,11 +573,11 @@ class VolttronCentralPlatform(Agent):
             address, vcserverkey))
         parsedaddress = urlparse.urlparse(address)
         # Attempt to connect to the passed address and serverkey.
-        self._vc_agent = build_agent(
+        self._agent_connected_to_vc = build_agent(
             address=address, serverkey=vcserverkey,
             publickey=self.core.publickey, secretkey=self.core.secretkey)
 
-        version, peer, identity = self._vc_agent.vip.hello().get(timeout=2)
+        version, peer, identity = self._agent_connected_to_vc.vip.hello().get(timeout=2)
 
         # Add the vcpublickey to the auth file.
         entry = AuthEntry(
@@ -589,7 +589,7 @@ class VolttronCentralPlatform(Agent):
         return self.core.publickey
 
     def report_to_vc(self):
-        self._vc_agent.pubsub.publish(peer="pubsub", topic="platform/status", message={"alpha": "beta"})
+        self._agent_connected_to_vc.pubsub.publish(peer="pubsub", topic="platform/status", message={"alpha": "beta"})
 
     # def _connect_to_vc(self):
     #     """ Attempt to connect to volttorn central.
@@ -609,25 +609,25 @@ class VolttronCentralPlatform(Agent):
     #     if not self._vc:
     #         raise CannotConnectError('Invalid _vc variable member.')
     #
-    #     if not self._vc_agent:
+    #     if not self._agent_connected_to_vc:
     #         _log.debug("Attempting to connect to vc.")
     #         _log.debug("address: {} serverkey: {}"
     #                    .format(self._vc.vip_address,
     #                            self._vc.serverkey))
     #         _log.debug("publickey: {} secretkey: {}"
     #                    .format(self.core.publickey, self.core.secretkey))
-    #         self._vc_agent = Agent(address=self._vc.vip_address,
+    #         self._agent_connected_to_vc = Agent(address=self._vc.vip_address,
     #                                serverkey=self._vc.serverkey,
     #                                publickey=self.core.publickey,
     #                                secretkey=self.core.secretkey)
     #         event = gevent.event.Event()
-    #         gevent.spawn(self._vc_agent.core.run, event)
+    #         gevent.spawn(self._agent_connected_to_vc.core.run, event)
     #         event.wait(timeout=10)
     #         del event
     #
     #     connected = False
-    #     if self._vc_agent:
-    #         peers = self._vc_agent.vip.peerlist().get(timeout=10)
+    #     if self._agent_connected_to_vc:
+    #         peers = self._agent_connected_to_vc.vip.peerlist().get(timeout=10)
 
     # def _fetch_vc_discovery_info(self):
     #     """ Retrieves the serverkey and vip-address from the vc instance.
