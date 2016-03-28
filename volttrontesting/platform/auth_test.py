@@ -7,18 +7,7 @@ import pytest
 
 from volttron.platform import jsonrpc
 from volttron.platform import keystore
-
-def poll_gevent_sleep(max_seconds, condition=lambda: True):
-    '''Sleep until condition is true or max_seconds has passed.'''
-    if max_seconds < 0:
-        raise ValueError('max_seconds must be positive number')
-    time_start = time.time()
-    while True:
-        if condition():
-            return True
-        gevent.sleep(0.2)
-        if time.time() > time_start + max_seconds:
-            return False
+from volttrontesting.utils.utils import poll_gevent_sleep
 
 def build_agent(platform, identity):
     '''Build an agent, configure its keys and return the agent.'''
