@@ -98,8 +98,6 @@ class DiscoveryInfo(object):
         self.discovery_address = kwargs.pop('discovery_address')
         self.vip_address = kwargs.pop('vip-address')
         self.serverkey = kwargs.pop('serverkey')
-        self.vcpublickey = kwargs.pop('vcpublickey', None)
-        self.papublickey = kwargs.pop('papublickey', None)
         assert len(kwargs) == 0
 
     @staticmethod
@@ -134,12 +132,6 @@ class DiscoveryInfo(object):
             'vip_address': self.vip_address,
             'serverkey': self.serverkey
         }
-
-        if self.vcpublickey:
-            dk['vcpublickey'] = self.vcpublickey
-
-        if self.papublickey:
-            dk['papublickey'] = self.papublickey
 
         return jsonapi.dumps(dk)
 
@@ -179,12 +171,28 @@ class MasterWebService(Agent):
         super(MasterWebService, self).__init__(identity, address)
 
         self.bind_web_address = bind_web_address
+        # if the web address is bound then we need to allow the web agent
+        # to be discoverable.  That means we need to allow connections to
+        # the message bus in some known addresses if they aren't already
+        # specified.
+        if self.bind_web_address:
+            authfile = AuthFile()
+            entries, _, _ = authfile.read()
+            if not entries:
+                _log.debug(
+                    'Adding default curve credentials for discoverability.')
+                authfile.add(AuthEntry(credentials="/CURVE:.*/"))
+
         self.serverkey = serverkey
         self.registeredroutes = []
         self.peerroutes = defaultdict(list)
         self.aip = aip
         if not mimetypes.inited:
             mimetypes.init()
+
+        authentry = AuthEntry(credentials="/CURVE:.*/")
+        authfile = AuthFile()
+        authfile.add(authentry)
 
     @RPC.export
     def get_bind_web_address(self):
@@ -221,7 +229,13 @@ class MasterWebService(Agent):
         compiled = re.compile(regex)
         self.registeredroutes.append((compiled, 'path', root_dir))
 
-    def _redirect_index(self, env, start_response):
+    def _redirect_index(self, env, start_response, data=None):
+        """ Redirect to the index page.
+        @param env:
+        @param start_response:
+        @param data:
+        @return:
+        """
         start_response('302 Found', [('Location', '/index.html')])
         return ['1']
 
@@ -265,18 +279,6 @@ class MasterWebService(Agent):
         peers = self.vip.peerlist().get(timeout=2)
 
         return_dict = {}
-        vc_publickey = None
-        pa_publickey = None
-        if 'volttron.central' in peers:
-            print('doing vc public key')
-            vc_publickey = self.aip.agent_publickey('volttron.central')
-            # vc_publickey = q.query(b'publickey', b'volttron.central').get(timeout=2)
-            return_dict['vcpublickey'] = vc_publickey
-        if 'platform.agent' in peers:
-            print('doing pa public key')
-            pa_publickey = self.aip.agent_publickey('platform.agent')
-            # pa_publickey = q.query(b'publickey', b'platform.agent').get(timeout=2)
-            return_dict['papublickey'] = pa_publickey
 
         if self.serverkey:
             return_dict['serverkey'] = encode_key(self.serverkey)
@@ -310,6 +312,7 @@ class MasterWebService(Agent):
             if k.match(path_info):
                 _log.debug("MATCHED:\npattern: {}, path_info: {}\n v: {}"
                            .format(k.pattern, path_info, v))
+                _log.debug('registered route t is: {}'.format(t))
                 if t == 'callable':  # Generally for locally called items.
                     return v(env, start_response, data)
                 elif t == 'peer_route':  # RPC calls from agents on the platform.
@@ -379,3 +382,22 @@ class MasterWebService(Agent):
         port = int(port)
         server = pywsgi.WSGIServer((hostname, port), self.app_routing)
         server.serve_forever()
+
+
+def build_vip_address_string(vip_root, serverkey, publickey, secretkey):
+    """ Build a full vip address string based upon the passed arguments
+
+    All arguments are required to be non-None in order for the string to be
+    created successfully.
+
+    :raises ValueError if one of the parameters is None.
+    """
+
+    if not (serverkey and publickey and secretkey and vip_root):
+        raise ValueError("All parameters must be entered.")
+
+    root = "{}?serverkey={}&publickey={}&secret={}".format(
+        vip_root, serverkey, publickey, secretkey
+    )
+
+    return root

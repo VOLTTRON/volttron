@@ -72,6 +72,7 @@ from zmq import green as zmq
 from zmq.utils import jsonapi
 
 from .agent.utils import strip_comments, create_file_if_missing, watch_file
+from .lib.inotify.green import inotify, IN_MODIFY
 from .vip.agent import Agent, Core, RPC
 from .vip.socket import encode_key
 
@@ -129,6 +130,14 @@ class AuthService(Agent):
         entries.sort()
         self.auth_entries = entries
         _log.info('auth file %s loaded', self.auth_file_path)
+
+    def _watch_auth_file(self):
+        dirname, filename = os.path.split(self.auth_file)
+        with inotify() as inot:
+            inot.add_watch(dirname, IN_MODIFY)
+            for event in inot:
+                if event.name == filename and event.mask & IN_MODIFY:
+                    self.read_auth_file()
 
     @Core.receiver('onstop')
     def stop_zap(self, sender, **kwargs):

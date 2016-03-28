@@ -18,7 +18,7 @@ var AgentRow = React.createClass({
         modalActionCreators.openModal(<RemoveAgentForm platform={this.props.platform} agent={this.props.agent} />);
     },
     render: function () {
-        var agent = this.props.agent, status, action, remove;
+        var agent = this.props.agent, status, action, remove, notAllowed;
 
         if (agent.actionPending === undefined) {
             status = 'Retrieving status...';
@@ -35,21 +35,52 @@ var AgentRow = React.createClass({
                 );
             }
         } else {
+
             if (agent.process_id === null) {
                 status = 'Never started';
-                action = (
-                    <input className="button button--agent-action" type="button" value="Start" onClick={this._onStart} />
-                );
+                
+                if (agent.vc_can_start)
+                {
+                    action = (
+                        <input className="button button--agent-action" type="button" value="Start" onClick={this._onStart} />
+                    );
+                }
+                else
+                {
+                    action = (
+                        <input className="button button--agent-action" type="button" value="Start" onClick={this._onStart} disabled/>
+                    );
+                } 
             } else if (agent.return_code === null) {
                 status = 'Running (PID ' + agent.process_id + ')';
-                action = (
-                    <input className="button button--agent-action" type="button" value="Stop" onClick={this._onStop} />
-                );
+                
+                if (agent.vc_can_stop)
+                {
+                    action = (
+                        <input className="button button--agent-action" type="button" value="Stop" onClick={this._onStop} />
+                    );
+                }
+                else
+                {
+                    action = (
+                        <input className="button button--agent-action" type="button" value="Stop" onClick={this._onStop} disabled/>
+                    );
+                }                 
             } else {
                 status = 'Stopped (returned ' + agent.return_code + ')';
-                action = (
-                    <input className="button button--agent-action" type="button" value="Start" onClick={this._onStart} />
-                );
+                
+                if (agent.vc_can_restart)
+                {
+                    action = (
+                        <input className="button button--agent-action" type="button" value="Start" onClick={this._onStart} />
+                    );
+                }
+                else
+                {
+                    action = (
+                        <input className="button button--agent-action" type="button" value="Start" onClick={this._onStart} disabled/>
+                    );
+                } 
             }
         }
 

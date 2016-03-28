@@ -6,6 +6,9 @@ module.exports = keyMirror({
     OPEN_MODAL: null,
     CLOSE_MODAL: null,
 
+    OPEN_STATUS: null,
+    CLOSE_STATUS: null,
+
     TOGGLE_CONSOLE: null,
 
     UPDATE_COMPOSER_VALUE: null,
@@ -25,6 +28,35 @@ module.exports = keyMirror({
     RECEIVE_PLATFORM: null,
     RECEIVE_PLATFORM_ERROR: null,
     CLEAR_PLATFORM_ERROR: null,
+
+    RECEIVE_PLATFORM_STATUSES: null,
+    TOGGLE_PLATFORMS_PANEL: null,
+    CLOSE_PLATFORMS_PANEL: null,
+
+    RECEIVE_AGENT_STATUSES: null,
+    RECEIVE_DEVICE_STATUSES: null,
+    RECEIVE_POINT_STATUSES: null,
+    RECEIVE_BUILDING_STATUSES: null,
+
+    RECEIVE_PANEL_CHILDREN: null,
+
+    ADD_TO_CHART: null,
+    REMOVE_FROM_CHART: null,
+    PIN_CHART: null,
+    CHANGE_CHART_TYPE: null,
+    CHANGE_CHART_REFRESH: null,
+    REFRESH_CHART: null,
+
+    EXPAND_ALL: null,
+    TOGGLE_ITEM: null,
+    CHECK_ITEM: null,
+    FILTER_ITEMS: null,
+
+    // ADD_CONTROL_BUTTON: null,
+    // REMOVE_CONTROL_BUTTON: null,
+    TOGGLE_TAPTIP: null,
+    HIDE_TAPTIP: null,
+
 
     RECEIVE_PLATFORM_TOPIC_DATA: null,
 });

@@ -163,7 +163,7 @@ var Platform = React.createClass({
         }
 
         return (
-            <div className="view">
+            <div className="platform-view">
                 {this.state.error && (
                     <div className="view__error error">{this.state.error}</div>
                 )}

@@ -63,6 +63,40 @@ var platformActionCreators = {
             })
             .catch(rpc.Error, handle401);
     },
+    initializeAgents: function (platform) {
+        var authorization = authorizationStore.getAuthorization();
+
+        if (platform.agents.length > 0)
+        {
+            new rpc.Exchange({
+                method: 'platforms.uuid.' + platform.uuid + '.status_agents',
+                authorization: authorization,
+            }).promise
+                .then(function (agentStatuses) {
+                    platform.agents.forEach(function (agent) {
+                        if (!agentStatuses.some(function (status) {
+                            if (agent.uuid === status.uuid) {
+                                agent.actionPending = false;
+                                console.log("PIDs match: " + (agent.process_id === status.process_id));
+                                agent.return_code = status.return_code;
+
+                                return true;
+                            }
+                        })) {
+                            agent.actionPending = false;
+                            agent.process_id = null;
+                            agent.return_code = null;
+                        }
+
+                    });
+
+                    dispatcher.dispatch({
+                        type: ACTION_TYPES.RECEIVE_PLATFORM,
+                        platform: platform,
+                    });
+                });
+        }
+    },
     startAgent: function (platform, agent) {
         var authorization = authorizationStore.getAuthorization();
 

@@ -53,40 +53,44 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-
 # }}}
 
-from os import path
-from setuptools import setup, find_packages
+import logging
+import os
 
-MAIN_MODULE = 'agent'
+import gevent
 
-# Find the agent package that contains the main module
-packages = find_packages('.')
-agent_package = ''
-for package in find_packages():
-    # Because there could be other packages such as tests
-    if path.isfile(package + '/' + MAIN_MODULE + '.py') is True:
-        agent_package = package
-if not agent_package:
-    raise RuntimeError('None of the packages under {dir} contain the file '
-                       '{main_module}'.format(main_module=MAIN_MODULE + '.py',
-                                              dir=path.abspath('.')))
+from volttron.platform.agent import utils
+from volttron.platform.vip.agent import Agent
+from volttron.platform.web import build_vip_address_string
 
-# Find the version number from the main module
-agent_module = agent_package + '.' + MAIN_MODULE
-_temp = __import__(agent_module, globals(), locals(), ['__version__'], -1)
-__version__ = _temp.__version__
+utils.setup_logging()
+_log = logging.getLogger(__name__)
 
-# Setup
-setup(
-    name=agent_package + 'agent',
-    version=__version__,
-    install_requires=['volttron', 'psutil'],
-    packages=packages,
-    entry_points={
-        'setuptools.installation': [
-            'eggsecutable = ' + agent_module + ':main',
-        ]
-    }
-)
+
+def build_agent(address=None, identity=None, publickey=None, secretkey=None,
+                timeout=10, serverkey=None, **kwargs):
+    """ Builds a dynamic agent connected to the specifiedd address.
+
+    :param address:
+    :param identity:
+    :param publickey:
+    :param secretkey:
+    :param timeout:
+    :param kwargs:
+    :return:
+    """
+    if not address:
+        address = os.environ['VOLTTRON_HOME']
+
+    _log.debug('BUILDING AGENT VIP: {}'.format(address))
+    vip_address = build_vip_address_string(
+        vip_root=address, publickey=publickey, secretkey=secretkey,
+        serverkey=serverkey)
+    agent = Agent(address=vip_address, identity=identity)
+    event = gevent.event.Event()
+    gevent.spawn(agent.core.run, event)
+    event.wait(timeout=timeout)
+    _log.debug('RETURNING AGENT')
+
+    return agent
