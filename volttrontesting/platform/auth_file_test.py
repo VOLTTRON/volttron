@@ -21,9 +21,11 @@ def auth_file_platform_tuple(volttron_instance1_encrypt):
     gevent.sleep(0.5)
     return auth_file, platform
 
+
 @pytest.fixture(scope='module')
 def auth_entry_only_creds():
     return AuthEntry(credentials='CURVE:'+'B'*43)
+
 
 @pytest.fixture(scope='module')
 def auth_entry1():
@@ -54,7 +56,6 @@ def assert_attributes_match(list1, list2):
     for i in range(len(list1)):
         for key in vars(list1[i]):
             assert vars(list1[i])[key] == vars(list2[i])[key]
-
 
 
 @pytest.mark.auth
@@ -92,17 +93,20 @@ def test_auth_file_api(auth_file_platform_tuple, auth_entry1,
     my_entries = [auth_entry3]
     assert_attributes_match(entries, my_entries)
 
+
 @pytest.mark.auth
 def test_remove_invalid_index(auth_file_platform_tuple):
     auth_file, _ = auth_file_platform_tuple
     with pytest.raises(AuthFileIndexError):
         auth_file.remove_by_index(1)
 
+
 @pytest.mark.auth
 def test_update_invalid_index(auth_file_platform_tuple, auth_entry1):
     auth_file, _ = auth_file_platform_tuple
     with pytest.raises(AuthFileIndexError):
         auth_file.update_by_index(auth_entry1, 1)
+
 
 @pytest.mark.auth
 def test_invalid_auth_entries(auth_file_platform_tuple):
@@ -113,3 +117,17 @@ def test_invalid_auth_entries(auth_file_platform_tuple):
         AuthEntry(credentials='CURVE:invalid key')
     with pytest.raises(AuthEntryInvalid):
         AuthEntry(credentials='Not NULL or PLAIN: or CURVE:')
+
+
+@pytest.mark.auth
+def test_find_by_credentials(auth_file_platform_tuple):
+    auth_file = auth_file_platform_tuple[0]
+    cred1 = 'CURVE:' + 'A'*43
+    cred2 = 'CURVE:' + 'B'*43
+    auth_file.add(AuthEntry(domain='test1', credentials=cred1))
+    auth_file.add(AuthEntry(domain='test2', credentials=cred1))
+    auth_file.add(AuthEntry(domain='test3', credentials=cred2))
+    results = auth_file.find_by_credentials(cred1)
+    assert len(results) == 2
+    domains = [entry.domain for entry in results]
+    assert 'test1' in domains and 'test2' in domains

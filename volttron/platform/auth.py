@@ -438,6 +438,17 @@ class AuthFile(object):
         :rtype: list"""
         return self.read()[0]
 
+    def find_by_credentials(self, credentials):
+        """
+        Find all entries that have the given credentials
+
+        :param str credentials: The credentials to search for
+        :return: list of entries
+        :rtype: list
+        """
+        return [entry for entry in self.read_allow_entries()
+                if str(entry.credentials) == credentials]
+
     def _get_entries(self, auth_data, groups, roles):
         allowed = auth_data.get('allow', [])
         entries = []
