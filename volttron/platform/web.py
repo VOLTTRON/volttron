@@ -171,6 +171,18 @@ class MasterWebService(Agent):
         super(MasterWebService, self).__init__(identity, address)
 
         self.bind_web_address = bind_web_address
+        # if the web address is bound then we need to allow the web agent
+        # to be discoverable.  That means we need to allow connections to
+        # the message bus in some known addresses if they aren't already
+        # specified.
+        if self.bind_web_address:
+            authfile = AuthFile()
+            entries, _, _ = authfile.read()
+            if not entries:
+                _log.debug(
+                    'Adding default curve credentials for discoverability.')
+                authfile.add(AuthEntry(credentials="/CURVE:.*/"))
+
         self.serverkey = serverkey
         self.registeredroutes = []
         self.peerroutes = defaultdict(list)
@@ -217,7 +229,7 @@ class MasterWebService(Agent):
         compiled = re.compile(regex)
         self.registeredroutes.append((compiled, 'path', root_dir))
 
-    def _redirect_index(self, env, start_response, data):
+    def _redirect_index(self, env, start_response, data=None):
         """ Redirect to the index page.
         @param env:
         @param start_response:
