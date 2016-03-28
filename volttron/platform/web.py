@@ -370,7 +370,7 @@ class MasterWebService(Agent):
         hostname = parsed.hostname
         port = parsed.port
 
-        _log.debug('Starting web server binding to {}:{}.' \
+        _log.info('Starting web server binding to {}:{}.' \
                    .format(hostname, port))
         self.registeredroutes.append((re.compile('^/discovery/$'), 'callable',
                                       self._get_discovery))
