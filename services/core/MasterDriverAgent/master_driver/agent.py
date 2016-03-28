@@ -155,9 +155,6 @@ class MasterDriverAgent(Agent):
         
     @Core.receiver('onstart')
     def starting(self, sender, **kwargs):
-        env = os.environ.copy()
-        env.pop('AGENT_UUID', None)
-        
         start_delay = None
         if self.staggered_start is not None:
             start_delay = self.staggered_start / float(len(self.driver_config_list))
