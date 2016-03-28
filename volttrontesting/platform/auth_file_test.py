@@ -125,11 +125,22 @@ def test_invalid_auth_entries(auth_file_platform_tuple):
 def test_find_by_credentials(auth_file_platform_tuple):
     auth_file = auth_file_platform_tuple[0]
     cred1 = 'CURVE:' + 'A'*43
-    cred2 = 'CURVE:' + 'B'*43
+    cred2 = '/CURVE:.*/'
     auth_file.add(AuthEntry(domain='test1', credentials=cred1))
     auth_file.add(AuthEntry(domain='test2', credentials=cred1))
     auth_file.add(AuthEntry(domain='test3', credentials=cred2))
+
+    # find non-regex creds
     results = auth_file.find_by_credentials(cred1)
     assert len(results) == 2
     domains = [entry.domain for entry in results]
     assert 'test1' in domains and 'test2' in domains
+
+    # find regex creds
+    results = auth_file.find_by_credentials(cred2)
+    assert len(results) == 1
+    assert results[0].domain == 'test3'
+
+    # try to find non-existing creds
+    results = auth_file.find_by_credentials('CURVE:' + 'B'*43)
+    assert len(results) == 0
