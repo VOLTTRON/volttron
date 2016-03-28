@@ -26,6 +26,7 @@ The views and conclusions contained in the software and documentation are those
 of the authors and should not be interpreted as representing official policies,
 either expressed or implied, of the FreeBSD Project.
 
+
 This material was prepared as an account of work sponsored by an
 agency of the United States Government.  Neither the United States
 Government nor the United States Department of Energy, nor Battelle,
@@ -54,7 +55,7 @@ from datetime import datetime
 import logging
 from dateutil.parser import parse
 from .common import validation_builder
-import sys
+
 SCHED_VALIDATE = 'Schedule-Reset ACCx'
 DUCT_STC_RCX3 = 'No Static Pressure Reset Dx'
 SA_TEMP_RCX3 = 'No Supply-air Temperature Reset Dx'
@@ -65,6 +66,11 @@ RESET_FILE_TOKEN = 'reset'
 SCHEDULE_FILE_TOKEN = 'schedule'
 DATA = '/data/'
 ST = 'state'
+
+DATE_FORMAT = '%m-%d-%y %H:%M'
+
+def create_table_key(table_name, timestamp):
+    return '&'.join([table_name, timestamp.strftime(DATE_FORMAT)])
 
 class SchedResetRcx(object):
     """Schedule, supply-air temperature, and duct static pressure auto-detect
@@ -120,6 +126,7 @@ class SchedResetRcx(object):
         self.stcpr_stpt_arr = []
         self.fanstat_values = []
         self.sched_time = []
+        self.dx_table = {}
         if start_new_analysis_stcpr_stpt is not None:
             self.sat_stpt_arr.append(start_new_analysis_sat_stpt)
             self.stcpr_stpt_arr.append(start_new_analysis_stcpr_stpt)
@@ -158,25 +165,27 @@ class SchedResetRcx(object):
         self.timestamp.append(current_time)
 
         data = validation_builder(sched_val, SCHED_VALIDATE, DATA)
-
+        table_key = create_table_key(self.reset_file_name_id, self.timestamp[0])
+        file_key = create_table_key(VALIDATE_FILE_TOKEN, current_time)
         if run_diagnostic and len(self.sched_time) >= self.no_req_data:
             dx_result = self.unocc_fan_operation(dx_result)
             if len(self.sat_stpt_arr) >= self.no_req_data:
                 dx_result = self.no_static_pr_reset(dx_result)
                 dx_result = self.no_sat_sp_reset(dx_result)
+                dx_result.insert_table_row(table_key, self.dx_table)
             data.update({SCHED_VALIDATE + DATA + ST: 1})
             self.reinitialize(start_new_analysis_time, start_new_analysis_sat_stpt,
                               start_new_analysis_stcpr_stpt, stcpr_data, fan_status)
         elif run_diagnostic:
             dx_msg = 61.2
             dx_table = {SCHED_RCX + DX:  dx_msg}
-            dx_result.insert_table_row(self.analysis, dx_table)
+            dx_result.insert_table_row(table_key, dx_table)
             data.update({SCHED_VALIDATE + DATA + ST: 2})
             self.reinitialize(start_new_analysis_time, start_new_analysis_sat_stpt,
                               start_new_analysis_stcpr_stpt, stcpr_data, fan_status)
         else:
             data.update({SCHED_VALIDATE + DATA + ST: 0})
-        dx_result.insert_table_row(VALIDATE_FILE_TOKEN, data)
+        dx_result.insert_table_row(file_key, data)
         return dx_result
 
     def unocc_fan_operation(self, dx_result):
@@ -221,13 +230,13 @@ class SchedResetRcx(object):
                     push_time = self.sched_time[0].date()
                     push_time = datetime.combine(push_time, datetime.min.time())
                     push_time = push_time.replace(hour=_hour)
+                    table_key = create_table_key(self.sched_file_name_id , push_time)
                     dx_table = {SCHED_RCX + DX:  dx_msg}
-                    dx_result.insert_table_row((str(push_time), self.analysis), dx_table)
-                    dx_table.update({'Timestamp': str(push_time)})
-                    dx_result.insert_file_row(self.sched_file_name_id, dx_table)
+                    dx_result.insert_table_row(table_key, dx_table)
         else:
             push_time = str(self.sched_time[0].date())
-            dx_result.insert_table_row((push_time, self.analysis), {SCHED_RCX + DX:  dx_msg})
+            table_key = create_table_key(self.sched_file_name_id , push_time)
+            dx_result.insert_table_row(table_key, {SCHED_RCX + DX:  dx_msg})
         dx_result.log(msg, logging.INFO)
         return dx_result
 
@@ -249,8 +258,6 @@ class SchedResetRcx(object):
                    'reset diagnostic.')
             dx_msg = 70.0
         dx_table = {DUCT_STC_RCX3 + DX:  dx_msg}
-        push_time = str(self.timestamp[0].date())
-        dx_result.insert_table_row((push_time, self.analysis), dx_table)
         self.dx_table = dx_table
         dx_result.log(msg, logging.INFO)
         return dx_result
@@ -272,12 +279,6 @@ class SchedResetRcx(object):
                    'reset diagnostic.')
             dx_msg = 80.0
         dx_table = {SA_TEMP_RCX3 + DX:  dx_msg}
-        push_time = str(self.timestamp[0].date())
-        dx_result.insert_table_row((push_time, self.analysis), dx_table)
         self.dx_table.update(dx_table)
-        self.dx_table.update({'Timestamp': str(self.timestamp[0])})
-        dx_result.insert_file_row(self.reset_file_name_id, self.dx_table)
         dx_result.log(msg, logging.INFO)
         return dx_result
-
-

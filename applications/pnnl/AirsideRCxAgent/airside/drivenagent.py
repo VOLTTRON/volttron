@@ -55,13 +55,12 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 import csv
-from datetime import datetime, timedelta as td
+from datetime import datetime as dt, timedelta as td
 import logging
 import sys
 import re
 from copy import deepcopy
 import sys
-import gevent
 from dateutil.parser import parse
 
 from volttron.platform.messaging import topics
@@ -78,9 +77,10 @@ __author1__ = 'Craig Allwardt <craig.allwardt@pnnl.gov>'
 __author2__ = 'Robert Lutes <robert.lutes@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2015, Battelle Memorial Institute'
 __license__ = 'FreeBSD'
+DATE_FORMAT = '%m-%d-%y %H:%M'
 
-_log = logging.getLogger(__name__)
 utils.setup_logging()
+_log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.debug,
                     format='%(asctime)s   %(levelname)-8s %(message)s',
                     datefmt='%m-%d-%y %H:%M')
@@ -125,6 +125,12 @@ def driven_agent(config_path, **kwargs):
                 subdevice_name = device_name + "/" + subdevice
                 device_topic_dict.update({subdevice_topic: subdevice_name})
                 device_topic_list.append(subdevice_name)
+
+    base_actuator_path = topics.ACTUATOR_WRITE(campus=campus_building.get('campus', ''),
+                                               building=campus_building.get('building', ''),
+                                               unit=None,
+                                               path='',
+                                               point=None)
     conversion_map = config.get('conversion_map')
     map_names = {}
     for key, value in conversion_map.items():
@@ -223,8 +229,8 @@ def driven_agent(config_path, **kwargs):
                     _timestamp = parse(headers.get('Date'))
                     self.received_input_datetime = _timestamp
                 else:
-                    _timestamp = datetime.now()
-                    self.received_input_datetime = datetime.utcnow()
+                    _timestamp = dt.now()
+                    self.received_input_datetime = dt.utcnow()
 
                 device_data = converter.process_row(field_names)
                 results = app_instance.run(_timestamp, device_data)
@@ -244,6 +250,9 @@ def driven_agent(config_path, **kwargs):
             _log.debug('Processing Results!')
             for key, value in results.commands.iteritems():
                 _log.debug("COMMAND: {}->{}".format(key, value))
+                actuator_error = self.actuator_request(results)
+                if not actuator_error:
+                    self.actuator_set(results)
             for value in results.log_messages:
                 _log.debug("LOG: {}".format(value))
             for key, value in results.table_output.iteritems():
@@ -314,6 +323,46 @@ def driven_agent(config_path, **kwargs):
                         file_output.writerow(row)
                     file_to_write.close()
             return results
+
+        def actuator_request(self, results):
+            """Make actuaor request for modification of device set points."""
+            _now = dt.now()
+            str_now = _now.strftime(DATE_FORMAT)
+            _end = _now + td(minutes=1)
+            str_end = _end.strftime(DATE_FORMAT)
+            for _device in command_devices:
+                actuation_device = base_actuator_path(unit=_device, point='')
+                schedule_request = [[actuation_device, str_now, str_end]]
+                try:
+                    result = self.vip.rpc.call('platform.actuator',
+                                               'request_new_schedule',
+                                               agent_id, _device, 'HIGH',
+                                               schedule_request).get(timeout=4)
+                except RemoteError as ex:
+                    _log.warning("Failed to schedule device {} (RemoteError): {}".format(_device, str(ex)))
+                    request_error = True
+
+                if result['result'] == 'FAILURE':
+                    _log.warn('Failed to schedule device (unavailable) ' + _device)
+                    request_error = True
+                else:
+                    request_error = False
+            return results, request_error
+
+        def actuator_set(self, results):
+            """Set point on device."""
+            for _device in command_devices:
+                for point, new_value in results.commands.items():
+                    point_path = base_actuator_path(unit=_device, point=point)
+                    try:
+                        result = self.vip.rpc.call('platform.actuator', 'set_point',
+                                                   agent_id, point_path,
+                                                   new_value).get(timeout=4)
+                        _log.debug("Set point {} to {}".format(point_path, new_value))
+                    except RemoteError as ex:
+                        _log.warning("Failed to set {} to {}: {}".format(point_path, new_value, str(ex)))
+                        continue
+
 
     DrivenAgent.__name__ = 'DrivenLoggerAgent'
     return DrivenAgent(**kwargs)
