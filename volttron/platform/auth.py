@@ -366,8 +366,8 @@ class AuthEntry(object):
 
     def __str__(self):
         return (u'domain={0.domain!r}, address={0.address!r}, '
-                'credentials={0.credentials!r}, user_id={0.user_id!r}'.format(
-            self))
+                'credentials={0.credentials!r}, '
+                'user_id={0.user_id!r}'.format(self))
 
     def __repr__(self):
         cls = self.__class__
@@ -384,8 +384,8 @@ class AuthEntry(object):
             # 49 = len(encoded_key) + len('CURVE:')
             raise AuthEntryInvalid('Invalid CURVE public key')
         if not (cred == 'NULL' or
-                    cred.startswith('PLAIN:') or
-                    cred.startswith('CURVE:')):
+                cred.startswith('PLAIN:') or
+                cred.startswith('CURVE:')):
             raise AuthEntryInvalid('credentials must either begin with '
                                    '"PLAIN:" or "CURVE:" or it must be "NULL"')
 
@@ -397,8 +397,8 @@ class AuthEntry(object):
 class AuthFile(object):
     def __init__(self, auth_file=None):
         if auth_file is None:
-            auth_file_dir = os.path.expanduser(
-                    os.environ.get('VOLTTRON_HOME', '~/.volttron'))
+            auth_file_dir = os.path.expanduser(os.environ.get('VOLTTRON_HOME',
+                                                              '~/.volttron'))
             auth_file = os.path.join(auth_file_dir, 'auth.json')
         self.auth_file = auth_file
 
