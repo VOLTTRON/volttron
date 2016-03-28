@@ -50,6 +50,7 @@ under Contract DE-AC05-76RL01830
 """
 
 from datetime import timedelta as td
+import sys
 from volttron.platform.agent.math_utils import mean
 from volttron.platform.agent.driven import Results, AbstractDrivenAgent
 from diagnostics.satemp_rcx import SupplyTempRcx
@@ -120,7 +121,8 @@ class Application(AbstractDrivenAgent):
             monday_sch=['5:30','18:30'], tuesday_sch=['5:30','18:30'],
             wednesday_sch=['5:30','18:30'], thursday_sch=['5:30','18:30'],
             friday_sch=['5:30','18:30'], saturday_sch=['0:00','0:00'],
-            sunday_sch=['0:00','0:00'], autocorrect_flag=False, **kwargs):
+            sunday_sch=['0:00','0:00'], autocorrect_flag=False,
+            analysis_name='', **kwargs):
 
         self.warm_up_start = None
         self.warm_up_flag = True
@@ -131,7 +133,8 @@ class Application(AbstractDrivenAgent):
             if value:
                 value = value.lower()
             return value
-        analysis = kwargs['device']['analysis_name']
+
+        analysis = analysis_name
         self.fan_status_name = get_or_none('fan_status')
         self.fansp_name = get_or_none('fan_speedcmd')
         if self.fansp_name  is None and self.fan_status_name is None:
@@ -170,7 +173,6 @@ class Application(AbstractDrivenAgent):
                           sat_reset_threshold, analysis))
 
     def run(self, cur_time, points):
-
         device_dict = {}
         dx_result = Results()
         fan_status_data = []
@@ -179,7 +181,7 @@ class Application(AbstractDrivenAgent):
         high_dx_cond = False
 
         for key, value in points.items():
-            point_device = [_name.lower() for _name in key.split('_')]
+            point_device = [_name.lower() for _name in key.split('&')]
             if point_device[0] not in device_dict:
                 device_dict[point_device[0]] = [(point_device[1], value)]
             else:

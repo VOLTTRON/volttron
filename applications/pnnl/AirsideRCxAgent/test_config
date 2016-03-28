@@ -16,12 +16,11 @@
                 ]
             }
         },
-        "analysis_name": "Airside_RCx",
-        "pub_device": "rtu4"
+        "analysis_name": "Airside_RCx"
     },
     "output_file": "./junk",
     "mode": "PASSIVE",
-    "From File": true,
+    "from_file": true,
     "arguments": {
         "fan_status": "supplyfanstatus",
         "zone_reheat": "heatingsignal",
@@ -31,7 +30,8 @@
         "sa_temp": "dischargeairtemperature",
         "fan_speedcmd": "supplyfanspeed",
         "sat_stpt": "dischargeairtemperaturesetpoint",
-        "no_required_data": 1,
+        "autocorrect_flag": false,
+        "no_required_data": 10,
         "warm_up_time": 10,
         "duct_stcpr_retuning": 0.1,
         "max_duct_stcpr_stpt": 2.5,
@@ -54,13 +54,13 @@
         "maximum_sat_stpt": 75.0,
         "unocc_time_threshold": 30.0,
         "unocc_stp_threshold": 0.2,
-        "monday_sch": "6:30;18:30",
-        "tuesday_sch": "6:30;18:30",
-        "wednesday_sch": "6:30;18:30",
-        "thursday_sch": "6:30;18:30",
-        "friday_sch": "6:30;18:30",
-        "saturday_sch": "0:00;0:00",
-        "sunday_sch": "0:00;0:00"
+        "monday_sch": ["6:30","18:30"],
+        "tuesday_sch": ["6:30","18:30"],
+        "wednesday_sch": ["6:30","18:30"],
+        "thursday_sch": ["6:30","18:30"],
+        "friday_sch": ["6:30","18:30"],
+        "saturday_sch": ["0:00","0:00"],
+        "sunday_sch": ["0:00","0:00"]
     },
     "conversion_map": {
         ".*Temperature": "float",
