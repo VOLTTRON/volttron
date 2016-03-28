@@ -125,7 +125,7 @@ class VolttronCentralAgent(Agent):
         self._webroot = self._config.get('webroot', DEFAULT_WEB_ROOT)
         if self._webroot.endswith('/'):
             self._webroot = self._webroot[:-1]
-        _log.debug('The webroot is {}'.format(self.webroot))
+        _log.debug('The webroot is {}'.format(self._webroot))
 
         # Required users
         self._user_map = self._config.get('users', None)
