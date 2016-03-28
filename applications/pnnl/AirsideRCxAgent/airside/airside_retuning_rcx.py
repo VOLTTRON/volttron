@@ -247,21 +247,25 @@ class Application(AbstractDrivenAgent):
                 zn_dmpr_data = validate_builder(value, data_name)
 
         missing_data = []
-        if not satemp_data:
+        if not satemp_data or None in satemp_data:
             missing_data.append(self.sa_temp_name)
-        if not rht_data:
+        if not rht_data or None in rht_data:
             missing_data.append(self.zone_reheat_name)
-        if not sat_stpt_data:
+        if not sat_stpt_data or None in sat_stpt_data:
             dx_result.log.info('Supply-air temperature set point data is '
                                'missing. This will limit the effectiveness of '
                                'the supply-air temperature diagnostics.')
-        if not stc_pr_data:
+            sat_stpt_data = [data for data in sat_stpt_data if data is not None]
+
+        if not stc_pr_data or None in stc_pr_data:
             missing_data.append(self.duct_stp_name)
-        if not stcpr_sp_data:
+        if not stcpr_sp_data or None in stcpr_sp_data:
             dx_result.log.info('Duct static pressure set point data is '
                                'missing. This will limit the effectiveness of '
                                'the duct static pressure diagnostics.')
-        if not zn_dmpr_data:
+            stcpr_sp_data = [data for data in stcpr_sp_data if data is not None]
+
+        if not zn_dmpr_data or None in zn_dmpr_data:
             missing_data.append(self.zone_damper_name)
         if missing_data:
             raise Exception('Missing required data: {}'.format(missing_data))
