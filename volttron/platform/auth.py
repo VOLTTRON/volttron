@@ -302,7 +302,7 @@ class String(unicode):
         obj = super(String, cls).__new__(cls, value)
         if isregex(obj):
             obj.regex = regex = re.compile('^' + obj[1:-1] + '$')
-            obj.match = lambda val: bool(regex.match(val))
+            obj.match = lambda val: val is not None and bool(regex.match(val))
         return obj
 
     def match(self, value):
