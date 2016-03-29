@@ -491,9 +491,9 @@ class AuthFile(object):
         '''Raises AuthFileEntryAlreadyExists if entry is already in file'''
         matching_indices = []
         for index, prev_entry in enumerate(self.read_allow_entries()):
-            if (entry.domain == prev_entry.domain
-                    and entry.address == prev_entry.address
-                    and entry.credentials == prev_entry.credentials):
+            if (entry.domain == prev_entry.domain and
+                    entry.address == prev_entry.address and
+                    entry.credentials == prev_entry.credentials):
                 matching_indices.append(index)
         if matching_indices:
             raise AuthFileEntryAlreadyExists(matching_indices)
@@ -595,7 +595,6 @@ class AuthFileIndexError(AuthException, IndexError):
         if message is None:
             message = 'Invalid {}: {}'.format(
                 'indicies' if len(indices) > 1 else 'index', indices)
-        #super(AuthFileIndexError, self).__init__(indices, message)
         super(AuthFileIndexError, self).__init__(message)
         self.indices = indices
 

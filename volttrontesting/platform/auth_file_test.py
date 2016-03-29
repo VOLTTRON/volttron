@@ -81,6 +81,7 @@ def test_auth_file_api(auth_file_platform_tuple, auth_entry1,
     entries = auth_file.read_allow_entries()
     assert entries_len - 1 == len(entries)
 
+
 @pytest.mark.auth
 def test_remove_invalid_index(auth_file_platform_tuple):
     auth_file, _ = auth_file_platform_tuple
