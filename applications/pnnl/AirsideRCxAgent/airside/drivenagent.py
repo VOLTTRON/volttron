@@ -249,10 +249,12 @@ def driven_agent(config_path, **kwargs):
             """
             _log.debug('Processing Results!')
             for key, value in results.commands.iteritems():
-                _log.debug("COMMAND: {}->{}".format(key, value))
-                actuator_error = self.actuator_request(results)
-                if not actuator_error:
-                    self.actuator_set(results)
+                _log.debug("COMMAND TABLE: {}->{}".format(key, value))
+                if mode:
+                    _log.debug('ACTUATE ON DEVICE.')
+                    actuator_error = self.actuator_request(results)
+                    if not actuator_error:
+                        self.actuator_set(results)
             for value in results.log_messages:
                 _log.debug("LOG: {}".format(value))
             for key, value in results.table_output.iteritems():
