@@ -1,0 +1,7 @@
+2016-01-12 13:25:31,483 () volttron.platform.main DEBUG: open file resource limit increased from 1024 to 4096
+2016-01-12 13:25:31,484 () volttron.platform.main DEBUG: using key file /home/volttron/.volttron/curve.key
+2016-01-12 13:25:31,484 () volttron.platform.main INFO: public key: AJ0SbvOu0KbDUPNVlbISvHs6Fgdfn36N2V9SxP5Smks
+2016-01-12 13:25:31,489 () volttron.platform.auth INFO: loading auth file /home/volttron/.volttron/auth.json
+2016-01-12 13:25:31,489 () volttron.platform.auth INFO: auth file /home/volttron/.volttron/auth.json loaded
+2016-01-12 13:25:31,491 () volttron.platform.main DEBUG: In-process VIP router bound to inproc://vip
+2016-01-12 13:25:31,491 () volttron.platform.main DEBUG: Local VIP router bound to ipc://@/home/volttron/.volttron/run/vip.socket?domain=vip#8272bc48-0f27-4d1f-b659-ea904dae7ee8
