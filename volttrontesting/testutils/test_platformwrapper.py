@@ -7,6 +7,7 @@ from zmq import curve_keypair
 from volttron.platform.vip.agent import Agent, PubSub, Core
 from volttron.platform.vip.socket import encode_key
 from volttrontesting.utils.platformwrapper import PlatformWrapper
+from volttrontesting.utils.utils import poll_gevent_sleep
 
 @pytest.mark.wrapper
 def test_can_connect_to_instance(volttron_instance1):
@@ -52,13 +53,10 @@ def test_can_install_listener(volttron_instance1):
 
 def found_heartbeat():
     clear_messages()
-    time_start = time.time()
-    print('Awaiting heartbeat response.')
-    while not messages_contains_prefix('heartbeat/Agent') and time.time() < time_start + 10:
-        gevent.sleep(0.2)
+    def condition():
+        return messages_contains_prefix('heartbeat/Agent')
 
-    return messages_contains_prefix('heartbeat/Agent')
-
+    return poll_gevent_sleep(10, condition=condition)
 
 @pytest.mark.wrapper
 def test_heartbeat_can_start_stop(volttron_instance1):
