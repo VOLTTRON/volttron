@@ -60,7 +60,7 @@ from pymodbus.pdu import ExceptionResponse
 from pymodbus.constants import Defaults
 from volttron.platform.agent import utils
 
-from master_driver.interfaces import BaseInterface, BaseRegister
+from master_driver.interfaces import BaseInterface, BaseRegister, BasicRevert, DriverInterfaceError
 
 import struct
 import logging
@@ -185,7 +185,7 @@ class ModbusByteRegister(ModbusRegisterBase):
         return None
     
         
-class Interface(BaseInterface):
+class Interface(BasicRevert, BaseInterface):
     def __init__(self, **kwargs):
         super(Interface, self).__init__(**kwargs)
         self.build_ranges_map()
@@ -229,7 +229,7 @@ class Interface(BaseInterface):
                 result = None
         return result
     
-    def set_point(self, point_name, value):    
+    def _set_point(self, point_name, value):    
         register = self.get_register_by_name(point_name)
         with modbus_client(self.ip_address, self.port) as client:
             try:
@@ -287,7 +287,7 @@ class Interface(BaseInterface):
             
         return result_dict
         
-    def scrape_all(self):
+    def _scrape_all(self):
         result_dict={}
         with modbus_client(self.ip_address, self.port) as client:
             try:
@@ -298,11 +298,10 @@ class Interface(BaseInterface):
                 result_dict.update(self.scrape_bit_registers(client, True))
                 result_dict.update(self.scrape_bit_registers(client, False))
             except (ConnectionException, ModbusIOException, ModbusInterfaceException) as e:
-                _log.error ("Failed to scrape device at " + 
+                raise DriverInterfaceError ("Failed to scrape device at " + 
                            self.ip_address + ":" + str(self.port) + " " + 
                            "ID: " + str(self.slave_id) + str(e))
-                return None
-        
+                
         return result_dict
     
     def parse_config(self, config_string):
@@ -320,9 +319,36 @@ class Interface(BaseInterface):
             point_path = regDef['Volttron Point Name']        
             address = int(regDef['Point Address'])        
             description = regDef['Notes']                 
-            units = regDef['Units']         
-                        
+            units = regDef['Units']   
+            
+            default_value = regDef.get("Default Value", '').strip()
+            if not default_value:
+                default_value = None  
+                
             klass = ModbusBitRegister if bit_register else ModbusByteRegister
             register = klass(address, io_type, point_path, units, read_only, description = description, slave_id=self.slave_id)
-                
+            
             self.insert_register(register)
+            
+            if not read_only:
+                if default_value is not None:
+                    if isinstance(register, ModbusBitRegister):
+                        try:
+                            value = bool(int(default_value))
+                        except ValueError:
+                            value = default_value.lower().startswith('t') or default_value.lower() == 'on'
+                        self.set_default(point_path, value)
+                    else:
+                        try:
+                            value = register.python_type(default_value)
+                            self.set_default(point_path, value)
+                        except ValueError:
+                            _log.warning("Unable to set default value for {}, "
+                            "bad default value in configuration. Using default revert method.".format(point_path))
+                            
+                else:
+                    _log.info("No default value supplied for point {}. Using default revert method.".format(point_path))
+                        
+                
+                
+            

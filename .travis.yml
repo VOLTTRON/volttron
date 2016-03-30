@@ -4,14 +4,20 @@ matrix:
   include:
     #precise with ones that don't include dist
     - python: "2.7.6"
+      env: TOXENV=py276Precise
       sudo: required
+
     - python: "2.7.11"
+      env: TOXENV=py2711Precise
       sudo: required
       
     - dist: trusty
+      env: TOXENV=py276Trusty
       sudo: required
       python: "2.7.6"
+
     - dist: trusty
+      env: TOXENV=py2711Trusty
       sudo: required
       python: "2.7.11"
       

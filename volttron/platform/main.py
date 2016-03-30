@@ -330,13 +330,6 @@ class Router(BaseRouter):
             return frames
 
 
-_SAMPLE_PROTECTED_TOPICS_FILE = r'''{
-    "write-protect": [
-    # {"topic": "foo", "capabilities": ["can_publish_to_foo"]}
-    ]
-}
-'''
-
 class PubSubService(Agent):
     def __init__(self, protected_topics_file, *args, **kwargs):
         super(PubSubService, self).__init__(*args, **kwargs)
@@ -356,7 +349,7 @@ class PubSubService(Agent):
             utils.create_file_if_missing(self._protected_topics_file)
             with open(self._protected_topics_file) as fil:
                 # Use gevent FileObject to avoid blocking the thread
-                data = utils.strip_comments(FileObject(fil, close=False).read())
+                data = FileObject(fil, close=False).read()
                 topics_data = jsonapi.loads(data) if data else {}
         except Exception:
             _log.exception('error loading %s', self._protected_topics_file)
@@ -535,8 +528,8 @@ def start_volttron_process(opts):
         # Launch additional services and wait for them to start before
         # auto-starting agents
         services = [
-            ControlService(opts.aip, address=address, identity='control', tracker=tracker),
-            PubSubService(protected_topics_file, address=address, identity='pubsub'),
+            ControlService(opts.aip, address=address, identity='control', tracker=tracker, heartbeat_autostart=True),
+            PubSubService(protected_topics_file, address=address, identity='pubsub', heartbeat_autostart=True),
             CompatPubSub(address=address, identity='pubsub.compat',
                          publish_address=opts.publish_address,
                          subscribe_address=opts.subscribe_address),

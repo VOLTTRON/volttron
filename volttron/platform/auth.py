@@ -54,12 +54,13 @@
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 
-#}}}
+# }}}
 
 
 from __future__ import absolute_import, print_function
 
 import bisect
+import errno
 import logging
 import os
 import random
@@ -74,34 +75,38 @@ from .agent.utils import strip_comments, create_file_if_missing, watch_file
 from .vip.agent import Agent, Core, RPC
 from .vip.socket import encode_key
 
-
 _log = logging.getLogger(__name__)
-
-
-_SAMPLE_AUTH_FILE = r'''{
-    "allow": [
-        # {"credentials": "CURVE:wk2BXQdHkAlMIoXthOPhFOqWpapD1eWsBQYY7h4-bXw", "domain": "vip", "address": "/192\\.168\\.1\\..*/"}
-    ]
-}
-'''
 
 _dump_re = re.compile(r'([,\\])')
 _load_re = re.compile(r'\\(.)|,')
 
+
+def isregex(obj):
+    return len(obj) > 1 and obj[0] == obj[-1] == '/'
+
+
 def dump_user(*args):
     return ','.join([_dump_re.sub(r'\\\1', arg) for arg in args])
+
 
 def load_user(string):
     def sub(match):
         return match.group(1) or '\x00'
+
     return _load_re.sub(sub, string).split('\x00')
+
+
+class AuthException(Exception):
+    '''General exception for any auth error'''
+    pass
 
 
 class AuthService(Agent):
     def __init__(self, auth_file, aip, *args, **kwargs):
         self.allow_any = kwargs.pop('allow_any', False)
         super(AuthService, self).__init__(*args, **kwargs)
-        self.auth_file = os.path.abspath(auth_file)
+        self.auth_file_path = os.path.abspath(auth_file)
+        self.auth_file = AuthFile(self.auth_file_path)
         self.aip = aip
         self.zap_socket = None
         self._zap_greenlet = None
@@ -114,34 +119,16 @@ class AuthService(Agent):
         if self.allow_any:
             _log.warn('insecure permissive authentication enabled')
         self.read_auth_file()
-        self.core.spawn(watch_file, self.auth_file, self.read_auth_file)
+        self.core.spawn(watch_file, self.auth_file_path, self.read_auth_file)
 
     def read_auth_file(self):
-        _log.info('loading auth file %s', self.auth_file)
-        try:
-            create_file_if_missing(self.auth_file, contents=_SAMPLE_AUTH_FILE)
-            with open(self.auth_file) as fil:
-                # Use gevent FileObject to avoid blocking the thread
-                data = strip_comments(FileObject(fil, close=False).read())
-                auth_data = jsonapi.loads(data)
-        except Exception:
-            _log.exception('error loading %s', self.auth_file)
-            self.auth_entries = []
-        else:
-            try:
-                allowed = auth_data['allow']
-            except KeyError:
-                _log.warn("missing 'allow' key in auth file %s", self.auth_file)
-                allowed = []
-            entries = []
-            for entry in allowed:
-                try:
-                    entries.append(AuthEntry(**entry))
-                except TypeError:
-                    _log.warn('invalid entry %r in auth file %s',
-                              entry, self.auth_file)
-            self.auth_entries = entries
-            _log.info('auth file %s loaded', self.auth_file)
+        _log.info('loading auth file %s', self.auth_file_path)
+        entries = self.auth_file.read_allow_entries()
+        entries = [entry for entry in entries if entry.enabled]
+        # sort the entries so the regex credentails follow the concrete creds
+        entries.sort()
+        self.auth_entries = entries
+        _log.info('auth file %s loaded', self.auth_file_path)
 
     @Core.receiver('onstop')
     def stop_zap(self, sender, **kwargs):
@@ -178,15 +165,17 @@ class AuthService(Agent):
                 response = zap[:4]
                 user = self.authenticate(domain, address, kind, credentials)
                 if user:
-                    _log.info('authentication success: domain=%r, address=%r, '
-                              'mechanism=%r, credentials=%r, user_id=%r',
-                          domain, address, kind, credentials[:1], user)
+                    _log.info(
+                        'authentication success: domain=%r, address=%r, '
+                        'mechanism=%r, credentials=%r, user_id=%r',
+                        domain, address, kind, credentials[:1], user)
                     response.extend([b'200', b'SUCCESS', user, b''])
                     sock.send_multipart(response)
                 else:
-                    _log.info('authentication failure: domain=%r, address=%r, '
-                              'mechanism=%r, credentials=%r',
-                              domain, address, kind, credentials)
+                    _log.info(
+                        'authentication failure: domain=%r, address=%r, '
+                        'mechanism=%r, credentials=%r',
+                        domain, address, kind, credentials)
                     try:
                         expire, delay = blocked[address]
                     except KeyError:
@@ -235,6 +224,14 @@ class AuthService(Agent):
 
     @RPC.export
     def get_authorizations(self, user_id):
+        """RPC method
+
+        Gets capabilities, groups, and roles for a given user.
+
+        :param user_id: user id field from VOLTTRON Interconnect Protocol
+        :type user_id: str
+        :returns: tuple of capabiliy-list, group-list, role-list
+        :rtype: tuple"""
         use_parts = True
         try:
             domain, address, mechanism, credentials = load_user(user_id)
@@ -245,7 +242,7 @@ class AuthService(Agent):
                 return [entry.capabilities, entry.groups, entry.roles]
             elif use_parts:
                 if entry.match(domain, address, mechanism, [credentials]):
-                    return [entry.capabilities, entry.groups, entry.roles]
+                    return entry.capabilities, entry.groups, entry.roles
 
     def _get_authorizations(self, user_id, index):
         '''Convenience method for getting authorization component by index'''
@@ -256,21 +253,45 @@ class AuthService(Agent):
 
     @RPC.export
     def get_capabilities(self, user_id):
+        """RPC method
+
+        Gets capabilities for a given user.
+
+        :param user_id: user id field from VOLTTRON Interconnect Protocol
+        :type user_id: str
+        :returns: list of capabilities
+        :rtype: list"""
         return self._get_authorizations(user_id, 0)
 
     @RPC.export
     def get_groups(self, user_id):
+        """RPC method
+
+        Gets groups for a given user.
+
+        :param user_id: user id field from VOLTTRON Interconnect Protocol
+        :type user_id: str
+        :returns: list of groups
+        :rtype: list"""
         return self._get_authorizations(user_id, 1)
 
     @RPC.export
     def get_roles(self, user_id):
+        """RPC method
+
+        Gets roles for a given user.
+
+        :param user_id: user id field from VOLTTRON Interconnect Protocol
+        :type user_id: str
+        :returns: list of roles
+        :rtype: list"""
         return self._get_authorizations(user_id, 2)
 
 
 class String(unicode):
     def __new__(cls, value):
         obj = super(String, cls).__new__(cls, value)
-        if len(obj) > 1 and obj[0] == obj[-1] == '/':
+        if isregex(obj):
             obj.regex = regex = re.compile('^' + obj[1:-1] + '$')
             obj.match = lambda val: bool(regex.match(val))
         return obj
@@ -287,39 +308,301 @@ class List(list):
         return False
 
 
+class AuthEntryInvalid(AuthException):
+    '''Exception for invalid AuthEntry objects'''
+    pass
+
+
 class AuthEntry(object):
     def __init__(self, domain=None, address=None, credentials=None,
                  user_id=None, groups=None, roles=None,
-                 capabilities=None, **kwargs):
-        def build(value, list_class=List, str_class=String):
-            if not value:
-                return None
-            if isinstance(value, basestring):
-                return String(value)
-            return List(String(elem) for elem in value)
+                 capabilities=None, comments=None, enabled=True, **kwargs):
 
-        self.domain = build(domain)
-        self.address = build(address)
-        self.credentials = build(credentials)
-        self.groups = build(groups, list, str) or []
-        self.roles = build(roles, list, str) or []
-        self.capabilities = build(capabilities, list, str) or []
+        self.domain = AuthEntry._build_field(domain)
+        self.address = AuthEntry._build_field(address)
+        self.credentials = AuthEntry._build_field(credentials)
+        self.groups = AuthEntry._build_field(groups, list, str) or []
+        self.roles = AuthEntry._build_field(roles, list, str) or []
+        self.capabilities = AuthEntry._build_field(capabilities, list,
+                                                   str) or []
+        self.comments = AuthEntry._build_field(comments)
         self.user_id = None if user_id is None else user_id.encode('utf-8')
+        self.enabled = enabled
         if kwargs:
             _log.debug(
                 'auth record has unrecognized keys: %r' % (kwargs.keys(),))
+        self._check_validity()
+
+    def __lt__(self, other):
+        '''Entries with non-regex credentials will be less than'''
+        try:
+            self.credentials.regex
+        except AttributeError:
+            return True
+        return False
+
+    @staticmethod
+    def _build_field(value, list_class=List, str_class=String):
+        if not value:
+            return None
+        if isinstance(value, basestring):
+            return String(value)
+        return List(String(elem) for elem in value)
+
+    def add_capabilities(self, capabilities):
+        caps_set = set(capabilities)
+        caps_set |= set(self.capabilities)
+        self.capabilities = AuthEntry._build_field(list(caps_set), list,
+                                                   str) or []
 
     def match(self, domain, address, mechanism, credentials):
-        creds = ':'.join([mechanism] + credentials)
+        if mechanism == 'NULL':
+            creds = 'NULL'
+        else:
+            creds = ':'.join([mechanism] + credentials)
         return ((self.domain is None or self.domain.match(domain)) and
                 (self.address is None or self.address.match(address)) and
                 (self.credentials and self.credentials.match(creds)))
 
     def __str__(self):
         return (u'domain={0.domain!r}, address={0.address!r}, '
-                'credentials={0.credentials!r}, user_id={0.user_id!r}'.format(
-                    self))
+                'credentials={0.credentials!r}, '
+                'user_id={0.user_id!r}'.format(self))
 
     def __repr__(self):
         cls = self.__class__
         return '%s.%s(%s)' % (cls.__module__, cls.__name__, self)
+
+    @staticmethod
+    def valid_credentials(cred):
+        '''Raises AuthEntryInvalid if credentials are invalid'''
+        if cred is None:
+            raise AuthEntryInvalid('credentials parameter is required')
+        if isregex(cred):
+            return
+        if cred.startswith('CURVE:') and len(cred) != 49:
+            # 49 = len(encoded_key) + len('CURVE:')
+            raise AuthEntryInvalid('Invalid CURVE public key')
+        if not (cred == 'NULL' or
+                cred.startswith('PLAIN:') or
+                cred.startswith('CURVE:')):
+            raise AuthEntryInvalid('credentials must either begin with '
+                                   '"PLAIN:" or "CURVE:" or it must be "NULL"')
+
+    def _check_validity(self):
+        '''Raises AuthEntryInvalid if entry is invalid'''
+        AuthEntry.valid_credentials(self.credentials)
+
+
+class AuthFile(object):
+    def __init__(self, auth_file=None):
+        if auth_file is None:
+            auth_file_dir = os.path.expanduser(os.environ.get('VOLTTRON_HOME',
+                                                              '~/.volttron'))
+            auth_file = os.path.join(auth_file_dir, 'auth.json')
+        self.auth_file = auth_file
+
+    def read(self):
+        """
+        Gets the allowed entries, groups, and roles from the auth file.
+
+        :returns: tuple of allow-entries-list, groups-dict, roles-dict
+        :rtype: tuple"""
+        try:
+            create_file_if_missing(self.auth_file)
+            with open(self.auth_file) as fil:
+                # Use gevent FileObject to avoid blocking the thread
+                before_strip_comments = FileObject(fil, close=False).read()
+                data = strip_comments(before_strip_comments)
+                if data != before_strip_comments:
+                    _log.warn('Comments in %s are deprecated and will not be '
+                              'preserved', self.auth_file)
+                if data:
+                    auth_data = jsonapi.loads(data)
+                else:
+                    auth_data = {}
+        except Exception:
+            _log.exception('error loading %s', self.auth_file)
+            return [], {}, {}
+
+        groups = auth_data.get('groups', {})
+        roles = auth_data.get('roles', {})
+        entries = self._get_entries(auth_data, groups, roles)
+        return entries, groups, roles
+
+    def read_allow_entries(self):
+        """
+        Gets the allowed entries from the auth file.
+
+        :returns: list of allow-entries
+        :rtype: list"""
+        return self.read()[0]
+
+    def find_by_credentials(self, credentials):
+        """
+        Find all entries that have the given credentials
+
+        :param str credentials: The credentials to search for
+        :return: list of entries
+        :rtype: list
+        """
+        return [entry for entry in self.read_allow_entries()
+                if str(entry.credentials) == credentials]
+
+    def _get_entries(self, auth_data, groups, roles):
+        allowed = auth_data.get('allow', [])
+        entries = []
+        for file_entry in allowed:
+            try:
+                entry = AuthEntry(**file_entry)
+            except TypeError:
+                _log.warn('invalid entry %r in auth file %s',
+                          file_entry, self.auth_file)
+            except AuthEntryInvalid as e:
+                _log.warn('invalid entry %r in auth file %s (%s)',
+                          file_entry, self.auth_file, e.message)
+            else:
+                self._use_groups_and_roles(entry, groups, roles)
+                entries.append(entry)
+        return entries
+
+    def _use_groups_and_roles(self, entry, groups, roles):
+        '''Add capabilities to entry based on groups and roles'''
+        entry_roles = entry.roles
+        # Each group is a list of roles
+        for group in entry.groups:
+            entry_roles += groups.get(group, [])
+        capabilities = []
+        # Each role is a list of capabilities
+        for role in entry_roles:
+            capabilities += roles.get(role, [])
+        entry.add_capabilities(list(set(capabilities)))
+
+    def _check_if_exists(self, entry):
+        '''Raises AuthFileEntryAlreadyExists if entry is already in file'''
+        matching_indices = self._find(entry)
+        if matching_indices:
+            raise AuthFileEntryAlreadyExists(matching_indices)
+
+    def _update_by_indices(self, auth_entry, indices):
+        '''Updates all entries at given indices with auth_entry'''
+        for index in indices:
+            self.update_by_index(auth_entry, index)
+
+    def add(self, auth_entry, overwrite=True):
+        """
+        Adds an AuthEntry to the auth file
+
+        :param auth_entry: authentication entry
+        :param overwrite: set to true to overwrite matching entries
+        :type auth_entry: AuthEntry
+        :type overwrite: bool
+
+        .. warning:: If overwrite is set to False and if auth_entry matches an
+                     existing entry then this method will raise
+                     AuthFileEntryAlreadyExists"""
+        try:
+            self._check_if_exists(auth_entry)
+        except AuthFileEntryAlreadyExists as err:
+            if overwrite:
+                self._update_by_indices(auth_entry, err.indices)
+            else:
+                raise err
+        entries, groups, roles = self._read_entries_as_list()
+        entry_dict = vars(auth_entry)
+        entries.append(entry_dict)
+        self._write(entries, groups, roles)
+
+    def remove_by_index(self, index):
+        '''
+        Removes entry from auth file by index
+
+        :param index: index of entry to remove
+        :type index: int
+
+        .. warning:: Calling with out-of-range index will raise
+                     AuthFileIndexError'''
+        self.remove_by_indices([index])
+
+    def remove_by_indices(self, indices):
+        '''
+        Removes entry from auth file by indices
+
+        :param indices: list of indicies of entries to remove
+        :type indices: list
+
+        .. warning:: Calling with out-of-range index will raise
+                     AuthFileIndexError'''
+        indices = list(set(indices))
+        indices.sort(reverse=True)
+        entries, groups, roles = self._read_entries_as_list()
+        for index in indices:
+            try:
+                del entries[index]
+            except IndexError:
+                raise AuthFileIndexError(index)
+        self._write(entries, groups, roles)
+
+    def update_by_index(self, auth_entry, index):
+        '''
+        Updates entry will given auth entry at given index
+
+        :param auth_entry: new authorization entry
+        :param index: index of entry to update
+        :type auth_entry: AuthEntry
+        :type index: int
+
+        .. warning:: Calling with out-of-range index will raise
+                     AuthFileIndexError'''
+        entries, groups, roles = self._read_entries_as_list()
+        try:
+            entries[index] = vars(auth_entry)
+        except IndexError:
+            raise AuthFileIndexError(index)
+        self._write(entries, groups, roles)
+
+    def _read_entries_as_list(self):
+        entries, groups, roles = self.read()
+        return [vars(x) for x in entries], groups, roles
+
+    def _find(self, entry):
+        try:
+            mech, cred = entry.credentials.split(':')
+        except ValueError:
+            mech = 'NULL'
+            cred = ''
+        match_list = []
+        entries = self.read_allow_entries()
+        for index, prev_entry in enumerate(entries):
+            if prev_entry.match(entry.domain, entry.address, mech, [cred]):
+                match_list.append(index)
+        return match_list
+
+    def _write(self, entries, groups, roles):
+        auth = {'groups': groups, 'roles': roles, 'allow': entries}
+        with open(self.auth_file, 'w') as fp:
+            fp.write(jsonapi.dumps(auth, indent=2))
+
+
+class AuthFileIndexError(AuthException, IndexError):
+    '''Exception for invalid indices provided to AuthFile'''
+
+    def __init__(self, indices, message=None):
+        if not isinstance(indices, list):
+            indices = [indices]
+        if message is None:
+            message = 'Invalid {}: {}'.format(
+                'indicies' if len(indices) > 1 else 'index', indices)
+        #super(AuthFileIndexError, self).__init__(indices, message)
+        super(AuthFileIndexError, self).__init__(message)
+        self.indices = indices
+
+
+class AuthFileEntryAlreadyExists(AuthFileIndexError):
+    '''Exception if adding an entry that already exists'''
+
+    def __init__(self, indicies, message=None):
+        if message is None:
+            message = ('entry matches domain, address and credentials at '
+                       'index {}').format(indicies)
+        super(AuthFileEntryAlreadyExists, self).__init__(indicies, message)

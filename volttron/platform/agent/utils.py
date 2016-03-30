@@ -59,7 +59,7 @@
 
 import argparse
 from dateutil.parser import parse
-from datetime import timedelta
+from datetime import datetime, timedelta
 import errno
 import logging
 import os
@@ -280,6 +280,40 @@ def setup_logging(level=logging.DEBUG):
         root.addHandler(handler)
     root.setLevel(level)
     
+def format_timestamp(time_stamp):
+    """Create a consistent datetime string representation based on ISO 8601 format.
+    
+    YYYY-MM-DDTHH:MM:SS.mmmmmm for unaware datetime objects.
+    YYYY-MM-DDTHH:MM:SS.mmmmmm+HH:MM for aware datetime objects
+    
+    :param time_stamp: value to convert
+    :type time_stamp: datetime
+    :returns: datetime in string format
+    :rtype: str
+    """
+    return time_stamp.strftime("%Y-%m-%dT%H:%M:%S.%f%z")
+
+def parse_timestamp_string(time_stamp_str):
+    """Create a datetime object from the supplied date/time string.
+    Uses dateutil.parse with no extra parameters.
+    
+    :param time_stamp: value to convert
+    :type time_stamp: str
+    :returns: datetime object
+    :rtype: datetime
+    """
+    return parse(time_stamp_str)
+
+def get_aware_utc_now():
+    """Create a timezone aware UTC datetime object from the system time.
+    
+    :returns: an aware UTC datetime object
+    :rtype: datetime
+    """
+    utcnow = datetime.utcnow()
+    utcnow = pytz.UTC.localize(utcnow)
+    return utcnow
+    
 def process_timestamp(timestamp_string):
     if timestamp_string is None:
         _log.error("message for {topic} missing timetamp".format(topic=topic))
@@ -291,7 +325,7 @@ def process_timestamp(timestamp_string):
         #The following addresses #174: error with dbapi2
         if not timestamp.microsecond:
             _log.warn("No microsecond in timestamp. Adding 1 to prevent dbapi2 bug.")
-            timestamp = timestamp + timedelta(microseconds = 1)
+            timestamp = timestamp + timedelta(microseconds=1)
     except (ValueError, TypeError) as e:
         _log.error("message for {topic} bad timetamp string: {ts_string}".format(topic=topic,
                                                                                  ts_string=timestamp_string))

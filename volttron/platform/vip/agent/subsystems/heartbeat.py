@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*- {{{
-# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-
 # Copyright (c) 2015, Battelle Memorial Institute
 # All rights reserved.
 #
@@ -53,17 +50,93 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-#}}}
 
-from __future__ import absolute_import
+__docformat__ = 'reStructuredText'
 
-from .channel import Channel
-from .hello import Hello
-from .peerlist import PeerList
-from .ping import Ping
-from .pubsub import PubSub
-from .rpc import RPC
-from .heartbeat import Heartbeat
+"""The heartbeat subsystem adds an optional periodic publish to all agents.
+Heartbeats can be started with agents and toggled on and off at runtime.
+"""
 
+import os
+import weakref
 
-__all__ = ['PeerList', 'Ping', 'RPC', 'Hello', 'PubSub', 'Channel', 'Heartbeat']
+from datetime import datetime
+
+from .base import SubsystemBase
+
+class Heartbeat(SubsystemBase):
+    def __init__(self, owner, core, rpc, pubsub, heartbeat_autostart, heartbeat_period):
+        self.owner = owner
+        self.core = weakref.ref(core)
+        self.pubsub = weakref.ref(pubsub)
+
+        self.autostart = heartbeat_autostart
+        self.period = heartbeat_period
+        self.enabled = False
+
+        def onsetup(sender, **kwargs):
+            rpc.export(self.start, 'heartbeat.start')
+            rpc.export(self.start_with_period, 'heartbeat.start_with_period')
+            rpc.export(self.stop, 'heartbeat.stop')
+            rpc.export(self.set_period, 'heartbeat.set_period')
+
+        def onstart(sender, **kwargs):
+            if self.autostart:
+                self.start()
+
+        core.onsetup.connect(onsetup, self)
+        core.onstart.connect(onstart, self)
+
+    def start(self):
+        """RPC method
+
+        Starts an agent's heartbeat.
+        """
+        if not self.enabled:
+            self.greenlet = self.core().periodic(self.period, self.publish)
+            self.enabled = True
+
+    def start_with_period(self, period):
+        """RPC method
+
+        Set period and start heartbeat.
+
+        :param period: Time in seconds between publishes.
+        """
+        self.set_period(period)
+        self.start()
+
+    def stop(self):
+        """RPC method
+
+        Stop an agent's heartbeat.
+        """
+        if self.enabled:
+            self.greenlet.kill()
+            self.enabled = False
+
+    def set_period(self, period):
+        """RPC method
+
+        Set heartbeat period.
+
+        :param period: Time in seconds between publishes.
+        """
+        if self.enabled:
+            self.stop()
+            self.period = period
+            self.start()
+        else:
+            self.period = period
+
+    def publish(self):
+        topic = 'heartbeat/' + self.owner.__class__.__name__
+        try:
+            if os.environ['AGENT_UUID']:
+                topic += '/' + os.environ['AGENT_UUID']
+        except KeyError:
+            pass
+
+        message = str(datetime.now().isoformat(' '))
+
+        self.pubsub().publish('pubsub', topic, {}, message)
