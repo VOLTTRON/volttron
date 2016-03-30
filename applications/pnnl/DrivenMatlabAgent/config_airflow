@@ -13,8 +13,8 @@
     "output_file": "./matlab_output.csv",
     "mode": "PASSIVE",
     "arguments": {
-    	"zone_temperature": "temperature",
-    	"zone_setpoint": "tempsetpoint",
+    	"temperature": "temperature",
+    	"temperature_setpoint": "tempsetpoint",
     	"cur_time": "2016/02/28 07:59:00",
     	"points": {"zone1_temperature": 71, "zone2_temperature": 72, "zone3_temperature":73},
     	
@@ -23,12 +23,11 @@
     	"recv_timeout": 10000
     },
     "conversion_map": {
-        ".*Temp.*": "float",
-        ".*SP.*": "float"
+        "temp.*": "float"
     },
     "unittype_map": {
-        ".*Temp.*": "Farenheit",
-        ".*SP.*": "Farenheit"
+        "temp.*": "Farenheit"
     }
 
 }
+l
