@@ -10,14 +10,12 @@ Welcome to VOLTTRON's documentation!
 Contents:
 
 .. toctree::
-    :maxdepth: 2
+   :maxdepth: 2
 
-    install
-    license
+   install
+   license
 
-    agents/index
-
-    platform-api
+   platform-api
 
 =======
 Support

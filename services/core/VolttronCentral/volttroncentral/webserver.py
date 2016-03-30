@@ -23,7 +23,7 @@ utils.setup_logging()
 _log = logging.getLogger(__name__)
 
 # By default our log reader is none.  Only when start_log_reader is called with a
-# valid file path will this variable be set
+# valid file path will this variable be set 
 logreader = None
 
 def get_standard_error_message(code):
@@ -46,6 +46,89 @@ def get_standard_error_message(code):
     return error
 
 
+class SessionHandler:
+    '''A handler for dealing with authentication of sessions
+
+    The SessionHandler requires an authenticator to be handed in to this
+    object in order to authenticate user.  The authenticator must implement
+    an interface that expects a method called authenticate with parameters
+    username and password.  The return value must be either a list of groups
+    the user belongs two or None.
+
+    If successful then the a session token is generated and added to a cache
+    of validated users to be able to be checked against.  The user's ip address
+    is stored with the token for further checking of authentication.
+    '''
+    def __init__(self, authenticator):
+        self._sessions = {}
+        self._session_tokens = {}
+        self._authenticator = authenticator
+        self.__persistence_path = None
+
+    def authenticate(self, username, password, ip):
+        '''Authenticates a user with the authenticator.
+
+        This is the main login function for the system. 
+        '''
+        groups = self._authenticator.authenticate(username, password)
+        if groups:
+            token = str(uuid.uuid4())
+            self._add_session(username, token, ip, ",".join(groups))
+            self.__store_auths()
+            return token
+        return None
+
+    def _add_session(self, user, token, ip, groups):
+        '''Add a user session to the session cache'''
+        self._sessions[user] = {'user': user, 'token': token, 'ip': ip,
+                                'groups': groups}
+        self._session_tokens[token] = self._sessions[user]
+
+    def check_session(self, token, ip):
+        '''Check if a user token has been authenticated.'''
+        if not self._session_tokens:
+            self.__load_auths(
+                              )
+        session = self._session_tokens.get(str(token))
+        if session:
+            return session['ip'] == ip
+
+        return False
+
+    def __store_auths(self):
+        if not self.__persistence_path:
+            self.__get_auth_storage()
+
+        with open(self.__persistence_path, 'wb') as file:
+            file.write(jsonapi.dumps(self._sessions))
+
+
+    def __load_auths(self):
+        if not self.__persistence_path:
+            self.__get_auth_storage()
+        try:
+            with open(self.__persistence_path) as file:
+                self._sessions = jsonapi.loads(file.read())
+
+            self._session_tokens.clear()
+            for k, v in self._sessions.items():
+                self._session_tokens[v['token']] = v
+        except IOError:
+            pass
+
+    def __get_auth_storage(self):
+        if not os.environ.get('VOLTTRON_HOME', None):
+                raise ValueError('VOLTTRON_HOME environment must be set!')
+
+        db_path = os.path.join(os.environ.get('VOLTTRON_HOME'),
+                               'data/volttron.central.sessions')
+        db_dir  = os.path.dirname(db_path)
+        try:
+            os.makedirs(db_dir)
+        except OSError as exc:
+            if exc.errno != errno.EEXIST or not os.path.isdir(db_dir):
+                raise
+        self.__persistence_path = db_path
 
 
 class ManagerWebApplication(tornado.web.Application):
@@ -177,12 +260,12 @@ class LogReader(object):
 
     def close(self):
         self.read_thread.join(5)
-
+        
     def read_messages(self):
         logfile = open(self.filename, 'rb')
         # last byte in the file.
         logfile.seek(0, 2)
-
+        
         self.log_queue.put("Reading logfile: {}\n".format(self.filename))
         while True:
             line = logfile.readline()
@@ -191,19 +274,19 @@ class LogReader(object):
                 continue
             #print("Queueing line {}".format(line))
             self.log_queue.put(line)
-
+            
 class LogHandler(tornado.websocket.WebSocketHandler):
 
     def open(self):
         self.write_thread = None
         _log.debug("Connection open")
-
+    
     def on_message(self, message):
-
+        
         passed = jsonapi.loads(message)
         method = passed['method']
         params = passed['params']
-
+        
         if method == 'start_reading':
             if params['log_path']:
                 if self.write_thread == None:
@@ -220,34 +303,34 @@ class LogHandler(tornado.websocket.WebSocketHandler):
         else:
             self.write_message(message)
         #self.log_path = os.path.expanduser(params['log_path'])
-        #self.logreader = LogReader(self.log_path)
-
+        #self.logreader = LogReader(self.log_path)         
+        
         _log.debug("Message was: {}".format(message))
 
     def writing_messages(self, log_path):
-
+        
         log_path = os.path.expanduser(log_path)
-
+        
         if os.path.exists(log_path):
             try:
-                reader = LogReader(log_path)
+                reader = LogReader(log_path)            
             except OSError as exc:
                 if exc.errno != errno.EEXIST or not os.path.isdir(db_dir):
                     raise
-
+            
             if reader:
-
-                while True:
+                
+                while True:                    
                     if not reader.log_queue.empty():
                         self.write_message(reader.log_queue.get_nowait())
-
+                        
                     time.sleep(0.5)
-
+                    
                 reader.close()
         else:
             self.write_message("Invalid log file specified {}".format(log_path))
             self.close()
-
+        
     def on_close(self):
         self.write_thread.join(5)
 

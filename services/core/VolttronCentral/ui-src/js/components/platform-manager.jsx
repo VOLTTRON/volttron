@@ -13,19 +13,10 @@ var modalActionCreators = require('../action-creators/modal-action-creators');
 var modalStore = require('../stores/modal-store');
 var Navigation = require('./navigation');
 var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
-var PlatformsPanel = require('./platforms-panel');
-var platformsPanelStore = require('../stores/platforms-panel-store');
-var StatusIndicator = require('./status-indicator');
-var statusIndicatorStore = require('../stores/status-indicator-store');
 
 var PlatformManager = React.createClass({
     mixins: [Router.Navigation, Router.State],
-    getInitialState: function () {
-        var state = getStateFromStores(); 
-        // state.expanded = false;
-
-        return state;
-    },
+    getInitialState: getStateFromStores,
     componentWillMount: function () {
         platformManagerActionCreators.initialize();
     },
@@ -33,8 +24,6 @@ var PlatformManager = React.createClass({
         authorizationStore.addChangeListener(this._onStoreChange);
         consoleStore.addChangeListener(this._onStoreChange);
         modalStore.addChangeListener(this._onStoreChange);
-        platformsPanelStore.addChangeListener(this._onStoreChange);
-        statusIndicatorStore.addChangeListener(this._onStoreChange);
         this._doModalBindings();
     },
     componentDidUpdate: function () {
@@ -56,7 +45,6 @@ var PlatformManager = React.createClass({
         authorizationStore.removeChangeListener(this._onStoreChange);
         consoleStore.removeChangeListener(this._onStoreChange);
         modalStore.removeChangeListener(this._onStoreChange);
-        statusIndicatorStore.removeChangeListener(this._onStoreChange);
         this._modalCleanup();
     },
     _onStoreChange: function () {
@@ -73,24 +61,6 @@ var PlatformManager = React.createClass({
     render: function () {
         var classes = ['platform-manager'];
         var modal;
-        var exteriorClasses = ["panel-exterior"];
-
-        if (this.state.expanded === true)
-        {
-            exteriorClasses.push("narrow-exterior");
-            exteriorClasses.push("slow-narrow");
-        }
-        else if (this.state.expanded === false)
-        {
-            exteriorClasses.push("wide-exterior");
-            exteriorClasses.push("slow-wide");
-        }
-        else if (this.state.expanded === null)
-        {
-            exteriorClasses.push("wide-exterior");
-        }
-
-        var statusIndicator;
 
         if (this.state.consoleShown) {
             classes.push('platform-manager--console-open');
@@ -106,22 +76,12 @@ var PlatformManager = React.createClass({
             );
         }
 
-        if (this.state.status) {
-            statusIndicator = (
-                <StatusIndicator></StatusIndicator>
-            );
-        }
-
         return (
             <div className={classes.join(' ')}>
-                {statusIndicator}
                 {modal}
                 <div ref="main" className="main">
-                    <Navigation />                
-                    <PlatformsPanel/>
-                    <div className={exteriorClasses.join(' ')}>
-                        <Router.RouteHandler />
-                    </div>
+                    <Navigation />
+                    <Router.RouteHandler />
                 </div>
                 <input
                     className="toggle"
@@ -140,9 +100,6 @@ function getStateFromStores() {
         consoleShown: consoleStore.getConsoleShown(),
         loggedIn: !!authorizationStore.getAuthorization(),
         modalContent: modalStore.getModalContent(),
-        expanded: platformsPanelStore.getExpanded(),
-        status: statusIndicatorStore.getStatus(),
-        statusMessage: statusIndicatorStore.getStatusMessage(),
     };
 }
 

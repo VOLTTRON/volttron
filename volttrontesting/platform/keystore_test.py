@@ -1,5 +1,3 @@
-import tempfile
-
 import pytest
 
 from volttron.platform import keystore
@@ -16,15 +14,8 @@ def keystore_instance1(tmpdir_factory):
     return keys
 
 @pytest.mark.keystore
-def test_keystore_generated_when_created(tmpdir_factory):
-    kspath = str(tmpdir_factory.mktemp('keys').join('keys.json'))
-    ks = keystore.KeyStore(kspath)
-    assert ks.secret()
-    assert ks.public()
-
-@pytest.mark.keystore
 def test_generated_keys_length(keystore_instance1):
-    '''The keys should be the len:gth of an encoded curve-key (43)'''
+    '''The keys should be the length of an encoded curve-key (43)'''
     assert len(keystore_instance1.public()) == 43
     assert len(keystore_instance1.secret()) == 43
 
