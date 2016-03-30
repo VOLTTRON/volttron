@@ -56,10 +56,15 @@ from csv import DictReader
 from StringIO import StringIO
 import logging
 
+from datetime import datetime, timedelta
+
 from master_driver.driver_exceptions import DriverConfigError
+from volttron.platform.vip.agent import errors
 
 #Logging is completely configured by now.
 _log = logging.getLogger(__name__)
+
+
 
 class Register(BaseRegister):
     def __init__(self, instance_number, object_type, property_name, read_only, pointName, units, 
@@ -72,6 +77,7 @@ class Register(BaseRegister):
         self.property = property_name
         self.priority = priority
         self.index = list_index
+        
 
         
 class Interface(BaseInterface):
@@ -83,14 +89,40 @@ class Interface(BaseInterface):
         self.parse_config(registry_config_str)         
         self.target_address = config_dict["device_address"]
         self.proxy_address = config_dict.get("proxy_address", "platform.bacnet_proxy")
-        self.max_per_request = config_dict.get("max_per_request")        
-        self.ping_target(self.target_address)
+        self.max_per_request = config_dict.get("max_per_request") 
+        
+        self.ping_retry_interval = timedelta(seconds=config_dict.get("ping_retry_interval", 5.0))   
+        self.scheduled_ping = None
+        
+        self.ping_target()
+        
+    def schedule_ping(self):
+        if self.scheduled_ping is None:
+            now = datetime.now()
+            next_try = now + self.ping_retry_interval
+            self.scheduled_ping = self.core.schedule(next_try, self.ping_target)
                                          
-    def ping_target(self, address):    
+    def ping_target(self): 
         #Some devices (mostly RemoteStation addresses behind routers) will not be reachable without 
         # first establishing the route to the device. Sending a directed WhoIsRequest is will
         # settle that for us when the response comes back. 
-        return self.vip.rpc.call(self.proxy_address, 'ping_device', self.target_address).get(timeout=10.0)
+        
+        pinged = False
+        try:
+            self.vip.rpc.call(self.proxy_address, 'ping_device', self.target_address).get(timeout=10.0)
+            pinged = True
+        except errors.Unreachable:
+            _log.warning("Unable to reach BACnet proxy.")
+            
+        except errors.VIPError:
+            _log.warning("Error trying to ping device.")
+            
+        self.scheduled_ping = None
+        
+        #Schedule retry.
+        if not pinged:
+            self.schedule_ping()            
+        
         
     def get_point(self, point_name, get_priority_array=False): 
         register = self.get_register_by_name(point_name)   
@@ -130,9 +162,15 @@ class Interface(BaseInterface):
                                               register.instance_number, 
                                               register.property]
         
-        result = self.vip.rpc.call(self.proxy_address, 'read_properties', 
-                                       self.target_address, point_map,
-                                       self.max_per_request).get(timeout=10.0)
+        try:
+            result = self.vip.rpc.call(self.proxy_address, 'read_properties', 
+                                           self.target_address, point_map,
+                                           self.max_per_request).get(timeout=10.0)
+        except errors.Unreachable:
+            _log.warning("Unable to reach BACnet proxy.")
+            self.schedule_ping()
+            raise
+            
         return result
     
     def revert_all(self, priority=None):

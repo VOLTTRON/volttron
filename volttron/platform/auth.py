@@ -54,7 +54,7 @@
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 
-#}}}
+# }}}
 
 
 from __future__ import absolute_import, print_function
@@ -75,21 +75,24 @@ from .agent.utils import strip_comments, create_file_if_missing, watch_file
 from .vip.agent import Agent, Core, RPC
 from .vip.socket import encode_key
 
-
 _log = logging.getLogger(__name__)
 
 _dump_re = re.compile(r'([,\\])')
 _load_re = re.compile(r'\\(.)|,')
 
+
 def isregex(obj):
     return len(obj) > 1 and obj[0] == obj[-1] == '/'
+
 
 def dump_user(*args):
     return ','.join([_dump_re.sub(r'\\\1', arg) for arg in args])
 
+
 def load_user(string):
     def sub(match):
         return match.group(1) or '\x00'
+
     return _load_re.sub(sub, string).split('\x00')
 
 
@@ -162,15 +165,17 @@ class AuthService(Agent):
                 response = zap[:4]
                 user = self.authenticate(domain, address, kind, credentials)
                 if user:
-                    _log.info('authentication success: domain=%r, address=%r, '
-                              'mechanism=%r, credentials=%r, user_id=%r',
-                          domain, address, kind, credentials[:1], user)
+                    _log.info(
+                        'authentication success: domain=%r, address=%r, '
+                        'mechanism=%r, credentials=%r, user_id=%r',
+                        domain, address, kind, credentials[:1], user)
                     response.extend([b'200', b'SUCCESS', user, b''])
                     sock.send_multipart(response)
                 else:
-                    _log.info('authentication failure: domain=%r, address=%r, '
-                              'mechanism=%r, credentials=%r',
-                              domain, address, kind, credentials)
+                    _log.info(
+                        'authentication failure: domain=%r, address=%r, '
+                        'mechanism=%r, credentials=%r',
+                        domain, address, kind, credentials)
                     try:
                         expire, delay = blocked[address]
                     except KeyError:
@@ -318,7 +323,8 @@ class AuthEntry(object):
         self.credentials = AuthEntry._build_field(credentials)
         self.groups = AuthEntry._build_field(groups, list, str) or []
         self.roles = AuthEntry._build_field(roles, list, str) or []
-        self.capabilities = AuthEntry._build_field(capabilities, list, str) or []
+        self.capabilities = AuthEntry._build_field(capabilities, list,
+                                                   str) or []
         self.comments = AuthEntry._build_field(comments)
         self.user_id = None if user_id is None else user_id.encode('utf-8')
         self.enabled = enabled
@@ -346,18 +352,22 @@ class AuthEntry(object):
     def add_capabilities(self, capabilities):
         caps_set = set(capabilities)
         caps_set |= set(self.capabilities)
-        self.capabilities = AuthEntry._build_field(list(caps_set), list, str) or []
+        self.capabilities = AuthEntry._build_field(list(caps_set), list,
+                                                   str) or []
 
     def match(self, domain, address, mechanism, credentials):
-        creds = ':'.join([mechanism] + credentials)
+        if mechanism == 'NULL':
+            creds = 'NULL'
+        else:
+            creds = ':'.join([mechanism] + credentials)
         return ((self.domain is None or self.domain.match(domain)) and
                 (self.address is None or self.address.match(address)) and
                 (self.credentials and self.credentials.match(creds)))
 
     def __str__(self):
         return (u'domain={0.domain!r}, address={0.address!r}, '
-                'credentials={0.credentials!r}, user_id={0.user_id!r}'.format(
-                    self))
+                'credentials={0.credentials!r}, '
+                'user_id={0.user_id!r}'.format(self))
 
     def __repr__(self):
         cls = self.__class__
@@ -376,8 +386,8 @@ class AuthEntry(object):
         if not (cred == 'NULL' or
                 cred.startswith('PLAIN:') or
                 cred.startswith('CURVE:')):
-           raise AuthEntryInvalid('credentials must either begin with '
-                   '"PLAIN:" or "CURVE:" or it must be "NULL"')
+            raise AuthEntryInvalid('credentials must either begin with '
+                                   '"PLAIN:" or "CURVE:" or it must be "NULL"')
 
     def _check_validity(self):
         '''Raises AuthEntryInvalid if entry is invalid'''
@@ -387,7 +397,8 @@ class AuthEntry(object):
 class AuthFile(object):
     def __init__(self, auth_file=None):
         if auth_file is None:
-            auth_file_dir = os.environ.get('VOLTTRON_HOME', '~/.volttron')
+            auth_file_dir = os.path.expanduser(os.environ.get('VOLTTRON_HOME',
+                                                              '~/.volttron'))
             auth_file = os.path.join(auth_file_dir, 'auth.json')
         self.auth_file = auth_file
 
@@ -405,7 +416,7 @@ class AuthFile(object):
                 data = strip_comments(before_strip_comments)
                 if data != before_strip_comments:
                     _log.warn('Comments in %s are deprecated and will not be '
-                        'preserved', self.auth_file)
+                              'preserved', self.auth_file)
                 if data:
                     auth_data = jsonapi.loads(data)
                 else:
@@ -427,6 +438,17 @@ class AuthFile(object):
         :rtype: list"""
         return self.read()[0]
 
+    def find_by_credentials(self, credentials):
+        """
+        Find all entries that have the given credentials
+
+        :param str credentials: The credentials to search for
+        :return: list of entries
+        :rtype: list
+        """
+        return [entry for entry in self.read_allow_entries()
+                if str(entry.credentials) == credentials]
+
     def _get_entries(self, auth_data, groups, roles):
         allowed = auth_data.get('allow', [])
         entries = []
@@ -438,7 +460,7 @@ class AuthFile(object):
                           file_entry, self.auth_file)
             except AuthEntryInvalid as e:
                 _log.warn('invalid entry %r in auth file %s (%s)',
-                        file_entry, self.auth_file, e.message)
+                          file_entry, self.auth_file, e.message)
             else:
                 self._use_groups_and_roles(entry, groups, roles)
                 entries.append(entry)
@@ -462,7 +484,7 @@ class AuthFile(object):
         if matching_indices:
             raise AuthFileEntryAlreadyExists(matching_indices)
 
-    def _update_by_indices(auth_entry, indices):
+    def _update_by_indices(self, auth_entry, indices):
         '''Updates all entries at given indices with auth_entry'''
         for index in indices:
             self.update_by_index(auth_entry, index)
@@ -564,21 +586,23 @@ class AuthFile(object):
 
 class AuthFileIndexError(AuthException, IndexError):
     '''Exception for invalid indices provided to AuthFile'''
+
     def __init__(self, indices, message=None):
+        if not isinstance(indices, list):
+            indices = [indices]
         if message is None:
             message = 'Invalid {}: {}'.format(
                 'indicies' if len(indices) > 1 else 'index', indices)
-        super(AuthFileInvalidIndex).__init__(message)
+        #super(AuthFileIndexError, self).__init__(indices, message)
+        super(AuthFileIndexError, self).__init__(message)
         self.indices = indices
 
 
 class AuthFileEntryAlreadyExists(AuthFileIndexError):
     '''Exception if adding an entry that already exists'''
+
     def __init__(self, indicies, message=None):
         if message is None:
-            message = ('entry matches domain, address and '
-                'credentials of {} at {}').format(
-                    'entry' if len(same_list) == 1 else 'entries',
-                    indicies)
-
-        super(AuthFileEntryAlreadyExists).__init__(indicies, message)
+            message = ('entry matches domain, address and credentials at '
+                       'index {}').format(indicies)
+        super(AuthFileEntryAlreadyExists, self).__init__(indicies, message)

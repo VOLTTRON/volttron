@@ -325,7 +325,7 @@ def process_timestamp(timestamp_string):
         #The following addresses #174: error with dbapi2
         if not timestamp.microsecond:
             _log.warn("No microsecond in timestamp. Adding 1 to prevent dbapi2 bug.")
-            timestamp = timestamp + timedelta(microseconds = 1)
+            timestamp = timestamp + timedelta(microseconds=1)
     except (ValueError, TypeError) as e:
         _log.error("message for {topic} bad timetamp string: {ts_string}".format(topic=topic,
                                                                                  ts_string=timestamp_string))
