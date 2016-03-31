@@ -7,26 +7,27 @@
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 #
-# 1. Redistributions of source code must retain the above copyright notice, this
-#    list of conditions and the following disclaimer.
+# 1. Redistributions of source code must retain the above copyright notice,
+#    this list of conditions and the following disclaimer.
 # 2. Redistributions in binary form must reproduce the above copyright notice,
 #    this list of conditions and the following disclaimer in the documentation
 #    and/or other materials provided with the distribution.
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-# ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+# THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+# CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
+# OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+# EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# The views and conclusions contained in the software and documentation are those
-# of the authors and should not be interpreted as representing official policies,
-# either expressed or implied, of the FreeBSD Project.
+# The views and conclusions contained in the software and documentation are
+# those of the authors and should not be interpreted as representing official
+# policies, either expressed or implied, of the FreeBSD Project.
 #
 
 # This material was prepared as an account of work sponsored by an
@@ -51,28 +52,22 @@
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 
-#}}}
+# }}}
 from __future__ import absolute_import, print_function
 
-import datetime
-import errno
 import logging
-from pprint import pprint
-import sqlite3
 import sys
-import uuid
 
 import gevent
-from zmq.utils import jsonapi
-
-from volttron.platform.vip.agent import Agent, Core, RPC, compat
-from volttron.platform.agent.base_historian import BaseHistorian
 from volttron.platform.agent import utils
-from volttron.platform.messaging import topics, headers as headers_mod
+from volttron.platform.agent.base_historian import BaseHistorian
+from volttron.platform.messaging import topics
+from volttron.platform.vip.agent import Agent, Core, compat
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 __version__ = '3.0'
+
 
 def historian(config_path, **kwargs):
     config = utils.load_config(config_path)
@@ -86,20 +81,21 @@ def historian(config_path, **kwargs):
                                topics.ACTUATOR, topics.ANALYSIS_TOPIC_BASE]
 
     class ForwardHistorian(BaseHistorian):
-        '''This historian forwards data to another platform.
-        '''
+        """This historian forwards data to another platform.
+        """
+
         def __init__(self, **kwargs):
             # will be available in both threads.
             self._topic_replace_map = {}
             super(ForwardHistorian, self).__init__(**kwargs)
-            
 
         @Core.receiver("onstart")
         def starting_base(self, sender, **kwargs):
-            '''
+            """
             Subscribes to the platform message bus on the actuator, record,
             datalogger, and device topics to capture data.
-            '''
+            """
+
             def subscriber(subscription, callback_method):
                 _log.debug("subscribing to {}".format(subscription))
                 self.vip.pubsub.subscribe(peer='pubsub',
@@ -118,35 +114,38 @@ def historian(config_path, **kwargs):
         def capture_data(self, peer, sender, bus, topic, headers, message):
             data = message
             try:
-                # 2.0 agents compatability layer makes sender == pubsub.compat so
-                # we can do the proper thing when it is here
+                # 2.0 agents compatability layer makes sender = pubsub.compat
+                # so we can do the proper thing when it is here
                 _log.debug("message in capture_data {}".format(message))
                 if sender == 'pubsub.compat':
-                    #data = jsonapi.loads(message[0])
+                    # data = jsonapi.loads(message[0])
                     data = compat.unpack_legacy_message(headers, message)
                     _log.debug("data in capture_data {}".format(data))
                 if isinstance(data, dict):
                     data = data
                 elif isinstance(data, int) or isinstance(data, float) \
-                    or isinstance(data, long):
+                        or isinstance(data, long):
                     data = data
-                # else:
-                #     data = data[0]
+                    # else:
+                    #     data = data[0]
             except ValueError as e:
-                log_message = "message for {topic} bad message string: {message_string}"
-                _log.error(log_message.format(topic=topic, message_string=message[0]))
+                log_message = "message for {topic} bad message string:" \
+                              "{message_string}"
+                _log.error(log_message.format(topic=topic,
+                                              message_string=message[0]))
                 raise
-            
+
             if topic_text_replace_list:
                 if topic in self._topic_replace_map.keys():
                     topic = self._topic_replace_map[topic]
                 else:
                     self._topic_replace_map[topic] = topic
                     temptopics = {}
-                    for x in  topic_text_replace_list:
+                    for x in topic_text_replace_list:
                         if x['from'] in topic:
                             new_topic = temptopics.get(topic, topic)
-                            temptopics[topic] = new_topic.replace(x['from'], x['to'])
+                            temptopics[topic] = new_topic.replace(
+                                x['from'], x['to'])
 
                     for k, v in temptopics.items():
                         self._topic_replace_map[k] = v
@@ -178,7 +177,7 @@ def historian(config_path, **kwargs):
             for x in to_publish_list:
                 topic = x['topic']
                 value = x['value']
-                #payload = jsonapi.loads(value)
+                # payload = jsonapi.loads(value)
                 payload = value
                 headers = payload['headers']
                 headers['Origin'] = self.core.address
@@ -186,11 +185,14 @@ def historian(config_path, **kwargs):
 
                 with gevent.Timeout(30):
                     try:
-                        _log.debug('debugger: {} {} {}'.format(topic, headers, payload))
-                        self._target_platform.vip.pubsub.publish(peer='pubsub',
-                                                                 topic=topic,
-                                                                 headers=headers,
-                                                                 message=payload['message']).get()
+                        _log.debug('debugger: {} {} {}'.format(topic,
+                                                               headers,
+                                                               payload))
+                        self._target_platform.vip.pubsub.publish(
+                            peer='pubsub',
+                            topic=topic,
+                            headers=headers,
+                            message=payload['message']).get()
                     except gevent.Timeout:
                         pass
                     except Exception as e:
@@ -198,11 +200,17 @@ def historian(config_path, **kwargs):
                     else:
                         handled_records.append(x)
 
-            _log.debug("handled: {} number of items".format(len(to_publish_list)))
+            _log.debug("handled: {} number of items".format(
+                len(to_publish_list)))
             self.report_handled(handled_records)
 
         def query_historian(self, topic, start=None, end=None, skip=0,
                             count=None, order="FIRST_TO_LAST"):
+            """Not implemented
+            """
+            return None
+
+        def query_topic_list(self):
             """Not implemented
             """
             return None
@@ -221,7 +229,7 @@ def historian(config_path, **kwargs):
 
 
 def main(argv=sys.argv):
-    '''Main method called by the aip.'''
+    """Main method called by the aip."""
     try:
         utils.vip_main(historian)
     except Exception as e:
