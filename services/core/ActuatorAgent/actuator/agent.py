@@ -1,4 +1,4 @@
-	# -*- coding: utf-8 -*- {{{
+# -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
 # Copyright (c) 2015, Battelle Memorial Institute
@@ -67,7 +67,7 @@ import datetime
 import sys
 import logging
 
-from volttron.platform.vip.agent import Agent, Core, RPC, compat
+from volttron.platform.vip.agent import Agent, Core, RPC, Unreachable, compat
 from volttron.platform.messaging import topics
 from volttron.platform.agent import utils
 from volttron.platform.messaging.utils import normtopic
@@ -115,6 +115,7 @@ def actuator_agent(config_path, **kwargs):
     vip_identity = config.get('vip_identity', 'platform.actuator')
     # This agent needs to be named platform.actuator. Pop the uuid id off the kwargs
     kwargs.pop('identity', None)
+
     return ActuatorAgent(heartbeat_interval, schedule_publish_interval, 
                          schedule_state_file, preempt_grace_time,
                          driver_vip_identity, identity=vip_identity, **kwargs)
@@ -128,7 +129,6 @@ class ActuatorAgent(Agent):
 
         self._update_event = None
         self._device_states = {}
-        
         self.heartbeat_interval = heartbeat_interval
         self.schedule_publish_interval = schedule_publish_interval
         self.schedule_state_file = schedule_state_file
@@ -137,7 +137,12 @@ class ActuatorAgent(Agent):
                 
     def heart_beat(self):
         _log.debug("sending heartbeat")
-        self.vip.rpc.call(self.driver_vip_identity, 'heart_beat')
+        try:
+            self.vip.rpc.call(driver_vip_identity, 'heart_beat').get()
+        except Unreachable:
+            _log.warning("Master driver is not running")
+        except Exception as e:
+            _log.warning(''.join([e.__class__.__name__,'(',e.message,')']))
 
     @Core.receiver('onstart')
     def on_start(self, sender, **kwargs):
