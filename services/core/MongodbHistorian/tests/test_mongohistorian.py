@@ -516,7 +516,7 @@ def test_basic_function(volttron_instance1, database_client):
 
 
 @pytest.mark.historian
-@pytest.mark.dev
+@pytest.mark.mongodb
 @pytest.mark.skipif(not HAS_PYMONGO, reason='No pymongo driver')
 def test_topic_name_case_change(volttron_instance1, database_client):
     """
@@ -577,7 +577,7 @@ def test_topic_name_case_change(volttron_instance1, database_client):
 
 
 @pytest.mark.historian
-@pytest.mark.dev
+@pytest.mark.mongodb
 @pytest.mark.skipif(not HAS_PYMONGO, reason='No pymongo driver')
 def test_empty_result(volttron_instance1, database_client):
     """
