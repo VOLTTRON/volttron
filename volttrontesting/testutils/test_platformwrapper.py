@@ -7,6 +7,7 @@ from zmq import curve_keypair
 from volttron.platform.vip.agent import Agent, PubSub, Core
 from volttron.platform.vip.socket import encode_key
 from volttrontesting.utils.platformwrapper import PlatformWrapper
+from volttrontesting.utils.utils import poll_gevent_sleep
 
 @pytest.mark.wrapper
 def test_can_connect_to_instance(volttron_instance1):
@@ -49,9 +50,39 @@ def test_can_install_listener(volttron_instance1):
     removed = vi.remove_agent(auuid)
     print('REMOVED: ', removed)
 
-@pytest.mark.wrapper
-def test_can_stop_vip_heartbeat(volttron_instance1):
+
+def found_heartbeat():
     clear_messages()
+    def condition():
+        return messages_contains_prefix('heartbeat/Agent')
+
+    return poll_gevent_sleep(10, condition=condition)
+
+@pytest.mark.wrapper
+def test_heartbeat_can_start_stop(volttron_instance1):
+    vi = volttron_instance1
+    assert vi is not None
+    assert vi.is_running()
+
+    agent = vi.build_agent(heartbeat_period=5)
+    agent.vip.pubsub.subscribe(peer='pubsub', prefix='heartbeat/Agent', callback=onmessage)
+
+    # Make sure heartbeat isn't running
+    assert not found_heartbeat()
+
+    # Make sure heartbeat is recieved
+    agent.vip.heartbeat.start()
+    assert found_heartbeat()
+
+    # Make sure heartbeat is stopped
+    agent.vip.heartbeat.stop()
+    assert not found_heartbeat()
+
+    agent.core.stop()
+
+
+@pytest.mark.wrapper
+def test_heartbeat_can_autostart(volttron_instance1):
     vi = volttron_instance1
     assert vi is not None
     assert vi.is_running()
@@ -59,23 +90,27 @@ def test_can_stop_vip_heartbeat(volttron_instance1):
     agent = vi.build_agent(heartbeat_autostart=True, heartbeat_period=5)
     agent.vip.pubsub.subscribe(peer='pubsub', prefix='heartbeat/Agent', callback=onmessage)
 
-    # Make sure heartbeat is recieved
-    time_start = time.time()
-    print('Awaiting heartbeat response.')
-    while not messages_contains_prefix('heartbeat/Agent') and time.time() < time_start + 10:
-        gevent.sleep(0.2)
+    assert found_heartbeat()
 
-    assert messages_contains_prefix('heartbeat/Agent')
+    agent.core.stop()
 
-    # Make sure heartbeat is stopped
 
-    agent.vip.heartbeat.stop()
-    clear_messages()
-    time_start = time.time()
-    while not messages_contains_prefix('heartbeat/Agent') and time.time() < time_start + 10:
-        gevent.sleep(0.2)
+@pytest.mark.wrapper
+def test_heartbeat_can_start_with_period(volttron_instance1):
+    vi = volttron_instance1
+    assert vi is not None
+    assert vi.is_running()
 
-    assert not messages_contains_prefix('heartbeat/Agent')
+    agent = vi.build_agent()
+    agent.vip.pubsub.subscribe(peer='pubsub', prefix='heartbeat/Agent', callback=onmessage)
+
+    assert not found_heartbeat()
+
+    agent.vip.heartbeat.start_with_period(5)
+    assert found_heartbeat()
+
+    agent.core.stop()
+    
 
 @pytest.mark.wrapper
 def test_can_ping_pubsub(volttron_instance1):
