@@ -176,6 +176,7 @@ def historian(config_path, **kwargs):
                 value = x['value']
                 payload = jsonapi.loads(value)
                 headers = payload['headers']
+                _log.debug("ORIGINAL HEADERS: {}".format(headers))
                 headers['X-Forwarded'] = True
                 try:
                     del headers['Origin']
@@ -185,6 +186,7 @@ def historian(config_path, **kwargs):
                     del headers['Destination']
                 except KeyError:
                     pass
+                _log.debug("AFTER REMOVAL HEADERS: {}".format(headers))
                 # if not headers.get('Origin', None)
                 #     if overwrite_origin:
                 #         if not include_origin_in_header:
