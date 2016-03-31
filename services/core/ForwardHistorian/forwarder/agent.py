@@ -177,6 +177,10 @@ def historian(config_path, **kwargs):
                 payload = jsonapi.loads(value)
                 headers = payload['headers']
                 headers['X-Forwarded'] = True
+                try:
+                    del headers['Origin']
+                except KeyError:
+                    pass
                 # if not headers.get('Origin', None)
                 #     if overwrite_origin:
                 #         if not include_origin_in_header:
