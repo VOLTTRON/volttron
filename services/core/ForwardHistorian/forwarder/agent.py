@@ -176,7 +176,7 @@ def historian(config_path, **kwargs):
                 value = x['value']
                 payload = jsonapi.loads(value)
                 headers = payload['headers']
-                headers['X-Forwarded'] = True    
+                headers['X-Forwarded'] = True
                 # if not headers.get('Origin', None)
                 #     if overwrite_origin:
                 #         if not include_origin_in_header:
@@ -202,7 +202,8 @@ def historian(config_path, **kwargs):
                                                                  headers=headers,
                                                                  message=payload['message']).get()
                     except gevent.Timeout:
-                        pass
+                        self._target_platform.core.stop()
+                        self.historian_setup()
                     except Exception as e:
                         _log.error(e)
                     else:
