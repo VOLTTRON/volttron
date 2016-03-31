@@ -118,6 +118,7 @@ def volttron_central_agent(config_path, **kwargs):
     
 
     agent_id = config.get('agentid', 'Volttron Central')
+    heartbeat_period = config.get('heartbeat_period', 60)
     server_conf = config.get('server', {})
     
     # Required users.
@@ -276,7 +277,7 @@ def volttron_central_agent(config_path, **kwargs):
         def starting(self, sender, **kwargs):
             '''This event is triggered when the platform is ready for the agent
             '''
-            self.vip.heartbeat.start()
+            self.vip.heartbeat.start_with_period(heartbeat_period)
 
             q = query.Query(self.core)
             result = q.query('addresses').get(timeout=10)
@@ -288,7 +289,14 @@ def volttron_central_agent(config_path, **kwargs):
             th = threading.Thread(target=startWebServer, args=(self,))
             th.daemon = True
             th.start()
-            
+
+        @Core.periodic(heartbeat_period)
+        def forward_heartbeat(self):
+            remote_vips = self.registry.get_vip_addresses()
+
+            for vip in remote_vips:
+                agent = self._get_rpc_agent(vip)
+                agent.vip.pubsub.publish('pubsub', 'heartbeat/VolttronCentralAgent')
 
         def __load_persist_data(self):
             persist_kv = None
