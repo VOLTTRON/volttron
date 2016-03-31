@@ -10,7 +10,7 @@ from volttron.platform.vip.agent import Agent
 from gevent.subprocess import Popen
 import gevent.subprocess as subprocess
 from mock import MagicMock
-import types
+# import types
 
 forwarder_uuid = None
 forwarder_config = {
