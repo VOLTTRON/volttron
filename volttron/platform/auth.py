@@ -480,7 +480,12 @@ class AuthFile(object):
 
     def _check_if_exists(self, entry):
         '''Raises AuthFileEntryAlreadyExists if entry is already in file'''
-        matching_indices = self._find(entry)
+        matching_indices = []
+        for index, prev_entry in enumerate(self.read_allow_entries()):
+            if (entry.domain == prev_entry.domain and
+                    entry.address == prev_entry.address and
+                    entry.credentials == prev_entry.credentials):
+                matching_indices.append(index)
         if matching_indices:
             raise AuthFileEntryAlreadyExists(matching_indices)
 
@@ -508,10 +513,11 @@ class AuthFile(object):
                 self._update_by_indices(auth_entry, err.indices)
             else:
                 raise err
-        entries, groups, roles = self._read_entries_as_list()
-        entry_dict = vars(auth_entry)
-        entries.append(entry_dict)
-        self._write(entries, groups, roles)
+        else:
+            entries, groups, roles = self._read_entries_as_list()
+            entry_dict = vars(auth_entry)
+            entries.append(entry_dict)
+            self._write(entries, groups, roles)
 
     def remove_by_index(self, index):
         '''
@@ -565,19 +571,6 @@ class AuthFile(object):
         entries, groups, roles = self.read()
         return [vars(x) for x in entries], groups, roles
 
-    def _find(self, entry):
-        try:
-            mech, cred = entry.credentials.split(':')
-        except ValueError:
-            mech = 'NULL'
-            cred = ''
-        match_list = []
-        entries = self.read_allow_entries()
-        for index, prev_entry in enumerate(entries):
-            if prev_entry.match(entry.domain, entry.address, mech, [cred]):
-                match_list.append(index)
-        return match_list
-
     def _write(self, entries, groups, roles):
         auth = {'groups': groups, 'roles': roles, 'allow': entries}
         with open(self.auth_file, 'w') as fp:
@@ -593,7 +586,6 @@ class AuthFileIndexError(AuthException, IndexError):
         if message is None:
             message = 'Invalid {}: {}'.format(
                 'indicies' if len(indices) > 1 else 'index', indices)
-        #super(AuthFileIndexError, self).__init__(indices, message)
         super(AuthFileIndexError, self).__init__(message)
         self.indices = indices
 
