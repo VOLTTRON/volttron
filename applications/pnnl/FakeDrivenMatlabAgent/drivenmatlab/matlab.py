@@ -64,7 +64,7 @@ class Application(AbstractDrivenAgent):
         
     def run(self, cur_time, points):
         
-        status = ["on", "on","on","off"]
+        status = ["1", "1","1","0"]
 
         matlab_result = {'commands':[
                                      ["/HEATER1/statussetpoint",random.choice(status)],

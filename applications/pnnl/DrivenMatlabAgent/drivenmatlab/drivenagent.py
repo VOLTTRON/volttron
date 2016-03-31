@@ -183,10 +183,6 @@ def driven_agent(config_path, **kwargs):
 
         def _should_run_now(self):
             # Assumes the unit/all values will have values.
-            _log.debug("#########################")
-            _log.debug(self._device_values.keys())
-            _log.debug("#########################")
-            
             if not len(self._device_values.keys()) > 0:
                 return False
             return not (len(self._needed_subdevices) > 0 or

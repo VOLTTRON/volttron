@@ -48,6 +48,7 @@ PACIFIC NORTHWEST NATIONAL LABORATORY
 operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 under Contract DE-AC05-76RL01830
 '''
+
 import datetime
 from datetime import timedelta as td
 import logging
@@ -55,11 +56,13 @@ from volttron.platform.agent.driven import Results, AbstractDrivenAgent
 import zmq
 import time
 import json
+from zmq import ZMQError
 
 class Application(AbstractDrivenAgent):
     
     def __init__(self, **kwargs):
         
+        self.log = logging.getLogger(__name__)
         config_url = kwargs.pop('config_url')
         data_url = kwargs.pop('data_url')
         self.recv_timeout = kwargs.pop('recv_timeout')
@@ -93,9 +96,9 @@ class Application(AbstractDrivenAgent):
             #TODO: Correct json format
             data = {"current_time": cur_time,
                     "points": points}
-            self.data_socket.send_json(data,zmq.NOBLOCK)
+            self.data_socket.send_pyobj(points,zmq.NOBLOCK)
             
-        except ZMQError:
+        except zmq.error.ZMQError:
             print("No Matlab process running to send message. Exiting.")
                 
         print("Waiting for matlab results")        
@@ -124,8 +127,4 @@ class Application(AbstractDrivenAgent):
                     for row in rows:
                         result.insert_table_row(table, row)  
             
-            #print(result.commands)
-            #print(result.log_messages)
-            #print(result.table_output)
-            
-            return matlab_result
+            return result
