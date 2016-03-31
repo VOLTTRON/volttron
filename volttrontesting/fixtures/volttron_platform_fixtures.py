@@ -65,3 +65,33 @@ def volttron_instance1_encrypt(request):
         wrapper.shutdown_platform(True)
     request.addfinalizer(cleanup)
     return wrapper
+
+# def get_platforms(encrptyed=5, non=2):
+#
+# params(nonencpty=5, encrpty=2)
+#
+# @pytest.fixture(params=[(instance1, instance2)])
+# def multi_platform
+#
+@pytest.fixture(scope="module",
+                params=['unencrypted','encrypted'])
+def volttron_instance(request, instance1_config):
+    wrapper = None
+    if request.param == 'encrypted':
+        print("building instance 1 (using encryption)")
+        address = "tcp://127.0.0.1:{}".format(get_rand_port())
+        wrapper = build_wrapper(address, encrypt=True)
+    else:
+        wrapper = build_wrapper(instance1_config['vip-address'])
+
+    def cleanup():
+        print('Shutting down instance: {}'.format(wrapper.volttron_home))
+        wrapper.shutdown_platform(True)
+    request.addfinalizer(cleanup)
+    return wrapper
+
+
+
+
+
+
