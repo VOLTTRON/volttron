@@ -79,6 +79,10 @@ def historian(config_path, **kwargs):
     topic_text_replace_list = config.get('topic_text_replace', [])
     destination_vip = config.get('destination-vip')
     identity = config.get('identity', kwargs.pop('identity', None))
+    include_destination_in_header = config.get('include_destination_in_header', False)
+    origin = config.get('origin', None)
+    overwrite_origin = config.get('overwrite_origin', False)
+    include_origin_in_header = config.get('include_origin_in_header', False)
     if 'all' in services_topic_list:
         services_topic_list = [topics.DRIVER_TOPIC_BASE, topics.LOGGER_BASE,
                                topics.ACTUATOR, topics.ANALYSIS_TOPIC_BASE]
@@ -90,7 +94,7 @@ def historian(config_path, **kwargs):
             # will be available in both threads.
             self._topic_replace_map = {}
             super(ForwardHistorian, self).__init__(**kwargs)
-            
+
 
         @Core.receiver("onstart")
         def starting_base(self, sender, **kwargs):
@@ -131,7 +135,7 @@ def historian(config_path, **kwargs):
                 log_message = "message for {topic} bad message string: {message_string}"
                 _log.error(log_message.format(topic=topic, message_string=message[0]))
                 raise
-            
+
             if topic_text_replace_list:
                 if topic in self._topic_replace_map.keys():
                     topic = self._topic_replace_map[topic]
@@ -165,7 +169,6 @@ def historian(config_path, **kwargs):
 
             _log.debug("publish_to_historian number of items: {}"
                        .format(len(to_publish_list)))
-            print("HEUML {}".format(self.core.address))
             parsed = urlparse(self.core.address)
             next_dest = urlparse(destination_vip)
             for x in to_publish_list:
@@ -173,13 +176,23 @@ def historian(config_path, **kwargs):
                 value = x['value']
                 payload = jsonapi.loads(value)
                 headers = payload['headers']
-                if not headers.get('Origin', None):
-                    headers['Origin'] = parsed.hostname
-                    headers['Destination'] = [next_dest.scheme +
-                                              '://'+
-                                              next_dest.hostname]
-                else:
-                    headers['Destination'].append(next_dest.hostname)
+                headers['X-Forwarded'] = True    
+                # if not headers.get('Origin', None)
+                #     if overwrite_origin:
+                #         if not include_origin_in_header:
+                #             try:
+                #                 del headers['Origin']
+                #             except KeyError:
+                #                 pass
+                #         else:
+                #             headers['Origin'] = origin
+                #     else:
+                #     headers['Origin'] = parsed.hostname
+                #     headers['Destination'] = [next_dest.scheme +
+                #                               '://'+
+                #                               next_dest.hostname]
+                #else:
+                #    headers['Destination'].append(next_dest.hostname)
 
                 with gevent.Timeout(30):
                     try:
