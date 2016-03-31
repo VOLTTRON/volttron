@@ -16,7 +16,7 @@ from volttron.platform.messaging import topics
 from volttron.platform.agent import utils
 from volttron.platform.jsonrpc import RemoteError
 from volttron.platform.agent import PublishMixin
-
+from volttron.platform.vip.agent import Agent
 
 try:
     import mysql.connector as mysql
@@ -142,7 +142,6 @@ mysql_platform3 = {
 offset = timedelta(seconds=3)
 db_connection = None
 MICROSECOND_SUPPORT = True
-publish_agent_v2 = None
 
 # Don't like declaring this global but I am not able to find a way
 # to introspect this using pytest request object in the clean fixture
@@ -150,28 +149,42 @@ data_table = 'data'
 topics_table = 'topics'
 meta_table = 'meta'
 
-#Fixture for setup and teardown of publish agent
-@pytest.fixture(scope="module",
-                params=['volttron_2','volttron_3'])
-def publish_agent(request, volttron_instance1):
-    global publish_agent_v2
-    # 1: Start a fake agent to publish to message bus
-    publish_agent = volttron_instance1.build_agent()
 
+@pytest.fixture(scope="module",
+                params=['volttron_2', 'volttron_3'])
+def publish_agent(request, volttron_instance1):
+    # 1: Start a fake agent to publish to message bus
     if request.param == 'volttron_2':
-        publish_agent_v2 = PublishMixin(
+        agent = PublishMixin(
             volttron_instance1.opts['publish_address'])
     else:
-        publish_agent_v2 = None
+        agent = volttron_instance1.build_agent()
 
     # 2: add a tear down method to stop sqlhistorian agent and the fake
     # agent that published to message bus
     def stop_agent():
         print("In teardown method of module")
-        publish_agent.core.stop()
+        if isinstance(agent, Agent):
+            agent.core.stop()
 
     request.addfinalizer(stop_agent)
-    return publish_agent
+    return agent
+
+
+@pytest.fixture(scope="module")
+def query_agent(request, volttron_instance1):
+    # 1: Start a fake agent to query the sqlhistorian in volttron_instance2
+    agent = volttron_instance1.build_agent()
+
+    # 2: add a tear down method to stop sqlhistorian agent and the fake
+    # agent that published to message bus
+    def stop_agent():
+        print("In teardown method of module")
+        agent.core.stop()
+
+    request.addfinalizer(stop_agent)
+    return agent
+
 
 # Fixtures for setup and teardown of sqlhistorian agent
 @pytest.fixture(scope="module",
@@ -252,7 +265,7 @@ def sqlhistorian(request, volttron_instance1):
 
 
 def connect_mysql(request):
-    global db_connection, MICROSECOND_SUPPORT, data_table,\
+    global db_connection, MICROSECOND_SUPPORT, data_table, \
         topics_table, meta_table
     print "connect to mysql"
     db_connection = mysql.connect(**request.param['connection']['params'])
@@ -330,16 +343,16 @@ def clean(request):
 
     request.addfinalizer(delete_rows)
 
-def publish(publish_agent, topic, header, message):
-    global publish_agent_v2
 
-    if publish_agent_v2 is None:
+def publish(publish_agent, topic, header, message):
+    if isinstance(publish_agent, Agent):
         publish_agent.vip.pubsub.publish('pubsub',
                                          topic,
                                          headers=header,
                                          message=message).get(timeout=10)
     else:
-        publish_agent_v2.publish_json(topic, header, message)
+        publish_agent.publish_json(topic, header, message)
+
 
 def assert_timestamp(result, expected_date, expected_time):
     global MICROSECOND_SUPPORT
@@ -355,15 +368,18 @@ def assert_timestamp(result, expected_date, expected_time):
 
 
 @pytest.mark.historian
-def test_basic_function(request, sqlhistorian, publish_agent, clean):
+def test_basic_function(sqlhistorian, publish_agent, query_agent, clean):
     """
     Test basic functionality of sql historian. Inserts three points as part
     of all topic and checks if all three got into the database
     
+    :param publish_agent: instance of volttron 2.0/3.0agent used to publish
+    :param query_agent: instance of fake volttron 3.0 agent used to query
+    using rpc
     :param sqlhistorian: instance of the sql historian tested
     :param clean: teardown function
     """
-    global  query_points, ALL_TOPIC, db_connection
+    global query_points, ALL_TOPIC, db_connection
     # print('HOME', volttron_instance1.volttron_home)
     print("\n** test_basic_function **")
 
@@ -399,11 +415,11 @@ def test_basic_function(request, sqlhistorian, publish_agent, clean):
     gevent.sleep(1)
 
     # Query the historian
-    result = publish_agent.vip.rpc.call('platform.historian',
-                                        'query',
-                                        topic=query_points['oat_point'],
-                                        count=20,
-                                        order="LAST_TO_FIRST").get(timeout=100)
+    result = query_agent.vip.rpc.call('platform.historian',
+                                      'query',
+                                      topic=query_points['oat_point'],
+                                      count=20,
+                                      order="LAST_TO_FIRST").get(timeout=100)
     print('Query Result', result)
     assert (len(result['values']) == 1)
     (now_date, now_time) = now.split(" ")
@@ -412,11 +428,11 @@ def test_basic_function(request, sqlhistorian, publish_agent, clean):
     assert set(result['metadata'].items()) == set(float_meta.items())
 
     # Query the historian
-    result = publish_agent.vip.rpc.call('platform.historian',
-                                        'query',
-                                        topic=query_points['mixed_point'],
-                                        count=20,
-                                        order="LAST_TO_FIRST").get(timeout=10)
+    result = query_agent.vip.rpc.call('platform.historian',
+                                      'query',
+                                      topic=query_points['mixed_point'],
+                                      count=20,
+                                      order="LAST_TO_FIRST").get(timeout=10)
     print('Query Result', result)
     assert (len(result['values']) == 1)
     (now_date, now_time) = now.split(" ")
@@ -425,11 +441,11 @@ def test_basic_function(request, sqlhistorian, publish_agent, clean):
     assert set(result['metadata'].items()) == set(float_meta.items())
 
     # Query the historian
-    result = publish_agent.vip.rpc.call('platform.historian',
-                                        'query',
-                                        topic=query_points['damper_point'],
-                                        count=20,
-                                        order="LAST_TO_FIRST").get(timeout=10)
+    result = query_agent.vip.rpc.call('platform.historian',
+                                      'query',
+                                      topic=query_points['damper_point'],
+                                      count=20,
+                                      order="LAST_TO_FIRST").get(timeout=10)
     print('Query Result', result)
     assert (len(result['values']) == 1)
     (now_date, now_time) = now.split(" ")
@@ -437,16 +453,20 @@ def test_basic_function(request, sqlhistorian, publish_agent, clean):
     assert (result['values'][0][1] == damper_reading)
     assert set(result['metadata'].items()) == set(percent_meta.items())
 
+
 @pytest.mark.historian
-def test_basic_function(request, sqlhistorian, publish_agent, clean):
+def test_basic_function(sqlhistorian, publish_agent, query_agent, clean):
     """
     Test basic functionality of sql historian. Inserts three points as part
     of all topic and checks if all three got into the database
 
+    :param publish_agent: instance of volttron 2.0/3.0agent used to publish
+    :param query_agent: instance of fake volttron 3.0 agent used to query
+    using rpc
     :param sqlhistorian: instance of the sql historian tested
     :param clean: teardown function
     """
-    global  query_points, ALL_TOPIC, db_connection
+    global query_points, ALL_TOPIC, db_connection
     # print('HOME', volttron_instance1.volttron_home)
     print("\n** test_basic_function **")
 
@@ -482,11 +502,11 @@ def test_basic_function(request, sqlhistorian, publish_agent, clean):
     gevent.sleep(1)
 
     # Query the historian
-    result = publish_agent.vip.rpc.call('platform.historian',
-                                        'query',
-                                        topic=query_points['oat_point'],
-                                        count=20,
-                                        order="LAST_TO_FIRST").get(timeout=100)
+    result = query_agent.vip.rpc.call('platform.historian',
+                                      'query',
+                                      topic=query_points['oat_point'],
+                                      count=20,
+                                      order="LAST_TO_FIRST").get(timeout=100)
     print('Query Result', result)
     assert (len(result['values']) == 1)
     (now_date, now_time) = now.split(" ")
@@ -495,11 +515,11 @@ def test_basic_function(request, sqlhistorian, publish_agent, clean):
     assert set(result['metadata'].items()) == set(float_meta.items())
 
     # Query the historian
-    result = publish_agent.vip.rpc.call('platform.historian',
-                                        'query',
-                                        topic=query_points['mixed_point'],
-                                        count=20,
-                                        order="LAST_TO_FIRST").get(timeout=10)
+    result = query_agent.vip.rpc.call('platform.historian',
+                                      'query',
+                                      topic=query_points['mixed_point'],
+                                      count=20,
+                                      order="LAST_TO_FIRST").get(timeout=10)
     print('Query Result', result)
     assert (len(result['values']) == 1)
     (now_date, now_time) = now.split(" ")
@@ -508,11 +528,11 @@ def test_basic_function(request, sqlhistorian, publish_agent, clean):
     assert set(result['metadata'].items()) == set(float_meta.items())
 
     # Query the historian
-    result = publish_agent.vip.rpc.call('platform.historian',
-                                        'query',
-                                        topic=query_points['damper_point'],
-                                        count=20,
-                                        order="LAST_TO_FIRST").get(timeout=10)
+    result = query_agent.vip.rpc.call('platform.historian',
+                                      'query',
+                                      topic=query_points['damper_point'],
+                                      count=20,
+                                      order="LAST_TO_FIRST").get(timeout=10)
     print('Query Result', result)
     assert (len(result['values']) == 1)
     (now_date, now_time) = now.split(" ")
@@ -520,13 +540,17 @@ def test_basic_function(request, sqlhistorian, publish_agent, clean):
     assert (result['values'][0][1] == damper_reading)
     assert set(result['metadata'].items()) == set(percent_meta.items())
 
+
 @pytest.mark.historian
-def test_exact_timestamp(sqlhistorian, publish_agent, clean):
+def test_exact_timestamp(sqlhistorian, publish_agent, query_agent, clean):
     """
     Test query based on same start and end time with literal 'Z' at the end
     of utc time.
     Expected result: record with timestamp == start time
-    
+
+    :param publish_agent: instance of volttron 2.0/3.0agent used to publish
+    :param query_agent: instance of fake volttron 3.0 agent used to query
+    using rpc
     :param sqlhistorian: instance of the sql historian tested
     :param clean: teardown function
     """
@@ -558,13 +582,13 @@ def test_exact_timestamp(sqlhistorian, publish_agent, clean):
     gevent.sleep(0.5)
 
     # Query the historian
-    result = publish_agent.vip.rpc.call('platform.historian',
-                                        'query',
-                                        topic=query_points['mixed_point'],
-                                        start=now,
-                                        end=now,
-                                        count=20,
-                                        order="LAST_TO_FIRST").get(timeout=10)
+    result = query_agent.vip.rpc.call('platform.historian',
+                                      'query',
+                                      topic=query_points['mixed_point'],
+                                      start=now,
+                                      end=now,
+                                      count=20,
+                                      order="LAST_TO_FIRST").get(timeout=10)
     print('Query Result', result)
     assert (len(result['values']) == 1)
     (now_date, now_time) = now.split("T")
@@ -575,12 +599,16 @@ def test_exact_timestamp(sqlhistorian, publish_agent, clean):
 
 
 @pytest.mark.historian
-def test_exact_timestamp_with_z(sqlhistorian, publish_agent, clean):
+def test_exact_timestamp_with_z(sqlhistorian, publish_agent, query_agent,
+                                clean):
     """
     Test query based on same start and end time with literal 'Z' at the end
     of utc time.
     Expected result: record with timestamp == start time
     
+    :param publish_agent: instance of volttron 2.0/3.0agent used to publish
+    :param query_agent: instance of fake volttron 3.0 agent used to query
+    using rpc
     :param sqlhistorian: instance of the sql historian tested
     :param clean: teardown function
     """
@@ -614,13 +642,13 @@ def test_exact_timestamp_with_z(sqlhistorian, publish_agent, clean):
 
     # pytest.set_trace()
     # Query the historian
-    result = publish_agent.vip.rpc.call('platform.historian',
-                                        'query',
-                                        topic=query_points['mixed_point'],
-                                        start=now,
-                                        end=now,
-                                        count=20,
-                                        order="LAST_TO_FIRST").get(timeout=10)
+    result = query_agent.vip.rpc.call('platform.historian',
+                                      'query',
+                                      topic=query_points['mixed_point'],
+                                      start=now,
+                                      end=now,
+                                      count=20,
+                                      order="LAST_TO_FIRST").get(timeout=10)
     print('Query Result', result)
     assert (len(result['values']) == 1)
     (now_date, now_time) = now.split("T")
@@ -631,11 +659,14 @@ def test_exact_timestamp_with_z(sqlhistorian, publish_agent, clean):
 
 
 @pytest.mark.historian
-def test_query_start_time(sqlhistorian, publish_agent, clean):
+def test_query_start_time(sqlhistorian, publish_agent, query_agent, clean):
     """
     Test query based on start_time alone. Expected result record with
     timestamp>= start_time
     
+    :param publish_agent: instance of volttron 2.0/3.0agent used to publish
+    :param query_agent: instance of fake volttron 3.0 agent used to query
+    using rpc
     :param sqlhistorian: instance of the sql historian tested
     :param clean: teardown function
     """
@@ -670,12 +701,12 @@ def test_query_start_time(sqlhistorian, publish_agent, clean):
     # pytest.set_trace()
     # pytest.set_trace()
     # Query the historian
-    result = publish_agent.vip.rpc.call('platform.historian',
-                                        'query',
-                                        topic=query_points['oat_point'],
-                                        start=time1,
-                                        count=20,
-                                        order="LAST_TO_FIRST").get(timeout=10)
+    result = query_agent.vip.rpc.call('platform.historian',
+                                      'query',
+                                      topic=query_points['oat_point'],
+                                      start=time1,
+                                      count=20,
+                                      order="LAST_TO_FIRST").get(timeout=10)
     print ("time1:", time1)
     print ("time2:", time2)
     print('Query Result', result)
@@ -689,11 +720,15 @@ def test_query_start_time(sqlhistorian, publish_agent, clean):
 
 
 @pytest.mark.historian
-def test_query_start_time_with_z(sqlhistorian, publish_agent, clean):
+def test_query_start_time_with_z(sqlhistorian, publish_agent, query_agent,
+                                 clean):
     """
     Test query based on start_time alone. Expected result record with
     timestamp>= start_time
     
+    :param publish_agent: instance of volttron 2.0/3.0agent used to publish
+    :param query_agent: instance of fake volttron 3.0 agent used to query
+    using rpc
     :param sqlhistorian: instance of the sql historian tested
     :param clean: teardown function
     """
@@ -727,12 +762,12 @@ def test_query_start_time_with_z(sqlhistorian, publish_agent, clean):
     gevent.sleep(0.5)
 
     # Query the historian
-    result = publish_agent.vip.rpc.call('platform.historian',
-                                        'query',
-                                        topic=query_points['oat_point'],
-                                        start=time1,
-                                        count=20,
-                                        order="LAST_TO_FIRST").get(timeout=10)
+    result = query_agent.vip.rpc.call('platform.historian',
+                                      'query',
+                                      topic=query_points['oat_point'],
+                                      start=time1,
+                                      count=20,
+                                      order="LAST_TO_FIRST").get(timeout=10)
     print ("time1:", time1)
     print ("time2:", time2)
     print('Query Result', result)
@@ -744,11 +779,14 @@ def test_query_start_time_with_z(sqlhistorian, publish_agent, clean):
 
 
 @pytest.mark.historian
-def test_query_end_time(sqlhistorian, publish_agent, clean):
+def test_query_end_time(sqlhistorian, publish_agent, query_agent, clean):
     """
     Test query based on end time alone. Expected result record with
     timestamp<= end time
     
+    :param publish_agent: instance of volttron 2.0/3.0agent used to publish
+    :param query_agent: instance of fake volttron 3.0 agent used to query
+    using rpc
     :param sqlhistorian: instance of the sql historian tested
     :param clean: teardown function
     """
@@ -786,12 +824,12 @@ def test_query_end_time(sqlhistorian, publish_agent, clean):
 
     # pytest.set_trace()
     # Query the historian
-    result = publish_agent.vip.rpc.call('platform.historian',
-                                        'query',
-                                        topic=query_points['mixed_point'],
-                                        end=time2,
-                                        count=20,
-                                        order="FIRST_TO_LAST").get(timeout=100)
+    result = query_agent.vip.rpc.call('platform.historian',
+                                      'query',
+                                      topic=query_points['mixed_point'],
+                                      end=time2,
+                                      count=20,
+                                      order="FIRST_TO_LAST").get(timeout=100)
     print ("time1:", time1)
     print ("time2:", time2)
     print('Query Result', result)
@@ -805,11 +843,15 @@ def test_query_end_time(sqlhistorian, publish_agent, clean):
 
 
 @pytest.mark.historian
-def test_query_end_time_with_z(sqlhistorian, publish_agent, clean):
+def test_query_end_time_with_z(sqlhistorian, publish_agent, query_agent,
+                               clean):
     """
     Test query based on end time alone. Expected result record with
     timestamp<= end time
     
+    :param publish_agent: instance of volttron 2.0/3.0agent used to publish
+    :param query_agent: instance of fake volttron 3.0 agent used to query
+    using rpc
     :param sqlhistorian: instance of the sql historian tested
     :param clean: teardown function
     """
@@ -845,12 +887,12 @@ def test_query_end_time_with_z(sqlhistorian, publish_agent, clean):
 
     # pytest.set_trace()
     # Query the historian
-    result = publish_agent.vip.rpc.call('platform.historian',
-                                        'query',
-                                        topic=query_points['mixed_point'],
-                                        end=time2,
-                                        count=20,
-                                        order="FIRST_TO_LAST").get(timeout=10)
+    result = query_agent.vip.rpc.call('platform.historian',
+                                      'query',
+                                      topic=query_points['mixed_point'],
+                                      end=time2,
+                                      count=20,
+                                      order="FIRST_TO_LAST").get(timeout=10)
     print ("time1:", time1)
     print ("time2:", time2)
     print('Query Result', result)
@@ -866,12 +908,15 @@ def test_query_end_time_with_z(sqlhistorian, publish_agent, clean):
 
 
 @pytest.mark.historian
-def test_zero_timestamp(sqlhistorian, publish_agent, clean):
+def test_zero_timestamp(sqlhistorian, publish_agent, query_agent, clean):
     """
     Test query based with timestamp where time is 00:00:00. Test with and
     without Z at the end.
     Expected result: record with timestamp == 00:00:00.000001
     
+    :param publish_agent: instance of volttron 2.0/3.0agent used to publish
+    :param query_agent: instance of fake volttron 3.0 agent used to query
+    using rpc
     :param sqlhistorian: instance of the sql historian tested
     :param clean: teardown function
     """
@@ -900,12 +945,12 @@ def test_zero_timestamp(sqlhistorian, publish_agent, clean):
     gevent.sleep(0.5)
 
     # Query the historian
-    result = publish_agent.vip.rpc.call('platform.historian',
-                                        'query',
-                                        topic=query_points['mixed_point'],
-                                        start=now,
-                                        count=20,
-                                        order="LAST_TO_FIRST").get(timeout=10)
+    result = query_agent.vip.rpc.call('platform.historian',
+                                      'query',
+                                      topic=query_points['mixed_point'],
+                                      start=now,
+                                      count=20,
+                                      order="LAST_TO_FIRST").get(timeout=10)
     print('Query Result', result)
     assert (len(result['values']) == 1)
     (now_date, now_time) = now.split(" ")
@@ -924,12 +969,12 @@ def test_zero_timestamp(sqlhistorian, publish_agent, clean):
     gevent.sleep(0.5)
 
     # Query the historian
-    result = publish_agent.vip.rpc.call('platform.historian',
-                                        'query',
-                                        topic=query_points['mixed_point'],
-                                        start=now,
-                                        count=20,
-                                        order="LAST_TO_FIRST").get(timeout=10)
+    result = query_agent.vip.rpc.call('platform.historian',
+                                      'query',
+                                      topic=query_points['mixed_point'],
+                                      start=now,
+                                      count=20,
+                                      order="LAST_TO_FIRST").get(timeout=10)
     print('Query Result', result)
     assert (len(result['values']) == 1)
     (now_date, now_time) = now.split(" ")
@@ -938,11 +983,15 @@ def test_zero_timestamp(sqlhistorian, publish_agent, clean):
 
 
 @pytest.mark.historian
-def test_topic_name_case_change(sqlhistorian, publish_agent, clean):
+def test_topic_name_case_change(sqlhistorian, publish_agent, query_agent,
+                                clean):
     """
     When case of a topic name changes check if they are saved as two topics
     Expected result: query result should be cases sensitive
     
+    :param publish_agent: instance of volttron 2.0/3.0agent used to publish
+    :param query_agent: instance of fake volttron 3.0 agent used to query
+    using rpc
     :param sqlhistorian: instance of the sql historian tested
     :param clean: teardown function
     """
@@ -994,7 +1043,7 @@ def test_topic_name_case_change(sqlhistorian, publish_agent, clean):
 
     # Query the historian
     print("query time ", time1)
-    result = publish_agent.vip.rpc.call(
+    result = query_agent.vip.rpc.call(
         'platform.historian',
         'query',
         topic="Building/LAB/Device/OutsideAirTemperature",
@@ -1010,10 +1059,13 @@ def test_topic_name_case_change(sqlhistorian, publish_agent, clean):
 
 
 @pytest.mark.historian
-def test_invalid_query(sqlhistorian, publish_agent, clean):
+def test_invalid_query(sqlhistorian, publish_agent, query_agent, clean):
     """
     Test query with invalid input
     
+    :param publish_agent: instance of volttron 2.0/3.0agent used to publish
+    :param query_agent: instance of fake volttron 3.0 agent used to query
+    using rpc
     :param sqlhistorian: instance of the sql historian tested
     :param clean: teardown function
     """
@@ -1042,73 +1094,70 @@ def test_invalid_query(sqlhistorian, publish_agent, clean):
 
     # Query without topic id
     try:
-        publish_agent.vip.rpc.call('platform.historian',
-                                   'query',
-                                   # topic=query_points['mixed_point'],
-                                   start=now,
-                                   count=20,
-                                   order="LAST_TO_FIRST").get(timeout=10)
+        query_agent.vip.rpc.call('platform.historian',
+                                 'query',
+                                 # topic=query_points['mixed_point'],
+                                 start=now,
+                                 count=20,
+                                 order="LAST_TO_FIRST").get(timeout=10)
     except RemoteError as error:
         print ("topic required excinfo {}".format(error))
         assert '"Topic" required' in str(error.message)
 
     try:
-        #query with wrong historian id
-        publish_agent.vip.rpc.call('platform.historian1',
-                                   'query',
-                                   topic=query_points['mixed_point'],
-                                   start=now,
-                                   count=20,
-                                   order="LAST_TO_FIRST").get(timeout=10)
+        # query with wrong historian id
+        query_agent.vip.rpc.call('platform.historian1',
+                                 'query',
+                                 topic=query_points['mixed_point'],
+                                 start=now,
+                                 count=20,
+                                 order="LAST_TO_FIRST").get(timeout=10)
     except Exception as error:
         print ("exception: {}".format(error))
         assert "No route to host: platform.historian1" in str(error)
 
+
 @pytest.mark.historian
-def test_invalid_time(sqlhistorian, publish_agent, clean):
+def test_invalid_time(sqlhistorian, publish_agent, query_agent, clean):
     """
     Test query with invalid input
 
+    :param publish_agent: instance of volttron 2.0/3.0agent used to publish
+    :param query_agent: instance of fake volttron 3.0 agent used to query
+    using rpc
     :param sqlhistorian: instance of the sql historian tested
     :param clean: teardown function
     """
     global query_points, ALL_TOPIC
     # print('HOME', volttron_instance1.volttron_home)
     print("\n** test_invalid_time **")
-    # Publish fake data. The format mimics the format used by VOLTTRON drivers.
-    # Make some random readings
-    oat_reading = random.uniform(30, 100)
-    mixed_reading = oat_reading + random.uniform(-5, 5)
-
-    # Create a message for all points.
-    all_message = [{'MixedAirTemperature': mixed_reading},
-                   {'MixedAirTemperature': {'units': 'F', 'tz': 'UTC',
-                                            'type': 'float'}
-                    }]
 
     # Create timestamp
     now = '2015-12-17 60:00:00.000000'
 
     try:
-        #query with invalid timestamp
-        publish_agent.vip.rpc.call('platform.historian',
-                                   'query',
-                                   topic=query_points['mixed_point'],
-                                   start=now,
-                                   count=20,
-                                   order="LAST_TO_FIRST").get(timeout=10)
+        # query with invalid timestamp
+        query_agent.vip.rpc.call('platform.historian',
+                                 'query',
+                                 topic=query_points['mixed_point'],
+                                 start=now,
+                                 count=20,
+                                 order="LAST_TO_FIRST").get(timeout=10)
     except RemoteError as error:
         print ("exception: {}".format(error))
         assert 'hour must be in 0..23' == error.message
 
 
 @pytest.mark.historian
-def test_analysis_topic(sqlhistorian, publish_agent, clean):
+def test_analysis_topic(sqlhistorian, publish_agent, query_agent, clean):
     """
     Test query based on same start and end time with literal 'Z' at the end
     of utc time.
     Expected result: record with timestamp == start time
     
+    :param publish_agent: instance of volttron 2.0/3.0agent used to publish
+    :param query_agent: instance of fake volttron 3.0 agent used to query
+    using rpc
     :param sqlhistorian: instance of the sql historian tested
     :param clean: teardown function
     """
@@ -1147,13 +1196,13 @@ def test_analysis_topic(sqlhistorian, publish_agent, clean):
 
     # pytest.set_trace()
     # Query the historian
-    result = publish_agent.vip.rpc.call('platform.historian',
-                                        'query',
-                                        topic=query_points['mixed_point'],
-                                        start=now,
-                                        end=now,
-                                        count=20,
-                                        order="LAST_TO_FIRST").get(timeout=10)
+    result = query_agent.vip.rpc.call('platform.historian',
+                                      'query',
+                                      topic=query_points['mixed_point'],
+                                      start=now,
+                                      end=now,
+                                      count=20,
+                                      order="LAST_TO_FIRST").get(timeout=10)
     print('Query Result', result)
     assert (len(result['values']) == 1)
     (now_date, now_time) = now.split("T")
@@ -1164,12 +1213,15 @@ def test_analysis_topic(sqlhistorian, publish_agent, clean):
 
 
 @pytest.mark.historian
-def test_record_topic_query(sqlhistorian, publish_agent, clean):
+def test_record_topic_query(sqlhistorian, publish_agent, query_agent, clean):
     """
     Test query based on same start with literal 'Z' at the end of utc time.
     Cannot query based on exact time as timestamp recorded is time of insert
     publish and query record topic
     
+    :param publish_agent: instance of volttron 2.0/3.0agent used to publish
+    :param query_agent: instance of fake volttron 3.0 agent used to query
+    using rpc
     :param sqlhistorian: instance of the sql historian tested
     :param clean: teardown function
     """
@@ -1197,12 +1249,12 @@ def test_record_topic_query(sqlhistorian, publish_agent, clean):
 
     # pytest.set_trace()
     # Query the historian
-    result = publish_agent.vip.rpc.call('platform.historian',
-                                        'query',
-                                        topic=topics.RECORD,
-                                        start=now,
-                                        count=20,
-                                        order="FIRST_TO_LAST").get(timeout=10)
+    result = query_agent.vip.rpc.call('platform.historian',
+                                      'query',
+                                      topic=topics.RECORD,
+                                      start=now,
+                                      count=20,
+                                      order="FIRST_TO_LAST").get(timeout=10)
     print('Query Result', result)
     assert (len(result['values']) == 3)
     assert (result['values'][0][1] == 1)
@@ -1211,12 +1263,15 @@ def test_record_topic_query(sqlhistorian, publish_agent, clean):
 
 
 @pytest.mark.historian
-def test_log_topic(sqlhistorian, publish_agent, clean):
+def test_log_topic(sqlhistorian, publish_agent, query_agent, clean):
     """
     Test query based on same start and end time with literal 'Z' at the end
     of utc time.
     Expected result: record with timestamp == start time
     
+    :param publish_agent: instance of volttron 2.0/3.0agent used to publish
+    :param query_agent: instance of fake volttron 3.0 agent used to query
+    using rpc
     :param sqlhistorian: instance of the sql historian tested
     :param clean: teardown function
     """
@@ -1243,7 +1298,7 @@ def test_log_topic(sqlhistorian, publish_agent, clean):
     gevent.sleep(1)
 
     # Query the historian
-    result = publish_agent.vip.rpc.call(
+    result = query_agent.vip.rpc.call(
         'platform.historian',
         'query',
         topic="datalogger/Building/LAB/Device/MixedAirTemperature",
