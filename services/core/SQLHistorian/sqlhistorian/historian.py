@@ -284,12 +284,19 @@ def historian(config_path, **kwargs):
             _log.debug("query_historian Thread is: {}".format(
                 threading.currentThread().getName())
             )
-            topic_id = self.topic_id_map[topic.lower()]
+            results = dict()
+            topic_id = self.topic_id_map.get(topic.lower(), None)
+
+            if topic_id is None:
+                return results
+            _log.debug("Querying db reader")
             results = self.reader.query(
                 topic_id, start=start, end=end, skip=skip, count=count,
                 order=order)
-
-            results['metadata'] = self.topic_meta.get(topic_id, {})
+            if len(results.get('values',[])) > 0 :
+                results['metadata'] = self.topic_meta.get(topic_id, {})
+            else:
+                results = dict()
             return results
 
         def historian_setup(self):

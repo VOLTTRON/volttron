@@ -614,8 +614,9 @@ class BaseQueryHistorianAgent(Agent):
             _log.debug("start={}".format(start))
 
         results = self.query_historian(topic, start, end, skip, count, order)
-        metadata = results.get("metadata")
-        if metadata is None:
+        metadata = results.get("metadata", None)
+        values = results.get("values", None)
+        if values is not None and metadata is None:
             results['metadata'] = {}
         return results
 
