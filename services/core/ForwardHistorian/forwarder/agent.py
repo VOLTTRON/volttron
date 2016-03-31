@@ -181,6 +181,10 @@ def historian(config_path, **kwargs):
                     del headers['Origin']
                 except KeyError:
                     pass
+                try:
+                    del headers['Destination']
+                except KeyError:
+                    pass
                 # if not headers.get('Origin', None)
                 #     if overwrite_origin:
                 #         if not include_origin_in_header:
