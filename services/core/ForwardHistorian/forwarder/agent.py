@@ -65,7 +65,7 @@ import uuid
 import gevent
 from zmq.utils import jsonapi
 
-from volttron.platform.vip.agent import *
+from volttron.platform.vip.agent import Agent, Core, RPC, compat
 from volttron.platform.agent.base_historian import BaseHistorian
 from volttron.platform.agent import utils
 from volttron.platform.messaging import topics, headers as headers_mod
@@ -120,15 +120,18 @@ def historian(config_path, **kwargs):
             try:
                 # 2.0 agents compatability layer makes sender == pubsub.compat so
                 # we can do the proper thing when it is here
+                _log.debug("message in capture_data {}".format(message))
                 if sender == 'pubsub.compat':
-                    data = jsonapi.loads(message[0])
+                    #data = jsonapi.loads(message[0])
+                    data = compat.unpack_legacy_message(headers, message)
+                    _log.debug("data in capture_data {}".format(data))
                 if isinstance(data, dict):
                     data = data
                 elif isinstance(data, int) or isinstance(data, float) \
                     or isinstance(data, long):
                     data = data
-                else:
-                    data = data[0]
+                # else:
+                #     data = data[0]
             except ValueError as e:
                 log_message = "message for {topic} bad message string: {message_string}"
                 _log.error(log_message.format(topic=topic, message_string=message[0]))
@@ -149,11 +152,13 @@ def historian(config_path, **kwargs):
                         self._topic_replace_map[k] = v
                     topic = self._topic_replace_map[topic]
 
-
-            _log.debug('prepayload: {}'.format(message))
-            payload = jsonapi.dumps({'headers': headers, 'message': data})
-            _log.debug('postpayload: {}'.format(payload))
-            
+            # why should we do a jsonapi.dumps() here and jsonapi.load in
+            # publish_to_historian when the message sent is a constructed
+            # dictionary
+            # _log.debug('prepayload: {}'.format(message))
+            # payload = jsonapi.dumps({'headers': headers, 'message': data})
+            # _log.debug('postpayload: {}'.format(payload))
+            payload = {'headers': headers, 'message': data}
             utcnow = utils.get_aware_utc_now()
             timestamp_string = utils.format_timestamp(utcnow)
 
@@ -173,7 +178,8 @@ def historian(config_path, **kwargs):
             for x in to_publish_list:
                 topic = x['topic']
                 value = x['value']
-                payload = jsonapi.loads(value)
+                #payload = jsonapi.loads(value)
+                payload = value
                 headers = payload['headers']
                 headers['Origin'] = self.core.address
                 headers['Destination'] = destination_vip
