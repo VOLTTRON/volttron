@@ -150,6 +150,8 @@ class BaseHistorianAgent(Agent):
         self._create_subscriptions()
         
         self._started = True
+
+        self.vip.heartbeat.start()
         
     @Core.receiver("onstop")
     def stopping(self, sender, **kwargs):

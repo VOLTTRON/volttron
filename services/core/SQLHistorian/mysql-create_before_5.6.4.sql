@@ -1,3 +1,8 @@
+-- This script assumes that the user has access to create the database.
+CREATE DATABASE test_historian;
+
+USE test_historian;
+
 
 CREATE TABLE data (ts timestamp NOT NULL,
                                  topic_id INTEGER NOT NULL, 
