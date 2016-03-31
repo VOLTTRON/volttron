@@ -515,6 +515,68 @@ def test_basic_function(volttron_instance1, database_client):
     assert result['values'][0][1] == expected['damper_point']
 
 
+@pytest.mark.historian
+@pytest.mark.dev
+@pytest.mark.skipif(not HAS_PYMONGO, reason='No pymongo driver')
+def test_topic_name_case_change(volttron_instance1, database_client):
+    """
+    When case of a topic name changes check if they are saved as two topics
+    Expected result: query result should be cases insensitive
+    """
+    agent_uuid = install_historian_agent(volttron_instance1, mongo_agent_config())
+    try:
+        publisher = volttron_instance1.build_agent()
+        oat_reading = random.uniform(30, 100)
+        message = [{'FluffyWidgets': oat_reading},
+                       {'FluffyWidgets':
+                         {'units': 'F', 'tz': 'UTC', 'type': 'float'}}]
+
+        publisheddt = publish_data(publisher, BASE_ANALYSIS_TOPIC+'/FluffyWidgets', message)
+        gevent.sleep(0.1)
+
+        lister = volttron_instance1.build_agent()
+        topic_list = lister.vip.rpc.call('platform.historian', 'get_topic_list').get(timeout=5)
+        assert topic_list is not None
+        assert len(topic_list) == 1
+        assert 'FluffyWidgets' in topic_list[0]
+
+        result = lister.vip.rpc.call('platform.historian',
+                                            'query',
+                                            topic=BASE_ANALYSIS_TOPIC[9:]+'/FluffyWidgets').get(timeout=5)
+        assert result is not None
+        assert len(result['values']) == 1
+        assert isinstance(result['values'], list)
+        mongoizetimestamp = publisheddt.isoformat()[:-3]+'000'
+        assert result['values'][0] == [mongoizetimestamp, oat_reading]
+
+        message = [{'Fluffywidgets': oat_reading},
+                       {'Fluffywidgets':
+                         {'units': 'F', 'tz': 'UTC', 'type': 'float'}}]
+
+        publisheddt = publish_data(publisher,
+                                   BASE_ANALYSIS_TOPIC+'/Fluffywidgets', message)
+        gevent.sleep(0.1)
+        topic_list = lister.vip.rpc.call('platform.historian', 'get_topic_list').get(timeout=5)
+        assert topic_list is not None
+        assert len(topic_list) == 1
+        assert 'Fluffywidgets' in topic_list[0]
+
+        result = lister.vip.rpc.call(
+            'platform.historian',
+            'query',
+            topic=BASE_ANALYSIS_TOPIC[9:]+'/Fluffywidgets',
+            order="LAST_TO_FIRST").get(timeout=5)
+        assert result is not None
+        assert len(result['values']) == 2
+        assert isinstance(result['values'], list)
+        mongoizetimestamp = publisheddt.isoformat()[:-3]+'000'
+        assert result['values'][0] == [mongoizetimestamp, oat_reading]
+
+    finally:
+        volttron_instance1.stop_agent(agent_uuid)
+
+
+
     # FOR DEBUG - START
     # cursor = db_connection.cursor()
     # cursor.execute(

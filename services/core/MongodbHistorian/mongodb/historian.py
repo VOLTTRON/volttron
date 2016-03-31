@@ -141,15 +141,29 @@ def historian(config_path, **kwargs):
 
                 # look at the topics that are stored in the database already
                 # to see if this topic has a value
-                topic_id = self.topic_map.get(topic, None)
-
+                lowercase_topic = topic.lower()
+                topic_id = self.topic_id_map.get(lowercase_topic, None)
+                db_topic_name = self.topic_name_map.get(lowercase_topic,
+                                                         None)
+                _log.debug("I AM HEREE BONO1")
                 if topic_id is None:
                     row  = db.topics.insert_one({'topic_name': topic})# self.insert_topic(topic)
                     topic_id = row.inserted_id
                     # topic map should hold both a lookup from topic name
                     # and from id to topic_name.
-                    self.topic_map[topic] = topic_id
-                    self.topic_map[topic_id] = topic
+                    self.topic_id_map[lowercase_topic] = topic_id
+                    self.topic_id_map[topic_id] = lowercase_topic
+                    self.topic_name_map[lowercase_topic] = topic
+                elif db_topic_name != topic:
+                    _log.debug("I AM HEREE BONO")
+                    result = db.topics.update_one(
+                        filter={'topic_id': topic_id}, update={'$set':{
+                            'topic_name':topic}})
+                    _log.debug("result of update {}".format(
+                        result.matched_count))
+                    _log.debug("result of update {}".format(
+                        result.modified_count))
+                    self.topic_name_map[lowercase_topic] = topic
 
                 # Reformat to a filter tha bulk inserter.
                 bulk_publish.append(InsertOne(
@@ -181,15 +195,19 @@ def historian(config_path, **kwargs):
              for you)
             """
             try:
-                topic_id = self.topic_map.get(topic, None)
+                topic_id = self.topic_id_map.get(topic.lower(), None)
             except:
-                self.topic_map = {}
+                self.topic_id_map = dict()
+                self.topic_name_map = dict()
                 _log.debug('CONNECTED TO {}'.format(self.database_name))
                 for row in self.mongoclient[self.database_name]['topics'].find():
-                    self.topic_map[row['topic_name']] = row['_id']
-                    self.topic_map[row['_id']] = row['topic_name']
+                    self.topic_id_map[row['topic_name'].lower()] = row['_id']
+                    self.topic_id_map[row['_id']] = row['topic_name'].lower()
+                    self.topic_name_map[row['topic_name'].lower()] = row[
+                        'topic_name']
 
-                topic_id = self.topic_map.get(topic, None)
+
+                topic_id = self.topic_id_map.get(topic.lower(), None)
 
             if not topic_id:
                 _log.debug('Topic id was None for topic: {}'.format(topic))
@@ -234,11 +252,11 @@ def historian(config_path, **kwargs):
                 _log.debug('self.mongo was None')
                 return None
 
-            items = self.get_topic_map()
-            _log.debug('topic_list: {}'.format(items))
+            id_map, name_map = self.get_topic_map()
+            _log.debug('topic_list: {}'.format(name_map))
             #_log.debug(items)
             #items = ['abcdef'] # self.get_topic_map().keys()
-            return items.keys()
+            return name_map.values()
 
         def get_topic_map(self):
             if self.mongoclient is None:
@@ -248,11 +266,15 @@ def historian(config_path, **kwargs):
             db = self.mongoclient.get_default_database()
             cursor = db["topics"].find()
             _log.debug("Topic count {}".format(cursor.count()))
-            res = {}
+            id_map = dict()
+            name_map = dict()
             for document in cursor:
-                res[document['topic_name']] = document['_id']
-            _log.debug('RETURNING {}'.format(res))
-            return res
+                id_map[document['topic_name'].lower()] = document['_id']
+                name_map[document['topic_name'].lower()] = document[
+                    'topic_name']
+            _log.debug('RETURNING {}'.format(id_map))
+            _log.debug('RETURNING {}'.format(name_map))
+            return id_map, name_map
 
         def get_mongo_client(self):
             self._params = connection['params']
@@ -294,8 +316,7 @@ def historian(config_path, **kwargs):
         def historian_setup(self):
             _log.debug("HISTORIAN SETUP")
             self.mongoclient = self.get_mongo_client()
-            self.topic_map = self.get_topic_map()
-
+            self.topic_id_map, self.topic_name_map  = self.get_topic_map()
 
     MongodbHistorian.__name__ = 'MongodbHistorian'
     return MongodbHistorian(identity=identity, **kwargs)
