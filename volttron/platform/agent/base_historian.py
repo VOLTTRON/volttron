@@ -53,7 +53,7 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-#}}}
+# }}}
 
 from __future__ import absolute_import, print_function
 
@@ -237,7 +237,7 @@ class BaseHistorianAgent(Agent):
         '''
         
         if not ALL_REX.match(topic):
-#             _log.debug("Unmatched topic: {}".format(topic))
+            _log.debug("Unmatched topic: {}".format(topic))
             return
         
         # Because of the above if we know that all is in the topic so

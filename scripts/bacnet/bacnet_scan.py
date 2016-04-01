@@ -131,7 +131,7 @@ class WhoIsIAmApplication(BIPSimpleApplication):
                 # print out the contents
                 sys.stdout.write('\n')
                 sys.stdout.write('Device Address        = ' + repr(apdu.pduSource) + '\n')
-                sys.stdout.write('iAmDeviceIdentifier   = ' + str(apdu.iAmDeviceIdentifier) + '\n')
+                sys.stdout.write('Device Id             = ' + str(device_instance) + '\n')
                 sys.stdout.write('maxAPDULengthAccepted = ' + str(apdu.maxAPDULengthAccepted) + '\n')
                 sys.stdout.write('segmentationSupported = ' + str(apdu.segmentationSupported) + '\n')
                 sys.stdout.write('vendorID              = ' + str(apdu.vendorID) + '\n')

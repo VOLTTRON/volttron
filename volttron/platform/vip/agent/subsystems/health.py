@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*- {{{
-# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-
 # Copyright (c) 2015, Battelle Memorial Institute
 # All rights reserved.
 #
@@ -53,39 +50,88 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-#}}}
-
-from __future__ import absolute_import
-
-from .core import *
-from .errors import *
-from .decorators import *
-from .subsystems import *
 
 
-class Agent(object):
-    class Subsystems(object):
-        def __init__(self, owner, core, heartbeat_autostart, heartbeat_period):
-            self.peerlist = PeerList(core)
-            self.ping = Ping(core)
-            self.rpc = RPC(core, owner)
-            self.hello = Hello(core)
-            self.pubsub = PubSub(core, self.rpc, self.peerlist, owner)
-            self.channel = Channel(core)
-            self.heartbeat = Heartbeat(owner, core, self.rpc, self.pubsub, heartbeat_autostart, heartbeat_period)
-            self.health = Health(owner, core, self.rpc, self.heartbeat)
+import logging
+import weakref
 
-    def __init__(self, identity=None, address=None, context=None,
-                 publickey=None, secretkey=None, serverkey=None,
-                 heartbeat_autostart=False, heartbeat_period=60):
-        self.core = Core(self, identity=identity, address=address, context=context,
-                         publickey=publickey, secretkey=secretkey, serverkey=serverkey)
-        self.vip = Agent.Subsystems(self, self.core, heartbeat_autostart, heartbeat_period)
-        self.core.setup()
+from volttron.platform.messaging.health import *
+from volttron.platform.agent.utils import (get_aware_utc_now,
+                                           format_timestamp)
+
+from .base import SubsystemBase
+
+__docformat__ = 'reStructuredText'
+__version__ = '1.0'
+
+"""
+The health subsystem allows an agent to store it's health in a non-intrusive
+way.
+"""
+_log = logging.getLogger(__name__)
 
 
-class BasicAgent(object):
-    def __init__(self, **kwargs):
-        kwargs.pop('identity', None)
-        super(BasicAgent, self).__init__(**kwargs)
-        self.core = BasicCore(self)
+class Health(SubsystemBase):
+    def __init__(self, owner, core, rpc, heartbeat):
+        self._owner = owner
+        self._core = weakref.ref(core)
+        self._heartbeat = weakref.ref(heartbeat)
+        self._rpc = weakref.ref(rpc)
+        self._status = None
+        self._update_status(STATUS_GOOD)
+
+        def onsetup(sender, **kwargs):
+            rpc.export(self.set_status, 'health.set_status')
+            rpc.export(self.get_status, 'health.get_status')
+
+        def onstart(sender, **kwargs):
+            heartbeat.start()
+
+        core.onsetup.connect(onsetup, self)
+        core.onstart.connect(onstart, self)
+
+    def _update_status(self, status, context=None):
+        if status not in ACCEPTABLE_STATUS:
+            status = STATUS_BAD
+            context = str(context) + ' Invalid status detected'
+
+        self._status = {
+            CURRENT_STATUS: status,
+            CONTEXT: context,
+            LAST_UPDATED: format_timestamp(get_aware_utc_now())
+        }
+
+    def set_status(self, status, context=None):
+        """RPC method
+
+        Updates the agents status to the new value with the specified context.
+
+        :param: status: str: GODD, BAD
+        :param: context: str: A serializable that denotes the context of
+        status.
+        """
+        do_heartbeat_now = self._status['current_status'] != status
+
+        self._update_status(status, context)
+
+        if do_heartbeat_now:
+            # TODO: Check that the heartbeat publishes immediately
+            _log.debug("exercise heartbeat!")
+            self._heartbeat().stop()
+            self._heartbeat().start()
+
+    def get_status(self):
+        """"RPC method
+
+        Returns the last updated status from the object with the context.
+
+        The minimum output from the status would be:
+
+            {
+                "status": "GOOD",
+                "context": None,
+                "utc_last_update": "2016-03-31T15:40:32.685138+0000"
+            }
+
+        """
+        return self._status.copy()
