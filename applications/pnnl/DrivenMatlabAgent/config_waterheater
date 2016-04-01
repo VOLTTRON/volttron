@@ -26,7 +26,7 @@
     	
     	"config_url": "tcp://130.20.104.75:5556",
     	"data_url": "tcp://130.20.104.75:5557",
-    	"recv_timeout": 10000
+    	"recv_timeout": 50000
     },
     "conversion_map": {
         "statussetpoint*": "bool",
