@@ -85,7 +85,7 @@ class Health(SubsystemBase):
 
         core.onsetup.connect(onsetup, self)
 
-    def _update_status(self, status, context=None):
+    def _update_status(self, status, context):
         if status not in ACCEPTABLE_STATUS:
             status = STATUS_BAD
             context = str(context) + ' Invalid status detected'
@@ -105,13 +105,12 @@ class Health(SubsystemBase):
         :param: context: str: A serializable that denotes the context of
         status.
         """
-        do_heartbeat_now = self._status['current_status'] != status
+        do_heartbeat_now = self._status[CURRENT_STATUS] != status
 
         self._update_status(status, context)
 
         if do_heartbeat_now:
-            self._owner.vip.heartbeat.stop()
-            self._owner.vip.heartbeat.start()
+            self._owner.vip.heartbeat.restart()
 
     def get_status(self):
         """"RPC method
