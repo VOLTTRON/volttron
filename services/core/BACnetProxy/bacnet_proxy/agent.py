@@ -379,10 +379,12 @@ class BACnetProxyAgent(Agent):
         server_thread.start()
         
     @RPC.export
-    def ping_device(self, target_address):
+    def ping_device(self, target_address, device_id):
         """Ping a device with a whois to potentially setup routing."""
         _log.debug("Pinging "+target_address)
         request = WhoIsRequest()
+        request.deviceInstanceRangeLowLimit = device_id
+        request.deviceInstanceRangeHighLimit = device_id
         request.pduDestination = Address(target_address)
         
         iocb = IOCB(request, self.async_call)
