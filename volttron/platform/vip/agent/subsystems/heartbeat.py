@@ -51,18 +51,20 @@
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 
-__docformat__ = 'reStructuredText'
+
+import os
+import weakref
+from datetime import datetime
+
+from .base import SubsystemBase
 
 """The heartbeat subsystem adds an optional periodic publish to all agents.
 Heartbeats can be started with agents and toggled on and off at runtime.
 """
 
-import os
-import weakref
+__docformat__ = 'reStructuredText'
+__version__ = '1.0'
 
-from datetime import datetime
-
-from .base import SubsystemBase
 
 class Heartbeat(SubsystemBase):
     def __init__(self, owner, core, rpc, pubsub, heartbeat_autostart, heartbeat_period):
