@@ -176,7 +176,6 @@ def volttron_instance2_web(request):
     def cleanup():
         print('Shutting down instance: {}'.format(wrapper.volttron_home))
         print_log(wrapper.volttron_home)
-<<<<<<< HEAD
         wrapper.shutdown_platform(True)
     request.addfinalizer(cleanup)
     return wrapper
@@ -201,8 +200,6 @@ def volttron_instance(request, instance1_config):
 
     def cleanup():
         print('Shutting down instance: {}'.format(wrapper.volttron_home))
-=======
->>>>>>> develop
         wrapper.shutdown_platform(True)
     request.addfinalizer(cleanup)
     return wrapper
