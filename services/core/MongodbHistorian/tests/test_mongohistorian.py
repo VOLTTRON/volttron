@@ -11,6 +11,8 @@ import gevent
 import random
 from volttron.platform.messaging import headers as headers_mod
 from datetime import datetime
+from volttron.platform.agent.utils import (get_aware_utc_now,
+    format_timestamp)
 from dateutil import parser as dateparser
 
 try:
@@ -201,6 +203,7 @@ def test_two_hours_of_publishing(request, volttron_instance1, database_client):
 
     gevent.sleep(0.5)
     for d, v in expected.items():
+        print('d, v: ({}, {})'.format(d,v))
         assert db['data'].find({'ts': d}).count() == 3
 
         for t, _id in topic_to_id.items():
@@ -209,7 +212,7 @@ def test_two_hours_of_publishing(request, volttron_instance1, database_client):
 
 
 def publish_minute_data_for_two_hours(agent):
-    now = datetime.utcnow()
+    now = get_aware_utc_now()
     # expection[datetime]={oat:b,mixed:c,damper:d}
     expectation = {}
 
@@ -217,9 +220,14 @@ def publish_minute_data_for_two_hours(agent):
         data_by_time = {}
 
         for m in xrange(60):
-            now = datetime(now.year, now.month, now.day, h, m,
-                           random.randint(0, 59), random.randint(0, 1000))
+            # Because timestamps in mongo are only concerned with the first
+            #  three digits after the decimal we do this to give some
+            # randomness here.
+            myint = random.randint(0, 1000)
+            mymicro = str(myint)+'000'
 
+            now = datetime(now.year, now.month, now.day, h, m,
+                           random.randint(0, 59), int(mymicro))
             # Make some random readings
             oat_reading = random.uniform(30, 100)
             mixed_reading = oat_reading + random.uniform(-5, 5)
@@ -236,7 +244,8 @@ def publish_minute_data_for_two_hours(agent):
                  'DamperSignal': {'units': '%', 'tz': 'UTC', 'type': 'float'}
                  }]
 
-            data_by_time[now.isoformat()] = {
+            now_iso_string = format_timestamp(now)
+            data_by_time[now_iso_string] = {
                 "oat_point": oat_reading,
                 "mixed_point": mixed_reading,
                 "damper_point": damper_reading
@@ -244,7 +253,7 @@ def publish_minute_data_for_two_hours(agent):
 
             # now = '2015-12-02T00:00:00'
             headers = {
-                headers_mod.DATE: now.isoformat()
+                headers_mod.DATE: now_iso_string
             }
 
             # Publish messages
@@ -342,7 +351,7 @@ def test_insert_duplicate(volttron_instance1, database_client):
     publisher = volttron_instance1.build_agent()
     # Create timestamp (no parameter to isoformat so the result is a T
     # separator) The now value is a string after this function is called.
-    now = datetime.utcnow()
+    now = get_aware_utc_now()
     # now = now.replace(microsecond=random.randint(0,100))
     # now = datetime(now.year, now.month, now.day, now.hour,
     #     now.minute, now.second)
@@ -523,6 +532,7 @@ def test_topic_name_case_change(volttron_instance1, database_client):
     When case of a topic name changes check if they are saved as two topics
     Expected result: query result should be cases insensitive
     """
+    clean_db(database_client)
     agent_uuid = install_historian_agent(volttron_instance1, mongo_agent_config())
     try:
         publisher = volttron_instance1.build_agent()
