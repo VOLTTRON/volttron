@@ -245,7 +245,8 @@ class JsonFormatter(logging.Formatter):
 class AgentFormatter(logging.Formatter):
     def __init__(self, fmt=None, datefmt=None):
         if fmt is None:
-            fmt = '%(asctime)s %(composite_name)s %(levelname)s: %(message)s'
+            fmt = "[%(filename)s:%(lineno)s - %(funcName)20s() ] %(message)s"
+            #fmt = '%(asctime)s %(composite_name)s %(levelname)s: %(message)s'
         super(AgentFormatter, self).__init__(fmt=fmt, datefmt=datefmt)
 
     def composite_name(self, record):
@@ -276,7 +277,7 @@ def setup_logging(level=logging.DEBUG):
             handler.setFormatter(JsonFormatter())
         else:
             handler.setFormatter(logging.Formatter(
-                    '%(asctime)s %(name)s %(levelname)s: %(message)s'))
+                "[%(filename)s:%(lineno)s - %(funcName)20s() ] %(message)s"))
         root.addHandler(handler)
     root.setLevel(level)
 
