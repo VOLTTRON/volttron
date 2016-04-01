@@ -181,7 +181,11 @@ def historian(config_path, **kwargs):
                     self._topic_name_map[topic_lower] = topic
                 elif db_topic_name != topic:
                     _log.debug('Updating topic: {}'.format(topic))
-                    #TODO update mongodb here
+
+                    result = db[self._topic_collection].update_one(
+                        {'_id':ObjectId(topic_id)},
+                        {'$set': {'topic_name': topic}})
+                    assert result.matched_count
                     self._topic_name_map[topic_lower] = topic
 
                 old_meta = self._topic_meta.get(topic_id, {})
@@ -262,7 +266,8 @@ def historian(config_path, **kwargs):
             _log.debug('cursor count is: {}'.format(cursor.count()))
 
             # Create list of tuples for return values.
-            values = [(utils.format_timestamp(row['ts']), row['value']) for row
+            values = [(utils.format_timestamp(row['ts']), row['value']) for
+                      row
                       in cursor]
             if len(values) > 0:
                 return {
