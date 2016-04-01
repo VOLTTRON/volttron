@@ -57,6 +57,9 @@ import weakref
 from datetime import datetime
 
 from .base import SubsystemBase
+from volttron.platform.messaging.headers import DATE
+from volttron.platform.agent.utils import (get_aware_utc_now,
+                                           format_timestamp)
 
 """The heartbeat subsystem adds an optional periodic publish to all agents.
 Heartbeats can be started with agents and toggled on and off at runtime.
@@ -67,7 +70,8 @@ __version__ = '1.0'
 
 
 class Heartbeat(SubsystemBase):
-    def __init__(self, owner, core, rpc, pubsub, heartbeat_autostart, heartbeat_period):
+    def __init__(self, owner, core, rpc, pubsub, heartbeat_autostart,
+                 heartbeat_period):
         self.owner = owner
         self.core = weakref.ref(core)
         self.pubsub = weakref.ref(pubsub)
@@ -80,6 +84,7 @@ class Heartbeat(SubsystemBase):
             rpc.export(self.start, 'heartbeat.start')
             rpc.export(self.start_with_period, 'heartbeat.start_with_period')
             rpc.export(self.stop, 'heartbeat.stop')
+            rpc.export(self.restart, 'heartbeat.restart')
             rpc.export(self.set_period, 'heartbeat.set_period')
 
         def onstart(sender, **kwargs):
@@ -117,6 +122,16 @@ class Heartbeat(SubsystemBase):
             self.greenlet.kill()
             self.enabled = False
 
+    def restart(self):
+        """RPC method
+
+        Restart the heartbeat with the current period.  The heartbeat will
+        be immediately sending the heartbeat to the message bus.
+        """
+        self.stop()
+        self.start()
+
+
     def set_period(self, period):
         """RPC method
 
@@ -139,6 +154,7 @@ class Heartbeat(SubsystemBase):
         except KeyError:
             pass
 
-        message = str(datetime.now().isoformat(' '))
+        headers = {DATE: format_timestamp(get_aware_utc_now())}
+        message = self.owner.vip.health.get_status()
 
-        self.pubsub().publish('pubsub', topic, {}, message)
+        self.pubsub().publish('pubsub', topic, headers, message)
