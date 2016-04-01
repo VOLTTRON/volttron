@@ -57,6 +57,9 @@ import weakref
 from datetime import datetime
 
 from .base import SubsystemBase
+from volttron.platform.messaging.headers import DATE
+from volttron.platform.agent.utils import (get_aware_utc_now,
+                                           format_timestamp)
 
 """The heartbeat subsystem adds an optional periodic publish to all agents.
 Heartbeats can be started with agents and toggled on and off at runtime.
@@ -67,7 +70,8 @@ __version__ = '1.0'
 
 
 class Heartbeat(SubsystemBase):
-    def __init__(self, owner, core, rpc, pubsub, heartbeat_autostart, heartbeat_period):
+    def __init__(self, owner, core, rpc, pubsub, heartbeat_autostart,
+                 heartbeat_period):
         self.owner = owner
         self.core = weakref.ref(core)
         self.pubsub = weakref.ref(pubsub)
@@ -139,6 +143,7 @@ class Heartbeat(SubsystemBase):
         except KeyError:
             pass
 
-        message = str(datetime.now().isoformat(' '))
+        headers = {DATE: format_timestamp(get_aware_utc_now())}
+        message = self.owner.vip.health.get_status()
 
-        self.pubsub().publish('pubsub', topic, {}, message)
+        self.pubsub().publish('pubsub', topic, headers, message)

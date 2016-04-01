@@ -73,9 +73,9 @@ class Agent(object):
             self.hello = Hello(core)
             self.pubsub = PubSub(core, self.rpc, self.peerlist, owner)
             self.channel = Channel(core)
+            self.health = Health(owner, core, self.rpc)
             self.heartbeat = Heartbeat(owner, core, self.rpc, self.pubsub,
                                        heartbeat_autostart, heartbeat_period)
-            self.health = Health(owner, core, self.rpc, self.heartbeat)
 
     def __init__(self, identity=None, address=None, context=None,
                  publickey=None, secretkey=None, serverkey=None,

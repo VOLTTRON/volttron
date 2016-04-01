@@ -72,10 +72,9 @@ _log = logging.getLogger(__name__)
 
 
 class Health(SubsystemBase):
-    def __init__(self, owner, core, rpc, heartbeat):
+    def __init__(self, owner, core, rpc):
         self._owner = owner
         self._core = weakref.ref(core)
-        self._heartbeat = weakref.ref(heartbeat)
         self._rpc = weakref.ref(rpc)
         self._status = None
         self._update_status(STATUS_GOOD)
@@ -84,11 +83,7 @@ class Health(SubsystemBase):
             rpc.export(self.set_status, 'health.set_status')
             rpc.export(self.get_status, 'health.get_status')
 
-        def onstart(sender, **kwargs):
-            heartbeat.start()
-
         core.onsetup.connect(onsetup, self)
-        core.onstart.connect(onstart, self)
 
     def _update_status(self, status, context=None):
         if status not in ACCEPTABLE_STATUS:
@@ -115,10 +110,8 @@ class Health(SubsystemBase):
         self._update_status(status, context)
 
         if do_heartbeat_now:
-            # TODO: Check that the heartbeat publishes immediately
-            _log.debug("exercise heartbeat!")
-            self._heartbeat().stop()
-            self._heartbeat().start()
+            self._owner.vip.heartbeat.stop()
+            self._owner.vip.heartbeat.start()
 
     def get_status(self):
         """"RPC method
