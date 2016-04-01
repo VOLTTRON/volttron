@@ -84,6 +84,7 @@ from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
+__version__ = '3.0'
 
 def get_error_response(code, message, data=None):
     return {'jsonrpc': '2.0',
@@ -380,15 +381,18 @@ def platform_agent(config_path, **kwargs):
 
         @Core.receiver('onstart')
         def starting(self, sender, **kwargs):
-
             psutil.cpu_times_percent()
             psutil.cpu_percent()
             _, _, my_id = self.vip.hello().get(timeout=3)
-            self.vip.pubsub.publish(peer='pubsub', topic='/platform',
+            self.vip.heartbeat.start()
+            self.vip.pubsub.publish(peer='pubsub',
+                                    topic='/platform',
                                     message='available')
+
         @Core.receiver('onstop')
         def stoping(self, sender, **kwargs):
-            self.vip.pubsub.publish(peer='pubsub', topic='/platform',
+            self.vip.pubsub.publish(peer='pubsub',
+                                    topic='/platform',
                                     message='leaving')
 
     PlatformAgent.__name__ = 'PlatformAgent'

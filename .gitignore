@@ -4,7 +4,8 @@
 *~
 .svn
 .metadata
-
+parser.out
+/.idea
 /env/
 /Agents/*/{build,dist}/
 /Agents/*.egg

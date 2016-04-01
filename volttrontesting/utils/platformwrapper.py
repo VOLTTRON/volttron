@@ -3,6 +3,7 @@ import json
 import os
 import shutil
 import logging
+from gevent.fileobject import FileObject
 import gevent.subprocess as subprocess
 from gevent.subprocess import Popen
 import sys
@@ -15,11 +16,15 @@ from contextlib import closing
 from StringIO import StringIO
 
 import zmq
+from zmq.utils import jsonapi
+
 import gevent
 
+from volttron.platform.agent.utils import strip_comments
 from volttron.platform.messaging import topics
 from volttron.platform.main import start_volttron_process
 from volttron.platform.vip.agent import Agent
+from volttron.platform.vip.socket import encode_key
 from volttron.platform.aip import AIPplatform
 #from volttron.platform.control import client, server
 from volttron.platform import packaging
@@ -117,32 +122,86 @@ class PlatformWrapper:
 
         self._p_process = None
         self._t_process = None
+        self.publickey = self.generate_key()
         self._started_pids = []
         print('Creating Platform Wrapper at: {}'.format(self.volttron_home))
 
-    def build_agent(self, address=None, should_spawn=True):
+    def build_agent(self, address=None, should_spawn=True, identity=None,
+                    publickey=None, secretkey=None, serverkey=None, **kwargs):
         _log.debug('BUILD GENERIC AGENT')
-        if address == None:
-            print('VIP ADDRESS ', self.vip_address[0])
+        if address is None:
             address = self.vip_address[0]
 
-        print('ADDRESS: ', address)
-        agent = Agent(address=address)
+        agent = Agent(address=address, identity=identity, publickey=publickey,
+                      secretkey=secretkey, serverkey=serverkey, **kwargs)
+        print('platformwrapper.build_agent.address: {}'.format(address))
+
+        # Automatically add agent's credentials to auth.json file
+        if publickey:
+            self._append_allow_curve_key(publickey)
+
         if should_spawn:
-            print('SPAWNING GENERIC AGENT')
+            print('platformwrapper.build_agent spawning')
             event = gevent.event.Event()
             gevent.spawn(agent.core.run, event)#.join(0)
-            #h = agent.vip.hello().get(timeout=2)
-            print('After spawn')
             event.wait(timeout=2)
-            print('After event')
-            #gevent.spawn(agent.core.run)
-            #gevent.sleep(0)
-        print('Before returning agent.')
+
+            hello = agent.vip.hello().get(timeout=.3)
+            print('Got hello response {}'.format(hello))
+
         return agent
 
+    def generate_key(self):
+        key = ''.join(zmq.curve_keypair())
+        with open(os.path.join(self.volttron_home, 'curve.key'), 'w') as fd:
+            fd.write(key)
+        return encode_key(key[:40]) # public key
+
+    def _read_auth_file(self):
+        auth_path = os.path.join(self.volttron_home, 'auth.json')
+        try:
+            with open(auth_path, 'r') as fd:
+                data = strip_comments(FileObject(fd, close=False).read())
+                if data:
+                    auth = jsonapi.loads(data)
+                else:
+                    auth = {}
+        except IOError:
+            auth = {}
+        if not 'allow' in auth:
+            auth['allow'] = []
+        return auth, auth_path
+
+    def _append_allow_curve_key(self, publickey):
+        auth, auth_path = self._read_auth_file()
+        cred = 'CURVE:{}'.format(publickey)
+        allow = auth['allow']
+        if not any(record['credentials'] == cred for record in allow):
+            allow.append({'credentials': cred})
+
+        with open(auth_path, 'w+') as fd:
+            json.dump(auth, fd)
+
+    def add_capabilities(self, publickey, capabilities):
+        if isinstance(capabilities, basestring):
+            capabilities = [capabilities]
+        auth, auth_path = self._read_auth_file()
+        cred = 'CURVE:{}'.format(publickey)
+        allow = auth['allow']
+        entry = next((item for item in allow if item['credentials'] == cred), {})
+        caps = entry.get('capabilities', [])
+        entry['capabilities'] = list(set(caps + capabilities))
+
+        with open(auth_path, 'w+') as fd:
+            json.dump(auth, fd)
+
+    def set_auth_dict(self, auth_dict):
+        if auth_dict:
+            with open(os.path.join(self.volttron_home, 'auth.json'), 'w') as fd:
+                fd.write(json.dumps(auth_dict))
+
     def startup_platform(self, vip_address, auth_dict=None, use_twistd=False,
-        mode=UNRESTRICTED):
+        mode=UNRESTRICTED, encrypt=False):
         # if not isinstance(vip_address, list):
         #     self.vip_address = [vip_address]
         # else:
@@ -159,9 +218,12 @@ class PlatformWrapper:
             '@' if sys.platform.startswith('linux') else '',
             self.volttron_home)
 
-        # Remove connection encryption
-        with open(os.path.join(self.volttron_home, 'curve.key'), 'w'):
-            pass
+        if not encrypt:
+            # Remove connection encryption
+            with open(os.path.join(self.volttron_home, 'curve.key'), 'w'):
+                pass
+
+        self.set_auth_dict(auth_dict)
 
         self.opts = {'verify_agents': False,
                 'volttron_home': self.volttron_home,
@@ -169,7 +231,7 @@ class PlatformWrapper:
                 'vip_local_address': ipc + 'vip.socket',
                 'publish_address': ipc + 'publish',
                 'subscribe_address': ipc + 'subscribe',
-                'developer_mode': True,
+                'developer_mode': not encrypt,
                 'log': os.path.join(self.volttron_home,'volttron.log'),
                 'log_config': None,
                 'monitor': True,
@@ -214,21 +276,28 @@ class PlatformWrapper:
             raise PlatformWrapperError("Invalid platform mode specified: {}".format(mode))
 
         log = os.path.join(self.env['VOLTTRON_HOME'], 'volttron.log')
-        self._p_process = Popen(['volttron', '-vv', '-l{}'.format(log),
-            '--developer-mode'],
-            env=self.env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+        cmd = ['volttron', '-vv', '-l{}'.format(log)]
+        if self.opts['developer_mode']:
+            cmd.append('--developer-mode')
+
+        self._p_process = Popen(cmd, env=self.env, stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE)
 
         assert self._p_process is not None
         # A None value means that the process is still running.
         # A negative means that the process exited with an error.
         assert self._p_process.poll() is None
 
+        # # make sure we don't return too quickly.
+        gevent.sleep(0.2)
+
         #os.environ['VOLTTRON_HOME'] = self.opts['volttron_home']
         #self._p_process = Process(target=start_volttron_process, args=(self.opts,))
         #self._p_process.daemon = True
         #self._p_process.start()
 
-        gevent.sleep()
+        gevent.sleep(0.2)
         self.use_twistd = use_twistd
 
         #TODO: Revise this to start twistd with platform.
@@ -244,6 +313,7 @@ class PlatformWrapper:
         #self._t_process = subprocess.Popen(["twistd", "-n", "smap", "test-smap.ini"])
 
     def is_running(self):
+        print("PROCESS IS RUNNING: {}".format(self._p_process))
         return self._p_process is not None and self._p_process.poll() is None
 
     def twistd_is_running(self):
@@ -356,10 +426,11 @@ class PlatformWrapper:
             assert wheel_file
 
         agent_uuid = self._install_agent(wheel_file, start)
-        #agent_uuid = self.test_aip.install_agent(wheel_file)
+
         assert agent_uuid is not None
-        #if start:
-    #        self.start_agent(agent_uuid)
+
+        if start:
+            assert self.is_agent_running(agent_uuid)
 
         return agent_uuid
 
@@ -397,7 +468,7 @@ class PlatformWrapper:
         return aip.agent_status(uuid)
 
     def is_agent_running(self, agent_uuid):
-        return self.agent_status is not None
+        return self.agent_status(agent_uuid) is not None
 
     def agent_status(self, agent_uuid):
         # Confirm agent running
@@ -506,10 +577,12 @@ class PlatformWrapper:
             except:
                 print('could not kill: {} '.format(pid))
         if self._p_process != None:
-
-            gevent.sleep()
-            self._p_process.terminate()
-            gevent.sleep()
+            try:
+                gevent.sleep(0.2)
+                self._p_process.terminate()
+                gevent.sleep(0.2)
+            except OSError:
+                print('Platform process was terminated.')
         else:
             print "platform process was null"
 

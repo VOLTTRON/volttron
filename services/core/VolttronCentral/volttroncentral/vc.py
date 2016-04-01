@@ -93,6 +93,7 @@ from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
                                        PARSE_ERROR, UNHANDLED_EXCEPTION)
 utils.setup_logging()
 _log = logging.getLogger(__name__)
+__version__ = '3.0'
 
 # Web root is going to be relative to the volttron central agents
 # current agent's installed path
@@ -275,7 +276,8 @@ def volttron_central_agent(config_path, **kwargs):
         def starting(self, sender, **kwargs):
             '''This event is triggered when the platform is ready for the agent
             '''
-            
+            self.vip.heartbeat.start()
+
             q = query.Query(self.core)
             result = q.query('addresses').get(timeout=10)
             
