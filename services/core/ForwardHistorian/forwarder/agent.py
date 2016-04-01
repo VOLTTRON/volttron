@@ -66,6 +66,7 @@ from zmq.utils import jsonapi
 from volttron.platform.vip.agent import *
 from volttron.platform.agent.base_historian import BaseHistorian
 from volttron.platform.agent import utils
+from volttron.platform.agent.utils import process_timestamp
 from volttron.platform.messaging import topics, headers as headers_mod
 
 utils.setup_logging()
@@ -118,6 +119,11 @@ def historian(config_path, **kwargs):
             self._started = True
 
         def capture_data(self, peer, sender, bus, topic, headers, message):
+
+            # Grab the timestamp string from the message (we use this as the
+            # value in our readings at the end of this method)
+            timestamp_string = headers.get(headers_mod.DATE)
+
             data = message
             try:
                 # 2.0 agents compatability layer makes sender == pubsub.compat so
@@ -151,15 +157,11 @@ def historian(config_path, **kwargs):
                         self._topic_replace_map[k] = v
                     topic = self._topic_replace_map[topic]
 
-
-            _log.debug('prepayload: {}'.format(message))
             payload = jsonapi.dumps({'headers': headers, 'message': data})
-            _log.debug('postpayload: {}'.format(payload))
 
-            utcnowstring = utils.get_aware_utc_now()
             self._event_queue.put({'source': "forwarded",
                                    'topic': topic,
-                                   'readings': [(utcnowstring, payload)]})
+                                   'readings': [(timestamp_string, payload)]})
 
         def __platform(self, peer, sender, bus, topic, headers, message):
             _log.debug('Platform is now: {}'.format(message))
