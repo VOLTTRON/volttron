@@ -85,7 +85,7 @@ class Health(SubsystemBase):
 
         core.onsetup.connect(onsetup, self)
 
-    def _update_status(self, status, context):
+    def _update_status(self, status, context=None):
         if status not in ACCEPTABLE_STATUS:
             status = STATUS_BAD
             context = str(context) + ' Invalid status detected'
