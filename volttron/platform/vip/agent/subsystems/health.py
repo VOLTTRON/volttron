@@ -52,11 +52,10 @@
 # under Contract DE-AC05-76RL01830
 
 
-from datetime import datetime
-import os
 import logging
 import weakref
 
+from volttron.platform.messaging.health import *
 from volttron.platform.agent.utils import (get_aware_utc_now,
                                            format_timestamp)
 
@@ -78,14 +77,8 @@ class Health(SubsystemBase):
         self._core = weakref.ref(core)
         self._heartbeat = weakref.ref(heartbeat)
         self._rpc = weakref.ref(rpc)
-
-        self._last_updated = get_aware_utc_now()
-
-        self._status = {
-            'current_status': 'GOOD',
-            'context': None,
-            'utc_last_update': format_timestamp(self._last_updated)
-        }
+        self._status = None
+        self._update_status(STATUS_GOOD)
 
         def onsetup(sender, **kwargs):
             rpc.export(self.set_status, 'health.set_status')
@@ -96,6 +89,17 @@ class Health(SubsystemBase):
 
         core.onsetup.connect(onsetup, self)
         core.onstart.connect(onstart, self)
+
+    def _update_status(self, status, context=None):
+        if status not in ACCEPTABLE_STATUS:
+            status = STATUS_BAD
+            context = str(context) + ' Invalid status detected'
+
+        self._status = {
+            CURRENT_STATUS: status,
+            CONTEXT: context,
+            LAST_UPDATED: format_timestamp(get_aware_utc_now())
+        }
 
     def set_status(self, status, context=None):
         """RPC method
@@ -108,9 +112,7 @@ class Health(SubsystemBase):
         """
         do_heartbeat_now = self._status['current_status'] != status
 
-        self._status = dict(current_status=status, context=context,
-                            utc_last_update= format_timestamp(
-                                get_aware_utc_now()))
+        self._update_status(status, context)
 
         if do_heartbeat_now:
             # TODO: Check that the heartbeat publishes immediately
