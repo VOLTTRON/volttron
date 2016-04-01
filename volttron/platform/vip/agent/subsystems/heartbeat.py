@@ -84,6 +84,7 @@ class Heartbeat(SubsystemBase):
             rpc.export(self.start, 'heartbeat.start')
             rpc.export(self.start_with_period, 'heartbeat.start_with_period')
             rpc.export(self.stop, 'heartbeat.stop')
+            rpc.export(self.restart, 'heartbeat.restart')
             rpc.export(self.set_period, 'heartbeat.set_period')
 
         def onstart(sender, **kwargs):
@@ -120,6 +121,16 @@ class Heartbeat(SubsystemBase):
         if self.enabled:
             self.greenlet.kill()
             self.enabled = False
+
+    def restart(self):
+        """RPC method
+
+        Restart the heartbeat with the current period.  The heartbeat will
+        be immediately sending the heartbeat to the message bus.
+        """
+        self.stop()
+        self.start()
+
 
     def set_period(self, period):
         """RPC method
