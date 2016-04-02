@@ -63,7 +63,7 @@ from urlparse import urlparse
 import gevent
 from zmq.utils import jsonapi
 
-from volttron.platform.vip.agent import *
+from volttron.platform.vip.agent import Agent, Core, compat
 from volttron.platform.agent.base_historian import BaseHistorian
 from volttron.platform.agent import utils
 from volttron.platform.messaging import topics, headers as headers_mod
@@ -72,6 +72,7 @@ utils.setup_logging()
 _log = logging.getLogger(__name__)
 __version__ = '3.5'
 
+
 def historian(config_path, **kwargs):
     config = utils.load_config(config_path)
     services_topic_list = config.get('services_topic_list', ['all'])
@@ -79,7 +80,8 @@ def historian(config_path, **kwargs):
     topic_text_replace_list = config.get('topic_text_replace', [])
     destination_vip = config.get('destination-vip')
     identity = config.get('identity', kwargs.pop('identity', None))
-    include_destination_in_header = config.get('include_destination_in_header', False)
+    include_destination_in_header = config.get('include_destination_in_header',
+                                               False)
     origin = config.get('origin', None)
     overwrite_origin = config.get('overwrite_origin', False)
     include_origin_in_header = config.get('include_origin_in_header', False)
@@ -94,7 +96,6 @@ def historian(config_path, **kwargs):
             # will be available in both threads.
             self._topic_replace_map = {}
             super(ForwardHistorian, self).__init__(**kwargs)
-
 
         @Core.receiver("onstart")
         def starting_base(self, sender, **kwargs):
@@ -117,28 +118,36 @@ def historian(config_path, **kwargs):
 
             self._started = True
 
+
         def capture_data(self, peer, sender, bus, topic, headers, message):
 
             # Grab the timestamp string from the message (we use this as the
             # value in our readings at the end of this method)
-            timestamp_string = headers.get(headers_mod.DATE)
+            _log.debug("In capture data")
+            timestamp_string = headers.get(headers_mod.DATE, None)
 
             data = message
             try:
-                # 2.0 agents compatability layer makes sender == pubsub.compat so
-                # we can do the proper thing when it is here
+                # 2.0 agents compatability layer makes sender = pubsub.compat
+                # so we can do the proper thing when it is here
+                _log.debug("message in capture_data {}".format(message))
                 if sender == 'pubsub.compat':
-                    data = jsonapi.loads(message[0])
+                    # data = jsonapi.loads(message[0])
+                    data = compat.unpack_legacy_message(headers, message)
+                    _log.debug("data in capture_data {}".format(data))
                 if isinstance(data, dict):
                     data = data
-                elif isinstance(data, int) or isinstance(data, float) \
-                    or isinstance(data, long):
+                elif isinstance(data, int) or \
+                        isinstance(data, float) or \
+                        isinstance(data, long):
                     data = data
-                else:
-                    data = data[0]
+                    # else:
+                    #     data = data[0]
             except ValueError as e:
-                log_message = "message for {topic} bad message string: {message_string}"
-                _log.error(log_message.format(topic=topic, message_string=message[0]))
+                log_message = "message for {topic} bad message string:" \
+                              "{message_string}"
+                _log.error(log_message.format(topic=topic,
+                                              message_string=message[0]))
                 raise
 
             if topic_text_replace_list:
@@ -147,16 +156,17 @@ def historian(config_path, **kwargs):
                 else:
                     self._topic_replace_map[topic] = topic
                     temptopics = {}
-                    for x in  topic_text_replace_list:
+                    for x in topic_text_replace_list:
                         if x['from'] in topic:
                             new_topic = temptopics.get(topic, topic)
-                            temptopics[topic] = new_topic.replace(x['from'], x['to'])
+                            temptopics[topic] = new_topic.replace(
+                                x['from'], x['to'])
 
                     for k, v in temptopics.items():
                         self._topic_replace_map[k] = v
                     topic = self._topic_replace_map[topic]
 
-            payload = jsonapi.dumps({'headers': headers, 'message': data})
+            payload = {'headers': headers, 'message': data}
 
             self._event_queue.put({'source': "forwarded",
                                    'topic': topic,
@@ -175,7 +185,8 @@ def historian(config_path, **kwargs):
             for x in to_publish_list:
                 topic = x['topic']
                 value = x['value']
-                payload = jsonapi.loads(value)
+                # payload = jsonapi.loads(value)
+                payload = value
                 headers = payload['headers']
                 headers['X-Forwarded'] = True
                 try:
@@ -205,11 +216,14 @@ def historian(config_path, **kwargs):
 
                 with gevent.Timeout(30):
                     try:
-                        _log.debug('debugger: {} {} {}'.format(topic, headers, payload))
-                        self._target_platform.vip.pubsub.publish(peer='pubsub',
-                                                                 topic=topic,
-                                                                 headers=headers,
-                                                                 message=payload['message']).get()
+                        _log.debug('debugger: {} {} {}'.format(topic,
+                                                               headers,
+                                                               payload))
+                        self._target_platform.vip.pubsub.publish(
+                            peer='pubsub',
+                            topic=topic,
+                            headers=headers,
+                            message=payload['message']).get()
                     except gevent.Timeout:
                         self._target_platform.core.stop()
                         self.historian_setup()
@@ -218,11 +232,17 @@ def historian(config_path, **kwargs):
                     else:
                         handled_records.append(x)
 
-            _log.debug("handled: {} number of items".format(len(to_publish_list)))
+            _log.debug("handled: {} number of items".format(
+                len(to_publish_list)))
             self.report_handled(handled_records)
 
         def query_historian(self, topic, start=None, end=None, skip=0,
                             count=None, order="FIRST_TO_LAST"):
+            """Not implemented
+            """
+            return None
+
+        def query_topic_list(self):
             """Not implemented
             """
             return None
