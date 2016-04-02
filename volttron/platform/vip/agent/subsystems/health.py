@@ -56,9 +56,6 @@ import logging
 import weakref
 
 from volttron.platform.messaging.health import *
-from volttron.platform.agent.utils import (get_aware_utc_now,
-                                           format_timestamp)
-
 from .base import SubsystemBase
 
 __docformat__ = 'reStructuredText'
@@ -76,25 +73,21 @@ class Health(SubsystemBase):
         self._owner = owner
         self._core = weakref.ref(core)
         self._rpc = weakref.ref(rpc)
-        self._status = None
-        self._update_status(STATUS_GOOD)
+        self._statusobj = Status.build(
+            STATUS_GOOD, status_changed_callback=self._status_changed)
 
         def onsetup(sender, **kwargs):
             rpc.export(self.set_status, 'health.set_status')
             rpc.export(self.get_status, 'health.get_status')
+            rpc.export(self.send_alert, 'health.send_alert')
 
         core.onsetup.connect(onsetup, self)
 
-    def _update_status(self, status, context=None):
-        if status not in ACCEPTABLE_STATUS:
-            status = STATUS_BAD
-            context = str(context) + ' Invalid status detected'
+    def send_alert(self, alert_key, context=None):
+        pass
 
-        self._status = {
-            CURRENT_STATUS: status,
-            CONTEXT: context,
-            LAST_UPDATED: format_timestamp(get_aware_utc_now())
-        }
+    def _status_changed(self):
+        self._owner.vip.heartbeat.restart()
 
     def set_status(self, status, context=None):
         """RPC method
@@ -105,12 +98,7 @@ class Health(SubsystemBase):
         :param: context: str: A serializable that denotes the context of
         status.
         """
-        do_heartbeat_now = self._status[CURRENT_STATUS] != status
-
-        self._update_status(status, context)
-
-        if do_heartbeat_now:
-            self._owner.vip.heartbeat.restart()
+        self._statusobj.update_status(status, context)
 
     def get_status(self):
         """"RPC method
@@ -126,4 +114,4 @@ class Health(SubsystemBase):
             }
 
         """
-        return self._status.copy()
+        return self._statusobj.to_json()
