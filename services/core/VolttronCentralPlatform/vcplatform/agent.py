@@ -402,7 +402,7 @@ class VolttronCentralPlatform(Agent):
     #     return self.@RPC.allow("can_manage")
 
     @RPC.export
-    @RPC.allow("manager")
+    #@RPC.allow("manager") #TODO: uncomment allow decorator
     def list_agents(self):
         """ List the agents that are installed on the platform.
 
