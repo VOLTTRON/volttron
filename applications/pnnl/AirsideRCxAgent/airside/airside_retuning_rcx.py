@@ -228,6 +228,8 @@ class Application(AbstractDrivenAgent):
 
         for key, value in device_dict.items():
             data_name = key
+            if value is None:
+                continue
             if data_name == self.duct_stp_stpt_name:
                 stcpr_sp_data = validate_builder(value, data_name)
                 sched_val.update(validate)
