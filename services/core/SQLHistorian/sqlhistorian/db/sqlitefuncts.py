@@ -232,4 +232,9 @@ class SqlLiteFuncts(DbDriver):
         q = "SELECT topic_id, topic_name FROM " + self.topics_table
         rows = self.select(q, None)
         _log.debug("loading topic map from db")
-        return dict([(n.lower(), t) for t, n in rows])
+        id_map = dict()
+        name_map = dict()
+        for t, n in rows:
+            id_map[n.lower()] = t
+            name_map[n.lower()] = n
+        return id_map, name_map
