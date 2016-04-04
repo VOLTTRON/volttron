@@ -19,7 +19,17 @@ ACCEPTABLE_STATUS = (GOOD_STATUS, BAD_STATUS, UNKNOWN_STATUS)
 
 
 class Status(object):
+    """
+    The `Status` objects wraps the context status and last reported into a
+    small object that can be serialized and sent across the zmq message bus.
 
+    There are two static methodss for constructing `Status` object's:
+      - from_json() Expects a json string as input.
+      - build() Expects at least a status in the `ACCEPTABLE_STATUS` tuple.
+
+    The build() method also takes a context and a callback function that will
+    be called when the status changes.
+    """
     def __init__(self):
         self._status = GOOD_STATUS
         self._context = None
@@ -43,6 +53,16 @@ class Status(object):
         return self._last_updated
 
     def update_status(self, status, context=None):
+        """
+        Updates the internal state of the `Status` object.
+
+        This method will throw errors if the context is not serializable or
+        if the status parameter is not within the ACCEPTABLE_STATUS tuple.
+
+        :param status:
+        :param context:
+        :return:
+        """
         if status not in ACCEPTABLE_STATUS:
             raise ValueError('Invalid status value {}'.format(status))
         try:
@@ -58,6 +78,14 @@ class Status(object):
             print(self._status_changed_callback())
 
     def to_json(self):
+        """
+        Serializes the object to a json string.
+
+        Note:
+            Does not serialize the change callback function.
+
+        :return:
+        """
         cp = self.__dict__.copy()
         try:
             del cp['_status_changed_callback']
@@ -67,6 +95,13 @@ class Status(object):
 
     @staticmethod
     def from_json(data, status_changed_callback=None):
+        """
+        Deserializes a `Status` object and returns it to the caller.
+
+        :param data:
+        :param status_changed_callback:
+        :return:
+        """
         statusobj = Status()
         statusobj.__dict__ = jsonapi.loads(data)
         statusobj._status_changed_callback = status_changed_callback
@@ -74,6 +109,15 @@ class Status(object):
 
     @staticmethod
     def build(status, context=None, status_changed_callback=None):
+        """
+        Constructs a `Status` object and initializes its state using the
+        passed parameters.
+
+        :param status:
+        :param context:
+        :param status_changed_callback:
+        :return:
+        """
         statusobj = Status()
         statusobj.update_status(status, context)
         statusobj._status_changed_callback = status_changed_callback

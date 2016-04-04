@@ -102,6 +102,9 @@ class Health(SubsystemBase):
                                        message=statusobj.to_json())
 
     def _status_changed(self):
+        """ Internal function that happens when the status changes state.
+        :return:
+        """
         self._owner.vip.heartbeat.restart()
 
     def set_status(self, status, context=None):
