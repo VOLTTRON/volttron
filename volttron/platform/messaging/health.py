@@ -33,6 +33,8 @@ class Status(object):
     @property
     def context(self):
         if self._context:
+            if isinstance(self._context, basestring):
+                return self._context
             return self._context.copy()
         return None
 
@@ -77,55 +79,3 @@ class Status(object):
         statusobj._status_changed_callback = status_changed_callback
         return statusobj
 
-
-class Alert(object):
-
-    def __init__(self):
-        self._statusobj = None
-        self._pubkey = None
-        self._agent_name = None
-
-    @property
-    def alertkey(self):
-        return self._alertkey
-
-    @property
-    def pulbickey(self):
-        return self._agent.core.publickey()
-
-    @property
-    def agent_name(self):
-        return self._agent_name
-
-    @property
-    def status(self):
-        return self._statusobj.status
-
-    @property
-    def context(self):
-        return self._statusobj.context
-
-    @property
-    def last_updated(self):
-        return self._statusobj.last_updated
-
-    def to_json(self):
-        d = dict(alertkey=self.alertkey, publickey=self.publickey,
-                 agent_name=self._agent_name, context=self.context)
-        return jsonapi.dumps(d)
-
-    @staticmethod
-    def from_json(data):
-        a = Alert()
-        d = jsonapi.loads(data)
-        a.__dict__ = d
-        a._statusobj = Status.build(BAD_STATUS, d[CONTEXT])
-        return a
-
-    @staticmethod
-    def build_severe(agent, alertkey, context=None):
-        alertobj = Alert()
-        alertobj._statusobj = Status.build(BAD_STATUS, context)
-        alertobj._pubkey = agent.core.publickey()
-        alertobj._agent = agent.__class__.__name__
-        return alertobj
