@@ -23,7 +23,7 @@ class Status(object):
     The `Status` objects wraps the context status and last reported into a
     small object that can be serialized and sent across the zmq message bus.
 
-    There are two static methodss for constructing `Status` object's:
+    There are two static methods for constructing `Status` objects:
       - from_json() Expects a json string as input.
       - build() Expects at least a status in the `ACCEPTABLE_STATUS` tuple.
 
