@@ -55,6 +55,7 @@
 import logging
 import weakref
 
+from volttron.platform.messaging import topics
 from volttron.platform.messaging.health import *
 from .base import SubsystemBase
 
@@ -83,8 +84,22 @@ class Health(SubsystemBase):
 
         core.onsetup.connect(onsetup, self)
 
-    def send_alert(self, alert_key, context=None):
-        pass
+    def send_alert(self, alert_key, statusobj):
+        """
+        An alert_key is a quasi-unique key.  A listener to the alert can
+        determine whether to pass the alert on to a higher level based upon
+        the frequency of this alert.
+
+        :param alert_key:
+        :param context:
+        :return:
+        """
+        if not isinstance(statusobj, Status):
+            raise ValueError('statusobj must be a Status object.')
+        headers = dict(alert_key=alert_key),
+        self._owner.vip.pubsub.publish("pubsub", topic=topics.ALERTS.format(),
+                                       headers=headers,
+                                       message=statusobj.to_json())
 
     def _status_changed(self):
         self._owner.vip.heartbeat.restart()

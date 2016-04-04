@@ -1,6 +1,7 @@
 import gevent
 import pytest
 
+from volttron.platform.messaging import topics
 from volttron.platform.messaging.headers import DATE
 from volttron.platform.messaging.health import *
 from volttron.platform.agent.utils import parse_timestamp_string
@@ -97,31 +98,41 @@ def test_heartbeat_sending_status(volttron_instance1):
     message = subscription_results[agent_prefix]['message']
     headers = subscription_results[agent_prefix]['headers']
     d = Status.from_json(message)
+    assert headers[DATE] is not None
     assert d.last_updated is not None
     assert orig_status.status == d.status
     assert orig_status.context == d.context
 
-#
-# @pytest.mark.subsystems
-# def test_alert_publishes_on_correct_topic(volttron_instance1):
-#     """ Tests the heartbeat message that it has the status.
-#
-#     :param volttron_instance1:
-#     :return:
-#     """
-#     global subscription_results
-#     subscription_results.clear()
-#     agent_prefix = 'heartbeat/Agent'
-#     new_agent = volttron_instance1.build_agent(identity='test3')
-#     orig_status = new_agent.vip.health.get_status()
-#     new_agent.vip.pubsub.subscribe(peer='pubsub',
-#                                    prefix=agent_prefix, callback=onmessage)
-#     new_agent.vip.heartbeat.start()
-#     poll_gevent_sleep(2, lambda: messages_contains_prefix(agent_prefix,
-#                                                           subscription_results))
-#     message = subscription_results[agent_prefix]['message']
-#     headers = subscription_results[agent_prefix]['headers']
-#     assert orig_status.status == message[CURRENT_STATUS]
-#     assert orig_status[CONTEXT] == message[CONTEXT]
-#     new_agent.vip.health.set_status(STATUS_GOOD)
+
+@pytest.mark.subsystems
+def test_alert_publish(volttron_instance1):
+    """ Tests the heartbeat message that it has the status.
+
+    :param volttron_instance1:
+    :return:
+    """
+    global subscription_results
+    subscription_results.clear()
+    alert_prefix = topics.ALERTS.format()
+    new_agent = volttron_instance1.build_agent(identity='alert1')
+    status = Status.build(BAD_STATUS, "Too many connections!")
+    new_agent.vip.pubsub.subscribe(peer='pubsub',
+                                   prefix='', callback=onmessage)
+    gevent.sleep(0.1)
+    orig_status = new_agent.vip.health.send_alert("too_many", status)
+    poll_gevent_sleep(2, lambda: messages_contains_prefix(alert_prefix,
+                                                          subscription_results))
+    print("THE SUBSCRIPTIONS ARE: {}".format(subscription_results))
+    if not messages_contains_prefix(alert_prefix, subscription_results):
+        pytest.fail('prefix not found')
+
+    headers = subscription_results[alert_prefix]['headers']
+    message = subscription_results[alert_prefix]['message']
+
+    assert "too_many", headers['alert_key']
+    passed_status = Status.from_json(message)
+    assert status.status == passed_status.status
+    assert status.context == passed_status.context
+    assert status.last_updated == passed_status.last_updated
+
 
