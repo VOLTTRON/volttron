@@ -151,7 +151,7 @@ meta_table = 'meta'
 
 
 @pytest.fixture(scope="module",
-                params=['volttron_2','volttron_3'])
+                params=['volttron_2', 'volttron_3'])
 def publish_agent(request, volttron_instance1):
     # 1: Start a fake agent to publish to message bus
     if request.param == 'volttron_2':
@@ -1316,9 +1316,10 @@ def test_log_topic(sqlhistorian, publish_agent, query_agent, clean):
     assert (len(result['values']) == 1)
     assert (result['values'][0][1] == mixed_reading)
 
+
 @pytest.mark.historian
 def test_log_topic_no_header(sqlhistorian, publish_agent, query_agent,
-                               clean):
+                             clean):
     """
     Test publishing to log topic without any header and no timestamp in message
     Expected result:
@@ -1362,9 +1363,10 @@ def test_log_topic_no_header(sqlhistorian, publish_agent, query_agent,
     assert (len(result['values']) == 1)
     assert (result['values'][0][1] == mixed_reading)
 
+
 @pytest.mark.historian
 def test_log_topic_timestamped_readings(sqlhistorian, publish_agent,
-                                      query_agent, clean):
+                                        query_agent, clean):
     """
     Test publishing to log topic with explicit timestamp in message.
     Expected result:
@@ -1414,5 +1416,3 @@ def test_log_topic_timestamped_readings(sqlhistorian, publish_agent,
     assert (len(result['values']) == 1)
     assert (result['values'][0][1] == mixed_reading)
     assert_timestamp(result['values'][0][0], '2015-12-02', '00:00:00.000000')
-
-

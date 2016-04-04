@@ -10,6 +10,7 @@ from volttron.platform.vip.agent import Agent
 from gevent.subprocess import Popen
 import gevent.subprocess as subprocess
 from mock import MagicMock
+
 # import types
 
 forwarder_uuid = None
@@ -39,7 +40,7 @@ sqlite_config = {
 
 # Fixture for setup and teardown of publish agent
 @pytest.fixture(scope="module",
-                params=['volttron_2','volttron_3'])
+                params=['volttron_2', 'volttron_3'])
 def publish_agent(request, volttron_instance1, forwarder):
     # 1: Start a fake agent to publish to message bus
     if request.param == 'volttron_2':
@@ -165,12 +166,12 @@ def test_devices_topic(publish_agent, query_agent):
         count=20,
         order="LAST_TO_FIRST").get(timeout=10)
 
-
     assert (len(result['values']) == 1)
     (time1_date, time1_time) = time1.split(" ")
     assert (result['values'][0][0] == time1_date + 'T' + time1_time + '+00:00')
     assert (result['values'][0][1] == oat_reading)
     assert set(result['metadata'].items()) == set(float_meta.items())
+
 
 @pytest.mark.historian
 @pytest.mark.forwarder
@@ -227,6 +228,7 @@ def test_record_topic(publish_agent, query_agent):
     assert (result['values'][2][1] == {'key': 'value'})
     assert result['values'][2][0] == time3 + '+00:00'
 
+
 @pytest.mark.historian
 @pytest.mark.forwarder
 def test_record_topic_no_header(publish_agent, query_agent):
@@ -245,19 +247,16 @@ def test_record_topic_no_header(publish_agent, query_agent):
     """
     # Create timestamp
     print("\n** test_record_topic **")
-    gevent.sleep(1) # so that there is no side effect from last test case
+    gevent.sleep(1)  # so that there is no side effect from last test case
 
     now = datetime.utcnow().isoformat() + 'Z'
     # Publish messages
     publish(publish_agent, topics.RECORD, None, 1)
-
     # sleep so that records gets inserted with unique timestamp
-
-
+    gevent.sleep(0.5)
     publish(publish_agent, topics.RECORD, None, 'value0')
     # sleep so that records gets inserted with unique timestamp
-    gevent.sleep(1)
-
+    gevent.sleep(0.5)
     publish(publish_agent, topics.RECORD, None, {'key': 'value'})
     gevent.sleep(1)
     result = query_agent.vip.rpc.call('platform.historian',
@@ -270,6 +269,7 @@ def test_record_topic_no_header(publish_agent, query_agent):
     assert (result['values'][0][1] == 1)
     assert (result['values'][1][1] == 'value0')
     assert (result['values'][2][1] == {'key': 'value'})
+
 
 @pytest.mark.historian
 @pytest.mark.forwarder
@@ -337,6 +337,7 @@ def test_analysis_topic(publish_agent, query_agent):
     assert (result['values'][0][0] == now_date + 'T' + now_time + '+00:00')
     assert (result['values'][0][1] == mixed_reading)
 
+
 @pytest.mark.historian
 @pytest.mark.forwarder
 def test_analysis_topic_no_header(publish_agent, query_agent):
@@ -395,10 +396,8 @@ def test_analysis_topic_no_header(publish_agent, query_agent):
         order="LAST_TO_FIRST").get(timeout=10)
     print('Query Result', result)
     assert (len(result['values']) == 1)
-    (now_date, now_time) = now.split("T")
-    if now_time[-1:] == 'Z':
-        now_time = now_time[:-1]
     assert (result['values'][0][1] == mixed_reading)
+
 
 @pytest.mark.historian
 @pytest.mark.forwarder
@@ -435,9 +434,9 @@ def test_log_topic(publish_agent, query_agent):
 
     # Create a message for all points.
     message = {'MixedAirTemperature': {'Readings': mixed_reading,
-                                        'Units':'F',
-                                        'tz': 'UTC',
-                                        'type': 'float'}}
+                                       'Units': 'F',
+                                       'tz': 'UTC',
+                                       'type': 'float'}}
     # pytest.set_trace()
     # Create timestamp
     current_time = datetime.utcnow().isoformat() + 'Z'
@@ -494,10 +493,10 @@ def test_log_topic_no_header(publish_agent, query_agent):
     current_time = datetime.utcnow().isoformat()
     # Create a message for all points.
     message = {'MixedAirTemperature': {'Readings': mixed_reading,
-                                        'Units':'F',
-                                        'tz': 'UTC',
-                                        'type': 'float'}}
-    gevent.sleep(1) # sleep so that there is no side effect from earlier test
+                                       'Units': 'F',
+                                       'tz': 'UTC',
+                                       'type': 'float'}}
+    gevent.sleep(1)  # sleep so that there is no side effect from earlier test
     # Publish messages
     publish(publish_agent, "datalogger/PNNL/SEB/Device", None, message)
     gevent.sleep(0.5)
@@ -513,11 +512,11 @@ def test_log_topic_no_header(publish_agent, query_agent):
     assert (len(result['values']) == 1)
     assert (result['values'][0][1] == mixed_reading)
 
+
 @pytest.mark.historian
 @pytest.mark.forwarder
 def test_actuator_topic(publish_agent, query_agent, volttron_instance1,
                         volttron_instance2):
-
     print("\n** test_actuator_topic **")
 
     # Create master driver config and 4 fake devices each with 6 points
@@ -557,7 +556,7 @@ def test_actuator_topic(publish_agent, query_agent, volttron_instance1,
 
     # Make query agent running in instance two subscribe to
     # actuator_schedule_result topic
-    #query_agent.callback = types.MethodType(callback, query_agent)
+    # query_agent.callback = types.MethodType(callback, query_agent)
     query_agent.callback = MagicMock(name="callback")
     # subscribe to schedule response topic
     query_agent.vip.pubsub.subscribe(
@@ -573,26 +572,27 @@ def test_actuator_topic(publish_agent, query_agent, volttron_instance1,
         'type': 'NEW_SCHEDULE',
         'requesterID': 'test-agent',  # The name of the requesting agent.
         'taskID': 'task_schedule_response',
-        'priority': 'LOW' # ('HIGH, 'LOW', 'LOW_PREEMPT').
+        'priority': 'LOW'  # ('HIGH, 'LOW', 'LOW_PREEMPT').
     }
     msg = [
         ['fakedriver0', start, end]
     ]
     # reset mock to ignore any previous callback
     publish(publish_agent, topics.ACTUATOR_SCHEDULE_REQUEST, header, msg)
-    gevent.sleep(1) # wait for topic to be forwarded and callback to happen
+    gevent.sleep(1)  # wait for topic to be forwarded and callback to happen
 
     # assert query_agent.callback.call_count == 1
     print ('call args ', query_agent.callback.call_args_list)
     # assert query_agent.callback.call_args[0][1] == 'platform.actuator'
     assert query_agent.callback.call_args[0][3] == \
-            topics.ACTUATOR_SCHEDULE_RESULT
+           topics.ACTUATOR_SCHEDULE_RESULT
     result_header = query_agent.callback.call_args[0][4]
     result_message = query_agent.callback.call_args[0][5]
     assert result_header['type'] == 'NEW_SCHEDULE'
     assert result_header['taskID'] == 'task_schedule_response'
     assert result_header['requesterID'] == 'test-agent'
     assert result_message['result'] == 'SUCCESS'
+
 
 @pytest.mark.historian
 @pytest.mark.forwarder
@@ -615,6 +615,10 @@ def test_topic_not_forwarded(publish_agent, query_agent, volttron_instance1,
     volttron_instance2. Calling this fixture makes sure all the dependant
     fixtures are called to setup and start volttron_instance2 and sqlhistorian
     agent and returns the instance of a fake agent to query the historian
+    @param volttron_instance1: volttron platform instance in which forward
+    historian is running. It forwards to instance2
+    @param volttron_instance2: volttron platform instance in which
+    sqlhistorian is running.
     """
     print("\n** test_topic_not_forwarded **")
     global forwarder_uuid
@@ -623,32 +627,29 @@ def test_topic_not_forwarded(publish_agent, query_agent, volttron_instance1,
     try:
 
         print("\n** test_log_topic **")
-        new_config = {
-                "agentid": "forwarder",
-                "destination-vip": "",
-                "custom_topic_list": [],
-                "services_topic_list": [
-                    "devices", "record", "analysis"
-                ],
-                "topic_text_replace": [
-                    {"from": "PNNL/SEB", "to": "PNNL/BUILDING1"}
-                ]
-            }
-        new_config["destination-vip"] = volttron_instance2.vip_address[0]
+        new_config = {"agentid": "forwarder",
+                      "destination-vip": volttron_instance2.vip_address[0],
+                      "custom_topic_list": [],
+                      "services_topic_list":
+                          ["devices", "record", "analysis"],
+                      "topic_text_replace":
+                          [{"from": "PNNL/SEB", "to": "PNNL/BUILDING1"}]}
 
         forwarder_uuid = volttron_instance1.install_agent(
             agent_dir="services/core/ForwardHistorian",
             config_file=new_config,
             start=True)
         gevent.sleep(1)
-        # Publish fake data. The format mimics the format used by VOLTTRON drivers.
+        # Publish fake data.
+        # The format mimics the format used by VOLTTRON drivers.
         # Make some random readings
         oat_reading = random.uniform(30, 100)
         mixed_reading = oat_reading + random.uniform(-5, 5)
 
         # Create a message for all points.
-        message = {'MixedAirTemperature': {'Readings': mixed_reading, 'Units': 'F',
-                                           'tz': 'UTC', 'type': 'float'}}
+        message = {
+            'MixedAirTemperature': {'Readings': mixed_reading, 'Units': 'F',
+                                    'tz': 'UTC', 'type': 'float'}}
 
         # pytest.set_trace()
         # Create timestamp
@@ -681,6 +682,6 @@ def test_topic_not_forwarded(publish_agent, query_agent, volttron_instance1,
             config_file=forwarder_config,
             start=True)
 
-# def callback(self, peer, sender, bus, topic, headers, message):
-#     print("*************In callback")
-#     print ("topic:", topic, 'header:', headers, 'message:', message)
+        # def callback(self, peer, sender, bus, topic, headers, message):
+        #     print("*************In callback")
+        #     print ("topic:", topic, 'header:', headers, 'message:', message)
