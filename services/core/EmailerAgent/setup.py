@@ -1,3 +1,6 @@
+# -*- coding: utf-8 -*- {{{
+# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
+
 # Copyright (c) 2015, Battelle Memorial Institute
 # All rights reserved.
 #
@@ -51,85 +54,39 @@
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 
+# }}}
 
-import logging
-import weakref
+from setuptools import setup, find_packages
+from os import path
 
-from volttron.platform.messaging import topics
-from volttron.platform.messaging.health import *
-from .base import SubsystemBase
+MAIN_MODULE = 'agent'
 
-__docformat__ = 'reStructuredText'
-__version__ = '1.0'
+# Find the agent package that contains the main module
+packages = find_packages('.')
+agent_package = ''
+for package in find_packages():
+    # Because there could be other packages such as tests
+    if path.isfile(package + '/' + MAIN_MODULE + '.py') is True:
+        agent_package = package
+if not agent_package:
+    raise RuntimeError('None of the packages under {dir} contain the file '
+                       '{main_module}'.format(main_module=MAIN_MODULE + '.py',
+                                              dir=path.abspath('.')))
 
-"""
-The health subsystem allows an agent to store it's health in a non-intrusive
-way.
-"""
-_log = logging.getLogger(__name__)
+# Find the version number from the main module
+agent_module = agent_package + '.' + MAIN_MODULE
+_temp = __import__(agent_module, globals(), locals(), ['__version__'], -1)
+__version__ = _temp.__version__
 
-
-class Health(SubsystemBase):
-    def __init__(self, owner, core, rpc):
-        self._owner = owner
-        self._core = weakref.ref(core)
-        self._rpc = weakref.ref(rpc)
-        self._statusobj = Status.build(
-            STATUS_GOOD, status_changed_callback=self._status_changed)
-
-        def onsetup(sender, **kwargs):
-            rpc.export(self.set_status, 'health.set_status')
-            rpc.export(self.get_status, 'health.get_status')
-            rpc.export(self.send_alert, 'health.send_alert')
-
-        core.onsetup.connect(onsetup, self)
-
-    def send_alert(self, alert_key, statusobj):
-        """
-        An alert_key is a quasi-unique key.  A listener to the alert can
-        determine whether to pass the alert on to a higher level based upon
-        the frequency of this alert.
-
-        :param alert_key:
-        :param context:
-        :return:
-        """
-        if not isinstance(statusobj, Status):
-            raise ValueError('statusobj must be a Status object.')
-        headers = dict(alert_key=alert_key),
-        self._owner.vip.pubsub.publish("pubsub", topic=topics.ALERTS.format(),
-                                       headers=headers,
-                                       message=statusobj.to_json())
-
-    def _status_changed(self):
-        """ Internal function that happens when the status changes state.
-        :return:
-        """
-        self._owner.vip.heartbeat.restart()
-
-    def set_status(self, status, context=None):
-        """RPC method
-
-        Updates the agents status to the new value with the specified context.
-
-        :param: status: str: GODD, BAD
-        :param: context: str: A serializable that denotes the context of
-        status.
-        """
-        self._statusobj.update_status(status, context)
-
-    def get_status(self):
-        """"RPC method
-
-        Returns the last updated status from the object with the context.
-
-        The minimum output from the status would be:
-
-            {
-                "status": "GOOD",
-                "context": None,
-                "utc_last_update": "2016-03-31T15:40:32.685138+0000"
-            }
-
-        """
-        return self._statusobj.to_json()
+# Setup
+setup(
+    name=agent_package + 'agent',
+    version=__version__,
+    install_requires=['volttron'],
+    packages=packages,
+    entry_points={
+        'setuptools.installation': [
+            'eggsecutable = ' + agent_module + ':main',
+        ]
+    }
+)
