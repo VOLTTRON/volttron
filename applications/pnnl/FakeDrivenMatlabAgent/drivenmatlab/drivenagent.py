@@ -246,16 +246,27 @@ def driven_agent(config_path, **kwargs):
             results to a file or database.
             """
             _log.debug('Processing Results!')
+            for device, point_value_dict in results.devices.items():
+                for key, value in point_value_dict.items():
+                    _log.debug("COMMAND TABLE: {}->{}".format(key, value))
+                    if mode:
+                        _log.debug('ACTUATE ON DEVICE.')
+                        results, actuator_error = self.actuator_request(results)
+                        if not actuator_error:
+                            self.actuator_set(results)
+            
             for key, value in results.commands.iteritems():
                 _log.debug("COMMAND TABLE: {}->{}".format(key, value))
                 if mode:
                     _log.debug('ACTUATE ON DEVICE.')
-                    actuator_error = self.actuator_request(results)
+                    results, actuator_error = self.actuator_request(results)
                     if not actuator_error:
                         self.actuator_set(results)
+            
+            
             for value in results.log_messages:
                 _log.debug("LOG: {}".format(value))
-            for key, value in results.table_output.iteritems():
+            for key, value in results.table_output.items():
                 _log.debug("TABLE: {}->{}".format(key, value))
             if output_file_prefix is not None:
                 results = self.create_file_output(results)
@@ -333,6 +344,7 @@ def driven_agent(config_path, **kwargs):
             for _device in command_devices:
                 actuation_device = base_actuator_path(unit=_device, point='')
                 schedule_request = [[actuation_device, str_now, str_end]]
+                 
                 try:
                     result = self.vip.rpc.call('platform.actuator',
                                                'request_new_schedule',
@@ -341,23 +353,36 @@ def driven_agent(config_path, **kwargs):
                 except RemoteError as ex:
                     _log.warning("Failed to schedule device {} (RemoteError): {}".format(_device, str(ex)))
                     request_error = True
-
+  
                 if result['result'] == 'FAILURE':
                     _log.warn('Failed to schedule device (unavailable) ' + _device)
                     request_error = True
                 else:
                     request_error = False
+
             return results, request_error
 
         def actuator_set(self, results):
             """Set point on device."""
+            for device, point_value_dict in results.devices.items():
+                for point, value in point_value_dict.items():
+                    point_path = base_actuator_path(unit=device, point=point)
+                    try:
+                        result = self.vip.rpc.call('platform.actuator', 'set_point',
+                                                    agent_id, point_path,
+                                                    value).get(timeout=4)
+                        _log.debug("Set point {} to {}".format(point_path, value))
+                    except RemoteError as ex:
+                        _log.warning("Failed to set {} to {}: {}".format(point_path, value, str(ex)))
+                        continue
+        
             for _device in command_devices:
                 for point, new_value in results.commands.items():
                     point_path = base_actuator_path(unit=_device, point=point)
                     try:
                         result = self.vip.rpc.call('platform.actuator', 'set_point',
-                                                   agent_id, point_path,
-                                                   new_value).get(timeout=4)
+                                                    agent_id, point_path,
+                                                    new_value).get(timeout=4)
                         _log.debug("Set point {} to {}".format(point_path, new_value))
                     except RemoteError as ex:
                         _log.warning("Failed to set {} to {}: {}".format(point_path, new_value, str(ex)))

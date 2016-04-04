@@ -65,20 +65,15 @@ class Application(AbstractDrivenAgent):
     def run(self, cur_time, points):
         
         status = ["1", "1","1","0"]
+        #random.choice(status)
 
-        matlab_result = {'commands':[
-                                     ["/HEATER1/statussetpoint",random.choice(status)],
-                                     ["/HEATER2/statussetpoint",random.choice(status)],
-                                     ["/HEATER3/statussetpoint",random.choice(status)]
-                                    ]
-                        }
+        point = 'statussetpoint'
 
         result = Results()
-        
-        if 'commands' in matlab_result:
-            commands = matlab_result['commands']
-            for point, value in commands:
-                result.command(point, value);
+        devices = ['HEATER1','HEATER2','HEATER3']
+        value = [1,0,1]
+        for i in range(3):
+            result.command(point, value[i], devices[i])
                 
 #             if 'logs' in matlab_result:
 #                 logs = matlab_result['logs']
