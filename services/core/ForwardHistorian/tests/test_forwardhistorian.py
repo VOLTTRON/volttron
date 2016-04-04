@@ -165,13 +165,12 @@ def test_devices_topic(publish_agent, query_agent):
         count=20,
         order="LAST_TO_FIRST").get(timeout=10)
 
-    # assert (len(result['values']) == 1)
-    # # Verify order LAST_TO_FIRST.
+
+    assert (len(result['values']) == 1)
     (time1_date, time1_time) = time1.split(" ")
     assert (result['values'][0][0] == time1_date + 'T' + time1_time + '+00:00')
     assert (result['values'][0][1] == oat_reading)
     assert set(result['metadata'].items()) == set(float_meta.items())
-
 
 @pytest.mark.historian
 @pytest.mark.forwarder
@@ -193,31 +192,84 @@ def test_record_topic(publish_agent, query_agent):
     print("\n** test_record_topic **")
     now = datetime.utcnow().isoformat() + 'Z'
     print("now is ", now)
-
+    headers = {
+        headers_mod.DATE: now
+    }
     # Publish messages
-    publish(publish_agent, topics.RECORD, None, 1)
+    publish(publish_agent, topics.RECORD, headers, 1)
 
     # sleep so that records gets inserted with unique timestamp
     gevent.sleep(0.5)
-
-    publish(publish_agent, topics.RECORD, None, 'value0')
+    time2 = datetime.utcnow()
+    time2 = time2.isoformat()
+    headers = {
+        headers_mod.DATE: time2
+    }
+    publish(publish_agent, topics.RECORD, headers, 'value0')
     # sleep so that records gets inserted with unique timestamp
     gevent.sleep(0.5)
-
-    publish(publish_agent, topics.RECORD, None, {'key': 'value'})
+    time3 = datetime.utcnow()
+    time3 = time3.isoformat()
+    headers = {
+        headers_mod.DATE: time3
+    }
+    publish(publish_agent, topics.RECORD, headers, {'key': 'value'})
     gevent.sleep(0.5)
     result = query_agent.vip.rpc.call('platform.historian',
                                       'query',
                                       topic=topics.RECORD,
                                       start=now,
-                                      count=20,
                                       order="FIRST_TO_LAST").get(timeout=10)
     print('Query Result', result)
     assert (len(result['values']) == 3)
     assert (result['values'][0][1] == 1)
     assert (result['values'][1][1] == 'value0')
     assert (result['values'][2][1] == {'key': 'value'})
+    assert result['values'][2][0] == time3 + '+00:00'
 
+@pytest.mark.historian
+@pytest.mark.forwarder
+def test_record_topic_no_header(publish_agent, query_agent):
+    """
+    Test if record topic message is getting forwarded to historian running on
+    another instance.
+
+    @param publish_agent: Fake agent used to publish messages to bus in
+    volttron_instance1. Calling this fixture makes sure all the dependant
+    fixtures are called to setup and start volttron_instance1 and forwareder
+    agent and returns the  instance of fake agent to publish
+    @param query_agent: Fake agent used to query sqlhistorian in
+    volttron_instance2. Calling this fixture makes sure all the dependant
+    fixtures are called to setup and start volttron_instance2 and sqlhistorian
+    agent and returns the instance of a fake agent to query the historian
+    """
+    # Create timestamp
+    print("\n** test_record_topic **")
+    gevent.sleep(1) # so that there is no side effect from last test case
+
+    now = datetime.utcnow().isoformat() + 'Z'
+    # Publish messages
+    publish(publish_agent, topics.RECORD, None, 1)
+
+    # sleep so that records gets inserted with unique timestamp
+
+
+    publish(publish_agent, topics.RECORD, None, 'value0')
+    # sleep so that records gets inserted with unique timestamp
+    gevent.sleep(1)
+
+    publish(publish_agent, topics.RECORD, None, {'key': 'value'})
+    gevent.sleep(1)
+    result = query_agent.vip.rpc.call('platform.historian',
+                                      'query',
+                                      topic=topics.RECORD,
+                                      start=now,
+                                      order="FIRST_TO_LAST").get(timeout=10)
+    print('Query Result', result)
+    assert (len(result['values']) == 3)
+    assert (result['values'][0][1] == 1)
+    assert (result['values'][1][1] == 'value0')
+    assert (result['values'][2][1] == {'key': 'value'})
 
 @pytest.mark.historian
 @pytest.mark.forwarder
@@ -276,8 +328,6 @@ def test_analysis_topic(publish_agent, query_agent):
         'query',
         topic='PNNL/BUILDING1/Device/MixedAirTemperature',
         start=now,
-        end=now,
-        count=20,
         order="LAST_TO_FIRST").get(timeout=10)
     print('Query Result', result)
     assert (len(result['values']) == 1)
@@ -289,9 +339,136 @@ def test_analysis_topic(publish_agent, query_agent):
 
 @pytest.mark.historian
 @pytest.mark.forwarder
-def test_log_topic(publish_agent, query_agent):
+def test_analysis_topic_no_header(publish_agent, query_agent):
     """
     Test if devices topic message is getting forwarded to historian running on
+    another instance. Test if topic name substitutions happened.
+    Publish to topic
+    'analysis/PNNL/SEB/Device/MixedAirTemperature' in volttron_instance1 and
+    query for topic
+    'PNNL/BUILDING1/Device/MixedAirTemperature' in volttron_instance2
+
+    @param publish_agent: Fake agent used to publish messages to bus in
+    volttron_instance1. Calling this fixture makes sure all the dependant
+    fixtures are called to setup and start volttron_instance1 and forwareder
+    agent and returns the  instance of fake agent to publish
+    @param query_agent: Fake agent used to query sqlhistorian in
+    volttron_instance2. Calling this fixture makes sure all the dependant
+    fixtures are called to setup and start volttron_instance2 and sqlhistorian
+    agent and returns the instance of a fake agent to query the historian
+    """
+    print("\n** test_analysis_topic **")
+    # Publish fake data. The format mimics the format used by VOLTTRON drivers.
+    # Make some random readings
+    oat_reading = random.uniform(30, 100)
+    mixed_reading = oat_reading + random.uniform(-5, 5)
+    damper_reading = random.uniform(0, 100)
+
+    # Create a message for all points.
+    all_message = [{'OutsideAirTemperature': oat_reading,
+                    'MixedAirTemperature': mixed_reading,
+                    'DamperSignal': damper_reading},
+                   {'OutsideAirTemperature': {'units': 'F', 'tz': 'UTC',
+                                              'type': 'float'},
+                    'MixedAirTemperature': {'units': 'F', 'tz': 'UTC',
+                                            'type': 'float'},
+                    'DamperSignal': {'units': '%', 'tz': 'UTC',
+                                     'type': 'float'}
+                    }]
+
+    # Create timestamp
+    now = datetime.utcnow().isoformat() + 'Z'
+    print("now is ", now)
+
+    # Publish messages
+    publish(publish_agent, 'analysis/PNNL/SEB/Device/MixedAirTemperature',
+            None, all_message)
+    gevent.sleep(0.5)
+
+    # pytest.set_trace()
+    # Query the historian
+    result = query_agent.vip.rpc.call(
+        'platform.historian',
+        'query',
+        topic='PNNL/BUILDING1/Device/MixedAirTemperature',
+        start=now,
+        order="LAST_TO_FIRST").get(timeout=10)
+    print('Query Result', result)
+    assert (len(result['values']) == 1)
+    (now_date, now_time) = now.split("T")
+    if now_time[-1:] == 'Z':
+        now_time = now_time[:-1]
+    assert (result['values'][0][1] == mixed_reading)
+
+@pytest.mark.historian
+@pytest.mark.forwarder
+def test_log_topic(publish_agent, query_agent):
+    """
+    Test if log topic message is getting forwarded to historian running on
+    another instance. Test if topic name substitutions happened.
+    Publish to topic
+    'datalogger/PNNL/SEB/Device' in volttron_instance1 and
+    query for topic
+    'datalogger/PNNL/BUILDING1/Device/MixedAirTemperature' in
+    volttron_instance2
+    Expected result:
+     Record should get entered into database with current time at time of
+     insertion and should ignore timestamp in header. Topic name
+     substitution should have happened
+
+
+    @param publish_agent: Fake agent used to publish messages to bus in
+    volttron_instance1. Calling this fixture makes sure all the dependant
+    fixtures are called to setup and start volttron_instance1 and forwareder
+    agent and returns the  instance of fake agent to publish
+    @param query_agent: Fake agent used to query sqlhistorian in
+    volttron_instance2. Calling this fixture makes sure all the dependant
+    fixtures are called to setup and start volttron_instance2 and sqlhistorian
+    agent and returns the instance of a fake agent to query the historian
+    """
+
+    print("\n** test_log_topic **")
+    # Publish fake data. The format mimics the format used by VOLTTRON drivers.
+    # Make some random readings
+    oat_reading = random.uniform(30, 100)
+    mixed_reading = oat_reading + random.uniform(-5, 5)
+
+    # Create a message for all points.
+    message = {'MixedAirTemperature': {'Readings': mixed_reading,
+                                        'Units':'F',
+                                        'tz': 'UTC',
+                                        'type': 'float'}}
+    # pytest.set_trace()
+    # Create timestamp
+    current_time = datetime.utcnow().isoformat() + 'Z'
+    print("current_time is ", current_time)
+    future_time = '2017-12-02T00:00:00'
+    headers = {
+        headers_mod.DATE: future_time
+    }
+    print("time in header is ", future_time)
+
+    # Publish messages
+    publish(publish_agent, "datalogger/PNNL/SEB/Device", headers, message)
+    gevent.sleep(1)
+
+    # Query the historian
+    result = query_agent.vip.rpc.call(
+        'platform.historian',
+        'query',
+        start=current_time,
+        topic="datalogger/PNNL/BUILDING1/Device/MixedAirTemperature",
+        order="LAST_TO_FIRST").get(timeout=10)
+    print('Query Result', result)
+    assert (len(result['values']) == 1)
+    assert (result['values'][0][1] == mixed_reading)
+
+
+@pytest.mark.historian
+@pytest.mark.forwarder
+def test_log_topic_no_header(publish_agent, query_agent):
+    """
+    Test if log topic message is getting forwarded to historian running on
     another instance. Test if topic name substitutions happened.
     Publish to topic
     'datalogger/PNNL/SEB/Device' in volttron_instance1 and
@@ -314,28 +491,23 @@ def test_log_topic(publish_agent, query_agent):
     # Make some random readings
     oat_reading = random.uniform(30, 100)
     mixed_reading = oat_reading + random.uniform(-5, 5)
-
+    current_time = datetime.utcnow().isoformat()
     # Create a message for all points.
-    message = {'MixedAirTemperature': {'Readings': mixed_reading, 'Units': 'F',
-                                       'tz': 'UTC', 'type': 'float'}}
-
-    # pytest.set_trace()
-    # Create timestamp
-    now = datetime.utcnow().isoformat() + 'Z'
-    print("now is ", now)
-    # now = '2015-12-02T00:00:00'
-
+    message = {'MixedAirTemperature': {'Readings': mixed_reading,
+                                        'Units':'F',
+                                        'tz': 'UTC',
+                                        'type': 'float'}}
+    gevent.sleep(1) # sleep so that there is no side effect from earlier test
     # Publish messages
     publish(publish_agent, "datalogger/PNNL/SEB/Device", None, message)
-    gevent.sleep(1)
+    gevent.sleep(0.5)
 
     # Query the historian
     result = query_agent.vip.rpc.call(
         'platform.historian',
         'query',
         topic="datalogger/PNNL/BUILDING1/Device/MixedAirTemperature",
-        start=now,
-        count=20,
+        start=current_time,
         order="LAST_TO_FIRST").get(timeout=10)
     print('Query Result', result)
     assert (len(result['values']) == 1)

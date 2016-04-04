@@ -69,7 +69,8 @@ import pytz
 import re
 from abc import abstractmethod
 from dateutil.parser import parse
-from volttron.platform.agent.utils import process_timestamp, fix_sqlite3_datetime
+from volttron.platform.agent.utils import process_timestamp, \
+    fix_sqlite3_datetime, get_aware_utc_now
 from volttron.platform.messaging import topics, headers as headers_mod
 from volttron.platform.vip.agent import *
 from zmq.utils import jsonapi
@@ -169,13 +170,17 @@ class BaseHistorianAgent(Agent):
     
     def _capture_record_data(self, peer, sender, bus, topic, headers, message):
         _log.debug('Capture record data {}'.format(message))
+        timestamp_string = headers.get(headers_mod.DATE, None)
+        timestamp = get_aware_utc_now()
+        if timestamp_string is not None:
+            timestamp, my_tz = process_timestamp(timestamp_string, topic)
 
         if sender == 'pubsub.compat':
             message = compat.unpack_legacy_message(headers, message)
         self._event_queue.put(
             {'source': 'record',
              'topic': topic,
-             'readings': [(datetime.utcnow(), message)],
+             'readings': [(timestamp, message)],
              'meta':{}})
         
     def _capture_log_data(self, peer, sender, bus, topic, headers, message):
@@ -216,7 +221,7 @@ class BaseHistorianAgent(Agent):
             readings = item['Readings']
 
             if not isinstance(readings, list):
-                readings = [(datetime.utcnow(), readings)]
+                readings = [(get_aware_utc_now(), readings)]
             elif isinstance(readings[0],str):
                 my_ts, my_tz = process_timestamp(readings[0], topic)
                 readings = [(my_ts,readings[1])]
@@ -266,9 +271,12 @@ class BaseHistorianAgent(Agent):
         
     def _capture_data(self, peer, sender, bus, topic, headers, message, device):
         
-        timestamp_string = headers.get(headers_mod.DATE)
-        timestamp, my_tz = process_timestamp(timestamp_string, topic)
-        
+        timestamp_string = headers.get(headers_mod.DATE, None)
+        timestamp = get_aware_utc_now()
+        if timestamp_string is not None:
+            timestamp, my_tz = process_timestamp(timestamp_string, topic)
+        _log.debug("### In capture_data timestamp str {} "
+                       "".format(timestamp))
         try:
             _log.debug("### In capture_data Actual message {} "
                        "".format(message))
@@ -330,7 +338,7 @@ class BaseHistorianAgent(Agent):
 
         parts = topic.split('/')
         topic = '/'.join(parts[ACTUATOR_TOPIC_PREFIX_PARTS:])
-
+        
         try:
             value = message[0]
         except ValueError as e:
@@ -349,7 +357,7 @@ class BaseHistorianAgent(Agent):
         self._event_queue.put({'source': source,
                                'topic': topic,
                                'readings': [timestamp, value],
-                               'meta': meta.get(key,{})})
+                               'meta': {}})
 
 
     def _process_loop(self):
@@ -480,6 +488,10 @@ class BackupDatabase:
                     meta_dict[name] = value
 
             for timestamp, value in values:
+                if timestamp is None:
+                    timestamp = get_aware_utc_now()
+                _log.debug("Inserting into outstanding table with timestamp "
+                           "{}".format(timestamp))
                 c.execute('''INSERT OR REPLACE INTO outstanding values(NULL, ?, ?, ?, ?)''',
                           (timestamp,source,topic_id,jsonapi.dumps(value)))
 

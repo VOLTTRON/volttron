@@ -151,7 +151,7 @@ meta_table = 'meta'
 
 
 @pytest.fixture(scope="module",
-                params=['volttron_2', 'volttron_3'])
+                params=['volttron_2','volttron_3'])
 def publish_agent(request, volttron_instance1):
     # 1: Start a fake agent to publish to message bus
     if request.param == 'volttron_2':
@@ -372,6 +372,9 @@ def test_basic_function(sqlhistorian, publish_agent, query_agent, clean):
     """
     Test basic functionality of sql historian. Inserts three points as part
     of all topic and checks if all three got into the database
+    Expected result:
+    Should be able to query data based on topic name. Result should contain
+    both data and metadata
     
     :param publish_agent: instance of volttron 2.0/3.0agent used to publish
     :param query_agent: instance of fake volttron 3.0 agent used to query
@@ -1265,9 +1268,10 @@ def test_record_topic_query(sqlhistorian, publish_agent, query_agent, clean):
 @pytest.mark.historian
 def test_log_topic(sqlhistorian, publish_agent, query_agent, clean):
     """
-    Test query based on same start and end time with literal 'Z' at the end
-    of utc time.
-    Expected result: record with timestamp == start time
+    Test publishing to log topic with header and no timestamp in message
+    Expected result:
+     Record should get entered into database with current time at time of
+     insertion and should ignore timestamp in header
     
     :param publish_agent: instance of volttron 2.0/3.0agent used to publish
     :param query_agent: instance of fake volttron 3.0 agent used to query
@@ -1289,9 +1293,59 @@ def test_log_topic(sqlhistorian, publish_agent, query_agent, clean):
 
     # pytest.set_trace()
     # Create timestamp
-    now = datetime.utcnow().isoformat() + 'Z'
-    print("now is ", now)
-    # now = '2015-12-02T00:00:00'
+    current_time = datetime.utcnow().isoformat() + 'Z'
+    print("current_time is ", current_time)
+    future_time = '2017-12-02T00:00:00'
+    headers = {
+        headers_mod.DATE: future_time
+    }
+    print("time in header is ", future_time)
+
+    # Publish messages
+    publish(publish_agent, "datalogger/Building/LAB/Device", headers, message)
+    gevent.sleep(1)
+
+    # Query the historian
+    result = query_agent.vip.rpc.call(
+        'platform.historian',
+        'query',
+        topic="datalogger/Building/LAB/Device/MixedAirTemperature",
+        start=current_time,
+        order="LAST_TO_FIRST").get(timeout=10)
+    print('Query Result', result)
+    assert (len(result['values']) == 1)
+    assert (result['values'][0][1] == mixed_reading)
+
+@pytest.mark.historian
+def test_log_topic_no_header(sqlhistorian, publish_agent, query_agent,
+                               clean):
+    """
+    Test publishing to log topic without any header and no timestamp in message
+    Expected result:
+     Record should get entered into database with current time at time of
+     insertion and should not complain about header
+
+    :param publish_agent: instance of volttron 2.0/3.0agent used to publish
+    :param query_agent: instance of fake volttron 3.0 agent used to query
+    using rpc
+    :param sqlhistorian: instance of the sql historian tested
+    :param clean: teardown function
+    """
+    global query_points
+    # print('HOME', volttron_instance1.volttron_home)
+    print("\n** test_log_topic **")
+    # Publish fake data. The format mimics the format used by VOLTTRON drivers.
+    # Make some random readings
+    oat_reading = random.uniform(30, 100)
+    mixed_reading = oat_reading + random.uniform(-5, 5)
+
+    # Create a message for all points.
+    message = {'MixedAirTemperature': {'Readings': mixed_reading, 'Units': 'F',
+                                       'tz': 'UTC', 'type': 'float'}}
+
+    # pytest.set_trace()
+    # Create timestamp
+    current_time = datetime.utcnow().isoformat() + 'Z'
 
     # Publish messages
     publish(publish_agent, "datalogger/Building/LAB/Device", None, message)
@@ -1302,9 +1356,63 @@ def test_log_topic(sqlhistorian, publish_agent, query_agent, clean):
         'platform.historian',
         'query',
         topic="datalogger/Building/LAB/Device/MixedAirTemperature",
-        start=now,
-        count=20,
+        start=current_time,
         order="LAST_TO_FIRST").get(timeout=10)
     print('Query Result', result)
     assert (len(result['values']) == 1)
     assert (result['values'][0][1] == mixed_reading)
+
+@pytest.mark.historian
+def test_log_topic_timestamped_readings(sqlhistorian, publish_agent,
+                                      query_agent, clean):
+    """
+    Test publishing to log topic with explicit timestamp in message.
+    Expected result:
+     Record should get entered into database with the timestamp in
+     message and not timestamp in header
+
+    :param publish_agent: instance of volttron 2.0/3.0agent used to publish
+    :param query_agent: instance of fake volttron 3.0 agent used to query
+    using rpc
+    :param sqlhistorian: instance of the sql historian tested
+    :param clean: teardown function
+    """
+    global query_points
+    # print('HOME', volttron_instance1.volttron_home)
+    print("\n** test_log_topic **")
+    # Publish fake data. The format mimics the format used by VOLTTRON drivers.
+    # Make some random readings
+    oat_reading = random.uniform(30, 100)
+    mixed_reading = oat_reading + random.uniform(-5, 5)
+
+    # Create a message for all points.
+    message = {'MixedAirTemperature': {'Readings': ['2015-12-02T00:00:00',
+                                                    mixed_reading],
+                                       'Units': 'F',
+                                       'tz': 'UTC',
+                                       'type': 'float'}}
+
+    # pytest.set_trace()
+    # Create timestamp
+    now = datetime.utcnow().isoformat() + 'Z'
+    print("now is ", now)
+    headers = {
+        headers_mod.DATE: now
+    }
+    # Publish messages
+    publish(publish_agent, "datalogger/Building/LAB/Device", headers, message)
+    gevent.sleep(1)
+
+    # Query the historian
+    result = query_agent.vip.rpc.call(
+        'platform.historian',
+        'query',
+        topic="datalogger/Building/LAB/Device/MixedAirTemperature",
+        end='2015-12-02T00:00:00',
+        order="LAST_TO_FIRST").get(timeout=10)
+    print('Query Result', result)
+    assert (len(result['values']) == 1)
+    assert (result['values'][0][1] == mixed_reading)
+    assert_timestamp(result['values'][0][0], '2015-12-02', '00:00:00.000000')
+
+
