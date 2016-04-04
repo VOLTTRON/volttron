@@ -60,6 +60,7 @@ from __future__ import absolute_import, print_function
 # Import the email modules we'll need
 from email.mime.text import MIMEText
 import logging
+import socket
 # Import smtplib for the actual sending function
 import smtplib
 import sys
@@ -89,9 +90,45 @@ class EmailerAgent(Agent):
     """
 
     def __init__(self, config_path, **kwargs):
-        super(EmailerAgent, self).__init__(**kwargs)
+        kwargs.pop("identity", None)
+        super(EmailerAgent, self).__init__(identity="platform.emailer",
+                                           **kwargs)
 
-        # TODO process config file including to string, from string.
+        config = utils.load_config(config_path)
+        self._smtp = config.get("smtp-address", None)
+        self._from = config.get("from-address", None)
+        self._to = config.get("to-addresses", None)
+        self._allow_frequency = config.get("allow-frequency", 60)
+
+        if not self._from and self._to:
+            raise ValueError('Invalid from/to addresses specified.')
+
+        if self._smtp is None:
+            raise ValueError('Invalid smtp-address')
+        # will throw an error if can't connect
+        try:
+            s = smtplib.SMTP(self._smtp)
+            s.quit()
+        except socket.gaierror:
+            raise ValueError('Invalid smtp-address')
+
+    def send_alert_mail(self, subject, message):
+        # Create a text/plain message
+        msg = MIMEText(message)
+
+        me = "craig.allwardt@pnnl.gov"
+        you = "craig.allwardt@pnnl.gov"
+        # me == the sender's email address
+        # you == the recipient's email address
+        msg['Subject'] = 'ALERT: {}'.format(subject)
+        msg['From'] = self._from
+        msg['To'] = self._to
+
+        # Send the message via our own SMTP server, but don't include the
+        # envelope header.
+        s = smtplib.SMTP(self._smtp)
+        s.sendmail(me, [you], msg.as_string())
+        s.quit()
 
     def send_alert_mail(self, subject, message):
         # Create a text/plain message
