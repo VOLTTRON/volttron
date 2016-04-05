@@ -64,42 +64,21 @@ class Application(AbstractDrivenAgent):
         
     def run(self, cur_time, points):
         
-        point = 'statussetpoint'
-        devices = ['HEATER1','HEATER2','HEATER3']
-        #status = [1, 1,1,0]
-        #value
-        
-         
-         
-         
-         
-         
-         
-         
-         
-         
-         
-         
-         
-         
-         
-         
-         
-         
-         
-         = random.choice(status)
-        va
-        
-        
-        
-        fgsfgsgfsdfsdfkkklue = [1,0,1]
-        
+        status = [0, 1, 1, 0]
 
+        matlab_result = {'commands':{
+                                "HEATER1":[["HPWH_Phy0_PowerState",random.choice(status)],["ERWH_Phy0_ValveState",random.choice(status)]]
+                               }
+                        }
+        
         result = Results()
         
-        for i in range(3):
-            result.command(point, value[i], devices[i])
-                
+        if 'commands' in matlab_result:
+            commands = matlab_result['commands']
+            for device, point_value_dict in commands.items():
+                for point, value in point_value_dict:
+                    result.command(point, value, device); 
+        
 #             if 'logs' in matlab_result:
 #                 logs = matlab_result['logs']
 #                 for message in logs:
