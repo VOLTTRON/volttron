@@ -75,6 +75,7 @@ __version__ = '3.0.0'
 
 __author1__ = 'Craig Allwardt <craig.allwardt@pnnl.gov>'
 __author2__ = 'Robert Lutes <robert.lutes@pnnl.gov>'
+__author3__ = 'Poorva Sharma <poorva.sharma@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2015, Battelle Memorial Institute'
 __license__ = 'FreeBSD'
 DATE_FORMAT = '%m-%d-%y %H:%M'
@@ -355,11 +356,15 @@ def driven_agent(config_path, **kwargs):
                     request_error = True
   
                 if result['result'] == 'FAILURE':
-                    _log.warn('Failed to schedule device (unavailable) ' + _device)
-                    request_error = True
+                    if result['info'] =='TASK_ID_ALREADY_EXISTS':
+                        _log.info('Task to schedule device already exists ' + _device)
+                        request_error = False
+                    else:
+                        log.warn('Failed to schedule device (unavailable) ' + _device)
+                        request_error = True
                 else:
                     request_error = False
-
+            
             return results, request_error
 
         def actuator_set(self, results):
