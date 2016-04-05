@@ -95,12 +95,16 @@ class Health(SubsystemBase):
         :param context:
         :return:
         """
+        _log.debug("In send alert")
         if not isinstance(statusobj, Status):
             raise ValueError('statusobj must be a Status object.')
         agent_class = self._owner.__class__.__name__
         agent_uuid = os.environ.get('AGENT_UUID', '')
+        _log.debug("agent class {}".format(agent_class))
+        _log.debug("agent uuid {}".format(agent_uuid))
         topic = topics.ALERTS(agent_class=agent_class, agent_uuid=agent_uuid)
         headers = dict(alert_key=alert_key)
+        _log.debug("Headers before sending alert  {}".format(headers))
         self._owner.vip.pubsub.publish("pubsub",
                                        topic=topic.format(),
                                        headers=headers,
