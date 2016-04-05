@@ -83,9 +83,10 @@ class BaseRegister(object):
     
 class BaseInterface(object):
     __metaclass__ = abc.ABCMeta
-    def __init__(self, vip=None, **kwargs):
+    def __init__(self, vip=None, core=None, **kwargs):
         super(BaseInterface, self).__init__(**kwargs)
         self.vip = vip
+        self.core = core
         
         self.point_map = {}
         

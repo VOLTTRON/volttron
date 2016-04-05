@@ -52,109 +52,89 @@
 # under Contract DE-AC05-76RL01830
 
 
+import logging
 import os
 import weakref
-from datetime import datetime
 
+from volttron.platform.messaging import topics
+from volttron.platform.messaging.health import *
 from .base import SubsystemBase
-from volttron.platform.messaging.headers import DATE
-from volttron.platform.agent.utils import (get_aware_utc_now,
-                                           format_timestamp)
-
-"""The heartbeat subsystem adds an optional periodic publish to all agents.
-Heartbeats can be started with agents and toggled on and off at runtime.
-"""
 
 __docformat__ = 'reStructuredText'
 __version__ = '1.0'
 
+"""
+The health subsystem allows an agent to store it's health in a non-intrusive
+way.
+"""
+_log = logging.getLogger(__name__)
 
-class Heartbeat(SubsystemBase):
-    def __init__(self, owner, core, rpc, pubsub, heartbeat_autostart,
-                 heartbeat_period):
-        self.owner = owner
-        self.core = weakref.ref(core)
-        self.pubsub = weakref.ref(pubsub)
 
-        self.autostart = heartbeat_autostart
-        self.period = heartbeat_period
-        self.enabled = False
+class Health(SubsystemBase):
+    def __init__(self, owner, core, rpc):
+        self._owner = owner
+        self._core = weakref.ref(core)
+        self._rpc = weakref.ref(rpc)
+        self._statusobj = Status.build(
+            STATUS_GOOD, status_changed_callback=self._status_changed)
 
         def onsetup(sender, **kwargs):
-            rpc.export(self.start, 'heartbeat.start')
-            rpc.export(self.start_with_period, 'heartbeat.start_with_period')
-            rpc.export(self.stop, 'heartbeat.stop')
-            rpc.export(self.restart, 'heartbeat.restart')
-            rpc.export(self.set_period, 'heartbeat.set_period')
-
-        def onstart(sender, **kwargs):
-            if self.autostart:
-                self.start()
+            rpc.export(self.set_status, 'health.set_status')
+            rpc.export(self.get_status, 'health.get_status')
+            rpc.export(self.send_alert, 'health.send_alert')
 
         core.onsetup.connect(onsetup, self)
-        core.onstart.connect(onstart, self)
 
-    def start(self):
+    def send_alert(self, alert_key, statusobj):
+        """
+        An alert_key is a quasi-unique key.  A listener to the alert can
+        determine whether to pass the alert on to a higher level based upon
+        the frequency of this alert.
+
+        :param alert_key:
+        :param context:
+        :return:
+        """
+        if not isinstance(statusobj, Status):
+            raise ValueError('statusobj must be a Status object.')
+        agent_class = self._owner.__class__.__name__
+        agent_uuid = os.environ.get('AGENT_UUID', '')
+        topic = topics.ALERTS(agent_class=agent_class, agent_uuid=agent_uuid)
+        headers = dict(alert_key=alert_key)
+        self._owner.vip.pubsub.publish("pubsub",
+                                       topic=topic.format(),
+                                       headers=headers,
+                                       message=statusobj.to_json())
+
+    def _status_changed(self):
+        """ Internal function that happens when the status changes state.
+        :return:
+        """
+        self._owner.vip.heartbeat.restart()
+
+    def set_status(self, status, context=None):
         """RPC method
 
-        Starts an agent's heartbeat.
+        Updates the agents status to the new value with the specified context.
+
+        :param: status: str: GODD, BAD
+        :param: context: str: A serializable that denotes the context of
+        status.
         """
-        if not self.enabled:
-            self.greenlet = self.core().periodic(self.period, self.publish)
-            self.enabled = True
+        self._statusobj.update_status(status, context)
 
-    def start_with_period(self, period):
-        """RPC method
+    def get_status(self):
+        """"RPC method
 
-        Set period and start heartbeat.
+        Returns the last updated status from the object with the context.
 
-        :param period: Time in seconds between publishes.
+        The minimum output from the status would be:
+
+            {
+                "status": "GOOD",
+                "context": None,
+                "utc_last_update": "2016-03-31T15:40:32.685138+0000"
+            }
+
         """
-        self.set_period(period)
-        self.start()
-
-    def stop(self):
-        """RPC method
-
-        Stop an agent's heartbeat.
-        """
-        if self.enabled:
-            self.greenlet.kill()
-            self.enabled = False
-
-    def restart(self):
-        """RPC method
-
-        Restart the heartbeat with the current period.  The heartbeat will
-        be immediately sending the heartbeat to the message bus.
-        """
-        self.stop()
-        self.start()
-
-
-    def set_period(self, period):
-        """RPC method
-
-        Set heartbeat period.
-
-        :param period: Time in seconds between publishes.
-        """
-        if self.enabled:
-            self.stop()
-            self.period = period
-            self.start()
-        else:
-            self.period = period
-
-    def publish(self):
-        topic = 'heartbeat/' + self.owner.__class__.__name__
-        try:
-            if os.environ['AGENT_UUID']:
-                topic += '/' + os.environ['AGENT_UUID']
-        except KeyError:
-            pass
-
-        headers = {DATE: format_timestamp(get_aware_utc_now())}
-        message = self.owner.vip.health.get_status()
-
-        self.pubsub().publish('pubsub', topic, headers, message)
+        return self._statusobj.to_json()
