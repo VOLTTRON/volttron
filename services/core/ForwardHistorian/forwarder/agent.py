@@ -193,10 +193,11 @@ def historian(config_path, **kwargs):
             current_time = self.timestamp()
             last_time = self._last_timeout
             _log.debug('Lasttime: {} currenttime: {}'.format(last_time, current_time))
-            # if we failed we need to wait 60 seconds before we go on.
-            if self.timestamp() < self._last_timeout+ 60:
-                _log.debug('Not allowing send < 60 seconds from failure')
-                return
+            if self._last_timeout:
+                # if we failed we need to wait 60 seconds before we go on.
+                if self.timestamp() < self._last_timeout+ 60:
+                    _log.debug('Not allowing send < 60 seconds from failure')
+                    return
             if not self._target_platform:
                 self.historian_setup()
             timeout_occurred = False
