@@ -11,6 +11,8 @@ import gevent
 import random
 from volttron.platform.messaging import headers as headers_mod
 from datetime import datetime
+from volttron.platform.agent.utils import (get_aware_utc_now,
+    format_timestamp)
 from dateutil import parser as dateparser
 
 try:
@@ -201,6 +203,7 @@ def test_two_hours_of_publishing(request, volttron_instance1, database_client):
 
     gevent.sleep(0.5)
     for d, v in expected.items():
+        print('d, v: ({}, {})'.format(d,v))
         assert db['data'].find({'ts': d}).count() == 3
 
         for t, _id in topic_to_id.items():
@@ -209,7 +212,7 @@ def test_two_hours_of_publishing(request, volttron_instance1, database_client):
 
 
 def publish_minute_data_for_two_hours(agent):
-    now = datetime.utcnow()
+    now = get_aware_utc_now()
     # expection[datetime]={oat:b,mixed:c,damper:d}
     expectation = {}
 
@@ -217,9 +220,14 @@ def publish_minute_data_for_two_hours(agent):
         data_by_time = {}
 
         for m in xrange(60):
-            now = datetime(now.year, now.month, now.day, h, m,
-                           random.randint(0, 59), random.randint(0, 1000))
+            # Because timestamps in mongo are only concerned with the first
+            #  three digits after the decimal we do this to give some
+            # randomness here.
+            myint = random.randint(0, 1000)
+            mymicro = str(myint)+'000'
 
+            now = datetime(now.year, now.month, now.day, h, m,
+                           random.randint(0, 59), int(mymicro))
             # Make some random readings
             oat_reading = random.uniform(30, 100)
             mixed_reading = oat_reading + random.uniform(-5, 5)
@@ -236,7 +244,8 @@ def publish_minute_data_for_two_hours(agent):
                  'DamperSignal': {'units': '%', 'tz': 'UTC', 'type': 'float'}
                  }]
 
-            data_by_time[now.isoformat()] = {
+            now_iso_string = format_timestamp(now)
+            data_by_time[now_iso_string] = {
                 "oat_point": oat_reading,
                 "mixed_point": mixed_reading,
                 "damper_point": damper_reading
@@ -244,7 +253,7 @@ def publish_minute_data_for_two_hours(agent):
 
             # now = '2015-12-02T00:00:00'
             headers = {
-                headers_mod.DATE: now.isoformat()
+                headers_mod.DATE: now_iso_string
             }
 
             # Publish messages
@@ -342,7 +351,7 @@ def test_insert_duplicate(volttron_instance1, database_client):
     publisher = volttron_instance1.build_agent()
     # Create timestamp (no parameter to isoformat so the result is a T
     # separator) The now value is a string after this function is called.
-    now = datetime.utcnow()
+    now = get_aware_utc_now()
     # now = now.replace(microsecond=random.randint(0,100))
     # now = datetime(now.year, now.month, now.day, now.hour,
     #     now.minute, now.second)
@@ -515,626 +524,87 @@ def test_basic_function(volttron_instance1, database_client):
     assert result['values'][0][1] == expected['damper_point']
 
 
-    # FOR DEBUG - START
-    # cursor = db_connection.cursor()
-    # cursor.execute(
-    #         "SELECT ts FROM data")
-    # rows = cursor.fetchall()
-    # print("select query result1: " , rows)
-    # params = request.param['connection']['params']
-    # mongo_uri = "mongodb://{host}:{port}/{database}".format(
-    #     **params)
-    # new_connection = pymongo.MongoClient(mongo_uri)
-    # #
-    # ## Query the historian
-    # result = publish_agent.vip.rpc.call('platform.historian',
-    #                                     'query',
-    #                                     topic=query_points['oat_point'],
-    #                                     count=20,
-    #                                     order="LAST_TO_FIRST").get(timeout=100)
-    # print('Query Result', result)
-    #
-    #
-    # cursor = db_connection.cursor()
-    # cursor.execute(
-    #         "SELECT ts FROM data")
-    # rows = cursor.fetchall()
-    # print("select query result1: " , rows)
-    # params = request.param['connection']['params']
-    # mongo_uri = "mongodb://{host}:{port}/{database}".format(
-    #     **params)
-    # new_connection = pymongo.MongoClient(mongo_uri)
-    #
-    # if mongohistorian['connection']['type'] == 'mysql':
-    #     new_connection = mysql.connect(**mongohistorian['connection']['params'])
-    #     newcur = new_connection.cursor()
-    #     newcur.execute("SELECT ts from data")
-    #     new_rows = newcur.fetchall()
-    #     print("select query result2: " , new_rows)
-    #     new_connection.close()
-    # else:
-    #     from os import path
-    #     db_name = mongohistorian['connection']['params']['database']
-    #     database_path = path.join(volttron_instance1.volttron_home,
-    #                           'agents', agent_uuid,
-    #                           'mongohistorianagent-3.0.1/mongohistorianagent-3.0.1.agent-data/data',
-    #                           db_name)
-    #     new_connection = sqlite3.connect(database_path)
-    #     newcur = new_connection.cursor()
-    #     newcur.execute("SELECT ts from data")
-    #     new_rows = newcur.fetchall()
-    #     print("select query result2: " , new_rows)
-    #     new_connection.close()
-    # # FOR DEBUG END
-    # assert (len(result['values']) == 1)
-    # (now_date, now_time) = now.split(" ")
-    # assert (result['values'][0][0] == now_date + 'T' + now_time)
-    # assert (result['values'][0][1] == oat_reading)
-    #
-    # # Query the historian
-    # result = publish_agent.vip.rpc.call('platform.historian',
-    #                                     'query',
-    #                                     topic=query_points['mixed_point'],
-    #                                     count=20,
-    #                                     order="LAST_TO_FIRST").get(timeout=10)
-    # print('Query Result', result)
-    # assert (len(result['values']) == 1)
-    # (now_date, now_time) = now.split(" ")
-    # assert (result['values'][0][0] == now_date + 'T' + now_time)
-    # assert (result['values'][0][1] == mixed_reading)
-    #
-    # # Query the historian
-    # result = publish_agent.vip.rpc.call('platform.historian',
-    #                                     'query',
-    #                                     topic=query_points['damper_point'],
-    #                                     count=20,
-    #                                     order="LAST_TO_FIRST").get(timeout=10)
-    # print('Query Result', result)
-    # assert (len(result['values']) == 1)
-    # (now_date, now_time) = now.split(" ")
-    # assert (result['values'][0][0] == now_date + 'T' + now_time)
-    # assert (result['values'][0][1] == damper_reading)
+@pytest.mark.xfail(reason="fails when all mongohistorian test cases are run.")
+@pytest.mark.historian
+@pytest.mark.mongodb
+@pytest.mark.skipif(not HAS_PYMONGO, reason='No pymongo driver')
+def test_topic_name_case_change(volttron_instance1, database_client):
+    """
+    When case of a topic name changes check if they are saved as two topics
+    Expected result: query result should be cases insensitive
+    """
+    clean_db(database_client)
+    agent_uuid = install_historian_agent(volttron_instance1, mongo_agent_config())
+    try:
+        publisher = volttron_instance1.build_agent()
+        oat_reading = random.uniform(30, 100)
+        message = [{'FluffyWidgets': oat_reading},
+                       {'FluffyWidgets':
+                         {'units': 'F', 'tz': 'UTC', 'type': 'float'}}]
 
-# @pytest.mark.historian
-# def test_exact_timestamp(volttron_instance1, mongohistorian, clean):
-#     """
-#     Test query based on same start and end time with literal 'Z' at the end of utc time.
-#     Expected result: record with timestamp == start time
-#     :param volttron_instance1: The instance against which the test is run
-#     :param mongohistorian: instance of the sql historian tested
-#     :param clean: teardown function
-#     """
-#     global publish_agent, query_points, ALL_TOPIC
-#     # print('HOME', volttron_instance1.volttron_home)
-#     print("\n** test_exact_timestamp **")
-#     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
-#     # Make some random readings
-#     oat_reading = random.uniform(30, 100)
-#     mixed_reading = oat_reading + random.uniform(-5, 5)
-#     damper_reading = random.uniform(0, 100)
-#
-#     # Create a message for all points.
-#     all_message = [{'OutsideAirTemperature': oat_reading, 'MixedAirTemperature': mixed_reading,
-#                     'DamperSignal': damper_reading},
-#                    {'OutsideAirTemperature': {'units': 'F', 'tz': 'UTC', 'type': 'float'},
-#                     'MixedAirTemperature': {'units': 'F', 'tz': 'UTC', 'type': 'float'},
-#                     'DamperSignal': {'units': '%', 'tz': 'UTC', 'type': 'float'}
-#                     }]
-#
-#     # Create timestamp
-#     now = datetime.utcnow().isoformat(' ') + 'Z'
-#     print("now is ", now)
-#     # now = '2015-12-02T00:00:00'
-#     headers = {
-#         headers_mod.DATE: now
-#     }
-#
-#     # Publish messages
-#     publish_agent.vip.pubsub.publish(
-#             'pubsub', ALL_TOPIC, headers, all_message).get(timeout=10)
-#
-#     gevent.sleep(5)
-#
-#     # pytest.set_trace()
-#     # Query the historian
-#     result = publish_agent.vip.rpc.call('platform.historian',
-#                                         'query',
-#                                         topic=query_points['mixed_point'],
-#                                         start=now,
-#                                         end=now,
-#                                         count=20,
-#                                         order="LAST_TO_FIRST").get(timeout=10)
-#     print('Query Result', result)
-#     assert (len(result['values']) == 1)
-#     (now_date, now_time) = now.split(" ")
-#     if now_time[-1:] == 'Z':
-#         now_time = now_time[:-1]
-#     assert (result['values'][0][0] == now_date + 'T' + now_time)
-#     assert (result['values'][0][1] == mixed_reading)
-#
-#
-# @pytest.mark.historian
-# def test_query_start_time(volttron_instance1, mongohistorian, clean):
-#     """
-#     Test query based on start_time alone. Expected result record with timestamp>= start_time
-#     :param volttron_instance1: The instance against which the test is run
-#     :param mongohistorian: instance of the sql historian tested
-#     :param clean: teardown function
-#     """
-#     global publish_agent, query_points, ALL_TOPIC
-#     # print('HOME', volttron_instance1.volttron_home)
-#     print("\n** test_query_start_time **")
-#     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
-#     # Make some random readings
-#     oat_reading = random.uniform(30, 100)
-#     mixed_reading = oat_reading + random.uniform(-5, 5)
-#     damper_reading = random.uniform(0, 100)
-#
-#     # Create a message for all points.
-#     all_message = [{'OutsideAirTemperature': oat_reading, 'MixedAirTemperature': mixed_reading,
-#                     'DamperSignal': damper_reading},
-#                    {'OutsideAirTemperature': {'units': 'F', 'tz': 'UTC', 'type': 'float'},
-#                     'MixedAirTemperature': {'units': 'F', 'tz': 'UTC', 'type': 'float'},
-#                     'DamperSignal': {'units': '%', 'tz': 'UTC', 'type': 'float'}
-#                     }]
-#
-#     # Publish messages twice
-#     time1 = datetime.utcnow().isoformat(' ')
-#     headers = {
-#         headers_mod.DATE: time1
-#     }
-#     publish_agent.vip.pubsub.publish(
-#             'pubsub', ALL_TOPIC, headers, all_message).get(timeout=10)
-#     gevent.sleep(1)
-#     time2 = datetime.utcnow().isoformat(' ')
-#     headers = {
-#         headers_mod.DATE: time2
-#     }
-#     publish_agent.vip.pubsub.publish(
-#             'pubsub', ALL_TOPIC, headers, all_message).get(timeout=10)
-#
-#     gevent.sleep(5)
-#     # pytest.set_trace()
-#     # pytest.set_trace()
-#     # Query the historian
-#     result = publish_agent.vip.rpc.call('platform.historian',
-#                                         'query',
-#                                         topic=query_points['oat_point'],
-#                                         start=time1,
-#                                         count=20,
-#                                         order="LAST_TO_FIRST").get(timeout=10)
-#     print ("time1:", time1)
-#     print ("time2:", time2)
-#     print('Query Result', result)
-#     assert (len(result['values']) == 2)
-#     (time2_date, time2_time) = time2.split(" ")
-#     if time2_time[-1:] == 'Z':
-#         time2_time = time2_time[:-1]
-#     # Verify order LAST_TO_FIRST.
-#     assert (result['values'][0][0] == time2_date + 'T' + time2_time)
-#     assert (result['values'][0][1] == oat_reading)
-#
-#
-# @pytest.mark.historian
-# def test_query_start_time_with_z(volttron_instance1, mongohistorian, clean):
-#     """
-#     Test query based on start_time alone. Expected result record with timestamp>= start_time
-#     :param volttron_instance1: The instance against which the test is run
-#     :param mongohistorian: instance of the sql historian tested
-#     :param clean: teardown function
-#     """
-#     global publish_agent, query_points, ALL_TOPIC
-#     # print('HOME', volttron_instance1.volttron_home)
-#     print("\n** test_query_start_time_with_z **")
-#     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
-#     # Make some random readings
-#     oat_reading = random.uniform(30, 100)
-#     mixed_reading = oat_reading + random.uniform(-5, 5)
-#     damper_reading = random.uniform(0, 100)
-#
-#     # Create a message for all points.
-#     all_message = [{'OutsideAirTemperature': oat_reading, 'MixedAirTemperature': mixed_reading,
-#                     'DamperSignal': damper_reading},
-#                    {'OutsideAirTemperature': {'units': 'F', 'tz': 'UTC', 'type': 'float'},
-#                     'MixedAirTemperature': {'units': 'F', 'tz': 'UTC', 'type': 'float'},
-#                     'DamperSignal': {'units': '%', 'tz': 'UTC', 'type': 'float'}
-#                     }]
-#
-#     # Publish messages twice
-#     time1 = datetime.utcnow().isoformat(' ') + 'Z'
-#     headers = {
-#         headers_mod.DATE: time1
-#     }
-#     publish_agent.vip.pubsub.publish(
-#             'pubsub', ALL_TOPIC, headers, all_message).get(timeout=10)
-#     gevent.sleep(1)
-#     time2 = datetime.utcnow().isoformat(' ') + 'Z'
-#     headers = {
-#         headers_mod.DATE: time2
-#     }
-#     publish_agent.vip.pubsub.publish(
-#             'pubsub', ALL_TOPIC, headers, all_message).get(timeout=10)
-#
-#     gevent.sleep(5)
-#
-#     # Query the historian
-#     result = publish_agent.vip.rpc.call('platform.historian',
-#                                         'query',
-#                                         topic=query_points['oat_point'],
-#                                         start=time1,
-#                                         count=20,
-#                                         order="LAST_TO_FIRST").get(timeout=10)
-#     print ("time1:", time1)
-#     print ("time2:", time2)
-#     print('Query Result', result)
-#     assert (len(result['values']) == 2)
-#     (time2_date, time2_time) = time2.split(" ")
-#     if time2_time[-1:] == 'Z':
-#         time2_time = time2_time[:-1]
-#     # Verify order LAST_TO_FIRST.
-#     assert (result['values'][0][0] == time2_date + 'T' + time2_time)
-#     assert (result['values'][0][1] == oat_reading)
-#
-#
-# @pytest.mark.historian
-# def test_query_end_time(volttron_instance1, mongohistorian, clean):
-#     """
-#     Test query based on end time alone. Expected result record with timestamp<= end time
-#     :param volttron_instance1: The instance against which the test is run
-#     :param mongohistorian: instance of the sql historian tested
-#     :param clean: teardown function
-#     """
-#     global publish_agent, query_points, ALL_TOPIC, db_connection,agent_uuid
-#     # print('HOME', volttron_instance1.volttron_home)
-#     print("\n** test_query_end_time **")
-#
-#     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
-#     # Make some random readings
-#     oat_reading = random.uniform(30, 100)
-#     mixed_reading = oat_reading + random.uniform(-5, 5)
-#     damper_reading = random.uniform(0, 100)
-#
-#     # Create a message for all points.
-#     all_message = [{'OutsideAirTemperature': oat_reading, 'MixedAirTemperature': mixed_reading,
-#                     'DamperSignal': damper_reading},
-#                    {'OutsideAirTemperature': {'units': 'F', 'tz': 'UTC', 'type': 'float'},
-#                     'MixedAirTemperature': {'units': 'F', 'tz': 'UTC', 'type': 'float'},
-#                     'DamperSignal': {'units': '%', 'tz': 'UTC', 'type': 'float'}
-#                     }]
-#
-#     # Publish messages twice
-#     time1 = datetime.utcnow().isoformat(' ')
-#     headers = {
-#         headers_mod.DATE: time1
-#     }
-#     publish_agent.vip.pubsub.publish(
-#             'pubsub', ALL_TOPIC, headers, all_message).get(timeout=10)
-#     gevent.sleep(1)
-#     time2 = datetime.utcnow().isoformat(' ')
-#     headers = {
-#         headers_mod.DATE: time2
-#     }
-#     publish_agent.vip.pubsub.publish(
-#             'pubsub', ALL_TOPIC, headers, all_message).get(timeout=10)
-#
-#     gevent.sleep(5)
-#
-#     # pytest.set_trace()
-#     # Query the historian
-#     result = publish_agent.vip.rpc.call('platform.historian',
-#                                         'query',
-#                                         topic=query_points['mixed_point'],
-#                                         end=time2,
-#                                         count=20,
-#                                         order="FIRST_TO_LAST").get(timeout=100)
-#     print ("time1:", time1)
-#     print ("time2:", time2)
-#     print('Query Result', result)
-#
-#     # FOR DEBUG - START
-#     cursor = db_connection.cursor()
-#     cursor.execute(
-#             "SELECT ts FROM data")
-#     rows = cursor.fetchall()
-#     print("select query result1: " , rows)
-#
-#     if mongohistorian['connection']['type'] == 'mysql':
-#         new_connection = mysql.connect(**mongohistorian['connection']['params'])
-#         newcur = new_connection.cursor()
-#         newcur.execute("SELECT ts from data")
-#         new_rows = newcur.fetchall()
-#         print("select query result2: " , new_rows)
-#         new_connection.close()
-#     else:
-#         from os import path
-#         db_name = mongohistorian['connection']['params']['database']
-#         database_path = path.join(volttron_instance1.volttron_home,
-#                               'agents', agent_uuid,
-#                               'mongohistorianagent-3.0.1/mongohistorianagent-3.0.1.agent-data/data',
-#                               db_name)
-#         new_connection = sqlite3.connect(database_path)
-#         newcur = new_connection.cursor()
-#         newcur.execute("SELECT ts from data")
-#         new_rows = newcur.fetchall()
-#         print("select query result2: " , new_rows)
-#         new_connection.close()
-#     # FOR DEBUG - END
-#     # pytest.set_trace()
-#     assert (len(result['values']) == 2)
-#     (time1_date, time1_time) = time1.split(" ")
-#     # verify ordering("FIRST_TO_LAST" is specified so expecting time1 in index 0
-#     assert (result['values'][0][0] == time1_date + 'T' + time1_time)
-#     assert (result['values'][0][1] == mixed_reading)
-#
-#
-# @pytest.mark.historian
-# def test_query_end_time_with_z(volttron_instance1, mongohistorian, clean):
-#     """
-#     Test query based on end time alone. Expected result record with timestamp<= end time
-#     :param volttron_instance1: The instance against which the test is run
-#     :param mongohistorian: instance of the sql historian tested
-#     :param clean: teardown function
-#     """
-#     global publish_agent, query_points, ALL_TOPIC
-#     # print('HOME', volttron_instance1.volttron_home)
-#     print("\n** test_query_end_time_with_z **")
-#     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
-#     # Make some random readings
-#     oat_reading = random.uniform(30, 100)
-#     mixed_reading = oat_reading + random.uniform(-5, 5)
-#     damper_reading = random.uniform(0, 100)
-#
-#     # Create a message for all points.
-#     all_message = [{'OutsideAirTemperature': oat_reading, 'MixedAirTemperature': mixed_reading,
-#                     'DamperSignal': damper_reading},
-#                    {'OutsideAirTemperature': {'units': 'F', 'tz': 'UTC', 'type': 'float'},
-#                     'MixedAirTemperature': {'units': 'F', 'tz': 'UTC', 'type': 'float'},
-#                     'DamperSignal': {'units': '%', 'tz': 'UTC', 'type': 'float'}
-#                     }]
-#
-#     # Publish messages twice
-#     time1 = datetime.utcnow().isoformat(' ') + 'Z'
-#     headers = {
-#         headers_mod.DATE: time1
-#     }
-#     publish_agent.vip.pubsub.publish(
-#             'pubsub', ALL_TOPIC, headers, all_message).get(timeout=10)
-#     gevent.sleep(1)
-#     time2 = datetime.utcnow().isoformat(' ') + 'Z'
-#     headers = {
-#         headers_mod.DATE: time2
-#     }
-#     publish_agent.vip.pubsub.publish(
-#             'pubsub', ALL_TOPIC, headers, all_message).get(timeout=10)
-#
-#     gevent.sleep(5)
-#
-#     # pytest.set_trace()
-#     # Query the historian
-#     result = publish_agent.vip.rpc.call('platform.historian',
-#                                         'query',
-#                                         topic=query_points['mixed_point'],
-#                                         end=time2,
-#                                         count=20,
-#                                         order="FIRST_TO_LAST").get(timeout=10)
-#     print ("time1:", time1)
-#     print ("time2:", time2)
-#     print('Query Result', result)
-#     # pytest.set_trace()
-#     assert (len(result['values']) == 2)
-#     (time1_date, time1_time) = time1.split(" ")
-#     if time1_time[-1:] == 'Z':
-#         time1_time = time1_time[:-1]
-#     # verify ordering("FIRST_TO_LAST" is specified so expecting time1 in index 0
-#     assert (result['values'][0][0] == time1_date + 'T' + time1_time)
-#     assert (result['values'][0][1] == mixed_reading)
-#
-#
-# @pytest.mark.historian
-# def test_zero_timestamp(volttron_instance1, mongohistorian, clean):
-#     """
-#     Test query based with timestamp where time is 00:00:00. Test with and without Z at the end.
-#     Expected result: record with timestamp == 00:00:00.000001
-#     :param volttron_instance1: The instance against which the test is run
-#     :param mongohistorian: instance of the sql historian tested
-#     :param clean: teardown function
-#     """
-#     global publish_agent, query_points, ALL_TOPIC
-#     # print('HOME', volttron_instance1.volttron_home)
-#     print("\n** test_zero_timestamp **")
-#     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
-#     # Make some random readings
-#     oat_reading = random.uniform(30, 100)
-#     mixed_reading = oat_reading + random.uniform(-5, 5)
-#     damper_reading = random.uniform(0, 100)
-#
-#     # Create a message for all points.
-#     all_message = [{'OutsideAirTemperature': oat_reading, 'MixedAirTemperature': mixed_reading,
-#                     'DamperSignal': damper_reading},
-#                    {'OutsideAirTemperature': {'units': 'F', 'tz': 'UTC', 'type': 'float'},
-#                     'MixedAirTemperature': {'units': 'F', 'tz': 'UTC', 'type': 'float'},
-#                     'DamperSignal': {'units': '%', 'tz': 'UTC', 'type': 'float'}
-#                     }]
-#
-#     # Create timestamp
-#     now = '2015-12-17 00:00:00.000000Z'
-#     headers = {
-#         headers_mod.DATE: now
-#     }
-#
-#     # Publish messages
-#     publish_agent.vip.pubsub.publish(
-#             'pubsub', ALL_TOPIC, headers, all_message).get(timeout=10)
-#
-#     gevent.sleep(5)
-#
-#     # Query the historian
-#     result = publish_agent.vip.rpc.call('platform.historian',
-#                                         'query',
-#                                         topic=query_points['mixed_point'],
-#                                         start=now,
-#                                         count=20,
-#                                         order="LAST_TO_FIRST").get(timeout=10)
-#     print('Query Result', result)
-#     assert (len(result['values']) == 1)
-#     (now_date, now_time) = now.split(" ")
-#     now_time = now_time[:-2] + '1'
-#     assert (result['values'][0][0] == now_date + 'T' + now_time)
-#     assert (result['values'][0][1] == mixed_reading)
-#
-#     # Create timestamp
-#     now = '2015-12-17 00:00:00.000000'
-#     headers = {
-#         headers_mod.DATE: now
-#     }
-#
-#     # Publish messages
-#     publish_agent.vip.pubsub.publish(
-#             'pubsub', ALL_TOPIC, headers, all_message).get(timeout=10)
-#
-#     gevent.sleep(5)
-#
-#     # Query the historian
-#     result = publish_agent.vip.rpc.call('platform.historian',
-#                                         'query',
-#                                         topic=query_points['mixed_point'],
-#                                         start=now,
-#                                         count=20,
-#                                         order="LAST_TO_FIRST").get(timeout=10)
-#     print('Query Result', result)
-#     assert (len(result['values']) == 1)
-#     (now_date, now_time) = now.split(" ")
-#     now_time = now_time[:-1] + '1'
-#     assert (result['values'][0][0] == now_date + 'T' + now_time)
-#     assert (result['values'][0][1] == mixed_reading)
-#
-#
-# @pytest.mark.historian
-# @pytest.mark.xfail
-# def test_topic_name_case_change(volttron_instance1, mongohistorian, clean):
-#     """
-#     When case of a topic name changes check if the doesn't cause a duplicate topic in db
-#     Expected result: The topic name should get updated and topic id should remain same. i.e should be able
-#     Test issue #234
-#     to query the same result before and after topic name case change
-#     :param volttron_instance1: The instance against which the test is run
-#     :param mongohistorian: instance of the sql historian tested
-#     :param clean: teardown function
-#     """
-#     global publish_agent, query_points, ALL_TOPIC, db_connection
-#     # print('HOME', volttron_instance1.volttron_home)
-#     print("\n** test_topic_name_case_change **")
-#     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
-#     # Make some random readings
-#     oat_reading = random.uniform(30, 100)
-#     mixed_reading = oat_reading + random.uniform(-5, 5)
-#
-#     # Create a message for all points.
-#     all_message = [{'OutsideAirTemperature': oat_reading, 'MixedAirTemperature': mixed_reading},
-#                    {'OutsideAirTemperature': {'units': 'F', 'tz': 'UTC', 'type': 'float'},
-#                     'MixedAirTemperature': {'units': 'F', 'tz': 'UTC', 'type': 'float'}
-#                     }]
-#
-#     # Create timestamp
-#     time1 = '2015-12-17 00:00:00.000000Z'
-#     headers = {
-#         headers_mod.DATE: time1
-#     }
-#
-#     # Publish messages
-#     publish_agent.vip.pubsub.publish(
-#             'pubsub', ALL_TOPIC, headers, all_message).get(timeout=10)
-#
-#     gevent.sleep(5)
-#
-#     # Create a message for all points.
-#     all_message = [{'Outsideairtemperature': oat_reading, 'MixedAirTemperature': mixed_reading},
-#                    {'Outsideairtemperature': {'units': 'F', 'tz': 'UTC', 'type': 'float'},
-#                     'MixedAirTemperature': {'units': 'F', 'tz': 'UTC', 'type': 'float'}
-#                     }]
-#
-#     # Create timestamp
-#     time2 = '2015-12-17 01:10:00.000000Z'
-#     headers = {
-#         headers_mod.DATE: time2
-#     }
-#
-#     # Publish messages
-#     publish_agent.vip.pubsub.publish(
-#             'pubsub', ALL_TOPIC, headers, all_message).get(timeout=10)
-#     # Query the historian
-#     result = publish_agent.vip.rpc.call('platform.historian',
-#                                         'query',
-#                                         topic=query_points['oat_point'],
-#                                         start=time1,
-#                                         count=20,
-#                                         order="FIRST_TO_LAST").get(timeout=10)
-#     print('Query Result', result)
-#     assert (len(result['values']) == 2)
-#     (time1_date, time1_time) = time1.split(" ")
-#     time1_time = time1_time[:-2] + '1'
-#     assert (result['values'][0][0] == time1_date + 'T' + time1_time)
-#     assert (result['values'][0][1] == oat_reading)
-#
-#     cursor = db_connection.cursor()
-#     cursor.execute(
-#             "SELECT topic_name FROM topics WHERE topic_name='Building/LAB/Device/OutsideAirTemperature' COLLATE NOCASE")
-#     rows = cursor.fetchall()
-#     print(rows)
-#     assert rows[0][0] == "Building/LAB/Device/Outsideairtemperature"
-#     assert len(rows) == 1
-#
-#
-# @pytest.mark.historian
-# def test_invalid_query(volttron_instance1, mongohistorian, clean):
-#     """
-#     Test query with invalid input
-#     :param volttron_instance1: The instance against which the test is run
-#     :param mongohistorian: instance of the sql historian tested
-#     :param clean: teardown function
-#     """
-#     global publish_agent, query_points, ALL_TOPIC
-#     # print('HOME', volttron_instance1.volttron_home)
-#     print("\n** test_invalid_query **")
-#     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
-#     # Make some random readings
-#     oat_reading = random.uniform(30, 100)
-#     mixed_reading = oat_reading + random.uniform(-5, 5)
-#     damper_reading = random.uniform(0, 100)
-#
-#     # Create a message for all points.
-#     all_message = [{'OutsideAirTemperature': oat_reading, 'MixedAirTemperature': mixed_reading,
-#                     'DamperSignal': damper_reading},
-#                    {'OutsideAirTemperature': {'units': 'F', 'tz': 'UTC', 'type': 'float'},
-#                     'MixedAirTemperature': {'units': 'F', 'tz': 'UTC', 'type': 'float'},
-#                     'DamperSignal': {'units': '%', 'tz': 'UTC', 'type': 'float'}
-#                     }]
-#
-#     # Create timestamp
-#     now = datetime.utcnow().isoformat(' ') + 'Z'
-#     headers = {
-#         headers_mod.DATE: now
-#     }
-#
-#     # Publish messages
-#     publish_agent.vip.pubsub.publish(
-#             'pubsub', ALL_TOPIC, headers, all_message).get(timeout=5)
-#
-#     # Query without topic id
-#     with pytest.raises(Exception) as excinfo:
-#         publish_agent.vip.rpc.call('platform.historian',
-#                                    'query',
-#                                    # topic=query_points['mixed_point'],
-#                                    start=now,
-#                                    count=20,
-#                                    order="LAST_TO_FIRST").get(timeout=10)
-#         assert '"Topic" required' in str(excinfo.value)
-#
-#     with pytest.raises(Exception) as excinfo:
-#         publish_agent.vip.rpc.call('platform.historian1',
-#                                    'query',
-#                                    topic=query_points['mixed_point'],
-#                                    start=now,
-#                                    count=20,
-#                                    order="LAST_TO_FIRST").get(timeout=10)
-#         assert "No route to host: platform.historian1" in str(excinfo.value)
+        publisheddt = publish_data(publisher, BASE_ANALYSIS_TOPIC+'/FluffyWidgets', message)
+        gevent.sleep(0.1)
+
+        lister = volttron_instance1.build_agent()
+        topic_list = lister.vip.rpc.call('platform.historian', 'get_topic_list').get(timeout=5)
+        assert topic_list is not None
+        assert len(topic_list) == 1
+        assert 'FluffyWidgets' in topic_list[0]
+
+        result = lister.vip.rpc.call('platform.historian',
+                                            'query',
+                                            topic=BASE_ANALYSIS_TOPIC[9:]+'/FluffyWidgets').get(timeout=5)
+        assert result is not None
+        assert len(result['values']) == 1
+        assert isinstance(result['values'], list)
+        mongoizetimestamp = publisheddt.isoformat()[:-3]+'000'
+        assert result['values'][0] == [mongoizetimestamp, oat_reading]
+
+        message = [{'Fluffywidgets': oat_reading},
+                       {'Fluffywidgets':
+                         {'units': 'F', 'tz': 'UTC', 'type': 'float'}}]
+
+        publisheddt = publish_data(publisher,
+                                   BASE_ANALYSIS_TOPIC+'/Fluffywidgets', message)
+        gevent.sleep(0.1)
+        topic_list = lister.vip.rpc.call('platform.historian', 'get_topic_list').get(timeout=5)
+        assert topic_list is not None
+        assert len(topic_list) == 1
+        assert 'Fluffywidgets' in topic_list[0]
+
+        result = lister.vip.rpc.call(
+            'platform.historian',
+            'query',
+            topic=BASE_ANALYSIS_TOPIC[9:]+'/Fluffywidgets',
+            order="LAST_TO_FIRST").get(timeout=5)
+        assert result is not None
+        assert len(result['values']) == 2
+        assert isinstance(result['values'], list)
+        mongoizetimestamp = publisheddt.isoformat()[:-3]+'000'
+        assert result['values'][0] == [mongoizetimestamp, oat_reading]
+
+    finally:
+        volttron_instance1.stop_agent(agent_uuid)
+
+
+@pytest.mark.historian
+@pytest.mark.mongodb
+@pytest.mark.skipif(not HAS_PYMONGO, reason='No pymongo driver')
+def test_empty_result(volttron_instance1, database_client):
+    """
+    When case of a topic name changes check if they are saved as two topics
+    Expected result: query result should be cases insensitive
+    """
+    agent_uuid = install_historian_agent(volttron_instance1, mongo_agent_config())
+    try:
+
+        lister = volttron_instance1.build_agent()
+
+        result = lister.vip.rpc.call(
+            'platform.historian',
+            'query',
+            topic=BASE_ANALYSIS_TOPIC[9:]+'/FluffyWidgets').get(timeout=5)
+        print ("query result:" ,result)
+        assert result == {}
+    finally:
+        volttron_instance1.stop_agent(agent_uuid)
