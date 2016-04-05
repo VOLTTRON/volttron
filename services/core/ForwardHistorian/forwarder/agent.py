@@ -56,8 +56,10 @@
 # }}}
 from __future__ import absolute_import, print_function
 
+import datetime
 import logging
 import sys
+import time
 from urlparse import urlparse
 
 import gevent
@@ -67,7 +69,9 @@ from volttron.platform.vip.agent import Agent, Core, compat
 from volttron.platform.agent.base_historian import BaseHistorian
 from volttron.platform.agent import utils
 from volttron.platform.messaging import topics, headers as headers_mod
-
+from volttron.platform.messaging.health import (STATUS_BAD,
+                                                STATUS_GOOD, Status)
+FORWARD_TIMEOUT_KEY = 'FORWARD_TIMEOUT_KEY'
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 __version__ = '3.5'
@@ -95,6 +99,8 @@ def historian(config_path, **kwargs):
         def __init__(self, **kwargs):
             # will be available in both threads.
             self._topic_replace_map = {}
+            self._num_failures = 0
+            self._last_timeout = 0
             super(ForwardHistorian, self).__init__(**kwargs)
 
         @Core.receiver("onstart")
@@ -118,6 +124,8 @@ def historian(config_path, **kwargs):
 
             self._started = True
 
+        def timestamp(self):
+            return time.mktime(datetime.datetime.now().timetuple())
 
         def capture_data(self, peer, sender, bus, topic, headers, message):
 
@@ -182,6 +190,13 @@ def historian(config_path, **kwargs):
                        .format(len(to_publish_list)))
             parsed = urlparse(self.core.address)
             next_dest = urlparse(destination_vip)
+            # if we failed we need to wait 60 seconds before we go on.
+            if self.timestamp() < self._last_timeout+ 60:
+                _log.debug('Not allowing send < 60 seconds from failure')
+                return
+            if not self._target_platform:
+                self.historian_setup()
+            timeout_occurred = False
             for x in to_publish_list:
                 topic = x['topic']
                 value = x['value']
@@ -213,28 +228,40 @@ def historian(config_path, **kwargs):
                 #                               next_dest.hostname]
                 #else:
                 #    headers['Destination'].append(next_dest.hostname)
-
-                with gevent.Timeout(30):
-                    try:
-                        _log.debug('debugger: {} {} {}'.format(topic,
-                                                               headers,
-                                                               payload))
-                        self._target_platform.vip.pubsub.publish(
-                            peer='pubsub',
-                            topic=topic,
-                            headers=headers,
-                            message=payload['message']).get()
-                    except gevent.Timeout:
-                        self._target_platform.core.stop()
-                        self.historian_setup()
-                    except Exception as e:
-                        _log.error(e)
-                    else:
-                        handled_records.append(x)
+                if not timeout_occurred:
+                    with gevent.Timeout(30):
+                        try:
+                            _log.debug('debugger: {} {} {}'.format(topic,
+                                                                   headers,
+                                                                   payload))
+                            self._target_platform.vip.pubsub.publish(
+                                peer='pubsub',
+                                topic=topic,
+                                headers=headers,
+                                message=payload['message']).get()
+                        except gevent.Timeout:
+                            timeout_occurred = True
+                            self._last_timeout = self.timestamp()
+                            self._num_failures += 1
+                            # Stop the current platform from attempting to
+                            # connect
+                            self._target_platform.core.stop()
+                            self._last_timeout = None
+                            self.vip.health.set_status(
+                                STATUS_BAD, "Timout occured")
+                        except Exception as e:
+                            _log.error(e)
+                        else:
+                            handled_records.append(x)
 
             _log.debug("handled: {} number of items".format(
                 len(to_publish_list)))
             self.report_handled(handled_records)
+
+            if timeout_occurred:
+                status = Status.from_json(self.vip.health.get_status())
+                self.vip.health.send_alert(FORWARD_TIMEOUT_KEY,
+                                           status)
 
         def query_historian(self, topic, start=None, end=None, skip=0,
                             count=None, order="FIRST_TO_LAST"):
