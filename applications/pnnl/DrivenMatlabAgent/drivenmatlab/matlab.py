@@ -92,10 +92,6 @@ class Application(AbstractDrivenAgent):
     def run(self, cur_time, points):
         
         try: 
-            print("Sending data")
-            #TODO: Correct json format
-            data = {"current_time": cur_time,
-                    "points": points}
             self.data_socket.send_pyobj(points,zmq.NOBLOCK)
             
         except zmq.error.ZMQError:
@@ -106,14 +102,12 @@ class Application(AbstractDrivenAgent):
         if event > 0:
             matlab_result = self.data_socket.recv_json()
             matlab_result = eval(matlab_result)
-            #print(matlab_result)
             result = Results()
-            for key in matlab_result:
-                print(key)
             if 'commands' in matlab_result:
                 commands = matlab_result['commands']
-                for point, value in commands:
-                    result.command(point, value);
+                for device, point_value_dict in commands.items():
+                    for point, value in point_value_dict:
+                        result.command(point, value, device);
                     
             if 'logs' in matlab_result:
                 logs = matlab_result['logs']
