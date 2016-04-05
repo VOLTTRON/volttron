@@ -77,6 +77,15 @@ class FailoverAgent(Agent):
         else:
             self._agent_control('stop')
 
+    def simple_primary_state_machine(self, secondary_is_up, vc_is_up):
+        self._agent_control('start')
+
+    def simple_secondary_state_machine(self, primary_is_up, vc_is_up):
+        if primary_is_up:
+            self._agent_control('stop')
+        else:
+            self._agent_control('start')
+
 
 def main(argv=sys.argv):
     try:
