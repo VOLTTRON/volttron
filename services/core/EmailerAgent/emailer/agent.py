@@ -60,6 +60,7 @@ import datetime
 # Import the email modules we'll need
 from email.mime.text import MIMEText
 import logging
+import os
 import socket
 # Import smtplib for the actual sending function
 import smtplib
@@ -123,14 +124,17 @@ class EmailerAgent(Agent):
         return time.mktime(datetime.datetime.now().timetuple())
 
     def _read_store(self):
-        with open('email.store', 'r') as f:
-            self._sent_emails = jsonapi.loads(f.read())
+        if os.path.exists('email.store'):
+            with open('email.store', 'r') as f:
+                self._sent_emails = jsonapi.loads(f.read())
+        else:
+            self._sent_emails = {}
 
     def _write_store(self):
         with open('email.store', 'w') as f:
             f.write(jsonapi.dumps(self._sent_emails))
 
-    @PubSub.subscribe(prefix=topics.ALERTS.format())
+    @PubSub.subscribe(prefix="alerts", peer="pubsub")
     def onmessage(self, peer, sender, bus, topic, headers, message):
         _log.debug("Sending mail for message: {}".format(message))
         mailkey = headers.get(ALERT_KEY, None)

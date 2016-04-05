@@ -190,6 +190,9 @@ def historian(config_path, **kwargs):
                        .format(len(to_publish_list)))
             parsed = urlparse(self.core.address)
             next_dest = urlparse(destination_vip)
+            current_time = self.timestamp()
+            last_time = self._last_timeout
+            _log.debug('Lasttime: {} currenttime: {}'.format(last_time, current_time))
             # if we failed we need to wait 60 seconds before we go on.
             if self.timestamp() < self._last_timeout+ 60:
                 _log.debug('Not allowing send < 60 seconds from failure')
@@ -240,6 +243,7 @@ def historian(config_path, **kwargs):
                                 headers=headers,
                                 message=payload['message']).get()
                         except gevent.Timeout:
+                            _log.debug("Timout occurred email should send!")
                             timeout_occurred = True
                             self._last_timeout = self.timestamp()
                             self._num_failures += 1
