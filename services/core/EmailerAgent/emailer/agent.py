@@ -56,7 +56,7 @@
 # }}}
 from __future__ import absolute_import, print_function
 
-
+import datetime
 # Import the email modules we'll need
 from email.mime.text import MIMEText
 import logging
@@ -64,6 +64,7 @@ import socket
 # Import smtplib for the actual sending function
 import smtplib
 import sys
+import time
 from urlparse import urlparse
 
 import gevent
@@ -71,6 +72,7 @@ from zmq.utils import jsonapi
 
 from volttron.platform.agent import utils
 from volttron.platform.messaging import topics
+from volttron.platform.messaging.health import ALERT_KEY
 from volttron.platform.vip.agent import Agent, Core
 from volttron.platform.vip.agent.subsystems import PubSub
 
@@ -101,7 +103,7 @@ class EmailerAgent(Agent):
         self._from = config.get("from-address", None)
         self._to = config.get("to-addresses", None)
         self._allow_frequency = config.get("allow-frequency-minutes", 60)
-
+        self._allow_frequency_seconds = self._allow_frequency * 3600
         if not self._from and self._to:
             raise ValueError('Invalid from/to addresses specified.')
 
@@ -114,9 +116,50 @@ class EmailerAgent(Agent):
         except socket.gaierror:
             raise ValueError('Invalid smtp-address')
 
+        self._sent_emails = None
+        self._read_store()
+
+    def timestamp(self):
+        return time.mktime(datetime.datetime.now().timetuple())
+
+    def _read_store(self):
+        with open('email.store', 'r') as f:
+            self._sent_emails = jsonapi.loads(f.read())
+
+    def _write_store(self):
+        with open('email.store', 'w') as f:
+            f.write(jsonapi.dumps(self._sent_emails))
+
     @PubSub.subscribe(prefix=topics.ALERTS.format())
     def onmessage(self, peer, sender, bus, topic, headers, message):
         _log.debug("Sending mail for message: {}".format(message))
+        mailkey = headers.get(ALERT_KEY, None)
+        if not mailkey:
+            _log.debug("alert_key not found in header "
+                       + "for message topic: {} message: {}"
+                       .format(topic, message))
+            return
+
+        current_time = self.timestamp()
+        # peal off the sent mail from the specific agent.
+        sentmail = self._sent_emails[topic]
+        if not sentmail:
+            sentmail = {}
+
+        sentlast = sentmail.get(mailkey, 0)
+        should_send = False
+        if not sentlast:
+            # first time sending
+            should_send = True
+        elif current_time < sentlast + self._allow_frequency_seconds:
+            should_send = True
+
+        subject = "Alert for {} {}".format(topic, mailkey)
+        self.send_alert_mail(subject, message)
+        self._sent_emails[topic][mailkey] = current_time
+        self._write_store()
+
+
 
     def send_alert_mail(self, subject, message):
         # Create a text/plain message
