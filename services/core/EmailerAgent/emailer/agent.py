@@ -147,8 +147,9 @@ class EmailerAgent(Agent):
         current_time = self.timestamp()
         # peal off the sent mail from the specific agent.
         sentmail = self._sent_emails.get(topic, {})
+
         if not sentmail:
-            self._sent_emails[topics] = sentmail = {}
+            self._sent_emails[topic] = sentmail = {}
 
         sentlast = sentmail.get(mailkey, 0)
         should_send = False
