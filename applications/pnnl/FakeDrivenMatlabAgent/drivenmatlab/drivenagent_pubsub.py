@@ -55,395 +55,376 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 import csv
-from datetime import datetime, timedelta as td
+from datetime import datetime as dt, timedelta as td
 import logging
 import sys
 import re
-
+from copy import deepcopy
+import sys
 from dateutil.parser import parse
 
-from volttron.platform.vip.agent import *
-from volttron.platform.agent import  matching, utils
+from volttron.platform.messaging import topics
+from volttron.platform.agent import utils
+from volttron.platform.agent.utils import jsonapi, setup_logging
+from volttron.platform.vip.agent import Agent, Core
+from volttron.platform.jsonrpc import RemoteError
 from volttron.platform.agent.driven import ConversionMapper
-from volttron.platform.agent.utils import jsonapi
 from volttron.platform.messaging import (headers as headers_mod, topics)
-from copy import deepcopy
+
+__version__ = '3.0.0'
 
 __author1__ = 'Craig Allwardt <craig.allwardt@pnnl.gov>'
 __author2__ = 'Robert Lutes <robert.lutes@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2015, Battelle Memorial Institute'
 __license__ = 'FreeBSD'
+DATE_FORMAT = '%m-%d-%y %H:%M'
 
+utils.setup_logging()
+_log = logging.getLogger(__name__)
+logging.basicConfig(level=logging.debug,
+                    format='%(asctime)s   %(levelname)-8s %(message)s',
+                    datefmt='%m-%d-%y %H:%M')
 
 def driven_agent(config_path, **kwargs):
-    '''Driven harness for deployment of OpenEIS applications in VOLTTRON.'''
-    conf = utils.load_config(config_path)
-    arguments = conf.get('arguments', None)
-    assert arguments
-    from_file = arguments.get('From File', False)
-    mode = True if conf.get('mode', 'PASSIVE') == 'ACTIVE' else False
-    utils.setup_logging()
-    _log = logging.getLogger(__name__)
-    logging.basicConfig(level=logging.debug,
-                        format='%(asctime)s   %(levelname)-8s %(message)s',
-                        datefmt='%m-%d-%y %H:%M:%S')
-    mode = True if conf.get('mode', 'PASSIVE') == 'ACTIVE' else False
-    validation_error = ''
-    device = dict((key, conf['device'][key])
-                  for key in ['campus', 'building'])
-    subdevices = []
-    conv_map = conf.get('conversion_map')
+    """Driven harness for deployment of OpenEIS applications in VOLTTRON."""
+    config = utils.load_config(config_path)
+    arguments = config.get('arguments')
+    mode = True if config.get('mode', 'PASSIVE') == 'ACTIVE' else False
+    multiple_devices = isinstance(config['device']['unit'], dict)
+    campus_building_config = config['device']
+    analysis_name = campus_building_config.get('analysis_name', 'analysis_name')
+    analysis_dict = {'analysis_name': analysis_name}
+    arguments.update(analysis_dict)
+    agent_id = config.get('agentid', None)
+    agent_id = actuator_id = agent_id if agent_id is not None else analysis_name
+    campus_building = dict((key, campus_building_config[key]) for key in ['campus', 'building'])
+    analysis = deepcopy(campus_building)
+    analysis.update(analysis_dict)
+    device_config = config['device']['unit']
+    command_devices = device_config.keys()
+    device_topic_dict = {}
+    device_topic_list = []
+    subdevices_list = []
+    from_file = config.get('from_file')
+    for device_name in device_config:
+        device_topic = topics.DEVICES_VALUE(campus=campus_building.get('campus'),
+                                            building=campus_building.get('building'),
+                                            unit=device_name,
+                                            path='',
+                                            point='all')
+        device_topic_dict.update({device_topic: device_name})
+        device_topic_list.append(device_name)
+        if multiple_devices:
+            for subdevice in device_config[device_name]['subdevices']:
+                subdevices_list.append(subdevice)
+                subdevice_topic = topics.DEVICES_VALUE(campus=campus_building.get('campus'),
+                                                    building=campus_building.get('building'),
+                                                    unit=device_name,
+                                                    path=subdevice,
+                                                    point='all')
+                subdevice_name = device_name + "/" + subdevice
+                device_topic_dict.update({subdevice_topic: subdevice_name})
+                device_topic_list.append(subdevice_name)
+
+    base_actuator_path = topics.ACTUATOR_WRITE(campus=campus_building.get('campus', ''),
+                                               building=campus_building.get('building', ''),
+                                               unit=None,
+                                               path='',
+                                               point=None)
+    conversion_map = config.get('conversion_map')
     map_names = {}
-    for key, value in conv_map.items():
+    for key, value in conversion_map.items():
         map_names[key.lower() if isinstance(key, str) else key] = value
-
-    # this implies a sub-device listing
-    multiple_dev = isinstance(conf['device']['unit'], dict)
-    if multiple_dev:
-        units = conf['device']['unit'].keys()
-    try:
-
-        for item in units:
-    
-            # modify the device dict so that unit is now pointing to unit_name
-            subdevices.extend(conf['device']['unit'][item]['subdevices'])
-    except:
-        pass
-
-    agent_id = conf.get('agentid')
-    device.update({'unit': units})
-    _analysis = deepcopy(device)
-    _analysis_name = conf.get('device').get('analysis_name', 'analysis_name')
-    _analysis.update({'analysis_name': _analysis_name})
-
-    if not device:
-        validation_error += 'Invalid agent_id specified in config\n'
-    if not device:
-        validation_error += 'Invalid device path specified in config\n'
-    actuator_id = (
-        agent_id + '_' + "{campus}/{building}/{unit}".format(**device))
-
-    application = conf.get('application')
+    application = config.get('application')
+    validation_error = ''
     if not application:
-        validation_error += 'Invalid application specified in config\n'
+        validation_error = 'Invalid application specified in config\n'
     if validation_error:
         _log.error(validation_error)
         raise ValueError(validation_error)
-
-    conf.update(conf.get('arguments'))
+    config.update(config.get('arguments'))
     converter = ConversionMapper()
-    output_file = conf.get('output_file')
-    base_dev = "devices/{campus}/{building}/".format(**device)
-    devices_topic = (
-        base_dev + '({})(/.*)?/all$'.format('|'.join(re.escape(p) for p in units)))
-    
-    print(devices_topic)
-    unittype_map = conf.get('unittype_map', None)
-    assert unittype_map
+    output_file_prefix = config.get('output_file')
+    #unittype_map = config.get('unittype_map', None)
+    #assert unittype_map
 
     klass = _get_class(application)
     # This instances is used to call the applications run method when
     # data comes in on the message bus.  It is constructed here
     # so that_process_results each time run is called the application
     # can keep it state.
-    app_instance = klass(**conf)
+    app_instance = klass(**arguments)
 
-    class DrivenMatlabAgent(Agent):
+
+    class DrivenAgent(Agent):
         '''Agent listens to message bus device and runs when data is published.
         '''
         def __init__(self, **kwargs):
-            super(DrivenMatlabAgent, self).__init__(**kwargs)
-            self._update_event = None
-            self._update_event_time = None
-            self.keys = None
+            super(DrivenAgent, self).__init__(**kwargs)
+
             # master is where we copy from to get a poppable list of
             # subdevices that should be present before we run the analysis.
-            self._master_subdevices = subdevices
-            self._needed_subdevices = []
-            self._master_devices = units
-            self._subdevice_values = {}
+            self._master_devices = device_topic_list
             self._needed_devices = []
             self._device_values = {}
             self._initialize_devices()
             self.received_input_datetime = None
             self._kwargs = kwargs
-            self.commands = {}
-            self.current_point = None
-            self.current_key = None
-            if output_file is not None:
-                with open(output_file, 'w') as writer:
-                    writer.close()
+
             self._header_written = False
-            
+            self.file_creation_set = set()
+
         def _initialize_devices(self):
-            self._needed_subdevices = deepcopy(self._master_subdevices)
             self._needed_devices = deepcopy(self._master_devices)
-            self._subdevice_values = {}
             self._device_values = {}
+
+        @Core.receiver('onstart')
+        def starup(self, sender, **kwargs):
+            self._initialize_devices()
+            for device_topic in device_topic_dict:
+                _log.debug('Subscribing to ' + device_topic)
+                self.vip.pubsub.subscribe(peer='pubsub',
+                                          prefix=device_topic,
+                                          callback=self.on_analysis_message)
 
         def _should_run_now(self):
             # Assumes the unit/all values will have values.
             if not len(self._device_values.keys()) > 0:
                 return False
-            return not (len(self._needed_subdevices) > 0 or
-                        len(self._needed_devices) > 0)
+            return not len(self._needed_devices) > 0
 
-                
-        #@matching.match_regex(devices_topic)
-        @PubSub.subscribe('pubsub', '')
-        def on_rec_analysis_message(self, peer, sender, bus, topic, headers, message):
-            '''Subscribe to device data and assemble data set to pass
+        def on_analysis_message(self, peer, sender, bus, topic, headers, message):
+            """Subscribe to device data and assemble data set to pass
             to applications.
-            '''
-            topic_rex = re.compile(devices_topic)
-            if not topic_rex.match(topic):
-                 _log.debug("Unmatched topic: {}".format(topic))
-                 return
-            #obj = jsonapi.loads(message[0])
-            #if isinstance(obj, list):
-            #    obj = obj[0]
-            obj=message[0]
-            dev_list = topic.split('/')
-            device_or_subdevice = dev_list[-2]
-            device_id = [dev for dev in self._master_devices if dev == device_or_subdevice]
-            subdevice_id = [dev for dev in self._master_subdevices if dev == device_or_subdevice]
-            if not device_id and not subdevice_id:
-                return
-            if isinstance(device_or_subdevice, unicode):
-                device_or_subdevice = (
-                    device_or_subdevice.decode('utf-8').encode('ascii'))
+            """
+            device_data = message[0]
+            if isinstance(device_data, list):
+                device_data = device_data[0]
 
-            def agg_subdevice(obj):
-                sub_obj = {}
-                for key, value in obj.items():
-                    sub_key = ''.join([key, '_', device_or_subdevice])
-                    sub_obj[sub_key] = value
-                if len(dev_list) > 5:
-                    self._subdevice_values.update(sub_obj)
-                    self._needed_subdevices.remove(device_or_subdevice)
-                else:
-                    self._device_values.update(sub_obj)
-                    self._needed_devices.remove(device_or_subdevice)
-                return
-            # The below if statement is used to distinguish between unit/all
-            # and unit/sub-device/all
-            if (device_or_subdevice not in self._needed_devices and
-                    device_or_subdevice not in self._needed_subdevices):
+            def aggregate_subdevice(device_data):
+                tagged_device_data = {}
+                device_tag = device_topic_dict[topic]
+                if device_tag not in self._needed_devices:
+                    return False
+                for key, value in device_data.items():
+                    device_data_tag = '&'.join([key, device_tag])
+                    tagged_device_data[device_data_tag] = value
+                self._device_values.update(tagged_device_data)
+                self._needed_devices.remove(device_tag)
+                return True
+
+            device_needed = aggregate_subdevice(device_data)
+            if not device_needed:
                 _log.error("Warning device values already present, "
                            "reinitializing")
-                self._initialize_devices()
-            agg_subdevice(obj)
 
             if self._should_run_now():
                 field_names = {}
-                self._device_values.update(self._subdevice_values)
                 for k, v in self._device_values.items():
                     field_names[k.lower() if isinstance(k, str) else k] = v
-                if not converter.initialized and \
-                        conv_map is not None:
-                    converter.setup_conversion_map(
-                        map_names,
-                        field_names
-                    )
+                if not converter.initialized and conversion_map is not None:
+                    converter.setup_conversion_map(map_names, field_names)
                 if from_file:
-                    _timestamp = parse(headers.get('Date'), fuzzy=True)
+                    _timestamp = parse(headers.get('Date'))
                     self.received_input_datetime = _timestamp
                 else:
-                    _timestamp = datetime.now()
-                    self.received_input_datetime = datetime.utcnow()
+                    _timestamp = dt.now()
+                    self.received_input_datetime = dt.utcnow()
 
-                obj = converter.process_row(field_names)
-                results = app_instance.run(_timestamp, obj)
+                device_data = converter.process_row(field_names)
+                results = app_instance.run(_timestamp, device_data)
                 # results = app_instance.run(
                 # dateutil.parser.parse(self._subdevice_values['Timestamp'],
                 #                       fuzzy=True), self._subdevice_values)
                 self._process_results(results)
                 self._initialize_devices()
             else:
-                needed = deepcopy(self._needed_devices)
-                needed.extend(self._needed_subdevices)
-                _log.info("Still need {} before running."
-                          .format(needed))
+                _log.info("Still need {} before running.".format(self._needed_devices))
 
         def _process_results(self, results):
-            '''Run driven application with converted data and write the app
+            """Run driven application with converted data and write the app
             results to a file or database.
-            '''
+            """
             _log.debug('Processing Results!')
+            for device, point_value_dict in results.devices.items():
+                for key, value in point_value_dict.items():
+                    _log.debug("COMMAND TABLE: {}->{}".format(key, value))
+                    if mode:
+                        _log.debug('ACTUATE ON DEVICE.')
+                        results, actuator_error = self.actuator_request(results)
+                        if not actuator_error:
+                            self.actuator_set(results)
+            
             for key, value in results.commands.iteritems():
-                _log.debug("COMMAND: {}->{}".format(key, value))
+                _log.debug("COMMAND TABLE: {}->{}".format(key, value))
+                if mode:
+                    _log.debug('ACTUATE ON DEVICE.')
+                    results, actuator_error = self.actuator_request(results)
+                    if not actuator_error:
+                        self.actuator_set(results)
+            
+            
             for value in results.log_messages:
                 _log.debug("LOG: {}".format(value))
-            for key, value in results.table_output.iteritems():
+            for key, value in results.table_output.items():
                 _log.debug("TABLE: {}->{}".format(key, value))
-            if output_file is not None:
-                _log.debug('Writing Output File!')
-                if len(results.table_output.keys()) > 0:
-                    for _, v in results.table_output.items():
-                        fname = output_file  # +"-"+k+".csv"
-                        for r in v:
-                            with open(fname, 'a+') as f:
-                                keys = r.keys()
-                                fout = csv.DictWriter(f, keys)
-                                if not self._header_written:
-                                    fout.writeheader()
-                                    self._header_written = True
-                                # if not header_written:
-                                    # fout.writerow(keys)
-                                fout.writerow(r)
-                                f.close()
-            _log.debug('File Written!')
+            if output_file_prefix is not None:
+                results = self.create_file_output(results)
+            if len(results.table_output.keys()):
+                results = self.publish_analysis_results(results)
+            return results
 
-            def get_unit(point):
-                ''' Get a unit type based upon the regular expression in the config file.
-
-                    if NOT found returns percent as a default unit.
-                '''
-                _log.debug('In get unit!')
-                for k, v in unittype_map.items():
-                    if re.match(k, point):
-                        return v
-                return 'percent'
-
-            # publish to message bus.
-            _log.debug('Publishing table output to message bus')
-            if len(results.table_output.keys()) > 0:
+        def publish_analysis_results(self, results):
+            """publish analysis results to the message bus for
+            capture by the data historian
+            """
+            headers = {
+                headers_mod.CONTENT_TYPE: headers_mod.CONTENT_TYPE.JSON,
+                headers_mod.DATE: str(self.received_input_datetime),
+            }
+            for app, analysis_table in results.table_output.items():
+                try:
+                    name_timestamp = app.split('&')
+                    _name = name_timestamp[0]
+                    timestamp = name_timestamp[1]
+                except:
+                    _name = app
+                    timestamp = str(self.received_input_datetime)
                 headers = {
                     headers_mod.CONTENT_TYPE: headers_mod.CONTENT_TYPE.JSON,
-                    headers_mod.DATE: str(self.received_input_datetime),
+                    headers_mod.DATE: timestamp,
                 }
-                for _, v in results.table_output.items():
-                    for r in v:
-                        for key, value in r.iteritems():
-                            if isinstance(value, bool):
-                                value = int(value)
-                            for item in units:
-                                _analysis['unit'] = item
-                                analysis_topic = topics.ANALYSIS_VALUE(
-                                    point=key, **_analysis)
+                for entry in analysis_table:
+                    for key, value in entry.items():
+                        for _device in command_devices:
+                            analysis['unit'] = _device
+                            analysis_topic = topics.ANALYSIS_VALUE(point=key, **analysis)
+                            datatype = 'float'
+                            if isinstance(value, int):
+                                datatype = 'int'
+                            kbase = key[key.rfind('/') + 1:]
+                            message = [{kbase: value},
+                                       {kbase: {'tz': 'US/Pacific',
+                                                'type': datatype,
+                                                'units': 'float',
+                                                }
+                                        }]
+                            self.vip.pubsub.publish(
+                                'pubsub', analysis_topic, headers, message)
+            return results
 
-                                datatype = 'float'
-                                if isinstance(value, int):
-                                    datatype = 'int'
-                                kbase = key[key.rfind('/')+1:]
-                                message = [{kbase: value},
-                                           {kbase: {'tz': 'US/Pacific',
-                                                    'type': datatype,
-                                                    'units': 'float',
-                                                    }
-                                            }]
-                                self.vip.pubsub.publish(peer="pubsub", topic=analysis_topic,
-                                                  headers=headers, message=message)
+        def create_file_output(self, results):
+            """Create results/data files for testing and algorithm validation."""
+            for key, value in results.table_output.items():
+                name_timestamp = key.split('&')
+                _name = name_timestamp[0]
+                timestamp = name_timestamp[1]
+                file_name = output_file_prefix + "-" + _name + ".csv"
+                if file_name not in self.file_creation_set:
+                    self._header_written = False
+                self.file_creation_set.update([file_name])
+                for row in value:
+                    with open(file_name, 'a+') as file_to_write:
+                        row.update({'Timestamp': timestamp})
+                        _keys = row.keys()
+                        file_output = csv.DictWriter(file_to_write, _keys)
+                        if not self._header_written:
+                            file_output.writeheader()
+                            self._header_written = True
+                        file_output.writerow(row)
+                    file_to_write.close()
+            return results
 
-            _log.debug('Publishing commands to message bus')
-            _log.debug(mode)
-            if results.commands and mode:
-                self.commands = results.commands
-                if self.keys is None:
-                    self.keys = self.commands.keys()
-                _log.debug("we have commands")
-                #self.schedule_task()
-                self.command_equip()
+        def actuator_request(self, results):
+            """Make actuaor request for modification of device set points."""
+            _now = dt.now()
+            str_now = _now.strftime(DATE_FORMAT)
+            _end = _now + td(minutes=1)
+            str_end = _end.strftime(DATE_FORMAT)
+            for _device in command_devices:
+                actuation_device = base_actuator_path(unit=_device, point='')
+                schedule_request = [[actuation_device, str_now, str_end]]
+#                 
+#                 try:
+#                     result = self.vip.rpc.call('platform.actuator',
+#                                                'request_new_schedule',
+#                                                agent_id, _device, 'HIGH',
+#                                                schedule_request).get(timeout=4)
+#                 except RemoteError as ex:
+#                     _log.warning("Failed to schedule device {} (RemoteError): {}".format(_device, str(ex)))
+#                     request_error = True
+#  
+#                 if result['result'] == 'FAILURE':
+#                     _log.warn('Failed to schedule device (unavailable) ' + _device)
+#                     request_error = True
+#                 else:
+#                     request_error = False
+#                 _log.debug('@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@')
+#                 _log.debug(str(result))
+#                 _log.debug(str_now)
+#                 _log.debug(str_end)
 
-        def schedule_task(self):
-            '''Schedule access to modify device controls.'''
-            _log.debug('Schedule Device Access')
-            headers = {
+                headers = {
                 'type':  'NEW_SCHEDULE',
                 'requesterID': agent_id,
                 'taskID': actuator_id,
-                'priority': 'LOW'
+                'priority': 'HIGH'
                 }
-            start = datetime.now()
-            end = start + td(seconds=30)
-            start = str(start)
-            end = str(end)
-            self.vip.pubsub.publish(peer='pubsub', 
+                device_path = "{campus}/{building}/".format(**campus_building)
+                 
+                self.vip.pubsub.publish(peer='pubsub', 
                                     topic=topics.ACTUATOR_SCHEDULE_REQUEST(),
                                     headers=headers, 
-                                    message=[["{campus}/{building}/{unit}".format(**device),start, end]])
+                                    message=[[device_path+_device,str_now, str_end]])
+            #                 
 
-        def command_equip(self):
-            '''Execute commands on configured device.'''
-            for key in self.keys:
-                self.current_key = key
-                value = self.commands[self.current_key]
-                headers = {
-                    'Content-Type': 'text/plain',
-                    'requesterID': agent_id,
-                    }
-                device.update({'unit':''})
-                self.vip.pubsub.publish(peer="pubsub", 
-                                        topic=topics.ACTUATOR_SET(point=self.current_key, **device),
+            return results, False
+
+        def actuator_set(self, results):
+            """Set point on device."""
+            for device, point_value_dict in results.devices.items():
+                for point, value in point_value_dict.items():
+                    point_path = base_actuator_path(unit=device, point=point)
+                    try:
+#                         result = self.vip.rpc.call('platform.actuator', 'set_point',
+#                                                    agent_id, point_path,
+#                                                    new_value).get(timeout=4)
+                        headers = {
+                                   'Content-Type': 'text/plain',
+                                   'requesterID': agent_id,
+                                   }
+                        self.vip.pubsub.publish(peer="pubsub", 
+                                        topic=topics.ACTUATOR_SET(point=point,unit=device, **campus_building),
                                         headers=headers, 
                                         message=str(value))
-            
+                        _log.debug("Set point {} to {}".format(point_path, value))
+                    except RemoteError as ex:
+                        _log.warning("Failed to set {} to {}: {}".format(point_path, value, str(ex)))
+                        continue
         
+            for _device in command_devices:
+                for point, new_value in results.commands.items():
+                    point_path = base_actuator_path(unit=_device, point=point)
+                    try:
+#                         result = self.vip.rpc.call('platform.actuator', 'set_point',
+#                                                    agent_id, point_path,
+#                                                    new_value).get(timeout=4)
+                        headers = {
+                                   'Content-Type': 'text/plain',
+                                   'requesterID': agent_id,
+                                   }
+                        self.vip.pubsub.publish(peer="pubsub", 
+                                        topic=topics.ACTUATOR_SET(point=point,unit=_device, **campus_building),
+                                        headers=headers, 
+                                        message=str(new_value))
+                        _log.debug("Set point {} to {}".format(point_path, new_value))
+                    except RemoteError as ex:
+                        _log.warning("Failed to set {} to {}: {}".format(point_path, new_value, str(ex)))
+                        continue
 
-        @matching.match_headers({headers_mod.REQUESTER_ID: agent_id})
-        @matching.match_exact(topics.ACTUATOR_SCHEDULE_RESULT())
-        def schedule_result(self, peer, sender, bus, topic, headers, message):
-            '''Actuator response (FAILURE, SUCESS).'''
-            _log.debug('Actuator Response')
-            msg = jsonapi.loads(message[0])
-            msg = msg['result']
-            _log.debug('Schedule Device ACCESS')
-            if self.keys:
-                if msg == "SUCCESS":
-                    self.command_equip()
-                elif msg == "FAILURE":
-                    _log.debug('Auto-correction of device failed.')
 
-        @matching.match_headers({headers_mod.REQUESTER_ID: agent_id})
-        @matching.match_glob(topics.ACTUATOR_VALUE(point='*', **device))
-        def on_set_result(self, peer, sender, bus, topic, headers, message):
-            '''Setting of point on device was successful.'''
-            _log.debug('Set Success:  {point} - {value}'
-                       .format(point=self.current_key,
-                               value=str(self.commands[self.current_key])))
-            _log.debug('set_point({}, {})'.
-                       format(self.current_key,
-                              self.commands[self.current_key]))
-            self.keys.remove(self.current_key)
-            if self.keys:
-                self.command_equip()
-            else:
-                _log.debug('Done with Commands - Release device lock.')
-                headers = {
-                    'type': 'CANCEL_SCHEDULE',
-                    'requesterID': agent_id,
-                    'taskID': actuator_id
-                    }
-                self.publish_json(topics.ACTUATOR_SCHEDULE_REQUEST(),
-                                  headers, {})
-                self.keys = None
- 
-        @matching.match_headers({headers_mod.REQUESTER_ID: agent_id})
-        @matching.match_glob(topics.ACTUATOR_ERROR(point='*', **device))
-        def on_set_error(self, topic, headers, message, match):
-            '''Setting of point on device failed, log failure message.'''
-            _log.debug('Set ERROR')
-            msg = jsonapi.loads(message[0])
-            msg = msg['type']
-            _log.debug('Actuator Error: ({}, {}, {})'.
-                       format(msg,
-                              self.current_key,
-                              self.commands[self.current_key]))
-            self.keys.remove(self.current_key)
-            if self.keys:
-                self.command_equip()
-            else:
-                headers = {
-                    'type':  'CANCEL_SCHEDULE',
-                    'requesterID': agent_id,
-                    'taskID': actuator_id
-                    }
-                self.publish_json(topics.ACTUATOR_SCHEDULE_REQUEST(),
-                                  headers, {})
-                self.keys = None
-
-    DrivenMatlabAgent.__name__ = 'DrivenMatlabAgent'
-    return DrivenMatlabAgent(**kwargs)
+    DrivenAgent.__name__ = 'DrivenLoggerAgent'
+    return DrivenAgent(**kwargs)
 
 
 def _get_class(kls):
