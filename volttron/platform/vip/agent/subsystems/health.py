@@ -53,6 +53,7 @@
 
 
 import logging
+import os
 import weakref
 
 from volttron.platform.messaging import topics
@@ -96,8 +97,12 @@ class Health(SubsystemBase):
         """
         if not isinstance(statusobj, Status):
             raise ValueError('statusobj must be a Status object.')
-        headers = dict(alert_key=alert_key),
-        self._owner.vip.pubsub.publish("pubsub", topic=topics.ALERTS.format(),
+        agent_class = self._owner.__class__.__name__
+        agent_uuid = os.environ.get('AGENT_UUID', '')
+        topic = topics.ALERTS(agent_class=agent_class, agent_uuid=agent_uuid)
+        headers = dict(alert_key=alert_key)
+        self._owner.vip.pubsub.publish("pubsub",
+                                       topic=topic.format(),
                                        headers=headers,
                                        message=statusobj.to_json())
 
