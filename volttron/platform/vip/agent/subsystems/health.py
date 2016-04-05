@@ -56,6 +56,7 @@ import logging
 import os
 import weakref
 
+from volttron.platform.agent import utils
 from volttron.platform.messaging import topics
 from volttron.platform.messaging.health import *
 from .base import SubsystemBase
@@ -67,8 +68,9 @@ __version__ = '1.0'
 The health subsystem allows an agent to store it's health in a non-intrusive
 way.
 """
+utils.setup_logging()
 _log = logging.getLogger(__name__)
-
+_log.setLevel(logging.DEBUG)
 
 class Health(SubsystemBase):
     def __init__(self, owner, core, rpc):
