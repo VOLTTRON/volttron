@@ -98,7 +98,7 @@ __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2015, Battelle Memorial Institute'
 __license__ = 'FreeBSD'
 
-ALERTS = _('alerts') #/{agent_class}/{publickey}/{alert_key}')
+ALERTS = _('alerts/{agent_class}/{agent_uuid}') #/{agent_class}/{publickey}/{alert_key}')
 
 HEARTBEAT = _('heartbeats')
 PLATFORM = _('platform/{subtopic}')
