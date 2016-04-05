@@ -64,14 +64,39 @@ class Application(AbstractDrivenAgent):
         
     def run(self, cur_time, points):
         
-        status = ["1", "1","1","0"]
-        #random.choice(status)
-
         point = 'statussetpoint'
+        devices = ['HEATER1','HEATER2','HEATER3']
+        #status = [1, 1,1,0]
+        #value
+        
+         
+         
+         
+         
+         
+         
+         
+         
+         
+         
+         
+         
+         
+         
+         
+         
+         
+         
+         = random.choice(status)
+        va
+        
+        
+        
+        fgsfgsgfsdfsdfkkklue = [1,0,1]
+        
 
         result = Results()
-        devices = ['HEATER1','HEATER2','HEATER3']
-        value = [1,0,1]
+        
         for i in range(3):
             result.command(point, value[i], devices[i])
                 
