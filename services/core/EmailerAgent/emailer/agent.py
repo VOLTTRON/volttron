@@ -116,7 +116,7 @@ class EmailerAgent(Agent):
             s.quit()
         except socket.gaierror:
             raise ValueError('Invalid smtp-address')
-
+	_log.debug('Allow frequency in seconds is: {}'.format(self._allow_frequency_seconds))
         self._sent_emails = None
         self._read_store()
 
@@ -160,21 +160,26 @@ class EmailerAgent(Agent):
         _log.debug('Sentlast is now: {}'.format(sentlast))
         should_send = False
         current_time = self.timestamp()
-
+       
         if not sentlast:
             # first time sending
             should_send = True
-        elif current_time < sentlast + self._allow_frequency_seconds:
+        elif current_time > sentlast + self._allow_frequency_seconds:
+            _log.debug("sentlast: {}".format(sentlast))
+            _log.debug("sentlast+seconds: {}".format(sentlast+self._allow_frequency_seconds))
             should_send = True
-
-        subject = "Alert for {} {}".format(topic, mailkey)
-        self._send_alert_mail(subject, message)
-        debugmsg = "current_time: {} next send time: {} _sent_emails[{}][{}]"
-        _log.debug(debugmsg.format(current_time, current_time+self._allow_frequency_seconds
-            topic, mailkey)) 
-        self._sent_emails[topic][mailkey] = current_time
-        self._write_store()
-
+	
+	if should_send:
+            subject = "Alert for {} {}".format(topic, mailkey)
+            self._send_alert_mail(subject, message)
+            debugmsg = "current_time: {} next send time: {} _sent_emails[{}][{}]"
+            _log.debug(debugmsg.format(current_time, current_time+self._allow_frequency_seconds,
+                topic, mailkey)) 
+            self._sent_emails[topic][mailkey] = current_time
+            self._write_store()
+            _log.debug('SENT EMAILS: {}'.format(self._sent_emails))
+        else:
+            _log.debug('SKIPPING EMAIL for topic: {}'.format(topic))
 
 
     def _send_alert_mail(self, subject, message):

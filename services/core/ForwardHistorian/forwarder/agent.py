@@ -257,7 +257,6 @@ def historian(config_path, **kwargs):
                         # connect
                         self._target_platform.core.stop()
                         self._target_platform = None
-                        self._last_timeout = None
                         self.vip.health.set_status(
                             STATUS_BAD, "Timout occured")
                     except Exception as e:
@@ -270,6 +269,7 @@ def historian(config_path, **kwargs):
             self.report_handled(handled_records)
 
             if timeout_occurred:
+                _log.debug('Sending alert from the ForwardHistorian')
                 status = Status.from_json(self.vip.health.get_status())
                 self.vip.health.send_alert(FORWARD_TIMEOUT_KEY,
                                            status)
