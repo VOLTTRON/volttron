@@ -193,6 +193,7 @@ def historian(config_path, **kwargs):
             current_time = self.timestamp()
             last_time = self._last_timeout
             _log.debug('Lasttime: {} currenttime: {}'.format(last_time, current_time))
+            timeout_occurred=False
             if self._last_timeout:
                 # if we failed we need to wait 60 seconds before we go on.
                 if self.timestamp() < self._last_timeout+ 60:
@@ -200,7 +201,9 @@ def historian(config_path, **kwargs):
                     return
             if not self._target_platform:
                 self.historian_setup()
-            timeout_occurred = False
+            if not self._target_platform:
+                _log.debug('Could not connect to target')
+                return
             for x in to_publish_list:
                 topic = x['topic']
                 value = x['value']
@@ -232,32 +235,35 @@ def historian(config_path, **kwargs):
                 #                               next_dest.hostname]
                 #else:
                 #    headers['Destination'].append(next_dest.hostname)
-                if not timeout_occurred:
-                    with gevent.Timeout(30):
-                        try:
-                            _log.debug('debugger: {} {} {}'.format(topic,
-                                                                   headers,
-                                                                   payload))
-                            self._target_platform.vip.pubsub.publish(
+		if timeout_occurred:
+                    _log.error('A timeout has occured so breaking out of publishing')
+                    break
+                with gevent.Timeout(30):
+                    try:
+                        _log.debug('debugger: {} {} {}'.format(topic,
+                                                               headers,
+                                                               payload))
+                        self._target_platform.vip.pubsub.publish(
                                 peer='pubsub',
                                 topic=topic,
                                 headers=headers,
                                 message=payload['message']).get()
-                        except gevent.Timeout:
-                            _log.debug("Timout occurred email should send!")
-                            timeout_occurred = True
-                            self._last_timeout = self.timestamp()
-                            self._num_failures += 1
-                            # Stop the current platform from attempting to
-                            # connect
-                            self._target_platform.core.stop()
-                            self._last_timeout = None
-                            self.vip.health.set_status(
-                                STATUS_BAD, "Timout occured")
-                        except Exception as e:
-                            _log.error(e)
-                        else:
-                            handled_records.append(x)
+                    except gevent.Timeout:
+                        _log.debug("Timout occurred email should send!")
+                        timeout_occurred = True
+                        self._last_timeout = self.timestamp()
+                        self._num_failures += 1
+                        # Stop the current platform from attempting to
+                        # connect
+                        self._target_platform.core.stop()
+                        self._target_platform = None
+                        self._last_timeout = None
+                        self.vip.health.set_status(
+                            STATUS_BAD, "Timout occured")
+                    except Exception as e:
+                        _log.error(e)
+                    else:
+                        handled_records.append(x)
 
             _log.debug("handled: {} number of items".format(
                 len(to_publish_list)))
@@ -280,13 +286,20 @@ def historian(config_path, **kwargs):
             return None
 
         def historian_setup(self):
-            _log.debug("Setting up to forward to {}".format(destination_vip))
-            agent = Agent(address=destination_vip)
-            event = gevent.event.Event()
-            agent.core.onstart.connect(lambda *a, **kw: event.set(), event)
-            gevent.spawn(agent.core.run)
-            event.wait()
-            self._target_platform = agent
+            try:
+                _log.debug("Setting up to forward to {}".format(destination_vip))
+                event = gevent.event.Event()
+                agent = Agent(address=destination_vip)
+                agent.core.onstart.connect(lambda *a, **kw: event.set(), event)
+                gevent.spawn(agent.core.run)
+                event.wait(timeout=10)
+                self._target_platform = agent
+            except gevent.Timeout:
+                self.vip.health.set_status(
+                            STATUS_BAD, "Timeout in setup of agent")
+                status = Status.from_json(self.vip.health.get_status())
+                self.vip.health.send_alert(FORWARD_TIMEOUT_KEY,
+                                               status)
 
     ForwardHistorian.__name__ = 'ForwardHistorian'
     return ForwardHistorian(identity=identity, **kwargs)
