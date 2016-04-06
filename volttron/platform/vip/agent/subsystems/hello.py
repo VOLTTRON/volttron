@@ -103,7 +103,7 @@ class Hello(SubsystemBase):
         _log.info('Requesting hello from peer ({})'.format(peer))
         socket = self.core().socket
         result = next(self._results)
-        socket.send_vip('', b'hello', [b'hello'], msg_id=result.ident)
+        socket.send_vip(peer, b'hello', [b'hello'], msg_id=result.ident)
         return result
 
     __call__ = hello
