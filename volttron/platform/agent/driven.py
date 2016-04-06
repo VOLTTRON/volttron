@@ -134,7 +134,7 @@ class Results(object):
         self.table_output = defaultdict(list)
 
     def command(self, point, value, device=None):
-        if self.devices == None:
+        if self.devices is None:
             self.commands[point]=value
         else:
             if  device not in self.devices.keys():
