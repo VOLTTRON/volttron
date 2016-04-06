@@ -222,7 +222,7 @@ class SupplyTempRcx(object):
                     sat_stpt = '%s' % float('%.2g' % autocorrect_sat_stpt)
                     msg = ('The SAT has been detected to be too low. '
                            'The SAT set point has been increased to: '
-                           '{}{drg}F'.format(self.dgr_sym, sat_stpt))
+                           '{}{}F'.format(self.dgr_sym, sat_stpt))
                     dx_msg = 41.1
                 else:
                     dx_result.command(self.sat_stpt_cname, self.max_sat_stpt)
@@ -243,7 +243,6 @@ class SupplyTempRcx(object):
             msg = ('No problem detected for Low Supply-air '
                    'Temperature diagnostic.')
             dx_msg = 40.0
-        table_key = create_table_key(self.analysis, self.timestamp_arr[-1])
         self.dx_table.update({SA_TEMP_RCX1 + DX: dx_msg})
         dx_result.log(msg, logging.INFO)
         return dx_result
@@ -299,4 +298,5 @@ class SupplyTempRcx(object):
         self.dx_table.update({SA_TEMP_RCX2 + DX: dx_msg})
         dx_result.log(msg, logging.INFO)
         return dx_result
+
 

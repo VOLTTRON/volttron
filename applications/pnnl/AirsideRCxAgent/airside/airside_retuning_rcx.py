@@ -118,10 +118,10 @@ class Application(AbstractDrivenAgent):
             max_sat_stpt=75.0,
 
             unocc_time_threshold=30.0, unocc_stp_threshold=0.2,
-            monday_sch=['5:30','18:30'], tuesday_sch=['5:30','18:30'],
-            wednesday_sch=['5:30','18:30'], thursday_sch=['5:30','18:30'],
-            friday_sch=['5:30','18:30'], saturday_sch=['0:00','0:00'],
-            sunday_sch=['0:00','0:00'], autocorrect_flag=False,
+            monday_sch=['5:30', '18:30'], tuesday_sch=['5:30', '18:30'],
+            wednesday_sch=['5:30', '18:30'], thursday_sch=['5:30', '18:30'],
+            friday_sch=['5:30', '18:30'], saturday_sch=['0:00', '0:00'],
+            sunday_sch=['0:00', '0:00'], auto_correct_flag=False,
             analysis_name='', **kwargs):
 
         self.warm_up_start = None
@@ -154,13 +154,13 @@ class Application(AbstractDrivenAgent):
         self.high_sf_threshold = float(high_sf_threshold)
         self.warm_up_time = int(warm_up_time)
         self.static_dx = (
-            DuctStaticRcx(no_required_data, autocorrect_flag,
+            DuctStaticRcx(no_required_data, auto_correct_flag,
                           setpoint_allowable_deviation, max_duct_stcpr_stpt,
                           duct_stcpr_retuning, zone_high_damper_threshold,
                           zone_low_damper_threshold, hdzone_damper_threshold,
                           min_duct_stcpr_stpt, analysis, duct_stp_stpt_cname))
         self.sat_dx = (
-            SupplyTempRcx(no_required_data, autocorrect_flag,
+            SupplyTempRcx(no_required_data, auto_correct_flag,
                           setpoint_allowable_deviation, rht_on_threshold,
                           sat_high_damper_threshold, percent_damper_threshold,
                           percent_reheat_threshold, min_sat_stpt, sat_retuning,
@@ -249,25 +249,21 @@ class Application(AbstractDrivenAgent):
                 zn_dmpr_data = validate_builder(value, data_name)
 
         missing_data = []
-        if not satemp_data or None in satemp_data:
+        if not satemp_data:
             missing_data.append(self.sa_temp_name)
-        if not rht_data or None in rht_data:
+        if not rht_data:
             missing_data.append(self.zone_reheat_name)
-        if not sat_stpt_data or None in sat_stpt_data:
-            dx_result.log.info('Supply-air temperature set point data is '
-                               'missing. This will limit the effectiveness of '
-                               'the supply-air temperature diagnostics.')
-            sat_stpt_data = [data for data in sat_stpt_data if data is not None]
-
-        if not stc_pr_data or None in stc_pr_data:
+        if not sat_stpt_data:
+            dx_result.log('Supply-air temperature set point data is '
+                          'missing. This will limit the effectiveness of '
+                          'the supply-air temperature diagnostics.')
+        if not stc_pr_data:
             missing_data.append(self.duct_stp_name)
-        if not stcpr_sp_data or None in stcpr_sp_data:
-            dx_result.log.info('Duct static pressure set point data is '
-                               'missing. This will limit the effectiveness of '
-                               'the duct static pressure diagnostics.')
-            stcpr_sp_data = [data for data in stcpr_sp_data if data is not None]
-
-        if not zn_dmpr_data or None in zn_dmpr_data:
+        if not stcpr_sp_data:
+            dx_result.log('Duct static pressure set point data is '
+                          'missing. This will limit the effectiveness of '
+                          'the duct static pressure diagnostics.')
+        if not zn_dmpr_data:
             missing_data.append(self.zone_damper_name)
         if missing_data:
             raise Exception('Missing required data: {}'.format(missing_data))
@@ -297,3 +293,4 @@ class Application(AbstractDrivenAgent):
             self.sat_dx.sat_rcx(cur_time, satemp_data, sat_stpt_data, rht_data,
                                 zn_dmpr_data, dx_result, validate))
         return dx_result
+

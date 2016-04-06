@@ -75,6 +75,7 @@ __version__ = '3.0.0'
 
 __author1__ = 'Craig Allwardt <craig.allwardt@pnnl.gov>'
 __author2__ = 'Robert Lutes <robert.lutes@pnnl.gov>'
+__author3__ = 'Poorva Sharma <poorva.sharma@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2015, Battelle Memorial Institute'
 __license__ = 'FreeBSD'
 DATE_FORMAT = '%m-%d-%y %H:%M'
@@ -84,6 +85,7 @@ _log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.debug,
                     format='%(asctime)s   %(levelname)-8s %(message)s',
                     datefmt='%m-%d-%y %H:%M')
+
 
 def driven_agent(config_path, **kwargs):
     """Driven harness for deployment of OpenEIS applications in VOLTTRON."""
@@ -96,7 +98,7 @@ def driven_agent(config_path, **kwargs):
     analysis_dict = {'analysis_name': analysis_name}
     arguments.update(analysis_dict)
     agent_id = config.get('agentid', None)
-    agent_id = actuator_id = agent_id if agent_id is not None else analysis_name
+    actuator_id = agent_id if agent_id is not None else analysis_name
     campus_building = dict((key, campus_building_config[key]) for key in ['campus', 'building'])
     analysis = deepcopy(campus_building)
     analysis.update(analysis_dict)
@@ -118,10 +120,10 @@ def driven_agent(config_path, **kwargs):
             for subdevice in device_config[device_name]['subdevices']:
                 subdevices_list.append(subdevice)
                 subdevice_topic = topics.DEVICES_VALUE(campus=campus_building.get('campus'),
-                                                    building=campus_building.get('building'),
-                                                    unit=device_name,
-                                                    path=subdevice,
-                                                    point='all')
+                                                       building=campus_building.get('building'),
+                                                       unit=device_name,
+                                                       path=subdevice,
+                                                       point='all')
                 subdevice_name = device_name + "/" + subdevice
                 device_topic_dict.update({subdevice_topic: subdevice_name})
                 device_topic_list.append(subdevice_name)
@@ -154,7 +156,6 @@ def driven_agent(config_path, **kwargs):
     # so that_process_results each time run is called the application
     # can keep it state.
     app_instance = klass(**arguments)
-
 
     class DrivenAgent(Agent):
         '''Agent listens to message bus device and runs when data is published.
@@ -244,20 +245,26 @@ def driven_agent(config_path, **kwargs):
 
         def _process_results(self, results):
             """Run driven application with converted data and write the app
-
             results to a file or database.
             """
+            def make_actuator_request(command_dict, results):
+                for device_tag, new_value in command_dict.items():
+                    _log.debug("COMMAND TABLE: {}->{}".format(device_tag, new_value))
+                    if mode:
+                        _log.debug("ACTUATE ON DEVICE.")
+                        results, actuator_error = self.actuator_request(results)
+                        if not actuator_error:
+                            self.actuator_set(results)
+                return results
+
             _log.debug('Processing Results!')
-            for key, value in results.commands.iteritems():
-                _log.debug("COMMAND TABLE: {}->{}".format(key, value))
-                if mode:
-                    _log.debug('ACTUATE ON DEVICE.')
-                    actuator_error = self.actuator_request(results)
-                    if not actuator_error:
-                        self.actuator_set(results)
+            for device, point_value_dict in results.devices.items():
+                make_actuator_request(point_value_dict, results)
+            make_actuator_request(results.commands, results)
+
             for value in results.log_messages:
                 _log.debug("LOG: {}".format(value))
-            for key, value in results.table_output.iteritems():
+            for key, value in results.table_output.items():
                 _log.debug("TABLE: {}->{}".format(key, value))
             if output_file_prefix is not None:
                 results = self.create_file_output(results)
@@ -338,40 +345,50 @@ def driven_agent(config_path, **kwargs):
                 try:
                     result = self.vip.rpc.call('platform.actuator',
                                                'request_new_schedule',
-                                               agent_id, _device, 'HIGH',
+                                               actuator_id, _device, 'HIGH',
                                                schedule_request).get(timeout=4)
                 except RemoteError as ex:
                     _log.warning("Failed to schedule device {} (RemoteError): {}".format(_device, str(ex)))
                     request_error = True
 
                 if result['result'] == 'FAILURE':
-                    _log.warn('Failed to schedule device (unavailable) ' + _device)
-                    request_error = True
+                    if result['info'] =='TASK_ID_ALREADY_EXISTS':
+                        _log.info('Task to schedule device already exists ' + _device)
+                        request_error = False
+                    else:
+                        _log.warn('Failed to schedule device (unavailable) ' + _device)
+                        request_error = True
                 else:
                     request_error = False
+
             return results, request_error
 
         def actuator_set(self, results):
             """Set point on device."""
-            for _device in command_devices:
-                for point, new_value in results.commands.items():
-                    point_path = base_actuator_path(unit=_device, point=point)
+            def make_actuator_set(device, point, new_value):
+                for point, new_value in point_value_dict.items():
+                    point_path = base_actuator_path(unit=device, point=point)
                     try:
                         result = self.vip.rpc.call('platform.actuator', 'set_point',
-                                                   agent_id, point_path,
+                                                   actuator_id, point_path,
                                                    new_value).get(timeout=4)
                         _log.debug("Set point {} to {}".format(point_path, new_value))
                     except RemoteError as ex:
                         _log.warning("Failed to set {} to {}: {}".format(point_path, new_value, str(ex)))
                         continue
 
+            for device, point_value_dict in results.devices.items():
+                make_actuator_set(device, point_value_dict)
+
+            for device in command_devices:
+                make_actuator_set(device, results.commands)
 
     DrivenAgent.__name__ = 'DrivenLoggerAgent'
     return DrivenAgent(**kwargs)
 
 
 def _get_class(kls):
-    '''Get driven application information.'''
+    """Get driven application information."""
     parts = kls.split('.')
     module = ".".join(parts[:-1])
     main_mod = __import__(module)
