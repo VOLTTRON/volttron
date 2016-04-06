@@ -299,3 +299,4 @@ class SupplyTempRcx(object):
         dx_result.log(msg, logging.INFO)
         return dx_result
 
+

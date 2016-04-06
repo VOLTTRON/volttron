@@ -293,3 +293,4 @@ class Application(AbstractDrivenAgent):
             self.sat_dx.sat_rcx(cur_time, satemp_data, sat_stpt_data, rht_data,
                                 zn_dmpr_data, dx_result, validate))
         return dx_result
+

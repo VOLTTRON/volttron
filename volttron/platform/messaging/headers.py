@@ -69,6 +69,8 @@ CONTENT_TYPE = type('ContentTypeStr', (str,),
 
 DATE = 'Date'
 
+TIMESTAMP = 'TimeStamp'
+
 FROM = 'From'
 TO = 'To'
 

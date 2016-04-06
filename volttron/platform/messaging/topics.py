@@ -98,7 +98,9 @@ __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2015, Battelle Memorial Institute'
 __license__ = 'FreeBSD'
 
+ALERTS = _('alerts') #/{agent_class}/{publickey}/{alert_key}')
 
+HEARTBEAT = _('heartbeats')
 PLATFORM = _('platform/{subtopic}')
 PLATFORM_SHUTDOWN = PLATFORM(subtopic='shutdown')
 
@@ -125,6 +127,8 @@ ANALYSIS_VALUE = _(ANALYSIS_PATH.replace('{base}', ANALYSIS_TOPIC_BASE))
 
 ACTUATOR_GET = _(_DEVICES_VALUE.replace('{node}', 'actuators/get'))
 ACTUATOR_SET = _(_DEVICES_VALUE.replace('{node}', 'actuators/set'))
+ACTUATOR_REVERT_POINT = _(_DEVICES_VALUE.replace('{node}', 'actuators/revert/point'))
+ACTUATOR_REVERT_DEVICE = _(_DEVICES_VALUE.replace('{node}', 'actuators/revert/device'))
 
 _ACTUATOR_SCHEDULE = _(('{base}/actuators/schedule/{op}').replace('{base}',DRIVER_TOPIC_BASE))
 ACTUATOR_SCHEDULE_REQUEST = _(_ACTUATOR_SCHEDULE.replace('{op}', 'request'))
@@ -141,10 +145,13 @@ ACTUATOR = _(_DEVICES_VALUE.replace('{node}', 'actuators'))
 ACTUATOR_ERROR = _(_DEVICES_VALUE.replace('{node}', 'actuators/error'))
 ACTUATOR_VALUE = _(_DEVICES_VALUE.replace('{node}', 'actuators/value'))
 
+
 #Ragardless of the interface used (RPC vs pubsub) when an agent 
 # attempts to set a point it is announced on this topic.
 #This is intended to inable a historian to capture all attempted writes.
 ACTUATOR_WRITE = _(_DEVICES_VALUE.replace('{node}', 'actuators/write'))
+ACTUATOR_REVERTED_POINT = _(_DEVICES_VALUE.replace('{node}', 'actuators/reverted/point'))
+ACTUATOR_REVERTED_DEVICE = _(_DEVICES_VALUE.replace('{node}', 'actuators/reverted/device'))
 
 BASE_ARCHIVER_REQUEST = _('archiver/request')
 BASE_ARCHIVER_FULL_REQUEST = _('archiver/full/request')
