@@ -23,3 +23,13 @@ def poll_gevent_sleep(max_seconds, condition=lambda: True):
         gevent.sleep(0.2)
         if time.time() > time_start + max_seconds:
             return False
+
+
+def messages_contains_prefix(prefix, messages):
+    """ REturns true if any of the keys of message start with prefix.
+
+    :param prefix:
+    :param messages:
+    :return:
+    """
+    return any(map(lambda x: x.startswith(prefix), messages.keys()))

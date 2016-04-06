@@ -88,6 +88,7 @@ class Interface(BaseInterface):
         self.min_priority = config_dict.get("min_priority", 8)
         self.parse_config(registry_config_str)         
         self.target_address = config_dict["device_address"]
+        self.device_id = int(config_dict["device_id"])
         self.proxy_address = config_dict.get("proxy_address", "platform.bacnet_proxy")
         self.max_per_request = config_dict.get("max_per_request") 
         
@@ -109,7 +110,7 @@ class Interface(BaseInterface):
         
         pinged = False
         try:
-            self.vip.rpc.call(self.proxy_address, 'ping_device', self.target_address).get(timeout=10.0)
+            self.vip.rpc.call(self.proxy_address, 'ping_device', self.target_address, self.device_id).get(timeout=10.0)
             pinged = True
         except errors.Unreachable:
             _log.warning("Unable to reach BACnet proxy.")

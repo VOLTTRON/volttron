@@ -53,19 +53,94 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-#}}}
+# }}}
 
-from __future__ import absolute_import
+import python_2_7_3_sqlite3 as sql_old
+from dateutil.parser import parse
+from  volttron.platform.agent.utils import fix_sqlite3_datetime 
+import pytest
+import sqlite3 as sql
 
-from .channel import Channel
-from .hello import Hello
-from .peerlist import PeerList
-from .ping import Ping
-from .pubsub import PubSub
-from .rpc import RPC
-from .heartbeat import Heartbeat
-from .health import Health
-
-
-__all__ = ['PeerList', 'Ping', 'RPC', 'Hello', 'PubSub', 'Channel',
-           'Heartbeat', 'Health']
+#@pytest.mark.dev
+def test_sqlite_fixes():
+    """This is all in a single test so we don't have to muck around with 
+    reloading modules."""
+    conn = sql_old.connect(':memory:', detect_types=sql_old.PARSE_DECLTYPES|sql_old.PARSE_COLNAMES)
+    
+    cur = conn.cursor()
+    cur.execute("create table test(ts timestamp)")
+    
+    now_string = '2015-12-17 00:00:00.000005Z'
+    now = parse(now_string)
+    
+    now_string_tz = '2015-12-17 00:00:00Z'
+    now_tz = parse(now_string_tz)
+    
+    cur.execute("insert into test(ts) values (?)", (now,))
+    
+    #Verify that our private copy of sqlite3 from 2.7.3 does indeed break.    
+    try:
+        cur.execute("select * from test")
+        print "Did not raise expected exception"
+        assert False
+    except ValueError as e:
+        assert e.message == "invalid literal for int() with base 10: '000005+00:00'"
+     
+    cur.execute("delete from test")   
+    
+    cur.execute("insert into test(ts) values (?)", (now_tz,))
+    
+    try:
+        cur.execute("select * from test")
+        print "Did not raise expected exception"
+        assert False
+    except ValueError as e:
+        assert e.message == "invalid literal for int() with base 10: '00+00'"
+        
+    fix_sqlite3_datetime(sql_old)
+    
+    cur.execute("delete from test")  
+    cur.execute("insert into test(ts) values (?)", (now,))
+    
+    cur.execute("select * from test")
+    test_now = cur.fetchone()[0]
+    
+    cur.execute("delete from test")  
+    cur.execute("insert into test(ts) values (?)", (now_tz,))
+    
+    cur.execute("select * from test")
+    test_now_tz = cur.fetchone()[0]
+    
+    assert test_now == now
+    assert test_now_tz == now_tz
+    
+#@pytest.mark.dev
+def test_sqlite_fix_current():
+    now_string = '2015-12-17 00:00:00.000005Z'
+    now = parse(now_string)
+    
+    now_string_tz = '2015-12-17 00:00:00Z'
+    now_tz = parse(now_string_tz)
+    
+    #Patch the global sqlite3
+    fix_sqlite3_datetime()
+    
+    conn = sql.connect(':memory:', detect_types=sql.PARSE_DECLTYPES|sql.PARSE_COLNAMES)
+    
+    cur = conn.cursor()
+    cur.execute("create table test(ts timestamp)")
+    
+    cur.execute("delete from test")  
+    cur.execute("insert into test(ts) values (?)", (now,))
+    
+    cur.execute("select * from test")
+    test_now = cur.fetchone()[0]
+    
+    cur.execute("delete from test")  
+    cur.execute("insert into test(ts) values (?)", (now_tz,))
+    
+    cur.execute("select * from test")
+    test_now_tz = cur.fetchone()[0]
+    
+    assert test_now == now
+    assert test_now_tz == now_tz

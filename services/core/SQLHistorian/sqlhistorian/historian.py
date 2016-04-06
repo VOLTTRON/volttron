@@ -135,7 +135,8 @@ def historian(config_path, **kwargs):
             tables_def.pop('table_prefix', None)
             self.reader = DbFuncts(connection['params'], tables_def)
             self.writer = DbFuncts(connection['params'], tables_def)
-            self.topic_map = {}
+            self.topic_id_map = {}
+            self.topic_name_map = {}
             self.topic_meta = {}
 
             super(SQLHistorian, self).__init__(**kwargs)
@@ -155,7 +156,9 @@ def historian(config_path, **kwargs):
                 threading.currentThread().getName())
             )
 
-            self.topic_map.update(self.reader.get_topic_map())
+            topic_id_map, topic_name_map = self.reader.get_topic_map()
+            self.topic_id_map.update(topic_id_map)
+            self.topic_name_map.update(topic_name_map)
 
             if self.core.identity == 'platform.historian':
                 if 'platform.agent' in self.vip.peerlist().get(timeout=2):
@@ -182,14 +185,26 @@ def historian(config_path, **kwargs):
 
                     # look at the topics that are stored in the database
                     # already to see if this topic has a value
-                    topic_id = self.topic_map.get(topic, None)
-    
+                    lowercase_name = topic.lower()
+                    topic_id = self.topic_id_map.get(lowercase_name, None)
+                    db_topic_name = self.topic_name_map.get(lowercase_name,
+                                                           None)
+                    _log.debug('topic is {}, db topic is {}'
+                               .format(topic, db_topic_name))
                     if topic_id is None:
                         _log.debug('Inserting topic: {}'.format(topic))
+                        # Insert topic name as is in db
                         row = self.writer.insert_topic(topic)
                         topic_id = row[0]
-                        self.topic_map[topic] = topic_id
+                        # user lower case topic name when storing in map
+                        # for case insensitive comparison
+                        self.topic_id_map[lowercase_name] = topic_id
+                        self.topic_name_map[lowercase_name] = topic
                         _log.debug('TopicId: {} => {}'.format(topic_id, topic))
+                    elif db_topic_name != topic:
+                        _log.debug('Updating topic: {}'.format(topic))
+                        self.writer.update_topic(topic,topic_id)
+                        self.topic_name_map[lowercase_name] = topic
 
                     old_meta = self.topic_meta.get(topic_id, {})
                     if set(old_meta.items()) != set(meta.items()):
@@ -226,9 +241,8 @@ def historian(config_path, **kwargs):
             _log.debug("query_topic_list Thread is: {}".format(
                 threading.currentThread().getName())
             )
-            _log.debug("The topic_map is: ".format(self.topic_map))
-            if len(self.topic_map) > 0:
-                return self.topic_map.keys()
+            if len(self.topic_name_map) > 0:
+                return self.topic_name_map.values()
             else:
                 # No topics present.
                 return []
@@ -245,13 +259,19 @@ def historian(config_path, **kwargs):
             _log.debug("query_historian Thread is: {}".format(
                 threading.currentThread().getName())
             )
+            results = dict()
+            topic_id = self.topic_id_map.get(topic.lower(), None)
 
+            if topic_id is None:
+                return results
+            _log.debug("Querying db reader")
             results = self.reader.query(
-                topic, start=start, end=end, skip=skip, count=count,
+                topic_id, start=start, end=end, skip=skip, count=count,
                 order=order)
-
-            topic_id = self.topic_map[topic]
-            results['metadata'] = self.topic_meta.get(topic_id, {})
+            if len(results.get('values',[])) > 0 :
+                results['metadata'] = self.topic_meta.get(topic_id, {})
+            else:
+                results = dict()
             return results
 
         def historian_setup(self):

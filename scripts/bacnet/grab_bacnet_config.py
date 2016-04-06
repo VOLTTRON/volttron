@@ -61,9 +61,9 @@ from csv import DictWriter
 from bacpypes.debugging import bacpypes_debugging, ModuleLogger
 from bacpypes.app import LocalDeviceObject, BIPSimpleApplication
 from bacpypes.consolelogging import ConfigArgumentParser
-from bacpypes.pdu import Address
+from bacpypes.pdu import Address, GlobalBroadcast
 from bacpypes.core import run, stop
-from bacpypes.apdu import WhoIsRequest, IAmRequest, ReadPropertyRequest, ReadPropertyACK
+from bacpypes.apdu import WhoIsRequest, IAmRequest, ReadPropertyRequest, ReadPropertyACK, UnconfirmedRequestSequence
 from bacpypes.errors import DecodingError
 from bacpypes.task import TaskManager
 from bacpypes.object import get_datatype, get_object_class, DeviceObject
@@ -91,15 +91,52 @@ class SynchronousApplication(BIPSimpleApplication):
         stop()
         
     def indication(self, apdu):
-        if not self.expect_confirmation:
-            self.apdu = apdu
-            stop()
+        #We only care about indications if we sent out a who is request.
+        if not isinstance(self._request, WhoIsRequest):
+            _log.debug("Ignoring indication as we don't have an outstanding WhoIs")
+            return
+        
+        #We only care about IAmRequest
+        if not isinstance(apdu, IAmRequest):
+            _log.debug("Ignoring indication as apdu is not IAm")
+            return
+        
+        #Ignore IAmRequests that don't have the device id we care about.
+        if self.expected_device_id is not None:            
+            device_type, device_instance = apdu.iAmDeviceIdentifier
+            
+            if device_type != 'device':
+                raise DecodingError("invalid object type")
+            
+            if device_instance != self.expected_device_id:
+                _log.debug("Ignoring IAm. Expected ID: {} Received: {}".format(self.expected_device_id, device_instance))
+                return
+            
+        self.apdu = apdu
+        stop()
 
-    def make_request(self, request, expect_confirmation=True):
-        self.expect_confirmation = expect_confirmation
+    def make_request(self, request, expected_device_id=None):
+        self.expected_device_id = expected_device_id
+        self._request = request
+        
         self.request(request)
         run()
         return self.apdu
+    
+def get_iam(app, device_id, target_address = None):
+    request = WhoIsRequest()
+    
+    request.deviceInstanceRangeLowLimit = device_id
+    request.deviceInstanceRangeHighLimit = device_id
+    
+    if target_address is not None:
+        request.pduDestination = Address(target_address)
+    else:
+        request.pduDestination = GlobalBroadcast()
+        
+    result = app.make_request(request, expected_device_id=device_id)
+    
+    return result
 
 def read_prop(app, address, obj_type, obj_inst, prop_id, index=None):
     request = ReadPropertyRequest(
@@ -334,10 +371,14 @@ def process_object(app, address, obj_type, index, max_range_report, config_write
 def main():
     # parse the command line arguments
     arg_parser = ConfigArgumentParser(description=__doc__)
+        
+    arg_parser.add_argument("device_id", type=int,
+                            help="Device ID of the target device" )
     
-    arg_parser.add_argument("address",
-                            help="Address of target device" )
-    arg_parser.add_argument("out_file", nargs='?', type=argparse.FileType('wb'),
+    arg_parser.add_argument("--address",
+                            help="Address of target device, may be needed to help route initial request to device." )
+    
+    arg_parser.add_argument("--out-file", type=argparse.FileType('wb'),
                             help="Optional output file for configuration",
                             default=sys.stdout )
     
@@ -360,26 +401,27 @@ def main():
         vendorIdentifier=int(args.ini.vendoridentifier),
         )
 
-
     # make a simple application
     this_application = SynchronousApplication(this_device, args.ini.address)
 
     _log.debug("starting build")
     
-    target_address = Address(args.address)
+    result = get_iam(this_application, args.device_id, args.address)
     
-    request = WhoIsRequest()
-    request.pduDestination = target_address
-    result = this_application.make_request(request, expect_confirmation = False)
+#     request = WhoIsRequest()
+#     request.pduDestination = target_address
+#     result = this_application.make_request(request, expect_confirmation = False)
     
-    if not isinstance(result, IAmRequest):
-        result.debug_contents()
-        raise TypeError("Error making WhoIs request, try again running again.")
+#     if not isinstance(result, IAmRequest):
+#         result.debug_contents()
+#         raise TypeError("Error making WhoIs request, try running again.")
         
     
-    device_type, device_instance = result.iAmDeviceIdentifier
-    if device_type != 'device':
-        raise DecodingError("invalid object type")
+#     device_type, device_instance = result.iAmDeviceIdentifier
+#     if device_type != 'device':
+#         raise DecodingError("invalid object type")
+
+    target_address = result.pduSource
     
     _log.debug('pduSource = ' + repr(result.pduSource))
     _log.debug('iAmDeviceIdentifier = ' + str(result.iAmDeviceIdentifier))
