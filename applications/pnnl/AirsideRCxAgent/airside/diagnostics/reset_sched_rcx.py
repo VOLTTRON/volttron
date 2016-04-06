@@ -131,7 +131,7 @@ class SchedResetRcx(object):
             self.sat_stpt_arr.append(start_new_analysis_sat_stpt)
             self.stcpr_stpt_arr.append(start_new_analysis_stcpr_stpt)
         if fan_status is not None:
-            self.fanstat_values.append(fan_status)
+            self.fanstat_values.append((start_new_analysis_time,fan_status))
             self.stcpr_arr.extend(stcpr_data)
         self.timestamp = [start_new_analysis_time]
 
