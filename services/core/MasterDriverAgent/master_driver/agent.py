@@ -218,6 +218,8 @@ class MasterDriverAgent(Agent):
     
     @RPC.export
     def set_point(self, path, point_name, value, **kwargs):
+        # TODO Kyle LOOK AT
+        path = path.replace('devices/actuators/write/', '')
         return self.instances[path].set_point(point_name, value, **kwargs)
     
     @RPC.export
