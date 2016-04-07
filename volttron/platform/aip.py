@@ -86,7 +86,6 @@ from . import messaging
 from .messaging import topics
 from .packages import UnpackedPackage
 from .vip.agent import Agent
-from .keystore import KeyStore
 
 try:
     from volttron.restricted import auth
@@ -242,7 +241,6 @@ class AIPplatform(object):
 
     subscribe_address = property(lambda me: me.env.subscribe_address)
     publish_address = property(lambda me: me.env.publish_address)
-    bind_web_address = property(lambda me: me.env.bind_web_address)
 
     config_dir = property(lambda me: os.path.abspath(me.env.volttron_home))
     install_dir = property(lambda me: os.path.join(me.config_dir, 'agents'))
@@ -480,9 +478,7 @@ class AIPplatform(object):
         environ['AGENT_SUB_ADDR'] = self.subscribe_address
         environ['AGENT_PUB_ADDR'] = self.publish_address
         environ['AGENT_UUID'] = agent_uuid
-        environ['VOLTTRON_WEB_ADDR'] = self.bind_web_address
         environ['_LAUNCHED_BY_PLATFORM'] = '1'
-        environ['AGENT_PATH'] = agent_path
 
         module, _, func = module.partition(':')
         if func:
@@ -532,39 +528,7 @@ class AIPplatform(object):
             return (None, None)
         return (execenv.process.pid, execenv.process.poll())
 
-    def agent_publickey(self, identity):
-        try:
-            _log.debug('Getting publickey for identity: {}'.format(identity))
-            agent_uuid = self.identity_to_uuid(identity)
-            agent_path = os.path.join(self.install_dir, agent_uuid)
-            _log.debug('Agent path is: {}'.format(agent_path))
-            if not os.path.exists(agent_path):
-                raise ValueError('agent not found: {}'.format(agent_uuid))
-            keypath = os.path.join(self.install_dir, agent_uuid, 'keystore.json')
-            ks = KeyStore(keypath)
-            return ks.public()
-        except ValueError:
-            return None
-
-    def identity_to_uuid(self, identity):
-        assert identity
-        for agent_uuid, execenv in self.active_agents().items():
-            _log.debug("AGENT ID IS: {}".format(agent_uuid))
-            identity_file = os.path.join(
-                self.install_dir, agent_uuid, 'IDENTITY')
-            if os.path.exists(identity_file):
-                with open(identity_file) as f:
-                    file_ident = f.readline()
-                _log.debug("FILE IDENT: {}".format(file_ident))
-                print("comparing {} == {}".format(file_ident, identity))
-                if identity == file_ident:
-                    return agent_uuid
-            else:
-                _log.debug('no IDENTITY FILE FOR {}'.format(agent_uuid))
-        ValueError('Unknown identity: {}'.format(identity))
-
     def start_agent(self, agent_uuid):
-        _log.debug("start_agent: uuid: {}".format(agent_uuid))
         name = self.agent_name(agent_uuid)
         self._launch_agent(
             agent_uuid, os.path.join(self.install_dir, agent_uuid, name), name)
@@ -580,14 +544,17 @@ class AIPplatform(object):
             try:
                 return gevent.with_timeout(3, process_wait, execenv.process)
             except gevent.Timeout:
+                _log.warn("First timeout")
                 execenv.process.terminate()
             try:
                 return gevent.with_timeout(3, process_wait, execenv.process)
             except gevent.Timeout:
+                _log.warn("2nd timeout")
                 execenv.process.kill()
             try:
                 return gevent.with_timeout(3, process_wait, execenv.process)
             except gevent.Timeout:
+                _log.error("last timeout")
                 raise ValueError('process is unresponsive')
         return execenv.process.poll()
 

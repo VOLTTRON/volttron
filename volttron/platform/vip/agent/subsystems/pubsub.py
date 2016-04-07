@@ -379,10 +379,10 @@ class PubSub(SubsystemBase):
         compatibility information to header as variables
         min_compatible_version and max_compatible version
         '''
-        _log.debug("In pusub.publsih. headers in pubsub publish {}".format(
+        _log.debug("In pusub.publish. headers in pubsub publish {}".format(
             headers))
-        _log.debug("In pusub.publsih. topic {}".format(topic))
-        _log.debug("In pusub.publsih. Message {}".format(message))
+        _log.debug("In pusub.publish. topic {}".format(topic))
+        _log.debug("In pusub.publish. Message {}".format(message))
         if headers is None:
             headers = {}
         headers['min_compatible_version'] = min_compatible_version

@@ -62,7 +62,6 @@ See http://www.jsonrpc.org/specification for the complete specification.
 
 import sys
 from contextlib import contextmanager
-from collections import namedtuple
 
 from zmq.utils import jsonapi
 
@@ -147,6 +146,7 @@ class JsonRpcData(object):
             raise ParseError('Method not specified.')
 
         return JsonRpcData(id, version, method, params, authorization)
+
 
 class Error(Exception):
     '''Raised when a recoverable JSON-RPC protocol error occurs.'''

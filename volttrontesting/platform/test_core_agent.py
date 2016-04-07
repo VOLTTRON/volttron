@@ -10,7 +10,7 @@ import requests
 logging.basicConfig(level=logging.DEBUG)
 from volttrontesting.utils.build_agent import build_agent, build_agent_with_key
 from volttron.platform.vip.agent import Agent, Core, RPC
-from volttron.platform.vip.agent.core import STATUS_GOOD, STATUS_BAD, STATUS_UNKNOWN
+from volttron.platform.messaging.health import STATUS_GOOD, STATUS_BAD, STATUS_UNKNOWN
 
 @pytest.fixture
 def example_agent(volttron_instance1):

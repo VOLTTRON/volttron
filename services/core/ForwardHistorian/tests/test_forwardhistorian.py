@@ -86,11 +86,6 @@ def sqlhistorian(request, volttron_instance2):
         start=True)
     print("sqlite historian agent id: ", agent_uuid)
 
-    def stop_agent():
-        print("In teardown method of module")
-        volttron_instance2.stop_agent(agent_uuid)
-
-    request.addfinalizer(stop_agent)
 
 
 @pytest.fixture(scope="module")
@@ -105,12 +100,6 @@ def forwarder(request, volttron_instance1, volttron_instance2):
         config_file=forwarder_config,
         start=True)
     print("forwarder agent id: ", forwarder_uuid)
-
-    def stop_agent():
-        print("In teardown method of module")
-        volttron_instance1.stop_agent(forwarder_uuid)
-
-    request.addfinalizer(stop_agent)
 
 
 def publish(publish_agent, topic, header, message):

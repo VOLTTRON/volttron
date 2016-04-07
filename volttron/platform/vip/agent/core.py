@@ -83,10 +83,6 @@ from .. import router
 from .... import platform
 from volttron.platform.keystore import KeyStore
 
-STATUS_GOOD = 'Good'
-STATUS_BAD = 'Bad'
-STATUS_UNKNOWN = 'Unknown'
-
 __all__ = ['BasicCore', 'Core', 'killing']
 
 
@@ -186,18 +182,6 @@ class BasicCore(object):
         self.onstop = Signal()
         self.onfinish = Signal()
         self._owner = owner
-        self._status = {}  # status will be a json serialized string.
-        self._set_status(STATUS_GOOD, 'Initialization of object')
-
-    def _set_status(self, status, context=None):
-        self._status = {
-            'status': status,
-            'context': context,
-            'last_updated': datetime.utcnow().isoformat()
-        }
-
-    def status(self):
-        return json.dumps(self._status)
 
     def setup(self):
         # Split out setup from __init__ to give oportunity to add

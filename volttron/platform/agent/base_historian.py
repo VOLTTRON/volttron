@@ -283,11 +283,9 @@ class BaseHistorianAgent(Agent):
         timestamp = get_aware_utc_now()
         if timestamp_string is not None:
             timestamp, my_tz = process_timestamp(timestamp_string, topic)
-        _log.debug("### In capture_data timestamp str {} "
-                   "".format(timestamp))
+        _log.debug("### In capture_data timestamp str {} ".format(timestamp))
         try:
-            _log.debug("### In capture_data Actual message {} "
-                       "".format(message))
+            _log.debug("### In capture_data Actual message {} ".format(message))
             # 2.0 agents compatability layer makes sender == pubsub.compat so
             # we can do the proper thing when it is here
             if sender == 'pubsub.compat':

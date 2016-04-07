@@ -245,7 +245,7 @@ def escape(pattern):
     if len(strings) == 1:
         return re.escape(pattern), False
     return ''.join('.*' if s == '*' else '.' if s == '?' else
-    s if s in [r'\?', r'\*'] else re.escape(s)
+        s if s in [r'\?', r'\*'] else re.escape(s)
                    for s in strings), True
 
 

@@ -12,6 +12,7 @@ import gevent
 from gevent.fileobject import FileObject
 import gevent.subprocess as subprocess
 from gevent.subprocess import Popen
+from subprocess import CalledProcessError
 
 from os.path import dirname
 
@@ -509,11 +510,14 @@ class PlatformWrapper:
         self._started_pids.append(pid)
         return int(pid)
 
-
     def stop_agent(self, agent_uuid):
         # Confirm agent running
-        cmd = ['volttron-ctl', 'stop', agent_uuid]
-        res = subprocess.check_output(cmd, env=self.env)
+        _log.debug("STOPPING AGENT: {}".format(agent_uuid))
+        try:
+            cmd = ['volttron-ctl', 'stop', agent_uuid]
+            res = subprocess.check_output(cmd, env=self.env)
+        except CalledProcessError as ex:
+            _log.error("Exception: {}".format(ex))
         return self.agent_status(agent_uuid)
 
     def list_agents(self):
@@ -529,16 +533,23 @@ class PlatformWrapper:
         return self.agent_status(agent_uuid) is not None
 
     def agent_status(self, agent_uuid):
+        _log.debug("AGENT_STATUS: {}".format(agent_uuid))
         # Confirm agent running
         cmd = ['volttron-ctl', 'status', agent_uuid]
-        res = subprocess.check_output(cmd, env=self.env)
-
+        pid = None
         try:
-            pidpos = res.index('[') + 1
-            pidend = res.index(']')
-            pid = int(res[pidpos: pidend])
-        except:
-            pid = None
+            res = subprocess.check_output(cmd, env=self.env)
+
+
+            try:
+                pidpos = res.index('[') + 1
+                pidend = res.index(']')
+                pid = int(res[pidpos: pidend])
+            except:
+                pid = None
+        except CalledProcessError as ex:
+            _log.error("Exception: {}".format(ex))
+
         return pid
 
     def build_agentpackage(self, agent_dir, config_file):
@@ -631,7 +642,7 @@ class PlatformWrapper:
             pid = self._started_pids.pop()
             print('ending pid: {}'.format(pid))
             try:
-                os.kill(pid,signal.SIGTERM)
+                os.kill(pid, signal.SIGTERM)
             except:
                 print('could not kill: {} '.format(pid))
         if self._p_process != None:

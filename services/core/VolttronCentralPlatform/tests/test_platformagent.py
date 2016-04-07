@@ -115,25 +115,25 @@ def test_can_get_agentlist(pa_instance):
     # make sure can stop is determined to be false
     assert retagent['can_stop'] == False
 
-@pytest.mark.dev
+@pytest.mark.pa
 def test_agent_can_be_managed(pa_instance):
-    wrapper = pa_instance['wrapper']
+    wrapper = pa_instance[0]
     publickey, secretkey = get_new_keypair()
     add_to_auth(wrapper.volttron_home, publickey, capabilities=['managed_by'])
     agent = wrapper.build_agent(
         serverkey=wrapper.publickey, publickey=publickey, secretkey=secretkey)
     peers = agent.vip.peerlist().get(timeout=2)
-    assert PLATFORM_ID in peers
+    assert VOLTTRON_CENTRAL_PLATFORM in peers
 
     # This step is required because internally we are really connecting
     # to the same platform.  If this were two separate installments this
     # transaction would be easier.
     pa_info = DiscoveryInfo.request_discovery_info(wrapper.bind_web_address)
-    add_to_auth(wrapper.volttron_home, pa_info.papublickey,
+    add_to_auth(wrapper.volttron_home, pa_info.serverkey,
                 capabilities=['can_be_managed'])
     print(wrapper.vip_address)
     returnedid = agent.vip.rpc.call(
-        PLATFORM_ID, 'manage', wrapper.vip_address[0],
+        VOLTTRON_CENTRAL_PLATFORM, 'manage', wrapper.vip_address[0],
         wrapper.publickey).get(timeout=2)
     assert returnedid
 
