@@ -409,8 +409,7 @@ class Core(BasicCore):
             publickey, secretkey = self._get_keys()
         if publickey and secretkey and serverkey:
             self._add_keys_to_addr(publickey, secretkey, serverkey)
-        else:
-            _log.warn('Encryption not established... no publickey, secretkey, or serverkey provided.')
+        
         self.publickey = publickey
         self.secretkey = secretkey
         self.identity = identity
