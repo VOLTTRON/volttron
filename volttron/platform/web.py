@@ -64,6 +64,9 @@ from urlparse import urlparse, urljoin
 
 from gevent import pywsgi
 import mimetypes
+
+from requests.packages.urllib3.connection import (ConnectionError,
+                                                  NewConnectionError)
 from zmq.utils import jsonapi
 
 from .auth import AuthEntry, AuthFile
@@ -114,14 +117,21 @@ class DiscoveryInfo(object):
 
         assert parsed.scheme
         assert not parsed.path
+        try:
+            real_url = urljoin(discovery_address, "/discovery/")
+            _log.debug('Connecting to: {}'.format(real_url))
+            response = requests.get(real_url)
 
-        real_url = urljoin(discovery_address, "/discovery/")
-        response = requests.get(real_url)
-
-        if not response.ok:
+            if not response.ok:
+                raise DiscoveryError(
+                    "Invalid discovery response from {}".format(real_url)
+                )
+        except (ConnectionError, NewConnectionError) as e:
             raise DiscoveryError(
-                "Invalid discovery response from {}".format(real_url)
+                "Connection to {} not available".format(real_url)
             )
+        except Exception as e:
+            raise DiscoveryError("Unhandled exception {}".format(e))
 
         return DiscoveryInfo(
             discovery_address=discovery_address, **(response.json()))
