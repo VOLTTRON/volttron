@@ -206,7 +206,7 @@ def get_volttron_instances(request):
                 wrapper = build_wrapper(address)
             instances.append(wrapper)
         get_n_volttron_instances.instances = instances
-        return instances
+        return instances, request.param
 
     def cleanup():
         for i in range(0, get_n_volttron_instances.count):
