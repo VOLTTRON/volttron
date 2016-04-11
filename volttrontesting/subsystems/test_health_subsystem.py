@@ -113,12 +113,12 @@ def test_alert_publish(volttron_instance1):
     """
     global subscription_results
     subscription_results.clear()
-    alert_prefix = topics.ALERTS.format()
+    alert_prefix = 'alerts'
     new_agent = volttron_instance1.build_agent(identity='alert1')
     status = Status.build(BAD_STATUS, "Too many connections!")
     new_agent.vip.pubsub.subscribe(peer='pubsub',
                                    prefix='', callback=onmessage)
-    gevent.sleep(0.1)
+    gevent.sleep(0.3)
     orig_status = new_agent.vip.health.send_alert("too_many", status)
     poll_gevent_sleep(2, lambda: messages_contains_prefix(alert_prefix,
                                                           subscription_results))
@@ -126,8 +126,8 @@ def test_alert_publish(volttron_instance1):
     if not messages_contains_prefix(alert_prefix, subscription_results):
         pytest.fail('prefix not found')
 
-    headers = subscription_results[alert_prefix]['headers']
-    message = subscription_results[alert_prefix]['message']
+    headers = subscription_results['alerts/Agent']['headers']
+    message = subscription_results['alerts/Agent']['message']
 
     assert "too_many", headers['alert_key']
     passed_status = Status.from_json(message)

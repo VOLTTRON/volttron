@@ -56,20 +56,25 @@
 # }}}
 from __future__ import absolute_import, print_function
 
-
+import datetime
 # Import the email modules we'll need
 from email.mime.text import MIMEText
 import logging
+import socket
 # Import smtplib for the actual sending function
 import smtplib
 import sys
+import time
 from urlparse import urlparse
 
 import gevent
 from zmq.utils import jsonapi
 
-from volttron.platform.vip.agent import *
 from volttron.platform.agent import utils
+from volttron.platform.messaging import topics
+from volttron.platform.messaging.health import ALERT_KEY
+from volttron.platform.vip.agent import Agent, Core
+from volttron.platform.vip.agent.subsystems import PubSub
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -89,171 +94,96 @@ class EmailerAgent(Agent):
     """
 
     def __init__(self, config_path, **kwargs):
-        super(EmailerAgent, self).__init__(**kwargs)
+        kwargs.pop("identity", None)
+        super(EmailerAgent, self).__init__(identity="platform.emailer",
+                                           **kwargs)
 
-        # TODO process config file including to string, from string.
+        config = utils.load_config(config_path)
+        self._smtp = config.get("smtp-address", None)
+        self._from = config.get("from-address", None)
+        self._to = config.get("to-addresses", None)
+        self._allow_frequency = config.get("allow-frequency-minutes", 60)
+        self._allow_frequency_seconds = self._allow_frequency * 3600
+        if not self._from and self._to:
+            raise ValueError('Invalid from/to addresses specified.')
+
+        if self._smtp is None:
+            raise ValueError('Invalid smtp-address')
+        # will throw an error if can't connect
+        try:
+            s = smtplib.SMTP(self._smtp)
+            s.quit()
+        except socket.gaierror:
+            raise ValueError('Invalid smtp-address')
+
+        self._sent_emails = None
+        self._read_store()
+
+    def timestamp(self):
+        return time.mktime(datetime.datetime.now().timetuple())
+
+    def _read_store(self):
+        with open('email.store', 'r') as f:
+            self._sent_emails = jsonapi.loads(f.read())
+
+    def _write_store(self):
+        with open('email.store', 'w') as f:
+            f.write(jsonapi.dumps(self._sent_emails))
+
+    @PubSub.subscribe(prefix=topics.ALERTS.format())
+    def onmessage(self, peer, sender, bus, topic, headers, message):
+        _log.debug("Sending mail for message: {}".format(message))
+        mailkey = headers.get(ALERT_KEY, None)
+        if not mailkey:
+            _log.debug("alert_key not found in header "
+                       + "for message topic: {} message: {}"
+                       .format(topic, message))
+            return
+
+        current_time = self.timestamp()
+        # peal off the sent mail from the specific agent.
+        sentmail = self._sent_emails[topic]
+        if not sentmail:
+            sentmail = {}
+
+        sentlast = sentmail.get(mailkey, 0)
+        should_send = False
+        if not sentlast:
+            # first time sending
+            should_send = True
+        elif current_time < sentlast + self._allow_frequency_seconds:
+            should_send = True
+
+        subject = "Alert for {} {}".format(topic, mailkey)
+        self.send_alert_mail(subject, message)
+        self._sent_emails[topic][mailkey] = current_time
+        self._write_store()
+
+
 
     def send_alert_mail(self, subject, message):
         # Create a text/plain message
         msg = MIMEText(message)
 
+        me = "craig.allwardt@pnnl.gov"
+        you = "craig.allwardt@pnnl.gov"
         # me == the sender's email address
         # you == the recipient's email address
         msg['Subject'] = 'ALERT: {}'.format(subject)
-        msg['From'] = me
-        msg['To'] = you
+        msg['From'] = self._from
+        msg['To'] = self._to
 
         # Send the message via our own SMTP server, but don't include the
         # envelope header.
-        s = smtplib.SMTP('localhost')
+        s = smtplib.SMTP(self._smtp)
         s.sendmail(me, [you], msg.as_string())
         s.quit()
-
-
-    @Core.receiver("onstart")
-    def starting_base(self, sender, **kwargs):
-        '''
-        Subscribes to the platform message bus on the actuator, record,
-        datalogger, and device topics to capture data.
-        '''
-        def subscriber(subscription, callback_method):
-            _log.debug("subscribing to {}".format(subscription))
-            self.vip.pubsub.subscribe(peer='pubsub',
-                                      prefix=subscription,
-                                      callback=callback_method)
-
-        _log.debug("Starting Forward historian")
-        for topic_subscriptions in services_topic_list:
-            subscriber(topic_subscriptions, self.capture_data)
-
-        for custom_topic in custom_topic_list:
-            subscriber(custom_topic, self.capture_data)
-
-        self._started = True
-
-    def capture_data(self, peer, sender, bus, topic, headers, message):
-        data = message
-        try:
-            # 2.0 agents compatability layer makes sender == pubsub.compat so
-            # we can do the proper thing when it is here
-            if sender == 'pubsub.compat':
-                data = jsonapi.loads(message[0])
-            if isinstance(data, dict):
-                data = data
-            elif isinstance(data, int) or isinstance(data, float) \
-                or isinstance(data, long):
-                data = data
-            else:
-                data = data[0]
-        except ValueError as e:
-            log_message = "message for {topic} bad message string: {message_string}"
-            _log.error(log_message.format(topic=topic, message_string=message[0]))
-            raise
-
-        if topic_text_replace_list:
-            if topic in self._topic_replace_map.keys():
-                topic = self._topic_replace_map[topic]
-            else:
-                self._topic_replace_map[topic] = topic
-                temptopics = {}
-                for x in  topic_text_replace_list:
-                    if x['from'] in topic:
-                        new_topic = temptopics.get(topic, topic)
-                        temptopics[topic] = new_topic.replace(x['from'], x['to'])
-
-                for k, v in temptopics.items():
-                    self._topic_replace_map[k] = v
-                topic = self._topic_replace_map[topic]
-
-
-        _log.debug('prepayload: {}'.format(message))
-        payload = jsonapi.dumps({'headers': headers, 'message': data})
-        _log.debug('postpayload: {}'.format(payload))
-
-        utcnowstring = utils.get_aware_utc_now()
-        self._event_queue.put({'source': "forwarded",
-                               'topic': topic,
-                               'readings': [(utcnowstring, payload)]})
-
-    def __platform(self, peer, sender, bus, topic, headers, message):
-        _log.debug('Platform is now: {}'.format(message))
-
-    def publish_to_historian(self, to_publish_list):
-        handled_records = []
-
-        _log.debug("publish_to_historian number of items: {}"
-                   .format(len(to_publish_list)))
-        parsed = urlparse(self.core.address)
-        next_dest = urlparse(destination_vip)
-        for x in to_publish_list:
-            topic = x['topic']
-            value = x['value']
-            payload = jsonapi.loads(value)
-            headers = payload['headers']
-            headers['X-Forwarded'] = True
-            try:
-                del headers['Origin']
-            except KeyError:
-                pass
-            try:
-                del headers['Destination']
-            except KeyError:
-                pass
-            # if not headers.get('Origin', None)
-            #     if overwrite_origin:
-            #         if not include_origin_in_header:
-            #             try:
-            #                 del headers['Origin']
-            #             except KeyError:
-            #                 pass
-            #         else:
-            #             headers['Origin'] = origin
-            #     else:
-            #     headers['Origin'] = parsed.hostname
-            #     headers['Destination'] = [next_dest.scheme +
-            #                               '://'+
-            #                               next_dest.hostname]
-            #else:
-            #    headers['Destination'].append(next_dest.hostname)
-
-            with gevent.Timeout(30):
-                try:
-                    _log.debug('debugger: {} {} {}'.format(topic, headers, payload))
-                    self._target_platform.vip.pubsub.publish(peer='pubsub',
-                                                             topic=topic,
-                                                             headers=headers,
-                                                             message=payload['message']).get()
-                except gevent.Timeout:
-                    self._target_platform.core.stop()
-                    self.historian_setup()
-                except Exception as e:
-                    _log.error(e)
-                else:
-                    handled_records.append(x)
-
-        _log.debug("handled: {} number of items".format(len(to_publish_list)))
-        self.report_handled(handled_records)
-
-    def query_historian(self, topic, start=None, end=None, skip=0,
-                        count=None, order="FIRST_TO_LAST"):
-        """Not implemented
-        """
-        return None
-
-    def historian_setup(self):
-        _log.debug("Setting up to forward to {}".format(destination_vip))
-        agent = Agent(address=destination_vip)
-        event = gevent.event.Event()
-        agent.core.onstart.connect(lambda *a, **kw: event.set(), event)
-        gevent.spawn(agent.core.run)
-        event.wait()
-        self._target_platform = agent
 
 
 def main(argv=sys.argv):
     '''Main method called by the aip.'''
     try:
-        utils.vip_main(historian)
+        utils.vip_main(EmailerAgent)
     except Exception as e:
         print(e)
         _log.exception('unhandled exception')

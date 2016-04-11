@@ -542,14 +542,17 @@ class AIPplatform(object):
             try:
                 return gevent.with_timeout(3, process_wait, execenv.process)
             except gevent.Timeout:
+                _log.warn("First timeout")
                 execenv.process.terminate()
             try:
                 return gevent.with_timeout(3, process_wait, execenv.process)
             except gevent.Timeout:
+                _log.warn("2nd timeout")
                 execenv.process.kill()
             try:
                 return gevent.with_timeout(3, process_wait, execenv.process)
             except gevent.Timeout:
+                _log.error("last timeout")
                 raise ValueError('process is unresponsive')
         return execenv.process.poll()
 
