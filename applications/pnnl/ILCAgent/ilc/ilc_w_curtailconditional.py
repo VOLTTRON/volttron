@@ -527,7 +527,7 @@ def ilc_agent(config_path, **kwargs):
                                              path='',
                                              point=None)
 
-    base_rpc_path = topics.ACTUATOR_DEVICE_PATH(campus=config.get('campus', ''),
+    base_rpc_path = topics.RPC_DEVICE_PATH(campus=config.get('campus', ''),
                                                 building=config.get('building', ''),
                                                 unit=None,
                                                 path='',

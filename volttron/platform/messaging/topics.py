@@ -118,6 +118,11 @@ DEVICES_PATH = _('{base}//{node}//{campus}//{building}//{unit}//{path!S}//{point
 _DEVICES_VALUE = _(DEVICES_PATH.replace('{base}',DRIVER_TOPIC_BASE))
 DEVICES_VALUE = _(_DEVICES_VALUE.replace('{node}/', ''))
 
+#For use with RPC calls that require a device path. A plain device path with no prefix.
+#Should be used when working with devices via the actuator agent RPC calls:
+# get_point, set_point, revert_point, revert_device, and request_new_schedule.
+RPC_DEVICE_PATH = _(DEVICES_PATH.replace('{base}//{node}//', ''))
+
 ANALYSIS_PATH = _('{base}//{analysis_name}//{campus}//{building}//{unit}//{point}')
 ANALYSIS_TOPIC_BASE = 'analysis'
 ANALYSIS_VALUE = _(ANALYSIS_PATH.replace('{base}', ANALYSIS_TOPIC_BASE))
@@ -132,9 +137,6 @@ _ACTUATOR_SCHEDULE = _(('{base}/actuators/schedule/{op}').replace('{base}',DRIVE
 ACTUATOR_SCHEDULE_REQUEST = _(_ACTUATOR_SCHEDULE.replace('{op}', 'request'))
 ACTUATOR_SCHEDULE_RESULT = _(_ACTUATOR_SCHEDULE.replace('{op}', 'result'))
 ACTUATOR_SCHEDULE_ANNOUNCE_RAW = _(_ACTUATOR_SCHEDULE.replace('{op}','announce/{device}'))
-
-#For use when scheduling devices and setting points
-ACTUATOR_DEVICE_PATH = _(DEVICES_PATH.replace('{base}//{node}//', ''))
 
 #This is a convenience topic for agent listening for announcements
 # and want to use the {campus}//{building}//{unit} style replacement
