@@ -60,7 +60,7 @@ def cleanup_wrapper(wrapper):
     print('Shutting down instance: {}'.format(wrapper.volttron_home))
     if wrapper.is_running():
         print_log(wrapper.volttron_home)
-        wrapper.shutdown_platform(True)
+        wrapper.shutdown_platform()
     else:
         print('Platform was never started')
 
