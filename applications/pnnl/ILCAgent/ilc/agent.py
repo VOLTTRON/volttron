@@ -246,7 +246,85 @@ class HistoryCriterion(BaseCriterion):
         self.history_time = time_stamp - self.previous_time_delta
         self.current_value = data[self.point_name]
         self.history.appendleft((time_stamp, self.current_value))
+        
+        
+class CurtailmentSetting(object):
+    def __init__(self, point = None, value = None, load = None, offset=None):
+        if None in (point, value, load):
+            raise ValueError('Missing parameter')
+        self.point = point
+        self.load = load
+        self.value = value
+        self.offset = offset
+        
+    def ingest_data(self, data):
+        if self.offset is not None:
+            base = data[self.point]
+            self.value = base + self.offset
+            _log.debug("Setting offest value for curtail: Base value: {}, Offset: {}, New value: {}".format(base, self.offset, self.value))
+            
+    def get_curtailment_dict(self):
+        return {"point": self.point,
+                "value": self.value,
+                "load": self.load}
 
+class ConditionalCurtailment(object):
+    def __init__(self, condition = None, conditional_args = None, **kwargs):
+        if None in (condition, conditional_args):
+            raise ValueError('Missing parameter')
+        self.conditional_args = conditional_args
+        self.points = symbols(conditional_args)
+        self.expr = parse_expr(condition)
+        self.condition = condition
+        
+        self.curtailment = CurtailmentSetting(**kwargs)
+
+    def check_condition(self):
+        if self.pt_list:
+            val = self.expr.subs(self.pt_list)
+            _log.debug("{} evaluated to {}".format(self.condition, val))
+        else:
+            val = False
+        return val
+
+    def ingest_data(self, data):
+        pt_list = []
+        for item in self.conditional_args:
+            pt_list.append((item, data[item]))
+        self.pt_list = pt_list
+        self.curtailment.ingest_data(data)
+        
+    def get_curtailment(self):
+        return self.curtailment.get_curtailment_dict()
+    
+#     def __str__(self):
+#         
+    
+class CurtailmentManager(object):
+    def __init__(self, conditional_curtailment_settings = [], **kwargs):
+        
+        self.default_curtailment = CurtailmentSetting(**kwargs)
+        
+        self.conditional_curtailments = []
+        for settings in conditional_curtailment_settings:
+            conditional_curtailment = ConditionalCurtailment(**settings)
+            self.conditional_curtailments.append(conditional_curtailment)
+            
+    def ingest_data(self, data):
+        for conditional_curtailment in self.conditional_curtailments:
+            conditional_curtailment.ingest_data(data)
+            
+        self.default_curtailment.ingest_data(data)
+            
+    def get_curtailment(self):
+        curtailment = self.default_curtailment.get_curtailment_dict()
+        
+        for conditional_curtailment in self.conditional_curtailments:
+            if conditional_curtailment.check_condition():
+                curtailment = conditional_curtailment.get_curtailment()
+                break
+            
+        return curtailment
 
 class Criteria(object):
     def __init__(self, criteria):
@@ -254,12 +332,11 @@ class Criteria(object):
         self.criteria = {}
         criteria = deepcopy(criteria)
 
-        self.curtailment = criteria.pop('curtail')
-
-        # Verify all curtailment parameters.
-        for key in ('point', 'value', 'load'):
-            if key not in self.curtailment:
-                raise Exception('Missing {key} parameter from curtailment settings.'.format(key=key))
+        default_curtailment = criteria.pop('curtail')
+        conditional_curtailment = criteria.pop('conditional_curtail', [])
+        
+        self.curtailment_manager = CurtailmentManager(conditional_curtailment_settings = conditional_curtailment,
+                                                      **default_curtailment)
 
         self.curtail_count = 0
 
@@ -283,6 +360,8 @@ class Criteria(object):
     def ingest_data(self, time_stamp, data):
         for criterion in self.criteria.values():
             criterion.ingest_data(time_stamp, data)
+            
+        self.curtailment_manager.ingest_data(data)
 
     def reset_curtail_count(self):
         self.curtail_count = 0.0
@@ -292,7 +371,7 @@ class Criteria(object):
         self.curtail_count += 1.0
 
     def get_curtailment(self):
-        return self.curtailment.copy()
+        return self.curtailment_manager.get_curtailment()
 
     def reset_currently_curtailed(self):
         self.currently_curtailed = True
@@ -332,9 +411,6 @@ class Device(object):
     def get_curtailment(self, command):
         return self.criteria[command].get_curtailment()
 
-    def get_off_commands(self):
-        return [command for command, state in self.command_status.iteritems() if not state]
-
     def get_on_commands(self):
         return [command for command, state in self.command_status.iteritems() if state]
 
@@ -373,13 +449,6 @@ class Clusters(object):
     def get_device(self, device_name):
         return self.devices[device_name]
 
-    def get_off_device_set(self):
-        results = set()
-        for name, device in self.devices.iteritems():
-            results.update(((name, command) for command in device.get_off_commands()))
-
-        return results
-
     def reset_curtail_count(self):
         for device in self.devices.itervalues():
             device.reset_curtail_count()
@@ -387,13 +456,6 @@ class Clusters(object):
     def reset_currently_curtailed(self):
         for device in self.devices.itervalues():
             device.reset_currently_curtailed()
-
-    def get_on_device_set(self):
-        results = set()
-        for name, device in self.devices.iteritems():
-            results.update(((name, command) for command in device.get_on_commands()))
-
-        return results
 
     def get_score_order(self):
         all_scored_devices = []
@@ -518,8 +580,6 @@ def ilc_agent(config_path, **kwargs):
             super(AHP, self).__init__(**kwargs)
             self.running_ahp = False
             self.row_average = None
-            self.remaining_devices = []
-            self.saved_off_device_set = set()
             self.next_curtail_confirm = None
             self.curtail_end = None
             self.break_end = None
@@ -639,15 +699,13 @@ def ilc_agent(config_path, **kwargs):
             if bldg_power > demand_limit:
                 _log.info('Current load ({load}) exceeds limit or {limit}.'.format(load=bldg_power, limit=demand_limit))
 
-                self.saved_off_device_set = clusters.get_off_device_set()
-
                 score_order = clusters.get_score_order()
                 if not score_order:
                     _log.info('All devices are off, nothing to curtail.')
                     return
 
                 scored_devices = self.actuator_request(score_order)
-                self.remaining_devices = self.curtail(scored_devices, bldg_power, now)
+                self.curtail(scored_devices, bldg_power, now)
 
         def curtail(self, scored_devices, bldg_power, now):
             '''Curtail loads by turning off device (or device components)'''
@@ -662,6 +720,10 @@ def ilc_agent(config_path, **kwargs):
             if not self.running_ahp:
                 _log.info('Starting AHP')
                 self.running_ahp = True
+                
+            if not remaining_devices:
+                _log.debug("Everything available has already been curtailed")
+                return 
 
             self.curtail_end = now + curtail_time
             self.break_end = now + curtail_break + curtail_time
@@ -701,11 +763,7 @@ def ilc_agent(config_path, **kwargs):
                 if est_curtailed >= need_curtailed:
                     break
 
-            for device in self.devices_curtailed:
-                if device in remaining_devices:
-                    remaining_devices.remove(device)
-
-            return remaining_devices
+            return
 
         def curtail_confirm(self, cur_pwr, now):
             '''Check if load shed has been met.  If the demand goal is not
@@ -717,18 +775,7 @@ def ilc_agent(config_path, **kwargs):
                 _log.info('Curtail goal for building load met.')
             else:
                 _log.info('Curtail goal for building load NOT met.')
-                on_device_set = clusters.get_on_device_set()
-                new_on_device_set = self.saved_off_device_set.union(on_device_set)
-
-                if not new_on_device_set:
-                    if self.remaining_devices:
-                        self.remaining_devices = self.curtail(self.remaining_devices, cur_pwr, now)
-                    else:
-                        _log.info('Did not meet load curtailment '
-                                  'goal but there are no further '
-                                  'available loads to remove.')
-                else:
-                    self.check_load(cur_pwr, now)
+                self.check_load(cur_pwr, now)
 
         def actuator_request(self, score_order):
             '''request access to devices.'''
