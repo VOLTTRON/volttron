@@ -3,20 +3,25 @@ import json
 import os
 import shutil
 import logging
+from gevent.fileobject import FileObject
 import gevent.subprocess as subprocess
 from gevent.subprocess import Popen
 import sys
 import time
 import tempfile
 import unittest
+from subprocess import CalledProcessError
 
 from os.path import dirname
 from contextlib import closing
 from StringIO import StringIO
 
 import zmq
+from zmq.utils import jsonapi
+
 import gevent
 
+from volttron.platform.agent.utils import strip_comments
 from volttron.platform.messaging import topics
 from volttron.platform.main import start_volttron_process
 from volttron.platform.vip.agent import Agent
@@ -24,7 +29,9 @@ from volttron.platform.vip.socket import encode_key
 from volttron.platform.aip import AIPplatform
 #from volttron.platform.control import client, server
 from volttron.platform import packaging
+from volttron.platform.agent import utils
 
+utils.setup_logging()
 _log = logging.getLogger(__name__)
 
 RESTRICTED_AVAILABLE = False
@@ -123,13 +130,13 @@ class PlatformWrapper:
         print('Creating Platform Wrapper at: {}'.format(self.volttron_home))
 
     def build_agent(self, address=None, should_spawn=True, identity=None,
-                    publickey=None, secretkey=None, serverkey=None):
+                    publickey=None, secretkey=None, serverkey=None, **kwargs):
         _log.debug('BUILD GENERIC AGENT')
         if address is None:
             address = self.vip_address[0]
 
         agent = Agent(address=address, identity=identity, publickey=publickey,
-                      secretkey=secretkey, serverkey=serverkey)
+                      secretkey=secretkey, serverkey=serverkey, **kwargs)
         print('platformwrapper.build_agent.address: {}'.format(address))
 
         # Automatically add agent's credentials to auth.json file
@@ -153,22 +160,40 @@ class PlatformWrapper:
             fd.write(key)
         return encode_key(key[:40]) # public key
 
-    def _append_allow_curve_key(self, publickey):
-        cred = 'CURVE:{}'.format(publickey)
+    def _read_auth_file(self):
         auth_path = os.path.join(self.volttron_home, 'auth.json')
-
         try:
             with open(auth_path, 'r') as fd:
-                auth = json.load(fd)
+                data = strip_comments(FileObject(fd, close=False).read())
+                if data:
+                    auth = jsonapi.loads(data)
+                else:
+                    auth = {}
         except IOError:
             auth = {}
-
         if not 'allow' in auth:
             auth['allow'] = []
+        return auth, auth_path
 
+    def _append_allow_curve_key(self, publickey):
+        auth, auth_path = self._read_auth_file()
+        cred = 'CURVE:{}'.format(publickey)
         allow = auth['allow']
         if not any(record['credentials'] == cred for record in allow):
             allow.append({'credentials': cred})
+
+        with open(auth_path, 'w+') as fd:
+            json.dump(auth, fd)
+
+    def add_capabilities(self, publickey, capabilities):
+        if isinstance(capabilities, basestring):
+            capabilities = [capabilities]
+        auth, auth_path = self._read_auth_file()
+        cred = 'CURVE:{}'.format(publickey)
+        allow = auth['allow']
+        entry = next((item for item in allow if item['credentials'] == cred), {})
+        caps = entry.get('capabilities', [])
+        entry['capabilities'] = list(set(caps + capabilities))
 
         with open(auth_path, 'w+') as fd:
             json.dump(auth, fd)
@@ -187,7 +212,13 @@ class PlatformWrapper:
 
         self.vip_address = [vip_address]
         self.mode = mode
-
+        enable_logging = os.environ.get('ENABLE_LOGGING', False)
+        debug_mode = os.environ.get('DEBUG_MODE', False)
+        self.skip_cleanup = os.environ.get('SKIP_CLEANUP', False)
+        if debug_mode:
+            self.skip_cleanup = True
+            enable_logging = True
+        print("In start up platform enable_logging is {} ".format(enable_logging))
         assert self.mode in MODES, 'Invalid platform mode set: '+str(mode)
         opts = None
 
@@ -204,18 +235,18 @@ class PlatformWrapper:
         self.set_auth_dict(auth_dict)
 
         self.opts = {'verify_agents': False,
-                'volttron_home': self.volttron_home,
-                'vip_address': vip_address,
-                'vip_local_address': ipc + 'vip.socket',
-                'publish_address': ipc + 'publish',
-                'subscribe_address': ipc + 'subscribe',
-                'developer_mode': not encrypt,
-                'log': os.path.join(self.volttron_home,'volttron.log'),
-                'log_config': None,
-                'monitor': True,
-                'autostart': True,
-                'log_level': logging.DEBUG,
-                'verboseness': logging.DEBUG}
+                     'volttron_home': self.volttron_home,
+                     'vip_address': vip_address,
+                     'vip_local_address': ipc + 'vip.socket',
+                     'publish_address': ipc + 'publish',
+                     'subscribe_address': ipc + 'subscribe',
+                     'developer_mode': not encrypt,
+                     'log': os.path.join(self.volttron_home,'volttron.log'),
+                     'log_config': None,
+                     'monitor': True,
+                     'autostart': True,
+                     'log_level': logging.DEBUG,
+                     'verboseness': logging.DEBUG}
 
         pconfig = os.path.join(self.volttron_home, 'config')
         config = {}
@@ -239,7 +270,7 @@ class PlatformWrapper:
                 raise ValueError("restricted is not available.")
 
             certsdir = os.path.join(os.path.expanduser(self.env['VOLTTRON_HOME']),
-                                     'certificates')
+                                    'certificates')
 
             print ("certsdir", certsdir)
             self.certsobj = certs.Certs(certsdir)
@@ -254,25 +285,31 @@ class PlatformWrapper:
             raise PlatformWrapperError("Invalid platform mode specified: {}".format(mode))
 
         log = os.path.join(self.env['VOLTTRON_HOME'], 'volttron.log')
+        if enable_logging:
+            cmd = ['volttron', '-vv', '-l{}'.format(log)]
+        else:
+            cmd = ['volttron', '-l{}'.format(log)]
 
-        cmd = ['volttron', '-vv', '-l{}'.format(log)]
         if self.opts['developer_mode']:
             cmd.append('--developer-mode')
 
         self._p_process = Popen(cmd, env=self.env, stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE)
+                                stderr=subprocess.PIPE)
 
         assert self._p_process is not None
         # A None value means that the process is still running.
         # A negative means that the process exited with an error.
         assert self._p_process.poll() is None
 
+        # # make sure we don't return too quickly.
+        gevent.sleep(0.2)
+
         #os.environ['VOLTTRON_HOME'] = self.opts['volttron_home']
         #self._p_process = Process(target=start_volttron_process, args=(self.opts,))
         #self._p_process.daemon = True
         #self._p_process.start()
 
-        gevent.sleep()
+        gevent.sleep(0.2)
         self.use_twistd = use_twistd
 
         #TODO: Revise this to start twistd with platform.
@@ -285,9 +322,10 @@ class PlatformWrapper:
             tparams = [TWISTED_START, "-n", "smap", tconfig]
             self._t_process = subprocess.Popen(tparams, env=self.env)
             time.sleep(5)
-        #self._t_process = subprocess.Popen(["twistd", "-n", "smap", "test-smap.ini"])
+            #self._t_process = subprocess.Popen(["twistd", "-n", "smap", "test-smap.ini"])
 
     def is_running(self):
+        print("PROCESS IS RUNNING: {}".format(self._p_process))
         return self._p_process is not None and self._p_process.poll() is None
 
     def twistd_is_running(self):
@@ -428,8 +466,12 @@ class PlatformWrapper:
 
     def stop_agent(self, agent_uuid):
         # Confirm agent running
-        cmd = ['volttron-ctl', 'stop', agent_uuid]
-        res = subprocess.check_output(cmd, env=self.env)
+        _log.debug("STOPPING AGENT: {}".format(agent_uuid))
+        try:
+            cmd = ['volttron-ctl', 'stop', agent_uuid]
+            res = subprocess.check_output(cmd, env=self.env)
+        except CalledProcessError as ex:
+            _log.error("Exception: {}".format(ex))
         return self.agent_status(agent_uuid)
 
     def list_agents(self):
@@ -445,16 +487,22 @@ class PlatformWrapper:
         return self.agent_status(agent_uuid) is not None
 
     def agent_status(self, agent_uuid):
+        _log.debug("AGENT_STATUS: {}".format(agent_uuid))
         # Confirm agent running
         cmd = ['volttron-ctl', 'status', agent_uuid]
-        res = subprocess.check_output(cmd, env=self.env)
-
+        pid = None
         try:
-            pidpos = res.index('[') + 1
-            pidend = res.index(']')
-            pid = int(res[pidpos: pidend])
-        except:
-            pid = None
+            res = subprocess.check_output(cmd, env=self.env)
+
+            try:
+                pidpos = res.index('[') + 1
+                pidend = res.index(']')
+                pid = int(res[pidpos: pidend])
+            except:
+                pid = None
+        except CalledProcessError as ex:
+            _log.error("Exception: {}".format(ex))
+
         return pid
 
     def build_agentpackage(self, agent_dir, config_file):
@@ -535,7 +583,7 @@ class PlatformWrapper:
     #     print result
 
 
-    def shutdown_platform(self, cleanup=True):
+    def shutdown_platform(self):
         '''Stop platform here
 
            This function will shutdown the platform and attempt to kill any
@@ -551,10 +599,12 @@ class PlatformWrapper:
             except:
                 print('could not kill: {} '.format(pid))
         if self._p_process != None:
-
-            gevent.sleep(0.1)
-            self._p_process.terminate()
-            gevent.sleep(0.1)
+            try:
+                gevent.sleep(0.2)
+                self._p_process.terminate()
+                gevent.sleep(0.2)
+            except OSError:
+                print('Platform process was terminated.')
         else:
             print "platform process was null"
 
@@ -565,7 +615,7 @@ class PlatformWrapper:
             self._t_process.wait()
         elif self.use_twistd:
             print "twistd process was null"
-        if cleanup:
+        if not self.skip_cleanup:
             shutil.rmtree(self.volttron_home, ignore_errors=True)
 
 

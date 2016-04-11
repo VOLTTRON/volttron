@@ -68,7 +68,7 @@ from . import settings
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-
+__version__ = '3.0'
 
 class ListenerAgent(Agent):
     '''Listens to everything and publishes a heartbeat according to the
@@ -81,10 +81,14 @@ class ListenerAgent(Agent):
         self._agent_id = self.config['agentid']
 
     @Core.receiver('onsetup')
-    def setup(self, sender, **kwargs):
+    def onsetup(self, sender, **kwargs):
         # Demonstrate accessing a value from the config file
         _log.info(self.config['message'])
         self._agent_id = self.config['agentid']
+
+    @Core.receiver('onstart')
+    def onstart(self, sender, **kwargs):
+        self.vip.heartbeat.start_with_period(5)
 
     @PubSub.subscribe('pubsub', '')
     def on_match(self, peer, sender, bus,  topic, headers, message):
@@ -94,22 +98,6 @@ class ListenerAgent(Agent):
         _log.debug(
             "Peer: %r, Sender: %r:, Bus: %r, Topic: %r, Headers: %r, "
             "Message: %r", peer, sender, bus, topic, headers, message)
-
-    # Demonstrate periodic decorator and settings access
-    @Core.periodic(settings.HEARTBEAT_PERIOD)
-    def publish_heartbeat(self):
-        '''Send heartbeat message every HEARTBEAT_PERIOD seconds.
-
-        HEARTBEAT_PERIOD is set and can be adjusted in the settings module.
-        '''
-        now = datetime.utcnow().isoformat(' ') + 'Z'
-        headers = {
-            'AgentID': self._agent_id,
-            headers_mod.CONTENT_TYPE: headers_mod.CONTENT_TYPE.PLAIN_TEXT,
-            headers_mod.DATE: now,
-        }
-        self.vip.pubsub.publish(
-            'pubsub', 'heartbeat/listeneragent', headers, now)
 
 
 def main(argv=sys.argv):

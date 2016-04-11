@@ -95,7 +95,7 @@ class DriverAgent(BasicAgent):
         module = __import__(module_name,globals(),locals(),[], -1)
         sub_module = getattr(module, driver_type)
         klass = getattr(sub_module, "Interface")
-        interface = klass(vip=self.vip)
+        interface = klass(vip=self.vip, core=self.core)
         interface.configure(config_dict, config_string)
         return interface
         
@@ -180,11 +180,13 @@ class DriverAgent(BasicAgent):
         # XXX: Does a warning need to be printed?
         if not results:
             return
-
-        now = datetime.datetime.utcnow().isoformat(' ') + 'Z'
+        
+        utcnow = utils.get_aware_utc_now()
+        utcnow_string = utils.format_timestamp(utcnow)
         
         headers = {
-            headers_mod.DATE: now,
+            headers_mod.DATE: utcnow_string,
+            headers_mod.TIMESTAMP: utcnow_string,
         }
         
             
