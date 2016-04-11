@@ -64,6 +64,7 @@ import os.path as p
 
 import gevent
 import requests
+from requests.packages.urllib3.exceptions import NewConnectionError
 from zmq.utils import jsonapi
 
 from authenticate import Authenticate
@@ -565,6 +566,9 @@ class VolttronCentralAgent(Agent):
 
         self.webaddress = self.vip.rpc.call(
             'volttron.web', 'get_bind_web_address').get(timeout=5)
+
+        assert self.core.publickey
+        assert self.core.secretkey
         self._web_info = DiscoveryInfo.request_discovery_info(self.webaddress)
 
     def __load_persist_data(self):
