@@ -407,7 +407,7 @@ def build_vip_address_string(vip_root, serverkey, publickey, secretkey):
     if not (serverkey and publickey and secretkey and vip_root):
         raise ValueError("All parameters must be entered.")
 
-    root = "{}?serverkey={}&publickey={}&secret={}".format(
+    root = "{}?serverkey={}&publickey={}&secretkey={}".format(
         vip_root, serverkey, publickey, secretkey
     )
 
