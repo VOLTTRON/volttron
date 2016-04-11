@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 #Script to install mongodb from source. reads install_mongodb.cfg from the
 #same directory as this script
@@ -50,18 +50,31 @@ mkdir -p $data_path
 mkdir -p $log_path
 
 
-printf "\n##Adding mongo_db to bash path##\n"
+printf "\n##Updating .bashrc##\n"
 
+printf "\n\n#Entries added by install_mongodb script - START" >> ~/.bashrc
 printf "\nexport PATH=$install_path/bin:\$PATH" >> ~/.bashrc
-
-printf "\n##Creating start_mongo and stop_mongo commands in .bashrc##\n"
-
-printf "\n#Entries added by install_mongodb script - START\n" >> ~/.bashrc
 printf "\nalias start_mongo='mongod --dbpath=$data_path --fork --logpath $log_path/mongo.log &'" >> ~/.bashrc
 printf "\nalias stop_mongo='mongod --dbpath=$data_path --shutdown'" >> ~/.bashrc
-printf "\n#Entries added by install_mongodb script - STOP" >> ~/.bashrc
+printf "\n#Entries added by install_mongodb script - STOP\n" >> ~/.bashrc
 
-printf "\n\n##Installed mongodb.
-Please verify the contents added to  your ~/.bashrc file and then
-source ~/.bashrc. Use the command start_mongo to start and stop_mongo to
-stop mongodb##\n"
+export PATH=$install_path/bin:\$PATH
+printf "\n##Starting mongodb....\n"
+mongod --dbpath=$data_path --fork --logpath $log_path/mongo.log &
+/bin/sleep 5
+
+if [ $# -gt 0 ]
+then
+    if [ "$1" == "setup" ]
+    then
+        printf "\n##Setting up admin user and mongo_test collection\n"
+        mongo admin --eval 'db.createUser( {user: "mongodbadmin", pwd: "V3admin", roles: [ { role: "userAdminAnyDatabase", db: "admin" }]});'
+        mongo mongo_test -u mongodbadmin -p V3admin --authenticationDatabase admin --eval 'db.createUser( {user: "test", pwd: "test", roles: [ { role: "readWrite", db: "mongo_test" }]});'
+    fi
+fi
+
+printf "\n\n##Installed and started mongodb.
+Please verify the contents added to  your ~/.bashrc file and then source ~/.bashrc.
+Use the command start_mongo to start and stop_mongo to stop mongodb##\n"
+
+
