@@ -218,7 +218,7 @@ Register A Volttron Platform Instance (Using Discovery)
             "jsonrpc": "2.0",
             "method": "register_instance",
             "params": {
-                "uri": "127.0.0.2:8080",
+                "discovery_address": "http://127.0.0.2:8080",
                 "display_name": "foo" # Optional
             }
             "authorization": "someAuthorizationToken",
