@@ -3,21 +3,23 @@
 
 #Script to install mongodb from source. reads install_mongodb.cfg from the
 #same directory as this script
-script_dir=`dirname $0`
+script_dir=$( cd $(dirname $0) ; pwd -P )
 download_url="https://fastdl.mongodb.org/linux/mongodb-linux-x86_64-3.2.4.tgz"
 cwd=$(pwd)
 install_path="$cwd/mongo_install"
-config_file="$script_dir/default_mongod.conf"
+config_file="$script_dir/default_mongodb.conf"
 setup_test=0
 
 function usage {
-      printf "\nUsage: install_mongodb.sh [-h] [-d download_url] [-i install_dir] [-c config_file] [-s]\n"
-      printf "\n use -s to setup admin user and test collection"
-      printf "\n without -d download url defaults to https://fastdl.mongodb.org/linux/mongodb-linux-x86_64-3.2.4.tgz"
-      printf "\n without -i install_dir defaults to current_dir/mongo_install"
-      printf "\n -c config file to be used for mongodb startup."
-      printf "\n    Any datapath mentioned in the config file should already exist and should have write access to the current user"
-      printf "\n use -h for this help message\n"
+      printf "\nUsage:"
+      printf "\n   install_mongodb.sh [-h] [-d download_url] [-i install_dir] [-c config_file] [-s]"
+      printf "\nOptional arguments:"
+      printf "\n   -s setup admin user and test collection after install and startup"
+      printf "\n   -d download url. defaults to https://fastdl.mongodb.org/linux/mongodb-linux-x86_64-3.2.4.tgz"
+      printf "\n   -i install_dir. defaults to current_dir/mongo_install"
+      printf "\n   -c config file to be used for mongodb startup."
+      printf "\n      Any datapath mentioned in the config file should already exist and should have write access to the current user"
+      printf "\n   -h print this help message\n"
 
 }
 
@@ -87,17 +89,18 @@ untar_dir=`echo */`
 
 printf "\n##Installing to $install_path\n"
 
-install_path=$(echo $install_path | sed 's:/*$::')
-untar_dir=$(echo $untar_dir | sed 's:/*$::')
-mv $cwd/download_dir/$untar_dir $install_path
+#install_path=$(echo $install_path | sed 's:/*$::')
+#untar_dir=$(echo $untar_dir | sed 's:/*$::')
 
+mv $cwd/download_dir/$untar_dir $install_path
+cp $config_file $install_path/mongo_config.cfg
 
 printf "\n##Updating .bashrc##\n"
 
-printf "\n\n#Entries added by install_mongodb script - START" >> ~/.bashrc
+printf "\n#Entries added by install_mongodb script - START" >> ~/.bashrc
 printf "\nexport PATH=$install_path/bin:\$PATH" >> ~/.bashrc
-printf "\nalias start_mongo='mongod --config $config_file &'" >> ~/.bashrc
-printf "\nalias stop_mongo='mongod --config $config_file --shutdown'" >> ~/.bashrc
+printf "\nalias start_mongo='mongod --config $install_path/mongo_config.cfg &'" >> ~/.bashrc
+printf "\nalias stop_mongo='mongod --config $install_path/mongo_config.cfg --shutdown'" >> ~/.bashrc
 printf "\n#Entries added by install_mongodb script - STOP\n" >> ~/.bashrc
 
 echo "test"
