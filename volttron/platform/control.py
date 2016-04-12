@@ -74,6 +74,7 @@ import gevent
 import gevent.event
 
 from .agent import utils
+from .agent.known_identities import CONTROL_CONNECTION
 from .vip.agent import Agent as BaseAgent, Core, RPC
 from . import aip as aipmod
 from . import config
@@ -794,7 +795,8 @@ class Connection(object):
         self.address = address
         self.peer = peer
         self._server = BaseAgent(address=self.address, publickey=publickey,
-                                 secretkey=secretkey, serverkey=serverkey)
+                                 secretkey=secretkey, serverkey=serverkey,
+                                 identity=CONTROL_CONNECTION)
         self._greenlet = None
 
     @property
