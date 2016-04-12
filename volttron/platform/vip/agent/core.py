@@ -406,6 +406,7 @@ class Core(BasicCore):
         self.context = context or zmq.Context.instance()
         self.address = address
         self.identity = identity
+        self.agent_uuid = os.environ.get('AGENT_UUID', None)
 
         # The public and secret keys are obtained by:
         # 1. publickkey and secretkey parameters to __init__
@@ -424,7 +425,6 @@ class Core(BasicCore):
 
         self.publickey = publickey
         self.secretkey = secretkey
-        self.agent_uuid = os.environ.get('AGENT_UUID', None)
 
         if self.agent_uuid:
             installed_path = os.path.join(
@@ -466,17 +466,17 @@ class Core(BasicCore):
 
     def _get_keys_from_keystore(self):
         '''Returns agent's public and secret key from keystore'''
-        keystore_dir = os.environ.get('AGENT_PATH')
-        if keystore_dir:
-            keystore_dir = os.path.join(keystore_dir, os.pardir)
+        if self.agent_uuid:
+            # this is an installed agent
+            keystore_dir = os.curdir
         elif self.identity:
-            # the agent does not have AGENT_PATH set
             keystore_dir = os.path.join(
                     os.environ.get('VOLTTRON_HOME'), 'keystores',
                     self.identity)
             if not os.path.exists(keystore_dir):
                 os.makedirs(keystore_dir)
         else:
+            # the agent is not installed and its identity was not set
             return None, None
         keystore_path = os.path.join(keystore_dir, 'keystore.json')
         keystore = KeyStore(keystore_path)
