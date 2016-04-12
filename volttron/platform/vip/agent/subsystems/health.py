@@ -53,8 +53,10 @@
 
 
 import logging
+import os
 import weakref
 
+from volttron.platform.agent import utils
 from volttron.platform.messaging import topics
 from volttron.platform.messaging.health import *
 from .base import SubsystemBase
@@ -66,8 +68,9 @@ __version__ = '1.0'
 The health subsystem allows an agent to store it's health in a non-intrusive
 way.
 """
+utils.setup_logging()
 _log = logging.getLogger(__name__)
-
+_log.setLevel(logging.DEBUG)
 
 class Health(SubsystemBase):
     def __init__(self, owner, core, rpc):
@@ -94,10 +97,18 @@ class Health(SubsystemBase):
         :param context:
         :return:
         """
+        _log.debug("In send alert")
         if not isinstance(statusobj, Status):
             raise ValueError('statusobj must be a Status object.')
-        headers = dict(alert_key=alert_key),
-        self._owner.vip.pubsub.publish("pubsub", topic=topics.ALERTS.format(),
+        agent_class = self._owner.__class__.__name__
+        agent_uuid = os.environ.get('AGENT_UUID', '')
+        _log.debug("agent class {}".format(agent_class))
+        _log.debug("agent uuid {}".format(agent_uuid))
+        topic = topics.ALERTS(agent_class=agent_class, agent_uuid=agent_uuid)
+        headers = dict(alert_key=alert_key)
+        _log.debug("Headers before sending alert  {}".format(headers))
+        self._owner.vip.pubsub.publish("pubsub",
+                                       topic=topic.format(),
                                        headers=headers,
                                        message=statusobj.to_json())
 
