@@ -128,7 +128,7 @@ def driven_agent(config_path, **kwargs):
                 device_topic_dict.update({subdevice_topic: subdevice_name})
                 device_topic_list.append(subdevice_name)
 
-    base_actuator_path = topics.ACTUATOR_WRITE(campus=campus_building.get('campus', ''),
+    base_actuator_path = topics.RPC_DEVICE_PATH(campus=campus_building.get('campus', ''),
                                                building=campus_building.get('building', ''),
                                                unit=None,
                                                path='',
