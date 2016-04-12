@@ -75,24 +75,18 @@ so_filename = "c_agent/libfoo.so"
 cdll.LoadLibrary(so_filename)
 shared_object = CDLL(so_filename)
 
-water_temperature = shared_object.water_temperature
-water_temperature.restype = c_float
+get_water_temperature = shared_object.get_water_temperature
+get_water_temperature.restype = c_float
 
 ################################################################################
 
 class CAgent(Agent):
     def __init__(self, config_path, **kwargs):
         super(CAgent, self).__init__(**kwargs)
-        self.config = utils.load_config(config_path)
-        self._agent_id = self.config['agentid']
-
-    @Core.receiver('onsetup')
-    def setup(self, sender, **kwargs):
-        _log.info(self.config['message'])
 
     @Core.periodic(settings.HEARTBEAT_PERIOD)
     def publish_heartbeat(self):
-        wt = water_temperature()
+        wt = get_water_temperature()
         _log.debug(wt)
         self.vip.pubsub.publish('pubsub', 'device/WATER_TEMP=' + str(wt))
 
