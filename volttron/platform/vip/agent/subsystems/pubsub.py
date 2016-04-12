@@ -72,12 +72,13 @@ from .base import SubsystemBase
 from ..decorators import annotate, annotations, dualmethod, spawn
 from ..errors import Unreachable
 from .... import jsonrpc
-
+from volttron.platform.agent import utils
 
 __all__ = ['PubSub']
 min_compatible_version = '3.0'
 max_compatible_version = ''
 
+utils.setup_logging()
 _log = logging.getLogger(__name__)
 
 def encode_peer(peer):

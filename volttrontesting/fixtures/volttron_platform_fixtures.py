@@ -4,8 +4,7 @@ from random import randint
 import socket
 from volttrontesting.utils.platformwrapper import PlatformWrapper
 
-PRINT_LOG_ON_SHUTDOWN = True
-
+PRINT_LOG_ON_SHUTDOWN = False
 
 def print_log(volttron_home):
     if PRINT_LOG_ON_SHUTDOWN:
@@ -62,7 +61,7 @@ def cleanup_wrapper(wrapper):
     print('Shutting down instance: {}'.format(wrapper.volttron_home))
     if wrapper.is_running():
         print_log(wrapper.volttron_home)
-        wrapper.shutdown_platform(True)
+        wrapper.shutdown_platform()
     else:
         print('Platform was never started')
 
@@ -166,7 +165,7 @@ def volttron_instance(request):
 
     def cleanup():
         print('Shutting down instance: {}'.format(wrapper.volttron_home))
-        wrapper.shutdown_platform(True)
+        wrapper.shutdown_platform()
 
     request.addfinalizer(cleanup)
     return wrapper
@@ -213,7 +212,7 @@ def get_volttron_instances(request):
         for i in range(0, get_n_volttron_instances.count):
             print('Shutting down instance: {}'.format(
                 get_n_volttron_instances.instances[i].volttron_home))
-            get_n_volttron_instances.instances[i].shutdown_platform(True)
+            get_n_volttron_instances.instances[i].shutdown_platform()
 
     request.addfinalizer(cleanup)
 
