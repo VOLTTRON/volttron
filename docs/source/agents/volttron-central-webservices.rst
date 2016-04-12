@@ -4,7 +4,7 @@ VOLTTRON Central Web Services Api Documentation
 
 VOLTTRON Central (VC) is meant to be the hub of communcation within a cluster of
 VOLTTRON instances. VC exposes a
-`JSON-RPC 2.0 <http://www.jsonrpc.org/specification/>`_ based api that allows
+`JSON-RPC 2.0 <http://www.jsonrpc.org/specification>`_ based api that allows
 a user to control multple instances of VOLTTRON.
 
 
@@ -58,7 +58,7 @@ As an alternative, the params can be an array as illistrated by the following:
     }
 
 For full documentation of the Request object please see section 4 of the
-`JSON-RPC 2.0 <http://www.jsonrpc.org/specification/>`_ specification.
+`JSON-RPC 2.0 <http://www.jsonrpc.org/specification>`_ specification.
 
 JSON-RPC Response Payload
 =========================
@@ -91,7 +91,7 @@ An error response will have the following format:
     }
 
 For full documenation of the Response object please see section 5 of the
-`JSON-RPC 2.0 <http://www.jsonrpc.org/specification/>`_ specification.
+`JSON-RPC 2.0 <http://www.jsonrpc.org/specification>`_ specification.
 
 JSON-RPC Data Objects
 =====================
