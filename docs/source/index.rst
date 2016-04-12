@@ -24,7 +24,7 @@ Support
 =======
 
 The easiest way to get help with your VOLTTRON installation is to join our
-office hours.  The office hours are every other Friday at 11am.  The office
+office hours.  The office hours are every other Friday at 11am PT.  The office
 hours are available via Microsoft Lync.  If you would like to be added to the
 VOLTTRON mailing list in order to be reminded of the meetings send an email to
 volttron@pnnl.gov.
