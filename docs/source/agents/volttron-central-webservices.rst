@@ -20,7 +20,7 @@ friendly mechanism.
 How the API is Implemented
 ==========================
 
-* All calls are made through a POST.
+* All calls are made through a POST to `/jsonrpc`
 * All calls (not including the call to authenticate) will
   include an authorization token (a json-rpc extension).
 
@@ -213,7 +213,7 @@ Messages
 Register A Volttron Platform Instance (Using Discovery)
     .. code-block:: Python
 
-        # POST /api/jsonrpc
+        # POST /jsonrpc
         {
             "jsonrpc": "2.0",
             "method": "register_instance",
@@ -277,7 +277,7 @@ Register A Volttron Platform Instance (Using Discovery)
 Request Registration of an External Platform (Using Discovery)
     .. code-block:: Python
 
-        # POST /api/jsonrpc
+        # POST /jsonrpc
         {
             "jsonrpc": "2.0",
             "method": "register_platform",
