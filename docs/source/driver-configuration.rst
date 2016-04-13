@@ -92,15 +92,18 @@ Registry configuration files setup each individual point on a device. Typically 
 The following is a simple example of a MODBUS registry confugration file:
 
 .. csv-table:: Catalyst 371
-	:header: Reference Point Name,Volttron Point Name,Units,Units Details,Modbus Register,Writable,Point Address,Default Value,Notes
+    :header: Reference Point Name,Volttron Point Name,Units,Units Details,Modbus Register,Writable,Point Address,Default Value,Notes
 	
-	CO2Sensor,ReturnAirCO2,PPM,0.00-2000.00,>f,FALSE,1001,,CO2 Reading 0.00-2000.0 ppm
-	CO2Stpt,ReturnAirCO2Stpt,PPM,1000.00 (default),>f,TRUE,1011,1000,Setpoint to enable demand control ventilation 
-        HeatCall2,HeatCall2,On / Off,on/off,BOOL,FALSE,1114,,Status indicator of heating stage 2 need
+    CO2Sensor,ReturnAirCO2,PPM,0.00-2000.00,>f,FALSE,1001,,CO2 Reading 0.00-2000.0 ppm
+    CO2Stpt,ReturnAirCO2Stpt,PPM,1000.00 (default),>f,TRUE,1011,1000,Setpoint to enable demand control ventilation 
+    HeatCall2,HeatCall2,On / Off,on/off,BOOL,FALSE,1114,,Status indicator of heating stage 2 need
 
 MODBUS Driver Configuration
 ---------------------------
 Currently the MODBUS driver only supports MODBUS over TCP.
+
+driver_config
+*************
 
 There are three arguments for the "driver_config" section of the general driver configuration:
     - **device_address** - IP Address of the device.
@@ -126,6 +129,9 @@ Here is an example device configuration file:
     }
 
 A sample MODBUS configuration file can be found in the repository in services/core/MasterDriverAgent/test_modbus1.config
+
+Registry Configuration File
+***************************
 
 The registry configuration file is a `CSV <https://en.wikipedia.org/wiki/Comma-separated_values>`_ file. Each row configures a point on the device. 
 
@@ -171,6 +177,9 @@ BACnet Driver Configuration
 ---------------------------
 Communicating with BACnet devices requires that the BACnet Proxy Agent is configured and running. All device communication happens through this agent.
 
+driver_config
+*************
+
 There are six arguments for the "driver_config" section of the general driver configuration:
     - **device_address** - Address of the device. If the target device is behind an IP to MS/TP router then Remote Station addressing will probably be needed for the driver to find the device.
     - **device_id** - BACnet ID of the device. Used to establish a route to the device at startup. 
@@ -200,6 +209,9 @@ Here is an example device configuration file:
     }
 
 A sample BACnet configuration file can be found in the repository in services/core/MasterDriverAgent/test_bacnet1.config
+
+Registry Configuration File
+***************************
 
 The registry configuration file is a `CSV <https://en.wikipedia.org/wiki/Comma-separated_values>`_ file. Each row configures a point on the device. 
 
@@ -248,6 +260,9 @@ Fake Device Driver Configuration
 --------------------------------
 This driver does not connect to any actual device and instead produces random and or pre-configured values. 
 
+driver_config
+*************
+
 There are no arguments for the "driver_config" section of the general driver configuration. The driver_config must still be present and should be left blank
 
 Here is an example device configuration file:
@@ -267,6 +282,9 @@ Here is an example device configuration file:
     }
 
 A sample fake device configuration file can be found in the repository in services/core/MasterDriverAgent/test_fakedriver.config
+
+Registry Configuration File
+***************************
 
 The registry configuration file is a `CSV <https://en.wikipedia.org/wiki/Comma-separated_values>`_ file. Each row configures a point on the device. 
 
