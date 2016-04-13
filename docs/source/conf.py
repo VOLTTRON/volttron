@@ -290,21 +290,23 @@ texinfo_documents = [
 # If true, do not generate a @detailmenu in the "Top" node's menu.
 #texinfo_no_detailmenu = False
 
+# Custom event handlers for Volttron #
 def setup(app):
     app.connect('builder-inited', run_apidoc)
+    app.connect('build-finished', clean_apirst)
 
 
-def run_apidoc(_):
+script_dir = os.path.dirname(os.path.realpath(__file__))
+apidocs_base_dir =os.path.abspath(script_dir + "/api-docs")
+def run_apidoc(app):
     print("\n##In run_apidocs##\n")
-    script_dir = os.path.dirname(os.path.realpath(__file__))
-
+    global script_dir, apidocs_base_dir
     # add services/core to path
     module_services_path = script_dir + "/../../services/core/"
-    docs_base_dir =os.path.abspath(script_dir + "/api-docs")
-    os.makedirs(docs_base_dir, 0755)
+    os.makedirs(apidocs_base_dir, 0755)
     #volttron_dir=os.path.abspath(script_dir+"/../..")
     doc_subdir="services"
-    os.mkdir(os.path.join(docs_base_dir ,doc_subdir),0755)
+    os.mkdir(os.path.join(apidocs_base_dir, doc_subdir), 0755)
 
     for module in os.listdir(module_services_path):
         module_path = os.path.join(module_services_path, module)
@@ -312,6 +314,11 @@ def run_apidoc(_):
             sys.path.insert(0, os.path.abspath(module_path))
             subprocess.check_call(
                 ["sphinx-apidoc", '-o',
-                 os.path.join(docs_base_dir, doc_subdir, module),
+                 os.path.join(apidocs_base_dir, doc_subdir, module),
                  module_path, os.path.join(module_path,"setup.py"), '--force'])
 
+def clean_apirst(app, exception):
+    global apidocs_base_dir
+    import shutil
+    print("Cleanup: Removing api-docs directory {}".format(apidocs_base_dir))
+    shutil.rmtree(apidocs_base_dir)
