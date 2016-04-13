@@ -339,7 +339,7 @@ def remove_agent(opts):
             return 10
         for agent in match:
             _stdout.write('Removing {} {}\n'.format(agent.uuid, agent.name))
-            opts.aip.remove_agent(agent.uuid)
+            opts.connection.call('remove_agent', agent.uuid)
 
 
 def _calc_min_uuid_length(agents):

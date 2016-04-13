@@ -318,7 +318,7 @@ class Interface(BasicRevert, BaseInterface):
             read_only = regDef['Writable'].lower() != 'true'
             point_path = regDef['Volttron Point Name']        
             address = int(regDef['Point Address'])        
-            description = regDef['Notes']                 
+            description = regDef.get('Notes', '')                 
             units = regDef['Units']   
             
             default_value = regDef.get("Default Value", '').strip()

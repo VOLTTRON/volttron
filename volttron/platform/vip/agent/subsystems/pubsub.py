@@ -78,7 +78,7 @@ __all__ = ['PubSub']
 min_compatible_version = '3.0'
 max_compatible_version = ''
 
-utils.setup_logging()
+#utils.setup_logging()
 _log = logging.getLogger(__name__)
 
 def encode_peer(peer):
@@ -380,10 +380,10 @@ class PubSub(SubsystemBase):
         compatibility information to header as variables
         min_compatible_version and max_compatible version
         '''
-        _log.debug("In pusub.publish. headers in pubsub publish {}".format(
-            headers))
-        _log.debug("In pusub.publish. topic {}".format(topic))
-        _log.debug("In pusub.publish. Message {}".format(message))
+        #_log.debug("In pusub.publsih. headers in pubsub publish {}".format(
+        #    headers))
+        #_log.debug("In pusub.publsih. topic {}".format(topic))
+        #_log.debug("In pusub.publsih. Message {}".format(message))
         if headers is None:
             headers = {}
         headers['min_compatible_version'] = min_compatible_version
