@@ -11,7 +11,7 @@
 #
 # All configuration values have a default; values that are commented out
 # serve to show the default.
-
+import subprocess
 import sys
 import os
 
@@ -289,3 +289,29 @@ texinfo_documents = [
 
 # If true, do not generate a @detailmenu in the "Top" node's menu.
 #texinfo_no_detailmenu = False
+
+def setup(app):
+    app.connect('builder-inited', run_apidoc)
+
+
+def run_apidoc(_):
+    print("\n##In run_apidocs##\n")
+    script_dir = os.path.dirname(os.path.realpath(__file__))
+
+    # add services/core to path
+    module_services_path = script_dir + "/../../services/core/"
+    docs_base_dir =os.path.abspath(script_dir + "/api-docs")
+    os.makedirs(docs_base_dir, 0755)
+    #volttron_dir=os.path.abspath(script_dir+"/../..")
+    doc_subdir="services"
+    os.mkdir(os.path.join(docs_base_dir ,doc_subdir),0755)
+
+    for module in os.listdir(module_services_path):
+        module_path = os.path.join(module_services_path, module)
+        if os.path.isdir(module_path):
+            sys.path.insert(0, os.path.abspath(module_path))
+            subprocess.check_call(
+                ["sphinx-apidoc", '-o',
+                 os.path.join(docs_base_dir, doc_subdir, module),
+                 module_path, '--force'])
+
