@@ -313,5 +313,5 @@ def run_apidoc(_):
             subprocess.check_call(
                 ["sphinx-apidoc", '-o',
                  os.path.join(docs_base_dir, doc_subdir, module),
-                 module_path, '--force'])
+                 module_path, os.path.join(module_path,"setup.py"), '--force'])
 
