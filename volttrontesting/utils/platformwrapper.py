@@ -125,6 +125,10 @@ class PlatformWrapper:
         self.env = os.environ.copy()
         self.env['VOLTTRON_HOME'] = self.volttron_home
 
+        # TODO: does changing os.environ affect the environment external to
+        # this script?
+        os.environ['VOLTTRON_HOME'] = self.volttron_home
+
         # By default no web server should be started.
         self.__bind_web_address = None
 
