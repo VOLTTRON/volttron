@@ -25,8 +25,9 @@ def get_rand_ip_and_port():
 
 def get_rand_port(ip=None):
     port = randint(5000, 6000)
-    while is_port_open(ip, port):
-        port = randint(5000, 6000)
+    if ip:
+        while is_port_open(ip, port):
+            port = randint(5000, 6000)
     return port
 
 
