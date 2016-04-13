@@ -110,7 +110,8 @@ def historian(config_path, **kwargs):
             self._client = MongodbHistorian.get_mongo_client(
                 connection['params'])
 
-            self._topic_map = {}
+            self._topic_id_map = {}
+            self._topic_name_map = {}
             self._topic_meta = {}
 
             super(MongodbHistorian, self).__init__(**kwargs)
@@ -169,16 +170,23 @@ def historian(config_path, **kwargs):
 
                 # look at the topics that are stored in the database already
                 # to see if this topic has a value
-                topic_id = self._topic_map.get(topic.lower(), None)
-
+                topic_lower = topic.lower()
+                topic_id = self._topic_id_map.get(topic_lower, None)
+                db_topic_name = self._topic_name_map.get(topic_lower, None)
                 if topic_id is None:
                     row = db[self._topic_collection].insert_one(
                         {'topic_name': topic})
                     topic_id = row.inserted_id
-                    # topic map should hold both a lookup from topic name
-                    # and from id to topic_name.
-                    self._topic_map[topic.lower()] = topic_id
-                    # self._topic_map[topic_id] = topic
+                    self._topic_id_map[topic_lower] = topic_id
+                    self._topic_name_map[topic_lower] = topic
+                elif db_topic_name != topic:
+                    _log.debug('Updating topic: {}'.format(topic))
+
+                    result = db[self._topic_collection].update_one(
+                        {'_id':ObjectId(topic_id)},
+                        {'$set': {'topic_name': topic}})
+                    assert result.matched_count
+                    self._topic_name_map[topic_lower] = topic
 
                 old_meta = self._topic_meta.get(topic_id, {})
                 if set(old_meta.items()) != set(meta.items()):
@@ -226,7 +234,7 @@ def historian(config_path, **kwargs):
             """
 
             topic_lower = topic.lower()
-            topic_id = self._topic_map.get(topic_lower, None)
+            topic_id = self._topic_id_map.get(topic_lower, None)
 
             if not topic_id:
                 _log.debug('Topic id was None for topic: {}'.format(topic))
@@ -258,13 +266,16 @@ def historian(config_path, **kwargs):
             _log.debug('cursor count is: {}'.format(cursor.count()))
 
             # Create list of tuples for return values.
-            values = [(utils.format_timestamp(row['ts']), row['value']) for row
+            values = [(utils.format_timestamp(row['ts']), row['value']) for
+                      row
                       in cursor]
-
-            return {
-                'values': values,
-                'metadata': self._topic_meta.get(topic_id, {})
-            }
+            if len(values) > 0:
+                return {
+                    'values': values,
+                    'metadata': self._topic_meta.get(topic_id, {})
+                }
+            else:
+                return {}
 
         def query_topic_list(self):
             db = self._client.get_default_database()
@@ -282,8 +293,10 @@ def historian(config_path, **kwargs):
             cursor = db[self._topic_collection].find()
 
             for document in cursor:
-                self._topic_map[document['topic_name'].lower()] = document[
+                self._topic_id_map[document['topic_name'].lower()] = document[
                     '_id']
+                self._topic_name_map[document['topic_name'].lower()] = \
+                    document['topic_name']
 
         def _load_meta_map(self):
             _log.debug('loading meta map')

@@ -98,7 +98,9 @@ __author__ = 'Brandon Carpenter <brandon.carpenter@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2015, Battelle Memorial Institute'
 __license__ = 'FreeBSD'
 
+ALERTS = _('alerts/{agent_class}/{agent_uuid}') #/{agent_class}/{publickey}/{alert_key}')
 
+HEARTBEAT = _('heartbeats')
 PLATFORM = _('platform/{subtopic}')
 PLATFORM_SHUTDOWN = PLATFORM(subtopic='shutdown')
 
@@ -117,6 +119,11 @@ DRIVER_TOPIC_ALL = 'all'
 DEVICES_PATH = _('{base}//{node}//{campus}//{building}//{unit}//{path!S}//{point}')
 _DEVICES_VALUE = _(DEVICES_PATH.replace('{base}',DRIVER_TOPIC_BASE))
 DEVICES_VALUE = _(_DEVICES_VALUE.replace('{node}/', ''))
+
+#For use with RPC calls that require a device path. A plain device path with no prefix.
+#Should be used when working with devices via the actuator agent RPC calls:
+# get_point, set_point, revert_point, revert_device, and request_new_schedule.
+RPC_DEVICE_PATH = _(DEVICES_PATH.replace('{base}//{node}//', ''))
 
 ANALYSIS_PATH = _('{base}//{analysis_name}//{campus}//{building}//{unit}//{point}')
 ANALYSIS_TOPIC_BASE = 'analysis'

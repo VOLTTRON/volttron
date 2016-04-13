@@ -75,6 +75,20 @@ class DbDriver(object):
         row = [self.__cursor.lastrowid]
         return row
 
+    def update_topic(self, topic, topic_id):
+
+        self.__connect()
+
+        if self.__connection is None:
+            return False
+
+        if not self.__cursor:
+            self.__cursor = self.__connection.cursor()
+
+        self.__cursor.execute(self.update_topic_query(), (topic, topic_id))
+
+        return True
+    
     def commit(self):
         successful = False
         if self.__connection is not None:

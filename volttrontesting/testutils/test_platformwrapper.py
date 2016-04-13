@@ -271,6 +271,6 @@ def test_encryption():
 
     agent1 = plat.build_agent(agent_addr, identity='agent1')
     peers = agent1.vip.peerlist.list().get(timeout=2)
-    plat.shutdown_platform(True)
+    plat.shutdown_platform()
     print('PEERS: ', peers)
     assert len(peers) > 0
