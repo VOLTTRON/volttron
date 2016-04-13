@@ -73,7 +73,7 @@ def test_manage_agent(pa_instance):
     # Make a call to manage which should return to us the publickey of the
     # platform.agent on the instance.
     papublickey = agent.vip.rpc.call(
-        VOLTTRON_CENTRAL_PLATFORM, 'manage', wrapper.vip_address[0],
+        VOLTTRON_CENTRAL_PLATFORM, 'manage', wrapper.vip_address,
         wrapper.publickey, agent.core.publickey).get(timeout=2)
     assert papublickey
 
@@ -95,7 +95,7 @@ def test_can_get_agentlist(pa_instance):
     # Make a call to manage which should return to us the publickey of the
     # platform.agent on the instance.
     papublickey = agent.vip.rpc.call(
-        VOLTTRON_CENTRAL_PLATFORM, 'manage', wrapper.vip_address[0],
+        VOLTTRON_CENTRAL_PLATFORM, 'manage', wrapper.vip_address,
         wrapper.publickey, agent.core.publickey).get(timeout=2)
     assert papublickey
 
@@ -133,7 +133,7 @@ def test_agent_can_be_managed(pa_instance):
                 capabilities=['can_be_managed'])
     print(wrapper.vip_address)
     returnedid = agent.vip.rpc.call(
-        VOLTTRON_CENTRAL_PLATFORM, 'manage', wrapper.vip_address[0],
+        VOLTTRON_CENTRAL_PLATFORM, 'manage', wrapper.vip_address,
         wrapper.publickey).get(timeout=2)
     assert returnedid
 

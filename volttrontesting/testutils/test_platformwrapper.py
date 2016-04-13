@@ -226,7 +226,7 @@ def test_can_install_listener_on_two_platforms(volttron_instance1, volttron_inst
 #     print(response)
 #     agent.core.stop()
 #
-#     agent = PlatormTestAgent(address=volttron_instance1.vip_address[0],
+#     agent = PlatormTestAgent(address=volttron_instance1.vip_address,
 #                              identity='Listener Found')
 #     task = gevent.spawn(agent.core.run)
 #     gevent.sleep(10)

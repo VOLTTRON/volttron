@@ -186,7 +186,7 @@ class PlatformWrapper:
         """
         _log.debug('BUILD GENERIC AGENT')
         if address is None:
-            address = self.vip_address[0]
+            address = self.vip_address
 
         agent = Agent(address=address, identity=identity, publickey=publickey,
                       secretkey=secretkey, serverkey=serverkey, **kwargs)
@@ -266,7 +266,7 @@ class PlatformWrapper:
         # else:
         #     self.vip_address = vip_address
 
-        self.vip_address = [vip_address]
+        self.vip_address = vip_address
         self.mode = mode
         self.bind_web_address = bind_web_address
 

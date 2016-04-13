@@ -92,7 +92,7 @@ def sqlhistorian(request, volttron_instance2):
 def forwarder(request, volttron_instance1, volttron_instance2):
     global forwarder_uuid
     # 1. Update destination address in forwarder configuration
-    forwarder_config["destination-vip"] = volttron_instance2.vip_address[0]
+    forwarder_config["destination-vip"] = volttron_instance2.vip_address
     # 1: Install historian agent
     # Install and start sqlhistorian agent in instance2
     forwarder_uuid = volttron_instance1.install_agent(
@@ -617,7 +617,7 @@ def test_topic_not_forwarded(publish_agent, query_agent, volttron_instance1,
 
         print("\n** test_log_topic **")
         new_config = {"agentid": "forwarder",
-                      "destination-vip": volttron_instance2.vip_address[0],
+                      "destination-vip": volttron_instance2.vip_address,
                       "custom_topic_list": [],
                       "services_topic_list":
                           ["devices", "record", "analysis"],
@@ -663,7 +663,7 @@ def test_topic_not_forwarded(publish_agent, query_agent, volttron_instance1,
 
     finally:
         volttron_instance1.stop_agent(forwarder_uuid)
-        forwarder_config["destination-vip"] = volttron_instance2.vip_address[0]
+        forwarder_config["destination-vip"] = volttron_instance2.vip_address
         # 1: Install historian agent
         # Install and start sqlhistorian agent in instance2
         forwarder_uuid = volttron_instance1.install_agent(

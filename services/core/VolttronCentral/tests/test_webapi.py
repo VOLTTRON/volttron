@@ -95,8 +95,8 @@ def test_register_instance(vc_instance, pa_instance):
     username, auth = authenticate(vc_jsonrpc, "admin", "admin")
     assert auth
 
-    print("vip address of pa_agent: {}".format(pa_wrapper.vip_address[0]))
-    print("vip address of vc_agent: {}".format(vc_wrapper.vip_address[0]))
+    print("vip address of pa_agent: {}".format(pa_wrapper.vip_address))
+    print("vip address of vc_agent: {}".format(vc_wrapper.vip_address))
 
     # Call register_instance rpc method on vc
     response = do_rpc("register_instance", [pa_wrapper.bind_web_address],
