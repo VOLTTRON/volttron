@@ -1,3 +1,6 @@
+SQL Historian
+=====
+
 An SQL Historian is available as a core service. The sql historian has
 been programmed to allow for inconsistent network connectivity
 (automatic re-connection to tcp based databases). All additions to the

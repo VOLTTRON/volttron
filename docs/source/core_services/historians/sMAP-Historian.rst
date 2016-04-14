@@ -1,3 +1,6 @@
+sMAP Historian
+=====
+
 This historian allows VOLTTRON data to be published to an sMAP server.
 This replaces the DataLogger functionality of V2.0 as well as the
 capability of 2.0 drivers to publish directly to sMAP.

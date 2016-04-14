@@ -6,6 +6,9 @@ Developer Resources
     :glob:
     :maxdepth: 2
 
-    Deployment-Walkthrough
-    contribdocs/index
+    setup/index
+    agent_development/index
+    deployment/index
+    walkthroughs/index
+    eclipse/index
     *
