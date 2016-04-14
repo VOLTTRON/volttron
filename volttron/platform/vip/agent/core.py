@@ -404,6 +404,8 @@ class Core(BasicCore):
         self.context = context or zmq.Context.instance()
         self.address = address
         self._add_keys_to_addr(publickey, secretkey, serverkey)
+        self.publickey = publickey
+        self.secretkey = secretkey
         self.identity = identity
         self.socket = None
         self.subsystems = {'error': self.handle_error}
