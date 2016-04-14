@@ -8,12 +8,6 @@
         "unit": {
         	"HEATER1": {
                 "subdevices": []
-            },
-            "HEATER2": {
-                "subdevices": []
-            },
-            "HEATER3": {
-                "subdevices": []
             }
         },
         "analysis_name": "WaterHeater_Agent"
