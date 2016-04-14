@@ -5,3 +5,6 @@ API Documentation
    :maxdepth: 4
 
    services
+   platform
+   drivers
+   applications

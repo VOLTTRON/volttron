@@ -14,6 +14,7 @@
 import subprocess
 import sys
 import os
+from glob import glob
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -292,33 +293,79 @@ texinfo_documents = [
 
 # Custom event handlers for Volttron #
 def setup(app):
-    app.connect('builder-inited', run_apidoc)
+    """
+    Registers callback method on sphinx events. callback method used to
+    dynamically generate api-docs rst files which are then converted to html
+    by readthedocs
+    :param app:
+    """
+    app.connect('builder-inited', generate_apidoc)
     app.connect('build-finished', clean_apirst)
 
 
+
 script_dir = os.path.dirname(os.path.realpath(__file__))
-apidocs_base_dir =os.path.abspath(script_dir + "/api-docs")
-def run_apidoc(app):
+apidocs_base_dir =os.path.abspath(script_dir + "/apidocs")
+def generate_apidoc(app):
+    """
+        Generates apidocs for modules under volttron/platform,
+        volttron/services/core, and volttron/applications
+        :param app:
+        :return:
+        """
     print("\n##In run_apidocs##\n")
     global script_dir, apidocs_base_dir
-    # add services/core to path
-    module_services_path = script_dir + "/../../services/core/"
     os.makedirs(apidocs_base_dir, 0755)
-    #volttron_dir=os.path.abspath(script_dir+"/../..")
-    doc_subdir="services"
-    os.mkdir(os.path.join(apidocs_base_dir, doc_subdir), 0755)
 
-    for module in os.listdir(module_services_path):
-        module_path = os.path.join(module_services_path, module)
-        if os.path.isdir(module_path):
-            sys.path.insert(0, os.path.abspath(module_path))
-            subprocess.check_call(
-                ["sphinx-apidoc", '-o',
-                 os.path.join(apidocs_base_dir, doc_subdir, module),
-                 module_path, os.path.join(module_path,"setup.py"), '--force'])
+    # generate api-docs for  services/core
+    docs_subdir=os.path.join(apidocs_base_dir, "services")
+    agent_dirs = glob(script_dir+"/../../services/core/*/")
+    run_apidoc(docs_subdir, agent_dirs)
+
+    # generate api-docs for applications
+    docs_subdir = os.path.join(apidocs_base_dir, "applications")
+    agent_dirs = glob(script_dir + "/../../applications/*/*/")
+    run_apidoc(docs_subdir, agent_dirs)
+
+    #generate api-docs for platform core and drivers
+    subprocess.check_call(
+        ["sphinx-apidoc", '-o',
+         os.path.join(apidocs_base_dir, "platform"),
+         script_dir + "/../../volttron/platform",
+         '--force'])
+    subprocess.check_call(
+        ["sphinx-apidoc", '-o',
+         os.path.join(apidocs_base_dir, "drivers"),
+         script_dir + "/../../volttron/drivers",
+         '--force'])
+
+def run_apidoc(docs_dir, agent_dirs):
+    """
+    Runs sphinx-apidoc on all subdirectories under the given directory.
+    commnad runs with --force and exclude any setup.py file in the subdirectory
+    :param docs_dir: The base directory into with .rst files are generated.
+    :param module_services_path: directory to search for packages to document
+    """
+
+    for agent_dir in agent_dirs:
+        sys.path.insert(0, os.path.abspath(agent_dir))
+        agent_dir = agent_dir[:-1] if agent_dir.endswith("/") else agent_dir
+        name = os.path.basename(agent_dir)
+        subprocess.check_call(
+            ["sphinx-apidoc", '-o',
+             os.path.join(docs_dir, name),
+             agent_dir, os.path.join(agent_dir, "setup.py"),
+             '--force'])
+
 
 def clean_apirst(app, exception):
+    """
+    Deletes folder containing all auto generated .rst files at the end of
+    sphinx build immaterial of the exit state of sphinx build.
+    :param app:
+    :param exception:
+    """
     global apidocs_base_dir
     import shutil
-    print("Cleanup: Removing api-docs directory {}".format(apidocs_base_dir))
+    print("Cleanup: Removing apidocs directory {}".format(apidocs_base_dir))
     shutil.rmtree(apidocs_base_dir)

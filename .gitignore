@@ -17,4 +17,4 @@ parser.out
 /configs/
 /config/
 /docs/build/*
-/docs/source/api-docs
+/docs/source/apidocs

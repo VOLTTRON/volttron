@@ -5,5 +5,5 @@ Services
    :maxdepth: 4
    :glob:
 
-   api-docs/services/*/modules
+   apidocs/services/*/modules
 
