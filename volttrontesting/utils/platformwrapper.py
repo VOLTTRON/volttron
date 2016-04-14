@@ -479,9 +479,14 @@ class PlatformWrapper:
         return aip.list_agents()
 
     def remove_agent(self, agent_uuid):
-        aip = self._aip()
-        uuid = aip.remove_agent(agent_uuid)
-        return aip.agent_status(uuid)
+        """Remove the agent specified by agent_uuid"""
+        _log.debug("REMOVING AGENT: {}".format(agent_uuid))
+        try:
+            cmd = ['volttron-ctl', 'remove', agent_uuid]
+            res = subprocess.check_output(cmd, env=self.env)
+        except CalledProcessError as ex:
+            _log.error("Exception: {}".format(ex))
+        return self.agent_status(agent_uuid)
 
     def is_agent_running(self, agent_uuid):
         return self.agent_status(agent_uuid) is not None
