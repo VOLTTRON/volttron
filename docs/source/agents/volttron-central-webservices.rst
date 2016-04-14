@@ -111,8 +111,6 @@ JSON-RPC Data Objects
     "uuid", "string", "A unique identifier for the platform."
     "name", "string", "A user defined string for the platform."
     "status", "Status", "A status object for the platform."
-#    "agents",
-#    "devices"
 
 .. csv-table:: Agent
     :header: "Key", "Type", "Value"
@@ -133,60 +131,36 @@ JSON-RPC Data Objects
     "name",
     "discovery_address":
 
-.. csv-table:: AdvancedRegistratyEntry
+.. csv-table:: AdvancedRegistratyEntry_TODO
     :header: "Key", "Type", "Value"
     :widths: 10, 10, 40
 
     "name",
-    "vip_address":
-# separate fields???
+    "vip_address"
 
-    "
-    "uuid", "string", "A unique identifier for the platform."
-    "name", "string", "A user defined string for the platform."
-    "status", "Status", "A status object for the platform."
-    "agents",
-    "devices",
-
-.. csv-table:: Agent
+.. csv-table:: Agent_TODO
     :header: "Key", "Type", "Value"
     :widths: 10, 10, 40
 
     "uuid", "string", "A unique identifier for the platform."
     "name", "string", "A user defined string for the platform."
     "status", "Status", "A status object for the platform."
-    "agents",
-    "devices"
 
-.. csv-table:: Building
+.. csv-table:: Building_TODO
     :header: "Key", "Type", "Value"
     :widths: 10, 10, 40
 
     "uuid", "string", "A unique identifier for the platform."
     "name", "string", "A user defined string for the platform."
     "status", "Status", "A status object for the platform."
-    "agents",
-    "devices"
 
-.. csv-table:: Device
+.. csv-table:: Device_TODO
     :header: "Key", "Type", "Value"
     :widths: 10, 10, 40
 
     "uuid", "string", "A unique identifier for the platform."
     "name", "string", "A user defined string for the platform."
     "status", "Status", "A status object for the platform."
-    "agents",
-    "devices"
-
-.. csv-table:: PlatformDetails
-    :header: "Key", "Type", "Value"
-    :widths: 10, 10, 40
-
-    "uuid", "string", "A unique identifier for the platform."
-    "name", "string", "A user defined string for the platform."
-    "status", "Status", "A status object for the platform."
-    "agents",
-    "devices",
 
 .. csv-table:: Status
     :header: "Key", "Type", "Value"
@@ -204,7 +178,6 @@ JSON-RPC API Methods
     :widths: 10, 10, 40
 
     "get_authentication", "(username, password)", "authentication token"
-
 
 
 Messages
@@ -351,208 +324,241 @@ Retrieve Managed Instances
             }
 
 Retrieve Installed Agents From platform1
-POST /jsonrpc
-{
-    "jsonrpc": "2.0",
-    "method": "platforms.uuid.abcd1234-ef56-ab78-cd90-efabcd123456.list_agents",
-    "authorization": "someAuthorizationToken",
-    "id": #
-}
+   .. code-block:: Python
 
-Response Success
-200 OK
-{
-    "jsonrpc": "2.0",
-    "result": [
-        {
-            "name": "HelloAgent",
-            "uuid": "a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6"
-        },
-        {
-            "name": "RunningAgent",
-            "uuid": "a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6"
-        },
-        {
-            "name": "StoppedAgent",
-            "uuid": "a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6"
-        }
-    ],
-    "id": #
-}
+      # POST /jsonrpc
+      {
+          "jsonrpc": "2.0",
+          "method": "platforms.uuid.abcd1234-ef56-ab78-cd90-efabcd123456.list_agents",
+          "authorization": "someAuthorizationToken",
+          "id": #
+      }
+
+   Response Success
+      .. code-block:: Python
+
+         200 OK
+         {
+             "jsonrpc": "2.0",
+             "result": [
+                 {
+                     "name": "HelloAgent",
+                     "uuid": "a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6"
+                 },
+                 {
+                     "name": "RunningAgent",
+                     "uuid": "a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6"
+                 },
+                 {
+                     "name": "StoppedAgent",
+                     "uuid": "a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6"
+                 }
+             ],
+             "id": #
+         }
+
 
 Start An Agent
-POST /jsonrpc
-{
-    "jsonrpc": "2.0",
-    "method": "platforms.uuid.0987fedc-65ba-43fe-21dc-098765bafedc.start_agent",
-    "params": ["a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6"],
-    "authorization": "someAuthorizationToken",
-    "id": #
-}
+   .. code-block:: Python
 
-Response Success
-200 OK
-{
-    "jsonrpc": "2.0",
-    "result": {
-        "process_id": 1000,
-        "return_code": null
-    },
-    "id": #
-}
+      # POST /jsonrpc
+      {
+          "jsonrpc": "2.0",
+          "method": "platforms.uuid.0987fedc-65ba-43fe-21dc-098765bafedc.start_agent",
+          "params": ["a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6"],
+          "authorization": "someAuthorizationToken",
+          "id": #
+      }
+
+   Response Success
+      .. code-block:: Python
+
+         200 OK
+         {
+             "jsonrpc": "2.0",
+             "result": {
+                 "process_id": 1000,
+                 "return_code": null
+             },
+             "id": #
+         }
 
 Stop An Agent
-POST /jsonrpc
-{
-    "jsonrpc": "2.0",
-    "method": "platforms.uuid.0987fedc-65ba-43fe-21dc-098765bafedc.stop_agent",
-    "params": ["a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6"],
-    "authorization": "someAuthorizationToken",
-    "id": #
-}
+   .. code-block:: Python
+
+      # POST /jsonrpc
+      {
+          "jsonrpc": "2.0",
+          "method": "platforms.uuid.0987fedc-65ba-43fe-21dc-098765bafedc.stop_agent",
+          "params": ["a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6"],
+          "authorization": "someAuthorizationToken",
+          "id": #
+      }
 
 Response Success
-200 OK
-{
-    "jsonrpc": "2.0",
-    "result": {
-        "process_id": 1000,
-        "return_code": 0
-    },
-    "id": #
-}
+   .. code-block:: Python
+
+      200 OK
+      {
+          "jsonrpc": "2.0",
+          "result": {
+              "process_id": 1000,
+              "return_code": 0
+          },
+          "id": #
+      }
 
 Remove An Agent
-POST /jsonrpc
-{
-    "jsonrpc": "2.0",
-    "method": "platforms.uuid.0987fedc-65ba-43fe-21dc-098765bafedc.remove_agent",
-    "params": ["a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6"],
-    "authorization": "someAuthorizationToken",
-    "id": #
-}
+   .. code-block:: Python
 
-Response Success
-200 OK
-{
-    "jsonrpc": "2.0",
-    "result": {
-        "process_id": 1000,
-        "return_code": 0
-    },
-    "id": #
-}
+      # POST /jsonrpc
+      {
+          "jsonrpc": "2.0",
+          "method": "platforms.uuid.0987fedc-65ba-43fe-21dc-098765bafedc.remove_agent",
+          "params": ["a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6"],
+          "authorization": "someAuthorizationToken",
+          "id": #
+      }
+
+   Response Success
+      .. code-block:: Python
+
+         200 OK
+         {
+             "jsonrpc": "2.0",
+             "result": {
+                 "process_id": 1000,
+                 "return_code": 0
+             },
+             "id": #
+         }
 
 Retrieve Running Agents
-POST /jsonrpc
-{
-    "jsonrpc": "2.0",
-    "method": "platforms.uuid.0987fedc-65ba-43fe-21dc-098765bafedc.status_agents",
-    "authorization": "someAuthorizationToken",
-    "id": #
-}
+   .. code-block:: Python
 
-Response Success
-200 OK
-{
-    "jsonrpc": "2.0",
-    "result": [
-        {
-            "name": "RunningAgent",
-            "uuid": "a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6"
-            "process_id": 1234,
-            "return_code": null
-        },
-        {
-            "name": "StoppedAgent",
-            "uuid": "a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6"
-            "process_id": 1000,
-            "return_code": 0
-        }
-    ],
-    "id": #
-}
+      # POST /jsonrpc
+      {
+          "jsonrpc": "2.0",
+          "method": "platforms.uuid.0987fedc-65ba-43fe-21dc-098765bafedc.status_agents",
+          "authorization": "someAuthorizationToken",
+          "id": #
+      }
+
+   Response Success
+      .. code-block:: Python
+
+         200 OK
+         {
+             "jsonrpc": "2.0",
+             "result": [
+                 {
+                     "name": "RunningAgent",
+                     "uuid": "a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6"
+                     "process_id": 1234,
+                     "return_code": null
+                 },
+                 {
+                     "name": "StoppedAgent",
+                     "uuid": "a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6"
+                     "process_id": 1000,
+                     "return_code": 0
+                 }
+             ],
+             "id": #
+         }
 
 Retrieve An Agent's RPC Methods
-POST /jsonrpc
-{
-    "jsonrpc": "2.0",
-    "method": "platforms.uuid.0987fedc-65ba-43fe-21dc-098765bafedc.agents.uuid.a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6.inspect",
-    "authorization": "someAuthorizationToken",
-    "id": #
-}
+   .. code-block:: Python
+
+      # POST /jsonrpc
+      {
+          "jsonrpc": "2.0",
+          "method": "platforms.uuid.0987fedc-65ba-43fe-21dc-098765bafedc.agents.uuid.a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6.inspect",
+          "authorization": "someAuthorizationToken",
+          "id": #
+      }
 
 Response Success
-200 OK
-{
-    "jsonrpc": "2.0",
-    "result": [
-        {
-            "method": "sayHello",
-            "params": {
-                "name": "string"
-            }
-        }
-    ],
-    "id": #
-}
+   .. code-block:: Python
+
+      200 OK
+      {
+          "jsonrpc": "2.0",
+          "result": [
+              {
+                  "method": "sayHello",
+                  "params": {
+                      "name": "string"
+                  }
+              }
+          ],
+          "id": #
+      }
 
 Perform Agent Action
-POST /jsonrpc
-{
-    "jsonrpc": "2.0",
-    "method": "platforms.uuid.0987fedc-65ba-43fe-21dc-098765bafedc.agents.uuid.a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6.methods.say_hello",
-    "params": {
-        "name": "Dorothy"
-    },
-    "authorization": "someAuthorizationToken",
-    "id": #
-}
+   .. code-block:: Python
 
-Success Response
-200 OK
-{
-    "jsonrpc": "2.0",
-    "result": "Hello, Dorothy!",
-    "id": #
-}
+      # POST /jsonrpc
+      {
+          "jsonrpc": "2.0",
+          "method": "platforms.uuid.0987fedc-65ba-43fe-21dc-098765bafedc.agents.uuid.a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6.methods.say_hello",
+          "params": {
+              "name": "Dorothy"
+          },
+          "authorization": "someAuthorizationToken",
+          "id": #
+      }
+
+   Success Response
+      .. code-block:: Python
+
+         200 OK
+         {
+             "jsonrpc": "2.0",
+             "result": "Hello, Dorothy!",
+             "id": #
+         }
 
 Install Agent
-POST /jsonrpc
-{
-    "jsonrpc": "2.0",
-    "method": "platforms.uuid.0987fedc-65ba-43fe-21dc-098765bafedc.install",
-    "params": {
-        files: [
-            {
-                "file_name": "helloagent-0.1-py2-none-any.whl",
-                "file": "data:application/octet-stream;base64,..."
-            },
-            {
-                "file_name": "some-non-wheel-file.txt",
-                "file": "data:application/octet-stream;base64,..."
-            },
-            ...
-        ],
-    }
-    "authorization": "someAuthorizationToken",
-    "id": #
-}
+   .. code-block:: Python
 
-Success Response
-200 OK
-{
-    "jsonrpc": "2.0",
-    "result": {
-        [
-            {
-                "uuid": "a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6"
-            },
-            {
-                "error": "Some error message"
-            },
-            ...
-        ]
-    },
-    "id": #
-}
+      # POST /jsonrpc
+      {
+          "jsonrpc": "2.0",
+          "method": "platforms.uuid.0987fedc-65ba-43fe-21dc-098765bafedc.install",
+          "params": {
+              "files": [
+                  {
+                      "file_name": "helloagent-0.1-py2-none-any.whl",
+                      "file": "data:application/octet-stream;base64,..."
+                  },
+                  {
+                      "file_name": "some-non-wheel-file.txt",
+                      "file": "data:application/octet-stream;base64,..."
+                  },
+                  ...
+              ],
+          }
+          "authorization": "someAuthorizationToken",
+          "id": #
+      }
+
+   Success Response
+      .. code-block:: Python
+
+         200 OK
+         {
+             "jsonrpc": "2.0",
+             "result": {
+                 [
+                     {
+                         "uuid": "a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6"
+                     },
+                     {
+                         "error": "Some error message"
+                     },
+                     ...
+                 ]
+             },
+             "id": #
+         }
