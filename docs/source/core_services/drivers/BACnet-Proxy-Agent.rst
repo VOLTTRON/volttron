@@ -1,5 +1,6 @@
+==================
 BACnet Proxy Agent
-======
+==================
 
 Introduction
 ------------
@@ -17,7 +18,7 @@ Configuration
 
 The agent configuration sets up the virtual BACnet device.
 
-::
+.. code-block:: json
 
     {
         "vip_identity": "platform.bacnet_proxy",
@@ -29,18 +30,20 @@ The agent configuration sets up the virtual BACnet device.
         "segmentation_supported": "segmentedBoth"
     }
 
--  **vip\_identity** - The VIP identity of the agent. Defaults to
-   "platform.bacnet\_proxy". This should only be changed if multiple
+-  **vip_identity** - The VIP identity of the agent. Defaults to
+   *platform.bacnet_proxy*. This should only be changed if multiple
    Proxies need to be run for communication with multiple BACnet
-   networks. See below.
+   networks. See `Communicating With Multiple BACnet Networks`_.
 
 BACnet device settings
-~~~~~~~~~~~~~~~~~~~~~~
+**********************
 
--  **device\_address** - Address bound to the network port over which
+-  **device_address** - Address bound to the network port over which
    BACnet communication will happen on the computer running VOLTTRON.
-   This is NOT the address of any target device. See notes about device
-   addressing below.
+   This is **NOT** the address of any target device. See `Device Addressing`_.   
+-  **object_id** - ID of the Device object of the virtual bacnet
+   device. Defaults to 599. Only needs to be changed if there is
+   a conflicting BACnet device ID on your network.
 
 These settings determine the capabilities of the virtual BACnet device.
 BACnet communication happens at the lowest common denominator between
@@ -48,45 +51,50 @@ two devices. For instance if the BACnet proxy supports segmentation and
 the target device does not communication will happen without
 segmentation support and will be subject to those limitations.
 Consequently there is little reason to change the default settings
-outside of the max\_apdu\_length (the default is not the largest
+outside of the **max_apdu_length** (the default is not the largest
 possible value).
 
--  **max\_apdu\_length** - (From bacpypes documentation) BACnet works on
+-  **max_apdu_length** - (From bacpypes documentation) BACnet works on
    lots of different types of networks, from high speed Ethernet to
    “slower” and “cheaper” ARCNET or MS/TP (a serial bus protocol used
    for a field bus defined by BACnet). For devices to exchange messages
    they have to know the maximum size message the device can handle.
    (End BACpypes docs)
 
-| This setting determines the largest APDU accepted by the BACnet
-virtual device.
-| Valid options are 50, 128, 206, 480, 1024, and 1476. Defaults to
-1024.(Optional)
+   This setting determines the largest APDU accepted by the BACnet
+   virtual device. Valid options are 50, 128, 206, 480, 1024, and 1476. 
+   Defaults to 1024.(Optional)
 
--  **object\_id** - ID of the Device object of the virtual bacnet
-   device. Defaults to 599. (Optional)
--  **object\_name** - Name of the object. Defaults to "Volttron BACnet
+
+-  **object_name** - Name of the object. Defaults to "Volttron BACnet
    driver". (Optional)
--  **vendor\_id** - Vendor ID of the virtual bacnet device. Defaults to
+-  **vendor_id** - Vendor ID of the virtual bacnet device. Defaults to
    15. (Optional)
--  **segmentation\_supported** - (From bacpypes documentation) A vast
+-  **segmentation_supported** - (From bacpypes documentation) A vast
    majority of BACnet communications traffic fits in one message, but
    there can be times when larger messages are convinient and more
    efficient. Segmentation allows larger messages to be broken up into
    segemnts and spliced back together. It is not unusual for “low power”
    field equipment to not support segmentation. (End BACpypes docs)
 
-Possible setting are segmentedBoth (default), segmentedTransmit,
-segmentedReceive, or noSegmentation (Optional)
+   Possible setting are "segmentedBoth" (default), "segmentedTransmit",
+   "segmentedReceive", or "noSegmentation" (Optional)
 
-Device addressing
+Device Addressing
 -----------------
 
 In some cases it will be needed to specify the subnet mask of the
 virtual device or a different port number to listen on. The full format
-of the address is ADDRESS/SUBNET\_MASK:PORT. For instance if you need to
-specify a subnet mask of 255.255.255.0 and the IP address bound to the
-network port is 192.168.1.2 you would use the address
+of the BACnet device address is 
+
+    ``<ADDRESS>/<NETMASK>:<PORT>``
+    
+where ``<PORT>`` is the port to use and ``<NETMASK>`` is the netmask length. 
+The most commmon value is 24. See http://www.computerhope.com/jargon/n/netmask.htm
+
+For instance if you need to specify a subnet mask of 255.255.255.0 
+and the IP address bound to the network port is 192.168.1.2 you 
+would use the address
 
 ::
 
@@ -101,23 +109,26 @@ default (47808) you would use the address
 
 If you need to do both
 
-192.168.1.2/24:47809
+::
 
-Communicating with multiple BACnet networks
+    192.168.1.2/24:47809
+
+Communicating With Multiple BACnet Networks
 -------------------------------------------
 
-| If two BACnet devices are connected to different ports they are
+If two BACnet devices are connected to different ports they are
 considered to be on different BACnet networks. In order to communicate
 with both devices you will need to run one BACnet Proxy Agent per
 network.
-| Each proxy will need to be bound to different ports appropriate to
+
+Each proxy will need to be bound to different ports appropriate to
 each BACnet network and will need a different VIP identity specified.
 When configuring drivers you will need to specify which proxy to use by
 specifying the VIP identity.
 
 For example a proxy connected to the default BACnet network
 
-::
+.. code-block:: json
 
     {
         "vip_identity": "platform.bacnet_proxy_1",
@@ -126,7 +137,7 @@ For example a proxy connected to the default BACnet network
 
 and another on port 47809
 
-::
+.. code-block:: json
 
     {
         "vip_identity": "platform.bacnet_proxy_2",
@@ -135,7 +146,7 @@ and another on port 47809
 
 a device one the first network
 
-::
+.. code-block:: json
 
     {
         "driver_config": {"device_address": "1002:12",
@@ -152,7 +163,7 @@ a device one the first network
 
 and a device on the second network
 
-::
+.. code-block:: json
 
     {
         "driver_config": {"device_address": "12000:5",
