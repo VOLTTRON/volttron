@@ -64,10 +64,11 @@ class Application(AbstractDrivenAgent):
         
     def run(self, cur_time, points):
         
-        status = [0, 1, 1, 0]
+        status = [0, 1]
+        # random.choice(status)
 
         matlab_result = {'commands':{
-                                "HEATER1":[["HPWH_Phy0_PowerState",random.choice(status)],["ERWH_Phy0_ValveState",random.choice(status)]]
+                                "HEATER1":[["HPWH_Phy0_PowerState",1],["ERWH_Phy0_ValveState",1]]
                                }
                         }
         
