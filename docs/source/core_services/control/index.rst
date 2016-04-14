@@ -1,5 +1,5 @@
 ===================
-Documentation of Contributed Code
+Base Platform Functionality
 ===================
 
 .. toctree::

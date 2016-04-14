@@ -1,5 +1,5 @@
 ===================
-Developer Resources
+Overview
 ===================
 
 .. toctree::
