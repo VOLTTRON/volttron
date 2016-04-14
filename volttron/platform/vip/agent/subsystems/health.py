@@ -53,12 +53,12 @@
 
 
 import logging
+import os
 import weakref
 
+from volttron.platform.agent import utils
+from volttron.platform.messaging import topics
 from volttron.platform.messaging.health import *
-from volttron.platform.agent.utils import (get_aware_utc_now,
-                                           format_timestamp)
-
 from .base import SubsystemBase
 
 __docformat__ = 'reStructuredText'
@@ -68,38 +68,55 @@ __version__ = '1.0'
 The health subsystem allows an agent to store it's health in a non-intrusive
 way.
 """
+utils.setup_logging()
 _log = logging.getLogger(__name__)
-
+_log.setLevel(logging.DEBUG)
 
 class Health(SubsystemBase):
-    def __init__(self, owner, core, rpc, heartbeat):
+    def __init__(self, owner, core, rpc):
         self._owner = owner
         self._core = weakref.ref(core)
-        self._heartbeat = weakref.ref(heartbeat)
         self._rpc = weakref.ref(rpc)
-        self._status = None
-        self._update_status(STATUS_GOOD)
+        self._statusobj = Status.build(
+            STATUS_GOOD, status_changed_callback=self._status_changed)
 
         def onsetup(sender, **kwargs):
             rpc.export(self.set_status, 'health.set_status')
             rpc.export(self.get_status, 'health.get_status')
-
-        def onstart(sender, **kwargs):
-            heartbeat.start()
+            rpc.export(self.send_alert, 'health.send_alert')
 
         core.onsetup.connect(onsetup, self)
-        core.onstart.connect(onstart, self)
 
-    def _update_status(self, status, context=None):
-        if status not in ACCEPTABLE_STATUS:
-            status = STATUS_BAD
-            context = str(context) + ' Invalid status detected'
+    def send_alert(self, alert_key, statusobj):
+        """
+        An alert_key is a quasi-unique key.  A listener to the alert can
+        determine whether to pass the alert on to a higher level based upon
+        the frequency of this alert.
 
-        self._status = {
-            CURRENT_STATUS: status,
-            CONTEXT: context,
-            LAST_UPDATED: format_timestamp(get_aware_utc_now())
-        }
+        :param alert_key:
+        :param context:
+        :return:
+        """
+        _log.debug("In send alert")
+        if not isinstance(statusobj, Status):
+            raise ValueError('statusobj must be a Status object.')
+        agent_class = self._owner.__class__.__name__
+        agent_uuid = os.environ.get('AGENT_UUID', '')
+        _log.debug("agent class {}".format(agent_class))
+        _log.debug("agent uuid {}".format(agent_uuid))
+        topic = topics.ALERTS(agent_class=agent_class, agent_uuid=agent_uuid)
+        headers = dict(alert_key=alert_key)
+        _log.debug("Headers before sending alert  {}".format(headers))
+        self._owner.vip.pubsub.publish("pubsub",
+                                       topic=topic.format(),
+                                       headers=headers,
+                                       message=statusobj.to_json())
+
+    def _status_changed(self):
+        """ Internal function that happens when the status changes state.
+        :return:
+        """
+        self._owner.vip.heartbeat.restart()
 
     def set_status(self, status, context=None):
         """RPC method
@@ -110,15 +127,7 @@ class Health(SubsystemBase):
         :param: context: str: A serializable that denotes the context of
         status.
         """
-        do_heartbeat_now = self._status['current_status'] != status
-
-        self._update_status(status, context)
-
-        if do_heartbeat_now:
-            # TODO: Check that the heartbeat publishes immediately
-            _log.debug("exercise heartbeat!")
-            self._heartbeat().stop()
-            self._heartbeat().start()
+        self._statusobj.update_status(status, context)
 
     def get_status(self):
         """"RPC method
@@ -134,4 +143,4 @@ class Health(SubsystemBase):
             }
 
         """
-        return self._status.copy()
+        return self._statusobj.to_json()
