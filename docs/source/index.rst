@@ -14,9 +14,16 @@ Contents:
 
    Install Instructions <install>
    License <license>
-
+   community_resources/index
    API Documenation <apidocs>
    
+   overview/index
+   core_services/index
+   devguides/index
+   supporting/index
+   scalability/index
+   roadmap/index
+
 
 =======
 Support

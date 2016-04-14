@@ -66,12 +66,14 @@ The following settings are required for all device configurations:
     - **registry_config** - Registry configuration file for registers on the device. See the `Registry Configuration File`_ below.
 
 These settings are optional:
-    - **interval** - Period which to scrape the device and publish the results in seconds. This defaults to 60.
+
+    - **interval** - Period which to scrape the device and publish the results in seconds. Defaults to 60.
     - **heart_beat_point** - A Point which to toggle to indicate a heartbeat to the device. A point with this Volttron Point Name must exist in the registry. If this setting is missing the driver will not send a heart beat signal to the device. Heart beats are triggered by the Actuator Agent which must be running to use this feature.
 
 These settings are used to create the topic that this device will be referenced by following the VOLTTRON standard of {campus}/{building}/{unit}. This will also be the topic published on when then device is periodically scraped for it's current state.
 
 While all of the settings are optional at least one is required.
+
     - **campus** - Campus portion of the device topic. (Optional)
     - **building** - Building portion of the device topic. (Optional)
     - **unit** - Unit portion of the device topic. (Optional)
@@ -79,11 +81,11 @@ While all of the settings are optional at least one is required.
 
 For instance with the above example the topic used to reference this device would be
 
-    "pnnl/isb1/vav1"
+    ``pnnl/isb1/vav1``
 
 when making an RPC call to the actuator and device state publishes would start with
 
-    "devices/pnnl/isb1/vav1"
+    ``devices/pnnl/isb1/vav1``
 
 Registry Configuration File
 ---------------------------
@@ -92,17 +94,21 @@ Registry configuration files setup each individual point on a device. Typically 
 The following is a simple example of a MODBUS registry confugration file:
 
 .. csv-table:: Catalyst 371
-	:header: Reference Point Name,Volttron Point Name,Units,Units Details,Modbus Register,Writable,Point Address,Default Value,Notes
+    :header: Reference Point Name,Volttron Point Name,Units,Units Details,Modbus Register,Writable,Point Address,Default Value,Notes
 	
-	CO2Sensor,ReturnAirCO2,PPM,0.00-2000.00,>f,FALSE,1001,,CO2 Reading 0.00-2000.0 ppm
-	CO2Stpt,ReturnAirCO2Stpt,PPM,1000.00 (default),>f,TRUE,1011,1000,Setpoint to enable demand control ventilation 
-        HeatCall2,HeatCall2,On / Off,on/off,BOOL,FALSE,1114,,Status indicator of heating stage 2 need
+    CO2Sensor,ReturnAirCO2,PPM,0.00-2000.00,>f,FALSE,1001,,CO2 Reading 0.00-2000.0 ppm
+    CO2Stpt,ReturnAirCO2Stpt,PPM,1000.00 (default),>f,TRUE,1011,1000,Setpoint to enable demand control ventilation 
+    HeatCall2,HeatCall2,On / Off,on/off,BOOL,FALSE,1114,,Status indicator of heating stage 2 need
 
 MODBUS Driver Configuration
 ---------------------------
 Currently the MODBUS driver only supports MODBUS over TCP.
 
-There are three arguments for the "driver_config" section of the general driver configuration:
+driver_config
+*************
+
+There are three arguments for the **driver_config** section of the general driver configuration:
+
     - **device_address** - IP Address of the device.
     - **port** - Port the device is listening on. Defaults to 502 which is the standard port for MODBUS devices.
     - **slave_id** - Slave ID of the device. Defaults to 0. Use 0 for no slave.
@@ -125,20 +131,28 @@ Here is an example device configuration file:
         "heart_beat_point": "heartbeat"
     }
 
-A sample MODBUS configuration file can be found in the repository in services/core/MasterDriverAgent/test_modbus1.config
+A sample MODBUS configuration file can be found in the repository in 
+
+	``services/core/MasterDriverAgent/test_modbus1.config``
+
+Registry Configuration File
+***************************
 
 The registry configuration file is a `CSV <https://en.wikipedia.org/wiki/Comma-separated_values>`_ file. Each row configures a point on the device. 
 
 The following columns are required for each row:
 
-    - **Volttron Point Name** - The name by which the platform and agents running on the platform will refer to this point. For instance, if the Volttron Point Name is HeatCall1 (and using the example device configuration above) then an agent would use "pnnl/isb2/hvac1/HeatCall1" to refer to the point when using the RPC interface of the actuator agent.
+    - **Volttron Point Name** - The name by which the platform and agents running on the platform will refer to this point. For instance, if the Volttron Point Name is HeatCall1 (and using the example device configuration above) then an agent would use ``pnnl/isb2/hvac1/HeatCall1`` to refer to the point when using the RPC interface of the actuator agent.
     - **Units** - Used for meta data when creating point information on the historian.
     - **Modbus Register** - A string representing how to interpret the data register and how to read it it from the device. The string takes two forms:
+    
         + "BOOL" for coils and discrete inputs.
         + A format string for the Python struct module. See http://docs.python.org/2/library/struct.html for full documentation. The supplied format string must only represent one value. See the documentation of your device to determine how to interpret the registers. Some Examples:
+        
             * ">f" - A big endian 32-bit floating point number.
             * "<H" - A little endian 16-bit unsigned integer.
             * ">l" - A big endian 32-bit integer.
+            
     - **Writable** - Either "TRUE" or "FALSE". Determines if the point can be written to. Only points labeled TRUE can be written to through the ActuatorAgent.
     - **Point Address** - Modbus address of the point. Cannot include any offset value, it must be the exact value of the address.
 
@@ -146,7 +160,7 @@ The following column is optional:
 
     - **Default Value** - The default value for the point. When the point is reverted by an agent it will change back to this value. If this value is missing it will revert to the last known value not set by an agent.
 
-Any additional columns will be ignored. It is common practice to include a "Point Name" or "Reference Point Name" to include the device documentation's name for the point and "Notes" and "Unit Details" for additional information about a point.
+Any additional columns will be ignored. It is common practice to include a **Point Name** or **Reference Point Name** to include the device documentation's name for the point and **Notes** and **Unit Details** for additional information about a point.
 
 The following is an example of a MODBUS registry confugration file:
 
@@ -165,13 +179,19 @@ The following is an example of a MODBUS registry confugration file:
         HeatCall1,HeatCall1,On / Off,on/off,BOOL,FALSE,1113,,Status indicator of heating stage 1 need
         HeartBeat,heartbeat,On / Off,on/off,BOOL,FALSE,1114,,Status indicator of heating stage 2 need
 
-A sample MODBUS registry configuration file can be found in volttron/drivers/catalyst371.csv
+A sample MODBUS registry configuration file can be found in 
+
+    ``volttron/drivers/catalyst371.csv``
 
 BACnet Driver Configuration
 ---------------------------
 Communicating with BACnet devices requires that the BACnet Proxy Agent is configured and running. All device communication happens through this agent.
 
+driver_config
+*************
+
 There are six arguments for the "driver_config" section of the general driver configuration:
+
     - **device_address** - Address of the device. If the target device is behind an IP to MS/TP router then Remote Station addressing will probably be needed for the driver to find the device.
     - **device_id** - BACnet ID of the device. Used to establish a route to the device at startup. 
     - **min_priority** - (Optional) Minimum priority value allowed for this device whether specifying the prioity manually or via the registry config. Violating this parameter either in the configuration or when writing to the point will result in an error. Defaults to 8.
@@ -199,11 +219,16 @@ Here is an example device configuration file:
         "heart_beat_point": "heartbeat"
     }
 
-A sample BACnet configuration file can be found in the repository in services/core/MasterDriverAgent/test_bacnet1.config
+A sample BACnet configuration file can be found in the repository in 
+
+    ``services/core/MasterDriverAgent/test_bacnet1.config``
+
+Registry Configuration File
+***************************
 
 The registry configuration file is a `CSV <https://en.wikipedia.org/wiki/Comma-separated_values>`_ file. Each row configures a point on the device. 
 
-Most of the configuration file can be generated with the grab_bacnet_config.py utility in scripts/bacnet. See AutoBacnetConfigGeneration.
+Most of the configuration file can be generated with the ``grab_bacnet_config.py`` utility in ``scripts/bacnet``. See AutoBacnetConfigGeneration.
 
 Currently the driver provides no method to access array type properties even if the members of the array are of a supported type.
 
@@ -212,6 +237,7 @@ The following columns are required for each row:
     - **Volttron Point Name** - The name by which the platform and agents running on the platform will refer to this point. For instance, if the Volttron Point Name is HeatCall1 (and using the example device configuration above) then an agent would use "pnnl/isb2/hvac1/HeatCall1" to refer to the point when using the RPC interface of the actuator agent.
     - **Units** - Used for meta data when creating point information on the historian.
     - **BACnet Object Type** - A string representing what kind of BACnet standard object the point belongs to. Examples include:
+    
         * analogInput
         * analogOutput
         * analogValue
@@ -219,6 +245,7 @@ The following columns are required for each row:
         * binaryOutput
         * binaryValue
         * multiStateValue
+        
     - **Property** - A string representing the name of the property belonging to the object. Usually this will be "presentValue".
     - **Writable** - Either "TRUE" or "FALSE". Determines if the point can be written to. Only points labeled TRUE can be written to through the ActuatorAgent. Points labeled "TRUE" incorrectly will cause an error to be returned when an agent attempts to write to the point.
     - **Index** - Object ID of the BACnet object.
@@ -227,7 +254,7 @@ The following column is optional:
 
     - **Write Priority** - BACnet priority for writing to this point. Valid values are 1-16. Missing this column or leaving the column blank will use the default priority of 16.
 
-Any additional columns will be ignored. It is common practice to include a "Point Name" or "Reference Point Name" to include the device documentation's name for the point and "Notes" and "Unit Details" for additional information about a point.
+Any additional columns will be ignored. It is common practice to include a **Point Name** or **Reference Point Name** to include the device documentation's name for the point and **Notes** and **Unit Details**" for additional information about a point.
 
 .. csv-table:: BACnet
 	:header: Point Name,Volttron Point Name,Units,Unit Details,BACnet Object Type,Property,Writable,Index,Notes
@@ -242,11 +269,16 @@ Any additional columns will be ignored. It is common practice to include a "Poin
         2400Stevens/FCB.Local Application.SF-O,SupplyFanSpeedOutputCommand,percent,0.00 to 100.00 (default 0.0),analogOutput,presentValue,TRUE,3000113,Resolution: 0.1
 
 
-A sample BACnet registry configuration file can be found in volttron/drivers/bacnet_example_config.csv
+A sample BACnet registry configuration file can be found in 
+
+    ``volttron/drivers/bacnet_example_config.csv``
 
 Fake Device Driver Configuration
 --------------------------------
 This driver does not connect to any actual device and instead produces random and or pre-configured values. 
+
+driver_config
+*************
 
 There are no arguments for the "driver_config" section of the general driver configuration. The driver_config must still be present and should be left blank
 
@@ -266,13 +298,18 @@ Here is an example device configuration file:
         "heart_beat_point": "heartbeat"
     }
 
-A sample fake device configuration file can be found in the repository in services/core/MasterDriverAgent/test_fakedriver.config
+A sample fake device configuration file can be found in the repository in 
+
+    ``services/core/MasterDriverAgent/test_fakedriver.config``
+
+Registry Configuration File
+***************************
 
 The registry configuration file is a `CSV <https://en.wikipedia.org/wiki/Comma-separated_values>`_ file. Each row configures a point on the device. 
 
 The following columns are required for each row:
 
-    - **Volttron Point Name** - The name by which the platform and agents running on the platform will refer to this point. For instance, if the Volttron Point Name is HeatCall1 (and using the example device configuration above) then an agent would use "pnnl/isb2/hvac1/HeatCall1" to refer to the point when using the RPC interface of the actuator agent.
+    - **Volttron Point Name** - The name by which the platform and agents running on the platform will refer to this point. For instance, if the Volttron Point Name is HeatCall1 (and using the example device configuration above) then an agent would use *pnnl/isb2/hvac1/HeatCall1* to refer to the point when using the RPC interface of the actuator agent.
     - **Units** - Used for meta data when creating point information on the historian.
     - **Writable** - Either "TRUE" or "FALSE". Determines if the point can be written to. Only points labeled TRUE can be written to through the ActuatorAgent. Points labeled "TRUE" incorrectly will cause an error to be returned when an agent attempts to write to the point.
     
@@ -281,12 +318,13 @@ The following columns are optional:
 
     - **Starting Value** - Initial value for the point. If the point is reverted it will change back to this value. By default points will start with a random value (1-100).
     - **Type** - Value type for the point. Defaults to "string". Valid types are:
+    
         * string
         * integer
         * float
         * boolean
 
-Any additional columns will be ignored. It is common practice to include a "Point Name" or "Reference Point Name" to include the device documentation's name for the point and "Notes" and "Unit Details" for additional information about a point. Please note that there is nothing in the driver that will enforce anything specified in the "Unit Details" column.
+Any additional columns will be ignored. It is common practice to include a **Point Name** or **Reference Point Name** to include the device documentation's name for the point and **Notes** and **Unit Details** for additional information about a point. Please note that there is nothing in the driver that will enforce anything specified in the **Unit Details** column.
 
 .. csv-table:: BACnet
 	:header: Volttron Point Name,Units,Units Details,Writable,Starting Value,Type,Notes
@@ -300,4 +338,6 @@ Any additional columns will be ignored. It is common practice to include a "Poin
         SampleWritableBool1,On / Off,on/off,TRUE,TRUE,boolean,Status indicator
 
 
-A sample fave device registry configuration file can be found in services/core/MasterDriverAgent/fake.csv
+A sample fave device registry configuration file can be found in 
+
+    ``services/core/MasterDriverAgent/fake.csv``
