@@ -17,6 +17,10 @@ Contents:
 
    platform-api
 
+   core_services/index
+   roadmap/index
+   devguides/index
+
 =======
 Support
 =======
