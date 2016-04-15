@@ -1,5 +1,5 @@
 ====================================================
-Automatically generating a BACnet configuration file
+Automatically Generating BACnet Configuration Files
 ====================================================
 
 Included with the platform are two scripts for finding and configuring BACnet devices. 

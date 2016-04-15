@@ -113,6 +113,8 @@ If you need to do both
 
     192.168.1.2/24:47809
 
+.. _bacnet-proxy-multiple-networks:
+
 Communicating With Multiple BACnet Networks
 -------------------------------------------
 

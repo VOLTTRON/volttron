@@ -63,7 +63,7 @@ The following settings are required for all device configurations:
 
     - **driver_config** - Driver specific setting go here. See below for driver specific settings.
     - **driver_type** - Type of driver to use for this device. Currently VOLTTRON includes "bacnet" and "modbus" drivers and a testing driver called "fake".
-    - **registry_config** - Registry configuration file for registers on the device. See the `Registry Configuration File`_ below.
+    - **registry_config** - Registry configuration file for registers on the device. See the `Registry Configuration File`_ section below.
 
 These settings are optional:
 
@@ -135,8 +135,8 @@ A sample MODBUS configuration file can be found in the repository in
 
 	``services/core/MasterDriverAgent/test_modbus1.config``
 
-Registry Configuration File
-***************************
+MODBUS Registry Configuration File
+**********************************
 
 The registry configuration file is a `CSV <https://en.wikipedia.org/wiki/Comma-separated_values>`_ file. Each row configures a point on the device. 
 
@@ -196,7 +196,7 @@ There are six arguments for the "driver_config" section of the general driver co
     - **device_id** - BACnet ID of the device. Used to establish a route to the device at startup. 
     - **min_priority** - (Optional) Minimum priority value allowed for this device whether specifying the prioity manually or via the registry config. Violating this parameter either in the configuration or when writing to the point will result in an error. Defaults to 8.
     - **max_per_request** - (Optional) Configure driver to manually segment read requests. The driver will only grab up to the number of objects specified in this setting at most per request. This setting is primarily for scraping many points off of low resource devices that do not support segmentation. Defaults to 10000.
-    - **proxy_address** - (Optional) VIP address of the BACnet proxy. Defaults to "platform.bacnet_proxy". See BACnet Proxy Agent for details. Unless your BACnet network has special needs you should not change this value.
+    - **proxy_address** - (Optional) VIP address of the BACnet proxy. Defaults to "platform.bacnet_proxy". See :ref:`bacnet-proxy-multiple-networks` for details. Unless your BACnet network has special needs you should not change this value.
     - **ping_retry_interval** - (Optional) The driver will ping the device to establish a route at startup. If the BACnet proxy is not available the driver will retry the ping at this interval until it succeeds. Defaults to 5.
 
 Here is an example device configuration file:
@@ -223,12 +223,12 @@ A sample BACnet configuration file can be found in the repository in
 
     ``services/core/MasterDriverAgent/test_bacnet1.config``
 
-Registry Configuration File
-***************************
+BACnet Registry Configuration File
+**********************************
 
 The registry configuration file is a `CSV <https://en.wikipedia.org/wiki/Comma-separated_values>`_ file. Each row configures a point on the device. 
 
-Most of the configuration file can be generated with the ``grab_bacnet_config.py`` utility in ``scripts/bacnet``. See AutoBacnetConfigGeneration.
+Most of the configuration file can be generated with the ``grab_bacnet_config.py`` utility in ``scripts/bacnet``. See :doc:`BACnet-Auto-Configuration`.
 
 Currently the driver provides no method to access array type properties even if the members of the array are of a supported type.
 
@@ -302,8 +302,8 @@ A sample fake device configuration file can be found in the repository in
 
     ``services/core/MasterDriverAgent/test_fakedriver.config``
 
-Registry Configuration File
-***************************
+Fake Device Registry Configuration File
+***************************************
 
 The registry configuration file is a `CSV <https://en.wikipedia.org/wiki/Comma-separated_values>`_ file. Each row configures a point on the device. 
 
