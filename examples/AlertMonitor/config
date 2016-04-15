@@ -1,0 +1,4 @@
+{
+    # The outfile will be relative to where the agent is installed/run from.
+    "outfile": "alerts.txt"
+}
