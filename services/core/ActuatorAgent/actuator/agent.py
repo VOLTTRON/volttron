@@ -58,10 +58,6 @@
 
 __docformat__ = 'reStructuredText'
 
-"""The Actuator Agent regulates control of devices by other agents. Agents
-request a schedule and then issue commands to the device through
-this agent."""
-
 
 import datetime
 import sys
@@ -106,6 +102,15 @@ class LockError(StandardError):
 
 
 def actuator_agent(config_path, **kwargs):
+    """Parses the Actuator Agent configuration and returns an instance of 
+    the agent created using that configuation.
+    
+    :param config_path: Path to a configuation file. 
+    
+    :type config_path: str
+    :returns: Actuator Agent
+    :rtype: ActuatorAgent
+    """
     config = utils.load_config(config_path)
     heartbeat_interval = int(config.get('heartbeat_period', 60))
     schedule_publish_interval = int(config.get('schedule_publish_interval', 60))
@@ -121,9 +126,34 @@ def actuator_agent(config_path, **kwargs):
                          driver_vip_identity, identity=vip_identity, **kwargs)
 
 class ActuatorAgent(Agent):
-    def __init__(self, heartbeat_interval, schedule_publish_interval,
-                 schedule_state_file, preempt_grace_time,
-                 driver_vip_identity, **kwargs):
+    """
+    The Actuator Agent regulates control of devices by other agents. Agents
+    request a schedule and then issue commands to the device through
+    this agent.
+    
+    The Actuator Agent also sends out the signal to drivers to trigger
+    a device heartbeat.
+    
+    :param heartbeat_interval: Interval in seonds to send out a heartbeat 
+        to devices. 
+    :param schedule_publish_interval: Interval in seonds to publish the
+        currently active schedules. 
+    :param schedule_state_file: Name of the file to save the current schedule
+        state to. This file is updated every time a schedule changes. 
+    :param preempt_grace_time: Time in seconds after a schedule is preemted
+        before it is actually cancelled. 
+    :param driver_vip_identity: VIP identity of the Master Driver Agent. 
+
+    :type heartbeat_interval: float
+    :type schedule_publish_interval: float
+    :type preempt_grace_time: float
+    :type schedule_state_file: str
+    :type driver_vip_identity: str
+    """
+    def __init__(self, heartbeat_interval=60, schedule_publish_interval=60,
+                 schedule_state_file=None, preempt_grace_time=60,
+                 driver_vip_identity='platform.driver', **kwargs):
+        
         super(ActuatorAgent, self).__init__(**kwargs)
         _log.debug("vip_identity: " + self.core.identity)
 
@@ -135,7 +165,7 @@ class ActuatorAgent(Agent):
         self.preempt_grace_time = preempt_grace_time
         self.driver_vip_identity = driver_vip_identity
                 
-    def heart_beat(self):
+    def _heart_beat(self):
         _log.debug("sending heartbeat")
         try:
             self.vip.rpc.call(self.driver_vip_identity, 'heart_beat').get()
@@ -145,8 +175,8 @@ class ActuatorAgent(Agent):
             _log.warning(''.join([e.__class__.__name__,'(',e.message,')']))
 
     @Core.receiver('onstart')
-    def on_start(self, sender, **kwargs):
-        self.setup_schedule()
+    def _on_start(self, sender, **kwargs):
+        self._setup_schedule()
         self.vip.pubsub.subscribe(peer='pubsub',
                                   prefix=topics.ACTUATOR_GET(),
                                   callback=self.handle_get)
@@ -167,17 +197,17 @@ class ActuatorAgent(Agent):
                                   prefix=topics.ACTUATOR_REVERT_DEVICE(),
                                   callback=self.handle_revert_device)
         
-        self.core.periodic(self.heartbeat_interval, self.heart_beat)
+        self.core.periodic(self.heartbeat_interval, self._heart_beat)
 
-    def setup_schedule(self):
+    def _setup_schedule(self):
         now = datetime.datetime.now()
         self._schedule_manager = ScheduleManager(self.preempt_grace_time, now=now,
                                                  state_file_name=self.schedule_state_file)
 
-        self.update_device_state_and_schedule(now)
+        self._update_device_state_and_schedule(now)
 
-    def update_device_state_and_schedule(self, now):
-        _log.debug("update_device_state_and_schedule")
+    def _update_device_state_and_schedule(self, now):
+        _log.debug("_update_device_state_and_schedule")
         # Sanity check now.
         # This is specifically for when this is running in a VM that gets suspeded and then resumed.
         # If we don't make this check a resumed VM will publish one event per minute of
@@ -191,7 +221,7 @@ class ActuatorAgent(Agent):
         new_update_event_time = self._get_ajusted_next_event_time(now, schedule_next_event_time)
 
         for device, state in self._device_states.iteritems():
-            header = self.get_headers(state.agent_id, time=utils.format_timestamp(now), task_id=state.task_id)
+            header = self._get_headers(state.agent_id, time=utils.format_timestamp(now), task_id=state.task_id)
             header['window'] = state.time_remaining
             topic = topics.ACTUATOR_SCHEDULE_ANNOUNCE_RAW.replace('{device}', device)
             self.vip.pubsub.publish('pubsub', topic, headers=header)
@@ -214,7 +244,7 @@ class ActuatorAgent(Agent):
         return next_event_time
 
     def _update_schedule_state(self, now):
-        self.update_device_state_and_schedule(now)
+        self._update_device_state_and_schedule(now)
 
     def _handle_remote_error(self, ex, point, headers):
         try:
@@ -224,24 +254,25 @@ class ActuatorAgent(Agent):
             exc_type = "RemoteError"
             exc_args = ex.message
         error = {'type': exc_type, 'value': str(exc_args)}
-        self.push_result_topic_pair(ERROR_RESPONSE_PREFIX,
+        self._push_result_topic_pair(ERROR_RESPONSE_PREFIX,
                                     point, headers, error)
 
         _log.debug('Actuator Agent Error: ' + str(error))
 
     def _handle_standard_error(self, ex, point, headers):
         error = {'type': ex.__class__.__name__, 'value': str(ex)}
-        self.push_result_topic_pair(ERROR_RESPONSE_PREFIX,
+        self._push_result_topic_pair(ERROR_RESPONSE_PREFIX,
                                     point, headers, error)
         _log.debug('Actuator Agent Error: ' + str(error))
 
     def handle_get(self, peer, sender, bus, topic, headers, message):
+        """Handler for get requests published on the pubsub."""
         point = topic.replace(topics.ACTUATOR_GET() + '/', '', 1)
         requester = headers.get('requesterID')
-        headers = self.get_headers(requester)
+        headers = self._get_headers(requester)
         try:
             value = self.get_point(point)
-            self.push_result_topic_pair(VALUE_RESPONSE_PREFIX,
+            self._push_result_topic_pair(VALUE_RESPONSE_PREFIX,
                                         point, headers, value)
         except RemoteError as ex:
             self._handle_remote_error(ex, point, headers)
@@ -249,16 +280,17 @@ class ActuatorAgent(Agent):
             self._handle_standard_error(ex, point, headers)
 
     def handle_set(self, peer, sender, bus, topic, headers, message):
+        """Handler for set requests published on the pubsub."""
         if sender == 'pubsub.compat':
             message = compat.unpack_legacy_message(headers, message)
 
         point = topic.replace(topics.ACTUATOR_SET() + '/', '', 1)
         requester = headers.get('requesterID')
-        headers = self.get_headers(requester)
+        headers = self._get_headers(requester)
         if not message:
             error = {'type': 'ValueError', 'value': 'missing argument'}
             _log.debug('ValueError: ' + str(error))
-            self.push_result_topic_pair(ERROR_RESPONSE_PREFIX,
+            self._push_result_topic_pair(ERROR_RESPONSE_PREFIX,
                                         point, headers, error)
             return
 
@@ -316,16 +348,16 @@ class ActuatorAgent(Agent):
 
         path, point_name = topic.rsplit('/', 1)
 
-        headers = self.get_headers(requester_id)
+        headers = self._get_headers(requester_id)
         if not isinstance(requester_id, str):
             raise TypeError("Agent id must be a nonempty string")
-        if self.check_lock(path, requester_id):
+        if self._check_lock(path, requester_id):
             result = self.vip.rpc.call(self.driver_vip_identity, 'set_point', path, point_name, value, **kwargs).get()
 
-            headers = self.get_headers(requester_id)
-            self.push_result_topic_pair(WRITE_ATTEMPT_PREFIX,
+            headers = self._get_headers(requester_id)
+            self._push_result_topic_pair(WRITE_ATTEMPT_PREFIX,
                                         topic, headers, value)
-            self.push_result_topic_pair(VALUE_RESPONSE_PREFIX,
+            self._push_result_topic_pair(VALUE_RESPONSE_PREFIX,
                                         topic, headers, result)
         else:
             raise LockError("caller ({}) does not have this lock".format(requester_id))
@@ -333,9 +365,10 @@ class ActuatorAgent(Agent):
         return result
     
     def handle_revert_point(self, peer, sender, bus, topic, headers, message):
+        """Handler for revert point requests published on the pubsub."""
         point = topic.replace(topics.ACTUATOR_REVERT_POINT()+'/', '', 1)
         requester = headers.get('requesterID')
-        headers = self.get_headers(requester)
+        headers = self._get_headers(requester)
         
         try:
             self.revert_point(requester, point)
@@ -345,9 +378,10 @@ class ActuatorAgent(Agent):
             self._handle_standard_error(ex, point, headers)
             
     def handle_revert_device(self, peer, sender, bus, topic, headers, message):
+        """Handler for revert device requests published on the pubsub."""
         point = topic.replace(topics.ACTUATOR_REVERT_DEVICE()+'/', '', 1)
         requester = headers.get('requesterID')
-        headers = self.get_headers(requester)
+        headers = self._get_headers(requester)
         
         try:
             self.revert_device(requester, point)
@@ -379,13 +413,13 @@ class ActuatorAgent(Agent):
         
         path, point_name = topic.rsplit('/', 1)
         
-        headers = self.get_headers(requester_id)
+        headers = self._get_headers(requester_id)
         
-        if self.check_lock(path, requester_id):
+        if self._check_lock(path, requester_id):
             self.vip.rpc.call(self.driver_vip_identity, 'revert_point', path, point_name, **kwargs).get()
     
-            headers = self.get_headers(requester_id)
-            self.push_result_topic_pair(REVERT_POINT_RESPONSE_PREFIX,
+            headers = self._get_headers(requester_id)
+            self._push_result_topic_pair(REVERT_POINT_RESPONSE_PREFIX,
                                         topic, headers, None)
         else:
             raise LockError("caller does not have this lock")
@@ -412,19 +446,19 @@ class ActuatorAgent(Agent):
         
         path = topic
         
-        headers = self.get_headers(requester_id)
+        headers = self._get_headers(requester_id)
         
-        if self.check_lock(path, requester_id):
+        if self._check_lock(path, requester_id):
             self.vip.rpc.call(self.driver_vip_identity, 'revert_device', path, **kwargs).get()
     
-            headers = self.get_headers(requester_id)
-            self.push_result_topic_pair(REVERT_DEVICE_RESPONSE_PREFIX,
+            headers = self._get_headers(requester_id)
+            self._push_result_topic_pair(REVERT_DEVICE_RESPONSE_PREFIX,
                                         topic, headers, None)
         else:
             raise LockError("caller does not have this lock")
 
-    def check_lock(self, device, requester):
-        _log.debug('check_lock: {device}, {requester}'.format(device=device,
+    def _check_lock(self, device, requester):
+        _log.debug('_check_lock: {device}, {requester}'.format(device=device,
                                                               requester=requester))
         device = device.strip('/')
         if device in self._device_states:
@@ -433,6 +467,7 @@ class ActuatorAgent(Agent):
         return False
 
     def handle_schedule_request(self, peer, sender, bus, topic, headers, message):
+        """Handler for new schedule requests published on the pubsub."""
         if sender == 'pubsub.compat':
             message = compat.unpack_legacy_message(headers, message)
 
@@ -487,20 +522,24 @@ class ActuatorAgent(Agent):
         
         :Example request set:
         
-            [
-                ["campus/building/device1", #First time slot.
-                 "2013-12-06 16:00:00",     #Start of time slot.
-                 "2013-12-06 16:20:00"],    #End of time slot.
-                ["campus/building/device1", #Second time slot.
-                 "2013-12-06 18:00:00",     #Start of time slot.
-                 "2013-12-06 18:20:00"],    #End of time slot.
-                ["campus/building/device2", #Third time slot.
-                 "2013-12-06 16:00:00",     #Start of time slot.
-                 "2013-12-06 16:20:00"],    #End of time slot.
-            ]
+            .. code-block:: python
+        
+                [
+                    ["campus/building/device1", #First time slot.
+                     "2013-12-06 16:00:00",     #Start of time slot.
+                     "2013-12-06 16:20:00"],    #End of time slot.
+                    ["campus/building/device1", #Second time slot.
+                     "2013-12-06 18:00:00",     #Start of time slot.
+                     "2013-12-06 18:20:00"],    #End of time slot.
+                    ["campus/building/device2", #Third time slot.
+                     "2013-12-06 16:00:00",     #Start of time slot.
+                     "2013-12-06 16:20:00"],    #End of time slot.
+                ]
         
         .. note:: 
+        
             There are some things to be aware of when requesting a schedule:
+            
                 * Task id and requester id (agentid) should be a non empty value of type string
                 * A Task schedule must have at least one time slot.
                 * The start and end times are parsed with dateutil's date/time parser. The default string representation of a python datetime object will parse without issue.
@@ -512,14 +551,14 @@ class ActuatorAgent(Agent):
         
         There are three valid prioirity levels:
         
-            HIGH
+            "HIGH"
                 This Task cannot be preempted under any circumstance. 
-                This task may preempt other conflicting preemptable Tasks.
-            LOW
+                This Task may preempt other conflicting preemptable Tasks.
+            "LOW"
                 This Task cannot be preempted **once it has started**. 
                 A Task is considered started once the earliest time slot on any 
                 device has been reached. This Task may not preempt other Tasks.
-            LOW_PREEMPT
+            "LOW_PREEMPT"
                 This Task may be preempted at any time. 
                 If the Task is preempted once it has begun running any current 
                 time slots will be given a grace period (configurable in the 
@@ -528,55 +567,59 @@ class ActuatorAgent(Agent):
         
         :Return Values:
         
-        The return values has the following format:
-        
-            {
-                'result': <'SUCCESS', 'FAILURE'>,
-                'info': <Failure reason, if any>,
-                'data': <Data about the failure or cancellation, if any>
-            }
+            The return values has the following format:
+            
+                .. code-block:: python
+            
+                    {
+                        'result': <'SUCCESS', 'FAILURE'>,
+                        'info': <Failure reason, if any>,
+                        'data': <Data about the failure or cancellation, if any>
+                    }
             
         :Schedule Request Failures:
         
         If an attempt submit a schedule fails than the "info" item will have any of the
         following values:
-            TASK_ID_ALREADY_EXISTS
+            "TASK_ID_ALREADY_EXISTS"
                 The supplied taskID already belongs to an existing task.  
-            MISSING_PRIORITY
+            "MISSING_PRIORITY"
                 Failed to supply a priority for a Task schedule request. 
-            INVALID_PRIORITY
+            "INVALID_PRIORITY"
                 Priority not one of "HIGH", "LOW", or "LOW_PREEMPT". 
-            MALFORMED_REQUEST_EMPTY
+            "MALFORMED_REQUEST_EMPTY"
                 Request list is missing or empty. 
-            REQUEST_CONFLICTS_WITH_SELF
+            "REQUEST_CONFLICTS_WITH_SELF"
                 Requested time slots on the same device overlap. 
-            MALFORMED_REQUEST
+            "MALFORMED_REQUEST"
                 Reported when the request parser raises an unhandled exception. The exception name and info are appended to this info string. 
-            CONFLICTS_WITH_EXISTING_SCHEDULES
-                This schedule conflict with an existing schedules that it cannot preempt. The data item for the results will contain info about the conflicts in this form (after parsing json):
+            "CONFLICTS_WITH_EXISTING_SCHEDULES"
+                This schedule conflict with an existing schedules that it cannot preempt. The data item for the results will contain info about the conflicts in this form:
         
-                {
-                    '<agentID1>': 
+                .. code-block:: python
+                
                     {
-                        '<taskID1>':
-                        [
-                            ["campus/building/device1", 
-                             "2013-12-06 16:00:00",     
-                             "2013-12-06 16:20:00"],
-                            ["campus/building/device1", 
-                             "2013-12-06 18:00:00",     
-                             "2013-12-06 18:20:00"]     
-                        ]
-                        '<taskID2>':[...]
+                        '<agentID1>': 
+                        {
+                            '<taskID1>':
+                            [
+                                ["campus/building/device1", 
+                                 "2013-12-06 16:00:00",     
+                                 "2013-12-06 16:20:00"],
+                                ["campus/building/device1", 
+                                 "2013-12-06 18:00:00",     
+                                 "2013-12-06 18:20:00"]     
+                            ]
+                            '<taskID2>':[...]
+                        }
+                        '<agentID2>': {...}
                     }
-                    '<agentID2>': {...}
-                }
         """
                      
         now = datetime.datetime.now()
 
         topic = topics.ACTUATOR_SCHEDULE_RESULT()
-        headers = self.get_headers(requester_id, task_id=task_id)
+        headers = self._get_headers(requester_id, task_id=task_id)
         headers['type'] = SCHEDULE_ACTION_NEW
 
         try:
@@ -595,9 +638,9 @@ class ActuatorAgent(Agent):
 
         # Dealing with success and other first world problems.
         if result.success:
-            self.update_device_state_and_schedule(now)
+            self._update_device_state_and_schedule(now)
             for preempted_task in result.data:
-                preempt_headers = self.get_headers(preempted_task[0], task_id=preempted_task[1])
+                preempt_headers = self._get_headers(preempted_task[0], task_id=preempted_task[1])
                 preempt_headers['type'] = SCHEDULE_ACTION_CANCEL
                 self.vip.pubsub.publish('pubsub', topic, headers=preempt_headers,
                                         message={'result': SCHEDULE_CANCEL_PREEMPTED,
@@ -638,15 +681,17 @@ class ActuatorAgent(Agent):
         :returns: Request result
         :rtype: dict
         
-        :Return Values:
+        :Return Values: Request Result
         
-        The return values has the following format:
-        
-            {
-                'result': <'SUCCESS', 'FAILURE'>,
-                'info': <Failure reason, if any>,
-                'data': {}
-            }
+            The return values has the following format:
+            
+            .. code-block:: python
+            
+                {
+                    'result': <'SUCCESS', 'FAILURE'>,
+                    'info': <Failure reason, if any>,
+                    'data': {}
+                }
             
         .. note:: 
             There are some things to be aware of when canceling a schedule:
@@ -657,14 +702,14 @@ class ActuatorAgent(Agent):
         
         If an attempt cancel a schedule fails than the "info" item will have any of the
         following values:
-            TASK_ID_DOES_NOT_EXIST
+            "TASK_ID_DOES_NOT_EXIST"
                 Trying to cancel a Task which does not exist. This error can also occur when trying to cancel a finished Task.
-            AGENT_ID_TASK_ID_MISMATCH
+            "AGENT_ID_TASK_ID_MISMATCH"
                 A different agent ID is being used when trying to cancel a Task.
         
         """
         now = datetime.datetime.now()
-        headers = self.get_headers(requester_id, task_id=task_id)
+        headers = self._get_headers(requester_id, task_id=task_id)
         headers['type'] = SCHEDULE_ACTION_CANCEL
 
         result = self._schedule_manager.cancel_task(requester_id, task_id, now)
@@ -679,11 +724,11 @@ class ActuatorAgent(Agent):
                                 message=message)
 
         if result.success:
-            self.update_device_state_and_schedule(now)
+            self._update_device_state_and_schedule(now)
 
         return message
 
-    def get_headers(self, requester, time=None, task_id=None):
+    def _get_headers(self, requester, time=None, task_id=None):
         headers = {}
         if time is not None:
             headers['time'] = time
@@ -696,14 +741,14 @@ class ActuatorAgent(Agent):
             headers['taskID'] = task_id
         return headers
 
-    def push_result_topic_pair(self, prefix, point, headers, value):
+    def _push_result_topic_pair(self, prefix, point, headers, value):
         topic = normtopic('/'.join([prefix, point]))
         self.vip.pubsub.publish('pubsub', topic, headers, message=value)
 
     
 
 
-def main(argv=sys.argv):
+def main():
     '''Main method called to start the agent.'''
     utils.vip_main(actuator_agent)
 
