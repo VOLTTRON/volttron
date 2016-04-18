@@ -162,7 +162,7 @@ def test_revert_no_default_changing_value():
     
     #Manually update the register values to give us something different to revert to.
     register = interface.get_register_by_name("FloatNoDefault")
-    register._value = new_value
+    register.value = new_value
     
     #Update the revert value.
     interface.scrape_all()
@@ -187,5 +187,3 @@ def test_revert_no_default_changing_value():
     interface.revert_point("FloatNoDefault")
     temp_value = interface.get_point("FloatNoDefault")
     assert temp_value == new_value
-    
-    
