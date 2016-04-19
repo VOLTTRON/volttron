@@ -63,6 +63,15 @@ class Application(AbstractDrivenAgent):
         pass
         
     def run(self, cur_time, points):
+        """
+        Creates and returns Results object from fake Matlab response.
+        :param cur_time: timestamp
+        :param points: device point name and value 
+        :type cur_time: datetime.datetime
+        :type points: dict
+        :Returns Results object containing commands for devices, 
+                    log messages and table data.
+        :rtype results: Results object \\volttron.platform.agent.driven"""
         
         status = [0, 1]
         # random.choice(status)

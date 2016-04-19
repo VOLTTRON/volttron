@@ -61,6 +61,11 @@ from zmq import ZMQError
 class Application(AbstractDrivenAgent):
     
     def __init__(self, **kwargs):
+        """
+        Make connection with Matlab application via zmq. 
+        Waits for config request from Matlab and sends back config
+        parameters Matlab application. 
+        :param kwargs: Any driver specific parameters"""
         
         self.log = logging.getLogger(__name__)
         config_url = kwargs.pop('config_url')
@@ -90,6 +95,17 @@ class Application(AbstractDrivenAgent):
             print('Config request not received. Exiting.')
 
     def run(self, cur_time, points):
+        """
+        Sends device points to Matlab application and waits for response.
+        Creates and returns Results object from received response from 
+        Matlab application. 
+        :param cur_time: timestamp
+        :param points: device point name and value 
+        :type cur_time: datetime.datetime
+        :type points: dict
+        :Returns Results object containing commands for devices, 
+                    log messages and table data.
+        :rtype results: Results object \\volttron.platform.agent.driven"""
         
         try: 
             self.data_socket.send_pyobj(points,zmq.NOBLOCK)
