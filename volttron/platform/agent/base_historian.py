@@ -112,8 +112,10 @@ class BaseHistorianAgent(Agent):
                  retry_period=300.0,
                  submit_size_limit=1000,
                  max_time_publishing=30,
+                 backup_storage_limit_gb=None,
                  **kwargs):
         super(BaseHistorianAgent, self).__init__(**kwargs)
+        self._backup_storage_limit_gb = backup_storage_limit_gb
         self._started = False
         self._retry_period = retry_period
         self._submit_size_limit = submit_size_limit
@@ -381,7 +383,7 @@ class BaseHistorianAgent(Agent):
 
         _log.debug("Starting process loop.")
 
-        backupdb = BackupDatabase(self._event_queue)
+        backupdb = BackupDatabase(self._backup_storage_limit_gb)
 
         # Sets up the concrete historian
         self.historian_setup()
@@ -466,16 +468,28 @@ class BaseHistorianAgent(Agent):
 
 
 class BackupDatabase:
-    def __init__(self, success_queue):
+    def __init__(self, backup_storage_limit_gb):
         # The topic cache is only meant as a local lookup and should not be
         # accessed via the implemented historians.
+        self._backup_storage_limit_gb = backup_storage_limit_gb
         self._backup_cache = {}
         self._meta_data = defaultdict(dict)
         self._setupdb()
 
     def backup_new_data(self, new_publish_list):
         _log.debug("Backing up unpublished values.")
+
         c = self._connection.cursor()
+
+        c.execute("PRAGMA page_count")
+        page_count = c.fetchone()[0]
+
+        if page_count >= self.max_pages:
+            c.execute(
+                '''DELETE FROM outstanding
+                WHERE ROWID IN
+                (SELECT ROWID FROM outstanding
+                ORDER BY ROWID ASC LIMIT 100)''')
 
         for item in new_publish_list:
             source = item['source']
@@ -569,11 +583,19 @@ class BackupDatabase:
             detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
 
         c = self._connection.cursor()
+
+        if self._backup_storage_limit_gb is not None:
+            c.execute('''PRAGMA page_size''')
+            page_size = c.fetchone()[0]
+            max_storage_kb = self.backup_storage_limit_gb * 1024 * 1024
+            self.max_pages = max_storage_kb / page_size
+
         c.execute("SELECT name FROM sqlite_master WHERE type='table' "
                   "AND name='outstanding';")
 
         if c.fetchone() is None:
             _log.debug("Configuring backup BD for the first time.")
+
             self._connection.execute('''PRAGMA auto_vacuum = FULL''')
             self._connection.execute('''CREATE TABLE outstanding
                                         (id INTEGER PRIMARY KEY,
