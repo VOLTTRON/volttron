@@ -102,6 +102,25 @@ def test_can_call_rpc_method(volttron_instance1):
     print('The agent list is: {}'.format(agent_list))
     assert agent_list is not None
 
+@pytest.mark.wrapper
+def test_can_remove_agent(volttron_instance1):
+    """ Confirms that 'volttron-ctl remove' removes agent as expected. """
+    assert volttron_instance1 is not None
+    assert volttron_instance1.is_running()
+
+    # Install ListenerAgent as the agent to be removed.
+    agent_uuid = volttron_instance1.install_agent(agent_dir="examples/ListenerAgent", start=False)
+    assert agent_uuid is not None
+    started = volttron_instance1.start_agent(agent_uuid)
+    assert started is not None
+    assert volttron_instance1.agent_status(agent_uuid) is not None
+
+    #Now attempt removal
+    volttron_instance1.remove_agent(agent_uuid)
+
+    #Confirm that it has been removed.
+    assert volttron_instance1.agent_status(agent_uuid) is None
+
 
 messages = {}
 def onmessage(peer, sender, bus, topic, headers, message):
@@ -271,6 +290,6 @@ def test_encryption():
 
     agent1 = plat.build_agent(agent_addr, identity='agent1')
     peers = agent1.vip.peerlist.list().get(timeout=2)
-    plat.shutdown_platform(True)
+    plat.shutdown_platform()
     print('PEERS: ', peers)
     assert len(peers) > 0

@@ -128,12 +128,18 @@ class AbstractDrivenAgent(object):
 class Results(object):
     def __init__(self, terminate=False):
         self.commands = OrderedDict()
+        self.devices = OrderedDict()
         self.log_messages = []
         self._terminate = terminate
         self.table_output = defaultdict(list)
 
-    def command(self, point, value):
-        self.commands[point]=value
+    def command(self, point, value, device=None):
+        if self.devices is None:
+            self.commands[point]=value
+        else:
+            if  device not in self.devices.keys():
+                self.devices[device] = OrderedDict()
+            self.devices[device][point]=value
 
     def log(self, message, level=logging.DEBUG):
         self.log_messages.append((level, message))

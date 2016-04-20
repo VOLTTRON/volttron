@@ -52,6 +52,8 @@ under Contract DE-AC05-76RL01830
 '''
 
 import random
+import datetime
+from math import sin, pi
 
 from master_driver.interfaces import BaseInterface, BaseRegister, BasicRevert
 from csv import DictReader
@@ -74,12 +76,27 @@ class FakeRegister(BaseRegister):
         self.reg_type = reg_type
 
         if default_value is None:
-            self._value = self.reg_type(random.uniform(0, 100))
+            self.value = self.reg_type(random.uniform(0, 100))
         else:
             try:
-                self._value = self.reg_type(default_value)
+                self.value = self.reg_type(default_value)
             except ValueError:
-                self._value = self.reg_type()
+                self.value = self.reg_type()
+
+class EKGregister(BaseRegister):
+    def __init__(self, read_only, pointName, units, reg_type, default_value=None, description=''):
+        super(EKGregister, self).__init__("byte", read_only, pointName, units, description='')
+        self._value = 1;
+
+    @property
+    def value(self):
+        now = datetime.datetime.now()
+        seconds_in_radians = pi * float(now.second) / 30.0
+        return self._value * sin(seconds_in_radians)
+
+    @value.setter
+    def value(self, x):
+        self._value = x
 
 
 class Interface(BasicRevert, BaseInterface):
@@ -92,22 +109,22 @@ class Interface(BasicRevert, BaseInterface):
     def get_point(self, point_name):
         register = self.get_register_by_name(point_name)
 
-        return register._value
+        return register.value
 
     def _set_point(self, point_name, value):
         register = self.get_register_by_name(point_name)
         if register.read_only:
             raise IOError("Trying to write to a point configured read only: " + point_name)
 
-        register._value = register.reg_type(value)
-        return register._value
+        register.value = register.reg_type(value)
+        return register.value
 
     def _scrape_all(self):
         result = {}
         read_registers = self.get_registers_by_type("byte", True)
         write_registers = self.get_registers_by_type("byte", False)
         for register in read_registers + write_registers:
-            result[register.point_name] = register._value
+            result[register.point_name] = register.value
 
         return result
 
@@ -126,7 +143,7 @@ class Interface(BasicRevert, BaseInterface):
 
             read_only = regDef['Writable'].lower() != 'true'
             point_name = regDef['Volttron Point Name']
-            description = regDef['Notes']
+            description = regDef.get('Notes', '')  
             units = regDef['Units']
             default_value = regDef.get("Starting Value", '').strip()
             if not default_value:
@@ -134,7 +151,9 @@ class Interface(BasicRevert, BaseInterface):
             type_name = regDef.get("Type", 'string')
             reg_type = type_mapping.get(type_name, str)
 
-            register = FakeRegister(
+            register_type = FakeRegister if point_name != 'EKG' else EKGregister
+
+            register = register_type(
                 read_only,
                 point_name,
                 units,
@@ -143,6 +162,6 @@ class Interface(BasicRevert, BaseInterface):
                 description=description)
             
             if default_value is not None:
-                self.set_default(point_name, register._value)
+                self.set_default(point_name, register.value)
 
             self.insert_register(register)
