@@ -657,7 +657,7 @@ class ActuatorAgent(Agent):
 
     def handle_get(self, peer, sender, bus, topic, headers, message):
         """
-        Request up to date value of a point.
+        Requests up to date value of a point.
         
         To request a value publish a message to the following topic:
 
@@ -746,7 +746,7 @@ class ActuatorAgent(Agent):
         """
         RPC method
         
-        Gets the value of a specific point on a device. 
+        Gets up to date value of a specific point on a device. 
         Does not require the device be scheduled. 
         
         :param topic: The topic of the point to grab in the 
