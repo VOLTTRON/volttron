@@ -342,6 +342,8 @@ def generate_apidoc(app):
     # generate api-docs for platform core and drivers
 
     sys.path.insert(0,
+                    os.path.abspath(script_dir + "/../.."))
+    sys.path.insert(0,
                     os.path.abspath(script_dir + "/../../volttron"))
     subprocess.check_call(
         ["sphinx-apidoc", '-o',
