@@ -52,7 +52,6 @@ Each device configuration has the following form:
         "driver_type": "bacnet",
         "registry_config":"/home/volttron-user/configs/vav.csv",
         "interval": 60,
-        "heart_beat_point": "Heartbeat",
         "campus": "pnnl",
         "building": "isb1",
         "unit": "vav1",
@@ -79,11 +78,12 @@ While all of the settings are optional at least one is required.
     - **unit** - Unit portion of the device topic. (Optional)
     - **path** - Additional topic bits after unit. Useful for specifying sub devices. (Optional)
 
-For instance with the above example the topic used to reference this device would be
+For instance with the above example the topic used to reference this device when 
+making an RPC call would be
 
     ``pnnl/isb1/vav1``
 
-when making an RPC call to the actuator and device state publishes would start with
+Device state publishes to the message bus for this device will start with
 
     ``devices/pnnl/isb1/vav1``
 
@@ -102,12 +102,12 @@ The following is a simple example of a MODBUS registry confugration file:
 
 MODBUS Driver Configuration
 ---------------------------
-Currently the MODBUS driver only supports MODBUS over TCP.
+Currently VOLTTRON only supports the MODBUS over TCP/IP protocol.
 
 driver_config
 *************
 
-There are three arguments for the **driver_config** section of the general driver configuration:
+There are three arguments for the **driver_config** section of the device configuration file:
 
     - **device_address** - IP Address of the device.
     - **port** - Port the device is listening on. Defaults to 502 which is the standard port for MODBUS devices.
@@ -190,7 +190,7 @@ Communicating with BACnet devices requires that the BACnet Proxy Agent is config
 driver_config
 *************
 
-There are six arguments for the "driver_config" section of the general driver configuration:
+There are six arguments for the "driver_config" section of the device configuration file:
 
     - **device_address** - Address of the device. If the target device is behind an IP to MS/TP router then Remote Station addressing will probably be needed for the driver to find the device.
     - **device_id** - BACnet ID of the device. Used to establish a route to the device at startup. 
@@ -280,7 +280,7 @@ This driver does not connect to any actual device and instead produces random an
 driver_config
 *************
 
-There are no arguments for the "driver_config" section of the general driver configuration. The driver_config must still be present and should be left blank
+There are no arguments for the "driver_config" section of the device configuration file. The driver_config entry must still be present and should be left blank
 
 Here is an example device configuration file:
 
