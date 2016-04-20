@@ -134,7 +134,7 @@ def test_agent_can_be_managed(pa_instance):
     print(wrapper.vip_address)
     returnedid = agent.vip.rpc.call(
         VOLTTRON_CENTRAL_PLATFORM, 'manage', wrapper.vip_address,
-        wrapper.publickey).get(timeout=2)
+        wrapper.publickey, agent.core.publickey).get(timeout=2)
     assert returnedid
 
 
