@@ -22,9 +22,11 @@ class Mock(MagicMock):
     def __getattr__(cls, name):
             return Mock()
 
+
 MOCK_MODULES = ['loadshape', 'numpy', 'sympy', 'xlrd','stomp','oadr2',
                 'pyodbc', 'lxml', 'stomp.listener',
-                'sympy.parsing', 'sympy.parsing.sympy_parser']
+                'sympy.parsing', 'sympy.parsing.sympy_parser',
+                'gevent', 'greenlet', 'zmq', 'zmq.utils', 'pytest', 'pymongo']
 sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
 
