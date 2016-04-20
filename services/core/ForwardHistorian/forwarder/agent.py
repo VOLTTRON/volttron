@@ -82,6 +82,8 @@ def historian(config_path, **kwargs):
     identity = config.get('identity', kwargs.pop('identity', None))
     include_destination_in_header = config.get('include_destination_in_header',
                                                False)
+
+    backup_storage_limit_gb = config.get('backup_storage_limit_gb', None)
     origin = config.get('origin', None)
     overwrite_origin = config.get('overwrite_origin', False)
     include_origin_in_header = config.get('include_origin_in_header', False)
@@ -257,7 +259,9 @@ def historian(config_path, **kwargs):
             self._target_platform = agent
 
     ForwardHistorian.__name__ = 'ForwardHistorian'
-    return ForwardHistorian(identity=identity, **kwargs)
+    return ForwardHistorian(identity=identity,
+                            backup_storage_limit_gb=backup_storage_limit_gb,
+                            **kwargs)
 
 
 def main(argv=sys.argv):
