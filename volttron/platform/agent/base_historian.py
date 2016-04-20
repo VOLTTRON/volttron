@@ -481,15 +481,17 @@ class BackupDatabase:
 
         c = self._connection.cursor()
 
-        c.execute("PRAGMA page_count")
-        page_count = c.fetchone()[0]
+        if self._backup_storage_limit_gb is not None:
+            def page_count():
+                c.execute("PRAGMA page_count")
+                return c.fetchone()[0]
 
-        if page_count >= self.max_pages:
-            c.execute(
-                '''DELETE FROM outstanding
-                WHERE ROWID IN
-                (SELECT ROWID FROM outstanding
-                ORDER BY ROWID ASC LIMIT 100)''')
+            while page_count() >= self.max_pages:
+                c.execute(
+                    '''DELETE FROM outstanding
+                    WHERE ROWID IN
+                    (SELECT ROWID FROM outstanding
+                    ORDER BY ROWID ASC LIMIT 100)''')
 
         for item in new_publish_list:
             source = item['source']
