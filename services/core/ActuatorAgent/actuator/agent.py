@@ -109,8 +109,8 @@ Interacting with the Actuator Agent follows a basic steps:
 Scheduling a New Task
 =====================
 
-:ref:`RPC interface <rpc-request-new-task>` 
-:ref:`PUB/SUB interface <pubsub-request-new-task>` 
+:py:meth:`RPC interface <ActuatorAgent.request_new_schedule>` 
+:py:meth:`PUB/SUB interface <ActuatorAgent.handle_schedule_request>` 
 
 Creating a Task requires four things:
 
@@ -283,8 +283,8 @@ Device Interaction
 Getting values
 --------------
 
-:ref:`RPC interface <rpc-get-value>` 
-:ref:`PUB/SUB interface <pubsub-get-value>` 
+:py:meth:`RPC interface <ActuatorAgent.get_point>` 
+:py:meth:`PUB/SUB interface <ActuatorAgent.handle_get>` 
 
 While a device driver for a device will periodically broadcast 
 the state of a device you may want an up to the moment value for 
@@ -296,13 +296,13 @@ scheduled before you can use this interface.
 Setting Values
 --------------
 
-:ref:`RPC interface <rpc-set-value>` 
-:ref:`PUB/SUB interface <pubsub-set-value>` 
+:py:meth:`RPC interface <ActuatorAgent.set_point>` 
+:py:meth:`PUB/SUB interface <ActuatorAgent.handle_set>` 
 
 Failure to schedule the device first will result in an error.
 
 Errors Setting Values
-*********************
+^^^^^^^^^^^^^^^^^^^^^
 
 If there is an error the RPC interface will raise an exception 
 and the PUB/SUB interface will publish to 
@@ -329,8 +329,8 @@ and a message body in this form:
 Common Error Types
 ^^^^^^^^^^^^^^^^^^
 
-- ``LockError`` Raised when a request is made when we do not have permission to use a device. (Forgot to schedule, preempted and we did not handle the preemption message correctly, ran out of time in time slot, etc...)
-- ``ValueError`` Message missing (PUB/SUB only) or is the wrong data type. 
+- ``LockError`` - Raised when a request is made when we do not have permission to use a device. (Forgot to schedule, preempted and we did not handle the preemption message correctly, ran out of time in time slot, etc...)
+- ``ValueError`` - Message missing (PUB/SUB only) or is the wrong data type. 
 
 Most other error types involve problems with communication between the
 VOLTTRON device drivers and the device itself.   
@@ -344,14 +344,14 @@ accomplish this is driver specific.
 
 Failure to schedule the device first will result in a ``LockError``.
 
-:ref:`RPC revert device interface <rpc-revert-device>`
-:ref:`RPC revert value interface <rpc-revert-point>`
+:py:meth:`RPC revert device interface <ActuatorAgent.revert_point>`
+:py:meth:`RPC revert value interface <ActuatorAgent.revert_device>`
         
 Canceling a Task
 ================
 
-:ref:`RPC interface <rpc-cancel-task>` 
-:ref:`PUB/SUB interface <pubsub-cancel-task>` 
+:py:meth:`RPC interface <ActuatorAgent.request_cancel_schedule>` 
+:py:meth:`PUB/SUB interface <ActuatorAgent.handle_schedule_request>` 
 
 Cancelling a Task requires two things:
 
@@ -656,8 +656,7 @@ class ActuatorAgent(Agent):
         _log.debug('Actuator Agent Error: ' + str(error))
 
     def handle_get(self, peer, sender, bus, topic, headers, message):
-        """.. _pubsub-get-value:
-        
+        """
         Request up to date value of a point.
         
         To request a value publish a message to the following topic:
@@ -693,8 +692,7 @@ class ActuatorAgent(Agent):
             self._handle_standard_error(ex, point, headers)
 
     def handle_set(self, peer, sender, bus, topic, headers, message):
-        """.. _pubsub-set-value:
-        
+        """
         Set the value of a point.
         
         To request a value publish a message to the following topic:
@@ -745,8 +743,7 @@ class ActuatorAgent(Agent):
 
     @RPC.export
     def get_point(self, topic, **kwargs):
-        """.. _rpc-get-value:
-        
+        """
         RPC method
         
         Gets the value of a specific point on a device. 
@@ -754,7 +751,7 @@ class ActuatorAgent(Agent):
         
         :param topic: The topic of the point to grab in the 
                       format <device topic>/<point name>
-        :param **kwargs: Any driver specific parameters
+        :param \*\*kwargs: Any driver specific parameters
         :type topic: str
         :returns: point value
         :rtype: any base python type"""
@@ -774,7 +771,7 @@ class ActuatorAgent(Agent):
         :param topic: The topic of the point to set in the 
                       format <device topic>/<point name>
         :param value: Value to set point to.
-        :param **kwargs: Any driver specific parameters
+        :param \*\*kwargs: Any driver specific parameters
         :type topic: str
         :type requester_id: str
         :type value: any basic python type
@@ -836,8 +833,7 @@ class ActuatorAgent(Agent):
     
     @RPC.export
     def revert_point(self, requester_id, topic, **kwargs):  
-        """.. _rpc-revert-value:
-        
+        """
         RPC method
         
         Reverts the value of a specific point on a device to a default state. 
@@ -846,7 +842,7 @@ class ActuatorAgent(Agent):
         :param requester_id: Identifier given when requesting schedule. 
         :param topic: The topic of the point to revert in the 
                       format <device topic>/<point name>
-        :param **kwargs: Any driver specific parameters
+        :param \*\*kwargs: Any driver specific parameters
         :type topic: str
         :type requester_id: str
         
@@ -872,8 +868,7 @@ class ActuatorAgent(Agent):
         
     @RPC.export
     def revert_device(self, requester_id, topic, **kwargs):  
-        """.. _rpc-revert-device:
-        
+        """
         RPC method
         
         Reverts all points on a device to a default state. 
@@ -881,7 +876,7 @@ class ActuatorAgent(Agent):
         
         :param requester_id: Identifier given when requesting schedule. 
         :param topic: The topic of the device to revert
-        :param **kwargs: Any driver specific parameters
+        :param \*\*kwargs: Any driver specific parameters
         :type topic: str
         :type requester_id: str
         
@@ -915,9 +910,7 @@ class ActuatorAgent(Agent):
         return False
 
     def handle_schedule_request(self, peer, sender, bus, topic, headers, message):
-        """.. _pubsub-request-new-task:
-           .. _pubsub-cancel-task:
-        
+        """        
         Schedule request pub/sub handler
         
         An agent can request a task schedule by publishing to the
@@ -991,8 +984,7 @@ class ActuatorAgent(Agent):
 
     @RPC.export
     def request_new_schedule(self, requester_id, task_id, priority, requests):
-        """.. _rpc-request-new-task:
-        
+        """
         RPC method
         
         Requests one or more blocks on time on one or more device.
