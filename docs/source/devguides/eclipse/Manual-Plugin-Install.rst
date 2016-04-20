@@ -1,5 +1,5 @@
 Manual Python Plugin Installation
-====
+=================================
 
 If Eclipse doesn't have the Marketplace, follow these steps to get the
 plugins:

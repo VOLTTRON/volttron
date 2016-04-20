@@ -1,5 +1,5 @@
 Multinode Example
-==================
+=================
 
 The MultiNode example agent demonstrates how to setup and make use of
 the [[MultiBuildingMessaging]] agent.

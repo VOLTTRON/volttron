@@ -1,5 +1,5 @@
 VIP Enhancements
-=====
+================
 
 Outline a vision of how VOLTTRON Message Bus should work
 

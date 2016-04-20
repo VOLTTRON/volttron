@@ -1,5 +1,5 @@
 ActuatorAgent
-==============
+=============
 
 This agent is used to manage write access to devices. Agents
 may request scheduled times, called Tasks, to interact with one or more

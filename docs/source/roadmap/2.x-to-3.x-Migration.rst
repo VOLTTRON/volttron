@@ -1,5 +1,5 @@
 Migration from 2.x to 3.x
-~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 If you are upgrading an existing 2.0 installation, there are a few
 manual steps. From the project directory in unactivated mode:

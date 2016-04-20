@@ -1,5 +1,5 @@
 Eclipse Development Environment
-=====
+===============================
 
 The only thing that is necessary to create a VOLTTRON agent is a text
 editor and the shell. However, we have found the Eclipse Development
