@@ -15,6 +15,17 @@ import subprocess
 import sys
 import os
 from glob import glob
+from mock import Mock as MagicMock
+
+class Mock(MagicMock):
+    @classmethod
+    def __getattr__(cls, name):
+            return Mock()
+
+MOCK_MODULES = ['loadshape', 'numpy', 'sympy', 'xlrd','stomp','oadr2',
+                'pyodbc', 'lxml']
+sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
+
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -328,16 +339,15 @@ def generate_apidoc(app):
     run_apidoc(docs_subdir, agent_dirs)
 
     #generate api-docs for platform core and drivers
+
+    sys.path.insert(0,
+                    os.path.abspath(script_dir + "/../../volttron"))
     subprocess.check_call(
         ["sphinx-apidoc", '-o',
-         os.path.join(apidocs_base_dir, "platform"),
-         script_dir + "/../../volttron/platform",
-         '--force'])
-    subprocess.check_call(
-        ["sphinx-apidoc", '-o',
-         os.path.join(apidocs_base_dir, "drivers"),
-         script_dir + "/../../volttron/drivers",
-         '--force'])
+         os.path.join(apidocs_base_dir, "volttron"),
+         script_dir + "/../../volttron",
+         '--force', script_dir + "/../../volttron/lint"])
+
 
 def run_apidoc(docs_dir, agent_dirs):
     """
