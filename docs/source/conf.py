@@ -343,8 +343,9 @@ def generate_apidoc(app):
 
     sys.path.insert(0,
                     os.path.abspath(script_dir + "/../.."))
-    # sys.path.insert(0,
-    #                 os.path.abspath(script_dir + "/../../volttron"))
+    sys.path.insert(0,
+                    os.path.abspath(script_dir +
+                                    "/../../volttron/platform/agent"))
     subprocess.check_call(
         ["sphinx-apidoc", '-o',
          os.path.join(apidocs_base_dir, "volttron"),
