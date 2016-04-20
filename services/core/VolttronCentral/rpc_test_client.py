@@ -64,16 +64,7 @@ if __name__ == '__main__':
     response = do_rpc("get_authorization", {'username': 'admin',
                                            'password': 'admin'})
 
-    if response.ok:
-        authentication = json.loads(response.text)['result']
-        print('Authentication successful')
-    else:
-        print('login unsuccessful')
-        sys.exit(0)
-
     response = register_instance("127.0.0.2:8080")
-    #response = register_platform('ipc://@/home/dev/.volttron/run/vip.socket',
-    #                             'platform.agent')
     if response.ok:
         success = response.json()['result']
         if success:

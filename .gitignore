@@ -16,4 +16,5 @@ parser.out
 /build
 /configs/
 /config/
-/docs/build/
+/docs/build/*
+/docs/source/apidocs

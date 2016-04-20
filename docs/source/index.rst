@@ -12,12 +12,20 @@ Contents:
 .. toctree::
     :maxdepth: 2
 
-    install
-    license
+   Install Instructions <install>
+   License <license>
+   community_resources/index
+   API Documenation <apidocs>
+   
+   overview/index
+   core_services/index
+   devguides/index
+   supporting/index
+   scalability/index
+   roadmap/index
 
-    agents/index
+   platform-api
 
-    platform-api
 
 =======
 Support
