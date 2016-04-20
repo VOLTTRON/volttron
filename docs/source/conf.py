@@ -23,7 +23,8 @@ class Mock(MagicMock):
             return Mock()
 
 MOCK_MODULES = ['loadshape', 'numpy', 'sympy', 'xlrd','stomp','oadr2',
-                'pyodbc', 'lxml']
+                'pyodbc', 'lxml', 'stomp.listener',
+                'sympy.parsing', 'sympy.parsing.sympy_parser']
 sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
 
@@ -338,7 +339,7 @@ def generate_apidoc(app):
     agent_dirs = glob(script_dir + "/../../applications/*/*/")
     run_apidoc(docs_subdir, agent_dirs)
 
-    #generate api-docs for platform core and drivers
+    # generate api-docs for platform core and drivers
 
     sys.path.insert(0,
                     os.path.abspath(script_dir + "/../../volttron"))
@@ -358,8 +359,10 @@ def run_apidoc(docs_dir, agent_dirs):
     """
 
     for agent_dir in agent_dirs:
-        sys.path.insert(0, os.path.abspath(agent_dir))
+        agent_dir = os.path.abspath(agent_dir)
         agent_dir = agent_dir[:-1] if agent_dir.endswith("/") else agent_dir
+        sys.path.insert(0, agent_dir)
+        print "Added to syspath {}".format(agent_dir)
         name = os.path.basename(agent_dir)
         subprocess.check_call(
             ["sphinx-apidoc", '-o',
