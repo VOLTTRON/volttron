@@ -256,11 +256,11 @@ if __name__ == "__main__":
     
     parser.add_argument('--campus', 
                         help='campus name used for testing',
-                        default='fakecampus')
+                        default='')
     
     parser.add_argument('--building', 
                         help='building name used for testing',
-                        default='fakebuilding')
+                        default='')
     
     args = parser.parse_args()
     build_all_configs(args.agent_config, args.device_type, 
