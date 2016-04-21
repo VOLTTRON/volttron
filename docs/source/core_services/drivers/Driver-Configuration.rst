@@ -17,9 +17,8 @@ The Master Driver Agent along with Historian Agents replace the functionality of
 
 Master Driver Agent Configuration
 ---------------------------------
-The Master Driver Agent configuration consists a list of device configuration files to load at startup. 
-
-Optionally the user may stagger the start of drivers to improve scalability of the platform by using the staggered_start setting.
+The Master Driver Agent configuration consists of a list of device configuration files to load at startup. 
+The user may optionally stagger the start of drivers to improve scalability of the platform by using the staggered_start setting.
 
 The following example loads three driver configuration files:
 
@@ -66,10 +65,10 @@ The following settings are required for all device configurations:
 
 These settings are optional:
 
-    - **interval** - Period which to scrape the device and publish the results in seconds. Defaults to 60.
+    - **interval** - Period which to scrape the device and publish the results in seconds. Defaults to 60 seconds.
     - **heart_beat_point** - A Point which to toggle to indicate a heartbeat to the device. A point with this Volttron Point Name must exist in the registry. If this setting is missing the driver will not send a heart beat signal to the device. Heart beats are triggered by the Actuator Agent which must be running to use this feature.
 
-These settings are used to create the topic that this device will be referenced by following the VOLTTRON standard of {campus}/{building}/{unit}. This will also be the topic published on when then device is periodically scraped for it's current state.
+These settings are used to create the topic that this device will be referenced by following the VOLTTRON convention of {campus}/{building}/{unit}. This will also be the topic published on when then device is periodically scraped for it's current state.
 
 While all of the settings are optional at least one is required.
 
