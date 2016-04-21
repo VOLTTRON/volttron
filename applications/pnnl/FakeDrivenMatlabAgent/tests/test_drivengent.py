@@ -45,7 +45,7 @@ config_wh = {
     }
 }
 
-@pytest.mark.dev
+@pytest.mark.drivenagent
 def test_drivenmatlabagent(volttron_instance1):
     print("** Setting up test_drivenagent module **")
     
