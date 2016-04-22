@@ -25,8 +25,7 @@ class Mock(MagicMock):
 
 MOCK_MODULES = ['loadshape', 'numpy', 'sympy', 'xlrd','stomp','oadr2',
                 'pyodbc', 'lxml', 'stomp.listener',
-                'sympy.parsing', 'sympy.parsing.sympy_parser',
-                'gevent', 'greenlet', 'zmq', 'zmq.utils', 'pytest', 'pymongo']
+                'sympy.parsing', 'sympy.parsing.sympy_parser']
 sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
 
@@ -344,10 +343,14 @@ def generate_apidoc(app):
     # generate api-docs for platform core and drivers
 
     sys.path.insert(0,
-                    os.path.abspath(script_dir + "/../.."))
-    sys.path.insert(0,
-                    os.path.abspath(script_dir +
-                                    "/../../volttron/platform/agent"))
+                    os.path.abspath(script_dir + "/../../volttron"))
+    print("Added to sys path***: {}".format(os.path.abspath(script_dir + "/../..")))
+    # sys.path.insert(0,
+    #                 os.path.abspath(script_dir +
+    #                                 "/../../volttron/platform"))
+    # sys.path.insert(0,
+    #                 os.path.abspath(script_dir +
+    #                                 "/../../volttron/platform/agent"))
     subprocess.check_call(
         ["sphinx-apidoc", '-o',
          os.path.join(apidocs_base_dir, "volttron"),
