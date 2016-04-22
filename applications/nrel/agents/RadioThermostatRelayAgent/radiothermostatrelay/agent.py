@@ -139,12 +139,12 @@ def thermostat_agent(config_path, **kwargs):
             path,point_name = topic.rsplit('/',1)
             value = message['Readings']
 
-                if point_name == "tstat_mode":
-                    self.thermostat.mode(int(value))
-                elif point_name == "tstat_cool_sp":
-                    self.thermostat.t_cool(float(value))
-                else:
-                    _log.debug("No such writable point found")
+            if point_name == "tstat_mode":
+                self.thermostat.mode(int(value))
+            elif point_name == "tstat_cool_sp":
+                self.thermostat.t_cool(float(value))
+            else:
+                _log.debug("No such writable point found")
 
 
         @PubSub.subscribe('pubsub', 'datalogger/log/volttime')
