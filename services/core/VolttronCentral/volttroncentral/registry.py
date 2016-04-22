@@ -105,11 +105,11 @@ class PlatformRegistry(object):
 
 
     def unregister(self, vip_address):
-        if vip_address in self._platform_entries.keys():
+        if vip_address in self._vip_to_uuid.keys():
             del self._vip_to_uuid[vip_address]
             toremove = []
             for k, v in self._platform_entries.iteritems():
-                if v['vip_address'] == vip_address:
+                if v.vip_address == vip_address:
                     toremove.append(k)
             for x in toremove:
                 del self._platform_entries[x]
