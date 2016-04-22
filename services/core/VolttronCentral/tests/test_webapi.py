@@ -1,8 +1,73 @@
-import sys
-
+import json
 import pytest
 import requests
+import sys
 from zmq.utils import jsonapi
+
+
+class FailedToGetAuthorization(Exception):
+    pass
+
+
+class APITester(object):
+    def __init__(self, url, username='admin', password='admin'):
+        self._url = url
+        self._username = username
+        self._password = password
+        self._auth_token = self.get_auth_token()
+
+    def do_rpc(self, method, use_auth_token=True, **params):
+        data = {
+            'jsonrpc': '2.0',
+            'method': method,
+            'params': params,
+            'id': '1'
+        }
+        if use_auth_token:
+            data['authorization'] = self._auth_token
+        return requests.post(self._url, json=data)
+
+    def get_auth_token(self):
+        response = self.do_rpc('get_authorization', use_auth_token=False,
+                username=self._username, password=self._password)
+        if not response:
+            raise FailedToGetAuthorization
+        validate_response(response)
+        return json.loads(response.content)['result']
+
+    def register_instance(self, addr, name=None):
+        return self.do_rpc('register_instance', discovery_address=addr,
+                display_name=name)
+
+    def list_platforms(self):
+        return self.do_rpc('list_platforms')
+
+    def list_agents(self, platform_uuid):
+        return self.do_rpc('platforms.uuid.' + platform_uuid + '.list_agents')
+
+    def unregister_platform(self, platform_uuid):
+        return self.do_rpc('unregister_platform', platform_uuid=platform_uuid)
+
+
+@pytest.fixture(scope="function")
+def web_api_tester(request, vc_instance, pa_instance):
+    pa_wrapper, pa_uuid = pa_instance
+    vc_wrapper, vc_uuid, vc_jsonrpc = vc_instance
+    check_multiple_platforms(vc_wrapper, pa_wrapper)
+
+    tester = APITester(vc_jsonrpc)
+    response = tester.register_instance(pa_wrapper.bind_web_address)
+
+    validate_response(response)
+    result = response.json()['result']
+    assert result['status'] == 'SUCCESS'
+
+    def cleanup():
+        for platform in tester.list_platforms().json()['result']:
+            tester.unregister_platform(platform['uuid'])
+
+    request.addfinalizer(cleanup)
+    return tester
 
 
 def do_rpc(method, params=None, auth_token=None, rpc_root=None):
@@ -59,6 +124,7 @@ def check_multiple_platforms(platformwrapper1, platformwrapper2):
     assert platformwrapper1.bind_web_address != \
            platformwrapper2.bind_web_address
 
+
 def validate_response(response):
     """ Validate that the message is a json-rpc response.
 
@@ -102,30 +168,48 @@ def test_register_instance(vc_instance, pa_instance):
     response = do_rpc("register_instance", [pa_wrapper.bind_web_address],
                       auth, vc_jsonrpc)
 
-    assert response.ok
     validate_response(response)
     result = response.json()['result']
     assert result['status'] == 'SUCCESS'
-#
-#
-# @pytest.mark.web
-# def test_can_login_as_admin(vc_agent, platform_agent_on_instance1):
-#     p = {"username": "admin", "password": "admin"}
-#     rpc_root = vc_agent["jsonrpc"]
-#     response = do_rpc(method="get_authorization", params=p, rpc_root=rpc_root)
-#
-#     assert response.ok
-#     assert response.text
-#     retval = response.json()
-#     assert retval['jsonrpc'] == '2.0'
-#     assert retval['result']
-#     assert retval['id']
-#
-# @pytest.mark.web
-# def test_login_rejected_for_foo(vc_agent):
-#     p = {"username": "foo", "password": ""}
-#     rpc_root = vc_agent["jsonrpc"]
-#     response = do_rpc(method="get_authorization", params=p, rpc_root=rpc_root)
-#
-#     assert 'Unauthorized' in response.text
-#     assert response.status_code == 401 # Unauthorized.
+
+    # list platforms
+    response = do_rpc("list_platforms", [pa_wrapper.bind_web_address],
+                      auth, vc_jsonrpc)
+    validate_response(response)
+    platforms = response.json()['result']
+    assert len(platforms) == 1
+    uuid = platforms[0]['uuid']
+
+
+@pytest.mark.vc
+def test_list_agents(web_api_tester):
+    platforms = web_api_tester.list_platforms().json()['result']
+    assert len(platforms) > 0
+    response = web_api_tester.list_agents(platforms[0]['uuid'])
+    validate_response(response)
+
+
+@pytest.mark.vc
+def test_list_platforms(web_api_tester):
+    response = web_api_tester.list_platforms()
+    validate_response(response)
+    assert len(response.json()['result']) > 0
+
+
+@pytest.mark.vc
+def test_unregister_platform(web_api_tester):
+    platforms = web_api_tester.list_platforms().json()['result']
+    orig_platform_count = len(platforms)
+    assert orig_platform_count > 0
+
+    response = web_api_tester.unregister_platform(platforms[0]['uuid'])
+    validate_response(response)
+    platforms = web_api_tester.list_platforms().json()['result']
+    assert len(platforms) == orig_platform_count - 1
+
+
+@pytest.mark.web
+def test_login_rejected_for_foo(vc_instance):
+    vc_jsonrpc = vc_instance[2]
+    with pytest.raises(FailedToGetAuthorization):
+        tester = APITester(vc_jsonrpc, "foo", "")
