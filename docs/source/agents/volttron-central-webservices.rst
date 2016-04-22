@@ -265,7 +265,7 @@ Unregister a Volttron Platform Instance
             "jsonrpc": "2.0",
             "method": "unregister_platform",
             "params": {
-                "uuid": "somePlatformUuid",
+                "platform_uuid": "somePlatformUuid",
             }
             "authorization": "someAuthorizationToken",
             "id": "someID"

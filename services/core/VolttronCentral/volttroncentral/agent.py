@@ -606,7 +606,7 @@ class VolttronCentralAgent(Agent):
         elif method == 'list_platforms':
             return self._handle_list_platforms()
         elif method == 'unregister_platform':
-            return self.unregister_platform(params['uuid'])
+            return self.unregister_platform(params['platform_uuid'])
 
         fields = method.split('.')
         if len(fields) < 3:
