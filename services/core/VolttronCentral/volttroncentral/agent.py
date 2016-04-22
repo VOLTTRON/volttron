@@ -79,7 +79,8 @@ from volttron.platform import jsonrpc
 from volttron.platform.jsonrpc import (
     INTERNAL_ERROR, INVALID_PARAMS, INVALID_REQUEST, METHOD_NOT_FOUND,
     PARSE_ERROR, UNHANDLED_EXCEPTION, UNAUTHORIZED,
-    UNABLE_TO_REGISTER_INSTANCE, DISCOVERY_ERROR)
+    UNABLE_TO_REGISTER_INSTANCE, DISCOVERY_ERROR,
+    UNABLE_TO_UNREGISTER_INSTANCE)
 from volttron.platform.vip.agent import Agent, RPC, PubSub, Core
 from volttron.platform.vip.agent.subsystems import query
 from volttron.platform.vip.agent.utils import build_agent
@@ -186,7 +187,6 @@ class VolttronCentralAgent(Agent):
 
     @RPC.export
     def get_platforms(self):
-        _log.debug('Getting platforms via rpc')
         return self._registry.get_platforms()
 
     @RPC.export
@@ -224,15 +224,22 @@ class VolttronCentralAgent(Agent):
 
     @RPC.export
     def unregister_platform(self, platform_uuid):
-        value = 'Failure'
         platform = self._registry.get_platform(platform_uuid)
-
         if platform:
-            self._registry.unregister(platform['vip_address'])
+            self._registry.unregister(platform.vip_address)
             self._store_registry()
-            value = 'Success'
 
-        return value
+            if platform_uuid in self._pa_agents.keys():
+                pa_agent = self._pa_agents[platform_uuid]
+                pa_agent.core.stop()
+                del self._pa_agents[platform_uuid]
+
+            context = 'Unregistered platform {}'.format(platform_uuid)
+            return {'status': 'SUCCESS', 'context': context}
+        else:
+            msg = 'Unable to unregistered platform {}'.format(platform_uuid)
+            return {'error': {'code': UNABLE_TO_UNREGISTER_INSTANCE,
+                              'message': msg}}
 
     @RPC.export
     def register_instance(self, discovery_address):
@@ -300,7 +307,7 @@ class VolttronCentralAgent(Agent):
             return {
                 'error': {
                     'code': UNABLE_TO_REGISTER_INSTANCE,
-                    'message': 'Connection was unsuccessful to {}'
+                    'message': 'Could not connect to {}'
                         .format(pa_vip_address)
                 }}
         except Exception as ex:
@@ -344,8 +351,11 @@ class VolttronCentralAgent(Agent):
 
         self._registry.register(entry)
         self._pa_agents[entry.platform_uuid] = connected_to_pa
-        # Return success that we made it this far!
-        return {'status': 'SUCCESS'}
+
+        instance_name = display_name if display_name else discovery_address
+        context = 'Registered instance {}'.format(instance_name)
+
+        return {'status': 'SUCCESS', 'context': context}
 
     # @RPC.export
     # def register_platform(self, peer_identity, name, peer_address):
@@ -480,44 +490,7 @@ class VolttronCentralAgent(Agent):
         if 'error' in result_or_error:
             error = result_or_error['error']
             return jsonrpc.json_error(id, error['code'], error['message'])
-
         return jsonrpc.json_result(id, result_or_error)
-
-    def _get_platforms_json(self, message_id):
-        """ Composes the json response for the listing of the platforms.
-
-        :param message_id:
-        :return:
-        """
-        platforms = []
-        keys = []
-        for p in self.get_platforms():
-            if p.tags['available']:
-                #TODO: the status is currently hard-coded
-                status = {'status': 'Good',
-                          'context': None,
-                          'last_updated': datetime.utcnow().isoformat()}
-                can_reach = True
-            else:
-                can_reach = False
-                status = {"status": "UNKNOWN",
-                          "context": "Platform currently unavailable.",
-                          "last_updated": None}
-            agents = []
-            if can_reach:
-                agents = p.tags.get('agents',
-                                    self._get_agents(p.platform_uuid))
-            r = {
-                'name': p.display_name,
-                'uuid': p.platform_uuid,
-                'agents': agents,
-                'devices': p.tags.get('devices', []),
-                'status': status
-            }
-
-            platforms.append(r)
-
-        return jsonrpc.json_result(message_id, platforms)
 
     def _get_agents(self, platform_uuid):
         platform = self.get_platform(platform_uuid)
@@ -614,8 +587,8 @@ class VolttronCentralAgent(Agent):
                           self.core.identity).get(timeout=5)
 
     def _handle_list_platforms(self):
-        return [{'uuid': x['uuid'],
-                 'name': x['agentid']}
+        return [{'uuid': x.platform_uuid,
+                 'name': x.display_name}
                 for x in self._registry.get_platforms()]
 
     def route_request(self, id, method, params):
@@ -631,8 +604,9 @@ class VolttronCentralAgent(Agent):
             else:
                 return self._register_instance(**params)
         elif method == 'list_platforms':
-            result = self._get_platforms_json(id)
-            return result
+            return self._handle_list_platforms()
+        elif method == 'unregister_platform':
+            return self.unregister_platform(params['uuid'])
 
         fields = method.split('.')
         if len(fields) < 3:
