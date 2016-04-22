@@ -89,9 +89,10 @@ def test_can_ping_pubsub(volttron_instance1):
 @pytest.mark.wrapper
 def test_can_call_rpc_method(volttron_instance1):
     config = dict(agentid="Central Platform", report_status_period=15)
-    agent_uuid = volttron_instance1.install_agent(agent_dir='services/core/Platform',
-                                                  config_file=config,
-                                                  start=True)
+    agent_uuid = volttron_instance1.install_agent(
+        agent_dir='services/core/VolttronCentralPlatform',
+        config_file=config,
+        start=True)
     assert agent_uuid is not None
     assert volttron_instance1.is_agent_running(agent_uuid)
 
