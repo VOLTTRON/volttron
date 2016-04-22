@@ -36,27 +36,27 @@ class SCHouseAgent(Agent):
 
 
 
-    @Core.receiver('onstart')
-    def begining(self, sender, **kwargs):
-        '''on start'''
-        start_time = time.strftime("%Y-%m-%d %H:%M:%S",time.localtime())
-        timestamp=time.strptime(start_time,"%Y-%m-%d %H:%M:%S")
-        end_time = time.strftime("%Y-%m-%d %H:%M:%S",time.localtime(time.mktime(timestamp) + 600))
-        msgs = [
-                    ["esif/spl/THERMOSTAT_1", #First time slot.
-                     str(start_time),     #Start of time slot.
-                     str(end_time)]   #End of time slot.
-
-                ]
-        print json.dumps(self.vip.rpc.call('platform.actuator','request_new_schedule','rpc_ctl',"007",'HIGH',msgs).get())
-        print msgs
-
-    @Core.receiver('onstop')
-    def ending(self, sender, **kwargs):
-        ''' at the end'''
-        print self.vip.rpc.call('platform.actuator','revert_point','rpc_ctl',"esif/spl/THERMOSTAT_1/tstat_cool_sp").get()
-        self.vip.rpc.call('platform.actuator','request_cancel_schedule','rpc_ctl',"007")
-# def request_cancel_schedule(self, requester_id, task_id):
+#     @Core.receiver('onstart')
+#     def begining(self, sender, **kwargs):
+#         '''on start'''
+#         start_time = time.strftime("%Y-%m-%d %H:%M:%S",time.localtime())
+#         timestamp=time.strptime(start_time,"%Y-%m-%d %H:%M:%S")
+#         end_time = time.strftime("%Y-%m-%d %H:%M:%S",time.localtime(time.mktime(timestamp) + 600))
+#         msgs = [
+#                     ["esif/spl/THERMOSTAT_1", #First time slot.
+#                      str(start_time),     #Start of time slot.
+#                      str(end_time)]   #End of time slot.
+#
+#                 ]
+#         print json.dumps(self.vip.rpc.call('platform.actuator','request_new_schedule','rpc_ctl',"007",'HIGH',msgs).get())
+#         print msgs
+#
+#     @Core.receiver('onstop')
+#     def ending(self, sender, **kwargs):
+#         ''' at the end'''
+#         print self.vip.rpc.call('platform.actuator','revert_point','rpc_ctl',"esif/spl/THERMOSTAT_1/tstat_cool_sp").get()
+#         self.vip.rpc.call('platform.actuator','request_cancel_schedule','rpc_ctl',"007")
+# # def request_cancel_schedule(self, requester_id, task_id):
 
     @PubSub.subscribe('pubsub', 'datalogger/log/volttime')
     def on_match_volttime(self, peer, sender, bus,  topic, headers, message):
