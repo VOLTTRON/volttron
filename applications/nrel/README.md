@@ -1,10 +1,12 @@
-##VOLTTRON in ESIF:
+##NREL Developed Agents:
 
 **Contributors:**
 
 Deepthi Vaidhynathan, Xin Jin, Wesley Jones, Harry Sorensen - National Renewable Energy Laboratory  
 
 **Agents:**
+
+This directory contains two example device agents, a test controller, and a time coordintaion agent as as example system of agents.
 
 **CEA-2045:**
 
@@ -90,8 +92,8 @@ config_api_test
 **bin**
   - This directory contains scripts to start all agents
       - make all
-      - . bin/api.sh
-      - . bin/hardware.sh
+      - ./bin/api.sh
+      - ./bin/hardware.sh
 
 **Makefile**
   - The Makefile is used to package and install all agents in the agents directory
