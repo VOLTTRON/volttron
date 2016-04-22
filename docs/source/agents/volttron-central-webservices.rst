@@ -183,6 +183,34 @@ JSON-RPC API Methods
 Messages
 ========
 
+Retrieve Authorization Token
+    .. code-block:: Python
+
+        # POST /jsonrpc
+        {
+            "jsonrpc": "2.0",
+            "method": "get_authorization",
+            "params": {
+                "username": "dorothy",
+                "password": "toto123"
+            },
+            "id": "someID"
+        }
+
+    Response Success
+        .. code-block:: Python
+
+            # 200 OK
+            {
+                "jsonrpc": "2.0",
+                "result": "somAuthorizationToken",
+                "id": "someID"
+            }
+
+    Failure
+        HTTP Status Code 401
+
+
 Register A Volttron Platform Instance (Using Discovery)
     .. code-block:: Python
 
@@ -195,14 +223,13 @@ Register A Volttron Platform Instance (Using Discovery)
                 "display_name": "foo" # Optional
             }
             "authorization": "someAuthorizationToken",
-            "id": #
-
+            "id": "someID"
         }
 
     Success
         .. code-block:: Python
 
-            200 OK
+            # 200 OK
             {
                 "jsonrpc": "2.0",
                 "result": {
@@ -211,40 +238,8 @@ Register A Volttron Platform Instance (Using Discovery)
                         "context": "Registered instance foo" # or the uri if not specified.
                     }
                 },
-                "id": #
+                "id": "someID"
             }
-
-    Failure Unavailable
-        .. code-block:: Python
-
-            200 OK
-            {
-                "jsonrpc": "2.0",
-                "result": {
-                    "status": {
-                        "code": "ERROR"
-                        "context": "Could not connect to 127.0.0.2:8080"
-                    }
-                },
-                "id": #
-            }
-
-    Failure No Platform Agent
-        .. code-block:: Python
-
-            200 OK
-            {
-                "jsonrpc": "2.0",
-                "result": {
-                    "status": {
-                        "code": "ERROR"
-                        "context": "Could not connect to 127.0.0.2:8080"
-                    }
-                },
-                "id": #
-            }
-
-
 
 
 Request Registration of an External Platform (Using Discovery)
@@ -262,32 +257,20 @@ Request Registration of an External Platform (Using Discovery)
         }
 
 
-
-Retrieve Authorization Token
+Unregister a Volttron Platform Instance
     .. code-block:: Python
 
+        # POST /jsonrpc
         {
             "jsonrpc": "2.0",
-            "method": "get_authorization",
+            "method": "unregister_platform",
             "params": {
-                "username": "dorothy",
-                "password": "toto123"
-            },
-            "id": #
+                "uuid": "somePlatformUuid",
+            }
+            "authorization": "someAuthorizationToken",
+            "id": "someID"
         }
 
-    Response Success
-        .. code-block:: Python
-
-            {
-                "jsonrpc": "2.0",
-                "method": "list_platforms",
-                "authorization": "someAuthorizationToken",
-                "id": #
-            }
-
-    Failure
-        Http Status Code 401
 
 Retrieve Managed Instances
     .. code-block:: Python
