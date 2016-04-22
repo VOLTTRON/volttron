@@ -1,9 +1,7 @@
 ##Directory to release VOLTTRON agents
 
 **Contributors**
-1. Deepthi Vaidhynathan, National Renewable Energy Laboratory 
-2. Xin Jin, National Renewable Energy Laboratory 
-3. Wesley Jones, National Renewable Energy Laboratory  
+Deepthi Vaidhynathan, Xin Jin, Wesley Jones - National Renewable Energy Laboratory  
 
 **Directory structure**
 
