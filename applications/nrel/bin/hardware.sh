@@ -1,4 +1,4 @@
-
+#!/bin/bash
 rm volttron.log
 
 volttron -vv -l volttron.log &
