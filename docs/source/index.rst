@@ -10,13 +10,15 @@ Welcome to VOLTTRON's documentation!
 Contents:
 
 .. toctree::
-    :maxdepth: 2
+   :maxdepth: 2
 
    Install Instructions <install>
    License <license>
    community_resources/index
-   API Documenation <apidocs>
-   
+
+.. toctree::
+   :maxdepth: 2
+
    overview/index
    core_services/index
    devguides/index
@@ -24,8 +26,7 @@ Contents:
    scalability/index
    roadmap/index
 
-   platform-api
-
+   API Documenation <apidocs>
 
 =======
 Support
