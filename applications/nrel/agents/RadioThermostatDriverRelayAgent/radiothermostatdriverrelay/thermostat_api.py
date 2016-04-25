@@ -228,7 +228,7 @@ class ThermostatInterface(object):
         except Exception as parsed:
             return parsed
 
-    def set_cool_pgm(self,schedule,day=''):
+    def set_cool_pgm(self,schedules,day=''):
         ''' set cool program for a week or a specific day
             day = {'mon','tue','wed','thu','fri','sat','sun'}
 
@@ -245,7 +245,7 @@ class ThermostatInterface(object):
                         "6": [360, 66, 480, 58, 1080, 66, 1320, 58]
                  }')
         '''
-
+        schedule = str(schedules)
         if day =='':
             url = self.urladdress+"/program/cool"
         else:
@@ -262,7 +262,7 @@ class ThermostatInterface(object):
             return parsed
 
 
-    def set_heat_pgm(self,schedule,day=''):
+    def set_heat_pgm(self,schedules,day=''):
         ''' set heat program for a week or a specific day
             day = {'mon','tue','wed','thu','fri','sat','sun'}
 
@@ -280,6 +280,7 @@ class ThermostatInterface(object):
                         "6": [360, 66, 480, 58, 1080, 66, 1320, 58]
                  }')
         '''
+        schedule = str(schedules)
         if day =='':
             url = self.urladdress+"/program/heat"
             try:

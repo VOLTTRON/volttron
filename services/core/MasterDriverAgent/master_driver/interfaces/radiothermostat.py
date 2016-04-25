@@ -83,8 +83,10 @@ class Interface(BaseInterface):
                 self.set_point(program,value)
         elif point_name == 'cool_pgm_week':
             for program in self.program_cool:
+
                 register = self.get_register_by_name(program)
                 value = register.default_value
+
                 self.set_point(program,value)
         else:
             register = self.get_register_by_name(point_name)

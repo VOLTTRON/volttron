@@ -65,19 +65,20 @@ class SCHouseAgent(Agent):
             input_setpoint = random.randrange(75,85,1)
             input_heat_pgm_week= {"0": [360, 90, 480, 90, 1080, 90, 1320, 90], "1": [360, 90, 480, 90, 1080, 90, 1320, 90], "2": [360, 70, 480, 70, 1080, 70, 1320, 70], "3": [360, 70, 480, 70, 1080, 70, 1320, 70], "4": [360, 70, 480, 70, 1080, 70, 1320, 70], "5": [360, 70, 480, 70, 1080, 70, 1320, 70], "6": [360, 70, 480, 70, 1080, 70, 1320, 70]}
             input_cool_pgm_week= {"0": [360, 90, 480, 90, 1080, 90, 1320, 90], "1": [360, 90, 480, 90, 1080, 90, 1320, 90], "2": [360, 70, 480, 70, 1080, 70, 1320, 70], "3": [360, 70, 480, 70, 1080, 70, 1320, 70], "4": [360, 70, 480, 70, 1080, 70, 1320, 70], "5": [360, 70, 480, 70, 1080, 70, 1320, 70], "6": [360, 70, 480, 70, 1080, 70, 1320, 70]}
-            input_cool_pgm_day= "360, 90, 480, 90, 1080, 90, 1320, 90"
-            input_heat_pgm_day= "360, 90, 480, 90, 1080, 90, 1320, 90"
-            input_tstat_mode = random.randrage(0,2,1)
+            input_cool_pgm_day= "360,90,480,90,1080,90,1320,90"
+            input_heat_pgm_day= "360,90,480,90,1080,90,1320,90"
+            input_tstat_mode = random.randrange(0,2,1)
 
             # Example control signals to get and set values, revert points to default states
-            print self.vip.rpc.call('platform.actuator','set_point','rpc_ctl',"esif/spl/THERMOSTAT_1/energy_led",led_point).get()
-            print self.vip.rpc.call('platform.actuator','set_point',"esif/spl/THERMOSTAT_1/heat_pgm_week",input_cool_pgm_week).get()
-            print self.vip.rpc.call('platform.actuator','set_point',"esif/spl/THERMOSTAT_1/cool_pgm_week", input_cool_pgm_week).get()
-            print self.vip.rpc.call('platform.actuator','set_point',"esif/spl/THERMOSTAT_1/heat_pgm_tue",input_cool_pgm_day).get()
-            print self.vip.rpc.call('platform.actuator','set_point',"esif/spl/THERMOSTAT_1/cool_pgm_wed", input_cool_pgm_day).get()
+            print self.vip.rpc.call('platform.actuator','set_point','rpc_ctl',"esif/spl/THERMOSTAT_1/energy_led",input_led_point).get()
+            print self.vip.rpc.call('platform.actuator','set_point','rpc_ctl',"esif/spl/THERMOSTAT_1/heat_pgm_week",input_cool_pgm_week).get()
+            print self.vip.rpc.call('platform.actuator','set_point','rpc_ctl',"esif/spl/THERMOSTAT_1/cool_pgm_week", input_cool_pgm_week).get()
+            print self.vip.rpc.call('platform.actuator','set_point','rpc_ctl',"esif/spl/THERMOSTAT_1/heat_pgm_tue",input_cool_pgm_day).get()
+            print self.vip.rpc.call('platform.actuator','set_point','rpc_ctl',"esif/spl/THERMOSTAT_1/cool_pgm_wed", input_cool_pgm_day).get()
             print self.vip.rpc.call('platform.actuator','revert_point','rpc_ctl',"esif/spl/THERMOSTAT_1/cool_pgm_week").get()
-            print self.vip.rpc.call('platform.actuator','set_point',"esif/spl/THERMOSTAT_1/tstat_heat_sp",input_setpoint).get()
-            print self.vip.rpc.call('platform.actuator','set_point',"esif/spl/THERMOSTAT_1/tstat_cool_sp",input_setpoint).get()
+            print self.vip.rpc.call('platform.actuator','revert_point','rpc_ctl',"esif/spl/THERMOSTAT_1/heat_pgm_week").get()
+            print self.vip.rpc.call('platform.actuator','set_point','rpc_ctl',"esif/spl/THERMOSTAT_1/tstat_heat_sp",input_setpoint).get()
+            print self.vip.rpc.call('platform.actuator','set_point','rpc_ctl',"esif/spl/THERMOSTAT_1/tstat_cool_sp",input_setpoint).get()
             print self.vip.rpc.call('platform.actuator','get_point',"esif/spl/THERMOSTAT_1/tstat_temp_sensor").get()
             print self.vip.rpc.call('platform.actuator','get_point',"esif/spl/THERMOSTAT_1/tstat_mode").get()
 
