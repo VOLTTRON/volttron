@@ -687,10 +687,14 @@ def _make_configuration(external_uri, volttron_central=None):
     with open(cfgfile, 'w') as cf:
         config.write(cf)
 
-def _resolvable(uri_and_port):
+def _resolvable(uri, port):
     import requests
-    discovery_uri = "http://"+uri_and_port+"/discovery/"
-    req = requests.request('GET', discovery_uri)
+    try:
+        uri_and_port="{}:{}".format(uri, port)
+        discovery_uri = "http://"+uri_and_port+"/discovery/"
+        req = requests.request('GET', discovery_uri)
+    except:
+        return False
     return True
 
 def _main():
@@ -728,11 +732,24 @@ def _main():
             t = ('Should volttron central autostart(Y/N)? [Y] ', y_or_n, 'Y')
             vc_autostart = prompt_response(t)
         else:
-            t = ('Address and port of volttron central? ',)
+            t = ('Address of volttron central? ',)
             vc_ipaddress = prompt_response(t)
-            while not _resolvable(vc_ipaddress):
-                print("Couldn't resolve {}".format(vc_ipaddress))
-                vc_ipaddress = prompt_response(t)
+            should_resolve = True
+            first = True
+            t = ('Port of volttron central? ',)
+            vc_port = prompt_response(t)
+            while not _resolvable(vc_ipaddress, vc_port) and should_resolve:
+                print("Couldn't resolve {}:{}".format(vc_ipaddress, vc_port))
+                t2 = ('Should volttron central be resolvable now? [Y] ', y_or_n, 'Y')
+                if first:
+                    should_resolve = prompt_response(t2) in ('y', 'Y')
+                    first = False
+
+                if should_resolve:
+                    t = ('Address of volttron central? ',)
+                    vc_ipaddress = prompt_response(t)
+                    t = ('Port of volttron central? ',)
+                    vc_port = prompt_response(t)
         try:
             external_uri = "tcp://{}:{}".format(external_ip, vip_port)
             _make_configuration(external_uri, vc_ipaddress)
