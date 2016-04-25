@@ -61,18 +61,22 @@
 
 
 import json
+import os
 import urlparse
 
 from zmq import curve_keypair
 
+from .agent.utils import create_file_if_missing
 from .vip.socket import encode_key
 
 
 class BaseJSONStore(object):
     '''JSON-file-backed store for dictionaries'''
 
-    def __init__(self, filename):
+    def __init__(self, filename, permissions=0o660):
         self.filename = filename
+        create_file_if_missing(filename)
+        os.chmod(filename, permissions)
 
     def store(self, data):
         with open(self.filename, 'w') as json_file:
