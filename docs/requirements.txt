@@ -2,3 +2,5 @@ mock
 gevent
 greenlet
 zmq
+ply
+psutil
