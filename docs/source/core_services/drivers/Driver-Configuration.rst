@@ -38,7 +38,7 @@ The following example loads three driver configuration files:
 
 * **staggered_start** - Spread the scraping and publishing of device data over approximately N seconds. Useful for when the platform scrapes too many devices at once resulting in failed scrapes.
 
-An example master driver configuration file can be found `here <https://github.com/VOLTTRON/volttron/blob/c57569bd9e71eb32afefe8687201d674651913ed/examples/configurations/drivers/master-driver.agent>`_ or 
+An example master driver configuration file can be found `here <https://raw.githubusercontent.com/VOLTTRON/volttron/c57569bd9e71eb32afefe8687201d674651913ed/examples/configurations/drivers/master-driver.agent>`_ or 
 in the VOLTTRON repository in ``examples/configurations/drivers/master-driver.agent``.
 
 
@@ -134,7 +134,7 @@ Here is an example device configuration file:
         "heart_beat_point": "heartbeat"
     }
 
-A sample MODBUS configuration file can be found `here <https://github.com/VOLTTRON/volttron/blob/c57569bd9e71eb32afefe8687201d674651913ed/examples/configurations/drivers/modbus1.config>`_ or 
+A sample MODBUS configuration file can be found `here <https://raw.githubusercontent.com/VOLTTRON/volttron/c57569bd9e71eb32afefe8687201d674651913ed/examples/configurations/drivers/modbus1.config>`_ or 
 in the VOLTTRON repository in ``examples/configurations/drivers/modbus1.config``
 
 MODBUS Registry Configuration File
@@ -181,7 +181,7 @@ The following is an example of a MODBUS registry confugration file:
         HeatCall1,HeatCall1,On / Off,on/off,BOOL,FALSE,1113,,Status indicator of heating stage 1 need
         HeartBeat,heartbeat,On / Off,on/off,BOOL,FALSE,1114,,Status indicator of heating stage 2 need
 
-A sample MODBUS registry file can be found `here <https://github.com/VOLTTRON/volttron/blob/c57569bd9e71eb32afefe8687201d674651913ed/examples/configurations/drivers/catalyst371.csv>`_ or 
+A sample MODBUS registry file can be found `here <https://raw.githubusercontent.com/VOLTTRON/volttron/c57569bd9e71eb32afefe8687201d674651913ed/examples/configurations/drivers/catalyst371.csv>`_ or 
 in the VOLTTRON repository in ``examples/configurations/drivers/catalyst371.csv``
 
 BACnet Driver Configuration
@@ -220,7 +220,7 @@ Here is an example device configuration file:
         "heart_beat_point": "heartbeat"
     }
 
-A sample BACnet configuration file can be found `here <https://github.com/VOLTTRON/volttron/blob/c57569bd9e71eb32afefe8687201d674651913ed/examples/configurations/drivers/bacnet1.config>`_ or 
+A sample BACnet configuration file can be found `here <https://raw.githubusercontent.com/VOLTTRON/volttron/c57569bd9e71eb32afefe8687201d674651913ed/examples/configurations/drivers/bacnet1.config>`_ or 
 in the VOLTTRON repository in ``examples/configurations/drivers/bacnet1.config``
 
 BACnet Registry Configuration File
@@ -269,7 +269,7 @@ Any additional columns will be ignored. It is common practice to include a **Poi
         2400Stevens/FCB.Local Application.SF-O,SupplyFanSpeedOutputCommand,percent,0.00 to 100.00 (default 0.0),analogOutput,presentValue,TRUE,3000113,Resolution: 0.1
 
 
-A sample BACnet registry file can be found `here <https://github.com/VOLTTRON/volttron/blob/c57569bd9e71eb32afefe8687201d674651913ed/examples/configurations/drivers/bacnet.csv>`_ or 
+A sample BACnet registry file can be found `here <https://raw.githubusercontent.com/VOLTTRON/volttron/c57569bd9e71eb32afefe8687201d674651913ed/examples/configurations/drivers/bacnet.csv>`_ or 
 in the VOLTTRON repository in ``examples/configurations/drivers/bacnet.csv``
 
 Fake Device Driver Configuration
@@ -297,7 +297,7 @@ Here is an example device configuration file:
         "heart_beat_point": "heartbeat"
     }
 
-A sample fake device configuration file can be found `here <https://github.com/VOLTTRON/volttron/blob/c57569bd9e71eb32afefe8687201d674651913ed/examples/configurations/drivers/fake.config>`_ or 
+A sample fake device configuration file can be found `here <https://raw.githubusercontent.com/VOLTTRON/volttron/c57569bd9e71eb32afefe8687201d674651913ed/examples/configurations/drivers/fake.config>`_ or 
 in the VOLTTRON repository in ``examples/configurations/drivers/fake.config``
 
 Fake Device Registry Configuration File
@@ -336,5 +336,5 @@ Any additional columns will be ignored. It is common practice to include a **Poi
         SampleWritableBool1,On / Off,on/off,TRUE,TRUE,boolean,Status indicator
 
 
-A sample fake registry configuration file can be found `here <https://github.com/VOLTTRON/volttron/blob/c57569bd9e71eb32afefe8687201d674651913ed/examples/configurations/drivers/fake.csv>`_ or 
+A sample fake registry configuration file can be found `here <https://raw.githubusercontent.com/VOLTTRON/volttron/c57569bd9e71eb32afefe8687201d674651913ed/examples/configurations/drivers/fake.csv>`_ or 
 in the VOLTTRON repository in ``examples/configurations/drivers/fake.csv``
