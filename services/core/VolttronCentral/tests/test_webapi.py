@@ -28,8 +28,9 @@ class APITester(object):
         return requests.post(self._url, json=data)
 
     def get_auth_token(self):
-        response = self.do_rpc('get_authorization', use_auth_token=False,
-                username=self._username, password=self._password)
+        response = self.do_rpc(
+            'get_authorization', use_auth_token=False,
+            username=self._username, password=self._password)
         if not response:
             raise FailedToGetAuthorization
         validate_response(response)
@@ -37,11 +38,11 @@ class APITester(object):
 
     def inspect(self, platform_uuid, agent_uuid):
         return self.do_rpc('platforms.uuid.{}.agents.uuid.{}.'
-                'inspect'.format(platform_uuid, agent_uuid))
+                           'inspect'.format(platform_uuid, agent_uuid))
 
     def register_instance(self, addr, name=None):
         return self.do_rpc('register_instance', discovery_address=addr,
-                display_name=name)
+                           display_name=name)
 
     def list_platforms(self):
         return self.do_rpc('list_platforms')
@@ -102,6 +103,7 @@ def do_rpc(method, params=None, auth_token=None, rpc_root=None):
 
     return requests.post(rpc_root, data=data)
 
+
 def authenticate(jsonrpcaddr, username, password):
     """ Authenticate a user with a username and password.
 
@@ -126,7 +128,7 @@ def check_multiple_platforms(platformwrapper1, platformwrapper2):
     assert platformwrapper1.bind_web_address
     assert platformwrapper2.bind_web_address
     assert platformwrapper1.bind_web_address != \
-           platformwrapper2.bind_web_address
+        platformwrapper2.bind_web_address
 
 
 def each_result_contains(result_list, fields):
@@ -160,7 +162,7 @@ def validate_response(response):
 #                                  platform_agent_on_instance1):
 #
 #     if vc_agent_with_auth['username'] == 'reader':
-#         pytest.fail("Modify so that we know that it should fail from response")
+#         pytest.fail("Modify so we know that it should fail from response")
 #     else:
 #         pytest.fail("Add success criteria here for admin")
 #     #print(vc_agent_with_auth, platform_agent_on_instance1)
