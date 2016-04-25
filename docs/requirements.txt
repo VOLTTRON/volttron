@@ -4,3 +4,4 @@ greenlet
 zmq
 ply
 psutil
+pymongo
