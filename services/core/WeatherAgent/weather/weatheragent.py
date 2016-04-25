@@ -78,12 +78,11 @@ HEADER_NAME_DATE = headers_mod.DATE
 HEADER_NAME_CONTENT_TYPE = headers_mod.CONTENT_TYPE
 REQUESTS_EXHAUSTED = 'requests_exhausted'
 '''
-******* In order for this agent to retrieve data from Weather Underground,
+In order for this agent to retrieve data from Weather Underground,
  you must get a developer's key and put that into the seetings.py file.
 
 http://www.wunderground.com/weather/api/
 
-********
 '''
 
 TOPIC_DELIM = '/'

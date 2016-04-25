@@ -302,7 +302,7 @@ Setting Values
 Failure to schedule the device first will result in an error.
 
 Errors Setting Values
-^^^^^^^^^^^^^^^^^^^^^
+*********************
 
 If there is an error the RPC interface will raise an exception 
 and the PUB/SUB interface will publish to 
@@ -327,7 +327,7 @@ and a message body in this form:
     }
     
 Common Error Types
-^^^^^^^^^^^^^^^^^^
+******************
 
 - ``LockError`` - Raised when a request is made when we do not have permission to use a device. (Forgot to schedule, preempted and we did not handle the preemption message correctly, ran out of time in time slot, etc...)
 - ``ValueError`` - Message missing (PUB/SUB only) or is the wrong data type. 
