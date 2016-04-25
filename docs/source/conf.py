@@ -25,8 +25,7 @@ class Mock(MagicMock):
 
 MOCK_MODULES = ['loadshape', 'numpy', 'sympy', 'xlrd','stomp','oadr2',
                 'pyodbc', 'lxml', 'stomp.listener',
-                'sympy.parsing', 'sympy.parsing.sympy_parser','pytest',
-                'pymongo']
+                'sympy.parsing', 'sympy.parsing.sympy_parser','pytest']
 sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
 
