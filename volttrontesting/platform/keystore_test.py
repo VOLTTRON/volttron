@@ -1,3 +1,4 @@
+import os
 import tempfile
 
 import pytest
@@ -19,6 +20,7 @@ def keystore_instance1(tmpdir_factory):
 def test_keystore_generated_when_created(tmpdir_factory):
     kspath = str(tmpdir_factory.mktemp('keys').join('keys.json'))
     ks = keystore.KeyStore(kspath)
+    assert os.stat(kspath).st_mode & 0o777 == 0o660
     assert ks.secret()
     assert ks.public()
 
