@@ -81,7 +81,7 @@ class BaseJSONStore(object):
         os.chmod(filename, permissions)
 
     def store(self, data):
-        fd = os.open(self.filename, os.O_CREAT|os.O_WRONLY, self.permissions)
+        fd = os.open(self.filename, os.O_CREAT | os.O_WRONLY, self.permissions)
         try:
             os.write(fd, json.dumps(data, indent=4))
         finally:
