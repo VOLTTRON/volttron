@@ -35,6 +35,10 @@ class APITester(object):
         validate_response(response)
         return json.loads(response.content)['result']
 
+    def inspect(self, platform_uuid, agent_uuid):
+        return self.do_rpc('platforms.uuid.{}.agents.uuid.{}.'
+                'inspect'.format(platform_uuid, agent_uuid))
+
     def register_instance(self, addr, name=None):
         return self.do_rpc('register_instance', discovery_address=addr,
                 display_name=name)
@@ -125,6 +129,18 @@ def check_multiple_platforms(platformwrapper1, platformwrapper2):
            platformwrapper2.bind_web_address
 
 
+def each_result_contains(result_list, fields):
+    for result in result_list:
+        assert all(field in result.keys() for field in fields)
+
+
+def validate_at_least_one(response):
+    validate_response(response)
+    result = response.json()['result']
+    assert len(result) > 0
+    return result
+
+
 def validate_response(response):
     """ Validate that the message is a json-rpc response.
 
@@ -137,6 +153,7 @@ def validate_response(response):
     assert rpcdict['jsonrpc'] == '2.0'
     assert rpcdict['id']
     assert 'error' in rpcdict.keys() or 'result' in rpcdict.keys()
+
 
 # @pytest.mark.web
 # def test_register_local_instance(request, vc_agent_with_auth,
@@ -181,19 +198,31 @@ def test_register_instance(vc_instance, pa_instance):
     uuid = platforms[0]['uuid']
 
 
+#TODO
+@pytest.mark.xfail(reason='inspect method is not working yet')
+@pytest.mark.vc
+def test_list_exported_methods(web_api_tester):
+    platforms = web_api_tester.list_platforms().json()['result']
+    agents = web_api_tester.list_agents(platforms[0]['uuid']).json()['result']
+    for agent in agents:
+        response = web_api_tester.inspect(platforms[0]['uuid'], agent['uuid'])
+        validate_response(response)
+
+
 @pytest.mark.vc
 def test_list_agents(web_api_tester):
     platforms = web_api_tester.list_platforms().json()['result']
     assert len(platforms) > 0
     response = web_api_tester.list_agents(platforms[0]['uuid'])
-    validate_response(response)
+    result = validate_at_least_one(response)
+    each_result_contains(result, ['name', 'uuid'])
 
 
 @pytest.mark.vc
 def test_list_platforms(web_api_tester):
     response = web_api_tester.list_platforms()
-    validate_response(response)
-    assert len(response.json()['result']) > 0
+    result = validate_at_least_one(response)
+    each_result_contains(result, ['name', 'uuid'])
 
 
 @pytest.mark.vc
@@ -202,7 +231,8 @@ def test_unregister_platform(web_api_tester):
     orig_platform_count = len(platforms)
     assert orig_platform_count > 0
 
-    response = web_api_tester.unregister_platform(platforms[0]['uuid'])
+    uuid_to_remove = platforms[0]['uuid']
+    response = web_api_tester.unregister_platform(uuid_to_remove)
     validate_response(response)
     platforms = web_api_tester.list_platforms().json()['result']
     assert len(platforms) == orig_platform_count - 1
