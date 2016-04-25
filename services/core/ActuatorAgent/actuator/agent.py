@@ -425,7 +425,7 @@ Along with the following header:
     
 .. note::
 
-    Remeber that if your "LOW_PREEMPT" Task has already started and 
+    Remember that if your "LOW_PREEMPT" Task has already started and 
     is preempted you have a grace period to do any clean up before
     losing access to the device.
  
