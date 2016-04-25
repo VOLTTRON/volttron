@@ -76,13 +76,14 @@ drivers are configured to do so.
 ActuatorAgent Configuration
 ===========================
 
-    schedule_publish_interval
+    "schedule_publish_interval"
         Interval between published schedule announcements in seconds. Defaults to 30. See `Schedule State Publishes`_.
-    preempt_grace_time
+    "preempt_grace_time"
         Minimum time given to Tasks which have been preempted to clean up in seconds. Defaults to 60.
-    schedule_state_file
-        File used to save and restore Task states if the ActuatorAgent restarts for any reason. File will be created if it does not exist when it is needed.
-    heartbeat_period
+    "schedule_state_file"
+        File used to save and restore Task states if the ActuatorAgent restarts for any reason. File will be
+        created if it does not exist when it is needed.
+    "heartbeat_period"
         The frequency to send heartbeat signal to devices. Defaults to 60.
         
 
@@ -140,11 +141,11 @@ There are three valid prioirity levels:
         being revoked. This Task may not preempt other Tasks.
         
 Whenever a Task is preempted the Actuator Agent will publish a message to 
-"devices/actuators/schedule/result" indicating that the Task has
+``devices/actuators/schedule/result`` indicating that the Task has
 been cancelled due to being preempted. See `Preemption Publishes`_
 
 Even when using the RPC interface agents which schedule low priority tasks
-may need to subscribe to "devices/actuators/schedule/result" to learn when
+may need to subscribe to ``devices/actuators/schedule/result`` to learn when
 its Tasks are canceled due to preemption.
 
 Device Schedule
@@ -205,7 +206,7 @@ in the following format:
     }
     
 The PUB/SUB interface will respond to requests on the
-"devices/actuators/schedule/result" topic.
+``devices/actuators/schedule/result`` topic.
 
 The PUB/SUB interface responses will have the following header:
 
@@ -307,9 +308,9 @@ Errors Setting Values
 If there is an error the RPC interface will raise an exception 
 and the PUB/SUB interface will publish to 
 
-"devices/actuators/error/<full device path>/<actuation point>"
+    ``devices/actuators/error/<full device path>/<actuation point>``
 
-with a headder in this form: 
+The headder of the publish will take this form: 
 
 .. code-block:: python
 
@@ -329,8 +330,12 @@ and a message body in this form:
 Common Error Types
 ******************
 
-- ``LockError`` - Raised when a request is made when we do not have permission to use a device. (Forgot to schedule, preempted and we did not handle the preemption message correctly, ran out of time in time slot, etc...)
-- ``ValueError`` - Message missing (PUB/SUB only) or is the wrong data type. 
+    ``LockError``
+        Raised when a request is made when we do not have permission to 
+        use a device. (Forgot to schedule, preempted and we did not handle 
+        the preemption message correctly, ran out of time in time slot, etc...)
+    ``ValueError``
+        Message missing (PUB/SUB only) or is the wrong data type. 
 
 Most other error types involve problems with communication between the
 VOLTTRON device drivers and the device itself.   
@@ -344,8 +349,11 @@ accomplish this is driver specific.
 
 Failure to schedule the device first will result in a ``LockError``.
 
-:py:meth:`RPC revert device interface <ActuatorAgent.revert_point>`
-:py:meth:`RPC revert value interface <ActuatorAgent.revert_device>`
+:py:meth:`RPC revert value interface <ActuatorAgent.revert_point>`
+:py:meth:`PUB/SUB revert value interface <ActuatorAgent.handle_revert_point>`
+
+:py:meth:`RPC revert device interface <ActuatorAgent.revert_device>`
+:py:meth:`PUB/SUB revert device interface <ActuatorAgent.handle_revert_device>`
         
 Canceling a Task
 ================
@@ -392,7 +400,7 @@ Preemption Publishes
 ====================
 
 If a Task is preempted it will publish the following to the 
-"devices/actuators/schedule/result" topic:
+``devices/actuators/schedule/result`` topic:
 
 .. code-block:: python
 
@@ -430,7 +438,7 @@ when the reserved block of time for a device starts.
 
 For each device the ActuatorAgent will publish to an associated topic:
 
-    devices/actuators/schedule/announce/<full device path>
+    ``devices/actuators/schedule/announce/<full device path>``
 
 With the following header:
 
@@ -661,7 +669,7 @@ class ActuatorAgent(Agent):
         
         To request a value publish a message to the following topic:
 
-        "devices/actuators/get/<device path>/<actuation point>"
+        ``devices/actuators/get/<device path>/<actuation point>``
         
         with the fallowing header:
         
@@ -674,7 +682,7 @@ class ActuatorAgent(Agent):
         The ActuatorAgent will reply on the **value** topic 
         for the actuator:
 
-        "devices/actuators/value/<full device path>/<actuation point>"
+        ``devices/actuators/value/<full device path>/<actuation point>``
         
         with the message set to the value the point.
         
@@ -695,9 +703,9 @@ class ActuatorAgent(Agent):
         """
         Set the value of a point.
         
-        To request a value publish a message to the following topic:
+        To set a value publish a message to the following topic:
 
-        "devices/actuators/get/<device path>/<actuation point>"
+        ``devices/actuators/set/<device path>/<actuation point>``
         
         with the fallowing header:
         
@@ -710,13 +718,13 @@ class ActuatorAgent(Agent):
         The ActuatorAgent will reply on the **value** topic 
         for the actuator:
 
-        "devices/actuators/value/<full device path>/<actuation point>"
+        ``devices/actuators/value/<full device path>/<actuation point>``
         
         with the message set to the value the point.
         
         Errors will be published on 
         
-        "devices/actuators/error/<full device path>/<actuation point>"
+        ``devices/actuators/error/<full device path>/<actuation point>``
         
         with the same header as the request.
         
@@ -806,7 +814,33 @@ class ActuatorAgent(Agent):
         return result
     
     def handle_revert_point(self, peer, sender, bus, topic, headers, message):
-        """Handler for revert point requests published on the pubsub."""
+        """
+        Revert the value of a point.
+        
+        To revert a value publish a message to the following topic:
+
+        ``actuators/revert/point/<device path>/<actuation point>``
+        
+        with the fallowing header:
+        
+        .. code-block:: python
+        
+            {
+                'requesterID': <Agent ID>
+            }
+        
+        The ActuatorAgent will reply on
+
+        ``devices/actuators/reverted/point/<full device path>/<actuation point>``
+        
+        This is to indicate that a point was reverted.
+        
+        Errors will be published on 
+        
+        ``devices/actuators/error/<full device path>/<actuation point>``
+        
+        with the same header as the request.
+        """
         point = topic.replace(topics.ACTUATOR_REVERT_POINT()+'/', '', 1)
         requester = headers.get('requesterID')
         headers = self._get_headers(requester)
@@ -819,7 +853,34 @@ class ActuatorAgent(Agent):
             self._handle_standard_error(ex, point, headers)
             
     def handle_revert_device(self, peer, sender, bus, topic, headers, message):
-        """Handler for revert device requests published on the pubsub."""
+        """
+        Revert all the writable values on a device.
+        
+        To revert a device publish a message to the following topic:
+
+        ``devices/actuators/revert/device/<device path>``
+        
+        with the fallowing header:
+        
+        .. code-block:: python
+        
+            {
+                'requesterID': <Agent ID>
+            }
+        
+        The ActuatorAgent will reply on the **value** topic 
+        for the actuator:
+
+        ``devices/actuators/reverted/device/<full device path>``
+        
+        to indicate that a point was reverted.
+        
+        Errors will be published on 
+        
+        ``devices/actuators/error/<full device path>/<actuation point>``
+        
+        with the same header as the request.
+        """
         point = topic.replace(topics.ACTUATOR_REVERT_DEVICE()+'/', '', 1)
         requester = headers.get('requesterID')
         headers = self._get_headers(requester)
@@ -914,7 +975,7 @@ class ActuatorAgent(Agent):
         Schedule request pub/sub handler
         
         An agent can request a task schedule by publishing to the
-        "devices/actuators/schedule/request" topic with the following header:
+        ``devices/actuators/schedule/request`` topic with the following header:
         
         .. code-block:: python
         
@@ -928,7 +989,7 @@ class ActuatorAgent(Agent):
         The message must describe the blocks of time using the format described in `Device Schedule`_. 
             
         A task may be canceled by publishing to the
-        "devices/actuators/schedule/request" topic with the following header:
+        ``devices/actuators/schedule/request`` topic with the following header:
         
         .. code-block:: python
         
