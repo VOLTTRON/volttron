@@ -76,12 +76,16 @@ class BaseJSONStore(object):
 
     def __init__(self, filename, permissions=0o660):
         self.filename = filename
+        self.permissions = permissions
         create_file_if_missing(filename)
         os.chmod(filename, permissions)
 
     def store(self, data):
-        with open(self.filename, 'w') as json_file:
-            json_file.write(json.dumps(data, indent=4))
+        fd = os.open(self.filename, os.O_CREAT|os.O_WRONLY, self.permissions)
+        try:
+            os.write(fd, json.dumps(data, indent=4))
+        finally:
+            os.close(fd)
 
     def load(self):
         try:
@@ -105,7 +109,7 @@ class KeyStore(BaseJSONStore):
         if filename is None:
             filename = os.path.join(get_home(), 'keystore')
         super(KeyStore, self).__init__(filename)
-        if not os.path.exists(filename):
+        if not self.isvalid():
             self.generate()
 
     def generate(self):
