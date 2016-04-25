@@ -118,14 +118,14 @@ class DiscoveryInfo(object):
         assert parsed.scheme
         assert not parsed.path
         try:
-        real_url = urljoin(discovery_address, "/discovery/")
-            _log.debug('Connecting to: {}'.format(real_url))
-        response = requests.get(real_url)
+            real_url = urljoin(discovery_address, "/discovery/")
+            _log.info('Connecting to: {}'.format(real_url))
+            response = requests.get(real_url)
 
-        if not response.ok:
-            raise DiscoveryError(
-                "Invalid discovery response from {}".format(real_url)
-            )
+            if not response.ok:
+                raise DiscoveryError(
+                    "Invalid discovery response from {}".format(real_url)
+                )
         except (ConnectionError, NewConnectionError) as e:
             raise DiscoveryError(
                 "Connection to {} not available".format(real_url)

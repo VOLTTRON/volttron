@@ -78,11 +78,11 @@ agent_module = agent_package + '.' + MAIN_MODULE
 _temp = __import__(agent_module, globals(), locals(), ['__version__'], -1)
 __version__ = _temp.__version__
 
-# Setup
 setup(
+    include_package_data=True,
     name=agent_package + 'agent',
     version=__version__,
-    install_requires=['volttron', 'tornado'],
+    install_requires=['volttron'],
     packages=packages,
     package_data={
         package: ['webroot/*.*', 'webroot/font/*.*', 'webroot/css/*.css',
