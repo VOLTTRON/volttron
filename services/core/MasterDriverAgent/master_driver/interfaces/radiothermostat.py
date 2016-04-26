@@ -5,11 +5,17 @@ April 2016
 NREL
 
 """
-
+import json
+import logging
+import sys
+import time
+import ast
 import csv
 from master_driver.interfaces import BaseInterface, BaseRegister, DriverInterfaceError
 from csv import DictReader
 from StringIO import StringIO
+from datetime import datetime
+from . import  thermostat_api
 
 
 class Register(BaseRegister):
@@ -86,6 +92,7 @@ class Interface(BaseInterface):
 
     def configure(self, config_dict, registry_config_str):
         '''Configure the Inteface'''
+        print config_dict
         self.parse_config(registry_config_str)
         self.target_address = config_dict["device_address"]
         self.ping_target(self.target_address)
@@ -126,10 +133,8 @@ class Interface(BaseInterface):
                 self.set_point(program,value)
         elif point_name == 'cool_pgm_week':
             for program in self.program_cool:
-
                 register = self.get_register_by_name(program)
                 value = register.default_value
-
                 self.set_point(program,value)
         else:
             register = self.get_register_by_name(point_name)
@@ -160,6 +165,8 @@ class Interface(BaseInterface):
                         result = self.thermostat.set_cool_pgm(value, day)
             elif point_name == "tstat_mode":
                 result = self.thermostat.mode(int(value))
+            elif point_name == "tstat_fan_mode":
+                result = self.thermostat.fmode(int(value))
             elif point_name == "tstat_cool_sp":
                 result = self.thermostat.t_cool(value)
             elif point_name == "tstat_heat_sp":
@@ -167,7 +174,8 @@ class Interface(BaseInterface):
             elif point_name == 'energy_led':
                 result = self.thermostat.energy_led(value)
             else:
-                _log.debug("No such writable point found")
+                print("No such writable point found"+point_name)
+        print str(point_name) + "::" + str(result)
         return (str(result))
 
 
