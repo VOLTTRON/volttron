@@ -59,6 +59,7 @@ from __future__ import absolute_import, print_function
 
 import logging
 import sqlite3
+import weakref
 from Queue import Queue, Empty
 from collections import defaultdict
 from datetime import datetime, timedelta
@@ -383,7 +384,7 @@ class BaseHistorianAgent(Agent):
 
         _log.debug("Starting process loop.")
 
-        backupdb = BackupDatabase(self._backup_storage_limit_gb)
+        backupdb = BackupDatabase(self, self._backup_storage_limit_gb)
 
         # Sets up the concrete historian
         self.historian_setup()
@@ -468,9 +469,10 @@ class BaseHistorianAgent(Agent):
 
 
 class BackupDatabase:
-    def __init__(self, backup_storage_limit_gb):
+    def __init__(self, owner, backup_storage_limit_gb):
         # The topic cache is only meant as a local lookup and should not be
         # accessed via the implemented historians.
+        self._owner = weakref.ref(owner)
         self._backup_storage_limit_gb = backup_storage_limit_gb
         self._backup_cache = {}
         self._meta_data = defaultdict(dict)
@@ -482,11 +484,13 @@ class BackupDatabase:
         c = self._connection.cursor()
 
         if self._backup_storage_limit_gb is not None:
+
             def page_count():
                 c.execute("PRAGMA page_count")
                 return c.fetchone()[0]
 
             while page_count() >= self.max_pages:
+                self._owner().vip.pubsub.publish('pubsub', 'backupdb/nomore')
                 c.execute(
                     '''DELETE FROM outstanding
                     WHERE ROWID IN
@@ -589,8 +593,8 @@ class BackupDatabase:
         if self._backup_storage_limit_gb is not None:
             c.execute('''PRAGMA page_size''')
             page_size = c.fetchone()[0]
-            max_storage_kb = self._backup_storage_limit_gb * 1024 * 1024
-            self.max_pages = max_storage_kb / page_size
+            max_storage_bytes = self._backup_storage_limit_gb * 1024**3
+            self.max_pages = max_storage_bytes / page_size
 
         c.execute("SELECT name FROM sqlite_master WHERE type='table' "
                   "AND name='outstanding';")
@@ -649,6 +653,7 @@ class BaseQueryHistorianAgent(Agent):
     both happen in the same thread separate from the main thread. This is
     to allow blocking while processing events.
     """
+    __metaclass__ = ABCMeta
 
     @RPC.export
     def query(self, topic=None, start=None, end=None, skip=0,
