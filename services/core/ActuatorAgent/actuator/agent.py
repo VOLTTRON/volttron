@@ -59,16 +59,14 @@
 """
 .. _actuator-agent:
 
-The Actuator Agent is used to manage write access to devices. Agents
+The Actuator Agent is used to manage write access to devices. Other agents
 may request scheduled times, called Tasks, to interact with one or more
 devices.
 
-The interactions with the ActuatorAgent are handled via a pub/sub or RPC
-interface provided by the message bus. 
+Agents may interact with the ActuatorAgent via either PUB/SUB or RPC, 
+but it is recommended agents use RPC to interact with the ActuatorAgent.
 
-It is recommended RPC be used for interacting with the ActuatorAgent.
-
-The pub/sub interface is primarily for VOLTTRON 2.0 agents. 
+The PUB/SUB interface remains primarily for VOLTTRON 2.0 agents. 
 
 The Actuator Agent also triggers the heart beat on devices whose 
 drivers are configured to do so. 
@@ -84,7 +82,7 @@ ActuatorAgent Configuration
         File used to save and restore Task states if the ActuatorAgent restarts for any reason. File will be
         created if it does not exist when it is needed.
     "heartbeat_period"
-        The frequency to send heartbeat signal to devices. Defaults to 60.
+        How often to send a heartbeat signal to all devices in seconds. Defaults to 60.
         
 
 Sample configuration file
@@ -100,7 +98,7 @@ Sample configuration file
 Workflow
 ========
 
-Interacting with the Actuator Agent follows a basic steps:
+Agents interact with the Actuator Agent following these basic steps:
 
 - Schedule one or more blocks of time with one or more devices. This is called a Task.
 - If needed wait until a block of time starts.
@@ -425,7 +423,7 @@ Along with the following header:
     
 .. note::
 
-    Remeber that if your "LOW_PREEMPT" Task has already started and 
+    Remember that if your "LOW_PREEMPT" Task has already started and 
     is preempted you have a grace period to do any clean up before
     losing access to the device.
  
