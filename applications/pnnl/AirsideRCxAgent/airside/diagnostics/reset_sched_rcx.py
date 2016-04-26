@@ -230,7 +230,7 @@ class SchedResetRcx(object):
             msg = 'No problems detected for schedule diagnostic.'
             dx_msg = 60.0
 
-        if dx_msg == 63.1:
+        if dx_msg != 64.2:
             for _hour in range(24):
                 push_time = self.timestamp[0].date()
                 push_time = datetime.combine(push_time, datetime.min.time())
