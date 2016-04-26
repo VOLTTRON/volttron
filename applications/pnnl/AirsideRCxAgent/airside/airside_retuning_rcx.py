@@ -290,11 +290,11 @@ class Application(AbstractDrivenAgent):
                 (cur_time - self.warm_up_start) < time_check):
             dx_result.log('Unit is in warm-up. Data will not be analyzed.')
             return dx_result
-        # dx_result = (
-        #     self.static_dx.duct_static(cur_time, stcpr_sp_data, stc_pr_data,
-        #                                zn_dmpr_data, low_dx_cond, high_dx_cond,
-        #                                dx_result, validate))
-        # dx_result = (
-        #     self.sat_dx.sat_rcx(cur_time, satemp_data, sat_stpt_data, rht_data,
-        #                         zn_dmpr_data, dx_result, validate))
+        dx_result = (
+            self.static_dx.duct_static(cur_time, stcpr_sp_data, stc_pr_data,
+                                       zn_dmpr_data, low_dx_cond, high_dx_cond,
+                                       dx_result, validate))
+        dx_result = (
+            self.sat_dx.sat_rcx(cur_time, satemp_data, sat_stpt_data, rht_data,
+                                zn_dmpr_data, dx_result, validate))
         return dx_result
