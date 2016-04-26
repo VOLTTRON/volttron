@@ -18,7 +18,7 @@
         },
         "analysis_name": "Airside_RCx"
     },
-    "output_file": "./junk",
+    "output_file": "./out",
     "mode": "PASSIVE",
     "from_file": true,
     "arguments": {

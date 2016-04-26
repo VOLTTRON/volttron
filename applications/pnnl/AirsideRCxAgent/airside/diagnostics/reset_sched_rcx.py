@@ -69,8 +69,10 @@ ST = 'state'
 
 DATE_FORMAT = '%m-%d-%y %H:%M'
 
+
 def create_table_key(table_name, timestamp):
     return '&'.join([table_name, timestamp.strftime(DATE_FORMAT)])
+
 
 class SchedResetRcx(object):
     """Schedule, supply-air temperature, and duct static pressure auto-detect
@@ -149,37 +151,37 @@ class SchedResetRcx(object):
             start_new_analysis_time = current_time
             run_diagnostic = True
 
-        if current_time.time() < schedule[0] or current_time.time() > schedule[1]:
-            if not run_diagnostic:
+        if not run_diagnostic:
+            if current_time.time() < schedule[0] or current_time.time() > schedule[1]:
                 self.stcpr_arr.extend(stcpr_data)
                 self.fanstat_values.append((current_time, int(max(fan_stat_data))))
                 self.sched_time.append(current_time)
-            fan_status = int(max(fan_stat_data))
-        else:
             if int(max(fan_stat_data)):
-                if not run_diagnostic:
-                    self.stcpr_stpt_arr.append(mean(stcpr_stpt_data))
-                    self.sat_stpt_arr.append(mean(sat_stpt_data))
-                start_new_analysis_sat_stpt = mean(stcpr_stpt_data)
-                start_new_analysis_stcpr_stpt = mean(sat_stpt_data)
+                self.stcpr_stpt_arr.append(mean(stcpr_stpt_data))
+                self.sat_stpt_arr.append(mean(sat_stpt_data))
+        fan_status = int(max(fan_stat_data))
+        start_new_analysis_sat_stpt = mean(stcpr_stpt_data)
+        start_new_analysis_stcpr_stpt = mean(sat_stpt_data)
         self.timestamp.append(current_time)
 
         data = validation_builder(sched_val, SCHED_VALIDATE, DATA)
-        table_key = create_table_key(self.reset_file_name_id, self.timestamp[0])
+        reset_key = create_table_key(self.reset_file_name_id, self.timestamp[0])
+        schedule_key = create_table_key(self.sched_file_name_id, self.timestamp[0])
         file_key = create_table_key(VALIDATE_FILE_TOKEN, current_time)
-        if run_diagnostic and len(self.sched_time) >= self.no_req_data:
+        if run_diagnostic and len(self.timestamp) >= self.no_req_data:
             dx_result = self.unocc_fan_operation(dx_result)
             if len(self.sat_stpt_arr) >= self.no_req_data:
-                dx_result = self.no_static_pr_reset(dx_result)
                 dx_result = self.no_sat_stpt_reset(dx_result)
-                dx_result.insert_table_row(table_key, self.dx_table)
+            if len(self.stcpr_stpt_arr) >= self.no_req_data:
+                dx_result = self.no_static_pr_reset(dx_result)
+                dx_result.insert_table_row(reset_key, self.dx_table)
             data.update({SCHED_VALIDATE + DATA + ST: 1})
             self.reinitialize(start_new_analysis_time, start_new_analysis_sat_stpt,
                               start_new_analysis_stcpr_stpt, stcpr_data, fan_status)
         elif run_diagnostic:
             dx_msg = 61.2
             dx_table = {SCHED_RCX + DX:  dx_msg}
-            dx_result.insert_table_row(table_key, dx_table)
+            dx_result.insert_table_row(schedule_key, dx_table)
             data.update({SCHED_VALIDATE + DATA + ST: 2})
             self.reinitialize(start_new_analysis_time, start_new_analysis_sat_stpt,
                               start_new_analysis_stcpr_stpt, stcpr_data, fan_status)
@@ -192,12 +194,12 @@ class SchedResetRcx(object):
         """If the AHU/RTU is operating during unoccupied periods inform the
         building operator.
         """
-        avg_duct_stpr = 0
+        avg_duct_stcpr = 0
         percent_on = 0
-
         fanstat_on = [(fan[0].hour, fan[1]) for fan in self.fanstat_values if int(fan[1]) == 1]
-        fanstat = [(fan[0].hour , fan[1]) for fan in self.fanstat_values]
+        fanstat = [(fan[0].hour, fan[1]) for fan in self.fanstat_values]
         hourly_counter = []
+
         for counter in range(24):
             fan_on_count = [fan_status_time[1] for fan_status_time in fanstat_on if fan_status_time[0] == counter]
             fan_count = [fan_status_time[1] for fan_status_time in fanstat if fan_status_time[0] == counter]
@@ -206,36 +208,41 @@ class SchedResetRcx(object):
             else:
                 hourly_counter.append(0)
 
-        if self.fanstat_values:
-            percent_on = (len(fanstat_on)/len(self.fanstat_values)) * 100.0
-        if self.stcpr_arr:
-            avg_duct_stpr = mean(self.stcpr_arr)
+        if self.sched_time:
+            if self.fanstat_values:
+                percent_on = (len(fanstat_on)/len(self.fanstat_values)) * 100.0
+            if self.stcpr_arr:
+                avg_duct_stcpr = mean(self.stcpr_arr)
 
-        if percent_on > self.unocc_time_threshold:
-            msg = 'Supply fan is on during unoccupied times.'
-            dx_msg = 63.1
-        else:
-            if avg_duct_stpr < self.unocc_stp_threshold:
-                msg = 'No problems detected.'
-                dx_msg = 60.0
+            if percent_on > self.unocc_time_threshold:
+                msg = 'Supply fan is on during unoccupied times.'
+                dx_msg = 63.1
             else:
-                msg = ('Fan status show the fan is off but the duct static '
-                       'pressure is high, check the functionality of the '
-                       'pressure sensor.')
-                dx_msg = 64.2
+                if avg_duct_stcpr < self.unocc_stp_threshold:
+                    msg = 'No problems detected for schedule diagnostic.'
+                    dx_msg = 60.0
+                else:
+                    msg = ('Fan status show the fan is off but the duct static '
+                           'pressure is high, check the functionality of the '
+                           'pressure sensor.')
+                    dx_msg = 64.2
+        else:
+            msg = 'No problems detected for schedule diagnostic.'
+            dx_msg = 60.0
 
         if dx_msg == 63.1:
             for _hour in range(24):
+                push_time = self.timestamp[0].date()
+                push_time = datetime.combine(push_time, datetime.min.time())
+                push_time = push_time.replace(hour=_hour)
+                dx_table = {SCHED_RCX + DX: 60.0}
                 if hourly_counter[_hour] > self.unocc_time_threshold:
-                    push_time = self.sched_time[0].date()
-                    push_time = datetime.combine(push_time, datetime.min.time())
-                    push_time = push_time.replace(hour=_hour)
-                    table_key = create_table_key(self.sched_file_name_id , push_time)
                     dx_table = {SCHED_RCX + DX:  dx_msg}
-                    dx_result.insert_table_row(table_key, dx_table)
+                table_key = create_table_key(self.sched_file_name_id, push_time)
+                dx_result.insert_table_row(table_key, dx_table)
         else:
-            push_time = str(self.sched_time[0].date())
-            table_key = create_table_key(self.sched_file_name_id , push_time)
+            push_time = self.timestamp[0].date()
+            table_key = create_table_key(self.sched_file_name_id, push_time)
             dx_result.insert_table_row(table_key, {SCHED_RCX + DX:  dx_msg})
         dx_result.log(msg, logging.INFO)
         return dx_result
@@ -247,6 +254,7 @@ class SchedResetRcx(object):
         """
         if not self.stcpr_stpt_arr:
             return dx_result
+
         stcpr_daily_range = (max(self.stcpr_stpt_arr) - min(self.stcpr_stpt_arr))
 
         if stcpr_daily_range < self.stpr_reset_threshold:
@@ -269,6 +277,7 @@ class SchedResetRcx(object):
         """
         if not self.sat_stpt_arr:
             return dx_result
+
         satemp_daily_range = max(self.sat_stpt_arr) - min(self.sat_stpt_arr)
         if satemp_daily_range <= self.sat_reset_threshold:
             msg = ('A supply-air temperature reset was not detected. '

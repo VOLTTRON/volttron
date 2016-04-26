@@ -190,10 +190,12 @@ class Application(AbstractDrivenAgent):
         if self.fan_status_name in device_dict:
             fan_status = device_dict[self.fan_status_name]
             fan_status = [point[1] for point in fan_status]
-            fan_status_data.append(min(fan_status))
-            if not int(fan_status_data[0]):
-                supply_fan_off = True
-                self.warm_up_flag = True
+            fan_status = [status for status in fan_status if status is not None]
+            if fan_status_data:
+                fan_status_data.append(min(fan_status))
+                if not int(fan_status_data[0]):
+                    supply_fan_off = True
+                    self.warm_up_flag = True
 
         if self.fansp_name in device_dict:
             fan_speed = device_dict[self.fansp_name]
@@ -265,12 +267,15 @@ class Application(AbstractDrivenAgent):
                           'the duct static pressure diagnostics.')
         if not zn_dmpr_data:
             missing_data.append(self.zone_damper_name)
+        if not fan_status:
+            missing_data.append(self.fan_status_name)
         if missing_data:
             raise Exception('Missing required data: {}'.format(missing_data))
+            return dx_result
         dx_result = (
             self.sched_occ_dx.sched_rcx_alg(cur_time, stc_pr_data,
                                             stcpr_sp_data, sat_stpt_data,
-                                            fan_status_data, dx_result,
+                                            fan_status, dx_result,
                                             sched_val))
         if supply_fan_off:
             dx_result.log('Supply fan is off. Data will not be used for '
@@ -285,12 +290,11 @@ class Application(AbstractDrivenAgent):
                 (cur_time - self.warm_up_start) < time_check):
             dx_result.log('Unit is in warm-up. Data will not be analyzed.')
             return dx_result
-        dx_result = (
-            self.static_dx.duct_static(cur_time, stcpr_sp_data, stc_pr_data,
-                                       zn_dmpr_data, low_dx_cond, high_dx_cond,
-                                       dx_result, validate))
-        dx_result = (
-            self.sat_dx.sat_rcx(cur_time, satemp_data, sat_stpt_data, rht_data,
-                                zn_dmpr_data, dx_result, validate))
+        # dx_result = (
+        #     self.static_dx.duct_static(cur_time, stcpr_sp_data, stc_pr_data,
+        #                                zn_dmpr_data, low_dx_cond, high_dx_cond,
+        #                                dx_result, validate))
+        # dx_result = (
+        #     self.sat_dx.sat_rcx(cur_time, satemp_data, sat_stpt_data, rht_data,
+        #                         zn_dmpr_data, dx_result, validate))
         return dx_result
-
