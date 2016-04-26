@@ -328,37 +328,56 @@ def generate_apidoc(app):
         """
     print("\n##In run_apidocs##\n")
     global script_dir, apidocs_base_dir
-    os.makedirs(apidocs_base_dir, 0755)
 
+    os.makedirs(apidocs_base_dir, 0755)
+    file_name = os.path.join(script_dir,"../docs_exclude_list.txt" )
+    application_excludes = []
+    services_excludes = []
+    volttron_excludes = []
+    if os.path.exists(file_name):
+        print "file_name {} exists".format(file_name)
+        with open(file_name,'r') as file:
+            for line in file:
+                print "line is {}".format(line)
+                if line.startswith('applications'):
+                    _add_to_excludes(application_excludes, line)
+                elif line.startswith('services'):
+                    _add_to_excludes(services_excludes, line)
+                elif line.startswith('volttron'):
+                    _add_to_excludes(volttron_excludes, line)
+    print ("processed exclude list")
+    print ("services {}".format(services_excludes))
+    print ("applications {}".format(application_excludes))
+    print ("applications {}".format(volttron_excludes))
     # generate api-docs for  services/core
     docs_subdir=os.path.join(apidocs_base_dir, "services")
     agent_dirs = glob(script_dir+"/../../services/core/*/")
-    run_apidoc(docs_subdir, agent_dirs)
+    run_apidoc(docs_subdir, agent_dirs, services_excludes)
 
     # generate api-docs for applications
     docs_subdir = os.path.join(apidocs_base_dir, "applications")
     agent_dirs = glob(script_dir + "/../../applications/*/*/")
-    run_apidoc(docs_subdir, agent_dirs)
+    run_apidoc(docs_subdir, agent_dirs, application_excludes)
 
     # generate api-docs for platform core and drivers
 
     sys.path.insert(0,
                     os.path.abspath(script_dir + "/../../volttron"))
     print("Added to sys path***: {}".format(os.path.abspath(script_dir + "/../..")))
-    # sys.path.insert(0,
-    #                 os.path.abspath(script_dir +
-    #                                 "/../../volttron/platform"))
-    # sys.path.insert(0,
-    #                 os.path.abspath(script_dir +
-    #                                 "/../../volttron/platform/agent"))
-    subprocess.check_call(
-        ["sphinx-apidoc", '-o',
-         os.path.join(apidocs_base_dir, "volttron"),
-         script_dir + "/../../volttron",
-         '--force', script_dir + "/../../volttron/lint"])
+
+    cmd = ["sphinx-apidoc", '-o', os.path.join(apidocs_base_dir, "volttron"),
+           script_dir + "/../../volttron", '--force']
+    cmd.extend(volttron_excludes)
+    subprocess.check_call(cmd)
 
 
-def run_apidoc(docs_dir, agent_dirs):
+def _add_to_excludes(application_excludes, line):
+    global script_dir
+    volttron_root = os.path.abspath(os.path.join(script_dir, "../.."))
+    application_excludes.append(os.path.join(volttron_root, line))
+
+
+def run_apidoc(docs_dir, agent_dirs, exclude_list):
     """
     Runs sphinx-apidoc on all subdirectories under the given directory.
     commnad runs with --force and exclude any setup.py file in the subdirectory
@@ -372,11 +391,12 @@ def run_apidoc(docs_dir, agent_dirs):
         sys.path.insert(0, agent_dir)
         print "Added to syspath {}".format(agent_dir)
         name = os.path.basename(agent_dir)
-        subprocess.check_call(
-            ["sphinx-apidoc", '-o',
+        cmd = ["sphinx-apidoc", '-o',
              os.path.join(docs_dir, name),
              agent_dir, os.path.join(agent_dir, "setup.py"),
-             '--force'])
+             '--force']
+        cmd.extend(exclude_list)
+        subprocess.check_call(cmd)
 
 
 def clean_apirst(app, exception):
