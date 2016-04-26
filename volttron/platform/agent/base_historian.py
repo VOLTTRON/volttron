@@ -67,7 +67,7 @@ from threading import Thread
 
 import pytz
 import re
-from abc import abstractmethod
+from abc import abstractmethod, ABCMeta
 from dateutil.parser import parse
 from volttron.platform.agent.utils import process_timestamp, \
     fix_sqlite3_datetime, get_aware_utc_now
@@ -107,7 +107,7 @@ class BaseHistorianAgent(Agent):
     before publishing it to the historian.  This allows recovery for unexpected
     happenings before the successful writing of data to the historian.
     """
-
+    __metaclass__ = ABCMeta
     def __init__(self,
                  retry_period=300.0,
                  submit_size_limit=1000,
@@ -589,7 +589,7 @@ class BackupDatabase:
         if self._backup_storage_limit_gb is not None:
             c.execute('''PRAGMA page_size''')
             page_size = c.fetchone()[0]
-            max_storage_kb = self.backup_storage_limit_gb * 1024 * 1024
+            max_storage_kb = self._backup_storage_limit_gb * 1024 * 1024
             self.max_pages = max_storage_kb / page_size
 
         c.execute("SELECT name FROM sqlite_master WHERE type='table' "
