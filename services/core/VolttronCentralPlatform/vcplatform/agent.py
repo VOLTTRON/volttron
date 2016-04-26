@@ -519,30 +519,44 @@ class VolttronCentralPlatform(Agent):
         else:
 
             fields = method.split('.')
+            agent_uuid = fields[2]
+            agent_method = '.'.join(fields[3:])
+            _log.debug("Calling method {} on agent {}"
+                       .format(agent_method, agent_uuid))
+            _log.debug("Params is: {}".format(params))
 
-            if self._services.get(fields[0], None):
-                service_identity = self._services[fields[0]]
-                agent_method = fields[1]
-
-                result = self.vip.rpc.call(service_identity, agent_method,
-                                           **params).get()
+            result = self.vip.rpc.call(agent_uuid, agent_method,
+                                   params).get()
 
 
-            else:
+            # Get the agent via their uuid.
+            # Call the method on that agent.
+            #result = self.vip.rpc.call('control', 'health.get_status', fields[2]).get(timeout=5)
+#            result = self.vip.rpc.call(fields[2], 'inspect').get(timeout=5)
 
-                result = jsonrpc.json_error(ident=id, code=METHOD_NOT_FOUND)
-
-                if len(fields) < 3:
-                    result = jsonrpc.json_error(ident=id, code=METHOD_NOT_FOUND)
-                else:
-                    agent_uuid = fields[2]
-                    agent_method = '.'.join(fields[3:])
-                    _log.debug("Calling method {} on agent {}"
-                               .format(agent_method, agent_uuid))
-                    _log.debug("Params is: {}".format(params))
-
-                    result = self.vip.rpc.call(agent_uuid, agent_method,
-                                           params).get()
+#            if self._services.get(fields[0], None):
+#                service_identity = self._services[fields[0]]
+#                agent_method = fields[1]
+#
+#                result = self.vip.rpc.call(service_identity, agent_method,
+#                                           **params).get()
+#
+#
+#            else:
+#
+#                result = jsonrpc.json_error(ident=id, code=METHOD_NOT_FOUND)
+#
+#                if len(fields) < 3:
+#                    result = jsonrpc.json_error(ident=id, code=METHOD_NOT_FOUND)
+#                else:
+#                    agent_uuid = fields[2]
+#                    agent_method = '.'.join(fields[3:])
+#                    _log.debug("Calling method {} on agent {}"
+#                               .format(agent_method, agent_uuid))
+#                    _log.debug("Params is: {}".format(params))
+#
+#                    result = self.vip.rpc.call(agent_uuid, agent_method,
+#                                           params).get()
 
         if isinstance(result, dict):
             if 'result' in result:
