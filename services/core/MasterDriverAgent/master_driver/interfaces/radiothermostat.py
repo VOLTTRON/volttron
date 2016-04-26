@@ -108,7 +108,7 @@ class Interface(BaseInterface):
         # result = self.vip.rpc.call('radiothermostat', 'get_point',
         #                                self.target_address,point_map).get()
         result = self._get_point(self.target_address,point_map)
-        return str(result)
+        return result
 
 
     def set_point(self, point_name, value):
@@ -176,7 +176,7 @@ class Interface(BaseInterface):
             else:
                 print("No such writable point found"+point_name)
         print str(point_name) + "::" + str(result)
-        return (str(result))
+        return (result)
 
 
 
@@ -211,7 +211,7 @@ class Interface(BaseInterface):
                     else:
                         query = self.thermostat.get_cool_pgm(day)
                         result.update({point_name : str(query)})
-        return str(result)
+        return (result)
 
 
     def revert_all(self):
