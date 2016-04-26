@@ -1,5 +1,5 @@
 '''
-Copyright (c) 2014, Battelle Memorial Institute
+Copyright (c) 2016, Battelle Memorial Institute
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -66,11 +66,10 @@ DX = '/diagnostic message'
 ST = 'state'
 DATA = '/data/'
 STCPR_NAME = 'duct static pressure'
-DATE_FORMAT = '%m-%d-%y %H:%M'
 
 
 def create_table_key(table_name, timestamp):
-    return '&'.join([table_name, timestamp.strftime(DATE_FORMAT)])
+    return '&'.join([table_name, timestamp.strftime('%m-%d-%y %H:%M')])
 
 
 class DuctStaticRcx(object):
