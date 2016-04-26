@@ -593,7 +593,7 @@ class VolttronCentralAgent(Agent):
 
     def route_request(self, id, method, params):
         '''Route request to either a registered platform or handle here.'''
-        print('inside route_request {}, {}, {}'.format(id, method, params))
+        _log.debug('inside route_request {}, {}, {}'.format(id, method, params))
 
         def err(message, code=METHOD_NOT_FOUND):
             return {'error': {'code': code, 'message': message}}
