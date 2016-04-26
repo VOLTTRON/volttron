@@ -44,12 +44,53 @@ class Interface(BaseInterface):
             'cool_pgm_sun'
         }
 
+        self.point_name_map = {
+                'tstat_mode' : "tmode",
+                'tstat_temp_sensor' : "temp",
+                'tstat_heat_sp' : 't_heat',
+                'tstat_cool_sp' : "t_cool",
+                'tstat_fan_mode' : 'fmode',
+                'tstat_hvac_state' : 'tstate'
+        }
+        # point name present in a default query to the thermostat
+        self.query_point_name = {
+                'tstat_mode',
+                'tstat_temp_sensor',
+                'tstat_heat_sp',
+                'tstat_cool_sp',
+                'tstat_fan_mode',
+                'tstat_hvac_state',
+                'override',
+                'hold'
+        }
+        # list of program modes/names
+        self.program_name = {
+            'heat_pgm_week',
+            'heat_pgm_mon',
+            'heat_pgm_tue',
+            'heat_pgm_wed',
+            'heat_pgm_thu',
+            'heat_pgm_fri',
+            'heat_pgm_sat',
+            'heat_pgm_sun',
+            'cool_pgm_week',
+            'cool_pgm_mon',
+            'cool_pgm_tue',
+            'cool_pgm_wed',
+            'cool_pgm_thu',
+            'cool_pgm_fri',
+            'cool_pgm_sat',
+            'cool_pgm_sun'
+        }
+
 
     def configure(self, config_dict, registry_config_str):
         '''Configure the Inteface'''
         self.parse_config(registry_config_str)
         self.target_address = config_dict["device_address"]
         self.ping_target(self.target_address)
+        url = config_dict["device_url"]
+        self.thermostat = thermostat_api.ThermostatInterface(url)
 
 
     def get_point(self, point_name):
@@ -57,8 +98,9 @@ class Interface(BaseInterface):
         register = self.get_register_by_name(point_name)
         point_map = {}
         point_map = {point_name:[register.default_value]}
-        result = self.vip.rpc.call('radiothermostat', 'get_point',
-                                       self.target_address,point_map).get()
+        # result = self.vip.rpc.call('radiothermostat', 'get_point',
+        #                                self.target_address,point_map).get()
+        result = self._get_point(self.target_address,point_map)
         return str(result)
 
 
@@ -69,8 +111,9 @@ class Interface(BaseInterface):
         point_map = {point_name:[register.default_value]}
         if register.read_only:
             raise  IOError("Trying to write to a point configured read only: "+point_name)
-        result = self.vip.rpc.call('radiothermostat', 'set_point',
-                                       self.target_address,point_map,value).get()
+        # result = self.vip.rpc.call('radiothermostat', 'set_point',
+        #                                self.target_address,point_map,value).get()
+        result = self._set_point(self.target_address,point_map,value)
         return result
 
 
@@ -94,6 +137,75 @@ class Interface(BaseInterface):
             self.set_point(point_name,value)
 
 
+
+
+    def _set_point(self, device, point_map, value):
+        '''
+            Set value of a point_name on a device
+        '''
+        result = {}
+        for point_name, properties in point_map.iteritems():
+
+            if point_name in self.program_name:
+                pgm,day = point_name.rsplit('_',1)
+                if pgm == 'heat_pgm':
+                    if(day == 'week'):
+                        result = self.thermostat.set_heat_pgm(value)
+                    else:
+                        result = self.thermostat.set_heat_pgm(value, day)
+                elif pgm == 'cool_pgm':
+                    if(day == 'week'):
+                        result = self.thermostat.set_cool_pgm(value)
+                    else:
+                        result = self.thermostat.set_cool_pgm(value, day)
+            elif point_name == "tstat_mode":
+                result = self.thermostat.mode(int(value))
+            elif point_name == "tstat_cool_sp":
+                result = self.thermostat.t_cool(value)
+            elif point_name == "tstat_heat_sp":
+                result = self.thermostat.t_heat(value)
+            elif point_name == 'energy_led':
+                result = self.thermostat.energy_led(value)
+            else:
+                _log.debug("No such writable point found")
+        return (str(result))
+
+
+
+    def _get_point(self, device, point_map):
+        '''
+            Get value of a point_name on a device
+        '''
+        result = {}
+        query = {}
+        point_map_obj = {}
+        for point_name, properties in point_map.iteritems():
+            query = json.loads(self.thermostat.tstat())
+            if point_name in self.query_point_name:
+                try:
+                    db = query[self.point_name_map[point_name]]
+                    result.update({point_name : str(db) })
+                except:
+                    result.update({point_name : str("NA") })
+            else:
+                pgm,day = point_name.rsplit('_',1)
+                if pgm == 'heat_pgm':
+                    if day == 'week':
+                        query = self.thermostat.get_heat_pgm()
+                        result.update({point_name : str(query)})
+                    else:
+                        query = self.thermostat.get_heat_pgm(day)
+                        result.update({point_name : str(query)})
+                elif pgm == 'cool_pgm':
+                    if day == 'week':
+                        query = self.thermostat.get_cool_pgm()
+                        result.update({point_name : str(query)})
+                    else:
+                        query = self.thermostat.get_cool_pgm(day)
+                        result.update({point_name : str(query)})
+        return str(result)
+
+
     def revert_all(self):
         '''Sets all points on the device to their default values'''
         write_registers = self.get_registers_by_type("byte", False)
@@ -107,8 +219,9 @@ class Interface(BaseInterface):
         write_registers = self.get_registers_by_type("byte", False)
         for register in read_registers + write_registers:
             point_map[register.point_name] = [register.default_value]
-        result = self.vip.rpc.call('radiothermostat', 'get_point',
-                                       self.target_address,point_map).get()
+        # result = self.vip.rpc.call('radiothermostat', 'get_point',
+        #                                self.target_address,point_map).get()
+        result = self._get_point(self.target_address,point_map)
         return result
 
     def ping_target(self, address):
