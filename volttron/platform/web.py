@@ -119,7 +119,7 @@ class DiscoveryInfo(object):
         assert not parsed.path
         try:
             real_url = urljoin(discovery_address, "/discovery/")
-            _log.debug('Connecting to: {}'.format(real_url))
+            _log.info('Connecting to: {}'.format(real_url))
             response = requests.get(real_url)
 
             if not response.ok:
