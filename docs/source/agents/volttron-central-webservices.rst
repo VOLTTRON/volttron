@@ -242,7 +242,7 @@ Register A Volttron Platform Instance (Using Discovery)
             }
 
 
-Request Registration of an External Platform (Using Discovery)
+TODO: Request Registration of an External Platform
     .. code-block:: Python
 
         # POST /jsonrpc
@@ -250,7 +250,7 @@ Request Registration of an External Platform (Using Discovery)
             "jsonrpc": "2.0",
             "method": "register_platform",
             "params": {
-                "uri": "127.0.0.2:8080"
+                "uri": "127.0.0.2:8080?serverkey=...&publickey=...&secretkey=..."
             }
             "authorization": "someAuthorizationToken",
             "id": #
@@ -272,7 +272,7 @@ Unregister a Volttron Platform Instance
         }
 
 
-Retrieve Managed Instances
+TODO: change response Retrieve Managed Instances
     .. code-block:: Python
 
         #POST /jsonrpc
@@ -292,21 +292,34 @@ Retrieve Managed Instances
                 "result": [
                     {
                         "name": "platform1",
-                        "uuid": "abcd1234-ef56-ab78-cd90-efabcd123456"
+                        "uuid": "abcd1234-ef56-ab78-cd90-efabcd123456",
+                        "health": {
+                           "status": "GOOD",
+                           "context": null
+                        }
                     },
                     {
                         "name": "platform2",
-                        "uuid": "0987fedc-65ba-43fe-21dc-098765bafedc"
+                        "uuid": "0987fedc-65ba-43fe-21dc-098765bafedc",
+                        "health": {
+                           "status": "BAD",
+                           "context": "Expected 9 agents running, but only 5 are"
+                        }
+
                     },
                     {
                         "name": "platform3",
-                        "uuid": "0000aaaa-1111-bbbb-2222-cccc3333dddd"
+                        "uuid": "0000aaaa-1111-bbbb-2222-cccc3333dddd",
+                        "health": {
+                           "status": "GOOD",
+                           "context": "Currently scraping 20 devices"
+                        }
                     }
                 ],
                 "id": #
             }
 
-Retrieve Installed Agents From platform1
+TODO: change repsonse Retrieve Installed Agents From platform1
    .. code-block:: Python
 
       # POST /jsonrpc
@@ -326,22 +339,63 @@ Retrieve Installed Agents From platform1
              "result": [
                  {
                      "name": "HelloAgent",
-                     "uuid": "a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6"
+                     "uuid": "a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6",
+                     "permissions": {
+                        "can_start": true,
+                        "can_stop": true,
+                        "can_restart": true
+                     }
+                     "health": {
+                        "status": "GOOD",
+                        "context": null
+                     }
                  },
                  {
-                     "name": "RunningAgent",
-                     "uuid": "a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6"
+                     "name": "Historian",
+                     "uuid": "a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6",
+                     "permissions": {
+                        "can_start": true,
+                        "can_stop": true,
+                        "can_restart": true
+                     }
+
+                     "health": {
+                        "status": "BAD",
+                        "context": "No publish in last 5 minutes"
+                     }
                  },
                  {
+                    "name": "VolltronCentralPlatform",
+                    "uuid": "a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6",
+                    "permissions": {
+                       "can_start": false,
+                       "can_stop": false,
+                       "can_restart": true
+                    }
+                    "health": {
+                       "status": "BAD",
+                       "context": "One agent has reported bad status"
+                    }
+                },
+                {
                      "name": "StoppedAgent",
-                     "uuid": "a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6"
+                     "uuid": "a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6",
+                     "health": {
+                        "status": "UNKNOWN",
+                        "context": "Error code -15"
+                     }
+                    "permissions": {
+                       "can_start": true,
+                       "can_stop": false,
+                       "can_restart": true
+                    }
                  }
              ],
              "id": #
          }
 
 
-Start An Agent
+TODO: Start An Agent
    .. code-block:: Python
 
       # POST /jsonrpc
@@ -366,7 +420,7 @@ Start An Agent
              "id": #
          }
 
-Stop An Agent
+TODO: Stop An Agent
    .. code-block:: Python
 
       # POST /jsonrpc
@@ -378,20 +432,20 @@ Stop An Agent
           "id": #
       }
 
-Response Success
-   .. code-block:: Python
+    Response Success
+       .. code-block:: Python
 
-      200 OK
-      {
-          "jsonrpc": "2.0",
-          "result": {
-              "process_id": 1000,
-              "return_code": 0
-          },
-          "id": #
-      }
+          200 OK
+          {
+              "jsonrpc": "2.0",
+              "result": {
+                  "process_id": 1000,
+                  "return_code": 0
+              },
+              "id": #
+          }
 
-Remove An Agent
+TODO: Remove An Agent
    .. code-block:: Python
 
       # POST /jsonrpc
@@ -416,7 +470,7 @@ Remove An Agent
              "id": #
          }
 
-Retrieve Running Agents
+TODO: Retrieve Running Agents
    .. code-block:: Python
 
       # POST /jsonrpc
@@ -450,7 +504,7 @@ Retrieve Running Agents
              "id": #
          }
 
-Retrieve An Agent's RPC Methods
+TODO: currently getting 500 error Retrieve An Agent's RPC Methods
    .. code-block:: Python
 
       # POST /jsonrpc
@@ -461,24 +515,24 @@ Retrieve An Agent's RPC Methods
           "id": #
       }
 
-Response Success
-   .. code-block:: Python
+  Response Success
+     .. code-block:: Python
 
-      200 OK
-      {
-          "jsonrpc": "2.0",
-          "result": [
-              {
-                  "method": "sayHello",
-                  "params": {
-                      "name": "string"
-                  }
-              }
-          ],
-          "id": #
-      }
+        200 OK
+        {
+            "jsonrpc": "2.0",
+            "result": [
+                {
+                    "method": "sayHello",
+                    "params": {
+                        "name": "string"
+                    }
+                }
+            ],
+            "id": #
+        }
 
-Perform Agent Action
+TODO: Perform Agent Action
    .. code-block:: Python
 
       # POST /jsonrpc
@@ -502,7 +556,7 @@ Perform Agent Action
              "id": #
          }
 
-Install Agent
+TODO: Install Agent
    .. code-block:: Python
 
       # POST /jsonrpc
