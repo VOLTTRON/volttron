@@ -236,14 +236,9 @@ class PlatformWrapper:
         return auth, auth_path
 
     def _append_allow_curve_key(self, publickey):
-        auth, auth_path = self._read_auth_file()
-        cred = 'CURVE:{}'.format(publickey)
-        allow = auth['allow']
-        if not any(record['credentials'] == cred for record in allow):
-            allow.append({'credentials': cred})
-
-        with open(auth_path, 'w+') as fd:
-            json.dump(auth, fd)
+        entry = AuthEntry(credentials="CURVE:{}".format(publickey))
+        authfile = AuthFile(self.volttron_home+"/auth.json")
+        authfile.add(entry)
 
     def add_capabilities(self, publickey, capabilities):
         if isinstance(capabilities, basestring):
