@@ -15,8 +15,10 @@ Contents:
    Install Instructions <install>
    License <license>
    community_resources/index
-   API Documenation <apidocs>
    
+.. toctree::
+   :maxdepth: 2
+  
    overview/index
    core_services/index
    devguides/index
@@ -24,6 +26,7 @@ Contents:
    scalability/index
    roadmap/index
 
+   API Documenation <apidocs>
 
 =======
 Support

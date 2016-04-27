@@ -54,76 +54,39 @@
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 
-#}}}
+# }}}
 
+from os import path
+from setuptools import setup, find_packages
 
-'''Module for storing local public and secret keys and remote public keys'''
+MAIN_MODULE = 'drivenagent'
 
+# Find the agent package that contains the main module
+packages = find_packages('.')
+agent_package = ''
+for package in find_packages():
+    # Because there could be other packages such as tests
+    if path.isfile(package + '/' + MAIN_MODULE + '.py') is True:
+        agent_package = package
+if not agent_package:
+    raise RuntimeError('None of the packages under {dir} contain the file '
+                       '{main_module}'.format(main_module=MAIN_MODULE + '.py',
+                                              dir=path.abspath('.')))
 
-import json
-import os
-import urlparse
+# Find the version number from the main module
+agent_module = agent_package + '.' + MAIN_MODULE
+_temp = __import__(agent_module, globals(), locals(), ['__version__'], -1)
+__version__ = _temp.__version__
 
-from zmq import curve_keypair
-
-from .agent.utils import create_file_if_missing
-from .vip.socket import encode_key
-
-
-class BaseJSONStore(object):
-    '''JSON-file-backed store for dictionaries'''
-
-    def __init__(self, filename, permissions=0o660):
-        self.filename = filename
-        create_file_if_missing(filename)
-        os.chmod(filename, permissions)
-
-    def store(self, data):
-        with open(self.filename, 'w') as json_file:
-            json_file.write(json.dumps(data, indent=4))
-
-    def load(self):
-        try:
-            with open(self.filename, 'r') as json_file:
-                return json.load(json_file)
-        except IOError:
-            return {}
-        except ValueError:
-            return {}
-
-    def update(self, new_data):
-        data = self.load()
-        data.update(new_data)
-        self.store(data)
-
-
-class KeyStore(BaseJSONStore):
-    '''Handle generation, storage, and retrival of keys'''
-
-    def generate(self):
-        public, secret = curve_keypair()
-        self.store({'public': encode_key(public),
-                    'secret': encode_key(secret)})
-
-    def public(self):
-        return self.load().get('public', None)
-
-    def secret(self):
-        return self.load().get('secret', None)
-
-
-class KnownHostsStore(BaseJSONStore):
-    '''Handle storage and retrival of known hosts'''
-
-    def add(self, addr, server_key):
-        self.update({self._parse_addr(addr): server_key})
-
-    def serverkey(self, addr):
-        return self.load().get(self._parse_addr(addr), None)
-
-    @staticmethod
-    def _parse_addr(addr):
-        url = urlparse.urlparse(addr)
-        if url.netloc:
-            return url.netloc
-        return url.path
+# Setup
+setup(
+    name=agent_package + 'agent',
+    version=__version__,
+    install_requires=['volttron'],
+    packages=packages,
+    entry_points={
+        'setuptools.installation': [
+            'eggsecutable = ' + agent_module + ':main',
+        ]
+    }
+)

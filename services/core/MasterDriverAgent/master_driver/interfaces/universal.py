@@ -1,5 +1,5 @@
 '''
-Copyright (c) 2015, Battelle Memorial Institute
+Copyright (c) 2016, Battelle Memorial Institute
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -26,6 +26,7 @@ The views and conclusions contained in the software and documentation are those
 of the authors and should not be interpreted as representing official policies, 
 either expressed or implied, of the FreeBSD Project.
 '''
+from bacpypes.bsll import Result
 
 '''
 This material was prepared as an account of work sponsored by an 
@@ -52,116 +53,92 @@ under Contract DE-AC05-76RL01830
 '''
 
 import random
-import datetime
-from math import sin, pi
 
+from volttron.platform.agent import utils
 from master_driver.interfaces import BaseInterface, BaseRegister, BasicRevert
 from csv import DictReader
 from StringIO import StringIO
+import gevent
 import logging
+import sys
+
+# set DRIVER_PATH to path to your specific driver agent
+#DRIVER_PATH = "/home/volttron/volttron/applications/pnnl/GridAgentDrivers"
+DRIVER_PATH = "/home/volttron/GridAgents/VolttronAgents/Drivers"
+sys.path.insert( 0, DRIVER_PATH )
+from heaters.agent  import HeaterDriver
+#from meters.agent   import MeterDriver
+#from vehicles.agent import VehicleDriver
+
+__author1__   = 'Carl Miller <carl.miller@pnnl.gov>'
+__copyright__ = 'Copyright (c) 2016, Battelle Memorial Institute'
+__license__   = 'FreeBSD'
 
 _log = logging.getLogger(__name__)
-type_mapping = {"string": str,
-                "int": int,
-                "integer": int,
-                "float": float,
-                "bool": bool,
-                "boolean": bool}
 
-
-class FakeRegister(BaseRegister):
-    def __init__(self, read_only, pointName, units, reg_type, default_value=None, description=''):
-        #     register_type, read_only, pointName, units, description = ''):
-        super(FakeRegister, self).__init__("byte", read_only, pointName, units, description='')
-        self.reg_type = reg_type
-
-        if default_value is None:
-            self.value = self.reg_type(random.uniform(0, 100))
-        else:
-            try:
-                self.value = self.reg_type(default_value)
-            except ValueError:
-                self.value = self.reg_type()
-
-class EKGregister(BaseRegister):
-    def __init__(self, read_only, pointName, units, reg_type, default_value=None, description=''):
-        super(EKGregister, self).__init__("byte", read_only, pointName, units, description='')
-        self._value = 1;
-
-    @property
-    def value(self):
-        now = datetime.datetime.now()
-        seconds_in_radians = pi * float(now.second) / 30.0
-        return self._value * sin(seconds_in_radians)
-
-    @value.setter
-    def value(self, x):
-        self._value = x
-
-
+# UDI - Universal Driver Interface
 class Interface(BasicRevert, BaseInterface):
     def __init__(self, **kwargs):
         super(Interface, self).__init__(**kwargs)
+        self.device_type = None
+        self.unit = None
+        self.agent = None
 
     def configure(self, config_dict, registry_config_str):
-        self.parse_config(registry_config_str)
-
+       
+        self.device_type = config_dict['device_type']
+        
+        if(self.device_type == "heater" ):
+            self.agent = HeaterDriver(DRIVER_PATH+"/heaters/heater.cfg", config_dict['device_id'] )
+        elif( self.device_type  == "meter" ):
+            self.agent = MeterDriver( config_dict['device_id'] )
+        elif( self.device_type  == "vehicle" ):
+            self.agent = VehicleDriver( DRIVER_PATH+"/vehicles/vehicles.ini", \
+                                        config_dict['device_id'], config_dict['unit_num'] )
+        
+        self.parse_config(self.agent, config_dict, registry_config_str)
+        
+        event = gevent.event.Event()
+        gevent.spawn(self.agent.core.run, event)
+        event.wait(timeout=5)
+        
     def get_point(self, point_name):
         register = self.get_register_by_name(point_name)
-
-        return register.value
-
+        self.agent.GetPoint( register )
+ 
+        return register._value
+    #def set_point(self, point_name, value):
+    #    _log.debug('Setting point {}->{}'.format(point_name, value))
+    #    self._set_point(point_name, value)
     def _set_point(self, point_name, value):
         register = self.get_register_by_name(point_name)
         if register.read_only:
             raise IOError("Trying to write to a point configured read only: " + point_name)
+        if( self.agent.SetPoint( register, value ) ):
+            register._value = register.reg_type(value)
 
-        register.value = register.reg_type(value)
-        return register.value
+        return register._value
 
+    # this gets called periodically via DriverAgent::periodic_read()
+    #    ( on behalf of MasterDriverAgent )
     def _scrape_all(self):
         result = {}
         read_registers = self.get_registers_by_type("byte", True)
         write_registers = self.get_registers_by_type("byte", False)
         for register in read_registers + write_registers:
-            result[register.point_name] = register.value
+            _log.debug( "Scraping Value for '{}': {}".format(register.point_name, register._value))
+            result[register.point_name] = register._value
 
         return result
-
-    def parse_config(self, config_string):
-        if config_string is None:
+    
+    def parse_config(self, agent, config_dict, reg_config_str):
+        if reg_config_str is None:
             return
 
-        f = StringIO(config_string)
-
-        configDict = DictReader(f)
-
-        for regDef in configDict:
-            # Skip lines that have no address yet.
-            if not regDef['Point Name']:
-                continue
-
-            read_only = regDef['Writable'].lower() != 'true'
-            point_name = regDef['Volttron Point Name']
-            description = regDef.get('Notes', '')  
-            units = regDef['Units']
-            default_value = regDef.get("Starting Value", '').strip()
-            if not default_value:
-                default_value = None
-            type_name = regDef.get("Type", 'string')
-            reg_type = type_mapping.get(type_name, str)
-
-            register_type = FakeRegister if point_name != 'EKG' else EKGregister
-
-            register = register_type(
-                read_only,
-                point_name,
-                units,
-                reg_type,
-                default_value=default_value,
-                description=description)
-            
-            if default_value is not None:
-                self.set_default(point_name, register.value)
-
-            self.insert_register(register)
+        config_str = utils.strip_comments(reg_config_str).lstrip()
+        _log.debug('Configure with {} and config_str {}'.format(config_dict, config_str))
+         
+        f = StringIO(config_str)
+        regDict = DictReader(f)
+        
+        self.agent.ConfigureAgent(self, config_dict, regDict )
