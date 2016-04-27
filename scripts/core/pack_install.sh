@@ -46,6 +46,10 @@ fi
 
 WHEEL=$(volttron-pkg package $1 | awk -F": " '{ print $2 }')
 
+#Remove newlines
+WHEEL=${WHEEL//$'\n'/}
+
+
 if [ ! -e "$WHEEL" ]; then
   echo "$WHEEL doesn't exist"
   exit 0

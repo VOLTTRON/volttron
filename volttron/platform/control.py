@@ -60,6 +60,7 @@ from __future__ import absolute_import, print_function
 
 import argparse
 import collections
+import json
 import logging
 import logging.handlers
 import os
@@ -71,14 +72,14 @@ import traceback
 
 import gevent
 import gevent.event
-from zmq import curve_keypair
 
 from .agent import utils
 from .vip.agent import Agent as BaseAgent, Core, RPC
-from .vip.socket import encode_key
 from . import aip as aipmod
 from . import config
 from .jsonrpc import RemoteError
+from .auth import AuthEntry, AuthFile, AuthException
+from .keystore import KeyStore, KnownHostsStore
 
 try:
     import volttron.restricted
@@ -218,7 +219,6 @@ class ControlService(BaseAgent):
             shutil.rmtree(tmpdir, ignore_errors=True)
 
 
-
 def log_to_file(file, level=logging.WARNING,
                 handler_class=logging.StreamHandler):
     '''Direct log output to a file (or something like one).'''
@@ -318,7 +318,7 @@ def remove_agent(opts):
             return 10
         for agent in match:
             _stdout.write('Removing {} {}\n'.format(agent.uuid, agent.name))
-            opts.aip.remove_agent(agent.uuid)
+            opts.connection.call('remove_agent', agent.uuid)
 
 def _calc_min_uuid_length(agents):
     n = 0
@@ -492,10 +492,20 @@ def send_agent(opts):
         connection.call('start_agent', uuid)
         _stdout.write('Agent {} started as {}\n'.format(wheel, uuid))
 
-def print_keypair(opts):
-    public, secret = curve_keypair()
-    _stdout.write('public: %s\nsecret: %s\n' % (
-        encode_key(public), encode_key(secret)))
+def gen_keypair(opts):
+    if os.path.isfile(opts.keystore_file):
+        _stdout.write('{} already exists.\n'.format(opts.keystore_file))
+        if not _ask_yes_no('Overwrite?', default='no'):
+            return
+    keystore = KeyStore(opts.keystore_file)
+    keystore.generate() # call generate to force new keys to be generated
+    _stdout.write('public key: {}\n'.format(keystore.public()))
+    _stdout.write('keys written to {}\n'.format(opts.keystore_file))
+
+def add_server_key(opts):
+    store = KnownHostsStore(opts.known_hosts_file)
+    store.add(opts.host, opts.server_key)
+    _stdout.write('server key written to {}\n'.format(opts.known_hosts_file))
 
 def do_stats(opts):
     call = opts.connection.call
@@ -511,6 +521,180 @@ def do_stats(opts):
     else:
         call('stats.' + opts.op)
         _stdout.write('%sabled\n' % ('en' if call('stats.enabled') else 'dis'))
+
+def _get_auth_file(volttron_home):
+    path = os.path.join(volttron_home, 'auth.json')
+    return AuthFile(path)
+
+def list_auth(opts, indices=None):
+    auth_file = _get_auth_file(opts.volttron_home)
+    entries = auth_file.read_allow_entries()
+    print_out = []
+    if entries:
+        for index, entry in enumerate(entries):
+            if indices is None or index in indices:
+                _stdout.write('\nINDEX: {}\n'.format(index))
+                _stdout.write('{}\n'.format(json.dumps(vars(entry), indent=2)))
+    else:
+        _stdout.write('No entries in {}\n'.format(auth_file.auth_file))
+
+def _ask_for_auth_fields(domain=None, address=None, user_id=None,
+                        capabilities=None, roles=None, groups=None,
+                        credentials='NULL', comments=None, enabled=True,
+                        **kwargs):
+
+    class Asker(object):
+        def __init__(self):
+            self._fields = {}
+
+        def add(self, name, default=None, note=None, callback=lambda x: x,
+                validate=lambda x: (True, '')):
+            self._fields[name] = {'note': note, 'default': default,
+                                  'callback': callback, 'validate': validate}
+
+        def ask(self):
+            for name in self._fields:
+                note = self._fields[name]['note']
+                default = self._fields[name]['default']
+                callback = self._fields[name]['callback']
+                validate = self._fields[name]['validate']
+                if isinstance(default, list):
+                    default_str = '{}'.format(','.join(default))
+                elif default is None:
+                    default_str = ''
+                else:
+                    default_str = default
+                note = '({}) '.format(note) if note else ''
+                question = '{} {}[{}]: '.format(name, note, default_str)
+                valid = False
+                while not valid:
+                    response = raw_input(question).strip()
+                    if response == '':
+                        response = default
+                    if response == 'clear':
+                        if _ask_yes_no('Do you want to clear this field?'):
+                            response = None
+                    valid, msg = validate(response)
+                    if not valid:
+                        _stderr.write('{}\n'.format(msg))
+
+                self._fields[name]['response'] = callback(response)
+            return {k : self._fields[k]['response'] for k in self._fields}
+
+    def comma_split(response):
+        if not isinstance(response, basestring):
+            return response
+        response = response.strip()
+        if not response:
+            return []
+        return [word.strip() for word in response.split(',')]
+
+    def to_true_or_false(response):
+        if isinstance(response, basestring):
+            return {'true': True, 'false': False}[response.lower()]
+        return response
+
+    def is_true_or_false(x):
+        if x is not None:
+            if isinstance(x, bool) or x.lower() in ['true', 'false']:
+                return True, None
+        return False, 'Please enter True or False'
+
+    def valid_creds(creds):
+        try:
+            AuthEntry.valid_credentials(creds)
+        except AuthException as e:
+            return False, e.message
+        return True, None
+
+    asker = Asker()
+    asker.add('domain', domain)
+    asker.add('address', address)
+    asker.add('user_id', user_id)
+    asker.add('capabilities', capabilities,
+              'delimit multiple entries with comma', comma_split)
+    asker.add('roles', roles, 'delimit multiple entries with comma',
+              comma_split)
+    asker.add('groups', groups, 'delimit multiple entries with comma',
+              comma_split)
+    asker.add('credentials', credentials, validate=valid_creds)
+    asker.add('comments', comments)
+    asker.add('enabled', enabled, callback=to_true_or_false,
+              validate=is_true_or_false)
+
+    return asker.ask()
+
+def add_auth(opts):
+    responses = _ask_for_auth_fields()
+    entry = AuthEntry(**responses)
+    auth_file = _get_auth_file(opts.volttron_home)
+    try:
+        auth_file.add(entry, overwrite=False)
+        _stdout.write('added entry {}\n'.format(entry))
+    except AuthException as err:
+        _stderr.write('ERROR: %s\n' % err.msg)
+
+def _ask_yes_no(question, default='yes'):
+    yes = set(['yes', 'ye', 'y'])
+    no = set(['no', 'n'])
+    y = 'y'
+    n = 'n'
+    if default in yes:
+        y = 'Y'
+    elif default in no:
+        n = 'N'
+    else:
+        raise ValueError("invalid default answer: '%s'" %  default)
+    while True:
+        choice = raw_input('{} [{}/{}] '.format(question, y, n)).lower()
+        if choice == '':
+            choice = default
+        if choice in yes:
+            return True
+        if choice in no:
+            return False
+        _stderr.write("Please respond with 'yes' or 'no'\n")
+
+def remove_auth(opts):
+    auth_file = _get_auth_file(opts.volttron_home)
+    entry_count = len(auth_file.read_allow_entries())
+
+    for i in opts.indices:
+        if i < 0 or i >= entry_count:
+            _stderr.write('ERROR: invalid index {}\n'.format(i))
+            return
+
+    _stdout.write('This action will delete the following:\n')
+    list_auth(opts, opts.indices)
+    if not _ask_yes_no('Do you wish to delete?'):
+        return
+    try:
+        auth_file.remove_by_indices(opts.indices)
+        if len(opts.indices) > 1:
+            msg = 'removed entries at indices {}'
+        else:
+            msg = msg = 'removed entry at index {}'
+        _stdout.write(msg + '\n')
+    except AuthException as err:
+        _stderr.write('ERROR: %s\n' % err.msg)
+
+def update_auth(opts):
+    auth_file = _get_auth_file(opts.volttron_home)
+    entries = auth_file.read_allow_entries()
+    try:
+        if opts.index < 0:
+            raise IndexError
+        entry = entries[opts.index]
+        _stdout.write('(For any field type "clear" to clear the value.)\n')
+        response = _ask_for_auth_fields(**entry.__dict__)
+        updated_entry = AuthEntry(**response)
+        auth_file.update_by_index(updated_entry, opts.index)
+        _stdout.write('updated entry at index {}\n'.format(opts.index))
+    except IndexError:
+        _stderr.write('ERROR: invalid index %s\n' % opts.index)
+    except AuthException as err:
+        _stderr.write('ERROR: %s\n' % err.msg)
+
 
 
 # XXX: reimplement over VIP
@@ -538,10 +722,12 @@ def do_stats(opts):
 
 
 class Connection(object):
-    def __init__(self, address, peer='control'):
+    def __init__(self, address, peer='control', publickey=None, secretkey=None,
+            serverkey=None):
         self.address = address
         self.peer = peer
-        self._server = BaseAgent(address=self.address)
+        self._server = BaseAgent(address=self.address, publickey=publickey,
+                secretkey=secretkey, serverkey=serverkey)
         self._greenlet = None
 
     @property
@@ -571,6 +757,18 @@ def priority(value):
         raise ValueError('invalid priority (0 <= n < 100): {}'.format(n))
     return '{:02}'.format(n)
 
+def get_keys(opts):
+    '''Gets keys from keystore and known-hosts store'''
+    hosts = KnownHostsStore(opts.known_hosts_file)
+    serverkey = hosts.serverkey(opts.vip_address)
+    publickey = None
+    secretkey = None
+    if opts.keystore:
+        key_store = KeyStore(opts.keystore_file)
+        publickey = key_store.public()
+        secretkey = key_store.secret()
+    return {'publickey': publickey, 'secretkey': secretkey,
+            'serverkey': serverkey}
 
 def main(argv=sys.argv):
     # Refuse to run as root
@@ -599,9 +797,17 @@ def main(argv=sys.argv):
     global_args.add_argument(
         '--vip-address', metavar='ZMQADDR',
         help='ZeroMQ URL to bind for VIP connections')
+    global_args.add_argument('-k', '--keystore', action='store_true',
+        help='use public and secret keys from keystore')
+    global_args.add_argument('--keystore-file', metavar='FILE',
+        help='use keystore from FILE')
+    global_args.add_argument('--known-hosts-file', metavar='FILE',
+        help='get known-host server keys from FILE')
     global_args.set_defaults(
         vip_address='ipc://' + vip_path,
         timeout=30,
+        keystore_file=os.path.join(volttron_home, 'keystore'),
+        known_hosts_file=os.path.join(volttron_home, 'known_hosts')
     )
 
     filterable = config.ArgumentParser(add_help=False)
@@ -750,13 +956,38 @@ def main(argv=sys.argv):
 
     keypair = add_parser('keypair',
         help='generate CurveMQ keys for encrypting VIP connections')
-    keypair.set_defaults(func=print_keypair)
+    keypair.set_defaults(func=gen_keypair)
+
+    add_known_host = add_parser('add-known-host',
+        help='add server public key to known-hosts file')
+    add_known_host.add_argument('--host', required=True,
+        help='hostname or IP address with optional port')
+    add_known_host.add_argument('--server-key', required=True)
+    add_known_host.set_defaults(func=add_server_key)
 
     stats = add_parser('stats',
         help='manage router message statistics tracking')
     op = stats.add_argument(
         'op', choices=['status', 'enable', 'disable', 'dump', 'pprint'], nargs='?')
     stats.set_defaults(func=do_stats, op='status')
+
+    auth_list = add_parser('auth-list', help='list authentication records')
+    auth_list.set_defaults(func=list_auth)
+
+    auth_add = add_parser('auth-add', help='add new authentication record')
+    auth_add.set_defaults(func=add_auth)
+
+    auth_remove = add_parser('auth-remove',
+        help='removes one or more authentication records by indices')
+    auth_remove.add_argument('indices', nargs='+', type=int,
+        help='index or indices of record(s) to remove')
+    auth_remove.set_defaults(func=remove_auth)
+
+    auth_update = add_parser('auth-update',
+        help='updates one authentication record by index')
+    auth_update.add_argument('index', type=int,
+        help='index of record to update')
+    auth_update.set_defaults(func=update_auth)
 
     if HAVE_RESTRICTED:
         cgroup = add_parser('create-cgroups',
@@ -800,7 +1031,7 @@ def main(argv=sys.argv):
 
     opts.aip = aipmod.AIPplatform(opts)
     opts.aip.setup()
-    opts.connection = Connection(opts.vip_address)
+    opts.connection = Connection(opts.vip_address, **get_keys(opts))
 
     try:
         with gevent.Timeout(opts.timeout):

@@ -69,6 +69,7 @@ from volttron.platform.messaging import topics
 
 import settings
 
+__version__ = '0.1'
 
 def build_paths(path, result_data, timeseries, delim='/'):
     p = ''

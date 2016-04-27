@@ -61,7 +61,7 @@ from collections import defaultdict, namedtuple
 from copy import deepcopy
 from cPickle import dump, load
 
-import bisect, uuid
+import bisect
 
 PRIORITY_HIGH = 'HIGH'
 PRIORITY_LOW = 'LOW'
@@ -363,7 +363,11 @@ class ScheduleManager(object):
                         
         if requests is None or not requests:
             return RequestResult(False, {}, 'MALFORMED_REQUEST_EMPTY')
-        
+        if not isinstance(agent_id,str):
+            return RequestResult(False, {}, 'MALFORMED_REQUEST: TypeError: agentid must be a nonempty string')
+        if not isinstance(id_,str):
+            return RequestResult(False, {}, 'MALFORMED_REQUEST: TypeError: taskid must be a nonempty string')
+
         try:
             new_task = Task(agent_id, priority, requests)
         except ScheduleError as ex:

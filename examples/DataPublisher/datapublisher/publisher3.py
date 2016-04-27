@@ -69,6 +69,7 @@ from volttron.platform.messaging import topics
 from volttron.platform.messaging import headers as headers_mod
 
 _log = logging.getLogger(__name__)
+__version__ = '3.0.1'
 
 HEADER_NAME_DATE = headers_mod.DATE
 HEADER_NAME_CONTENT_TYPE = headers_mod.CONTENT_TYPE

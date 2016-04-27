@@ -69,6 +69,7 @@ from volttron.platform.messaging import headers as headers_mod
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
+__version__ = '3.0'
 
 '''
 Structuring the agent this way allows us to grab config file settings 

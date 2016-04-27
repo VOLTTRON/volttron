@@ -66,6 +66,7 @@ import os
 import sys
 import threading
 import time
+import urlparse
 
 import gevent.event
 from zmq import green as zmq
@@ -386,7 +387,8 @@ class BasicCore(object):
 
 
 class Core(BasicCore):
-    def __init__(self, owner, address=None, identity=None, context=None):
+    def __init__(self, owner, address=None, identity=None, context=None,
+                 publickey=None, secretkey=None, serverkey=None):
         if not address:
             address = os.environ.get('VOLTTRON_VIP_ADDR')
             if not address:
@@ -401,10 +403,31 @@ class Core(BasicCore):
         super(Core, self).__init__(owner)
         self.context = context or zmq.Context.instance()
         self.address = address
+        self._add_keys_to_addr(publickey, secretkey, serverkey)
+        self.publickey = publickey
+        self.secretkey = secretkey
         self.identity = identity
         self.socket = None
         self.subsystems = {'error': self.handle_error}
         self.__connected = False
+
+    def _add_keys_to_addr(self, publickey, secretkey, serverkey):
+        '''Adds public, secret, and server keys to query in VIP address if
+        they are not already present'''
+
+        def add_param(query_str, key, value):
+            query_dict = urlparse.parse_qs(query_str)
+            if not value or key in query_dict:
+                return ''
+            # urlparse automatically adds '?', but we need to add the '&'s
+            return '{}{}={}'.format('&' if query_str else '', key, value)
+
+        url = list(urlparse.urlsplit(self.address))
+        if url[0] == 'tcp':
+            url[3] += add_param(url[3], 'publickey', publickey)
+            url[3] += add_param(url[3], 'secretkey', secretkey)
+            url[3] += add_param(url[3], 'serverkey', serverkey)
+            self.address = urlparse.urlunsplit(url)
 
     @property
     def connected(self):

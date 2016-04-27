@@ -1,9 +1,10 @@
 {
     "agentid": "sqlhistorian",
+    "identity": "platform.historian",
     "connection": {
         "type": "sqlite",
         "params": {
-            "db": "~/.volttron/data/platform.historian.sqlite"
+            "database": "~/.volttron/data/platform.historian.sqlite"
         }
     }
 }

@@ -54,82 +54,82 @@ def register_platform(address, identity):
     return do_rpc('register_platform', {'address': address,
                                         'identity': identity});
 
+if __name__ == '__main__':
+    response = do_rpc("get_authorization", {'username': 'admin',
+                                           'password': 'admin'})
 
-response = do_rpc("get_authorization", {'username': 'admin',
-                                       'password': 'admin'})
-
-if response.ok:
-    authentication = json.loads(response.text)['result']
-    print('Authentication successful')
-else:
-    print('login unsuccessful')
-    sys.exit(0)
-
-response = register_platform('ipc://@/home/dev/.volttron/run/vip.socket',
-                             'platform.agent')
-if response.ok:
-    success = json.loads(response.text)['result']
-    if success:
-        print('default platform registered')
+    if response.ok:
+        authentication = json.loads(response.text)['result']
+        print('Authentication successful')
     else:
-        print("default platform not registered correctly")
+        print('login unsuccessful')
         sys.exit(0)
-else:
-    print('Getting platforms unsuccessful')
-    sys.exit(0)
 
-response = do_rpc("list_platforms")
-platforms = None
-if response.ok:
-    platforms = json.loads(response.text)['result']
-    print('Platforms retrieved')
-else:
-    print('Getting platforms unsuccessful')
-    sys.exit(0)
-
-
-if len(platforms) > 0:
-    for p in platforms:
-        print(p)
-
-        response = list_agents(p['uuid'])
-        if response.ok:
-            print("RESPONSE WAS: "+response.text)
-
-            agents = json.loads(response.text)['result']
-
-            for a in agents:
-                print('agents name {name}'.format(**a))
-                if 'hello' in a['name']: # hello agent only
-                    print("routing to: ", p['uuid'])
-                    print('agent uuid: ', a['uuid'])
-                    response = inspect_agent(p['uuid'], a['uuid'])
-
-                    print("INSPECT RESPONSE {}".format(response))
-                    print("INSPECT RESPONSE {}".format(response.text))
-
-                    methods = json.loads(response.text)
-
-                    response = inspect_method(p['uuid'], a['uuid'], 'sayHello')
-                    print("RESPONSE WAS: "+response.text)
-
-                    response = exec_method(p['uuid'], a['uuid'], 'sayHello', {'name': 'Ralphie'})
-                    print("RESPONSE WAS: "+response.text)
-
-                    if response.ok:
-                        print("RESPONSE WAS: "+response.text)
-                        methods = json.loads(response.text)['result']
-                        print('Methods received for {}'.format(p['uuid']))
-
-                        print(methods)
-                    else:
-                        print('Getting methods unsuccessful')
-                        sys.exit(0)
-
-
+    response = register_platform('ipc://@/home/dev/.volttron/run/vip.socket',
+                                 'platform.agent')
+    if response.ok:
+        success = json.loads(response.text)['result']
+        if success:
+            print('default platform registered')
         else:
-            print('Listing agents unsuccessful')
+            print("default platform not registered correctly")
             sys.exit(0)
+    else:
+        print('Getting platforms unsuccessful')
+        sys.exit(0)
+
+    response = do_rpc("list_platforms")
+    platforms = None
+    if response.ok:
+        platforms = json.loads(response.text)['result']
+        print('Platforms retrieved')
+    else:
+        print('Getting platforms unsuccessful')
+        sys.exit(0)
+
+
+    if len(platforms) > 0:
+        for p in platforms:
+            print(p)
+
+            response = list_agents(p['uuid'])
+            if response.ok:
+                print("RESPONSE WAS: "+response.text)
+
+                agents = json.loads(response.text)['result']
+
+                for a in agents:
+                    print('agents name {name}'.format(**a))
+                    if 'hello' in a['name']: # hello agent only
+                        print("routing to: ", p['uuid'])
+                        print('agent uuid: ', a['uuid'])
+                        response = inspect_agent(p['uuid'], a['uuid'])
+
+                        print("INSPECT RESPONSE {}".format(response))
+                        print("INSPECT RESPONSE {}".format(response.text))
+
+                        methods = json.loads(response.text)
+
+                        response = inspect_method(p['uuid'], a['uuid'], 'sayHello')
+                        print("RESPONSE WAS: "+response.text)
+
+                        response = exec_method(p['uuid'], a['uuid'], 'sayHello', {'name': 'Ralphie'})
+                        print("RESPONSE WAS: "+response.text)
+
+                        if response.ok:
+                            print("RESPONSE WAS: "+response.text)
+                            methods = json.loads(response.text)['result']
+                            print('Methods received for {}'.format(p['uuid']))
+
+                            print(methods)
+                        else:
+                            print('Getting methods unsuccessful')
+                            sys.exit(0)
+
+
+            else:
+                print('Listing agents unsuccessful')
+                sys.exit(0)
 
 
 
