@@ -1,8 +1,8 @@
-Platform
+Volttron
 ========
 
 .. toctree::
    :maxdepth: 4
 
-   apidocs/platform/modules
+   apidocs/volttron/modules
 

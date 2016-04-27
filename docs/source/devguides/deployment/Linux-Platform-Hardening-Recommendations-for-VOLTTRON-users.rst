@@ -1,5 +1,5 @@
 Platform Hardening for VOLTTRON
-====
+===============================
 
 Rev. 0 \| 1/29/2015 \| Initial Document Development
 

@@ -1,5 +1,5 @@
 Tagging Agents
-=====
+==============
 
 Agents can be tagged as they are installed with:
 

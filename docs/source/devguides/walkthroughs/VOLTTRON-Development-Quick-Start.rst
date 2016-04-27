@@ -1,5 +1,5 @@
 VOLTTRON Quick Start Guide
-=====
+==========================
 
 A detailed guide to starting development can be found here: VOLTTRON
 User's Guide(Currently being updated)

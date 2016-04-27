@@ -1,5 +1,5 @@
 Data Collection Failover
-====
+========================
 
 
 Introduction
@@ -14,7 +14,6 @@ interrupted. It can currently be found in the feature/failover branch.
 
 ::
 
-                     _____________
                     |             |
      ________       | Collector 0 |             ________
     |        |----->|_____________|----------->|        |

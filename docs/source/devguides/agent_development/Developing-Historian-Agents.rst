@@ -1,5 +1,5 @@
 Developing Historian Agents
-=====
+===========================
 
 VOLTTRON provides a convenient base class for developing new historian
 agents. The base class automatically subscribes to all pertinent topics,

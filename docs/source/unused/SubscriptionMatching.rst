@@ -26,5 +26,6 @@ Example:
             def on_multimatch(topic, headers, message, match):
                 # Multiple matchers can be attached to a method
                 ...
+
     '''
 

@@ -1,5 +1,7 @@
-#loadshape==0.1
--e git+https://bitbucket.org/berkeleylab/eetd-loadshape.git@master
-sympy
-xlrd
-numpy
+mock
+gevent
+greenlet
+zmq
+ply
+psutil
+pymongo

@@ -1,5 +1,5 @@
 Example Multi-platform deployment
-----
+---------------------------------
 
 These instructions are intended for early adopters who wish to setup
 VOLTTRON 3.0 platforms on multiple computers communicating with a

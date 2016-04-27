@@ -1,5 +1,5 @@
 Ping Pong Agent
-=====
+===============
 
 
 The PingPongAgent demonstrates how to use the mobility feature within
@@ -184,7 +184,7 @@ successful the agent.
 
 ::
 
-                self.publish('platform/move/request/' + uuid, {}, host)
+        self.publish('platform/move/request/' + uuid, {}, host)
         Agent.__name__ = 'PingPongAgent'
         return Agent(**kwargs)
 
