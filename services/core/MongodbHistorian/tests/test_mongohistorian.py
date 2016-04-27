@@ -79,7 +79,7 @@ def install_historian_agent(volttron_instance, config_file):
 #     params=[
 #         pymongo_mark(mongo_platform)
 #     ])
-# def mongohistorian(request, volttron_instance1):
+# def mongohistorian(request, volttron_instance):
 #
 #     print("** Setting up test_mongohistorian module **")
 #     # Make database connection
@@ -87,7 +87,7 @@ def install_historian_agent(volttron_instance, config_file):
 #
 #     # 1: Install historian agent
 #     # Install and start mongohistorian agent
-#     agent_uuid = install_historian_agent(volttron_instance1, request.param)
+#     agent_uuid = install_historian_agent(volttron_instance, request.param)
 #     print("agent id: ", agent_uuid)
 #
 #     # 4: add a tear down method to stop mongohistorian agent and the fake agent that published to message bus
@@ -97,8 +97,8 @@ def install_historian_agent(volttron_instance, config_file):
 #             db_connection.close()
 #             print("closed connection to db")
 #
-#         volttron_instance1.stop_agent(agent_uuid)
-#         #volttron_instance1.remove_agent(agent_uuid)
+#         volttron_instance.stop_agent(agent_uuid)
+#         #volttron_instance.remove_agent(agent_uuid)
 #
 #         publisher.core.stop()
 #
@@ -135,7 +135,7 @@ def test_can_connect(database_client):
 
 # @pytest.mark.historian
 # @pytest.mark.mongodb
-# def test_agent_publish_and_query(request, volttron_instance1, mongo_config,
+# def test_agent_publish_and_query(request, volttron_instance, mongo_config,
 #     database_client):
 #     ''' Test the normal operation of the MongodbHistorian agent.
 #
@@ -146,13 +146,13 @@ def test_can_connect(database_client):
 #
 #     # Install the historian agent (after this call the agent should be running
 #     # on the platform).
-#     agent_uuid = install_historian_agent(volttron_instance1, mongo_config)
+#     agent_uuid = install_historian_agent(volttron_instance, mongo_config)
 #     assert agent_uuid is not None
-#     assert volttron_instance1.is_agent_running(agent_uuid)
+#     assert volttron_instance.is_agent_running(agent_uuid)
 #
 #     # Create a publisher and publish to the message bus some fake data.  Keep
 #     # track of the published data so that we can query the historian.
-#     publisher = volttron_instance1.build_agent()
+#     publisher = volttron_instance.build_agent()
 #     assert publisher is not None
 #     expected = publish_fake_data(publisher)
 #
@@ -170,22 +170,22 @@ def test_can_connect(database_client):
 #
 #     publisher.core.stop()
 #     if agent_uuid is not None:
-#         volttron_instance1.remove_agent(agent_uuid)
+#         volttron_instance.remove_agent(agent_uuid)
 
 @pytest.mark.historian
 @pytest.mark.mongodb
 @pytest.mark.skipif(not HAS_PYMONGO, reason='No pymongo driver')
-def test_two_hours_of_publishing(request, volttron_instance1, database_client):
+def test_two_hours_of_publishing(request, volttron_instance, database_client):
     clean_db(database_client)
     # Install the historian agent (after this call the agent should be running
     # on the platform).
-    agent_uuid = install_historian_agent(volttron_instance1, mongo_agent_config())
+    agent_uuid = install_historian_agent(volttron_instance, mongo_agent_config())
     assert agent_uuid is not None
-    assert volttron_instance1.is_agent_running(agent_uuid)
+    assert volttron_instance.is_agent_running(agent_uuid)
 
     # Create a publisher and publish to the message bus some fake data.  Keep
     # track of the published data so that we can query the historian.
-    publisher = volttron_instance1.build_agent()
+    publisher = volttron_instance.build_agent()
     assert publisher is not None
     expected = publish_minute_data_for_two_hours(publisher)
 
@@ -330,7 +330,7 @@ def publish_fake_data(agent):
 @pytest.mark.historian
 @pytest.mark.mongodb
 @pytest.mark.skipif(not HAS_PYMONGO, reason='No pymongo driver')
-def test_insert_duplicate(volttron_instance1, database_client):
+def test_insert_duplicate(volttron_instance, database_client):
     clean_db(database_client)
     data_collection = database_client.get_default_database()['data']
     index_model = pymongo.IndexModel([("ts", pymongo.ASCENDING),
@@ -339,16 +339,16 @@ def test_insert_duplicate(volttron_instance1, database_client):
     data_collection.create_indexes([index_model])
     # Install the historian agent (after this call the agent should be running
     # on the platform).
-    agent_uuid = install_historian_agent(volttron_instance1, mongo_agent_config())
+    agent_uuid = install_historian_agent(volttron_instance, mongo_agent_config())
     assert agent_uuid is not None
-    assert volttron_instance1.is_agent_running(agent_uuid)
+    assert volttron_instance.is_agent_running(agent_uuid)
 
     oat_reading = random.uniform(30, 100)
     all_message = [{'OutsideAirTemperature': oat_reading},
                    {'OutsideAirTemperature':
                      {'units': 'F', 'tz': 'UTC', 'type': 'float'}}]
 
-    publisher = volttron_instance1.build_agent()
+    publisher = volttron_instance.build_agent()
     # Create timestamp (no parameter to isoformat so the result is a T
     # separator) The now value is a string after this function is called.
     now = get_aware_utc_now()
@@ -390,11 +390,11 @@ def publish_data(publisher, topic, message, now=datetime.utcnow()):
 @pytest.mark.historian
 @pytest.mark.mongodb
 @pytest.mark.skipif(not HAS_PYMONGO, reason='No pymongo driver')
-def test_analysis_topic(volttron_instance1, database_client):
-    agent_uuid = install_historian_agent(volttron_instance1, mongo_agent_config())
+def test_analysis_topic(volttron_instance, database_client):
+    agent_uuid = install_historian_agent(volttron_instance, mongo_agent_config())
 
     try:
-        publisher = volttron_instance1.build_agent()
+        publisher = volttron_instance.build_agent()
         oat_reading = random.uniform(30, 100)
         message = [{'FluffyWidgets': oat_reading},
                        {'FluffyWidgets':
@@ -403,7 +403,7 @@ def test_analysis_topic(volttron_instance1, database_client):
         publisheddt = publish_data(publisher, BASE_ANALYSIS_TOPIC+'/FluffyWidgets', message)
         gevent.sleep(0.1)
 
-        lister = volttron_instance1.build_agent()
+        lister = volttron_instance.build_agent()
         topic_list = lister.vip.rpc.call('platform.historian', 'get_topic_list').get(timeout=5)
         assert topic_list is not None
         assert len(topic_list) == 1
@@ -418,29 +418,29 @@ def test_analysis_topic(volttron_instance1, database_client):
         mongoizetimestamp = publisheddt.isoformat()[:-3]+'000'
         assert result['values'][0] == [mongoizetimestamp, oat_reading]
     finally:
-        volttron_instance1.stop_agent(agent_uuid)
+        volttron_instance.stop_agent(agent_uuid)
 
 
 
 @pytest.mark.historian
 @pytest.mark.mongodb
 @pytest.mark.xfail(reason="Fails for some reason on the rpc call though the function above does not fail.")
-def test_get_topic_map(volttron_instance1, database_client):
+def test_get_topic_map(volttron_instance, database_client):
     try:
-        agent_uuid = install_historian_agent(volttron_instance1, mongo_agent_config())
+        agent_uuid = install_historian_agent(volttron_instance, mongo_agent_config())
 
         oat_reading = random.uniform(30, 100)
         all_message = [{'OutsideAirTemperature': oat_reading},
                        {'OutsideAirTemperature':
                          {'units': 'F', 'tz': 'UTC', 'type': 'float'}}]
 
-        publisher = volttron_instance1.build_agent()
+        publisher = volttron_instance.build_agent()
         publisheddt = publish_data(publisher, ALL_TOPIC, all_message)
 
         db = database_client.get_default_database()
         assert db.topics.count() == 1
 
-        lister = volttron_instance1.build_agent()
+        lister = volttron_instance.build_agent()
         topic_list = lister.vip.rpc.call('platform.historian', 'get_topic_list').get(timeout=5)
         assert topic_list is not None
         assert len(topic_list) == 1
@@ -464,7 +464,7 @@ def test_get_topic_map(volttron_instance1, database_client):
         assert topic_list is not None
         assert len(topic_list) == 2
     finally:
-        volttron_instance1.stop_agent(agent_uuid)
+        volttron_instance.stop_agent(agent_uuid)
 
 
 
@@ -474,22 +474,22 @@ def test_get_topic_map(volttron_instance1, database_client):
 @pytest.mark.historian
 @pytest.mark.mongodb
 @pytest.mark.skipif(not HAS_PYMONGO, reason='No pymongo driver')
-def test_basic_function(volttron_instance1, database_client):
+def test_basic_function(volttron_instance, database_client):
     """
     Test basic functionality of sql historian. Inserts three points as part of all topic and checks
     if all three got into the database
-    :param volttron_instance1: The instance against which the test is run
+    :param volttron_instance: The instance against which the test is run
     :param mongohistorian: instance of the sql historian tested
     :param clean: teardown function
     """
     global query_points, db_connection
 
-    install_historian_agent(volttron_instance1, mongo_agent_config())
+    install_historian_agent(volttron_instance, mongo_agent_config())
 
-    # print('HOME', volttron_instance1.volttron_home)
+    # print('HOME', volttron_instance.volttron_home)
     print("\n** test_basic_function **")
 
-    publish_agent = volttron_instance1.build_agent()
+    publish_agent = volttron_instance.build_agent()
 
     # Publish data to message bus that should be recorded in the mongo database.
     expected = publish_fake_data(publish_agent)
@@ -528,15 +528,15 @@ def test_basic_function(volttron_instance1, database_client):
 @pytest.mark.historian
 @pytest.mark.mongodb
 @pytest.mark.skipif(not HAS_PYMONGO, reason='No pymongo driver')
-def test_topic_name_case_change(volttron_instance1, database_client):
+def test_topic_name_case_change(volttron_instance, database_client):
     """
     When case of a topic name changes check if they are saved as two topics
     Expected result: query result should be cases insensitive
     """
     clean_db(database_client)
-    agent_uuid = install_historian_agent(volttron_instance1, mongo_agent_config())
+    agent_uuid = install_historian_agent(volttron_instance, mongo_agent_config())
     try:
-        publisher = volttron_instance1.build_agent()
+        publisher = volttron_instance.build_agent()
         oat_reading = random.uniform(30, 100)
         message = [{'FluffyWidgets': oat_reading},
                        {'FluffyWidgets':
@@ -545,7 +545,7 @@ def test_topic_name_case_change(volttron_instance1, database_client):
         publisheddt = publish_data(publisher, BASE_ANALYSIS_TOPIC+'/FluffyWidgets', message)
         gevent.sleep(0.1)
 
-        lister = volttron_instance1.build_agent()
+        lister = volttron_instance.build_agent()
         topic_list = lister.vip.rpc.call('platform.historian', 'get_topic_list').get(timeout=5)
         assert topic_list is not None
         assert len(topic_list) == 1
@@ -584,21 +584,21 @@ def test_topic_name_case_change(volttron_instance1, database_client):
         assert result['values'][0] == [mongoizetimestamp, oat_reading]
 
     finally:
-        volttron_instance1.stop_agent(agent_uuid)
+        volttron_instance.stop_agent(agent_uuid)
 
 
 @pytest.mark.historian
 @pytest.mark.mongodb
 @pytest.mark.skipif(not HAS_PYMONGO, reason='No pymongo driver')
-def test_empty_result(volttron_instance1, database_client):
+def test_empty_result(volttron_instance, database_client):
     """
     When case of a topic name changes check if they are saved as two topics
     Expected result: query result should be cases insensitive
     """
-    agent_uuid = install_historian_agent(volttron_instance1, mongo_agent_config())
+    agent_uuid = install_historian_agent(volttron_instance, mongo_agent_config())
     try:
 
-        lister = volttron_instance1.build_agent()
+        lister = volttron_instance.build_agent()
 
         result = lister.vip.rpc.call(
             'platform.historian',
@@ -607,4 +607,4 @@ def test_empty_result(volttron_instance1, database_client):
         print ("query result:" ,result)
         assert result == {}
     finally:
-        volttron_instance1.stop_agent(agent_uuid)
+        volttron_instance.stop_agent(agent_uuid)
