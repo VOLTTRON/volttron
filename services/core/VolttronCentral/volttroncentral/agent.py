@@ -587,8 +587,13 @@ class VolttronCentralAgent(Agent):
                           self.core.identity).get(timeout=5)
 
     def _handle_list_platforms(self):
+        def get_status(platform_uuid):
+            agent = self._pa_agents[platform_uuid]
+            return agent.vip.rpc.call('platform.agent', 'get_health').get(timeout=10)
+
         return [{'uuid': x.platform_uuid,
-                 'name': x.display_name}
+                 'name': x.display_name,
+                 'health': get_status(x.platform_uuid)}
                 for x in self._registry.get_platforms()]
 
     def route_request(self, id, method, params):

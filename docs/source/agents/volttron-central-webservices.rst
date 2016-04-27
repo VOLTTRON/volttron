@@ -272,7 +272,7 @@ Unregister a Volttron Platform Instance
         }
 
 
-TODO: change response Retrieve Managed Instances
+Retrieve Managed Instances
     .. code-block:: Python
 
         #POST /jsonrpc
@@ -295,7 +295,8 @@ TODO: change response Retrieve Managed Instances
                         "uuid": "abcd1234-ef56-ab78-cd90-efabcd123456",
                         "health": {
                            "status": "GOOD",
-                           "context": null
+                           "context": null,
+                           "last_updated": "2016-04-27T19:47:05.184997+00:00"
                         }
                     },
                     {
@@ -303,7 +304,8 @@ TODO: change response Retrieve Managed Instances
                         "uuid": "0987fedc-65ba-43fe-21dc-098765bafedc",
                         "health": {
                            "status": "BAD",
-                           "context": "Expected 9 agents running, but only 5 are"
+                           "context": "Expected 9 agents running, but only 5 are",
+                           "last_updated": "2016-04-27T19:47:05.184997+00:00",
                         }
 
                     },
@@ -312,7 +314,8 @@ TODO: change response Retrieve Managed Instances
                         "uuid": "0000aaaa-1111-bbbb-2222-cccc3333dddd",
                         "health": {
                            "status": "GOOD",
-                           "context": "Currently scraping 20 devices"
+                           "context": "Currently scraping 20 devices",
+                           "last_updated": "2016-04-27T19:47:05.184997+00:00",
                         }
                     }
                 ],
@@ -432,8 +435,8 @@ TODO: Stop An Agent
           "id": #
       }
 
-    Response Success
-       .. code-block:: Python
+   Response Success
+      .. code-block:: Python
 
           200 OK
           {
