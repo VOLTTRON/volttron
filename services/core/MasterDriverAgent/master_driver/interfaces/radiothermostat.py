@@ -4,6 +4,14 @@ Volttron-3.0 Driver framewrok Interface for radio thermostat relay agent
 April 2016
 NREL
 
+
+The way schedules are reported and set will probably change in a future version of VOLTTRON.
+
+Schedule points for this interface:
+heat_pgm_week,cool_pgm_week,heat_pgm_mon,heat_pgm_tue,heat_pgm_wed,heat_pgm_thu,heat_pgm_fri,
+heat_pgm_sat,heat_pgm_sun,cool_pgm_mon,cool_pgm_tue,cool_pgm_wed,cool_pgm_thu,
+cool_pgm_fri,cool_pgm_sat,cool_pgm_sun,
+
 """
 import json
 import logging
