@@ -28,10 +28,11 @@ from . import  thermostat_api
 
 class Register(BaseRegister):
     '''Inherits from  Volttron Register Class'''
-    def __init__(self, read_only, pointName, units, default_value):
-        '''Initialize register with read_only,pointName, units and default_value '''
+    def __init__(self, read_only, pointName, device_point_name, units, default_value):
+        '''Initialize register with read_only,pointName, device_point_name, units and default_value '''
         super(Register, self).__init__("byte", read_only, pointName, units, default_value)
         self.default_value = default_value
+        self.device_point_name = device_point_name
 
 
 class Interface(BaseInterface):
@@ -112,7 +113,7 @@ class Interface(BaseInterface):
         '''Returns the value of a point on the device'''
         register = self.get_register_by_name(point_name)
         point_map = {}
-        point_map = {point_name:[register.default_value]}
+        point_map = {point_name:[register.device_point_name,register.default_value]}
         # result = self.vip.rpc.call('radiothermostat', 'get_point',
         #                                self.target_address,point_map).get()
         result = self._get_point(self.target_address,point_map)
@@ -123,7 +124,7 @@ class Interface(BaseInterface):
         '''Sets the value of a point o  the devcie'''
         register = self.get_register_by_name(point_name)
         point_map = {}
-        point_map = {point_name:[register.default_value]}
+        point_map = {point_name:[register.device_point_name,register.default_value]}
         if register.read_only:
             raise  IOError("Trying to write to a point configured read only: "+point_name)
         # result = self.vip.rpc.call('radiothermostat', 'set_point',
@@ -157,7 +158,8 @@ class Interface(BaseInterface):
             Set value of a point_name on a device
         '''
         result = {}
-        for point_name, properties in point_map.iteritems():
+        for point_names, properties in point_map.iteritems():
+            point_name = properties[0]
 
             if point_name in self.program_name:
                 pgm,day = point_name.rsplit('_',1)
@@ -182,8 +184,8 @@ class Interface(BaseInterface):
             elif point_name == 'energy_led':
                 result = self.thermostat.energy_led(value)
             else:
-                print("No such writable point found"+point_name)
-        print str(point_name) + "::" + str(result)
+                print("No such writable point found"+point_names)
+        print str(point_names) + "::" + str(result)
         return (result)
 
 
@@ -195,30 +197,32 @@ class Interface(BaseInterface):
         result = {}
         query = {}
         point_map_obj = {}
-        for point_name, properties in point_map.iteritems():
+        for point_names, properties in point_map.iteritems():
+            point_name =  properties[0]
+    
             query = json.loads(self.thermostat.tstat())
             if point_name in self.query_point_name:
                 try:
                     db = query[self.point_name_map[point_name]]
-                    result.update({point_name : str(db) })
+                    result.update({point_names : str(db) })
                 except:
-                    result.update({point_name : str("NA") })
+                    result.update({point_names : str("NA") })
             else:
                 pgm,day = point_name.rsplit('_',1)
                 if pgm == 'heat_pgm':
                     if day == 'week':
                         query = self.thermostat.get_heat_pgm()
-                        result.update({point_name : str(query)})
+                        result.update({point_names : str(query)})
                     else:
                         query = self.thermostat.get_heat_pgm(day)
-                        result.update({point_name : str(query)})
+                        result.update({point_names : str(query)})
                 elif pgm == 'cool_pgm':
                     if day == 'week':
                         query = self.thermostat.get_cool_pgm()
-                        result.update({point_name : str(query)})
+                        result.update({point_names : str(query)})
                     else:
                         query = self.thermostat.get_cool_pgm(day)
-                        result.update({point_name : str(query)})
+                        result.update({point_names : str(query)})
         return (result)
 
 
@@ -234,7 +238,7 @@ class Interface(BaseInterface):
         read_registers = self.get_registers_by_type("byte", True)
         write_registers = self.get_registers_by_type("byte", False)
         for register in read_registers + write_registers:
-            point_map[register.point_name] = [register.default_value]
+            point_map[register.point_name] = [register.device_point_name,register.default_value]
         # result = self.vip.rpc.call('radiothermostat', 'get_point',
         #                                self.target_address,point_map).get()
         result = self._get_point(self.target_address,point_map)
@@ -255,11 +259,13 @@ class Interface(BaseInterface):
 
             read_only = regDef['Writable'] == 'FALSE'
             point_name = regDef['Volttron Point Name']
+            device_point_name = regDef['Point Name']
             units = regDef['Units']
             default_value = regDef['Default']
             register = Register(
                                 read_only,
                                 point_name,
+                                device_point_name,
                                 units,
                                 default_value)
             self.insert_register(register)
