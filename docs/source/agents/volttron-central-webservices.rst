@@ -343,6 +343,9 @@ TODO: change repsonse Retrieve Installed Agents From platform1
                  {
                      "name": "HelloAgent",
                      "uuid": "a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6",
+                     "process_id": 3142,
+                     "error_code": null,
+                     "is_running": true,
                      "permissions": {
                         "can_start": true,
                         "can_stop": true,
@@ -356,6 +359,9 @@ TODO: change repsonse Retrieve Installed Agents From platform1
                  {
                      "name": "Historian",
                      "uuid": "a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6",
+                     "process_id": 3143,
+                     "error_code": null,
+                     "is_running": true,
                      "permissions": {
                         "can_start": true,
                         "can_stop": true,
@@ -370,6 +376,9 @@ TODO: change repsonse Retrieve Installed Agents From platform1
                  {
                     "name": "VolltronCentralPlatform",
                     "uuid": "a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6",
+                    "process_id": 3144,
+                    "error_code": null,
+                    "is_running": true,
                     "permissions": {
                        "can_start": false,
                        "can_stop": false,
@@ -381,8 +390,11 @@ TODO: change repsonse Retrieve Installed Agents From platform1
                     }
                 },
                 {
-                     "name": "StoppedAgent",
+                     "name": "StoppedAgent-0.1",
                      "uuid": "a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6",
+                     "process_id": null,
+                     "error_code": 0,
+                     "is_running": false,
                      "health": {
                         "status": "UNKNOWN",
                         "context": "Error code -15"

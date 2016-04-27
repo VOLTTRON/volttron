@@ -431,19 +431,22 @@ class VolttronCentralPlatform(Agent):
                 'process_id': proc_info[0],
                 'error_code': proc_info[1],
                 'is_running': is_running,
-                'can_stop': True,
-                'can_start': True,
-                'can_restart': True
+                'permissions': {
+                    'can_stop': True,
+                    'can_start': True,
+                    'can_restart': True
+                }
             }
 
             if 'volttroncentral' in name or \
                 'vcplatform' in name:
-                uuid_to_status[uuid]['can_stop'] = False
+                uuid_to_status[uuid]['permissions']['can_stop'] = False
 
             uuid_to_status[uuid]['health'] = {
-                'health': "GOOD",
-                'context': 'Initial Set',
-                'last_updated': datetime.utcnow().isoformat()
+                # TODO: get agents health via RPC call
+                'status': 'UNKNOWN',
+                'context': None,
+                'last_updated': None
             }
 
         for a in agents:
