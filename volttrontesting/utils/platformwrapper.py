@@ -30,6 +30,7 @@ from volttron.platform.aip import AIPplatform
 #from volttron.platform.control import client, server
 from volttron.platform import packaging
 from volttron.platform.agent import utils
+from volttron.platform import keystore
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -127,11 +128,22 @@ class PlatformWrapper:
         self._t_process = None
         self.publickey = self.generate_key()
         self._started_pids = []
+        self.encrypt = False
         print('Creating Platform Wrapper at: {}'.format(self.volttron_home))
 
     def build_agent(self, address=None, should_spawn=True, identity=None,
                     publickey=None, secretkey=None, serverkey=None, **kwargs):
         _log.debug('BUILD GENERIC AGENT')
+        if self.encrypt:
+            if serverkey is None:
+                serverkey=self.publickey
+            if publickey is None:
+                keyfile = tempfile.mktemp("agent", ".keys", self.volttron_home)
+                keys = keystore.KeyStore(keyfile)
+                keys.generate()
+                publickey=keys.public()
+                secretkey=keys.secret()
+
         if address is None:
             address = self.vip_address[0]
 
@@ -151,7 +163,7 @@ class PlatformWrapper:
 
             hello = agent.vip.hello().get(timeout=.3)
             print('Got hello response {}'.format(hello))
-
+        agent.publickey = publickey
         return agent
 
     def generate_key(self):
@@ -211,6 +223,7 @@ class PlatformWrapper:
         #     self.vip_address = vip_address
 
         self.vip_address = [vip_address]
+        self.encrypt = encrypt
         self.mode = mode
         enable_logging = os.environ.get('ENABLE_LOGGING', False)
         debug_mode = os.environ.get('DEBUG_MODE', False)
