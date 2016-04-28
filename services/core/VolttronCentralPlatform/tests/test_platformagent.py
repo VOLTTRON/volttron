@@ -107,13 +107,13 @@ def test_can_get_agentlist(pa_instance):
     assert len(agentlist) == 1
     retagent = agentlist[0]
     assert retagent['uuid'] == agent_uuid
-    checkkeys = ('process_id', 'error_code', 'is_running', 'can_stop',
-                 'can_start', 'can_restart', 'health')
+    checkkeys = ('process_id', 'error_code', 'is_running', 'permissions',
+                 'health')
     for k in checkkeys:
         assert k in retagent.keys()
 
     # make sure can stop is determined to be false
-    assert retagent['can_stop'] == False
+    assert retagent['permissions']['can_stop'] == False
 
 @pytest.mark.pa
 def test_agent_can_be_managed(pa_instance):
