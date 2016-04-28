@@ -55,7 +55,7 @@ from copy import deepcopy
 from .common import check_date, validation_builder, check_run_status, setpoint_control_check
 from volttron.platform.agent.math_utils import mean
 
-DUCT_STC_RCX = 'Duct Static Pressure Control Loop Dx'
+DUCT_STC_RCX = 'Duct Static Pressure Set Point Control Loop Dx'
 DUCT_STC_RCX1 = 'Low Duct Static Pressure Dx'
 DUCT_STC_RCX2 = 'High Duct Static Pressure Dx'
 DX = '/diagnostic message'
