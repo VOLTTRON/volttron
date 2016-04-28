@@ -1,5 +1,5 @@
 Migration from 1.2 - 2.0
-=====
+========================
 
 The most significant changes to the base VOLTTRON platform are the set
 of commands for controlling the platform and the way agents are managed.

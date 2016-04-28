@@ -1,3 +1,6 @@
+Building VOLTTRON
+==================
+
 The VOLTTRON project includes a bootstrap script which automatically
 downloads dependencies and builds VOLTTRON. The script also creates a
 Python virtual environment for use by the project which can be activated

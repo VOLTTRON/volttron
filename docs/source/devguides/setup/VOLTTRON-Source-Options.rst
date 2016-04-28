@@ -1,3 +1,6 @@
+Repository Structure
+=====================
+
 There are several options for using the VOLTTRON code depending on
 whether you require the most stable version of the code or want the
 latest updates as they happen. In order of decreasing stability and

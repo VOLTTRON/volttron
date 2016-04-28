@@ -20,11 +20,11 @@ from volttron.platform.vip.agent import Agent
 
 try:
     import mysql.connector as mysql
-    from mysql.connector import errorcode
 
     HAS_MYSQL_CONNECTOR = True
 except:
     HAS_MYSQL_CONNECTOR = False
+
 # Module level variables
 ALL_TOPIC = "devices/Building/LAB/Device/all"
 query_points = {
@@ -149,19 +149,20 @@ data_table = 'data'
 topics_table = 'topics'
 meta_table = 'meta'
 
+
 @pytest.fixture(scope="module",
-                params=['volttron_2','volttron_3'])
+                params=['volttron_2', 'volttron_3'])
 def publish_agent(request, volttron_instance1):
     # 1: Start a fake agent to publish to message bus
     print("**In setup of publish_agent volttron is_running {}".format(
         volttron_instance1.is_running))
     agent = None
     if request.param == 'volttron_2':
-        if agent is None or not isinstance(PublishMixin,agent):
+        if agent is None or not isinstance(PublishMixin, agent):
             agent = PublishMixin(
                 volttron_instance1.opts['publish_address'])
     else:
-        if agent is None or isinstance(PublishMixin,agent):
+        if agent is None or isinstance(PublishMixin, agent):
             agent = volttron_instance1.build_agent()
 
     # 2: add a tear down method to stop sqlhistorian agent and the fake
@@ -232,11 +233,11 @@ def sqlhistorian(request, volttron_instance1):
         meta_table = 'meta'
     elif request.param['tables_def']['table_prefix']:
         data_table = request.param['tables_def']['table_prefix'] + "_" + \
-            request.param['tables_def']['data_table']
+                     request.param['tables_def']['data_table']
         topics_table = request.param['tables_def']['table_prefix'] + "_" + \
-            request.param['tables_def']['topics_table']
+                       request.param['tables_def']['topics_table']
         meta_table = request.param['tables_def']['table_prefix'] + "_" + \
-            request.param['tables_def']['meta_table']
+                     request.param['tables_def']['meta_table']
     else:
         data_table = request.param['tables_def']['data_table']
         topics_table = request.param['tables_def']['topics_table']
@@ -263,6 +264,7 @@ def sqlhistorian(request, volttron_instance1):
             print("closed connection to db")
         if volttron_instance1.is_running():
             volttron_instance1.stop_agent(agent_uuid)
+
     request.addfinalizer(stop_agent)
     return request.param
 
@@ -377,6 +379,7 @@ def skip_custom_tables(sqlhistorian):
         pytest.skip(msg="Need not repeat all test cases for custom table "
                         "names")
 
+
 @pytest.mark.sqlhistorian
 @pytest.mark.historian
 def test_basic_function(request, sqlhistorian, publish_agent, query_agent,
@@ -387,7 +390,7 @@ def test_basic_function(request, sqlhistorian, publish_agent, query_agent,
     Expected result:
     Should be able to query data based on topic name. Result should contain
     both data and metadata
-    
+    :param request: pytest request object
     :param publish_agent: instance of volttron 2.0/3.0agent used to publish
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
@@ -479,6 +482,7 @@ def test_exact_timestamp(request, sqlhistorian, publish_agent, query_agent,
     of utc time.
     Expected result: record with timestamp == start time
 
+    :param request: pytest request object
     :param publish_agent: instance of volttron 2.0/3.0agent used to publish
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
@@ -544,7 +548,8 @@ def test_exact_timestamp_with_z(request, sqlhistorian, publish_agent,
     Test query based on same start and end time with literal 'Z' at the end
     of utc time.
     Expected result: record with timestamp == start time
-    
+
+    :param request: pytest request object
     :param publish_agent: instance of volttron 2.0/3.0agent used to publish
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
@@ -600,6 +605,7 @@ def test_exact_timestamp_with_z(request, sqlhistorian, publish_agent,
     assert_timestamp(result['values'][0][0], now_date, now_time)
     assert (result['values'][0][1] == mixed_reading)
 
+
 @pytest.mark.sqlhistorian
 @pytest.mark.historian
 def test_query_start_time(request, sqlhistorian, publish_agent, query_agent,
@@ -607,7 +613,8 @@ def test_query_start_time(request, sqlhistorian, publish_agent, query_agent,
     """
     Test query based on start_time alone. Expected result record with
     timestamp>= start_time
-    
+
+    :param request: pytest request object
     :param publish_agent: instance of volttron 2.0/3.0agent used to publish
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
@@ -667,6 +674,7 @@ def test_query_start_time(request, sqlhistorian, publish_agent, query_agent,
     assert_timestamp(result['values'][0][0], time2_date, time2_time)
     assert (result['values'][0][1] == oat_reading)
 
+
 @pytest.mark.sqlhistorian
 @pytest.mark.historian
 def test_query_start_time_with_z(request, sqlhistorian, publish_agent,
@@ -675,7 +683,8 @@ def test_query_start_time_with_z(request, sqlhistorian, publish_agent,
     """
     Test query based on start_time alone. Expected result record with
     timestamp>= start_time
-    
+
+    :param request: pytest request object
     :param publish_agent: instance of volttron 2.0/3.0agent used to publish
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
@@ -731,6 +740,7 @@ def test_query_start_time_with_z(request, sqlhistorian, publish_agent,
     assert_timestamp(result['values'][0][0], time2_date, time2_time)
     assert (result['values'][0][1] == oat_reading)
 
+
 @pytest.mark.sqlhistorian
 @pytest.mark.historian
 def test_query_end_time(request, sqlhistorian, publish_agent, query_agent,
@@ -738,7 +748,8 @@ def test_query_end_time(request, sqlhistorian, publish_agent, query_agent,
     """
     Test query based on end time alone. Expected result record with
     timestamp<= end time
-    
+
+    :param request: pytest request object
     :param publish_agent: instance of volttron 2.0/3.0agent used to publish
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
@@ -800,6 +811,7 @@ def test_query_end_time(request, sqlhistorian, publish_agent, query_agent,
     assert_timestamp(result['values'][0][0], time1_date, time1_time)
     assert (result['values'][0][1] == mixed_reading)
 
+
 @pytest.mark.sqlhistorian
 @pytest.mark.historian
 def test_query_end_time_with_z(request, sqlhistorian, publish_agent,
@@ -808,7 +820,8 @@ def test_query_end_time_with_z(request, sqlhistorian, publish_agent,
     """
     Test query based on end time alone. Expected result record with
     timestamp<= end time
-    
+
+    :param request: pytest request object
     :param publish_agent: instance of volttron 2.0/3.0agent used to publish
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
@@ -870,6 +883,7 @@ def test_query_end_time_with_z(request, sqlhistorian, publish_agent,
     assert_timestamp(result['values'][0][0], time1_date, time1_time)
     assert (result['values'][0][1] == mixed_reading)
 
+
 @pytest.mark.sqlhistorian
 @pytest.mark.historian
 def test_zero_timestamp(request, sqlhistorian, publish_agent, query_agent,
@@ -878,7 +892,8 @@ def test_zero_timestamp(request, sqlhistorian, publish_agent, query_agent,
     Test query based with timestamp where time is 00:00:00. Test with and
     without Z at the end.
     Expected result: record with timestamp == 00:00:00.000001
-    
+
+    :param request: pytest request object
     :param publish_agent: instance of volttron 2.0/3.0agent used to publish
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
@@ -950,6 +965,7 @@ def test_zero_timestamp(request, sqlhistorian, publish_agent, query_agent,
     assert_timestamp(result['values'][0][0], now_date, now_time)
     assert (result['values'][0][1] == mixed_reading)
 
+
 @pytest.mark.sqlhistorian
 @pytest.mark.historian
 def test_topic_name_case_change(request, sqlhistorian, publish_agent,
@@ -958,7 +974,8 @@ def test_topic_name_case_change(request, sqlhistorian, publish_agent,
     """
     When case of a topic name changes check if they are saved as two topics
     Expected result: query result should be cases sensitive
-    
+
+    :param request: pytest request object
     :param publish_agent: instance of volttron 2.0/3.0agent used to publish
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
@@ -1031,13 +1048,15 @@ def test_topic_name_case_change(request, sqlhistorian, publish_agent,
     assert_timestamp(result['values'][0][0], time1_date, time1_time)
     assert (result['values'][0][1] == oat_reading)
 
+
 @pytest.mark.sqlhistorian
 @pytest.mark.historian
-def test_invalid_query(request, sqlhistorian, publish_agent, query_agent, \
-                               clean):
+def test_invalid_query(request, sqlhistorian, publish_agent, query_agent,
+                       clean):
     """
     Test query with invalid input
-    
+
+    :param request: pytest request object
     :param publish_agent: instance of volttron 2.0/3.0agent used to publish
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
@@ -1095,6 +1114,7 @@ def test_invalid_query(request, sqlhistorian, publish_agent, query_agent, \
         print ("exception: {}".format(error))
         assert "No route to host: platform.historian1" in str(error)
 
+
 @pytest.mark.sqlhistorian
 @pytest.mark.historian
 def test_invalid_time(request, sqlhistorian, publish_agent, query_agent,
@@ -1102,6 +1122,7 @@ def test_invalid_time(request, sqlhistorian, publish_agent, query_agent,
     """
     Test query with invalid input
 
+    :param request: pytest request object
     :param publish_agent: instance of volttron 2.0/3.0agent used to publish
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
@@ -1131,6 +1152,7 @@ def test_invalid_time(request, sqlhistorian, publish_agent, query_agent,
         print ("exception: {}".format(error))
         assert 'hour must be in 0..23' == error.message
 
+
 @pytest.mark.sqlhistorian
 @pytest.mark.historian
 def test_analysis_topic(request, sqlhistorian, publish_agent, query_agent,
@@ -1139,7 +1161,8 @@ def test_analysis_topic(request, sqlhistorian, publish_agent, query_agent,
     Test query based on same start and end time with literal 'Z' at the end
     of utc time.
     Expected result: record with timestamp == start time
-    
+
+    :param request: pytest request object
     :param publish_agent: instance of volttron 2.0/3.0agent used to publish
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
@@ -1200,6 +1223,7 @@ def test_analysis_topic(request, sqlhistorian, publish_agent, query_agent,
     assert_timestamp(result['values'][0][0], now_date, now_time)
     assert (result['values'][0][1] == mixed_reading)
 
+
 @pytest.mark.sqlhistorian
 @pytest.mark.historian
 def test_record_topic_query(request, sqlhistorian, publish_agent, query_agent,
@@ -1208,7 +1232,8 @@ def test_record_topic_query(request, sqlhistorian, publish_agent, query_agent,
     Test query based on same start with literal 'Z' at the end of utc time.
     Cannot query based on exact time as timestamp recorded is time of insert
     publish and query record topic
-    
+
+    :param request: pytest request object
     :param publish_agent: instance of volttron 2.0/3.0agent used to publish
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
@@ -1255,6 +1280,7 @@ def test_record_topic_query(request, sqlhistorian, publish_agent, query_agent,
     assert (result['values'][1][1] == 'value0')
     assert (result['values'][2][1] == {'key': 'value'})
 
+
 @pytest.mark.sqlhistorian
 @pytest.mark.historian
 def test_log_topic(request, sqlhistorian, publish_agent, query_agent, clean):
@@ -1263,7 +1289,8 @@ def test_log_topic(request, sqlhistorian, publish_agent, query_agent, clean):
     Expected result:
      Record should get entered into database with current time at time of
      insertion and should ignore timestamp in header
-    
+
+    :param request: pytest request object
     :param publish_agent: instance of volttron 2.0/3.0agent used to publish
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
@@ -1310,6 +1337,7 @@ def test_log_topic(request, sqlhistorian, publish_agent, query_agent, clean):
     assert (len(result['values']) == 1)
     assert (result['values'][0][1] == mixed_reading)
 
+
 @pytest.mark.sqlhistorian
 @pytest.mark.historian
 def test_log_topic_no_header(request, sqlhistorian, publish_agent, query_agent,
@@ -1320,6 +1348,7 @@ def test_log_topic_no_header(request, sqlhistorian, publish_agent, query_agent,
      Record should get entered into database with current time at time of
      insertion and should not complain about header
 
+    :param request: pytest request object
     :param publish_agent: instance of volttron 2.0/3.0agent used to publish
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
@@ -1360,6 +1389,7 @@ def test_log_topic_no_header(request, sqlhistorian, publish_agent, query_agent,
     assert (len(result['values']) == 1)
     assert (result['values'][0][1] == mixed_reading)
 
+
 @pytest.mark.sqlhistorian
 @pytest.mark.historian
 def test_log_topic_timestamped_readings(request, sqlhistorian, publish_agent,
@@ -1370,6 +1400,7 @@ def test_log_topic_timestamped_readings(request, sqlhistorian, publish_agent,
      Record should get entered into database with the timestamp in
      message and not timestamp in header
 
+    :param request: pytest request object
     :param publish_agent: instance of volttron 2.0/3.0agent used to publish
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc

@@ -1,57 +1,63 @@
-'''
-Copyright (c) 2015, Battelle Memorial Institute
-All rights reserved.
+# -*- coding: utf-8 -*- {{{
+# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
 
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met: 
+# Copyright (c) 2015, Battelle Memorial Institute
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in
+#    the documentation and/or other materials provided with the
+#    distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+# The views and conclusions contained in the software and documentation
+# are those of the authors and should not be interpreted as representing
+# official policies, either expressed or implied, of the FreeBSD
+# Project.
+#
+# This material was prepared as an account of work sponsored by an
+# agency of the United States Government.  Neither the United States
+# Government nor the United States Department of Energy, nor Battelle,
+# nor any of their employees, nor any jurisdiction or organization that
+# has cooperated in the development of these materials, makes any
+# warranty, express or implied, or assumes any legal liability or
+# responsibility for the accuracy, completeness, or usefulness or any
+# information, apparatus, product, software, or process disclosed, or
+# represents that its use would not infringe privately owned rights.
+#
+# Reference herein to any specific commercial product, process, or
+# service by trade name, trademark, manufacturer, or otherwise does not
+# necessarily constitute or imply its endorsement, recommendation, or
+# favoring by the United States Government or any agency thereof, or
+# Battelle Memorial Institute. The views and opinions of authors
+# expressed herein do not necessarily state or reflect those of the
+# United States Government or any agency thereof.
+#
+# PACIFIC NORTHWEST NATIONAL LABORATORY
+# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# under Contract DE-AC05-76RL01830
+# }}}
 
-1. Redistributions of source code must retain the above copyright notice, this
-   list of conditions and the following disclaimer. 
-2. Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution. 
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-The views and conclusions contained in the software and documentation are those
-of the authors and should not be interpreted as representing official policies, 
-either expressed or implied, of the FreeBSD Project.
-'''
-
-'''
-This material was prepared as an account of work sponsored by an 
-agency of the United States Government.  Neither the United States 
-Government nor the United States Department of Energy, nor Battelle,
-nor any of their employees, nor any jurisdiction or organization 
-that has cooperated in the development of these materials, makes 
-any warranty, express or implied, or assumes any legal liability 
-or responsibility for the accuracy, completeness, or usefulness or 
-any information, apparatus, product, software, or process disclosed,
-or represents that its use would not infringe privately owned rights.
-
-Reference herein to any specific commercial product, process, or 
-service by trade name, trademark, manufacturer, or otherwise does 
-not necessarily constitute or imply its endorsement, recommendation, 
-r favoring by the United States Government or any agency thereof, 
-or Battelle Memorial Institute. The views and opinions of authors 
-expressed herein do not necessarily state or reflect those of the 
-United States Government or any agency thereof.
-
-PACIFIC NORTHWEST NATIONAL LABORATORY
-operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
-under Contract DE-AC05-76RL01830
-'''
-
-# pytest test cases for Actuator agent
+"""
+Pytest test cases for testing actuator agent using rpc calls.
+"""
 from datetime import datetime, timedelta
 
 import gevent
@@ -73,10 +79,25 @@ FAILURE = 'FAILURE'
 
 @pytest.fixture(scope="module")
 def publish_agent(request, volttron_instance1):
+    """
+    Fixture used for setting up the environment.
+    1. Creates fake driver configs
+    2. Starts the master driver agent with the created fake driver agents
+    3. Starts the actuator agent
+    4. Creates an instance Agent class for publishing and returns it
+
+    :param request: pytest request object
+    :param volttron_instance1: instance of volttron in which test cases are run
+    :return: an instance of fake agent used for publishing
+    """
     # Create master driver config and 2 fake devices each with 6 points
-    process = Popen(['python', 'config_builder.py', '--count=4', '--publish-only-depth-all',
-                     'fake', 'fake_unit_testing.csv', 'null'], env=volttron_instance1.env, cwd='scripts/scalability-testing',
-                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    process = Popen(['python', 'config_builder.py', '--count=4',
+                     '--publish-only-depth-all', 'fake',
+                     'fake_unit_testing.csv', 'null'],
+                    env=volttron_instance1.env,
+                    cwd='scripts/scalability-testing',
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE)
     result = process.wait()
     print result
     assert result == 0
@@ -116,6 +137,17 @@ def publish_agent(request, volttron_instance1):
 
 @pytest.fixture(scope="function")
 def cancel_schedules(request, publish_agent):
+    """
+    Fixture used to clean up after every test case.
+    Fixture used to clean up after every test case. Cancels any active
+    schedules used for a test case so that the same device and time slot can
+    be used for the next test case
+    :param request: pytest request object
+    :param publish_agent: instance Agent class for doing the rpc calls
+    :return: Array object that the test methods populates with list of tasks
+    that needs to be cancelled after test. Will contain list of dictionary
+    objects of the format ({'agentid': agentid, 'taskid': taskid})
+    """
     cleanup_parameters = []
 
     def cleanup():
@@ -135,21 +167,33 @@ def cancel_schedules(request, publish_agent):
     request.addfinalizer(cleanup)
     return cleanup_parameters
 
+
 @pytest.fixture(scope="function")
 def revert_devices(request, publish_agent):
+    """
+    Cleanup method to revert points on device after test run
+    :param request: pytest request object
+    :param publish_agent: instance Agent class for doing the rpc calls
+    :return: Array object that the test methods populates with list of points
+    that needs to be reverted after test. Will contain list of dictionary
+    objects of the format ({'agentid': agentid, 'device': point_to_revert})
+    """
     cleanup_parameters = []
 
     def cleanup():
         for device in cleanup_parameters:
-            print('Requesting revert on device:', device['device'], 'from agent:', device['agentid'])
+            print(
+            'Requesting revert on device:', device['device'], 'from agent:',
+            device['agentid'])
             publish_agent.vip.rpc.call(
                 PLATFORM_ACTUATOR,  # Target agent
                 'revert_device',  # Method
                 device['agentid'],  # Requestor
                 device['device']  # Point to revert
             ).get(timeout=10)
-            gevent.sleep(
-                1)  # sleep so that the message is sent to pubsub before next test monitors callback method calls
+            # sleep so that the message is sent to pubsub before next test
+            # monitors callback method calls
+            gevent.sleep(1)
 
     request.addfinalizer(cleanup)
     return cleanup_parameters
@@ -191,10 +235,10 @@ def test_schedule_success(publish_agent, cancel_schedules):
 @pytest.mark.actuator
 def test_schedule_error_int_taskid(publish_agent):
     """
-    Test responses for successful schedule request when integer task id
+    Test responses for successful schedule request with integer task id
 
-    :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
-    of Agent object used for publishing
+    :param publish_agent: fixture invoked to setup all agents necessary and
+    returns an instance of Agent object used for publishing
     """
     print ("\n**** test_schedule_error_int_taskid ****")
     agentid = TEST_AGENT
@@ -222,11 +266,10 @@ def test_schedule_error_int_taskid(publish_agent):
 @pytest.mark.actuator
 def test_schedule_error_int_agentid(publish_agent):
     """
-    Test responses for successful schedule request when integer agent id
+    Test responses for successful schedule request with integer agent id
 
-    :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
-    of Agent object used for publishing
-
+    :param publish_agent: fixture invoked to setup all agents necessary and
+    returns an instance of Agent object used for publishing
     """
     print ("\n**** test_schedule_error_int_agentid ****")
     agentid = 1234
@@ -254,12 +297,13 @@ def test_schedule_error_int_agentid(publish_agent):
 @pytest.mark.actuator
 def test_schedule_empty_taskid(publish_agent, cancel_schedules):
     """
-    Test responses for successful schedule request when task id is an empty string
+    Test responses for successful schedule request when task id is an empty
+    string
 
-    :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
-    of Agent object used for publishing
-    :param cancel_schedules: fixture used to cancel the schedule at the end of test so that other tests can use
-    the same device and time slot
+    :param publish_agent: fixture invoked to setup all agents necessary and
+    returns an instance of Agent object used for publishing
+    :param cancel_schedules: fixture used to cancel the schedule at the end
+    of test so that other tests can use the same device and time slot
     """
     print ("\n**** test_schedule_empty_taskid ****")
     # used by cancel_schedules
@@ -289,12 +333,13 @@ def test_schedule_empty_taskid(publish_agent, cancel_schedules):
 @pytest.mark.actuator
 def test_schedule_empty_agentid(publish_agent, cancel_schedules):
     """
-    Test responses for successful schedule request when agent id is an empty string
+    Test responses for successful schedule request when agent id is an
+    empty string
 
-    :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
-    of Agent object used for publishing
-    :param cancel_schedules: fixture used to cancel the schedule at the end of test so that other tests can use
-    the same device and time slot
+    :param publish_agent: fixture invoked to setup all agents necessary and
+    returns an instance of Agent object used for publishing
+    :param cancel_schedules: fixture used to cancel the schedule at the end
+    of test so that other tests can use the same device and time slot
     """
     print ("\n**** test_schedule_empty_agentid ****")
     # used by cancel_schedules
@@ -324,10 +369,10 @@ def test_schedule_empty_agentid(publish_agent, cancel_schedules):
 @pytest.mark.actuator
 def test_schedule_error_none_taskid(publish_agent):
     """
-    Test error responses for  schedule request when taskid = None
+    Test error responses for  schedule request with taskid = None
 
-    :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
-    of Agent object used for publishing
+    :param publish_agent: fixture invoked to setup all agents necessary and
+    returns an instance of Agent object used for publishing
     """
     print ("\n**** test_schedule_error_none_taskid ****")
     agentid = TEST_AGENT
@@ -353,10 +398,10 @@ def test_schedule_error_none_taskid(publish_agent):
 @pytest.mark.actuator
 def test_schedule_error_none_agentid(publish_agent):
     """
-    Test error responses for  schedule request when agentid = None
+    Test error responses for schedule request with agentid = None
 
-    :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
-    of Agent object used for publishing
+    :param publish_agent: fixture invoked to setup all agents necessary and
+    returns an instance of Agent object used for publishing
     """
     print ("\n**** test_schedule_error_none_agentid ****")
     agentid = None
@@ -383,10 +428,10 @@ def test_schedule_error_none_agentid(publish_agent):
 @pytest.mark.actuator
 def test_schedule_error_invalid_priority(publish_agent):
     """
-    Test error responses for  schedule request with an invalid priority
+    Test error responses for schedule request with an invalid priority
 
-    :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
-    of Agent object used for publishing
+    :param publish_agent: fixture invoked to setup all agents necessary and
+    returns an instance of Agent object used for publishing
     """
     print ("\n**** test_schedule_error_invalid_priority ****")
     taskid = 'task_invalid_priority'
@@ -412,10 +457,10 @@ def test_schedule_error_invalid_priority(publish_agent):
 @pytest.mark.actuator
 def test_schedule_error_empty_message(publish_agent):
     """
-    Test error responses for  schedule request with an empty message
+    Test error responses for schedule request with an empty message
 
-    :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
-    of Agent object used for publishing
+    :param publish_agent: fixture invoked to setup all agents necessary and
+    returns an instance of Agent object used for publishing
     """
     print ("\n**** test_schedule_error_empty_message ****")
     taskid = 'task_empty_message'
@@ -439,12 +484,13 @@ def test_schedule_error_empty_message(publish_agent):
 @pytest.mark.actuator
 def test_schedule_error_duplicate_task(publish_agent, cancel_schedules):
     """
-    Test error responses for  schedule request with task id that is already in use
+    Test error responses for schedule request with task id that is already
+    in use
 
-    :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
-    of Agent object used for publishing
-    :param cancel_schedules: fixture used to cancel the schedule at the end of test so that other tests can use
-    the same device and time slot
+    :param publish_agent: fixture invoked to setup all agents necessary and
+    returns an instance of Agent object used for publishing
+    :param cancel_schedules: fixture used to cancel the schedule at the end
+    of test so that other tests can use the same device and time slot
     """
     print ("\n**** test_schedule_error_duplicate_task ****")
     # used by cancel_schedules
@@ -483,40 +529,10 @@ def test_schedule_error_duplicate_task(publish_agent, cancel_schedules):
 @pytest.mark.actuator
 def test_schedule_error_none_priority(publish_agent):
     """
-    Test error responses for  schedule request with priority = None
+    Test error responses for schedule request with priority = None
 
-    :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
-    of Agent object used for publishing
-    """
-    print ("\n**** test_schedule_error_none_priority ****")
-    taskid = 'task_none_priority'
-
-    start = str(datetime.now())
-    end = str(datetime.now() + timedelta(seconds=1))
-    msg = [
-        ['fakedriver0', start, end]
-    ]
-
-    result = publish_agent.vip.rpc.call(
-        PLATFORM_ACTUATOR,
-        REQUEST_NEW_SCHEDULE,
-        TEST_AGENT,
-        taskid,
-        None,
-        msg).get(timeout=10)
-    # expected result {'info': u'', 'data': {}, 'result': SUCCESS}
-    print result
-    assert result['result'] == FAILURE
-    assert result['info'] == 'MISSING_PRIORITY'
-
-
-@pytest.mark.actuator
-def test_schedule_error_none_priority(publish_agent):
-    """
-    Test error responses for  schedule request with priority = None
-
-    :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
-    of Agent object used for publishing
+    :param publish_agent: fixture invoked to setup all agents necessary
+    and returns an instance of Agent object used for publishing
     """
     print ("\n**** test_schedule_error_none_priority ****")
     taskid = 'task_none_priority'
@@ -543,11 +559,11 @@ def test_schedule_error_none_priority(publish_agent):
 @pytest.mark.actuator
 def test_schedule_error_malformed_request(publish_agent):
     """
-    Test error responses for  schedule request with malformed request - request with only a device name and
-    start time and no stop time
+    Test error responses for schedule request with malformed request -
+    request with only a device name and start time and no stop time
 
-    :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
-    of Agent object used for publishing
+    :param publish_agent: fixture invoked to setup all agents necessary and
+    returns an instance of Agent object used for publishing
     """
     print ("\n**** test_schedule_error_malformed_request ****")
     taskid = 'task_malformed_request'
@@ -577,18 +593,20 @@ def test_schedule_premept_self(publish_agent, cancel_schedules):
     Test error response for schedule request through pubsub.
     Test schedule preemption by a higher priority task from the same agent.
 
-    :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
-    of Agent object used for publishing
-    :param cancel_schedules: fixture used to cancel the schedule at the end of test so that other tests can use
-    the same device and time slot
+    :param publish_agent: fixture invoked to setup all agents necessary and
+    returns an instance of Agent object used for publishing
+    :param cancel_schedules: fixture used to cancel the schedule at the end
+    of test so that other tests can use the same device and time slot
     """
     print ("\n**** test_schedule_premept_self ****")
     # used by cancel_schedules
     agentid = TEST_AGENT
     taskid = 'task_high_priority'
     cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
-    # add low prority task as well  since it won't get cancelled till end of grace time
-    cancel_schedules.append({'agentid': agentid, 'taskid': 'task_low_priority'})
+    # add low prority task as well since it won't get cancelled till
+    # end of grace time
+    cancel_schedules.append(
+        {'agentid': agentid, 'taskid': 'task_low_priority'})
 
     publish_agent.callback = MagicMock(name="callback")
     publish_agent.callback.reset_mock()
@@ -612,8 +630,8 @@ def test_schedule_premept_self(publish_agent, cancel_schedules):
     # expected result {'info': u'', 'data': {}, 'result': SUCCESS}
     print result
     assert result['result'] == SUCCESS
-    gevent.sleep(
-        1)  # wait for above call's success response to publish_agent.callback method
+    # wait for above call's success response to publish_agent.callback method
+    gevent.sleep(1)
     publish_agent.callback.reset_mock()
 
     result = publish_agent.vip.rpc.call(
@@ -624,9 +642,9 @@ def test_schedule_premept_self(publish_agent, cancel_schedules):
         'HIGH',
         msg).get(timeout=10)
     assert result['result'] == SUCCESS
-
-    gevent.sleep(
-        6)  # wait for 2 callbacks - success msg for task_high_priority and preempt msg for task_low_priority
+    # wait for 2 callbacks - success msg for task_high_priority and preempt
+    # msg for task_low_priority
+    gevent.sleep(6)
     print ('call args list:', publish_agent.callback.call_args_list)
     assert publish_agent.callback.call_count == 2
 
@@ -670,20 +688,21 @@ def test_schedule_premept_self(publish_agent, cancel_schedules):
 def test_schedule_premept_active_task(publish_agent, cancel_schedules):
     """
     Test error response for schedule request.
-    Test schedule preemption of a actively running task with priority LOW_PREEMPT by a higher priority task
-    from the a different agent.
+    Test schedule preemption of a actively running task with priority
+    LOW_PREEMPT by a higher priority task from the a different agent.
 
-    :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
-    of Agent object used for publishing
-    :param cancel_schedules: fixture used to cancel the schedule at the end of test so that other tests can use
-    the same device and time slot
+    :param publish_agent: fixture invoked to setup all agents necessary and
+    returns an instance of Agent object used for publishing
+    :param cancel_schedules: fixture used to cancel the schedule at the end
+    of test so that other tests can use the same device and time slot
     """
     print ("\n**** test_schedule_premept_active_task ****")
     # used by cancel_schedules
     agentid = 'new_agent'
     taskid = 'task_high_priority2'
     cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
-    # add low prority task as well  since it won't get cancelled till end of grace time
+    # add low prority task as well since it won't get cancelled till
+    # end of grace time
     cancel_schedules.append(
         {'agentid': TEST_AGENT, 'taskid': 'task_low_priority2'})
 
@@ -709,8 +728,8 @@ def test_schedule_premept_active_task(publish_agent, cancel_schedules):
     # expected result {'info': u'', 'data': {}, 'result': SUCCESS}
     print result
     assert result['result'] == SUCCESS
-    gevent.sleep(
-        1)  # wait for above call's success response to publish_agent.callback method
+    # wait for above call's success response to publish_agent.callback method
+    gevent.sleep(1)
     publish_agent.callback.reset_mock()
 
     result = publish_agent.vip.rpc.call(
@@ -721,9 +740,9 @@ def test_schedule_premept_active_task(publish_agent, cancel_schedules):
         'HIGH',
         msg).get(timeout=10)
     assert result['result'] == SUCCESS
-
-    gevent.sleep(
-        6)  # wait for 2 callbacks - success msg for task_high_priority and preempt msg for task_low_priority
+    # wait for 2 callbacks - success msg for task_high_priority and preempt
+    # msg for task_low_priority
+    gevent.sleep(6)
     print ('call args list:', publish_agent.callback.call_args_list)
     assert publish_agent.callback.call_count == 2
 
@@ -769,21 +788,23 @@ def test_schedule_premept_active_task_gracetime(publish_agent,
                                                 cancel_schedules):
     """
     Test error response for schedule request.
-    Test schedule preemption of a actively running task with priority LOW by a higher priority task
-    from the a different agent. Try setting a point before the end of grace time of lower priority task.
-    set operation should fail
+    Test schedule preemption of a actively running task with priority LOW by
+    a higher priority task from the a different agent. Try setting a point
+    before the end of grace time of lower priority task. set operation should
+    fail
 
-    :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
-    of Agent object used for publishing
-    :param cancel_schedules: fixture used to cancel the schedule at the end of test so that other tests can use
-    the same device and time slot
+    :param publish_agent: fixture invoked to setup all agents necessary and
+    returns an instance of Agent object used for publishing
+    :param cancel_schedules: fixture used to cancel the schedule at the end
+    of test so that other tests can use the same device and time slot
     """
     print ("\n**** test_schedule_premept_active_task_gracetime ****")
     # used by cancel_schedules
     agentid = 'new_agent'
     taskid = 'task_high_priority3'
     cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
-    # add low prority task as well  since it won't get cancelled till end of grace time
+    # add low prority task as well since it won't get cancelled till
+    # end of grace time
     cancel_schedules.append(
         {'agentid': TEST_AGENT, 'taskid': 'task_low_priority3'})
 
@@ -809,8 +830,8 @@ def test_schedule_premept_active_task_gracetime(publish_agent,
     # expected result {'info': u'', 'data': {}, 'result': SUCCESS}
     print result
     assert result['result'] == SUCCESS
-    gevent.sleep(
-        1)  # wait for above call's success response to publish_agent.callback method
+    # wait for above call's success response to publish_agent.callback method
+    gevent.sleep(1)
     publish_agent.callback.reset_mock()
 
     result = publish_agent.vip.rpc.call(
@@ -822,9 +843,9 @@ def test_schedule_premept_active_task_gracetime(publish_agent,
         msg).get(timeout=10)
 
     assert result['result'] == SUCCESS
-
-    gevent.sleep(
-        6)  # wait for 2 callbacks - success msg for task_high_priority and preempt msg for task_low_priority
+    # wait for 2 callbacks - success msg for task_high_priority and preempt
+    # msg for task_low_priority
+    gevent.sleep(6)
     print ('call args list:', publish_agent.callback.call_args_list)
     assert publish_agent.callback.call_count == 2
 
@@ -863,8 +884,9 @@ def test_schedule_premept_active_task_gracetime(publish_agent,
     assert cancel_message['data']['taskID'] == taskid
     assert cancel_message['result'] == 'PREEMPTED'
 
-    # High priority task's schedule request should succeed but it should not be able
-    # to start write to the device till active task's ('task_low_priority3') grace time is over
+    # High priority task's schedule request should succeed but it should not
+    # be able to start write to the device till active task's (
+    # 'task_low_priority3') grace time is over
     try:
         result = publish_agent.vip.rpc.call(
             PLATFORM_ACTUATOR,  # Target agent
@@ -884,13 +906,14 @@ def test_schedule_premept_active_task_gracetime(publish_agent,
 def test_schedule_premept_error_active_task(publish_agent, cancel_schedules):
     """
     Test error response for schedule request.
-    Test schedule preemption of a actively running task with priority LOW by a higher priority task
-    from the a different agent. It should fail as the LOW priority task's time window is active
+    Test schedule preemption of a actively running task with priority LOW by
+    a higher priority task from the a different agent. It should fail as the
+    LOW priority task's time window is active
 
-    :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
-    of Agent object used for publishing
-    :param cancel_schedules: fixture used to cancel the schedule at the end of test so that other tests can use
-    the same device and time slot
+    :param publish_agent: fixture invoked to setup all agents necessary and
+    returns an instance of Agent object used for publishing
+    :param cancel_schedules: fixture used to cancel the schedule at the end
+    of test so that other tests can use the same device and time slot
     """
     print ("\n**** test_schedule_premept_error_active_task ****")
     # used by cancel_schedules
@@ -920,8 +943,8 @@ def test_schedule_premept_error_active_task(publish_agent, cancel_schedules):
     # expected result {'info': u'', 'data': {}, 'result': SUCCESS}
     print result
     assert result['result'] == SUCCESS
-    gevent.sleep(
-        1)  # wait for above call's success response to publish_agent.callback method
+    # wait for above call's success response to publish_agent.callback method
+    gevent.sleep(1)
     publish_agent.callback.reset_mock()
 
     result = publish_agent.vip.rpc.call(
@@ -941,20 +964,21 @@ def test_schedule_premept_error_active_task(publish_agent, cancel_schedules):
 def test_schedule_premept_future_task(publish_agent, cancel_schedules):
     """
     Test error response for schedule request.
-    Test schedule preemption of a future task with priority LOW by a higher priority task
-    from the a different agent.
+    Test schedule preemption of a future task with priority LOW by a higher
+    priority task from the a different agent.
 
-    :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
-    of Agent object used for publishing
-    :param cancel_schedules: fixture used to cancel the schedule at the end of test so that other tests can use
-    the same device and time slot
+    :param publish_agent: fixture invoked to setup all agents necessary and
+    returns an instance of Agent object used for publishing
+    :param cancel_schedules: fixture used to cancel the schedule at the end
+    of test so that other tests can use the same device and time slot
     """
     print ("\n**** test_schedule_premept_future_task ****")
     # used by cancel_schedules
     agentid = 'new_agent'
     taskid = 'task_high_priority4'
     cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
-    # add low prority task as well  since it won't get cancelled till end of grace time
+    # add low prority task as well since it won't get cancelled till end of
+    # grace time
     cancel_schedules.append(
         {'agentid': TEST_AGENT, 'taskid': 'task_low_priority4'})
 
@@ -980,8 +1004,8 @@ def test_schedule_premept_future_task(publish_agent, cancel_schedules):
     # expected result {'info': u'', 'data': {}, 'result': SUCCESS}
     print result
     assert result['result'] == SUCCESS
-    gevent.sleep(
-        1)  # wait for above call's success response to publish_agent.callback method
+    # wait for above call's success response to publish_agent.callback method
+    gevent.sleep(1)
     publish_agent.callback.reset_mock()
 
     result = publish_agent.vip.rpc.call(
@@ -992,9 +1016,9 @@ def test_schedule_premept_future_task(publish_agent, cancel_schedules):
         'HIGH',
         msg).get(timeout=10)
     assert result['result'] == SUCCESS
-
-    gevent.sleep(
-        6)  # wait for 2 callbacks - success msg for task_high_priority and preempt msg for task_low_priority
+    # wait for 2 callbacks - success msg for task_high_priority and preempt
+    # msg for task_low_priority
+    gevent.sleep(6)
     print ('call args list:', publish_agent.callback.call_args_list)
     assert publish_agent.callback.call_count == 2
 
@@ -1038,10 +1062,11 @@ def test_schedule_premept_future_task(publish_agent, cancel_schedules):
 @pytest.mark.actuator
 def test_schedule_conflict_self(publish_agent):
     """
-    Test error response for schedule request. Test schedule with conflicting time slots in the same request
+    Test error response for schedule request. Test schedule with conflicting
+    time slots in the same request
 
-    :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
-    of Agent object used for publishing
+    :param publish_agent: fixture invoked to setup all agents necessary and
+    returns an instance of Agent object used for publishing
     """
     print ("\n**** test_schedule_conflict_self ****")
     # used by cancel_schedules
@@ -1071,10 +1096,10 @@ def test_schedule_conflict(publish_agent, cancel_schedules):
     """
     Test schedule conflict with existing schdeule
 
-    :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
-    of Agent object used for publishing
-    :param cancel_schedules: fixture used to cancel the schedule at the end of test so that other tests can use
-    the same device and time slot
+    :param publish_agent: fixture invoked to setup all agents necessary and
+    returns an instance of Agent object used for publishing
+    :param cancel_schedules: fixture used to cancel the schedule at the end of
+    test so that other tests can use the same device and time slot
     """
     print ("\n**** test_schedule_conflict ****")
     # set agentid and task id for  cancel_schedules fixture
@@ -1114,14 +1139,14 @@ def test_schedule_conflict(publish_agent, cancel_schedules):
 @pytest.mark.actuator
 def test_schedule_overlap_success(publish_agent, cancel_schedules):
     """
-    Test schedule where stop time of one requested time slot is the same as start time of another
-    requested time slot.
+    Test schedule where stop time of one requested time slot is the same as
+    start time of another requested time slot.
     Expected Result : SUCCESS
 
-    :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
-    of Agent object used for publishing
-    :param cancel_schedules: fixture used to cancel the schedule at the end of test so that other tests can use
-    the same device and time slot
+    :param publish_agent: fixture invoked to setup all agents necessary and
+    returns an instance of Agent object used for publishing
+    :param cancel_schedules: fixture used to cancel the schedule at the end
+    of test so that other tests can use the same device and time slot
     """
     print ("\n**** test_schedule_overlap_success ****")
     # set agentid and task id for  cancel_schedules fixture
@@ -1154,7 +1179,8 @@ def test_cancel_error_invalid_taskid(publish_agent):
     """
     Test error responses for schedule request. Test invalid task id
 
-    :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
+    :param publish_agent: fixture invoked to setup all agents necessary and
+    returns an instance
     of Agent object used for publishing
     """
     print ("\n**** test_cancel_error_invalid_taskid ****")
@@ -1175,10 +1201,10 @@ def test_cancel_error_taskid_agentid_mismatch(publish_agent, cancel_schedules):
     """
     Test error responses for schedule request. Test invalid task id
 
-    :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
-    of Agent object used for publishing
-    :param cancel_schedules: fixture used to cancel the schedule at the end of test so that other tests can use
-    the same device and time slot
+    :param publish_agent: fixture invoked to setup all agents necessary and
+    returns an instance of Agent object used for publishing
+    :param cancel_schedules: fixture used to cancel the schedule at the end
+    of test so that other tests can use the same device and time slot
     """
     print ("\n**** test_cancel_error_taskid_agentid_mismatch ****")
     agentid = TEST_AGENT
@@ -1219,8 +1245,8 @@ def test_cancel_success(publish_agent):
     """
     Test successful schedule cancel
 
-    :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
-    of Agent object used for publishing
+    :param publish_agent: fixture invoked to setup all agents necessary and
+    returns an instance of Agent object used for publishing
     """
     print ("\n**** test_cancel_success ****")
 
@@ -1256,8 +1282,8 @@ def test_get_default(publish_agent):
     """
     Test get default value of a point
 
-    :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
-    of Agent object used for publishing
+    :param publish_agent: fixture invoked to setup all agents necessary and
+    returns an instance of Agent object used for publishing
     """
     print ("\n**** test_get_default ****")
 
@@ -1277,10 +1303,10 @@ def test_get_success(publish_agent, cancel_schedules):
     Test getting a float value of a point through pubsub
     Expected Result - value of the point
 
-    :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
-    of Agent object used for publishing
-    :param cancel_schedules: fixture used to cancel the schedule at the end of test so that other tests can use the same
-    device and time slot
+    :param publish_agent: fixture invoked to setup all agents necessary and
+    returns an instance of Agent object used for publishing
+    :param cancel_schedules: fixture used to cancel the schedule at
+    the end of test so that other tests can use the same device and time slot
     """
     print ("\n**** test_get_value_success ****")
     agentid = TEST_AGENT
@@ -1326,10 +1352,10 @@ def test_get_success(publish_agent, cancel_schedules):
 @pytest.mark.actuator
 def test_get_error_invalid_point(publish_agent):
     """
-    Test getting a float value of a point through pubsub with invalid point name
+    Test getting a float value of a point through pubsub with invalid point
 
-    :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
-    of Agent object used for publishing
+    :param publish_agent: fixture invoked to setup all agents necessary and
+    returns an instance of Agent object used for publishing
     """
     print ("\n**** test_get_error_invalid_point ****")
     try:
@@ -1337,11 +1363,9 @@ def test_get_error_invalid_point(publish_agent):
             PLATFORM_ACTUATOR,  # Target agent
             'get_point',  # Method
             'fakedriver1/SampleWritableFloat123').get(timeout=10)
-        pytest.fail(
-            'Expecting RemoteError for accessing invalid point. Code returned {}'.format(
-                result))
+        pytest.fail('Expecting RemoteError for accessing invalid point. '
+                    'Code returned {}'.format(result))
     except RemoteError as e:
-        # assert e.exc_info['exc_type'] == 'master_driver.interfaces.DriverInterfaceError'
         assert e.message.find(
             'Point not configured on device: SampleWritableFloat123') != -1
 
@@ -1352,10 +1376,10 @@ def test_set_value_float(publish_agent, cancel_schedules, revert_devices):
     Test setting a float value of a point through rpc
     Expected result = value of the actuation point
 
-    :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
-    of Agent object used for publishing
-    :param cancel_schedules: fixture used to cancel the schedule at the end of test so that other tests can use the
-    same device and time slot
+    :param publish_agent: fixture invoked to setup all agents necessary and
+    returns an instance of Agent object used for publishing
+    :param cancel_schedules: fixture used to cancel the schedule at the end
+    of test so that other tests can use the same device and time slot
     """
     print ("\n**** test_set_float_value ****")
     taskid = 'task_set_float_value'
@@ -1388,17 +1412,18 @@ def test_set_value_float(publish_agent, cancel_schedules, revert_devices):
         2.5  # New value
     ).get(timeout=10)
     assert result == 2.5
-    
+
+
 @pytest.mark.actuator
 def test_revert_point(publish_agent, cancel_schedules):
     """
     Test setting a float value of a point through rpc
     Expected result = value of the actuation point
 
-    :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
-    of Agent object used for publishing
-    :param cancel_schedules: fixture used to cancel the schedule at the end of test so that other tests can use the
-    same device and time slot
+    :param publish_agent: fixture invoked to setup all agents necessary and
+    returns an instance of Agent object used for publishing
+    :param cancel_schedules: fixture used to cancel the schedule at the end
+    of test so that other tests can use the same device and time slot
     """
     print ("\n**** test_set_float_value ****")
     taskid = 'test_revert_point'
@@ -1420,15 +1445,15 @@ def test_revert_point(publish_agent, cancel_schedules):
     # expected result {'info': u'', 'data': {}, 'result': SUCCESS}
     print result
     assert result['result'] == SUCCESS
-    
+
     initial_value = publish_agent.vip.rpc.call(
         PLATFORM_ACTUATOR,  # Target agent
         'get_point',  # Method
         'fakedriver0/SampleWritableFloat1',  # Point to get
     ).get(timeout=10)
-    
+
     test_value = initial_value + 1.0
-    
+
     result = publish_agent.vip.rpc.call(
         PLATFORM_ACTUATOR,  # Target agent
         'set_point',  # Method
@@ -1437,32 +1462,33 @@ def test_revert_point(publish_agent, cancel_schedules):
         test_value  # New value
     ).get(timeout=10)
     assert result == test_value
-    
+
     publish_agent.vip.rpc.call(
         PLATFORM_ACTUATOR,  # Target agent
         'revert_point',  # Method
         agentid,  # Requestor
         'fakedriver0/SampleWritableFloat1'  # Point to revert
     ).get(timeout=10)
-    
+
     result = publish_agent.vip.rpc.call(
         PLATFORM_ACTUATOR,  # Target agent
         'get_point',  # Method
         'fakedriver0/SampleWritableFloat1',  # Point to get
     ).get(timeout=10)
-    #Value taken from fake_unit_testing.csv
+    # Value taken from fake_unit_testing.csv
     assert result == initial_value
-    
+
+
 @pytest.mark.actuator
 def test_revert_device(publish_agent, cancel_schedules):
     """
     Test setting a float value of a point through rpc
     Expected result = value of the actuation point
 
-    :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
-    of Agent object used for publishing
-    :param cancel_schedules: fixture used to cancel the schedule at the end of test so that other tests can use the
-    same device and time slot
+    :param publish_agent: fixture invoked to setup all agents necessary and
+    returns an instance of Agent object used for publishing
+    :param cancel_schedules: fixture used to cancel the schedule at the end
+    of test so that other tests can use the same device and time slot
     """
     print ("\n**** test_set_float_value ****")
     taskid = 'test_revert_point'
@@ -1484,15 +1510,15 @@ def test_revert_device(publish_agent, cancel_schedules):
     # expected result {'info': u'', 'data': {}, 'result': SUCCESS}
     print result
     assert result['result'] == SUCCESS
-    
+
     initial_value = publish_agent.vip.rpc.call(
         PLATFORM_ACTUATOR,  # Target agent
         'get_point',  # Method
         'fakedriver0/SampleWritableFloat1',  # Point to get
     ).get(timeout=10)
-    
+
     test_value = initial_value + 1.0
-    
+
     result = publish_agent.vip.rpc.call(
         PLATFORM_ACTUATOR,  # Target agent
         'set_point',  # Method
@@ -1501,32 +1527,33 @@ def test_revert_device(publish_agent, cancel_schedules):
         test_value  # New value
     ).get(timeout=10)
     assert result == test_value
-    
+
     publish_agent.vip.rpc.call(
         PLATFORM_ACTUATOR,  # Target agent
         'revert_device',  # Method
         agentid,  # Requestor
         'fakedriver0'  # Point to revert
     ).get(timeout=10)
-    
+
     result = publish_agent.vip.rpc.call(
         PLATFORM_ACTUATOR,  # Target agent
         'get_point',  # Method
         'fakedriver0/SampleWritableFloat1',  # Point to get
     ).get(timeout=10)
-    #Value taken from fake_unit_testing.csv
+    # Value taken from fake_unit_testing.csv
     assert result == initial_value
 
 
 @pytest.mark.actuator
 def test_set_error_array(publish_agent, cancel_schedules):
     """
-    Test setting a array of single float value of a point. Should return type error
+    Test setting a array of single float value of a point. Should return
+    type error
 
-    :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
-    of Agent object used for publishing
-    :param cancel_schedules: fixture used to cancel the schedule at the end of test so that other tests can use the
-    same device and time slot
+    :param publish_agent: fixture invoked to setup all agents necessary and
+    returns an instance of Agent object used for publishing
+    :param cancel_schedules: fixture used to cancel the schedule at the end
+    of test so that other tests can use the same device and time slot
     """
     print ("\n**** test_set_error_array ****")
     # set agentid and task id for  cancel_schedules fixture
@@ -1557,11 +1584,11 @@ def test_set_error_array(publish_agent, cancel_schedules):
             'fakedriver0/SampleWritableFloat1',  # Point to set
             [2.5]  # New value
         ).get(timeout=10)
-        pytest.fail(
-            'Expecting RemoteError for trying to set array on point that expects float. Code returned {}'.format(
-                result))
+        pytest.fail('Expecting RemoteError for trying to set array on point '
+                    'that expects float. Code returned {}'.format(result))
     except RemoteError as e:
-        assert e.message == "TypeError('float() argument must be a string or a number')"
+        assert e.message == \
+               "TypeError('float() argument must be a string or a number')"
 
 
 @pytest.mark.actuator
@@ -1573,8 +1600,8 @@ def test_set_lock_error(publish_agent):
         'type': 'LockError'
         'value':
     }
-    :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
-    of Agent object used for publishing
+    :param publish_agent: fixture invoked to setup all agents necessary and
+    returns an instance of Agent object used for publishing
     """
     try:
         result = publish_agent.vip.rpc.call(
@@ -1597,10 +1624,10 @@ def test_set_value_error(publish_agent, cancel_schedules):
     Test setting a wrong type value of a point through rpc
 
 
-    :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
-    of Agent object used for publishing
-    :param cancel_schedules: fixture used to cancel the schedule at the end of test so that other tests can use the same
-    device and time slot
+    :param publish_agent: fixture invoked to setup all agents necessary and
+    returns an instance of Agent object used for publishing
+    :param cancel_schedules: fixture used to cancel the schedule at the end
+    of test so that other tests can use the same device and time slot
     """
     print ("\n**** test_set_value_error ****")
     agentid = TEST_AGENT
@@ -1629,11 +1656,12 @@ def test_set_value_error(publish_agent, cancel_schedules):
             'set_point',  # Method
             agentid,  # Requestor
             'fakedriver0/SampleWritableFloat1',  # Point to set
-            'On'  # New value
-        ).get(timeout=10)
-        pytest.fail("Expecting ValueError but code returned: {}".format(result))
+            'On').get(timeout=10)
+        pytest.fail(
+            "Expecting ValueError but code returned: {}".format(result))
     except RemoteError as e:
-        assert e.message == "ValueError('could not convert string to float: On')"
+        assert e.message == "ValueError('could not convert string to float: " \
+                            "On')"
 
 
 @pytest.mark.actuator
@@ -1642,10 +1670,10 @@ def test_set_error_none_agent(publish_agent, cancel_schedules):
     Test setting a value of a point through rpc with agentid=None
 
 
-    :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
-    of Agent object used for publishing
-    :param cancel_schedules: fixture used to cancel the schedule at the end of test so that other tests can use the same
-    device and time slot
+    :param publish_agent: fixture invoked to setup all agents necessary and
+    returns an instance of Agent object used for publishing
+    :param cancel_schedules: fixture used to cancel the schedule at the end
+    of test so that other tests can use the same device and time slot
     """
     print ("\n**** test_set_error_none_agent ****")
     agentid = TEST_AGENT
@@ -1689,10 +1717,10 @@ def test_set_error_read_only_point(publish_agent, cancel_schedules):
     """
     Test setting a value of a read only point through pubsub
 
-    :param publish_agent: fixture invoked to setup all agents necessary and returns an instance
-    of Agent object used for publishing
-    :param cancel_schedules: fixture used to cancel the schedule at the end of test so that other tests can use the same
-    device and time slot
+    :param publish_agent: fixture invoked to setup all agents necessary and
+    returns an instance of Agent object used for publishing
+    :param cancel_schedules: fixture used to cancel the schedule at the end
+    of test so that other tests can use the same device and time slot
     """
     print ("\n**** test_set_read_only_point ****")
     agentid = TEST_AGENT
@@ -1727,4 +1755,5 @@ def test_set_error_read_only_point(publish_agent, cancel_schedules):
         pytest.fail(
             'Expecting RemoteError but code returned: {}'.format(result))
     except RemoteError as e:
-        assert e.message == "IOError('Trying to write to a point configured read only: OutsideAirTemperature1')"
+        assert e.message == "IOError('Trying to write to a point configured " \
+                            "read only: OutsideAirTemperature1')"

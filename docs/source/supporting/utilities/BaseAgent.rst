@@ -1,5 +1,5 @@
 BaseAgent
-=====
+=========
 
 The BaseAgent class subscribes to required topics, responds to platform
 messages, and provides hooks for application-specific logic. While it is

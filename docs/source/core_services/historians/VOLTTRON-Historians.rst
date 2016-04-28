@@ -1,5 +1,5 @@
 VOLTTRON Historian Framework Introduction
-------------
+-----------------------------------------
 
 Historian Agents are the way by which device, actuator, datalogger, and
 analysis are captured and stored in some sort of data store. Historian

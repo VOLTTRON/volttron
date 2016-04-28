@@ -1,5 +1,5 @@
 Agent Autostart
-====
+===============
 
 An agent can be setup to start when the platform is started with the
 "enable" command. This command also allows a priority to be set (0-100,
