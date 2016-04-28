@@ -56,7 +56,8 @@ var platformManagerActionCreators = {
                     }
                     
                     // platformActionCreators.loadPlatform(platform);
-                    platformActionCreators.initializeAgents(platform);
+                    // platformActionCreators.initializeAgents(platform);
+                    platformActionCreators.loadAgents(platform);
                 });
             })
             .catch(rpc.Error, handle401);

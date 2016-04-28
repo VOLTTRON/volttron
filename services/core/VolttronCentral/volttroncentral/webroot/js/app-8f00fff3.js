@@ -219,40 +219,43 @@ var platformActionCreators = {
             })
             .catch(rpc.Error, handle401);
     },
-    initializeAgents: function (platform) {
-        var authorization = authorizationStore.getAuthorization();
+    // initializeAgents: function (platform) {
+    //     var authorization = authorizationStore.getAuthorization();
 
-        if (platform.agents.length > 0)
-        {
-            new rpc.Exchange({
-                method: 'platforms.uuid.' + platform.uuid + '.status_agents',
-                authorization: authorization,
-            }).promise
-                .then(function (agentStatuses) {
-                    platform.agents.forEach(function (agent) {
-                        if (!agentStatuses.some(function (status) {
-                            if (agent.uuid === status.uuid) {
-                                agent.actionPending = false;
-                                console.log("PIDs match: " + (agent.process_id === status.process_id));
-                                agent.return_code = status.return_code;
+    //     if (platform.agents)
+    //     {
+    //         if (platform.agents.length > 0)
+    //         {
+    //             new rpc.Exchange({
+    //                 method: 'platforms.uuid.' + platform.uuid + '.status_agents',
+    //                 authorization: authorization,
+    //             }).promise
+    //                 .then(function (agentStatuses) {
+    //                     platform.agents.forEach(function (agent) {
+    //                         if (!agentStatuses.some(function (status) {
+    //                             if (agent.uuid === status.uuid) {
+    //                                 agent.actionPending = false;
+    //                                 console.log("PIDs match: " + (agent.process_id === status.process_id));
+    //                                 agent.return_code = status.return_code;
 
-                                return true;
-                            }
-                        })) {
-                            agent.actionPending = false;
-                            agent.process_id = null;
-                            agent.return_code = null;
-                        }
+    //                                 return true;
+    //                             }
+    //                         })) {
+    //                             agent.actionPending = false;
+    //                             agent.process_id = null;
+    //                             agent.return_code = null;
+    //                         }
 
-                    });
+    //                     });
 
-                    dispatcher.dispatch({
-                        type: ACTION_TYPES.RECEIVE_PLATFORM,
-                        platform: platform,
-                    });
-                });
-        }
-    },
+    //                     dispatcher.dispatch({
+    //                         type: ACTION_TYPES.RECEIVE_PLATFORM,
+    //                         platform: platform,
+    //                     });
+    //                 });
+    //         }
+    //     }
+    // },
     startAgent: function (platform, agent) {
         var authorization = authorizationStore.getAuthorization();
 
@@ -711,7 +714,8 @@ var platformManagerActionCreators = {
                     }
                     
                     // platformActionCreators.loadPlatform(platform);
-                    platformActionCreators.initializeAgents(platform);
+                    // platformActionCreators.initializeAgents(platform);
+                    platformActionCreators.loadAgents(platform);
                 });
             })
             .catch(rpc.Error, handle401);
@@ -888,7 +892,7 @@ var platformsPanelActionCreators = {
         switch (type)
         {
             case "platform":
-                // loadPanelAgents(parent);
+                loadPanelAgents(parent);
                 loadPanelBuildings(parent);
                 loadPanelPoints(parent);
                 break;
@@ -1001,29 +1005,29 @@ var platformsPanelActionCreators = {
         }
 
         function loadPanelAgents(platform) {
-        //     var authorization = authorizationStore.getAuthorization();
+            var authorization = authorizationStore.getAuthorization();
 
-        //     new rpc.Exchange({
-        //         method: 'platforms.uuid.' + platform.uuid + '.list_agents',
-        //         authorization: authorization,
-        //     }).promise
-        //         .then(function (agentsList) {
+            new rpc.Exchange({
+                method: 'platforms.uuid.' + platform.uuid + '.list_agents',
+                authorization: authorization,
+            }).promise
+                .then(function (agentsList) {
                     
-        //             dispatcher.dispatch({
-        //                 type: ACTION_TYPES.RECEIVE_AGENT_STATUSES,
-        //                 platform: platform,
-        //                 agents: agentsList
-        //             });
+                    dispatcher.dispatch({
+                        type: ACTION_TYPES.RECEIVE_AGENT_STATUSES,
+                        platform: platform,
+                        agents: agentsList
+                    });
 
                     
-        //         })
-        //         .catch(rpc.Error, handle401);    
-        // }
-            dispatcher.dispatch({
-                type: ACTION_TYPES.RECEIVE_AGENT_STATUSES,
-                platform: platform
-            });
+                })
+                .catch(rpc.Error, handle401);    
         }
+            // dispatcher.dispatch({
+            //     type: ACTION_TYPES.RECEIVE_AGENT_STATUSES,
+            //     platform: platform
+            // });
+        // }
     
     },
 
@@ -1218,7 +1222,7 @@ var AgentRow = React.createClass({displayName: "AgentRow",
             if (agent.process_id === null) {
                 status = 'Never started';
                 
-                if (agent.vc_can_start)
+                if (agent.can_start)
                 {
                     action = (
                         React.createElement("input", {className: "button button--agent-action", type: "button", value: "Start", onClick: this._onStart})
@@ -1233,7 +1237,7 @@ var AgentRow = React.createClass({displayName: "AgentRow",
             } else if (agent.return_code === null) {
                 status = 'Running (PID ' + agent.process_id + ')';
                 
-                if (agent.vc_can_stop)
+                if (agent.can_stop)
                 {
                     action = (
                         React.createElement("input", {className: "button button--agent-action", type: "button", value: "Stop", onClick: this._onStop})
@@ -1248,7 +1252,7 @@ var AgentRow = React.createClass({displayName: "AgentRow",
             } else {
                 status = 'Stopped (returned ' + agent.return_code + ')';
                 
-                if (agent.vc_can_restart)
+                if (agent.can_restart)
                 {
                     action = (
                         React.createElement("input", {className: "button button--agent-action", type: "button", value: "Start", onClick: this._onStart})
@@ -3630,9 +3634,11 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
 
         this.setState({expanded: expanded});
 
+        var platformsList = getPlatformsFromStore();
+        
         if (expanded !== null)
         {
-            this.setState({platforms: getPlatformsFromStore()});
+            this.setState({platforms: platformsList});
         }
     },
     _onPanelItemsStoreChange: function () {
@@ -6790,8 +6796,8 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                 var platformItem = _items["platforms"][platform.uuid];
                 platformItem.path = ["platforms", platform.uuid];
 
-                var status = JSON.parse(platform.status);
-                platformItem.status = status.status.toUpperCase();
+                var health = JSON.parse(JSON.stringify(platform.health));
+                platformItem.status = health.status.toUpperCase();
                 platformItem.children = [];
                 platformItem.type = "platform";
                 platformItem.visible = true;
@@ -6823,42 +6829,43 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             break;
         case ACTION_TYPES.RECEIVE_AGENT_STATUSES:
 
-            // var platform = _items["platforms"][action.platform.uuid];
+            var platform = _items["platforms"][action.platform.uuid];
 
-            // if (action.agents.length > 0)
-            // {
-            //     platform.expanded = true;
-            //     platform.agents = {};
-            //     platform.agents.path = platform.path.slice(0);
-            //     platform.agents.path.push("agents");
-            //     platform.agents.name = "Agents";
-            //     platform.agents.expanded = false;
-            //     platform.agents.visible = true;
-            //     platform.agents.children = [];
-            //     platform.agents.type = "type";
-            //     platform.agents.sortOrder = _agentsOrder;
+            if (action.agents.length > 0)
+            {
+                insertAgents(platform, action.agents);
+                // platform.expanded = true;
+                // platform.agents = {};
+                // platform.agents.path = platform.path.slice(0);
+                // platform.agents.path.push("agents");
+                // platform.agents.name = "Agents";
+                // platform.agents.expanded = false;
+                // platform.agents.visible = true;
+                // platform.agents.children = [];
+                // platform.agents.type = "type";
+                // platform.agents.sortOrder = _agentsOrder;
 
-            //     if (platform.children.indexOf("agents") < 0)
-            //     {
-            //         platform.children.push("agents");
-            //     }
+                // if (platform.children.indexOf("agents") < 0)
+                // {
+                //     platform.children.push("agents");
+                // }
 
-            //     action.agents.forEach(function (agent)
-            //     {
-            //         var agentProps = agent;
-            //         agentProps.expanded = false;
-            //         agentProps.visible = true;
-            //         agentProps.path = platform.agents.path.slice(0);
-            //         agentProps.path.push(agent.uuid);
-            //         // agent.status = "GOOD";
-            //         agentProps.children = [];
-            //         agentProps.type = "agent";
-            //         agentProps.sortOrder = 0;
-            //         platform.agents.children.push(agent.uuid); 
-            //         platform.agents[agent.uuid] = agentProps;
-            //     });
+                // action.agents.forEach(function (agent)
+                // {
+                //     var agentProps = agent;
+                //     agentProps.expanded = false;
+                //     agentProps.visible = true;
+                //     agentProps.path = platform.agents.path.slice(0);
+                //     agentProps.path.push(agent.uuid);
+                //     // agent.status = "GOOD";
+                //     agentProps.children = [];
+                //     agentProps.type = "agent";
+                //     agentProps.sortOrder = 0;
+                //     platform.agents.children.push(agent.uuid); 
+                //     platform.agents[agent.uuid] = agentProps;
+                // });
 
-            // }
+            }
 
             platformsPanelItemsStore.emitChange();
             break;
@@ -6979,53 +6986,81 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             break;
     }
 
-    function loadAgents(platform)
+    function insertAgents(platform, agents)
     {
-        // var platform = _items["platforms"][action.platform.uuid];
-        
-        if (platform.agents.length > 0)
+        var agentsToInsert = JSON.parse(JSON.stringify(agents));
+
+        // platform.expanded = true;
+        platform.agents = {};
+        platform.agents.path = JSON.parse(JSON.stringify(platform.path));
+        platform.agents.path.push("agents");
+        platform.agents.name = "Agents";
+        platform.agents.expanded = false;
+        platform.agents.visible = true;
+        platform.agents.children = [];
+        platform.agents.type = "type";
+        platform.agents.sortOrder = _agentsOrder;
+
+        if (platform.children.indexOf("agents") < 0)
         {
-            var agents = [];
+            platform.children.push("agents");
+        }
 
-            platform.agents.forEach(function (agent) {
-                agents.push(agent);
-            });
+        var agentsHealth;
 
-            // platform.expanded = true;
-            platform.agents = {};
-            platform.agents.path = platform.path.slice(0);
-            platform.agents.path.push("agents");
-            platform.agents.name = "Agents";
-            platform.agents.expanded = false;
-            platform.agents.visible = true;
-            platform.agents.children = [];
-            platform.agents.type = "type";
-            platform.agents.sortOrder = _agentsOrder;
+        agentsToInsert.forEach(function (agent)
+        {
+            var agentProps = agent;
+            agentProps.expanded = false;
+            agentProps.visible = true;
+            agentProps.path = JSON.parse(JSON.stringify(platform.agents.path));
+            agentProps.path.push(agent.uuid);
+            agent.status = agent.health.health;
+            agentProps.children = [];
+            agentProps.type = "agent";
+            agentProps.sortOrder = 0;
+            platform.agents.children.push(agent.uuid); 
+            platform.agents[agent.uuid] = agentProps;
 
-            if (platform.children.indexOf("agents") < 0)
+            if (typeof agentsHealth === "undefined")
             {
-                platform.children.push("agents");
+                agentsHealth = agent.status;
+            }
+            else
+            {
+                switch (agentsHealth)
+                {
+                    case "UNKNOWN":
+
+                        switch (agent.status)
+                        {
+                            case "BAD":
+                                agentsHealth = "BAD";
+                                break;
+                        }
+                        break;
+                    case "GOOD":
+                        agentsHealth = agent.status;
+                }
             }
 
-            agents.forEach(function (agent)
-            {
-                var agentProps = agent;
-                agentProps.expanded = false;
-                agentProps.visible = true;
-                agentProps.path = platform.agents.path.slice(0);
-                agentProps.path.push(agent.uuid);
-                // agent.status = "GOOD";
-                agentProps.children = [];
-                agentProps.type = "agent";
-                agentProps.sortOrder = 0;
-                platform.agents.children.push(agent.uuid); 
-                platform.agents[agent.uuid] = agentProps;
-            });
+        });
 
-        }
-        else
+        platform.agents.status = agentsHealth;
+    }
+
+    function loadAgents(platform)
+    {
+        if (platform.agents)
         {
-            delete platform.agents;
+            if (platform.agents.length > 0)
+            {
+                insertAgents(platform, platform.agents);
+            }
+            else
+            {
+                delete platform.agents;
+            }
         }
     }
 
@@ -7033,49 +7068,52 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
     {
         // var platform = _items["platforms"][action.platform.uuid];
         
-        if (platform.devices.length > 0)
+        if (platform.devices)
         {
-            // var agents = [];
+            if (platform.devices.length > 0)
+            {
+                // var agents = [];
 
-            // platform.agents.forEach(function (agent)) {
-            //     agents.push(agent);
-            // }
+                // platform.agents.forEach(function (agent)) {
+                //     agents.push(agent);
+                // }
 
-            // platform.expanded = true;
-            // platform.agents = {};
-            // platform.agents.path = platform.path.slice(0);
-            // platform.agents.path.push("agents");
-            // platform.agents.name = "Agents";
-            // platform.agents.expanded = false;
-            // platform.agents.visible = true;
-            // platform.agents.children = [];
-            // platform.agents.type = "type";
-            // platform.agents.sortOrder = _agentsOrder;
+                // platform.expanded = true;
+                // platform.agents = {};
+                // platform.agents.path = platform.path.slice(0);
+                // platform.agents.path.push("agents");
+                // platform.agents.name = "Agents";
+                // platform.agents.expanded = false;
+                // platform.agents.visible = true;
+                // platform.agents.children = [];
+                // platform.agents.type = "type";
+                // platform.agents.sortOrder = _agentsOrder;
 
-            // if (platform.children.indexOf("agents") < 0)
-            // {
-            //     platform.children.push("agents");
-            // }
+                // if (platform.children.indexOf("agents") < 0)
+                // {
+                //     platform.children.push("agents");
+                // }
 
-            // agents.forEach(function (agent)
-            // {
-            //     var agentProps = agent;
-            //     agentProps.expanded = false;
-            //     agentProps.visible = true;
-            //     agentProps.path = platform.agents.path.slice(0);
-            //     agentProps.path.push(agent.uuid);
-            //     // agent.status = "GOOD";
-            //     agentProps.children = [];
-            //     agentProps.type = "agent";
-            //     agentProps.sortOrder = 0;
-            //     platform.agents.children.push(agent.uuid); 
-            //     platform.agents[agent.uuid] = agentProps;
-            // });
+                // agents.forEach(function (agent)
+                // {
+                //     var agentProps = agent;
+                //     agentProps.expanded = false;
+                //     agentProps.visible = true;
+                //     agentProps.path = platform.agents.path.slice(0);
+                //     agentProps.path.push(agent.uuid);
+                //     // agent.status = "GOOD";
+                //     agentProps.children = [];
+                //     agentProps.type = "agent";
+                //     agentProps.sortOrder = 0;
+                //     platform.agents.children.push(agent.uuid); 
+                //     platform.agents[agent.uuid] = agentProps;
+                // });
 
-        }
-        else
-        {
-            delete platform.devices;
+            }
+            else
+            {
+                delete platform.devices;
+            }
         }
     }
 

@@ -58,7 +58,7 @@ var platformsPanelActionCreators = {
         switch (type)
         {
             case "platform":
-                // loadPanelAgents(parent);
+                loadPanelAgents(parent);
                 loadPanelBuildings(parent);
                 loadPanelPoints(parent);
                 break;
@@ -171,29 +171,29 @@ var platformsPanelActionCreators = {
         }
 
         function loadPanelAgents(platform) {
-        //     var authorization = authorizationStore.getAuthorization();
+            var authorization = authorizationStore.getAuthorization();
 
-        //     new rpc.Exchange({
-        //         method: 'platforms.uuid.' + platform.uuid + '.list_agents',
-        //         authorization: authorization,
-        //     }).promise
-        //         .then(function (agentsList) {
+            new rpc.Exchange({
+                method: 'platforms.uuid.' + platform.uuid + '.list_agents',
+                authorization: authorization,
+            }).promise
+                .then(function (agentsList) {
                     
-        //             dispatcher.dispatch({
-        //                 type: ACTION_TYPES.RECEIVE_AGENT_STATUSES,
-        //                 platform: platform,
-        //                 agents: agentsList
-        //             });
+                    dispatcher.dispatch({
+                        type: ACTION_TYPES.RECEIVE_AGENT_STATUSES,
+                        platform: platform,
+                        agents: agentsList
+                    });
 
                     
-        //         })
-        //         .catch(rpc.Error, handle401);    
-        // }
-            dispatcher.dispatch({
-                type: ACTION_TYPES.RECEIVE_AGENT_STATUSES,
-                platform: platform
-            });
+                })
+                .catch(rpc.Error, handle401);    
         }
+            // dispatcher.dispatch({
+            //     type: ACTION_TYPES.RECEIVE_AGENT_STATUSES,
+            //     platform: platform
+            // });
+        // }
     
     },
 
