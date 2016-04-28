@@ -36,9 +36,11 @@ var PlatformsPanel = React.createClass({
 
         this.setState({expanded: expanded});
 
+        var platformsList = getPlatformsFromStore();
+        
         if (expanded !== null)
         {
-            this.setState({platforms: getPlatformsFromStore()});
+            this.setState({platforms: platformsList});
         }
     },
     _onPanelItemsStoreChange: function () {
