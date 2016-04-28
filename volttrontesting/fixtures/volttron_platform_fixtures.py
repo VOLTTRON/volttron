@@ -175,7 +175,7 @@ def volttron_instance(request):
 # def test_function_that_uses_n_instances(request, get_volttron_instances):
 #     instances = get_volttron_instances(3)
 @pytest.fixture(scope="module",
-                params=['unencrypted', 'encrypted'])
+                params=['encrypted', 'unencrypted'])
 def get_volttron_instances(request):
     """ Fixture to get more than 1 volttron instance for test
     Use this fixture to get more than 1 volttron instance for test. This
