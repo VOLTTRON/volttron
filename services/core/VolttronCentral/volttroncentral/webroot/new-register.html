@@ -130,12 +130,11 @@ Arguments: <input id="agent_method" placeholder="Method to call"/> <input id="ag
              data: JSON.stringify(pdata),
              dataType: 'json',
              success: function(data){
-                 $('#results').text('Success');
-                   console.log('success '+data.toString());},
+                 $('#output_data').val(JSON.stringify(data));
+	     },
              failure: function(data){
-                 $('#results').text('failure');
-                  console.log('failure '+data.toString());}
-
+                 $('#output_data').val("FAILURE "+ JSON.stringify(data));
+	     }
          });
     });
    $('#list_agents').click(function(){

@@ -39,7 +39,7 @@ var AgentRow = React.createClass({
             if (agent.process_id === null) {
                 status = 'Never started';
                 
-                if (agent.vc_can_start)
+                if (agent.can_start)
                 {
                     action = (
                         <input className="button button--agent-action" type="button" value="Start" onClick={this._onStart} />
@@ -54,7 +54,7 @@ var AgentRow = React.createClass({
             } else if (agent.return_code === null) {
                 status = 'Running (PID ' + agent.process_id + ')';
                 
-                if (agent.vc_can_stop)
+                if (agent.can_stop)
                 {
                     action = (
                         <input className="button button--agent-action" type="button" value="Stop" onClick={this._onStop} />
@@ -69,7 +69,7 @@ var AgentRow = React.createClass({
             } else {
                 status = 'Stopped (returned ' + agent.return_code + ')';
                 
-                if (agent.vc_can_restart)
+                if (agent.can_restart)
                 {
                     action = (
                         <input className="button button--agent-action" type="button" value="Start" onClick={this._onStart} />

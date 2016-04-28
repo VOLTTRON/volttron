@@ -351,7 +351,7 @@ class VolttronCentralAgent(Agent):
 
         self._registry.register(entry)
         self._pa_agents[entry.platform_uuid] = connected_to_pa
-
+        _log.debug("Adding {}".format(entry.platform_uuid))
         instance_name = display_name if display_name else discovery_address
         context = 'Registered instance {}'.format(instance_name)
 
@@ -621,7 +621,9 @@ class VolttronCentralAgent(Agent):
         if not platform:
             return err('Unknown platform {}'.format(platform_uuid))
         platform_method = '.'.join(fields[3:])
+        _log.debug(platform_uuid)
         agent = self._pa_agents[platform_uuid] #TODO: get from registry
+        _log.debug(agent.vip.peerlist().get(timeout=5))
         return agent.vip.rpc.call(
                 'platform.agent', 'route_request', id, platform_method,
                 params).get(timeout=10)
