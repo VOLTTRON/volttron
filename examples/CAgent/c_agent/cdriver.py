@@ -51,6 +51,15 @@ operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 under Contract DE-AC05-76RL01830
 '''
 
+__docformat__ = 'reStructuredText'
+
+'''The cdriver is an example implementation of an interface that
+allows the master driver to transparently call C code.
+This file is an `interface` and will only be usable in the
+master_driver/interfaces directory. The shared object will
+need to be somewhere it can be found by this file.
+'''
+
 from StringIO import StringIO
 from csv import DictReader
 
@@ -67,6 +76,13 @@ water_temperature = shared_object.get_water_temperature
 water_temperature.restype = c_float
 
 def so_lookup_function(function_name):
+    '''Attempt to find a symbol in the loaded shared object
+    or raise an IOerror.
+
+    :param function_name:
+    :type function_name: string
+    :returns: function or raises an exception
+    '''
     try:
         function = getattr(shared_object, function_name)
     except AttributeError:
@@ -83,6 +99,11 @@ class CRegister(BaseRegister):
 
 
 class Interface(BaseInterface):
+    '''Simple interface that calls c code.
+    Function names are constructed based on register
+    point names for brevity. Few if any APIs will
+    support this.
+    '''
     def __init__(self, **kwargs):
         super(Interface, self).__init__(**kwargs)
 

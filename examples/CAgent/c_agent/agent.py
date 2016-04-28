@@ -64,10 +64,16 @@ from volttron.platform.vip.agent import Agent, Core, PubSub, compat
 from volttron.platform.agent import utils
 from volttron.platform.messaging import headers as headers_mod
 
-from . import settings
+__docformat__ = 'reStructuredText'
+
+'''This example agent calls functions from a shared object via
+the ctypes module.
+'''
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
+
+PUBLISH_PERIOD = 1
 
 ################################################################################
 
@@ -84,20 +90,17 @@ class CAgent(Agent):
     def __init__(self, config_path, **kwargs):
         super(CAgent, self).__init__(**kwargs)
 
-    @Core.periodic(settings.HEARTBEAT_PERIOD)
-    def publish_heartbeat(self):
+    @Core.periodic(PUBLISH_PERIOD)
+    def publish_water_temperature(self):
+        '''Call the function from the shared object.
+        '''
         wt = get_water_temperature()
         _log.debug(wt)
         self.vip.pubsub.publish('pubsub', 'device/WATER_TEMP=' + str(wt))
 
-def main(argv=sys.argv):
-    '''Main method called by the eggsecutable.'''
-    try:
-        utils.vip_main(CAgent)
-    except Exception as e:
-        _log.exception('unhandled exception')
-
 
 if __name__ == '__main__':
-    # Entry point for script
-    sys.exit(main())
+    try:
+        utils.vip_main(CAgent)
+    except KeyboardInterrupt:
+        pass
