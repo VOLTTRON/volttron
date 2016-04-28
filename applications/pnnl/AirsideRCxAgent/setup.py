@@ -59,7 +59,7 @@
 from os import path
 from setuptools import setup, find_packages
 
-MAIN_MODULE = 'driven_agent'
+MAIN_MODULE = 'drivenagent'
 
 # Find the agent package that contains the main module
 packages = find_packages('.')
