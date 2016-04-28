@@ -76,6 +76,9 @@ from gevent import subprocess
 from gevent.subprocess import Popen
 from . import get_home
 
+from volttron.platform.auth import AuthEntry, AuthFile
+
+
 class TrackingString(str):
     '''String subclass that allows attaching source information.'''
     def __new__(cls, *args, **kwargs):
@@ -574,7 +577,7 @@ def prompt_response(inputs):
         if resp == '' and len(inputs) == 3:
             return inputs[2]
         # No validation or tthe response was in the list of values.
-        if len(inputs) == 1 or resp in inputs[1]:
+        if len(inputs) == 1 or inputs[1] is None or resp in inputs[1]:
             return resp
         else:
             print('Invalid response proper responses are: ')
@@ -725,6 +728,11 @@ def _main():
         external_port = prompt_response(t)
         if not external_port:
             external_port = 8080
+        t = ('Which IP addresses are allowed to discover this instance? [/127.*/]',
+             None, '/127.*/')
+        ip_allowed_to_discover = prompt_response(t)
+        AuthFile().add(AuthEntry(address=ip_allowed_to_discover,
+                                credentials='/CURVE:.*/'))
         t = ('Is this instance a volttron central (Y/N)? [N] ', y_or_n, 'N')
         is_vc = prompt_response(t)
         vc_autostart = 'Y'
