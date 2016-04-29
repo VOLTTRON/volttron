@@ -102,14 +102,7 @@ var Platforms = React.createClass({
                 <div className="absolute_anchor">
                     <h2>Platforms</h2>
                     <div className="view__actions">
-                        <button className="button" onClick={this._onGoodStatusClick}>
-                            Show Good Status
-                        </button>
-                        &nbsp;
-                        <button className="button" onClick={this._onBadStatusClick}>
-                            Show Bad Status
-                        </button>
-                        &nbsp;
+                        
                         <button className="button" onClick={this._onRegisterClick}>
                             Register platform
                         </button>

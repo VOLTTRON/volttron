@@ -3315,40 +3315,40 @@ var Platform = React.createClass({displayName: "Platform",
             );
         }
 
-        var charts;
+        // var charts;
         var agents;
 
-        if (!platform.charts) {
-            charts = (
-                React.createElement("p", null, "Loading charts...")
-            );
-        } else {
-            charts = platform.charts.map(function (chart) {
-                var key = [
-                    platform.uuid,
-                    chart.topic,
-                    chart.type,
-                ].join('::');
+        // if (!platform.charts) {
+        //     charts = (
+        //         <p>Loading charts...</p>
+        //     );
+        // } else {
+        //     charts = platform.charts.map(function (chart) {
+        //         var key = [
+        //             platform.uuid,
+        //             chart.topic,
+        //             chart.type,
+        //         ].join('::');
 
-                return (
-                    React.createElement("div", {key: key, className: "view__item view__item--tile chart"}, 
-                        React.createElement("h4", {className: "chart__title"}, chart.topic), 
-                        React.createElement(Chart, {
-                            platform: platform, 
-                            chart: chart}
-                        ), 
-                        React.createElement("div", {className: "chart__actions"}, 
-                            React.createElement("a", {onClick: this._onEditChartClick.bind(this, platform, chart)}, 
-                                "Edit"
-                            ), 
-                            React.createElement("a", {onClick: this._onDeleteChartClick.bind(this, platform, chart)}, 
-                                "Delete"
-                            )
-                        )
-                    )
-                );
-            }, this);
-        }
+        //         return (
+        //             <div key={key} className="view__item view__item--tile chart">
+        //                 <h4 className="chart__title">{chart.topic}</h4>
+        //                 <Chart
+        //                     platform={platform}
+        //                     chart={chart}
+        //                 />
+        //                 <div className="chart__actions">
+        //                     <a onClick={this._onEditChartClick.bind(this, platform, chart)}>
+        //                         Edit
+        //                     </a>
+        //                     <a onClick={this._onDeleteChartClick.bind(this, platform, chart)}>
+        //                         Delete
+        //                     </a>
+        //                 </div>
+        //             </div>
+        //         );
+        //     }, this);
+        // }
 
         if (!platform.agents) {
             agents = (
@@ -3363,7 +3363,7 @@ var Platform = React.createClass({displayName: "Platform",
                 React.createElement("table", null, 
                     React.createElement("thead", null, 
                         React.createElement("tr", null, 
-                            React.createElement("th", null, "Agent"), 
+                            React.createElement("th", null, "Tag"), 
                             React.createElement("th", null, "UUID"), 
                             React.createElement("th", null, "Status"), 
                             React.createElement("th", null, "Action")
@@ -3400,16 +3400,9 @@ var Platform = React.createClass({displayName: "Platform",
                     " / ", 
                     platform.name, " (", platform.uuid, ")"
                 ), 
-                React.createElement("h3", null, "Charts"), 
-                charts, 
-                React.createElement("div", null, 
-                    React.createElement("button", {
-                        className: "button", 
-                        onClick: this._onAddChartClick.bind(null, this.state.platform)
-                    }, 
-                        "Add chart"
-                    )
-                ), 
+                
+                React.createElement("br", null), 
+                React.createElement("br", null), 
                 React.createElement("h3", null, "Agents"), 
                 agents, 
                 React.createElement("h3", null, "Install agents"), 
@@ -4039,14 +4032,7 @@ var Platforms = React.createClass({displayName: "Platforms",
                 React.createElement("div", {className: "absolute_anchor"}, 
                     React.createElement("h2", null, "Platforms"), 
                     React.createElement("div", {className: "view__actions"}, 
-                        React.createElement("button", {className: "button", onClick: this._onGoodStatusClick}, 
-                            "Show Good Status"
-                        ), 
-                        " ", 
-                        React.createElement("button", {className: "button", onClick: this._onBadStatusClick}, 
-                            "Show Bad Status"
-                        ), 
-                        " ", 
+                        
                         React.createElement("button", {className: "button", onClick: this._onRegisterClick}, 
                             "Register platform"
                         )
