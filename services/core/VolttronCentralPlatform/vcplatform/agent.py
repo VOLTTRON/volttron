@@ -392,15 +392,17 @@ class VolttronCentralPlatform(Agent):
     @RPC.export
     def register_service(self, vip_identity):
         # make sure that we get a ping reply
-        response = self.vip.ping(vip_identity).get(timeout=5)
-
-        alias = vip_identity
-
-        # make service list not include a platform.
-        if vip_identity.startswith('platform.'):
-            alias = vip_identity[len('platform.'):]
-
-        self._services[alias] = vip_identity
+        # response = self.vip.ping(vip_identity).get(timeout=5)
+        #
+        # alias = vip_identity
+        #
+        # # make service list not include a platform.
+        # if vip_identity.startswith('platform.'):
+        #     alias = vip_identity[len('platform.'):]
+        #
+        # self._services[alias] = vip_identity
+        # NOOP at present.
+        pass
 
     # @RPC.export
     # def services(self):
