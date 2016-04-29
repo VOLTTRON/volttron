@@ -452,7 +452,10 @@ class VolttronCentralPlatform(Agent):
             }
 
         for a in agents:
-            a.update(uuid_to_status[a['uuid']])
+            if a['uuid'] in uuid_to_status.keys():
+                a.update(uuid_to_status[a['uuid']])
+
+
 
         return agents
 
@@ -529,14 +532,25 @@ class VolttronCentralPlatform(Agent):
         else:
 
             fields = method.split('.')
-            agent_uuid = fields[2]
-            agent_method = '.'.join(fields[3:])
-            _log.debug("Calling method {} on agent {}"
-                       .format(agent_method, agent_uuid))
-            _log.debug("Params is: {}".format(params))
 
-            result = self.vip.rpc.call(agent_uuid, agent_method,
-                                   params).get()
+            if fields[0] == 'historian':
+                if 'platform.historian' in self.vip.peerlist().get(timeout=2):
+                    agent_method = fields[1]
+                    result = self.vip.rpc.call('platform.historian',
+                                               agent_method,
+                                              **params).get(timeout=5)
+                else:
+                    result = jsonrpc.json_error(
+                        id, INVALID_PARAMS, 'historian unavailable')
+            else:
+                agent_uuid = fields[2]
+                agent_method = '.'.join(fields[3:])
+                _log.debug("Calling method {} on agent {}"
+                           .format(agent_method, agent_uuid))
+                _log.debug("Params is: {}".format(params))
+
+                result = self.vip.rpc.call(agent_uuid, agent_method,
+                                       params).get()
 
 
             # Get the agent via their uuid.
