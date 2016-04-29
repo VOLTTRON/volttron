@@ -58,7 +58,6 @@
 from __future__ import absolute_import, print_function
 
 from contextlib import contextmanager
-from datetime import datetime
 from errno import ENOENT
 import heapq
 import inspect
@@ -72,7 +71,6 @@ import urlparse
 import gevent.event
 from zmq import green as zmq
 from zmq.green import ZMQError, EAGAIN
-from zmq.utils import jsonapi as json
 from zmq.utils.monitor import recv_monitor_message
 
 from .decorators import annotate, annotations, dualmethod
@@ -81,11 +79,7 @@ from .errors import VIPError
 from .. import green as vip
 from .. import router
 from .... import platform
-from volttron.platform.keystore import KeyStore
 
-STATUS_GOOD = 'Good'
-STATUS_BAD = 'Bad'
-STATUS_UNKNOWN = 'Unknown'
 
 __all__ = ['BasicCore', 'Core', 'killing']
 
@@ -186,18 +180,6 @@ class BasicCore(object):
         self.onstop = Signal()
         self.onfinish = Signal()
         self._owner = owner
-        self._status = {}  # status will be a json serialized string.
-        self._set_status(STATUS_GOOD, 'Initialization of object')
-
-    def _set_status(self, status, context=None):
-        self._status = {
-            'status': status,
-            'context': context,
-            'last_updated': datetime.utcnow().isoformat()
-        }
-
-    def status(self):
-        return json.dumps(self._status)
 
     def setup(self):
         # Split out setup from __init__ to give oportunity to add
@@ -421,12 +403,7 @@ class Core(BasicCore):
         super(Core, self).__init__(owner)
         self.context = context or zmq.Context.instance()
         self.address = address
-        if publickey is None or secretkey is None:
-            publickey, secretkey = self._get_keys()
-        if publickey and secretkey and serverkey:
-            self._add_keys_to_addr(publickey, secretkey, serverkey)
-        else:
-            _log.warn('Encryption not established... no publickey, secretkey, or serverkey provided.')
+        self._add_keys_to_addr(publickey, secretkey, serverkey)
         self.publickey = publickey
         self.secretkey = secretkey
         self.identity = identity
@@ -451,15 +428,6 @@ class Core(BasicCore):
             url[3] += add_param(url[3], 'secretkey', secretkey)
             url[3] += add_param(url[3], 'serverkey', serverkey)
             self.address = urlparse.urlunsplit(url)
-
-    def _get_keys(self):
-        '''Returns agent's public and secret key from keystore'''
-        keystore_dir = os.environ.get('AGENT_PATH')
-        if keystore_dir is None:
-            return None, None
-        keystore_path = os.path.join(keystore_dir, 'keystore.json')
-        keystore = KeyStore(keystore_path)
-        return keystore.public(), keystore.secret()
 
     @property
     def connected(self):

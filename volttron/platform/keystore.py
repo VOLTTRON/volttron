@@ -66,15 +66,17 @@ import urlparse
 
 from zmq import curve_keypair
 
+from .agent.utils import create_file_if_missing
 from .vip.socket import encode_key
-from volttron.platform import get_home
 
 
 class BaseJSONStore(object):
     '''JSON-file-backed store for dictionaries'''
 
-    def __init__(self, filename):
+    def __init__(self, filename, permissions=0o660):
         self.filename = filename
+        create_file_if_missing(filename)
+        os.chmod(filename, permissions)
 
     def store(self, data):
         with open(self.filename, 'w') as json_file:
@@ -98,13 +100,6 @@ class BaseJSONStore(object):
 class KeyStore(BaseJSONStore):
     '''Handle generation, storage, and retrival of keys'''
 
-    def __init__(self, filename=None):
-        if filename is None:
-            filename = os.path.join(get_home(), 'keystore')
-        super(KeyStore, self).__init__(filename)
-        if not os.path.exists(filename):
-            self.generate()
-
     def generate(self):
         public, secret = curve_keypair()
         self.store({'public': encode_key(public),
@@ -115,9 +110,6 @@ class KeyStore(BaseJSONStore):
 
     def secret(self):
         return self.load().get('secret', None)
-
-    def isvalid(self):
-        return self.public() and self.secret()
 
 
 class KnownHostsStore(BaseJSONStore):

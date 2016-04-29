@@ -87,7 +87,7 @@ local_requirements = [
 
 # Standard requirements
 requirements = [
-    'BACpypes>=0.10,<2',
+    'BACpypes==0.13.2',
     'gevent>=0.13,<2',
     'monotonic',
     'pymodbus>=1.2,<2',
@@ -119,7 +119,6 @@ if __name__ == '__main__':
                 'volttron = volttron.platform.main:_main',
                 'volttron-ctl = volttron.platform.control:_main',
                 'volttron-pkg = volttron.platform.packaging:_main',
-                'volttron-cfg = volttron.platform.config:_main',
             ]
         },
         zip_safe = False,

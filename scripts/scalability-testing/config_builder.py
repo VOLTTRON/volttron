@@ -66,12 +66,15 @@ from test_settings import (virtual_device_host, device_types, config_dir,
 
 class DeviceConfig(object):
     __metaclass__ = abc.ABCMeta
-    def __init__(self, host_address, instance_number, registry_config, interval=60, publish_only_depth_all=False):
+    def __init__(self, host_address, instance_number, registry_config, interval=60, publish_only_depth_all=False, campus='fakecampus', building='fakebuilding'):
         self.configuration = {"registry_config": registry_config,
-                              "interval": interval,
                               "driver_type": self.device_type(),
+                              "campus": campus,
+                              "building": building,
                               "unit": self.device_type() + str(instance_number),
-                              "timezone": 'US/Pacific'}
+                              "timezone": 'US/Pacific',
+                              "interval": interval,
+                              "heart_beat_point": "Heartbeat"}
         
         self.configuration["driver_config"] = self.get_driver_config(host_address, instance_number)
         
@@ -147,7 +150,7 @@ device_config_classes = {"bacnet":BACnetConfig,
                          "modbus":ModbusConfig,
                          "fake":FakeConfig}
 
-def build_device_configs(device_type, host_address, count, reg_config, config_dir, interval, publish_only_depth_all):    
+def build_device_configs(device_type, host_address, count, reg_config, config_dir, interval, publish_only_depth_all, campus ,building ):    
     config_paths = []
     #command line to start virtual devices.
     command_lines = []
@@ -161,7 +164,9 @@ def build_device_configs(device_type, host_address, count, reg_config, config_di
     for i in range(count):
         config_instance = klass(host_address, i, reg_config, 
                                 interval=interval,
-                                publish_only_depth_all=publish_only_depth_all)
+                                publish_only_depth_all=publish_only_depth_all,
+                                campus = campus,
+                                building = building)
         
         file_name = device_type + str(i) + ".config"
         file_path = os.path.join(config_dir, file_name)
@@ -176,9 +181,10 @@ def build_device_configs(device_type, host_address, count, reg_config, config_di
 
 def build_all_configs(agent_config, device_type, host_address, count, reg_config, config_dir, 
                       scalability_test, scalability_test_iterations, stagger_driver_startup,
-                      publish_only_depth_all, interval):
+                      publish_only_depth_all, interval, campus, building):
     '''For command line interface'''
-        
+    print(config_dir)
+    
     try:
         os.makedirs(config_dir)
     except os.error:
@@ -187,7 +193,7 @@ def build_all_configs(agent_config, device_type, host_address, count, reg_config
     config_dir = os.path.abspath(config_dir)
     reg_config = os.path.abspath(reg_config)
     
-    config_list, command_lines = build_device_configs(device_type, host_address, count, reg_config, config_dir, interval, publish_only_depth_all)
+    config_list, command_lines = build_device_configs(device_type, host_address, count, reg_config, config_dir, interval, publish_only_depth_all, campus, building)
     
     build_master_config(agent_config, config_dir, config_list, 
                         scalability_test, scalability_test_iterations,
@@ -202,7 +208,7 @@ def build_master_config(agent_config, config_dir, config_list,
     configuration['scalability_test'] = scalability_test
     configuration['scalability_test_iterations'] = scalability_test_iterations
     configuration['staggered_start'] = stagger_driver_startup
-    
+        
     config_str = json.dumps(configuration, indent=4, separators=(',', ': '))
     
     agent_config = os.path.join(config_dir, agent_config)
@@ -248,12 +254,20 @@ if __name__ == "__main__":
                         type=float,
                         default=60.0)
     
+    parser.add_argument('--campus', 
+                        help='campus name used for testing',
+                        default='')
+    
+    parser.add_argument('--building', 
+                        help='building name used for testing',
+                        default='')
+    
     args = parser.parse_args()
     build_all_configs(args.agent_config, args.device_type, 
                       args.virtual_device_host, args.count, args.registry_config, 
                       args.config_dir, args.scalability_test, args.scalability_test_iterations,
                       args.stagger_driver_startup, args.publish_only_depth_all,
-                      args.interval)
+                      args.interval, args.campus, args.building)
     
     
     

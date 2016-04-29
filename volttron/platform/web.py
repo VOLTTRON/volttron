@@ -53,23 +53,96 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-#}}}
+# }}}
 
 from collections import defaultdict
 import logging
 import os
 import re
+import requests
+from urlparse import urlparse, urljoin
 
 from gevent import pywsgi
 import mimetypes
 from zmq.utils import jsonapi
 
+from .auth import AuthEntry, AuthFile
 from .vip.agent import Agent, Core, RPC
 from .vip.agent.subsystems import query
-from .jsonrpc import UNAUTHORIZED
+from .jsonrpc import (
+    json_result, json_error, json_validate_request, UNAUTHORIZED)
 from .vip.socket import encode_key
 
 _log = logging.getLogger(__name__)
+
+
+class CouldNotRegister(StandardError):
+    pass
+
+
+class DiscoveryError(StandardError):
+    """ Raised when a different volttron central tries to register.
+    """
+    pass
+
+
+class DiscoveryInfo(object):
+    """ A DiscoveryInfo class.
+
+    The DiscoveryInfo class provides a wrapper around the return values from
+    a call to the /discovery/ endpoint of the `volttron.platform.web.
+    """
+
+    def __init__(self, **kwargs):
+
+        self.discovery_address = kwargs.pop('discovery_address')
+        self.vip_address = kwargs.pop('vip-address')
+        self.serverkey = kwargs.pop('serverkey')
+        self.vcpublickey = kwargs.pop('vcpublickey', None)
+        self.papublickey = kwargs.pop('papublickey', None)
+        assert len(kwargs) == 0
+
+    @staticmethod
+    def request_discovery_info(discovery_address):
+        """  Construct a `DiscoveryInfo` object.
+
+        Requests a response from discovery_address and constructs a
+        `DiscoveryInfo` object with the returned json.
+
+        :param discovery_address: An http(s) address with volttron running.
+        :return:
+        """
+        parsed = urlparse(discovery_address)
+
+        assert parsed.scheme
+        assert not parsed.path
+
+        real_url = urljoin(discovery_address, "/discovery/")
+        response = requests.get(real_url)
+
+        if not response.ok:
+            raise DiscoveryError(
+                "Invalid discovery response from {}".format(real_url)
+            )
+
+        return DiscoveryInfo(
+            discovery_address=discovery_address, **(response.json()))
+
+    def __str__(self):
+        dk = {
+            'discovery_address': self.discovery_address,
+            'vip_address': self.vip_address,
+            'serverkey': self.serverkey
+        }
+
+        if self.vcpublickey:
+            dk['vcpublickey'] = self.vcpublickey
+
+        if self.papublickey:
+            dk['papublickey'] = self.papublickey
+
+        return jsonapi.dumps(dk)
+
 
 def is_ip_private(vip_address):
     """ Determines if the passed vip_address is a private ip address or not.
@@ -86,7 +159,9 @@ def is_ip_private(vip_address):
     priv_20 = re.compile("^192\.168\.\d{1,3}.\d{1,3}$")
     priv_16 = re.compile("^172.(1[6-9]|2[0-9]|3[0-1]).[0-9]{1,3}.[0-9]{1,3}$")
 
-    return priv_lo.match(ip) != None or priv_24.match(ip) != None or priv_20.match(ip) != None or priv_16.match(ip) != None
+    return priv_lo.match(ip) is not None or priv_24.match(
+        ip) is not None or priv_20.match(ip) is not None or priv_16.match(
+        ip) is not None
 
 
 class MasterWebService(Agent):
@@ -96,7 +171,7 @@ class MasterWebService(Agent):
     that will be called during the request process.
     """
 
-    def __init__(self, serverkey, identity, address, bind_web_address):
+    def __init__(self, serverkey, identity, address, bind_web_address, aip):
         """Initialize the discovery service with the serverkey
 
         serverkey is the public key in order to access this volttron's bus.
@@ -107,6 +182,7 @@ class MasterWebService(Agent):
         self.serverkey = serverkey
         self.registeredroutes = []
         self.peerroutes = defaultdict(list)
+        self.aip = aip
         if not mimetypes.inited:
             mimetypes.init()
 
@@ -120,13 +196,14 @@ class MasterWebService(Agent):
 
     @RPC.export
     def register_agent_route(self, regex, peer, fn):
-        ''' Register an agent route to an exported function.
+        """ Register an agent route to an exported function.
 
         When a http request is executed and matches the passed regular
         expression then the function on peer is executed.
-        '''
-        _log.info('Registering agent route expression: {} peer: {} function: {}'
-            .format(regex, peer, fn))
+        """
+        _log.info(
+            'Registering agent route expression: {} peer: {} function: {}'
+                .format(regex, peer, fn))
         compiled = re.compile(regex)
         self.peerroutes[peer].append(compiled)
         self.registeredroutes.insert(0, (compiled, 'peer_route', (peer, fn)))
@@ -145,25 +222,71 @@ class MasterWebService(Agent):
         self.registeredroutes.append((compiled, 'path', root_dir))
 
     def _redirect_index(self, env, start_response):
-        start_response('302 Found', [('Location','/index.html')])
+        start_response('302 Found', [('Location', '/index.html')])
         return ['1']
 
-    def _get_serverkey(self, environ, start_response):
+    def _allow(self, environ, start_response, data=None):
+        _log.info('Allowing new vc instance to connect to server.')
+        jsondata = jsonapi.loads(data)
+        json_validate_request(jsondata)
+
+        assert jsondata.get('method') == 'allowvc'
+        assert jsondata.get('params')
+
+        params = jsondata.get('params')
+        if isinstance(params, list):
+            vcpublickey = params[0]
+        else:
+            vcpublickey = params.get('vcpublickey')
+
+        assert vcpublickey
+        assert len(vcpublickey) == 43
+
+        authfile = AuthFile()
+        authentry = AuthEntry(
+            credentials="CURVE:{}".format(vcpublickey)
+        )
+
+        authfile.add(authentry)
+        start_response('200 OK',
+                       [('Content-Type', 'application/json')])
+        return jsonapi.dumps(
+            json_result(jsondata['id'], "Added")
+        )
+
+    def _get_discovery(self, environ, start_response, data=None):
         q = query.Query(self.core)
-        result = q.query('addresses').get(timeout=10)
+        result = q.query('addresses').get(timeout=2)
         external_vip = None
         for x in result:
             if not is_ip_private(x):
                 external_vip = x
                 break
-        start_response('200 OK', [('Content-Type', 'application/json')])
+        peers = self.vip.peerlist().get(timeout=2)
+
+        return_dict = {}
+        vc_publickey = None
+        pa_publickey = None
+        if 'volttron.central' in peers:
+            print('doing vc public key')
+            vc_publickey = self.aip.agent_publickey('volttron.central')
+            # vc_publickey = q.query(b'publickey', b'volttron.central').get(timeout=2)
+            return_dict['vcpublickey'] = vc_publickey
+        if 'platform.agent' in peers:
+            print('doing pa public key')
+            pa_publickey = self.aip.agent_publickey('platform.agent')
+            # pa_publickey = q.query(b'publickey', b'platform.agent').get(timeout=2)
+            return_dict['papublickey'] = pa_publickey
+
         if self.serverkey:
-            sk = encode_key(self.serverkey)
+            return_dict['serverkey'] = encode_key(self.serverkey)
         else:
             sk = None
 
-        return jsonapi.dumps({"serverkey": sk,
-                              "vip-address": external_vip})
+        return_dict['vip-address'] = external_vip
+
+        start_response('200 OK', [('Content-Type', 'application/json')])
+        return jsonapi.dumps(return_dict)
 
     def app_routing(self, env, start_response):
         """The main routing function that maps the incoming request to a response.
@@ -179,31 +302,35 @@ class MasterWebService(Agent):
         # only expose a partial list of the env variables to the registered
         # agents.
         envlist = ['HTTP_USER_AGENT', 'PATH_INFO', 'QUERY_STRING',
-            'REQUEST_METHOD', 'SERVER_PROTOCOL', 'REMOTE_ADDR']
+                   'REQUEST_METHOD', 'SERVER_PROTOCOL', 'REMOTE_ADDR']
         data = env['wsgi.input'].read()
-        passenv = dict((envlist[i], env[envlist[i]]) for i in range(0, len(envlist)))
+        passenv = dict(
+            (envlist[i], env[envlist[i]]) for i in range(0, len(envlist)))
         for k, t, v in self.registeredroutes:
             if k.match(path_info):
                 _log.debug("MATCHED:\npattern: {}, path_info: {}\n v: {}"
-                    .format(k.pattern, path_info, v))
-                if t == 'callable': # Generally for locally called items.
-                    return v(env, start_response)
-                elif t == 'peer_route': # RPC calls from agents on the platform.
-                    _log.debug('Matched peer_route with pattern {}'.format(k.pattern))
+                           .format(k.pattern, path_info, v))
+                if t == 'callable':  # Generally for locally called items.
+                    return v(env, start_response, data)
+                elif t == 'peer_route':  # RPC calls from agents on the platform.
+                    _log.debug('Matched peer_route with pattern {}'.format(
+                        k.pattern))
                     peer, fn = (v[0], v[1])
-                    res = self.vip.rpc.call(peer, fn, passenv, data).get(timeout=4)
+                    res = self.vip.rpc.call(peer, fn, passenv, data).get(
+                        timeout=4)
                     if isinstance(res, dict):
                         if 'error' in res.keys():
                             if res['error']['code'] == UNAUTHORIZED:
-                                start_response('401 Unauthorized', [('Content-Type', 'text/html')])
+                                start_response('401 Unauthorized', [
+                                    ('Content-Type', 'text/html')])
                                 return [b'<h1>Unauthorized</h1>']
-                    start_response('200 OK', [('Content-Type', 'application/json')])
+                    start_response('200 OK',
+                                   [('Content-Type', 'application/json')])
                     return jsonapi.dumps(res)
-                elif t == 'path': # File service from agents on the platform.
-                    server_path = v + path_info #os.path.join(v, path_info)
+                elif t == 'path':  # File service from agents on the platform.
+                    server_path = v + path_info  # os.path.join(v, path_info)
                     _log.debug('Serverpath: {}'.format(server_path))
                     return self._sendfile(env, start_response, server_path)
-
 
         start_response('404 Not Found', [('Content-Type', 'text/html')])
         return [b'<h1>Not Found</h1>']
@@ -235,15 +362,20 @@ class MasterWebService(Agent):
         if not self.bind_web_address:
             _log.info('Web server not started.')
             return
+        import urlparse
+        parsed = urlparse.urlparse(self.bind_web_address)
+        hostname = parsed.hostname
+        port = parsed.port
 
-        _log.debug('Starting web server binding to {}.'\
-                   .format(self.bind_web_address))
+        _log.debug('Starting web server binding to {}:{}.' \
+                   .format(hostname, port))
         self.registeredroutes.append((re.compile('^/discovery/$'), 'callable',
-            self._get_serverkey))
+                                      self._get_discovery))
+        self.registeredroutes.append((re.compile('^/discovery/allow$'),
+                                      'callable',
+                                      self._allow))
         self.registeredroutes.append((re.compile('^/$'), 'callable',
-            self._redirect_index))
-
-        addr, port = self.bind_web_address.split(":")
+                                      self._redirect_index))
         port = int(port)
-        self.server = pywsgi.WSGIServer((addr, port), self.app_routing)
-        self.server.serve_forever()
+        server = pywsgi.WSGIServer((hostname, port), self.app_routing)
+        server.serve_forever()

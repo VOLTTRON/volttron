@@ -62,7 +62,8 @@ See http://www.jsonrpc.org/specification for the complete specification.
 
 import sys
 from contextlib import contextmanager
-from collections import namedtuple
+
+from zmq.utils import jsonapi
 
 __all__ = ['Error', 'MethodNotFound', 'RemoteError', 'Dispatcher']
 
@@ -77,13 +78,14 @@ INTERNAL_ERROR = -32603
 UNHANDLED_EXCEPTION = -32000
 UNAUTHORIZED = -32001
 UNABLE_TO_REGISTER_INSTANCE = -32002
+DISCOVERY_ERROR = -32003
 
-JsonRpcData = namedtuple('JsonRpcData', 'id jsonrpc method params')
 
-def validate(rpcdata):
-    assert rpcdata.id is not None
-    assert rpcdata.jsonrpc == '2.0'
-    assert rpcdata.method is not None
+def json_validate_request(jsonrequest):
+    assert jsonrequest.get('id', None)
+    assert jsonrequest.get('jsonrpc', None) == '2.0'
+    assert jsonrequest.get('method', None)
+
 
 def json_method(ident, method, args, kwargs):
     '''Builds a JSON-RPC request object (dictionary).'''
@@ -110,6 +112,40 @@ def json_error(ident, code, message, **data):
     if data:
         error['data'] = data
     return {'jsonrpc': '2.0', 'id': ident, 'error': error}
+
+
+class ParseError(StandardError):
+    pass
+
+
+class JsonRpcData(object):
+    ''' A `JsonRpcData` reprepresents the data associated with an rpc request.
+    '''
+    def __init__(self, id, version, method, params, authorization):
+        self.id = id
+        self.version = version
+        self.method = method
+        self.params = params
+        self.authorization = authorization
+
+    @staticmethod
+    def parse(jsonstr):
+        data = jsonapi.loads(jsonstr)
+        id = data.get('id', None)
+        version = data.get('jsonrpc', None)
+        method = data.get('method', None)
+        params = data.get('params', None)
+        authorization = data.get('authorization', None)
+
+        if id == None:
+            raise ParseError("Invalid id")
+        if version != '2.0':
+            print("VERSION IS: {}".format(version))
+            raise ParseError('Invalid jsonrpc version')
+        if method == None:
+            raise ParseError('Method not specified.')
+
+        return JsonRpcData(id, version, method, params, authorization)
 
 
 class Error(Exception):

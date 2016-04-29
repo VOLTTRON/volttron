@@ -3,5 +3,3 @@ python-dateutil>=2,<3
 requests>=2.2,<3
 psutil
 ply
-python-magic
-jsonpickle

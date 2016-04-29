@@ -59,7 +59,7 @@
 
 import argparse
 from dateutil.parser import parse
-from datetime import timedelta
+from datetime import datetime, timedelta
 import errno
 import logging
 import os
@@ -245,6 +245,7 @@ class JsonFormatter(logging.Formatter):
 class AgentFormatter(logging.Formatter):
     def __init__(self, fmt=None, datefmt=None):
         if fmt is None:
+            #fmt = "%(composite_name)s %(levelname)s|[%(filename)s:%(lineno)s - %(funcName)20s() ] %(message)s"
             fmt = '%(asctime)s %(composite_name)s %(levelname)s: %(message)s'
         super(AgentFormatter, self).__init__(fmt=fmt, datefmt=datefmt)
 
@@ -275,23 +276,69 @@ def setup_logging(level=logging.DEBUG):
         if isapipe(sys.stderr) and '_LAUNCHED_BY_PLATFORM' in os.environ:
             handler.setFormatter(JsonFormatter())
         else:
-            handler.setFormatter(logging.Formatter(
-                    '%(asctime)s %(name)s %(levelname)s: %(message)s'))
+            fmt = '%(asctime)s %(name)s %(levelname)s: %(message)s'
+            #fmt = '%(asctime)s %(name)s %(levelname)s: [%(filename)s:%(lineno)s - %(funcName)20s() ] %(message)s'
+            handler.setFormatter(logging.Formatter(fmt))
+
         root.addHandler(handler)
     root.setLevel(level)
+
+def format_timestamp(time_stamp):
+    """Create a consistent datetime string representation based on ISO 8601 format.
     
-def process_timestamp(timestamp_string):
+    YYYY-MM-DDTHH:MM:SS.mmmmmm for unaware datetime objects.
+    YYYY-MM-DDTHH:MM:SS.mmmmmm+HH:MM for aware datetime objects
+    
+    :param time_stamp: value to convert
+    :type time_stamp: datetime
+    :returns: datetime in string format
+    :rtype: str
+    """
+    
+    time_str = time_stamp.strftime("%Y-%m-%dT%H:%M:%S.%f")
+    
+    if time_stamp.tzinfo is not None:
+        sign = '+'
+        td = time_stamp.tzinfo.utcoffset(time_stamp)
+        if td.days < 0:
+            sign = '-'
+            td = -td
+            
+        seconds = td.seconds
+        minutes, seconds = divmod(seconds, 60)
+        hours, minutes = divmod(minutes, 60)
+        time_str += "{sign}{HH:02}:{MM:02}".format(sign=sign, HH=hours, MM=minutes)
+    
+    return time_str
+
+def parse_timestamp_string(time_stamp_str):
+    """Create a datetime object from the supplied date/time string.
+    Uses dateutil.parse with no extra parameters.
+    
+    :param time_stamp: value to convert
+    :type time_stamp: str
+    :returns: datetime object
+    :rtype: datetime
+    """
+    return parse(time_stamp_str)
+
+def get_aware_utc_now():
+    """Create a timezone aware UTC datetime object from the system time.
+    
+    :returns: an aware UTC datetime object
+    :rtype: datetime
+    """
+    utcnow = datetime.utcnow()
+    utcnow = pytz.UTC.localize(utcnow)
+    return utcnow
+    
+def process_timestamp(timestamp_string, topic=''):
     if timestamp_string is None:
         _log.error("message for {topic} missing timetamp".format(topic=topic))
         return
     
     try:
         timestamp = parse(timestamp_string)
-        
-        #The following addresses #174: error with dbapi2
-        if not timestamp.microsecond:
-            _log.warn("No microsecond in timestamp. Adding 1 to prevent dbapi2 bug.")
-            timestamp = timestamp + timedelta(microseconds = 1)
     except (ValueError, TypeError) as e:
         _log.error("message for {topic} bad timetamp string: {ts_string}".format(topic=topic,
                                                                                  ts_string=timestamp_string))
@@ -328,3 +375,15 @@ def create_file_if_missing(path, permission=0o660, contents=None):
                 os.write(fd, contents)
         finally:
             os.close(fd)
+            
+def fix_sqlite3_datetime(sql=None):
+    """Primarily for fixing the base historian cache on certain versions of python. 
+    
+    Registers a new datetime converter to that uses dateutil parse. This should 
+    better resolve #216, #174, and #91 without the goofy workarounds that change data.
+    
+    Optional sql argument is for testing only.
+    """
+    if sql is None:
+        import sqlite3 as sql
+    sql.register_converter("timestamp", parse)

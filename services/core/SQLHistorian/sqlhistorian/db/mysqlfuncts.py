@@ -55,11 +55,8 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-import errno
 import logging
-import os
-
-# from mysql import connector
+import pytz
 import re
 from zmq.utils import jsonapi
 
@@ -71,10 +68,13 @@ _log = logging.getLogger(__name__)
 
 
 class MySqlFuncts(DbDriver):
-    def __init__(self, **kwargs):
+    def __init__(self, connect_params, tables_def):
         # kwargs['dbapimodule'] = 'mysql.connector'
-        super(MySqlFuncts, self).__init__('mysql.connector', **kwargs)
+        super(MySqlFuncts, self).__init__('mysql.connector', **connect_params)
         self.MICROSECOND_SUPPORT = None
+        self.data_table = tables_def['data_table']
+        self.topics_table = tables_def['topics_table']
+        self.meta_table = tables_def['meta_table']
 
     def init_microsecond_support(self):
         rows = self.select("SELECT version()", None)
@@ -89,29 +89,30 @@ class MySqlFuncts(DbDriver):
         else:
             self.MICROSECOND_SUPPORT = True
 
-    def query(self, topic, start=None, end=None, skip=0,
+    def query(self, topic_id, start=None, end=None, skip=0,
               count=None, order="FIRST_TO_LAST"):
         """This function should return the results of a query in the form:
         {"values": [(timestamp1, value1), (timestamp2, value2), ...],
          "metadata": {"key1": value1, "key2": value2, ...}}
 
-         metadata is not required (The caller will normalize this to {} for you)
+         metadata is not required (The caller will normalize this to {}
+         for you)
         """
-        query = '''SELECT data.ts, data.value_string
-                   FROM data, topics
-                   {where}
-                   {order_by}
-                   {limit}
-                   {offset}'''
+        query = '''SELECT ts, value_string
+                FROM ''' + self.data_table + '''
+                {where}
+                {order_by}
+                {limit}
+                {offset}'''
 
-        if self.MICROSECOND_SUPPORT == None:
+        if self.MICROSECOND_SUPPORT is None:
             self.init_microsecond_support()
 
-        where_clauses = ["WHERE topics.topic_name = %s", "topics.topic_id = data.topic_id"]
-        args = [topic]
+        where_clauses = ["WHERE topic_id = %s"]
+        args = [topic_id]
 
         if start is not None:
-            where_clauses.append("data.ts >= %s")
+            where_clauses.append("ts >= %s")
             if self.MICROSECOND_SUPPORT:
                 args.append(start)
             else:
@@ -119,7 +120,7 @@ class MySqlFuncts(DbDriver):
                 args.append(start_str[:start_str.rfind('.')])
 
         if end is not None:
-            where_clauses.append("data.ts <= %s")
+            where_clauses.append("ts <= %s")
             if self.MICROSECOND_SUPPORT:
                 args.append(end)
             else:
@@ -128,9 +129,9 @@ class MySqlFuncts(DbDriver):
 
         where_statement = ' AND '.join(where_clauses)
 
-        order_by = 'ORDER BY data.ts ASC'
+        order_by = 'ORDER BY ts ASC'
         if order == 'LAST_TO_FIRST':
-            order_by = ' ORDER BY data.ts DESC'
+            order_by = ' ORDER BY ts DESC'
 
         # can't have an offset without a limit
         # -1 = no limit and allows the user to
@@ -156,21 +157,41 @@ class MySqlFuncts(DbDriver):
         _log.debug("args: " + str(args))
 
         rows = self.select(real_query, args)
-
         if rows:
-            values = [(ts.isoformat(), jsonapi.loads(value)) for ts, value in rows]
+            values = [(utils.format_timestamp(ts.replace(tzinfo=pytz.UTC)),
+                       jsonapi.loads(
+                value)) for ts, value in rows]
         else:
             values = {}
 
         return {'values': values}
 
+    def insert_meta_query(self):
+        return '''REPLACE INTO ''' + self.meta_table + ''' values(%s, %s)'''
+
     def insert_data_query(self):
-        return '''REPLACE INTO data values(%s, %s, %s)'''
+        return '''REPLACE INTO ''' + self.data_table + \
+            '''  values(%s, %s, %s)'''
 
     def insert_topic_query(self):
-        return '''REPLACE INTO topics (topic_name) values (%s)'''
+        return '''INSERT INTO ''' + self.topics_table + ''' (topic_name)
+            values (%s)'''
 
+    def update_topic_query(self):
+        return '''UPDATE ''' + self.topics_table + ''' SET topic_name = %s
+            WHERE topic_id = %s'''
+
+    #@property
     def get_topic_map(self):
-        q = "SELECT topic_id, topic_name FROM topics;"
+        _log.debug("in get_topic_map")
+        q = "SELECT topic_id, topic_name FROM " + self.topics_table + ";"
         rows = self.select(q, None)
-        return dict([(n, t) for t, n in rows])
+        _log.debug("loading topic map from db")
+        id_map = dict()
+        name_map = dict()
+        for t, n in rows:
+            id_map[n.lower()] = t
+            name_map[n.lower()] = n
+        _log.debug(id_map)
+        _log.debug(name_map)
+        return id_map, name_map

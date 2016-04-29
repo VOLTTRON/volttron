@@ -78,7 +78,7 @@ from .vip.agent import Agent as BaseAgent, Core, RPC
 from . import aip as aipmod
 from . import config
 from .jsonrpc import RemoteError
-from .auth import AuthEntry, AuthFile
+from .auth import AuthEntry, AuthFile, AuthException
 from .keystore import KeyStore, KnownHostsStore
 
 try:
@@ -318,7 +318,7 @@ def remove_agent(opts):
             return 10
         for agent in match:
             _stdout.write('Removing {} {}\n'.format(agent.uuid, agent.name))
-            opts.aip.remove_agent(agent.uuid)
+            opts.connection.call('remove_agent', agent.uuid)
 
 def _calc_min_uuid_length(agents):
     n = 0
@@ -493,12 +493,12 @@ def send_agent(opts):
         _stdout.write('Agent {} started as {}\n'.format(wheel, uuid))
 
 def gen_keypair(opts):
-    keystore = KeyStore(opts.keystore_file)
     if os.path.isfile(opts.keystore_file):
         _stdout.write('{} already exists.\n'.format(opts.keystore_file))
         if not _ask_yes_no('Overwrite?', default='no'):
             return
-    keystore.generate()
+    keystore = KeyStore(opts.keystore_file)
+    keystore.generate() # call generate to force new keys to be generated
     _stdout.write('public key: {}\n'.format(keystore.public()))
     _stdout.write('keys written to {}\n'.format(opts.keystore_file))
 
@@ -526,15 +526,9 @@ def _get_auth_file(volttron_home):
     path = os.path.join(volttron_home, 'auth.json')
     return AuthFile(path)
 
-def _print_result(success, msg):
-    if success:
-        _stdout.write('%s\n' % msg)
-    else:
-        _stderr.write('ERROR: %s\n' % msg)
-
 def list_auth(opts, indices=None):
     auth_file = _get_auth_file(opts.volttron_home)
-    entries = auth_file.read()
+    entries = auth_file.read_allow_entries()
     print_out = []
     if entries:
         for index, entry in enumerate(entries):
@@ -546,7 +540,8 @@ def list_auth(opts, indices=None):
 
 def _ask_for_auth_fields(domain=None, address=None, user_id=None,
                         capabilities=None, roles=None, groups=None,
-                        credentials='NULL', comments=None, **kwargs):
+                        credentials='NULL', comments=None, enabled=True,
+                        **kwargs):
 
     class Asker(object):
         def __init__(self):
@@ -563,21 +558,55 @@ def _ask_for_auth_fields(domain=None, address=None, user_id=None,
                 default = self._fields[name]['default']
                 callback = self._fields[name]['callback']
                 validate = self._fields[name]['validate']
-
+                if isinstance(default, list):
+                    default_str = '{}'.format(','.join(default))
+                elif default is None:
+                    default_str = ''
+                else:
+                    default_str = default
                 note = '({}) '.format(note) if note else ''
-                question = '{} {}[{}]: '.format(name, note,
-                                                default if default else '')
+                question = '{} {}[{}]: '.format(name, note, default_str)
                 valid = False
                 while not valid:
-                    response = callback(raw_input(question).rstrip()) or default
+                    response = raw_input(question).strip()
+                    if response == '':
+                        response = default
+                    if response == 'clear':
+                        if _ask_yes_no('Do you want to clear this field?'):
+                            response = None
                     valid, msg = validate(response)
                     if not valid:
                         _stderr.write('{}\n'.format(msg))
 
-                self._fields[name]['response'] = response
+                self._fields[name]['response'] = callback(response)
             return {k : self._fields[k]['response'] for k in self._fields}
 
-    comma_split = lambda x: x.split(',') if x else []
+    def comma_split(response):
+        if not isinstance(response, basestring):
+            return response
+        response = response.strip()
+        if not response:
+            return []
+        return [word.strip() for word in response.split(',')]
+
+    def to_true_or_false(response):
+        if isinstance(response, basestring):
+            return {'true': True, 'false': False}[response.lower()]
+        return response
+
+    def is_true_or_false(x):
+        if x is not None:
+            if isinstance(x, bool) or x.lower() in ['true', 'false']:
+                return True, None
+        return False, 'Please enter True or False'
+
+    def valid_creds(creds):
+        try:
+            AuthEntry.valid_credentials(creds)
+        except AuthException as e:
+            return False, e.message
+        return True, None
+
     asker = Asker()
     asker.add('domain', domain)
     asker.add('address', address)
@@ -588,8 +617,10 @@ def _ask_for_auth_fields(domain=None, address=None, user_id=None,
               comma_split)
     asker.add('groups', groups, 'delimit multiple entries with comma',
               comma_split)
-    asker.add('credentials', credentials, validate=AuthEntry.valid_credentials)
+    asker.add('credentials', credentials, validate=valid_creds)
     asker.add('comments', comments)
+    asker.add('enabled', enabled, callback=to_true_or_false,
+              validate=is_true_or_false)
 
     return asker.ask()
 
@@ -597,7 +628,11 @@ def add_auth(opts):
     responses = _ask_for_auth_fields()
     entry = AuthEntry(**responses)
     auth_file = _get_auth_file(opts.volttron_home)
-    _print_result(*auth_file.add(entry))
+    try:
+        auth_file.add(entry, overwrite=False)
+        _stdout.write('added entry {}\n'.format(entry))
+    except AuthException as err:
+        _stderr.write('ERROR: %s\n' % err.msg)
 
 def _ask_yes_no(question, default='yes'):
     yes = set(['yes', 'ye', 'y'])
@@ -622,26 +657,44 @@ def _ask_yes_no(question, default='yes'):
 
 def remove_auth(opts):
     auth_file = _get_auth_file(opts.volttron_home)
-    entry_count = len(auth_file.read())
-    if all(i >= 0 and i < entry_count for i in opts.indices):
-        entry_str = 'entries' if len(opts.indices) > 1 else 'entry'
-        _stdout.write('This action will delete the following '
-                      '{}:\n'.format(entry_str))
-        list_auth(opts, opts.indices)
-        if not _ask_yes_no('Do you wish to delete the {}?'.format(entry_str)):
+    entry_count = len(auth_file.read_allow_entries())
+
+    for i in opts.indices:
+        if i < 0 or i >= entry_count:
+            _stderr.write('ERROR: invalid index {}\n'.format(i))
             return
-    _print_result(*auth_file.remove_by_indices(opts.indices))
+
+    _stdout.write('This action will delete the following:\n')
+    list_auth(opts, opts.indices)
+    if not _ask_yes_no('Do you wish to delete?'):
+        return
+    try:
+        auth_file.remove_by_indices(opts.indices)
+        if len(opts.indices) > 1:
+            msg = 'removed entries at indices {}'
+        else:
+            msg = msg = 'removed entry at index {}'
+        _stdout.write(msg + '\n')
+    except AuthException as err:
+        _stderr.write('ERROR: %s\n' % err.msg)
 
 def update_auth(opts):
     auth_file = _get_auth_file(opts.volttron_home)
-    entries = auth_file.read()
+    entries = auth_file.read_allow_entries()
     try:
+        if opts.index < 0:
+            raise IndexError
         entry = entries[opts.index]
+        _stdout.write('(For any field type "clear" to clear the value.)\n')
         response = _ask_for_auth_fields(**entry.__dict__)
+        updated_entry = AuthEntry(**response)
+        auth_file.update_by_index(updated_entry, opts.index)
+        _stdout.write('updated entry at index {}\n'.format(opts.index))
     except IndexError:
         _stderr.write('ERROR: invalid index %s\n' % opts.index)
-    else:
-        _print_result(*auth_file.update_by_index(AuthEntry(**response), opts.index))
+    except AuthException as err:
+        _stderr.write('ERROR: %s\n' % err.msg)
+
 
 
 # XXX: reimplement over VIP
