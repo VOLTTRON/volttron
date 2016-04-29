@@ -195,6 +195,18 @@ class ControlService(BaseAgent):
         self._aip.prioritize_agent(uuid, priority)
 
     @RPC.export
+    def agent_vip_identity(self, uuid):
+        """ Lookup the agent's vip identity based upon it's uuid.
+
+        @param uuid:
+        @return:
+        """
+        if not isinstance(uuid, basestring):
+            raise TypeError("expected a string for 'uuid'; got {!r}".format(
+                type(uuid).__name__))
+        return self._aip.agent_identity(uuid)
+
+    @RPC.export
     def install_agent(self, filename, channel_name):
         peer = bytes(self.vip.rpc.context.vip_message.peer)
         channel = self.vip.channel(peer, channel_name)
