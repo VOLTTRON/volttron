@@ -630,17 +630,18 @@ def _install_vc(autostart):
         process = Popen(cmd, env=_os.environ)
         process.wait()
 
+
 def _install_platform(is_vc):
     print('Installing platform...')
-    cfg_file = 'services/core/Platform/config'
+    cfg_file = 'services/core/VolttronCentralPlatform/config'
     if is_vc:
-        cfg_file = 'services/core/Platform/vc.platform.config'
+        cfg_file = 'services/core/VolttronCentral/vc.platform.config'
     cmd = ['volttron-ctl', 'remove', '--tag', 'platform', '--force']
     process = Popen(cmd, env=_os.environ)
     process.wait()
 
     cmd = ['scripts/core/pack_install.sh',
-            'services/core/Platform',
+            'services/core/VolttronCentralPlatform',
             cfg_file,
             'platform']
     process = Popen(cmd, env=_os.environ)
@@ -677,13 +678,15 @@ def _shutdown_platform():
 
     pid = Popen(cmd, env=_os.environ)
 
-def _make_configuration(external_uri, volttron_central=None):
+def _make_configuration(external_uri, bind_web_address,
+                        volttron_central=None):
     print('Building cofiguration file.')
     import ConfigParser as configparser # python3 has configparser rather than
                                         # this name.
     config = configparser.ConfigParser()
     config.add_section('volttron')
     config.set('volttron', 'vip-address', external_uri)
+    config.set('volttron', 'bind-web-address', bind_web_address)
     if volttron_central:
         config.set('volttron', 'volttron-central', volttron_central)
     cfgfile = _os.path.join(get_home(), 'config')
@@ -760,9 +763,10 @@ def _main():
                     vc_port = prompt_response(t)
         try:
             external_uri = "tcp://{}:{}".format(external_ip, vip_port)
-            _make_configuration(external_uri, vc_ipaddress)
+            bind_web_address = "http://{}:{}".format(external_ip, external_port)
+            _make_configuration(external_uri, bind_web_address, vc_ipaddress)
         except: # Should only happen if this is a vc instance.
-            _make_configuration(external_uri)
+            _make_configuration(external_uri, bind_web_address)
 
         _start_platform()
         _install_platform(is_vc in y)
