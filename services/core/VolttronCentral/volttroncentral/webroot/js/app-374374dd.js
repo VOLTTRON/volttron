@@ -662,6 +662,8 @@ var ACTION_TYPES = require('../constants/action-types');
 var authorizationStore = require('../stores/authorization-store');
 var dispatcher = require('../dispatcher');
 var platformActionCreators = require('../action-creators/platform-action-creators');
+var modalActionCreators = require('../action-creators/modal-action-creators');
+var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
 var rpc = require('../lib/rpc');
 
 var initializing = false;
@@ -748,12 +750,28 @@ var platformManagerActionCreators = {
                 });
 
                 platformManagerActionCreators.loadPlatforms();
+
+                statusIndicatorActionCreators.openStatusIndicator("success", "Platform " + name + " was deregistered.");
+
             })
             .catch(rpc.Error, function (error) {
                 dispatcher.dispatch({
                     type: ACTION_TYPES.REGISTER_PLATFORM_ERROR,
                     error: error,
                 });
+
+                modalActionCreators.closeModal();
+
+                var message = error.message;
+
+                switch (error.code)
+                {
+                    case -32600:
+                        message = "The platform was not registered: Invalid address."
+                        break;
+                }
+
+                statusIndicatorActionCreators.openStatusIndicator("error", message);
 
                 handle401(error);
             });
@@ -778,19 +796,37 @@ var platformManagerActionCreators = {
                     type: ACTION_TYPES.CLOSE_MODAL,
                 });
 
+                statusIndicatorActionCreators.openStatusIndicator("success", "Platform " + name + " was registered.");
+
                 platformManagerActionCreators.loadPlatforms();
             })
             .catch(rpc.Error, function (error) {
+
                 dispatcher.dispatch({
                     type: ACTION_TYPES.REGISTER_PLATFORM_ERROR,
                     error: error,
                 });
+
+                modalActionCreators.closeModal();
+
+                var message = error.message;
+
+                switch (error.code)
+                {
+                    case -32600:
+                        message = "The address was invalid."
+                        break;
+                }
+
+                statusIndicatorActionCreators.openStatusIndicator("error", message);
 
                 handle401(error);
             });
     },
     deregisterPlatform: function (platform) {
         var authorization = authorizationStore.getAuthorization();
+
+        var platformName = platform.name;
 
         new rpc.Exchange({
             method: 'unregister_platform',
@@ -804,6 +840,8 @@ var platformManagerActionCreators = {
                     type: ACTION_TYPES.CLOSE_MODAL,
                 });
 
+                statusIndicatorActionCreators.openStatusIndicator("success", "Platform " + platformName + " was deregistered.");
+
                 platformManagerActionCreators.loadPlatforms();
             })
             .catch(rpc.Error, function (error) {
@@ -811,6 +849,8 @@ var platformManagerActionCreators = {
                     type: ACTION_TYPES.DEREGISTER_PLATFORM_ERROR,
                     error: error,
                 });
+
+                statusIndicatorActionCreators.openStatusIndicator("error", error);
 
                 handle401(error);
             });
@@ -825,17 +865,20 @@ function handle401(error) {
         });
 
         platformManagerActionCreators.clearAuthorization();
+
+        statusIndicatorActionCreators.openStatusIndicator("error", error);
     }
 }
 
 module.exports = platformManagerActionCreators;
 
 
-},{"../action-creators/platform-action-creators":5,"../constants/action-types":36,"../dispatcher":37,"../lib/rpc":40,"../stores/authorization-store":45}],8:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":4,"../action-creators/platform-action-creators":5,"../action-creators/status-indicator-action-creators":9,"../constants/action-types":36,"../dispatcher":37,"../lib/rpc":40,"../stores/authorization-store":45}],8:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
 var authorizationStore = require('../stores/authorization-store');
+var platformsPanelItemsStore = require('../stores/platforms-panel-items-store');
 var dispatcher = require('../dispatcher');
 var rpc = require('../lib/rpc');
 
@@ -1071,6 +1114,34 @@ var platformsPanelActionCreators = {
         {
             var authorization = authorizationStore.getAuthorization();
 
+            // var historianUuid = platformsPanelItemsStore.getHistorian(panelItem.parentUuid);
+
+            // new rpc.Exchange({
+            //     method: 'platforms.uuid.' + panelItem.parentUuid + '.agents.uuid.' + historianUuid + '.query',
+            //     params: {
+            //         topic: panelItem.topic,
+            //         count: 20,
+            //         order: 'LAST_TO_FIRST',
+            //     },
+            //     authorization: authorization,
+            // }).promise
+            //     .then(function (result) {
+            //         panelItem.data = result.values;
+
+            //         panelItem.data.forEach(function (datum) {
+            //             datum.name = panelItem.name;
+            //             datum.parent = panelItem.parentPath;
+            //             datum.uuid = panelItem.uuid;
+            //         });
+            //         dispatcher.dispatch({
+            //             type: ACTION_TYPES.ADD_TO_CHART,
+            //             panelItem: panelItem
+            //         });
+            //     })
+            //     .catch(rpc.Error, handle401);
+
+            //     var authorization = authorizationStore.getAuthorization();
+
             new rpc.Exchange({
                 method: 'platforms.uuid.' + panelItem.parentUuid + '.historian.query',
                 params: {
@@ -1126,7 +1197,6 @@ var platformsPanelActionCreators = {
                 });
             }
         }
-
     },
 
     removeFromChart: function(panelItem) {
@@ -1156,7 +1226,7 @@ function handle401(error) {
 module.exports = platformsPanelActionCreators;
 
 
-},{"../constants/action-types":36,"../dispatcher":37,"../lib/rpc":40,"../stores/authorization-store":45}],9:[function(require,module,exports){
+},{"../constants/action-types":36,"../dispatcher":37,"../lib/rpc":40,"../stores/authorization-store":45,"../stores/platforms-panel-items-store":52}],9:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -3558,7 +3628,7 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
                         onClick: this._toggleItem}, 
                         arrowContent
                     ), 
-                        React.createElement(Router.Link, {to: "charts"}, ChartCheckbox), 
+                    ChartCheckbox, 
                     React.createElement("div", {className: toolTipClasses, 
                         style: tooltipStyle}, 
                         React.createElement("div", {className: "tooltip_inner"}, 
@@ -4420,8 +4490,8 @@ var StatusIndicator = React.createClass({displayName: "StatusIndicator",
 	render: function () {
 		var classes = ["status-indicator"];
 
-		var green = "#A1D490";
-		var red = "#CC5056";
+		var green = "#35B809";
+		var red = "#FC0516";
 
 		var displayButton = "none";
 		var color = green;
@@ -4458,6 +4528,10 @@ var StatusIndicator = React.createClass({displayName: "StatusIndicator",
 			height: "2rem"
 		}
 
+        var textStyle = {
+            fontWeight: "bold"
+        }
+
 		return (
 		
         	React.createElement("div", {
@@ -4466,7 +4540,7 @@ var StatusIndicator = React.createClass({displayName: "StatusIndicator",
         	}, 
 				React.createElement("div", {style: colorStyle}), 
 				React.createElement("br", null), 
-				this.state.statusMessage, 
+				React.createElement("span", {style: textStyle}, this.state.statusMessage), 
                 React.createElement("div", {style: spacerStyle}), 
                 React.createElement("div", {style: buttonDivStyle}, 
 	                React.createElement("button", {
@@ -5266,6 +5340,11 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
             for (var skey in data[key])
             {
                 var value = data[key][skey];
+
+                if (typeof value === 'string')
+                {
+                    value = value.replace('+00:00', '');
+                }
                 
                 if (skey === "0" && typeof value === 'string' &&
                     Date.parse(value + 'Z')) {
@@ -6575,6 +6654,21 @@ platformsPanelItemsStore.getItem = function (itemPath)
     }
 
     return item;
+}  
+
+platformsPanelItemsStore.getHistorian = function (platformUuid)
+{
+    var itemsList = [];
+    var item = _items;
+
+    var platform = _items.platforms[platformUuid];
+
+    var historianUuid = platform.agents.children.find(function (child) {
+
+        return platform.agents[child].name.indexOf("historian") > -1;
+    });
+
+    return historianUuid;
 }  
 
 platformsPanelItemsStore.getChildren = function (parent, parentPath) {

@@ -1239,6 +1239,21 @@ platformsPanelItemsStore.getItem = function (itemPath)
     return item;
 }  
 
+platformsPanelItemsStore.getHistorian = function (platformUuid)
+{
+    var itemsList = [];
+    var item = _items;
+
+    var platform = _items.platforms[platformUuid];
+
+    var historianUuid = platform.agents.children.find(function (child) {
+
+        return platform.agents[child].name.indexOf("historian") > -1;
+    });
+
+    return historianUuid;
+}  
+
 platformsPanelItemsStore.getChildren = function (parent, parentPath) {
 
     var itemsList = [];

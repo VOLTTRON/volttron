@@ -203,6 +203,11 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
             for (var skey in data[key])
             {
                 var value = data[key][skey];
+
+                if (typeof value === 'string')
+                {
+                    value = value.replace('+00:00', '');
+                }
                 
                 if (skey === "0" && typeof value === 'string' &&
                     Date.parse(value + 'Z')) {

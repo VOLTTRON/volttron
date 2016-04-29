@@ -2,6 +2,7 @@
 
 var ACTION_TYPES = require('../constants/action-types');
 var authorizationStore = require('../stores/authorization-store');
+var platformsPanelItemsStore = require('../stores/platforms-panel-items-store');
 var dispatcher = require('../dispatcher');
 var rpc = require('../lib/rpc');
 
@@ -237,6 +238,34 @@ var platformsPanelActionCreators = {
         {
             var authorization = authorizationStore.getAuthorization();
 
+            // var historianUuid = platformsPanelItemsStore.getHistorian(panelItem.parentUuid);
+
+            // new rpc.Exchange({
+            //     method: 'platforms.uuid.' + panelItem.parentUuid + '.agents.uuid.' + historianUuid + '.query',
+            //     params: {
+            //         topic: panelItem.topic,
+            //         count: 20,
+            //         order: 'LAST_TO_FIRST',
+            //     },
+            //     authorization: authorization,
+            // }).promise
+            //     .then(function (result) {
+            //         panelItem.data = result.values;
+
+            //         panelItem.data.forEach(function (datum) {
+            //             datum.name = panelItem.name;
+            //             datum.parent = panelItem.parentPath;
+            //             datum.uuid = panelItem.uuid;
+            //         });
+            //         dispatcher.dispatch({
+            //             type: ACTION_TYPES.ADD_TO_CHART,
+            //             panelItem: panelItem
+            //         });
+            //     })
+            //     .catch(rpc.Error, handle401);
+
+            //     var authorization = authorizationStore.getAuthorization();
+
             new rpc.Exchange({
                 method: 'platforms.uuid.' + panelItem.parentUuid + '.historian.query',
                 params: {
@@ -292,7 +321,6 @@ var platformsPanelActionCreators = {
                 });
             }
         }
-
     },
 
     removeFromChart: function(panelItem) {

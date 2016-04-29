@@ -53,8 +53,8 @@ var StatusIndicator = React.createClass({
 	render: function () {
 		var classes = ["status-indicator"];
 
-		var green = "#A1D490";
-		var red = "#CC5056";
+		var green = "#35B809";
+		var red = "#FC0516";
 
 		var displayButton = "none";
 		var color = green;
@@ -91,6 +91,10 @@ var StatusIndicator = React.createClass({
 			height: "2rem"
 		}
 
+        var textStyle = {
+            fontWeight: "bold"
+        }
+
 		return (
 		
         	<div 
@@ -99,7 +103,7 @@ var StatusIndicator = React.createClass({
         	>
 				<div style={colorStyle}/>
 				<br/>
-				{this.state.statusMessage}
+				<span style={textStyle}>{this.state.statusMessage}</span>
                 <div style={spacerStyle}></div>  
                 <div style={buttonDivStyle}>
 	                <button

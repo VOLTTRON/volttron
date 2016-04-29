@@ -4,6 +4,8 @@ var ACTION_TYPES = require('../constants/action-types');
 var authorizationStore = require('../stores/authorization-store');
 var dispatcher = require('../dispatcher');
 var platformActionCreators = require('../action-creators/platform-action-creators');
+var modalActionCreators = require('../action-creators/modal-action-creators');
+var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
 var rpc = require('../lib/rpc');
 
 var initializing = false;
@@ -90,12 +92,28 @@ var platformManagerActionCreators = {
                 });
 
                 platformManagerActionCreators.loadPlatforms();
+
+                statusIndicatorActionCreators.openStatusIndicator("success", "Platform " + name + " was deregistered.");
+
             })
             .catch(rpc.Error, function (error) {
                 dispatcher.dispatch({
                     type: ACTION_TYPES.REGISTER_PLATFORM_ERROR,
                     error: error,
                 });
+
+                modalActionCreators.closeModal();
+
+                var message = error.message;
+
+                switch (error.code)
+                {
+                    case -32600:
+                        message = "The platform was not registered: Invalid address."
+                        break;
+                }
+
+                statusIndicatorActionCreators.openStatusIndicator("error", message);
 
                 handle401(error);
             });
@@ -120,19 +138,37 @@ var platformManagerActionCreators = {
                     type: ACTION_TYPES.CLOSE_MODAL,
                 });
 
+                statusIndicatorActionCreators.openStatusIndicator("success", "Platform " + name + " was registered.");
+
                 platformManagerActionCreators.loadPlatforms();
             })
             .catch(rpc.Error, function (error) {
+
                 dispatcher.dispatch({
                     type: ACTION_TYPES.REGISTER_PLATFORM_ERROR,
                     error: error,
                 });
+
+                modalActionCreators.closeModal();
+
+                var message = error.message;
+
+                switch (error.code)
+                {
+                    case -32600:
+                        message = "The address was invalid."
+                        break;
+                }
+
+                statusIndicatorActionCreators.openStatusIndicator("error", message);
 
                 handle401(error);
             });
     },
     deregisterPlatform: function (platform) {
         var authorization = authorizationStore.getAuthorization();
+
+        var platformName = platform.name;
 
         new rpc.Exchange({
             method: 'unregister_platform',
@@ -146,6 +182,8 @@ var platformManagerActionCreators = {
                     type: ACTION_TYPES.CLOSE_MODAL,
                 });
 
+                statusIndicatorActionCreators.openStatusIndicator("success", "Platform " + platformName + " was deregistered.");
+
                 platformManagerActionCreators.loadPlatforms();
             })
             .catch(rpc.Error, function (error) {
@@ -153,6 +191,8 @@ var platformManagerActionCreators = {
                     type: ACTION_TYPES.DEREGISTER_PLATFORM_ERROR,
                     error: error,
                 });
+
+                statusIndicatorActionCreators.openStatusIndicator("error", error);
 
                 handle401(error);
             });
@@ -167,6 +207,8 @@ function handle401(error) {
         });
 
         platformManagerActionCreators.clearAuthorization();
+
+        statusIndicatorActionCreators.openStatusIndicator("error", error);
     }
 }
 

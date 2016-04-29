@@ -203,7 +203,7 @@ var PlatformsPanelItem = React.createClass({
                         onClick={this._toggleItem}>
                         {arrowContent}
                     </div>  
-                        <Router.Link to="charts">{ChartCheckbox}</Router.Link>                  
+                    {ChartCheckbox}                  
                     <div className={toolTipClasses}
                         style={tooltipStyle}>
                         <div className="tooltip_inner">
