@@ -100,13 +100,20 @@ sqlite_config = {
 volttron_instance1 = None
 volttron_instance2 = None
 
+@pytest.fixture(scope="module")
+def volttron_instances(request, get_volttron_instances):
+    global volttron_instance1, volttron_instance2
+    #print "Fixture volttron_instance"
+    # if volttron_instance1 is None:
+    volttron_instance1, volttron_instance2 = get_volttron_instances(2)
+
+
 # Fixture for setup and teardown of publish agent
 @pytest.fixture(scope="module",
                 params=['volttron_2','volttron_3'])
-def publish_agent(request, get_volttron_instances, forwarder):
+def publish_agent(request, volttron_instances, forwarder):
     global volttron_instance1, volttron_instance2
-    if volttron_instance1 is None:
-        volttron_instance1, volttron_instance2 =get_volttron_instances(2)
+    #print "Fixture publish_agent"
     # 1: Start a fake agent to publish to message bus
     if request.param == 'volttron_2':
         agent = PublishMixin(
@@ -117,7 +124,7 @@ def publish_agent(request, get_volttron_instances, forwarder):
     # 2: add a tear down method to stop sqlhistorian agent and the fake
     # agent that published to message bus
     def stop_agent():
-        print("In teardown method of module")
+        print("In teardown method of publish_agent")
         if isinstance(agent, Agent):
             agent.core.stop()
 
@@ -126,10 +133,8 @@ def publish_agent(request, get_volttron_instances, forwarder):
 
 
 @pytest.fixture(scope="module")
-def query_agent(request, get_volttron_instances, sqlhistorian):
-    global volttron_instance1, volttron_instance2
-    if volttron_instance1 is None:
-        volttron_instance1, volttron_instance2 = get_volttron_instances(2)
+def query_agent(request, volttron_instances, sqlhistorian):
+    #print "Fixture query_agent"
     # 1: Start a fake agent to query the sqlhistorian in volttron_instance2
     agent = volttron_instance2.build_agent()
 
@@ -144,10 +149,9 @@ def query_agent(request, get_volttron_instances, sqlhistorian):
 
 
 @pytest.fixture(scope="module")
-def sqlhistorian(request, get_volttron_instances):
+def sqlhistorian(request, volttron_instances):
+    #print "Fixture sqlhistorian"
     global volttron_instance1, volttron_instance2
-    if volttron_instance1 is None:
-        volttron_instance1, volttron_instance2 = get_volttron_instances(2)
     global sqlite_config
     # 1: Install historian agent
     # Install and start sqlhistorian agent in instance2
@@ -165,10 +169,10 @@ def sqlhistorian(request, get_volttron_instances):
 
 
 @pytest.fixture(scope="module")
-def forwarder(request, get_volttron_instances):
+def forwarder(request, volttron_instances):
+    #print "Fixture forwarder"
     global volttron_instance1, volttron_instance2
-    if volttron_instance1 is None:
-        volttron_instance1, volttron_instance2 = get_volttron_instances(2)
+
     global forwarder_uuid, forwarder_config
     # 1. Update destination address in forwarder configuration
 
