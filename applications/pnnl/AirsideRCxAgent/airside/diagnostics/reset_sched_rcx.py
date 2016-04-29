@@ -167,10 +167,11 @@ class SchedResetRcx(object):
         file_key = create_table_key(VALIDATE_FILE_TOKEN, current_time)
         if run_diagnostic and len(self.timestamp) >= self.no_req_data:
             dx_result = self.unocc_fan_operation(dx_result)
-            if len(self.sat_stpt_arr) >= self.no_req_data:
-                dx_result = self.no_sat_stpt_reset(dx_result)
             if len(self.stcpr_stpt_arr) >= self.no_req_data:
                 dx_result = self.no_static_pr_reset(dx_result)
+            if len(self.sat_stpt_arr) >= self.no_req_data:
+                dx_result = self.no_sat_stpt_reset(dx_result)
+            if self.dx_table:
                 dx_result.insert_table_row(reset_key, self.dx_table)
             data.update({SCHED_VALIDATE + DATA + ST: 1})
             self.reinitialize(start_new_analysis_time, start_new_analysis_sat_stpt,
