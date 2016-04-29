@@ -434,13 +434,15 @@ class VolttronCentralPlatform(Agent):
                 'permissions': {
                     'can_stop': True,
                     'can_start': True,
-                    'can_restart': True
+                    'can_restart': True,
+                    'can_remove': True
                 }
             }
 
             if 'volttroncentral' in name or \
                 'vcplatform' in name:
                 uuid_to_status[uuid]['permissions']['can_stop'] = False
+                uuid_to_status[uuid]['permissions']['can_remove'] = False
 
             uuid_to_status[uuid]['health'] = {
                 # TODO: get agents health via RPC call

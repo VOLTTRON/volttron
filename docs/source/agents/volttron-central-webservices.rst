@@ -97,87 +97,87 @@ JSON-RPC Data Objects
 =====================
 
 .. csv-table:: Platform
-    :header: "Key", "Type", "Value"
+:header: "Key", "Type", "Value"
     :widths: 10, 10, 40
 
-    "uuid", "string", "A unique identifier for the platform."
-    "name", "string", "A user defined string for the platform."
-    "status", "Status", "A status object for the platform."
+                "uuid", "string", "A unique identifier for the platform."
+                "name", "string", "A user defined string for the platform."
+                "status", "Status", "A status object for the platform."
 
 .. csv-table:: PlatformDetails
-    :header: "Key", "Type", "Value"
+:header: "Key", "Type", "Value"
     :widths: 10, 10, 40
 
-    "uuid", "string", "A unique identifier for the platform."
-    "name", "string", "A user defined string for the platform."
-    "status", "Status", "A status object for the platform."
+                "uuid", "string", "A unique identifier for the platform."
+                "name", "string", "A user defined string for the platform."
+                "status", "Status", "A status object for the platform."
 
 .. csv-table:: Agent
-    :header: "Key", "Type", "Value"
+:header: "Key", "Type", "Value"
     :widths: 10, 10, 40
 
-    "uuid", "string", "A unique identifier for the agent."
-    "name", "string", "Defaults to the agentid of the installed agent"
-    "tag", "string", "A shortcut that can be used for referencing the agent"
-    "priority", "int", "If this is set the agent will autostart on the instance."
-    "process_id", "int", "The process id or null if not running."
-    "status", "string", "A status string made by the status rpc call, on an agent."
+                "uuid", "string", "A unique identifier for the agent."
+                "name", "string", "Defaults to the agentid of the installed agent"
+                "tag", "string", "A shortcut that can be used for referencing the agent"
+                "priority", "int", "If this is set the agent will autostart on the instance."
+                "process_id", "int", "The process id or null if not running."
+                "status", "string", "A status string made by the status rpc call, on an agent."
 
 
 .. csv-table:: DiscoveryRegistratyEntry
-    :header: "Key", "Type", "Value"
+:header: "Key", "Type", "Value"
     :widths: 10, 10, 40
 
-    "name",
-    "discovery_address":
+                "name",
+                "discovery_address":
 
 .. csv-table:: AdvancedRegistratyEntry_TODO
-    :header: "Key", "Type", "Value"
+:header: "Key", "Type", "Value"
     :widths: 10, 10, 40
 
-    "name",
-    "vip_address"
+                "name",
+                "vip_address"
 
 .. csv-table:: Agent_TODO
-    :header: "Key", "Type", "Value"
+:header: "Key", "Type", "Value"
     :widths: 10, 10, 40
 
-    "uuid", "string", "A unique identifier for the platform."
-    "name", "string", "A user defined string for the platform."
-    "status", "Status", "A status object for the platform."
+                "uuid", "string", "A unique identifier for the platform."
+                "name", "string", "A user defined string for the platform."
+                "status", "Status", "A status object for the platform."
 
 .. csv-table:: Building_TODO
-    :header: "Key", "Type", "Value"
+:header: "Key", "Type", "Value"
     :widths: 10, 10, 40
 
-    "uuid", "string", "A unique identifier for the platform."
-    "name", "string", "A user defined string for the platform."
-    "status", "Status", "A status object for the platform."
+                "uuid", "string", "A unique identifier for the platform."
+                "name", "string", "A user defined string for the platform."
+                "status", "Status", "A status object for the platform."
 
 .. csv-table:: Device_TODO
-    :header: "Key", "Type", "Value"
+:header: "Key", "Type", "Value"
     :widths: 10, 10, 40
 
-    "uuid", "string", "A unique identifier for the platform."
-    "name", "string", "A user defined string for the platform."
-    "status", "Status", "A status object for the platform."
+                "uuid", "string", "A unique identifier for the platform."
+                "name", "string", "A user defined string for the platform."
+                "status", "Status", "A status object for the platform."
 
 .. csv-table:: Status
-    :header: "Key", "Type", "Value"
+:header: "Key", "Type", "Value"
     :widths: 10, 10, 40
 
-    "status", "string", "A value of GOOD, BAD, UNKNOWN, SUCCESS, FAIL"
-    "context", "string", "Provides context about what the status means (optional)"
+                "status", "string", "A value of GOOD, BAD, UNKNOWN, SUCCESS, FAIL"
+                "context", "string", "Provides context about what the status means (optional)"
 
 
 JSON-RPC API Methods
 ====================
 
 .. csv-table:: Methods
-    :header: "method", "parameters", "returns"
+:header: "method", "parameters", "returns"
     :widths: 10, 10, 40
 
-    "get_authentication", "(username, password)", "authentication token"
+                "get_authentication", "(username, password)", "authentication token"
 
 
 Messages
@@ -349,7 +349,8 @@ TODO: change repsonse Retrieve Installed Agents From platform1
                      "permissions": {
                         "can_start": true,
                         "can_stop": true,
-                        "can_restart": true
+                        "can_restart": true,
+                        "can_remove": true
                      }
                      "health": {
                         "status": "GOOD",
@@ -365,7 +366,8 @@ TODO: change repsonse Retrieve Installed Agents From platform1
                      "permissions": {
                         "can_start": true,
                         "can_stop": true,
-                        "can_restart": true
+                        "can_restart": true,
+                        "can_remove": true
                      }
 
                      "health": {
@@ -382,7 +384,8 @@ TODO: change repsonse Retrieve Installed Agents From platform1
                     "permissions": {
                        "can_start": false,
                        "can_stop": false,
-                       "can_restart": true
+                       "can_restart": true,
+                       "can_remove": false
                     }
                     "health": {
                        "status": "BAD",
@@ -394,7 +397,7 @@ TODO: change repsonse Retrieve Installed Agents From platform1
                      "uuid": "a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6",
                      "process_id": null,
                      "error_code": 0,
-                     "is_running": false,
+                     "is_running": false,s
                      "health": {
                         "status": "UNKNOWN",
                         "context": "Error code -15"
@@ -402,7 +405,8 @@ TODO: change repsonse Retrieve Installed Agents From platform1
                     "permissions": {
                        "can_start": true,
                        "can_stop": false,
-                       "can_restart": true
+                       "can_restart": true,
+                       "can_remove": true
                     }
                  }
              ],
