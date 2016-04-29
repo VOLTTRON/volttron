@@ -1292,7 +1292,7 @@ var AgentRow = React.createClass({displayName: "AgentRow",
             if (agent.process_id === null) {
                 status = 'Never started';
                 
-                if (agent.can_start)
+                if (agent.permissions.can_start)
                 {
                     action = (
                         React.createElement("input", {className: "button button--agent-action", type: "button", value: "Start", onClick: this._onStart})
@@ -1307,7 +1307,7 @@ var AgentRow = React.createClass({displayName: "AgentRow",
             } else if (agent.return_code === null) {
                 status = 'Running (PID ' + agent.process_id + ')';
                 
-                if (agent.can_stop)
+                if (agent.permissions.can_stop)
                 {
                     action = (
                         React.createElement("input", {className: "button button--agent-action", type: "button", value: "Stop", onClick: this._onStop})
@@ -1322,7 +1322,7 @@ var AgentRow = React.createClass({displayName: "AgentRow",
             } else {
                 status = 'Stopped (returned ' + agent.return_code + ')';
                 
-                if (agent.can_restart)
+                if (agent.permissions.can_restart)
                 {
                     action = (
                         React.createElement("input", {className: "button button--agent-action", type: "button", value: "Start", onClick: this._onStart})
@@ -1337,7 +1337,14 @@ var AgentRow = React.createClass({displayName: "AgentRow",
             }
         }
 
-        remove = ( React.createElement("input", {className: "button button--agent-action", type: "button", value: "Remove", onClick: this._onRemove}) );
+        if (agent.permissions.can_remove)
+        {
+            remove = ( React.createElement("input", {className: "button button--agent-action", type: "button", value: "Remove", onClick: this._onRemove}) );
+        }
+        else
+        {
+            remove = ( React.createElement("input", {className: "button button--agent-action", type: "button", value: "Remove", onClick: this._onRemove, disabled: true}) );
+        } 
 
         return (
             React.createElement("tr", null, 
