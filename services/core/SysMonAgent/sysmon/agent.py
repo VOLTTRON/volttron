@@ -71,12 +71,17 @@ __version__ = '3.5'
 
 
 def sysmon_agent(config_path, **kwargs):
+    """Wrapper around `SysMonAgent`"""
     config = utils.load_config(config_path)
-    identity = config.get('identity', 'sysmon')
+    identity = 'platform.sysmon'
     kwargs.pop('identity', None)
 
     class SysMonAgent(Agent):
-        '''Monitors system utilization (CPU, memory, disks, network)'''
+        """Monitor utilization of system resources (CPU, memory, disk)
+
+        The percent usage of each system resource can be queried via
+        RPC and they are published periodically to configured topics.
+        """
 
         def __init__(self, **kwargs):
             super(SysMonAgent, self).__init__(**kwargs)
@@ -85,6 +90,7 @@ def sysmon_agent(config_path, **kwargs):
 
         @Core.receiver('onstart')
         def start(self, sender, **kwargs):
+            """Set up periodic publishing of system resource data"""
             self._periodic_pub(
                 self.cpu_percent, config.get('cpu_check_period', 5))
 
@@ -95,6 +101,7 @@ def sysmon_agent(config_path, **kwargs):
                 self.disk_percent, config.get('disk_check_period', 5))
 
         def _periodic_pub(self, func, period, wait=0):
+            """Periodically call func and publish its return value"""
             def pub_wrapper():
                 data = func()
                 topic = self._base_topic + '/' + func.__name__
@@ -104,14 +111,17 @@ def sysmon_agent(config_path, **kwargs):
 
         @RPC.export
         def cpu_percent(self):
+            """Return CPU usage percentage"""
             return psutil.cpu_percent()
 
         @RPC.export
         def memory_percent(self):
+            """Return memory usage percentage"""
             return psutil.virtual_memory().percent
 
         @RPC.export
         def disk_percent(self):
+            """Return usage of disk mounted at configured path"""
             return psutil.disk_usage(config.get('disk_path', '/')).percent
 
     SysMonAgent.__name__ = 'SysMonAgent'
@@ -119,7 +129,7 @@ def sysmon_agent(config_path, **kwargs):
 
 
 def main(argv=sys.argv):
-    '''Main method called by the platform.'''
+    """Main method called by the platform."""
     utils.vip_main(sysmon_agent)
 
 if __name__ == '__main__':
