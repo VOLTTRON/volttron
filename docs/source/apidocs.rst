@@ -6,4 +6,5 @@ API Documentation
 
    services
    applications
+   examples
    volttron

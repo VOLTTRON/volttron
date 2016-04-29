@@ -334,6 +334,7 @@ def generate_apidoc(app):
     application_excludes = []
     services_excludes = []
     volttron_excludes = []
+    examples_excludes = []
     if os.path.exists(file_name):
         print "file_name {} exists".format(file_name)
         with open(file_name,'r') as file:
@@ -345,14 +346,22 @@ def generate_apidoc(app):
                     _add_to_excludes(services_excludes, line)
                 elif line.startswith('volttron'):
                     _add_to_excludes(volttron_excludes, line)
+                elif line.startswith('examples'):
+                    _add_to_excludes(examples_excludes, line)
     print ("processed exclude list")
     print ("services {}".format(services_excludes))
     print ("applications {}".format(application_excludes))
     print ("applications {}".format(volttron_excludes))
+
     # generate api-docs for  services/core
     docs_subdir=os.path.join(apidocs_base_dir, "services")
     agent_dirs = glob(script_dir+"/../../services/core/*/")
     run_apidoc(docs_subdir, agent_dirs, services_excludes)
+
+    # generate api-docs for examples
+    docs_subdir = os.path.join(apidocs_base_dir, "examples")
+    agent_dirs = glob(script_dir + "/../../examples/*/")
+    run_apidoc(docs_subdir, agent_dirs, examples_excludes)
 
     # generate api-docs for applications
     docs_subdir = os.path.join(apidocs_base_dir, "applications")
