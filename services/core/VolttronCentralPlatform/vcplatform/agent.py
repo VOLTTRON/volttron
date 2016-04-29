@@ -99,7 +99,7 @@ class AlreadyManagedError(StandardError):
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
-__version__ = '3.5'
+__version__ = '3.5.1'
 
 
 class VolttronCentralPlatform(Agent):
