@@ -479,8 +479,8 @@ class VolttronCentralAgent(Agent):
                     rpcdata.id, rpcdata.method, rpcdata.params)
 
         except AssertionError:
-            return jsonapi.dumps(jsonrpc.json_error(
-                'NA', INVALID_REQUEST, 'Invalid rpc data {}'.format(data)))
+            return jsonrpc.json_error(
+                'NA', INVALID_REQUEST, 'Invalid rpc data {}'.format(data))
 
         _log.debug("RETURNING: {}".format(self._get_jsonrpc_response(
             rpcdata.id, result_or_error)))
@@ -489,6 +489,7 @@ class VolttronCentralAgent(Agent):
     def _get_jsonrpc_response(self, id, result_or_error):
         if 'error' in result_or_error:
             error = result_or_error['error']
+            _log.debug("RPC RESPONSE ERROR: {}".format(error))
             return jsonrpc.json_error(id, error['code'], error['message'])
         return jsonrpc.json_result(id, result_or_error)
 
