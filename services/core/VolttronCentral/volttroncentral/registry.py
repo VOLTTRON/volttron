@@ -1,6 +1,7 @@
 from collections import namedtuple
 from datetime import datetime
 import logging
+import shelve
 import uuid
 
 from volttron.platform.agent import utils
@@ -25,7 +26,7 @@ class PlatformRegistry(object):
     central agent.
     """
 
-    def __init__(self, stale=5*60):
+    def __init__(self, retrieve_fn, store_fn):
         """ Initialize the PlatformRegistry.
         :param stale: Seconds that the information should be considered valid.
         :return:
@@ -33,6 +34,16 @@ class PlatformRegistry(object):
         # Registry entries by uuid
         self._platform_entries = {}
         self._vip_to_uuid = {}
+
+        # callbacks for storing and retrieving resource directory data
+        self._retrievefn = retrieve_fn
+        self._storefn = store_fn
+        try:
+            self._platform_entries = self._retrievefn('registered_platforms')
+            for k, v in self._platform_entries.items():
+                self._vip_to_uuid[v.vip_address] = k
+        except KeyError:
+            pass # Raised when there isn't a registerd_platform.
 
     def add_update_tag(self, platform_uuid, key, value):
         """ Add a tag to the specified platform's entry.
@@ -103,7 +114,6 @@ class PlatformRegistry(object):
             }
         )
 
-
     def unregister(self, vip_address):
         if vip_address in self._vip_to_uuid.keys():
             del self._vip_to_uuid[vip_address]
@@ -113,6 +123,8 @@ class PlatformRegistry(object):
                     toremove.append(k)
             for x in toremove:
                 del self._platform_entries[x]
+
+            self._storefn('registered_platforms', self._platform_entries)
 
     def register(self, entry):
         """ Registers a PlatformEntry with the registry.
@@ -125,6 +137,7 @@ class PlatformRegistry(object):
 
         self._platform_entries[entry.platform_uuid] = entry
         self._vip_to_uuid[entry.vip_address] = entry.platform_uuid
+        self._storefn('registered_platforms', self._platform_entries)
 
     def package(self):
         return {}

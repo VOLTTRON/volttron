@@ -70,6 +70,7 @@ way.
 """
 _log = logging.getLogger(__name__)
 
+
 class Health(SubsystemBase):
     def __init__(self, owner, core, rpc):
         self._owner = owner
