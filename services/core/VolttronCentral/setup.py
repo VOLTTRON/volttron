@@ -85,6 +85,10 @@ setup(
     version=__version__,
     install_requires=['volttron'],
     packages=packages,
+    package_data={
+        package: ['webroot/*.*', 'webroot/font/*.*', 'webroot/css/*.css',
+                  'webroot/js/*.js']
+    },
     entry_points={
         'setuptools.installation': [
             'eggsecutable = ' + agent_module + ':main',
