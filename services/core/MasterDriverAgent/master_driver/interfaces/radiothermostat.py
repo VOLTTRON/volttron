@@ -1,9 +1,8 @@
+# Volttron-3.0 Driver framewrok Interface for radio thermostat relay agent
+# April 2016
+# NREL
+
 """"
-
-Volttron-3.0 Driver framewrok Interface for radio thermostat relay agent
-April 2016
-NREL
-
 
 The way schedules are reported and set will probably change in a future version of VOLTTRON.
 
