@@ -1,7 +1,7 @@
 import pytest
 
 
-@pytest.mark.dev
+@pytest.mark.control
 def test_identity_is_uuid(volttron_instance1):
     """ The identity is uuid for an agent that doesn't include a specific
     identity.
@@ -18,7 +18,8 @@ def test_identity_is_uuid(volttron_instance1):
                                   auuid).get(timeout=2)
     assert identity == auuid
 
-@pytest.mark.dev
+
+@pytest.mark.control
 def test_can_get_identity(volttron_instance1):
     """ Based upon the agent uuid retrieve the IDENTITY.  Use the
     VolttronCentralPlatform as the test agent.
