@@ -73,7 +73,7 @@ import re as _re
 import shlex as _shlex
 import sys as _sys
 from gevent import subprocess
-from gevent.subprocess import Popen
+from gevent.subprocess import Popen, check_call
 from . import get_home
 
 from volttron.platform.auth import AuthEntry, AuthFile
@@ -626,93 +626,56 @@ def prompt_response(inputs):
             print(inputs[1])
 
 
-def _install_vc(autostart):
-    print('Installing volttron central...')
-    from tempfile import NamedTemporaryFile
-    import hashlib
-    import json
-
-    cmd = ['volttron-ctl', 'remove', '--tag', 'vc', '--force']
-    process = Popen(cmd, env=_os.environ)
-    process.wait()
-
-    admin_pass = hashlib.sha512('admin').hexdigest()
-    cfg_file = NamedTemporaryFile()
-    cfg = {
-        "identity": "volttron.central",
-        "server": {
-            "host": "127.0.0.1",
-            "port": 8070,
-            "debug": False
-        },
-        "users": {
-            "admin": {
-                "password": admin_pass,
-                "groups": [
-                    "admin"
-                ]
-            }
-        }
-    }
-    cfg_file = NamedTemporaryFile()
-    with open(cfg_file.name, 'w') as cf:
-        cf.write(json.dumps(cfg))
-
-    cmd = ['scripts/core/pack_install.sh',
-           'services/core/VolttronCentral',
-           cfg_file.name,
-           'vc']
-    process = Popen(cmd, env=_os.environ)
-
-    process.wait()
-    if autostart:
-        cmd = ['volttron-ctl',
-               'enable',
-               '--tag',
-               'vc']
-        process = Popen(cmd, env=_os.environ)
-        process.wait()
-
-
-def _install_platform(is_vc):
-    print('Installing platform...')
-    cfg_file = 'services/core/VolttronCentralPlatform/config'
-    if is_vc:
-        cfg_file = 'services/core/VolttronCentral/vc.platform.config'
-    cmd = ['volttron-ctl', 'remove', '--tag', 'platform', '--force']
-    process = Popen(cmd, env=_os.environ)
-    process.wait()
-
-    cmd = ['scripts/core/pack_install.sh',
-           'services/core/VolttronCentralPlatform',
-           cfg_file,
-           'platform']
-    process = Popen(cmd, env=_os.environ)
-    process.wait()
-
-    cmd = ['volttron-ctl',
-           'enable',
-           '--tag',
-           'platform']
-    process = Popen(cmd, env=_os.environ)
+def _cmd(cmdargs):
+    process = Popen(cmdargs, env=_os.environ, stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE)
     process.wait()
 
 
-def _enable_discovery(address_port):
-    """ Enable discovery will autostart when the volttron instance starts.
+def _install_agents(install_vc, install_platform, install_historian):
+    if install_vc[0]:
+        print('Installing volttron central')
+        cfg_file = 'services/core/VolttronCentral/config'
+        _cmd(['volttron-ctl', 'remove', '--tag', 'vc', '--force'])
+        _cmd(['scripts/core/pack_install.sh',
+              'services/core/VolttronCentral', cfg_file, 'vc'])
+        if install_vc[1]:
+            _cmd(['volttron-ctl', 'enable', '--tag', 'vc'])
 
-    Puts the port and binding ip address that should be bound to in the root
-    directory of VOLTTRON_HOME.
-    """
-    discovery_file = _os.path.join(_os.environ['VOLTTRON_HOME'], 'DISCOVERY')
-    with open(discovery_file, 'w') as df:
-        df.write(address_port)
+    if install_platform[0]:
+        print('Installing platform...')
+        cfg_file = 'services/core/VolttronCentralPlatform/config'
+        _cmd(['volttron-ctl', 'remove', '--tag', 'platform', '--force'])
+        _cmd(['scripts/core/pack_install.sh',
+           'services/core/VolttronCentralPlatform', cfg_file, 'platform'])
+        if install_platform[1]:
+            _cmd(['volttron-ctl', 'enable', '--tag', 'platform'])
+
+    if install_historian[0]:
+        print('Installing historian...')
+        cfg_file = 'services/core/SQLHistorian/config.sqlite.platform.historian'
+        _cmd(['volttron-ctl', 'remove', '--tag', 'historian', '--force'])
+        _cmd(['scripts/core/pack_install.sh',
+          'services/core/SQLHistorian', cfg_file, 'historian'])
+        if install_historian[1]:
+            _cmd(['volttron-ctl', 'enable', '--tag', 'historian'])
+
+#
+# def _enable_discovery(address_port):
+#     """ Enable discovery will autostart when the volttron instance starts.
+#
+#     Puts the port and binding ip address that should be bound to in the root
+#     directory of VOLTTRON_HOME.
+#     """
+#     discovery_file = _os.path.join(_os.environ['VOLTTRON_HOME'], 'DISCOVERY')
+#     with open(discovery_file, 'w') as df:
+#         df.write(address_port)
 
 
 def _start_platform():
     cmd = ['volttron', '--developer-mode']
 
-    pid = Popen(cmd, env=_os.environ, stdout=subprocess.PIPE,
+    pid = Popen(cmd, env=_os.environ.copy(), stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE)
     print('Configuring instance...')
     return pid
@@ -720,17 +683,14 @@ def _start_platform():
 
 def _shutdown_platform():
     print('Shutting down platform...')
-    cmd = ['volttron-ctl', 'shutdown', '--platform']
-
-    pid = Popen(cmd, env=_os.environ)
+    _cmd(['volttron-ctl', 'shutdown', '--platform'])
 
 
 def _make_configuration(external_uri, bind_web_address,
                         volttron_central=None):
     print('Building cofiguration file.')
-    import \
-        ConfigParser as configparser  # python3 has configparser rather than
-    # this name.
+    import ConfigParser as configparser  # python3 has configparser
+
     config = configparser.ConfigParser()
     config.add_section('volttron')
     config.set('volttron', 'vip-address', external_uri)
@@ -753,6 +713,19 @@ def _resolvable(uri, port):
     return True
 
 
+def _explain_discoverable():
+    discoverability = """
+A platform is discoverable if it responds to an http request /discovery/.  The
+ip address and port are used to hook up a volttron central instance and an
+in field platform.  Though this is not required to register a field instance
+with volttron central, it does make adding addtional platforms easier.
+
+NOTE: The instances does not have to be discoverable after the instance is
+      registered with volttron central.
+"""
+    print(discoverability)
+
+
 def _main():
     """ Routine for configuring an insalled volttron instance.
 
@@ -764,19 +737,22 @@ def _main():
     _os.environ['VOLTTRON_HOME'] = volttron_home
     if not _os.path.exists(volttron_home):
         _os.makedirs(volttron_home, 0o755)
-
+    print('VOLTTRON_HOME set to: {}'.format(volttron_home))
     y_or_n = ('Y', 'N', 'y', 'n')
     y = ('Y', 'y')
+    n = ('N', 'n')
     t = ('Is this instance discoverable (Y/N)? [N] ', y_or_n, 'N')
-    is_discoverable = prompt_response(t)
+    _explain_discoverable()
+    is_discoverable = prompt_response(t) in y
 
-    if is_discoverable in ('Y', 'y'):
+    if is_discoverable in y:
         t = ('What is the external ip address for this instance? ',)
         external_ip = prompt_response(t)
         t = ('What is the vip port this instance? [22916] ',)
         vip_port = prompt_response(t)
         if not vip_port:
             vip_port = 22916
+
         t = ('What is the port for discovery? [8080] ',)
         external_port = prompt_response(t)
         if not external_port:
@@ -787,13 +763,20 @@ def _main():
         ip_allowed_to_discover = prompt_response(t)
         AuthFile().add(AuthEntry(address=ip_allowed_to_discover,
                                  credentials='/CURVE:.*/'))
+
         t = ('Is this instance a volttron central (Y/N)? [N] ', y_or_n, 'N')
-        is_vc = prompt_response(t)
-        vc_autostart = 'Y'
-        if is_vc in y:
+        do_install_vc = prompt_response(t) in y
+        do_vc_autostart = True
+        do_platform_autostart = True
+        if do_install_vc:
             t = ('Should volttron central autostart(Y/N)? [Y] ', y_or_n, 'Y')
-            vc_autostart = prompt_response(t)
+            do_vc_autostart = prompt_response(t) in y
+
+            t = ('Include central platform agent on volttron central? [Y]',
+                 y_or_n, 'Y')
+            do_install_platform = prompt_response(t) in y
         else:
+            do_install_platform = True
             t = ('Address of volttron central? ',)
             vc_ipaddress = prompt_response(t)
             should_resolve = True
@@ -814,18 +797,36 @@ def _main():
                     vc_ipaddress = prompt_response(t)
                     t = ('Port of volttron central? ',)
                     vc_port = prompt_response(t)
+
+        if do_install_platform:
+            t = ('Should platform agent autostart(Y/N)? [Y] ', y_or_n, 'Y')
+            do_platform_autostart = prompt_response(t) in y
+
+        external_uri = "tcp://{}:{}".format(external_ip, vip_port)
+        bind_web_address = "http://{}:{}".format(external_ip,
+                                                 external_port)
+
         try:
-            external_uri = "tcp://{}:{}".format(external_ip, vip_port)
-            bind_web_address = "http://{}:{}".format(external_ip,
-                                                     external_port)
             _make_configuration(external_uri, bind_web_address, vc_ipaddress)
-        except:  # Should only happen if this is a vc instance.
+
+        # if vc_ipaddres isn't defined
+        # only happens on volttron central.
+        except UnboundLocalError:
             _make_configuration(external_uri, bind_web_address)
 
+        t = ('Should install sqlite platform historian? [N]', y_or_n, n)
+        do_install_platform_historian = prompt_response(t) in y
+
+        do_historian_autostart = True
+        if do_install_platform_historian:
+            t = ('Should historian agent autostart(Y/N)? [Y] ', y_or_n, 'Y')
+            do_historian_autostart = prompt_response(t) in y
+
+        # in order to install agents we need to start the platform.
         _start_platform()
-        _install_platform(is_vc in y)
-        _enable_discovery(r'{}:{}'.format(external_ip, external_port))
-        if is_vc in y:
-            _install_vc(vc_autostart in y)
+        _install_agents((do_install_vc, do_vc_autostart),
+                        (do_install_platform, do_platform_autostart),
+                        (do_install_platform_historian,
+                         do_historian_autostart))
         _shutdown_platform()
         print('Finished configuration\n')
