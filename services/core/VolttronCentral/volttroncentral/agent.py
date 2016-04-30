@@ -97,10 +97,10 @@ __version__ = "3.5"
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
-
 # Web root is going to be relative to the volttron central agents
 # current agent's installed path
-DEFAULT_WEB_ROOT = p.abspath(p.join(p.dirname(__file__), 'webroot'))
+DEFAULT_WEB_ROOT = p.abspath(p.join(p.dirname(__file__), 'webroot/'))
+_log.debug("DEFAULT WEBROOT IS: {}".format(DEFAULT_WEB_ROOT))
 
 
 class VolttronCentralAgent(Agent):
@@ -152,7 +152,7 @@ class VolttronCentralAgent(Agent):
         # connected to the vip-address of the registered platform.  If the
         # registered platform is None then that means we were unable to
         # connect to the platform the last time it was tried.
-        self._pa_agents = {}
+        self._pa_agents = dict()
 
         # An object that allows the checking of currently authenticated
         # sessions.
@@ -177,43 +177,43 @@ class VolttronCentralAgent(Agent):
                         publickey=self.core.publickey
                     )
                     self._pa_agents[entry.platform_uuid] = connected_to_pa
-                    if VOLTTRON_CENTRAL_PLATFORM not in connected_to_pa.vip.peerlist().get(timeout=2):
+                    if VOLTTRON_CENTRAL_PLATFORM not in connected_to_pa.vip.peerlist().get(
+                            timeout=2):
                         connected_to_pa.core.stop()
                         self._pa_agents[entry.platform_uuid] = None
             except gevent.Timeout:
                 self._pa_agents[entry.platform_uuid] = None
 
-#    def _check_for_peer_platform(self):
-#        """ Check the list of peers for a platform.agent
-#
-#        Registers the platform_peer if it hasn't been registered.
-#        """
-#        peers = self.vip.peerlist().get()
-#        if "platform.agent" in peers:
-#            if not self._peer_platform_exists:
-#                _log.info("peer_platform available")
-#                self._peer_platform_exists = True
-#                try:
-#                    entry = self._registry.get_platform_by_address(
-#                        self._local_address)
-#                except KeyError:
-#                    assert "ipc" in self._local_address
-#                    entry = PlatformRegistry.build_entry(
-#                        vip_address=self._local_address, serverkey=None,
-#                        discovery_address=None, is_local=True
-#                    )
-#                    self._registry.register(entry)
-#
-#        elif "platform.agent" not in peers:
-#            if self._peer_platform_exists:
-#                _log.info("peer_platform unavailable")
-#                self._peer_platform_exists = False
+            #    def _check_for_peer_platform(self):
+            #        """ Check the list of peers for a platform.agent
+            #
+            #        Registers the platform_peer if it hasn't been registered.
+            #        """
+            #        peers = self.vip.peerlist().get()
+            #        if "platform.agent" in peers:
+            #            if not self._peer_platform_exists:
+            #                _log.info("peer_platform available")
+            #                self._peer_platform_exists = True
+            #                try:
+            #                    entry = self._registry.get_platform_by_address(
+            #                        self._local_address)
+            #                except KeyError:
+            #                    assert "ipc" in self._local_address
+            #                    entry = PlatformRegistry.build_entry(
+            #                        vip_address=self._local_address, serverkey=None,
+            #                        discovery_address=None, is_local=True
+            #                    )
+            #                    self._registry.register(entry)
+            #
+            #        elif "platform.agent" not in peers:
+            #            if self._peer_platform_exists:
+            #                _log.info("peer_platform unavailable")
+            #                self._peer_platform_exists = False
 
     @PubSub.subscribe("pubsub", "platforms")
-    def on_platoforms_message(self, peer, sender, bus,  topic, headers,
+    def on_platoforms_message(self, peer, sender, bus, topic, headers,
                               message):
         _log.debug('Got message: {}'.format(message))
-
 
     @RPC.export
     def get_platforms(self):
@@ -223,7 +223,7 @@ class VolttronCentralAgent(Agent):
     def get_platform(self, platform_uuid):
         return self._registry.get_platform(platform_uuid)
 
-    #@Core.periodic(5)
+    # @Core.periodic(5)
     def _auto_register_peer(self):
         if not self._peer_platform:
             peers = self.vip.peerlist().get(timeout=2)
@@ -250,7 +250,7 @@ class VolttronCentralAgent(Agent):
     @RPC.export
     def list_platform_details(self):
         print('list_platform_details', self._registry.get_platforms())
-        return self._registry.get_platforms() #[x.to_json() for x in self._registry.get_platforms()]
+        return self._registry.get_platforms()  # [x.to_json() for x in self._registry.get_platforms()]
 
     @RPC.export
     def unregister_platform(self, platform_uuid):
@@ -362,7 +362,7 @@ class VolttronCentralAgent(Agent):
         if len(result) != 43:
             return {'error': {'code': UNABLE_TO_REGISTER_INSTANCE,
                               'message': 'Invalid publickey returned from {}'
-                                .format(VOLTTRON_CENTRAL_PLATFORM)
+                                  .format(VOLTTRON_CENTRAL_PLATFORM)
                               }}
 
         # Add the pa's public key so it can connect back to us.
@@ -372,11 +372,11 @@ class VolttronCentralAgent(Agent):
                                )
         auth_file.add(auth_entry)
 
-        #TODO: figure out if we are local or not
+        # TODO: figure out if we are local or not
 
         entry = PlatformRegistry.build_entry(
-                    pa_vip_address, pa_instance_serverkey, discovery_address,
-                    display_name, False)
+            pa_vip_address, pa_instance_serverkey, discovery_address,
+            display_name, False)
 
         self._registry.register(entry)
         self._pa_agents[entry.platform_uuid] = connected_to_pa
@@ -402,37 +402,37 @@ class VolttronCentralAgent(Agent):
     def _store_registry(self):
         self._store('registry', self._registry.package())
 
-#    def _handle_register_platform(self, address, identity=None, agentid='platform.agent'):
-#        _log.debug('Registering platform identity {} at vip address {} with name {}'
-#                   .format(identity, address, agentid))
-#        agent = self._get_rpc_agent(address)
-#
-#        if not identity:
-#            identity = 'platform.agent'
-#
-#        result = agent.vip.rpc.call(identity, "manage",
-#                                    address=self._external_addresses,
-#                                    identity=self.core.identity)
-#        if result.get(timeout=10):
-#            node = self._registry.register(address, identity, agentid)
-#
-#            if node:
-#                self._store_registry()
-#            return node
-#
-#        return False
-#
-#    def _get_rpc_agent(self, address):
-#        if address == self.core.address:
-#            agent = self
-#        elif address not in self._vip_channels:
-#            agent = Agent(address=address)
-#            gevent.spawn(agent.core.run).join(0)
-#            self._vip_channels[address] = agent
-#
-#        else:
-#            agent = self._vip_channels[address]
-#        return agent
+    #    def _handle_register_platform(self, address, identity=None, agentid='platform.agent'):
+    #        _log.debug('Registering platform identity {} at vip address {} with name {}'
+    #                   .format(identity, address, agentid))
+    #        agent = self._get_rpc_agent(address)
+    #
+    #        if not identity:
+    #            identity = 'platform.agent'
+    #
+    #        result = agent.vip.rpc.call(identity, "manage",
+    #                                    address=self._external_addresses,
+    #                                    identity=self.core.identity)
+    #        if result.get(timeout=10):
+    #            node = self._registry.register(address, identity, agentid)
+    #
+    #            if node:
+    #                self._store_registry()
+    #            return node
+    #
+    #        return False
+    #
+    #    def _get_rpc_agent(self, address):
+    #        if address == self.core.address:
+    #            agent = self
+    #        elif address not in self._vip_channels:
+    #            agent = Agent(address=address)
+    #            gevent.spawn(agent.core.run).join(0)
+    #            self._vip_channels[address] = agent
+    #
+    #        else:
+    #            agent = self._vip_channels[address]
+    #        return agent
 
     @Core.receiver('onsetup')
     def setup(self, sender, **kwargs):
@@ -441,7 +441,7 @@ class VolttronCentralAgent(Agent):
 
         db_path = os.path.join(os.environ.get('VOLTTRON_HOME'),
                                'data/volttron.central')
-        db_dir  = os.path.dirname(db_path)
+        db_dir = os.path.dirname(db_path)
         try:
             os.makedirs(db_dir)
         except OSError as exc:
@@ -460,7 +460,6 @@ class VolttronCentralAgent(Agent):
         :param object data: Either a string or a dictionary representing a json document.
         """
         return jsonrpc.JsonRpcData.parse(jsonrpcstr)
-
 
     @RPC.export
     def jsonrpc(self, env, data):
@@ -493,7 +492,8 @@ class VolttronCentralAgent(Agent):
                         rpcdata.params['username']))
                     return jsonrpc.json_error(rpcdata.id, UNAUTHORIZED,
                                               "Invalid username/password specified.")
-                _log.info('Session created for {}'.format(rpcdata.params['username']))
+                _log.info('Session created for {}'.format(
+                    rpcdata.params['username']))
                 return jsonrpc.json_result(rpcdata.id, sess)
 
             token = rpcdata.authorization
@@ -506,7 +506,7 @@ class VolttronCentralAgent(Agent):
             _log.debug('RPC METHOD IS: {}'.format(rpcdata.method))
 
             result_or_error = self.route_request(
-                    rpcdata.id, rpcdata.method, rpcdata.params)
+                rpcdata.id, rpcdata.method, rpcdata.params)
 
         except AssertionError:
             return jsonrpc.json_error(
@@ -525,10 +525,11 @@ class VolttronCentralAgent(Agent):
 
     def _get_agents(self, platform_uuid):
         platform = self.get_platform(platform_uuid)
-        connected_to_pa = self._pa_agents[platform_uuid] #TODO: get from registry
+        connected_to_pa = self._pa_agents[
+            platform_uuid]  # TODO: get from registry
 
         agents = connected_to_pa.vip.rpc.call(
-                'platform.agent', 'list_agents').get(timeout=2)
+            'platform.agent', 'list_agents').get(timeout=2)
 
         for a in agents:
             if "platformagent" in a['name'] or \
@@ -553,7 +554,7 @@ class VolttronCentralAgent(Agent):
         q = query.Query(self.core)
         self._external_addresses = q.query('addresses').get(timeout=10)
 
-        #TODO: Use all addresses for fallback, #114
+        # TODO: Use all addresses for fallback, #114
         _log.debug("external addresses are: {}".format(
             self._external_addresses
         ))
@@ -589,7 +590,6 @@ class VolttronCentralAgent(Agent):
 
         return persist_kv
 
-
     def _store(self, key, data):
         persist = self.__load_persist_data()
 
@@ -600,7 +600,6 @@ class VolttronCentralAgent(Agent):
 
         with open(self.persistence_path, 'wb') as file:
             file.write(jsonapi.dumps(persist))
-
 
     def _load(self, key):
         persist = self.__load_persist_data()
@@ -624,13 +623,15 @@ class VolttronCentralAgent(Agent):
                 return Status.build(UNKNOWN_STATUS,
                                     "Could not connect to platform").to_json()
             try:
-                health = agent.vip.rpc.call('platform.agent', 'get_health').get(timeout=10)
+                health = agent.vip.rpc.call('platform.agent',
+                                            'get_health').get(timeout=10)
             except Unreachable:
                 health = Status.build(UNKNOWN_STATUS,
-                                    "Could not connect to platform").to_json()
+                                      "Could not connect to platform").to_json()
             return health
 
-        _log.debug('Listing platforms: {}'.format(self._registry.get_platforms()))
+        _log.debug(
+            'Listing platforms: {}'.format(self._registry.get_platforms()))
         return [{'uuid': x.platform_uuid,
                  'name': x.display_name,
                  'health': get_status(x.platform_uuid)}
@@ -638,7 +639,8 @@ class VolttronCentralAgent(Agent):
 
     def route_request(self, id, method, params):
         '''Route request to either a registered platform or handle here.'''
-        _log.debug('inside route_request {}, {}, {}'.format(id, method, params))
+        _log.debug(
+            'inside route_request {}, {}, {}'.format(id, method, params))
 
         def err(message, code=METHOD_NOT_FOUND):
             return {'error': {'code': code, 'message': message}}
@@ -662,19 +664,22 @@ class VolttronCentralAgent(Agent):
             return err('Unknown platform {}'.format(platform_uuid))
         platform_method = '.'.join(fields[3:])
         _log.debug(platform_uuid)
-        agent = self._pa_agents[platform_uuid] #TODO: get from registry
+        agent = self._pa_agents[platform_uuid]  # TODO: get from registry
         if not agent:
             return jsonrpc.json_error(id,
-                UNAVAILABLE_PLATFORM, "Cannot connect to platform."
-            )
+                                      UNAVAILABLE_PLATFORM,
+                                      "Cannot connect to platform."
+                                      )
         _log.debug(agent.vip.peerlist().get(timeout=5))
         return agent.vip.rpc.call(
-                'platform.agent', 'route_request', id, platform_method,
-                params).get(timeout=10)
+            'platform.agent', 'route_request', id, platform_method,
+            params).get(timeout=10)
+
 
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
     utils.vip_main(VolttronCentralAgent)
+
 
 if __name__ == '__main__':
     # Entry point for script

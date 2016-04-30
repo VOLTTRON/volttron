@@ -58,7 +58,6 @@
 
 from __future__ import absolute_import, print_function
 
-
 from datetime import datetime
 import gevent.event
 import logging
@@ -158,6 +157,7 @@ class VolttronCentralPlatform(Agent):
         # # can send information to it.
         # self._agent_connected_to_vc = None
         # self._is_local_vc = False
+
     #
     # @Core.periodic(period=5)
     # def doingitnow(self):
@@ -219,73 +219,73 @@ class VolttronCentralPlatform(Agent):
     def is_managed(self):
         return self._vc or 'volttron.central' in self.vip.peerlist().get()
 
-    # @RPC.export
-    # def manage_local(self):
-    #     self._is_local_vc = True
+        # @RPC.export
+        # def manage_local(self):
+        #     self._is_local_vc = True
 
-    # @RPC.export
-    # def manage_platform(self, vc_discovery_address):
-    #     """ Starts the process of managing this platform.
-    #
-    #     The vc_discovery_address is an http(s) url that points to a
-    #     volttron with a volttron.central agent running.
-    #
-    #     Upon completion of this method there will be a new entry in this
-    #     volttron instance's auth.json file.  The entry will contain the
-    #     public key of the volttron central instances and will have the
-    #     capability of managed_by.
-    #
-    #
-    #     Parameters
-    #     ----------
-    #     vc_discovery_address: string
-    #         A resolvable http(s) string that a *discoverable* volttron
-    #         instances is running
-    #
-    #     # Raises
-    #     # -----
-    #     # :class:`AlreadyManagedError`:
-    #     #     Raised when platform is already managed by a different
-    #     #     volttron central instance.
-    #     # :class:`DiscoveryError`:
-    #     #     Raised when the volttron central instance is unavailable or
-    #     #     if the instance gives invalid data.
-    #     """
-    #
-    #     _log.info('Request to be managed discovery address {}.'.format(
-    #         vc_discovery_address
-    #     ))
-    #
-    #     response = requests.get(vc_discovery_address)
-    #
-    #     if not response.ok:
-    #         raise DiscoveryError(
-    #             'Invalid response from vc_discovery_address.'
-    #         )
-    #
-    #     self._vc_info = VCInfo(discovery_address=vc_discovery_address,
-    #                            **(response.json()))
-    #
-    #     auth_file = AuthFile()
-    #     auth_entry = AuthEntry(
-    #         credentials="CURVE:{}".format(
-    #             self._vc_info.vcpublickey),
-    #         capabilities=['managed_by']
-    #     )
-    #     _log.debug('Storing auth_entry in auth.json')
-    #     auth_file.add(auth_entry)
-    #
-    #     self._agent_connected_to_vc = Agent(address=self._build_address_string())
-    #     event = gevent.event.Event()
-    #     gevent.spawn(self._agent_connected_to_vc.core.run, event)
-    #     event.wait(timeout=10)
-    #     peers = self._agent_connected_to_vc.vip.peerlist().get(timeout=10)
-    #     if not 'volttron.central' in peers:
-    #         self._agent_connected_to_vc.core.stop()
-    #         self._agent_connected_to_vc = None
-    #         raise CannotConnectError('No volttron central available.')
-    #
-    #     _log.debug('Connected to volttron central!')
+        # @RPC.export
+        # def manage_platform(self, vc_discovery_address):
+        #     """ Starts the process of managing this platform.
+        #
+        #     The vc_discovery_address is an http(s) url that points to a
+        #     volttron with a volttron.central agent running.
+        #
+        #     Upon completion of this method there will be a new entry in this
+        #     volttron instance's auth.json file.  The entry will contain the
+        #     public key of the volttron central instances and will have the
+        #     capability of managed_by.
+        #
+        #
+        #     Parameters
+        #     ----------
+        #     vc_discovery_address: string
+        #         A resolvable http(s) string that a *discoverable* volttron
+        #         instances is running
+        #
+        #     # Raises
+        #     # -----
+        #     # :class:`AlreadyManagedError`:
+        #     #     Raised when platform is already managed by a different
+        #     #     volttron central instance.
+        #     # :class:`DiscoveryError`:
+        #     #     Raised when the volttron central instance is unavailable or
+        #     #     if the instance gives invalid data.
+        #     """
+        #
+        #     _log.info('Request to be managed discovery address {}.'.format(
+        #         vc_discovery_address
+        #     ))
+        #
+        #     response = requests.get(vc_discovery_address)
+        #
+        #     if not response.ok:
+        #         raise DiscoveryError(
+        #             'Invalid response from vc_discovery_address.'
+        #         )
+        #
+        #     self._vc_info = VCInfo(discovery_address=vc_discovery_address,
+        #                            **(response.json()))
+        #
+        #     auth_file = AuthFile()
+        #     auth_entry = AuthEntry(
+        #         credentials="CURVE:{}".format(
+        #             self._vc_info.vcpublickey),
+        #         capabilities=['managed_by']
+        #     )
+        #     _log.debug('Storing auth_entry in auth.json')
+        #     auth_file.add(auth_entry)
+        #
+        #     self._agent_connected_to_vc = Agent(address=self._build_address_string())
+        #     event = gevent.event.Event()
+        #     gevent.spawn(self._agent_connected_to_vc.core.run, event)
+        #     event.wait(timeout=10)
+        #     peers = self._agent_connected_to_vc.vip.peerlist().get(timeout=10)
+        #     if not 'volttron.central' in peers:
+        #         self._agent_connected_to_vc.core.stop()
+        #         self._agent_connected_to_vc = None
+        #         raise CannotConnectError('No volttron central available.')
+        #
+        #     _log.debug('Connected to volttron central!')
 
 
         # # Refresh the file to see if we are now managed or not.
@@ -314,8 +314,6 @@ class VolttronCentralPlatform(Agent):
         # self.core._set_status(STATUS_GOOD, "Platform is managed" )
         #
         # return self.core.publickey
-
-
 
     @RPC.export
     def set_setting(self, key, value):
@@ -347,47 +345,50 @@ class VolttronCentralPlatform(Agent):
                                 message=points)
 
     @RPC.export
-    def publish_to_peers(self, topic, message, headers = None):
+    def publish_to_peers(self, topic, message, headers=None):
         spawned = []
-        _log.debug("Should publish to peers: "+str(self._sibling_cache))
+        _log.debug("Should publish to peers: " + str(self._sibling_cache))
         for key, item in self._sibling_cache.items():
             for peer_address in item:
                 try:
-#                         agent = Agent(address=peer_address)
+                    #                         agent = Agent(address=peer_address)
 
-#                         event = gevent.event.Event()
-#                         gevent.spawn(agent.core.run, event)
-#                         event.wait()
+                    #                         event = gevent.event.Event()
+                    #                         gevent.spawn(agent.core.run, event)
+                    #                         event.wait()
                     agent = self._get_rpc_agent(peer_address)
-                    _log.debug("about to publish to peers: {}".format(agent.core.identity))
-#                         agent.vip.publish()
-                    agent.vip.pubsub.publish(peer='pubsub',headers=headers,
-                                    topic=topic,
-                                    message=message)
+                    _log.debug("about to publish to peers: {}".format(
+                        agent.core.identity))
+                    #                         agent.vip.publish()
+                    agent.vip.pubsub.publish(peer='pubsub', headers=headers,
+                                             topic=topic,
+                                             message=message)
 
                 except Unreachable:
                     _log.error("Count not publish to peer: {}".
                                format(peer_address))
 
-    #TODO: Make configurable
-    #@Core.periodic(30)
+    # TODO: Make configurable
+    # @Core.periodic(30)
     def update_sibling_address_cache(self):
-        _log.debug('update_sibling_address_cache '+str(self._managers))
+        _log.debug('update_sibling_address_cache ' + str(self._managers))
         for manager in self._managers:
             try:
-#                     _log.debug("Manager",manager)
-#                     _log.debug(manager[0],manager[1])
-                #TODO: #14 Go through manager addresses until one works. For now just use first.
+                #                     _log.debug("Manager",manager)
+                #                     _log.debug(manager[0],manager[1])
+                # TODO: #14 Go through manager addresses until one works. For now just use first.
                 agent = self._get_rpc_agent(manager[0][0])
-#                     agent = Agent(address=manager[0])
-                result = agent.vip.rpc.call(manager[1],"list_platform_details").get(timeout=10)
-#                     _log.debug("RESULT",result)
+                #                     agent = Agent(address=manager[0])
+                result = agent.vip.rpc.call(manager[1],
+                                            "list_platform_details").get(
+                    timeout=10)
+                #                     _log.debug("RESULT",result)
                 self._sibling_cache[manager[0]] = result
 
             except Unreachable:
                 _log.error('Could not reach manager: {}'.format(manager))
             except StandardError as ex:
-                _log.error("Unhandled Exception: "+str(ex))
+                _log.error("Unhandled Exception: " + str(ex))
 
     @RPC.export
     def register_service(self, vip_identity):
@@ -409,7 +410,7 @@ class VolttronCentralPlatform(Agent):
     #     return self.@RPC.allow("can_manage")
 
     @RPC.export
-    #@RPC.allow("manager") #TODO: uncomment allow decorator
+    # @RPC.allow("manager") #TODO: uncomment allow decorator
     def list_agents(self):
         """ List the agents that are installed on the platform.
 
@@ -442,7 +443,7 @@ class VolttronCentralPlatform(Agent):
             }
 
             if 'volttroncentral' in name or \
-                'vcplatform' in name:
+                            'vcplatform' in name:
                 uuid_to_status[uuid]['permissions']['can_stop'] = False
                 uuid_to_status[uuid]['permissions']['can_remove'] = False
 
@@ -456,8 +457,6 @@ class VolttronCentralPlatform(Agent):
         for a in agents:
             if a['uuid'] in uuid_to_status.keys():
                 a.update(uuid_to_status[a['uuid']])
-
-
 
         return agents
 
@@ -488,7 +487,8 @@ class VolttronCentralPlatform(Agent):
 
     @RPC.export
     def route_request(self, id, method, params):
-        _log.debug('platform agent routing request: {}, {}'.format(id, method))
+        _log.debug(
+            'platform agent routing request: {}, {}'.format(id, method))
         _log.debug('platform agent routing request params: {}'.format(params))
 
         # First handle the elements that are going to this platform
@@ -499,16 +499,18 @@ class VolttronCentralPlatform(Agent):
         elif method == 'get_setting':
             result = self.get_setting(**params)
         elif method == 'status_agents':
-            result = {'result': [{'name':a[1], 'uuid': a[0],
+            result = {'result': [{'name': a[1], 'uuid': a[0],
                                   'process_id': a[2][0],
                                   'return_code': a[2][1]}
-                        for a in self.vip.rpc.call('control', method).get()]}
+                                 for a in
+                                 self.vip.rpc.call('control', method).get()]}
 
         elif method in ('agent_status', 'start_agent', 'stop_agent',
                         'remove_agent'):
             _log.debug('We are trying to exectute method {}'.format(method))
             if isinstance(params, list) and len(params) != 1 or \
-                isinstance(params, dict) and 'uuid' not in params.keys():
+                            isinstance(params,
+                                       dict) and 'uuid' not in params.keys():
                 result = jsonrpc.json_error(ident=id, code=INVALID_PARAMS)
             else:
                 if isinstance(params, list):
@@ -523,7 +525,8 @@ class VolttronCentralPlatform(Agent):
                     # Note we recurse here to get the agent status.
                     result = self.route_request(id, 'agent_status', uuid)
                 else:
-                    result = {'process_id': status[0], 'return_code': status[1]}
+                    result = {'process_id': status[0],
+                              'return_code': status[1]}
         elif method in ('install'):
 
             if not 'files' in params:
@@ -540,7 +543,7 @@ class VolttronCentralPlatform(Agent):
                     agent_method = fields[1]
                     result = self.vip.rpc.call('platform.historian',
                                                agent_method,
-                                              **params).get(timeout=5)
+                                               **params).get(timeout=5)
                 else:
                     result = jsonrpc.json_error(
                         id, INVALID_PARAMS, 'historian unavailable')
@@ -552,37 +555,37 @@ class VolttronCentralPlatform(Agent):
                 _log.debug("Params is: {}".format(params))
 
                 result = self.vip.rpc.call(agent_uuid, agent_method,
-                                       params).get()
+                                           params).get()
 
 
-            # Get the agent via their uuid.
-            # Call the method on that agent.
-            #result = self.vip.rpc.call('control', 'health.get_status', fields[2]).get(timeout=5)
-#            result = self.vip.rpc.call(fields[2], 'inspect').get(timeout=5)
+                # Get the agent via their uuid.
+                # Call the method on that agent.
+                # result = self.vip.rpc.call('control', 'health.get_status', fields[2]).get(timeout=5)
+            #            result = self.vip.rpc.call(fields[2], 'inspect').get(timeout=5)
 
-#            if self._services.get(fields[0], None):
-#                service_identity = self._services[fields[0]]
-#                agent_method = fields[1]
-#
-#                result = self.vip.rpc.call(service_identity, agent_method,
-#                                           **params).get()
-#
-#
-#            else:
-#
-#                result = jsonrpc.json_error(ident=id, code=METHOD_NOT_FOUND)
-#
-#                if len(fields) < 3:
-#                    result = jsonrpc.json_error(ident=id, code=METHOD_NOT_FOUND)
-#                else:
-#                    agent_uuid = fields[2]
-#                    agent_method = '.'.join(fields[3:])
-#                    _log.debug("Calling method {} on agent {}"
-#                               .format(agent_method, agent_uuid))
-#                    _log.debug("Params is: {}".format(params))
-#
-#                    result = self.vip.rpc.call(agent_uuid, agent_method,
-#                                           params).get()
+            #            if self._services.get(fields[0], None):
+            #                service_identity = self._services[fields[0]]
+            #                agent_method = fields[1]
+            #
+            #                result = self.vip.rpc.call(service_identity, agent_method,
+            #                                           **params).get()
+            #
+            #
+            #            else:
+            #
+            #                result = jsonrpc.json_error(ident=id, code=METHOD_NOT_FOUND)
+            #
+            #                if len(fields) < 3:
+            #                    result = jsonrpc.json_error(ident=id, code=METHOD_NOT_FOUND)
+            #                else:
+            #                    agent_uuid = fields[2]
+            #                    agent_method = '.'.join(fields[3:])
+            #                    _log.debug("Calling method {} on agent {}"
+            #                               .format(agent_method, agent_uuid))
+            #                    _log.debug("Params is: {}".format(params))
+            #
+            #                    result = self.vip.rpc.call(agent_uuid, agent_method,
+            #                                           params).get()
 
         if isinstance(result, dict):
             if 'result' in result:
@@ -617,19 +620,22 @@ class VolttronCentralPlatform(Agent):
             address=address, serverkey=vcserverkey,
             publickey=self.core.publickey, secretkey=self.core.secretkey)
 
-        version, peer, identity = self._agent_connected_to_vc.vip.hello().get(timeout=2)
+        version, peer, identity = self._agent_connected_to_vc.vip.hello().get(
+            timeout=2)
 
         # Add the vcpublickey to the auth file.
         entry = AuthEntry(
             credentials="CURVE:{}".format(vcpublickey),
-            capabilities=['manager']) #, address=parsedaddress.hostname)
+            capabilities=['manager'])  # , address=parsedaddress.hostname)
         authfile = AuthFile()
         authfile.add(entry)
 
         return self.core.publickey
 
     def report_to_vc(self):
-        self._agent_connected_to_vc.pubsub.publish(peer="pubsub", topic="platform/status", message={"alpha": "beta"})
+        self._agent_connected_to_vc.pubsub.publish(peer="pubsub",
+                                                   topic="platform/status",
+                                                   message={"alpha": "beta"})
 
     # def _connect_to_vc(self):
     #     """ Attempt to connect to volttorn central.
@@ -752,7 +758,7 @@ class VolttronCentralPlatform(Agent):
                 self._settings = self._settings = jsonapi.loads(f.read())
             f.close()
         except Exception as e:
-            _log.debug('Exception '+ e.message)
+            _log.debug('Exception ' + e.message)
             self._settings = {}
 
     def _get_rpc_agent(self, address):
@@ -803,7 +809,8 @@ class VolttronCentralPlatform(Agent):
         #     psutil.cpu_percent()
         #     _, _, my_id = self.vip.hello().get(timeout=3)
         #     self.vip.pubsub.publish(peer='pubsub', topic='/platform',
-#                             message='available')
+
+    #                             message='available')
     @Core.receiver('onstop')
     def stoping(self, sender, **kwargs):
         self.vip.pubsub.publish(peer='pubsub', topic='/platform',
@@ -820,7 +827,8 @@ def is_ip_private(vip_address):
     priv_20 = re.compile("^192\.168\.\d{1,3}.\d{1,3}$")
     priv_16 = re.compile("^172.(1[6-9]|2[0-9]|3[0-1]).[0-9]{1,3}.[0-9]{1,3}$")
 
-    return priv_lo.match(ip) != None or priv_24.match(ip) != None or priv_20.match(ip) != None or priv_16.match(ip) != None
+    return priv_lo.match(ip) != None or priv_24.match(
+        ip) != None or priv_20.match(ip) != None or priv_16.match(ip) != None
 
 
 def find_registration_address(vip_addresses):
@@ -828,7 +836,7 @@ def find_registration_address(vip_addresses):
     # Non-private IP (first one wins)
     # TCP address (last one wins)
     # IPC if first element is IPC it wins
-     #Pull out the tcp address
+    # Pull out the tcp address
 
     # If this is a string we have only one choice
     if vip_addresses and isinstance(vip_addresses, basestring):
@@ -845,9 +853,10 @@ def find_registration_address(vip_addresses):
 
         return result
 
+
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
-    #utils.vip_main(platform_agent)
+    # utils.vip_main(platform_agent)
     utils.vip_main(VolttronCentralPlatform)
 
 
