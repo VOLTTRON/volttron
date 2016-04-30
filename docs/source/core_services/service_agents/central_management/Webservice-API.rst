@@ -25,7 +25,7 @@ How the API is Implemented
   include an authorization token (a json-rpc extension).
 
 JSON-RPC Request Payload
-========================
+------------------------
 
 All posted JSON payloads will look like the following block:
 
@@ -61,7 +61,7 @@ For full documentation of the Request object please see section 4 of the
 `JSON-RPC 2.0 <http://www.jsonrpc.org/specification>`_ specification.
 
 JSON-RPC Response Payload
-=========================
+-------------------------
 
 All responses shall have either an either an error response or a result
 response.  The result key shown below can be a single instance of a json

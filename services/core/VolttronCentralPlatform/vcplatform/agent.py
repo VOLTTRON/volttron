@@ -81,7 +81,7 @@ from volttron.platform.vip.agent.utils import build_agent
 from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
                                        METHOD_NOT_FOUND)
 
-__version__ = '3.5'
+__version__ = '3.5.1'
 
 
 class CannotConnectError(StandardError):
@@ -95,10 +95,7 @@ class AlreadyManagedError(StandardError):
     """
     pass
 
-
-utils.setup_logging()
 _log = logging.getLogger(__name__)
-__version__ = '3.5.1'
 
 
 class VolttronCentralPlatform(Agent):
@@ -111,7 +108,8 @@ class VolttronCentralPlatform(Agent):
         self._agent_connected_to_vc = None
         self._vc_info = None
 
-        # This is set from the volttron central instance.
+        # This is set from the volttron central instance (NOTE:this is not
+        # the same as the installed uuid on this volttron instance0).
         self._platform_uuid = None
 
         # agentid = config.get('agentid', 'platform')
@@ -187,7 +185,7 @@ class VolttronCentralPlatform(Agent):
 
 
     @RPC.export
-    @RPC.allow("manager")
+    #@RPC.allow("manager")
     def assign_platform_uuid(self, platform_uuid):
         self._platform_uuid = platform_uuid
 
