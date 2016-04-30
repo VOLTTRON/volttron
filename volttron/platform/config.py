@@ -53,7 +53,7 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-#}}}
+# }}}
 
 '''Advanced argument parser.
 
@@ -81,6 +81,7 @@ from volttron.platform.auth import AuthEntry, AuthFile
 
 class TrackingString(str):
     '''String subclass that allows attaching source information.'''
+
     def __new__(cls, *args, **kwargs):
         source = kwargs.pop('source', None)
         obj = str.__new__(cls, *args, **kwargs)
@@ -90,11 +91,12 @@ class TrackingString(str):
 
 class AddConstAction(_argparse.Action):
     '''Add a constant value to the option.'''
+
     def __init__(self, option_strings, dest, const=1, type=int,
                  default=None, required=False, help=None):
         super(AddConstAction, self).__init__(
-                option_strings=option_strings, dest=dest, nargs=0, type=type,
-                const=const, default=default, required=required, help=help)
+            option_strings=option_strings, dest=dest, nargs=0, type=type,
+            const=const, default=default, required=required, help=help)
 
     def __call__(self, parser, namespace, values, option_string=None):
         value = getattr(namespace, self.dest, None) or 0
@@ -103,6 +105,7 @@ class AddConstAction(_argparse.Action):
 
 class ListAction(_argparse.Action):
     '''Action to store space or comma separated lists.'''
+
     def split(self, value):
         buf = []
         esc = False
@@ -175,13 +178,14 @@ class ConfigFileAction(_argparse.Action):
         sections = kwargs.pop('sections', None)
         super(ConfigFileAction, self).__init__(
             option_strings=option_strings, dest=_argparse.SUPPRESS,
-                required=required, help=help, metavar=metavar)
+            required=required, help=help, metavar=metavar)
         self.ignore_unknown = ignore_unknown
         self.inline = inline
         self.sections = sections
         self.preprocess = True
 
-    def __call__(self, parser, namespace, path, option_string=None, seen_files=None):
+    def __call__(self, parser, namespace, path, option_string=None,
+                 seen_files=None):
         # Get default for including argument in config.
         allow_in_config = getattr(parser, 'allow_in_config', True)
         if seen_files is None:
@@ -196,21 +200,24 @@ class ConfigFileAction(_argparse.Action):
                     # XXX: Should a warning be issued?
                     return [], []
                 seen_files.add(file_id)
-                for section, key, args, lineno in self.itersettings(parser, file):
+                for section, key, args, lineno in self.itersettings(parser,
+                                                                    file):
                     if self.sections is not None and section not in self.sections:
                         continue
                     source = ('config', (path, lineno, key))
                     opt = TrackingString((key if key.startswith('--')
-                                         else ('--' + key)), source=source)
+                                          else ('--' + key)), source=source)
                     try:
                         action = parser._option_string_actions[opt]
                     except KeyError:
                         if self.ignore_unknown:
                             continue
-                        parser.error('{} (line {}): unknown option: {}'.format(
+                        parser.error(
+                            '{} (line {}): unknown option: {}'.format(
                                 path, lineno, key))
                     if not getattr(action, 'config', allow_in_config):
-                        parser.error('{} (line {}): option not allowed: {}'.format(
+                        parser.error(
+                            '{} (line {}): option not allowed: {}'.format(
                                 path, lineno, key))
                     if isinstance(action, ConfigFileAction):
                         if args is None or len(args) != 1:
@@ -218,16 +225,19 @@ class ConfigFileAction(_argparse.Action):
                                 '{} (line {}): option expects one argument: {}'.format(
                                     path, lineno, key))
                         for arg_list in self(
-                                parser, namespace, args[0], opt, seen_files=seen_files):
+                                parser, namespace, args[0], opt,
+                                seen_files=seen_files):
                             arg_strings.extend(arg_list)
                     else:
                         if action.nargs == 0 and args:
                             if len(args) > 1:
-                                parser.error('{} (line {}): option expects no '
-                                             'more than one argument: {}'.format(
-                                                path, lineno, key))
+                                parser.error(
+                                    '{} (line {}): option expects no '
+                                    'more than one argument: {}'.format(
+                                        path, lineno, key))
                             opt = parser.get_switch(action, args[0], opt)
-                            arg_strings.append(TrackingString(opt, source=source))
+                            arg_strings.append(
+                                TrackingString(opt, source=source))
                         else:
                             arg_strings.append(opt)
                             if args:
@@ -252,7 +262,8 @@ class ConfigFileAction(_argparse.Action):
                 section, rest = match.groups()
                 if not comment_re.match(rest):
                     err = 'invalid syntax after section: {!r}'.format(rest)
-                    parser.error('{}: {} (line {})'.format(conffile.name, err, lineno))
+                    parser.error(
+                        '{}: {} (line {})'.format(conffile.name, err, lineno))
                 # Remove backslash escapes
                 section = _re.sub(r'\\(.)', r'\1', section)
                 continue
@@ -261,13 +272,15 @@ class ConfigFileAction(_argparse.Action):
                 try:
                     value = _shlex.split(value, True, True)
                 except ValueError as e:
-                    parser.error('{}: {} (line {})'.format(conffile.name, e, lineno))
+                    parser.error(
+                        '{}: {} (line {})'.format(conffile.name, e, lineno))
             yield section, key, value, lineno
 
 
 def CaseInsensitiveConfigFileAction(ConfigFileAction):
     def itersettings(self, parser, conffile):
-        itersettings = super(CaseInsensitiveConfigFileAction, self).itersettings
+        itersettings = super(CaseInsensitiveConfigFileAction,
+                             self).itersettings
         for section, key, value, lineno in itersettings(parser, conffile):
             if section is not None:
                 section = section.lower()
@@ -302,15 +315,18 @@ class SubParsersAction(_argparse._SubParsersAction):
         # parse all the remaining options into the namespace
         # store any unrecognized options on the object, so that the top
         # level parser can decide what to do with them
-        namespace, arg_strings = parser.parse_known_args(arg_strings, namespace)
+        namespace, arg_strings = parser.parse_known_args(arg_strings,
+                                                         namespace)
 
         if arg_strings:
             vars(namespace).setdefault(_argparse._UNRECOGNIZED_ARGS_ATTR, [])
-            getattr(namespace, _argparse._UNRECOGNIZED_ARGS_ATTR).extend(arg_strings)
+            getattr(namespace, _argparse._UNRECOGNIZED_ARGS_ATTR).extend(
+                arg_strings)
 
 
 def env_var_formatter(formatter_class=_argparse.HelpFormatter):
     '''Decorator to automatically add env_var documentation to help.'''
+
     class EnvHelpFormatter(formatter_class):
         def _get_help_string(self, action):
             # pylint: disable=super-on-old-class
@@ -320,6 +336,7 @@ def env_var_formatter(formatter_class=_argparse.HelpFormatter):
                 if env_var is not None:
                     help += ' (env var: %(env_var)s)'
             return help
+
     return EnvHelpFormatter
 
 
@@ -340,7 +357,8 @@ class ArgumentParser(_argparse.ArgumentParser):
         if self.fromfile_prefix_chars is not None:
             arg_strings = self._read_args_from_files(arg_strings)
         arg_strings = self._preprocess_args(arg_strings, namespace)
-        return super(ArgumentParser, self)._parse_known_args(arg_strings, namespace)
+        return super(ArgumentParser, self)._parse_known_args(arg_strings,
+                                                             namespace)
 
     def _preprocess_args(self, arg_strings, namespace):
         '''Pre-process arguments.
@@ -368,6 +386,7 @@ class ArgumentParser(_argparse.ArgumentParser):
             subcommands = set()
         args_enumerator = enumerate(arg_strings)
         args_iterator = (arg for i, arg in args_enumerator)
+
         def _take(n):
             if n > 0:
                 for arg in args_iterator:
@@ -375,6 +394,7 @@ class ArgumentParser(_argparse.ArgumentParser):
                     n -= 1
                     if not n:
                         break
+
         take = lambda n: list(_take(n))
         for i, arg_string in args_enumerator:
             if arg_string == '--' or arg_string in subcommands:
@@ -398,17 +418,19 @@ class ArgumentParser(_argparse.ArgumentParser):
                 args = take(action.nargs)
             else:
                 # Consume arguments until another option is found
-                args = take(1) if action.nargs is _argparse.ONE_OR_MORE else []
+                args = take(
+                    1) if action.nargs is _argparse.ONE_OR_MORE else []
                 n = 0
-                for n, arg in enumerate(arg_strings[i+1:]):
+                for n, arg in enumerate(arg_strings[i + 1:]):
                     if arg == '--' or arg in subcommands:
                         break
                     option_tuple = self._parse_optional(arg)
-                    if option_tuple is not None and option_tuple[0] is not None:
+                    if option_tuple is not None and option_tuple[
+                        0] is not None:
                         break
                 args.extend(take(n))
             args_tuple = self.preprocess_option(
-                    action, namespace, args, option_string)
+                action, namespace, args, option_string)
             if args_tuple is not None:
                 extra_config, extra_cli = args_tuple
                 config_args.extend(extra_config)
@@ -438,14 +460,15 @@ class ArgumentParser(_argparse.ArgumentParser):
             source = ('environment', action.env_var)
             if action.nargs == 0:
                 opt = TrackingString(self.get_switch(action, value, opt),
-                                    source=source)
+                                     source=source)
                 arg_strings.append(opt)
             else:
                 opt = TrackingString(opt, source=source)
                 arg_strings.extend([opt, value])
         return arg_strings
 
-    def preprocess_option(self, action, namespace, arg_strings, option_string):
+    def preprocess_option(self, action, namespace, arg_strings,
+                          option_string):
         '''Pre-process an action.
 
         If an action has a preprocess attribute which evaluates to True,
@@ -458,7 +481,8 @@ class ArgumentParser(_argparse.ArgumentParser):
         if not getattr(action, 'preprocess', False):
             return
         values = self._get_values(action, arg_strings)
-        if action.nargs in [None, _argparse.OPTIONAL] and len(arg_strings) != 1:
+        if action.nargs in [None, _argparse.OPTIONAL] and len(
+                arg_strings) != 1:
             return
         return action(self, namespace, values, option_string)
 
@@ -482,21 +506,23 @@ class ArgumentParser(_argparse.ArgumentParser):
         if not args:
             prefix_chars = self.prefix_chars
             default_prefix = '-' if '-' in prefix_chars else prefix_chars[0]
-            args = [default_prefix + 'h', default_prefix*2 + 'help']
+            args = [default_prefix + 'h', default_prefix * 2 + 'help']
         kwargs.setdefault('action', 'help')
         kwargs.setdefault('default', _argparse.SUPPRESS)
-        kwargs.setdefault('help', _argparse._('show this help message and exit'))
+        kwargs.setdefault('help',
+                          _argparse._('show this help message and exit'))
         self.add_argument(*args, **kwargs)
 
     def add_version_argument(self, *args, **kwargs):
         if not args:
             prefix_chars = self.prefix_chars
             default_prefix = '-' if '-' in prefix_chars else prefix_chars[0]
-            args = [default_prefix*2 + 'version']
+            args = [default_prefix * 2 + 'version']
         kwargs.setdefault('action', 'version')
         kwargs.setdefault('default', _argparse.SUPPRESS)
         kwargs.setdefault('help',
-                          _argparse._("show program's version number and exit"))
+                          _argparse._(
+                              "show program's version number and exit"))
         self.add_argument(*args, **kwargs)
 
 
@@ -505,30 +531,39 @@ class TrackingArgumentParser(ArgumentParser):
 
     This class is useful as a base class for debugging parsers.
     '''
+
     def _parse_known_args(self, arg_strings, namespace):
         self._setup_tracking()
-        return super(TrackingArgumentParser, self)._parse_known_args(arg_strings, namespace)
+        return super(TrackingArgumentParser, self)._parse_known_args(
+            arg_strings, namespace)
 
     def _setup_tracking(self):
-        def __call__(action, parser, namespace, values, option_string=None, **kwargs):
+        def __call__(action, parser, namespace, values, option_string=None,
+                     **kwargs):
             source = getattr(option_string, 'source',
                              ('command-line', option_string))
-            self.pre_action(action, parser, namespace, values, option_string, source)
+            self.pre_action(action, parser, namespace, values, option_string,
+                            source)
             result = super(action.__class__, action).__call__(
-                    parser, namespace, values, option_string, **kwargs)
-            self.post_action(action, parser, namespace, values, option_string, source)
+                parser, namespace, values, option_string, **kwargs)
+            self.post_action(action, parser, namespace, values, option_string,
+                             source)
             return result
+
         for action in self._actions:
             cls = action.__class__
             if getattr(cls, '_trackable', False):
                 continue
             action.__class__ = type(cls.__name__, (cls,),
-                                    {'__call__': __call__, '_trackable': True})
+                                    {'__call__': __call__,
+                                     '_trackable': True})
 
-    def pre_action(self, action, parser, namespace, values, option_string, source):
+    def pre_action(self, action, parser, namespace, values, option_string,
+                   source):
         pass
 
-    def post_action(self, action, parser, namespace, values, option_string, source):
+    def post_action(self, action, parser, namespace, values, option_string,
+                    source):
         pass
 
 
@@ -537,17 +572,20 @@ class DebugArgumentParser(TrackingArgumentParser):
 
     This includes the source of the change. It does not include defaults.
     '''
-    def post_action(self, action, parser, namespace, values, option_string, source):
+
+    def post_action(self, action, parser, namespace, values, option_string,
+                    source):
         if action.dest is _argparse.SUPPRESS:
             return
         value = getattr(namespace, action.dest, None)
         _sys.stderr.write('{} {} {!r} {!r}\n'.format(
-                          option_string, action.dest, source, value))
+            option_string, action.dest, source, value))
 
 
 def _patch_argparse():
     '''Patch argparse to include additional attributes on options.'''
     argparse_add_argument = _argparse._ActionsContainer.add_argument
+
     def add_argument(*args, **kwargs):
         config = kwargs.pop('config', True)
         env_var = kwargs.pop('env_var', None)
@@ -557,12 +595,16 @@ def _patch_argparse():
         action.env_var = env_var
         action.inverse = inverse
         return action
+
     _argparse._ActionsContainer.add_argument = add_argument
+
+
 _patch_argparse()
 
 
 def expandall(string):
     return _os.path.expanduser(_os.path.expandvars(string))
+
 
 def prompt_response(inputs):
     """ Prompt the user for answers.
@@ -583,6 +625,7 @@ def prompt_response(inputs):
             print('Invalid response proper responses are: ')
             print(inputs[1])
 
+
 def _install_vc(autostart):
     print('Installing volttron central...')
     from tempfile import NamedTemporaryFile
@@ -597,15 +640,15 @@ def _install_vc(autostart):
     cfg_file = NamedTemporaryFile()
     cfg = {
         "identity": "volttron.central",
-        "server" : {
+        "server": {
             "host": "127.0.0.1",
             "port": 8070,
             "debug": False
         },
-        "users" : {
-            "admin" : {
-                "password" : admin_pass,
-                "groups" : [
+        "users": {
+            "admin": {
+                "password": admin_pass,
+                "groups": [
                     "admin"
                 ]
             }
@@ -616,17 +659,17 @@ def _install_vc(autostart):
         cf.write(json.dumps(cfg))
 
     cmd = ['scripts/core/pack_install.sh',
-            'services/core/VolttronCentral',
-            cfg_file.name,
-            'vc']
+           'services/core/VolttronCentral',
+           cfg_file.name,
+           'vc']
     process = Popen(cmd, env=_os.environ)
 
     process.wait()
     if autostart:
         cmd = ['volttron-ctl',
-                'enable',
-                '--tag',
-                'vc']
+               'enable',
+               '--tag',
+               'vc']
         process = Popen(cmd, env=_os.environ)
         process.wait()
 
@@ -641,18 +684,19 @@ def _install_platform(is_vc):
     process.wait()
 
     cmd = ['scripts/core/pack_install.sh',
-            'services/core/VolttronCentralPlatform',
-            cfg_file,
-            'platform']
+           'services/core/VolttronCentralPlatform',
+           cfg_file,
+           'platform']
     process = Popen(cmd, env=_os.environ)
     process.wait()
 
     cmd = ['volttron-ctl',
-            'enable',
-            '--tag',
-            'platform']
+           'enable',
+           '--tag',
+           'platform']
     process = Popen(cmd, env=_os.environ)
     process.wait()
+
 
 def _enable_discovery(address_port):
     """ Enable discovery will autostart when the volttron instance starts.
@@ -664,13 +708,15 @@ def _enable_discovery(address_port):
     with open(discovery_file, 'w') as df:
         df.write(address_port)
 
+
 def _start_platform():
     cmd = ['volttron', '--developer-mode']
 
     pid = Popen(cmd, env=_os.environ, stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE)
+                stderr=subprocess.PIPE)
     print('Configuring instance...')
     return pid
+
 
 def _shutdown_platform():
     print('Shutting down platform...')
@@ -678,11 +724,13 @@ def _shutdown_platform():
 
     pid = Popen(cmd, env=_os.environ)
 
+
 def _make_configuration(external_uri, bind_web_address,
                         volttron_central=None):
     print('Building cofiguration file.')
-    import ConfigParser as configparser # python3 has configparser rather than
-                                        # this name.
+    import \
+        ConfigParser as configparser  # python3 has configparser rather than
+    # this name.
     config = configparser.ConfigParser()
     config.add_section('volttron')
     config.set('volttron', 'vip-address', external_uri)
@@ -693,15 +741,17 @@ def _make_configuration(external_uri, bind_web_address,
     with open(cfgfile, 'w') as cf:
         config.write(cf)
 
+
 def _resolvable(uri, port):
     import requests
     try:
-        uri_and_port="{}:{}".format(uri, port)
-        discovery_uri = "http://"+uri_and_port+"/discovery/"
+        uri_and_port = "{}:{}".format(uri, port)
+        discovery_uri = "http://" + uri_and_port + "/discovery/"
         req = requests.request('GET', discovery_uri)
     except:
         return False
     return True
+
 
 def _main():
     """ Routine for configuring an insalled volttron instance.
@@ -710,7 +760,7 @@ def _main():
     central and the discovery service.
     """
     volttron_home = _os.path.normpath(expandall(
-            _os.environ.get('VOLTTRON_HOME', '~/.volttron')))
+        _os.environ.get('VOLTTRON_HOME', '~/.volttron')))
     _os.environ['VOLTTRON_HOME'] = volttron_home
     if not _os.path.exists(volttron_home):
         _os.makedirs(volttron_home, 0o755)
@@ -731,11 +781,12 @@ def _main():
         external_port = prompt_response(t)
         if not external_port:
             external_port = 8080
-        t = ('Which IP addresses are allowed to discover this instance? [/127.*/]',
-             None, '/127.*/')
+        t = (
+            'Which IP addresses are allowed to discover this instance? [/127.*/]',
+            None, '/127.*/')
         ip_allowed_to_discover = prompt_response(t)
         AuthFile().add(AuthEntry(address=ip_allowed_to_discover,
-                                credentials='/CURVE:.*/'))
+                                 credentials='/CURVE:.*/'))
         t = ('Is this instance a volttron central (Y/N)? [N] ', y_or_n, 'N')
         is_vc = prompt_response(t)
         vc_autostart = 'Y'
@@ -751,7 +802,9 @@ def _main():
             vc_port = prompt_response(t)
             while not _resolvable(vc_ipaddress, vc_port) and should_resolve:
                 print("Couldn't resolve {}:{}".format(vc_ipaddress, vc_port))
-                t2 = ('Should volttron central be resolvable now? [Y] ', y_or_n, 'Y')
+                t2 = (
+                    'Should volttron central be resolvable now? [Y] ', y_or_n,
+                    'Y')
                 if first:
                     should_resolve = prompt_response(t2) in ('y', 'Y')
                     first = False
@@ -763,9 +816,10 @@ def _main():
                     vc_port = prompt_response(t)
         try:
             external_uri = "tcp://{}:{}".format(external_ip, vip_port)
-            bind_web_address = "http://{}:{}".format(external_ip, external_port)
+            bind_web_address = "http://{}:{}".format(external_ip,
+                                                     external_port)
             _make_configuration(external_uri, bind_web_address, vc_ipaddress)
-        except: # Should only happen if this is a vc instance.
+        except:  # Should only happen if this is a vc instance.
             _make_configuration(external_uri, bind_web_address)
 
         _start_platform()
