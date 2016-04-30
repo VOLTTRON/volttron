@@ -310,7 +310,7 @@ class SubParsersAction(_argparse._SubParsersAction):
         except KeyError:
             tup = parser_name, ', '.join(self._name_parser_map)
             msg = _('unknown parser %r (choices: %s)') % tup
-            raise ArgumentError(self, msg)
+            raise _argparse.ArgumentError(self, msg)
 
         # parse all the remaining options into the namespace
         # store any unrecognized options on the object, so that the top
