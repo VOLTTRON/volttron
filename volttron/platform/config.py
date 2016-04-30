@@ -688,7 +688,6 @@ def _shutdown_platform():
 
 def _make_configuration(external_uri, bind_web_address,
                         volttron_central=None):
-    print('Building cofiguration file.')
     import ConfigParser as configparser  # python3 has configparser
 
     config = configparser.ConfigParser()
@@ -745,8 +744,9 @@ def _main():
     _explain_discoverable()
     is_discoverable = prompt_response(t) in y
 
-    if is_discoverable in y:
-        t = ('What is the external ip address for this instance? ',)
+    if is_discoverable:
+        t = ('What is the external ipv4 address for this instance? '
+             '(e.g 127.0.0.1): ',)
         external_ip = prompt_response(t)
         t = ('What is the vip port this instance? [22916] ',)
         vip_port = prompt_response(t)
@@ -758,8 +758,8 @@ def _main():
         if not external_port:
             external_port = 8080
         t = (
-            'Which IP addresses are allowed to discover this instance? [/127.*/]',
-            None, '/127.*/')
+            'Which IP addresses are allowed to discover this instance? '
+            '[/127.*/] ', None, '/127.*/')
         ip_allowed_to_discover = prompt_response(t)
         AuthFile().add(AuthEntry(address=ip_allowed_to_discover,
                                  credentials='/CURVE:.*/'))
@@ -772,17 +772,19 @@ def _main():
             t = ('Should volttron central autostart(Y/N)? [Y] ', y_or_n, 'Y')
             do_vc_autostart = prompt_response(t) in y
 
-            t = ('Include central platform agent on volttron central? [Y]',
-                 y_or_n, 'Y')
+            t = ('Include volttron central platform agent on '
+                 'volttron central? [Y]', y_or_n, 'Y')
             do_install_platform = prompt_response(t) in y
         else:
             do_install_platform = True
-            t = ('Address of volttron central? ',)
+            t = ('Address of volttron central? (e.g 127.0.0.1): ',)
             vc_ipaddress = prompt_response(t)
             should_resolve = True
             first = True
-            t = ('Port of volttron central? ',)
+            t = ('Port of volttron central? [8080] ',)
             vc_port = prompt_response(t)
+            if not vc_port:
+                vc_port = 8080
             while not _resolvable(vc_ipaddress, vc_port) and should_resolve:
                 print("Couldn't resolve {}:{}".format(vc_ipaddress, vc_port))
                 t2 = (
@@ -805,9 +807,10 @@ def _main():
         external_uri = "tcp://{}:{}".format(external_ip, vip_port)
         bind_web_address = "http://{}:{}".format(external_ip,
                                                  external_port)
-
         try:
-            _make_configuration(external_uri, bind_web_address, vc_ipaddress)
+            vc_web_address = "http://{}:{}".format(vc_ipaddress, vc_port)
+            _make_configuration(external_uri, bind_web_address,
+                                vc_web_address)
 
         # if vc_ipaddres isn't defined
         # only happens on volttron central.
@@ -830,3 +833,6 @@ def _main():
                          do_historian_autostart))
         _shutdown_platform()
         print('Finished configuration\n')
+        print('You can now start you volttron instance.\n')
+        print('If you need to change the instance configuration you can edit')
+        print('the config file at {}/{}\n'.format(volttron_home, 'config'))
