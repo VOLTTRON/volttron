@@ -76,10 +76,20 @@ class Status(object):
         self._status = status
         self._context = context
         self._last_updated = format_timestamp(get_aware_utc_now())
+        print('LAST UPDATED IS: {}'.format(self._last_updated))
         if status_changed and self._status_changed_callback:
             print(self._status_changed_callback())
 
-    def to_json(self):
+    def as_dict(self):
+        """
+        Returns a copy of the status object properties as a dictionary.
+
+        @return:
+        """
+        cp = dict(status=self.status, context=self.context,
+                  last_updated=self.last_updated)
+
+    def as_json(self):
         """
         Serializes the object to a json string.
 
@@ -90,6 +100,12 @@ class Status(object):
         """
         cp = self.__dict__.copy()
         try:
+            cp['status'] = ['_status']
+            cp['last_updated'] = ['_last_updated']
+            cp['context'] = ['_context']
+            del cp['_status']
+            del cp['_last_updated']
+            del cp['_context']
             del cp['_status_changed_callback']
         except KeyError:
             pass
@@ -105,7 +121,14 @@ class Status(object):
         :return:
         """
         statusobj = Status()
-        statusobj.__dict__ = jsonapi.loads(data)
+        cp = jsonapi.loads(data)
+        cp['_status'] = ['status']
+        cp['_last_updated'] = ['last_updated']
+        cp['_context'] = ['context']
+        del cp['status']
+        del cp['last_updated']
+        del cp['context']
+        statusobj.__dict__ = cp
         statusobj._status_changed_callback = status_changed_callback
         return statusobj
 

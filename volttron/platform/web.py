@@ -332,6 +332,7 @@ class MasterWebService(Agent):
                     res = self.vip.rpc.call(peer, fn, passenv, data).get(
                         timeout=4)
                     if isinstance(res, dict):
+                        _log.debug('res is a dictionary.')
                         if 'error' in res.keys():
                             if res['error']['code'] == UNAUTHORIZED:
                                 start_response('401 Unauthorized', [
@@ -339,6 +340,7 @@ class MasterWebService(Agent):
                                 return [b'<h1>Unauthorized</h1>']
                     start_response('200 OK',
                                    [('Content-Type', 'application/json')])
+                    _log.debug('RESPONSE WEB: {}'.format(res))
                     return jsonapi.dumps(res)
                 elif t == 'path':  # File service from agents on the platform.
                     server_path = v + path_info  # os.path.join(v, path_info)

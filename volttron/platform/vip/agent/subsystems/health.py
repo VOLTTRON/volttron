@@ -109,7 +109,7 @@ class Health(SubsystemBase):
         self._owner.vip.pubsub.publish("pubsub",
                                        topic=topic.format(),
                                        headers=headers,
-                                       message=statusobj.to_json())
+                                       message=statusobj.as_json())
 
     def _status_changed(self):
         """ Internal function that happens when the status changes state.
@@ -142,4 +142,4 @@ class Health(SubsystemBase):
             }
 
         """
-        return self._statusobj.to_json()
+        return self._statusobj.as_json()
