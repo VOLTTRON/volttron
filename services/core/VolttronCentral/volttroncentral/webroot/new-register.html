@@ -8,25 +8,26 @@
     </style>
 </head>
 <body>
+<h1>Webservice api exercise</h1>
+<h2>Authorization</h2>
+<button id="get_auth">Get Auth Token</button><br />
 Auth Token: <input type="text" id="token" placeholder="Enter auth token" /><br/>
-<button id="register1">Register Platform http://127.0.0.2:8080</button><br />
-<button id="register2">Register Platform http://127.0.0.3:8080</button><br />
-<button id="register3">Register Platform http://127.0.0.4:8080</button><br />
 
+<h2>Platform Registration</h2>
 Platform Name: <input type="text" id="platform_name" /><br />
 Discovery Address: <input type="text" id="discovery_address" /><br />
 <button id="register">Register Platform</button><br />
+<div>Shortcut buttons</div>
+<button id="register1">Register Platform http://127.0.0.2:8080</button>
+<button id="register2">Register Platform http://127.0.0.3:8080</button>
+<button id="register3">Register Platform http://127.0.0.4:8080</button>
+
 <h2>Request Sent</h2>
-<textarea id="request_sent" cols="100" rows="5"></textarea><br />
+<textarea id="request_sent" cols="100" rows="3"></textarea><br />
 <h2>Response Received</h2>
-<textarea id="response_received" cols="100" rows="5"></textarea><br />
-<!--
-<button id="registercomms1">Register Comms 1</button><br />
-<button id="registercomms2">Register Comms 2</button><br />
-<button id="loaddefault">Load Default</button><br />
--->
+<textarea id="response_received" cols="100" rows="3"></textarea><br />
 
-
+<h2>Platform Listings</h2>
 <button id="get_platforms">Get Platforms</button>
 VIP Identity: <input type="text" id="vip_identity" value="platform.agent" /><br />
 Agent id: <input type="text" id="agent_id" value="platform.agent" /><br/>
@@ -34,17 +35,6 @@ VIP Address: <input type="text" id="vip_address" placeholder="VIP Address where 
 <button id="register">Register Platform</button><br />
 Platform UUID: <input type="text" id="platform_uuid" placeholder="Platform uuid to remove" /><br/>
 <button id="unregister">Unregister VIP Address</button><br />
-<hr />
-<h1>New discovery stuff here!</h1>
-Name: <input type="text" id="instance_name" value="vc platform1" /><br />
-Discovery Address: <input type="text" id="discovery_address"
-                          value="http://127.0.0.1:8080" /><br/>
-<button id="register_instance">Register Instance</button><br />
-
-
-<h2>Get Platforms</h2>
-<textarea id="output_data" cols="100" rows="5"></textarea><br />
-
 
 <h2>Agent API</h2>
 Platform UUID: <input id="agent_platform_uuid" placeholder="Platform the agent below is on" /><br/>
@@ -54,6 +44,9 @@ Arguments: <input id="agent_method" placeholder="Method to call"/> <input id="ag
 <button id="execute_method">Execute Method</button>
 <button id="list_agents">List Agents</button>
 <button id="status_agents">Status Agents</button>
+
+<h2>Response Data</h2>
+<textarea id="output_data" cols="100" rows="5"></textarea><br />
 
 
 
@@ -91,6 +84,7 @@ Arguments: <input id="agent_method" placeholder="Method to call"/> <input id="ag
          });
     }
 
+
     $('#register1').click(function(){
         exec_discovery('http://127.0.0.2:8080', 'platform 1');
     });
@@ -107,6 +101,31 @@ Arguments: <input id="agent_method" placeholder="Method to call"/> <input id="ag
 
     $('#status_agents').click(function(){
         do_request_platform_method('status_agents');
+    });
+
+    $('#get_auth').click(function(){
+        var pdata = {
+             jsonrpc: '2.0',
+             method: "get_authorization",
+             params: {
+                username: "admin",
+                password: "admin"
+             },
+             id: '72581-4'
+         };
+
+         $.ajax({
+                 type: 'POST',
+                 url: '/jsonrpc',
+                 data: JSON.stringify(pdata),
+                 dataType: 'json',
+                 success: function(data){
+                     $('#token').val(data.result);
+             },
+                 failure: function(data){
+                     $('#output_data').val("FAILURE "+ JSON.stringify(data));
+             }
+         });
     });
 
 
@@ -137,6 +156,7 @@ Arguments: <input id="agent_method" placeholder="Method to call"/> <input id="ag
 	     }
          });
     });
+
    $('#list_agents').click(function(){
         var platform_uuid = $('#agent_platform_uuid').val();
         var method = 'platform.uuid.'+platform_uuid;
