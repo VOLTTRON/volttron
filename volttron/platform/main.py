@@ -393,13 +393,20 @@ def start_volttron_process(opts):
     opts.subscribe_address = config.expandall(opts.subscribe_address)
     opts.vip_address = [config.expandall(addr) for addr in opts.vip_address]
     opts.vip_local_address = config.expandall(opts.vip_local_address)
+    import urlparse
     if opts.bind_web_address:
-        import urlparse
         parsed = urlparse.urlparse(opts.bind_web_address)
         if not parsed.scheme:
             raise StandardError(
                 'bind-web-address must begin with http or https.')
         opts.bind_web_address = config.expandall(opts.bind_web_address)
+    if opts.volttron_central_web_address:
+        parsed = urlparse.urlparse(opts.volttron_central_web_address)
+        if not parsed.scheme:
+            raise StandardError(
+                'volttron-central-address must begin with http or https.')
+        opts.volttron_central_web_address = config.expandall(
+            opts.volttron_central_web_address)
     if getattr(opts, 'show_config', False):
         for name, value in sorted(vars(opts).iteritems()):
             print(name, repr(value))
@@ -653,6 +660,9 @@ def main(argv=sys.argv):
     agents.add_argument(
         '--bind-web-address', metavar='BINDWEBADDR', default=None,
         help='Bind a web server to the specified ip:port passed')
+    agents.add_argument(
+        '--volttron-central', metavar='VOLTTRONCENTRAL', default=None,
+        help='The web address of a volttron central install instance.')
     # XXX: re-implement control options
     #on
     #control.add_argument(
@@ -720,7 +730,10 @@ def main(argv=sys.argv):
         vip_address=[],
         vip_local_address=ipc + 'vip.socket',
         # This is used to start the web server from the web module.
-        bind_web_address = None,
+        bind_web_address=None,
+        # Used to contact volttron central when registering volttron central
+        # platform agent.
+        volttron_central_web_address=None,
         #allow_root=False,
         #allow_users=None,
         #allow_groups=None,
