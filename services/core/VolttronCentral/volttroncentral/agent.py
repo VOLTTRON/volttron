@@ -92,7 +92,7 @@ from volttron.platform.web import (DiscoveryInfo, CouldNotRegister,
 
 from sessions import SessionHandler
 
-__version__ = "3.5"
+__version__ = "3.5.1"
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -153,6 +153,10 @@ class VolttronCentralAgent(Agent):
         # registered platform is None then that means we were unable to
         # connect to the platform the last time it was tried.
         self._pa_agents = dict()
+
+        # if there is a volttron central agent on this instance then this
+        # will be resolved.
+        self._peer_platform = None
 
         # An object that allows the checking of currently authenticated
         # sessions.
@@ -223,25 +227,22 @@ class VolttronCentralAgent(Agent):
     def get_platform(self, platform_uuid):
         return self._registry.get_platform(platform_uuid)
 
-    # @Core.periodic(5)
+    @Core.periodic(5)
     def _auto_register_peer(self):
+        _log.debug("THE ADDRESS IS: {}".format(self.core.address))
         if not self._peer_platform:
             peers = self.vip.peerlist().get(timeout=2)
             if 'platform.agent' in peers:
                 _log.debug('Auto connecting platform.agent on vc')
-                self._peer_platform = Agent()
-                self._peer_platform.core.onstop.connect(
-                    self._peer_platform)
-                self._peer_platform.core.ondisconnected.connect(
-                    lambda sender, **kwargs: _log.debug("disconnected")
-                )
-                self._peer_platform.core.onconnected.connect(
-                    lambda sender, **kwargs: _log.debug("connected")
-                )
-                event = gevent.event.Event()
-                gevent.spawn(self._peer_platform.core.run, event)
-                event.wait(timeout=2)
-                del event
+                # the _peer_platform is set to self because we don't need
+                # another agent to connect to the bus instead we just use
+                # this agent.
+                self._peer_platform = self
+
+                local_entry = PlatformRegistry.build_entry(None, None, None,
+                                                           is_local=True)
+                self._registry.register(local_entry)
+                self._pa_agents[local_entry.platform_uuid] = self
 
     def _disconnect_peer_platform(self, sender, **kwargs):
         _log.debug("disconnecting peer_platform")
