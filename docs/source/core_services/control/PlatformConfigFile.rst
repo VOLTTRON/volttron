@@ -1,5 +1,5 @@
 VOLTTRON Config File
-====
+====================
 
 The VOLTTRON platform config file can contain any of the command line
 arguments for starting the platform...

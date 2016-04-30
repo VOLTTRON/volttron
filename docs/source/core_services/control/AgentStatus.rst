@@ -1,9 +1,10 @@
 Agent List Display
-~~~~~~
+~~~~~~~~~~~~~~~~~~
 
 ::
 
       AGENT             TAG      PRI
+
     d listeneragent-3.0 listener  30
     2 testeragent-0.1  
 
@@ -31,6 +32,7 @@ Agent Status Display
 ::
 
       AGENT             TAG      STATUS
+
     d listeneragent-3.0 listener running [3813]
     2 testeragent-0.1                 0
 

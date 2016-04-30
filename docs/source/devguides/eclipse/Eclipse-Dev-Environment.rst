@@ -1,5 +1,5 @@
 Eclipse Development Environment
-=====
+===================================
 
 The only thing that is necessary to create a VOLTTRON agent is a text
 editor and the shell. However, we have found the Eclipse Development
@@ -184,13 +184,13 @@ message in the console.
 .. |Click Install| image:: files/eclipse-marketplace2.png
 .. |Select Git view| image:: files/git-view.png
 .. |Clone existing repo| image:: files/clone-existing.png
-.. |Clone existing repo| image:: files/select-repo.png
-.. |Clone existing repo| image:: files/select-branch.png
+.. |Select repo| image:: files/select-repo.png
+.. |Select branch repo| image:: files/select-branch.png
 .. |Import project| image:: files/import-project.png
 .. |Finish import| image:: files/finish-import.png
 .. |Pick Python| image:: files/pick-python.png
-.. |Pick Python| image:: files/select-path.png
-.. |Pick Python| image:: files/set-as-pydev.png
+.. |Select path| image:: files/select-path.png
+.. |Set as Pydev| image:: files/set-as-pydev.png
 .. |Execute VOLTTRON in Shell| image:: files/volttron-console.png
 .. |New Launch Configuration| image:: files/new-python-run.png
 .. |Main Module| image:: files/volttron-pick-main.png

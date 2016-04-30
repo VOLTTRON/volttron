@@ -1,6 +1,6 @@
 
 Deployment Recommendations
-====
+==========================
 
 Ensuring the safe operation of devices working with VOLTTRON is
 essential. This page will discuss recommendations/experiences for doing

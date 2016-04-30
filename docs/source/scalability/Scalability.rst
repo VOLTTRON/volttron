@@ -1,5 +1,5 @@
 Scalability Setup
-~~~~~~
+~~~~~~~~~~~~~~~~~
 
 Core Platform
 -------------

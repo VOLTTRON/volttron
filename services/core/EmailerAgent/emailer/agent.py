@@ -130,7 +130,9 @@ class EmailerAgent(Agent):
         with open('email.store', 'w') as f:
             f.write(jsonapi.dumps(self._sent_emails))
 
-    @PubSub.subscribe(prefix=topics.ALERTS.format())
+    @PubSub.subscribe('pubsub',
+                      prefix=topics.ALERTS.format(agent_class='',
+                      agent_uuid=''))
     def onmessage(self, peer, sender, bus, topic, headers, message):
         _log.debug("Sending mail for message: {}".format(message))
         mailkey = headers.get(ALERT_KEY, None)
@@ -180,19 +182,19 @@ class EmailerAgent(Agent):
         s.quit()
 
 
-def main(argv=sys.argv):
-    '''Main method called by the aip.'''
-    try:
-        utils.vip_main(EmailerAgent)
-    except Exception as e:
-        print(e)
-        _log.exception('unhandled exception')
-
-
-if __name__ == '__main__':
-    # Entry point for script
-    try:
-        sys.exit(main())
-    except KeyboardInterrupt:
-        pass
+# def main(argv=sys.argv):
+#     '''Main method called by the aip.'''
+#     try:
+#         utils.vip_main(EmailerAgent)
+#     except Exception as e:
+#         print(e)
+#         _log.exception('unhandled exception')
+#
+#
+# if __name__ == '__main__':
+#     # Entry point for script
+#     try:
+#         sys.exit(main())
+#     except KeyboardInterrupt:
+#         pass
 

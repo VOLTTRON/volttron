@@ -1,5 +1,5 @@
 Agent Package Signing
-==============
+========================
 
 The creation of a signed agent package requires four certificates. The
 developer (creator) certificate is used to sign the agent code and

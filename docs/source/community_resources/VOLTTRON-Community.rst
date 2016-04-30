@@ -1,5 +1,5 @@
 Community Resources
-----
+-------------------
 
 Mailing List
 ^^^^^^^^^^^^
