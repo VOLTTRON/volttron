@@ -10,6 +10,10 @@ var _buildingsOrder = 2;
 var _agentsOrder = 3;
 
 var _items = {
+    "platforms": {}
+};
+
+var _items2 = {
     "platforms": {
 
         "4687fedc-65ba-43fe-21dc-098765bafedc": {
@@ -1484,6 +1488,36 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                 loadAgents(platform);                
                 loadDevices(platform);
             });
+
+            var platformsToRemove = [];
+
+            for (var key in _items.platforms)
+            {
+                var match = platforms.find(function (platform) {
+                    return key === platform.uuid;
+                });
+
+                if (!match)
+                {
+                    platformsToRemove.push(key);
+                }
+            }
+
+            platformsToRemove.forEach(function (uuid) {
+                delete _items.platforms[uuid];
+            });
+
+            // _items.platforms.forEach(function (item) {
+
+            //     var match = platforms.find(function (platform) {
+            //         return item.uuid === platform.uuid;
+            //     })
+
+            //     if (match)
+            //     {
+
+            //     }
+            // });
             
             platformsPanelItemsStore.emitChange();
             break;
@@ -1692,7 +1726,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             agentProps.visible = true;
             agentProps.path = JSON.parse(JSON.stringify(platform.agents.path));
             agentProps.path.push(agent.uuid);
-            agent.status = agent.health.health;
+            agent.status = agent.health.status;
             agentProps.children = [];
             agentProps.type = "agent";
             agentProps.sortOrder = 0;
