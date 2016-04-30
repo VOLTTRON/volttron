@@ -229,7 +229,7 @@ class VolttronCentralAgent(Agent):
 
     @Core.periodic(5)
     def _auto_register_peer(self):
-        _log.debug("THE ADDRESS IS: {}".format(self.core.address))
+        """ Auto register a volttron central platform."""
         if not self._peer_platform:
             peers = self.vip.peerlist().get(timeout=2)
             if 'platform.agent' in peers:
@@ -250,11 +250,12 @@ class VolttronCentralAgent(Agent):
 
     @RPC.export
     def list_platform_details(self):
-        print('list_platform_details', self._registry.get_platforms())
-        return self._registry.get_platforms()  # [x.to_json() for x in self._registry.get_platforms()]
+        _log.debug('list_platform_details {}', self._registry.get_platforms())
+        return self._registry.get_platforms()
 
     @RPC.export
     def unregister_platform(self, platform_uuid):
+        _log.debug('unregister_platform')
         platform = self._registry.get_platform(platform_uuid)
         if platform:
             self._registry.unregister(platform.vip_address)
@@ -262,9 +263,14 @@ class VolttronCentralAgent(Agent):
 
             if platform_uuid in self._pa_agents.keys():
                 pa_agent = self._pa_agents[platform_uuid]
-                pa_agent.core.stop()
+                # Don't stop the local platform because that is this
+                # agent.
+                if not platform.is_local:
+                    pa_agent.core.stop()
                 del self._pa_agents[platform_uuid]
 
+            if platform.is_local:
+                self._peer_platform = None
             context = 'Unregistered platform {}'.format(platform_uuid)
             return {'status': 'SUCCESS', 'context': context}
         else:
