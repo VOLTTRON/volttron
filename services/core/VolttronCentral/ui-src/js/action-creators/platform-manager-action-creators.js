@@ -4,6 +4,7 @@ var ACTION_TYPES = require('../constants/action-types');
 var authorizationStore = require('../stores/authorization-store');
 var dispatcher = require('../dispatcher');
 var platformActionCreators = require('../action-creators/platform-action-creators');
+var platformsPanelActionCreators = require('../action-creators/platforms-panel-action-creators');
 var modalActionCreators = require('../action-creators/modal-action-creators');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
 var rpc = require('../lib/rpc');
@@ -141,6 +142,9 @@ var platformManagerActionCreators = {
                 statusIndicatorActionCreators.openStatusIndicator("success", "Platform " + name + " was registered.");
 
                 platformManagerActionCreators.loadPlatforms();
+                platformsPanelActionCreators.loadPanelPlatforms();
+
+
             })
             .catch(rpc.Error, function (error) {
 
@@ -185,6 +189,7 @@ var platformManagerActionCreators = {
                 statusIndicatorActionCreators.openStatusIndicator("success", "Platform " + platformName + " was deregistered.");
 
                 platformManagerActionCreators.loadPlatforms();
+                platformsPanelActionCreators.loadPanelPlatforms();
             })
             .catch(rpc.Error, function (error) {
                 dispatcher.dispatch({

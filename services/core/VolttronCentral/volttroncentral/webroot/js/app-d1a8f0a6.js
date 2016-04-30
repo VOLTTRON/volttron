@@ -662,6 +662,7 @@ var ACTION_TYPES = require('../constants/action-types');
 var authorizationStore = require('../stores/authorization-store');
 var dispatcher = require('../dispatcher');
 var platformActionCreators = require('../action-creators/platform-action-creators');
+var platformsPanelActionCreators = require('../action-creators/platforms-panel-action-creators');
 var modalActionCreators = require('../action-creators/modal-action-creators');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
 var rpc = require('../lib/rpc');
@@ -799,6 +800,9 @@ var platformManagerActionCreators = {
                 statusIndicatorActionCreators.openStatusIndicator("success", "Platform " + name + " was registered.");
 
                 platformManagerActionCreators.loadPlatforms();
+                platformsPanelActionCreators.loadPanelPlatforms();
+
+
             })
             .catch(rpc.Error, function (error) {
 
@@ -843,6 +847,7 @@ var platformManagerActionCreators = {
                 statusIndicatorActionCreators.openStatusIndicator("success", "Platform " + platformName + " was deregistered.");
 
                 platformManagerActionCreators.loadPlatforms();
+                platformsPanelActionCreators.loadPanelPlatforms();
             })
             .catch(rpc.Error, function (error) {
                 dispatcher.dispatch({
@@ -873,7 +878,7 @@ function handle401(error) {
 module.exports = platformManagerActionCreators;
 
 
-},{"../action-creators/modal-action-creators":4,"../action-creators/platform-action-creators":5,"../action-creators/status-indicator-action-creators":9,"../constants/action-types":36,"../dispatcher":37,"../lib/rpc":40,"../stores/authorization-store":45}],8:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":4,"../action-creators/platform-action-creators":5,"../action-creators/platforms-panel-action-creators":8,"../action-creators/status-indicator-action-creators":9,"../constants/action-types":36,"../dispatcher":37,"../lib/rpc":40,"../stores/authorization-store":45}],8:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -5420,6 +5425,10 @@ var _buildingsOrder = 2;
 var _agentsOrder = 3;
 
 var _items = {
+    "platforms": {}
+};
+
+var _items2 = {
     "platforms": {
 
         "4687fedc-65ba-43fe-21dc-098765bafedc": {
@@ -6894,6 +6903,36 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                 loadAgents(platform);                
                 loadDevices(platform);
             });
+
+            var platformsToRemove = [];
+
+            for (var key in _items.platforms)
+            {
+                var match = platforms.find(function (platform) {
+                    return key === platform.uuid;
+                });
+
+                if (!match)
+                {
+                    platformsToRemove.push(key);
+                }
+            }
+
+            platformsToRemove.forEach(function (uuid) {
+                delete _items.platforms[uuid];
+            });
+
+            // _items.platforms.forEach(function (item) {
+
+            //     var match = platforms.find(function (platform) {
+            //         return item.uuid === platform.uuid;
+            //     })
+
+            //     if (match)
+            //     {
+
+            //     }
+            // });
             
             platformsPanelItemsStore.emitChange();
             break;
@@ -7102,7 +7141,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             agentProps.visible = true;
             agentProps.path = JSON.parse(JSON.stringify(platform.agents.path));
             agentProps.path.push(agent.uuid);
-            agent.status = agent.health.health;
+            agent.status = agent.health.status;
             agentProps.children = [];
             agentProps.type = "agent";
             agentProps.sortOrder = 0;
