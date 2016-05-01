@@ -187,8 +187,12 @@ class VolttronCentralAgent(Agent):
                 self._pa_agents[entry.platform_uuid] = conn_to_instance
                 peers = conn_to_instance.vip.peerlist().get(timeout=2)
                 if VOLTTRON_CENTRAL_PLATFORM not in peers:
-                    _log.debug('{} not running on instance {}'.format(
-                        VOLTTRON_CENTRAL_PLATFORM, entry.vip_address
+                    if entry.is_local:
+                        addr = self._local_address
+                    else:
+                        addr = entry.vip_address
+                    _log.debug('{} not running at address {}'.format(
+                        VOLTTRON_CENTRAL_PLATFORM, addr
                     ))
                     # if local then we are using the current agent so we do
                     # not want to shut it down.
@@ -251,8 +255,16 @@ class VolttronCentralAgent(Agent):
 
     @Core.periodic(5)
     def _auto_register_peer(self):
-        """ Auto register a volttron central platform."""
+        """ Auto register a volttron central platform.
+
+        This should only happen if there isn't already a peer registered and
+        then only if there hasn't been a local platform registered already.
+        """
         if not self._peer_platform:
+            for p in self._registry.get_platforms():
+                if p.is_local:
+                    return
+
             peers = self.vip.peerlist().get(timeout=2)
             if 'platform.agent' in peers:
                 _log.debug('Auto connecting platform.agent on vc')
@@ -261,8 +273,8 @@ class VolttronCentralAgent(Agent):
                 # this agent.
                 self._peer_platform = self
 
-                local_entry = PlatformRegistry.build_entry(None, None, None,
-                                                           is_local=True)
+                local_entry = PlatformRegistry.build_entry(
+                    None, None, None, is_local=True, display_name='local')
                 self._registry.register(local_entry)
                 self._pa_agents[local_entry.platform_uuid] = self
 

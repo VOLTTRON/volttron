@@ -88,6 +88,7 @@ class Status(object):
         """
         cp = dict(status=self.status, context=self.context,
                   last_updated=self.last_updated)
+        return cp
 
     def as_json(self):
         """
