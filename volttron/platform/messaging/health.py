@@ -2,7 +2,6 @@ from zmq.utils import jsonapi
 from volttron.platform.agent.utils import (get_aware_utc_now,
                                            format_timestamp,
                                            parse_timestamp_string)
-
 CURRENT_STATUS = "current_status"
 LAST_UPDATED = "utc_last_updated"
 CONTEXT = "context"
@@ -18,6 +17,7 @@ UNKNOWN_STATUS = STATUS_UNKNOWN
 ACCEPTABLE_STATUS = (GOOD_STATUS, BAD_STATUS, UNKNOWN_STATUS)
 
 ALERT_KEY = "alert_key"
+_log = logging.getLogger(__name__)
 
 
 class Status(object):
@@ -76,7 +76,7 @@ class Status(object):
         self._status = status
         self._context = context
         self._last_updated = format_timestamp(get_aware_utc_now())
-        
+
         if status_changed and self._status_changed_callback:
             print(self._status_changed_callback())
 
@@ -99,18 +99,7 @@ class Status(object):
 
         :return:
         """
-        cp = self.__dict__.copy()
-        try:
-            cp['status'] = ['_status']
-            cp['last_updated'] = ['_last_updated']
-            cp['context'] = ['_context']
-            del cp['_status']
-            del cp['_last_updated']
-            del cp['_context']
-            del cp['_status_changed_callback']
-        except KeyError:
-            pass
-        return jsonapi.dumps(cp)
+        return jsonapi.dumps(self.as_dict())
 
     @staticmethod
     def from_json(data, status_changed_callback=None):
@@ -121,11 +110,12 @@ class Status(object):
         :param status_changed_callback:
         :return:
         """
+        _log.debug("from_json {}".format(data))
         statusobj = Status()
         cp = jsonapi.loads(data)
-        cp['_status'] = ['status']
-        cp['_last_updated'] = ['last_updated']
-        cp['_context'] = ['context']
+        cp['_status'] = cp['status']
+        cp['_last_updated'] = cp['last_updated']
+        cp['_context'] = cp['context']
         del cp['status']
         del cp['last_updated']
         del cp['context']

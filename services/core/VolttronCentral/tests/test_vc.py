@@ -57,37 +57,6 @@ def test_publickey_retrieval(vc_instance, pa_instance):
     assert pa_info.serverkey
     assert vc_info.serverkey
     assert pa_info != vc_info.serverkey
-    
-
-@pytest.mark.xfail(reason="Not ready")
-@pytest.mark.vc
-def test_autoregistered_peer_platform(vc_instance):
-    vc_wrapper, vc_uuid, jsonrpc = vc_instance
-
-    caller_agent = vc_wrapper.build_agent(
-        address=vc_wrapper.local_vip_address)
-    assert caller_agent
-
-    platforms = caller_agent.vip.rpc.call(
-        'volttron.central', 'get_platforms').get(timeout=2)
-
-    assert not platforms # no platforms should be registered.
-
-    platform_uuid = vc_wrapper.install_agent(
-        agent_dir="services/core/Platform", config_file=PLATFORM_AGENT_CONFIG)
-
-    # must wait for the registration to be added.
-    gevent.sleep(6)
-    platforms = caller_agent.vip.rpc.call(
-        'volttron.central', 'list_platforms').get(timeout=2)
-
-    assert platforms
-    p = platforms[0]
-    print('A PLATFORM IS: {}'.format(p))
-    assert p['is_local']
-    assert p['tags']['available']
-    assert p['tags']['created']
-    assert p['vip_address'] == vc_wrapper.local_vip_address
 
 
 def onmessage(self, peer, sender, bus, topic, headers, message):

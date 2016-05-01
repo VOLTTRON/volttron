@@ -55,43 +55,34 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from datetime import datetime
 import errno
 import logging
 import sys
-import os
-import os.path as p
 
 import gevent
-import requests
-from requests.packages.urllib3.exceptions import NewConnectionError
-from zmq.utils import jsonapi
-
+import os
+import os.path as p
 from authenticate import Authenticate
-from .resource_directory import ResourceDirectory
-from .registry import PlatformRegistry, RegistryEntry
-
+from sessions import SessionHandler
+from volttron.platform import jsonrpc
 from volttron.platform.agent import utils
 from volttron.platform.agent.known_identities import (
     VOLTTRON_CENTRAL, VOLTTRON_CENTRAL_PLATFORM)
 from volttron.platform.auth import AuthEntry, AuthFile
-from volttron.platform import jsonrpc
 from volttron.platform.jsonrpc import (
-    INTERNAL_ERROR, INVALID_PARAMS, INVALID_REQUEST, METHOD_NOT_FOUND,
-    PARSE_ERROR, UNHANDLED_EXCEPTION, UNAUTHORIZED,
+    INVALID_REQUEST, METHOD_NOT_FOUND,
+    UNHANDLED_EXCEPTION, UNAUTHORIZED,
     UNABLE_TO_REGISTER_INSTANCE, DISCOVERY_ERROR,
     UNABLE_TO_UNREGISTER_INSTANCE, UNAVAILABLE_PLATFORM)
+from volttron.platform.messaging.health import UNKNOWN_STATUS, Status, \
+    BAD_STATUS
+from .resource_directory import ResourceDirectory
 from volttron.platform.vip.agent import Agent, RPC, PubSub, Core, Unreachable
 from volttron.platform.vip.agent.subsystems import query
 from volttron.platform.vip.agent.utils import build_agent
-from volttron.platform.messaging.health import UNKNOWN_STATUS, Status, \
-    BAD_STATUS
-
-from volttron.platform.vip.socket import encode_key
-from volttron.platform.web import (DiscoveryInfo, CouldNotRegister,
-                                   build_vip_address_string, DiscoveryError)
-
-from sessions import SessionHandler
+from volttron.platform.web import (DiscoveryInfo, DiscoveryError)
+from zmq.utils import jsonapi
+from .registry import PlatformRegistry
 
 __version__ = "3.5.1"
 

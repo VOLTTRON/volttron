@@ -76,7 +76,7 @@ from volttron.platform import jsonrpc
 from volttron.platform.auth import AuthEntry, AuthFile
 from volttron.platform.agent import utils
 from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM
-from volttron.platform.messaging.health import UNKNOWN_STATUS
+from volttron.platform.messaging.health import UNKNOWN_STATUS, Status
 from volttron.platform.vip.agent.utils import build_agent
 from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
                                        METHOD_NOT_FOUND)
@@ -198,15 +198,7 @@ class VolttronCentralPlatform(Agent):
 
     @RPC.export
     def get_health(self):
-        try:
-            health = json.loads(self.vip.health.get_status())
-        except (ValueError, TypeError):
-            health = {}
-        return {
-            'status': health.get('_status', UNKNOWN_STATUS),
-            'context': health.get('_context'),
-            'last_updated': health.get('_last_updated')
-        }
+        return Status.from_json(self.vip.health.get_status()).as_dict()
 
     @RPC.export
     def get_publickey(self):

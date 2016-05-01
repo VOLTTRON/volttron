@@ -2,6 +2,9 @@ import json
 import pytest
 import requests
 import sys
+
+from volttron.platform.messaging.health import STATUS_GOOD
+from volttrontesting.utils.utils import poll_gevent_sleep
 from zmq.utils import jsonapi
 
 
@@ -157,16 +160,30 @@ def validate_response(response):
     assert 'error' in rpcdict.keys() or 'result' in rpcdict.keys()
 
 
-# @pytest.mark.web
-# def test_register_local_instance(request, vc_agent_with_auth,
-#                                  platform_agent_on_instance1):
-#
-#     if vc_agent_with_auth['username'] == 'reader':
-#         pytest.fail("Modify so we know that it should fail from response")
-#     else:
-#         pytest.fail("Add success criteria here for admin")
-#     #print(vc_agent_with_auth, platform_agent_on_instance1)
-#     #assert platform_agent_on_instance1
+@pytest.mark.vc
+def test_auto_register_platform(vc_instance):
+    vc, vcuuid, jsonrpc = vc_instance
+
+    adir = "services/core/VolttronCentralPlatform/"
+    pauuid = vc.install_agent(agent_dir=adir, config_file=adir+"config")
+    assert pauuid
+
+    tester = APITester(jsonrpc)
+
+    def redo_request():
+        response = tester.do_rpc("list_platforms")
+        jsonresp = response.json()
+        if len(jsonresp['result']) > 0:
+            p = jsonresp['result'][0]
+            assert p['uuid']
+            assert p['name'] == 'local'
+            assert isinstance(p['health'], dict)
+            assert STATUS_GOOD == p['health']['status']
+
+            return True
+        return len(response.json()['result']) > 0
+
+    assert poll_gevent_sleep(6, redo_request)
 
 
 @pytest.mark.vc
