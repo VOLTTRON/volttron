@@ -17,7 +17,6 @@ UNKNOWN_STATUS = STATUS_UNKNOWN
 ACCEPTABLE_STATUS = (GOOD_STATUS, BAD_STATUS, UNKNOWN_STATUS)
 
 ALERT_KEY = "alert_key"
-_log = logging.getLogger(__name__)
 
 
 class Status(object):
