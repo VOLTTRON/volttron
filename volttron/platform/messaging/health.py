@@ -76,7 +76,7 @@ class Status(object):
         self._status = status
         self._context = context
         self._last_updated = format_timestamp(get_aware_utc_now())
-        print('LAST UPDATED IS: {}'.format(self._last_updated))
+        
         if status_changed and self._status_changed_callback:
             print(self._status_changed_callback())
 
