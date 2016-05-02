@@ -470,6 +470,8 @@ class Core(BasicCore):
             # this is an installed agent
             keystore_dir = os.curdir
         elif self.identity:
+            if not os.environ.get('VOLTTRON_HOME'):
+                raise ValueError('VOLTTRON_HOME must be specified.')
             keystore_dir = os.path.join(
                     os.environ.get('VOLTTRON_HOME'), 'keystores',
                     self.identity)
