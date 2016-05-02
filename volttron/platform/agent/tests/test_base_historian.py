@@ -57,7 +57,7 @@ def test_base_historian(volttron_instance1):
     gevent.sleep(2)
 
     db = TestHistorian(address=v1.vip_address[0],
-                       backup_storage_limit_gb=0.00005)
+                       backup_storage_limit_gb=0.00002)
     gevent.spawn(db.core.run).join(0)
 
     agent = v1.build_agent()
