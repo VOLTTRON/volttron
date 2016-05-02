@@ -499,12 +499,20 @@ class VolttronCentralPlatform(Agent):
                 uuid_to_status[a['uuid']]['permissions']['can_stop'] = False
                 uuid_to_status[a['uuid']]['permissions']['can_remove'] = False
 
+            # The default agent is stopped health looks like this.
             uuid_to_status[a['uuid']]['health'] = {
-                # TODO: get agents health via RPC call
                 'status': 'UNKNOWN',
                 'context': None,
                 'last_updated': None
             }
+
+            if is_running:
+                identity = self.vip.rpc.call('control', 'agent_vip_identity',
+                                             a['uuid']).get(timeout=2)
+                status = self.vip.rpc.call(identity,
+                                           'health.get_status').get(timeout=2)
+                uuid_to_status[a['uuid']]['health'] = Status.from_json(
+                    status).as_dict()
 
         for a in agents:
             if a['uuid'] in uuid_to_status.keys():

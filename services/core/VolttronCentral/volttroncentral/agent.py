@@ -660,7 +660,6 @@ class VolttronCentralAgent(Agent):
                     devices = v.vip.rpc.call(
                         VOLTTRON_CENTRAL_PLATFORM,
                         'get_devices').get(timeout=5)
-                    _log.debug('Devices is: {}'.format(devices))
                     self._registry.update_devices(k, devices)
                 except gevent.Timeout:
                     pass
