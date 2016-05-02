@@ -479,8 +479,6 @@ class VolttronCentralPlatform(Agent):
                     pinfo = proc_info
                     break
 
-            _log.debug('Agent {} status: {}'.format(uuid, proc_info))
-            is_running = proc_info[0] > 0 and proc_info[1] == None
             uuid_to_status[a['uuid']] = {
                 'is_running': is_running,
                 'process_id': None,
