@@ -70,74 +70,104 @@ __version__ = '3.5'
 
 
 def thresholddetection_agent(config_path, **kwargs):
-    """Wrapper around `ThresholdDetectionAgent`"""
+    """Load configuration for ThresholdDetectionAgent
+
+    :param config_path: Path to a configuration file.
+
+    :type config_path: str
+    :returns: ThresholdDetectionAgent instance
+    :rtype: ThresholdDetectionAgent
+    """
     config = utils.load_config(config_path)
-    identity = 'platform.thresholddetection'
+    vip_identity = 'platform.thresholddetection'
     kwargs.pop('identity', None)
+    return ThresholdDetectionAgent(config, identity=vip_identity)
 
-    class ThresholdDetectionAgent(Agent):
+
+class ThresholdDetectionAgent(Agent):
+    """
+    Listen to topics and publish alerts when thresholds are passed.
+
+    The agent's configuration specifies which topics to watch, the
+    topic's threshold, and the message to send in an alert. Topics
+    in the `watch_max` list trigger alerts when the published data
+    are greater than the specified threshold. Topics in the
+    `watch_min` list trigger alerts when the published data are
+    less than the specified threshold. Non-numberic data will be
+    ignored. Alerts are published to alert/TOPIC where TOPIC is the
+    watched topic.
+
+    Example configuration:
+
+    .. code-block:: python
+
+        {
+          "watch_max": [
+            {
+              "topic": "datalogger/log/platform/cpu_percent",
+              "threshold": 99,
+              "message": "CPU ({topic}) exceeded {threshold} percent",
+              "enabled": true
+            }
+          ]
+          "watch_min": [
+            {
+              "topic": "some/temperature/topic",
+              "threshold": 0,
+              "message": "Temperature is below {threshold}",
+              "enabled": true
+            }
+          ]
+        }
+
+    """
+    def __init__(self, config, **kwargs):
+        self.config = config
+        super(ThresholdDetectionAgent, self).__init__(**kwargs)
+
+    @Core.receiver('onstart')
+    def start(self, sender, **kwargs):
+
+        def is_number(x):
+            try:
+                float(x)
+                return True
+            except ValueError:
+                return False
+
+        def generate_callback(message, threshold, comparator):
+            """generate callback function for pubsub.subscribe"""
+            def callback(peer, sender, bus, topic, headers, data):
+                if is_number(data):
+                    if comparator(data, threshold):
+                        alert_message = '{} ({} published {})\n'.format(
+                            message, topic, data)
+                        self.alert(alert_message, topic)
+            return callback
+
+        comparators = {'watch_max': lambda x, y: x > y,
+                       'watch_min': lambda x, y: x < y}
+
+        for key, comparator in comparators.iteritems():
+            for item in self.config.get(key, []):
+                if item.get('enabled', True):
+                    # replaces keywords ({topic}, {threshold})
+                    # with values in the message:
+                    msg = item['message'].format(**item)
+                    callback = generate_callback(
+                        msg, item['threshold'], comparator)
+                    self.vip.pubsub.subscribe(
+                        'pubsub', item['topic'], callback)
+
+    def alert(self, message, topic):
         """
-        Listen to topics and publish alerts when thresholds are passed.
+        Publish given message to alert topic
 
-        The agent's configuration specifies which topics to watch, the
-        topic's threshold, and the message to send in an alert. Topics
-        in the `watch_max` list trigger alerts when the published data
-        are greater than the specified threshold. Topics in the
-        `watch_min` list trigger alerts when the published data are
-        less than the specified threshold. Non-numberic data will be
-        ignored. Alerts are published to alert/TOPIC where TOPIC is the
-        watched topic.
+        TODO: replace this method with a BaseAgent or subsystem
+        alert method when that get implemented
         """
-
-        def __init__(self, **kwargs):
-            super(ThresholdDetectionAgent, self).__init__(**kwargs)
-
-        @Core.receiver('onstart')
-        def start(self, sender, **kwargs):
-
-            def is_number(x):
-                try:
-                    float(x)
-                    return True
-                except ValueError:
-                    return False
-
-            def generate_callback(message, threshold, comparator):
-                """generate callback function for pubsub.subscribe"""
-                def callback(peer, sender, bus, topic, headers, data):
-                    if is_number(data):
-                        if comparator(data, threshold):
-                            alert_message = '{} ({} published {})\n'.format(
-                                message, topic, data)
-                            self.alert(alert_message, topic)
-                return callback
-
-            comparators = {'watch_max': lambda x,y: x > y,
-                           'watch_min': lambda x,y: x < y }
-
-            for key, comparator in comparators.iteritems():
-                for item in config.get(key, []):
-                    if item.get('enabled', True):
-                        # replaces keywords ({topic}, {threshold})
-                        # with values in the message:
-                        msg = item['message'].format(**item)
-                        callback = generate_callback(
-                            msg, item['threshold'], comparator)
-                        self.vip.pubsub.subscribe(
-                            'pubsub', item['topic'], callback)
-
-        def alert(self, message, topic):
-            """
-            Publish given message to alert topic
-
-            TODO: replace this method with a BaseAgent or subsystem
-            alert method when that get implemented
-            """
-            alert_topic = 'alert/' + topic
-            self.vip.pubsub.publish('pubsub', alert_topic, message=message)
-
-    ThresholdDetectionAgent.__name__ = 'ThresholdDetectionAgent'
-    return ThresholdDetectionAgent(identity=identity)
+        alert_topic = 'alert/' + topic
+        self.vip.pubsub.publish('pubsub', alert_topic, message=message)
 
 
 def main(argv=sys.argv):
