@@ -17,9 +17,8 @@ The Master Driver Agent along with Historian Agents replace the functionality of
 
 Master Driver Agent Configuration
 ---------------------------------
-The Master Driver Agent configuration consists a list of device configuration files to load at startup. 
-
-Optionally the user may stagger the start of drivers to improve scalability of the platform by using the staggered_start setting.
+The Master Driver Agent configuration consists of a list of device configuration files to load at startup. 
+The user may optionally stagger the start of drivers to improve scalability of the platform by using the staggered_start setting.
 
 The following example loads three driver configuration files:
 
@@ -38,6 +37,10 @@ The following example loads three driver configuration files:
 * **driver_config_list** - A list of driver configuration files to load at startup.
 
 * **staggered_start** - Spread the scraping and publishing of device data over approximately N seconds. Useful for when the platform scrapes too many devices at once resulting in failed scrapes.
+
+An example master driver configuration file can be found `here <https://raw.githubusercontent.com/VOLTTRON/volttron/c57569bd9e71eb32afefe8687201d674651913ed/examples/configurations/drivers/master-driver.agent>`_ or 
+in the VOLTTRON repository in ``examples/configurations/drivers/master-driver.agent``.
+
 
 Driver Configuration File
 -------------------------
@@ -66,10 +69,10 @@ The following settings are required for all device configurations:
 
 These settings are optional:
 
-    - **interval** - Period which to scrape the device and publish the results in seconds. Defaults to 60.
+    - **interval** - Period which to scrape the device and publish the results in seconds. Defaults to 60 seconds.
     - **heart_beat_point** - A Point which to toggle to indicate a heartbeat to the device. A point with this Volttron Point Name must exist in the registry. If this setting is missing the driver will not send a heart beat signal to the device. Heart beats are triggered by the Actuator Agent which must be running to use this feature.
 
-These settings are used to create the topic that this device will be referenced by following the VOLTTRON standard of {campus}/{building}/{unit}. This will also be the topic published on when then device is periodically scraped for it's current state.
+These settings are used to create the topic that this device will be referenced by following the VOLTTRON convention of {campus}/{building}/{unit}. This will also be the topic published on when then device is periodically scraped for it's current state.
 
 While all of the settings are optional at least one is required.
 
@@ -131,9 +134,8 @@ Here is an example device configuration file:
         "heart_beat_point": "heartbeat"
     }
 
-A sample MODBUS configuration file can be found in the repository in 
-
-	``services/core/MasterDriverAgent/test_modbus1.config``
+A sample MODBUS configuration file can be found `here <https://raw.githubusercontent.com/VOLTTRON/volttron/c57569bd9e71eb32afefe8687201d674651913ed/examples/configurations/drivers/modbus1.config>`_ or 
+in the VOLTTRON repository in ``examples/configurations/drivers/modbus1.config``
 
 MODBUS Registry Configuration File
 **********************************
@@ -179,9 +181,8 @@ The following is an example of a MODBUS registry confugration file:
         HeatCall1,HeatCall1,On / Off,on/off,BOOL,FALSE,1113,,Status indicator of heating stage 1 need
         HeartBeat,heartbeat,On / Off,on/off,BOOL,FALSE,1114,,Status indicator of heating stage 2 need
 
-A sample MODBUS registry configuration file can be found in 
-
-    ``volttron/drivers/catalyst371.csv``
+A sample MODBUS registry file can be found `here <https://raw.githubusercontent.com/VOLTTRON/volttron/c57569bd9e71eb32afefe8687201d674651913ed/examples/configurations/drivers/catalyst371.csv>`_ or 
+in the VOLTTRON repository in ``examples/configurations/drivers/catalyst371.csv``
 
 BACnet Driver Configuration
 ---------------------------
@@ -219,9 +220,8 @@ Here is an example device configuration file:
         "heart_beat_point": "heartbeat"
     }
 
-A sample BACnet configuration file can be found in the repository in 
-
-    ``services/core/MasterDriverAgent/test_bacnet1.config``
+A sample BACnet configuration file can be found `here <https://raw.githubusercontent.com/VOLTTRON/volttron/c57569bd9e71eb32afefe8687201d674651913ed/examples/configurations/drivers/bacnet1.config>`_ or 
+in the VOLTTRON repository in ``examples/configurations/drivers/bacnet1.config``
 
 BACnet Registry Configuration File
 **********************************
@@ -269,9 +269,8 @@ Any additional columns will be ignored. It is common practice to include a **Poi
         2400Stevens/FCB.Local Application.SF-O,SupplyFanSpeedOutputCommand,percent,0.00 to 100.00 (default 0.0),analogOutput,presentValue,TRUE,3000113,Resolution: 0.1
 
 
-A sample BACnet registry configuration file can be found in 
-
-    ``volttron/drivers/bacnet_example_config.csv``
+A sample BACnet registry file can be found `here <https://raw.githubusercontent.com/VOLTTRON/volttron/c57569bd9e71eb32afefe8687201d674651913ed/examples/configurations/drivers/bacnet.csv>`_ or 
+in the VOLTTRON repository in ``examples/configurations/drivers/bacnet.csv``
 
 Fake Device Driver Configuration
 --------------------------------
@@ -298,9 +297,8 @@ Here is an example device configuration file:
         "heart_beat_point": "heartbeat"
     }
 
-A sample fake device configuration file can be found in the repository in 
-
-    ``services/core/MasterDriverAgent/test_fakedriver.config``
+A sample fake device configuration file can be found `here <https://raw.githubusercontent.com/VOLTTRON/volttron/c57569bd9e71eb32afefe8687201d674651913ed/examples/configurations/drivers/fake.config>`_ or 
+in the VOLTTRON repository in ``examples/configurations/drivers/fake.config``
 
 Fake Device Registry Configuration File
 ***************************************
@@ -338,6 +336,5 @@ Any additional columns will be ignored. It is common practice to include a **Poi
         SampleWritableBool1,On / Off,on/off,TRUE,TRUE,boolean,Status indicator
 
 
-A sample fave device registry configuration file can be found in 
-
-    ``services/core/MasterDriverAgent/fake.csv``
+A sample fake registry configuration file can be found `here <https://raw.githubusercontent.com/VOLTTRON/volttron/c57569bd9e71eb32afefe8687201d674651913ed/examples/configurations/drivers/fake.csv>`_ or 
+in the VOLTTRON repository in ``examples/configurations/drivers/fake.csv``

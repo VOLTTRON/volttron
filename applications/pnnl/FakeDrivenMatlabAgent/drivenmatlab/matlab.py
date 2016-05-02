@@ -77,7 +77,7 @@ class Application(AbstractDrivenAgent):
         # random.choice(status)
 
         matlab_result = {'commands':{
-                                "HEATER1":[["HPWH_Phy0_PowerState",1],["ERWH_Phy0_ValveState",1]]
+                                "fakedriver0":[["HPWH_Phy0_PowerState",1],["ERWH_Phy0_ValveState",1]]
                                }
                         }
         

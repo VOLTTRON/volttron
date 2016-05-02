@@ -1,8 +1,8 @@
 Messaging and Topics
-=====
+====================
 
 Introduction
------
+------------
 
 Agents in VOLTTRON(tm) communicate with each other using a
 publish/subscribe mechanism built on the Zero MQ Python library. This

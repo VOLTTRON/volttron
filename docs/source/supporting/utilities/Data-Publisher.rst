@@ -1,5 +1,5 @@
 Data Publisher
-=====
+==============
 
 The data publisher agent allows the playback of csv data to the message
 bus as if it were a device.

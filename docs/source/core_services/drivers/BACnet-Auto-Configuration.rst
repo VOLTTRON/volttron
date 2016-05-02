@@ -1,6 +1,6 @@
-====================================================
+===================================================
 Automatically Generating BACnet Configuration Files
-====================================================
+===================================================
 
 Included with the platform are two scripts for finding and configuring BACnet devices. 
 These scripts are located in ``scripts/bacnet``. ``bacnet_scan.py`` will scan
@@ -234,4 +234,4 @@ the following error with a stack trace:
 
     ERROR:<u>main</u>:an error has occurred: [Errno 99] Cannot assign requested address
     <Python stack trace cut>
-    
+

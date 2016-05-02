@@ -68,9 +68,7 @@ __version__ = '1.0'
 The health subsystem allows an agent to store it's health in a non-intrusive
 way.
 """
-utils.setup_logging()
 _log = logging.getLogger(__name__)
-_log.setLevel(logging.DEBUG)
 
 class Health(SubsystemBase):
     def __init__(self, owner, core, rpc):
