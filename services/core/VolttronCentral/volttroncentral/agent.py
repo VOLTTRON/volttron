@@ -653,7 +653,6 @@ class VolttronCentralAgent(Agent):
 
     @Core.periodic(10)
     def update_device_registry(self):
-        _log.debug('Updating devices in registry.')
         for k, v in self._pa_agents.items():
             # Only attempt update if we have a connection to the agent.
             if v is not None:
