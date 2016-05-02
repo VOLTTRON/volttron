@@ -532,7 +532,6 @@ class VolttronCentralPlatform(Agent):
     def route_request(self, id, method, params):
         _log.debug(
             'platform agent routing request: {}, {}'.format(id, method))
-        _log.debug('platform agent routing request params: {}'.format(params))
 
         # First handle the elements that are going to this platform
         if method == 'list_agents':
@@ -542,7 +541,7 @@ class VolttronCentralPlatform(Agent):
         elif method == 'get_setting':
             result = self.get_setting(**params)
         elif method == 'get_devices':
-            result = self.get_devices(**params)
+            result = self.get_devices()
         elif method == 'status_agents':
             result = {'result': [{'name': a[1], 'uuid': a[0],
                                   'process_id': a[2][0],
