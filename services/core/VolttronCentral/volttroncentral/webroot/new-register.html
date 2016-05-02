@@ -22,13 +22,9 @@ Discovery Address: <input type="text" id="discovery_address" /><br />
 <button id="register2">Register Platform http://127.0.0.3:8080</button>
 <button id="register3">Register Platform http://127.0.0.4:8080</button>
 
-<h2>Request Sent</h2>
-<textarea id="request_sent" cols="100" rows="2"></textarea><br />
-<h2>Response Received</h2>
-<textarea id="response_received" cols="100" rows="2"></textarea><br />
-
 <h2>Platform Listings</h2>
-<button id="list_platforms">List Platforms</button> <button id="list_deivces">List Devices</button> <br/>
+<button id="list_platforms">List Platforms</button>
+<button id="list_deivces">List Devices</button>
 VIP Identity: <input type="text" id="vip_identity" value="platform.agent" /><br />
 Agent id: <input type="text" id="agent_id" value="platform.agent" /><br/>
 VIP Address: <input type="text" id="vip_address" placeholder="VIP Address where VIP Identity is located" /><br/>
@@ -45,10 +41,11 @@ Arguments: <input id="agent_method" placeholder="Method to call"/> <input id="ag
 <button id="execute_method">Execute Method</button>
 <button id="status_agents">Status Agents</button>
 
+<h2>Request Sent</h2>
+<textarea id="request_sent" cols="100" rows="5"></textarea>
+
 <h2>Response Data</h2>
-<textarea id="output_data" cols="100" rows="5"></textarea><br />
-
-
+<textarea id="output_data" cols="100" rows="5"></textarea>
 
 <script language="javascript">
 
@@ -68,25 +65,25 @@ Arguments: <input id="agent_method" placeholder="Method to call"/> <input id="ag
                  method: req_method,
                  authorization: token,
                  id: '72581-4'
-         };
-         $.ajax({
-             type: 'POST',
-             url: '/jsonrpc',
-             data: JSON.stringify(pdata),
-             dataType: 'json',
-             success: function(data){
-                 $('#output_data').val(JSON.stringify(data));
-             },
-             failure: function(data){
-                 $('#output_data').val("FAILURE "+ JSON.stringify(data));
-            }
+        };
+        $('#request_sent').val(JSON.stringify(pdata));
+        $.ajax({
+            type: 'POST',
+            url: '/jsonrpc',
+            data: JSON.stringify(pdata),
+            dataType: 'json',
+            success: function(data){
+                $('#output_data').val(JSON.stringify(data));
+            },
+            failure: function(data){
+                $('#output_data').val("FAILURE "+ JSON.stringify(data));
+        }
 
-         });
+});
     }
 
     function do_request_vc_method(method) {
         var req_method = method;
-        console.log('Method is: '+method)
         var token = $('#token').val();
         var pdata = {
                  jsonrpc: '2.0',
@@ -94,6 +91,7 @@ Arguments: <input id="agent_method" placeholder="Method to call"/> <input id="ag
                  authorization: token,
                  id: '72581-4'
          };
+         $('#request_sent').val(JSON.stringify(pdata));
          $.ajax({
              type: 'POST',
              url: '/jsonrpc',
@@ -139,7 +137,7 @@ Arguments: <input id="agent_method" placeholder="Method to call"/> <input id="ag
     });
 
     $('#get_devices').click(function(){
-        do_request_platform_method('list_devices');
+        do_request_platform_method('get_devices');
     });
 
     $('#get_auth').click(function(){
@@ -151,20 +149,20 @@ Arguments: <input id="agent_method" placeholder="Method to call"/> <input id="ag
                 password: "admin"
              },
              id: '72581-4'
-         };
-
-         $.ajax({
+        };
+        $('#request_sent').val(JSON.stringify(pdata));
+        $.ajax({
                  type: 'POST',
                  url: '/jsonrpc',
                  data: JSON.stringify(pdata),
                  dataType: 'json',
                  success: function(data){
-                     $('#token').val(data.result);
+                    $('#token').val(data.result);
              },
                  failure: function(data){
                      $('#output_data').val("FAILURE "+ JSON.stringify(data));
              }
-         });
+        });
     });
 
 
