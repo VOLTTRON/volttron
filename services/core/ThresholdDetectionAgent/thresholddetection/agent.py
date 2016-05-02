@@ -62,7 +62,7 @@ import uuid
 
 from volttron.platform.vip.agent import Agent, Core, PubSub, RPC, compat
 from volttron.platform.agent import utils
-
+from volttron.platform.messaging.health import Status, STATUS_BAD
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -161,13 +161,15 @@ class ThresholdDetectionAgent(Agent):
 
     def alert(self, message, topic):
         """
-        Publish given message to alert topic
+        Raise alert for the given topic
 
-        TODO: replace this method with a BaseAgent or subsystem
-        alert method when that get implemented
+        :param message: Message to include in alert
+        :param topic: PUB/SUB topic that caused alert
+        :type message: str
+        :type topic: str
         """
-        alert_topic = 'alert/' + topic
-        self.vip.pubsub.publish('pubsub', alert_topic, message=message)
+        status = Status.build(STATUS_BAD, message)
+        self.vip.health.send_alert(topic, status)
 
 
 def main(argv=sys.argv):
