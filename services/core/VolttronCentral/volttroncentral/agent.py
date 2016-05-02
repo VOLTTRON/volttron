@@ -655,13 +655,16 @@ class VolttronCentralAgent(Agent):
     def update_device_registry(self):
         _log.debug('Updating devices in registry.')
         for k, v in self._pa_agents.items():
-            try:
-                devices = v.vip.rpc.call(
-                    VOLTTRON_CENTRAL_PLATFORM, 'get_devices').get(timeout=5)
-                _log.debug('Devices is: {}'.format(devices))
-                self._registry.update_devices(k, devices)
-            except gevent.Timeout:
-                pass
+            # Only attempt update if we have a connection to the agent.
+            if v is not None:
+                try:
+                    devices = v.vip.rpc.call(
+                        VOLTTRON_CENTRAL_PLATFORM,
+                        'get_devices').get(timeout=5)
+                    _log.debug('Devices is: {}'.format(devices))
+                    self._registry.update_devices(k, devices)
+                except gevent.Timeout:
+                    pass
 
     def _handle_list_devices(self):
         _log.debug('Listing devices from vc')
@@ -726,9 +729,9 @@ class VolttronCentralAgent(Agent):
                                       UNAVAILABLE_PLATFORM,
                                       "Cannot connect to platform."
                                       )
-        _log.debug(agent.vip.peerlist().get(timeout=5))
+        _log.debug('Routing to {}'.format(VOLTTRON_CENTRAL_PLATFORM))
         return agent.vip.rpc.call(
-            'platform.agent', 'route_request', id, platform_method,
+            VOLTTRON_CENTRAL_PLATFORM, 'route_request', id, platform_method,
             params).get(timeout=10)
 
 
