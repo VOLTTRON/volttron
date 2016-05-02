@@ -466,17 +466,25 @@ class VolttronCentralPlatform(Agent):
 
         agents = self.vip.rpc.call("control", "list_agents").get()
 
-        status_all = self.status_agents()
+        status_running = self.status_agents()
 
         uuid_to_status = {}
         # proc_info has a list of [startproc, endprox]
-        for uuid, name, proc_info in status_all:
+        for a in agents:
+            pinfo = None
+            is_running = False
+            for uuid, name, proc_info in status_running:
+                if a['uuid'] == uuid:
+                    is_running = proc_info[0] > 0 and proc_info[1] == None
+                    pinfo = proc_info
+                    break
+
             _log.debug('Agent {} status: {}'.format(uuid, proc_info))
             is_running = proc_info[0] > 0 and proc_info[1] == None
-            uuid_to_status[uuid] = {
-                'process_id': proc_info[0],
-                'error_code': proc_info[1],
+            uuid_to_status[a['uuid']] = {
                 'is_running': is_running,
+                'process_id': None,
+                'error_code': None,
                 'permissions': {
                     'can_stop': True,
                     'can_start': True,
@@ -484,13 +492,16 @@ class VolttronCentralPlatform(Agent):
                     'can_remove': True
                 }
             }
+            if pinfo:
+                uuid_to_status[a['uuid']]['process_id'] = proc_info[0]
+                uuid_to_status[a['uuid']]['error_code'] = proc_info[1]
 
             if 'volttroncentral' in name or \
                             'vcplatform' in name:
-                uuid_to_status[uuid]['permissions']['can_stop'] = False
-                uuid_to_status[uuid]['permissions']['can_remove'] = False
+                uuid_to_status[a['uuid']]['permissions']['can_stop'] = False
+                uuid_to_status[a['uuid']]['permissions']['can_remove'] = False
 
-            uuid_to_status[uuid]['health'] = {
+            uuid_to_status[a['uuid']]['health'] = {
                 # TODO: get agents health via RPC call
                 'status': 'UNKNOWN',
                 'context': None,
@@ -499,6 +510,7 @@ class VolttronCentralPlatform(Agent):
 
         for a in agents:
             if a['uuid'] in uuid_to_status.keys():
+                _log.debug('UPDATING STATUS OF: {}'.format(a['uuid']))
                 a.update(uuid_to_status[a['uuid']])
 
         return agents
@@ -543,6 +555,7 @@ class VolttronCentralPlatform(Agent):
         elif method == 'get_devices':
             result = self.get_devices()
         elif method == 'status_agents':
+            _log.debug('Doing status agents')
             result = {'result': [{'name': a[1], 'uuid': a[0],
                                   'process_id': a[2][0],
                                   'return_code': a[2][1]}
