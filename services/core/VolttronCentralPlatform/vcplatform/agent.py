@@ -58,7 +58,8 @@
 
 from __future__ import absolute_import, print_function
 
-from datetime import datetime
+from copy import deepcopy
+import datetime
 import gevent.event
 import logging
 import json
@@ -68,6 +69,8 @@ import urlparse
 
 import gevent
 import psutil
+from volttron.platform.agent.utils import (
+    get_aware_utc_now, format_timestamp, parse_timestamp_string)
 from zmq.utils import jsonapi
 
 from volttron.platform.vip.agent import *
@@ -76,7 +79,8 @@ from volttron.platform import jsonrpc
 from volttron.platform.auth import AuthEntry, AuthFile
 from volttron.platform.agent import utils
 from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM
-from volttron.platform.messaging.health import UNKNOWN_STATUS, Status
+from volttron.platform.messaging.health import UNKNOWN_STATUS, Status, \
+    GOOD_STATUS, BAD_STATUS
 from volttron.platform.vip.agent.utils import build_agent
 from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
                                        METHOD_NOT_FOUND)
@@ -111,6 +115,9 @@ class VolttronCentralPlatform(Agent):
         # This is set from the volttron central instance (NOTE:this is not
         # the same as the installed uuid on this volttron instance0).
         self._platform_uuid = None
+
+        # A dictionary of devices that are published by the platform.
+        self._devices = {}
 
         # agentid = config.get('agentid', 'platform')
         # agent_type = config.get('agent_type', 'platform')
@@ -182,7 +189,25 @@ class VolttronCentralPlatform(Agent):
     #
     #     return True
 
+    @PubSub.subscribe('pubsub', 'devices')
+    def ondevicemessage(self, peer, sender, bus, topic, headers, message):
+        # only deal with agents that have not been forwarded.
+        if headers.get('X-Forwarded', None):
+            return
 
+        # only listen to the ending all message.
+        if not re.match('.*/all$', topic):
+            return
+
+        topicsplit = topic.split('/')
+
+        # For devices we use everything between devices/../all as a unique
+        # key for determining the last time it was seen.
+        key = '/'.join(topicsplit[1: -1])
+        self._devices[key] = {
+            'points': message[0].keys(),
+            'last_published_utc': format_timestamp(get_aware_utc_now())
+        }
 
     @RPC.export
     #@RPC.allow("manager")
@@ -197,7 +222,35 @@ class VolttronCentralPlatform(Agent):
         )
 
     @RPC.export
+    def get_devices(self):
+        cp = deepcopy(self._devices)
+        foundbad = False
+        for k, v in cp.items():
+            dt = parse_timestamp_string(v['last_published_utc'])
+            dtnow = get_aware_utc_now()
+            if dt+datetime.timedelta(minutes=5) < dtnow:
+                v['status'] = Status.build(
+                    BAD_STATUS,
+                    'Too long between publishes for {}'.format(k)).as_dict()
+                foundbad = True
+            else:
+                v['status'] = Status.build(GOOD_STATUS).as_dict()
+
+        if len(cp):
+            if foundbad:
+                self.vip.health.set_status(
+                    BAD_STATUS,
+                    'At least one device has not published in 5 minutes')
+            else:
+                self.vip.health.set_status(
+                    GOOD_STATUS,
+                    'All devices publishing normally.'
+                )
+        return cp
+
+    @RPC.export
     def get_health(self):
+        _log.debug("Getting health: {}".format(self.vip.health.get_status()))
         return Status.from_json(self.vip.health.get_status()).as_dict()
 
     @RPC.export
@@ -488,6 +541,8 @@ class VolttronCentralPlatform(Agent):
             result = self.set_setting(**params)
         elif method == 'get_setting':
             result = self.get_setting(**params)
+        elif method == 'get_devices':
+            result = self.get_devices(**params)
         elif method == 'status_agents':
             result = {'result': [{'name': a[1], 'uuid': a[0],
                                   'process_id': a[2][0],

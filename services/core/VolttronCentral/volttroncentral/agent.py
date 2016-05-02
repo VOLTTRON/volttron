@@ -539,7 +539,7 @@ class VolttronCentralAgent(Agent):
             _log.debug('RPC METHOD IS: {}'.format(rpcdata.method))
 
             # Route any other method that isn't
-            result_or_error = self.route_request(
+            result_or_error = self._route_request(
                 rpcdata.id, rpcdata.method, rpcdata.params)
 
         except AssertionError:
@@ -651,6 +651,25 @@ class VolttronCentralAgent(Agent):
         self.vip.rpc.call('volttron.web', 'unregister_all_agent_routes',
                           self.core.identity).get(timeout=5)
 
+    @Core.periodic(10)
+    def update_device_registry(self):
+        _log.debug('Updating devices in registry.')
+        for k, v in self._pa_agents.items():
+            try:
+                devices = v.vip.rpc.call(
+                    VOLTTRON_CENTRAL_PLATFORM, 'get_devices').get(timeout=5)
+                _log.debug('Devices is: {}'.format(devices))
+                self._registry.update_devices(k, devices)
+            except gevent.Timeout:
+                pass
+
+    def _handle_list_devices(self):
+        _log.debug('Listing devices from vc')
+        return [{'platform.uuid': x.platform_uuid,
+                 'devices': self._registry.get_devices(x.platform_uuid)}
+                for x in self._registry.get_platforms()
+                    if self._registry.get_devices(x.platform_uuid)]
+
     def _handle_list_platforms(self):
         def get_status(platform_uuid):
             agent = self._pa_agents[platform_uuid]
@@ -658,7 +677,7 @@ class VolttronCentralAgent(Agent):
                 return Status.build(BAD_STATUS,
                                     "Platform Unreachable.").as_dict()
             try:
-                health = agent.vip.rpc.call('platform.agent',
+                health = agent.vip.rpc.call(VOLTTRON_CENTRAL_PLATFORM,
                                             'get_health').get(timeout=10)
             except Unreachable:
                 health = Status.build(UNKNOWN_STATUS,
@@ -672,10 +691,10 @@ class VolttronCentralAgent(Agent):
                  'health': get_status(x.platform_uuid)}
                 for x in self._registry.get_platforms()]
 
-    def route_request(self, id, method, params):
+    def _route_request(self, id, method, params):
         '''Route request to either a registered platform or handle here.'''
         _log.debug(
-            'inside route_request {}, {}, {}'.format(id, method, params))
+            'inside _route_request {}, {}, {}'.format(id, method, params))
 
         def err(message, code=METHOD_NOT_FOUND):
             return {'error': {'code': code, 'message': message}}
@@ -685,6 +704,8 @@ class VolttronCentralAgent(Agent):
                 return self._register_instance(*params)
             else:
                 return self._register_instance(**params)
+        elif method == 'list_deivces':
+            return self._handle_list_devices()
         elif method == 'list_platforms':
             return self._handle_list_platforms()
         elif method == 'unregister_platform':

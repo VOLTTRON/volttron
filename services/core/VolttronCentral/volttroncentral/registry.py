@@ -1,4 +1,5 @@
 from collections import namedtuple
+from copy import deepcopy
 from datetime import datetime
 import logging
 import shelve
@@ -45,6 +46,13 @@ class PlatformRegistry(object):
         except KeyError:
             pass # Raised when there isn't a registerd_platform.
 
+    def update_devices(self, platform_uuid, devices):
+        self.add_update_tag(platform_uuid, 'devices', devices)
+
+    def get_devices(self, platform_uuid):
+        #_log.debug('Getting devices from')
+        return self.get_tag(platform_uuid, 'devices')
+
     def add_update_tag(self, platform_uuid, key, value):
         """ Add a tag to the specified platform's entry.
 
@@ -60,7 +68,9 @@ class PlatformRegistry(object):
         self._platform_entries[platform_uuid].tags[key] = value
 
     def get_tag(self, platform_uuid, key):
-        return self._platform_entries[platform_uuid].tags[key]
+        if key in self._platform_entries[platform_uuid].tags.keys():
+            return self._platform_entries[platform_uuid].tags[key]
+        return None
 
     def get_vip_addresses(self):
         """ Return all of the different vip addresses available.

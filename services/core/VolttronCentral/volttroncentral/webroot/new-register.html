@@ -23,12 +23,12 @@ Discovery Address: <input type="text" id="discovery_address" /><br />
 <button id="register3">Register Platform http://127.0.0.4:8080</button>
 
 <h2>Request Sent</h2>
-<textarea id="request_sent" cols="100" rows="3"></textarea><br />
+<textarea id="request_sent" cols="100" rows="2"></textarea><br />
 <h2>Response Received</h2>
-<textarea id="response_received" cols="100" rows="3"></textarea><br />
+<textarea id="response_received" cols="100" rows="2"></textarea><br />
 
 <h2>Platform Listings</h2>
-<button id="get_platforms">Get Platforms</button>
+<button id="list_platforms">List Platforms</button> <button id="list_deivces">List Devices</button> <br/>
 VIP Identity: <input type="text" id="vip_identity" value="platform.agent" /><br />
 Agent id: <input type="text" id="agent_id" value="platform.agent" /><br/>
 VIP Address: <input type="text" id="vip_address" placeholder="VIP Address where VIP Identity is located" /><br/>
@@ -36,13 +36,13 @@ VIP Address: <input type="text" id="vip_address" placeholder="VIP Address where 
 Platform UUID: <input type="text" id="platform_uuid" placeholder="Platform uuid to remove" /><br/>
 <button id="unregister">Unregister VIP Address</button><br />
 
-<h2>Agent API</h2>
+<h2>Platform Agent API</h2>
 Platform UUID: <input id="agent_platform_uuid" placeholder="Platform the agent below is on" /><br/>
+<button id="list_agents">List Agents</button> <button id="get_devices">Get Devices</button><br />
 Agent UUID: <input id="agent_uuid" placeholder="Agent to act on" /><br/>
 Arguments: <input id="agent_method" placeholder="Method to call"/> <input id="agent_method_args" placeholder="key:value arguments to pass" /><br/>
 <button id="inspect_agent">Inspect Agent</button>
 <button id="execute_method">Execute Method</button>
-<button id="list_agents">List Agents</button>
 <button id="status_agents">Status Agents</button>
 
 <h2>Response Data</h2>
@@ -84,13 +84,40 @@ Arguments: <input id="agent_method" placeholder="Method to call"/> <input id="ag
          });
     }
 
+    function do_request_vc_method(method) {
+        var req_method = method;
+        console.log('Method is: '+method)
+        var token = $('#token').val();
+        var pdata = {
+                 jsonrpc: '2.0',
+                 method: req_method,
+                 authorization: token,
+                 id: '72581-4'
+         };
+         $.ajax({
+             type: 'POST',
+             url: '/jsonrpc',
+             data: JSON.stringify(pdata),
+             dataType: 'json',
+             success: function(data){
+                 $('#output_data').val(JSON.stringify(data));
+             },
+             failure: function(data){
+                 $('#output_data').val("FAILURE "+ JSON.stringify(data));
+            }
+
+         });
+    }
+
 
     $('#register1').click(function(){
         exec_discovery('http://127.0.0.2:8080', 'platform 1');
     });
+
     $('#register2').click(function(){
         exec_discovery('http://127.0.0.3:8080', 'platform 1');
     });
+
     $('#register3').click(function(){
         exec_discovery('http://127.0.0.4:8080', 'platform 1');
     });
@@ -101,6 +128,18 @@ Arguments: <input id="agent_method" placeholder="Method to call"/> <input id="ag
 
     $('#status_agents').click(function(){
         do_request_platform_method('status_agents');
+    });
+
+    $('#list_platforms').click(function(){
+        do_request_vc_method('list_platforms');
+    });
+
+    $('#list_deivces').click(function(){
+        do_request_vc_method('list_deivces');
+    });
+
+    $('#get_devices').click(function(){
+        do_request_platform_method('list_devices');
     });
 
     $('#get_auth').click(function(){
@@ -179,151 +218,6 @@ Arguments: <input id="agent_method" placeholder="Method to call"/> <input id="ag
              failure: function(data){
                  $('#output_data').val("FAILURE "+ JSON.stringify(data));
             }
-
-         });
-    });
-
-
-
-/*
-    $('#registercomms1').click(function(){
-        $('#vip_address').val('ipc://@/tmp/comms/v1home/run/vip.socket');
-        $('#vip_identity').val('platform.agent');
-        $('#agent_id').val('VC Platform');
-        $('#register').click()
-    });
-    $('#registercomms2').click(function(){
-        $('#vip_address').val('ipc://@/tmp/comms/v2home/run/vip.socket');
-        $('#vip_identity').val('platform.agent');
-        $('#agent_id').val('Platform 2');
-        $('#register').click()
-    });
-    $('#loaddefault').click(function(){
-        $('#vip_address').val('ipc://@/home/dev/.volttron/run/vip.socket');
-        $('#vip_identity').val('platform.agent');
-        $('#agent_id').val('Platform 1');
-    });*/
-
-    $('#unregister').click(function(){
-        var platform_uuid = $('#platform_uuid').val();
-        var token = $('#token').val();
-        var pdata = {
-                 jsonrpc: '2.0',
-                 method:  "unregister_platform",
-                 authorization: token,
-                 params: {
-                    platform_uuid: platform_uuid,
-                 },
-                 id: '72581-4'
-         };
-         $.ajax({
-             type: 'POST',
-             url: '/jsonrpc',
-             data: JSON.stringify(pdata),
-             dataType: 'json',
-             success: function(data){
-                 $('#results').text('Success');
-               console.log('success '+data.message.toString());
-                $('#output_data').val(JSON.stringify(data));
-
-            },
-
-             failure: function(data){
-                 $('#results').text('failure');
-                  console.log('failure '+data.toString());}
-
-         });
-    });
-
-    $('#register_instance').click(function(){
-        var name = $('#platform_name').val();
-        var discovery_address = $('#discovery_address').val();
-        var token = $('#token').val();
-
-        var pdata = {
-                 jsonrpc: '2.0',
-                 method:  "register_instance",
-                 authorization: token,
-                 params: {
-                    discovery_address: discovery_address,
-                    display_name: name
-                 },
-                 id: '72581-4'
-        };
-        $('#request_sent').val(JSON.stringify(pdata));
-
-
-        $.ajax({
-             type: 'POST',
-             url: '/jsonrpc',
-             data: JSON.stringify(pdata),
-             dataType: 'json',
-             success: function(data){
-                 $('#response_received').text(JSON.stringify(data));
-             },
-             failure: function(data){
-                 $('#response_received').text(data.toString());
-                 console.log('failure '+data.toString());
-             }
-         });
-    });
-
-    $('#register').click(function(){
-         var identity = $('#vip_identity').val();
-         var address = $('#vip_address').val();
-         var agentid = $('#agent_id').val();
-         var token = $('#token').val();
-
-         var pdata = {
-                 jsonrpc: '2.0',
-                 method:  "register_platform",
-                 authorization: token,
-                 params: {
-                    identity: identity,
-                    address: address,
-                    agentid: agentid
-                 },
-                 id: '72581-4'
-         };
-
-        $('#output_data').val('failure');
-
-        $.ajax({
-             type: 'POST',
-             url: '/jsonrpc',
-             data: JSON.stringify(pdata),
-             dataType: 'json',
-             success: function(data){
-                 $('#results').text('Success');
-                   console.log('success '+data.message.toString());},
-             failure: function(data){
-                 $('#results').text('failure');
-                  console.log('failure '+data.toString());}
-
-         });
-    });
-
-    $('#get_platforms').click(function(){
-         var token = $('#token').val();
-         var pdata = {
-                 jsonrpc: '2.0',
-                 method:  "list_platforms",
-                 authorization: token,
-                 id: '72581-4'
-         };
-
-        $.ajax({
-             type: 'POST',
-             url: '/jsonrpc',
-             data: JSON.stringify(pdata),
-             dataType: 'json',
-             success: function(data){
-                console.log(data);
-                 $('#output_data').val(JSON.stringify(data));
-             },
-             failure: function(data){
-                 $('#output_data').val('failure');
-                  console.log('failure '+data.toString());}
 
          });
     });
