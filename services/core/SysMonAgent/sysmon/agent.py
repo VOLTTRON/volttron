@@ -155,6 +155,15 @@ class SysMonAgent(Agent):
         """Return usage of disk mounted at configured path"""
         return psutil.disk_usage(self.disk_path).percent
 
+    @RPC.export
+    def set_base_topic(self, base_topic):
+        """Set the base topic
+
+        :param base_topic: Prefix to all of this agent's PUB/SUB topics
+        :type base_topic: str
+        """
+        self.base_topic = base_topic
+
 
 def main(argv=sys.argv):
     """Main method called by the platform."""
