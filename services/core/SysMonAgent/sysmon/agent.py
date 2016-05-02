@@ -71,66 +71,95 @@ __version__ = '3.5'
 
 
 def sysmon_agent(config_path, **kwargs):
-    """Wrapper around `SysMonAgent`"""
+    """Parse the SysMon Agent configuration and returns and instance
+    of the agent created using that configuration.
+
+    :param config_path: Path to a configuration file.
+
+    :type config_path: str
+    :returns: SysMon Agent
+    :rtype (SysMonAgent)
+    """
     config = utils.load_config(config_path)
-    identity = 'platform.sysmon'
+    base_topic = config.get('base_topic', 'datalogger/log/platform')
+    cpu_check_interval = config.get('cpu_check_interval', 5)
+    memory_check_interval = config.get('memory_check_interval', 5)
+    disk_check_interval = config.get('disk_check_interval', 5)
+    disk_path = config.get('disk_path', '/')
+    vip_identity = 'platform.sysmon'
+    # Use the identity 'platform.sysmon'. Pop the uuid off the kwargs.
     kwargs.pop('identity', None)
+    return SysMonAgent(
+        base_topic, cpu_check_interval, memory_check_interval,
+        disk_check_interval, disk_path, identity=vip_identity, **kwargs)
 
-    class SysMonAgent(Agent):
-        """Monitor utilization of system resources (CPU, memory, disk)
 
-        The percent usage of each system resource can be queried via
-        RPC and they are published periodically to configured topics.
-        """
+class SysMonAgent(Agent):
+    """Monitor utilization of system resources (CPU, memory, disk)
 
-        def __init__(self, **kwargs):
-            super(SysMonAgent, self).__init__(**kwargs)
-            self._base_topic = config.get('base_topic',
-                                          'datalogger/log/platform')
+    The percent usage of each system resource can be queried via
+    RPC and they are published periodically to configured topics.
 
-        @Core.receiver('onstart')
-        def start(self, sender, **kwargs):
-            """Set up periodic publishing of system resource data"""
-            self._periodic_pub(
-                self.cpu_percent, config.get('cpu_check_period', 5))
+    :param base_topic: Prefix to all of this agent's PUB/SUB topics
+    :param cpu_check_interval: Interval in seconds to publish percent
+        CPU usage
+    :param memory_check_interval: Interval in seconds to publish
+        percent memory usage
+    :param disk_check_interval: Interval in seconds to publish percent
+        disk usage
+    :param disk_path: Mount point of disk to monitor (e.g., '/')
 
-            self._periodic_pub(
-                self.memory_percent, config.get('memory_check_period', 5))
+    :type base_topic: str
+    :type cpu_check_interval: int
+    :type memory_check_interval: int
+    :type disk_check_interval: int
+    :type disk_path: str
+    """
+    def __init__(self, base_topic, cpu_check_interval, memory_check_interval,
+                 disk_check_interval, disk_path, **kwargs):
+        super(SysMonAgent, self).__init__(**kwargs)
+        self.base_topic = base_topic
+        self.cpu_check_interval = cpu_check_interval
+        self.memory_check_interval = memory_check_interval
+        self.disk_check_interval = disk_check_interval
+        self.disk_path = disk_path
 
-            self._periodic_pub(
-                self.disk_percent, config.get('disk_check_period', 5))
+    @Core.receiver('onstart')
+    def start(self, sender, **kwargs):
+        """Set up periodic publishing of system resource data"""
+        self._periodic_pub(self.cpu_percent, self.cpu_check_interval)
+        self._periodic_pub(self.memory_percent, self.memory_check_interval)
+        self._periodic_pub(self.disk_percent, self.disk_check_interval)
 
-        def _periodic_pub(self, func, period, wait=0):
-            """Periodically call func and publish its return value"""
-            def pub_wrapper():
-                data = func()
-                topic = self._base_topic + '/' + func.__name__
-                self.vip.pubsub.publish(peer='pubsub', topic=topic,
-                                        message=data)
-            self.core.periodic(period, pub_wrapper, wait=wait)
+    def _periodic_pub(self, func, period, wait=0):
+        """Periodically call func and publish its return value"""
+        def pub_wrapper():
+            data = func()
+            topic = self.base_topic + '/' + func.__name__
+            self.vip.pubsub.publish(peer='pubsub', topic=topic,
+                                    message=data)
+        self.core.periodic(period, pub_wrapper, wait=wait)
 
-        @RPC.export
-        def cpu_percent(self):
-            """Return CPU usage percentage"""
-            return psutil.cpu_percent()
+    @RPC.export
+    def cpu_percent(self):
+        """Return CPU usage percentage"""
+        return psutil.cpu_percent()
 
-        @RPC.export
-        def memory_percent(self):
-            """Return memory usage percentage"""
-            return psutil.virtual_memory().percent
+    @RPC.export
+    def memory_percent(self):
+        """Return memory usage percentage"""
+        return psutil.virtual_memory().percent
 
-        @RPC.export
-        def disk_percent(self):
-            """Return usage of disk mounted at configured path"""
-            return psutil.disk_usage(config.get('disk_path', '/')).percent
-
-    SysMonAgent.__name__ = 'SysMonAgent'
-    return SysMonAgent(identity=identity, **kwargs)
+    @RPC.export
+    def disk_percent(self):
+        """Return usage of disk mounted at configured path"""
+        return psutil.disk_usage(self.disk_path).percent
 
 
 def main(argv=sys.argv):
     """Main method called by the platform."""
     utils.vip_main(sysmon_agent)
+
 
 if __name__ == '__main__':
     # Entry point for script
