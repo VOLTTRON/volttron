@@ -77,8 +77,8 @@ def sysmon_agent(config_path, **kwargs):
     :param config_path: Path to a configuration file.
 
     :type config_path: str
-    :returns: SysMon Agent
-    :rtype (SysMonAgent)
+    :returns: SysMonAgent instance
+    :rtype: SysMonAgent
     """
     config = utils.load_config(config_path)
     base_topic = config.get('base_topic', 'datalogger/log/platform')
