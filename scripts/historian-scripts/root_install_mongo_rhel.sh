@@ -65,11 +65,19 @@ done
 
 printf "\n## Setting up users and database collection to be used by historian' ##\n"
 
-printf "\nEnter volttron db user name. This would be used by historian agents to acess mongodb[test]: "
+printf "\nEnter volttron db name. This would be used by historian agents to store data[historian]: "
+read db_name
+if [ "$db_name" == "" ]
+then
+    db_name="historian"
+fi
+
+
+printf "\nEnter volttron db user name. This would be used by historian agents to acess "$db_name" collection[volttron]: "
 read volttron_user
 if [ "$volttron_user" == "" ]
 then
-    volttron_user="test"
+    volttron_user="volttron"
 fi
 
 while true; do
@@ -83,12 +91,6 @@ while true; do
     fi
 done
 
-printf "\nEnter volttron db name. This would be used by historian agents to store data[mongo_db]: "
-read db_name
-if [ "$db_name" == "" ]
-then
-    db_name="mongo_db"
-fi
 
 mongo admin --eval 'db.createUser( {user: "'$admin_user'", pwd: "'$admin_passwd'", roles: [ { role: "userAdminAnyDatabase", db: "admin" }]});'
 mongo $db_name -u $admin_user -p $admin_passwd --authenticationDatabase admin --eval 'db.createUser( {user: "'$volttron_user'", pwd: "'$volttron_passwd'", roles: [ { role: "readWrite", db: "'$db_name'" }]});'
