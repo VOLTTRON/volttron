@@ -17,7 +17,22 @@ Setup mongodb based on using one of the three below scripts.
         sudo scripts/historian-scripts/root_install_mongo_rhel.sh
 
     The above script will prompt user for os version, db user name, password and database name
-2. Install as non root user on any Linux machine
+    Once installed you can start and stop the service using the command:
+
+    **sudo service mongod [start|stop|service]**
+
+2. Install as root on Ubuntu
+
+    ::
+
+        sudo scripts/historian-scripts/root_install_mongo_ubuntu.sh
+
+    The above script will prompt user for os version, db user name, password and database name
+    Once installed you can start and stop the service using the command:
+
+    **sudo service mongod [start|stop|service]**
+
+3. Install as non root user on any Linux machine
 
     ::
 
