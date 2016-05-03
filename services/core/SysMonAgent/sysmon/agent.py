@@ -118,18 +118,15 @@ class SysMonAgent(Agent):
     def __init__(self, base_topic, cpu_check_interval, memory_check_interval,
                  disk_check_interval, disk_path, **kwargs):
         super(SysMonAgent, self).__init__(**kwargs)
-        self.base_topic = base_topic
-        self.cpu_check_interval = cpu_check_interval
-        self.memory_check_interval = memory_check_interval
-        self.disk_check_interval = disk_check_interval
-        self.disk_path = disk_path
+        self._configure(
+                base_topic, cpu_check_interval, memory_check_interval,
+                disk_check_interval, disk_path)
+        self._pub_greenlets = []
 
     @Core.receiver('onstart')
     def start(self, sender, **kwargs):
         """Set up periodic publishing of system resource data"""
-        self._periodic_pub(self.cpu_percent, self.cpu_check_interval)
-        self._periodic_pub(self.memory_percent, self.memory_check_interval)
-        self._periodic_pub(self.disk_percent, self.disk_check_interval)
+        self._start_pub()
 
     def _periodic_pub(self, func, period, wait=0):
         """Periodically call func and publish its return value"""
@@ -138,7 +135,8 @@ class SysMonAgent(Agent):
             topic = self.base_topic + '/' + func.__name__
             self.vip.pubsub.publish(peer='pubsub', topic=topic,
                                     message=data)
-        self.core.periodic(period, pub_wrapper, wait=wait)
+        greenlet = self.core.periodic(period, pub_wrapper, wait=wait)
+        self._pub_greenlets.append(greenlet)
 
     @RPC.export
     def cpu_percent(self):
@@ -163,6 +161,34 @@ class SysMonAgent(Agent):
         :type base_topic: str
         """
         self.base_topic = base_topic
+
+    @RPC.export
+    def reconfigure(self, **kwargs):
+        """Reconfigure the agent"""
+        self._configure(**kwargs)
+        self._restart()
+
+    def _configure(self, base_topic, cpu_check_interval,
+                   memory_check_interval, disk_check_interval, disk_path):
+        self.base_topic = base_topic
+        self.cpu_check_interval = cpu_check_interval
+        self.memory_check_interval = memory_check_interval
+        self.disk_check_interval = disk_check_interval
+        self.disk_path = disk_path
+
+    def _restart(self):
+        self._stop_pub()
+        self._start_pub()
+
+    def _start_pub(self):
+        self._periodic_pub(self.cpu_percent, self.cpu_check_interval)
+        self._periodic_pub(self.memory_percent, self.memory_check_interval)
+        self._periodic_pub(self.disk_percent, self.disk_check_interval)
+
+    def _stop_pub(self):
+        for greenlet in self._pub_greenlets:
+            greenlet.kill()
+        self._pub_greenlets = []
 
 
 def main(argv=sys.argv):
