@@ -1545,58 +1545,18 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             if (action.agents.length > 0)
             {
                 insertAgents(platform, action.agents);
-                // platform.expanded = true;
-                // platform.agents = {};
-                // platform.agents.path = platform.path.slice(0);
-                // platform.agents.path.push("agents");
-                // platform.agents.name = "Agents";
-                // platform.agents.expanded = false;
-                // platform.agents.visible = true;
-                // platform.agents.children = [];
-                // platform.agents.type = "type";
-                // platform.agents.sortOrder = _agentsOrder;
-
-                // if (platform.children.indexOf("agents") < 0)
-                // {
-                //     platform.children.push("agents");
-                // }
-
-                // action.agents.forEach(function (agent)
-                // {
-                //     var agentProps = agent;
-                //     agentProps.expanded = false;
-                //     agentProps.visible = true;
-                //     agentProps.path = platform.agents.path.slice(0);
-                //     agentProps.path.push(agent.uuid);
-                //     // agent.status = "GOOD";
-                //     agentProps.children = [];
-                //     agentProps.type = "agent";
-                //     agentProps.sortOrder = 0;
-                //     platform.agents.children.push(agent.uuid); 
-                //     platform.agents[agent.uuid] = agentProps;
-                // });
-
             }
 
             platformsPanelItemsStore.emitChange();
             break;
         case ACTION_TYPES.RECEIVE_DEVICE_STATUSES:
 
-            var item = platformsPanelItemsStore.getItem(action.platform.path);
+            var platform = _items["platforms"][action.platform.uuid];
 
-            // var platform = _items["platforms"][action.platform.uuid];
-
-            if (item.children.length > 0)
+            if (action.devices.length > 0)
             {
-                item.expanded = true;
+                insertDevices(platform, action.devices);
             }
-            // _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"] = action.devices;
-
-            // for (var key in _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"])
-            // {
-            //     _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"][key]["children"] = ["points"];                
-            //     _items["platforms"][action.platform.uuid]["buildings"][action.building.uuid]["devices"][key]["path"] = ["platforms", action.platform.uuid, "buildings", action.building.uuid, "devices"];
-            // }
 
             platformsPanelItemsStore.emitChange();
             break;
@@ -1726,7 +1686,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             agentProps.visible = true;
             agentProps.path = JSON.parse(JSON.stringify(platform.agents.path));
             agentProps.path.push(agent.uuid);
-            agent.status = agent.health.status;
+            agentProps.status = agent.health.status;
             agentProps.children = [];
             agentProps.type = "agent";
             agentProps.sortOrder = 0;
@@ -1735,7 +1695,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
             if (typeof agentsHealth === "undefined")
             {
-                agentsHealth = agent.status;
+                agentsHealth = agentProps.status;
             }
             else
             {
@@ -1743,7 +1703,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                 {
                     case "UNKNOWN":
 
-                        switch (agent.status)
+                        switch (agentProps.status)
                         {
                             case "BAD":
                                 agentsHealth = "BAD";
@@ -1751,7 +1711,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                         }
                         break;
                     case "GOOD":
-                        agentsHealth = agent.status;
+                        agentsHealth = agentProps.status;
                 }
             }
 
@@ -1773,6 +1733,199 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                 delete platform.agents;
             }
         }
+    }
+
+    function insertBuilding(platform, uuid, name)
+    {
+        var building = {};
+
+        if (platform.children.indexOf("buildings") < 0)
+        {
+            platform.children.push("buildings");
+
+            platform.buildings = {};
+            platform.buildings.path = JSON.parse(JSON.stringify(platform.path));
+            platform.buildings.path.push("buildings");
+            platform.buildings.expanded = false;
+            platform.buildings.visible = true;
+            platform.buildings.type = "type";
+            platform.buildings.sortOrder = _buildingsOrder;
+
+            var buildingProps = {};
+            buildingProps.name = name;
+            buildingProps.uuid = uuid;
+
+            buildingProps.expanded = false;
+            buildingProps.visible = false;
+            buildingProps.path = JSON.parse(JSON.stringify(platform.buildings.path));
+            buildingProps.path.push(building.uuid);
+            buildingProps.status = "UNKNOWN";
+            buildingProps.children = ["devices"];
+            buildingProps.type = "building";
+            buildingProps.sortOrder = 0;
+
+            buildingProps.devices = [];
+
+            //TODO: add building points
+            // buildingProps.children.push("points");
+            // buildingProps.points = [];
+
+            platform.buildings.children = [building.uuid];
+            platform.buildings[building.uuid] = buildingProps;
+
+            building = platform.buildings[building.uuid];
+        }
+
+        return building;
+    }
+
+    function insertDevices(platform, devices)
+    {
+        var devicesToInsert = JSON.parse(JSON.stringify(devices));
+
+        var buildingUuid, buildingName, buildingsHealth;
+
+        var building = {};
+
+        if (devicesToInsert.length > 0)
+        {
+            //Get the building from the first device and add the
+            // building to the tree
+            var pathParts = devicesToInsert[0].path.split("/");
+            buildingUuid = pathParts[0] + "_" + pathParts[1];
+            buildingName = pathParts[1];
+            building = insertBuildings(platform, buildingUuid, buildingName);
+
+            //Make a 2D array where each row is another level 
+            // of devices and subdevices in the tree
+            var nestedDevices = [];
+            var level = 3;
+            var deviceCount = 0;
+
+            while (deviceCount < devicesToInsert.length)
+            {
+                var levelList = [];
+
+                devicesToInsert.forEach(function (device) {
+
+                    var deviceParts = device.path.split("/");
+
+                    if (deviceParts.length === level)
+                    {
+                        levelList.push(device);
+                        ++deviceCount;
+                    }
+                });
+
+                if (levelList.length > 0)
+                {
+                    nestedDevices.push(levelList);
+                }
+
+                ++level;
+            }
+        }
+
+        //Now we can add each row of devices, confident
+        // that any parent devices will be added to the tree
+        // before their subdevices
+        nestedDevices.forEach(function (level) {
+            level.forEach(function (device, row) {
+                insertDevice(device, building, row);
+            });
+        });
+    }
+
+    function insertDevice(device, building, row)
+    {        
+        switch (row)
+        {
+            case 0:
+                //top-level devices
+                var deviceProps = {};
+                deviceProps.expanded = false;
+                deviceProps.visible = false;
+                deviceProps.path = JSON.parse(JSON.stringify(platform.buildings[buildingUuid].path));
+                deviceProps.path.push(device.path.replace(/ \/ /g, '_'));
+                deviceProps.status = device.health.status;
+                deviceProps.children = [];
+                deviceProps.type = "device";
+                deviceProps.sortOrder = 0;
+
+                platform.buildings[building.uuid].devices.push(device.uuid);
+                platform.buildings[building.uuid].devices[device.uuid] = deviceProps;
+
+                break;
+            default:
+                //subdevices:
+                //top-level devices
+                var deviceParts = device.path.split("/");
+
+                deviceParts.forEach(function (part, i) {
+
+                    var parentDevice = {};
+                    
+                    //Ignore the first two, that's the campus and building
+                    if (i > 1)
+                    {
+
+                    }
+                });
+
+                insertSubdevice(device)
+                var deviceProps = {};
+                deviceProps.expanded = false;
+                deviceProps.visible = false;
+                deviceProps.path = JSON.parse(JSON.stringify(platform.buildings[buildingUuid].path));
+                deviceProps.path.push(device.path.replace(/ \/ /g, '_'));
+                deviceProps.status = device.health.status;
+                deviceProps.children = [];
+                deviceProps.type = "device";
+                deviceProps.sortOrder = 0;
+
+                platform.buildings[building.uuid].devices.push(device.uuid);
+                platform.buildings[building.uuid].devices[device.uuid] = deviceProps;                
+                break;
+        }
+
+        var deviceProps = device;
+        deviceProps.expanded = false;
+        deviceProps.visible = false;
+        deviceProps.path = JSON.parse(JSON.stringify(platform.buildings[buildingUuid].path));
+        deviceProps.path.push(device.path.replace(/ \/ /g, '_'));
+        agent.status = device.health.status;
+        deviceProps.children = [];
+        deviceProps.type = "device";
+        deviceProps.sortOrder = 0;
+
+        platform.buildings[buildingUuid].devices.push(device.uuid);
+        platform.buildings[buildingUuid].devices[device.uuid] = deviceProps;
+
+
+        if (typeof agentsHealth === "undefined")
+        {
+            agentsHealth = agentProps.status;
+        }
+        else
+        {
+            switch (agentsHealth)
+            {
+                case "UNKNOWN":
+
+                    switch (agentProps.status)
+                    {
+                        case "BAD":
+                            agentsHealth = "BAD";
+                            break;
+                    }
+                    break;
+                case "GOOD":
+                    agentsHealth = agentProps.status;
+            }
+        }
+
+        platform.buildings.status = buildingsHealth;
+        platform.buildings[buildingUuid].status = buildingsHealth;
     }
 
     function loadDevices(platform)

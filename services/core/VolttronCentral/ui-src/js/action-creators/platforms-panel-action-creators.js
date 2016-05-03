@@ -60,7 +60,7 @@ var platformsPanelActionCreators = {
         {
             case "platform":
                 loadPanelAgents(parent);
-                loadPanelBuildings(parent);
+                loadPanelDevices(parent);
                 loadPanelPoints(parent);
                 break;
             case "building":
@@ -157,11 +157,35 @@ var platformsPanelActionCreators = {
             });    
         }
 
-        function loadPanelDevices(parent) {
-            dispatcher.dispatch({
-                type: ACTION_TYPES.RECEIVE_DEVICE_STATUSES,
-                platform: parent
-            });    
+        function loadPanelDevices(platform) {
+            var authorization = authorizationStore.getAuthorization();
+
+            new rpc.Exchange({
+                method: 'platforms.uuid.' + platform.uuid + '.get_devices',
+                authorization: authorization,
+            }).promise
+                .then(function (result) {
+                    
+                    var devicesList = [];
+
+                    for (var key in result)
+                    {
+                        var device = JSON.parse(JSON.stringify(result[key]));
+                        device.path = key;
+
+                        devicesList.push(device);
+                    }
+
+                    dispatcher.dispatch({
+                        type: ACTION_TYPES.RECEIVE_DEVICE_STATUSES,
+                        platform: platform,
+                        devices: devicesList
+                    });
+
+                    
+                })
+                .catch(rpc.Error, handle401);    
+
         }
 
         function loadPanelBuildings(parent) {
