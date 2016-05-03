@@ -10,7 +10,7 @@ os_version=""
 while true; do
     printf "Enter the major version of your Redhat/Cent OS [6|7]: "
     read os_version
-    if [ $os_version == "6" ] || [ $os_version == "7" ]
+    if [ "$os_version" == "6" ] || [ "$os_version" == "7" ]
     then
         break
     else
@@ -47,7 +47,7 @@ printf "\n## Setting up admin user' ##\n"
 
 printf "\nEnter admin username[admin]: "
 read admin_user
-if [ $admin_user == "" ]
+if [ "$admin_user" == "" ]
 then
     admin_user="admin"
 fi
@@ -55,7 +55,7 @@ fi
 while true; do
     printf "Enter admin password: "
     read admin_passwd
-    if [ $admin_passwd != "" ]
+    if [ "$admin_passwd" != "" ]
     then
         break
     else
@@ -67,7 +67,7 @@ printf "\n## Setting up users and database collection to be used by historian' #
 
 printf "\nEnter volttron db user name. This would be used by historian agents to acess mongodb[test]: "
 read volttron_user
-if [ $volttron_user == "" ]
+if [ "$volttron_user" == "" ]
 then
     volttron_user="test"
 fi
@@ -75,7 +75,7 @@ fi
 while true; do
     printf "Enter volttron db user password: "
     read volttron_passwd
-    if [ $volttron_passwd != "" ]
+    if [ "$volttron_passwd" != "" ]
     then
         break
     else
@@ -85,10 +85,10 @@ done
 
 printf "\nEnter volttron db name. This would be used by historian agents to store data[mongo_db]: "
 read db_name
-if [ $db_name == "" ]
+if [ "$db_name" == "" ]
 then
     db_name="mongo_db"
 fi
 
-mongo admin --eval 'db.createUser( {user: "'$admin_user'", pwd: "'$admin_psswd'", roles: [ { role: "userAdminAnyDatabase", db: "admin" }]});'
-mongo mongo_test -u $admin_user -p $admin_passwd --authenticationDatabase admin --eval 'db.createUser( {user: "'$volttron_user'", pwd: "'$volttron_passwd'", roles: [ { role: "readWrite", db: "'$db_name'" }]});'
+mongo admin --eval 'db.createUser( {user: "'$admin_user'", pwd: "'$admin_passwd'", roles: [ { role: "userAdminAnyDatabase", db: "admin" }]});'
+mongo $db_name -u $admin_user -p $admin_passwd --authenticationDatabase admin --eval 'db.createUser( {user: "'$volttron_user'", pwd: "'$volttron_passwd'", roles: [ { role: "readWrite", db: "'$db_name'" }]});'
