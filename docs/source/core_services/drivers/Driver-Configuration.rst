@@ -41,7 +41,7 @@ The following example loads three driver configuration files:
 An example master driver configuration file can be found `here <https://raw.githubusercontent.com/VOLTTRON/volttron/c57569bd9e71eb32afefe8687201d674651913ed/examples/configurations/drivers/master-driver.agent>`_ or 
 in the VOLTTRON repository in ``examples/configurations/drivers/master-driver.agent``.
 
-
+.. _driver-configuration-file:
 Driver Configuration File
 -------------------------
 Each device configuration has the following form:
