@@ -71,6 +71,7 @@ import gevent
 import psutil
 from volttron.platform.agent.utils import (
     get_aware_utc_now, format_timestamp, parse_timestamp_string)
+from volttron.platform.messaging.topics import LOGGER
 from zmq.utils import jsonapi
 
 from volttron.platform.vip.agent import *
@@ -372,6 +373,10 @@ class VolttronCentralPlatform(Agent):
     @Core.periodic(period=15, wait=30)
     def write_status(self):
 
+        # if self._platform_uuid:
+        #     base_topic = LOGGER(subtopic="")
+        #     'datalogger/platforms/{}/status'.format(self._platform_uuid)
+        # else:
         base_topic = 'datalogger/log/platform/status'
         cpu = base_topic + '/cpu'
         points = {}

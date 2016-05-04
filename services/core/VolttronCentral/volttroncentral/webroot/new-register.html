@@ -9,11 +9,11 @@
 </head>
 <body>
 <h1>Webservice api exercise</h1>
-<h2>Authorization</h2>
+<h3>Authorization</h3>
 <button id="get_auth">Get Auth Token</button><br />
 Auth Token: <input type="text" id="token" placeholder="Enter auth token" /><br/>
 
-<h2>Platform Registration</h2>
+<h3>Platform Registration</h3>
 Platform Name: <input type="text" id="platform_name" /><br />
 Discovery Address: <input type="text" id="discovery_address" /><br />
 <button id="register">Register Platform</button><br />
@@ -22,7 +22,7 @@ Discovery Address: <input type="text" id="discovery_address" /><br />
 <button id="register2">Register Platform http://127.0.0.3:8080</button>
 <button id="register3">Register Platform http://127.0.0.4:8080</button>
 
-<h2>Platform Listings</h2>
+<h3>Platform Listings</h3>
 <button id="list_platforms">List Platforms</button>
 <button id="list_deivces">List Devices</button>
 VIP Identity: <input type="text" id="vip_identity" value="platform.agent" /><br />
@@ -32,7 +32,7 @@ VIP Address: <input type="text" id="vip_address" placeholder="VIP Address where 
 Platform UUID: <input type="text" id="platform_uuid" placeholder="Platform uuid to remove" /><br/>
 <button id="unregister">Unregister VIP Address</button><br />
 
-<h2>Platform Agent API</h2>
+<h3>Platform Agent API</h3>
 Platform UUID: <input id="agent_platform_uuid" placeholder="Platform the agent below is on" /><br/>
 <button id="list_agents">List Agents</button> <button id="get_devices">Get Devices</button><br />
 Agent UUID: <input id="agent_uuid" placeholder="Agent to act on" /><br/>
@@ -41,10 +41,14 @@ Arguments: <input id="agent_method" placeholder="Method to call"/> <input id="ag
 <button id="execute_method">Execute Method</button>
 <button id="status_agents">Status Agents</button>
 
-<h2>Request Sent</h2>
+<h3>Platform Historian</h3>
+Topic: <input id="historian_topic" placeholder="Historian topic to query" /><br/>
+<button id="query_historian">Query Historian</button>
+
+<h4>Request Sent</h4>
 <textarea id="request_sent" cols="100" rows="5"></textarea>
 
-<h2>Response Data</h2>
+<h4>Response Data</h4>
 <textarea id="output_data" cols="100" rows="5"></textarea>
 
 <script language="javascript">
@@ -79,7 +83,7 @@ Arguments: <input id="agent_method" placeholder="Method to call"/> <input id="ag
                 $('#output_data').val("FAILURE "+ JSON.stringify(data));
         }
 
-});
+}   );
     }
 
     function do_request_vc_method(method) {
@@ -105,6 +109,43 @@ Arguments: <input id="agent_method" placeholder="Method to call"/> <input id="ag
             }
 
          });
+    }
+
+    function do_historian_query() {
+        var topic = $('#historian_topic').val();
+        if (!topic) {
+            alert('Invalid topic!');
+        }
+
+        var platform_uuid = $('#agent_platform_uuid').val();
+        if (!platform_uuid){
+            alert('Invalid platform uuid');
+            return;
+        }
+
+        var req_method = 'platform.uuid.'+platform_uuid+'.historian.query';
+        var token = $('#token').val();
+        var pdata = {
+                 jsonrpc: '2.0',
+                 method: req_method,
+                 data: {topic: topic},
+                 authorization: token,
+                 id: '72581-4'
+        };
+        $('#request_sent').val(JSON.stringify(pdata));
+        $.ajax({
+             type: 'POST',
+             url: '/jsonrpc',
+             data: JSON.stringify(pdata),
+             dataType: 'json',
+             success: function(data){
+                 $('#output_data').val(JSON.stringify(data));
+             },
+             failure: function(data){
+                 $('#output_data').val("FAILURE "+ JSON.stringify(data));
+            }
+
+        });
     }
 
 
@@ -138,6 +179,10 @@ Arguments: <input id="agent_method" placeholder="Method to call"/> <input id="ag
 
     $('#get_devices').click(function(){
         do_request_platform_method('get_devices');
+    });
+
+    $('#query_historian').click(function(){
+        do_historian_query();
     });
 
     $('#get_auth').click(function(){
