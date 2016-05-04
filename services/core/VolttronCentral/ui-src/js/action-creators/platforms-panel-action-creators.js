@@ -314,8 +314,18 @@ var platformsPanelActionCreators = {
                     });
                 })
                 .catch(rpc.Error, function (error) {
-                 
-                    statusIndicatorActionCreators.openStatusIndicator("error", error);
+                    
+                    var message = error.message;
+
+                    if (error.code === -32602)
+                    {
+                        if (error.message === "historian unavailable")
+                        {
+                            message = "Data could not be fetched. The historian agent is unavailable."
+                        }
+                    }
+
+                    statusIndicatorActionCreators.openStatusIndicator("error", message);
                     handle401(error);
                 });
         }  
@@ -374,7 +384,7 @@ function handle401(error) {
 
         platformManagerActionCreators.clearAuthorization();
 
-        statusIndicatorActionCreators.openStatusIndicator("error", error);
+        statusIndicatorActionCreators.openStatusIndicator("error", error.message);
     }
 };
 

@@ -32,7 +32,19 @@ var platformManagerActionCreators = {
                 });
             })
             .then(platformManagerActionCreators.initialize)
-            .catch(rpc.Error, handle401);
+            .catch(rpc.Error, function (error) {
+
+                var message = error.message;
+
+                if (error.message === "Server returned 401 status")
+                {
+                    message = "Login failed: Invalid credentials.";
+                }
+
+                statusIndicatorActionCreators.openStatusIndicator("error", message);
+
+                handle401(error);
+            })
     },
     clearAuthorization: function () {
         dispatcher.dispatch({
@@ -63,7 +75,12 @@ var platformManagerActionCreators = {
                     platformActionCreators.loadAgents(platform);
                 });
             })
-            .catch(rpc.Error, handle401);
+            .catch(rpc.Error, function (error) {
+
+                statusIndicatorActionCreators.openStatusIndicator("error", error.message);
+
+                handle401(error);
+            });
     },
     registerPlatform: function (name, address) {
         var authorization = authorizationStore.getAuthorization();
@@ -197,7 +214,7 @@ var platformManagerActionCreators = {
                     error: error,
                 });
 
-                statusIndicatorActionCreators.openStatusIndicator("error", error);
+                statusIndicatorActionCreators.openStatusIndicator("error", error.message);
 
                 handle401(error);
             });
@@ -213,7 +230,7 @@ function handle401(error) {
 
         platformManagerActionCreators.clearAuthorization();
 
-        statusIndicatorActionCreators.openStatusIndicator("error", error);
+        statusIndicatorActionCreators.openStatusIndicator("error", error.message);
     }
 }
 
