@@ -11,7 +11,7 @@ from volttron.platform.vip.agent import Agent
 from volttron.platform.agent.base_historian import BaseHistorian
 
 
-class TestHistorian(BaseHistorian):
+class Historian(BaseHistorian):
     def publish_to_historian(self,_):
         pass
     def query_topic_list(self):
@@ -56,8 +56,8 @@ def test_base_historian(volttron_instance1):
                                    config_file=master_config)
     gevent.sleep(2)
 
-    db = TestHistorian(address=v1.vip_address[0],
-                       backup_storage_limit_gb=0.00002)
+    db = Historian(address=v1.vip_address[0],
+                   backup_storage_limit_gb=0.00002)
     gevent.spawn(db.core.run).join(0)
 
     agent = v1.build_agent()
