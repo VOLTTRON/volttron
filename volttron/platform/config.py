@@ -287,7 +287,7 @@ def CaseInsensitiveConfigFileAction(ConfigFileAction):
             yield section, key, value, lineno
 
 
-# Revert _SubParsersAction due to Python revision 1a3143752db2 
+# Revert _SubParsersAction due to Python revision 1a3143752db2
 # (https://hg.python.org/cpython/rev/1a3143752db2) which introduced
 # a backward-incompatible bug and broke parsing of global options.
 # See Python issue #9351 (https://bugs.python.org/issue9351) for the bug
@@ -746,7 +746,7 @@ def _main():
 
     if is_discoverable:
         t = ('What is the external ipv4 address for this instance? '
-             '(e.g 127.0.0.1): ',)
+             '[127.0.0.1]: ', None, '127.0.0.1')
         external_ip = prompt_response(t)
         t = ('What is the vip port this instance? [22916] ',)
         vip_port = prompt_response(t)
@@ -777,7 +777,8 @@ def _main():
             do_install_platform = prompt_response(t) in y
         else:
             do_install_platform = True
-            t = ('Address of volttron central? (e.g 127.0.0.1): ',)
+            t = ('Address of volttron central? [127.0.0.1]: ', None,
+                 '127.0.0.1')
             vc_ipaddress = prompt_response(t)
             should_resolve = True
             first = True
