@@ -208,7 +208,7 @@ var PlatformsPanelItem = React.createClass({
                         style={tooltipStyle}>
                         <div className="tooltip_inner">
                             <div className="opaque_inner">
-                                {panelItem.uuid}
+                                {panelItem.name}:&nbsp;{panelItem.context}
                             </div>
                         </div>
                     </div>
