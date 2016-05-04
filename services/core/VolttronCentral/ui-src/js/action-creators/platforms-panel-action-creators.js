@@ -3,6 +3,7 @@
 var ACTION_TYPES = require('../constants/action-types');
 var authorizationStore = require('../stores/authorization-store');
 var platformsPanelItemsStore = require('../stores/platforms-panel-items-store');
+var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
 var dispatcher = require('../dispatcher');
 var rpc = require('../lib/rpc');
 
@@ -258,7 +259,7 @@ var platformsPanelActionCreators = {
 
     addToChart: function(panelItem) {
 
-        if (panelItem.parentType === "platform")
+        if (true)
         {
             var authorization = authorizationStore.getAuthorization();
 
@@ -312,7 +313,11 @@ var platformsPanelActionCreators = {
                         panelItem: panelItem
                     });
                 })
-                .catch(rpc.Error, handle401);
+                .catch(rpc.Error, function (error) {
+                 
+                    statusIndicatorActionCreators.openStatusIndicator("error", error);
+                    handle401(error);
+                });
         }  
         else
         {
@@ -368,6 +373,8 @@ function handle401(error) {
         });
 
         platformManagerActionCreators.clearAuthorization();
+
+        statusIndicatorActionCreators.openStatusIndicator("error", error);
     }
 };
 
