@@ -1556,11 +1556,12 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                         platform.points = {};
                         platform.points.path = platform.path.slice(0);
                         platform.points.path.push("points");
-                        platform.points.name = "Points";
+                        platform.points.name = "Performance";
                         platform.points.expanded = false;
                         platform.points.visible = true;
                         platform.points.children = [];
                         platform.points.type = "type";
+                        platform.points.status = platform.status;
                         platform.points.sortOrder = _pointsOrder;
 
                         if (platform.children.indexOf("points") < 0)

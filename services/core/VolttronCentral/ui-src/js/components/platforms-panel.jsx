@@ -21,11 +21,12 @@ var PlatformsPanel = React.createClass({
         return state;
     },
     componentWillMount: function () {
-        platformsPanelActionCreators.loadPanelPlatforms();
+        
     },
     componentDidMount: function () {
         platformsPanelStore.addChangeListener(this._onPanelStoreChange);
         platformsPanelItemsStore.addChangeListener(this._onPanelItemsStoreChange);
+        platformsPanelActionCreators.loadPanelPlatforms();
     },
     componentWillUnmount: function () {
         platformsPanelStore.removeChangeListener(this._onPanelStoreChange);

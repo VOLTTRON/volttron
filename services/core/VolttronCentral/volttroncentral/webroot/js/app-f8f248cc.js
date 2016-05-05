@@ -722,14 +722,17 @@ var platformManagerActionCreators = {
                     platforms: platforms,
                 });
 
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.RECEIVE_PLATFORM_STATUSES,
+                    platforms: platforms,
+                });
+
                 platforms.forEach(function (platform, i) {
                     if (platform.name === null || platform.name === "")
                     {
                         platform.name = "vc" + (i + 1);
                     }
                     
-                    // platformActionCreators.loadPlatform(platform);
-                    // platformActionCreators.initializeAgents(platform);
                     platformActionCreators.loadAgents(platform);
                 });
             })
@@ -3719,11 +3722,12 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
         return state;
     },
     componentWillMount: function () {
-        platformsPanelActionCreators.loadPanelPlatforms();
+        
     },
     componentDidMount: function () {
         platformsPanelStore.addChangeListener(this._onPanelStoreChange);
         platformsPanelItemsStore.addChangeListener(this._onPanelItemsStoreChange);
+        platformsPanelActionCreators.loadPanelPlatforms();
     },
     componentWillUnmount: function () {
         platformsPanelStore.removeChangeListener(this._onPanelStoreChange);
@@ -6996,11 +7000,12 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                         platform.points = {};
                         platform.points.path = platform.path.slice(0);
                         platform.points.path.push("points");
-                        platform.points.name = "Points";
+                        platform.points.name = "Performance";
                         platform.points.expanded = false;
                         platform.points.visible = true;
                         platform.points.children = [];
                         platform.points.type = "type";
+                        platform.points.status = platform.status;
                         platform.points.sortOrder = _pointsOrder;
 
                         if (platform.children.indexOf("points") < 0)

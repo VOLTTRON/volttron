@@ -64,14 +64,17 @@ var platformManagerActionCreators = {
                     platforms: platforms,
                 });
 
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.RECEIVE_PLATFORM_STATUSES,
+                    platforms: platforms,
+                });
+
                 platforms.forEach(function (platform, i) {
                     if (platform.name === null || platform.name === "")
                     {
                         platform.name = "vc" + (i + 1);
                     }
                     
-                    // platformActionCreators.loadPlatform(platform);
-                    // platformActionCreators.initializeAgents(platform);
                     platformActionCreators.loadAgents(platform);
                 });
             })
