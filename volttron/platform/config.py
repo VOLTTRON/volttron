@@ -695,7 +695,8 @@ def _make_configuration(external_uri, bind_web_address,
     config.set('volttron', 'vip-address', external_uri)
     config.set('volttron', 'bind-web-address', bind_web_address)
     if volttron_central:
-        config.set('volttron', 'volttron-central', volttron_central)
+        config.set('volttron', 'volttron-central-address',
+                   volttron_central)
     cfgfile = _os.path.join(get_home(), 'config')
     with open(cfgfile, 'w') as cf:
         config.write(cf)
