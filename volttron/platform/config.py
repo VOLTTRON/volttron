@@ -715,10 +715,11 @@ def _resolvable(uri, port):
 
 def _explain_discoverable():
     discoverability = """
-A platform is discoverable if it responds to an http request /discovery/.  The
-ip address and port are used to hook up a volttron central instance and an
-in field platform.  Though this is not required to register a field instance
-with volttron central, it does make adding addtional platforms easier.
+A platform is discoverable if it responds to an http request /discovery/.
+The ip address and port are used to hook up a volttron central instance and
+instances in the field.  Though this is not required to register a field
+instance with volttron central, it does make adding additional platforms
+easier.
 
 NOTE: The instances does not have to be discoverable after the instance is
       registered with volttron central.
@@ -737,16 +738,25 @@ def _main():
     _os.environ['VOLTTRON_HOME'] = volttron_home
     if not _os.path.exists(volttron_home):
         _os.makedirs(volttron_home, 0o755)
-    print('VOLTTRON_HOME set to: {}'.format(volttron_home))
+
     y_or_n = ('Y', 'N', 'y', 'n')
     y = ('Y', 'y')
     n = ('N', 'n')
-    t = ('Is this instance discoverable (Y/N)? [N] ', y_or_n, 'N')
+    print('\nYour VOLTTRON_HOME currently set to: {}'.format(volttron_home))
+    t = ('\nIs this the volttron you are attempting to setup? [Y]',
+         y_or_n,
+         'Y')
+    if not prompt_response(t) in y:
+        print(
+            '\nPlease execute with VOLTRON_HOME=/your/path volttron-cfg to '
+            'modify VOLTTRON_HOME.\n')
+        return
+    t = ('\nIs this instance discoverable (Y/N)? [N] ', y_or_n, 'N')
     _explain_discoverable()
     is_discoverable = prompt_response(t) in y
 
     if is_discoverable:
-        t = ('What is the external ipv4 address for this instance? '
+        t = ('\nWhat is the external ipv4 address for this instance? '
              '[127.0.0.1]: ', None, '127.0.0.1')
         external_ip = prompt_response(t)
         t = ('What is the vip port this instance? [22916] ',)
@@ -754,31 +764,32 @@ def _main():
         if not vip_port:
             vip_port = 22916
 
-        t = ('What is the port for discovery? [8080] ',)
+        t = ('\nWhat is the port for discovery? [8080] ',)
         external_port = prompt_response(t)
         if not external_port:
             external_port = 8080
         t = (
-            'Which IP addresses are allowed to discover this instance? '
+            '\nWhich IP addresses are allowed to discover this instance? '
             '[/127.*/] ', None, '/127.*/')
         ip_allowed_to_discover = prompt_response(t)
         AuthFile().add(AuthEntry(address=ip_allowed_to_discover,
                                  credentials='/CURVE:.*/'))
 
-        t = ('Is this instance a volttron central (Y/N)? [N] ', y_or_n, 'N')
+        t = ('\nIs this instance a volttron central (Y/N)? [N] ', y_or_n, 'N')
         do_install_vc = prompt_response(t) in y
         do_vc_autostart = True
         do_platform_autostart = True
         if do_install_vc:
-            t = ('Should volttron central autostart(Y/N)? [Y] ', y_or_n, 'Y')
+            t = ('\nShould volttron central autostart(Y/N)? [Y] ',
+                 y_or_n, 'Y')
             do_vc_autostart = prompt_response(t) in y
 
-            t = ('Include volttron central platform agent on '
+            t = ('\nInclude volttron central platform agent on '
                  'volttron central? [Y]', y_or_n, 'Y')
             do_install_platform = prompt_response(t) in y
         else:
             do_install_platform = True
-            t = ('Address of volttron central? [127.0.0.1]: ', None,
+            t = ('\nAddress of volttron central? [127.0.0.1]: ', None,
                  '127.0.0.1')
             vc_ipaddress = prompt_response(t)
             should_resolve = True
@@ -790,20 +801,20 @@ def _main():
             while not _resolvable(vc_ipaddress, vc_port) and should_resolve:
                 print("Couldn't resolve {}:{}".format(vc_ipaddress, vc_port))
                 t2 = (
-                    'Should volttron central be resolvable now? [Y] ', y_or_n,
+                    '\nShould volttron central be resolvable now? [Y] ', y_or_n,
                     'Y')
                 if first:
                     should_resolve = prompt_response(t2) in ('y', 'Y')
                     first = False
 
                 if should_resolve:
-                    t = ('Address of volttron central? ',)
+                    t = ('\nAddress of volttron central? ',)
                     vc_ipaddress = prompt_response(t)
-                    t = ('Port of volttron central? ',)
+                    t = ('\nPort of volttron central? ',)
                     vc_port = prompt_response(t)
 
         if do_install_platform:
-            t = ('Should platform agent autostart(Y/N)? [Y] ', y_or_n, 'Y')
+            t = ('\nShould platform agent autostart(Y/N)? [Y] ', y_or_n, 'Y')
             do_platform_autostart = prompt_response(t) in y
 
         external_uri = "tcp://{}:{}".format(external_ip, vip_port)
@@ -819,12 +830,12 @@ def _main():
         except UnboundLocalError:
             _make_configuration(external_uri, bind_web_address)
 
-        t = ('Should install sqlite platform historian? [N]', y_or_n, n)
+        t = ('\nShould install sqlite platform historian? [N]', y_or_n, n)
         do_install_platform_historian = prompt_response(t) in y
 
         do_historian_autostart = True
         if do_install_platform_historian:
-            t = ('Should historian agent autostart(Y/N)? [Y] ', y_or_n, 'Y')
+            t = ('\nShould historian agent autostart(Y/N)? [Y] ', y_or_n, 'Y')
             do_historian_autostart = prompt_response(t) in y
 
         # in order to install agents we need to start the platform.
