@@ -208,7 +208,7 @@ var PlatformsPanelItem = React.createClass({
                         style={tooltipStyle}>
                         <div className="tooltip_inner">
                             <div className="opaque_inner">
-                                {panelItem.name}:&nbsp;{panelItem.context}
+                                {panelItem.name}:&nbsp;{(panelItem.context ? panelItem.context : panelItem.status)}
                             </div>
                         </div>
                     </div>

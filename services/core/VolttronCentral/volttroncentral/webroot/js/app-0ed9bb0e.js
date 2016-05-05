@@ -3696,7 +3696,7 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
                         style: tooltipStyle}, 
                         React.createElement("div", {className: "tooltip_inner"}, 
                             React.createElement("div", {className: "opaque_inner"}, 
-                                panelItem.name, ": ", panelItem.context
+                                panelItem.name, ": ", (panelItem.context ? panelItem.context : panelItem.status)
                             )
                         )
                     ), 
@@ -7127,28 +7127,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             platform.agents.children.push(agent.uuid); 
             platform.agents[agent.uuid] = agentProps;
 
-            if (typeof agentsHealth === "undefined")
-            {
-                agentsHealth = agentProps.status;
-            }
-            else
-            {
-                switch (agentsHealth)
-                {
-                    case "UNKNOWN":
-
-                        switch (agentProps.status)
-                        {
-                            case "BAD":
-                                agentsHealth = "BAD";
-                                break;
-                        }
-                        break;
-                    case "GOOD":
-                        agentsHealth = agentProps.status;
-                }
-            }
-
+            agentsHealth = checkStatuses(agentsHealth, agentProps);
         });
 
         platform.agents.status = agentsHealth;
@@ -7171,8 +7150,6 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
     function insertBuilding(platform, uuid, name)
     {
-        var building = {};
-
         if (platform.children.indexOf("buildings") < 0)
         {
             platform.children.push("buildings");
@@ -7186,7 +7163,10 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             platform.buildings.visible = true;
             platform.buildings.type = "type";
             platform.buildings.sortOrder = _buildingsOrder;
+        }
 
+        if (!platform.buildings.hasOwnProperty(uuid))
+        {
             var buildingProps = {};
             buildingProps.name = name;
             buildingProps.uuid = uuid;
@@ -7216,33 +7196,20 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             // buildingProps.points = [];
 
             platform.buildings.children.push(buildingProps.uuid);
-            platform.buildings[buildingProps.uuid] = buildingProps;
-
-            building = platform.buildings[buildingProps.uuid];
+            platform.buildings[buildingProps.uuid] = buildingProps;            
         }
 
-        return building;
+        return platform.buildings[uuid];
     }
 
     function insertDevices(platform, devices)
     {
         var devicesToInsert = JSON.parse(JSON.stringify(devices));
 
-        var buildingUuid, buildingName, buildingsHealth, legendInfo;
-
-        var building = {};
+        var buildings = [];
 
         if (devicesToInsert.length > 0)
         {
-            //Get the building from the first device and add the
-            // building to the tree
-            var pathParts = devicesToInsert[0].path.split("/");
-            buildingUuid = pathParts[0] + "_" + pathParts[1];
-            buildingName = pathParts[1];
-            building = insertBuilding(platform, buildingUuid, buildingName);
-
-            legendInfo = pathParts[0] + " > " + buildingName;
-
             //Make a 2D array where each row is another level 
             // of devices and subdevices in the tree
             var nestedDevices = [];
@@ -7277,41 +7244,49 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
         // that any parent devices will be added to the tree
         // before their subdevices
         nestedDevices.forEach(function (level, row) {
+
             level.forEach(function (device) {
+                
+                var pathParts = device.path.split("/");
+                var buildingUuid = pathParts[0] + "_" + pathParts[1];
+                var buildingName = pathParts[1];
+                var legendInfo = pathParts[0] + " > " + buildingName;                
+
+                var building = insertBuilding(platform, buildingUuid, buildingName);                
+
                 insertDevice(device, building, legendInfo, row);
+
+                var alreadyInTree = buildings.find(function (building) {
+                    return building.uuid === buildingUuid;
+                });
+
+                if (!alreadyInTree) {
+                    buildings.push(building);
+                }
+
             });
         });
 
-        var buildingHealth;
+        buildings.forEach(function (blg) {
+            
+            var buildingHealth;
 
-        building.devices.children.forEach(function (device) {
+            blg.devices.children.forEach(function (device) {
+                buildingHealth = checkStatuses(buildingHealth, blg.devices[device]);                
+            });
 
-            if (typeof buildingHealth === "undefined")
-            {
-                buildingHealth = building.devices[device].status;
-            }
-            else
-            {
-                switch (buildingHealth)
-                {
-                    case "UNKNOWN":
-
-                        switch (building.devices[device].statuss)
-                        {
-                            case "BAD":
-                                buildingHealth = "BAD";
-                                break;
-                        }
-                        break;
-                    case "GOOD":
-                        buildingHealth = building.devices[device].status;
-                }
-            }
+            blg.devices.status = buildingHealth;            
+            blg.status = buildingHealth;
         });
 
-        building.devices.status = buildingHealth;
-        building.status = buildingHealth;
-        platform.buildings.status = buildingHealth;
+        
+        var buildingsHealth;
+
+        buildings.forEach(function (blg) {
+            buildingsHealth = checkStatuses(buildingsHealth, blg);            
+        });
+
+        platform.buildings.status = buildingsHealth;
     }
 
     function insertDevice(device, building, legendInfo, row)
@@ -7537,6 +7512,33 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
         var pathStr = pathParts.join(" > ");
 
         return pathStr;
+    }
+
+    function checkStatuses(health, item)
+    {
+        if (typeof health === "undefined")
+        {
+            health = item.status;
+        }
+        else
+        {
+            switch (health)
+            {
+                case "UNKNOWN":
+
+                    switch (item.status)
+                    {
+                        case "BAD":
+                            health = "BAD";
+                            break;
+                    }
+                    break;
+                case "GOOD":
+                    health = item.status;
+            }
+        }
+
+        return health;
     }
 });
 
