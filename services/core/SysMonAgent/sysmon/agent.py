@@ -71,7 +71,7 @@ __version__ = '3.5'
 
 
 def sysmon_agent(config_path, **kwargs):
-    """Parse the SysMon Agent configuration and returns and instance
+    """Load the SysMon Agent configuration and returns and instance
     of the agent created using that configuration.
 
     :param config_path: Path to a configuration file.
@@ -81,17 +81,10 @@ def sysmon_agent(config_path, **kwargs):
     :rtype: SysMonAgent
     """
     config = utils.load_config(config_path)
-    base_topic = config.get('base_topic', 'datalogger/log/platform')
-    cpu_check_interval = config.get('cpu_check_interval', 5)
-    memory_check_interval = config.get('memory_check_interval', 5)
-    disk_check_interval = config.get('disk_check_interval', 5)
-    disk_path = config.get('disk_path', '/')
     vip_identity = 'platform.sysmon'
     # Use the identity 'platform.sysmon'. Pop the uuid off the kwargs.
     kwargs.pop('identity', None)
-    return SysMonAgent(
-        base_topic, cpu_check_interval, memory_check_interval,
-        disk_check_interval, disk_path, identity=vip_identity, **kwargs)
+    return SysMonAgent(config, identity=vip_identity, **kwargs)
 
 
 class SysMonAgent(Agent):
@@ -100,28 +93,44 @@ class SysMonAgent(Agent):
     The percent usage of each system resource can be queried via
     RPC and they are published periodically to configured topics.
 
-    :param base_topic: Prefix to all of this agent's PUB/SUB topics
-    :param cpu_check_interval: Interval in seconds to publish percent
-        CPU usage
-    :param memory_check_interval: Interval in seconds to publish
-        percent memory usage
-    :param disk_check_interval: Interval in seconds to publish percent
-        disk usage
-    :param disk_path: Mount point of disk to monitor (e.g., '/')
+    :param config: Configuration dict
+    :type config: dict
 
-    :type base_topic: str
-    :type cpu_check_interval: int
-    :type memory_check_interval: int
-    :type disk_check_interval: int
-    :type disk_path: str
+    Example configuration:
+
+    .. code-block:: python
+
+        {
+            "base_topic": "datalogger/log/platform",
+            "cpu_check_interval": 5,
+            "memory_check_interval": 5,
+            "disk_check_interval": 5,
+            "disk_path": "/"
+        }
     """
-    def __init__(self, base_topic, cpu_check_interval, memory_check_interval,
-                 disk_check_interval, disk_path, **kwargs):
+    def __init__(self, config, **kwargs):
         super(SysMonAgent, self).__init__(**kwargs)
-        self._configure(
-                base_topic, cpu_check_interval, memory_check_interval,
-                disk_check_interval, disk_path)
+        self.base_topic = config.pop('base_topic', 'datalogger/log/platform')
+        self.cpu_check_interval = config.pop('cpu_check_interval', 5)
+        self.memory_check_interval = config.pop('memory_check_interval', 5)
+        self.disk_check_interval = config.pop('disk_check_interval', 5)
+        self.disk_path = config.pop('disk_path', '/')
+        for key in config:
+            _log.warn('Ignoring unrecognized cofiguration parameter %s', key)
+
         self._pub_greenlets = []
+
+    def _configure(self, config):
+        self.base_topic = config.pop('base_topic', self.base_topic)
+        self.cpu_check_interval = config.pop('cpu_check_interval',
+                                             self.cpu_check_interval)
+        self.memory_check_interval = config.pop('memory_check_interval',
+                                                self.memory_check_interval)
+        self.disk_check_interval = config.pop('disk_check_interval',
+                                              self.disk_check_interval)
+        self.disk_path = config.pop('disk_path', self.disk_path)
+        for key in config:
+            _log.warn('Ignoring unrecognized cofiguration parameter %s', key)
 
     @Core.receiver('onstart')
     def start(self, sender, **kwargs):
@@ -154,27 +163,10 @@ class SysMonAgent(Agent):
         return psutil.disk_usage(self.disk_path).percent
 
     @RPC.export
-    def set_base_topic(self, base_topic):
-        """Set the base topic
-
-        :param base_topic: Prefix to all of this agent's PUB/SUB topics
-        :type base_topic: str
-        """
-        self.base_topic = base_topic
-
-    @RPC.export
     def reconfigure(self, **kwargs):
         """Reconfigure the agent"""
-        self._configure(**kwargs)
+        self._configure(kwargs)
         self._restart()
-
-    def _configure(self, base_topic, cpu_check_interval,
-                   memory_check_interval, disk_check_interval, disk_path):
-        self.base_topic = base_topic
-        self.cpu_check_interval = cpu_check_interval
-        self.memory_check_interval = memory_check_interval
-        self.disk_check_interval = disk_check_interval
-        self.disk_path = disk_path
 
     def _restart(self):
         self._stop_pub()
