@@ -124,15 +124,6 @@ class VolttronCentralPlatform(Agent):
         # A dictionary of devices that are published by the platform.
         self._devices = {}
 
-        # agentid = config.get('agentid', 'platform')
-        # agent_type = config.get('agent_type', 'platform')
-        #
-        # discovery_address = config.get('discovery-address', None)
-        # display_name = config.get('display-name', None)
-        #
-        # identity = config.get('identity', 'platform.agent')
-        # kwargs.pop('identity', None)
-
         identity = kwargs.pop('identity', None)
         identity = VOLTTRON_CENTRAL_PLATFORM
         super(VolttronCentralPlatform, self).__init__(
@@ -221,9 +212,14 @@ class VolttronCentralPlatform(Agent):
     @RPC.export
     #@RPC.allow("manager")
     def reconfigure(self, **kwargs):
+        _log.debug('Reconfiguring: {}'.format(kwargs))
         new_uuid = kwargs.get('platform_uuid')
+        _log.debug('new_uuid is {}'.format(new_uuid))
         new_interval = kwargs.get('stats_publish_interval')
 
+        if new_uuid:
+            _log.debug('new_uuid is {}'.format(new_uuid))
+            self._platform_uuid = new_uuid
         # if not new_uuid and not self._platform_uuid:
         #     raise ValueError('platform_uuid must be specified!')
         # elif new_uuid:
@@ -748,6 +744,8 @@ class VolttronCentralPlatform(Agent):
                     self._platform_uuid))
             _log.debug('Stats will be published to: {}'.format(
                 vc_topic.format()))
+        else:
+            _log.debug('Platform uuid is not valid')
         points = {}
 
         for k, v in psutil.cpu_times_percent().__dict__.items():
@@ -761,10 +759,18 @@ class VolttronCentralPlatform(Agent):
                                 topic=local_topic.format(),
                                 message=points)
 
+        # Handle from external platform
         if vc_topic and self._agent_connected_to_vc:
             self._agent_connected_to_vc.vip.pubsub.publish(
                 peer='pubsub', topic=vc_topic.format(), message=points
             )
+        # Handle if platform agent on same machine as vc.
+        elif vc_topic and \
+            self._my_discovery_address == self._vc_discovery_address:
+
+            self.vip.pubsub.publish(peer='pubsub',
+                                    topic=vc_topic.format(),
+                                    message=points)
         else:
             _log.info("status not written to volttron central.")
 
@@ -922,9 +928,6 @@ class VolttronCentralPlatform(Agent):
         if not self._vc_discovery_address:
             raise CannotConnectError(
                 "Invalid VOLTTRON Central discovery address.")
-        if not self._vc_discovery_address:
-            raise CannotConnectError(
-                "Invalid discovery address for this platform.")
 
         agent_for_vc = self._build_agent_for_vc()
         agent_for_vc.vip.rpc.call(VOLTTRON_CENTRAL, 'register_instance',
@@ -949,6 +952,10 @@ class VolttronCentralPlatform(Agent):
         try:
             self._get_my_discovery_address()
             self._get_vc_discovery_address()
+            # this is a local platform.
+            if self._my_discovery_address == self._vc_discovery_address:
+                return
+
             if not self._managed and self._vc_discovery_address:
                 self._register_with_vc()
             _log.debug('Auto register compelete')

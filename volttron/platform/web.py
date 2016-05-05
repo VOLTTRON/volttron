@@ -198,7 +198,15 @@ class MasterWebService(Agent):
         self.registeredroutes = []
         self.peerroutes = defaultdict(list)
         self.aip = aip
+
         self.volttron_central_address = volttron_central_address
+
+        # If vc is this instance then make the vc address the same as
+        # the web address.
+        if not self.volttron_central_address:
+            self.volttron_central_address = bind_web_address
+
+
         if not mimetypes.inited:
             mimetypes.init()
 

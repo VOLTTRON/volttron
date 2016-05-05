@@ -196,8 +196,8 @@ class VolttronCentralAgent(Agent):
                         entry.platform_uuid))
                     agent = self._pa_agents[entry.platform_uuid]
                     agent.vip.rpc.call(VOLTTRON_CENTRAL_PLATFORM,
-                                       "assign_platform_uuid",
-                                       entry.platform_uuid)
+                                       "reconfigure",
+                                       platform_uuid=entry.platform_uuid)
             except gevent.Timeout:
                 self._pa_agents[entry.platform_uuid] = None
 
@@ -256,6 +256,12 @@ class VolttronCentralAgent(Agent):
         if not self._peer_platform:
             for p in self._registry.get_platforms():
                 if p.is_local:
+                    _log.debug("Reconfiguring local to use: {}".format(
+                        p.platform_uuid))
+                    self.vip.rpc.call(
+                        VOLTTRON_CENTRAL_PLATFORM, 'reconfigure',
+                        platform_uuid=p.platform_uuid
+                    )
                     return
 
             peers = self.vip.peerlist().get(timeout=2)
@@ -270,6 +276,13 @@ class VolttronCentralAgent(Agent):
                     None, None, None, is_local=True, display_name='local')
                 self._registry.register(local_entry)
                 self._pa_agents[local_entry.platform_uuid] = self
+                _log.debug("Reconfiguring local to use: {}".format(
+                    local_entry.platform_uuid))
+                self.vip.rpc.call(
+                    VOLTTRON_CENTRAL_PLATFORM, 'reconfigure',
+                    platform_uuid=local_entry.platform_uuid
+                )
+
 
     def _disconnect_peer_platform(self, sender, **kwargs):
         _log.debug("disconnecting peer_platform")
@@ -419,6 +432,9 @@ class VolttronCentralAgent(Agent):
         _log.debug("Adding {}".format(entry.platform_uuid))
         instance_name = display_name if display_name else discovery_address
         context = 'Registered instance {}'.format(instance_name)
+        connected_to_pa.vip.rpc.call(
+            VOLTTRON_CENTRAL_PLATFORM, 'reconfigure',
+            platform_uuid=entry.platform_uuid).get(timeout=10)
 
         return {'status': 'SUCCESS', 'context': context}
 
