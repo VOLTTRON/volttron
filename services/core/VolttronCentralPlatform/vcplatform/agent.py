@@ -137,6 +137,10 @@ class VolttronCentralPlatform(Agent):
         identity = VOLTTRON_CENTRAL_PLATFORM
         super(VolttronCentralPlatform, self).__init__(
             identity=identity, **kwargs)
+
+        self._stats_publish_interval = 10
+        self._stats_publisher = None
+
         # if not self._read_vc_info():
         #     if discovery_address:
         #         if not self._discover_vc_info():
@@ -216,8 +220,29 @@ class VolttronCentralPlatform(Agent):
 
     @RPC.export
     #@RPC.allow("manager")
-    def assign_platform_uuid(self, platform_uuid):
-        self._platform_uuid = platform_uuid
+    def reconfigure(self, **kwargs):
+        new_uuid = kwargs.get('platform_uuid')
+        new_interval = kwargs.get('stats_publish_interval')
+
+        # if not new_uuid and not self._platform_uuid:
+        #     raise ValueError('platform_uuid must be specified!')
+        # elif new_uuid:
+        #     self._platform_uuid = new_uuid
+
+        if new_interval:
+            if not isinstance(new_interval, int):
+                raise ValueError('Invlaid interval, must be int > 20 sec.')
+
+            self._stats_publish_interval = new_interval
+
+            if self._stats_publisher:
+                self._stats_publisher.kill()
+            # The stats publisher publishes both to the local bus and the vc
+            # bus the platform specific topics.
+            self._stats_publisher = self.core.periodic(
+                self._stats_publish_interval, self._publish_stats)
+
+
 
     def _publish_agent_list(self):
         _log.info('Publishing new agent list.')
@@ -374,27 +399,27 @@ class VolttronCentralPlatform(Agent):
         _log.debug('Retrieveing key: {}'.format(key))
         return self._settings.get(key, None)
 
-    @Core.periodic(period=15, wait=30)
-    def write_status(self):
-
-        # if self._platform_uuid:
-        #     base_topic = LOGGER(subtopic="")
-        #     'datalogger/platforms/{}/status'.format(self._platform_uuid)
-        # else:
-        base_topic = 'datalogger/log/platform/status'
-        cpu = base_topic + '/cpu'
-        points = {}
-
-        for k, v in psutil.cpu_times_percent().__dict__.items():
-            points['times_percent/' + k] = {'Readings': v,
-                                            'Units': 'double'}
-
-        points['percent'] = {'Readings': psutil.cpu_percent(),
-                             'Units': 'double'}
-
-        self.vip.pubsub.publish(peer='pubsub',
-                                topic=cpu,
-                                message=points)
+    # @Core.periodic(period=15, wait=30)
+    # def write_status(self):
+    #
+    #     # if self._platform_uuid:
+    #     #     base_topic = LOGGER(subtopic="")
+    #     #     'datalogger/platforms/{}/status'.format(self._platform_uuid)
+    #     # else:
+    #     base_topic = 'datalogger/log/platform/status'
+    #     cpu = base_topic + '/cpu'
+    #     points = {}
+    #
+    #     for k, v in psutil.cpu_times_percent().__dict__.items():
+    #         points['times_percent/' + k] = {'Readings': v,
+    #                                         'Units': 'double'}
+    #
+    #     points['percent'] = {'Readings': psutil.cpu_percent(),
+    #                          'Units': 'double'}
+    #
+    #     self.vip.pubsub.publish(peer='pubsub',
+    #                             topic=cpu,
+    #                             message=points)
 
     @RPC.export
     def publish_to_peers(self, topic, message, headers=None):
@@ -708,10 +733,40 @@ class VolttronCentralPlatform(Agent):
         self._managed = True
         return self.core.publickey
 
-    def report_to_vc(self):
-        self._agent_connected_to_vc.pubsub.publish(peer="pubsub",
-                                                   topic="platform/status",
-                                                   message={"alpha": "beta"})
+    def _publish_stats(self):
+        """
+        Publish the platform statistics to the local bus as well as to the
+        connected volttron central.
+        """
+        vc_topic = None
+        local_topic = LOGGER(subtopic="platform/status/cpu")
+        _log.debug('Publishing platform cpu stats')
+        if self._platform_uuid:
+
+            vc_topic = LOGGER(
+                subtopic="platforms/{}/status/cpu".format(
+                    self._platform_uuid))
+            _log.debug('Stats will be published to: {}'.format(
+                vc_topic.format()))
+        points = {}
+
+        for k, v in psutil.cpu_times_percent().__dict__.items():
+            points['times_percent/' + k] = {'Readings': v,
+                                            'Units': 'double'}
+
+        points['percent'] = {'Readings': psutil.cpu_percent(),
+                             'Units': 'double'}
+
+        self.vip.pubsub.publish(peer='pubsub',
+                                topic=local_topic.format(),
+                                message=points)
+
+        if vc_topic and self._agent_connected_to_vc:
+            self._agent_connected_to_vc.vip.pubsub.publish(
+                peer='pubsub', topic=vc_topic.format(), message=points
+            )
+        else:
+            _log.info("status not written to volttron central.")
 
     # def _connect_to_vc(self):
     #     """ Attempt to connect to volttorn central.
@@ -880,6 +935,10 @@ class VolttronCentralPlatform(Agent):
     def starting(self, sender, **kwargs):
         self.vip.heartbeat.start_with_period(10)
         self._auto_register_with_vc()
+
+        # Reconfigure with the publisher.
+        self.reconfigure(
+            **{'stats_publish_interval': self._stats_publish_interval})
 
     @Core.receiver('onstop')
     def stoping(self, sender, **kwargs):

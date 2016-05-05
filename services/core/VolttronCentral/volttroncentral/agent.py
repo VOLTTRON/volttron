@@ -227,10 +227,12 @@ class VolttronCentralAgent(Agent):
             #                _log.info("peer_platform unavailable")
             #                self._peer_platform_exists = False
 
-    @PubSub.subscribe("pubsub", "platforms")
+    @PubSub.subscribe("pubsub", "datalogger/platforms")
     def on_platoforms_message(self, peer, sender, bus, topic, headers,
                               message):
+        _log.debug('Got topic: {}'.format(topic))
         _log.debug('Got message: {}'.format(message))
+        # TODO: Update resource directory with the latest from the passed in uuid'd platform.
 
     @RPC.export
     def get_platforms(self):
