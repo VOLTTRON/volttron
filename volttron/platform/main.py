@@ -91,6 +91,7 @@ from .auth import AuthService
 from .control import ControlService
 from .web import MasterWebService
 from .agent import utils
+from .agent.known_identities import MASTER_WEB
 from .vip.agent.subsystems.pubsub import ProtectedPubSubTopics
 
 try:
@@ -400,13 +401,13 @@ def start_volttron_process(opts):
             raise StandardError(
                 'bind-web-address must begin with http or https.')
         opts.bind_web_address = config.expandall(opts.bind_web_address)
-    if opts.volttron_central_web_address:
-        parsed = urlparse.urlparse(opts.volttron_central_web_address)
+    if opts.volttron_central_address:
+        parsed = urlparse.urlparse(opts.volttron_central_address)
         if not parsed.scheme:
             raise StandardError(
                 'volttron-central-address must begin with http or https.')
-        opts.volttron_central_web_address = config.expandall(
-            opts.volttron_central_web_address)
+        opts.volttron_central_address = config.expandall(
+            opts.volttron_central_address)
     if getattr(opts, 'show_config', False):
         for name, value in sorted(vars(opts).iteritems()):
             print(name, repr(value))
@@ -551,10 +552,12 @@ def start_volttron_process(opts):
             CompatPubSub(address=address, identity='pubsub.compat',
                          publish_address=opts.publish_address,
                          subscribe_address=opts.subscribe_address),
-            MasterWebService(serverkey=publickey, identity='volttron.web',
-                             address=address,
-                             bind_web_address=opts.bind_web_address,
-                             aip=opts.aip)
+            MasterWebService(
+                serverkey=publickey, identity=MASTER_WEB,
+                address=address,
+                bind_web_address=opts.bind_web_address,
+                volttron_central_address=opts.volttron_central_address,
+                aip=opts.aip)
         ]
         events = [gevent.event.Event() for service in services]
         tasks = [gevent.spawn(service.core.run, event)
@@ -661,7 +664,8 @@ def main(argv=sys.argv):
         '--bind-web-address', metavar='BINDWEBADDR', default=None,
         help='Bind a web server to the specified ip:port passed')
     agents.add_argument(
-        '--volttron-central', metavar='VOLTTRONCENTRAL', default=None,
+        '--volttron-central-address', metavar='VOLTTRONCENTRAL',
+        default=None,
         help='The web address of a volttron central install instance.')
     # XXX: re-implement control options
     #on
@@ -733,7 +737,7 @@ def main(argv=sys.argv):
         bind_web_address=None,
         # Used to contact volttron central when registering volttron central
         # platform agent.
-        volttron_central_web_address=None,
+        volttron_central_address=None,
         #allow_root=False,
         #allow_users=None,
         #allow_groups=None,

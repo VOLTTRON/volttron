@@ -79,12 +79,14 @@ from volttron.platform.vip.agent import *
 from volttron.platform import jsonrpc
 from volttron.platform.auth import AuthEntry, AuthFile
 from volttron.platform.agent import utils
-from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM
+from volttron.platform.agent.known_identities import (
+    MASTER_WEB, VOLTTRON_CENTRAL, VOLTTRON_CENTRAL_PLATFORM)
 from volttron.platform.messaging.health import UNKNOWN_STATUS, Status, \
     GOOD_STATUS, BAD_STATUS
 from volttron.platform.vip.agent.utils import build_agent
 from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
                                        METHOD_NOT_FOUND)
+from volttron.platform.web import (DiscoveryInfo, DiscoveryError)
 
 __version__ = '3.5.1'
 
@@ -110,8 +112,10 @@ class VolttronCentralPlatform(Agent):
 
         self._config = utils.load_config(config_path)
         self._vc_discovery_address = None
+        self._my_discovery_address = None
         self._agent_connected_to_vc = None
         self._vc_info = None
+        self._managed = False
 
         # This is set from the volttron central instance (NOTE:this is not
         # the same as the installed uuid on this volttron instance0).
@@ -120,19 +124,14 @@ class VolttronCentralPlatform(Agent):
         # A dictionary of devices that are published by the platform.
         self._devices = {}
 
-        # agentid = config.get('agentid', 'platform')
-        # agent_type = config.get('agent_type', 'platform')
-        #
-        # discovery_address = config.get('discovery-address', None)
-        # display_name = config.get('display-name', None)
-        #
-        # identity = config.get('identity', 'platform.agent')
-        # kwargs.pop('identity', None)
-
         identity = kwargs.pop('identity', None)
         identity = VOLTTRON_CENTRAL_PLATFORM
         super(VolttronCentralPlatform, self).__init__(
             identity=identity, **kwargs)
+
+        self._stats_publish_interval = 10
+        self._stats_publisher = None
+
         # if not self._read_vc_info():
         #     if discovery_address:
         #         if not self._discover_vc_info():
@@ -212,8 +211,34 @@ class VolttronCentralPlatform(Agent):
 
     @RPC.export
     #@RPC.allow("manager")
-    def assign_platform_uuid(self, platform_uuid):
-        self._platform_uuid = platform_uuid
+    def reconfigure(self, **kwargs):
+        _log.debug('Reconfiguring: {}'.format(kwargs))
+        new_uuid = kwargs.get('platform_uuid')
+        _log.debug('new_uuid is {}'.format(new_uuid))
+        new_interval = kwargs.get('stats_publish_interval')
+
+        if new_uuid:
+            _log.debug('new_uuid is {}'.format(new_uuid))
+            self._platform_uuid = new_uuid
+        # if not new_uuid and not self._platform_uuid:
+        #     raise ValueError('platform_uuid must be specified!')
+        # elif new_uuid:
+        #     self._platform_uuid = new_uuid
+
+        if new_interval:
+            if not isinstance(new_interval, int):
+                raise ValueError('Invlaid interval, must be int > 20 sec.')
+
+            self._stats_publish_interval = new_interval
+
+            if self._stats_publisher:
+                self._stats_publisher.kill()
+            # The stats publisher publishes both to the local bus and the vc
+            # bus the platform specific topics.
+            self._stats_publisher = self.core.periodic(
+                self._stats_publish_interval, self._publish_stats)
+
+
 
     def _publish_agent_list(self):
         _log.info('Publishing new agent list.')
@@ -370,27 +395,27 @@ class VolttronCentralPlatform(Agent):
         _log.debug('Retrieveing key: {}'.format(key))
         return self._settings.get(key, None)
 
-    @Core.periodic(period=15, wait=30)
-    def write_status(self):
-
-        # if self._platform_uuid:
-        #     base_topic = LOGGER(subtopic="")
-        #     'datalogger/platforms/{}/status'.format(self._platform_uuid)
-        # else:
-        base_topic = 'datalogger/log/platform/status'
-        cpu = base_topic + '/cpu'
-        points = {}
-
-        for k, v in psutil.cpu_times_percent().__dict__.items():
-            points['times_percent/' + k] = {'Readings': v,
-                                            'Units': 'double'}
-
-        points['percent'] = {'Readings': psutil.cpu_percent(),
-                             'Units': 'double'}
-
-        self.vip.pubsub.publish(peer='pubsub',
-                                topic=cpu,
-                                message=points)
+    # @Core.periodic(period=15, wait=30)
+    # def write_status(self):
+    #
+    #     # if self._platform_uuid:
+    #     #     base_topic = LOGGER(subtopic="")
+    #     #     'datalogger/platforms/{}/status'.format(self._platform_uuid)
+    #     # else:
+    #     base_topic = 'datalogger/log/platform/status'
+    #     cpu = base_topic + '/cpu'
+    #     points = {}
+    #
+    #     for k, v in psutil.cpu_times_percent().__dict__.items():
+    #         points['times_percent/' + k] = {'Readings': v,
+    #                                         'Units': 'double'}
+    #
+    #     points['percent'] = {'Readings': psutil.cpu_percent(),
+    #                          'Units': 'double'}
+    #
+    #     self.vip.pubsub.publish(peer='pubsub',
+    #                             topic=cpu,
+    #                             message=points)
 
     @RPC.export
     def publish_to_peers(self, topic, message, headers=None):
@@ -682,6 +707,10 @@ class VolttronCentralPlatform(Agent):
         """
         _log.info('Manage request from address: {} serverkey: {}'.format(
             address, vcserverkey))
+
+        if self._managed:
+            raise AlreadyManagedError()
+
         parsedaddress = urlparse.urlparse(address)
         # Attempt to connect to the passed address and serverkey.
         self._agent_connected_to_vc = build_agent(
@@ -697,13 +726,53 @@ class VolttronCentralPlatform(Agent):
             capabilities=['manager'])  # , address=parsedaddress.hostname)
         authfile = AuthFile()
         authfile.add(entry)
-
+        self._managed = True
         return self.core.publickey
 
-    def report_to_vc(self):
-        self._agent_connected_to_vc.pubsub.publish(peer="pubsub",
-                                                   topic="platform/status",
-                                                   message={"alpha": "beta"})
+    def _publish_stats(self):
+        """
+        Publish the platform statistics to the local bus as well as to the
+        connected volttron central.
+        """
+        vc_topic = None
+        local_topic = LOGGER(subtopic="platform/status/cpu")
+        _log.debug('Publishing platform cpu stats')
+        if self._platform_uuid:
+
+            vc_topic = LOGGER(
+                subtopic="platforms/{}/status/cpu".format(
+                    self._platform_uuid))
+            _log.debug('Stats will be published to: {}'.format(
+                vc_topic.format()))
+        else:
+            _log.debug('Platform uuid is not valid')
+        points = {}
+
+        for k, v in psutil.cpu_times_percent().__dict__.items():
+            points['times_percent/' + k] = {'Readings': v,
+                                            'Units': 'double'}
+
+        points['percent'] = {'Readings': psutil.cpu_percent(),
+                             'Units': 'double'}
+
+        self.vip.pubsub.publish(peer='pubsub',
+                                topic=local_topic.format(),
+                                message=points)
+
+        # Handle from external platform
+        if vc_topic and self._agent_connected_to_vc:
+            self._agent_connected_to_vc.vip.pubsub.publish(
+                peer='pubsub', topic=vc_topic.format(), message=points
+            )
+        # Handle if platform agent on same machine as vc.
+        elif vc_topic and \
+            self._my_discovery_address == self._vc_discovery_address:
+
+            self.vip.pubsub.publish(peer='pubsub',
+                                    topic=vc_topic.format(),
+                                    message=points)
+        else:
+            _log.info("status not written to volttron central.")
 
     # def _connect_to_vc(self):
     #     """ Attempt to connect to volttorn central.
@@ -848,41 +917,76 @@ class VolttronCentralPlatform(Agent):
         """ Handle the process of registering with volttron central.
 
         In order to use this method, the platform agent must not have
-        been registered and the _discovery_address must have a valid
+        been registered and the _vc_discovery_address must have a valid
         ip address/hostname.
 
         :return:
         """
 
-        if self._vc:
+        if self._managed:
             raise AlreadyManagedError()
         if not self._vc_discovery_address:
-            raise CannotConnectError("Invalid discovery address.")
+            raise CannotConnectError(
+                "Invalid VOLTTRON Central discovery address.")
 
-        self._fetch_vc_discovery_info()
-        self._connect_to_vc()
+        agent_for_vc = self._build_agent_for_vc()
+        agent_for_vc.vip.rpc.call(VOLTTRON_CENTRAL, 'register_instance',
+                                  self._my_discovery_address).get(timeout=10)
+        self._managed = True
 
     @Core.receiver('onstart')
     def starting(self, sender, **kwargs):
         self.vip.heartbeat.start_with_period(10)
+        self._auto_register_with_vc()
 
-        #     _log.info('onstart')
-        #     self._get_vc_info_from_file()
-        #
-        #     if not self._vc and self._vc_discovery_address:
-        #         _log.debug("Before _register_with_vc()")
-        #         self._register_with_vc()
-        #
-        #     psutil.cpu_times_percent()
-        #     psutil.cpu_percent()
-        #     _, _, my_id = self.vip.hello().get(timeout=3)
-        #     self.vip.pubsub.publish(peer='pubsub', topic='/platform',
+        # Reconfigure with the publisher.
+        self.reconfigure(
+            **{'stats_publish_interval': self._stats_publish_interval})
 
-    #                             message='available')
     @Core.receiver('onstop')
     def stoping(self, sender, **kwargs):
         self.vip.pubsub.publish(peer='pubsub', topic='/platform',
                                 message='leaving')
+
+    def _auto_register_with_vc(self):
+        try:
+            self._get_my_discovery_address()
+            self._get_vc_discovery_address()
+            # this is a local platform.
+            if self._my_discovery_address == self._vc_discovery_address:
+                return
+
+            if not self._managed and self._vc_discovery_address:
+                self._register_with_vc()
+            _log.debug('Auto register compelete')
+        except (DiscoveryError, gevent.Timeout, AlreadyManagedError,
+                    CannotConnectError) as e:
+                if self._vc_discovery_address:
+                    vc_addr_string = '({})'.format(self._vc_discovery_address)
+                else:
+                    vc_addr_string = ''
+                _log.warn(
+                    'Failed to auto register platform with '
+                    'Volttron Central{} (Error: {}'.format(vc_addr_string,
+                                                           e.message))
+    def _get_my_discovery_address(self):
+        if not self._my_discovery_address:
+            self._my_discovery_address = self.vip.rpc.call(
+                MASTER_WEB, 'get_bind_web_address').get(timeout=10)
+
+    def _get_vc_discovery_address(self):
+        if not self._vc_discovery_address:
+            self._vc_discovery_address = self.vip.rpc.call(
+                MASTER_WEB, 'get_volttron_central_address').get(timeout=10)
+
+    def _build_agent_for_vc(self):
+        """Can raise DiscoveryError and gevent.Timeout"""
+        response = DiscoveryInfo.request_discovery_info(
+            self._vc_discovery_address)
+        agent = build_agent(
+            address=response.vip_address, serverkey=response.serverkey,
+            secretkey=self.core.secretkey, publickey=self.core.publickey)
+        return agent
 
 
 def is_ip_private(vip_address):

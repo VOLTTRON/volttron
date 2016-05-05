@@ -173,7 +173,8 @@ class MasterWebService(Agent):
     that will be called during the request process.
     """
 
-    def __init__(self, serverkey, identity, address, bind_web_address, aip):
+    def __init__(self, serverkey, identity, address, bind_web_address, aip,
+                 volttron_central_address=None):
         """Initialize the discovery service with the serverkey
 
         serverkey is the public key in order to access this volttron's bus.
@@ -197,6 +198,15 @@ class MasterWebService(Agent):
         self.registeredroutes = []
         self.peerroutes = defaultdict(list)
         self.aip = aip
+
+        self.volttron_central_address = volttron_central_address
+
+        # If vc is this instance then make the vc address the same as
+        # the web address.
+        if not self.volttron_central_address:
+            self.volttron_central_address = bind_web_address
+
+
         if not mimetypes.inited:
             mimetypes.init()
 
@@ -211,6 +221,15 @@ class MasterWebService(Agent):
     @RPC.export
     def get_serverkey(self):
         return self.serverkey
+
+    @RPC.export
+    def get_volttron_central_address(self):
+        """Return address of external Volttron Central
+
+        Note: this only applies to Volltron Central agents that are
+        running on a different platform.
+        """
+        return self.volttron_central_address
 
     @RPC.export
     def register_agent_route(self, regex, peer, fn):

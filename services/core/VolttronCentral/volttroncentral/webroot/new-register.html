@@ -25,6 +25,7 @@ Discovery Address: <input type="text" id="discovery_address" /><br />
 <h3>Platform Listings</h3>
 <button id="list_platforms">List Platforms</button>
 <button id="list_deivces">List Devices</button>
+<button id="list_performance">List Performance</button><br />
 VIP Identity: <input type="text" id="vip_identity" value="platform.agent" /><br />
 Agent id: <input type="text" id="agent_id" value="platform.agent" /><br/>
 VIP Address: <input type="text" id="vip_address" placeholder="VIP Address where VIP Identity is located" /><br/>
@@ -175,6 +176,10 @@ Topic: <input id="historian_topic" placeholder="Historian topic to query" /><br/
 
     $('#list_deivces').click(function(){
         do_request_vc_method('list_deivces');
+    });
+
+    $('#list_performance').click(function(){
+        do_request_vc_method('list_performance');
     });
 
     $('#get_devices').click(function(){

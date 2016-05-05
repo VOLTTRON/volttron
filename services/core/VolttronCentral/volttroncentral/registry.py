@@ -53,6 +53,12 @@ class PlatformRegistry(object):
         #_log.debug('Getting devices from')
         return self.get_tag(platform_uuid, 'devices')
 
+    def update_performance(self, platform_uuid, performance):
+        self.add_update_tag(platform_uuid, 'performance', performance)
+
+    def get_performance(self, platform_uuid):
+        return self.get_tag(platform_uuid, 'performance')
+
     def add_update_tag(self, platform_uuid, key, value):
         """ Add a tag to the specified platform's entry.
 
