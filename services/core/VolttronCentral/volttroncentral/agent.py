@@ -66,6 +66,8 @@ from authenticate import Authenticate
 from sessions import SessionHandler
 from volttron.platform import jsonrpc
 from volttron.platform.agent import utils
+from volttron.platform.agent.utils import (
+        get_aware_utc_now, format_timestamp, parse_timestamp_string)
 from volttron.platform.agent.known_identities import (
     VOLTTRON_CENTRAL, VOLTTRON_CENTRAL_PLATFORM, MASTER_WEB)
 from volttron.platform.auth import AuthEntry, AuthFile
@@ -201,37 +203,38 @@ class VolttronCentralAgent(Agent):
             except gevent.Timeout:
                 self._pa_agents[entry.platform_uuid] = None
 
-            #    def _check_for_peer_platform(self):
-            #        """ Check the list of peers for a platform.agent
-            #
-            #        Registers the platform_peer if it hasn't been registered.
-            #        """
-            #        peers = self.vip.peerlist().get()
-            #        if "platform.agent" in peers:
-            #            if not self._peer_platform_exists:
-            #                _log.info("peer_platform available")
-            #                self._peer_platform_exists = True
-            #                try:
-            #                    entry = self._registry.get_platform_by_address(
-            #                        self._local_address)
-            #                except KeyError:
-            #                    assert "ipc" in self._local_address
-            #                    entry = PlatformRegistry.build_entry(
-            #                        vip_address=self._local_address, serverkey=None,
-            #                        discovery_address=None, is_local=True
-            #                    )
-            #                    self._registry.register(entry)
-            #
-            #        elif "platform.agent" not in peers:
-            #            if self._peer_platform_exists:
-            #                _log.info("peer_platform unavailable")
-            #                self._peer_platform_exists = False
 
     @PubSub.subscribe("pubsub", "datalogger/platforms")
     def on_platoforms_message(self, peer, sender, bus, topic, headers,
                               message):
         _log.debug('Got topic: {}'.format(topic))
         _log.debug('Got message: {}'.format(message))
+
+        topicsplit = topic.split('/')
+        platform_uuid = topicsplit[2]
+
+        # For devices we use everything between devices/../all as a unique
+        # key for determining the last time it was seen.
+        key = '/'.join(topicsplit[:])
+        _log.debug("key is: {}".format(key))
+        uuid = topicsplit[2]
+
+        point_list = []
+
+        for point, item in message.iteritems():
+            point_list.append(point)
+
+        stats = {
+            'topic': key,
+            'points': point_list,
+            'last_published_utc': format_timestamp(get_aware_utc_now())
+        }
+
+        self._registry.update_performance(platform_uuid=platform_uuid,
+                                          performance=stats)
+
+
+
         # TODO: Update resource directory with the latest from the passed in uuid'd platform.
 
     @RPC.export
@@ -685,6 +688,13 @@ class VolttronCentralAgent(Agent):
                 except gevent.Timeout:
                     pass
 
+    def _handle_list_performance(self):
+        _log.debug('Listing performance topics from vc')
+        return [{'platform.uuid': x.platform_uuid,
+                'performance': self._registry.get_performance(x.platform_uuid)
+             } for x in self._registry.get_platforms()
+                    if self._registry.get_performance(x.platform_uuid)]
+
     def _handle_list_devices(self):
         _log.debug('Listing devices from vc')
         return [{'platform.uuid': x.platform_uuid,
@@ -728,6 +738,8 @@ class VolttronCentralAgent(Agent):
                 return self._register_instance(**params)
         elif method == 'list_deivces':
             return self._handle_list_devices()
+        elif method == 'list_performance':
+            return self._handle_list_performance()
         elif method == 'list_platforms':
             return self._handle_list_platforms()
         elif method == 'unregister_platform':
