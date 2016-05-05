@@ -66,7 +66,7 @@ var platformsPanelActionCreators = {
                 break;
             case "building":
                 loadPanelDevices(parent);
-                loadPanelPoints(parent);
+                // loadPanelPoints(parent);
                 break;
             case "device":
                 loadPanelPoints(parent);
@@ -98,64 +98,59 @@ var platformsPanelActionCreators = {
 
         function loadPanelPoints(parent) {
 
-            var pointsList = [];
-
             if (parent.type === "platform")
             {
-                pointsList = [
+                var authorization = authorizationStore.getAuthorization();
 
-                    {
-                        "topic": "datalogger/log/platform/status/cpu/times_percent/guest_nice",
-                        "name": "times_percent / guest_nice"
-                    },
-                    {
-                        "topic": "datalogger/log/platform/status/cpu/times_percent/system",
-                        "name": "times_percent / system"
-                    },
-                    {
-                        "topic": "datalogger/log/platform/status/cpu/percent",
-                        "name": "cpu / percent"
-                    },
-                    {
-                        "topic": "datalogger/log/platform/status/cpu/times_percent/irq",
-                        "name": "times_percent / irq"
-                    },
-                    {
-                        "topic": "datalogger/log/platform/status/cpu/times_percent/steal",
-                        "name": "times_percent / steal"
-                    },
-                    {
-                        "topic": "datalogger/log/platform/status/cpu/times_percent/user",
-                        "name": "times_percent / user"
-                    },
-                    {
-                        "topic": "datalogger/log/platform/status/cpu/times_percent/nice",
-                        "name": "times_percent / nice"
-                    },
-                    {
-                        "topic": "datalogger/log/platform/status/cpu/times_percent/iowait",
-                        "name": "times_percent / iowait"
-                    },
-                    {
-                        "topic": "datalogger/log/platform/status/cpu/times_percent/idle",
-                        "name": "times_percent / idle"
-                    },
-                    {
-                        "topic": "datalogger/log/platform/status/cpu/times_percent/guest",
-                        "name": "times_percent / guest"
-                    },
-                    {
-                        "topic": "datalogger/log/platform/status/cpu/times_percent/softirq",
-                        "name": "times_percent / softirq"
-                    }
-                ]
-            }
+                //TODO: use service to get performance for a single platform
 
-            dispatcher.dispatch({
-                type: ACTION_TYPES.RECEIVE_POINT_STATUSES,
-                parent: parent,
-                points: pointsList
-            });    
+                new rpc.Exchange({
+                    method: 'list_performance',
+                    authorization: authorization,
+                    }).promise
+                        .then(function (result) {
+                            
+                            var platformPerformance = result.find(function (item) {
+                                return item["platform.uuid"] === parent.uuid;
+                            });
+
+                            var pointsList = [];
+
+                            if (platformPerformance)
+                            {
+                                var points = platformPerformance.performance.points;
+
+                                points.forEach(function (point) {
+
+                                    pointsList.push({
+                                        "topic": platformPerformance.performance.topic + "/" + point,
+                                        "name": point.replace("/", " / ")
+                                    });
+                                });                                
+                            }
+
+                            dispatcher.dispatch({
+                                type: ACTION_TYPES.RECEIVE_POINT_STATUSES,
+                                parent: parent,
+                                points: pointsList
+                            });
+                        })
+                        .catch(rpc.Error, function (error) {
+                            
+                            var message = error.message;
+
+                            if (error.code === -32602)
+                            {
+                                if (error.message === "historian unavailable")
+                                {
+                                    message = "Data could not be fetched. The historian agent is unavailable."
+                                }
+                            }
+
+                            statusIndicatorActionCreators.openStatusIndicator("error", message);
+                            handle401(error);
+                        });   
+            } 
         }
 
         function loadPanelDevices(platform) {
@@ -262,34 +257,6 @@ var platformsPanelActionCreators = {
         if (true)
         {
             var authorization = authorizationStore.getAuthorization();
-
-            // var historianUuid = platformsPanelItemsStore.getHistorian(panelItem.parentUuid);
-
-            // new rpc.Exchange({
-            //     method: 'platforms.uuid.' + panelItem.parentUuid + '.agents.uuid.' + historianUuid + '.query',
-            //     params: {
-            //         topic: panelItem.topic,
-            //         count: 20,
-            //         order: 'LAST_TO_FIRST',
-            //     },
-            //     authorization: authorization,
-            // }).promise
-            //     .then(function (result) {
-            //         panelItem.data = result.values;
-
-            //         panelItem.data.forEach(function (datum) {
-            //             datum.name = panelItem.name;
-            //             datum.parent = panelItem.parentPath;
-            //             datum.uuid = panelItem.uuid;
-            //         });
-            //         dispatcher.dispatch({
-            //             type: ACTION_TYPES.ADD_TO_CHART,
-            //             panelItem: panelItem
-            //         });
-            //     })
-            //     .catch(rpc.Error, handle401);
-
-            //     var authorization = authorizationStore.getAuthorization();
 
             new rpc.Exchange({
                 method: 'platforms.uuid.' + panelItem.parentUuid + '.historian.query',

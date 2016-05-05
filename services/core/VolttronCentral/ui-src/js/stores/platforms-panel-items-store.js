@@ -1588,7 +1588,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                             pointProps.parentType = platform.type;
                             pointProps.parentUuid = platform.uuid;
 
-                            // point.status = "GOOD";
+                            point.status = platform.status;
                             pointProps.children = [];
                             pointProps.type = "point";
                             pointProps.sortOrder = 0;
