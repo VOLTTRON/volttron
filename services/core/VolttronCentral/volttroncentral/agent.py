@@ -67,7 +67,7 @@ from sessions import SessionHandler
 from volttron.platform import jsonrpc
 from volttron.platform.agent import utils
 from volttron.platform.agent.known_identities import (
-    VOLTTRON_CENTRAL, VOLTTRON_CENTRAL_PLATFORM)
+    VOLTTRON_CENTRAL, VOLTTRON_CENTRAL_PLATFORM, MASTER_WEB)
 from volttron.platform.auth import AuthEntry, AuthFile
 from volttron.platform.jsonrpc import (
     INVALID_REQUEST, METHOD_NOT_FOUND,
@@ -314,7 +314,9 @@ class VolttronCentralAgent(Agent):
 
         :param string: The url of the discovery_address for the platform.
         """
-        pass
+        _log.debug('register_instance called via RPC')
+        self._register_instance(discovery_address,
+                                display_name=discovery_address)
 
     def _register_instance(self, discovery_address, display_name=None,
                            provisional=False):
@@ -591,19 +593,20 @@ class VolttronCentralAgent(Agent):
         _log.debug("external addresses are: {}".format(
             self._external_addresses
         ))
+
         self._local_address = q.query('local_address').get(timeout=10)
         _log.debug('Local address is? {}'.format(self._local_address))
         _log.debug('Registering jsonrpc and /.* routes')
-        self.vip.rpc.call('volttron.web', 'register_agent_route',
+        self.vip.rpc.call(MASTER_WEB, 'register_agent_route',
                           r'^/jsonrpc.*',
                           self.core.identity,
                           'jsonrpc').get(timeout=5)
 
-        self.vip.rpc.call('volttron.web', 'register_path_route',
+        self.vip.rpc.call(MASTER_WEB, 'register_path_route',
                           r'^/.*', self._webroot).get(timeout=5)
 
         self.webaddress = self.vip.rpc.call(
-            'volttron.web', 'get_bind_web_address').get(timeout=5)
+            MASTER_WEB, 'get_bind_web_address').get(timeout=5)
 
         assert self.core.publickey
         assert self.core.secretkey
@@ -648,7 +651,7 @@ class VolttronCentralAgent(Agent):
 
     @Core.receiver('onstop')
     def finish(self, sender, **kwargs):
-        self.vip.rpc.call('volttron.web', 'unregister_all_agent_routes',
+        self.vip.rpc.call(MASTER_WEB, 'unregister_all_agent_routes',
                           self.core.identity).get(timeout=5)
 
     @Core.periodic(10)

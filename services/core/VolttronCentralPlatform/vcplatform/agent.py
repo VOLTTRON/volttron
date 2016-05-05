@@ -79,12 +79,14 @@ from volttron.platform.vip.agent import *
 from volttron.platform import jsonrpc
 from volttron.platform.auth import AuthEntry, AuthFile
 from volttron.platform.agent import utils
-from volttron.platform.agent.known_identities import VOLTTRON_CENTRAL_PLATFORM
+from volttron.platform.agent.known_identities import (
+    MASTER_WEB, VOLTTRON_CENTRAL, VOLTTRON_CENTRAL_PLATFORM)
 from volttron.platform.messaging.health import UNKNOWN_STATUS, Status, \
     GOOD_STATUS, BAD_STATUS
 from volttron.platform.vip.agent.utils import build_agent
 from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
                                        METHOD_NOT_FOUND)
+from volttron.platform.web import (DiscoveryInfo, DiscoveryError)
 
 __version__ = '3.5.1'
 
@@ -110,8 +112,10 @@ class VolttronCentralPlatform(Agent):
 
         self._config = utils.load_config(config_path)
         self._vc_discovery_address = None
+        self._my_discovery_address = None
         self._agent_connected_to_vc = None
         self._vc_info = None
+        self._managed = False
 
         # This is set from the volttron central instance (NOTE:this is not
         # the same as the installed uuid on this volttron instance0).
@@ -682,6 +686,10 @@ class VolttronCentralPlatform(Agent):
         """
         _log.info('Manage request from address: {} serverkey: {}'.format(
             address, vcserverkey))
+
+        if self._managed:
+            raise AlreadyManagedError()
+
         parsedaddress = urlparse.urlparse(address)
         # Attempt to connect to the passed address and serverkey.
         self._agent_connected_to_vc = build_agent(
@@ -697,7 +705,7 @@ class VolttronCentralPlatform(Agent):
             capabilities=['manager'])  # , address=parsedaddress.hostname)
         authfile = AuthFile()
         authfile.add(entry)
-
+        self._managed = True
         return self.core.publickey
 
     def report_to_vc(self):
@@ -848,41 +856,71 @@ class VolttronCentralPlatform(Agent):
         """ Handle the process of registering with volttron central.
 
         In order to use this method, the platform agent must not have
-        been registered and the _discovery_address must have a valid
+        been registered and the _vc_discovery_address must have a valid
         ip address/hostname.
 
         :return:
         """
 
-        if self._vc:
+        if self._managed:
             raise AlreadyManagedError()
         if not self._vc_discovery_address:
-            raise CannotConnectError("Invalid discovery address.")
+            raise CannotConnectError(
+                "Invalid VOLTTRON Central discovery address.")
+        if not self._vc_discovery_address:
+            raise CannotConnectError(
+                "Invalid discovery address for this platform.")
 
-        self._fetch_vc_discovery_info()
-        self._connect_to_vc()
+        agent_for_vc = self._build_agent_for_vc()
+        agent_for_vc.vip.rpc.call(VOLTTRON_CENTRAL, 'register_instance',
+                                  self._my_discovery_address).get(timeout=10)
+        self._managed = True
 
     @Core.receiver('onstart')
     def starting(self, sender, **kwargs):
         self.vip.heartbeat.start_with_period(10)
+        self._auto_register_with_vc()
 
-        #     _log.info('onstart')
-        #     self._get_vc_info_from_file()
-        #
-        #     if not self._vc and self._vc_discovery_address:
-        #         _log.debug("Before _register_with_vc()")
-        #         self._register_with_vc()
-        #
-        #     psutil.cpu_times_percent()
-        #     psutil.cpu_percent()
-        #     _, _, my_id = self.vip.hello().get(timeout=3)
-        #     self.vip.pubsub.publish(peer='pubsub', topic='/platform',
-
-    #                             message='available')
     @Core.receiver('onstop')
     def stoping(self, sender, **kwargs):
         self.vip.pubsub.publish(peer='pubsub', topic='/platform',
                                 message='leaving')
+
+    def _auto_register_with_vc(self):
+        try:
+            self._get_my_discovery_address()
+            self._get_vc_discovery_address()
+            if not self._managed and self._vc_discovery_address:
+                self._register_with_vc()
+            _log.debug('Auto register compelete')
+        except (DiscoveryError, gevent.Timeout, AlreadyManagedError,
+                    CannotConnectError) as e:
+                if self._vc_discovery_address:
+                    vc_addr_string = '({})'.format(self._vc_discovery_address)
+                else:
+                    vc_addr_string = ''
+                _log.warn(
+                    'Failed to auto register platform with '
+                    'Volttron Central{} (Error: {}'.format(vc_addr_string,
+                                                           e.message))
+    def _get_my_discovery_address(self):
+        if not self._my_discovery_address:
+            self._my_discovery_address = self.vip.rpc.call(
+                MASTER_WEB, 'get_bind_web_address').get(timeout=10)
+
+    def _get_vc_discovery_address(self):
+        if not self._vc_discovery_address:
+            self._vc_discovery_address = self.vip.rpc.call(
+                MASTER_WEB, 'get_volttron_central_address').get(timeout=10)
+
+    def _build_agent_for_vc(self):
+        """Can raise DiscoveryError and gevent.Timeout"""
+        response = DiscoveryInfo.request_discovery_info(
+            self._vc_discovery_address)
+        agent = build_agent(
+            address=response.vip_address, serverkey=response.serverkey,
+            secretkey=self.core.secretkey, publickey=self.core.publickey)
+        return agent
 
 
 def is_ip_private(vip_address):
