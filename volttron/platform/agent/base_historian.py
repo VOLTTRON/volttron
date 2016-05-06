@@ -251,18 +251,20 @@ class BaseHistorianAgent(Agent):
                  submit_size_limit=1000,
                  max_time_publishing=30,
                  **kwargs):
-        super(BaseHistorianAgent, self).__init__(**kwargs)
+        # This should resemble a dictionary that has key's from and to which
+        # will be replaced within the topics before it's stored in the
+        # cache database
+        self._topic_replace_list = kwargs.pop("topic_replace_list", None)
+        _log.debug('Topic list to replace is: {}'.format(self._topic_replace_list))
+        # a chache of mappings betwhen what comes in and the anonymizing
+        # topic that goes out.
+        
+	super(BaseHistorianAgent, self).__init__(**kwargs)
         self._started = False
         self._retry_period = retry_period
         self._submit_size_limit = submit_size_limit
         self._max_time_publishing = timedelta(seconds=max_time_publishing)
         self._successful_published = set()
-        # This should resemble a dictionary that has key's from and to which
-        # will be replaced within the topics before it's stored in the
-        # cache database
-        self._topic_replace_list = kwargs.pop("topic_replace_map", None)
-        # a chache of mappings betwhen what comes in and the anonymizing
-        # topic that goes out.
         self._topic_replace_map = {}
         self._event_queue = Queue()
         self._process_thread = Thread(target=self._process_loop)
@@ -319,7 +321,7 @@ class BaseHistorianAgent(Agent):
         # Only if we have some topics to replace.
         if self._topic_replace_list:
             # if we have already cached the topic then return it.
-            if input_topic in self._topic._topic_replace_map.keys():
+            if input_topic in self._topic_replace_map.keys():
                 output_topic = self._topic_replace_map[input_topic]
             else:
                 self._topic_replace_map[input_topic] = input_topic
