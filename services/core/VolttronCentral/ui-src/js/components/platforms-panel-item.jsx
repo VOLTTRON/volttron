@@ -145,7 +145,7 @@ var PlatformsPanelItem = React.createClass({
             arrowContent = <span style={arrowContentStyle}>&#9644;</span>;
         }
           
-        if (this.state.panelItem.expanded === true )
+        if (this.state.panelItem.expanded === true && propChildren)
         {
             children = propChildren
                 .sort(function (a, b) {
@@ -208,7 +208,7 @@ var PlatformsPanelItem = React.createClass({
                         style={tooltipStyle}>
                         <div className="tooltip_inner">
                             <div className="opaque_inner">
-                                {panelItem.name}:&nbsp;{(panelItem.context ? panelItem.context : panelItem.status)}
+                                {panelItem.name}:&nbsp;{(panelItem.context ? panelItem.context : panelItem.statusLabel)}
                             </div>
                         </div>
                     </div>
