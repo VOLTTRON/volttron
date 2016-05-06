@@ -11,7 +11,9 @@ var StatusForm = require('../components/status-indicator');
 var DeregisterPlatformConfirmation = require('../components/deregister-platform-confirmation');
 
 var Platforms = React.createClass({
-    getInitialState: getStateFromStores,
+    getInitialState: function () {
+        return getStateFromStores();
+    },
     componentDidMount: function () {
         platformsStore.addChangeListener(this._onStoresChange);
     },

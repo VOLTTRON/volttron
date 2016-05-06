@@ -59,22 +59,21 @@ var platformManagerActionCreators = {
             authorization: authorization,
         }).promise
             .then(function (platforms) {
+
+                var managerPlatforms = JSON.parse(JSON.stringify(platforms));
+                var panelPlatforms = JSON.parse(JSON.stringify(platforms));
+
                 dispatcher.dispatch({
                     type: ACTION_TYPES.RECEIVE_PLATFORMS,
-                    platforms: platforms,
+                    platforms: managerPlatforms,
                 });
 
                 dispatcher.dispatch({
                     type: ACTION_TYPES.RECEIVE_PLATFORM_STATUSES,
-                    platforms: platforms,
+                    platforms: panelPlatforms,
                 });
 
-                platforms.forEach(function (platform, i) {
-                    if (platform.name === null || platform.name === "")
-                    {
-                        platform.name = "vc" + (i + 1);
-                    }
-                    
+                managerPlatforms.forEach(function (platform, i) {
                     platformActionCreators.loadAgents(platform);
                 });
             })

@@ -731,22 +731,21 @@ var platformManagerActionCreators = {
             authorization: authorization,
         }).promise
             .then(function (platforms) {
+
+                var managerPlatforms = JSON.parse(JSON.stringify(platforms));
+                var panelPlatforms = JSON.parse(JSON.stringify(platforms));
+
                 dispatcher.dispatch({
                     type: ACTION_TYPES.RECEIVE_PLATFORMS,
-                    platforms: platforms,
+                    platforms: managerPlatforms,
                 });
 
                 dispatcher.dispatch({
                     type: ACTION_TYPES.RECEIVE_PLATFORM_STATUSES,
-                    platforms: platforms,
+                    platforms: panelPlatforms,
                 });
 
-                platforms.forEach(function (platform, i) {
-                    if (platform.name === null || platform.name === "")
-                    {
-                        platform.name = "vc" + (i + 1);
-                    }
-                    
+                managerPlatforms.forEach(function (platform, i) {
                     platformActionCreators.loadAgents(platform);
                 });
             })
@@ -938,35 +937,35 @@ var platformsPanelActionCreators = {
     },
 
     loadPanelPlatforms: function () {
-        if (!authorizationStore.getAuthorization()) { return; }
+        // if (!authorizationStore.getAuthorization()) { return; }
 
         
 
-        var authorization = authorizationStore.getAuthorization();
+        // var authorization = authorizationStore.getAuthorization();
 
-        return new rpc.Exchange({
-            method: 'list_platforms',
-            authorization: authorization,
-        }).promise
-            .then(function (platforms) {
+        // return new rpc.Exchange({
+        //     method: 'list_platforms',
+        //     authorization: authorization,
+        // }).promise
+        //     .then(function (platforms) {
 
-                platforms.forEach(function (platform, i) {
-                    if (platform.name === null || platform.name === "")
-                    {
-                        platform.name = "vc" + (i + 1);
-                    }
-                });
+        //         platforms.forEach(function (platform, i) {
+        //             if (platform.name === null || platform.name === "")
+        //             {
+        //                 platform.name = "vc" + (i + 1);
+        //             }
+        //         });
 
-                dispatcher.dispatch({
-                    type: ACTION_TYPES.RECEIVE_PLATFORM_STATUSES,
-                    platforms: platforms,
-                });
+        //         dispatcher.dispatch({
+        //             type: ACTION_TYPES.RECEIVE_PLATFORM_STATUSES,
+        //             platforms: platforms,
+        //         });
 
-                // platforms.forEach(function (platform) {
-                //     platformActionCreators.loadPlatform(platform);
-                // });
-            })
-            .catch(rpc.Error, handle401);
+        //         // platforms.forEach(function (platform) {
+        //         //     platformActionCreators.loadPlatform(platform);
+        //         // });
+        //     })
+        //     .catch(rpc.Error, handle401);
         
     },
 
@@ -3366,42 +3365,9 @@ var Platform = React.createClass({displayName: "Platform",
                 )
             );
         }
-
-        // var charts;
+        
         var agents;
-
-        // if (!platform.charts) {
-        //     charts = (
-        //         <p>Loading charts...</p>
-        //     );
-        // } else {
-        //     charts = platform.charts.map(function (chart) {
-        //         var key = [
-        //             platform.uuid,
-        //             chart.topic,
-        //             chart.type,
-        //         ].join('::');
-
-        //         return (
-        //             <div key={key} className="view__item view__item--tile chart">
-        //                 <h4 className="chart__title">{chart.topic}</h4>
-        //                 <Chart
-        //                     platform={platform}
-        //                     chart={chart}
-        //                 />
-        //                 <div className="chart__actions">
-        //                     <a onClick={this._onEditChartClick.bind(this, platform, chart)}>
-        //                         Edit
-        //                     </a>
-        //                     <a onClick={this._onDeleteChartClick.bind(this, platform, chart)}>
-        //                         Delete
-        //                     </a>
-        //                 </div>
-        //             </div>
-        //         );
-        //     }, this);
-        // }
-
+        
         if (!platform.agents) {
             agents = (
                 React.createElement("p", null, "Loading agents...")
@@ -3994,7 +3960,9 @@ var StatusForm = require('../components/status-indicator');
 var DeregisterPlatformConfirmation = require('../components/deregister-platform-confirmation');
 
 var Platforms = React.createClass({displayName: "Platforms",
-    getInitialState: getStateFromStores,
+    getInitialState: function () {
+        return getStateFromStores();
+    },
     componentDidMount: function () {
         platformsStore.addChangeListener(this._onStoresChange);
     },

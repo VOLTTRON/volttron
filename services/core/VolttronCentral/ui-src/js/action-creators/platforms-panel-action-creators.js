@@ -23,35 +23,35 @@ var platformsPanelActionCreators = {
     },
 
     loadPanelPlatforms: function () {
-        if (!authorizationStore.getAuthorization()) { return; }
+        // if (!authorizationStore.getAuthorization()) { return; }
 
         
 
-        var authorization = authorizationStore.getAuthorization();
+        // var authorization = authorizationStore.getAuthorization();
 
-        return new rpc.Exchange({
-            method: 'list_platforms',
-            authorization: authorization,
-        }).promise
-            .then(function (platforms) {
+        // return new rpc.Exchange({
+        //     method: 'list_platforms',
+        //     authorization: authorization,
+        // }).promise
+        //     .then(function (platforms) {
 
-                platforms.forEach(function (platform, i) {
-                    if (platform.name === null || platform.name === "")
-                    {
-                        platform.name = "vc" + (i + 1);
-                    }
-                });
+        //         platforms.forEach(function (platform, i) {
+        //             if (platform.name === null || platform.name === "")
+        //             {
+        //                 platform.name = "vc" + (i + 1);
+        //             }
+        //         });
 
-                dispatcher.dispatch({
-                    type: ACTION_TYPES.RECEIVE_PLATFORM_STATUSES,
-                    platforms: platforms,
-                });
+        //         dispatcher.dispatch({
+        //             type: ACTION_TYPES.RECEIVE_PLATFORM_STATUSES,
+        //             platforms: platforms,
+        //         });
 
-                // platforms.forEach(function (platform) {
-                //     platformActionCreators.loadPlatform(platform);
-                // });
-            })
-            .catch(rpc.Error, handle401);
+        //         // platforms.forEach(function (platform) {
+        //         //     platformActionCreators.loadPlatform(platform);
+        //         // });
+        //     })
+        //     .catch(rpc.Error, handle401);
         
     },
 

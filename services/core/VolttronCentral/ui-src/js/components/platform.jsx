@@ -86,42 +86,9 @@ var Platform = React.createClass({
                 </div>
             );
         }
-
-        // var charts;
+        
         var agents;
-
-        // if (!platform.charts) {
-        //     charts = (
-        //         <p>Loading charts...</p>
-        //     );
-        // } else {
-        //     charts = platform.charts.map(function (chart) {
-        //         var key = [
-        //             platform.uuid,
-        //             chart.topic,
-        //             chart.type,
-        //         ].join('::');
-
-        //         return (
-        //             <div key={key} className="view__item view__item--tile chart">
-        //                 <h4 className="chart__title">{chart.topic}</h4>
-        //                 <Chart
-        //                     platform={platform}
-        //                     chart={chart}
-        //                 />
-        //                 <div className="chart__actions">
-        //                     <a onClick={this._onEditChartClick.bind(this, platform, chart)}>
-        //                         Edit
-        //                     </a>
-        //                     <a onClick={this._onDeleteChartClick.bind(this, platform, chart)}>
-        //                         Delete
-        //                     </a>
-        //                 </div>
-        //             </div>
-        //         );
-        //     }, this);
-        // }
-
+        
         if (!platform.agents) {
             agents = (
                 <p>Loading agents...</p>
