@@ -249,7 +249,7 @@ class VolttronCentralAgent(Agent):
     def get_platform(self, platform_uuid):
         return self._registry.get_platform(platform_uuid)
 
-    @Core.periodic(5)
+    @Core.periodic(15)
     def _auto_register_peer(self):
         """ Auto register a volttron central platform.
 
@@ -267,7 +267,7 @@ class VolttronCentralAgent(Agent):
                     )
                     return
 
-            peers = self.vip.peerlist().get(timeout=2)
+            peers = self.vip.peerlist().get(timeout=10)
             if 'platform.agent' in peers:
                 _log.debug('Auto connecting platform.agent on vc')
                 # the _peer_platform is set to self because we don't need
