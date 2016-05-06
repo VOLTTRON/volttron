@@ -3603,7 +3603,7 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
             arrowContent = React.createElement("span", {style: arrowContentStyle}, "▬");
         }
           
-        if (this.state.panelItem.expanded === true )
+        if (this.state.panelItem.expanded === true && propChildren)
         {
             children = propChildren
                 .sort(function (a, b) {
