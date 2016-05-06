@@ -60,6 +60,7 @@ import datetime
 # Import the email modules we'll need
 from email.mime.text import MIMEText
 import logging
+import os
 import socket
 # Import smtplib for the actual sending function
 import smtplib
@@ -103,7 +104,7 @@ class EmailerAgent(Agent):
         self._from = config.get("from-address", None)
         self._to = config.get("to-addresses", None)
         self._allow_frequency = config.get("allow-frequency-minutes", 60)
-        self._allow_frequency_seconds = self._allow_frequency * 3600
+        self._allow_frequency_seconds = self._allow_frequency * 60
         if not self._from and self._to:
             raise ValueError('Invalid from/to addresses specified.')
 
@@ -115,7 +116,7 @@ class EmailerAgent(Agent):
             s.quit()
         except socket.gaierror:
             raise ValueError('Invalid smtp-address')
-
+	_log.debug('Allow frequency in seconds is: {}'.format(self._allow_frequency_seconds))
         self._sent_emails = None
         self._read_store()
 
@@ -123,8 +124,11 @@ class EmailerAgent(Agent):
         return time.mktime(datetime.datetime.now().timetuple())
 
     def _read_store(self):
-        with open('email.store', 'r') as f:
-            self._sent_emails = jsonapi.loads(f.read())
+        if os.path.exists('email.store'):
+            with open('email.store', 'r') as f:
+                self._sent_emails = jsonapi.loads(f.read())
+        else:
+            self._sent_emails = {}
 
     def _write_store(self):
         with open('email.store', 'w') as f:
@@ -134,52 +138,68 @@ class EmailerAgent(Agent):
                       prefix=topics.ALERTS.format(agent_class='',
                       agent_uuid=''))
     def onmessage(self, peer, sender, bus, topic, headers, message):
+        _log.info('Alert message for topic: {}'.format(topic))
         _log.debug("Sending mail for message: {}".format(message))
         mailkey = headers.get(ALERT_KEY, None)
         if not mailkey:
-            _log.debug("alert_key not found in header "
+            _log.error("alert_key not found in header "
                        + "for message topic: {} message: {}"
                        .format(topic, message))
             return
 
-        current_time = self.timestamp()
         # peal off the sent mail from the specific agent.
-        sentmail = self._sent_emails[topic]
-        if not sentmail:
-            sentmail = {}
+        if not topic in self._sent_emails.keys():
+	    _log.debug('Topic not found: {}'.format(topic))
+            self._sent_emails[topic] = {}
 
-        sentlast = sentmail.get(mailkey, 0)
+	sentmail = self._sent_emails[topic]
+	
+        if not mailkey in sentmail.keys():
+            _log.debug('Mailkey not found: {}'.format(mailkey))
+	    sentmail[mailkey] = 0
+        
+        sentlast = sentmail[mailkey]
+        _log.debug('Sentlast is now: {}'.format(sentlast))
         should_send = False
+        current_time = self.timestamp()
+       
         if not sentlast:
             # first time sending
             should_send = True
-        elif current_time < sentlast + self._allow_frequency_seconds:
+        elif current_time > sentlast + self._allow_frequency_seconds:
+            _log.debug("sentlast: {}".format(sentlast))
+            _log.debug("sentlast+seconds: {}".format(sentlast+self._allow_frequency_seconds))
             should_send = True
+	
+	if should_send:
+            subject = "Alert for {} {}".format(topic, mailkey)
+            self._send_alert_mail(subject, message)
+            debugmsg = "current_time: {} next send time: {} _sent_emails[{}][{}]"
+            _log.debug(debugmsg.format(current_time, current_time+self._allow_frequency_seconds,
+                topic, mailkey)) 
+            self._sent_emails[topic][mailkey] = current_time
+            self._write_store()
+            _log.debug('SENT EMAILS: {}'.format(self._sent_emails))
+        else:
+            _log.debug('SKIPPING EMAIL for topic: {}'.format(topic))
 
-        subject = "Alert for {} {}".format(topic, mailkey)
-        self.send_alert_mail(subject, message)
-        self._sent_emails[topic][mailkey] = current_time
-        self._write_store()
 
+    def _send_alert_mail(self, subject, message):
+        _log.debug('Sending mail {}\nmessage:\n{}'.format(subject, message))
+        _log.debug('Mail from: {}, to: {}'.format(self._from, self._to))
+        recipients = self._to
+        if isinstance(recipients, basestring):
+            recipients = [recipients]
 
+	msg = MIMEText(message)
+        msg['To'] = ', '.join(recipients)
+        msg['FROM'] = self._from
+        msg['Subject'] = subject
 
-    def send_alert_mail(self, subject, message):
-        # Create a text/plain message
-        msg = MIMEText(message)
-
-        me = "craig.allwardt@pnnl.gov"
-        you = "craig.allwardt@pnnl.gov"
-        # me == the sender's email address
-        # you == the recipient's email address
-        msg['Subject'] = 'ALERT: {}'.format(subject)
-        msg['From'] = self._from
-        msg['To'] = self._to
-
-        # Send the message via our own SMTP server, but don't include the
-        # envelope header.
+	_log.debug('MESSAGE: {}'.format(msg.as_string()))
         s = smtplib.SMTP(self._smtp)
-        s.sendmail(me, [you], msg.as_string())
-        s.quit()
+        s.sendmail(self._from, recipients, msg.as_string())
+        s.quit() 
 
 
 # def main(argv=sys.argv):
