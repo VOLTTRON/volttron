@@ -257,7 +257,13 @@ class BaseHistorianAgent(Agent):
         self._submit_size_limit = submit_size_limit
         self._max_time_publishing = timedelta(seconds=max_time_publishing)
         self._successful_published = set()
-
+        # This should resemble a dictionary that has key's from and to which
+        # will be replaced within the topics before it's stored in the
+        # cache database
+        self._topic_replace_list = kwargs.pop("topic_replace_map", None)
+        # a chache of mappings betwhen what comes in and the anonymizing
+        # topic that goes out.
+        self._topic_replace_map = {}
         self._event_queue = Queue()
         self._process_thread = Thread(target=self._process_loop)
         self._process_thread.daemon = True  # Don't wait on thread to exit.
@@ -308,8 +314,34 @@ class BaseHistorianAgent(Agent):
             # subscriptions never got finished.
             pass
 
+    def _get_topic(self, input_topic):
+        output_topic = input_topic
+        # Only if we have some topics to replace.
+        if self._topic_replace_list:
+            # if we have already cached the topic then return it.
+            if input_topic in self._topic._topic_replace_map.keys():
+                output_topic = self._topic_replace_map[input_topic]
+            else:
+                self._topic_replace_map[input_topic] = input_topic
+                temptopics = {}
+                for x in self._topic_replace_list:
+                    if x['from'] in input_topic:
+                        # this allows multiple things to be replaced from
+                        # from a given topic.
+                        new_topic = temptopics.get(input_topic, input_topic)
+                        temptopics[input_topic] = new_topic.replace(
+                            x['from'], x['to'])
+
+                for k, v in temptopics.items():
+                    self._topic_replace_map[k] = v
+                output_topic = self._topic_replace_map[input_topic]
+
+        return output_topic
+
     def _capture_record_data(self, peer, sender, bus, topic, headers, message):
         _log.debug('Capture record data {}'.format(message))
+        # Anon the topic if necessary.
+        topic = self._get_topic(topic)
         timestamp_string = headers.get(headers_mod.DATE, None)
         timestamp = get_aware_utc_now()
         if timestamp_string is not None:
@@ -326,6 +358,8 @@ class BaseHistorianAgent(Agent):
     def _capture_log_data(self, peer, sender, bus, topic, headers, message):
         """Capture log data and submit it to be published by a historian."""
 
+        # Anon the topic if necessary.
+        topic = self._get_topic(topic)
         try:
             # 2.0 agents compatability layer makes sender == pubsub.compat so 
             # we can do the proper thing when it is here
@@ -389,6 +423,9 @@ class BaseHistorianAgent(Agent):
             _log.debug("Unmatched topic: {}".format(topic))
             return
 
+        # Anon the topic if necessary.
+        topic = self._get_topic(topic)
+
         # Because of the above if we know that all is in the topic so
         # we strip it off to get the base device
         parts = topic.split('/')
@@ -408,6 +445,8 @@ class BaseHistorianAgent(Agent):
         if topic.endswith("/all") or '/all/' in topic:
             return
 
+        # Anon the topic if necessary.
+        topic = self._get_topic(topic)
         parts = topic.split('/')
         # strip off the first part of the topic.
         device = '/'.join(parts[1:-1])
@@ -417,6 +456,8 @@ class BaseHistorianAgent(Agent):
     def _capture_data(self, peer, sender, bus, topic, headers, message,
                       device):
 
+        # Anon the topic if necessary.
+        topic = self._get_topic(topic)
         timestamp_string = headers.get(headers_mod.DATE, None)
         timestamp = get_aware_utc_now()
         if timestamp_string is not None:
@@ -471,6 +512,8 @@ class BaseHistorianAgent(Agent):
     def _capture_actuator_data(self, topic, headers, message, match):
         """Capture actuation data and submit it to be published by a historian.
         """
+        # Anon the topic if necessary.
+        topic = self._get_topic(topic)
         timestamp_string = headers.get('time')
         _log.debug("TIMESTMAMP_STRING: {}".format(timestamp_string))
         if timestamp_string is None:
