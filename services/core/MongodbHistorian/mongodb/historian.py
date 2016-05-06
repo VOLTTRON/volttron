@@ -82,7 +82,8 @@ def historian(config_path, **kwargs):
     assert params is not None
 
     identity = config.get('identity', kwargs.pop('identity', None))
-
+    topic_replacements = config.get('topic_text_replace_list', None)
+    _log.debug('topic_replacements are: {}'.format(topic_replacements))
     class MongodbHistorian(BaseHistorian):
         """This is a simple example of a historian agent that writes stuff
         to a SQLite database. It is designed to test some of the functionality
@@ -114,7 +115,8 @@ def historian(config_path, **kwargs):
             self._topic_name_map = {}
             self._topic_meta = {}
 
-            super(MongodbHistorian, self).__init__(**kwargs)
+            super(MongodbHistorian, self).__init__(
+                topic_replace_list=topic_replacements, **kwargs)
 
         @staticmethod
         def get_mongo_client(connection_params):
