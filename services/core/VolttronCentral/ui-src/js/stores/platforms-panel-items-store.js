@@ -483,7 +483,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             platform.children.push("buildings");
 
             platform.buildings = {};
-            platform.buildings.name = "Building";
+            platform.buildings.name = "Buildings";
             platform.buildings.children = [];
             platform.buildings.path = JSON.parse(JSON.stringify(platform.path));
             platform.buildings.path.push("buildings");

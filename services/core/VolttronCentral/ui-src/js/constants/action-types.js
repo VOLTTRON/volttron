@@ -40,6 +40,7 @@ module.exports = keyMirror({
 
     RECEIVE_PANEL_CHILDREN: null,
 
+    SHOW_CHARTS: null,
     ADD_TO_CHART: null,
     REMOVE_FROM_CHART: null,
     PIN_CHART: null,

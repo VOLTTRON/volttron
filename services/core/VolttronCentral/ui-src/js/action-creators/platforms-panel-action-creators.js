@@ -275,6 +275,11 @@ var platformsPanelActionCreators = {
                         datum.parent = panelItem.parentPath;
                         datum.uuid = panelItem.uuid;
                     });
+
+                    dispatcher.dispatch({
+                        type: ACTION_TYPES.SHOW_CHARTS
+                    });
+
                     dispatcher.dispatch({
                         type: ACTION_TYPES.ADD_TO_CHART,
                         panelItem: panelItem

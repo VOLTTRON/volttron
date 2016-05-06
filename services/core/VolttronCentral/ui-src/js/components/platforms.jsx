@@ -21,12 +21,6 @@ var Platforms = React.createClass({
     _onStoresChange: function () {
         this.setState(getStateFromStores());
     },
-    _onGoodStatusClick: function () {
-        statusIndicatorActionCreators.openStatusIndicator("success", "nothing happened");
-    },
-    _onBadStatusClick: function () {
-        statusIndicatorActionCreators.openStatusIndicator("error", "nothing happened");
-    },
     _onRegisterClick: function () {
         modalActionCreators.openModal(<RegisterPlatformForm />);
     },

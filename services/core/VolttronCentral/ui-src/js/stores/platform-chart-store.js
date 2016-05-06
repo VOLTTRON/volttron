@@ -7,6 +7,7 @@ var Store = require('../lib/store');
 
 
 var _chartData = {};
+var _showCharts = false;
 
 var chartStore = new Store();
 
@@ -49,6 +50,15 @@ chartStore.getType = function (chartKey) {
 
 chartStore.getRefreshRate = function (chartKey) {
     return _chartData[chartKey].refreshInterval;
+}
+
+chartStore.showCharts = function () {
+
+    var showCharts = _showCharts;
+
+    _showCharts = false;
+
+    return showCharts;
 }
 
 chartStore.dispatchToken = dispatcher.register(function (action) {
@@ -137,6 +147,14 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
             {
                 _chartData[action.chartKey].type = action.chartType;
             }
+
+            chartStore.emitChange();
+
+            break;
+
+        case ACTION_TYPES.SHOW_CHARTS:
+
+            _showCharts = true;
 
             chartStore.emitChange();
 

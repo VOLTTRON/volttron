@@ -5,6 +5,7 @@ var React = require('react');
 var Router = require('react-router');
 
 var authorizationStore = require('./stores/authorization-store');
+var platformChartsStore = require('./stores/platform-chart-store');
 var Dashboard = require('./components/dashboard');
 var LoginForm = require('./components/login-form');
 var PageNotFound = require('./components/page-not-found');
@@ -74,10 +75,23 @@ router.run(function (Handler) {
             router.replaceWith('/login');
         }
     });
+
+    platformChartsStore.addChangeListener(function () {
+        if (platformChartsStore.showCharts() && authorizationStore.getAuthorization())
+        {
+            !router.isActive('charts')
+            {
+                router.replaceWith('/platform-charts');
+            }
+        }
+
+    });
+
+
 });
 
 
-},{"./components/dashboard":17,"./components/login-form":22,"./components/page-not-found":25,"./components/platform":29,"./components/platform-charts":27,"./components/platform-manager":28,"./components/platforms":32,"./stores/authorization-store":45,"react":undefined,"react-router":undefined}],2:[function(require,module,exports){
+},{"./components/dashboard":17,"./components/login-form":22,"./components/page-not-found":25,"./components/platform":29,"./components/platform-charts":27,"./components/platform-manager":28,"./components/platforms":32,"./stores/authorization-store":45,"./stores/platform-chart-store":50,"react":undefined,"react-router":undefined}],2:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -1176,6 +1190,11 @@ var platformsPanelActionCreators = {
                         datum.parent = panelItem.parentPath;
                         datum.uuid = panelItem.uuid;
                     });
+
+                    dispatcher.dispatch({
+                        type: ACTION_TYPES.SHOW_CHARTS
+                    });
+
                     dispatcher.dispatch({
                         type: ACTION_TYPES.ADD_TO_CHART,
                         panelItem: panelItem
@@ -3985,12 +4004,6 @@ var Platforms = React.createClass({displayName: "Platforms",
     _onStoresChange: function () {
         this.setState(getStateFromStores());
     },
-    _onGoodStatusClick: function () {
-        statusIndicatorActionCreators.openStatusIndicator("success", "nothing happened");
-    },
-    _onBadStatusClick: function () {
-        statusIndicatorActionCreators.openStatusIndicator("error", "nothing happened");
-    },
     _onRegisterClick: function () {
         modalActionCreators.openModal(React.createElement(RegisterPlatformForm, null));
     },
@@ -4638,6 +4651,7 @@ module.exports = keyMirror({
 
     RECEIVE_PANEL_CHILDREN: null,
 
+    SHOW_CHARTS: null,
     ADD_TO_CHART: null,
     REMOVE_FROM_CHART: null,
     PIN_CHART: null,
@@ -5171,6 +5185,7 @@ var Store = require('../lib/store');
 
 
 var _chartData = {};
+var _showCharts = false;
 
 var chartStore = new Store();
 
@@ -5213,6 +5228,15 @@ chartStore.getType = function (chartKey) {
 
 chartStore.getRefreshRate = function (chartKey) {
     return _chartData[chartKey].refreshInterval;
+}
+
+chartStore.showCharts = function () {
+
+    var showCharts = _showCharts;
+
+    _showCharts = false;
+
+    return showCharts;
 }
 
 chartStore.dispatchToken = dispatcher.register(function (action) {
@@ -5301,6 +5325,14 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
             {
                 _chartData[action.chartKey].type = action.chartType;
             }
+
+            chartStore.emitChange();
+
+            break;
+
+        case ACTION_TYPES.SHOW_CHARTS:
+
+            _showCharts = true;
 
             chartStore.emitChange();
 
@@ -5927,7 +5959,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             platform.children.push("buildings");
 
             platform.buildings = {};
-            platform.buildings.name = "Building";
+            platform.buildings.name = "Buildings";
             platform.buildings.children = [];
             platform.buildings.path = JSON.parse(JSON.stringify(platform.path));
             platform.buildings.path.push("buildings");

@@ -4,6 +4,7 @@ var React = require('react');
 var Router = require('react-router');
 
 var authorizationStore = require('./stores/authorization-store');
+var platformChartsStore = require('./stores/platform-chart-store');
 var Dashboard = require('./components/dashboard');
 var LoginForm = require('./components/login-form');
 var PageNotFound = require('./components/page-not-found');
@@ -73,4 +74,17 @@ router.run(function (Handler) {
             router.replaceWith('/login');
         }
     });
+
+    platformChartsStore.addChangeListener(function () {
+        if (platformChartsStore.showCharts() && authorizationStore.getAuthorization())
+        {
+            !router.isActive('charts')
+            {
+                router.replaceWith('/platform-charts');
+            }
+        }
+
+    });
+
+
 });
