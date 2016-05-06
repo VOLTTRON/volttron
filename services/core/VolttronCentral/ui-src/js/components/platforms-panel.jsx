@@ -26,7 +26,6 @@ var PlatformsPanel = React.createClass({
     componentDidMount: function () {
         platformsPanelStore.addChangeListener(this._onPanelStoreChange);
         platformsPanelItemsStore.addChangeListener(this._onPanelItemsStoreChange);
-        platformsPanelActionCreators.loadPanelPlatforms();
     },
     componentWillUnmount: function () {
         platformsPanelStore.removeChangeListener(this._onPanelStoreChange);

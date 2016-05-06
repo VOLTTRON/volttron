@@ -38,21 +38,6 @@ platformsPanelItemsStore.getItem = function (itemPath)
     return item;
 }  
 
-platformsPanelItemsStore.getHistorian = function (platformUuid)
-{
-    var itemsList = [];
-    var item = _items;
-
-    var platform = _items.platforms[platformUuid];
-
-    var historianUuid = platform.agents.children.find(function (child) {
-
-        return platform.agents[child].name.indexOf("historian") > -1;
-    });
-
-    return historianUuid;
-}  
-
 platformsPanelItemsStore.getChildren = function (parent, parentPath) {
 
     var itemsList = [];
@@ -281,8 +266,8 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                 platformItem.expanded = null;
                 // platformItem.name = (platform.name === null ? platform.uuid : platform.name);
 
-                loadAgents(platform);                
-                loadDevices(platform);
+                // loadAgents(platform);                
+                // loadDevices(platform);
             });
 
             var platformsToRemove = [];
@@ -302,17 +287,6 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             platformsToRemove.forEach(function (uuid) {
                 delete _items.platforms[uuid];
             });            
-            
-            platformsPanelItemsStore.emitChange();
-            break;
-        case ACTION_TYPES.RECEIVE_BUILDING_STATUSES:
-            
-            var platform = _items["platforms"][action.platform.uuid];
-
-            if (platform.children.length > 0)
-            {
-                platform.expanded = true;
-            }
             
             platformsPanelItemsStore.emitChange();
             break;
@@ -338,7 +312,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
             platformsPanelItemsStore.emitChange();
             break;
-        case ACTION_TYPES.RECEIVE_POINT_STATUSES:
+        case ACTION_TYPES.RECEIVE_PERFORMANCE_STATS:
             
             switch (action.parent.type)
             {
@@ -402,19 +376,6 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
             platformsPanelItemsStore.emitChange();
             break;
-        case ACTION_TYPES.RECEIVE_PANEL_CHILDREN:
-            
-            var item = platformsPanelItemsStore.getItem(action.platform.path);
-
-            // var platform = _items["platforms"][action.platform.uuid];
-
-            if (item.children.length > 0)
-            {
-                item.expanded = true;
-            }
-
-            platformsPanelItemsStore.emitChange();
-            break;
     }
 
     function insertAgents(platform, agents)
@@ -461,20 +422,20 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
         platform.agents.statusLabel = getStatusLabel(agentsHealth);
     }
 
-    function loadAgents(platform)
-    {
-        if (platform.agents)
-        {
-            if (platform.agents.length > 0)
-            {
-                insertAgents(platform, platform.agents);
-            }
-            else
-            {
-                delete platform.agents;
-            }
-        }
-    }
+    // function loadAgents(platform)
+    // {
+    //     if (platform.agents)
+    //     {
+    //         if (platform.agents.length > 0)
+    //         {
+    //             insertAgents(platform, platform.agents);
+    //         }
+    //         else
+    //         {
+    //             delete platform.agents;
+    //         }
+    //     }
+    // }
 
     function insertBuilding(platform, uuid, name)
     {
@@ -775,58 +736,58 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
         }
     }
 
-    function loadDevices(platform)
-    {
-        // var platform = _items["platforms"][action.platform.uuid];
+    // function loadDevices(platform)
+    // {
+    //     // var platform = _items["platforms"][action.platform.uuid];
         
-        if (platform.devices)
-        {
-            if (platform.devices.length > 0)
-            {
-                // var agents = [];
+    //     if (platform.devices)
+    //     {
+    //         if (platform.devices.length > 0)
+    //         {
+    //             // var agents = [];
 
-                // platform.agents.forEach(function (agent)) {
-                //     agents.push(agent);
-                // }
+    //             // platform.agents.forEach(function (agent)) {
+    //             //     agents.push(agent);
+    //             // }
 
-                // platform.expanded = true;
-                // platform.agents = {};
-                // platform.agents.path = platform.path.slice(0);
-                // platform.agents.path.push("agents");
-                // platform.agents.name = "Agents";
-                // platform.agents.expanded = false;
-                // platform.agents.visible = true;
-                // platform.agents.children = [];
-                // platform.agents.type = "type";
-                // platform.agents.sortOrder = _agentsOrder;
+    //             // platform.expanded = true;
+    //             // platform.agents = {};
+    //             // platform.agents.path = platform.path.slice(0);
+    //             // platform.agents.path.push("agents");
+    //             // platform.agents.name = "Agents";
+    //             // platform.agents.expanded = false;
+    //             // platform.agents.visible = true;
+    //             // platform.agents.children = [];
+    //             // platform.agents.type = "type";
+    //             // platform.agents.sortOrder = _agentsOrder;
 
-                // if (platform.children.indexOf("agents") < 0)
-                // {
-                //     platform.children.push("agents");
-                // }
+    //             // if (platform.children.indexOf("agents") < 0)
+    //             // {
+    //             //     platform.children.push("agents");
+    //             // }
 
-                // agents.forEach(function (agent)
-                // {
-                //     var agentProps = agent;
-                //     agentProps.expanded = false;
-                //     agentProps.visible = true;
-                //     agentProps.path = platform.agents.path.slice(0);
-                //     agentProps.path.push(agent.uuid);
-                //     // agent.status = "GOOD";
-                //     agentProps.children = [];
-                //     agentProps.type = "agent";
-                //     agentProps.sortOrder = 0;
-                //     platform.agents.children.push(agent.uuid); 
-                //     platform.agents[agent.uuid] = agentProps;
-                // });
+    //             // agents.forEach(function (agent)
+    //             // {
+    //             //     var agentProps = agent;
+    //             //     agentProps.expanded = false;
+    //             //     agentProps.visible = true;
+    //             //     agentProps.path = platform.agents.path.slice(0);
+    //             //     agentProps.path.push(agent.uuid);
+    //             //     // agent.status = "GOOD";
+    //             //     agentProps.children = [];
+    //             //     agentProps.type = "agent";
+    //             //     agentProps.sortOrder = 0;
+    //             //     platform.agents.children.push(agent.uuid); 
+    //             //     platform.agents[agent.uuid] = agentProps;
+    //             // });
 
-            }
-            else
-            {
-                delete platform.devices;
-            }
-        }
-    }
+    //         }
+    //         else
+    //         {
+    //             delete platform.devices;
+    //         }
+    //     }
+    // }
 
     function getParentPath(parent)
     {

@@ -233,43 +233,6 @@ var platformActionCreators = {
             })
             .catch(rpc.Error, handle401);
     },
-    // initializeAgents: function (platform) {
-    //     var authorization = authorizationStore.getAuthorization();
-
-    //     if (platform.agents)
-    //     {
-    //         if (platform.agents.length > 0)
-    //         {
-    //             new rpc.Exchange({
-    //                 method: 'platforms.uuid.' + platform.uuid + '.status_agents',
-    //                 authorization: authorization,
-    //             }).promise
-    //                 .then(function (agentStatuses) {
-    //                     platform.agents.forEach(function (agent) {
-    //                         if (!agentStatuses.some(function (status) {
-    //                             if (agent.uuid === status.uuid) {
-    //                                 agent.actionPending = false;
-    //                                 console.log("PIDs match: " + (agent.process_id === status.process_id));
-    //                                 agent.return_code = status.return_code;
-
-    //                                 return true;
-    //                             }
-    //                         })) {
-    //                             agent.actionPending = false;
-    //                             agent.process_id = null;
-    //                             agent.return_code = null;
-    //                         }
-
-    //                     });
-
-    //                     dispatcher.dispatch({
-    //                         type: ACTION_TYPES.RECEIVE_PLATFORM,
-    //                         platform: platform,
-    //                     });
-    //                 });
-    //         }
-    //     }
-    // },
     startAgent: function (platform, agent) {
         var authorization = authorizationStore.getAuthorization();
 
@@ -412,44 +375,7 @@ var platformActionCreators = {
                 if (charts && charts.length) {
                     platform.charts = charts;
                 } else {
-                    // Provide default set of charts if none are configured
-                    platform.charts = [
-//                        {
-//                          "topic": "datalogger/log/platform/status/cpu/percent",
-//                          "refreshInterval": 15000,
-//                          "type": "line",
-//                          "min": 0,
-//                          "max": 100
-//                        },
-//                        {
-//                          "topic": "datalogger/log/platform/status/cpu/times_percent/idle",
-//                          "refreshInterval": 15000,
-//                          "type": "line",
-//                          "min": 0,
-//                          "max": 100
-//                        },
-//                        {
-//                          "topic": "datalogger/log/platform/status/cpu/times_percent/nice",
-//                          "refreshInterval": 15000,
-//                          "type": "line",
-//                          "min": 0,
-//                          "max": 100
-//                        },
-//                        {
-//                          "topic": "datalogger/log/platform/status/cpu/times_percent/system",
-//                          "refreshInterval": 15000,
-//                          "type": "line",
-//                          "min": 0,
-//                          "max": 100
-//                        },
-//                        {
-//                          "topic": "datalogger/log/platform/status/cpu/times_percent/user",
-//                          "refreshInterval": 15000,
-//                          "type": "line",
-//                          "min": 0,
-//                          "max": 100
-//                        },
-                    ];
+                    platform.charts = [];
                 }
 
                 dispatcher.dispatch({
@@ -936,81 +862,16 @@ var platformsPanelActionCreators = {
         });
     },
 
-    loadPanelPlatforms: function () {
-        // if (!authorizationStore.getAuthorization()) { return; }
-
-        
-
-        // var authorization = authorizationStore.getAuthorization();
-
-        // return new rpc.Exchange({
-        //     method: 'list_platforms',
-        //     authorization: authorization,
-        // }).promise
-        //     .then(function (platforms) {
-
-        //         platforms.forEach(function (platform, i) {
-        //             if (platform.name === null || platform.name === "")
-        //             {
-        //                 platform.name = "vc" + (i + 1);
-        //             }
-        //         });
-
-        //         dispatcher.dispatch({
-        //             type: ACTION_TYPES.RECEIVE_PLATFORM_STATUSES,
-        //             platforms: platforms,
-        //         });
-
-        //         // platforms.forEach(function (platform) {
-        //         //     platformActionCreators.loadPlatform(platform);
-        //         // });
-        //     })
-        //     .catch(rpc.Error, handle401);
-        
-    },
-
     loadChildren: function(type, parent)
     {
-        switch (type)
+        if (type === "platform")
         {
-            case "platform":
-                loadPanelAgents(parent);
-                loadPanelDevices(parent);
-                loadPanelPoints(parent);
-                break;
-            case "building":
-                loadPanelDevices(parent);
-                // loadPanelPoints(parent);
-                break;
-            case "device":
-                loadPanelPoints(parent);
-                loadPanelDevices(parent);
-                break;
-            // case "type":
+            loadPanelAgents(parent);
+            loadPanelDevices(parent);
+            loadPerformanceStats(parent);
+        }        
 
-            //     for (var i = 0; i < parent.children.length; i++)
-            //     {
-            //         platformsPanelActionCreators.loadChildren(parent[parent.children[i]].type, parent[parent.children[i]]);
-            //     }
-                
-            //     break;
-            default:
-
-                loadPanelChildren(parent);
-
-                break;
-
-        }
-
-
-        function loadPanelChildren(parent) {
-            dispatcher.dispatch({
-                type: ACTION_TYPES.RECEIVE_PANEL_CHILDREN,
-                platform: parent
-            });    
-        }
-
-        function loadPanelPoints(parent) {
+        function loadPerformanceStats(parent) {
 
             if (parent.type === "platform")
             {
@@ -1044,7 +905,7 @@ var platformsPanelActionCreators = {
                             }
 
                             dispatcher.dispatch({
-                                type: ACTION_TYPES.RECEIVE_POINT_STATUSES,
+                                type: ACTION_TYPES.RECEIVE_PERFORMANCE_STATS,
                                 parent: parent,
                                 points: pointsList
                             });
@@ -1091,18 +952,10 @@ var platformsPanelActionCreators = {
                         platform: platform,
                         devices: devicesList
                     });
-
                     
                 })
                 .catch(rpc.Error, handle401);    
 
-        }
-
-        function loadPanelBuildings(parent) {
-            dispatcher.dispatch({
-                type: ACTION_TYPES.RECEIVE_BUILDING_STATUSES,
-                platform: parent
-            });    
         }
 
         function loadPanelAgents(platform) {
@@ -1168,84 +1021,50 @@ var platformsPanelActionCreators = {
 
     addToChart: function(panelItem) {
 
-        if (true)
-        {
-            var authorization = authorizationStore.getAuthorization();
+        var authorization = authorizationStore.getAuthorization();
 
-            new rpc.Exchange({
-                method: 'platforms.uuid.' + panelItem.parentUuid + '.historian.query',
-                params: {
-                    topic: panelItem.topic,
-                    count: 20,
-                    order: 'LAST_TO_FIRST',
-                },
-                authorization: authorization,
-            }).promise
-                .then(function (result) {
-                    panelItem.data = result.values;
+        new rpc.Exchange({
+            method: 'platforms.uuid.' + panelItem.parentUuid + '.historian.query',
+            params: {
+                topic: panelItem.topic,
+                count: 20,
+                order: 'LAST_TO_FIRST',
+            },
+            authorization: authorization,
+        }).promise
+            .then(function (result) {
+                panelItem.data = result.values;
 
-                    panelItem.data.forEach(function (datum) {
-                        datum.name = panelItem.name;
-                        datum.parent = panelItem.parentPath;
-                        datum.uuid = panelItem.uuid;
-                    });
+                panelItem.data.forEach(function (datum) {
+                    datum.name = panelItem.name;
+                    datum.parent = panelItem.parentPath;
+                    datum.uuid = panelItem.uuid;
+                });
 
-                    dispatcher.dispatch({
-                        type: ACTION_TYPES.SHOW_CHARTS
-                    });
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.SHOW_CHARTS
+                });
 
-                    dispatcher.dispatch({
-                        type: ACTION_TYPES.ADD_TO_CHART,
-                        panelItem: panelItem
-                    });
-                })
-                .catch(rpc.Error, function (error) {
-                    
-                    var message = error.message;
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.ADD_TO_CHART,
+                    panelItem: panelItem
+                });
+            })
+            .catch(rpc.Error, function (error) {
+                
+                var message = error.message;
 
-                    if (error.code === -32602)
+                if (error.code === -32602)
+                {
+                    if (error.message === "historian unavailable")
                     {
-                        if (error.message === "historian unavailable")
-                        {
-                            message = "Data could not be fetched. The historian agent is unavailable."
-                        }
+                        message = "Data could not be fetched. The historian agent is unavailable."
                     }
+                }
 
-                    statusIndicatorActionCreators.openStatusIndicator("error", message);
-                    handle401(error);
-                });
-        }  
-        else
-        {
-            if (panelItem.uuid === "5461fedc-65ba-43fe-21dc-098765bafedl")
-            {
-                panelItem.data = [['2016-02-19T01:00:31.630626',31.4],['2016-02-19T01:00:16.632151',23],['2016-02-19T01:00:01.627188',16.5],['2016-02-19T00:59:46.641500',42.8],['2016-02-19T00:59:31.643573',21.2],['2016-02-19T00:59:16.643254',9.3],['2016-02-19T00:59:01.639104',8.5],['2016-02-19T00:58:46.638238',16],['2016-02-19T00:58:31.633733',12.4],['2016-02-19T00:58:16.632418',23],['2016-02-19T00:58:01.630463',16.7],['2016-02-19T00:57:46.648439',9.1],['2016-02-19T00:57:31.640824',10.5],['2016-02-19T00:57:16.636578',8.2],['2016-02-19T00:57:01.644842',2.2],['2016-02-19T00:56:46.635059',2.5],['2016-02-19T00:56:31.639332',2.4],['2016-02-19T00:56:16.647604',2.3],['2016-02-19T00:56:01.643571',11.2],['2016-02-19T00:55:46.644522',9.8]];
-                panelItem.data.forEach(function (datum) {
-                    datum.name = panelItem.name;
-                    datum.parent = panelItem.parentPath;
-                    datum.uuid = panelItem.uuid;
-                });
-
-                dispatcher.dispatch({
-                    type: ACTION_TYPES.ADD_TO_CHART,
-                    panelItem: panelItem
-                });
-            }
-            else if (panelItem.uuid === "5461fedc-65ba-43fe-21dc-111765bafedl")
-            {
-                panelItem.data = [['2016-02-19T01:01:46.625663',73.6],['2016-02-19T01:01:31.633847',71],['2016-02-19T01:01:16.627160',69.4],['2016-02-19T01:01:01.639623',60],['2016-02-19T01:00:46.626307',67],['2016-02-19T01:00:31.630768',68.6],['2016-02-19T01:00:16.632203',77],['2016-02-19T01:00:01.627241',83.5],['2016-02-19T00:59:46.641688',57.2],['2016-02-19T00:59:31.643709',78.7],['2016-02-19T00:59:16.643448',90.7],['2016-02-19T00:59:01.640538',91.5],['2016-02-19T00:58:46.638353',84],['2016-02-19T00:58:31.633809',87.6],['2016-02-19T00:58:16.632515',77],['2016-02-19T00:58:01.630531',83.3],['2016-02-19T00:57:46.648567',90.9],['2016-02-19T00:57:31.640947',89.5],['2016-02-19T00:57:16.636686',91.8],['2016-02-19T00:57:01.645023',97.7]];
-                panelItem.data.forEach(function (datum) {
-                    datum.name = panelItem.name;
-                    datum.parent = panelItem.parentPath;
-                    datum.uuid = panelItem.uuid;
-                });
-
-                dispatcher.dispatch({
-                    type: ACTION_TYPES.ADD_TO_CHART,
-                    panelItem: panelItem
-                });
-            }
-        }
+                statusIndicatorActionCreators.openStatusIndicator("error", message);
+                handle401(error);
+            });
     },
 
     removeFromChart: function(panelItem) {
@@ -3712,7 +3531,6 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
     componentDidMount: function () {
         platformsPanelStore.addChangeListener(this._onPanelStoreChange);
         platformsPanelItemsStore.addChangeListener(this._onPanelItemsStoreChange);
-        platformsPanelActionCreators.loadPanelPlatforms();
     },
     componentWillUnmount: function () {
         platformsPanelStore.removeChangeListener(this._onPanelStoreChange);
@@ -4614,10 +4432,7 @@ module.exports = keyMirror({
 
     RECEIVE_AGENT_STATUSES: null,
     RECEIVE_DEVICE_STATUSES: null,
-    RECEIVE_POINT_STATUSES: null,
-    RECEIVE_BUILDING_STATUSES: null,
-
-    RECEIVE_PANEL_CHILDREN: null,
+    RECEIVE_PERFORMANCE_STATS: null,
 
     SHOW_CHARTS: null,
     ADD_TO_CHART: null,
@@ -5482,21 +5297,6 @@ platformsPanelItemsStore.getItem = function (itemPath)
     return item;
 }  
 
-platformsPanelItemsStore.getHistorian = function (platformUuid)
-{
-    var itemsList = [];
-    var item = _items;
-
-    var platform = _items.platforms[platformUuid];
-
-    var historianUuid = platform.agents.children.find(function (child) {
-
-        return platform.agents[child].name.indexOf("historian") > -1;
-    });
-
-    return historianUuid;
-}  
-
 platformsPanelItemsStore.getChildren = function (parent, parentPath) {
 
     var itemsList = [];
@@ -5725,8 +5525,8 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                 platformItem.expanded = null;
                 // platformItem.name = (platform.name === null ? platform.uuid : platform.name);
 
-                loadAgents(platform);                
-                loadDevices(platform);
+                // loadAgents(platform);                
+                // loadDevices(platform);
             });
 
             var platformsToRemove = [];
@@ -5746,17 +5546,6 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             platformsToRemove.forEach(function (uuid) {
                 delete _items.platforms[uuid];
             });            
-            
-            platformsPanelItemsStore.emitChange();
-            break;
-        case ACTION_TYPES.RECEIVE_BUILDING_STATUSES:
-            
-            var platform = _items["platforms"][action.platform.uuid];
-
-            if (platform.children.length > 0)
-            {
-                platform.expanded = true;
-            }
             
             platformsPanelItemsStore.emitChange();
             break;
@@ -5782,7 +5571,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
             platformsPanelItemsStore.emitChange();
             break;
-        case ACTION_TYPES.RECEIVE_POINT_STATUSES:
+        case ACTION_TYPES.RECEIVE_PERFORMANCE_STATS:
             
             switch (action.parent.type)
             {
@@ -5846,19 +5635,6 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
             platformsPanelItemsStore.emitChange();
             break;
-        case ACTION_TYPES.RECEIVE_PANEL_CHILDREN:
-            
-            var item = platformsPanelItemsStore.getItem(action.platform.path);
-
-            // var platform = _items["platforms"][action.platform.uuid];
-
-            if (item.children.length > 0)
-            {
-                item.expanded = true;
-            }
-
-            platformsPanelItemsStore.emitChange();
-            break;
     }
 
     function insertAgents(platform, agents)
@@ -5905,20 +5681,20 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
         platform.agents.statusLabel = getStatusLabel(agentsHealth);
     }
 
-    function loadAgents(platform)
-    {
-        if (platform.agents)
-        {
-            if (platform.agents.length > 0)
-            {
-                insertAgents(platform, platform.agents);
-            }
-            else
-            {
-                delete platform.agents;
-            }
-        }
-    }
+    // function loadAgents(platform)
+    // {
+    //     if (platform.agents)
+    //     {
+    //         if (platform.agents.length > 0)
+    //         {
+    //             insertAgents(platform, platform.agents);
+    //         }
+    //         else
+    //         {
+    //             delete platform.agents;
+    //         }
+    //     }
+    // }
 
     function insertBuilding(platform, uuid, name)
     {
@@ -6219,58 +5995,58 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
         }
     }
 
-    function loadDevices(platform)
-    {
-        // var platform = _items["platforms"][action.platform.uuid];
+    // function loadDevices(platform)
+    // {
+    //     // var platform = _items["platforms"][action.platform.uuid];
         
-        if (platform.devices)
-        {
-            if (platform.devices.length > 0)
-            {
-                // var agents = [];
+    //     if (platform.devices)
+    //     {
+    //         if (platform.devices.length > 0)
+    //         {
+    //             // var agents = [];
 
-                // platform.agents.forEach(function (agent)) {
-                //     agents.push(agent);
-                // }
+    //             // platform.agents.forEach(function (agent)) {
+    //             //     agents.push(agent);
+    //             // }
 
-                // platform.expanded = true;
-                // platform.agents = {};
-                // platform.agents.path = platform.path.slice(0);
-                // platform.agents.path.push("agents");
-                // platform.agents.name = "Agents";
-                // platform.agents.expanded = false;
-                // platform.agents.visible = true;
-                // platform.agents.children = [];
-                // platform.agents.type = "type";
-                // platform.agents.sortOrder = _agentsOrder;
+    //             // platform.expanded = true;
+    //             // platform.agents = {};
+    //             // platform.agents.path = platform.path.slice(0);
+    //             // platform.agents.path.push("agents");
+    //             // platform.agents.name = "Agents";
+    //             // platform.agents.expanded = false;
+    //             // platform.agents.visible = true;
+    //             // platform.agents.children = [];
+    //             // platform.agents.type = "type";
+    //             // platform.agents.sortOrder = _agentsOrder;
 
-                // if (platform.children.indexOf("agents") < 0)
-                // {
-                //     platform.children.push("agents");
-                // }
+    //             // if (platform.children.indexOf("agents") < 0)
+    //             // {
+    //             //     platform.children.push("agents");
+    //             // }
 
-                // agents.forEach(function (agent)
-                // {
-                //     var agentProps = agent;
-                //     agentProps.expanded = false;
-                //     agentProps.visible = true;
-                //     agentProps.path = platform.agents.path.slice(0);
-                //     agentProps.path.push(agent.uuid);
-                //     // agent.status = "GOOD";
-                //     agentProps.children = [];
-                //     agentProps.type = "agent";
-                //     agentProps.sortOrder = 0;
-                //     platform.agents.children.push(agent.uuid); 
-                //     platform.agents[agent.uuid] = agentProps;
-                // });
+    //             // agents.forEach(function (agent)
+    //             // {
+    //             //     var agentProps = agent;
+    //             //     agentProps.expanded = false;
+    //             //     agentProps.visible = true;
+    //             //     agentProps.path = platform.agents.path.slice(0);
+    //             //     agentProps.path.push(agent.uuid);
+    //             //     // agent.status = "GOOD";
+    //             //     agentProps.children = [];
+    //             //     agentProps.type = "agent";
+    //             //     agentProps.sortOrder = 0;
+    //             //     platform.agents.children.push(agent.uuid); 
+    //             //     platform.agents[agent.uuid] = agentProps;
+    //             // });
 
-            }
-            else
-            {
-                delete platform.devices;
-            }
-        }
-    }
+    //         }
+    //         else
+    //         {
+    //             delete platform.devices;
+    //         }
+    //     }
+    // }
 
     function getParentPath(parent)
     {

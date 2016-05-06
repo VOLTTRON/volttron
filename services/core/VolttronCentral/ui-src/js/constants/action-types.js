@@ -35,10 +35,7 @@ module.exports = keyMirror({
 
     RECEIVE_AGENT_STATUSES: null,
     RECEIVE_DEVICE_STATUSES: null,
-    RECEIVE_POINT_STATUSES: null,
-    RECEIVE_BUILDING_STATUSES: null,
-
-    RECEIVE_PANEL_CHILDREN: null,
+    RECEIVE_PERFORMANCE_STATS: null,
 
     SHOW_CHARTS: null,
     ADD_TO_CHART: null,

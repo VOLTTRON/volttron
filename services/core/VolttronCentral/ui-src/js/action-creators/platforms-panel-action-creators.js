@@ -22,81 +22,16 @@ var platformsPanelActionCreators = {
         });
     },
 
-    loadPanelPlatforms: function () {
-        // if (!authorizationStore.getAuthorization()) { return; }
-
-        
-
-        // var authorization = authorizationStore.getAuthorization();
-
-        // return new rpc.Exchange({
-        //     method: 'list_platforms',
-        //     authorization: authorization,
-        // }).promise
-        //     .then(function (platforms) {
-
-        //         platforms.forEach(function (platform, i) {
-        //             if (platform.name === null || platform.name === "")
-        //             {
-        //                 platform.name = "vc" + (i + 1);
-        //             }
-        //         });
-
-        //         dispatcher.dispatch({
-        //             type: ACTION_TYPES.RECEIVE_PLATFORM_STATUSES,
-        //             platforms: platforms,
-        //         });
-
-        //         // platforms.forEach(function (platform) {
-        //         //     platformActionCreators.loadPlatform(platform);
-        //         // });
-        //     })
-        //     .catch(rpc.Error, handle401);
-        
-    },
-
     loadChildren: function(type, parent)
     {
-        switch (type)
+        if (type === "platform")
         {
-            case "platform":
-                loadPanelAgents(parent);
-                loadPanelDevices(parent);
-                loadPanelPoints(parent);
-                break;
-            case "building":
-                loadPanelDevices(parent);
-                // loadPanelPoints(parent);
-                break;
-            case "device":
-                loadPanelPoints(parent);
-                loadPanelDevices(parent);
-                break;
-            // case "type":
+            loadPanelAgents(parent);
+            loadPanelDevices(parent);
+            loadPerformanceStats(parent);
+        }        
 
-            //     for (var i = 0; i < parent.children.length; i++)
-            //     {
-            //         platformsPanelActionCreators.loadChildren(parent[parent.children[i]].type, parent[parent.children[i]]);
-            //     }
-                
-            //     break;
-            default:
-
-                loadPanelChildren(parent);
-
-                break;
-
-        }
-
-
-        function loadPanelChildren(parent) {
-            dispatcher.dispatch({
-                type: ACTION_TYPES.RECEIVE_PANEL_CHILDREN,
-                platform: parent
-            });    
-        }
-
-        function loadPanelPoints(parent) {
+        function loadPerformanceStats(parent) {
 
             if (parent.type === "platform")
             {
@@ -130,7 +65,7 @@ var platformsPanelActionCreators = {
                             }
 
                             dispatcher.dispatch({
-                                type: ACTION_TYPES.RECEIVE_POINT_STATUSES,
+                                type: ACTION_TYPES.RECEIVE_PERFORMANCE_STATS,
                                 parent: parent,
                                 points: pointsList
                             });
@@ -177,18 +112,10 @@ var platformsPanelActionCreators = {
                         platform: platform,
                         devices: devicesList
                     });
-
                     
                 })
                 .catch(rpc.Error, handle401);    
 
-        }
-
-        function loadPanelBuildings(parent) {
-            dispatcher.dispatch({
-                type: ACTION_TYPES.RECEIVE_BUILDING_STATUSES,
-                platform: parent
-            });    
         }
 
         function loadPanelAgents(platform) {
@@ -254,84 +181,50 @@ var platformsPanelActionCreators = {
 
     addToChart: function(panelItem) {
 
-        if (true)
-        {
-            var authorization = authorizationStore.getAuthorization();
+        var authorization = authorizationStore.getAuthorization();
 
-            new rpc.Exchange({
-                method: 'platforms.uuid.' + panelItem.parentUuid + '.historian.query',
-                params: {
-                    topic: panelItem.topic,
-                    count: 20,
-                    order: 'LAST_TO_FIRST',
-                },
-                authorization: authorization,
-            }).promise
-                .then(function (result) {
-                    panelItem.data = result.values;
+        new rpc.Exchange({
+            method: 'platforms.uuid.' + panelItem.parentUuid + '.historian.query',
+            params: {
+                topic: panelItem.topic,
+                count: 20,
+                order: 'LAST_TO_FIRST',
+            },
+            authorization: authorization,
+        }).promise
+            .then(function (result) {
+                panelItem.data = result.values;
 
-                    panelItem.data.forEach(function (datum) {
-                        datum.name = panelItem.name;
-                        datum.parent = panelItem.parentPath;
-                        datum.uuid = panelItem.uuid;
-                    });
+                panelItem.data.forEach(function (datum) {
+                    datum.name = panelItem.name;
+                    datum.parent = panelItem.parentPath;
+                    datum.uuid = panelItem.uuid;
+                });
 
-                    dispatcher.dispatch({
-                        type: ACTION_TYPES.SHOW_CHARTS
-                    });
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.SHOW_CHARTS
+                });
 
-                    dispatcher.dispatch({
-                        type: ACTION_TYPES.ADD_TO_CHART,
-                        panelItem: panelItem
-                    });
-                })
-                .catch(rpc.Error, function (error) {
-                    
-                    var message = error.message;
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.ADD_TO_CHART,
+                    panelItem: panelItem
+                });
+            })
+            .catch(rpc.Error, function (error) {
+                
+                var message = error.message;
 
-                    if (error.code === -32602)
+                if (error.code === -32602)
+                {
+                    if (error.message === "historian unavailable")
                     {
-                        if (error.message === "historian unavailable")
-                        {
-                            message = "Data could not be fetched. The historian agent is unavailable."
-                        }
+                        message = "Data could not be fetched. The historian agent is unavailable."
                     }
+                }
 
-                    statusIndicatorActionCreators.openStatusIndicator("error", message);
-                    handle401(error);
-                });
-        }  
-        else
-        {
-            if (panelItem.uuid === "5461fedc-65ba-43fe-21dc-098765bafedl")
-            {
-                panelItem.data = [['2016-02-19T01:00:31.630626',31.4],['2016-02-19T01:00:16.632151',23],['2016-02-19T01:00:01.627188',16.5],['2016-02-19T00:59:46.641500',42.8],['2016-02-19T00:59:31.643573',21.2],['2016-02-19T00:59:16.643254',9.3],['2016-02-19T00:59:01.639104',8.5],['2016-02-19T00:58:46.638238',16],['2016-02-19T00:58:31.633733',12.4],['2016-02-19T00:58:16.632418',23],['2016-02-19T00:58:01.630463',16.7],['2016-02-19T00:57:46.648439',9.1],['2016-02-19T00:57:31.640824',10.5],['2016-02-19T00:57:16.636578',8.2],['2016-02-19T00:57:01.644842',2.2],['2016-02-19T00:56:46.635059',2.5],['2016-02-19T00:56:31.639332',2.4],['2016-02-19T00:56:16.647604',2.3],['2016-02-19T00:56:01.643571',11.2],['2016-02-19T00:55:46.644522',9.8]];
-                panelItem.data.forEach(function (datum) {
-                    datum.name = panelItem.name;
-                    datum.parent = panelItem.parentPath;
-                    datum.uuid = panelItem.uuid;
-                });
-
-                dispatcher.dispatch({
-                    type: ACTION_TYPES.ADD_TO_CHART,
-                    panelItem: panelItem
-                });
-            }
-            else if (panelItem.uuid === "5461fedc-65ba-43fe-21dc-111765bafedl")
-            {
-                panelItem.data = [['2016-02-19T01:01:46.625663',73.6],['2016-02-19T01:01:31.633847',71],['2016-02-19T01:01:16.627160',69.4],['2016-02-19T01:01:01.639623',60],['2016-02-19T01:00:46.626307',67],['2016-02-19T01:00:31.630768',68.6],['2016-02-19T01:00:16.632203',77],['2016-02-19T01:00:01.627241',83.5],['2016-02-19T00:59:46.641688',57.2],['2016-02-19T00:59:31.643709',78.7],['2016-02-19T00:59:16.643448',90.7],['2016-02-19T00:59:01.640538',91.5],['2016-02-19T00:58:46.638353',84],['2016-02-19T00:58:31.633809',87.6],['2016-02-19T00:58:16.632515',77],['2016-02-19T00:58:01.630531',83.3],['2016-02-19T00:57:46.648567',90.9],['2016-02-19T00:57:31.640947',89.5],['2016-02-19T00:57:16.636686',91.8],['2016-02-19T00:57:01.645023',97.7]];
-                panelItem.data.forEach(function (datum) {
-                    datum.name = panelItem.name;
-                    datum.parent = panelItem.parentPath;
-                    datum.uuid = panelItem.uuid;
-                });
-
-                dispatcher.dispatch({
-                    type: ACTION_TYPES.ADD_TO_CHART,
-                    panelItem: panelItem
-                });
-            }
-        }
+                statusIndicatorActionCreators.openStatusIndicator("error", message);
+                handle401(error);
+            });
     },
 
     removeFromChart: function(panelItem) {
