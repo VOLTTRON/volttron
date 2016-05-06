@@ -1,0 +1,2 @@
+applications/ornl/ModbusXMLSchema
+volttron/lint
