@@ -189,8 +189,15 @@ class PlatformWrapper:
         :return:
         """
         _log.debug('BUILD GENERIC AGENT')
+
+        use_ipc = kwargs.pop('use_ipc', False)
         if address is None:
-            address = self.vip_address
+            if use_ipc:
+                print('Using IPC vip-address')
+                address = "ipc://@"+self.volttron_home+"/run/vip.socket"
+            else:
+                print('Using vip-address '+self.vip_address)
+                address = self.vip_address
 
         agent = Agent(address=address, identity=identity, publickey=publickey,
                       secretkey=secretkey, serverkey=serverkey, **kwargs)
