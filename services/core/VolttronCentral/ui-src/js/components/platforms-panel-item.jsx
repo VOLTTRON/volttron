@@ -28,12 +28,17 @@ var PlatformsPanelItem = React.createClass({
     },
     _onStoresChange: function () {
 
-        var panelItem = getItemFromStore(this.props.itemPath);
-        var panelChildren = getChildrenFromStore(this.props.panelItem, this.props.itemPath)
+        var panelItem = platformsPanelItemsStore.getItem(this.props.itemPath);
+        var panelChildren = platformsPanelItemsStore.getChildren(this.props.panelItem, this.props.itemPath);
 
-        this.setState({panelItem: panelItem});
-        this.setState({children: panelChildren});
-        this.setState({checked: panelItem.checked});
+        var loadingComplete = platformsPanelItemsStore.getLoadingComplete();
+
+        if (loadingComplete)
+        {
+            this.setState({panelItem: panelItem});
+            this.setState({children: panelChildren});
+            this.setState({checked: panelItem.checked});
+        }
     },
     _expandAll : function () {
         
@@ -228,13 +233,5 @@ var PlatformsPanelItem = React.createClass({
         );
     },
 });
-
-function getChildrenFromStore(parentItem, parentPath) {
-    return platformsPanelItemsStore.getChildren(parentItem, parentPath);
-}
-
-function getItemFromStore(itemPath) {
-    return platformsPanelItemsStore.getItem(itemPath);
-}
 
 module.exports = PlatformsPanelItem;

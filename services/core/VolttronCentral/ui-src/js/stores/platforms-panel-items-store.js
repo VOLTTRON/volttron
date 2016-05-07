@@ -20,6 +20,8 @@ var _badLabel = "Unhealthy";
 var _goodLabel = "Healthy";
 var _unknownLabel = "Unknown Status";
 
+var _loadingDataComplete = true;
+
 var platformsPanelItemsStore = new Store();
 
 platformsPanelItemsStore.getItem = function (itemPath)
@@ -203,6 +205,10 @@ platformsPanelItemsStore.getExpanded = function () {
     return _expanded;
 };
 
+platformsPanelItemsStore.getLoadingComplete = function () {
+    return _loadingDataComplete;
+};
+
 platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
     switch (action.type) {
@@ -243,6 +249,12 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             item.checked = action.checked;
 
             platformsPanelItemsStore.emitChange();
+
+            break;
+
+        case ACTION_TYPES.START_LOADING_DATA:
+
+            _loadingDataComplete = false;
 
             break;
 
@@ -373,6 +385,8 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
                     break;
             }
+
+            _loadingDataComplete = true;
 
             platformsPanelItemsStore.emitChange();
             break;

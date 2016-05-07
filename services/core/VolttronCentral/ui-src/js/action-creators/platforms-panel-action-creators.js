@@ -26,6 +26,10 @@ var platformsPanelActionCreators = {
     {
         if (type === "platform")
         {
+            dispatcher.dispatch({
+                type: ACTION_TYPES.START_LOADING_DATA
+            });
+
             loadPanelDevices(parent);
         }        
 

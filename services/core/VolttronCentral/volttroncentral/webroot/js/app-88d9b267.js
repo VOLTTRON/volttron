@@ -866,6 +866,10 @@ var platformsPanelActionCreators = {
     {
         if (type === "platform")
         {
+            dispatcher.dispatch({
+                type: ACTION_TYPES.START_LOADING_DATA
+            });
+
             loadPanelDevices(parent);
         }        
 
@@ -3290,12 +3294,17 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
     },
     _onStoresChange: function () {
 
-        var panelItem = getItemFromStore(this.props.itemPath);
-        var panelChildren = getChildrenFromStore(this.props.panelItem, this.props.itemPath)
+        var panelItem = platformsPanelItemsStore.getItem(this.props.itemPath);
+        var panelChildren = platformsPanelItemsStore.getChildren(this.props.panelItem, this.props.itemPath);
 
-        this.setState({panelItem: panelItem});
-        this.setState({children: panelChildren});
-        this.setState({checked: panelItem.checked});
+        var loadingComplete = platformsPanelItemsStore.getLoadingComplete();
+
+        if (loadingComplete)
+        {
+            this.setState({panelItem: panelItem});
+            this.setState({children: panelChildren});
+            this.setState({checked: panelItem.checked});
+        }
     },
     _expandAll : function () {
         
@@ -3490,14 +3499,6 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
         );
     },
 });
-
-function getChildrenFromStore(parentItem, parentPath) {
-    return platformsPanelItemsStore.getChildren(parentItem, parentPath);
-}
-
-function getItemFromStore(itemPath) {
-    return platformsPanelItemsStore.getItem(itemPath);
-}
 
 module.exports = PlatformsPanelItem;
 
@@ -4434,6 +4435,8 @@ module.exports = keyMirror({
     RECEIVE_DEVICE_STATUSES: null,
     RECEIVE_PERFORMANCE_STATS: null,
 
+    START_LOADING_DATA: null,
+
     SHOW_CHARTS: null,
     ADD_TO_CHART: null,
     REMOVE_FROM_CHART: null,
@@ -5279,6 +5282,8 @@ var _badLabel = "Unhealthy";
 var _goodLabel = "Healthy";
 var _unknownLabel = "Unknown Status";
 
+var _loadingDataComplete = true;
+
 var platformsPanelItemsStore = new Store();
 
 platformsPanelItemsStore.getItem = function (itemPath)
@@ -5462,6 +5467,10 @@ platformsPanelItemsStore.getExpanded = function () {
     return _expanded;
 };
 
+platformsPanelItemsStore.getLoadingComplete = function () {
+    return _loadingDataComplete;
+};
+
 platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
     switch (action.type) {
@@ -5502,6 +5511,12 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             item.checked = action.checked;
 
             platformsPanelItemsStore.emitChange();
+
+            break;
+
+        case ACTION_TYPES.START_LOADING_DATA:
+
+            _loadingDataComplete = false;
 
             break;
 
@@ -5632,6 +5647,8 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
                     break;
             }
+
+            _loadingDataComplete = true;
 
             platformsPanelItemsStore.emitChange();
             break;
