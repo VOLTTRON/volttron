@@ -586,18 +586,22 @@ class BaseHistorian(Agent):
             backupdb.backup_new_data(new_to_publish)
 
             for query_callback in new_queries:
-                request = query_callback.request
+
+                _log.debug("Processing query request: {qtype} {a} {p}".format(qtype=query_callback.query_type,
+                                                                               a=query_callback.args,
+                                                                               p=query_callback.kwargs))
 
                 try:
-                    if request.query_type == "query":
-                        results = self.query_historian(*request.args, **request.kwargs)
-                        query_callback.send_results(results)
-                    elif request.query_type == "topic_list":
+                    if query_callback.query_type == "query":
+                        results = self.query_historian(*query_callback.args, **query_callback.kwargs)
+                    elif query_callback.query_type == "topic_list":
                         results = self.query_topic_list()
-                        query_callback.send_results(results)
+                    else:
+                        raise RuntimeError("Invalid Query type: " + str(query_callback.query_type))
+
+                    query_callback.send_results(results)
                 except StandardError as e:
                     query_callback.send_exception(e)
-
 
 
             wait_for_input = True
@@ -759,17 +763,17 @@ class BaseHistorian(Agent):
             except TypeError:
                 end = time_parser.parse(end)
 
-        if start:
-            _log.debug("start={}".format(start))
-
+        kwargs = dict(start=start,
+                      end=end,
+                      skip=skip,
+                      count=count,
+                      order=order)
 
         query_callback = QueryCallback("query", self._async_call,
                                        topic,
-                                       start=start,
-                                       end=end,
-                                       skip=skip,
-                                       count=count,
-                                       order=order)
+                                       **kwargs)
+
+        _log.debug("Queuing query request: {qtype} {topic} {p}".format(qtype="query", topic=topic, p=kwargs))
 
         self._event_queue.put(query_callback)
         results = query_callback.query_result.get(10.0)
@@ -791,6 +795,9 @@ class BaseHistorian(Agent):
         """
 
         query_callback = QueryCallback("topic_list", self._async_call)
+
+        _log.debug("Queuing query request: {qtype}".format(qtype="topic_list"))
+
         self._event_queue.put(query_callback)
         results = query_callback.query_result.get(10.0)
 
