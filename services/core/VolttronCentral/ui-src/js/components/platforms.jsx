@@ -4,12 +4,16 @@ var React = require('react');
 var Router = require('react-router');
 
 var modalActionCreators = require('../action-creators/modal-action-creators');
+var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
 var platformsStore = require('../stores/platforms-store');
 var RegisterPlatformForm = require('../components/register-platform-form');
+var StatusForm = require('../components/status-indicator');
 var DeregisterPlatformConfirmation = require('../components/deregister-platform-confirmation');
 
 var Platforms = React.createClass({
-    getInitialState: getStateFromStores,
+    getInitialState: function () {
+        return getStateFromStores();
+    },
     componentDidMount: function () {
         platformsStore.addChangeListener(this._onStoresChange);
     },
@@ -91,13 +95,16 @@ var Platforms = React.createClass({
 
         return (
             <div className="view">
-                <h2>Platforms</h2>
-                <div className="view__actions">
-                    <button className="button" onClick={this._onRegisterClick}>
-                        Register platform
-                    </button>
+                <div className="absolute_anchor">
+                    <h2>Platforms</h2>
+                    <div className="view__actions">
+                        
+                        <button className="button" onClick={this._onRegisterClick}>
+                            Register platform
+                        </button>
+                    </div>
+                    {platforms}
                 </div>
-                {platforms}
             </div>
         );
     },

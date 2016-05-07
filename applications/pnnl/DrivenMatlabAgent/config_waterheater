@@ -1,0 +1,34 @@
+{
+    "agentid": "matlab",
+    "application": "drivenmatlab.matlab.Application",
+
+    "device": {
+        "campus": "PNNL",
+        "building": "2400_STEVENS",
+        "unit": {
+        	"HEATER1": {
+                "subdevices": []
+            }
+        },
+        "analysis_name": "WaterHeater_Agent"
+    },
+    "output_file": "./waterheater_output.csv",
+    "mode": "ACTIVE",
+    "arguments": {
+    	"status_stpt": "statussetpoint",
+    	"temperature": "temperature",
+    	
+    	"config_url": "tcp://130.20.104.75:5556",
+    	"data_url": "tcp://130.20.104.75:5557",
+    	"recv_timeout": 50000
+    },
+    "conversion_map": {
+        "statussetpoint*": "bool",
+        "temperature*": "float"
+    },
+    "unittype_map": {
+        "statussetpoint*": "On/Off",
+        "temperature*": "Farenheit"
+    }
+
+}

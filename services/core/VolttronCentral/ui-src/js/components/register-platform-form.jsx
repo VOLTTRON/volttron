@@ -10,7 +10,9 @@ var RegisterPlatformForm = React.createClass({
     getInitialState: function () {
         var state = getStateFromStores();
         
-        state.name = state.ipaddress = state.serverKey = state.publicKey = state.secretKey = '';
+        state.method = 'discovery';
+
+        state.name = state.discovery_address = state.ipaddress = state.serverKey = state.publicKey = state.secretKey = '';
         state.protocol = 'tcp';
 
         return state;
@@ -29,6 +31,7 @@ var RegisterPlatformForm = React.createClass({
     },
     _onAddressChange: function (e) {
         this.setState({ ipaddress: e.target.value });
+        this.setState({ discovery_address: e.target.value });
     },
     _onProtocolChange: function (e) {
         this.setState({ protocol: e.target.value });
@@ -42,11 +45,21 @@ var RegisterPlatformForm = React.createClass({
     _onSecretKeyChange: function (e) {
         this.setState({ secretKey: e.target.value });
     },
+    _toggleMethod: function (e) {
+        this.setState({ method: (this.state.method === "discovery" ? "advanced" : "discovery") });
+    },
     _onCancelClick: modalActionCreators.closeModal,
-    _onSubmit: function () {
+    _onSubmitDiscovery: function () {
+
+        platformManagerActionCreators.registerInstance(
+            this.state.name, 
+            this.state.discovery_address);
+        
+    },
+    _onSubmitAdvanced: function () {
 
         platformManagerActionCreators.registerPlatform(
-            this.state.name, 
+            this.state.name,             
             this._formatAddress());
         
     },
@@ -75,122 +88,218 @@ var RegisterPlatformForm = React.createClass({
         
         var fullAddress = this._formatAddress();
 
+        var registerForm;
+
+        var submitMethod;
+
+        switch (this.state.method)
+        {
+            case "discovery":
+                submitMethod = this._onSubmitDiscovery;
+
+                registerForm = (
+                    <div>
+                        <div className="tableDiv">
+                            <div className="rowDiv">
+                                <div className="cellDiv firstCell">
+                                    <label className="formLabel">Name</label>
+                                    <input
+                                        className="form__control form__control--block"
+                                        type="text"
+                                        onChange={this._onNameChange}
+                                        value={this.state.name}
+                                        autoFocus
+                                        required
+                                    />
+                                </div> 
+                                <div className="cellDiv"
+                                    width="70%">
+                                    <label className="formLabel">Address</label>
+                                    <input
+                                        className="form__control form__control--block"
+                                        type="text"
+                                        onChange={this._onAddressChange}
+                                        value={this.state.discovery_address}
+                                        required
+                                    />
+                                </div>                     
+                            </div>  
+                        </div> 
+                        
+                        <div className="tableDiv">
+                            <div className="rowDiv">
+                                <div className="cellDiv firstCell">
+                                    <div className="form__link"
+                                        onClick={this._toggleMethod}>
+                                        <a>Advanced</a>
+                                    </div>
+                                </div> 
+                                <div className="cellDiv"
+                                    width="70%">
+                                    <div className="form__actions">
+                                        <button
+                                            className="button button--secondary"
+                                            type="button"
+                                            onClick={this._onCancelClick}
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            className="button"
+                                            disabled={!this.state.name || !this.state.discovery_address}
+                                        >
+                                            Register
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )
+                break;
+            case "advanced":
+
+                submitMethod = this._onSubmitAdvanced;
+
+                registerForm = (
+                    <div>
+                        <div className="tableDiv">
+                            <div className="rowDiv">
+                                <div className="cellDiv firstCell">
+                                    <label className="formLabel">Name</label>
+                                    <input
+                                        className="form__control form__control--block"
+                                        type="text"
+                                        onChange={this._onNameChange}
+                                        value={this.state.name}
+                                        autoFocus
+                                        required
+                                    />
+                                </div>   
+                                <div className="cellDiv"
+                                    width="10%">
+                                    <label className="formLabel">Protocol</label><br/>
+                                    <select
+                                        className="form__control"
+                                        onChange={this._onProtocolChange}
+                                        value={this.state.protocol}
+                                        required
+                                    >   
+                                        <option value="tcp">TCP</option>
+                                        <option value="ipc">IPC</option>
+                                    </select>
+                                </div>
+                                <div className="cellDiv"
+                                    width="56%">
+                                    <label className="formLabel">VIP address</label>
+                                    <input
+                                        className="form__control form__control--block"
+                                        type="text"
+                                        onChange={this._onAddressChange}
+                                        value={this.state.ipaddress}
+                                        required
+                                    />
+                                </div>                     
+                            </div>  
+                        </div> 
+                        <div className="tableDiv">
+                            <div className="rowDiv">
+                                <div className="cellDiv"
+                                    width="80%">                        
+                                    <label className="formLabel">Server Key</label>
+                                    <input
+                                        className="form__control form__control--block"
+                                        type="text"
+                                        onChange={this._onServerKeyChange}
+                                        value={this.state.serverKey}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                        <div className="tableDiv">
+                            <div className="rowDiv">
+                                <div className="cellDiv"
+                                    width="80%">
+                                    <label className="formLabel">Public Key</label>
+                                    <input
+                                        className="form__control form__control--block"
+                                        type="text"
+                                        onChange={this._onPublicKeyChange}
+                                        value={this.state.publicKey}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                        <div className="tableDiv">
+                            <div className="rowDiv">
+                                <div className="cellDiv"
+                                    width="80%">
+                                    <label className="formLabel">Secret Key</label>
+                                    <input
+                                        className="form__control form__control--block"
+                                        type="text"
+                                        onChange={this._onSecretKeyChange}
+                                        value={this.state.secretKey}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                        <div className="tableDiv">
+                            <div className="rowDiv">
+                                <div className="cellDiv"
+                                    width="100%"> 
+                                    <label className="formLabel">Preview</label>                   
+                                    <div
+                                        className="preview">
+                                        {fullAddress}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div className="tableDiv">
+                            <div className="rowDiv">
+                                <div className="cellDiv firstCell">
+                                    <div className="form__link"
+                                        onClick={this._toggleMethod}>
+                                        <a>Discover</a>
+                                    </div>
+                                </div> 
+                                <div className="cellDiv"
+                                    width="70%">
+                                    <div className="form__actions">
+                                        <button
+                                            className="button button--secondary"
+                                            type="button"
+                                            onClick={this._onCancelClick}
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            className="button"
+                                            disabled={!this.state.name || !this.state.protocol || !this.state.ipaddress 
+                                                || !((this.state.serverKey && this.state.publicKey && this.state.secretKey) 
+                                                        || (!this.state.publicKey && !this.state.secretKey))}
+                                        >
+                                            Register
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )
+                break;
+        }
+
         return (
-            <form className="register-platform-form" onSubmit={this._onSubmit}>
+            <form className="register-platform-form" onSubmit={submitMethod}>
                 <h1>Register platform</h1>
                 {this.state.error && (
                     <div className="error">{this.state.error.message}</div>
                 )}
-                <div className="tableDiv">
-                    <div className="rowDiv">
-                        <div className="cellDiv firstCell">
-                            <label className="formLabel">Name</label>
-                            <input
-                                className="form__control form__control--block"
-                                type="text"
-                                onChange={this._onNameChange}
-                                value={this.state.name}
-                                autoFocus
-                                required
-                            />
-                        </div>   
-                        <div className="cellDiv"
-                            width="10%">
-                            <label className="formLabel">Protocol</label><br/>
-                            <select
-                                className="form__control"
-                                onChange={this._onProtocolChange}
-                                value={this.state.protocol}
-                                required
-                            >   
-                                <option value="tcp">TCP</option>
-                                <option value="ipc">IPC</option>
-                            </select>
-                        </div>
-                        <div className="cellDiv"
-                            width="56%">
-                            <label className="formLabel">VIP address</label>
-                            <input
-                                className="form__control form__control--block"
-                                type="text"
-                                onChange={this._onAddressChange}
-                                value={this.state.ipaddress}
-                                required
-                            />
-                        </div>                     
-                    </div>  
-                </div> 
-                <div className="tableDiv">
-                    <div className="rowDiv">
-                        <div className="cellDiv"
-                            width="80%">                        
-                            <label className="formLabel">Server Key</label>
-                            <input
-                                className="form__control form__control--block"
-                                type="text"
-                                onChange={this._onServerKeyChange}
-                                value={this.state.serverKey}
-                            />
-                        </div>
-                    </div>
-                </div>
-                <div className="tableDiv">
-                    <div className="rowDiv">
-                        <div className="cellDiv"
-                            width="80%">
-                            <label className="formLabel">Public Key</label>
-                            <input
-                                className="form__control form__control--block"
-                                type="text"
-                                onChange={this._onPublicKeyChange}
-                                value={this.state.publicKey}
-                            />
-                        </div>
-                    </div>
-                </div>
-                <div className="tableDiv">
-                    <div className="rowDiv">
-                        <div className="cellDiv"
-                            width="80%">
-                            <label className="formLabel">Secret Key</label>
-                            <input
-                                className="form__control form__control--block"
-                                type="text"
-                                onChange={this._onSecretKeyChange}
-                                value={this.state.secretKey}
-                            />
-                        </div>
-                    </div>
-                </div>
-                <div className="tableDiv">
-                    <div className="rowDiv">
-                        <div className="cellDiv"
-                            width="100%"> 
-                            <label className="formLabel">Preview</label>                   
-                            <div
-                                className="preview">
-                                {fullAddress}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div className="form__actions">
-                    <button
-                        className="button button--secondary"
-                        type="button"
-                        onClick={this._onCancelClick}
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        className="button"
-                        disabled={!this.state.name || !this.state.protocol || !this.state.ipaddress 
-                            || !((this.state.serverKey && this.state.publicKey && this.state.secretKey) 
-                                    || (!this.state.publicKey && !this.state.secretKey))}
-                    >
-                        Register
-                    </button>
-                </div>
+                {registerForm}
+
             </form>
         );
     },

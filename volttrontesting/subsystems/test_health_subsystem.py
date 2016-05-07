@@ -35,7 +35,7 @@ def test_can_set_status(volttron_instance1):
     assert orig_status.status == STATUS_GOOD
     assert orig_status.context is None
     assert orig_status.last_updated is not None
-    print('original status: {}'.format(orig_status.to_json()))
+    print('original status: {}'.format(orig_status.as_json()))
     new_context = {'foo': 'A test something when wrong',
                    'woah': ['blah', 'blah']}
     agent_prefix = 'heartbeat/Agent'
@@ -46,7 +46,7 @@ def test_can_set_status(volttron_instance1):
     poll_gevent_sleep(2, lambda: messages_contains_prefix(agent_prefix,
                                                           subscription_results))
     new_status = Status.from_json(new_agent.vip.health.get_status())
-    print('new status: {}'.format(new_status.to_json()))
+    print('new status: {}'.format(new_status.as_json()))
     assert new_status.status == STATUS_BAD
     assert new_status.context == new_context
     assert new_status.last_updated is not None
