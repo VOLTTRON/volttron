@@ -107,7 +107,7 @@ def test_forwarding(volttron_instance1_encrypt, volttron_instance2_encrypt):
     authfile.add(entry)
 
     forward_to_vip = "{}?serverkey={}&publickey={}&secretkey={}".format(
-        wrap2.vip_address[0], wrap2.publickey, ks.public(), ks.secret()
+        wrap2.vip_address, wrap2.publickey, ks.public(), ks.secret()
     )
 
     FORWARDER_1["destination-vip"] = forward_to_vip
@@ -120,11 +120,11 @@ def test_forwarding(volttron_instance1_encrypt, volttron_instance2_encrypt):
     )
 
     connect_to_wrap2 = "{}?serverkey={}&publickey={}&secretkey={}".format(
-        wrap2.vip_address[0], wrap2.publickey, ks2.public(), ks2.secret()
+        wrap2.vip_address, wrap2.publickey, ks2.public(), ks2.secret()
     )
 
     connect_to_wrap1 = "{}?serverkey={}&publickey={}&secretkey={}".format(
-        wrap1.vip_address[0], wrap1.publickey, ks3.public(), ks3.secret()
+        wrap1.vip_address, wrap1.publickey, ks3.public(), ks3.secret()
     )
 
     agent_connected1 = wrap1.build_agent(address=connect_to_wrap1)

@@ -5,6 +5,7 @@ var Router = require('react-router');
 
 var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
 var authorizationStore = require('../stores/authorization-store');
+var platformsPanelActionCreators = require('../action-creators/platforms-panel-action-creators');
 
 var Navigation = React.createClass({
     getInitialState: getStateFromStores,
@@ -18,13 +19,14 @@ var Navigation = React.createClass({
         this.setState(getStateFromStores());
     },
     _onLogOutClick: function () {
+        platformsPanelActionCreators.closePanel();
         platformManagerActionCreators.clearAuthorization();
     },
     render: function () {
         var navItems;
 
         if (this.state.loggedIn) {
-            navItems = ['Dashboard', 'Platforms'].map(function (navItem) {
+            navItems = ['Dashboard', 'Platforms', 'Charts'].map(function (navItem) {
                 var route = navItem.toLowerCase();
 
                 return (
