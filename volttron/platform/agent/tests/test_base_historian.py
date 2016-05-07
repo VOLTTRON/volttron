@@ -9,7 +9,7 @@ from zmq.utils import jsonapi
 from volttrontesting.utils.platformwrapper import PlatformWrapper
 from volttron.platform.vip.agent import Agent
 from volttron.platform.agent.base_historian import BaseHistorian
-
+import pytest
 
 class Historian(BaseHistorian):
     def publish_to_historian(self,_):
