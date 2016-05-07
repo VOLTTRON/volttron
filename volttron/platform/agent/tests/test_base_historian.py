@@ -46,6 +46,7 @@ def listener(peer, sender, bus, topic, headers, message):
     foundtopic = True
 
 
+@pytest.mark.xfail(reason="This won't work on all machines because of hardcoded paths.")
 def test_base_historian(volttron_instance1):
     global foundtopic
     v1 = volttron_instance1
