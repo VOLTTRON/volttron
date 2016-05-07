@@ -72,29 +72,31 @@ function vendor() {
     return browserify({
         noParse: [
             'bluebird/js/browser/bluebird.min',
-            'd3/d3.min',
+            'd3/d3',
             'events',
             'jquery/dist/jquery.min',
             'moment/min/moment.min.js',
             'node-uuid',
+            'nvd3/build/nv.d3.min',
             'react/dist/react.min',
             'react-router/umd/ReactRouter.min',
         ],
     })
         .require([
             { file: 'bluebird/js/browser/bluebird.min', expose: 'bluebird' },
-            { file: 'd3/d3.min', expose: 'd3' },
+            { file: 'd3/d3', expose: 'd3' },
             'events',
             'flux',
             { file: 'jquery/dist/jquery.min', expose: 'jquery' },
             { file: 'moment/min/moment.min.js', expose: 'moment' },
             'node-uuid',
+            { file: 'nvd3/build/nv.d3.min', expose: 'nvd3' },
             { file: 'react/dist/react.min', expose: 'react' },
             'react/lib/keyMirror',
             { file: 'react-router/umd/ReactRouter.min', expose: 'react-router' },
         ])
         .transform(function (file) {
-            if (file.match('/d3/d3.min.')) {
+            if (file.match('/d3/d3.')) {
                 var stream = through2();
 
                 stream.push(new Buffer('/*\n'));

@@ -89,7 +89,9 @@ from .vip.socket import encode_key, Address
 from .vip.tracking import Tracker
 from .auth import AuthService
 from .control import ControlService
+from .web import MasterWebService
 from .agent import utils
+from .agent.known_identities import MASTER_WEB
 from .vip.agent.subsystems.pubsub import ProtectedPubSubTopics
 
 try:
@@ -323,6 +325,8 @@ class Router(BaseRouter):
                         value = [addr.base for addr in self.addresses]
                     else:
                         value = [self.local_address.base]
+                elif name == b'local_address':
+                    value = self.local_address.base
                 else:
                     value = None
             frames[6:] = [b'', jsonapi.dumps(value)]
@@ -390,6 +394,20 @@ def start_volttron_process(opts):
     opts.subscribe_address = config.expandall(opts.subscribe_address)
     opts.vip_address = [config.expandall(addr) for addr in opts.vip_address]
     opts.vip_local_address = config.expandall(opts.vip_local_address)
+    import urlparse
+    if opts.bind_web_address:
+        parsed = urlparse.urlparse(opts.bind_web_address)
+        if not parsed.scheme:
+            raise StandardError(
+                'bind-web-address must begin with http or https.')
+        opts.bind_web_address = config.expandall(opts.bind_web_address)
+    if opts.volttron_central_address:
+        parsed = urlparse.urlparse(opts.volttron_central_address)
+        if not parsed.scheme:
+            raise StandardError(
+                'volttron-central-address must begin with http or https.')
+        opts.volttron_central_address = config.expandall(
+            opts.volttron_central_address)
     if getattr(opts, 'show_config', False):
         for name, value in sorted(vars(opts).iteritems()):
             print(name, repr(value))
@@ -444,6 +462,7 @@ def start_volttron_process(opts):
     # Get or generate encryption key
     if opts.developer_mode:
         secretkey = None
+        publickey = None
         _log.warning('developer mode enabled; '
                      'authentication and encryption are disabled!')
     else:
@@ -533,6 +552,12 @@ def start_volttron_process(opts):
             CompatPubSub(address=address, identity='pubsub.compat',
                          publish_address=opts.publish_address,
                          subscribe_address=opts.subscribe_address),
+            MasterWebService(
+                serverkey=publickey, identity=MASTER_WEB,
+                address=address,
+                bind_web_address=opts.bind_web_address,
+                volttron_central_address=opts.volttron_central_address,
+                aip=opts.aip)
         ]
         events = [gevent.event.Event() for service in services]
         tasks = [gevent.spawn(service.core.run, event)
@@ -556,6 +581,7 @@ def start_volttron_process(opts):
             gevent.wait(tasks)
     finally:
         opts.aip.finish()
+
 
 def main(argv=sys.argv):
     # Refuse to run as root
@@ -634,7 +660,13 @@ def main(argv=sys.argv):
     agents.add_argument(
         '--vip-local-address', metavar='ZMQADDR',
         help='ZeroMQ URL to bind for local agent VIP connections')
-
+    agents.add_argument(
+        '--bind-web-address', metavar='BINDWEBADDR', default=None,
+        help='Bind a web server to the specified ip:port passed')
+    agents.add_argument(
+        '--volttron-central-address', metavar='VOLTTRONCENTRAL',
+        default=None,
+        help='The web address of a volttron central install instance.')
     # XXX: re-implement control options
     #on
     #control.add_argument(
@@ -701,6 +733,11 @@ def main(argv=sys.argv):
         subscribe_address=ipc + 'subscribe',
         vip_address=[],
         vip_local_address=ipc + 'vip.socket',
+        # This is used to start the web server from the web module.
+        bind_web_address=None,
+        # Used to contact volttron central when registering volttron central
+        # platform agent.
+        volttron_central_address=None,
         #allow_root=False,
         #allow_users=None,
         #allow_groups=None,

@@ -1,0 +1,66 @@
+{
+    "name": "volttron central rest api",
+    "base": [
+        "https://vc.pnnl.gov/api/jsonrpc"
+    ],
+    "resources": [
+        {
+            "name": "Platform",
+            "path": "/{platform-uuid}",
+            "operations": [
+                {
+                  "name":"getPlatform",
+                  "method":"GET",
+                  "description":"Retrieve the platform identified by the specific identifier.",
+                  "input":{
+                      "params":[
+                          {
+                              "optional":false,
+                              "binding":"platformUUIDBinding"
+                          }
+                      ]
+                  },
+                  "output":{
+                      "type":"Order",
+                      "contentType":["application/json"],
+                      "status":200
+                  },
+                  "errors":[
+                      {
+                          "cause":"Specified platform does not exist.",
+                          "status":404
+                      },
+                      {
+                          "cause":"An unexpected runtime exception",
+                          "status":500
+                      }
+                  ]
+              }
+            ]
+        },
+        {
+            "name": "AllPlatforms",
+            "path": "/",
+            "operations": [
+                {
+                    "name": "getAllPlatforms",
+                    "method": "GET",
+                    "description": "List all registered Platforms.",
+                    "output": {
+                        "type": "list(Platform)",
+                        "contentType": [
+                            "application/json"
+                        ],
+                        "status": 200
+                    },
+                    "errors": [
+                        {
+                            "cause": "An unexpected runtime exception",
+                            "status": 500
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

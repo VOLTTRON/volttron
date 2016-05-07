@@ -78,7 +78,7 @@ function RpcExchange(request, redactedParams) {
                 error: error,
             });
 
-            throw error;
+            throw new RpcError(error);
         });
 }
 

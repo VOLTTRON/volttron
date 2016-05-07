@@ -58,6 +58,7 @@
 from __future__ import absolute_import, print_function
 
 from contextlib import contextmanager
+from datetime import datetime
 from errno import ENOENT
 import heapq
 import inspect
@@ -71,6 +72,7 @@ import urlparse
 import gevent.event
 from zmq import green as zmq
 from zmq.green import ZMQError, EAGAIN
+from zmq.utils import jsonapi as json
 from zmq.utils.monitor import recv_monitor_message
 
 from .decorators import annotate, annotations, dualmethod
@@ -79,7 +81,7 @@ from .errors import VIPError
 from .. import green as vip
 from .. import router
 from .... import platform
-
+from volttron.platform.keystore import KeyStore
 
 __all__ = ['BasicCore', 'Core', 'killing']
 
@@ -403,10 +405,37 @@ class Core(BasicCore):
         super(Core, self).__init__(owner)
         self.context = context or zmq.Context.instance()
         self.address = address
-        self._add_keys_to_addr(publickey, secretkey, serverkey)
+        self.identity = identity
+        self.agent_uuid = os.environ.get('AGENT_UUID', None)
+
+        # The public and secret keys are obtained by:
+        # 1. publickkey and secretkey parameters to __init__
+        # 2. in the query string of the address parameter to __init__
+        # 3. from the agent's keystore
+
+        if publickey is None or secretkey is None:
+            publickey, secretkey = self._get_keys()
+        if publickey and secretkey and serverkey:
+            self._add_keys_to_addr(publickey, secretkey, serverkey)
+
+        if publickey is None:
+            _log.debug('publickey is None')
+        if secretkey is None:
+            _log.debug('secretkey is None')
+
         self.publickey = publickey
         self.secretkey = secretkey
-        self.identity = identity
+
+        if self.agent_uuid:
+            installed_path = os.path.join(
+                os.environ['VOLTTRON_HOME'], 'agents', self.agent_uuid)
+            if not os.path.exists(os.path.join(installed_path, 'IDENTITY')):
+                _log.debug('CREATING IDENTITY FILE')
+                with open(os.path.join(installed_path, 'IDENTITY'), 'w') as fp:
+                    fp.write(self.identity)
+            else:
+                _log.debug('IDENTITY FILE EXISTS FOR {}'.format(self.agent_uuid))
+
         self.socket = None
         self.subsystems = {'error': self.handle_error}
         self.__connected = False
@@ -428,6 +457,40 @@ class Core(BasicCore):
             url[3] += add_param(url[3], 'secretkey', secretkey)
             url[3] += add_param(url[3], 'serverkey', serverkey)
             self.address = urlparse.urlunsplit(url)
+
+    def _get_keys(self):
+        publickey, secretkey, _ = self._get_keys_from_addr()
+        if not publickey or not secretkey:
+            publickey, secretkey = self._get_keys_from_keystore()
+        return publickey, secretkey
+
+    def _get_keys_from_keystore(self):
+        '''Returns agent's public and secret key from keystore'''
+        if self.agent_uuid:
+            # this is an installed agent
+            keystore_dir = os.curdir
+        elif self.identity:
+            if not os.environ.get('VOLTTRON_HOME'):
+                raise ValueError('VOLTTRON_HOME must be specified.')
+            keystore_dir = os.path.join(
+                    os.environ.get('VOLTTRON_HOME'), 'keystores',
+                    self.identity)
+            if not os.path.exists(keystore_dir):
+                os.makedirs(keystore_dir)
+        else:
+            # the agent is not installed and its identity was not set
+            return None, None
+        keystore_path = os.path.join(keystore_dir, 'keystore.json')
+        keystore = KeyStore(keystore_path)
+        return keystore.public(), keystore.secret()
+
+    def _get_keys_from_addr(self):
+        url = list(urlparse.urlsplit(self.address))
+        query = urlparse.parse_qs(url[3])
+        publickey = query.get('publickey', None)
+        secretkey = query.get('secretkey', None)
+        serverkey = query.get('serverkey', None)
+        return publickey, secretkey, serverkey
 
     @property
     def connected(self):
