@@ -205,7 +205,7 @@ from threading import Thread
 
 import pytz
 import re
-from abc import abstractmethod
+from abc import abstractmethod, ABCMeta
 from dateutil.parser import parse
 from volttron.platform.agent.utils import process_timestamp, \
     fix_sqlite3_datetime, get_aware_utc_now
@@ -213,6 +213,9 @@ from volttron.platform.messaging import topics, headers as headers_mod
 from volttron.platform.vip.agent import *
 from zmq.utils import jsonapi
 from volttron.platform.vip.agent import compat
+
+from gevent.event import AsyncResult
+from volttron.platform.async import AsyncCall
 
 _log = logging.getLogger(__name__)
 
@@ -222,8 +225,25 @@ ALL_REX = re.compile('.*/all$')
 # Register a better datetime parser in sqlite3.
 fix_sqlite3_datetime()
 
+#Callback for a query.
+class QueryCallback:
 
-class BaseHistorianAgent(Agent):
+    def __init__(self, query_type, asynccall, *args, **kwargs):
+        # requests and responses
+        self.query_type = query_type
+        self.args = args
+        self.kwargs = kwargs
+        self.query_result = AsyncResult()
+        self.query_callback = asynccall
+
+    def send_results(self, results):
+        self.query_callback.send(None, self.query_result.set, results)
+
+    def send_exception(self, exception):
+        self.query_callback.send(None, self.query_result.set_exception, exception)
+
+
+class BaseHistorian(Agent):
     """This is the base agent for historian Agents.
     It automatically subscribes to all device publish topics.
 
@@ -246,11 +266,15 @@ class BaseHistorianAgent(Agent):
     happenings before the successful writing of data to the historian.
     """
 
+    __metaclass__ = ABCMeta
+
     def __init__(self,
                  retry_period=300.0,
                  submit_size_limit=1000,
                  max_time_publishing=30,
                  **kwargs):
+
+        super(BaseHistorian, self).__init__(**kwargs)
         # This should resemble a dictionary that has key's from and to which
         # will be replaced within the topics before it's stored in the
         # cache database
@@ -258,13 +282,13 @@ class BaseHistorianAgent(Agent):
         _log.debug('Topic list to replace is: {}'.format(self._topic_replace_list))
         # a chache of mappings betwhen what comes in and the anonymizing
         # topic that goes out.
-        
-	super(BaseHistorianAgent, self).__init__(**kwargs)
+
         self._started = False
         self._retry_period = retry_period
         self._submit_size_limit = submit_size_limit
         self._max_time_publishing = timedelta(seconds=max_time_publishing)
         self._successful_published = set()
+        self._async_call = AsyncCall()
         self._topic_replace_map = {}
         self._event_queue = Queue()
         self._process_thread = Thread(target=self._process_loop)
@@ -578,23 +602,50 @@ class BaseHistorianAgent(Agent):
             backupdb.get_outstanding_to_publish(self._submit_size_limit))
 
         while True:
+            new_to_publish = []
+            new_queries = []
             try:
                 _log.debug("Reading from/waiting for queue.")
-                new_to_publish = [
-                    self._event_queue.get(wait_for_input, self._retry_period)]
+                event = self._event_queue.get(wait_for_input, self._retry_period)
+                if isinstance(event, QueryCallback):
+                    new_queries.append(event)
+                else:
+                    new_to_publish.append(event)
             except Empty:
                 _log.debug("Queue wait timed out. Falling out.")
-                new_to_publish = []
 
             if new_to_publish:
                 _log.debug("Checking for queue build up.")
                 while True:
                     try:
-                        new_to_publish.append(self._event_queue.get_nowait())
+                        event = self._event_queue.get_nowait()
+                        if isinstance(event, QueryCallback):
+                            new_queries.append(event)
+                        else:
+                            new_to_publish.append(event)
                     except Empty:
                         break
 
             backupdb.backup_new_data(new_to_publish)
+
+            for query_callback in new_queries:
+
+                _log.debug("Processing query request: {qtype} {a} {p}".format(qtype=query_callback.query_type,
+                                                                               a=query_callback.args,
+                                                                               p=query_callback.kwargs))
+
+                try:
+                    if query_callback.query_type == "query":
+                        results = self.query_historian(*query_callback.args, **query_callback.kwargs)
+                    elif query_callback.query_type == "topic_list":
+                        results = self.query_topic_list()
+                    else:
+                        raise RuntimeError("Invalid Query type: " + str(query_callback.query_type))
+
+                    query_callback.send_results(results)
+                except StandardError as e:
+                    query_callback.send_exception(e)
+
 
             wait_for_input = True
             start_time = datetime.utcnow()
@@ -689,10 +740,163 @@ class BaseHistorianAgent(Agent):
         """
 
     def historian_setup(self):
-        """Optional setup routine, run in the processing thread before
-           main processing loop starts. Gives the Historian a chance to setup
-           connections in the publishing thread.
         """
+        Optional setup routine, run in the processing thread before
+        main processing loop starts. Gives the Historian a chance to setup
+        connections in the publishing/query thread.
+        """
+
+    @RPC.export
+    def query(self, topic=None, start=None, end=None, skip=0,
+              count=None, order="FIRST_TO_LAST"):
+        """RPC call
+
+        Call this method to query an Historian for time series data.
+
+        :param topic: Topic to query for.
+        :param start: Start time of the query. Defaults to None which is the beginning of time.
+        :param end: End time of the query.  Defaults to None which is the end of time.
+        :param skip: Skip this number of results.
+        :param count: Limit results to this value.
+        :param order: How to order the results, either "FIRST_TO_LAST" or "LAST_TO_FIRST"
+        :type topic: str
+        :type start: str
+        :type end: str
+        :type skip: int
+        :type count: int
+        :type order: str
+
+        :return: Results of the query
+        :rtype: dict
+
+        Return values will have the following form:
+
+        .. code-block:: python
+
+            {
+                "values": [(<timestamp string1>: value1),
+                           (<timestamp string2>: value2),
+                            ...],
+                "metadata": {"key1": value1,
+                             "key2": value2,
+                             ...}
+            }
+
+        The string arguments can be either the output from
+        :py:func:`volttron.platform.agent.utils.format_timestamp` or the special string "now".
+
+        Times relative to "now" may be specified with a relative time string using
+        the Unix "at"-style specifications. For instance "now -1h" will specify one hour ago.
+        "now -1d -1h -20m" would specify 25 hours and 20 minutes ago.
+
+        """
+
+        if topic is None:
+            raise TypeError('"Topic" required')
+
+        if start is not None:
+            try:
+                start = parse(start)
+            except TypeError:
+                start = time_parser.parse(start)
+
+        if end is not None:
+            try:
+                end = parse(end)
+            except TypeError:
+                end = time_parser.parse(end)
+
+        kwargs = dict(start=start,
+                      end=end,
+                      skip=skip,
+                      count=count,
+                      order=order)
+
+        query_callback = QueryCallback("query", self._async_call,
+                                       topic,
+                                       **kwargs)
+
+        _log.debug("Queuing query request: {qtype} {topic} {p}".format(qtype="query", topic=topic, p=kwargs))
+
+        self._event_queue.put(query_callback)
+        results = query_callback.query_result.get(10.0)
+
+        #results = self.query_historian(topic, start, end, skip, count, order)
+
+        metadata = results.get("metadata", None)
+        values = results.get("values", None)
+        if values is not None and metadata is None:
+            results['metadata'] = {}
+        return results
+
+    @RPC.export
+    def get_topic_list(self):
+        """RPC call
+
+        :return: List of topics in the data store.
+        :rtype: list
+        """
+
+        query_callback = QueryCallback("topic_list", self._async_call)
+
+        _log.debug("Queuing query request: {qtype}".format(qtype="topic_list"))
+
+        self._event_queue.put(query_callback)
+        results = query_callback.query_result.get(10.0)
+
+        return results
+
+    def query_topic_list(self):
+        """
+        This function is called by :py:meth:`BaseQueryHistorianAgent.get_topic_list`
+        to actually topic list from the data store.
+
+        :return: List of topics in the data store.
+        :rtype: list
+        """
+        raise NotImplementedError("This historian does not support querying the topic list.")
+
+    def query_historian(self, topic, start=None, end=None, skip=0, count=None,
+                        order=None):
+        """
+        This function is called by :py:meth:`BaseQueryHistorianAgent.query`
+        to actually query the data store
+        and must return the results of a query in the form:
+
+        .. code-block:: python
+
+            {
+            "values": [(timestamp1: value1),
+                        (timestamp2: value2),
+                        ...],
+             "metadata": {"key1": value1,
+                          "key2": value2,
+                          ...}
+            }
+
+        Timestamps must be strings formatted by
+        :py:func:`volttron.platform.agent.utils.format_timestamp`.
+
+        "metadata" is not required. The caller will normalize this to {} for you if it is missing.
+
+        :param topic: Topic to query for.
+        :param start: Start of query timestamp as a datetime.
+        :param end: End of query timestamp as a datetime.
+        :param skip: Skip this number of results.
+        :param count: Limit results to this value.
+        :param order: How to order the results, either "FIRST_TO_LAST" or "LAST_TO_FIRST"
+        :type topic: str
+        :type start: datetime
+        :type end: datetime
+        :type skip: int
+        :type count: int
+        :type order: str
+
+        :return: Results of the query
+        :rtype: dict
+
+        """
+        raise NotImplementedError("This historian does not support querying data.")
 
 
 class BackupDatabase:
@@ -872,149 +1076,6 @@ class BackupDatabase:
         self._connection.commit()
 
 
-class BaseQueryHistorianAgent(Agent):
-    """This is the base agent for historian Agents that support querying of
-    their data stores.
-    """
-
-    @RPC.export
-    def query(self, topic=None, start=None, end=None, skip=0,
-              count=None, order="FIRST_TO_LAST"):
-        """RPC call
-
-        Call this method to query an Historian for time series data.
-
-        :param topic: Topic to query for.
-        :param start: Start time of the query. Defaults to None which is the beginning of time.
-        :param end: End time of the query.  Defaults to None which is the end of time.
-        :param skip: Skip this number of results.
-        :param count: Limit results to this value.
-        :param order: How to order the results, either "FIRST_TO_LAST" or "LAST_TO_FIRST"
-        :type topic: str
-        :type start: str
-        :type end: str
-        :type skip: int
-        :type count: int
-        :type order: str
-
-        :return: Results of the query
-        :rtype: dict
-
-        Return values will have the following form:
-
-        .. code-block:: python
-
-            {
-                "values": [(<timestamp string1>: value1),
-                           (<timestamp string2>: value2),
-                            ...],
-                "metadata": {"key1": value1,
-                             "key2": value2,
-                             ...}
-            }
-
-        The string arguments can be either the output from
-        :py:func:`volttron.platform.agent.utils.format_timestamp` or the special string "now".
-
-        Times relative to "now" may be specified with a relative time string using
-        the Unix "at"-style specifications. For instance "now -1h" will specify one hour ago.
-        "now -1d -1h -20m" would specify 25 hours and 20 minutes ago.
-
-        """
-
-        if topic is None:
-            raise TypeError('"Topic" required')
-
-        if start is not None:
-            try:
-                start = parse(start)
-            except TypeError:
-                start = time_parser.parse(start)
-
-        if end is not None:
-            try:
-                end = parse(end)
-            except TypeError:
-                end = time_parser.parse(end)
-
-        if start:
-            _log.debug("start={}".format(start))
-
-        results = self.query_historian(topic, start, end, skip, count, order)
-        metadata = results.get("metadata", None)
-        values = results.get("values", None)
-        if values is not None and metadata is None:
-            results['metadata'] = {}
-        return results
-
-    @RPC.export
-    def get_topic_list(self):
-        """RPC call
-
-        :return: List of topics in the data store.
-        :rtype: list
-        """
-        return self.query_topic_list()
-
-    @abstractmethod
-    def query_topic_list(self):
-        """
-        This function is called by :py:meth:`BaseQueryHistorianAgent.get_topic_list`
-        to actually topic list from the data store.
-
-        :return: List of topics in the data store.
-        :rtype: list
-        """
-
-    @abstractmethod
-    def query_historian(self, topic, start=None, end=None, skip=0, count=None,
-                        order=None):
-        """
-        This function is called by :py:meth:`BaseQueryHistorianAgent.query`
-        to actually query the data store
-        and must return the results of a query in the form:
-
-        .. code-block:: python
-
-            {
-            "values": [(timestamp1: value1),
-                        (timestamp2: value2),
-                        ...],
-             "metadata": {"key1": value1,
-                          "key2": value2,
-                          ...}
-            }
-         
-        Timestamps must be strings formatted by
-        :py:func:`volttron.platform.agent.utils.format_timestamp`.
-
-        "metadata" is not required. The caller will normalize this to {} for you if it is missing.
-
-        :param topic: Topic to query for.
-        :param start: Start of query timestamp as a datetime.
-        :param end: End of query timestamp as a datetime.
-        :param skip: Skip this number of results.
-        :param count: Limit results to this value.
-        :param order: How to order the results, either "FIRST_TO_LAST" or "LAST_TO_FIRST"
-        :type topic: str
-        :type start: datetime
-        :type end: datetime
-        :type skip: int
-        :type count: int
-        :type order: str
-
-        :return: Results of the query
-        :rtype: dict
-
-        """
-
-
-class BaseHistorian(BaseHistorianAgent, BaseQueryHistorianAgent):
-    def __init__(self, **kwargs):
-        _log.debug('Constructor of BaseHistorian thread: {}'.format(
-            threading.currentThread().getName()
-        ))
-        super(BaseHistorian, self).__init__(**kwargs)
 
 
 # The following code is

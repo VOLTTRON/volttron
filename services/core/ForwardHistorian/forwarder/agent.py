@@ -274,16 +274,6 @@ def historian(config_path, **kwargs):
                 self.vip.health.send_alert(FORWARD_TIMEOUT_KEY,
                                            status)
 
-        def query_historian(self, topic, start=None, end=None, skip=0,
-                            count=None, order="FIRST_TO_LAST"):
-            """Not implemented
-            """
-            return None
-
-        def query_topic_list(self):
-            """Not implemented
-            """
-            return None
 
         def historian_setup(self):
             try:
