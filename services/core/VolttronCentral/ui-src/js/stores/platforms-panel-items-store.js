@@ -299,7 +299,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                 insertAgents(platform, action.agents);
             }
 
-            platformsPanelItemsStore.emitChange();
+            // platformsPanelItemsStore.emitChange();
             break;
         case ACTION_TYPES.RECEIVE_DEVICE_STATUSES:
 
@@ -310,7 +310,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                 insertDevices(platform, action.devices);
             }
 
-            platformsPanelItemsStore.emitChange();
+            // platformsPanelItemsStore.emitChange();
             break;
         case ACTION_TYPES.RECEIVE_PERFORMANCE_STATS:
             

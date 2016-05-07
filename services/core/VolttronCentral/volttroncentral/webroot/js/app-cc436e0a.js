@@ -866,9 +866,7 @@ var platformsPanelActionCreators = {
     {
         if (type === "platform")
         {
-            loadPanelAgents(parent);
             loadPanelDevices(parent);
-            loadPerformanceStats(parent);
         }        
 
         function loadPerformanceStats(parent) {
@@ -952,6 +950,8 @@ var platformsPanelActionCreators = {
                         platform: platform,
                         devices: devicesList
                     });
+
+                    loadPanelAgents(platform);
                     
                 })
                 .catch(rpc.Error, handle401);    
@@ -973,7 +973,7 @@ var platformsPanelActionCreators = {
                         agents: agentsList
                     });
 
-                    
+                    loadPerformanceStats(platform);
                 })
                 .catch(rpc.Error, handle401);    
         }
@@ -5558,7 +5558,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                 insertAgents(platform, action.agents);
             }
 
-            platformsPanelItemsStore.emitChange();
+            // platformsPanelItemsStore.emitChange();
             break;
         case ACTION_TYPES.RECEIVE_DEVICE_STATUSES:
 
@@ -5569,7 +5569,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                 insertDevices(platform, action.devices);
             }
 
-            platformsPanelItemsStore.emitChange();
+            // platformsPanelItemsStore.emitChange();
             break;
         case ACTION_TYPES.RECEIVE_PERFORMANCE_STATS:
             

@@ -26,9 +26,7 @@ var platformsPanelActionCreators = {
     {
         if (type === "platform")
         {
-            loadPanelAgents(parent);
             loadPanelDevices(parent);
-            loadPerformanceStats(parent);
         }        
 
         function loadPerformanceStats(parent) {
@@ -112,6 +110,8 @@ var platformsPanelActionCreators = {
                         platform: platform,
                         devices: devicesList
                     });
+
+                    loadPanelAgents(platform);
                     
                 })
                 .catch(rpc.Error, handle401);    
@@ -133,7 +133,7 @@ var platformsPanelActionCreators = {
                         agents: agentsList
                     });
 
-                    
+                    loadPerformanceStats(platform);
                 })
                 .catch(rpc.Error, handle401);    
         }
