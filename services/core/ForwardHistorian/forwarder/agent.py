@@ -86,6 +86,8 @@ def historian(config_path, **kwargs):
     identity = config.get('identity', kwargs.pop('identity', None))
     include_destination_in_header = config.get('include_destination_in_header',
                                                False)
+
+    backup_storage_limit_gb = config.get('backup_storage_limit_gb', None)
     origin = config.get('origin', None)
     overwrite_origin = config.get('overwrite_origin', False)
     include_origin_in_header = config.get('include_origin_in_header', False)
@@ -274,16 +276,6 @@ def historian(config_path, **kwargs):
                 self.vip.health.send_alert(FORWARD_TIMEOUT_KEY,
                                            status)
 
-        def query_historian(self, topic, start=None, end=None, skip=0,
-                            count=None, order="FIRST_TO_LAST"):
-            """Not implemented
-            """
-            return None
-
-        def query_topic_list(self):
-            """Not implemented
-            """
-            return None
 
         def historian_setup(self):
             try:
@@ -302,7 +294,9 @@ def historian(config_path, **kwargs):
                                                status)
 
     ForwardHistorian.__name__ = 'ForwardHistorian'
-    return ForwardHistorian(identity=identity, **kwargs)
+    return ForwardHistorian(identity=identity,
+                            backup_storage_limit_gb=backup_storage_limit_gb,
+                            **kwargs)
 
 
 def main(argv=sys.argv):
