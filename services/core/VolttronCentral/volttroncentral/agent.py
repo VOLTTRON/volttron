@@ -631,7 +631,7 @@ class VolttronCentralAgent(Agent):
                           self.core.identity,
                           'jsonrpc').get(timeout=5)
 
-        self.vip.rpc.call(MASTER_WEB, 'register_path_route',
+        self.vip.rpc.call(MASTER_WEB, 'register_path_route', VOLTTRON_CENTRAL,
                           r'^/.*', self._webroot).get(timeout=5)
 
         self.webaddress = self.vip.rpc.call(

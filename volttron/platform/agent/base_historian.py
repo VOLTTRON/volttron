@@ -273,13 +273,14 @@ class BaseHistorian(Agent):
                  submit_size_limit=1000,
                  max_time_publishing=30,
                  backup_storage_limit_gb=None,
+                 topic_replace_list=None,
                  **kwargs):
         super(BaseHistorian, self).__init__(**kwargs)
         self._backup_storage_limit_gb = backup_storage_limit_gb
         # This should resemble a dictionary that has key's from and to which
         # will be replaced within the topics before it's stored in the
         # cache database
-        self._topic_replace_list = kwargs.pop("topic_replace_list", None)
+        self._topic_replace_list = topic_replace_list
         _log.debug(
             'Topic list to replace is: {}'.format(self._topic_replace_list))
         # a chache of mappings betwhen what comes in and the anonymizing
