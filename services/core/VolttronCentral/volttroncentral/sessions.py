@@ -1,6 +1,7 @@
 import errno
 import os
 import uuid
+from copy import deepcopy
 
 from zmq.utils import jsonapi
 
@@ -43,12 +44,18 @@ class SessionHandler:
         self._session_tokens[token] = self._sessions[user]
 
     def check_session(self, token, ip):
-        """Check if a user token has been authenticated."""
+        """Check if a user token has been authenticated.
+
+        @return:
+            A users session information or False.
+        """
         if not self._session_tokens:
             self._load_auths()
         session = self._session_tokens.get(str(token))
         if session:
-            return session['ip'] == ip
+            if session['ip'] != ip:
+                return False
+            return deepcopy(session)
 
         return False
 
