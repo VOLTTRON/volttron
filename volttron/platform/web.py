@@ -197,6 +197,7 @@ class MasterWebService(Agent):
         self.serverkey = serverkey
         self.registeredroutes = []
         self.peerroutes = defaultdict(list)
+        self.pathroutes = defaultdict(list)
         self.aip = aip
 
         self.volttron_central_address = volttron_central_address
@@ -251,11 +252,17 @@ class MasterWebService(Agent):
         for regex in self.peerroutes[peer]:
             out = [cp for cp in self.registeredroutes if cp[0] != regex]
             self.registeredroutes = out
+        del self.peerroutes[peer]
+        for regex in self.pathroutes[peer]:
+            out = [cp for cp in self.registeredroutes if cp[0] != regex]
+            self.registeredroutes = out
+        del self.pathroutes[peer]
 
     @RPC.export
-    def register_path_route(self, regex, root_dir):
+    def register_path_route(self, peer, regex, root_dir):
         _log.info('Registiering path route: {}'.format(root_dir))
         compiled = re.compile(regex)
+        self.pathroutes[peer].append(compiled)
         self.registeredroutes.append((compiled, 'path', root_dir))
 
     def _redirect_index(self, env, start_response, data=None):
