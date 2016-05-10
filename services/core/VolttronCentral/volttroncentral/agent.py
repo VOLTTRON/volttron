@@ -69,7 +69,8 @@ from volttron.platform.agent import utils
 from volttron.platform.agent.utils import (
         get_aware_utc_now, format_timestamp, parse_timestamp_string)
 from volttron.platform.agent.known_identities import (
-    VOLTTRON_CENTRAL, VOLTTRON_CENTRAL_PLATFORM, MASTER_WEB)
+    VOLTTRON_CENTRAL, VOLTTRON_CENTRAL_PLATFORM, MASTER_WEB,
+    PLATFORM_HISTORIAN)
 from volttron.platform.auth import AuthEntry, AuthFile
 from volttron.platform.jsonrpc import (
     INVALID_REQUEST, METHOD_NOT_FOUND,
@@ -782,6 +783,13 @@ class VolttronCentralAgent(Agent):
                         'can_remove': False
                     }
             return agents
+        elif 'historian.query' in platform_method and \
+                        PLATFORM_HISTORIAN in self.vip.peerlist().get(
+                            timeout=10):
+            _log.debug('Trapping platform.historian to vc.')
+            return agent.vip.rpc.call(
+                PLATFORM_HISTORIAN, 'query', **params).get(timeout=10)
+
         else:
             return agent.vip.rpc.call(
                 VOLTTRON_CENTRAL_PLATFORM, 'route_request', id,
