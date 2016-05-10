@@ -81,7 +81,7 @@ def historian(config_path, **kwargs):
     config = utils.load_config(config_path)
     services_topic_list = config.get('services_topic_list', ['all'])
     custom_topic_list = config.get('custom_topic_list', [])
-    topic_text_replace_list = config.get('topic_text_replace', [])
+    topic_replace_list = config.get('topic_replace_list', [])
     destination_vip = config.get('destination-vip')
     identity = config.get('identity', kwargs.pop('identity', None))
     include_destination_in_header = config.get('include_destination_in_header',
@@ -160,13 +160,13 @@ def historian(config_path, **kwargs):
                                               message_string=message[0]))
                 raise
 
-            if topic_text_replace_list:
+            if topic_replace_list:
                 if topic in self._topic_replace_map.keys():
                     topic = self._topic_replace_map[topic]
                 else:
                     self._topic_replace_map[topic] = topic
                     temptopics = {}
-                    for x in topic_text_replace_list:
+                    for x in topic_replace_list:
                         if x['from'] in topic:
                             new_topic = temptopics.get(topic, topic)
                             temptopics[topic] = new_topic.replace(
