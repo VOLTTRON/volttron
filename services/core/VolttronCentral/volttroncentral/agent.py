@@ -69,7 +69,8 @@ from volttron.platform.agent import utils
 from volttron.platform.agent.utils import (
         get_aware_utc_now, format_timestamp, parse_timestamp_string)
 from volttron.platform.agent.known_identities import (
-    VOLTTRON_CENTRAL, VOLTTRON_CENTRAL_PLATFORM, MASTER_WEB)
+    VOLTTRON_CENTRAL, VOLTTRON_CENTRAL_PLATFORM, MASTER_WEB,
+    PLATFORM_HISTORIAN)
 from volttron.platform.auth import AuthEntry, AuthFile
 from volttron.platform.jsonrpc import (
     INVALID_REQUEST, METHOD_NOT_FOUND,
@@ -752,6 +753,18 @@ class VolttronCentralAgent(Agent):
             return self._handle_list_platforms()
         elif method == 'unregister_platform':
             return self.unregister_platform(params['platform_uuid'])
+        elif 'historian' in method:
+            has_platform_historian = PLATFORM_HISTORIAN in \
+                                     self.vip.peerlist().get(timeout=10)
+            _log.debug('Trapping platform.historian to vc.')
+            _log.debug('has_platform_historian: {}'.format(
+                has_platform_historian))
+            if 'historian.query' in method:
+                return self.vip.rpc.call(
+                    PLATFORM_HISTORIAN, 'query', **params).get(timeout=10)
+            elif 'historian.get_topic_list' in method:
+                return self.vip.rpc.call(
+                    PLATFORM_HISTORIAN, 'get_topic_list').get(timeout=10)
 
         fields = method.split('.')
         if len(fields) < 3:
@@ -769,6 +782,7 @@ class VolttronCentralAgent(Agent):
                                       "Cannot connect to platform."
                                       )
         _log.debug('Routing to {}'.format(VOLTTRON_CENTRAL_PLATFORM))
+
         if platform_method == 'list_agents':
             agents = agent.vip.rpc.call(
                 VOLTTRON_CENTRAL_PLATFORM, 'route_request', id,

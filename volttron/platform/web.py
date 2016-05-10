@@ -418,8 +418,15 @@ class MasterWebService(Agent):
         self.registeredroutes.append((re.compile('^/$'), 'callable',
                                       self._redirect_index))
         port = int(port)
-	server = pywsgi.WSGIServer((hostname, port), self.app_routing)
-        server.serve_forever()
+        vhome = os.environ.get('VOLTTRON_HOME')
+        logdir = os.path.join(vhome, "log")
+        if not os.path.exists(logdir):
+            os.makedirs(logdir)
+        with open(os.path.join(logdir, 'web.access.log'), 'wb') as accesslog:
+            with open(os.path.join(logdir, 'web.error.log'), 'wb') as errlog:
+                server = pywsgi.WSGIServer((hostname, port), self.app_routing,
+                                       log=accesslog, error_log=errlog)
+                server.serve_forever()
 
 
 def build_vip_address_string(vip_root, serverkey, publickey, secretkey):
