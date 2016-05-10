@@ -549,6 +549,43 @@ class AuthFile(object):
                 raise AuthFileIndexError(index)
         self._write(entries, groups, roles)
 
+    def _set_groups_or_roles(self, groups_or_roles, is_group=True):
+        param_name = 'groups' if is_group else 'roles'
+        if not isinstance(groups_or_roles, dict):
+            raise ValueError('{} parameter must be dict'.format(param_name))
+        for key, value in groups_or_roles.iteritems():
+            if not isinstance(value, list):
+                raise ValueError('each value of the {} dict must be '
+                                 'a list'.format(param_name))
+        entries, groups, roles = self._read_entries_as_list()
+        if is_group:
+            groups = groups_or_roles
+        else:
+            roles = groups_or_roles
+        self._write(entries, groups, roles)
+
+    def set_groups(self, groups):
+        """Define the mapping of group names to capability lists
+
+        :param groups: dict where the keys are group names and the
+                       values are lists of capability names
+        :type groups: dict
+
+        .. warning:: Calling with invalid groups will raise ValueError
+        """
+        self._set_groups_or_roles(groups, is_group=True)
+
+    def set_roles(self, roles):
+        """Define the mapping of role names to group lists
+
+        :param roles: dict where the keys are role names and the
+                      values are lists of group names
+        :type groups: dict
+
+        .. warning:: Calling with invalid roles will raise ValueError
+        """
+        self._set_groups_or_roles(roles, is_group=False)
+
     def update_by_index(self, auth_entry, index):
         '''
         Updates entry will given auth entry at given index
