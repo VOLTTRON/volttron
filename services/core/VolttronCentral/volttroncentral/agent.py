@@ -554,15 +554,17 @@ class VolttronCentralAgent(Agent):
 
             token = rpcdata.authorization
             ip = env['REMOTE_ADDR']
-
-            if not self._sessions.check_session(token, ip):
+            _log.debug('REMOTE_ADDR: {}'.format(ip))
+            session_user = self._sessions.check_session(token, ip)
+            _log.debug('SESSION_USER IS: {}'.format(session_user))
+            if not session_user:
                 _log.debug("Session Check Failed for Token: {}".format(token))
                 return jsonrpc.json_error(rpcdata.id, UNAUTHORIZED,
                                           "Invalid authentication token")
             _log.debug('RPC METHOD IS: {}'.format(rpcdata.method))
 
             # Route any other method that isn't
-            result_or_error = self._route_request(
+            result_or_error = self._route_request(session_user,
                 rpcdata.id, rpcdata.method, rpcdata.params)
 
         except AssertionError:
@@ -580,7 +582,7 @@ class VolttronCentralAgent(Agent):
             return jsonrpc.json_error(id, error['code'], error['message'])
         return jsonrpc.json_result(id, result_or_error)
 
-    def _get_agents(self, platform_uuid):
+    def _get_agents(self, platform_uuid, groups):
         platform = self.get_platform(platform_uuid)
         connected_to_pa = self._pa_agents[platform_uuid]
 
@@ -588,15 +590,21 @@ class VolttronCentralAgent(Agent):
             'platform.agent', 'list_agents').get(timeout=2)
 
         for a in agents:
-            if "platformagent" in a['name'] or \
-                            "volttroncentral" in a['name']:
+            if 'admin' in groups:
+                if "platformagent" in a['name'] or \
+                                "volttroncentral" in a['name']:
+                    a['vc_can_start'] = False
+                    a['vc_can_stop'] = False
+                    a['vc_can_restart'] = True
+                else:
+                    a['vc_can_start'] = True
+                    a['vc_can_stop'] = True
+                    a['vc_can_restart'] = True
+            else:
+                # Handle the permissions that are not admin.
                 a['vc_can_start'] = False
                 a['vc_can_stop'] = False
-                a['vc_can_restart'] = True
-            else:
-                a['vc_can_start'] = True
-                a['vc_can_stop'] = True
-                a['vc_can_restart'] = True
+                a['vc_can_restart'] = False
 
         _log.debug('Agents returned: {}'.format(agents))
         return agents
@@ -623,7 +631,7 @@ class VolttronCentralAgent(Agent):
                           self.core.identity,
                           'jsonrpc').get(timeout=5)
 
-        self.vip.rpc.call(MASTER_WEB, 'register_path_route',
+        self.vip.rpc.call(MASTER_WEB, 'register_path_route', VOLTTRON_CENTRAL,
                           r'^/.*', self._webroot).get(timeout=5)
 
         self.webaddress = self.vip.rpc.call(
@@ -723,7 +731,7 @@ class VolttronCentralAgent(Agent):
                  'health': get_status(x.platform_uuid)}
                 for x in self._registry.get_platforms()]
 
-    def _route_request(self, id, method, params):
+    def _route_request(self, session_user, id, method, params):
         '''Route request to either a registered platform or handle here.'''
         _log.debug(
             'inside _route_request {}, {}, {}'.format(id, method, params))
@@ -761,9 +769,25 @@ class VolttronCentralAgent(Agent):
                                       "Cannot connect to platform."
                                       )
         _log.debug('Routing to {}'.format(VOLTTRON_CENTRAL_PLATFORM))
-        return agent.vip.rpc.call(
-            VOLTTRON_CENTRAL_PLATFORM, 'route_request', id, platform_method,
-            params).get(timeout=10)
+        if platform_method == 'list_agents':
+            agents = agent.vip.rpc.call(
+                VOLTTRON_CENTRAL_PLATFORM, 'route_request', id,
+                platform_method, params).get(timeout=10)
+            for a in agents:
+                if not 'admin' in session_user['groups']:
+                    a['permissions'] = {
+                        'can_stop': False,
+                        'can_start': False,
+                        'can_restart': False,
+                        'can_remove': False
+                    }
+            return agents
+        else:
+            return agent.vip.rpc.call(
+                VOLTTRON_CENTRAL_PLATFORM, 'route_request', id,
+                platform_method,
+                params).get(timeout=10)
+
 
 
 def main(argv=sys.argv):
