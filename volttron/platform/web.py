@@ -418,8 +418,7 @@ class MasterWebService(Agent):
         self.registeredroutes.append((re.compile('^/$'), 'callable',
                                       self._redirect_index))
         port = int(port)
-        server = pywsgi.WSGIServer((hostname, port), self.app_routing,
-                                   log=logging.getLogger("wsgi"))
+	server = pywsgi.WSGIServer((hostname, port), self.app_routing)
         server.serve_forever()
 
 
