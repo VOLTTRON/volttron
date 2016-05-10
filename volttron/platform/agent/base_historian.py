@@ -62,7 +62,7 @@ Historian Development
 
 Support for storing and retrieving historical device and analysis data published to the message bus
 is handled with Historian Agents. If a new type of data store or a new way of storing data
-is desired a new type of Historian Agent should created.
+is desired a new type of Historian Agent should be created.
 
 Historian Agents are implemented by subclassing :py:class:`BaseHistorian`.
 
@@ -73,7 +73,7 @@ in order to obtain that data as needed.
 
 While it is possible to create an Agent from scratch which handles gathering and
 storing device data it will miss out on the benefits of creating a proper Historian Agent that
-subclassing :py:class:`BaseHistorian`. The :py:class:`BaseHistorian` class provides the following
+subclasses :py:class:`BaseHistorian`. The :py:class:`BaseHistorian` class provides the following
 features:
 
 - A separate thread for all communication with a data store removing the need
@@ -92,21 +92,21 @@ To create a new Historian create a new Agent that subclasses :py:class:`BaseHist
 :py:class:`BaseHistorian` inherits from :py:class:`volttron.platform.vip.agent.Agent` so including
 it in the class parents is not needed.
 
-The new Agent must implement the following methods:
+The new Agent must implement the following method:
 
-- :py:meth:`BaseHistorianAgent.publish_to_historian`
-- :py:meth:`BaseQueryHistorianAgent.query_topic_list`
-- :py:meth:`BaseQueryHistorianAgent.query_historian`
+- :py:meth:`BaseHistorian.publish_to_historian`
+
+Optionally the following methods may be implemented to support querying:
+
+- :py:meth:`BaseHistorian.query_topic_list`
+- :py:meth:`BaseHistorian.query_historian`
+
+:py:meth:`BaseHistorian.query_topic_list` and :py:meth:`BaseHistorian.query_historian`
+will raise :py:exc:`exceptions.NotImplementedError`.
 
 While not required this method may be overridden as needed:
-- :py:meth:`BaseHistorianAgent.historian_setup`
+- :py:meth:`BaseHistorian.historian_setup`
 
-
-Optionally a Historian Agent can inherit from :py:class:`BaseHistorianAgent` instead of :py:class:`BaseHistorian`
-if support for querying data is not needed for the data store. If this route is taken then VOLTTRON Central
-will not be able to graph data from the store. It is possible to run more than one Historian agent at a time
-to store data in more than one place. If needed one can be used to allow querying while another is
-used to put data in the desired store that does not allow querying.
 
 Historian Execution Flow
 ------------------------
@@ -116,7 +116,7 @@ and publishing (the publishing thread). The main thread then subscribes to all H
 message bus. Whenever subscribed data comes in it is published to a Queue to be be processed by
 the publishing thread as soon as possible.
 
-At startup the publishing thread calls :py:meth:`BaseHistorianAgent.historian_setup` to give
+At startup the publishing thread calls :py:meth:`BaseHistorian.historian_setup` to give
 the implemented Historian a chance to setup any connections in the thread.
 
 The process thread then enters the following logic loop:
@@ -126,7 +126,7 @@ The process thread then enters the following logic loop:
     If new data appeared in Queue:
         Save new data to cache.
     While data is in cache:
-        Publish data to store by calling :py:meth:`BaseHistorianAgent.publish_to_historian`.
+        Publish data to store by calling :py:meth:`BaseHistorian.publish_to_historian`.
         If no data was published:
             Go back to start and check Queue for data.
         Remove published data from cache.
@@ -139,19 +139,20 @@ if publishing has been successful and there is still data in the cache to be pub
 Storing Data
 ------------
 
-The :py:class:`BaseHistorian` will call :py:meth:`BaseHistorianAgent.publish_to_historian`
+The :py:class:`BaseHistorian` will call :py:meth:`BaseHistorian.publish_to_historian`
 as the time series data becomes available. Data is batched in a groups up to `submit_size_limit`.
 
-After processing the list or individual items in the list :py:meth:`BaseHistorianAgent.publish_to_historian`
-must call :py:meth:`BaseHistorianAgent.report_handled` to report an individual point of data
-was published or :py:meth:`BaseHistorianAgent.report_all_handled` to report that everything
-from the batch was successfully published. This tells the :py:class:`BaseHistorianAgent` class
+After processing the list or individual items in the list :py:meth:`BaseHistorian.publish_to_historian`
+must call :py:meth:`BaseHistorian.report_handled` to report an individual point of data
+was published or :py:meth:`BaseHistorian.report_all_handled` to report that everything
+from the batch was successfully published. This tells the :py:class:`BaseHistorian` class
 what to remove from the cache and if any publishing was successful.
 
-The `to_publish_list` argument of :py:meth:`BaseHistorianAgent.publish_to_historian` is a list of records that
+The `to_publish_list` argument of :py:meth:`BaseHistorian.publish_to_historian` is a list of records that
 takes the following form:
 
 .. code-block:: python
+
     [
         {
             '_id': 1,
@@ -172,15 +173,15 @@ takes the following form:
         ...
     ]
 
-As records are published to the data store :py:meth:`BaseHistorianAgent.publish_to_historian` must call
-:py:meth:`BaseHistorianAgent.report_handled` with the record or list of records that was published or
-:py:meth:`BaseHistorianAgent.report_all_handled` if everything was published.
+As records are published to the data store :py:meth:`BaseHistorian.publish_to_historian` must call
+:py:meth:`BaseHistorian.report_handled` with the record or list of records that was published or
+:py:meth:`BaseHistorian.report_all_handled` if everything was published.
 
 Querying Data
 -------------
 
-When an request is made to query data the :py:meth:`BaseQueryHistorianAgent.query_historian` method is called.
-When a request is made for the list of topics in the store :py:meth:`BaseQueryHistorianAgent.query_topic_list`
+When an request is made to query data the :py:meth:`BaseHistorian.query_historian` method is called.
+When a request is made for the list of topics in the store :py:meth:`BaseHistorian.query_topic_list`
 will be called.
 
 Other Notes
@@ -189,7 +190,7 @@ Other Notes
 Implemented Historians must be tolerant to receiving the same data for submission twice.
 While very rare, it is possible for a Historian to be forcibly shutdown after data is published
 but before it is removed from the cache. When restarted the :py:class:`BaseHistorian` will submit
-the same date over again.
+the same data over again.
 
 """
 
@@ -680,11 +681,11 @@ class BaseHistorian(Agent):
 
     def report_handled(self, record):
         """
-        Call this from :py:meth:`BaseHistorianAgent.publish_to_historian` to report a record or
+        Call this from :py:meth:`BaseHistorian.publish_to_historian` to report a record or
         list of records has been successfully published and should be removed from the cache.
 
         :param record: Record or list of records to remove from cache.
-        :type record: dict or list
+        :type record: python:dict or python:list
         """
         if isinstance(record, list):
             for x in record:
@@ -694,8 +695,8 @@ class BaseHistorian(Agent):
 
     def report_all_handled(self):
         """
-            Call this from :py:meth:`BaseHistorianAgent.publish_to_historian` to report that all records
-             passed to :py:meth:`BaseHistorianAgent.publish_to_historian` have been successfully published
+            Call this from :py:meth:`BaseHistorian.publish_to_historian` to report that all records
+             passed to :py:meth:`BaseHistorian.publish_to_historian` have been successfully published
              and should be removed from the cache.
         """
         self._successful_published.add(None)
@@ -706,11 +707,12 @@ class BaseHistorian(Agent):
         Main publishing method for historian Agents.
 
         :param to_publish_list: List of records
-        :type to_publish_list: list
+        :type to_publish_list: python:list
 
         to_publish_list takes the following form:
 
         .. code-block:: python
+
             [
                 {
                     '_id': 1,
@@ -736,8 +738,8 @@ class BaseHistorian(Agent):
         the "meta" dictionary are the only values that are relevant. This is the way the cache
         treats meta data.
 
-        Once one or more records are published either :py:meth:`BaseHistorianAgent.report_handled` or
-        :py:meth:`BaseHistorianAgent.report_handled` must be called to report records as being published.
+        Once one or more records are published either :py:meth:`BaseHistorian.report_handled` or
+        :py:meth:`BaseHistorian.report_handled` must be called to report records as being published.
         """
 
     def historian_setup(self):
@@ -768,7 +770,7 @@ class BaseHistorian(Agent):
         :type order: str
 
         :return: Results of the query
-        :rtype: dict
+        :rtype: python:dict
 
         Return values will have the following form:
 
@@ -835,7 +837,7 @@ class BaseHistorian(Agent):
         """RPC call
 
         :return: List of topics in the data store.
-        :rtype: list
+        :rtype: python:list
         """
 
         query_callback = QueryCallback("topic_list", self._async_call)
@@ -849,18 +851,18 @@ class BaseHistorian(Agent):
 
     def query_topic_list(self):
         """
-        This function is called by :py:meth:`BaseQueryHistorianAgent.get_topic_list`
+        This function is called by :py:meth:`BaseHistorian.get_topic_list`
         to actually topic list from the data store.
 
         :return: List of topics in the data store.
-        :rtype: list
+        :rtype: python:list
         """
         raise NotImplementedError("This historian does not support querying the topic list.")
 
     def query_historian(self, topic, start=None, end=None, skip=0, count=None,
                         order=None):
         """
-        This function is called by :py:meth:`BaseQueryHistorianAgent.query`
+        This function is called by :py:meth:`BaseHistorian.query`
         to actually query the data store
         and must return the results of a query in the form:
 
@@ -894,7 +896,7 @@ class BaseHistorian(Agent):
         :type order: str
 
         :return: Results of the query
-        :rtype: dict
+        :rtype: python:dict
 
         """
         raise NotImplementedError("This historian does not support querying data.")
@@ -902,7 +904,7 @@ class BaseHistorian(Agent):
 
 class BackupDatabase:
     """
-    A creates and manages backup cache for the :py:class:`BaseHistorianAgent` class.
+    Creates and manages backup cache for the :py:class:`BaseHistorian` class.
 
     Historian implementors do not need to use this class. It is for internal use only.
     """
@@ -918,7 +920,7 @@ class BackupDatabase:
     def backup_new_data(self, new_publish_list):
         """
         :param new_publish_list: A list of records to cache to disk.
-        :type new_publish_list: list
+        :type new_publish_list: python:list
         """
         _log.debug("Backing up unpublished values.")
 
@@ -983,7 +985,7 @@ class BackupDatabase:
 
         :param successful_publishes: List of records that was published.
         :param submit_size: Number of things requested from previous call to :py:meth:`get_outstanding_to_publish`.
-        :type successful_publishes: list
+        :type successful_publishes: python:list
         :type submit_size: int
         """
 
@@ -1012,7 +1014,7 @@ class BackupDatabase:
         :param size_limit: Max number of records to retrieve.
         :type size_limit: int
         :returns: List of records for publication.
-        :rtype: list
+        :rtype: python:list
         """
         _log.debug("Getting oldest outstanding to publish.")
         c = self._connection.cursor()
