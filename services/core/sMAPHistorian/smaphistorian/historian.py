@@ -65,8 +65,7 @@ import time
 import pytz
 from pytz import timezone
 
-from volttron.platform.agent.base_historian import (BaseHistorianAgent,
-                                                    BaseQueryHistorianAgent)
+from volttron.platform.agent.base_historian import BaseHistorian
 from volttron.platform.agent import utils, matching
 from volttron.platform.messaging import topics, headers as headers_mod
 from zmq.utils import jsonapi
