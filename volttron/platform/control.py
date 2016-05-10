@@ -621,7 +621,7 @@ def _ask_for_auth_fields(domain=None, address=None, user_id=None,
                          **kwargs):
     class Asker(object):
         def __init__(self):
-            self._fields = {}
+            self._fields = collections.OrderedDict()
 
         def add(self, name, default=None, note=None, callback=lambda x: x,
                 validate=lambda x: (True, '')):
