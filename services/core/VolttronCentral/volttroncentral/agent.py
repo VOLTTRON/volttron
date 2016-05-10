@@ -753,6 +753,18 @@ class VolttronCentralAgent(Agent):
             return self._handle_list_platforms()
         elif method == 'unregister_platform':
             return self.unregister_platform(params['platform_uuid'])
+        elif method[:len('historian')] == 'historian':
+            has_platform_historian = PLATFORM_HISTORIAN in \
+                                     self.vip.peerlist().get(timeout=10)
+            _log.debug('Trapping platform.historian to vc.')
+            _log.debug('has_platform_historian: {}'.format(
+                has_platform_historian))
+            if 'historian.query' in method:
+                return self.vip.rpc.call(
+                    PLATFORM_HISTORIAN, 'query', **params).get(timeout=10)
+            elif 'historian.get_topic_list' in method:
+                return self.vip.rpc.call(
+                    PLATFORM_HISTORIAN, 'get_topic_list').get(timeout=10)
 
         fields = method.split('.')
         if len(fields) < 3:
@@ -770,6 +782,7 @@ class VolttronCentralAgent(Agent):
                                       "Cannot connect to platform."
                                       )
         _log.debug('Routing to {}'.format(VOLTTRON_CENTRAL_PLATFORM))
+
         if platform_method == 'list_agents':
             agents = agent.vip.rpc.call(
                 VOLTTRON_CENTRAL_PLATFORM, 'route_request', id,
@@ -783,13 +796,6 @@ class VolttronCentralAgent(Agent):
                         'can_remove': False
                     }
             return agents
-        elif 'historian.query' in platform_method and \
-                        PLATFORM_HISTORIAN in self.vip.peerlist().get(
-                            timeout=10):
-            _log.debug('Trapping platform.historian to vc.')
-            return agent.vip.rpc.call(
-                PLATFORM_HISTORIAN, 'query', **params).get(timeout=10)
-
         else:
             return agent.vip.rpc.call(
                 VOLTTRON_CENTRAL_PLATFORM, 'route_request', id,
