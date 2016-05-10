@@ -18,7 +18,7 @@ FORWARDER_1 = {
         "devices", "analysis", "record", "datalogger", "actuators"
     ],
     "topic_text_replace": [
-        {"from": "PNNL/SEB", "to": "PNNL/BUILDING1"}
+        {"from": "PNNL/BUILDING_1", "to": "PNNL/BUILDING1_ANON"}
     ]
 }
 
