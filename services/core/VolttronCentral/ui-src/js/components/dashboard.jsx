@@ -4,17 +4,22 @@ var React = require('react');
 var Router = require('react-router');
 
 var platformsStore = require('../stores/platforms-store');
+var platformChartStore = require('../stores/platform-chart-store');
 var Chart = require('./chart');
 var EditChartForm = require('./edit-chart-form');
 var modalActionCreators = require('../action-creators/modal-action-creators');
+
+var PlatformChart = require('./platform-chart');
 
 var Dashboard = React.createClass({
     getInitialState: getStateFromStores,
     componentDidMount: function () {
         platformsStore.addChangeListener(this._onStoreChange);
+        platformChartStore.addChangeListener(this._onStoreChange);
     },
     componentWillUnmount: function () {
         platformsStore.removeChangeListener(this._onStoreChange);
+        platformChartStore.removeChangeListener(this._onStoreChange);
     },
     _onStoreChange: function () {
         this.setState(getStateFromStores());
@@ -24,6 +29,19 @@ var Dashboard = React.createClass({
     },
     render: function () {
         var charts;
+        
+        var pinnedCharts = this.state.platformCharts; 
+
+        var platformCharts = [];
+
+        for (var key in pinnedCharts)
+        {
+            if (pinnedCharts[key].data.length > 0)
+            {
+                var platformChart = <PlatformChart chart={pinnedCharts[key]} chartKey={key} hideControls={true}/>
+                platformCharts.push(platformChart);
+            }
+        }
 
         if (!this.state.platforms) {
             charts = (
@@ -76,8 +94,8 @@ var Dashboard = React.createClass({
                         }, this);
                 }, this);
 
-            if (!charts.length) {
-                charts = (
+            if (pinnedCharts.length === 0) {
+                platformCharts = (
                     <p className="empty-help">
                         Pin a platform chart to have it appear on the dashboard
                     </p>
@@ -88,7 +106,8 @@ var Dashboard = React.createClass({
         return (
             <div className="view">
                 <h2>Dashboard</h2>
-                {charts}
+                {platformCharts}
+                
             </div>
         );
     },
@@ -97,6 +116,7 @@ var Dashboard = React.createClass({
 function getStateFromStores() {
     return {
         platforms: platformsStore.getPlatforms(),
+        platformCharts: platformChartStore.getPinnedCharts()
     };
 }
 

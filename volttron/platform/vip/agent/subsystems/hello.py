@@ -72,12 +72,35 @@ _log = logging.getLogger(__name__)
 
 
 class Hello(SubsystemBase):
+    """ The hello subsystem allows an agent to determine its identity.
+
+    The identity is possibly a dynamically generated uuid from which the
+    executing agent does not know.  This subsystem allows the agent to be
+    able to determine it's identity from a peer.  By default that peer is
+    the connected router, however this could be another agent.
+    """
+
     def __init__(self, core):
         self.core = weakref.ref(core)
         self._results = ResultsDictionary()
         core.register('hello', self._handle_hello, self._handle_error)
 
     def hello(self, peer=b''):
+        """ Receives a welcome message from the peer (default to '' router)
+
+         The welcome message will respond with a 3 element list:
+
+         - The vip version (default 1.0)
+         - The peer who responded (should be the same as `peer` argument
+           to this function.
+         - The id of the requester (i.e. this object).  This will be the
+           identity when the agent connects to the router or the specified
+           identity when the `Agent` is constructed.
+
+        :param peer: The peer to receive the response from.
+        :return: [version, peer, identity]
+        """
+        _log.info('Requesting hello from peer ({})'.format(peer))
         socket = self.core().socket
         result = next(self._results)
         socket.send_vip(peer, b'hello', [b'hello'], msg_id=result.ident)
@@ -86,6 +109,7 @@ class Hello(SubsystemBase):
     __call__ = hello
 
     def _handle_hello(self, message):
+        _log.info('Handling hello message {}'.format(message))
         try:
             op = bytes(message.args[0])
         except IndexError:

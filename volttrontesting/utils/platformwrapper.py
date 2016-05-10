@@ -1,26 +1,26 @@
 import ConfigParser as configparser
+from contextlib import closing
 import json
+import logging
 import os
 import shutil
-import logging
+import sys
+import tempfile
+import time
+
+import gevent
 from gevent.fileobject import FileObject
 import gevent.subprocess as subprocess
 from gevent.subprocess import Popen
-import sys
-import time
-import tempfile
-import unittest
 from subprocess import CalledProcessError
 
 from os.path import dirname
-from contextlib import closing
-from StringIO import StringIO
 
 import zmq
 from zmq.utils import jsonapi
 
-import gevent
 
+from volttron.platform.auth import AuthFile, AuthEntry
 from volttron.platform.agent.utils import strip_comments
 from volttron.platform.messaging import topics
 from volttron.platform.main import start_volttron_process
@@ -107,8 +107,10 @@ RUN_DIR = 'run'
 PUBLISH_TO = RUN_DIR+'/publish'
 SUBSCRIBE_TO = RUN_DIR+'/subscribe'
 
+
 class PlatformWrapperError(Exception):
     pass
+
 
 class PlatformWrapper:
     def __init__(self):
@@ -117,23 +119,85 @@ class PlatformWrapper:
         Creates a temporary VOLTTRON_HOME directory with a packaged directory for
         agents that are built.
         '''
-        self.volttron_home = tempfile.mkdtemp()
-        self.packaged_dir = os.path.join(self.volttron_home, "packaged")
-        os.makedirs(self.packaged_dir)
+        self.__volttron_home = tempfile.mkdtemp()
+        self.__packaged_dir = os.path.join(self.volttron_home, "packaged")
+        os.makedirs(self.__packaged_dir)
         self.env = os.environ.copy()
         self.env['VOLTTRON_HOME'] = self.volttron_home
 
+        # TODO: does changing os.environ affect the environment external to
+        # this script?
+        os.environ['VOLTTRON_HOME'] = self.volttron_home
+
+        # By default no web server should be started.
+        self.__bind_web_address = None
+
         self._p_process = None
         self._t_process = None
-        self.publickey = self.generate_key()
+        self.__publickey = self.generate_key()
         self._started_pids = []
+        self.__local_vip_address = None
+        self.__vip_address = None
         print('Creating Platform Wrapper at: {}'.format(self.volttron_home))
+
+    @property
+    def bind_web_address(self):
+        return self.__bind_web_address
+
+    @property
+    def local_vip_address(self):
+        return self.__local_vip_address
+
+    @property
+    def packaged_dir(self):
+        return self.__packaged_dir
+
+
+    @property
+    def publickey(self):
+        return self.__publickey
+
+    @property
+    def vip_address(self):
+        return self.__vip_address
+
+    @property
+    def volttron_home(self):
+        return self.__volttron_home
+
+    def allow_all_connections(self):
+        """ Add a CURVE:.* entry to the auth.json file.
+        """
+        entry = AuthEntry(credentials="/CURVE:.*/")
+        authfile = AuthFile(self.volttron_home+"/auth.json")
+        authfile.add(entry)
+
 
     def build_agent(self, address=None, should_spawn=True, identity=None,
                     publickey=None, secretkey=None, serverkey=None, **kwargs):
+        """ Build an agent connnected to the passed bus.
+
+        By default the current instance that this class wraps will be the
+        vip address of the agent.
+
+        :param address:
+        :param should_spawn:
+        :param identity:
+        :param publickey:
+        :param secretkey:
+        :param serverkey:
+        :return:
+        """
         _log.debug('BUILD GENERIC AGENT')
+
+        use_ipc = kwargs.pop('use_ipc', False)
         if address is None:
-            address = self.vip_address[0]
+            if use_ipc:
+                print('Using IPC vip-address')
+                address = "ipc://@"+self.volttron_home+"/run/vip.socket"
+            else:
+                print('Using vip-address '+self.vip_address)
+                address = self.vip_address
 
         agent = Agent(address=address, identity=identity, publickey=publickey,
                       secretkey=secretkey, serverkey=serverkey, **kwargs)
@@ -141,7 +205,10 @@ class PlatformWrapper:
 
         # Automatically add agent's credentials to auth.json file
         if publickey:
-            self._append_allow_curve_key(publickey)
+            print('Adding publickey to auth.json')
+            gevent.spawn(self._append_allow_curve_key, publickey)
+            gevent.sleep(0.1)
+
 
         if should_spawn:
             print('platformwrapper.build_agent spawning')
@@ -176,14 +243,9 @@ class PlatformWrapper:
         return auth, auth_path
 
     def _append_allow_curve_key(self, publickey):
-        auth, auth_path = self._read_auth_file()
-        cred = 'CURVE:{}'.format(publickey)
-        allow = auth['allow']
-        if not any(record['credentials'] == cred for record in allow):
-            allow.append({'credentials': cred})
-
-        with open(auth_path, 'w+') as fd:
-            json.dump(auth, fd)
+        entry = AuthEntry(credentials="CURVE:{}".format(publickey))
+        authfile = AuthFile(self.volttron_home+"/auth.json")
+        authfile.add(entry)
 
     def add_capabilities(self, publickey, capabilities):
         if isinstance(capabilities, basestring):
@@ -204,14 +266,16 @@ class PlatformWrapper:
                 fd.write(json.dumps(auth_dict))
 
     def startup_platform(self, vip_address, auth_dict=None, use_twistd=False,
-        mode=UNRESTRICTED, encrypt=False):
+        mode=UNRESTRICTED, encrypt=False, bind_web_address=None):
         # if not isinstance(vip_address, list):
         #     self.vip_address = [vip_address]
         # else:
         #     self.vip_address = vip_address
 
-        self.vip_address = [vip_address]
+        self.vip_address = vip_address
         self.mode = mode
+        self.bind_web_address = bind_web_address
+
         enable_logging = os.environ.get('ENABLE_LOGGING', False)
         debug_mode = os.environ.get('DEBUG_MODE', False)
         self.skip_cleanup = os.environ.get('SKIP_CLEANUP', False)
@@ -226,7 +290,7 @@ class PlatformWrapper:
         ipc = 'ipc://{}{}/run/'.format(
             '@' if sys.platform.startswith('linux') else '',
             self.volttron_home)
-
+        self.local_vip_address = ipc + 'vip.socket'
         if not encrypt:
             # Remove connection encryption
             with open(os.path.join(self.volttron_home, 'curve.key'), 'w'):
@@ -235,18 +299,19 @@ class PlatformWrapper:
         self.set_auth_dict(auth_dict)
 
         self.opts = {'verify_agents': False,
-                     'volttron_home': self.volttron_home,
-                     'vip_address': vip_address,
-                     'vip_local_address': ipc + 'vip.socket',
-                     'publish_address': ipc + 'publish',
-                     'subscribe_address': ipc + 'subscribe',
-                     'developer_mode': not encrypt,
-                     'log': os.path.join(self.volttron_home,'volttron.log'),
-                     'log_config': None,
-                     'monitor': True,
-                     'autostart': True,
-                     'log_level': logging.DEBUG,
-                     'verboseness': logging.DEBUG}
+                'volttron_home': self.volttron_home,
+                'vip_address': vip_address,
+                'vip_local_address': ipc + 'vip.socket',
+                'publish_address': ipc + 'publish',
+                'subscribe_address': ipc + 'subscribe',
+                'bind_web_address': bind_web_address,
+                'developer_mode': not encrypt,
+                'log': os.path.join(self.volttron_home,'volttron.log'),
+                'log_config': None,
+                'monitor': True,
+                'autostart': True,
+                'log_level': logging.DEBUG,
+                'verboseness': logging.DEBUG}
 
         pconfig = os.path.join(self.volttron_home, 'config')
         config = {}
@@ -254,7 +319,8 @@ class PlatformWrapper:
         parser =  configparser.ConfigParser()
         parser.add_section('volttron')
         parser.set('volttron', 'vip-address', vip_address)
-
+        if bind_web_address:
+            parser.set('volttron', 'bind-web-address', bind_web_address)
         if self.mode == UNRESTRICTED:
             if RESTRICTED_AVAILABLE:
                 config['mobility'] = False
@@ -463,7 +529,6 @@ class PlatformWrapper:
         self._started_pids.append(pid)
         return int(pid)
 
-
     def stop_agent(self, agent_uuid):
         # Confirm agent running
         _log.debug("STOPPING AGENT: {}".format(agent_uuid))
@@ -600,7 +665,7 @@ class PlatformWrapper:
             pid = self._started_pids.pop()
             print('ending pid: {}'.format(pid))
             try:
-                os.kill(pid,signal.SIGTERM)
+                os.kill(pid, signal.SIGTERM)
             except:
                 print('could not kill: {} '.format(pid))
         if self._p_process != None:

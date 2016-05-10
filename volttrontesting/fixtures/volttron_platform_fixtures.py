@@ -8,6 +8,7 @@ PRINT_LOG_ON_SHUTDOWN = False
 
 def print_log(volttron_home):
     if PRINT_LOG_ON_SHUTDOWN:
+        if os.environ.get('PRINT_LOGS', PRINT_LOG_ON_SHUTDOWN):
             log_path = volttron_home + "/volttron.log"
             if os.path.exists(log_path):
                 with open(volttron_home + "/volttron.log") as fin:
@@ -24,14 +25,15 @@ def get_rand_ip_and_port():
 
 def get_rand_port(ip=None):
     port = randint(5000, 6000)
-    while is_port_open(port):
-        port = randint(5000, 6000)
+    if ip:
+        while is_port_open(ip, port):
+            port = randint(5000, 6000)
     return port
 
 
-def is_port_open(port):
+def is_port_open(ip, port):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    result = sock.connect_ex(('127.0.0.1', port))
+    result = sock.connect_ex((ip, port))
     return result == 0
 
 
@@ -155,7 +157,7 @@ def volttron_instance(request):
     @return: volttron platform instance
     """
     wrapper = None
-    address = "tcp://127.0.0.1:{}".format(get_rand_port())
+    address = get_rand_ip_and_port()
     if request.param == 'encrypted':
         print("building instance 1 (using encryption)")
         wrapper = build_wrapper(address, encrypt=True)

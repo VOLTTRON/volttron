@@ -185,9 +185,11 @@ class ExecutionEnvironment(object):
     '''
     def __init__(self):
         self.process = None
+        self.env = None
 
     def execute(self, *args, **kwargs):
         try:
+            self.env = kwargs.get('env', None)
             self.process = subprocess.Popen(*args, **kwargs)
         except OSError as e:
             if e.filename:
@@ -351,6 +353,22 @@ class AIPplatform(object):
         else:
             with open(tag_file, 'w') as file:
                 file.write(tag[:64])
+
+    def agent_identity(self, agent_uuid):
+        """ Return the identity of the agent that is installed.
+
+        The IDENTITY file is written to the agent's install directory the
+        the first time the agent is installed.  This function reads that
+        file and returns the read value.
+
+        @param agent_uuid:
+        @return:
+        """
+        if '/' in agent_uuid or agent_uuid in ['.', '..']:
+            raise ValueError('invalid agent')
+        identity_file = os.path.join(self.install_dir, agent_uuid, 'IDENTITY')
+        with ignore_enoent, open(identity_file, 'r') as file:
+            return file.readline(64)
 
     def agent_tag(self, agent_uuid):
         if '/' in agent_uuid or agent_uuid in ['.', '..']:

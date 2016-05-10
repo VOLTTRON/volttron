@@ -93,4 +93,4 @@ done
 
 
 mongo admin --eval 'db.createUser( {user: "'$admin_user'", pwd: "'$admin_passwd'", roles: [ { role: "userAdminAnyDatabase", db: "admin" }]});'
-mongo $db_name -u $admin_user -p $admin_passwd --authenticationDatabase admin --eval 'db.createUser( {user: "'$volttron_user'", pwd: "'$volttron_passwd'", roles: [ { role: "readWrite", db: "'$db_name'" }]});'
+mongo $db_name -u $admin_user -p $admin_passwd --authenticationDatabase admin --eval 'use '"$db_name"'; db.createUser( {user: "'$volttron_user'", pwd: "'$volttron_passwd'", roles: [ { role: "readWrite", db: "'$db_name'" }]});'

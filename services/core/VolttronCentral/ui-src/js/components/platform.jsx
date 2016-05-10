@@ -86,42 +86,9 @@ var Platform = React.createClass({
                 </div>
             );
         }
-
-        var charts;
+        
         var agents;
-
-        if (!platform.charts) {
-            charts = (
-                <p>Loading charts...</p>
-            );
-        } else {
-            charts = platform.charts.map(function (chart) {
-                var key = [
-                    platform.uuid,
-                    chart.topic,
-                    chart.type,
-                ].join('::');
-
-                return (
-                    <div key={key} className="view__item view__item--tile chart">
-                        <h4 className="chart__title">{chart.topic}</h4>
-                        <Chart
-                            platform={platform}
-                            chart={chart}
-                        />
-                        <div className="chart__actions">
-                            <a onClick={this._onEditChartClick.bind(this, platform, chart)}>
-                                Edit
-                            </a>
-                            <a onClick={this._onDeleteChartClick.bind(this, platform, chart)}>
-                                Delete
-                            </a>
-                        </div>
-                    </div>
-                );
-            }, this);
-        }
-
+        
         if (!platform.agents) {
             agents = (
                 <p>Loading agents...</p>
@@ -135,7 +102,7 @@ var Platform = React.createClass({
                 <table>
                     <thead>
                         <tr>
-                            <th>Agent</th>
+                            <th>Tag</th>
                             <th>UUID</th>
                             <th>Status</th>
                             <th>Action</th>
@@ -163,7 +130,7 @@ var Platform = React.createClass({
         }
 
         return (
-            <div className="view">
+            <div className="platform-view">
                 {this.state.error && (
                     <div className="view__error error">{this.state.error}</div>
                 )}
@@ -172,16 +139,9 @@ var Platform = React.createClass({
                     &nbsp;/&nbsp;
                     {platform.name} ({platform.uuid})
                 </h2>
-                <h3>Charts</h3>
-                {charts}
-                <div>
-                    <button
-                        className="button"
-                        onClick={this._onAddChartClick.bind(null, this.state.platform)}
-                    >
-                        Add chart
-                    </button>
-                </div>
+                
+                <br/>
+                <br/>
                 <h3>Agents</h3>
                 {agents}
                 <h3>Install agents</h3>

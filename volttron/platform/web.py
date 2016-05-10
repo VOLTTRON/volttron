@@ -64,6 +64,9 @@ from urlparse import urlparse, urljoin
 
 from gevent import pywsgi
 import mimetypes
+
+from requests.packages.urllib3.connection import (ConnectionError,
+                                                  NewConnectionError)
 from zmq.utils import jsonapi
 
 from .auth import AuthEntry, AuthFile
@@ -98,8 +101,6 @@ class DiscoveryInfo(object):
         self.discovery_address = kwargs.pop('discovery_address')
         self.vip_address = kwargs.pop('vip-address')
         self.serverkey = kwargs.pop('serverkey')
-        self.vcpublickey = kwargs.pop('vcpublickey', None)
-        self.papublickey = kwargs.pop('papublickey', None)
         assert len(kwargs) == 0
 
     @staticmethod
@@ -116,14 +117,21 @@ class DiscoveryInfo(object):
 
         assert parsed.scheme
         assert not parsed.path
+        try:
+            real_url = urljoin(discovery_address, "/discovery/")
+            _log.info('Connecting to: {}'.format(real_url))
+            response = requests.get(real_url)
 
-        real_url = urljoin(discovery_address, "/discovery/")
-        response = requests.get(real_url)
-
-        if not response.ok:
+            if not response.ok:
+                raise DiscoveryError(
+                    "Invalid discovery response from {}".format(real_url)
+                )
+        except (ConnectionError, NewConnectionError) as e:
             raise DiscoveryError(
-                "Invalid discovery response from {}".format(real_url)
+                "Connection to {} not available".format(real_url)
             )
+        except Exception as e:
+            raise DiscoveryError("Unhandled exception {}".format(e))
 
         return DiscoveryInfo(
             discovery_address=discovery_address, **(response.json()))
@@ -134,12 +142,6 @@ class DiscoveryInfo(object):
             'vip_address': self.vip_address,
             'serverkey': self.serverkey
         }
-
-        if self.vcpublickey:
-            dk['vcpublickey'] = self.vcpublickey
-
-        if self.papublickey:
-            dk['papublickey'] = self.papublickey
 
         return jsonapi.dumps(dk)
 
@@ -171,7 +173,8 @@ class MasterWebService(Agent):
     that will be called during the request process.
     """
 
-    def __init__(self, serverkey, identity, address, bind_web_address, aip):
+    def __init__(self, serverkey, identity, address, bind_web_address, aip,
+                 volttron_central_address=None):
         """Initialize the discovery service with the serverkey
 
         serverkey is the public key in order to access this volttron's bus.
@@ -179,12 +182,38 @@ class MasterWebService(Agent):
         super(MasterWebService, self).__init__(identity, address)
 
         self.bind_web_address = bind_web_address
+        # if the web address is bound then we need to allow the web agent
+        # to be discoverable.  That means we need to allow connections to
+        # the message bus in some known addresses if they aren't already
+        # specified.
+        if self.bind_web_address:
+            authfile = AuthFile()
+            entries, _, _ = authfile.read()
+            if not entries:
+                _log.debug(
+                    'Adding default curve credentials for discoverability.')
+                authfile.add(AuthEntry(credentials="/CURVE:.*/"))
+
         self.serverkey = serverkey
         self.registeredroutes = []
         self.peerroutes = defaultdict(list)
+        self.pathroutes = defaultdict(list)
         self.aip = aip
+
+        self.volttron_central_address = volttron_central_address
+
+        # If vc is this instance then make the vc address the same as
+        # the web address.
+        if not self.volttron_central_address:
+            self.volttron_central_address = bind_web_address
+
+
         if not mimetypes.inited:
             mimetypes.init()
+
+        authentry = AuthEntry(credentials="/CURVE:.*/")
+        authfile = AuthFile()
+        authfile.add(authentry)
 
     @RPC.export
     def get_bind_web_address(self):
@@ -193,6 +222,15 @@ class MasterWebService(Agent):
     @RPC.export
     def get_serverkey(self):
         return self.serverkey
+
+    @RPC.export
+    def get_volttron_central_address(self):
+        """Return address of external Volttron Central
+
+        Note: this only applies to Volltron Central agents that are
+        running on a different platform.
+        """
+        return self.volttron_central_address
 
     @RPC.export
     def register_agent_route(self, regex, peer, fn):
@@ -214,14 +252,26 @@ class MasterWebService(Agent):
         for regex in self.peerroutes[peer]:
             out = [cp for cp in self.registeredroutes if cp[0] != regex]
             self.registeredroutes = out
+        del self.peerroutes[peer]
+        for regex in self.pathroutes[peer]:
+            out = [cp for cp in self.registeredroutes if cp[0] != regex]
+            self.registeredroutes = out
+        del self.pathroutes[peer]
 
     @RPC.export
-    def register_path_route(self, regex, root_dir):
+    def register_path_route(self, peer, regex, root_dir):
         _log.info('Registiering path route: {}'.format(root_dir))
         compiled = re.compile(regex)
+        self.pathroutes[peer].append(compiled)
         self.registeredroutes.append((compiled, 'path', root_dir))
 
-    def _redirect_index(self, env, start_response):
+    def _redirect_index(self, env, start_response, data=None):
+        """ Redirect to the index page.
+        @param env:
+        @param start_response:
+        @param data:
+        @return:
+        """
         start_response('302 Found', [('Location', '/index.html')])
         return ['1']
 
@@ -265,18 +315,6 @@ class MasterWebService(Agent):
         peers = self.vip.peerlist().get(timeout=2)
 
         return_dict = {}
-        vc_publickey = None
-        pa_publickey = None
-        if 'volttron.central' in peers:
-            print('doing vc public key')
-            vc_publickey = self.aip.agent_publickey('volttron.central')
-            # vc_publickey = q.query(b'publickey', b'volttron.central').get(timeout=2)
-            return_dict['vcpublickey'] = vc_publickey
-        if 'platform.agent' in peers:
-            print('doing pa public key')
-            pa_publickey = self.aip.agent_publickey('platform.agent')
-            # pa_publickey = q.query(b'publickey', b'platform.agent').get(timeout=2)
-            return_dict['papublickey'] = pa_publickey
 
         if self.serverkey:
             return_dict['serverkey'] = encode_key(self.serverkey)
@@ -310,6 +348,7 @@ class MasterWebService(Agent):
             if k.match(path_info):
                 _log.debug("MATCHED:\npattern: {}, path_info: {}\n v: {}"
                            .format(k.pattern, path_info, v))
+                _log.debug('registered route t is: {}'.format(t))
                 if t == 'callable':  # Generally for locally called items.
                     return v(env, start_response, data)
                 elif t == 'peer_route':  # RPC calls from agents on the platform.
@@ -319,6 +358,7 @@ class MasterWebService(Agent):
                     res = self.vip.rpc.call(peer, fn, passenv, data).get(
                         timeout=4)
                     if isinstance(res, dict):
+                        _log.debug('res is a dictionary.')
                         if 'error' in res.keys():
                             if res['error']['code'] == UNAUTHORIZED:
                                 start_response('401 Unauthorized', [
@@ -326,6 +366,7 @@ class MasterWebService(Agent):
                                 return [b'<h1>Unauthorized</h1>']
                     start_response('200 OK',
                                    [('Content-Type', 'application/json')])
+                    _log.debug('RESPONSE WEB: {}'.format(res))
                     return jsonapi.dumps(res)
                 elif t == 'path':  # File service from agents on the platform.
                     server_path = v + path_info  # os.path.join(v, path_info)
@@ -367,7 +408,7 @@ class MasterWebService(Agent):
         hostname = parsed.hostname
         port = parsed.port
 
-        _log.debug('Starting web server binding to {}:{}.' \
+        _log.info('Starting web server binding to {}:{}.' \
                    .format(hostname, port))
         self.registeredroutes.append((re.compile('^/discovery/$'), 'callable',
                                       self._get_discovery))
@@ -377,5 +418,25 @@ class MasterWebService(Agent):
         self.registeredroutes.append((re.compile('^/$'), 'callable',
                                       self._redirect_index))
         port = int(port)
-        server = pywsgi.WSGIServer((hostname, port), self.app_routing)
+	server = pywsgi.WSGIServer((hostname, port), self.app_routing)
         server.serve_forever()
+
+
+def build_vip_address_string(vip_root, serverkey, publickey, secretkey):
+    """ Build a full vip address string based upon the passed arguments
+
+    All arguments are required to be non-None in order for the string to be
+    created successfully.
+
+    :raises ValueError if one of the parameters is None.
+    """
+    _log.debug("root: {}, serverkey: {}, publickey: {}, secretkey: {}".format(
+        vip_root, serverkey, publickey, secretkey))
+    if not (serverkey and publickey and secretkey and vip_root):
+        raise ValueError("All parameters must be entered.")
+
+    root = "{}?serverkey={}&publickey={}&secretkey={}".format(
+        vip_root, serverkey, publickey, secretkey
+    )
+
+    return root
