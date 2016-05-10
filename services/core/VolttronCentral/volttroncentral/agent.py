@@ -753,7 +753,7 @@ class VolttronCentralAgent(Agent):
             return self._handle_list_platforms()
         elif method == 'unregister_platform':
             return self.unregister_platform(params['platform_uuid'])
-        elif method[:len('historian')] == 'historian':
+        elif 'historian' in method:
             has_platform_historian = PLATFORM_HISTORIAN in \
                                      self.vip.peerlist().get(timeout=10)
             _log.debug('Trapping platform.historian to vc.')
