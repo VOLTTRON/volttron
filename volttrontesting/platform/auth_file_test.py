@@ -182,3 +182,38 @@ def test_find_by_credentials(auth_file_platform_tuple):
     # try to find non-existing creds
     results = auth_file.find_by_credentials('CURVE:' + 'C'*43)
     assert len(results) == 0
+
+
+@pytest.mark.auth
+def test_groups_and_roles(auth_file_platform_tuple):
+    auth_file = auth_file_platform_tuple[0]
+    cred = 'CURVE:' + 'C'*43
+    auth_file.add(AuthEntry(credentials=cred, groups=['group_1'],
+                            roles=['role_b']))
+
+    # This entry hasn not been granted any capabilities
+    results = auth_file.find_by_credentials(cred)
+    assert len(results) == 1
+    entry = results[0]
+    assert not set(entry.capabilities)
+
+    # Add roles and groups to the auth file
+    roles = {
+        'role_a': ['cap_a_1', 'cap_a_2'],
+        'role_b': ['cap_b_1'],
+        'role_c': ['cap_c_1'],
+        'role_d': ['cap_d_1']
+    }
+    groups = {
+        'group_1': ['role_a', 'role_c'],
+        'group_2': ['role_b']
+    }
+    auth_file.set_roles(roles)
+    auth_file.set_groups(groups)
+
+    # Now the entry has inherited capabilities from its roles and groups
+    results = auth_file.find_by_credentials(cred)
+    assert len(results) == 1
+    entry = results[0]
+    assert set(entry.capabilities) == set(['cap_a_1', 'cap_a_2', 'cap_b_1',
+                                           'cap_c_1'])
