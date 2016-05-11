@@ -427,23 +427,3 @@ class MasterWebService(Agent):
                 server = pywsgi.WSGIServer((hostname, port), self.app_routing,
                                        log=accesslog, error_log=errlog)
                 server.serve_forever()
-
-
-def build_vip_address_string(vip_root, serverkey, publickey, secretkey):
-    """ Build a full vip address string based upon the passed arguments
-
-    All arguments are required to be non-None in order for the string to be
-    created successfully.
-
-    :raises ValueError if one of the parameters is None.
-    """
-    _log.debug("root: {}, serverkey: {}, publickey: {}, secretkey: {}".format(
-        vip_root, serverkey, publickey, secretkey))
-    if not (serverkey and publickey and secretkey and vip_root):
-        raise ValueError("All parameters must be entered.")
-
-    root = "{}?serverkey={}&publickey={}&secretkey={}".format(
-        vip_root, serverkey, publickey, secretkey
-    )
-
-    return root

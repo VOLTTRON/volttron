@@ -456,7 +456,7 @@ class Core(BasicCore):
             url[3] += add_param(url[3], 'publickey', publickey)
             url[3] += add_param(url[3], 'secretkey', secretkey)
             url[3] += add_param(url[3], 'serverkey', serverkey)
-            self.address = urlparse.urlunsplit(url)
+            self.address = str(urlparse.urlunsplit(url))
 
     def _get_keys(self):
         publickey, secretkey, _ = self._get_keys_from_addr()
