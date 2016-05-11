@@ -74,7 +74,7 @@ from volttron.platform import get_home
 class BaseJSONStore(object):
     '''JSON-file-backed store for dictionaries'''
 
-    def __init__(self, filename, permissions=0o660):
+    def __init__(self, filename, permissions=0o600):
         self.filename = filename
         self.permissions = permissions
         create_file_if_missing(filename)
@@ -103,7 +103,7 @@ class BaseJSONStore(object):
 
 
 class KeyStore(BaseJSONStore):
-    '''Handle generation, storage, and retrival of keys'''
+    """Handle generation, storage, and retrival of CURVE key pairs"""
 
     def __init__(self, filename=None):
         if filename is None:
@@ -113,17 +113,32 @@ class KeyStore(BaseJSONStore):
             self.generate()
 
     def generate(self):
+        """Generate new key pair"""
         public, secret = curve_keypair()
         self.store({'public': encode_key(public),
                     'secret': encode_key(secret)})
 
+    def _get_key(self, keyname):
+        """Get key and make sure it is str (not unicode)
+
+        The json module returns all strings as unicode, but base64
+        decode doesn't handle unicode.
+        """
+        key = self.load().get(keyname, None)
+        if key:
+            key = str(key)
+        return key
+
     def public(self):
-        return self.load().get('public', None)
+        """Return encoded public key"""
+        return self._get_key('public')
 
     def secret(self):
-        return self.load().get('secret', None)
+        """Return encoded secret key"""
+        return self._get_key('secret')
 
     def isvalid(self):
+        """Check if key pair is valid"""
         return self.public() and self.secret()
 
 
