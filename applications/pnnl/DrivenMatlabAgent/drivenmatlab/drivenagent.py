@@ -57,8 +57,7 @@
 import csv
 from datetime import datetime as dt, timedelta as td
 import logging
-import sys
-import re
+import gevent
 from copy import deepcopy
 import sys
 from dateutil.parser import parse
@@ -107,6 +106,7 @@ def driven_agent(config_path, **kwargs):
     device_topic_dict = {}
     device_topic_list = []
     subdevices_list = []
+    vip_destination = config.get('vip_destination', None)
     from_file = config.get('from_file')
     for device_name in device_config:
         device_topic = topics.DEVICES_VALUE(campus=campus_building.get('campus'),
@@ -157,16 +157,16 @@ def driven_agent(config_path, **kwargs):
     # can keep it state.
     app_instance = klass(**arguments)
 
-    
+
     class DrivenAgent(Agent):
         """Agent listens to message bus device and runs when data is published.
         """
-        
+
         def __init__(self, **kwargs):
             """
             Initializes agent
             :param kwargs: Any driver specific parameters"""
-        
+
             super(DrivenAgent, self).__init__(**kwargs)
 
             # master is where we copy from to get a poppable list of
@@ -177,20 +177,30 @@ def driven_agent(config_path, **kwargs):
             self._initialize_devices()
             self.received_input_datetime = None
             self._kwargs = kwargs
-
             self._header_written = False
             self.file_creation_set = set()
+            self.actuation_vip = self.vip.rpc
+            if vip_destination:
+                self.agent = self.setup_remote_actuation(vip_destination)
+                self.actuation_vip = self.agent.vip.rpc
 
         def _initialize_devices(self):
             self._needed_devices = deepcopy(self._master_devices)
             self._device_values = {}
 
+        def setup_remote_actuation(self, vip_destination):
+            event = gevent.event.Event()
+            agent = Agent(address=vip_destination)
+            gevent.spawn(agent.core.run, event)
+            event.wait(timeout=10)
+            return agent
+
         @Core.receiver('onstart')
         def starup(self, sender, **kwargs):
             """
-            Starts up the agent and subscribes to device topics 
+            Starts up the agent and subscribes to device topics
             based on agent configuration.
-            :param sender: 
+            :param sender:
             :param kwargs: Any driver specific parameters
             :type sender: str"""
             self._initialize_devices()
@@ -199,28 +209,28 @@ def driven_agent(config_path, **kwargs):
                 self.vip.pubsub.subscribe(peer='pubsub',
                                           prefix=device_topic,
                                           callback=self.on_analysis_message)
-        
+
         def _should_run_now(self):
             """
-            Checks if messages from all the devices are received 
-                before running application         
+            Checks if messages from all the devices are received
+                before running application
             :returns: True or False based on received messages.
             :rtype: boolean"""
             # Assumes the unit/all values will have values.
             if not len(self._device_values.keys()) > 0:
                 return False
             return not len(self._needed_devices) > 0
-            
+
         def on_analysis_message(self, peer, sender, bus, topic, headers, message):
             """
             Subscribe to device data and assemble data set to pass
                 to applications.
-            :param peer: 
+            :param peer:
             :param sender: device name
-            :param bus: 
-            :param topic: device path topic 
+            :param bus:
+            :param topic: device path topic
             :param headers: message headers
-            :param message: message containing points and values dict 
+            :param message: message containing points and values dict
                     from device with point type
             :type peer: str
             :type sender: str
@@ -228,7 +238,7 @@ def driven_agent(config_path, **kwargs):
             :type topic: str
             :type headers: dict
             :type message: dict"""
-            
+
             device_data = message[0]
             if isinstance(device_data, list):
                 device_data = device_data[0]
@@ -249,7 +259,7 @@ def driven_agent(config_path, **kwargs):
             if not device_needed:
                 _log.error("Warning device values already present, "
                            "reinitializing")
-
+                self._initialize_devices()
             if self._should_run_now():
                 field_names = {}
                 for k, v in self._device_values.items():
@@ -275,14 +285,14 @@ def driven_agent(config_path, **kwargs):
 
         def _process_results(self, results):
             """
-            Runs driven application with converted data. Calls appropriate 
+            Runs driven application with converted data. Calls appropriate
                 methods to process commands, log and table_data in results.
-            :param results: Results object containing commands for devices, 
+            :param results: Results object containing commands for devices,
                     log messages and table data.
             :type results: Results object \\volttron.platform.agent.driven
-            :returns: Same as results param. 
+            :returns: Same as results param.
             :rtype: Results object \\volttron.platform.agent.driven"""
-            
+
             def make_actuator_request(command_dict, results):
                 for device_tag, new_value in command_dict.items():
                     _log.debug("COMMAND TABLE: {}->{}".format(device_tag, new_value))
@@ -307,18 +317,18 @@ def driven_agent(config_path, **kwargs):
             if len(results.table_output.keys()):
                 results = self.publish_analysis_results(results)
             return results
-        
+
         def publish_analysis_results(self, results):
             """
             Publish table_data in analysis results to the message bus for
-                capture by the data historian. 
-                        
-            :param results: Results object containing commands for devices, 
+                capture by the data historian.
+
+            :param results: Results object containing commands for devices,
                     log messages and table data.
             :type results: Results object \\volttron.platform.agent.driven
-            :returns: Same as results param. 
+            :returns: Same as results param.
             :rtype: Results object \\volttron.platform.agent.driven"""
-            
+
             headers = {
                 headers_mod.CONTENT_TYPE: headers_mod.CONTENT_TYPE.JSON,
                 headers_mod.DATE: str(self.received_input_datetime),
@@ -353,16 +363,16 @@ def driven_agent(config_path, **kwargs):
                             self.vip.pubsub.publish(
                                 'pubsub', analysis_topic, headers, message)
             return results
-        
+
         def create_file_output(self, results):
             """
-            Create results/data files for testing and algorithm validation 
+            Create results/data files for testing and algorithm validation
             if table data is present in the results.
-            
-            :param results: Results object containing commands for devices, 
+
+            :param results: Results object containing commands for devices,
                     log messages and table data.
             :type results: Results object \\volttron.platform.agent.driven
-            :returns: Same as results param. 
+            :returns: Same as results param.
             :rtype: Results object \\volttron.platform.agent.driven"""
             for key, value in results.table_output.items():
                 name_timestamp = key.split('&')
@@ -383,28 +393,28 @@ def driven_agent(config_path, **kwargs):
                         file_output.writerow(row)
                     file_to_write.close()
             return results
-        
+
         def actuator_request(self, results):
             """
-            Calls the actuator's request_new_schedule method to get 
+            Calls the actuator's request_new_schedule method to get
                     device schedule
-            
-            :param results: Results object containing commands for devices, 
+
+            :param results: Results object containing commands for devices,
                     log messages and table data.
             :type results: Results object \\volttron.platform.agent.driven
             :returns: Return result from request_new_schedule method
-                        and True or False for error in scheduling device. 
+                        and True or False for error in scheduling device.
             :rtype: dict and boolean
             :Return Values:
-            
+
             The return values has the following format:
-            
+
                 result = {'info': u'', 'data': {}, 'result': 'SUCCESS'}
                 request_error = True/False
-            
-            warning:: Calling without previously scheduling a device and not within 
+
+            warning:: Calling without previously scheduling a device and not within
                          the time allotted will raise a LockError"""
-            
+
             _now = dt.now()
             str_now = _now.strftime(DATE_FORMAT)
             _end = _now + td(minutes=1)
@@ -413,10 +423,10 @@ def driven_agent(config_path, **kwargs):
                 actuation_device = base_actuator_path(unit=_device, point='')
                 schedule_request = [[actuation_device, str_now, str_end]]
                 try:
-                    result = self.vip.rpc.call('platform.actuator',
-                                               'request_new_schedule',
-                                               actuator_id, _device, 'HIGH',
-                                               schedule_request).get(timeout=4)
+                    result = self.actuation_vip.call('platform.actuator',
+                                                     'request_new_schedule',
+                                                     actuator_id, _device, 'HIGH',
+                                                     schedule_request).get(timeout=4)
                 except RemoteError as ex:
                     _log.warning("Failed to schedule device {} (RemoteError): {}".format(_device, str(ex)))
                     request_error = True
@@ -430,24 +440,24 @@ def driven_agent(config_path, **kwargs):
                         request_error = True
                 else:
                     request_error = False
-            
+
             return results, request_error
-        
+
         def actuator_set(self, results):
             """
             Calls the actuator's set_point method to set point on device
-            
-            :param results: Results object containing commands for devices, 
+
+            :param results: Results object containing commands for devices,
                     log messages and table data.
             :type results: Results object \\volttron.platform.agent.driven"""
-            
+
             def make_actuator_set(device, point_value_dict):
                 for point, new_value in point_value_dict.items():
                     point_path = base_actuator_path(unit=device, point=point)
                     try:
-                        result = self.vip.rpc.call('platform.actuator', 'set_point',
-                                                   actuator_id, point_path,
-                                                   new_value).get(timeout=4)
+                        result = self.actuation_vip.call('platform.actuator', 'set_point',
+                                                         actuator_id, point_path,
+                                                         new_value).get(timeout=4)
                         _log.debug("Set point {} to {}".format(point_path, new_value))
                     except RemoteError as ex:
                         _log.warning("Failed to set {} to {}: {}".format(point_path, new_value, str(ex)))
