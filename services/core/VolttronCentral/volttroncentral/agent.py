@@ -87,7 +87,7 @@ from volttron.platform.web import (DiscoveryInfo, DiscoveryError)
 from zmq.utils import jsonapi
 from .registry import PlatformRegistry
 
-__version__ = "3.5.1"
+__version__ = "3.5.2"
 
 _log = logging.getLogger(__name__)
 
@@ -133,7 +133,12 @@ class VolttronCentralAgent(Agent):
             raise ValueError('users not specified within the config file.')
 
         # Search and replace for topics
-        self._topic_replace_list = self._config.get('topic_replace_list', None)
+        # The difference between the list and the map is that the list
+        # specifies the search and replaces that should be done on all of the
+        # incoming topics.  Once all of the search and replaces are done then
+        # the mapping from the original to the final is stored in the map.
+        self._topic_replace_list = self._config.get('topic_replace_list',
+                                                    None)
         self._topic_replace_map = None
         _log.debug('Topic replace list: {}'.format(self._topic_replace_list))
 
@@ -184,7 +189,7 @@ class VolttronCentralAgent(Agent):
                     )
 
                 self._pa_agents[entry.platform_uuid] = conn_to_instance
-                peers = conn_to_instance.vip.peerlist().get(timeout=2)
+                peers = conn_to_instance.vip.peerlist().get(timeout=30)
                 if VOLTTRON_CENTRAL_PLATFORM not in peers:
                     if entry.is_local:
                         addr = self._local_address
@@ -273,7 +278,7 @@ class VolttronCentralAgent(Agent):
                     )
                     return
 
-            peers = self.vip.peerlist().get(timeout=10)
+            peers = self.vip.peerlist().get(timeout=30)
             if 'platform.agent' in peers:
                 _log.debug('Auto connecting platform.agent on vc')
                 # the _peer_platform is set to self because we don't need
@@ -403,7 +408,7 @@ class VolttronCentralAgent(Agent):
                               }}
 
         _log.debug('Connected to address')
-        peers = connected_to_pa.vip.peerlist().get(timeout=1)
+        peers = connected_to_pa.vip.peerlist().get(timeout=30)
         if VOLTTRON_CENTRAL_PLATFORM not in peers:
             connected_to_pa.core.stop()
             return {'error': {'code': UNABLE_TO_REGISTER_INSTANCE,
@@ -414,7 +419,7 @@ class VolttronCentralAgent(Agent):
         # The call to manage should return a public key for that agent
         result = connected_to_pa.vip.rpc.call(
             VOLTTRON_CENTRAL_PLATFORM, 'manage', self._web_info.vip_address,
-            self._web_info.serverkey, self.core.publickey).get(timeout=4)
+            self._web_info.serverkey, self.core.publickey).get(timeout=30)
 
         # Magic number 43 is the length of a encoded public key.
         if len(result) != 43:
@@ -443,7 +448,7 @@ class VolttronCentralAgent(Agent):
         context = 'Registered instance {}'.format(instance_name)
         connected_to_pa.vip.rpc.call(
             VOLTTRON_CENTRAL_PLATFORM, 'reconfigure',
-            platform_uuid=entry.platform_uuid).get(timeout=10)
+            platform_uuid=entry.platform_uuid).get(timeout=30)
 
         return {'status': 'SUCCESS', 'context': context}
 
@@ -474,7 +479,7 @@ class VolttronCentralAgent(Agent):
     #        result = agent.vip.rpc.call(identity, "manage",
     #                                    address=self._external_addresses,
     #                                    identity=self.core.identity)
-    #        if result.get(timeout=10):
+    #        if result.get(timeout=30):
     #            node = self._registry.register(address, identity, agentid)
     #
     #            if node:
@@ -593,7 +598,7 @@ class VolttronCentralAgent(Agent):
         connected_to_pa = self._pa_agents[platform_uuid]
 
         agents = connected_to_pa.vip.rpc.call(
-            'platform.agent', 'list_agents').get(timeout=2)
+            'platform.agent', 'list_agents').get(timeout=30)
 
         for a in agents:
             if 'admin' in groups:
@@ -622,26 +627,26 @@ class VolttronCentralAgent(Agent):
         self.vip.heartbeat.start_with_period(10)
 
         q = query.Query(self.core)
-        self._external_addresses = q.query('addresses').get(timeout=10)
+        self._external_addresses = q.query('addresses').get(timeout=30)
 
         # TODO: Use all addresses for fallback, #114
         _log.debug("external addresses are: {}".format(
             self._external_addresses
         ))
 
-        self._local_address = q.query('local_address').get(timeout=10)
+        self._local_address = q.query('local_address').get(timeout=30)
         _log.debug('Local address is? {}'.format(self._local_address))
         _log.debug('Registering jsonrpc and /.* routes')
         self.vip.rpc.call(MASTER_WEB, 'register_agent_route',
                           r'^/jsonrpc.*',
                           self.core.identity,
-                          'jsonrpc').get(timeout=5)
+                          'jsonrpc').get(timeout=30)
 
         self.vip.rpc.call(MASTER_WEB, 'register_path_route', VOLTTRON_CENTRAL,
-                          r'^/.*', self._webroot).get(timeout=5)
+                          r'^/.*', self._webroot).get(timeout=30)
 
         self.webaddress = self.vip.rpc.call(
-            MASTER_WEB, 'get_bind_web_address').get(timeout=5)
+            MASTER_WEB, 'get_bind_web_address').get(timeout=30)
 
         assert self.core.publickey
         assert self.core.secretkey
@@ -687,7 +692,7 @@ class VolttronCentralAgent(Agent):
     @Core.receiver('onstop')
     def finish(self, sender, **kwargs):
         self.vip.rpc.call(MASTER_WEB, 'unregister_all_agent_routes',
-                          self.core.identity).get(timeout=5)
+                          self.core.identity).get(timeout=30)
 
     @Core.periodic(10)
     def update_device_registry(self):
@@ -697,7 +702,10 @@ class VolttronCentralAgent(Agent):
                 try:
                     devices = v.vip.rpc.call(
                         VOLTTRON_CENTRAL_PLATFORM,
-                        'get_devices').get(timeout=5)
+                        'get_devices').get(timeout=30)
+                    
+                    _log.debug("Devices are: {}".format(devices))
+                    
                     self._registry.update_devices(k, devices)
                 except gevent.Timeout:
                     pass
@@ -724,7 +732,7 @@ class VolttronCentralAgent(Agent):
                                     "Platform Unreachable.").as_dict()
             try:
                 health = agent.vip.rpc.call(VOLTTRON_CENTRAL_PLATFORM,
-                                            'get_health').get(timeout=10)
+                                            'get_health').get(timeout=30)
             except Unreachable:
                 health = Status.build(UNKNOWN_STATUS,
                                       "Platform Agent Unreachable").as_dict()
@@ -760,16 +768,16 @@ class VolttronCentralAgent(Agent):
             return self.unregister_platform(params['platform_uuid'])
         elif 'historian' in method:
             has_platform_historian = PLATFORM_HISTORIAN in \
-                                     self.vip.peerlist().get(timeout=10)
+                                     self.vip.peerlist().get(timeout=30)
             _log.debug('Trapping platform.historian to vc.')
             _log.debug('has_platform_historian: {}'.format(
                 has_platform_historian))
             if 'historian.query' in method:
                 return self.vip.rpc.call(
-                    PLATFORM_HISTORIAN, 'query', **params).get(timeout=10)
+                    PLATFORM_HISTORIAN, 'query', **params).get(timeout=30)
             elif 'historian.get_topic_list' in method:
                 return self.vip.rpc.call(
-                    PLATFORM_HISTORIAN, 'get_topic_list').get(timeout=10)
+                    PLATFORM_HISTORIAN, 'get_topic_list').get(timeout=30)
 
         fields = method.split('.')
         if len(fields) < 3:
@@ -791,7 +799,7 @@ class VolttronCentralAgent(Agent):
         if platform_method == 'list_agents':
             agents = agent.vip.rpc.call(
                 VOLTTRON_CENTRAL_PLATFORM, 'route_request', id,
-                platform_method, params).get(timeout=10)
+                platform_method, params).get(timeout=30)
             for a in agents:
                 if not 'admin' in session_user['groups']:
                     a['permissions'] = {
@@ -805,7 +813,7 @@ class VolttronCentralAgent(Agent):
             return agent.vip.rpc.call(
                 VOLTTRON_CENTRAL_PLATFORM, 'route_request', id,
                 platform_method,
-                params).get(timeout=10)
+                params).get(timeout=30)
 
 
 
