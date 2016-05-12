@@ -58,6 +58,7 @@
 
 from __future__ import absolute_import, print_function
 
+from collections import defaultdict
 from copy import deepcopy
 import datetime
 import gevent.event
@@ -132,6 +133,16 @@ class VolttronCentralPlatform(Agent):
         self._stats_publish_interval = 10
         self._stats_publisher = None
 
+        # Search and replace for topics
+        # The difference between the list and the map is that the list
+        # specifies the search and replaces that should be done on all of the
+        # incoming topics.  Once all of the search and replaces are done then
+        # the mapping from the original to the final is stored in the map.
+        self._topic_replace_list = self._config.get('topic_replace_list',
+                                                    None)
+        self._topic_replace_map = defaultdict(str)
+        _log.debug('Topic replace list: {}'.format(self._topic_replace_list))
+
         # if not self._read_vc_info():
         #     if discovery_address:
         #         if not self._discover_vc_info():
@@ -190,7 +201,7 @@ class VolttronCentralPlatform(Agent):
     #     return True
 
     @PubSub.subscribe('pubsub', 'devices')
-    def ondevicemessage(self, peer, sender, bus, topic, headers, message):
+    def _on_device_message(self, peer, sender, bus, topic, headers, message):
         # only deal with agents that have not been forwarded.
         if headers.get('X-Forwarded', None):
             return
@@ -204,7 +215,22 @@ class VolttronCentralPlatform(Agent):
         # For devices we use everything between devices/../all as a unique
         # key for determining the last time it was seen.
         key = '/'.join(topicsplit[1: -1])
-        self._devices[key] = {
+
+        anon_topic = self._topic_replace_map[key]
+
+        if not anon_topic:
+            anon_topic = key
+
+            for sr in self._topic_replace_list:
+                _log.debug(
+                    'anon replacing {}->{}'.format(sr['from'], sr['to']))
+                anon_topic = anon_topic.replace(sr['from'],
+                                                sr['to'])
+            _log.debug('anon after replacing {}'.format(anon_topic))
+            _log.debug('Anon topic is: {}'.format(anon_topic))
+            self._topic_replace_map[key] = anon_topic
+        _log.debug('DEVICES ON PLATFORM ARE: {}'.format(self._devices))
+        self._devices[anon_topic] = {
             'points': message[0].keys(),
             'last_published_utc': format_timestamp(get_aware_utc_now())
         }
@@ -251,16 +277,19 @@ class VolttronCentralPlatform(Agent):
     def get_devices(self):
         cp = deepcopy(self._devices)
         foundbad = False
+
+
+
         for k, v in cp.items():
             dt = parse_timestamp_string(v['last_published_utc'])
             dtnow = get_aware_utc_now()
             if dt+datetime.timedelta(minutes=5) < dtnow:
-                v['status'] = Status.build(
+                v['health'] = Status.build(
                     BAD_STATUS,
                     'Too long between publishes for {}'.format(k)).as_dict()
                 foundbad = True
             else:
-                v['status'] = Status.build(GOOD_STATUS).as_dict()
+                v['health'] = Status.build(GOOD_STATUS).as_dict()
 
         if len(cp):
             if foundbad:

@@ -55,13 +55,15 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
+from collections import defaultdict
 import errno
 import logging
 import sys
-
-import gevent
 import os
 import os.path as p
+
+import gevent
+
 from authenticate import Authenticate
 from sessions import SessionHandler
 from volttron.platform import jsonrpc
@@ -132,15 +134,6 @@ class VolttronCentralAgent(Agent):
         if self._user_map is None:
             raise ValueError('users not specified within the config file.')
 
-        # Search and replace for topics
-        # The difference between the list and the map is that the list
-        # specifies the search and replaces that should be done on all of the
-        # incoming topics.  Once all of the search and replaces are done then
-        # the mapping from the original to the final is stored in the map.
-        self._topic_replace_list = self._config.get('topic_replace_list',
-                                                    None)
-        self._topic_replace_map = None
-        _log.debug('Topic replace list: {}'.format(self._topic_replace_list))
 
         # This is a special object so only use it's identity.
         identity = kwargs.pop("identity", None)
@@ -148,6 +141,16 @@ class VolttronCentralAgent(Agent):
 
         super(VolttronCentralAgent, self).__init__(identity=identity,
                                                    **kwargs)
+
+        # Search and replace for topics
+        # The difference between the list and the map is that the list
+        # specifies the search and replaces that should be done on all of the
+        # incoming topics.  Once all of the search and replaces are done then
+        # the mapping from the original to the final is stored in the map.
+        self._topic_replace_list = self._config.get('topic_replace_list',
+                                                    None)
+        self._topic_replace_map = defaultdict(str)
+        _log.debug('Topic replace list: {}'.format(self._topic_replace_list))
 
         # A resource directory that contains everything that can be looked up.
         self._resources = ResourceDirectory()
@@ -157,7 +160,7 @@ class VolttronCentralAgent(Agent):
         # connected to the vip-address of the registered platform.  If the
         # registered platform is None then that means we were unable to
         # connect to the platform the last time it was tried.
-        self._pa_agents = dict()
+        self._pa_agents = defaultdict(lambda: defaultdict(str))
 
         # if there is a volttron central agent on this instance then this
         # will be resolved.
@@ -168,6 +171,11 @@ class VolttronCentralAgent(Agent):
         self._sessions = SessionHandler(Authenticate(self._user_map))
         self.webaddress = None
         self._web_info = None
+
+        # A flag that tels us that we are in the process of updating already.
+        # This will allow us to not have multiple periodic calls at the same
+        # time which could cause unpredicatable results.
+        self._flag_updating_deviceregistry = False
 
     def _reconnect_to_platforms(self):
         _log.info('Reconnecting to platforms')
@@ -214,10 +222,14 @@ class VolttronCentralAgent(Agent):
             except gevent.Timeout:
                 self._pa_agents[entry.platform_uuid] = None
 
-
     @PubSub.subscribe("pubsub", "datalogger/platforms")
-    def on_platoforms_message(self, peer, sender, bus, topic, headers,
+    def _on_platoform_message(self, peer, sender, bus, topic, headers,
                               message):
+        """ Receive message from a registered platform
+
+        This method is called with stats from the registered platform agents.
+
+        """
         _log.debug('Got topic: {}'.format(topic))
         _log.debug('Got message: {}'.format(message))
 
@@ -501,7 +513,7 @@ class VolttronCentralAgent(Agent):
     #        return agent
 
     @Core.receiver('onsetup')
-    def setup(self, sender, **kwargs):
+    def _setup(self, sender, **kwargs):
         if not os.environ.get('VOLTTRON_HOME', None):
             raise ValueError('VOLTTRON_HOME environment must be set!')
 
@@ -690,25 +702,63 @@ class VolttronCentralAgent(Agent):
         return value
 
     @Core.receiver('onstop')
-    def finish(self, sender, **kwargs):
+    def _finish(self, sender, **kwargs):
         self.vip.rpc.call(MASTER_WEB, 'unregister_all_agent_routes',
                           self.core.identity).get(timeout=30)
 
     @Core.periodic(10)
-    def update_device_registry(self):
-        for k, v in self._pa_agents.items():
-            # Only attempt update if we have a connection to the agent.
-            if v is not None:
-                try:
-                    devices = v.vip.rpc.call(
-                        VOLTTRON_CENTRAL_PLATFORM,
-                        'get_devices').get(timeout=30)
-                    
-                    _log.debug("Devices are: {}".format(devices))
-                    
-                    self._registry.update_devices(k, devices)
-                except gevent.Timeout:
-                    pass
+    def _update_device_registry(self):
+        _log.debug('UPDATING DEVICE REGISTRY: {}'.format(self._flag_updating_deviceregistry))
+        try:
+            if not self._flag_updating_deviceregistry:
+                _log.debug("Updating device registry")
+                self._flag_updating_deviceregistry = True
+
+                # Loop over the connections to the registered agent platforms.
+                for k, v in self._pa_agents.items():
+                    _log.debug('updating for {}'.format(k))
+                    # Only attempt update if we have a connection to the agent.
+                    if v is not None:
+                        try:
+                            devices = v.vip.rpc.call(
+                                VOLTTRON_CENTRAL_PLATFORM,
+                                'get_devices').get(timeout=30)
+
+                            anon_devices = defaultdict(dict)
+
+                            # for each device returned from the query to
+                            # get_devices we need to anonymize the k1 in the
+                            # anon_devices dictionary.
+                            for k1, v1 in devices.items():
+                                _log.debug("before anon: {}, {}".format(k1, v1))
+                                # now we need to do a search/replace on the
+                                # self._topic_list so that the devices are known
+                                # as the correct itme nin the tree.
+                                anon_topic = self._topic_replace_map[k1]
+
+                                # if replaced has not already been replaced
+                                if not anon_topic:
+                                    anon_topic = k1
+                                    for sr in self._topic_replace_list:
+                                        _log.debug('anon replacing {}->{}'.format(sr['from'], sr['to']))
+                                        anon_topic = anon_topic.replace(sr['from'],
+                                                           sr['to'])
+                                    _log.debug('anon after replacing {}'.format(anon_topic))
+                                    self._topic_replace_map[k1] = anon_topic
+                                _log.debug('Anon topic is: {}'.format(anon_topic))
+
+                                anon_devices[anon_topic] = v1
+
+                            _log.debug('Anon devices are: {}'.format(anon_devices))
+
+                            self._registry.update_devices(k, anon_devices)
+                        except gevent.Timeout:
+                            _log.error('Error getting devices from platform {}'
+                                       .format(k))
+        except Exception as e:
+            _log.error(e.message)
+        finally:
+            self._flag_updating_deviceregistry = False
 
     def _handle_list_performance(self):
         _log.debug('Listing performance topics from vc')
