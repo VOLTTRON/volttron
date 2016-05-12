@@ -75,7 +75,8 @@ from gevent.fileobject import FileObject
 import zmq
 from zmq import green
 # Create a context common to the green and non-green zmq modules.
-green.Context._instance = green.Context.shadow(zmq.Context.instance().underlying)
+green.Context._instance = green.Context.shadow(
+    zmq.Context.instance().underlying)
 from zmq.utils import jsonapi
 
 from . import aip
@@ -245,6 +246,7 @@ class Monitor(threading.Thread):
 class FramesFormatter(object):
     def __init__(self, frames):
         self.frames = frames
+
     def __repr__(self):
         return str([bytes(f) for f in self.frames])
     __str__ = __repr__
@@ -484,6 +486,7 @@ def start_volttron_process(opts):
     zmq.Context.instance()   # DO NOT REMOVE LINE!!
 
     tracker = Tracker()
+
     # Main loops
     def router(stop):
         try:
@@ -518,17 +521,23 @@ def start_volttron_process(opts):
         if not thread.isAlive():
             sys.exit()
 
-        protected_topics_file = os.path.join(opts.volttron_home, 'protected_topics.json')
+        protected_topics_file = os.path.join(opts.volttron_home,
+                                             'protected_topics.json')
         _log.debug('protected topics file %s', protected_topics_file)
 
         # Launch additional services and wait for them to start before
         # auto-starting agents
         services = [
-            ControlService(opts.aip, address=address, identity='control', tracker=tracker, heartbeat_autostart=True),
-            PubSubService(protected_topics_file, address=address, identity='pubsub', heartbeat_autostart=True),
-            CompatPubSub(address=address, identity='pubsub.compat',
-                         publish_address=opts.publish_address,
-                         subscribe_address=opts.subscribe_address),
+            ControlService(
+                opts.aip, address=address, identity='control', tracker=tracker,
+                heartbeat_autostart=True),
+            PubSubService(
+                protected_topics_file, address=address, identity='pubsub',
+                heartbeat_autostart=True),
+            CompatPubSub(
+                address=address, identity='pubsub.compat',
+                publish_address=opts.publish_address,
+                subscribe_address=opts.subscribe_address),
             MasterWebService(
                 serverkey=publickey, identity=MASTER_WEB,
                 address=address,
@@ -666,10 +675,12 @@ def main(argv=sys.argv):
                 super(RestrictedAction, self).__init__(
                     option_strings, dest=argparse.SUPPRESS, nargs=0,
                     const=const, help=help)
+
             def __call__(self, parser, namespace, values, option_string=None):
                 namespace.verify_agents = self.const
                 namespace.resource_monitor = self.const
                 #namespace.mobility = self.const
+
         restrict = parser.add_argument_group('restricted options')
         restrict.add_argument(
             '--restricted', action=RestrictedAction, inverse='--no-restricted',
@@ -732,6 +743,7 @@ def main(argv=sys.argv):
     logging.getLogger().setLevel(logging.NOTSET)
     opts = parser.parse_args(args)
     start_volttron_process(opts)
+
 
 def _main():
     '''Entry point for scripts.'''
