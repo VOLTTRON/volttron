@@ -17,7 +17,7 @@ FORWARDER_1 = {
     "services_topic_list": [
         "devices", "analysis", "record", "datalogger", "actuators"
     ],
-    "topic_text_replace": [
+    "topic_replace_list": [
         {"from": "PNNL/BUILDING_1", "to": "PNNL/BUILDING1_ANON"}
     ]
 }
