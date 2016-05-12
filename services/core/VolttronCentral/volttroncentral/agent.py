@@ -132,6 +132,11 @@ class VolttronCentralAgent(Agent):
         if self._user_map is None:
             raise ValueError('users not specified within the config file.')
 
+        # Search and replace for topics
+        self._topic_replace_list = self._config.get('topic_replace_list', None)
+        self._topic_replace_map = None
+        _log.debug('Topic replace list: {}'.format(self._topic_replace_list))
+
         # This is a special object so only use it's identity.
         identity = kwargs.pop("identity", None)
         identity = VOLTTRON_CENTRAL
