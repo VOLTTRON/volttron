@@ -343,7 +343,7 @@ class MasterWebService(Agent):
                    'REQUEST_METHOD', 'SERVER_PROTOCOL', 'REMOTE_ADDR']
         data = env['wsgi.input'].read()
         passenv = dict(
-            (envlist[i], env[envlist[i]]) for i in range(0, len(envlist)))
+            (envlist[i], env[envlist[i]]) for i in range(0, len(envlist)) if envlist[i] in env.keys())
         for k, t, v in self.registeredroutes:
             if k.match(path_info):
                 _log.debug("MATCHED:\npattern: {}, path_info: {}\n v: {}"

@@ -272,7 +272,7 @@ class BaseHistorian(Agent):
     def __init__(self,
                  retry_period=300.0,
                  submit_size_limit=1000,
-                 max_time_publishing=30,
+                 max_time_publishing=3.0,
                  backup_storage_limit_gb=None,
                  topic_replace_list=None,
                  **kwargs):

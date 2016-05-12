@@ -621,7 +621,7 @@ def test_topic_not_forwarded(publish_agent, query_agent, volttron_instance1,
                       "custom_topic_list": [],
                       "services_topic_list":
                           ["devices", "record", "analysis"],
-                      "topic_text_replace":
+                      "topic_replace_list":
                           [{"from": "PNNL/BUILDING_1", "to": "PNNL/BUILDING1_ANON"}]}
 
         forwarder_uuid = volttron_instance1.install_agent(

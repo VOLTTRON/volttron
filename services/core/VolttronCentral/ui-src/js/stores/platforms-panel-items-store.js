@@ -613,9 +613,9 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                 deviceProps.visible = true;
                 deviceProps.path = JSON.parse(JSON.stringify(building.devices.path));
                 deviceProps.path.push(deviceProps.uuid);
-                deviceProps.status = device.status.status.toUpperCase();
-                deviceProps.statusLabel = getStatusLabel(deviceProps.status);
-                deviceProps.context = device.status.context;
+                deviceProps.status = device.health.status.toUpperCase();
+                deviceProps.statusLabel = getStatusLabel(deviceProps.health);
+                deviceProps.context = device.health.context;
                 deviceProps.children = [];
                 deviceProps.type = "device";
                 deviceProps.sortOrder = 0;
