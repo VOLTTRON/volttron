@@ -339,7 +339,7 @@ class VolttronCentralPlatform(Agent):
         :return: A list of agents.
         """
 
-        agents = self.vip.rpc.call("control", "list_agents").get()
+        agents = self.vip.rpc.call("control", "list_agents").get(timeout=30)
 
         status_running = self.status_agents()
 
