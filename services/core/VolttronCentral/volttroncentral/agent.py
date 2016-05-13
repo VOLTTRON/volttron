@@ -176,6 +176,7 @@ class VolttronCentralAgent(Agent):
         # time which could cause unpredicatable results.
         self._flag_updating_deviceregistry = False
 
+    @Core.periodic(60)
     def _reconnect_to_platforms(self):
         _log.info('Reconnecting to platforms')
         for entry in self._registry.get_platforms():
@@ -185,7 +186,16 @@ class VolttronCentralAgent(Agent):
                         self._local_address
                     ))
                     conn_to_instance = self
-                else:
+                elif entry.platform_uuid in self._pa_agents.keys():
+                    conn_to_instance = self._pa_agents[entry.platform_uuid]
+                    try:
+                        if conn_to_instance.vip.peerlist.get(timeout=10):
+                            pass
+                    except gevent.Timeout:
+                        del self._pa_agents[entry.platform_uuid]
+                        conn_to_instance = None
+
+                if not conn_to_instance:
                     _log.debug('connecting to vip address: {}'.format(
                         entry.vip_address
                     ))
@@ -195,8 +205,9 @@ class VolttronCentralAgent(Agent):
                         publickey=self.core.publickey
                     )
 
-                self._pa_agents[entry.platform_uuid] = conn_to_instance
-                peers = conn_to_instance.vip.peerlist().get(timeout=30)
+                    self._pa_agents[entry.platform_uuid] = conn_to_instance
+
+                peers = conn_to_instance.vip.peerlist().get(timeout=10)
                 if VOLTTRON_CENTRAL_PLATFORM not in peers:
                     if entry.is_local:
                         addr = self._local_address
@@ -808,7 +819,7 @@ class VolttronCentralAgent(Agent):
             return err('Unknown platform {}'.format(platform_uuid))
         platform_method = '.'.join(fields[3:])
         _log.debug(platform_uuid)
-        agent = self._pa_agents[platform_uuid]  # TODO: get from registry
+        agent = self._pa_agents.get(platform_uuid)  # TODO: get from registry
         if not agent:
             return jsonrpc.json_error(id,
                                       UNAVAILABLE_PLATFORM,
@@ -817,6 +828,7 @@ class VolttronCentralAgent(Agent):
         _log.debug('Routing to {}'.format(VOLTTRON_CENTRAL_PLATFORM))
 
         if platform_method == 'list_agents':
+            _log.debug('Callling list_agents')
             agents = agent.vip.rpc.call(
                 VOLTTRON_CENTRAL_PLATFORM, 'route_request', id,
                 platform_method, params).get(timeout=30)
