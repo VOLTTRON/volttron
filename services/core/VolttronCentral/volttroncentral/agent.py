@@ -181,6 +181,7 @@ class VolttronCentralAgent(Agent):
         _log.info('Reconnecting to platforms')
         for entry in self._registry.get_platforms():
             try:
+                conn_to_instance = None
                 if entry.is_local:
                     _log.debug('connecting to vip address: {}'.format(
                         self._local_address
