@@ -189,7 +189,7 @@ class VolttronCentralAgent(Agent):
                 elif entry.platform_uuid in self._pa_agents.keys():
                     conn_to_instance = self._pa_agents[entry.platform_uuid]
                     try:
-                        if conn_to_instance.vip.peerlist.get(timeout=10):
+                        if conn_to_instance.vip.peerlist().get(timeout=10):
                             pass
                     except gevent.Timeout:
                         del self._pa_agents[entry.platform_uuid]
