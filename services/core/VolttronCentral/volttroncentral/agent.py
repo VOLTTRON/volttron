@@ -117,6 +117,13 @@ class VolttronCentralAgent(Agent):
         :return:
         """
         _log.info("{} constructing...".format(self.__name__))
+
+        # This is a special object so only use it's identity.
+        identity = kwargs.pop("identity", None)
+        identity = VOLTTRON_CENTRAL
+
+        super(VolttronCentralAgent, self).__init__(identity=identity,
+                                                   **kwargs)
         # Load the configuration into a dictionary
         self._config = utils.load_config(config_path)
 
@@ -133,14 +140,6 @@ class VolttronCentralAgent(Agent):
         _log.debug("User map is: {}".format(self._user_map))
         if self._user_map is None:
             raise ValueError('users not specified within the config file.')
-
-
-        # This is a special object so only use it's identity.
-        identity = kwargs.pop("identity", None)
-        identity = VOLTTRON_CENTRAL
-
-        super(VolttronCentralAgent, self).__init__(identity=identity,
-                                                   **kwargs)
 
         # Search and replace for topics
         # The difference between the list and the map is that the list
@@ -232,6 +231,11 @@ class VolttronCentralAgent(Agent):
                                        platform_uuid=entry.platform_uuid).get(timeout=10)
             except gevent.Timeout:
                 self._pa_agents[entry.platform_uuid] = None
+
+    @PubSub.subscribe("pubsub", "heartbeat/volttroncentralplatform")
+    def _on_platform_heartbeat(self, peer, sender, bus, topic, headers,
+                               message):
+        _log.debug('Got Heartbeat from: {}'.format(topic))
 
     @PubSub.subscribe("pubsub", "datalogger/platforms")
     def _on_platoform_message(self, peer, sender, bus, topic, headers,
@@ -613,7 +617,7 @@ class VolttronCentralAgent(Agent):
         :param kwargs:
         :return:
         """
-        self.vip.heartbeat.start_with_period(30)
+        self.vip.heartbeat.start()
 
         q = query.Query(self.core)
         self._external_addresses = q.query('addresses').get(timeout=30)
