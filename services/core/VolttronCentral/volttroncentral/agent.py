@@ -228,7 +228,7 @@ class VolttronCentralAgent(Agent):
                     agent = self._pa_agents[entry.platform_uuid]
                     agent.vip.rpc.call(VOLTTRON_CENTRAL_PLATFORM,
                                        "reconfigure",
-                                       platform_uuid=entry.platform_uuid)
+                                       platform_uuid=entry.platform_uuid).get(timeout=10)
             except gevent.Timeout:
                 self._pa_agents[entry.platform_uuid] = None
 
