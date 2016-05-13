@@ -138,8 +138,7 @@ class VolttronCentralPlatform(Agent):
         # specifies the search and replaces that should be done on all of the
         # incoming topics.  Once all of the search and replaces are done then
         # the mapping from the original to the final is stored in the map.
-        self._topic_replace_list = self._config.get('topic_replace_list',
-                                                    None)
+        self._topic_replace_list = self._config.get('topic_replace_list', [])
         self._topic_replace_map = defaultdict(str)
         _log.debug('Topic replace list: {}'.format(self._topic_replace_list))
 
