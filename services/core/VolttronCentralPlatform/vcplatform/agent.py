@@ -303,7 +303,7 @@ class VolttronCentralPlatform(Agent):
                 #                     agent = Agent(address=manager[0])
                 result = agent.vip.rpc.call(manager[1],
                                             "list_platform_details").get(
-                    timeout=10)
+                    timeout=30)
                 #                     _log.debug("RESULT",result)
                 self._sibling_cache[manager[0]] = result
 
@@ -315,7 +315,7 @@ class VolttronCentralPlatform(Agent):
     @RPC.export
     def register_service(self, vip_identity):
         # make sure that we get a ping reply
-        # response = self.vip.ping(vip_identity).get(timeout=5)
+        # response = self.vip.ping(vip_identity).get(timeout=45)
         #
         # alias = vip_identity
         #
@@ -383,9 +383,9 @@ class VolttronCentralPlatform(Agent):
 
             if is_running:
                 identity = self.vip.rpc.call('control', 'agent_vip_identity',
-                                             a['uuid']).get(timeout=2)
+                                             a['uuid']).get(timeout=30)
                 status = self.vip.rpc.call(identity,
-                                           'health.get_status').get(timeout=2)
+                                           'health.get_status').get(timeout=30)
                 uuid_to_status[a['uuid']]['health'] = Status.from_json(
                     status).as_dict()
 
@@ -477,11 +477,11 @@ class VolttronCentralPlatform(Agent):
             fields = method.split('.')
 
             if fields[0] == 'historian':
-                if 'platform.historian' in self.vip.peerlist().get(timeout=2):
+                if 'platform.historian' in self.vip.peerlist().get(timeout=30):
                     agent_method = fields[1]
                     result = self.vip.rpc.call('platform.historian',
                                                agent_method,
-                                               **params).get(timeout=5)
+                                               **params).get(timeout=45)
                 else:
                     result = jsonrpc.json_error(
                         id, INVALID_PARAMS, 'historian unavailable')
@@ -533,7 +533,7 @@ class VolttronCentralPlatform(Agent):
             publickey=self.core.publickey, secretkey=self.core.secretkey)
 
         version, peer, identity = self._agent_connected_to_vc.vip.hello().get(
-            timeout=2)
+            timeout=30)
 
         # Add the vcpublickey to the auth file.
         entry = AuthEntry(
@@ -636,7 +636,7 @@ class VolttronCentralPlatform(Agent):
 
         agent_for_vc = self._build_agent_for_vc()
         agent_for_vc.vip.rpc.call(VOLTTRON_CENTRAL, 'register_instance',
-                                  self._my_discovery_address).get(timeout=10)
+                                  self._my_discovery_address).get(timeout=30)
         self._managed = True
 
     @Core.receiver('onstart')
@@ -678,12 +678,12 @@ class VolttronCentralPlatform(Agent):
     def _get_my_discovery_address(self):
         if not self._my_discovery_address:
             self._my_discovery_address = self.vip.rpc.call(
-                MASTER_WEB, 'get_bind_web_address').get(timeout=10)
+                MASTER_WEB, 'get_bind_web_address').get(timeout=30)
 
     def _get_vc_discovery_address(self):
         if not self._vc_discovery_address:
             self._vc_discovery_address = self.vip.rpc.call(
-                MASTER_WEB, 'get_volttron_central_address').get(timeout=10)
+                MASTER_WEB, 'get_volttron_central_address').get(timeout=30)
 
     def _build_agent_for_vc(self):
         """Can raise DiscoveryError and gevent.Timeout"""
