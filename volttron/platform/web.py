@@ -306,13 +306,13 @@ class MasterWebService(Agent):
 
     def _get_discovery(self, environ, start_response, data=None):
         q = query.Query(self.core)
-        result = q.query('addresses').get(timeout=2)
+        result = q.query('addresses').get(timeout=60)
         external_vip = None
         for x in result:
             if not is_ip_private(x):
                 external_vip = x
                 break
-        peers = self.vip.peerlist().get(timeout=2)
+        peers = self.vip.peerlist().get(timeout=60)
 
         return_dict = {}
 
@@ -344,7 +344,7 @@ class MasterWebService(Agent):
                    'REQUEST_METHOD', 'SERVER_PROTOCOL', 'REMOTE_ADDR']
         data = env['wsgi.input'].read()
         passenv = dict(
-            (envlist[i], env[envlist[i]]) for i in range(0, len(envlist)))
+            (envlist[i], env[envlist[i]]) for i in range(0, len(envlist)) if envlist[i] in env.keys())
         for k, t, v in self.registeredroutes:
             if k.match(path_info):
                 _log.debug("MATCHED:\npattern: {}, path_info: {}\n v: {}"
@@ -357,7 +357,7 @@ class MasterWebService(Agent):
                         k.pattern))
                     peer, fn = (v[0], v[1])
                     res = self.vip.rpc.call(peer, fn, passenv, data).get(
-                        timeout=4)
+                        timeout=60)
                     if isinstance(res, dict):
                         _log.debug('res is a dictionary.')
                         if 'error' in res.keys():

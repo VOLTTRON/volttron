@@ -60,7 +60,8 @@ import sys
 
 import pymongo
 from bson.objectid import ObjectId
-from pymongo import InsertOne
+from pymongo import InsertOne, ReplaceOne
+from pymongo.errors import BulkWriteError
 
 from volttron.platform.agent import utils
 from volttron.platform.agent.base_historian import BaseHistorian
@@ -82,8 +83,9 @@ def historian(config_path, **kwargs):
     assert params is not None
 
     identity = config.get('identity', kwargs.pop('identity', None))
-    topic_replacements = config.get('topic_text_replace_list', None)
+    topic_replacements = config.get('topic_replace_list', None)
     _log.debug('topic_replacements are: {}'.format(topic_replacements))
+
     class MongodbHistorian(BaseHistorian):
         """This is a simple example of a historian agent that writes stuff
         to a SQLite database. It is designed to test some of the functionality
@@ -115,9 +117,8 @@ def historian(config_path, **kwargs):
             self._topic_name_map = {}
             self._topic_meta = {}
 
-
-        @staticmethod
-        def get_mongo_client(connection_params):
+        
+        def _get_mongo_client(self, connection_params):
 
             database_name = connection_params['database']
             hosts = connection_params['host']
@@ -198,18 +199,24 @@ def historian(config_path, **kwargs):
                     self._topic_meta[topic_id] = meta
 
                 # Reformat to a filter tha bulk inserter.
-                bulk_publish.append(InsertOne(
-                    {'ts': ts, 'topic_id': topic_id, 'value': value}))
+                bulk_publish.append(ReplaceOne({'ts':ts, 'topic_id': topic_id},
+                    {'ts': ts, 'topic_id': topic_id, 'value': value}, upsert=True))
 
-            # http://api.mongodb.org/python/current/api/pymongo/collection.html#pymongo.collection.Collection.bulk_write
-            result = db[self._data_collection].bulk_write(bulk_publish)
+#                bulk_publish.append(InsertOne(
+#                    {'ts': ts, 'topic_id': topic_id, 'value': value}))
 
-            # No write errros here when
-            if not result.bulk_api_result['writeErrors']:
-                self.report_all_handled()
-            else:
-                # TODO handle when something happens during writing of data.
-                _log.error('SOME THINGS DID NOT WORK')
+	    try:
+                # http://api.mongodb.org/python/current/api/pymongo/collection.html#pymongo.collection.Collection.bulk_write
+                result = db[self._data_collection].bulk_write(bulk_publish)
+            except BulkWriteError as bwe:
+                _log.error("{}".format(bwe.details))
+           
+            else:           # No write errros here when
+                if not result.bulk_api_result['writeErrors']:
+                    self.report_all_handled()
+                else:
+                    # TODO handle when something happens during writing of data.
+                    _log.error('SOME THINGS DID NOT WORK')
 
         def query_historian(self, topic, start=None, end=None, skip=0,
                             count=None, order="FIRST_TO_LAST"):
@@ -308,7 +315,7 @@ def historian(config_path, **kwargs):
 
         def historian_setup(self):
             _log.debug("HISTORIAN SETUP")
-            self._client = MongodbHistorian.get_mongo_client(
+            self._client = self._get_mongo_client(
                 connection['params'])
             self._load_topic_map()
             self._load_meta_map()

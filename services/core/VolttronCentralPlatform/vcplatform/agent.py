@@ -58,6 +58,7 @@
 
 from __future__ import absolute_import, print_function
 
+from collections import defaultdict
 from copy import deepcopy
 import datetime
 import gevent.event
@@ -132,65 +133,17 @@ class VolttronCentralPlatform(Agent):
         self._stats_publish_interval = 10
         self._stats_publisher = None
 
-        # if not self._read_vc_info():
-        #     if discovery_address:
-        #         if not self._discover_vc_info():
-        #             raise CannotConnectError()
-        #
-        #         self._store_vc_info()
-
-        # # a list of registered managers of this platform.
-        # self._managers = set()
-        # self._managers_reachable = {}
-        # self._services = {}
-        # self._settings = {}
-        # #self._load_settings()
-        # self._agent_configurations = {}
-        # self._sibling_cache = {}
-        # self._vip_channels = {}
-        # self.volttron_home = os.environ['VOLTTRON_HOME']
-        #
-        # # These properties are used to be able to register this platform
-        # # agent with a volttron central instance.
-        # self._vc_discovery_address = discovery_address
-        # self._display_name = display_name
-        #
-        # # By default not managed by vc, but if the file is available then
-        # # read and store it as an object.
-        # self._vc = None
-        # # This agent will hold a connection to the vc router so that we
-        # # can send information to it.
-        # self._agent_connected_to_vc = None
-        # self._is_local_vc = False
-
-    #
-    # @Core.periodic(period=5)
-    # def doingitnow(self):
-    #     _log.debug("I am doing it now?")
-
-
-    # def _connect_to_vc(self):
-    #     addr = self._build_address_string()
-    #
-    #     self._agent_connected_to_vc = Agent(address=addr)
-    #
-    #     event = gevent.event.Event()
-    #     gevent.spawn(self._agent_connected_to_vc.core.run, event)
-    #     event.wait(timeout=3)
-    #     del event
-    #     try:
-    #         peerlist = self._agent_connected_to_vc.vip.peerlist().get(timeout=3)
-    #         _log.debug(peerlist)
-    #     except gevent.timeout.Timeout:
-    #         _log.debug('TIMEOUT DATA?')
-    #         self._agent_connected_to_vc.core.stop()
-    #         self._agent_connected_to_vc = None
-    #         return False
-    #
-    #     return True
+        # Search and replace for topics
+        # The difference between the list and the map is that the list
+        # specifies the search and replaces that should be done on all of the
+        # incoming topics.  Once all of the search and replaces are done then
+        # the mapping from the original to the final is stored in the map.
+        self._topic_replace_list = self._config.get('topic_replace_list', [])
+        self._topic_replace_map = defaultdict(str)
+        _log.debug('Topic replace list: {}'.format(self._topic_replace_list))
 
     @PubSub.subscribe('pubsub', 'devices')
-    def ondevicemessage(self, peer, sender, bus, topic, headers, message):
+    def _on_device_message(self, peer, sender, bus, topic, headers, message):
         # only deal with agents that have not been forwarded.
         if headers.get('X-Forwarded', None):
             return
@@ -204,7 +157,22 @@ class VolttronCentralPlatform(Agent):
         # For devices we use everything between devices/../all as a unique
         # key for determining the last time it was seen.
         key = '/'.join(topicsplit[1: -1])
-        self._devices[key] = {
+
+        anon_topic = self._topic_replace_map[key]
+
+        if not anon_topic:
+            anon_topic = key
+
+            for sr in self._topic_replace_list:
+                _log.debug(
+                    'anon replacing {}->{}'.format(sr['from'], sr['to']))
+                anon_topic = anon_topic.replace(sr['from'],
+                                                sr['to'])
+            _log.debug('anon after replacing {}'.format(anon_topic))
+            _log.debug('Anon topic is: {}'.format(anon_topic))
+            self._topic_replace_map[key] = anon_topic
+        _log.debug('DEVICES ON PLATFORM ARE: {}'.format(self._devices))
+        self._devices[anon_topic] = {
             'points': message[0].keys(),
             'last_published_utc': format_timestamp(get_aware_utc_now())
         }
@@ -238,8 +206,6 @@ class VolttronCentralPlatform(Agent):
             self._stats_publisher = self.core.periodic(
                 self._stats_publish_interval, self._publish_stats)
 
-
-
     def _publish_agent_list(self):
         _log.info('Publishing new agent list.')
         self.vip.pubsub.publish(
@@ -251,16 +217,17 @@ class VolttronCentralPlatform(Agent):
     def get_devices(self):
         cp = deepcopy(self._devices)
         foundbad = False
+
         for k, v in cp.items():
             dt = parse_timestamp_string(v['last_published_utc'])
             dtnow = get_aware_utc_now()
             if dt+datetime.timedelta(minutes=5) < dtnow:
-                v['status'] = Status.build(
+                v['health'] = Status.build(
                     BAD_STATUS,
                     'Too long between publishes for {}'.format(k)).as_dict()
                 foundbad = True
             else:
-                v['status'] = Status.build(GOOD_STATUS).as_dict()
+                v['health'] = Status.build(GOOD_STATUS).as_dict()
 
         if len(cp):
             if foundbad:
@@ -288,102 +255,6 @@ class VolttronCentralPlatform(Agent):
     def is_managed(self):
         return self._vc or 'volttron.central' in self.vip.peerlist().get()
 
-        # @RPC.export
-        # def manage_local(self):
-        #     self._is_local_vc = True
-
-        # @RPC.export
-        # def manage_platform(self, vc_discovery_address):
-        #     """ Starts the process of managing this platform.
-        #
-        #     The vc_discovery_address is an http(s) url that points to a
-        #     volttron with a volttron.central agent running.
-        #
-        #     Upon completion of this method there will be a new entry in this
-        #     volttron instance's auth.json file.  The entry will contain the
-        #     public key of the volttron central instances and will have the
-        #     capability of managed_by.
-        #
-        #
-        #     Parameters
-        #     ----------
-        #     vc_discovery_address: string
-        #         A resolvable http(s) string that a *discoverable* volttron
-        #         instances is running
-        #
-        #     # Raises
-        #     # -----
-        #     # :class:`AlreadyManagedError`:
-        #     #     Raised when platform is already managed by a different
-        #     #     volttron central instance.
-        #     # :class:`DiscoveryError`:
-        #     #     Raised when the volttron central instance is unavailable or
-        #     #     if the instance gives invalid data.
-        #     """
-        #
-        #     _log.info('Request to be managed discovery address {}.'.format(
-        #         vc_discovery_address
-        #     ))
-        #
-        #     response = requests.get(vc_discovery_address)
-        #
-        #     if not response.ok:
-        #         raise DiscoveryError(
-        #             'Invalid response from vc_discovery_address.'
-        #         )
-        #
-        #     self._vc_info = VCInfo(discovery_address=vc_discovery_address,
-        #                            **(response.json()))
-        #
-        #     auth_file = AuthFile()
-        #     auth_entry = AuthEntry(
-        #         credentials="CURVE:{}".format(
-        #             self._vc_info.vcpublickey),
-        #         capabilities=['managed_by']
-        #     )
-        #     _log.debug('Storing auth_entry in auth.json')
-        #     auth_file.add(auth_entry)
-        #
-        #     self._agent_connected_to_vc = Agent(address=self._build_address_string())
-        #     event = gevent.event.Event()
-        #     gevent.spawn(self._agent_connected_to_vc.core.run, event)
-        #     event.wait(timeout=10)
-        #     peers = self._agent_connected_to_vc.vip.peerlist().get(timeout=10)
-        #     if not 'volttron.central' in peers:
-        #         self._agent_connected_to_vc.core.stop()
-        #         self._agent_connected_to_vc = None
-        #         raise CannotConnectError('No volttron central available.')
-        #
-        #     _log.debug('Connected to volttron central!')
-
-
-        # # Refresh the file to see if we are now managed or not.
-        # if not self._vc:
-        #     self._get_vc_info_from_file()
-        # else:
-        #     _log.info("Already registered with: {}".format(
-        #         self._vc['serverkey']))
-        #     if not vc_publickey == self._vc['serverkey']:
-        #         err = "Attempted to register with different key: {}".format(
-        #             vc_publickey
-        #         )
-        #         raise AlreadyManagedError(err)
-        #
-        # self._fetch_vc_discovery_info(uri, vc_publickey)
-        #
-        # # Add the can manage to the key file
-        # self._append_allow_curve_key(vc_publickey, 'can_manage')
-        #
-        # self._agent_connected_to_vc = Agent(address=self._vc['vip-address'], serverkey=self._vc['serverkey'],
-        #                        secretkey=self.core.secretkey)
-        # event = gevent.event.Event()
-        # gevent.spawn(self._agent_connected_to_vc.core.run, event)
-        # event.wait(timeout=2)
-        #
-        # self.core._set_status(STATUS_GOOD, "Platform is managed" )
-        #
-        # return self.core.publickey
-
     @RPC.export
     def set_setting(self, key, value):
         _log.debug("Setting key: {} to value: {}".format(key, value))
@@ -395,28 +266,6 @@ class VolttronCentralPlatform(Agent):
         _log.debug('Retrieveing key: {}'.format(key))
         return self._settings.get(key, None)
 
-    # @Core.periodic(period=15, wait=30)
-    # def write_status(self):
-    #
-    #     # if self._platform_uuid:
-    #     #     base_topic = LOGGER(subtopic="")
-    #     #     'datalogger/platforms/{}/status'.format(self._platform_uuid)
-    #     # else:
-    #     base_topic = 'datalogger/log/platform/status'
-    #     cpu = base_topic + '/cpu'
-    #     points = {}
-    #
-    #     for k, v in psutil.cpu_times_percent().__dict__.items():
-    #         points['times_percent/' + k] = {'Readings': v,
-    #                                         'Units': 'double'}
-    #
-    #     points['percent'] = {'Readings': psutil.cpu_percent(),
-    #                          'Units': 'double'}
-    #
-    #     self.vip.pubsub.publish(peer='pubsub',
-    #                             topic=cpu,
-    #                             message=points)
-
     @RPC.export
     def publish_to_peers(self, topic, message, headers=None):
         spawned = []
@@ -424,11 +273,11 @@ class VolttronCentralPlatform(Agent):
         for key, item in self._sibling_cache.items():
             for peer_address in item:
                 try:
-                    #                         agent = Agent(address=peer_address)
+#                         agent = Agent(address=peer_address)
 
-                    #                         event = gevent.event.Event()
-                    #                         gevent.spawn(agent.core.run, event)
-                    #                         event.wait()
+#                         event = gevent.event.Event()
+#                         gevent.spawn(agent.core.run, event)
+#                         event.wait()
                     agent = self._get_rpc_agent(peer_address)
                     _log.debug("about to publish to peers: {}".format(
                         agent.core.identity))
@@ -454,7 +303,7 @@ class VolttronCentralPlatform(Agent):
                 #                     agent = Agent(address=manager[0])
                 result = agent.vip.rpc.call(manager[1],
                                             "list_platform_details").get(
-                    timeout=10)
+                    timeout=30)
                 #                     _log.debug("RESULT",result)
                 self._sibling_cache[manager[0]] = result
 
@@ -466,7 +315,7 @@ class VolttronCentralPlatform(Agent):
     @RPC.export
     def register_service(self, vip_identity):
         # make sure that we get a ping reply
-        # response = self.vip.ping(vip_identity).get(timeout=5)
+        # response = self.vip.ping(vip_identity).get(timeout=45)
         #
         # alias = vip_identity
         #
@@ -477,10 +326,6 @@ class VolttronCentralPlatform(Agent):
         # self._services[alias] = vip_identity
         # NOOP at present.
         pass
-
-    # @RPC.export
-    # def services(self):
-    #     return self.@RPC.allow("can_manage")
 
     @RPC.export
     # @RPC.allow("manager") #TODO: uncomment allow decorator
@@ -494,7 +339,7 @@ class VolttronCentralPlatform(Agent):
         :return: A list of agents.
         """
 
-        agents = self.vip.rpc.call("control", "list_agents").get()
+        agents = self.vip.rpc.call("control", "list_agents").get(timeout=30)
 
         status_running = self.status_agents()
 
@@ -538,9 +383,9 @@ class VolttronCentralPlatform(Agent):
 
             if is_running:
                 identity = self.vip.rpc.call('control', 'agent_vip_identity',
-                                             a['uuid']).get(timeout=2)
+                                             a['uuid']).get(timeout=30)
                 status = self.vip.rpc.call(identity,
-                                           'health.get_status').get(timeout=2)
+                                           'health.get_status').get(timeout=30)
                 uuid_to_status[a['uuid']]['health'] = Status.from_json(
                     status).as_dict()
 
@@ -632,11 +477,11 @@ class VolttronCentralPlatform(Agent):
             fields = method.split('.')
 
             if fields[0] == 'historian':
-                if 'platform.historian' in self.vip.peerlist().get(timeout=2):
+                if 'platform.historian' in self.vip.peerlist().get(timeout=30):
                     agent_method = fields[1]
                     result = self.vip.rpc.call('platform.historian',
                                                agent_method,
-                                               **params).get(timeout=5)
+                                               **params).get(timeout=45)
                 else:
                     result = jsonrpc.json_error(
                         id, INVALID_PARAMS, 'historian unavailable')
@@ -649,36 +494,6 @@ class VolttronCentralPlatform(Agent):
 
                 result = self.vip.rpc.call(agent_uuid, agent_method,
                                            params).get()
-
-
-                # Get the agent via their uuid.
-                # Call the method on that agent.
-                # result = self.vip.rpc.call('control', 'health.get_status', fields[2]).get(timeout=5)
-            #            result = self.vip.rpc.call(fields[2], 'inspect').get(timeout=5)
-
-            #            if self._services.get(fields[0], None):
-            #                service_identity = self._services[fields[0]]
-            #                agent_method = fields[1]
-            #
-            #                result = self.vip.rpc.call(service_identity, agent_method,
-            #                                           **params).get()
-            #
-            #
-            #            else:
-            #
-            #                result = jsonrpc.json_error(ident=id, code=METHOD_NOT_FOUND)
-            #
-            #                if len(fields) < 3:
-            #                    result = jsonrpc.json_error(ident=id, code=METHOD_NOT_FOUND)
-            #                else:
-            #                    agent_uuid = fields[2]
-            #                    agent_method = '.'.join(fields[3:])
-            #                    _log.debug("Calling method {} on agent {}"
-            #                               .format(agent_method, agent_uuid))
-            #                    _log.debug("Params is: {}".format(params))
-            #
-            #                    result = self.vip.rpc.call(agent_uuid, agent_method,
-            #                                           params).get()
 
         if isinstance(result, dict):
             if 'result' in result:
@@ -718,7 +533,7 @@ class VolttronCentralPlatform(Agent):
             publickey=self.core.publickey, secretkey=self.core.secretkey)
 
         version, peer, identity = self._agent_connected_to_vc.vip.hello().get(
-            timeout=2)
+            timeout=30)
 
         # Add the vcpublickey to the auth file.
         entry = AuthEntry(
@@ -774,116 +589,6 @@ class VolttronCentralPlatform(Agent):
         else:
             _log.info("status not written to volttron central.")
 
-    # def _connect_to_vc(self):
-    #     """ Attempt to connect to volttorn central.
-    #
-    #     Creates an agent to connect to the volttron central instance.
-    #     Uses the member self._vc to determine the vip_address and
-    #     serverkey to use to connect to the instance.  The agent that is
-    #     connecting to the volttron central instance will use the same
-    #     private/public key pair as this agent.
-    #
-    #     This method will return true if the connection to the volttron
-    #     central instance and the volttron.central peer is running on
-    #     that platform (e.g. volttron.central is one of the peers).
-    #
-    #     :return:
-    #     """
-    #     if not self._vc:
-    #         raise CannotConnectError('Invalid _vc variable member.')
-    #
-    #     if not self._agent_connected_to_vc:
-    #         _log.debug("Attempting to connect to vc.")
-    #         _log.debug("address: {} serverkey: {}"
-    #                    .format(self._vc.vip_address,
-    #                            self._vc.serverkey))
-    #         _log.debug("publickey: {} secretkey: {}"
-    #                    .format(self.core.publickey, self.core.secretkey))
-    #         self._agent_connected_to_vc = Agent(address=self._vc.vip_address,
-    #                                serverkey=self._vc.serverkey,
-    #                                publickey=self.core.publickey,
-    #                                secretkey=self.core.secretkey)
-    #         event = gevent.event.Event()
-    #         gevent.spawn(self._agent_connected_to_vc.core.run, event)
-    #         event.wait(timeout=10)
-    #         del event
-    #
-    #     connected = False
-    #     if self._agent_connected_to_vc:
-    #         peers = self._agent_connected_to_vc.vip.peerlist().get(timeout=10)
-
-    # def _fetch_vc_discovery_info(self):
-    #     """ Retrieves the serverkey and vip-address from the vc instance.
-    #
-    #     This method retrieves the discovery payload from the volttron
-    #     central instance.  It then stores that information in a
-    #     volttron.central file.
-    #
-    #     If this method succeeds the _vc member will be a VCInfo
-    #     object.
-    #
-    #     :return:
-    #     """
-    #     # The variable self._vc will be loadded when the object is
-    #     # created.
-    #
-    #     uri = "http://{}/discovery/".format(self._vc_discovery_address)
-    #     res = requests.get(uri)
-    #     assert res.ok
-    #     _log.debug('RESPONSE: {} {}'.format(type(res.json()), res.json()))
-    #     tmpvc = res.json()
-    #     assert tmpvc['vip-address']
-    #     assert tmpvc['serverkey']
-    #
-    #     self._vc = VCInfo(discovery_address=self._vc_discovery_address,
-    #                       serverkey=tmpvc['serverkey'],
-    #                       vip_address=tmpvc['vip-address'])
-    #     _log.debug("vctmp: {}".format(self._vc))
-    #     with open("volttron.central", 'w') as fout:
-    #         fout.write(jsonapi.dumps(tmpvc))
-
-    # def _get_vc_info_from_file(self):
-    #     """ Loads the VOLTTRON Central keys if available.
-    #
-    #     :return:
-    #     """
-    #     # Load up the vc information.  If manage_platform is called with
-    #     # different public key then there is an error.
-    #     if os.path.exists("volttron.central"):
-    #         with open("volttron.central",'r') as fin:
-    #             vcdict = jsonapi.loads(fin.read())
-    #             self._vc = VCInfo(
-    #                 discovery_address=vcdict['discovery_address'],
-    #                 vip_address=vcdict['vip-address'],
-    #                 serverkey=vcdict['serverkey']
-    #             )
-    #         _log.info("vc info loaded from file.")
-    #     else:
-    #         self._vc = None
-
-    # def _install_agents(self, agent_files):
-    #     tmpdir = tempfile.mkdtemp()
-    #     results = []
-    #     for f in agent_files:
-    #         try:
-    #
-    #             path = os.path.join(tmpdir, f['file_name'])
-    #             with open(path, 'wb') as fout:
-    #                 fout.write(base64.decodestring(f['file'].split('base64,')[1]))
-    #
-    #             agent_uuid = control._send_agent(self, 'control', path).get(timeout=15)
-    #             results.append({'uuid': agent_uuid})
-    #
-    #         except Exception as e:
-    #             results.append({'error': e.message})
-    #             _log.error("EXCEPTION: "+e.message)
-    #
-    #     try:
-    #         shutil.rmtree(tmpdir)
-    #     except:
-    #         pass
-    #     return results
-
     def _store_settings(self):
         with open('platform.settings', 'wb') as f:
             f.write(jsonapi.dumps(self._settings))
@@ -931,7 +636,7 @@ class VolttronCentralPlatform(Agent):
 
         agent_for_vc = self._build_agent_for_vc()
         agent_for_vc.vip.rpc.call(VOLTTRON_CENTRAL, 'register_instance',
-                                  self._my_discovery_address).get(timeout=10)
+                                  self._my_discovery_address).get(timeout=30)
         self._managed = True
 
     @Core.receiver('onstart')
@@ -969,15 +674,16 @@ class VolttronCentralPlatform(Agent):
                     'Failed to auto register platform with '
                     'Volttron Central{} (Error: {}'.format(vc_addr_string,
                                                            e.message))
+
     def _get_my_discovery_address(self):
         if not self._my_discovery_address:
             self._my_discovery_address = self.vip.rpc.call(
-                MASTER_WEB, 'get_bind_web_address').get(timeout=10)
+                MASTER_WEB, 'get_bind_web_address').get(timeout=30)
 
     def _get_vc_discovery_address(self):
         if not self._vc_discovery_address:
             self._vc_discovery_address = self.vip.rpc.call(
-                MASTER_WEB, 'get_volttron_central_address').get(timeout=10)
+                MASTER_WEB, 'get_volttron_central_address').get(timeout=30)
 
     def _build_agent_for_vc(self):
         """Can raise DiscoveryError and gevent.Timeout"""
@@ -1027,7 +733,10 @@ def find_registration_address(vip_addresses):
 
 
 def main(argv=sys.argv):
-    '''Main method called by the eggsecutable.'''
+    """ Main method called by the eggsecutable.
+    :param argv:
+    :return:
+    """
     # utils.vip_main(platform_agent)
     utils.vip_main(VolttronCentralPlatform)
 

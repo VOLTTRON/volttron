@@ -55,6 +55,7 @@
 # }}}
 from __future__ import absolute_import, print_function
 
+from collections import defaultdict
 import inspect
 import logging
 import sys
@@ -92,6 +93,10 @@ def historian(config_path, **kwargs):
     if identity:
         kwargs['identity'] = identity
 
+    topic_replace_list = config.get("topic_replace_list", None)
+    if topic_replace_list:
+        _log.debug("topic replace list is: {}".format(topic_replace_list))
+
     mod_name = database_type + "functs"
     mod_name_path = "sqlhistorian.db.{}".format(mod_name)
     loaded_mod = __import__(mod_name_path, fromlist=[mod_name])
@@ -124,6 +129,9 @@ def historian(config_path, **kwargs):
             :param kwargs:
             :return:
             """
+            super(SQLHistorian, self).__init__(
+                topic_replace_list=topic_replace_list, **kwargs)
+
             if tables_def['table_prefix']:
                 tables_def['data_table'] = tables_def['table_prefix'] + \
                     "_" + tables_def['data_table']
@@ -138,8 +146,6 @@ def historian(config_path, **kwargs):
             self.topic_id_map = {}
             self.topic_name_map = {}
             self.topic_meta = {}
-
-            super(SQLHistorian, self).__init__(**kwargs)
 
         @Core.receiver("onstart")
         def starting(self, sender, **kwargs):
