@@ -10,6 +10,8 @@
 <body>
 <h1>Webservice api exercise</h1>
 <h3>Authorization</h3>
+Username: <input id="username" type="text" /><br />
+Password: <input type="password" id="password" /><br />
 <button id="get_auth">Get Auth Token</button><br />
 Auth Token: <input type="text" id="token" placeholder="Enter auth token" /><br/>
 
@@ -218,12 +220,18 @@ Topic: <input id="historian_topic" placeholder="Historian topic to query" /><br/
     });
 
     $('#get_auth').click(function(){
+        var username = $('#username').val();
+        var password = $('#password').val();
+        if (!username || !password){
+            alert('Enter username and password');
+            return;
+        }
         var pdata = {
              jsonrpc: '2.0',
              method: "get_authorization",
              params: {
-                username: "admin",
-                password: "admin"
+                username: username,
+                password: password
              },
              id: '72581-4'
         };
