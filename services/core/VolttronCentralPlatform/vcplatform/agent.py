@@ -549,12 +549,11 @@ class VolttronCentralPlatform(Agent):
                 _log.debug('sending done message.')
                 channel.send('done')
                 _log.debug('waiting for done')
-                channel.recv()
                 _log.debug('closing channel')
+
+                results.append({'uuid': agent_uuid.get(timeout=10)})
                 channel.close(linger=0)
                 del channel
-                _log.debug('intalled uuid: {}'.format(agent_uuid))
-                results.append({'uuid': agent_uuid.get(timeout=10)})
 
             except Exception as e:
                 results.append({'error': str(e)})
@@ -564,6 +563,7 @@ class VolttronCentralPlatform(Agent):
             shutil.rmtree(tmpdir)
         except:
             pass
+
         return results
 
     @RPC.export
