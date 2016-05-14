@@ -75,6 +75,8 @@ var platformManagerActionCreators = {
 
                 managerPlatforms.forEach(function (platform, i) {
                     platformActionCreators.loadAgents(platform);
+
+                    platformActionCreators.loadCharts(platform);
                 });
             })
             .catch(rpc.Error, function (error) {

@@ -59,4 +59,5 @@ module.exports = keyMirror({
 
 
     RECEIVE_PLATFORM_TOPIC_DATA: null,
+    RECEIVE_CHART_TOPICS: null
 });

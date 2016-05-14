@@ -181,64 +181,7 @@ var platformsPanelActionCreators = {
             itemPath: itemPath,
             checked: checked
         });
-    },
-
-    addToChart: function(panelItem) {
-
-        var authorization = authorizationStore.getAuthorization();
-
-        new rpc.Exchange({
-            method: 'platforms.uuid.' + panelItem.parentUuid + '.historian.query',
-            params: {
-                topic: panelItem.topic,
-                count: 20,
-                order: 'LAST_TO_FIRST',
-            },
-            authorization: authorization,
-        }).promise
-            .then(function (result) {
-                panelItem.data = result.values;
-
-                panelItem.data.forEach(function (datum) {
-                    datum.name = panelItem.name;
-                    datum.parent = panelItem.parentPath;
-                    datum.uuid = panelItem.uuid;
-                });
-
-                dispatcher.dispatch({
-                    type: ACTION_TYPES.SHOW_CHARTS
-                });
-
-                dispatcher.dispatch({
-                    type: ACTION_TYPES.ADD_TO_CHART,
-                    panelItem: panelItem
-                });
-            })
-            .catch(rpc.Error, function (error) {
-                
-                var message = error.message;
-
-                if (error.code === -32602)
-                {
-                    if (error.message === "historian unavailable")
-                    {
-                        message = "Data could not be fetched. The historian agent is unavailable."
-                    }
-                }
-
-                statusIndicatorActionCreators.openStatusIndicator("error", message);
-                handle401(error);
-            });
-    },
-
-    removeFromChart: function(panelItem) {
-
-        dispatcher.dispatch({
-            type: ACTION_TYPES.REMOVE_FROM_CHART,
-            panelItem: panelItem
-        });  
-
-    }
+    }    
 }
 
 

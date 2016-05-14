@@ -688,7 +688,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
                     deviceProps.legendInfo = parentDevice.legendInfo + " > " + deviceProps.name;
 
-                    checkForPoints(deviceProps, device, building.name, campus);
+                    checkForPoints(deviceProps, device);
 
                     parentDevice.devices.children.push(deviceProps.uuid);
                     parentDevice.devices[deviceProps.uuid] = deviceProps;  
