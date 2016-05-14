@@ -58,18 +58,24 @@
 
 from __future__ import absolute_import, print_function
 
+import base64
+import tempfile
 from collections import defaultdict
 from copy import deepcopy
 import datetime
-import gevent.event
-import logging
 import json
+import logging
+import os
 import re
+import shutil
 import sys
+import uuid
 import urlparse
 
 import gevent
+import gevent.event
 import psutil
+
 from volttron.platform.agent.utils import (
     get_aware_utc_now, format_timestamp, parse_timestamp_string)
 from volttron.platform.messaging.topics import LOGGER
@@ -499,7 +505,7 @@ class VolttronCentralPlatform(Agent):
                 _log.debug("Params is: {}".format(params))
 
                 result = self.vip.rpc.call(agent_uuid, agent_method,
-                                           params).get()
+                                           **params).get()
 
         if isinstance(result, dict):
             if 'result' in result:
@@ -508,6 +514,57 @@ class VolttronCentralPlatform(Agent):
                 return result['code']
 
         return result
+
+    def _install_agents(self, agent_files):
+        tmpdir = tempfile.mkdtemp()
+        results = []
+
+        for f in agent_files:
+            try:
+
+                path = os.path.join(tmpdir, f['file_name'])
+                with open(path, 'wb') as fout:
+                    fout.write(
+                        base64.decodestring(f['file'].split('base64,')[1]))
+
+                _log.debug('Creating channel for sending the agent.')
+                channel_name = str(uuid.uuid4())
+                channel = self.vip.channel('control',
+                                           channel_name)
+                _log.debug('calling control install agent.')
+                agent_uuid = self.vip.rpc.call('control',
+                                               'install_agent',
+                                               f['file_name'],
+                                               channel_name)
+                _log.debug('waiting for ready')
+                _log.debug('received {}'.format(channel.recv()))
+                with open(path, 'rb') as fin:
+                    _log.debug('sending wheel to control.')
+                    while True:
+                        data = fin.read(8125)
+
+                        if not data:
+                            break
+                        channel.send(data)
+                _log.debug('sending done message.')
+                channel.send('done')
+                _log.debug('waiting for done')
+                channel.recv()
+                _log.debug('closing channel')
+                channel.close(linger=0)
+                del channel
+                _log.debug('intalled uuid: {}'.format(agent_uuid))
+                results.append({'uuid': agent_uuid.get(timeout=10)})
+
+            except Exception as e:
+                results.append({'error': str(e)})
+                _log.error("EXCEPTION: " + str(e))
+
+        try:
+            shutil.rmtree(tmpdir)
+        except:
+            pass
+        return results
 
     @RPC.export
     def list_agent_methods(self, method, params, id, agent_uuid):
