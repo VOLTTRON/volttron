@@ -208,6 +208,37 @@ class ControlService(BaseAgent):
 
     @RPC.export
     def install_agent(self, filename, channel_name):
+        """ Installs an agent on the instance instance.
+
+        The installation of an agent through this method involves sending
+        the binary data of the agent file through a channel.  The following
+        example is the protocol for sending the agent across the wire:
+
+        Example Protocol:
+
+            # client creates channel to this agent (control)
+            channel = agent.vip.channel('control', 'channel_name')
+            # client waits for a ready response from control note this will
+            # block until the repsonse is received.
+            response = channel.recv()
+            # Begin sending data
+            while True:
+                wheeldata = fin.read(8125)
+                if not wheeldata:
+                    break
+                channel.send(wheeldata)
+            # send the done message
+            channel.send('done')
+            # close and delete the channel
+            channel.close(linger=0)
+            del channel
+
+        @param:string:filename:
+            The name of the agent packaged file that is being written.
+        @param:string:channel_name:
+            The name of the channel that the agent file will be sent on.
+
+        """
         peer = bytes(self.vip.rpc.context.vip_message.peer)
         channel = self.vip.channel(peer, channel_name)
         # Send synchronization message to inform peer of readiness
@@ -216,10 +247,13 @@ class ControlService(BaseAgent):
         try:
             path = os.path.join(tmpdir, os.path.basename(filename))
             store = open(path, 'wb')
+            _log.debug('Begining to receive data.')
             try:
                 while True:
                     data = channel.recv()
-                    if not data:
+                    _log.debug(data)
+                    if data == 'done':
+                        _log.debug('done receiving data')
                         break
                     store.write(data)
                 # Send done synchronization message
@@ -228,7 +262,9 @@ class ControlService(BaseAgent):
                 store.close()
                 channel.close(linger=0)
                 del channel
-            return self._aip.install_agent(path)
+            agent_uuid = self._aip.install_agent(path)
+            _log.debug('AGENT UUID: {}'.format(agent_uuid))
+            return agent_uuid #self._aip.install_agent(path)
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)
 

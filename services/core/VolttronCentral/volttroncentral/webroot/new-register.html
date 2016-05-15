@@ -10,6 +10,8 @@
 <body>
 <h1>Webservice api exercise</h1>
 <h3>Authorization</h3>
+Username: <input id="username" type="text" /><br />
+Password: <input type="password" id="password" /><br />
 <button id="get_auth">Get Auth Token</button><br />
 Auth Token: <input type="text" id="token" placeholder="Enter auth token" /><br/>
 
@@ -35,7 +37,8 @@ Platform UUID: <input type="text" id="platform_uuid" placeholder="Platform uuid 
 <button id="unregister">Unregister VIP Address</button><br />
 
 <h3>Platform Agent API</h3>
-Platform UUID: <input id="agent_platform_uuid" placeholder="Platform the agent below is on" /><br/>
+Platform UUID: <select id="agent_platform_uuid"></select><br /> <!--<input id="agent_platform_uuid" placeholder="Platform the agent below is on" /><br/>-->
+Install Agent: <input type="file" id="agent_file" name="agent_file" /><br />
 <button id="list_agents">List Agents</button> <button id="get_devices">Get Devices</button><br />
 Agent UUID: <input id="agent_uuid" placeholder="Agent to act on" /><br/>
 Arguments: <input id="agent_method" placeholder="Method to call"/> <input id="agent_method_args" placeholder="key:value arguments to pass" /><br/>
@@ -64,7 +67,7 @@ Topic: <input id="historian_topic" placeholder="Historian topic to query" /><br/
     function do_request_platform_method(method) {
         var platform_uuid = $('#agent_platform_uuid').val();
         var req_method = 'platform.uuid.'+platform_uuid+'.'+method;
-
+        console.log("Method is: "+req_method);
         var token = $('#token').val();
         var pdata = {
                  jsonrpc: '2.0',
@@ -88,7 +91,7 @@ Topic: <input id="historian_topic" placeholder="Historian topic to query" /><br/
 }   );
     }
 
-    function do_request_vc_method(method) {
+    function do_request_vc_method(method, callback=null) {
         var req_method = method;
         var token = $('#token').val();
         var pdata = {
@@ -96,21 +99,24 @@ Topic: <input id="historian_topic" placeholder="Historian topic to query" /><br/
                  method: req_method,
                  authorization: token,
                  id: '72581-4'
-         };
-         $('#request_sent').val(JSON.stringify(pdata));
-         $.ajax({
-             type: 'POST',
-             url: '/jsonrpc',
-             data: JSON.stringify(pdata),
-             dataType: 'json',
-             success: function(data){
-                 $('#output_data').val(JSON.stringify(data));
-             },
-             failure: function(data){
-                 $('#output_data').val("FAILURE "+ JSON.stringify(data));
+        };
+        $('#request_sent').val(JSON.stringify(pdata));
+        $.ajax({
+            type: 'POST',
+            url: '/jsonrpc',
+            data: JSON.stringify(pdata),
+            dataType: 'json',
+            success: function(data){
+                $('#output_data').val(JSON.stringify(data));
+                if (callback){
+                    callback(data);
+                }
+            },
+            failure: function(data){
+                $('#output_data').val("FAILURE "+ JSON.stringify(data));
             }
 
-         });
+        });
     }
 
     function do_historian_query() {
@@ -171,8 +177,26 @@ Topic: <input id="historian_topic" placeholder="Historian topic to query" /><br/
         do_request_platform_method('status_agents');
     });
 
+    function removeOptions(obj) {
+        if (obj.options){
+            while (obj.options.length) {
+                obj.remove(0);
+            }
+        }
+    }
+
     $('#list_platforms').click(function(){
-        do_request_vc_method('list_platforms');
+        do_request_vc_method('list_platforms', function(platforms){
+            var sel = document.getElementById('agent_platform_uuid');
+
+            removeOptions(sel);
+            platforms['result'].forEach(function(item, index){
+                var obj = document.createElement('option');
+                obj.innerHTML = item.name;
+                obj.value = item.uuid;
+                sel.appendChild(obj);
+            });
+        });
     });
 
     $('#list_deivces').click(function(){
@@ -196,12 +220,18 @@ Topic: <input id="historian_topic" placeholder="Historian topic to query" /><br/
     });
 
     $('#get_auth').click(function(){
+        var username = $('#username').val();
+        var password = $('#password').val();
+        if (!username || !password){
+            alert('Enter username and password');
+            return;
+        }
         var pdata = {
              jsonrpc: '2.0',
              method: "get_authorization",
              params: {
-                username: "admin",
-                password: "admin"
+                username: username,
+                password: password
              },
              id: '72581-4'
         };
@@ -219,8 +249,6 @@ Topic: <input id="historian_topic" placeholder="Historian topic to query" /><br/
              }
         });
     });
-
-
 
    $('#inspect_agent').click(function(){
         var platform_uuid = $('#agent_platform_uuid').val();
@@ -273,6 +301,62 @@ Topic: <input id="historian_topic" placeholder="Historian topic to query" /><br/
             }
 
          });
+    });
+</script>
+<script language="javascript">
+
+    function readFile(input) {
+        console.log('readFile');
+        if ( input.files && input.files[0] ) {
+
+            var FR= new FileReader();
+
+            FR.onload = function(e) {
+                 //$('#img').attr( "src", e.target.result );
+                 $('#base').text( e.target.result );
+                 var platform = $('#agent_platform_uuid').val();
+                 var token = $('#token').val();
+                 var agent_data = e.target.result;
+                 var pdata = {
+                     jsonrpc: '2.0',
+                     method:  "platforms.uuid."+platform+".install",
+                     authorization: token,
+                     params: {
+                         files: [
+                            {
+                                tag: 'myagenttag',
+                                file_name: input.files[0].name,
+                                file: agent_data
+                            }
+                         ]
+                     },
+                     id: '72581-4'
+                 };
+
+                 $('#request_sent').val( JSON.stringify(pdata) );
+
+                 $.ajax({
+                     type: 'POST',
+                     url: '/jsonrpc',
+                     data: JSON.stringify(pdata),
+                     dataType: 'json',
+                     success: function(data) {
+                         $('#output_data').val('Success\n'+ JSON.stringify(data));
+                     },
+                     failure: function(data) {
+                         $('#output_data').val('Failure\n'+ JSON.stringify(data));
+                     }
+
+                 });
+            };
+
+            FR.readAsDataURL( input.files[0] )
+        }
+    }
+
+    $("#agent_file").change(function(){
+        console.log('change detected');
+        readFile( this );
     });
 </script>
 
