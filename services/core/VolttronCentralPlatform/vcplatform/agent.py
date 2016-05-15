@@ -58,18 +58,24 @@
 
 from __future__ import absolute_import, print_function
 
+import base64
+import tempfile
 from collections import defaultdict
 from copy import deepcopy
 import datetime
-import gevent.event
-import logging
 import json
+import logging
+import os
 import re
+import shutil
 import sys
+import uuid
 import urlparse
 
 import gevent
+import gevent.event
 import psutil
+
 from volttron.platform.agent.utils import (
     get_aware_utc_now, format_timestamp, parse_timestamp_string)
 from volttron.platform.messaging.topics import LOGGER
@@ -111,6 +117,11 @@ class VolttronCentralPlatform(Agent):
 
     def __init__(self, config_path, **kwargs):
 
+        identity = kwargs.pop('identity', None)
+        identity = VOLTTRON_CENTRAL_PLATFORM
+        super(VolttronCentralPlatform, self).__init__(
+            identity=identity, **kwargs)
+
         self._config = utils.load_config(config_path)
         self._vc_discovery_address = None
         self._my_discovery_address = None
@@ -125,12 +136,7 @@ class VolttronCentralPlatform(Agent):
         # A dictionary of devices that are published by the platform.
         self._devices = {}
 
-        identity = kwargs.pop('identity', None)
-        identity = VOLTTRON_CENTRAL_PLATFORM
-        super(VolttronCentralPlatform, self).__init__(
-            identity=identity, **kwargs)
-
-        self._stats_publish_interval = 10
+        self._stats_publish_interval = 30
         self._stats_publisher = None
 
         # Search and replace for topics
@@ -273,11 +279,11 @@ class VolttronCentralPlatform(Agent):
         for key, item in self._sibling_cache.items():
             for peer_address in item:
                 try:
-#                         agent = Agent(address=peer_address)
+                    #                         agent = Agent(address=peer_address)
 
-#                         event = gevent.event.Event()
-#                         gevent.spawn(agent.core.run, event)
-#                         event.wait()
+                    #                         event = gevent.event.Event()
+                    #                         gevent.spawn(agent.core.run, event)
+                    #                         event.wait()
                     agent = self._get_rpc_agent(peer_address)
                     _log.debug("about to publish to peers: {}".format(
                         agent.core.identity))
@@ -359,18 +365,19 @@ class VolttronCentralPlatform(Agent):
                 'process_id': None,
                 'error_code': None,
                 'permissions': {
-                    'can_stop': True,
-                    'can_start': True,
+                    'can_stop': is_running,
+                    'can_start': not is_running,
                     'can_restart': True,
                     'can_remove': True
                 }
             }
+
             if pinfo:
                 uuid_to_status[a['uuid']]['process_id'] = proc_info[0]
                 uuid_to_status[a['uuid']]['error_code'] = proc_info[1]
 
-            if 'volttroncentral' in name or \
-                            'vcplatform' in name:
+            if 'volttroncentral' in a['name'] or \
+                            'vcplatform' in a['name']:
                 uuid_to_status[a['uuid']]['permissions']['can_stop'] = False
                 uuid_to_status[a['uuid']]['permissions']['can_remove'] = False
 
@@ -420,6 +427,12 @@ class VolttronCentralPlatform(Agent):
     @RPC.export
     def status_agents(self):
         return self.vip.rpc.call('control', 'status_agents').get()
+
+    @PubSub.subscribe('pubsub', 'heartbeat/volttroncentral/')
+    def on_heartbeat_topic(self, peer, sender, bus, topic, headers, message):
+        print
+        "VCP got\nTopic: {topic}, {headers}, Message: {message}".format(
+            topic=topic, headers=headers, message=message)
 
     @RPC.export
     def route_request(self, id, method, params):
@@ -493,7 +506,7 @@ class VolttronCentralPlatform(Agent):
                 _log.debug("Params is: {}".format(params))
 
                 result = self.vip.rpc.call(agent_uuid, agent_method,
-                                           params).get()
+                                           **params).get()
 
         if isinstance(result, dict):
             if 'result' in result:
@@ -502,6 +515,57 @@ class VolttronCentralPlatform(Agent):
                 return result['code']
 
         return result
+
+    def _install_agents(self, agent_files):
+        tmpdir = tempfile.mkdtemp()
+        results = []
+
+        for f in agent_files:
+            try:
+
+                path = os.path.join(tmpdir, f['file_name'])
+                with open(path, 'wb') as fout:
+                    fout.write(
+                        base64.decodestring(f['file'].split('base64,')[1]))
+
+                _log.debug('Creating channel for sending the agent.')
+                channel_name = str(uuid.uuid4())
+                channel = self.vip.channel('control',
+                                           channel_name)
+                _log.debug('calling control install agent.')
+                agent_uuid = self.vip.rpc.call('control',
+                                               'install_agent',
+                                               f['file_name'],
+                                               channel_name)
+                _log.debug('waiting for ready')
+                _log.debug('received {}'.format(channel.recv()))
+                with open(path, 'rb') as fin:
+                    _log.debug('sending wheel to control.')
+                    while True:
+                        data = fin.read(8125)
+
+                        if not data:
+                            break
+                        channel.send(data)
+                _log.debug('sending done message.')
+                channel.send('done')
+                _log.debug('waiting for done')
+                _log.debug('closing channel')
+
+                results.append({'uuid': agent_uuid.get(timeout=10)})
+                channel.close(linger=0)
+                del channel
+
+            except Exception as e:
+                results.append({'error': str(e)})
+                _log.error("EXCEPTION: " + str(e))
+
+        try:
+            shutil.rmtree(tmpdir)
+        except:
+            pass
+
+        return results
 
     @RPC.export
     def list_agent_methods(self, method, params, id, agent_uuid):
@@ -581,7 +645,7 @@ class VolttronCentralPlatform(Agent):
             )
         # Handle if platform agent on same machine as vc.
         elif vc_topic and \
-            self._my_discovery_address == self._vc_discovery_address:
+                        self._my_discovery_address == self._vc_discovery_address:
 
             self.vip.pubsub.publish(peer='pubsub',
                                     topic=vc_topic.format(),
@@ -641,7 +705,7 @@ class VolttronCentralPlatform(Agent):
 
     @Core.receiver('onstart')
     def starting(self, sender, **kwargs):
-        self.vip.heartbeat.start_with_period(10)
+        self.vip.heartbeat.start()
         self._auto_register_with_vc()
 
         # Reconfigure with the publisher.
@@ -665,15 +729,15 @@ class VolttronCentralPlatform(Agent):
                 self._register_with_vc()
             _log.debug('Auto register compelete')
         except (DiscoveryError, gevent.Timeout, AlreadyManagedError,
-                    CannotConnectError) as e:
-                if self._vc_discovery_address:
-                    vc_addr_string = '({})'.format(self._vc_discovery_address)
-                else:
-                    vc_addr_string = ''
-                _log.warn(
-                    'Failed to auto register platform with '
-                    'Volttron Central{} (Error: {}'.format(vc_addr_string,
-                                                           e.message))
+                CannotConnectError) as e:
+            if self._vc_discovery_address:
+                vc_addr_string = '({})'.format(self._vc_discovery_address)
+            else:
+                vc_addr_string = ''
+            _log.warn(
+                'Failed to auto register platform with '
+                'Volttron Central{} (Error: {}'.format(vc_addr_string,
+                                                       e.message))
 
     def _get_my_discovery_address(self):
         if not self._my_discovery_address:
