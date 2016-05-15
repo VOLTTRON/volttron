@@ -66,6 +66,7 @@ import gevent
 
 from authenticate import Authenticate
 from sessions import SessionHandler
+from volttron.utils.persistance import load_create_store
 from volttron.platform import jsonrpc
 from volttron.platform.agent import utils
 from volttron.platform.agent.utils import (
@@ -78,7 +79,8 @@ from volttron.platform.jsonrpc import (
     INVALID_REQUEST, METHOD_NOT_FOUND,
     UNHANDLED_EXCEPTION, UNAUTHORIZED,
     UNABLE_TO_REGISTER_INSTANCE, DISCOVERY_ERROR,
-    UNABLE_TO_UNREGISTER_INSTANCE, UNAVAILABLE_PLATFORM)
+    UNABLE_TO_UNREGISTER_INSTANCE, UNAVAILABLE_PLATFORM, INVALID_PARAMS,
+    UNAVAILABLE_AGENT)
 from volttron.platform.messaging.health import UNKNOWN_STATUS, Status, \
     BAD_STATUS
 from .resource_directory import ResourceDirectory
@@ -174,6 +176,10 @@ class VolttronCentralAgent(Agent):
         # This will allow us to not have multiple periodic calls at the same
         # time which could cause unpredicatable results.
         self._flag_updating_deviceregistry = False
+
+        self._setting_store = load_create_store(
+            os.path.join(os.environ['VOLTTRON_HOME'],
+                         'data', 'volttron.central.settings'))
 
     @Core.periodic(60)
     def _reconnect_to_platforms(self):
@@ -802,9 +808,29 @@ class VolttronCentralAgent(Agent):
             return self._handle_list_platforms()
         elif method == 'unregister_platform':
             return self.unregister_platform(params['platform_uuid'])
+        elif method == 'get_setting':
+            if 'key' not in params or not params['key']:
+                return err('Invalid parameter key not set',
+                           INVALID_PARAMS)
+            return self._setting_store.get(params['key'], None)
+        elif method == 'get_setting_keys':
+            return self._setting_store.keys()
+        elif method == 'set_setting':
+            if 'key' not in params or not params['key'] :
+                return err('Invalid parameter key not set',
+                           INVALID_PARAMS)
+            if 'value' not in params or not params['value']:
+                return err('Invalid parameter value not set',
+                           INVALID_PARAMS)
+            self._setting_store[params['key']] = params['value']
+            self._setting_store.sync()
+            return 'SUCCESS'
         elif 'historian' in method:
             has_platform_historian = PLATFORM_HISTORIAN in \
                                      self.vip.peerlist().get(timeout=30)
+            if not has_platform_historian:
+                err('Platform historian not found on volttorn central',
+                    UNAVAILABLE_AGENT)
             _log.debug('Trapping platform.historian to vc.')
             _log.debug('has_platform_historian: {}'.format(
                 has_platform_historian))

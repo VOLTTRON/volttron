@@ -4,6 +4,9 @@ var React = require('react');
 
 var modalActionCreators = require('../action-creators/modal-action-creators');
 var platformActionCreators = require('../action-creators/platform-action-creators');
+var platformChartActionCreators = require('../action-creators/platform-chart-action-creators');
+var chartStore = require('../stores/platform-chart-store');
+var ComboBox = require('./combo-box');
 
 var EditChartForm = React.createClass({
     getInitialState: function () {
@@ -13,27 +16,71 @@ var EditChartForm = React.createClass({
             state[prop] = this.props.chart[prop];
         }
 
+        state.topics = chartStore.getChartTopics(this.props.platform.uuid);
+
+        state.selectedTopic = "";
+
         return state;
+    },
+    componentDidMount: function () {
+        chartStore.addChangeListener(this._onStoresChange);
+    },
+    componentWillUnmount: function () {
+        chartStore.removeChangeListener(this._onStoresChange);
+    },
+    _onStoresChange: function () {
+        this.setState({ topics: chartStore.getChartTopics(this.props.platform.uuid)});
     },
     _onPropChange: function (e) {
         var state = {};
 
+        for (key in this.state)
+        {
+            state[key] = this.state[key];
+        }
+
+        var key = e.target.id;
+
         switch (e.target.type) {
         case 'checkbox':
-            state[e.target.id] = e.target.checked;
+            state[key] = e.target.checked;
             break;
         case 'number':
-            state[e.target.id] = parseFloat(e.target.value);
+            state[key] = parseFloat(e.target.value);
             break;
         default:
-            state[e.target.id] = e.target.value;
+            state[key] = e.target.value;
         }
 
         this.setState(state);
     },
-    _onCancelClick: modalActionCreators.closeModal,
+    _onTopicChange: function (value) {
+        this.setState({ selectedTopic: value });
+    },
+    _onCancelClick: function () {
+        modalActionCreators.closeModal();
+    },
     _onSubmit: function () {
-        platformActionCreators.saveChart(this.props.platform, this.props.chart, this.state);
+        
+        var selectedTopic = this.state.topics.find(function (topic) {
+            return topic.path === this.state.selectedTopic;
+        }, this);
+
+        if (selectedTopic)
+        {
+            selectedTopic.uuid = selectedTopic.path;
+            selectedTopic.topic = selectedTopic.path;
+            selectedTopic.pinned = (this.state.pin ? true : false);
+            selectedTopic.refreshInterval = this.state.refreshInterval;
+            selectedTopic.type = this.state.type;
+            selectedTopic.parentUuid = this.props.platform.uuid;
+        }
+
+        var notifyRouter = false;
+
+        platformChartActionCreators.addToChart(selectedTopic, notifyRouter);
+        platformActionCreators.saveChart(this.props.platform, null, selectedTopic);
+        modalActionCreators.closeModal();
     },
     render: function () {
         var typeOptions;
@@ -68,27 +115,25 @@ var EditChartForm = React.createClass({
             );
         }
 
+        var topicsSelector;
+
+        if (this.state.topics.length)
+        {
+            topicsSelector = (
+                <ComboBox items={this.state.topics} itemskey="key" itemsvalue="path" itemslabel="label" onselect={this._onTopicChange}>
+                </ComboBox>
+            )
+        }
+
         return (
             <form className="edit-chart-form" onSubmit={this._onSubmit}>
-                <h1>{this.props.chart ? 'Edit' : 'Add'} chart</h1>
+                <h1>{this.props.chart ? 'Edit' : 'Add'} Chart</h1>
                 {this.state.error && (
                     <div className="error">{this.state.error.message}</div>
                 )}
                 <div className="form__control-group">
-                    <label htmlFor="topic">Platform</label>
-                    {this.props.platform.name} ({this.props.platform.uuid})
-                </div>
-                <div className="form__control-group">
                     <label htmlFor="topic">Topic</label>
-                    <input
-                        className="form__control form__control--block"
-                        type="text"
-                        id="topic"
-                        onChange={this._onPropChange}
-                        value={this.state.topic}
-                        placeholder="e.g. some/published/topic"
-                        required
-                    />
+                    {topicsSelector}
                 </div>
                 <div className="form__control-group">
                     <label>Dashboard</label>
@@ -128,6 +173,9 @@ var EditChartForm = React.createClass({
                     >
                         <option value="">-- Select type --</option>
                         <option value="line">Line</option>
+                        <option value="lineWithFocus">Line with View Finder</option>
+                        <option value="stackedArea">Stacked Area</option>
+                        <option value="cumulativeLine">Cumulative Line</option>
                     </select>
                 </div>
                 {typeOptions}
@@ -141,7 +189,7 @@ var EditChartForm = React.createClass({
                     </button>
                     <button
                         className="button"
-                        disabled={!this.state.topic || !this.state.type}
+                        disabled={!this.state.selectedTopic || !this.state.type}
                     >
                         Save
                     </button>

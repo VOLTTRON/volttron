@@ -4,11 +4,10 @@ var React = require('react');
 var Router = require('react-router');
 
 var AgentRow = require('./agent-row');
-var Chart = require('./chart');
-var EditChartForm = require('./edit-chart-form');
-var ConfirmForm = require('./confirm-form');
-var modalActionCreators = require('../action-creators/modal-action-creators');
+// var ConfirmForm = require('./confirm-form');
+// var modalActionCreators = require('../action-creators/modal-action-creators');
 var platformActionCreators = require('../action-creators/platform-action-creators');
+var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
 var platformsStore = require('../stores/platforms-store');
 
 var Platform = React.createClass({
@@ -28,22 +27,20 @@ var Platform = React.createClass({
     _onStoresChange: function () {
         this.setState(getStateFromStores(this));
     },
-    _onEditChartClick: function (platform, chart) {
-        modalActionCreators.openModal(<EditChartForm platform={platform} chart={chart} />);
-    },
-    _onDeleteChartClick: function (platform, chart) {
-        modalActionCreators.openModal(
-            <ConfirmForm
-                promptTitle="Delete chart"
-                promptText={'Delete ' + chart.type + ' chart for ' + chart.topic + '?'}
-                confirmText="Delete"
-                onConfirm={platformActionCreators.deleteChart.bind(null, platform, chart)}
-            />
-        );
-    },
-    _onAddChartClick: function (platform) {
-        modalActionCreators.openModal(<EditChartForm platform={platform} />);
-    },
+    // _onEditChartClick: function (platform, chart) {
+
+    //     if (this.state.historian)
+    //     {
+    //         platformActionCreators.loadChartTopics(platform, this.state.historian);
+
+    //         modalActionCreators.openModal("platforms", <EditChartForm platform={platform} chart={chart} />);            
+    //     }
+    //     else
+    //     {
+    //         var message = "Charts can't be added. The historian agent is unavailable."
+    //         statusIndicatorActionCreators.openStatusIndicator("error", message);
+    //     }
+    // },    
     _onFileChange: function (e) {
         if (!e.target.files.length) { return; }
 
@@ -86,7 +83,7 @@ var Platform = React.createClass({
                 </div>
             );
         }
-        
+
         var agents;
         
         if (!platform.agents) {
@@ -139,6 +136,7 @@ var Platform = React.createClass({
                     &nbsp;/&nbsp;
                     {platform.name} ({platform.uuid})
                 </h2>
+
                 
                 <br/>
                 <br/>
@@ -152,9 +150,10 @@ var Platform = React.createClass({
 });
 
 function getStateFromStores(component) {
+
     return {
         platform: platformsStore.getPlatform(component.getParams().uuid),
-        error: platformsStore.getLastError(component.getParams().uuid),
+        error: platformsStore.getLastError(component.getParams().uuid)
     };
 }
 

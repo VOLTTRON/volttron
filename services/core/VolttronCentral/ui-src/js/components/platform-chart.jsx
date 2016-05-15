@@ -17,6 +17,7 @@ var PlatformChart = React.createClass({
         var state = {};
 
         state.refreshInterval = this.props.chart.refreshInterval;
+        state.pinned = this.props.chart.pinned;
 
         return state;
     },
@@ -75,7 +76,9 @@ var PlatformChart = React.createClass({
                                         data={chartData.data} 
                                         name={chartData.data[0].name }
                                         hideControls={this.props.hideControls}
-                                        refreshInterval={this.props.chart.refreshInterval} /> : null }
+                                        refreshInterval={this.props.chart.refreshInterval}
+                                        pinned={this.props.chart.pinned}
+                                        type={this.props.chart.type} /> : null }
                           </div>
 
                           <br/>
@@ -98,9 +101,10 @@ var GraphLineChart = React.createClass({
   getInitialState: function () {
       var state = {};
       state.chartName = this.props.name.replace(" / ", "_") + '_chart';
-      state.type = platformChartStore.getType(this.props.name);
+      // state.type = platformChartStore.getType(this.props.name);
       state.lineChart = null;
-      state.pinned = false;
+      state.pinned = this.props.pinned;
+      state.type = this.props.type;
       state.showTaptip = false;
       state.taptipX = 0;
       state.taptipY = 0;

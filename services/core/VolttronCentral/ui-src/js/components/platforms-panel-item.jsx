@@ -5,6 +5,7 @@ var Router = require('react-router');
 
 var platformsPanelItemsStore = require('../stores/platforms-panel-items-store');
 var platformsPanelActionCreators = require('../action-creators/platforms-panel-action-creators');
+var platformChartActionCreators = require('../action-creators/platform-chart-action-creators');
 
 
 var PlatformsPanelItem = React.createClass({
@@ -72,11 +73,11 @@ var PlatformsPanelItem = React.createClass({
 
         if (checked)
         {
-            platformsPanelActionCreators.addToChart(this.props.panelItem);
+            platformChartActionCreators.addToChart(this.props.panelItem);
         }
         else
         {
-            platformsPanelActionCreators.removeFromChart(this.props.panelItem);
+            platformChartActionCreators.removeFromChart(this.props.panelItem);
         }
     },
     _showTooltip: function (evt) {
