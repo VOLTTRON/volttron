@@ -28,6 +28,8 @@ class APITester(object):
         }
         if use_auth_token:
             data['authorization'] = self._auth_token
+        print('posting data')
+        print(data)
         return requests.post(self._url, json=data)
 
     def get_auth_token(self):
@@ -187,6 +189,47 @@ def test_auto_register_platform(vc_instance):
         return len(response.json()['result']) > 0
 
     assert poll_gevent_sleep(6, redo_request)
+
+
+@pytest.mark.vc
+def test_vc_settings_store(vc_instance):
+    vc, vcuuid, jsonrpc = vc_instance
+
+    kv = dict(key='test.user', value='is.good')
+    kv2 = dict(key='test.user', value='othervalue')
+    kv3 = dict(key='other.user', value='tough stuff')
+    tester = APITester(jsonrpc)
+
+    # Creating setting replies with SUCCESS.
+    resp = tester.do_rpc('set_setting', **kv)
+    print("THE RESPONSE")
+    print(resp.json())
+    assert 'SUCCESS' == resp.json()['result']
+
+    # Get setting should respond with the same  value.
+    resp = tester.do_rpc('get_setting', key=kv['key'])
+    assert kv['value'] == resp.json()['result']
+
+    # Make sure keys are returned.
+    resp = tester.do_rpc('get_setting_keys')
+    assert kv['key'] in resp.json()['result']
+
+    # Test overwrite
+    resp = tester.do_rpc('set_setting', **kv2)
+    assert 'SUCCESS' == resp.json()['result']
+
+    # Test that the data was overwritten
+    resp = tester.do_rpc('get_setting', key=kv['key'])
+    assert kv2['value'] == resp.json()['result']
+
+    # add secondary key/value
+    resp = tester.do_rpc('set_setting', **kv3)
+    assert 'SUCCESS' == resp.json()['result']
+
+    # test both keys are in the store
+    resp = tester.do_rpc('get_setting_keys')
+    assert kv['key'] in resp.json()['result']
+    assert kv3['key'] in resp.json()['result']
 
 
 @pytest.mark.vc
