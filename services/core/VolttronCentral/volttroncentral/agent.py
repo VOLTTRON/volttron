@@ -79,7 +79,8 @@ from volttron.platform.jsonrpc import (
     INVALID_REQUEST, METHOD_NOT_FOUND,
     UNHANDLED_EXCEPTION, UNAUTHORIZED,
     UNABLE_TO_REGISTER_INSTANCE, DISCOVERY_ERROR,
-    UNABLE_TO_UNREGISTER_INSTANCE, UNAVAILABLE_PLATFORM, INVALID_PARAMS)
+    UNABLE_TO_UNREGISTER_INSTANCE, UNAVAILABLE_PLATFORM, INVALID_PARAMS,
+    UNAVAILABLE_AGENT)
 from volttron.platform.messaging.health import UNKNOWN_STATUS, Status, \
     BAD_STATUS
 from .resource_directory import ResourceDirectory
@@ -827,6 +828,9 @@ class VolttronCentralAgent(Agent):
         elif 'historian' in method:
             has_platform_historian = PLATFORM_HISTORIAN in \
                                      self.vip.peerlist().get(timeout=30)
+            if not has_platform_historian:
+                err('Platform historian not found on volttorn central',
+                    UNAVAILABLE_AGENT)
             _log.debug('Trapping platform.historian to vc.')
             _log.debug('has_platform_historian: {}'.format(
                 has_platform_historian))
