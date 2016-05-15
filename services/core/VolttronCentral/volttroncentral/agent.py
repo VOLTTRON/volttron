@@ -832,19 +832,28 @@ class VolttronCentralAgent(Agent):
                                       )
         _log.debug('Routing to {}'.format(VOLTTRON_CENTRAL_PLATFORM))
 
+        if platform_method == 'install':
+            if 'admin' not in session_user['groups']:
+                return jsonrpc.json_error(
+                    id, UNAUTHORIZED,
+                    "Admin access is required to install agents")
+
         if platform_method == 'list_agents':
             _log.debug('Callling list_agents')
             agents = agent.vip.rpc.call(
                 VOLTTRON_CENTRAL_PLATFORM, 'route_request', id,
                 platform_method, params).get(timeout=30)
             for a in agents:
-                if not 'admin' in session_user['groups']:
+                if 'admin' not in session_user['groups']:
                     a['permissions'] = {
                         'can_stop': False,
                         'can_start': False,
                         'can_restart': False,
                         'can_remove': False
                     }
+                else:
+                    _log.debug('Permissionse for {} are {}'
+                               .format(a['name'], a['permissions']))
             return agents
         else:
             return agent.vip.rpc.call(

@@ -365,18 +365,19 @@ class VolttronCentralPlatform(Agent):
                 'process_id': None,
                 'error_code': None,
                 'permissions': {
-                    'can_stop': True,
-                    'can_start': True,
+                    'can_stop': is_running,
+                    'can_start': not is_running,
                     'can_restart': True,
                     'can_remove': True
                 }
             }
+
             if pinfo:
                 uuid_to_status[a['uuid']]['process_id'] = proc_info[0]
                 uuid_to_status[a['uuid']]['error_code'] = proc_info[1]
 
-            if 'volttroncentral' in name or \
-                            'vcplatform' in name:
+            if 'volttroncentral' in a['name'] or \
+                            'vcplatform' in a['name']:
                 uuid_to_status[a['uuid']]['permissions']['can_stop'] = False
                 uuid_to_status[a['uuid']]['permissions']['can_remove'] = False
 
