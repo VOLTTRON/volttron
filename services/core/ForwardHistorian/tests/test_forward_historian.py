@@ -93,17 +93,13 @@ def test_forwarding(volttron_instance1_encrypt, volttron_instance2_encrypt):
     wrap2 = volttron_instance2_encrypt
 
     authfile1 = AuthFile(wrap1.volttron_home+"/auth.json")
-    entry1 = AuthEntry(
-        credentials="CURVE:{}".format(ks3.public())
-    )
+    entry1 = AuthEntry(credentials=ks3.public())
     authfile1.add(entry1)
 
     authfile = AuthFile(wrap2.volttron_home+"/auth.json")
-    entry = AuthEntry(
-        credentials="CURVE:{}".format(ks.public()))
+    entry = AuthEntry(credentials=ks.public())
     authfile.add(entry)
-    entry = AuthEntry(
-        credentials="CURVE:{}".format(ks2.public()))
+    entry = AuthEntry(credentials=ks2.public())
     authfile.add(entry)
 
     forward_to_vip = "{}?serverkey={}&publickey={}&secretkey={}".format(

@@ -166,9 +166,9 @@ class PlatformWrapper:
         return self.__volttron_home
 
     def allow_all_connections(self):
-        """ Add a CURVE:.* entry to the auth.json file.
+        """ Add a /.*/ entry to the auth.json file.
         """
-        entry = AuthEntry(credentials="/CURVE:.*/")
+        entry = AuthEntry(credentials="/.*/")
         authfile = AuthFile(self.volttron_home + "/auth.json")
         authfile.add(entry)
 
@@ -235,7 +235,7 @@ class PlatformWrapper:
         return auth, auth_path
 
     def _append_allow_curve_key(self, publickey):
-        entry = AuthEntry(credentials="CURVE:{}".format(publickey))
+        entry = AuthEntry(credentials=publickey)
         authfile = AuthFile(self.volttron_home + "/auth.json")
         authfile.add(entry)
 
@@ -243,7 +243,7 @@ class PlatformWrapper:
         if isinstance(capabilities, basestring):
             capabilities = [capabilities]
         auth, auth_path = self._read_auth_file()
-        cred = 'CURVE:{}'.format(publickey)
+        cred = publickey
         allow = auth['allow']
         entry = next((item for item in allow if item[
                      'credentials'] == cred), {})

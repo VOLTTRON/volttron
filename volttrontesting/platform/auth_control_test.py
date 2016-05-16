@@ -8,14 +8,14 @@ import pytest
 from volttron.platform.auth import AuthEntry
 
 _auth_entry1 = AuthEntry(
-    domain='test1_domain', address='test1_address', credentials='NULL',
+    domain='test1_domain', address='test1_address', mechanism='NULL',
     user_id='test1_userid', groups=['test1_group1', 'test1_group2'],
     roles=['test1_role1', 'test1_role2'],
     capabilities=['test1_cap1', 'test1_cap2'],
     comments='test1 comment', enabled=True)
 
 _auth_entry2 = AuthEntry(
-    domain='test2_domain', address='test2_address', credentials='NULL',
+    domain='test2_domain', address='test2_address', mechanism='NULL',
     user_id='test2_userid', groups=['test2_group1', 'test2_group2'],
     roles=['test2_role1', 'test2_role2'],
     capabilities=['test2_cap1', 'test2_cap2'],

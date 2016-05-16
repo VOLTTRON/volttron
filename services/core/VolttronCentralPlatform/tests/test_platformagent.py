@@ -23,9 +23,7 @@ def get_new_keypair():
 
 def add_to_auth(volttron_home, publickey, capabilities=None):
     authfile = AuthFile(os.path.join(volttron_home, 'auth.json'))
-    entry = AuthEntry(
-        credentials="CURVE:{}".format(publickey), capabilities=capabilities
-    )
+    entry = AuthEntry(credentials=publickey, capabilities=capabilities)
     authfile.add(entry)
 
 

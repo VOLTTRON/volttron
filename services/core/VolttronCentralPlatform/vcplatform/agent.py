@@ -537,7 +537,7 @@ class VolttronCentralPlatform(Agent):
 
         # Add the vcpublickey to the auth file.
         entry = AuthEntry(
-            credentials="CURVE:{}".format(vcpublickey),
+            credentials=vcpublickey,
             capabilities=['manager'])  # , address=parsedaddress.hostname)
         authfile = AuthFile()
         authfile.add(entry)

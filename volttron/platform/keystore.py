@@ -113,13 +113,13 @@ class KeyStore(BaseJSONStore):
             self.generate()
 
     def generate(self):
-        """Generate new key pair"""
+        """Generate new encoded CURVE key pair"""
         public, secret = curve_keypair()
         self.store({'public': encode_key(public),
                     'secret': encode_key(secret)})
 
     def _get_key(self, keyname):
-        """Get key and make sure it is str (not unicode)
+        """Get encoded CURVE key and make sure it is str (not unicode)
 
         The json module returns all strings as unicode, but base64
         decode doesn't handle unicode.
@@ -130,11 +130,11 @@ class KeyStore(BaseJSONStore):
         return key
 
     def public(self):
-        """Return encoded public key"""
+        """Return encoded CURVE public key"""
         return self._get_key('public')
 
     def secret(self):
-        """Return encoded secret key"""
+        """Return encoded CURVE secret key"""
         return self._get_key('secret')
 
     def isvalid(self):
