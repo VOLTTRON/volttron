@@ -61,6 +61,7 @@
 
 
 import json
+import logging
 import os
 import urlparse
 
@@ -69,6 +70,8 @@ from zmq import curve_keypair
 from .agent.utils import create_file_if_missing
 from .vip.socket import encode_key
 from volttron.platform import get_home
+
+_log = logging.getLogger(__name__)
 
 
 class BaseJSONStore(object):
@@ -128,7 +131,13 @@ class KeyStore(BaseJSONStore):
         """
         key = self.load().get(keyname, None)
         if key:
-            key = str(key)
+            try:
+                key = str(key)
+            except UnicodeEncodeError:
+                _log.warning(
+                    'Non-ASCII character found for key {} in {}'
+                    .format(keyname, self.filename))
+                key = None
         return key
 
     def public(self):
