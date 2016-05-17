@@ -3091,6 +3091,8 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
         state.panelItem = this.props.panelItem;
         state.children = this.props.panelChildren;
 
+        this.loading = false;
+
         return state;
     },
     componentDidMount: function () {
@@ -3111,6 +3113,7 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
             this.setState({panelItem: panelItem});
             this.setState({children: panelChildren});
             this.setState({checked: panelItem.checked});
+            this.loading = false;
         }
     },
     _expandAll : function () {
@@ -3121,7 +3124,11 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
 
         if (this.state.panelItem.expanded === null)
         {
-            platformsPanelActionCreators.loadChildren(this.props.panelItem.type, this.props.panelItem);
+            if (!this.loading)
+            {
+                this.loading = true;
+                platformsPanelActionCreators.loadChildren(this.props.panelItem.type, this.props.panelItem);
+            }
         }
         else
         {
