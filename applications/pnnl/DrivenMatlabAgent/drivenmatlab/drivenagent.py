@@ -135,6 +135,7 @@ def driven_agent(config_path, **kwargs):
                                                 unit=None,
                                                 path='',
                                                 point=None)
+    device_lock_duration = config.get('device_lock_duration', 1.25)
     conversion_map = config.get('conversion_map')
     map_names = {}
     for key, value in conversion_map.items():
@@ -194,7 +195,7 @@ def driven_agent(config_path, **kwargs):
             event = gevent.event.Event()
             agent = Agent(address=vip_destination)
             gevent.spawn(agent.core.run, event)
-            event.wait(timeout=10)
+            event.wait(timeout=15)
             return agent
 
         @Core.receiver('onstart')
@@ -207,7 +208,7 @@ def driven_agent(config_path, **kwargs):
             :type sender: str"""
             self._initialize_devices()
             for device_topic in device_topic_dict:
-                _log.debug('Subscribing to ' + device_topic)
+                _log.info('Subscribing to ' + device_topic)
                 self.vip.pubsub.subscribe(peer='pubsub',
                                           prefix=device_topic,
                                           callback=self.on_analysis_message)
@@ -294,7 +295,7 @@ def driven_agent(config_path, **kwargs):
             :type results: Results object \\volttron.platform.agent.driven
             :returns: Same as results param.
             :rtype: Results object \\volttron.platform.agent.driven"""
-            _log.debug('Processing Results!')
+            _log.info('Processing Results!')
             actuator_error = True
             if mode:
                 if results.devices:
@@ -304,9 +305,9 @@ def driven_agent(config_path, **kwargs):
                 if not actuator_error:
                     results = self.actuator_set(results)
             for value in results.log_messages:
-                _log.debug("LOG: {}".format(value))
+                _log.info("LOG: {}".format(value))
             for key, value in results.table_output.items():
-                _log.debug("TABLE: {}->{}".format(key, value))
+                _log.info("TABLE: {}->{}".format(key, value))
             if output_file_prefix is not None:
                 results = self.create_file_output(results)
             if len(results.table_output.keys()):
@@ -409,15 +410,14 @@ def driven_agent(config_path, **kwargs):
             """
             Calls the actuator's request_new_schedule method to get
                     device schedule
-
+            :param command_equip: contains the names are of the devices
+                that will be scheduled with the ActuatorAgent.
+            :type: dict or list
             :returns: Return result from request_new_schedule method
-                        and True or False for error in scheduling device.
-            :rtype: dict and boolean
+                and True or False for error in scheduling device.
+            :rtype: boolean
             :Return Values:
 
-            The return values has the following format:
-
-                result = {'info': u'', 'data': {}, 'result': 'SUCCESS'}
                 request_error = True/False
 
             warning:: Calling without previously scheduling a device and not within
@@ -425,7 +425,7 @@ def driven_agent(config_path, **kwargs):
 
             _now = dt.now()
             str_now = _now.strftime(DATE_FORMAT)
-            _end = _now + td(minutes=1.5)
+            _end = _now + td(minutes=device_lock_duration)
             str_end = _end.strftime(DATE_FORMAT)
             for device in command_equip:
                 actuation_device = base_actuator_path(unit=device, point='')
@@ -435,7 +435,7 @@ def driven_agent(config_path, **kwargs):
                     result = self.actuation_vip.call('platform.actuator',
                                                      'request_new_schedule',
                                                      actuator_id, actuation_device, 'HIGH',
-                                                     schedule_request).get(timeout=4)
+                                                     schedule_request).get(timeout=15)
                 except RemoteError as ex:
                     _log.warning("Failed to schedule device {} (RemoteError): {}".format(device, str(ex)))
                     request_error = True
@@ -466,7 +466,7 @@ def driven_agent(config_path, **kwargs):
                         _log.info('Set point {} to {}'.format(point_path, new_value))
                         result = self.actuation_vip.call('platform.actuator', 'set_point',
                                                          actuator_id, point_path,
-                                                         new_value).get(timeout=4)
+                                                         new_value).get(timeout=15)
                     except RemoteError as ex:
                         _log.warning("Failed to set {} to {}: {}".format(point_path, new_value, str(ex)))
                         continue
