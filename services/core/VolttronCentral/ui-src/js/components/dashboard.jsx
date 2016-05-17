@@ -34,14 +34,20 @@ var Dashboard = React.createClass({
 
         var platformCharts = [];
 
-        for (var key in pinnedCharts)
-        {
-            if (pinnedCharts[key].data.length > 0)
+        pinnedCharts.forEach(function (pinnedChart) {
+            if (pinnedChart.data.length > 0)
             {
-                var platformChart = <PlatformChart chart={pinnedCharts[key]} chartKey={key} hideControls={true}/>
+                var platformChart = <PlatformChart chart={pinnedChart} chartKey={pinnedChart.chartKey} hideControls={true}/>
                 platformCharts.push(platformChart);
             }
-        }
+        });
+        // {
+        //     if (pinnedCharts[key].data.length > 0)
+        //     {
+        //         var platformChart = <PlatformChart chart={pinnedCharts[key]} chartKey={key} hideControls={true}/>
+        //         platformCharts.push(platformChart);
+        //     }
+        // }
 
         // if (!this.state.platforms) {
         //     charts = (

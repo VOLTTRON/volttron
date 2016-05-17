@@ -3,11 +3,8 @@
 var React = require('react');
 var Router = require('react-router');
 var PlatformChart = require('./platform-chart');
-// var Modal = require('./modal');
 var modalActionCreators = require('../action-creators/modal-action-creators');
-// var modalStore = require('../stores/modal-store');
 var platformActionCreators = require('../action-creators/platform-action-creators');
-var EditChartForm = require('./edit-chart-form');
 var platformsStore = require('../stores/platforms-store');
 var chartStore = require('../stores/platform-chart-store');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
@@ -59,31 +56,6 @@ var PlatformCharts = React.createClass({
 
         this.setState({historianRunning: platformsStore.getHistorianRunning(platform)});
     },
-    _onAddChartClick: function (platform) {
-
-        if (this.state.historianRunning)
-        {
-            platformActionCreators.loadChartTopics(this.state.platform);
-
-            modalActionCreators.openModal(<EditChartForm platform={this.state.platform}/>);            
-        }
-        else
-        {
-            var message = "Charts can't be added. The historian agent is unavailable."
-            statusIndicatorActionCreators.openStatusIndicator("error", message);
-        }
-    },
-    _onDeleteChartClick: function (platform, chart) {
-        modalActionCreators.openModal(
-            <ConfirmForm
-                targetArea="charts"
-                promptTitle="Delete chart"
-                promptText={'Delete ' + chart.type + ' chart for ' + chart.topic + '?'}
-                confirmText="Delete"
-                onConfirm={platformActionCreators.deleteChart.bind(null, platform, chart)}>
-            </ConfirmForm>
-        );
-    },
     render: function () {
 
         var chartData = this.state.chartData; 
@@ -105,19 +77,13 @@ var PlatformCharts = React.createClass({
             platformCharts.push(noCharts);
         }
 
-        return (                
+        return (
             <div className="view">
                 <div className="absolute_anchor">
                     <div className="view__actions">
-                        <button
-                            className="button"
-                            onClick={this._onAddChartClick.bind(null, this.state.platform)}
-                        >
-                            Add chart
-                        </button>
                     </div>
                     <h2>Charts</h2>
-                    {platformCharts}                        
+                    {platformCharts}
                 </div>
             </div>
         );
