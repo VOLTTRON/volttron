@@ -142,7 +142,9 @@ var PlatformChart = React.createClass({
 
 
 var GraphLineChart = React.createClass({
-
+  mixins: [
+      require('react-onclickoutside')
+  ],
   getInitialState: function () {
       var state = {};
       state.chartName = this.props.name.replace(" / ", "_") + '_chart';
@@ -158,7 +160,7 @@ var GraphLineChart = React.createClass({
   componentDidMount: function() {
       platformChartStore.addChangeListener(this._onStoresChange);
       var lineChart = this._drawLineChart(this.state.chartName, this.state.chartType, this._lineData(this._getNested(this.props.data)));
-      this.setState({lineChart: lineChart});
+      this.setState({lineChart: lineChart});      
   },
   componentWillUnmount: function () {
       platformChartStore.removeChangeListener(this._onStoresChange);
@@ -174,22 +176,24 @@ var GraphLineChart = React.createClass({
       }
   },
   _onStoresChange: function () {
-
-      // var newPinnedState = platformChartStore.getPinned(this.props.name);
-
-      // // var newlyPinned = (!this.state.pinned && newPinnedState);
-      // // var alreadyPinned = (this.state.pinned && newPinnedState);
-      // // var noLongerPinned = (this.state.pinned && !newPinnedState);
-      // var stillNotPinned = (!this.state.pinned && !newPinnedState);
-
-      // if (!stillNotPinned) // if it wasn't pinned before and isn't pinned now, don't do a save
-      // {
-      //     platformActionCreators.saveCharts();
-      //     this.setState({pinned: platformChartStore.getPinned(newPinnedState)});
-      // }
-
       this.setState({pinned: platformChartStore.getPinned(this.props.name)});
       this.setState({chartType: platformChartStore.getType(this.props.name)});
+  },
+  handleClickOutside: function () {
+
+      var thisChart = React.findDOMNode(this.refs[this.state.chartName]);
+      
+      if (thisChart)
+      {
+          this.nvtooltip = thisChart.querySelector(".nvtooltip");
+
+          if (this.nvtooltip)
+          {
+              this.nvtooltip.style.opacity = 0;
+          }
+      }
+
+      
   },
   _onChartChange: function (e) {
       var chartType = e.target.value;
@@ -366,7 +370,8 @@ var GraphLineChart = React.createClass({
 
     return (
       <div className='platform-line-chart'
-          style={chartStyle}>
+          style={chartStyle}
+          ref={this.state.chartName}>
           <svg id={this.state.chartName} style={svgStyle}></svg>
           {controlButtons}
       </div>

@@ -2316,7 +2316,9 @@ var PlatformChart = React.createClass({displayName: "PlatformChart",
 
 
 var GraphLineChart = React.createClass({displayName: "GraphLineChart",
-
+  mixins: [
+      require('react-onclickoutside')
+  ],
   getInitialState: function () {
       var state = {};
       state.chartName = this.props.name.replace(" / ", "_") + '_chart';
@@ -2332,7 +2334,7 @@ var GraphLineChart = React.createClass({displayName: "GraphLineChart",
   componentDidMount: function() {
       platformChartStore.addChangeListener(this._onStoresChange);
       var lineChart = this._drawLineChart(this.state.chartName, this.state.chartType, this._lineData(this._getNested(this.props.data)));
-      this.setState({lineChart: lineChart});
+      this.setState({lineChart: lineChart});      
   },
   componentWillUnmount: function () {
       platformChartStore.removeChangeListener(this._onStoresChange);
@@ -2348,22 +2350,24 @@ var GraphLineChart = React.createClass({displayName: "GraphLineChart",
       }
   },
   _onStoresChange: function () {
-
-      // var newPinnedState = platformChartStore.getPinned(this.props.name);
-
-      // // var newlyPinned = (!this.state.pinned && newPinnedState);
-      // // var alreadyPinned = (this.state.pinned && newPinnedState);
-      // // var noLongerPinned = (this.state.pinned && !newPinnedState);
-      // var stillNotPinned = (!this.state.pinned && !newPinnedState);
-
-      // if (!stillNotPinned) // if it wasn't pinned before and isn't pinned now, don't do a save
-      // {
-      //     platformActionCreators.saveCharts();
-      //     this.setState({pinned: platformChartStore.getPinned(newPinnedState)});
-      // }
-
       this.setState({pinned: platformChartStore.getPinned(this.props.name)});
       this.setState({chartType: platformChartStore.getType(this.props.name)});
+  },
+  handleClickOutside: function () {
+
+      var thisChart = React.findDOMNode(this.refs[this.state.chartName]);
+      
+      if (thisChart)
+      {
+          this.nvtooltip = thisChart.querySelector(".nvtooltip");
+
+          if (this.nvtooltip)
+          {
+              this.nvtooltip.style.opacity = 0;
+          }
+      }
+
+      
   },
   _onChartChange: function (e) {
       var chartType = e.target.value;
@@ -2540,7 +2544,8 @@ var GraphLineChart = React.createClass({displayName: "GraphLineChart",
 
     return (
       React.createElement("div", {className: "platform-line-chart", 
-          style: chartStyle}, 
+          style: chartStyle, 
+          ref: this.state.chartName}, 
           React.createElement("svg", {id: this.state.chartName, style: svgStyle}), 
           controlButtons
       )
@@ -2675,7 +2680,7 @@ var GraphLineChart = React.createClass({displayName: "GraphLineChart",
 module.exports = PlatformChart;
 
 
-},{"../action-creators/modal-action-creators":4,"../action-creators/platform-action-creators":5,"../action-creators/platform-chart-action-creators":6,"../action-creators/platforms-panel-action-creators":8,"../stores/platform-chart-store":47,"./confirm-form":12,"./control-button":14,"d3":undefined,"moment":undefined,"nvd3":undefined,"react":undefined,"react-router":undefined}],24:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":4,"../action-creators/platform-action-creators":5,"../action-creators/platform-chart-action-creators":6,"../action-creators/platforms-panel-action-creators":8,"../stores/platform-chart-store":47,"./confirm-form":12,"./control-button":14,"d3":undefined,"moment":undefined,"nvd3":undefined,"react":undefined,"react-onclickoutside":undefined,"react-router":undefined}],24:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
