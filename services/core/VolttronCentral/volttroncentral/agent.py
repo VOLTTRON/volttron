@@ -812,7 +812,10 @@ class VolttronCentralAgent(Agent):
             if 'key' not in params or not params['key']:
                 return err('Invalid parameter key not set',
                            INVALID_PARAMS)
-            return self._setting_store.get(params['key'], None)
+            value = self._setting_store.get(params['key'], None)
+            if value is None:
+                return err('Invalid key specified', INVALID_PARAMS)
+            return value
         elif method == 'get_setting_keys':
             return self._setting_store.keys()
         elif method == 'set_setting':
