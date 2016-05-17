@@ -174,6 +174,20 @@ var GraphLineChart = React.createClass({
       }
   },
   _onStoresChange: function () {
+
+      // var newPinnedState = platformChartStore.getPinned(this.props.name);
+
+      // // var newlyPinned = (!this.state.pinned && newPinnedState);
+      // // var alreadyPinned = (this.state.pinned && newPinnedState);
+      // // var noLongerPinned = (this.state.pinned && !newPinnedState);
+      // var stillNotPinned = (!this.state.pinned && !newPinnedState);
+
+      // if (!stillNotPinned) // if it wasn't pinned before and isn't pinned now, don't do a save
+      // {
+      //     platformActionCreators.saveCharts();
+      //     this.setState({pinned: platformChartStore.getPinned(newPinnedState)});
+      // }
+
       this.setState({pinned: platformChartStore.getPinned(this.props.name)});
       this.setState({chartType: platformChartStore.getType(this.props.name)});
   },
@@ -199,17 +213,6 @@ var GraphLineChart = React.createClass({
       platformChartActionCreators.pinChart(this.props.name);
 
       platformActionCreators.saveCharts();
-
-      // var emitChange = false;
-
-      // if (pinned)
-      // {
-      //     platformActionCreators.saveChart(this.props.name, emitChange);
-      // }
-      // else
-      // {
-      //     platformChartActionCreators.deleteChart(this.props.name, emitChange);
-      // }
   },
   _onRefreshChange: function (e) {
       platformChartActionCreators.changeRefreshRate(e.target.value, this.props.name);

@@ -96,7 +96,7 @@ Topic: <input id="historian_topic" placeholder="Historian topic to query" /><br/
         });
     }
 
-    function do_request_vc_method(method, callback=null) {
+    function do_request_vc_method(method, callback) {
         var req_method = method;
         var token = $('#token').val();
         var pdata = {
@@ -113,7 +113,7 @@ Topic: <input id="historian_topic" placeholder="Historian topic to query" /><br/
             dataType: 'json',
             success: function(data){
                 $('#output_data').val(JSON.stringify(data));
-                if (callback){
+                if (typeof callback === "function"){
                     callback(data);
                 }
             },
@@ -161,7 +161,7 @@ Topic: <input id="historian_topic" placeholder="Historian topic to query" /><br/
         });
     }
 
-    function do_request(method, data=null, callback=null) {
+    function do_request(method, data, callback) {
 
         var token = $('#token').val();
         var pdata = {
@@ -182,7 +182,7 @@ Topic: <input id="historian_topic" placeholder="Historian topic to query" /><br/
             data: JSON.stringify(pdata),
             dataType: 'json',
             success: function(data){
-                if (callback) {
+                if (typeof callback === "function") {
                     callback(data);
                 }
                 $('#output_data').val(JSON.stringify(data));

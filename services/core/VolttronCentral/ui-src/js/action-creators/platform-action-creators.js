@@ -201,18 +201,36 @@ var platformActionCreators = {
         var authorization = authorizationStore.getAuthorization();
 
         new rpc.Exchange({
-            method: 'get_setting',
+            method: 'get_setting_keys',
             params: { key: 'charts' },
             authorization: authorization,
         }).promise
-            .then(function (charts) {
+            .then(function (valid_keys) {
             
-                var notifyRouter = false;
+                if (valid_keys.indexOf("charts") > -1)
+                {                    
+                    new rpc.Exchange({
+                        method: 'get_setting',
+                        params: { key: 'charts' },
+                        authorization: authorization,
+                    }).promise
+                        .then(function (charts) {
+                        
+                            var notifyRouter = false;
 
-                dispatcher.dispatch({
-                    type: ACTION_TYPES.LOAD_CHARTS,
-                    charts: charts,
-                });
+                            dispatcher.dispatch({
+                                type: ACTION_TYPES.LOAD_CHARTS,
+                                charts: charts,
+                            });
+                        })
+                        .catch(rpc.Error, function (error) {
+
+                            statusIndicatorActionCreators.openStatusIndicator("error", "Error loading charts: " + error.message);
+
+                            handle401(error);
+                        });
+                        
+                    }
             })
             .catch(rpc.Error, function (error) {
 
@@ -220,6 +238,9 @@ var platformActionCreators = {
 
                 handle401(error);
             });
+
+
+        
     },
     getTopicData: function (platform, topic) {
         var authorization = authorizationStore.getAuthorization();
