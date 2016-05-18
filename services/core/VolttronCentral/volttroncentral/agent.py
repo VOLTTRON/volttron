@@ -819,14 +819,21 @@ class VolttronCentralAgent(Agent):
         elif method == 'get_setting_keys':
             return self._setting_store.keys()
         elif method == 'set_setting':
-            if 'key' not in params or not params['key'] :
+            if 'key' not in params or not params['key']:
                 return err('Invalid parameter key not set',
                            INVALID_PARAMS)
-            if 'value' not in params or not params['value']:
+            _log.debug('VALUE: {}'.format(params))
+            if 'value' not in params:
                 return err('Invalid parameter value not set',
                            INVALID_PARAMS)
-            self._setting_store[params['key']] = params['value']
-            self._setting_store.sync()
+            # if passing None value then remove the value from the keystore
+            # don't raise an error if the key isn't present in the store.
+            if params['value'] is None:
+                if params['key'] in self._setting_store:
+                    del self._setting_store[params['key']]
+            else:
+                self._setting_store[params['key']] = params['value']
+                self._setting_store.sync()
             return 'SUCCESS'
         elif 'historian' in method:
             has_platform_historian = PLATFORM_HISTORIAN in \

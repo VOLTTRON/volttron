@@ -26,6 +26,7 @@ Discovery Address: <input type="text" id="discovery_address" /><br />
 Setting Key: <input type="text" id="setting_key" /><br/>
 Setting Value: <input type="text" id="setting_value" />
 <button id="set_setting">Save Value</button>
+<button id="set_null_setting">Save Null Value (remove key)</button>
 <button id="get_setting">Get Value</button>
 <button id="get_setting_keys">Get Keys</button>
 
@@ -202,6 +203,15 @@ Topic: <input id="historian_topic" placeholder="Historian topic to query" /><br/
         }
         do_request('set_setting', data)
     });
+
+    $('#set_null_setting').click(function(){
+        var data = {
+            key: $('#setting_key').val(),
+            value: null
+        }
+        do_request('set_setting', data)
+    });
+
 
     $('#get_setting').click(function(){
         var data = {
