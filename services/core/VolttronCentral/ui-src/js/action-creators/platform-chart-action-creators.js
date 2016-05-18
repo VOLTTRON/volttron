@@ -58,7 +58,12 @@ var platformChartActionCreators = {
                         item: item
                     });
                 })
-                .catch(rpc.Error, handle401);
+                .catch(rpc.Error, function (error) {
+
+                    statusIndicatorActionCreators.openStatusIndicator("error", "Error updating chart: " + error.message);
+
+                    handle401(error);
+                });
 		});
 
 	},

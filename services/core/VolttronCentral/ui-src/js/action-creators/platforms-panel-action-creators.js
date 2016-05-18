@@ -119,8 +119,13 @@ var platformsPanelActionCreators = {
 
                     loadPanelAgents(platform);
                     
-                })
-                .catch(rpc.Error, handle401);    
+                })                     
+                .catch(rpc.Error, function (error) {
+
+                    statusIndicatorActionCreators.openStatusIndicator("error", "Error loading devices in side panel: " + error.message);
+
+                    handle401(error);
+                });    
 
         }
 
@@ -140,8 +145,13 @@ var platformsPanelActionCreators = {
                     });
 
                     loadPerformanceStats(platform);
-                })
-                .catch(rpc.Error, handle401);    
+                })                     
+                .catch(rpc.Error, function (error) {
+
+                    statusIndicatorActionCreators.openStatusIndicator("error", "Error loading agents in side panel: " + error.message);
+
+                    handle401(error);
+                });    
         }
             // dispatcher.dispatch({
             //     type: ACTION_TYPES.RECEIVE_AGENT_STATUSES,
