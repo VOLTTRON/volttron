@@ -212,12 +212,21 @@ class VolttronCentralPlatform(Agent):
             self._stats_publisher = self.core.periodic(
                 self._stats_publish_interval, self._publish_stats)
 
-    def _publish_agent_list(self):
-        _log.info('Publishing new agent list.')
-        self.vip.pubsub.publish(
-            topic="platforms/{}/agents".format(self.platform_uuid),
-            message=self.list_agents()
-        )
+    @Core.periodic(30)
+    def _publish_agent_list_to_vc(self):
+
+        if self._platform_uuid:
+            _log.info('Publishing new agent list.')
+
+            self.vip.pubsub.publish(
+                'pubsub',
+                topic="platforms/{}/agent_list".format(self._platform_uuid),
+                message=self.list_agents()
+            )
+        else:
+            _log.info('Not publishing new agent list '
+                      '(no paltform_uuid specified')
+
 
     @RPC.export
     def get_devices(self):
@@ -332,6 +341,7 @@ class VolttronCentralPlatform(Agent):
         # self._services[alias] = vip_identity
         # NOOP at present.
         pass
+
 
     @RPC.export
     # @RPC.allow("manager") #TODO: uncomment allow decorator

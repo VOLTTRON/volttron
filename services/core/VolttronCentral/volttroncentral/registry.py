@@ -74,9 +74,17 @@ class PlatformRegistry(object):
         self._platform_entries[platform_uuid].tags[key] = value
 
     def get_tag(self, platform_uuid, key):
-        if key in self._platform_entries[platform_uuid].tags.keys():
-            return self._platform_entries[platform_uuid].tags[key]
-        return None
+        retValue = None
+        if platform_uuid in self._platform_entries.keys():
+            if key in self._platform_entries[platform_uuid].tags.keys():
+                retValue = self._platform_entries[platform_uuid].tags[key]
+            else:
+                _log.error(
+                    'Invalid tag ({}) specified for platform'.format(key))
+        else:
+            _log.error('Invalid platform ({}) specified for getting tag ({})'
+                       .format(platform_uuid, key))
+        return retValue
 
     def get_vip_addresses(self):
         """ Return all of the different vip addresses available.
@@ -103,11 +111,13 @@ class PlatformRegistry(object):
         """
         return self._platform_entries.get(platform_uuid, None)
 
+    def get_agent_list(self, platform_uuid):
+        return self.get_tag(platform_uuid, "agent_list")
+
     def update_agent_list(self, platform_uuid, agent_list):
         """ Update the agent list node for the platform uuid that is passed.
         """
-        self._platform_entries[platform_uuid].add_update_tag(
-            'agent_list', agent_list.get())
+        self.add_update_tag(platform_uuid, 'agent_list', agent_list)
 
     @staticmethod
     def build_entry(vip_address, serverkey, discovery_address,

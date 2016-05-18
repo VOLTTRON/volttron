@@ -185,7 +185,7 @@ class VolttronCentralAgent(Agent):
         # connected to the vip-address of the registered platform.  If the
         # registered platform is None then that means we were unable to
         # connect to the platform the last time it was tried.
-        self._pa_agents = defaultdict(lambda: defaultdict(str))
+        self._pa_agents = {}
 
         # if there is a volttron central agent on this instance then this
         # will be resolved.
@@ -235,7 +235,9 @@ class VolttronCentralAgent(Agent):
                         secretkey=self.core.secretkey,
                         publickey=self.core.publickey
                     )
-
+                    # Subscribe to the underlying agent's pubsub bus.
+                    conn_to_instance.vip.pubsub.subscribe(
+                        "pubsub", "platforms", self._on_platforms_messsage)
                     self._pa_agents[entry.platform_uuid] = conn_to_instance
 
                 peers = conn_to_instance.vip.peerlist().get(timeout=10)
@@ -268,8 +270,31 @@ class VolttronCentralAgent(Agent):
                                message):
         _log.debug('Got Heartbeat from: {}'.format(topic))
 
+    @PubSub.subscribe("pubsub", "platforms")
+    def _on_platforms_messsage(self, peer, sender, bus, topic, headers,
+                              message):
+        """ This method subscribes to the platforms topic.
+
+        Platforms that are being managed should publish to this topic with
+        the agent_list and other interesting things that the volttron
+        central shsould want to know.
+        """
+        topicsplit = topic.split('/')
+        if len(topicsplit) < 2:
+            _log.error('Invalid topic length published to volttron central')
+            return
+
+        platform_uuid = topicsplit[1]
+
+        if not self._registry.get_platform(platform_uuid):
+            _log.error('Platform {} is not registered but sent message {}'
+                       .format(platform_uuid, message))
+            return
+
+        self._registry.update_agent_list(platform_uuid, message)
+
     @PubSub.subscribe("pubsub", "datalogger/platforms")
-    def _on_platoform_message(self, peer, sender, bus, topic, headers,
+    def _on_platform_message(self, peer, sender, bus, topic, headers,
                               message):
         """ Receive message from a registered platform
 
@@ -350,7 +375,6 @@ class VolttronCentralAgent(Agent):
                     VOLTTRON_CENTRAL_PLATFORM, 'reconfigure',
                     platform_uuid=local_entry.platform_uuid
                 )
-
 
     def _disconnect_peer_platform(self, sender, **kwargs):
         _log.debug("disconnecting peer_platform")
@@ -901,9 +925,8 @@ class VolttronCentralAgent(Agent):
 
         if platform_method == 'list_agents':
             _log.debug('Callling list_agents')
-            agents = agent.vip.rpc.call(
-                VOLTTRON_CENTRAL_PLATFORM, 'route_request', id,
-                platform_method, params).get(timeout=30)
+            agents = self._registry.get_agent_list(platform_uuid)
+
             for a in agents:
                 if 'admin' not in session_user['groups']:
                     a['permissions'] = {
