@@ -614,7 +614,12 @@ var platformChartActionCreators = {
                         item: item
                     });
                 })
-                .catch(rpc.Error, handle401);
+                .catch(rpc.Error, function (error) {
+
+                    statusIndicatorActionCreators.openStatusIndicator("error", "Error updating chart: " + error.message);
+
+                    handle401(error);
+                });
 		});
 
 	},
@@ -3169,7 +3174,11 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
         state.panelItem = this.props.panelItem;
         state.children = this.props.panelChildren;
 
-        this.loading = false;
+        if (this.props.panelItem.type === "platform")
+        {
+            state.notInitialized = true;
+            state.loading = false;
+        }
 
         return state;
     },
@@ -3191,7 +3200,12 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
             this.setState({panelItem: panelItem});
             this.setState({children: panelChildren});
             this.setState({checked: panelItem.checked});
-            this.loading = false;
+            this.setState({loading: false});
+
+            if (this.props.panelItem.type === "platform")
+            {
+                this.setState({notInitialized: false});
+            }
         }
     },
     _expandAll : function () {
@@ -3202,9 +3216,9 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
 
         if (this.state.panelItem.expanded === null)
         {
-            if (!this.loading)
+            if (!this.state.loading)
             {
-                this.loading = true;
+                this.setState({loading: true});
                 platformsPanelActionCreators.loadChildren(this.props.panelItem.type, this.props.panelItem);
             }
         }
@@ -3264,8 +3278,8 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
             }
         }
 
-        var itemClasses;
-        var arrowClasses = ["arrowButton", "noRotate"];
+        var childClass;
+        var arrowClasses = [(this.state.loading ? "loadingSpinner" : "arrowButton"), "noRotate"];
 
         var ChartCheckbox;
 
@@ -3286,16 +3300,23 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
 
         var toolTipClasses = (this.state.showTooltip ? "tooltip_outer delayed-show-slow" : "tooltip_outer");
 
-        arrowClasses.push( ((panelItem.status === "GOOD") ? "status-good" :
+        if (!this.state.loading)
+        {
+            arrowClasses.push( ((panelItem.status === "GOOD") ? "status-good" :
                                 ( (panelItem.status === "BAD") ? "status-bad" : 
                                     "status-unknown")) );
+        }
 
         var arrowContent;
         var arrowContentStyle = {
             width: "14px"
         }
 
-        if (panelItem.status === "GOOD")
+        if (this.state.loading)
+        {
+            arrowContent = React.createElement("span", {style: arrowContentStyle}, React.createElement("i", {className: "fa fa-circle-o-notch fa-spin fa-fw"}));
+        }
+        else if (panelItem.status === "GOOD")
         {
             arrowContent = React.createElement("span", {style: arrowContentStyle}, "▶");
         } 
@@ -3343,14 +3364,28 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
                 }
 
                 arrowClasses.push("rotateDown");
-                itemClasses = "showItems";                    
+                childClass = "showItems";                    
             }          
         }
 
-        var itemClass = (!panelItem.hasOwnProperty("uuid") ? "item_type" : "item_label ");
+        var itemClasses = [];
+
+        if (!panelItem.hasOwnProperty("uuid"))
+        {
+            itemClasses.push("item_type");
+        }
+        else
+        {
+            itemClasses.push("item_label");
+        }
+
+        if (panelItem.type === "platform" && this.state.notInitialized)
+        {
+            itemClasses.push("not_initialized");
+        }
 
         var listItem = 
-                React.createElement("div", {className: itemClass}, 
+                React.createElement("div", {className: itemClasses.join(' ')}, 
                     panelItem.name
                 );
 
@@ -3382,7 +3417,7 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
                         listItem
                     )
                 ), 
-                React.createElement("div", {className: itemClasses}, 
+                React.createElement("div", {className: childClass}, 
                     React.createElement("ul", {className: "platform-panel-list"}, 
                         children
                     )
