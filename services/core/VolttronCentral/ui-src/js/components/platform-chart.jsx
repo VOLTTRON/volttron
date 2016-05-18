@@ -146,8 +146,13 @@ var GraphLineChart = React.createClass({
       require('react-onclickoutside')
   ],
   getInitialState: function () {
+      
+      var pattern = /[!@#$%^&*()+\-=\[\]{};':"\\|, .<>\/?]/g
+
       var state = {};
+
       state.chartName = this.props.name.replace(" / ", "_") + '_chart';
+      state.chartName = state.chartName.replace(pattern, "_");
       state.lineChart = null;
       state.pinned = this.props.pinned;
       state.chartType = this.props.chartType;
@@ -160,7 +165,9 @@ var GraphLineChart = React.createClass({
   componentDidMount: function() {
       platformChartStore.addChangeListener(this._onStoresChange);
       var lineChart = this._drawLineChart(this.state.chartName, this.state.chartType, this._lineData(this._getNested(this.props.data)));
-      this.setState({lineChart: lineChart});      
+      this.setState({lineChart: lineChart});
+
+      this.chart = React.findDOMNode(this.refs[this.state.chartName]);
   },
   componentWillUnmount: function () {
       platformChartStore.removeChangeListener(this._onStoresChange);
@@ -179,21 +186,17 @@ var GraphLineChart = React.createClass({
       this.setState({pinned: platformChartStore.getPinned(this.props.name)});
       this.setState({chartType: platformChartStore.getType(this.props.name)});
   },
-  handleClickOutside: function () {
-
-      var thisChart = React.findDOMNode(this.refs[this.state.chartName]);
+  handleClickOutside: function () {      
       
-      if (thisChart)
+      if (this.chart)
       {
-          this.nvtooltip = thisChart.querySelector(".nvtooltip");
+          this.nvtooltip = this.chart.querySelector(".nvtooltip");
 
           if (this.nvtooltip)
           {
               this.nvtooltip.style.opacity = 0;
           }
       }
-
-      
   },
   _onChartChange: function (e) {
       var chartType = e.target.value;

@@ -817,10 +817,12 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                 var pointPath = data.path + "/" + pointName;                
                 var platformUuid = item.path[1];
 
+                var pattern = /[!@#$%^&*()+\-=\[\]{};':"\\|, .<>\/?]/g
+
                 var pointProps = {}; 
                 pointProps.topic = pointPath;  
                 pointProps.name = pointName;
-                pointProps.uuid = pointPath.replace(/\//g, '_');
+                pointProps.uuid = pointPath.replace(pattern, '_');
                 pointProps.expanded = false;
                 pointProps.visible = true;
                 pointProps.path = JSON.parse(JSON.stringify(item.points.path));
