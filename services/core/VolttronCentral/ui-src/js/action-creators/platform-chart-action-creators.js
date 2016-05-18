@@ -58,7 +58,7 @@ var platformChartActionCreators = {
                 })
                 .catch(rpc.Error, handle401);
 		});
-		
+
 	},
 	addToChart: function(panelItem, emitChange) {
 
@@ -93,7 +93,7 @@ var platformChartActionCreators = {
                 });
             })
             .catch(rpc.Error, function (error) {
-                
+
                 var message = error.message;
 
                 if (error.code === -32602)
@@ -113,7 +113,15 @@ var platformChartActionCreators = {
         dispatcher.dispatch({
             type: ACTION_TYPES.REMOVE_FROM_CHART,
             panelItem: panelItem
-        });  
+        });
+
+    },
+    removeChart: function(chartName) {
+
+        dispatcher.dispatch({
+            type: ACTION_TYPES.REMOVE_CHART,
+            name: chartName
+        });
 
     }
 };

@@ -4,8 +4,6 @@ var React = require('react');
 var Router = require('react-router');
 
 var AgentRow = require('./agent-row');
-// var ConfirmForm = require('./confirm-form');
-// var modalActionCreators = require('../action-creators/modal-action-creators');
 var platformActionCreators = require('../action-creators/platform-action-creators');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
 var platformsStore = require('../stores/platforms-store');
@@ -27,20 +25,6 @@ var Platform = React.createClass({
     _onStoresChange: function () {
         this.setState(getStateFromStores(this));
     },
-    // _onEditChartClick: function (platform, chart) {
-
-    //     if (this.state.historian)
-    //     {
-    //         platformActionCreators.loadChartTopics(platform, this.state.historian);
-
-    //         modalActionCreators.openModal("platforms", <EditChartForm platform={platform} chart={chart} />);            
-    //     }
-    //     else
-    //     {
-    //         var message = "Charts can't be added. The historian agent is unavailable."
-    //         statusIndicatorActionCreators.openStatusIndicator("error", message);
-    //     }
-    // },    
     _onFileChange: function (e) {
         if (!e.target.files.length) { return; }
 
