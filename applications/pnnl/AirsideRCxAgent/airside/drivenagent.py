@@ -410,7 +410,7 @@ def driven_agent(config_path, **kwargs):
             """
             Calls the actuator's request_new_schedule method to get
                     device schedule
-            :param command_equip: contains the names are of the devices
+            :param command_equip: contains the names of the devices
                 that will be scheduled with the ActuatorAgent.
             :type: dict or list
             :returns: Return result from request_new_schedule method
