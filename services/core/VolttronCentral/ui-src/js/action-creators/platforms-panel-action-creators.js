@@ -59,9 +59,11 @@ var platformsPanelActionCreators = {
 
                                 points.forEach(function (point) {
 
+                                    var pointName = (point === "percent" ? "cpu / percent" : point.replace("/", " / "));
+
                                     pointsList.push({
                                         "topic": platformPerformance.performance.topic + "/" + point,
-                                        "name": point.replace("/", " / ")
+                                        "name": pointName
                                     });
                                 });                                
                             }

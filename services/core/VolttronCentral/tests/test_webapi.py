@@ -193,6 +193,9 @@ def test_auto_register_platform(vc_instance):
 
 @pytest.mark.vc
 def test_vc_settings_store(vc_instance):
+    """ Test the reading and writing of data through the get_setting,
+        set_setting and get_all_key json-rpc calls.
+    """
     vc, vcuuid, jsonrpc = vc_instance
 
     kv = dict(key='test.user', value='is.good')
@@ -231,6 +234,11 @@ def test_vc_settings_store(vc_instance):
     assert kv['key'] in resp.json()['result']
     assert kv3['key'] in resp.json()['result']
 
+    # A None(null) value passed to set_setting should remove the key
+    resp = tester.do_rpc('set_setting', key=kv['key'], value=None)
+    assert 'SUCCESS' == resp.json()['result']
+    resp = tester.do_rpc('get_setting_keys')
+    assert kv['key'] not in resp.json()['result']
 
 @pytest.mark.vc
 def test_register_instance(vc_instance, pa_instance):
