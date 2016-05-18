@@ -233,9 +233,20 @@ var platformActionCreators = {
                             type: ACTION_TYPES.RECEIVE_PLATFORM,
                             platform: platform,
                         });
+                    })            
+                    .catch(rpc.Error, function (error) {
+
+                        statusIndicatorActionCreators.openStatusIndicator("error", "Error loading agents: " + error.message);
+
+                        handle401(error);
                     });
-            })
-            .catch(rpc.Error, handle401);
+            })            
+            .catch(rpc.Error, function (error) {
+
+                statusIndicatorActionCreators.openStatusIndicator("error", "Error loading agents: " + error.message);
+
+                handle401(error);
+            });
     },
     startAgent: function (platform, agent) {
         var authorization = authorizationStore.getAuthorization();
@@ -255,8 +266,13 @@ var platformActionCreators = {
             .then(function (status) {
                 agent.process_id = status.process_id;
                 agent.return_code = status.return_code;
+            })                        
+            .catch(rpc.Error, function (error) {
+
+                statusIndicatorActionCreators.openStatusIndicator("error", "Error starting agent: " + error.message);
+
+                handle401(error);
             })
-            .catch(rpc.Error, handle401)
             .finally(function () {
                 agent.actionPending = false;
 
@@ -284,8 +300,13 @@ var platformActionCreators = {
             .then(function (status) {
                 agent.process_id = status.process_id;
                 agent.return_code = status.return_code;
+            })                      
+            .catch(rpc.Error, function (error) {
+
+                statusIndicatorActionCreators.openStatusIndicator("error", "Error stopping agent: " + error.message);
+
+                handle401(error);
             })
-            .catch(rpc.Error, handle401)
             .finally(function () {
                 agent.actionPending = false;
 
@@ -321,18 +342,24 @@ var platformActionCreators = {
             .then(function (result) {
                 
                 if (result.error) {
-                    dispatcher.dispatch({
-                        type: ACTION_TYPES.RECEIVE_PLATFORM_ERROR,
-                        platform: platform,
-                        error: result.error,
-                    });
+                    // dispatcher.dispatch({
+                    //     type: ACTION_TYPES.RECEIVE_PLATFORM_ERROR,
+                    //     platform: platform,
+                    //     error: result.error,
+                    // });
+                    statusIndicatorActionCreators.openStatusIndicator("error", "Error removing agent: " + result.error);
                 }
                 else
                 {
                     platformActionCreators.loadPlatform(platform);
                 }
-            })
-            .catch(rpc.Error, handle401);
+            })                      
+            .catch(rpc.Error, function (error) {
+
+                statusIndicatorActionCreators.openStatusIndicator("error", "Error removing agent: " + error.message);
+
+                handle401(error);
+            });
     },
     installAgents: function (platform, files) {
         platformActionCreators.clearPlatformError(platform);
@@ -354,18 +381,24 @@ var platformActionCreators = {
                 });
 
                 if (errors.length) {
-                    dispatcher.dispatch({
-                        type: ACTION_TYPES.RECEIVE_PLATFORM_ERROR,
-                        platform: platform,
-                        error: errors.join('\n'),
-                    });
+                    // dispatcher.dispatch({
+                    //     type: ACTION_TYPES.RECEIVE_PLATFORM_ERROR,
+                    //     platform: platform,
+                    //     error: errors.join('\n'),
+                    // });
+                    statusIndicatorActionCreators.openStatusIndicator("error", "Error installing agents: " + errors.join('\n'));
                 }
 
                 if (errors.length !== files.length) {
                     platformActionCreators.loadPlatform(platform);
                 }
-            })
-            .catch(rpc.Error, handle401);
+            })                      
+            .catch(rpc.Error, function (error) {
+
+                statusIndicatorActionCreators.openStatusIndicator("error", "Error installing agents: " + error.message);
+
+                handle401(error);
+            });
     },    
     loadCharts: function (platform) {
         var authorization = authorizationStore.getAuthorization();
@@ -431,8 +464,13 @@ var platformActionCreators = {
                     topic: topic,
                     data: result.values,
                 });
-            })
-            .catch(rpc.Error, handle401);
+            })                      
+            .catch(rpc.Error, function (error) {
+
+                statusIndicatorActionCreators.openStatusIndicator("error", "Error getting topic: " + error.message);
+
+                handle401(error);
+            });
     },
     saveCharts: function (chartsToSave) {
         var authorization = authorizationStore.getAuthorization();
