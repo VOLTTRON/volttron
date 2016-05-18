@@ -434,10 +434,10 @@ var platformActionCreators = {
             })
             .catch(rpc.Error, handle401);
     },
-    saveCharts: function () {
+    saveCharts: function (chartsToSave) {
         var authorization = authorizationStore.getAuthorization();
 
-        var savedCharts = platformChartStore.getPinnedCharts();
+        var savedCharts = (chartsToSave ? chartsToSave : platformChartStore.getPinnedCharts());
 
         new rpc.Exchange({
             method: 'set_setting',
@@ -521,7 +521,9 @@ module.exports = platformActionCreators;
 var ACTION_TYPES = require('../constants/action-types');
 var dispatcher = require('../dispatcher');
 var authorizationStore = require('../stores/authorization-store');
+var platformChartStore = require('../stores/platform-chart-store');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
+var platformActionCreators = require('../action-creators/platform-action-creators');
 var rpc = require('../lib/rpc');
 
 var platformChartActionCreators = {
@@ -609,6 +611,16 @@ var platformChartActionCreators = {
                     type: ACTION_TYPES.ADD_TO_CHART,
                     panelItem: panelItem
                 });
+
+                var savedCharts = platformChartStore.getPinnedCharts();
+                var inSavedChart = savedCharts.find(function (chart) {
+                    return chart.chartKey === panelItem.name;
+                });
+
+                if (inSavedChart)
+                {
+                    platformActionCreators.saveCharts(savedCharts);
+                }
             })
             .catch(rpc.Error, function (error) {
 
@@ -628,10 +640,20 @@ var platformChartActionCreators = {
     },
     removeFromChart: function(panelItem) {
 
+        var savedCharts = platformChartStore.getPinnedCharts();
+        var inSavedChart = savedCharts.find(function (chart) {
+            return chart.chartKey === panelItem.name;
+        });
+
         dispatcher.dispatch({
             type: ACTION_TYPES.REMOVE_FROM_CHART,
             panelItem: panelItem
-        });
+        });        
+
+        if (inSavedChart)
+        {
+            platformActionCreators.saveCharts();
+        }
 
     },
     removeChart: function(chartName) {
@@ -658,7 +680,7 @@ function handle401(error) {
 module.exports = platformChartActionCreators;
 
 
-},{"../action-creators/status-indicator-action-creators":9,"../constants/action-types":33,"../dispatcher":34,"../lib/rpc":37,"../stores/authorization-store":42}],7:[function(require,module,exports){
+},{"../action-creators/platform-action-creators":5,"../action-creators/status-indicator-action-creators":9,"../constants/action-types":33,"../dispatcher":34,"../lib/rpc":37,"../stores/authorization-store":42,"../stores/platform-chart-store":47}],7:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');

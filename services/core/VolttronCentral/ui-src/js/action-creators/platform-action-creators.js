@@ -264,10 +264,10 @@ var platformActionCreators = {
             })
             .catch(rpc.Error, handle401);
     },
-    saveCharts: function () {
+    saveCharts: function (chartsToSave) {
         var authorization = authorizationStore.getAuthorization();
 
-        var savedCharts = platformChartStore.getPinnedCharts();
+        var savedCharts = (chartsToSave ? chartsToSave : platformChartStore.getPinnedCharts());
 
         new rpc.Exchange({
             method: 'set_setting',

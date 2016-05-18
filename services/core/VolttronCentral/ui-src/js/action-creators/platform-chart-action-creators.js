@@ -3,7 +3,9 @@
 var ACTION_TYPES = require('../constants/action-types');
 var dispatcher = require('../dispatcher');
 var authorizationStore = require('../stores/authorization-store');
+var platformChartStore = require('../stores/platform-chart-store');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
+var platformActionCreators = require('../action-creators/platform-action-creators');
 var rpc = require('../lib/rpc');
 
 var platformChartActionCreators = {
@@ -91,6 +93,16 @@ var platformChartActionCreators = {
                     type: ACTION_TYPES.ADD_TO_CHART,
                     panelItem: panelItem
                 });
+
+                var savedCharts = platformChartStore.getPinnedCharts();
+                var inSavedChart = savedCharts.find(function (chart) {
+                    return chart.chartKey === panelItem.name;
+                });
+
+                if (inSavedChart)
+                {
+                    platformActionCreators.saveCharts(savedCharts);
+                }
             })
             .catch(rpc.Error, function (error) {
 
@@ -110,10 +122,20 @@ var platformChartActionCreators = {
     },
     removeFromChart: function(panelItem) {
 
+        var savedCharts = platformChartStore.getPinnedCharts();
+        var inSavedChart = savedCharts.find(function (chart) {
+            return chart.chartKey === panelItem.name;
+        });
+
         dispatcher.dispatch({
             type: ACTION_TYPES.REMOVE_FROM_CHART,
             panelItem: panelItem
-        });
+        });        
+
+        if (inSavedChart)
+        {
+            platformActionCreators.saveCharts();
+        }
 
     },
     removeChart: function(chartName) {
