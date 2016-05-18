@@ -55,6 +55,28 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
+"""
+.. _volttroncentral-agent:
+
+The VolttronCentral(VCA) agent is used to manage remote VOLTTRON instances.
+The VCA exposes a JSON-RPC based web api and a web enabled visualization
+framework.  The web enabled framework is known as VOLTTRON
+Central Management Console (VCMC).
+
+In order for an instance to be able to be managed by VCMC a
+:class:`vcplatform.agent.VolttronCentralPlatform` must be executing on the
+instance.  If there is a :class:`vcplatform.agent.VolttronCentralPlatform`
+running on the same instance as VCA it will be automatically registered as a
+managed instance.  Otherwise, there are two different paths to registering an
+instance with VCA.
+
+1. Through the web api a call to the JSON-RPC method register_instance.
+2. From an external platform through pub/sub.  this secondary method is
+   preferred when deploying instances in the field that need to "phone home"
+   to VCA after being deployed.
+   
+"""
+
 from collections import defaultdict
 import errno
 import logging
@@ -91,18 +113,21 @@ from volttron.platform.web import (DiscoveryInfo, DiscoveryError)
 from zmq.utils import jsonapi
 from .registry import PlatformRegistry
 
-__version__ = "3.5.2"
+__version__ = "3.5.3"
 
 _log = logging.getLogger(__name__)
 
 # Web root is going to be relative to the volttron central agents
 # current agent's installed path
 DEFAULT_WEB_ROOT = p.abspath(p.join(p.dirname(__file__), 'webroot/'))
-_log.debug("DEFAULT WEBROOT IS: {}".format(DEFAULT_WEB_ROOT))
 
 
 class VolttronCentralAgent(Agent):
-    """ Agent for exposing and managing many platform.agent's through a web interface.
+    """ Agent for managing many volttron instances from a central web ui.
+
+    During the
+
+
     """
     __name__ = 'VolttronCentralAgent'
 
