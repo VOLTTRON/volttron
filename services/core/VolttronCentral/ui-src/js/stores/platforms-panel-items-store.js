@@ -21,7 +21,7 @@ var _badLabel = "Unhealthy";
 var _goodLabel = "Healthy";
 var _unknownLabel = "Unknown Status";
 
-var _loadingDataComplete = true;
+var _loadingDataComplete = {};
 
 var platformsPanelItemsStore = new Store();
 
@@ -310,8 +310,16 @@ platformsPanelItemsStore.getExpanded = function () {
     return _expanded;
 };
 
-platformsPanelItemsStore.getLoadingComplete = function () {
-    return _loadingDataComplete;
+platformsPanelItemsStore.getLoadingComplete = function (panelItem) {
+
+    var loadingComplete = true;
+
+    if (_loadingDataComplete.hasOwnProperty(panelItem.uuid))
+    {
+        loadingComplete = _loadingDataComplete[panelItem.uuid];
+    }
+
+    return loadingComplete;
 };
 
 platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
@@ -359,7 +367,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
         case ACTION_TYPES.START_LOADING_DATA:
 
-            _loadingDataComplete = false;
+            _loadingDataComplete[action.panelItem.uuid] = false;
 
             break;
 
@@ -493,9 +501,15 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                     break;
             }
 
-            _loadingDataComplete = true;
+            platformsPanelItemsStore.emitChange();
+            break;
+
+        case ACTION_TYPES.END_LOADING_DATA:
+
+            _loadingDataComplete[action.panelItem.uuid] = true;
 
             platformsPanelItemsStore.emitChange();
+
             break;
     }
 

@@ -497,21 +497,11 @@ br + .form__control-help {
 }
 
 .loadingSpinner {
-    float: left;
-    margin-right: 5px;
-    cursor: pointer;
-    font-size: 12px;
-    display: inline-block;
-    width: 14px;
-    text-align: center;
     color: #1BCDF5;
+}
 
-    -webkit-touch-callout: none;
-    -webkit-user-select: none;
-    -khtml-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
+.cancelLoading {
+    color: red;
 }
 
 .rotateRight {

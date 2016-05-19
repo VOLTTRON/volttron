@@ -23,6 +23,7 @@ var PlatformsPanelItem = React.createClass({
         {
             state.notInitialized = true;
             state.loading = false;
+            state.cancelButton = false;
         }
 
         return state;
@@ -38,7 +39,7 @@ var PlatformsPanelItem = React.createClass({
         var panelItem = platformsPanelItemsStore.getItem(this.props.itemPath);
         var panelChildren = platformsPanelItemsStore.getChildren(this.props.panelItem, this.props.itemPath);
 
-        var loadingComplete = platformsPanelItemsStore.getLoadingComplete();
+        var loadingComplete = platformsPanelItemsStore.getLoadingComplete(this.props.panelItem);
 
         if (loadingComplete)
         {
@@ -57,26 +58,51 @@ var PlatformsPanelItem = React.createClass({
         
         platformsPanelActionCreators.expandAll(this.props.itemPath);
     },
-    _toggleItem: function () {
+    _handleArrowClick: function () {
 
-        if (this.state.panelItem.expanded === null)
+        if (!this.state.loading) // If not loading, just a regular toggle button
         {
-            if (!this.state.loading)
+            if (this.state.panelItem.expanded === null)
             {
-                this.setState({loading: true});
-                platformsPanelActionCreators.loadChildren(this.props.panelItem.type, this.props.panelItem);
-            }
-        }
-        else
-        {
-            if (this.state.panelItem.expanded)
-            {
-                platformsPanelActionCreators.expandAll(this.props.itemPath);
+                if (!this.state.loading)
+                {
+                    this.setState({loading: true});
+                    platformsPanelActionCreators.loadChildren(this.props.panelItem.type, this.props.panelItem);
+                }
             }
             else
             {
-                platformsPanelActionCreators.toggleItem(this.props.itemPath);    
+                if (this.state.panelItem.expanded)
+                {
+                    platformsPanelActionCreators.expandAll(this.props.itemPath);
+                }
+                else
+                {
+                    platformsPanelActionCreators.toggleItem(this.props.itemPath);    
+                }
             }
+        }
+        else if (this.state.hasOwnProperty("loading"))
+        {
+            if (this.state.loading || this.state.cancelButton)
+            {
+                this.setState({loading: false});
+                this.setState({cancelButton: false});
+            }
+        }
+    },
+    _showCancel: function () {
+
+        if (this.state.hasOwnProperty("loading") && (this.state.loading === true))
+        {
+            this.setState({cancelButton: true});
+        }
+    },
+    _resumeLoad: function () {
+
+        if (this.state.hasOwnProperty("loading"))
+        {
+            this.setState({cancelButton: false});
         }
     },
     _checkItem: function (e) {
@@ -124,8 +150,20 @@ var PlatformsPanelItem = React.createClass({
         }
 
         var childClass;
-        var arrowClasses = [(this.state.loading ? "loadingSpinner" : "arrowButton"), "noRotate"];
+        var arrowClasses = [ "arrowButton", "noRotate" ];
 
+        if (this.state.hasOwnProperty("loading"))
+        {
+            if (this.state.cancelButton)
+            {
+                arrowClasses.push("cancelLoading");
+            }
+            else if (this.state.loading)
+            {
+                arrowClasses.push("loadingSpinner");
+            }
+        }
+        
         var ChartCheckbox;
 
         if (["point"].indexOf(panelItem.type) > -1)
@@ -157,7 +195,11 @@ var PlatformsPanelItem = React.createClass({
             width: "14px"
         }
 
-        if (this.state.loading)
+        if (this.state.cancelButton)
+        {
+            arrowContent = <span style={arrowContentStyle}><i className="fa fa-remove"></i></span>;
+        }
+        else if (this.state.loading)
         {
             arrowContent = <span style={arrowContentStyle}><i className="fa fa-circle-o-notch fa-spin fa-fw"></i></span>;
         }
@@ -243,7 +285,9 @@ var PlatformsPanelItem = React.createClass({
                 <div className="platform-info">
                     <div className={arrowClasses.join(' ')}
                         onDoubleClick={this._expandAll}
-                        onClick={this._toggleItem}>
+                        onClick={this._handleArrowClick}
+                        onMouseEnter={this._showCancel}
+                        onMouseLeave={this._resumeLoad}>
                         {arrowContent}
                     </div>  
                     {ChartCheckbox}                  

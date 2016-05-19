@@ -997,11 +997,74 @@ var platformsPanelActionCreators = {
         if (type === "platform")
         {
             dispatcher.dispatch({
-                type: ACTION_TYPES.START_LOADING_DATA
+                type: ACTION_TYPES.START_LOADING_DATA,
+                panelItem: parent 
             });
 
             loadPanelDevices(parent);
-        }        
+        } 
+
+        function loadPanelDevices(platform) {
+            var authorization = authorizationStore.getAuthorization();
+
+            new rpc.Exchange({
+                method: 'platforms.uuid.' + platform.uuid + '.get_devices',
+                authorization: authorization,
+            }).promise
+                .then(function (result) {
+                    
+                    var devicesList = [];
+
+                    for (var key in result)
+                    {
+                        var device = JSON.parse(JSON.stringify(result[key]));
+                        device.path = key;
+
+                        devicesList.push(device);
+                    }
+
+                    dispatcher.dispatch({
+                        type: ACTION_TYPES.RECEIVE_DEVICE_STATUSES,
+                        platform: platform,
+                        devices: devicesList
+                    });
+
+                    loadPanelAgents(platform);
+                    
+                })                     
+                .catch(rpc.Error, function (error) {
+
+                    statusIndicatorActionCreators.openStatusIndicator("error", "Error loading devices in side panel: " + error.message);
+                    handle401(error);
+                    endLoadingData(platform);
+                });    
+
+        }
+
+        function loadPanelAgents(platform) {
+            var authorization = authorizationStore.getAuthorization();
+
+            new rpc.Exchange({
+                method: 'platforms.uuid.' + platform.uuid + '.list_agents',
+                authorization: authorization,
+            }).promise
+                .then(function (agentsList) {
+                    
+                    dispatcher.dispatch({
+                        type: ACTION_TYPES.RECEIVE_AGENT_STATUSES,
+                        platform: platform,
+                        agents: agentsList
+                    });
+
+                    loadPerformanceStats(platform);
+                })                     
+                .catch(rpc.Error, function (error) {
+
+                    statusIndicatorActionCreators.openStatusIndicator("error", "Error loading agents in side panel: " + error.message);
+                    handle401(error);
+                    endLoadingData(platform);
+                });    
+        }       
 
         function loadPerformanceStats(parent) {
 
@@ -1043,6 +1106,8 @@ var platformsPanelActionCreators = {
                                 parent: parent,
                                 points: pointsList
                             });
+
+                            endLoadingData(parent);
                         })
                         .catch(rpc.Error, function (error) {
                             
@@ -1058,77 +1123,18 @@ var platformsPanelActionCreators = {
 
                             statusIndicatorActionCreators.openStatusIndicator("error", message);
                             handle401(error);
+                            endLoadingData(parent);
                         });   
             } 
         }
 
-        function loadPanelDevices(platform) {
-            var authorization = authorizationStore.getAuthorization();
-
-            new rpc.Exchange({
-                method: 'platforms.uuid.' + platform.uuid + '.get_devices',
-                authorization: authorization,
-            }).promise
-                .then(function (result) {
-                    
-                    var devicesList = [];
-
-                    for (var key in result)
-                    {
-                        var device = JSON.parse(JSON.stringify(result[key]));
-                        device.path = key;
-
-                        devicesList.push(device);
-                    }
-
-                    dispatcher.dispatch({
-                        type: ACTION_TYPES.RECEIVE_DEVICE_STATUSES,
-                        platform: platform,
-                        devices: devicesList
-                    });
-
-                    loadPanelAgents(platform);
-                    
-                })                     
-                .catch(rpc.Error, function (error) {
-
-                    statusIndicatorActionCreators.openStatusIndicator("error", "Error loading devices in side panel: " + error.message);
-
-                    handle401(error);
-                });    
-
-        }
-
-        function loadPanelAgents(platform) {
-            var authorization = authorizationStore.getAuthorization();
-
-            new rpc.Exchange({
-                method: 'platforms.uuid.' + platform.uuid + '.list_agents',
-                authorization: authorization,
-            }).promise
-                .then(function (agentsList) {
-                    
-                    dispatcher.dispatch({
-                        type: ACTION_TYPES.RECEIVE_AGENT_STATUSES,
-                        platform: platform,
-                        agents: agentsList
-                    });
-
-                    loadPerformanceStats(platform);
-                })                     
-                .catch(rpc.Error, function (error) {
-
-                    statusIndicatorActionCreators.openStatusIndicator("error", "Error loading agents in side panel: " + error.message);
-
-                    handle401(error);
-                });    
-        }
-            // dispatcher.dispatch({
-            //     type: ACTION_TYPES.RECEIVE_AGENT_STATUSES,
-            //     platform: platform
-            // });
-        // }
-    
+        function endLoadingData(panelItem)
+        {
+            dispatcher.dispatch({
+                type: ACTION_TYPES.END_LOADING_DATA,
+                panelItem: panelItem
+            });
+        }    
     },
 
     loadFilteredItems: function (filterTerm, filterStatus)
@@ -3178,6 +3184,7 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
         {
             state.notInitialized = true;
             state.loading = false;
+            state.cancelButton = false;
         }
 
         return state;
@@ -3193,7 +3200,7 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
         var panelItem = platformsPanelItemsStore.getItem(this.props.itemPath);
         var panelChildren = platformsPanelItemsStore.getChildren(this.props.panelItem, this.props.itemPath);
 
-        var loadingComplete = platformsPanelItemsStore.getLoadingComplete();
+        var loadingComplete = platformsPanelItemsStore.getLoadingComplete(this.props.panelItem);
 
         if (loadingComplete)
         {
@@ -3212,26 +3219,51 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
         
         platformsPanelActionCreators.expandAll(this.props.itemPath);
     },
-    _toggleItem: function () {
+    _handleArrowClick: function () {
 
-        if (this.state.panelItem.expanded === null)
+        if (!this.state.loading) // If not loading, just a regular toggle button
         {
-            if (!this.state.loading)
+            if (this.state.panelItem.expanded === null)
             {
-                this.setState({loading: true});
-                platformsPanelActionCreators.loadChildren(this.props.panelItem.type, this.props.panelItem);
-            }
-        }
-        else
-        {
-            if (this.state.panelItem.expanded)
-            {
-                platformsPanelActionCreators.expandAll(this.props.itemPath);
+                if (!this.state.loading)
+                {
+                    this.setState({loading: true});
+                    platformsPanelActionCreators.loadChildren(this.props.panelItem.type, this.props.panelItem);
+                }
             }
             else
             {
-                platformsPanelActionCreators.toggleItem(this.props.itemPath);    
+                if (this.state.panelItem.expanded)
+                {
+                    platformsPanelActionCreators.expandAll(this.props.itemPath);
+                }
+                else
+                {
+                    platformsPanelActionCreators.toggleItem(this.props.itemPath);    
+                }
             }
+        }
+        else if (this.state.hasOwnProperty("loading"))
+        {
+            if (this.state.loading || this.state.cancelButton)
+            {
+                this.setState({loading: false});
+                this.setState({cancelButton: false});
+            }
+        }
+    },
+    _showCancel: function () {
+
+        if (this.state.hasOwnProperty("loading") && (this.state.loading === true))
+        {
+            this.setState({cancelButton: true});
+        }
+    },
+    _resumeLoad: function () {
+
+        if (this.state.hasOwnProperty("loading"))
+        {
+            this.setState({cancelButton: false});
         }
     },
     _checkItem: function (e) {
@@ -3279,8 +3311,20 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
         }
 
         var childClass;
-        var arrowClasses = [(this.state.loading ? "loadingSpinner" : "arrowButton"), "noRotate"];
+        var arrowClasses = [ "arrowButton", "noRotate" ];
 
+        if (this.state.hasOwnProperty("loading"))
+        {
+            if (this.state.cancelButton)
+            {
+                arrowClasses.push("cancelLoading");
+            }
+            else if (this.state.loading)
+            {
+                arrowClasses.push("loadingSpinner");
+            }
+        }
+        
         var ChartCheckbox;
 
         if (["point"].indexOf(panelItem.type) > -1)
@@ -3312,7 +3356,11 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
             width: "14px"
         }
 
-        if (this.state.loading)
+        if (this.state.cancelButton)
+        {
+            arrowContent = React.createElement("span", {style: arrowContentStyle}, React.createElement("i", {className: "fa fa-remove"}));
+        }
+        else if (this.state.loading)
         {
             arrowContent = React.createElement("span", {style: arrowContentStyle}, React.createElement("i", {className: "fa fa-circle-o-notch fa-spin fa-fw"}));
         }
@@ -3398,7 +3446,9 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
                 React.createElement("div", {className: "platform-info"}, 
                     React.createElement("div", {className: arrowClasses.join(' '), 
                         onDoubleClick: this._expandAll, 
-                        onClick: this._toggleItem}, 
+                        onClick: this._handleArrowClick, 
+                        onMouseEnter: this._showCancel, 
+                        onMouseLeave: this._resumeLoad}, 
                         arrowContent
                     ), 
                     ChartCheckbox, 
@@ -4351,6 +4401,7 @@ module.exports = keyMirror({
     RECEIVE_PERFORMANCE_STATS: null,
 
     START_LOADING_DATA: null,
+    END_LOADING_DATA: null,
 
     SHOW_CHARTS: null,
     ADD_TO_CHART: null,
@@ -5294,7 +5345,7 @@ var _badLabel = "Unhealthy";
 var _goodLabel = "Healthy";
 var _unknownLabel = "Unknown Status";
 
-var _loadingDataComplete = true;
+var _loadingDataComplete = {};
 
 var platformsPanelItemsStore = new Store();
 
@@ -5583,8 +5634,16 @@ platformsPanelItemsStore.getExpanded = function () {
     return _expanded;
 };
 
-platformsPanelItemsStore.getLoadingComplete = function () {
-    return _loadingDataComplete;
+platformsPanelItemsStore.getLoadingComplete = function (panelItem) {
+
+    var loadingComplete = true;
+
+    if (_loadingDataComplete.hasOwnProperty(panelItem.uuid))
+    {
+        loadingComplete = _loadingDataComplete[panelItem.uuid];
+    }
+
+    return loadingComplete;
 };
 
 platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
@@ -5632,7 +5691,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
         case ACTION_TYPES.START_LOADING_DATA:
 
-            _loadingDataComplete = false;
+            _loadingDataComplete[action.panelItem.uuid] = false;
 
             break;
 
@@ -5766,9 +5825,15 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                     break;
             }
 
-            _loadingDataComplete = true;
+            platformsPanelItemsStore.emitChange();
+            break;
+
+        case ACTION_TYPES.END_LOADING_DATA:
+
+            _loadingDataComplete[action.panelItem.uuid] = true;
 
             platformsPanelItemsStore.emitChange();
+
             break;
     }
 

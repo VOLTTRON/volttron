@@ -38,6 +38,7 @@ module.exports = keyMirror({
     RECEIVE_PERFORMANCE_STATS: null,
 
     START_LOADING_DATA: null,
+    END_LOADING_DATA: null,
 
     SHOW_CHARTS: null,
     ADD_TO_CHART: null,
