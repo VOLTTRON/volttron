@@ -312,7 +312,7 @@ platformsPanelItemsStore.getExpanded = function () {
 
 platformsPanelItemsStore.getLoadingComplete = function (panelItem) {
 
-    var loadingComplete = true;
+    var loadingComplete = null;
 
     if (_loadingDataComplete.hasOwnProperty(panelItem.uuid))
     {
@@ -507,6 +507,8 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
         case ACTION_TYPES.END_LOADING_DATA:
 
             _loadingDataComplete[action.panelItem.uuid] = true;
+
+            updatePlatformStatus(action.panelItem.uuid);
 
             platformsPanelItemsStore.emitChange();
 
@@ -931,6 +933,45 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
         var pathStr = pathParts.join(" > ");
 
         return pathStr;
+    }
+
+    function updatePlatformStatus(uuid)
+    {
+        if (_items.platforms.hasOwnProperty(uuid))
+        {
+            var platform = JSON.parse(JSON.stringify(_items.platforms[uuid]));
+
+            if (_items.platforms[uuid].hasOwnProperty("agents"))
+            {
+                var agentsHealth = _items.platforms[uuid].agents.status; 
+                platform.status = checkStatuses(agentsHealth, platform);
+            }
+
+            if (platform.status === "GOOD" || platform.status === "UNKNOWN")
+            {
+                if (_items.platforms[uuid].hasOwnProperty("buildings"))
+                {
+                    var buildingsHealth = _items.platforms[uuid].buildings.status;
+                    platform.status = checkStatuses(buildingsHealth, platform);
+                }
+            }
+            
+            if (platform.status === "GOOD" || platform.status === "UNKNOWN")
+            {
+                if (_items.platforms[uuid].hasOwnProperty("points"))
+                {
+                    var pointsHealth = _items.platforms[uuid].points.status;  
+                    platform.status = checkStatuses(pointsHealth, platform);  
+                }
+            }
+
+            if (platform.status !== _items.platforms[uuid].status)
+            {
+                _items.platforms[uuid].status = platform.status;
+                _items.platforms[uuid].statusLabel = getStatusLabel(platform.status);
+                _items.platforms[uuid].context = "Status problems found."
+            }
+        }        
     }
 
     function checkStatuses(health, item)

@@ -41,16 +41,19 @@ var PlatformsPanelItem = React.createClass({
 
         var loadingComplete = platformsPanelItemsStore.getLoadingComplete(this.props.panelItem);
 
-        if (loadingComplete)
+        if (loadingComplete === true || loadingComplete === null)
         {
             this.setState({panelItem: panelItem});
             this.setState({children: panelChildren});
             this.setState({checked: panelItem.checked});
-            this.setState({loading: false});
 
             if (this.props.panelItem.type === "platform")
             {
-                this.setState({notInitialized: false});
+                if (loadingComplete === true)
+                {
+                    this.setState({loading: false});
+                    this.setState({notInitialized: false});
+                }
             }
         }
     },
@@ -60,15 +63,12 @@ var PlatformsPanelItem = React.createClass({
     },
     _handleArrowClick: function () {
 
-        if (!this.state.loading) // If not loading, just a regular toggle button
+        if (!this.state.loading) // If not loading, treat it as just a regular toggle button
         {
-            if (this.state.panelItem.expanded === null)
+            if (this.state.panelItem.expanded === null && this.state.panelItem.type === "platform") 
             {
-                if (!this.state.loading)
-                {
-                    this.setState({loading: true});
-                    platformsPanelActionCreators.loadChildren(this.props.panelItem.type, this.props.panelItem);
-                }
+                this.setState({loading: true});
+                platformsPanelActionCreators.loadChildren(this.props.panelItem.type, this.props.panelItem);
             }
             else
             {
@@ -82,12 +82,12 @@ var PlatformsPanelItem = React.createClass({
                 }
             }
         }
-        else if (this.state.hasOwnProperty("loading"))
+        else if (this.state.hasOwnProperty("loading")) // it's a platform and it's loading
         {
-            if (this.state.loading || this.state.cancelButton)
-            {
-                this.setState({loading: false});
-                this.setState({cancelButton: false});
+            if (this.state.loading || this.state.cancelButton) // if either loading or cancelButton is still
+            {                                                   // true, either way, the user wants to 
+                this.setState({loading: false});                // get out of the loading state, so turn
+                this.setState({cancelButton: false});           // the toggle button back to an arrow icon
             }
         }
     },
