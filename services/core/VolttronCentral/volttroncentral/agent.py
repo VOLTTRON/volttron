@@ -888,8 +888,8 @@ class VolttronCentralAgent(Agent):
             has_platform_historian = PLATFORM_HISTORIAN in \
                                      self.vip.peerlist().get(timeout=30)
             if not has_platform_historian:
-                err('Platform historian not found on volttorn central',
-                    UNAVAILABLE_AGENT)
+                return err('Platform historian not found on volttorn central',
+                           UNAVAILABLE_AGENT)
             _log.debug('Trapping platform.historian to vc.')
             _log.debug('has_platform_historian: {}'.format(
                 has_platform_historian))
