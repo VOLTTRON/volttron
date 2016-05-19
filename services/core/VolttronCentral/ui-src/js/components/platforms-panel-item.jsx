@@ -57,7 +57,7 @@ var PlatformsPanelItem = React.createClass({
             }
         }
     },
-    _expandAll : function () {
+    _expandAll: function () {
         
         platformsPanelActionCreators.expandAll(this.props.itemPath);
     },

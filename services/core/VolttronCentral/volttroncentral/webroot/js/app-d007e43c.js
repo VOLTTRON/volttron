@@ -560,7 +560,9 @@ var ACTION_TYPES = require('../constants/action-types');
 var dispatcher = require('../dispatcher');
 var authorizationStore = require('../stores/authorization-store');
 var platformChartStore = require('../stores/platform-chart-store');
+var platformsStore = require('../stores/platforms-store');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
+var platformsPanelActionCreators = require('../action-creators/platforms-panel-action-creators');
 var platformActionCreators = require('../action-creators/platform-action-creators');
 var rpc = require('../lib/rpc');
 
@@ -616,7 +618,27 @@ var platformChartActionCreators = {
                 })
                 .catch(rpc.Error, function (error) {
 
-                    statusIndicatorActionCreators.openStatusIndicator("error", "Error updating chart: " + error.message);
+                    var message = "Error updating chart: " + error.message;
+
+                    if (error.code === -32602)
+                    {
+                        if (error.message === "historian unavailable")
+                        {
+                            message = "Error updating chart: The historian agent is unavailable.";
+                        }
+                    }
+                    else
+                    {
+                        var platform = platformsStore.getPlatform(item.parentUuid);
+                        var historianRunning = platformsStore.getHistorianRunning(platform);
+
+                        if (!historianRunning)
+                        {
+                            message = "Error updating chart: The historian agent is unavailable.";
+                        }
+                    }
+
+                    statusIndicatorActionCreators.openStatusIndicator("error", message);
 
                     handle401(error);
                 });
@@ -667,17 +689,28 @@ var platformChartActionCreators = {
             })
             .catch(rpc.Error, function (error) {
 
-                var message = error.message;
+                var message = "Error loading chart: " + error.message;
 
                 if (error.code === -32602)
                 {
                     if (error.message === "historian unavailable")
                     {
-                        message = "Data could not be fetched. The historian agent is unavailable."
+                        message = "Error loading chart: The historian agent is unavailable.";
+                    }
+                }
+                else
+                {
+                    var platform = platformsStore.getPlatform(panelItem.parentUuid);
+                    var historianRunning = platformsStore.getHistorianRunning(platform);
+
+                    if (!historianRunning)
+                    {
+                        message = "Error loading chart: The historian agent is unavailable.";
                     }
                 }
 
                 statusIndicatorActionCreators.openStatusIndicator("error", message);
+                platformsPanelActionCreators.checkItem(panelItem.path, false);
                 handle401(error);
             });
     },
@@ -723,7 +756,7 @@ function handle401(error) {
 module.exports = platformChartActionCreators;
 
 
-},{"../action-creators/platform-action-creators":5,"../action-creators/status-indicator-action-creators":9,"../constants/action-types":33,"../dispatcher":34,"../lib/rpc":37,"../stores/authorization-store":42,"../stores/platform-chart-store":47}],7:[function(require,module,exports){
+},{"../action-creators/platform-action-creators":5,"../action-creators/platforms-panel-action-creators":8,"../action-creators/status-indicator-action-creators":9,"../constants/action-types":33,"../dispatcher":34,"../lib/rpc":37,"../stores/authorization-store":42,"../stores/platform-chart-store":47,"../stores/platforms-store":51}],7:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -3218,7 +3251,7 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
             }
         }
     },
-    _expandAll : function () {
+    _expandAll: function () {
         
         platformsPanelActionCreators.expandAll(this.props.itemPath);
     },
@@ -5096,8 +5129,11 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
 
         case ACTION_TYPES.REMOVE_FROM_CHART:
             
-            removeSeries(action.panelItem.name, action.panelItem.uuid);
-            chartStore.emitChange();
+            if (_chartData.hasOwnProperty(action.panelItem.name))
+            {
+                removeSeries(action.panelItem.name, action.panelItem.uuid);
+                chartStore.emitChange();
+            }
 
             break;
 

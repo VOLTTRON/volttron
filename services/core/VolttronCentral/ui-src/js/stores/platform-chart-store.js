@@ -163,8 +163,11 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
 
         case ACTION_TYPES.REMOVE_FROM_CHART:
             
-            removeSeries(action.panelItem.name, action.panelItem.uuid);
-            chartStore.emitChange();
+            if (_chartData.hasOwnProperty(action.panelItem.name))
+            {
+                removeSeries(action.panelItem.name, action.panelItem.uuid);
+                chartStore.emitChange();
+            }
 
             break;
 
