@@ -74,14 +74,17 @@ platformsStore.getHistorianRunning = function (platform) {
 
     if (platform)
     {
-        var historian = platform.agents.find(function (agent) {     
-            return agent.name.toLowerCase().indexOf("historian") > -1;
-        });
-
-        if (historian)
+        if (platform.hasOwnProperty("agents"))
         {
-            historianRunning = ((historian.process_id !== null) && (historian.return_code === null));
-        }
+            var historian = platform.agents.find(function (agent) {     
+                return agent.name.toLowerCase().indexOf("historian") > -1;
+            });
+
+            if (historian)
+            {
+                historianRunning = ((historian.process_id !== null) && (historian.return_code === null));
+            }
+        }        
     }
 
     return historianRunning;

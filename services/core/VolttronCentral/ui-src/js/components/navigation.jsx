@@ -20,6 +20,7 @@ var Navigation = React.createClass({
     },
     _onLogOutClick: function () {
         platformsPanelActionCreators.closePanel();
+        platformsPanelActionCreators.resetPanel();
         platformManagerActionCreators.clearAuthorization();
     },
     render: function () {

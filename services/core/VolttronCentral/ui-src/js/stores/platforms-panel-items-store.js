@@ -326,6 +326,13 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
     switch (action.type) {
 
+        case ACTION_TYPES.RESET_PLATFORMS_PANEL:
+
+            _items.platforms = {};
+            _loadingDataComplete = {};
+            _expanded = false;
+
+            break;
         case ACTION_TYPES.FILTER_ITEMS:
 
             var filterTerm = action.filterTerm;

@@ -32,6 +32,7 @@ module.exports = keyMirror({
     RECEIVE_PLATFORM_STATUSES: null,
     TOGGLE_PLATFORMS_PANEL: null,
     CLOSE_PLATFORMS_PANEL: null,
+    RESET_PLATFORMS_PANEL: null,
 
     RECEIVE_AGENT_STATUSES: null,
     RECEIVE_DEVICE_STATUSES: null,

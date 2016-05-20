@@ -17,7 +17,7 @@ chartStore.getPinnedCharts = function () {
 
     for (var key in _chartData)
     {
-        if (_chartData[key].hasOwnProperty("pinned") && _chartData[key].pinned === true)
+        if (_chartData[key].hasOwnProperty("pinned") && (_chartData[key].pinned === true) && (_chartData[key].data.length > 0))
         {
             pinnedCharts.push(_chartData[key]);
         }
@@ -166,6 +166,15 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
             if (_chartData.hasOwnProperty(action.panelItem.name))
             {
                 removeSeries(action.panelItem.name, action.panelItem.uuid);
+
+                if (_chartData.hasOwnProperty(action.panelItem.name))
+                {
+                    if (_chartData[action.panelItem.name].length === 0)
+                    {
+                        delete _chartData[name];
+                    }
+                }
+
                 chartStore.emitChange();
             }
 

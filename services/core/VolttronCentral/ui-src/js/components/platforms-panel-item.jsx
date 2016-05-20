@@ -54,6 +54,11 @@ var PlatformsPanelItem = React.createClass({
                     this.setState({loading: false});
                     this.setState({notInitialized: false});
                 }
+                else if (loadingComplete === null)
+                {
+                    this.setState({loading: false});
+                    this.setState({notInitialized: true});
+                }
             }
         }
     },

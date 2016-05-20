@@ -1025,6 +1025,13 @@ var platformsPanelActionCreators = {
         });
     },
 
+    resetPanel: function() {
+
+        dispatcher.dispatch({
+            type: ACTION_TYPES.RESET_PLATFORMS_PANEL,
+        });
+    },
+
     loadChildren: function(type, parent)
     {
         if (type === "platform")
@@ -1824,33 +1831,22 @@ module.exports = Conversation;
 
 var React = require('react');
 var Router = require('react-router');
-
-// var platformsStore = require('../stores/platforms-store');
 var platformChartStore = require('../stores/platform-chart-store');
-// var Chart = require('./chart');
-// var EditChartForm = require('./edit-chart-form');
-// var modalActionCreators = require('../action-creators/modal-action-creators');
 
 var PlatformChart = require('./platform-chart');
 
 var Dashboard = React.createClass({displayName: "Dashboard",
     getInitialState: getStateFromStores,
     componentDidMount: function () {
-        // platformsStore.addChangeListener(this._onStoreChange);
         platformChartStore.addChangeListener(this._onStoreChange);
     },
     componentWillUnmount: function () {
-        // platformsStore.removeChangeListener(this._onStoreChange);
         platformChartStore.removeChangeListener(this._onStoreChange);
     },
     _onStoreChange: function () {
         this.setState(getStateFromStores());
     },
-    // _onEditChartClick: function (platform, chart) {
-    //     modalActionCreators.openModal("platforms", <EditChartForm platform={platform} chart={chart} />);
-    // },
     render: function () {
-        // var charts;
         
         var pinnedCharts = this.state.platformCharts; 
 
@@ -1862,74 +1858,15 @@ var Dashboard = React.createClass({displayName: "Dashboard",
                 var platformChart = React.createElement(PlatformChart, {chart: pinnedChart, chartKey: pinnedChart.chartKey, hideControls: true})
                 platformCharts.push(platformChart);
             }
-        });
-        // {
-        //     if (pinnedCharts[key].data.length > 0)
-        //     {
-        //         var platformChart = <PlatformChart chart={pinnedCharts[key]} chartKey={key} hideControls={true}/>
-        //         platformCharts.push(platformChart);
-        //     }
-        // }
+        });        
 
-        // if (!this.state.platforms) {
-        //     charts = (
-        //         <p>Loading charts...</p>
-        //     );
-        // } else {
-        //     charts = [];
-
-        //     this.state.platforms
-        //         .sort(function (a, b) {
-        //             return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
-        //         })
-        //         .forEach(function (platform) {
-        //             if (!platform.charts) { return; }
-
-        //             platform.charts
-        //                 .filter(function (chart) { return chart.pin; })
-        //                 .forEach(function (chart) {
-        //                     var key = [
-        //                         platform.uuid,
-        //                         chart.topic,
-        //                         chart.type,
-        //                     ].join('::');
-
-        //                     charts.push(
-        //                         <div key={key} className="view__item view__item--tile chart">
-        //                             <h3 className="chart__title">
-        //                                 <Router.Link
-        //                                     to="platform"
-        //                                     params={{uuid: platform.uuid}}
-        //                                 >
-        //                                     {platform.name}
-        //                                 </Router.Link>
-        //                                 : {chart.topic}
-        //                             </h3>
-        //                             <Chart
-        //                                 platform={platform}
-        //                                 chart={chart}
-        //                             />
-        //                             <div className="chart__actions">
-        //                                 <a
-        //                                     className="chart__edit"
-        //                                     onClick={this._onEditChartClick.bind(this, platform, chart)}
-        //                                 >
-        //                                     Edit
-        //                                 </a>
-        //                             </div>
-        //                         </div>
-        //                     );
-        //                 }, this);
-        //         }, this);
-
-            if (pinnedCharts.length === 0) {
-                platformCharts = (
-                    React.createElement("p", {className: "empty-help"}, 
-                        "Pin a platform chart to have it appear on the dashboard"
-                    )
-                );
-            }
-        // }
+        if (pinnedCharts.length === 0) {
+            platformCharts = (
+                React.createElement("p", {className: "empty-help"}, 
+                    "Pin a platform chart to have it appear on the dashboard"
+                )
+            );
+        }
 
         return (
             React.createElement("div", {className: "view"}, 
@@ -1943,7 +1880,6 @@ var Dashboard = React.createClass({displayName: "Dashboard",
 
 function getStateFromStores() {
     return {
-        // platforms: platformsStore.getPlatforms(),
         platformCharts: platformChartStore.getPinnedCharts()
     };
 }
@@ -2211,6 +2147,7 @@ var Navigation = React.createClass({displayName: "Navigation",
     },
     _onLogOutClick: function () {
         platformsPanelActionCreators.closePanel();
+        platformsPanelActionCreators.resetPanel();
         platformManagerActionCreators.clearAuthorization();
     },
     render: function () {
@@ -3248,6 +3185,11 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
                     this.setState({loading: false});
                     this.setState({notInitialized: false});
                 }
+                else if (loadingComplete === null)
+                {
+                    this.setState({loading: false});
+                    this.setState({notInitialized: true});
+                }
             }
         }
     },
@@ -3551,12 +3493,16 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
         {
             this.setState({expanded: expanded});
         }        
-
-        var platformsList = platformsPanelItemsStore.getChildren("platforms", null);
         
         if (expanded !== null)
         {
+            var platformsList = platformsPanelItemsStore.getChildren("platforms", null);
             this.setState({platforms: platformsList});
+        }
+        else
+        {
+            this.setState({filterValue: ""});
+            this.setState({filterStatus: ""});
         }
     },
     _onPanelItemsStoreChange: function () {
@@ -4428,6 +4374,7 @@ module.exports = keyMirror({
     RECEIVE_PLATFORM_STATUSES: null,
     TOGGLE_PLATFORMS_PANEL: null,
     CLOSE_PLATFORMS_PANEL: null,
+    RESET_PLATFORMS_PANEL: null,
 
     RECEIVE_AGENT_STATUSES: null,
     RECEIVE_DEVICE_STATUSES: null,
@@ -4983,7 +4930,7 @@ chartStore.getPinnedCharts = function () {
 
     for (var key in _chartData)
     {
-        if (_chartData[key].hasOwnProperty("pinned") && _chartData[key].pinned === true)
+        if (_chartData[key].hasOwnProperty("pinned") && (_chartData[key].pinned === true) && (_chartData[key].data.length > 0))
         {
             pinnedCharts.push(_chartData[key]);
         }
@@ -5132,6 +5079,15 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
             if (_chartData.hasOwnProperty(action.panelItem.name))
             {
                 removeSeries(action.panelItem.name, action.panelItem.uuid);
+
+                if (_chartData.hasOwnProperty(action.panelItem.name))
+                {
+                    if (_chartData[action.panelItem.name].length === 0)
+                    {
+                        delete _chartData[name];
+                    }
+                }
+
                 chartStore.emitChange();
             }
 
@@ -5686,6 +5642,13 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
     switch (action.type) {
 
+        case ACTION_TYPES.RESET_PLATFORMS_PANEL:
+
+            _items.platforms = {};
+            _loadingDataComplete = {};
+            _expanded = false;
+
+            break;
         case ACTION_TYPES.FILTER_ITEMS:
 
             var filterTerm = action.filterTerm;
@@ -6412,6 +6375,10 @@ platformsPanelStore.dispatchToken = dispatcher.register(function (action) {
             _expanded = false;
             platformsPanelStore.emitChange();
             break;
+        case ACTION_TYPES.RESET_PLATFORMS_PANEL:  
+            _expanded = null;
+            platformsPanelStore.emitChange();
+            break;
     }
 });
 
@@ -6495,14 +6462,17 @@ platformsStore.getHistorianRunning = function (platform) {
 
     if (platform)
     {
-        var historian = platform.agents.find(function (agent) {     
-            return agent.name.toLowerCase().indexOf("historian") > -1;
-        });
-
-        if (historian)
+        if (platform.hasOwnProperty("agents"))
         {
-            historianRunning = ((historian.process_id !== null) && (historian.return_code === null));
-        }
+            var historian = platform.agents.find(function (agent) {     
+                return agent.name.toLowerCase().indexOf("historian") > -1;
+            });
+
+            if (historian)
+            {
+                historianRunning = ((historian.process_id !== null) && (historian.return_code === null));
+            }
+        }        
     }
 
     return historianRunning;

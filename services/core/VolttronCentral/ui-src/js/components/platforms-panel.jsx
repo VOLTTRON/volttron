@@ -35,12 +35,16 @@ var PlatformsPanel = React.createClass({
         {
             this.setState({expanded: expanded});
         }        
-
-        var platformsList = platformsPanelItemsStore.getChildren("platforms", null);
         
         if (expanded !== null)
         {
+            var platformsList = platformsPanelItemsStore.getChildren("platforms", null);
             this.setState({platforms: platformsList});
+        }
+        else
+        {
+            this.setState({filterValue: ""});
+            this.setState({filterStatus: ""});
         }
     },
     _onPanelItemsStoreChange: function () {

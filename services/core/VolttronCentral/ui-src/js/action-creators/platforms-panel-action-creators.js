@@ -22,6 +22,13 @@ var platformsPanelActionCreators = {
         });
     },
 
+    resetPanel: function() {
+
+        dispatcher.dispatch({
+            type: ACTION_TYPES.RESET_PLATFORMS_PANEL,
+        });
+    },
+
     loadChildren: function(type, parent)
     {
         if (type === "platform")
