@@ -95,6 +95,7 @@ from volttron.platform.vip.agent.utils import build_agent
 from volttron.platform.jsonrpc import (INTERNAL_ERROR, INVALID_PARAMS,
                                        METHOD_NOT_FOUND)
 from volttron.platform.web import (DiscoveryInfo, DiscoveryError)
+from volttron.utils.persistance import load_create_store
 
 __version__ = '3.5.1'
 
@@ -130,9 +131,13 @@ class VolttronCentralPlatform(Agent):
         self._vc_info = None
         self._managed = False
 
+        self._vcp_store = load_create_store(
+            os.path.join(os.environ['VOLTTRON_HOME'],
+                         'data', 'vcp.settings'))
+
         # This is set from the volttron central instance (NOTE:this is not
         # the same as the installed uuid on this volttron instance0).
-        self._platform_uuid = None
+        self._platform_uuid = self._vcp_store.get("platform_uuid")
 
         # A dictionary of devices that are published by the platform.
         self._devices = {}
@@ -199,6 +204,8 @@ class VolttronCentralPlatform(Agent):
         if new_uuid:
             _log.debug('new_uuid is {}'.format(new_uuid))
             self._platform_uuid = new_uuid
+            self._vcp_store['platform_uuid'] = self._platform_uuid
+            self._vcp_store.sync()
 
         if new_agent_list_interval:
             if not isinstance(new_agent_list_interval, int) or \
@@ -638,6 +645,8 @@ class VolttronCentralPlatform(Agent):
             authfile = AuthFile()
             authfile.add(entry)
         self._managed = True
+        gevent.spawn_later(self._publish_agent_list_to_vc, 2)
+        gevent.spawn_later(self._publish_stats, 2)
         return self.core.publickey
 
     def _publish_stats(self):
@@ -758,7 +767,8 @@ class VolttronCentralPlatform(Agent):
             self._get_my_discovery_address()
             self._get_vc_discovery_address()
             # this is a local platform.
-            if self._my_discovery_address == self._vc_discovery_address:
+            if self._my_discovery_address == self._vc_discovery_address and \
+                    self._my_discovery_address is not None:
                 info = DiscoveryInfo.request_discovery_info(
                     self._my_discovery_address
                 )

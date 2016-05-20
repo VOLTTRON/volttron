@@ -110,7 +110,7 @@ class PlatformRegistry(object):
     def get_platform(self, platform_uuid):
         """Returns a platform associated with a specific uuid instance.
         """
-        return self._platform_entries.get(platform_uuid, None)
+        return self._platform_entries.get(platform_uuid)
 
     def get_agent_list(self, platform_uuid):
         return self.get_tag(platform_uuid, "agent_list")

@@ -359,7 +359,8 @@ class VolttronCentralAgent(Agent):
         if 'had_platform_uuid' in message:
             passed_uuid = message['had_platform_uuid']
 
-            if passed_uuid not in self.get_platforms().keys():
+            entry = self._registry.get_platform(passed_uuid)
+            if not entry:
                 _log.error('{} was not found as a previously registered '
                            'platform. Address: {}'
                            .format(passed_uuid, message['address']))
@@ -881,6 +882,7 @@ class VolttronCentralAgent(Agent):
         self._local_address = q.query('local_address').get(timeout=30)
         _log.debug('Local address is? {}'.format(self._local_address))
         _log.debug('Registering jsonrpc and /.* routes')
+
         self.vip.rpc.call(MASTER_WEB, 'register_agent_route',
                           r'^/jsonrpc.*',
                           self.core.identity,
@@ -894,6 +896,7 @@ class VolttronCentralAgent(Agent):
 
         assert self.core.publickey
         assert self.core.secretkey
+        assert self.webaddress
         self._web_info = DiscoveryInfo.request_discovery_info(self.webaddress)
         # Reconnect to the platforms that are in the registry.
         self._reconnect_to_platforms()
@@ -1012,12 +1015,10 @@ class VolttronCentralAgent(Agent):
                                 anon_devices))
 
                             self._registry.update_devices(k, anon_devices)
-                        except gevent.Timeout:
+                        except (gevent.Timeout, Unreachable) as e:
                             _log.error(
                                 'Error getting devices from platform {}'
                                 .format(k))
-        except Exception as e:
-            _log.error(e.message)
         finally:
             self._flag_updating_deviceregistry = False
 
