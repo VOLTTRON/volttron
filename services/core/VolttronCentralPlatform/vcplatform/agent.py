@@ -131,9 +131,11 @@ class VolttronCentralPlatform(Agent):
         self._vc_info = None
         self._managed = False
 
+        store_dir = os.path.join(os.environ['VOLTTRON_HOME'], data)
+        if not os.path.exists(store_dir):
+            os.makedirs(store_dir)
         self._vcp_store = load_create_store(
-            os.path.join(os.environ['VOLTTRON_HOME'],
-                         'data', 'vcp.settings'))
+            os.path.join(store_dir, 'vcp.settings'))
 
         # This is set from the volttron central instance (NOTE:this is not
         # the same as the installed uuid on this volttron instance0).
