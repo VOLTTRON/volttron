@@ -765,8 +765,15 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
                     while (currentLevel < subDeviceLevel)
                     {
+                        var parentDeviceUuid = deviceParts[0];
+
+                        for (var i = 1; i < currentLevel; i++)
+                        {
+                            parentDeviceUuid = parentDeviceUuid + "_" + deviceParts[i];
+                        }
+
                         parentDevice = parentDevice.devices;
-                        parentDevice = parentDevice[deviceParts[currentLevel]];
+                        parentDevice = parentDevice.devices[parentDeviceUuid];
                         ++currentLevel;
                     }
 
