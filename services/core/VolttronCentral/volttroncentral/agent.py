@@ -163,7 +163,7 @@ class ConnectedPlatform(Connected):
         self._address = address
         self._serverkey = serverkey
         self._publickey = publickey
-        self._secretekey = secretkey
+        self._secretkey = secretkey
         self._connected_agent = None
 
     def connect(self):
@@ -300,9 +300,9 @@ class VolttronCentralAgent(Agent):
                     ))
                     conn_to_instance = ConnectedLocalPlatform(self)
                 elif entry.platform_uuid in self._pa_agents.keys():
-                    conn_to_instance = self._pa_agents[entry.platform_uuid]
+                    conn_to_instance = self._pa_agents.get(entry.platform_uuid)
                     try:
-                        if conn_to_instance.vip.peerlist.get(timeout=15):
+                        if conn_to_instance.agent.vip.peerlist.get(timeout=15):
                             pass
                     except gevent.Timeout:
                         del self._pa_agents[entry.platform_uuid]
@@ -435,15 +435,18 @@ class VolttronCentralAgent(Agent):
                            .format(message['address']))
                 return
 
-            entry = PlatformRegistry.build_entry(
-                vip_address=message['address'],
-                serverkey=message['serverkey'],
-                vcp_publickey=message['publickey'],
-                is_local=False,
-                discovery_address=message.get('discovery_address'),
-                display_name=message.get('display_name')
-            )
-            self._registry.register(entry)
+            if passed_uuid:
+                entry = self._registry.get_platform(passed_uuid)
+            else:
+                entry = PlatformRegistry.build_entry(
+                    vip_address=message['address'],
+                    serverkey=message['serverkey'],
+                    vcp_publickey=message['publickey'],
+                    is_local=False,
+                    discovery_address=message.get('discovery_address'),
+                    display_name=message.get('display_name')
+                )
+                self._registry.register(entry)
 
             self._pa_agents[entry.platform_uuid] = connected
 
@@ -664,11 +667,19 @@ class VolttronCentralAgent(Agent):
         assert pa_instance_serverkey
         _log.debug('connecting to pa_instance')
         try:
-            connected_to_pa = build_agent(
+            connected_to_pa = ConnectedPlatform(
                 address=pa_vip_address, serverkey=pa_instance_serverkey,
                 secretkey=self.core.secretkey,
                 publickey=self.core.publickey
             )
+            connected_to_pa.connect()
+            if not connected_to_pa.is_connected():
+                return {
+                    'error': {
+                        'code': UNABLE_TO_REGISTER_INSTANCE,
+                        'message': 'Could not connect to {}'
+                            .format(pa_vip_address)
+                    }}
         except gevent.Timeout:
             return {
                 'error': {
@@ -682,7 +693,7 @@ class VolttronCentralAgent(Agent):
                               }}
 
         _log.debug('Connected to address')
-        peers = connected_to_pa.vip.peerlist().get(timeout=30)
+        peers = connected_to_pa.agent.vip.peerlist().get(timeout=30)
         if VOLTTRON_CENTRAL_PLATFORM not in peers:
             connected_to_pa.core.stop()
             return {'error': {'code': UNABLE_TO_REGISTER_INSTANCE,
@@ -691,7 +702,7 @@ class VolttronCentralAgent(Agent):
                               }}
 
         # The call to manage should return a public key for that agent
-        result = connected_to_pa.vip.rpc.call(
+        result = connected_to_pa.agent.vip.rpc.call(
             VOLTTRON_CENTRAL_PLATFORM, 'manage', self._web_info.vip_address,
             self._web_info.serverkey, self.core.publickey).get(timeout=30)
 
@@ -720,7 +731,7 @@ class VolttronCentralAgent(Agent):
         _log.debug("Adding {}".format(entry.platform_uuid))
         instance_name = display_name if display_name else discovery_address
         context = 'Registered instance {}'.format(instance_name)
-        connected_to_pa.vip.rpc.call(
+        connected_to_pa.agent.vip.rpc.call(
             VOLTTRON_CENTRAL_PLATFORM, 'reconfigure',
             platform_uuid=entry.platform_uuid).get(timeout=30)
 
@@ -811,10 +822,10 @@ class VolttronCentralAgent(Agent):
         except AssertionError:
             return jsonrpc.json_error(
                 'NA', INVALID_REQUEST, 'Invalid rpc data {}'.format(data))
-        except Exception:
+        except Exception as e:
 
             return jsonrpc.json_error(
-                'NA', UNHANDLED_EXCEPTION, e.message
+                'NA', UNHANDLED_EXCEPTION, e
             )
 
         _log.debug("RETURNING: {}".format(self._get_jsonrpc_response(
@@ -986,7 +997,8 @@ class VolttronCentralAgent(Agent):
                 # Loop over the connections to the registered agent platforms.
                 for k, v in self._pa_agents.items():
                     _log.debug('updating for {}'.format(k))
-                    # Only attempt update if we have a connection to the agent.
+                    # Only attempt update if we have a connection to the
+                    # agent instance.
                     if v is not None:
                         try:
                             devices = v.agent.vip.rpc.call(
@@ -1189,7 +1201,7 @@ class VolttronCentralAgent(Agent):
                     VOLTTRON_CENTRAL_PLATFORM, 'route_request', id,
                     platform_method,
                     params).get(timeout=30)
-            except Unreachable, gevent.Timeout:
+            except (Unreachable, gevent.Timeout) as e:
                 del self._pa_agents[platform_uuid]
                 return err("Can't route to platform",
                            UNAVAILABLE_PLATFORM)

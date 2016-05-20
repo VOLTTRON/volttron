@@ -201,8 +201,8 @@ class VolttronCentralPlatform(Agent):
         new_stats_interval = kwargs.get('stats_publish_interval')
         new_agent_list_interval = kwargs.get('agent_list_publish_interval')
 
-        if new_uuid:
-            _log.debug('new_uuid is {}'.format(new_uuid))
+        if new_uuid and new_uuid != self._platform_uuid:
+            _log.debug('storing new_uuid: {}'.format(new_uuid))
             self._platform_uuid = new_uuid
             self._vcp_store['platform_uuid'] = self._platform_uuid
             self._vcp_store.sync()
@@ -241,7 +241,7 @@ class VolttronCentralPlatform(Agent):
         if self._platform_uuid:
             _log.info('Publishing new agent list.')
 
-            self.vip.pubsub.publish(
+            self._agent_connected_to_vc.vip.pubsub.publish(
                 'pubsub',
                 topic="platforms/{}/update_agent_list".format(
                     self._platform_uuid),
@@ -739,10 +739,29 @@ class VolttronCentralPlatform(Agent):
             raise CannotConnectError(
                 "Invalid VOLTTRON Central discovery address.")
 
-        agent_for_vc = self._build_agent_for_vc()
-        agent_for_vc.vip.rpc.call(VOLTTRON_CENTRAL, 'register_instance',
-                                  self._my_discovery_address).get(timeout=30)
-        self._managed = True
+        response = DiscoveryInfo.request_discovery_info(
+            self._my_discovery_address)
+        self._agent_connected_to_vc = self._build_agent_for_vc()
+        register_req = dict(
+            address=response.vip_address,
+            serverkey=response.serverkey,
+            publickey=self.core.publickey,
+            discovery_address=self._my_discovery_address
+        )
+
+        if self._platform_uuid:
+            register_req['had_platform_uuid'] = self._platform_uuid
+
+        _log.debug('Registering with vc via pubsub.')
+        self._agent_connected_to_vc.vip.pubsub.publish(
+            'pubsub', topic='platforms/register', message=register_req)
+
+        # agent_for_vc.vip.pubsub.publish(
+        #     "pubsub", "platforms/register", message={}
+        # )
+        # agent_for_vc.vip.rpc.call(VOLTTRON_CENTRAL, 'register_instance',
+        #                           self._my_discovery_address).get(timeout=30)
+        # self._managed = True
 
     @Core.receiver('onstart')
     def _starting(self, sender, **kwargs):
