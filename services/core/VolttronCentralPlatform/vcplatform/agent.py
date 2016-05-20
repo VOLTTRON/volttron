@@ -236,7 +236,8 @@ class VolttronCentralPlatform(Agent):
 
             self.vip.pubsub.publish(
                 'pubsub',
-                topic="platforms/{}/agent_list".format(self._platform_uuid),
+                topic="platforms/{}/update_agent_list".format(
+                    self._platform_uuid),
                 message=self.list_agents()
             )
         else:
