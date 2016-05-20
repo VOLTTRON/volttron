@@ -645,8 +645,8 @@ class VolttronCentralPlatform(Agent):
             authfile = AuthFile()
             authfile.add(entry)
         self._managed = True
-        gevent.spawn_later(self._publish_agent_list_to_vc, 2)
-        gevent.spawn_later(self._publish_stats, 2)
+        self.core.spawn_later(2, self._publish_agent_list_to_vc)
+        self.core.spawn_later(2, self._publish_stats)
         return self.core.publickey
 
     def _publish_stats(self):

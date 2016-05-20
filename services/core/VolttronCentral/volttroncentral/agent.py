@@ -93,7 +93,7 @@ from volttron.utils.persistance import load_create_store
 from volttron.platform import jsonrpc
 from volttron.platform.agent import utils
 from volttron.platform.agent.utils import (
-        get_aware_utc_now, format_timestamp, parse_timestamp_string)
+    get_aware_utc_now, format_timestamp, parse_timestamp_string)
 from volttron.platform.agent.known_identities import (
     VOLTTRON_CENTRAL, VOLTTRON_CENTRAL_PLATFORM, MASTER_WEB,
     PLATFORM_HISTORIAN)
@@ -135,7 +135,6 @@ class Connected(object):
 
 
 class ConnectedLocalPlatform(Connected):
-
     def __init__(self, agent):
         super(ConnectedLocalPlatform, self).__init__()
         self._connected_agent = agent
@@ -154,9 +153,11 @@ class ConnectedLocalPlatform(Connected):
                        .format(self._address))
             return False
 
+    def disconnect(self):
+        self._connected_agent = None
+
 
 class ConnectedPlatform(Connected):
-
     def __init__(self, address, serverkey, publickey, secretkey):
         super(ConnectedPlatform, self).__init__()
         self._address = address
@@ -285,7 +286,7 @@ class VolttronCentralAgent(Agent):
             os.path.join(os.environ['VOLTTRON_HOME'],
                          'data', 'volttron.central.requeststore'))
 
-    #@Core.periodic(60)
+    # @Core.periodic(60)
     def _reconnect_to_platforms(self):
         """ Attempt to reconnect to all the registered platforms.
         """
@@ -374,7 +375,7 @@ class VolttronCentralAgent(Agent):
         if self._local_address == message['address']:
             if passed_uuid is not None:
                 _log.debug('Local platform entry attempting to re-register.')
-                local_entry = self._registry.get(passed_uuid)
+                local_entry = self._registry.get_platform(passed_uuid)
                 if passed_uuid in self._pa_agents.keys():
                     if self._pa_agents[passed_uuid]:
                         self._pa_agents[passed_uuid].disconnect()
@@ -448,7 +449,7 @@ class VolttronCentralAgent(Agent):
 
     @PubSub.subscribe("pubsub", "platforms")
     def _on_platforms_messsage(self, peer, sender, bus, topic, headers,
-                              message):
+                               message):
         """ This method subscribes to the platforms topic.
 
         Platforms that are being managed should publish to this topic with
@@ -476,7 +477,7 @@ class VolttronCentralAgent(Agent):
 
         if not self._registry.get_platform(platform_uuid):
             _log.warn('Platform {} is not registered but sent message {}'
-                       .format(platform_uuid, message))
+                      .format(platform_uuid, message))
             return
 
         if len(topicsplit) < 3:
@@ -484,12 +485,11 @@ class VolttronCentralAgent(Agent):
 
         _log.debug('Doing operation: {}'.format(topicsplit[2]))
 
-
         self._registry.update_agent_list(platform_uuid, message)
 
     @PubSub.subscribe("pubsub", "datalogger/platforms")
     def _on_platform_log_message(self, peer, sender, bus, topic, headers,
-                              message):
+                                 message):
         """ Receive message from a registered platform
 
         This method is called with stats from the registered platform agents.
@@ -533,7 +533,7 @@ class VolttronCentralAgent(Agent):
     def get_platform(self, platform_uuid):
         return self._registry.get_platform(platform_uuid)
 
-    #@Core.periodic(15)
+    # @Core.periodic(15)
     def _auto_register_peer(self):
         """ Auto register a volttron central platform.
 
@@ -729,7 +729,6 @@ class VolttronCentralAgent(Agent):
     def _store_registry(self):
         self._store('registry', self._registry.package())
 
-
     @Core.receiver('onsetup')
     def _setup(self, sender, **kwargs):
         if not os.environ.get('VOLTTRON_HOME', None):
@@ -806,11 +805,17 @@ class VolttronCentralAgent(Agent):
 
             # Route any other method that isn't
             result_or_error = self._route_request(session_user,
-                rpcdata.id, rpcdata.method, rpcdata.params)
+                                                  rpcdata.id, rpcdata.method,
+                                                  rpcdata.params)
 
         except AssertionError:
             return jsonrpc.json_error(
                 'NA', INVALID_REQUEST, 'Invalid rpc data {}'.format(data))
+        except Exception:
+
+            return jsonrpc.json_error(
+                'NA', UNHANDLED_EXCEPTION, e.message
+            )
 
         _log.debug("RETURNING: {}".format(self._get_jsonrpc_response(
             rpcdata.id, result_or_error)))
@@ -959,7 +964,7 @@ class VolttronCentralAgent(Agent):
         """ Clean up the  agent code before the agent is killed
         """
         for v in self._pa_agents.values():
-            v.agent.core.stop()
+            v.disconnect()
 
         self._pa_agents.clear()
 
@@ -977,7 +982,7 @@ class VolttronCentralAgent(Agent):
                 _log.debug("Updating device registry")
                 self._flag_updating_deviceregistry = True
                 self._sync_connected_platforms()
-
+                unreachable = []
                 # Loop over the connections to the registered agent platforms.
                 for k, v in self._pa_agents.items():
                     _log.debug('updating for {}'.format(k))
@@ -994,7 +999,8 @@ class VolttronCentralAgent(Agent):
                             # get_devices we need to anonymize the k1 in the
                             # anon_devices dictionary.
                             for k1, v1 in devices.items():
-                                _log.debug("before anon: {}, {}".format(k1, v1))
+                                _log.debug(
+                                    "before anon: {}, {}".format(k1, v1))
                                 # now we need to do a search/replace on the
                                 # self._topic_list so that the devices are
                                 # known as the correct itme nin the tree.
@@ -1018,23 +1024,30 @@ class VolttronCentralAgent(Agent):
                         except (gevent.Timeout, Unreachable) as e:
                             _log.error(
                                 'Error getting devices from platform {}'
-                                .format(k))
+                                    .format(k))
+                            unreachable.append(k)
+                for k in unreachable:
+                    if self._pa_agents[k]:
+                        self._pa_agents[k].disconnect()
+                    del self._pa_agents[k]
+
         finally:
             self._flag_updating_deviceregistry = False
 
     def _handle_list_performance(self):
         _log.debug('Listing performance topics from vc')
         return [{'platform.uuid': x.platform_uuid,
-                'performance': self._registry.get_performance(x.platform_uuid)
-             } for x in self._registry.get_platforms()
-                    if self._registry.get_performance(x.platform_uuid)]
+                 'performance': self._registry.get_performance(
+                     x.platform_uuid)
+                 } for x in self._registry.get_platforms()
+                if self._registry.get_performance(x.platform_uuid)]
 
     def _handle_list_devices(self):
         _log.debug('Listing devices from vc')
         return [{'platform.uuid': x.platform_uuid,
                  'devices': self._registry.get_devices(x.platform_uuid)}
                 for x in self._registry.get_platforms()
-                    if self._registry.get_devices(x.platform_uuid)]
+                if self._registry.get_devices(x.platform_uuid)]
 
     def _handle_list_platforms(self):
         def get_status(platform_uuid):
