@@ -3198,7 +3198,7 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
         platformsPanelActionCreators.expandAll(this.props.itemPath);
     },
     _handleArrowClick: function () {
-
+        
         if (!this.state.loading) // If not loading, treat it as just a regular toggle button
         {
             if (this.state.panelItem.expanded === null && this.state.panelItem.type === "platform") 

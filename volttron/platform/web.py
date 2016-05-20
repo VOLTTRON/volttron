@@ -113,11 +113,13 @@ class DiscoveryInfo(object):
         :param discovery_address: An http(s) address with volttron running.
         :return:
         """
-        parsed = urlparse(discovery_address)
 
-        assert parsed.scheme
-        assert not parsed.path
         try:
+            parsed = urlparse(discovery_address)
+
+            assert parsed.scheme
+            assert not parsed.path
+
             real_url = urljoin(discovery_address, "/discovery/")
             _log.info('Connecting to: {}'.format(real_url))
             response = requests.get(real_url)
@@ -126,6 +128,11 @@ class DiscoveryInfo(object):
                 raise DiscoveryError(
                     "Invalid discovery response from {}".format(real_url)
                 )
+        except AttributeError as e:
+            raise DiscoveryError(
+                "Invalid discovery_address passed {}"
+                .format(discovery_address)
+            )
         except (ConnectionError, NewConnectionError) as e:
             raise DiscoveryError(
                 "Connection to {} not available".format(real_url)
