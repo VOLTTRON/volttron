@@ -131,7 +131,7 @@ class VolttronCentralPlatform(Agent):
         self._vc_info = None
         self._managed = False
 
-        store_dir = os.path.join(os.environ['VOLTTRON_HOME'], data)
+        store_dir = os.path.join(os.environ['VOLTTRON_HOME'], 'data')
         if not os.path.exists(store_dir):
             os.makedirs(store_dir)
         self._vcp_store = load_create_store(
