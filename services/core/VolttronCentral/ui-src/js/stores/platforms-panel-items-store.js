@@ -3,6 +3,7 @@
 var ACTION_TYPES = require('../constants/action-types');
 var dispatcher = require('../dispatcher');
 var Store = require('../lib/store');
+var chartStore = require('../stores/platform-chart-store');
 
 var _pointsOrder = 0;
 var _devicesOrder = 1;
@@ -23,6 +24,110 @@ var _unknownLabel = "Unknown Status";
 var _loadingDataComplete = true;
 
 var platformsPanelItemsStore = new Store();
+
+platformsPanelItemsStore.findTopicInTree = function (topic)
+{
+    var path = [];
+
+    var topicParts = topic.split("/");
+
+    if (topic.indexOf("datalogger/platforms") > -1) // if a platform instance
+    {
+        for (var key in _items.platforms)
+        {
+            if (key === topicParts[2])
+            {
+                // path = ["platforms", uuid];
+
+                if (_items.platforms[key].hasOwnProperty("points"))
+                {
+                    _items.platforms[key].points.children.find(function (point) {
+
+                        var found = (point === topic);
+
+                        if (found)
+                        {
+                            path = _items.platforms[key].points[point].path;
+                        }
+
+                        return found;
+                    });
+                }
+
+                break;
+            }
+        }
+    }
+    else // else a device point
+    {        
+        var buildingName = topicParts[1];
+
+        for (var key in _items.platforms)
+        { //_items.platforms.children.find(function (platform) {
+
+            var platform = _items.platforms[key];       
+            var foundPlatform = false;
+
+            if (platform.hasOwnProperty("buildings"))
+            {
+                platform.buildings.children.find(function (buildingUuid) {
+
+                    var foundBuilding = (platform.buildings[buildingUuid].name === buildingName);
+
+                    if (foundBuilding)
+                    {
+                        var parent = platform.buildings[buildingUuid];
+
+                        for (var i = 2; i <= topicParts.length - 2; i++)
+                        {
+                            var deviceName = topicParts[i];
+
+                            if (parent.hasOwnProperty("devices"))
+                            {
+                                parent.devices.children.find(function (deviceUuid) {
+
+                                    var foundDevice = (parent.devices[deviceUuid].name === deviceName);
+
+                                    if (foundDevice) 
+                                    {
+                                        parent = parent.devices[deviceUuid];
+                                    }
+
+                                    return foundDevice;
+                                });
+                            }
+                        }
+                        
+                        if (parent.hasOwnProperty("points"))
+                        {
+                            parent.points.children.find(function (point) {
+                                var foundPoint = (parent.points[point].topic === topic);
+
+                                if (foundPoint)
+                                {
+                                    path = parent.points[point].path;
+
+                                    foundPlatform = true;
+                                }
+
+                                return foundPoint;
+                            });
+                        }                        
+                    }
+
+                    return foundBuilding;
+                });                
+            }
+
+            if (foundPlatform)
+            {
+                break;
+            }
+        }
+    }
+
+    return JSON.parse(JSON.stringify(path));
+} 
 
 platformsPanelItemsStore.getItem = function (itemPath)
 {
@@ -372,8 +477,10 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                             pointProps.parentType = platform.type;
                             pointProps.parentUuid = platform.uuid;
 
-                            point.status = platform.status;
-                            point.statusLabel = getStatusLabel(platform.status);
+                            pointProps.checked = chartStore.getTopicInCharts(pointProps.topic, pointProps.name);
+
+                            pointProps.status = platform.status;
+                            pointProps.statusLabel = getStatusLabel(platform.status);
                             pointProps.children = [];
                             pointProps.type = "point";
                             pointProps.sortOrder = 0;
@@ -435,21 +542,6 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
         platform.agents.status = agentsHealth;
         platform.agents.statusLabel = getStatusLabel(agentsHealth);
     }
-
-    // function loadAgents(platform)
-    // {
-    //     if (platform.agents)
-    //     {
-    //         if (platform.agents.length > 0)
-    //         {
-    //             insertAgents(platform, platform.agents);
-    //         }
-    //         else
-    //         {
-    //             delete platform.agents;
-    //         }
-    //     }
-    // }
 
     function insertBuilding(platform, uuid, name)
     {
@@ -725,10 +817,12 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                 var pointPath = data.path + "/" + pointName;                
                 var platformUuid = item.path[1];
 
+                var pattern = /[!@#$%^&*()+\-=\[\]{};':"\\|, .<>\/?]/g
+
                 var pointProps = {}; 
                 pointProps.topic = pointPath;  
                 pointProps.name = pointName;
-                pointProps.uuid = pointPath.replace(/\//g, '_');
+                pointProps.uuid = pointPath.replace(pattern, '_');
                 pointProps.expanded = false;
                 pointProps.visible = true;
                 pointProps.path = JSON.parse(JSON.stringify(item.points.path));
@@ -742,6 +836,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                 pointProps.children = [];
                 pointProps.type = "point";
                 pointProps.sortOrder = 0;
+                pointProps.checked = chartStore.getTopicInCharts(pointProps.topic, pointProps.name);
 
                 item.points.children.push(pointProps.uuid);
                 item.points[pointProps.uuid] = pointProps;

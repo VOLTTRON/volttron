@@ -211,7 +211,7 @@ br + .form__control-help {
     max-height: 75%;
     max-width: 75%;
     box-sizing: border-box;
-    overflow: auto;
+    overflow-y: auto;
     text-align: left;
     border-radius: 0.3333rem;
     background-color: #fff;
@@ -239,7 +239,7 @@ br + .form__control-help {
     border-radius: 0.3333rem;
     background-color: #fff;
     box-shadow: 0 0.1rem 0.2rem rgba(0,0,0,0.3);
-    z-index: 100;
+    z-index: 101;
     opacity: .7;
 }
 
@@ -660,6 +660,12 @@ br + .form__control-help {
 
 .fa-hourglass:before {
   content: "\f254";
+}
+
+.fa-remove:before,
+.fa-close:before,
+.fa-times:before {
+  content: "\f00d";
 }
 
 /*.tooltip_show {
@@ -1192,6 +1198,30 @@ a.view__item:hover::before {
     right: 1.5rem;
 }
 
+.combobox-control {
+    position: relative;
+}
+
+.combobox-menu {
+    width: 400px;
+    z-index: 100;
+
+    border: 1px solid black;
+
+    position: absolute;
+    top: 24px;
+    left: 0px;
+}
+
+.combobox-item {
+    width: 100%;
+
+    background-color: white;
+}
+
+.combobox-item:hover {
+    background-color: #90C3D4;
+}
 
 /* our nvd3-related styles */
 
@@ -1219,6 +1249,24 @@ a.view__item:hover::before {
 
 .pinned-chart {
     /*transform: rotate(0deg);*/
+}
+
+.remove-chart {
+    position: absolute;
+    right: 0px;
+    top: 30%;
+    color: grey;
+    cursor: pointer;
+    width: 18px;
+    height: 18px;
+    box-sizing: border-box;
+    line-height: 15px;
+    font-size: 15px;
+}
+
+.remove-chart:hover { 
+    border: solid 1px #7D7D7D;
+    border-radius: 2px;
 }
 
 /* end nvd3-related styles */

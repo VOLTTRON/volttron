@@ -1,6 +1,6 @@
 <html>
 <head>
-    <script language="javascript" src="http://code.jquery.com/jquery-2.1.4.min.js"></script>
+    <script language="javascript" src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
     <style type="text/css">
         input {
             width: 400px;
@@ -26,6 +26,7 @@ Discovery Address: <input type="text" id="discovery_address" /><br />
 Setting Key: <input type="text" id="setting_key" /><br/>
 Setting Value: <input type="text" id="setting_value" />
 <button id="set_setting">Save Value</button>
+<button id="set_null_setting">Save Null Value (remove key)</button>
 <button id="get_setting">Get Value</button>
 <button id="get_setting_keys">Get Keys</button>
 
@@ -96,7 +97,7 @@ Topic: <input id="historian_topic" placeholder="Historian topic to query" /><br/
         });
     }
 
-    function do_request_vc_method(method, callback=null) {
+    function do_request_vc_method(method, callback) {
         var req_method = method;
         var token = $('#token').val();
         var pdata = {
@@ -113,7 +114,7 @@ Topic: <input id="historian_topic" placeholder="Historian topic to query" /><br/
             dataType: 'json',
             success: function(data){
                 $('#output_data').val(JSON.stringify(data));
-                if (callback){
+                if (typeof callback === "function"){
                     callback(data);
                 }
             },
@@ -161,7 +162,7 @@ Topic: <input id="historian_topic" placeholder="Historian topic to query" /><br/
         });
     }
 
-    function do_request(method, data=null, callback=null) {
+    function do_request(method, data, callback) {
 
         var token = $('#token').val();
         var pdata = {
@@ -182,7 +183,7 @@ Topic: <input id="historian_topic" placeholder="Historian topic to query" /><br/
             data: JSON.stringify(pdata),
             dataType: 'json',
             success: function(data){
-                if (callback) {
+                if (typeof callback === "function") {
                     callback(data);
                 }
                 $('#output_data').val(JSON.stringify(data));
@@ -202,6 +203,15 @@ Topic: <input id="historian_topic" placeholder="Historian topic to query" /><br/
         }
         do_request('set_setting', data)
     });
+
+    $('#set_null_setting').click(function(){
+        var data = {
+            key: $('#setting_key').val(),
+            value: null
+        }
+        do_request('set_setting', data)
+    });
+
 
     $('#get_setting').click(function(){
         var data = {

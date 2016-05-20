@@ -7,28 +7,57 @@ var controlButtonActionCreators = require('../action-creators/control-button-act
 
 
 var ControlButton = React.createClass({
+    mixins: [
+        require('react-onclickoutside')
+    ],
 	getInitialState: function () {
 		var state = {};
 
 		state.showTaptip = false;
 		state.showTooltip = false;
 		state.deactivateTooltip = false;
+
+        state.selected = (this.props.selected === true);
+
 		state.taptipX = 0;
 		state.taptipY = 0;
-		state.selected = (this.props.selected === true);
+        state.tooltipX = 0;
+        state.tooltipY = 0;
 
-		state.tooltipOffsetX = (this.props.hasOwnProperty("tooltip") ? 
-									(this.props.tooltip.hasOwnProperty("xOffset") ? 
-										this.props.tooltip.xOffset : 0) : 0);
-		state.tooltipOffsetY = (this.props.hasOwnProperty("tooltip") ? 
-									(this.props.tooltip.hasOwnProperty("yOffset") ? 
-										this.props.tooltip.yOffset : 0) : 0);
-		state.taptipOffsetX = (this.props.hasOwnProperty("taptip") ? 
-									(this.props.taptip.hasOwnProperty("xOffset") ? 
-										this.props.taptip.xOffset : 0) : 0);
-		state.taptipOffsetY = (this.props.hasOwnProperty("taptip") ? 
-									(this.props.taptip.hasOwnProperty("yOffset") ? 
-										this.props.taptip.yOffset : 0) : 0);
+        state.tooltipOffsetX = 0;
+        state.tooltipOffsetY = 0;
+        state.taptipOffsetX = 0;
+        state.taptipOffsetY = 0;
+
+        if (this.props.hasOwnProperty("tooltip"))
+        {
+            if (this.props.tooltip.hasOwnProperty("x"))
+                state.tooltipX = this.props.tooltip.x;
+
+            if (this.props.tooltip.hasOwnProperty("y"))
+                state.tooltipY = this.props.tooltip.y;
+            
+            if (this.props.tooltip.hasOwnProperty("xOffset"))
+                state.tooltipOffsetX = this.props.tooltip.xOffset;
+
+            if (this.props.tooltip.hasOwnProperty("yOffset"))
+                state.tooltipOffsetY = this.props.tooltip.yOffset;
+        }
+
+        if (this.props.hasOwnProperty("taptip"))
+        {
+            if (this.props.taptip.hasOwnProperty("x"))
+                state.taptipX = this.props.taptip.x;
+
+            if (this.props.taptip.hasOwnProperty("y"))
+                state.taptipY = this.props.taptip.y;
+            
+            if (this.props.taptip.hasOwnProperty("xOffset"))
+                state.taptipOffsetX = this.props.taptip.xOffset;
+
+            if (this.props.taptip.hasOwnProperty("yOffset"))
+                state.taptipOffsetY = this.props.taptip.yOffset;
+        }
 
 		return state;
 	},
@@ -60,21 +89,37 @@ var ControlButton = React.createClass({
 	    	{
 	    		this.setState({ showTaptip: showTaptip });	
 	    	}
-
-	    	this.setState({ selected: (showTaptip === true) }); 
+            
+            this.setState({ selected: (showTaptip === true) }); 
 
 	    	if (showTaptip === true)
 	    	{
-	    		this.setState({ showTooltip: false });	
+	    		this.setState({ showTooltip: false });
 	    	}
+            else
+            {
+                if (typeof this.props.closeAction == 'function')
+                {
+                    this.props.closeAction();
+                }
+            }
 	    }
+    },
+    handleClickOutside: function () {
+        if (this.state.showTaptip)
+        {
+            controlButtonActionCreators.hideTaptip(this.props.name);
+        }
     },
 	_showTaptip: function (evt) {
 
 		if (!this.state.showTaptip)
 		{
-			this.setState({taptipX: evt.clientX - this.state.taptipOffsetX});
-			this.setState({taptipY: evt.clientY - this.state.taptipOffsetY});
+            if (!(this.props.taptip.hasOwnProperty("x") && this.props.taptip.hasOwnProperty("y")))
+            {
+                this.setState({taptipX: evt.clientX - this.state.taptipOffsetX});
+                this.setState({taptipY: evt.clientY - this.state.taptipOffsetY});    
+            }
 		}
 
 		controlButtonActionCreators.toggleTaptip(this.props.name);
@@ -87,8 +132,12 @@ var ControlButton = React.createClass({
 	},
     _showTooltip: function (evt) {
         this.setState({showTooltip: true});
-        this.setState({tooltipX: evt.clientX - this.state.tooltipOffsetX});
-        this.setState({tooltipY: evt.clientY - this.state.tooltipOffsetY});
+
+        if (!(this.props.tooltip.hasOwnProperty("x") && this.props.tooltip.hasOwnProperty("y")))
+        {
+            this.setState({tooltipX: evt.clientX - this.state.tooltipOffsetX});
+            this.setState({tooltipY: evt.clientY - this.state.tooltipOffsetY});
+        }
     },
     _hideTooltip: function () {
         this.setState({showTooltip: false});
@@ -103,7 +152,12 @@ var ControlButton = React.createClass({
         var tooltipShow;
         var tooltipHide;
 
-        if (this.state.selected === true || this.state.showTaptip === true)
+        var buttonIcon = (this.props.icon ? this.props.icon :
+                            (this.props.fontAwesomeIcon ? 
+                                (<i className={"fa fa-" + this.props.fontAwesomeIcon}></i>) : 
+                                    (<div className={this.props.buttonClass}><span>{this.props.unicodeIcon}</span></div>) ) );
+
+        if (this.props.staySelected || this.state.selected === true || this.state.showTaptip === true)
         {
         	selectedStyle = {
 	        	backgroundColor: "#ccc"
@@ -143,15 +197,37 @@ var ControlButton = React.createClass({
 		        top: this.state.taptipY + "px"
 		    };
 
+            //TODO: add this to repository
+            if (this.props.taptip.styles)
+            {
+                this.props.taptip.styles.forEach(function (styleToAdd) {
+                    taptipStyle[styleToAdd.key] = styleToAdd.value;
+                });
+            }
+            //end TODO
+
 		    var tapTipClasses = "taptip_outer";
+
+            var taptipBreak = (this.props.taptip.hasOwnProperty("break") ? this.props.taptip.break : <br/>);
+            var taptipTitle = (this.props.taptip.hasOwnProperty("title") ? (<h4>{this.props.taptip.title}</h4>) : "");
+
+            var innerStyle = {};
+
+            if (this.props.taptip.hasOwnProperty("padding"))
+            {
+                innerStyle = {
+                    padding: this.props.taptip.padding
+                }
+            } 
 
 		    taptip = (
 		    	<div className={tapTipClasses}
 	                style={taptipStyle}>
-	                <div className="taptip_inner">
+	                <div className="taptip_inner"
+                        style={innerStyle}>
 	                    <div className="opaque_inner">
-	                        <h4>{this.props.taptip.title}</h4>
-	                        <br/>
+	                        {taptipTitle}
+	                        {taptipBreak}
 	                        {this.props.taptip.content}
 	                    </div>
 	                </div>
@@ -165,17 +241,19 @@ var ControlButton = React.createClass({
         	clickAction = this.props.clickAction;
         }
 
+        var controlButtonClass = (this.props.controlclass ? this.props.controlclass : "control_button");
+
         return (
             <div className="inlineBlock">
             	{taptip}
             	{tooltip}
-                <div className="control_button"
+                <div className={controlButtonClass}
                     onClick={clickAction}                  
                     onMouseEnter={tooltipShow}
                     onMouseLeave={tooltipHide}
                     style={selectedStyle}>
                     <div className="centeredDiv">
-                        {this.props.icon}
+                        {buttonIcon}
                     </div>
                 </div>                  
             </div>
