@@ -61,6 +61,7 @@ from __future__ import absolute_import, print_function
 import base64
 import tempfile
 from collections import defaultdict
+from collections import namedtuple
 from copy import deepcopy
 import datetime
 import json
@@ -139,6 +140,9 @@ class VolttronCentralPlatform(Agent):
         self._stats_publish_interval = 30
         self._stats_publisher = None
 
+        self._agent_list_publish_interval = 30
+        self._agent_list_publisher = None
+
         # Search and replace for topics
         # The difference between the list and the map is that the list
         # specifies the search and replaces that should be done on all of the
@@ -189,21 +193,34 @@ class VolttronCentralPlatform(Agent):
         _log.debug('Reconfiguring: {}'.format(kwargs))
         new_uuid = kwargs.get('platform_uuid')
         _log.debug('new_uuid is {}'.format(new_uuid))
-        new_interval = kwargs.get('stats_publish_interval')
+        new_stats_interval = kwargs.get('stats_publish_interval')
+        new_agent_list_interval = kwargs.get('agent_list_publish_interval')
 
         if new_uuid:
             _log.debug('new_uuid is {}'.format(new_uuid))
             self._platform_uuid = new_uuid
-        # if not new_uuid and not self._platform_uuid:
-        #     raise ValueError('platform_uuid must be specified!')
-        # elif new_uuid:
-        #     self._platform_uuid = new_uuid
 
-        if new_interval:
-            if not isinstance(new_interval, int):
+        if new_agent_list_interval:
+            if not isinstance(new_agent_list_interval, int) or \
+                            new_agent_list_interval < 20:
                 raise ValueError('Invlaid interval, must be int > 20 sec.')
 
-            self._stats_publish_interval = new_interval
+            self._agent_list_publish_interval = new_agent_list_interval
+
+            if self._agent_list_publisher:
+                self._agent_list_publisher.kill()
+
+            self._agent_list_publisher = self.core.periodic(
+                self._agent_list_publish_interval,
+                self._publish_agent_list_to_vc
+            )
+
+        if new_stats_interval:
+            if not isinstance(new_stats_interval, int) or \
+                    new_stats_interval < 20:
+                raise ValueError('Invlaid interval, must be int > 20 sec.')
+
+            self._stats_publish_interval = new_stats_interval
 
             if self._stats_publisher:
                 self._stats_publisher.kill()
@@ -212,7 +229,6 @@ class VolttronCentralPlatform(Agent):
             self._stats_publisher = self.core.periodic(
                 self._stats_publish_interval, self._publish_stats)
 
-    @Core.periodic(30)
     def _publish_agent_list_to_vc(self):
 
         if self._platform_uuid:
@@ -601,20 +617,25 @@ class VolttronCentralPlatform(Agent):
             raise AlreadyManagedError()
 
         parsedaddress = urlparse.urlparse(address)
-        # Attempt to connect to the passed address and serverkey.
-        self._agent_connected_to_vc = build_agent(
-            address=address, serverkey=vcserverkey,
-            publickey=self.core.publickey, secretkey=self.core.secretkey)
+
+        if 'ipc://' == address[:6].lower():
+            self._agent_connected_to_vc = self
+        else:
+            # Attempt to connect to the passed address and serverkey.
+            self._agent_connected_to_vc = build_agent(
+                address=address, serverkey=vcserverkey,
+                publickey=self.core.publickey, secretkey=self.core.secretkey)
 
         version, peer, identity = self._agent_connected_to_vc.vip.hello().get(
             timeout=30)
 
-        # Add the vcpublickey to the auth file.
-        entry = AuthEntry(
-            credentials="CURVE:{}".format(vcpublickey),
-            capabilities=['manager'])  # , address=parsedaddress.hostname)
-        authfile = AuthFile()
-        authfile.add(entry)
+        if not self == self._agent_connected_to_vc:
+            # Add the vcpublickey to the auth file.
+            entry = AuthEntry(
+                credentials="CURVE:{}".format(vcpublickey),
+                capabilities=['manager'])  # , address=parsedaddress.hostname)
+            authfile = AuthFile()
+            authfile.add(entry)
         self._managed = True
         return self.core.publickey
 
@@ -714,13 +735,17 @@ class VolttronCentralPlatform(Agent):
         self._managed = True
 
     @Core.receiver('onstart')
-    def starting(self, sender, **kwargs):
+    def _starting(self, sender, **kwargs):
         self.vip.heartbeat.start()
         self._auto_register_with_vc()
 
+        reconfig = dict(
+            stats_publish_interval=self._stats_publish_interval,
+            agent_list_publish_interval=self._agent_list_publish_interval
+        )
+
         # Reconfigure with the publisher.
-        self.reconfigure(
-            **{'stats_publish_interval': self._stats_publish_interval})
+        self.reconfigure(**reconfig)
 
     @Core.receiver('onstop')
     def stoping(self, sender, **kwargs):
@@ -733,6 +758,21 @@ class VolttronCentralPlatform(Agent):
             self._get_vc_discovery_address()
             # this is a local platform.
             if self._my_discovery_address == self._vc_discovery_address:
+                info = DiscoveryInfo.request_discovery_info(
+                    self._my_discovery_address
+                )
+
+                register_req = dict(
+                    address = self.core.address,
+                    serverkey=info.serverkey,
+                    publickey=self.core.publickey
+                )
+
+                if self._platform_uuid:
+                    register_req['had_platform_uuid'] = self._platform_uuid
+
+                self.vip.pubsub.publish('pubsub', topic='platforms/register',
+                                        message=register_req)
                 return
 
             if not self._managed and self._vc_discovery_address:
