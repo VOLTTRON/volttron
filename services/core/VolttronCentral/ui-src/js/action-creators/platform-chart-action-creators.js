@@ -182,7 +182,6 @@ var platformChartActionCreators = {
             type: ACTION_TYPES.REMOVE_CHART,
             name: chartName
         });
-
     }
 };
 

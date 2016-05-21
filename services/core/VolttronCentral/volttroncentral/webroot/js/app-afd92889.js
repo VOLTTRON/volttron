@@ -79,9 +79,12 @@ router.run(function (Handler) {
     platformChartsStore.addChangeListener(function () {
         if (platformChartsStore.showCharts() && authorizationStore.getAuthorization())
         {
-            !router.isActive('charts')
+            console.log("current path: " + router.getCurrentPath());
+            if (!router.isActive('charts'))
             {
-                router.replaceWith('/platform-charts');
+                console.log("replace with /platform-charts");
+                // router.replaceWith('/platform-charts');
+                window.location.href = "index.html#/platform-charts";
             }
         }
 
@@ -734,10 +737,12 @@ var platformChartActionCreators = {
     },
     removeChart: function(chartName) {
 
+        console.log("platformChartActionCreators: removeChart, send dispatch");
         dispatcher.dispatch({
             type: ACTION_TYPES.REMOVE_CHART,
             name: chartName
         });
+        console.log("platformChartActionCreators: removeChart, after dispatch");
 
     }
 };
@@ -2290,17 +2295,17 @@ var PlatformChart = React.createClass({displayName: "PlatformChart",
     _removeChart: function () {
 
         var deleteChart = function () {
-          modalActionCreators.closeModal();
+            modalActionCreators.closeModal();
 
-          this.props.chart.series.forEach(function (series) {
-              if (series.hasOwnProperty("path"))
-              {
-                  platformsPanelActionCreators.checkItem(series.path, false);
-              }
-          });
+            this.props.chart.series.forEach(function (series) {
+                if (series.hasOwnProperty("path"))
+                {
+                    platformsPanelActionCreators.checkItem(series.path, false);
+                }
+            });
 
-          platformChartActionCreators.removeChart(this.props.chartKey);
-          platformActionCreators.saveCharts();
+            platformChartActionCreators.removeChart(this.props.chartKey);
+            platformActionCreators.saveCharts();
         }
 
         modalActionCreators.openModal(
@@ -6045,7 +6050,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                 deviceProps.path = JSON.parse(JSON.stringify(building.devices.path));
                 deviceProps.path.push(deviceProps.uuid);
                 deviceProps.status = device.health.status.toUpperCase();
-                deviceProps.statusLabel = getStatusLabel(deviceProps.health);
+                deviceProps.statusLabel = getStatusLabel(deviceProps.status);
                 deviceProps.context = device.health.context;
                 deviceProps.children = [];
                 deviceProps.type = "device";
@@ -6083,18 +6088,37 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                     {
                         var parentDeviceUuid = deviceParts[0];
 
-                        for (var i = 1; i < currentLevel; i++)
+                        for (var i = 1; i <= currentLevel; i++)
                         {
                             parentDeviceUuid = parentDeviceUuid + "_" + deviceParts[i];
                         }
 
                         parentDevice = parentDevice.devices;
-                        parentDevice = parentDevice.devices[parentDeviceUuid];
+                        parentDevice = parentDevice[parentDeviceUuid];
                         ++currentLevel;
                     }
 
-                    //We're now at the parent device. If we haven't added any
-                    // subdevices to it yet, initialize its "devices" child
+                    var deviceProps = {};
+                    deviceProps.name = deviceParts[subDeviceLevel];
+                    deviceProps.uuid = device.path.replace(/ \/ /g, '_');
+                    deviceProps.expanded = false;
+                    deviceProps.visible = true;
+                    deviceProps.path = JSON.parse(JSON.stringify(parentDevice.path));
+                    deviceProps.path.push("devices");
+                    deviceProps.path.push(deviceProps.uuid);
+                    deviceProps.status = device.health.status.toUpperCase();
+                    deviceProps.statusLabel = getStatusLabel(deviceProps.status);
+                    deviceProps.context = device.health.context;
+                    deviceProps.children = [];
+                    deviceProps.type = "device";
+                    deviceProps.sortOrder = 0;
+
+                    deviceProps.legendInfo = parentDevice.legendInfo + " > " + deviceProps.name;
+
+                    checkForPoints(deviceProps, device);
+
+                    //If we haven't added any subdevices to the parent device 
+                    // yet, initialize its "devices" child
                     if (parentDevice.children.indexOf("devices") < 0)
                     {
                         parentDevice.children.push("devices");
@@ -6108,29 +6132,18 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                         parentDevice.devices.children = [];
                         parentDevice.devices.type = "type";
                         parentDevice.devices.sortOrder = _devicesOrder;
-                    }
-
-                    var deviceProps = {};
-                    deviceProps.name = deviceParts[subDeviceLevel];
-                    deviceProps.uuid = device.path.replace(/ \/ /g, '_');
-                    deviceProps.expanded = false;
-                    deviceProps.visible = true;
-                    deviceProps.path = JSON.parse(JSON.stringify(parentDevice.devices.path));
-                    deviceProps.path.push(deviceProps.uuid);
-                    deviceProps.status = parentDevice.status;
-                    deviceProps.statusLabel = getStatusLabel(deviceProps.status);
-                    deviceProps.context = parentDevice.context;
-                    deviceProps.children = [];
-                    deviceProps.type = "device";
-                    deviceProps.sortOrder = 0;
-
-                    deviceProps.legendInfo = parentDevice.legendInfo + " > " + deviceProps.name;
-
-                    checkForPoints(deviceProps, device);
+                        parentDevice.devices.status = deviceProps.status;
+                        parentDevice.devices.statusLabel = getStatusLabel(deviceProps.status);
+                        parentDevice.devices.context = deviceProps.context;
+                    }                    
 
                     parentDevice.devices.children.push(deviceProps.uuid);
-                    parentDevice.devices[deviceProps.uuid] = deviceProps;  
+                    parentDevice.devices[deviceProps.uuid] = deviceProps; 
 
+                    if (parentDevice.devices.children.length > 1)
+                    {
+                        updateDeviceGroupStatus(parentDevice);
+                    }
                 }
               
                 break;
@@ -6191,59 +6204,6 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
         }
     }
 
-    // function loadDevices(platform)
-    // {
-    //     // var platform = _items["platforms"][action.platform.uuid];
-        
-    //     if (platform.devices)
-    //     {
-    //         if (platform.devices.length > 0)
-    //         {
-    //             // var agents = [];
-
-    //             // platform.agents.forEach(function (agent)) {
-    //             //     agents.push(agent);
-    //             // }
-
-    //             // platform.expanded = true;
-    //             // platform.agents = {};
-    //             // platform.agents.path = platform.path.slice(0);
-    //             // platform.agents.path.push("agents");
-    //             // platform.agents.name = "Agents";
-    //             // platform.agents.expanded = false;
-    //             // platform.agents.visible = true;
-    //             // platform.agents.children = [];
-    //             // platform.agents.type = "type";
-    //             // platform.agents.sortOrder = _agentsOrder;
-
-    //             // if (platform.children.indexOf("agents") < 0)
-    //             // {
-    //             //     platform.children.push("agents");
-    //             // }
-
-    //             // agents.forEach(function (agent)
-    //             // {
-    //             //     var agentProps = agent;
-    //             //     agentProps.expanded = false;
-    //             //     agentProps.visible = true;
-    //             //     agentProps.path = platform.agents.path.slice(0);
-    //             //     agentProps.path.push(agent.uuid);
-    //             //     // agent.status = "GOOD";
-    //             //     agentProps.children = [];
-    //             //     agentProps.type = "agent";
-    //             //     agentProps.sortOrder = 0;
-    //             //     platform.agents.children.push(agent.uuid); 
-    //             //     platform.agents[agent.uuid] = agentProps;
-    //             // });
-
-    //         }
-    //         else
-    //         {
-    //             delete platform.devices;
-    //         }
-    //     }
-    // }
-
     function getParentPath(parent)
     {
         var path = parent.path;
@@ -6302,6 +6262,32 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                 _items.platforms[uuid].context = "Status problems found."
             }
         }        
+    }
+
+    function updateDeviceGroupStatus(parent)
+    {        
+        var parentDevice = JSON.parse(JSON.stringify(parent));
+
+        if (parentDevice.hasOwnProperty("devices"))
+        {
+            parentDevice.devices.children.forEach(function (uuid) {
+                var subDeviceHealth = checkStatuses(parentDevice.devices[uuid].status, parentDevice.devices);
+
+                if (subDeviceHealth !== parent.devices.status)
+                {
+                    parent.devices.status = subDeviceHealth;
+                    parent.devices.statusLabel = getStatusLabel(subDeviceHealth);
+                }
+            });            
+        }    
+
+        var deviceGroupHealth = checkStatuses(parent.devices.status, parentDevice);
+        if (deviceGroupHealth !== parent.status)
+        {
+            parent.status = deviceGroupHealth;
+            parent.statusLabel = getStatusLabel(deviceGroupHealth);
+            parent.context = "Status problems found."
+        }
     }
 
     function checkStatuses(health, item)

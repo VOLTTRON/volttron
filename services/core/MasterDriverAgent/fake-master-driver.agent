@@ -1,6 +1,10 @@
 {
     "agentid": "master_driver",
     "driver_config_list": [
-    					   "/home/volttron/git/volttron/services/core/MasterDriverAgent/master_driver/test_fakedriver.config"
-    					  ]
+	   "/home/joe/volttron/services/core/MasterDriverAgent/master_driver/test_fakedriver.config",
+	   "/home/joe/volttron/services/core/MasterDriverAgent/master_driver/test_fakedriver2.config",
+	   "/home/joe/volttron/services/core/MasterDriverAgent/master_driver/test_fakedriver3.config",
+	   "/home/joe/volttron/services/core/MasterDriverAgent/master_driver/test_fakedriver4.config",
+	   "/home/joe/volttron/services/core/MasterDriverAgent/master_driver/test_fakedriver5.config"
+	  ]
 }
