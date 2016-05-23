@@ -131,13 +131,13 @@ Topic: <input id="historian_topic" placeholder="Historian topic to query" /><br/
             alert('Invalid topic!');
         }
 
-        var platform_uuid = $('#agent_platform_uuid').val();
-        if (!platform_uuid){
-            alert('Invalid platform uuid');
-            return;
-        }
+        <!--var platform_uuid = $('#agent_platform_uuid').val();-->
+        <!--if (!platform_uuid){-->
+            <!--alert('Invalid platform uuid');-->
+            <!--return;-->
+        <!--}-->
 
-        var req_method = 'platform.uuid.'+platform_uuid+'.historian.query';
+        var req_method = 'platform.historian.query';
         var token = $('#token').val();
         var pdata = {
                  jsonrpc: '2.0',
@@ -277,7 +277,7 @@ Topic: <input id="historian_topic" placeholder="Historian topic to query" /><br/
     });
 
     $('#get_topic_list').click(function(){
-        do_request_vc_method('historian.get_topic_list');
+        do_request('historian.get_topic_list');
     });
 
     $('#get_devices').click(function(){
@@ -285,7 +285,12 @@ Topic: <input id="historian_topic" placeholder="Historian topic to query" /><br/
     });
 
     $('#query_historian').click(function(){
-        do_historian_query();
+        var data = {
+            "topic": $("#historian_topic").val(),
+            "count": 20,
+            "order": "LAST_TO_FIRST"
+        }
+        do_request('historian.query', data);
     });
 
     $('#get_auth').click(function(){
