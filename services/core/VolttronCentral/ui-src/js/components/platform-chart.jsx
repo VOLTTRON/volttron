@@ -65,17 +65,17 @@ var PlatformChart = React.createClass({
     _removeChart: function () {
 
         var deleteChart = function () {
-          modalActionCreators.closeModal();
+            modalActionCreators.closeModal();
 
-          this.props.chart.series.forEach(function (series) {
-              if (series.hasOwnProperty("path"))
-              {
-                  platformsPanelActionCreators.checkItem(series.path, false);
-              }
-          });
+            this.props.chart.series.forEach(function (series) {
+                if (series.hasOwnProperty("path"))
+                {
+                    platformsPanelActionCreators.checkItem(series.path, false);
+                }
+            });
 
-          platformChartActionCreators.removeChart(this.props.chartKey);
-          platformActionCreators.saveCharts();
+            platformChartActionCreators.removeChart(this.props.chartKey);
+            platformActionCreators.saveCharts();
         }
 
         modalActionCreators.openModal(

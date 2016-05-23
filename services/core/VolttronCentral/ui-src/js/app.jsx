@@ -78,9 +78,12 @@ router.run(function (Handler) {
     platformChartsStore.addChangeListener(function () {
         if (platformChartsStore.showCharts() && authorizationStore.getAuthorization())
         {
-            !router.isActive('charts')
+            // console.log("current path: " + router.getCurrentPath());
+            if (!router.isActive('charts'))
             {
+                // console.log("replace with /platform-charts");
                 router.replaceWith('/platform-charts');
+                // window.location.href = "index.html#/platform-charts";
             }
         }
 
