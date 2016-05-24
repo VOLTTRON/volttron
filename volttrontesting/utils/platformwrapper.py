@@ -108,8 +108,25 @@ PUBLISH_TO = RUN_DIR+'/publish'
 SUBSCRIBE_TO = RUN_DIR+'/subscribe'
 
 
-class PlatformWrapperError(Exception):
+class PlatformWrapperError(StandardError):
     pass
+
+
+def build_vip_address(dest_wrapper, agent):
+    """
+    Create a usable vip address with zap parameters embedded in the uri.
+
+    :param dest_wrapper:PlatformWrapper:
+        The destination wrapper instance that the agent will be attempting to
+        connect to.
+    :param agent:Agent
+        The agent that is being used to make the connection to dest_wrapper
+    :return:
+    """
+    return "{}:?serverkey={}&publickey={}&secretkey={}".format(
+        dest_wrapper.vip_address, dest_wrapper.publickey,
+        agent.core.publickey, agent.core.secretkey
+    )
 
 
 class PlatformWrapper:
@@ -171,7 +188,6 @@ class PlatformWrapper:
         entry = AuthEntry(credentials="/CURVE:.*/")
         authfile = AuthFile(self.volttron_home+"/auth.json")
         authfile.add(entry)
-
 
     def build_agent(self, address=None, should_spawn=True, identity=None,
                     publickey=None, secretkey=None, serverkey=None, **kwargs):
@@ -463,6 +479,35 @@ class PlatformWrapper:
 
         return auuid
 
+    def install_multiple_agents(self, agent_configs):
+        """
+        Installs mutltiple agents on the platform.
+
+        :param agent_configs:list
+            A list of 3-tuple that allows the configuration of a platform
+            in a single go.  The tuple order is
+            1. path to the agent directory.
+            2. configuration data (either file or json data)
+            3. Whether the agent should be started or not.
+
+        :return:list:
+            A list of uuid's associated with the agents that were installed.
+
+
+        :Note:
+            In order for this method to be called the platform must be
+            currently running.
+        """
+        if not self.is_running():
+            raise PlatformWrapperError("Instance isn't running!")
+        results = []
+
+        for path, config, start  in agent_configs:
+            results = self.install_agent(agent_dir=path, config_file=config,
+                                         start=start)
+
+        return results
+
     def install_agent(self, agent_wheel=None, agent_dir=None, config_file=None,
         start=True):
         '''Install and optionally start an agent on the platform.
@@ -685,8 +730,8 @@ class PlatformWrapper:
             self._t_process.wait()
         elif self.use_twistd:
             print "twistd process was null"
-        if not self.skip_cleanup:
-            shutil.rmtree(self.volttron_home, ignore_errors=True)
+        # if not self.skip_cleanup:
+        #     shutil.rmtree(self.volttron_home, ignore_errors=True)
 
 
 def mergetree(src, dst, symlinks=False, ignore=None):

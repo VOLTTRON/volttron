@@ -1,3 +1,4 @@
+from copy import deepcopy
 from datetime import datetime
 import random
 import tempfile
@@ -10,7 +11,9 @@ from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.auth import AuthEntry, AuthFile
 from volttron.platform.keystore import KeyStore
 
-FORWARDER_1 = {
+from volttrontesting.utils.platformwrapper import build_vip_address
+
+FORWARDER_CONFIG = {
     "agentid": "forwarder",
     "destination-vip": {},
     "custom_topic_list": [],
@@ -31,10 +34,12 @@ query_points = {
 }
 
 
-allforwardedmessage = None
+allforwardedmessage = []
+publishedmessages = []
 
 
 def do_publish(agent1):
+    global publishedmessages
     # Publish fake data. The format mimics the format used by VOLTTRON
     # drivers.
     # Make some random readings
@@ -62,23 +67,49 @@ def do_publish(agent1):
         headers_mod.DATE: now
     }
     print("Published time in header: " + now)
+
     # Publish messages
     agent1.vip.pubsub.publish(
         'pubsub', ALL_TOPIC, headers, all_message).get(timeout=10)
-
+    publishedmessages.append(all_message)
     gevent.sleep(1)
 
 
 def onmessage(peer, sender, bus, topic, headers, message):
     global allforwardedmessage
-    allforwardedmessage = message
+    allforwardedmessage.append(message)
     # print('received: peer=%r, sender=%r, bus=%r, topic=%r, headers=%r, message=%r' % (
     #         peer, sender, bus, topic, headers, message))
 
 
 @pytest.mark.historian
+def test_reconnect_forwarder(volttron_instance1_encrypt,
+                             volttron_instance2_encrypt):
+    from_instance = volttron_instance1_encrypt
+    to_instance = volttron_instance2_encrypt
+
+    publisher = from_instance.build_agent()
+    receiver = to_instance.build_agent()
+
+    forwarder_config = deepcopy(FORWARDER_CONFIG)
+    forwarder_config['destination-vip'] = build_vip_address(to_instance,
+                                                            receiver)
+    from_instance.install_agent(agent_dir="services/core/ForwardHistorian",
+                                config_file=forwarder_config)
+
+    receiver.vip.pubsub.subscribe('pubsub', '', callback=onmessage)
+    for i in range(10):
+        do_publish(publisher)
+
+    for i in range(len(publishedmessages)):
+        assert allforwardedmessage[i] == publishedmessages[i]
+
+
+
+
+@pytest.mark.historian
 def test_forwarding(volttron_instance1_encrypt, volttron_instance2_encrypt):
-    global FORWARDER_1
+    global FORWARDER_CONFIG
     tf = tempfile.NamedTemporaryFile()
     tf2 = tempfile.NamedTemporaryFile()
     tf3 = tempfile.NamedTemporaryFile()
@@ -110,8 +141,8 @@ def test_forwarding(volttron_instance1_encrypt, volttron_instance2_encrypt):
         wrap2.vip_address, wrap2.publickey, ks.public(), ks.secret()
     )
 
-    FORWARDER_1["destination-vip"] = forward_to_vip
-    forwarder_config = FORWARDER_1
+    FORWARDER_CONFIG["destination-vip"] = forward_to_vip
+    forwarder_config = FORWARDER_CONFIG
     print("THE CONFIG = {}".format(forwarder_config))
 
     wrap1.install_agent(
