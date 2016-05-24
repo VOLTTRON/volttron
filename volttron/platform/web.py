@@ -371,7 +371,10 @@ class MasterWebService(Agent):
                             if res['error']['code'] == UNAUTHORIZED:
                                 start_response('401 Unauthorized', [
                                     ('Content-Type', 'text/html')])
-                                return [b'<h1>Unauthorized</h1>']
+                                message = res['error']['message']
+                                code = res['error']['code']
+                                return [b'<h1>{}</h1>\n<h2>CODE:{}</h2>'
+                                            .format(message, code)]
                     start_response('200 OK',
                                    [('Content-Type', 'application/json')])
                     _log.debug('RESPONSE WEB: {}'.format(res))

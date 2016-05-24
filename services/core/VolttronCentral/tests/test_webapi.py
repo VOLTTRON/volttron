@@ -130,7 +130,6 @@ def test_vc_settings_store(vc_instance):
     resp = tester.do_rpc('get_setting_keys')
     assert kv['key'] not in resp.json()['result']
 
-
 @pytest.mark.vc
 def test_register_instance(vc_instance, pa_instance):
 

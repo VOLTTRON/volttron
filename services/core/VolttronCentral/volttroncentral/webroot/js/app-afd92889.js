@@ -79,9 +79,12 @@ router.run(function (Handler) {
     platformChartsStore.addChangeListener(function () {
         if (platformChartsStore.showCharts() && authorizationStore.getAuthorization())
         {
-            !router.isActive('charts')
+            console.log("current path: " + router.getCurrentPath());
+            if (!router.isActive('charts'))
             {
-                router.replaceWith('/platform-charts');
+                console.log("replace with /platform-charts");
+                // router.replaceWith('/platform-charts');
+                window.location.href = "index.html#/platform-charts";
             }
         }
 
@@ -233,9 +236,20 @@ var platformActionCreators = {
                             type: ACTION_TYPES.RECEIVE_PLATFORM,
                             platform: platform,
                         });
+                    })            
+                    .catch(rpc.Error, function (error) {
+
+                        statusIndicatorActionCreators.openStatusIndicator("error", "Error loading agents: " + error.message);
+
+                        handle401(error);
                     });
-            })
-            .catch(rpc.Error, handle401);
+            })            
+            .catch(rpc.Error, function (error) {
+
+                statusIndicatorActionCreators.openStatusIndicator("error", "Error loading agents: " + error.message);
+
+                handle401(error);
+            });
     },
     startAgent: function (platform, agent) {
         var authorization = authorizationStore.getAuthorization();
@@ -255,8 +269,13 @@ var platformActionCreators = {
             .then(function (status) {
                 agent.process_id = status.process_id;
                 agent.return_code = status.return_code;
+            })                        
+            .catch(rpc.Error, function (error) {
+
+                statusIndicatorActionCreators.openStatusIndicator("error", "Error starting agent: " + error.message);
+
+                handle401(error);
             })
-            .catch(rpc.Error, handle401)
             .finally(function () {
                 agent.actionPending = false;
 
@@ -284,8 +303,13 @@ var platformActionCreators = {
             .then(function (status) {
                 agent.process_id = status.process_id;
                 agent.return_code = status.return_code;
+            })                      
+            .catch(rpc.Error, function (error) {
+
+                statusIndicatorActionCreators.openStatusIndicator("error", "Error stopping agent: " + error.message);
+
+                handle401(error);
             })
-            .catch(rpc.Error, handle401)
             .finally(function () {
                 agent.actionPending = false;
 
@@ -321,18 +345,24 @@ var platformActionCreators = {
             .then(function (result) {
                 
                 if (result.error) {
-                    dispatcher.dispatch({
-                        type: ACTION_TYPES.RECEIVE_PLATFORM_ERROR,
-                        platform: platform,
-                        error: result.error,
-                    });
+                    // dispatcher.dispatch({
+                    //     type: ACTION_TYPES.RECEIVE_PLATFORM_ERROR,
+                    //     platform: platform,
+                    //     error: result.error,
+                    // });
+                    statusIndicatorActionCreators.openStatusIndicator("error", "Error removing agent: " + result.error);
                 }
                 else
                 {
                     platformActionCreators.loadPlatform(platform);
                 }
-            })
-            .catch(rpc.Error, handle401);
+            })                      
+            .catch(rpc.Error, function (error) {
+
+                statusIndicatorActionCreators.openStatusIndicator("error", "Error removing agent: " + error.message);
+
+                handle401(error);
+            });
     },
     installAgents: function (platform, files) {
         platformActionCreators.clearPlatformError(platform);
@@ -354,18 +384,24 @@ var platformActionCreators = {
                 });
 
                 if (errors.length) {
-                    dispatcher.dispatch({
-                        type: ACTION_TYPES.RECEIVE_PLATFORM_ERROR,
-                        platform: platform,
-                        error: errors.join('\n'),
-                    });
+                    // dispatcher.dispatch({
+                    //     type: ACTION_TYPES.RECEIVE_PLATFORM_ERROR,
+                    //     platform: platform,
+                    //     error: errors.join('\n'),
+                    // });
+                    statusIndicatorActionCreators.openStatusIndicator("error", "Error installing agents: " + errors.join('\n'));
                 }
 
                 if (errors.length !== files.length) {
                     platformActionCreators.loadPlatform(platform);
                 }
-            })
-            .catch(rpc.Error, handle401);
+            })                      
+            .catch(rpc.Error, function (error) {
+
+                statusIndicatorActionCreators.openStatusIndicator("error", "Error installing agents: " + error.message);
+
+                handle401(error);
+            });
     },    
     loadCharts: function (platform) {
         var authorization = authorizationStore.getAuthorization();
@@ -431,13 +467,18 @@ var platformActionCreators = {
                     topic: topic,
                     data: result.values,
                 });
-            })
-            .catch(rpc.Error, handle401);
+            })                      
+            .catch(rpc.Error, function (error) {
+
+                statusIndicatorActionCreators.openStatusIndicator("error", "Error getting topic: " + error.message);
+
+                handle401(error);
+            });
     },
-    saveCharts: function () {
+    saveCharts: function (chartsToSave) {
         var authorization = authorizationStore.getAuthorization();
 
-        var savedCharts = platformChartStore.getPinnedCharts();
+        var savedCharts = (chartsToSave ? chartsToSave : platformChartStore.getPinnedCharts());
 
         new rpc.Exchange({
             method: 'set_setting',
@@ -521,7 +562,11 @@ module.exports = platformActionCreators;
 var ACTION_TYPES = require('../constants/action-types');
 var dispatcher = require('../dispatcher');
 var authorizationStore = require('../stores/authorization-store');
+var platformChartStore = require('../stores/platform-chart-store');
+var platformsStore = require('../stores/platforms-store');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
+var platformsPanelActionCreators = require('../action-creators/platforms-panel-action-creators');
+var platformActionCreators = require('../action-creators/platform-action-creators');
 var rpc = require('../lib/rpc');
 
 var platformChartActionCreators = {
@@ -574,7 +619,32 @@ var platformChartActionCreators = {
                         item: item
                     });
                 })
-                .catch(rpc.Error, handle401);
+                .catch(rpc.Error, function (error) {
+
+                    var message = "Error updating chart: " + error.message;
+
+                    if (error.code === -32602)
+                    {
+                        if (error.message === "historian unavailable")
+                        {
+                            message = "Error updating chart: The historian agent is unavailable.";
+                        }
+                    }
+                    else
+                    {
+                        var platform = platformsStore.getPlatform(item.parentUuid);
+                        var historianRunning = platformsStore.getHistorianRunning(platform);
+
+                        if (!historianRunning)
+                        {
+                            message = "Error updating chart: The historian agent is unavailable.";
+                        }
+                    }
+
+                    statusIndicatorActionCreators.openStatusIndicator("error", message);
+
+                    handle401(error);
+                });
 		});
 
 	},
@@ -609,37 +679,70 @@ var platformChartActionCreators = {
                     type: ACTION_TYPES.ADD_TO_CHART,
                     panelItem: panelItem
                 });
+
+                var savedCharts = platformChartStore.getPinnedCharts();
+                var inSavedChart = savedCharts.find(function (chart) {
+                    return chart.chartKey === panelItem.name;
+                });
+
+                if (inSavedChart)
+                {
+                    platformActionCreators.saveCharts(savedCharts);
+                }
             })
             .catch(rpc.Error, function (error) {
 
-                var message = error.message;
+                var message = "Error loading chart: " + error.message;
 
                 if (error.code === -32602)
                 {
                     if (error.message === "historian unavailable")
                     {
-                        message = "Data could not be fetched. The historian agent is unavailable."
+                        message = "Error loading chart: The historian agent is unavailable.";
+                    }
+                }
+                else
+                {
+                    var platform = platformsStore.getPlatform(panelItem.parentUuid);
+                    var historianRunning = platformsStore.getHistorianRunning(platform);
+
+                    if (!historianRunning)
+                    {
+                        message = "Error loading chart: The historian agent is unavailable.";
                     }
                 }
 
                 statusIndicatorActionCreators.openStatusIndicator("error", message);
+                platformsPanelActionCreators.checkItem(panelItem.path, false);
                 handle401(error);
             });
     },
     removeFromChart: function(panelItem) {
 
+        var savedCharts = platformChartStore.getPinnedCharts();
+        var inSavedChart = savedCharts.find(function (chart) {
+            return chart.chartKey === panelItem.name;
+        });
+
         dispatcher.dispatch({
             type: ACTION_TYPES.REMOVE_FROM_CHART,
             panelItem: panelItem
-        });
+        });        
+
+        if (inSavedChart)
+        {
+            platformActionCreators.saveCharts();
+        }
 
     },
     removeChart: function(chartName) {
 
+        console.log("platformChartActionCreators: removeChart, send dispatch");
         dispatcher.dispatch({
             type: ACTION_TYPES.REMOVE_CHART,
             name: chartName
         });
+        console.log("platformChartActionCreators: removeChart, after dispatch");
 
     }
 };
@@ -658,7 +761,7 @@ function handle401(error) {
 module.exports = platformChartActionCreators;
 
 
-},{"../action-creators/status-indicator-action-creators":9,"../constants/action-types":33,"../dispatcher":34,"../lib/rpc":37,"../stores/authorization-store":42}],7:[function(require,module,exports){
+},{"../action-creators/platform-action-creators":5,"../action-creators/platforms-panel-action-creators":8,"../action-creators/status-indicator-action-creators":9,"../constants/action-types":33,"../dispatcher":34,"../lib/rpc":37,"../stores/authorization-store":42,"../stores/platform-chart-store":47,"../stores/platforms-store":51}],7:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -927,16 +1030,86 @@ var platformsPanelActionCreators = {
         });
     },
 
+    resetPanel: function() {
+
+        dispatcher.dispatch({
+            type: ACTION_TYPES.RESET_PLATFORMS_PANEL,
+        });
+    },
+
     loadChildren: function(type, parent)
     {
         if (type === "platform")
         {
             dispatcher.dispatch({
-                type: ACTION_TYPES.START_LOADING_DATA
+                type: ACTION_TYPES.START_LOADING_DATA,
+                panelItem: parent 
             });
 
             loadPanelDevices(parent);
-        }        
+        } 
+
+        function loadPanelDevices(platform) {
+            var authorization = authorizationStore.getAuthorization();
+
+            new rpc.Exchange({
+                method: 'platforms.uuid.' + platform.uuid + '.get_devices',
+                authorization: authorization,
+            }).promise
+                .then(function (result) {
+                    
+                    var devicesList = [];
+
+                    for (var key in result)
+                    {
+                        var device = JSON.parse(JSON.stringify(result[key]));
+                        device.path = key;
+
+                        devicesList.push(device);
+                    }
+
+                    dispatcher.dispatch({
+                        type: ACTION_TYPES.RECEIVE_DEVICE_STATUSES,
+                        platform: platform,
+                        devices: devicesList
+                    });
+
+                    loadPanelAgents(platform);
+                    
+                })                     
+                .catch(rpc.Error, function (error) {
+
+                    statusIndicatorActionCreators.openStatusIndicator("error", "Error loading devices in side panel: " + error.message);
+                    handle401(error);
+                    endLoadingData(platform);
+                });    
+
+        }
+
+        function loadPanelAgents(platform) {
+            var authorization = authorizationStore.getAuthorization();
+
+            new rpc.Exchange({
+                method: 'platforms.uuid.' + platform.uuid + '.list_agents',
+                authorization: authorization,
+            }).promise
+                .then(function (agentsList) {
+                    
+                    dispatcher.dispatch({
+                        type: ACTION_TYPES.RECEIVE_AGENT_STATUSES,
+                        platform: platform,
+                        agents: agentsList
+                    });
+
+                    loadPerformanceStats(platform);
+                })                     
+                .catch(rpc.Error, function (error) {
+
+                    statusIndicatorActionCreators.openStatusIndicator("error", "Error loading agents in side panel: " + error.message);
+                    handle401(error);
+                    endLoadingData(platform);
+                });    
+        }       
 
         function loadPerformanceStats(parent) {
 
@@ -978,6 +1151,8 @@ var platformsPanelActionCreators = {
                                 parent: parent,
                                 points: pointsList
                             });
+
+                            endLoadingData(parent);
                         })
                         .catch(rpc.Error, function (error) {
                             
@@ -993,67 +1168,18 @@ var platformsPanelActionCreators = {
 
                             statusIndicatorActionCreators.openStatusIndicator("error", message);
                             handle401(error);
+                            endLoadingData(parent);
                         });   
             } 
         }
 
-        function loadPanelDevices(platform) {
-            var authorization = authorizationStore.getAuthorization();
-
-            new rpc.Exchange({
-                method: 'platforms.uuid.' + platform.uuid + '.get_devices',
-                authorization: authorization,
-            }).promise
-                .then(function (result) {
-                    
-                    var devicesList = [];
-
-                    for (var key in result)
-                    {
-                        var device = JSON.parse(JSON.stringify(result[key]));
-                        device.path = key;
-
-                        devicesList.push(device);
-                    }
-
-                    dispatcher.dispatch({
-                        type: ACTION_TYPES.RECEIVE_DEVICE_STATUSES,
-                        platform: platform,
-                        devices: devicesList
-                    });
-
-                    loadPanelAgents(platform);
-                    
-                })
-                .catch(rpc.Error, handle401);    
-
-        }
-
-        function loadPanelAgents(platform) {
-            var authorization = authorizationStore.getAuthorization();
-
-            new rpc.Exchange({
-                method: 'platforms.uuid.' + platform.uuid + '.list_agents',
-                authorization: authorization,
-            }).promise
-                .then(function (agentsList) {
-                    
-                    dispatcher.dispatch({
-                        type: ACTION_TYPES.RECEIVE_AGENT_STATUSES,
-                        platform: platform,
-                        agents: agentsList
-                    });
-
-                    loadPerformanceStats(platform);
-                })
-                .catch(rpc.Error, handle401);    
-        }
-            // dispatcher.dispatch({
-            //     type: ACTION_TYPES.RECEIVE_AGENT_STATUSES,
-            //     platform: platform
-            // });
-        // }
-    
+        function endLoadingData(panelItem)
+        {
+            dispatcher.dispatch({
+                type: ACTION_TYPES.END_LOADING_DATA,
+                panelItem: panelItem
+            });
+        }    
     },
 
     loadFilteredItems: function (filterTerm, filterStatus)
@@ -1710,33 +1836,22 @@ module.exports = Conversation;
 
 var React = require('react');
 var Router = require('react-router');
-
-// var platformsStore = require('../stores/platforms-store');
 var platformChartStore = require('../stores/platform-chart-store');
-// var Chart = require('./chart');
-// var EditChartForm = require('./edit-chart-form');
-// var modalActionCreators = require('../action-creators/modal-action-creators');
 
 var PlatformChart = require('./platform-chart');
 
 var Dashboard = React.createClass({displayName: "Dashboard",
     getInitialState: getStateFromStores,
     componentDidMount: function () {
-        // platformsStore.addChangeListener(this._onStoreChange);
         platformChartStore.addChangeListener(this._onStoreChange);
     },
     componentWillUnmount: function () {
-        // platformsStore.removeChangeListener(this._onStoreChange);
         platformChartStore.removeChangeListener(this._onStoreChange);
     },
     _onStoreChange: function () {
         this.setState(getStateFromStores());
     },
-    // _onEditChartClick: function (platform, chart) {
-    //     modalActionCreators.openModal("platforms", <EditChartForm platform={platform} chart={chart} />);
-    // },
     render: function () {
-        // var charts;
         
         var pinnedCharts = this.state.platformCharts; 
 
@@ -1748,74 +1863,15 @@ var Dashboard = React.createClass({displayName: "Dashboard",
                 var platformChart = React.createElement(PlatformChart, {chart: pinnedChart, chartKey: pinnedChart.chartKey, hideControls: true})
                 platformCharts.push(platformChart);
             }
-        });
-        // {
-        //     if (pinnedCharts[key].data.length > 0)
-        //     {
-        //         var platformChart = <PlatformChart chart={pinnedCharts[key]} chartKey={key} hideControls={true}/>
-        //         platformCharts.push(platformChart);
-        //     }
-        // }
+        });        
 
-        // if (!this.state.platforms) {
-        //     charts = (
-        //         <p>Loading charts...</p>
-        //     );
-        // } else {
-        //     charts = [];
-
-        //     this.state.platforms
-        //         .sort(function (a, b) {
-        //             return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
-        //         })
-        //         .forEach(function (platform) {
-        //             if (!platform.charts) { return; }
-
-        //             platform.charts
-        //                 .filter(function (chart) { return chart.pin; })
-        //                 .forEach(function (chart) {
-        //                     var key = [
-        //                         platform.uuid,
-        //                         chart.topic,
-        //                         chart.type,
-        //                     ].join('::');
-
-        //                     charts.push(
-        //                         <div key={key} className="view__item view__item--tile chart">
-        //                             <h3 className="chart__title">
-        //                                 <Router.Link
-        //                                     to="platform"
-        //                                     params={{uuid: platform.uuid}}
-        //                                 >
-        //                                     {platform.name}
-        //                                 </Router.Link>
-        //                                 : {chart.topic}
-        //                             </h3>
-        //                             <Chart
-        //                                 platform={platform}
-        //                                 chart={chart}
-        //                             />
-        //                             <div className="chart__actions">
-        //                                 <a
-        //                                     className="chart__edit"
-        //                                     onClick={this._onEditChartClick.bind(this, platform, chart)}
-        //                                 >
-        //                                     Edit
-        //                                 </a>
-        //                             </div>
-        //                         </div>
-        //                     );
-        //                 }, this);
-        //         }, this);
-
-            if (pinnedCharts.length === 0) {
-                platformCharts = (
-                    React.createElement("p", {className: "empty-help"}, 
-                        "Pin a platform chart to have it appear on the dashboard"
-                    )
-                );
-            }
-        // }
+        if (pinnedCharts.length === 0) {
+            platformCharts = (
+                React.createElement("p", {className: "empty-help"}, 
+                    "Pin a platform chart to have it appear on the dashboard"
+                )
+            );
+        }
 
         return (
             React.createElement("div", {className: "view"}, 
@@ -1829,7 +1885,6 @@ var Dashboard = React.createClass({displayName: "Dashboard",
 
 function getStateFromStores() {
     return {
-        // platforms: platformsStore.getPlatforms(),
         platformCharts: platformChartStore.getPinnedCharts()
     };
 }
@@ -2097,6 +2152,7 @@ var Navigation = React.createClass({displayName: "Navigation",
     },
     _onLogOutClick: function () {
         platformsPanelActionCreators.closePanel();
+        platformsPanelActionCreators.resetPanel();
         platformManagerActionCreators.clearAuthorization();
     },
     render: function () {
@@ -2239,17 +2295,17 @@ var PlatformChart = React.createClass({displayName: "PlatformChart",
     _removeChart: function () {
 
         var deleteChart = function () {
-          modalActionCreators.closeModal();
+            modalActionCreators.closeModal();
 
-          this.props.chart.series.forEach(function (series) {
-              if (series.hasOwnProperty("path"))
-              {
-                  platformsPanelActionCreators.checkItem(series.path, false);
-              }
-          });
+            this.props.chart.series.forEach(function (series) {
+                if (series.hasOwnProperty("path"))
+                {
+                    platformsPanelActionCreators.checkItem(series.path, false);
+                }
+            });
 
-          platformChartActionCreators.removeChart(this.props.chartKey);
-          platformActionCreators.saveCharts();
+            platformChartActionCreators.removeChart(this.props.chartKey);
+            platformActionCreators.saveCharts();
         }
 
         modalActionCreators.openModal(
@@ -3099,7 +3155,12 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
         state.panelItem = this.props.panelItem;
         state.children = this.props.panelChildren;
 
-        this.loading = false;
+        if (this.props.panelItem.type === "platform")
+        {
+            state.notInitialized = true;
+            state.loading = false;
+            state.cancelButton = false;
+        }
 
         return state;
     },
@@ -3114,40 +3175,75 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
         var panelItem = platformsPanelItemsStore.getItem(this.props.itemPath);
         var panelChildren = platformsPanelItemsStore.getChildren(this.props.panelItem, this.props.itemPath);
 
-        var loadingComplete = platformsPanelItemsStore.getLoadingComplete();
+        var loadingComplete = platformsPanelItemsStore.getLoadingComplete(this.props.panelItem);
 
-        if (loadingComplete)
+        if (loadingComplete === true || loadingComplete === null)
         {
             this.setState({panelItem: panelItem});
             this.setState({children: panelChildren});
             this.setState({checked: panelItem.checked});
-            this.loading = false;
+
+            if (this.props.panelItem.type === "platform")
+            {
+                if (loadingComplete === true)
+                {
+                    this.setState({loading: false});
+                    this.setState({notInitialized: false});
+                }
+                else if (loadingComplete === null)
+                {
+                    this.setState({loading: false});
+                    this.setState({notInitialized: true});
+                }
+            }
         }
     },
-    _expandAll : function () {
+    _expandAll: function () {
         
         platformsPanelActionCreators.expandAll(this.props.itemPath);
     },
-    _toggleItem: function () {
-
-        if (this.state.panelItem.expanded === null)
+    _handleArrowClick: function () {
+        
+        if (!this.state.loading) // If not loading, treat it as just a regular toggle button
         {
-            if (!this.loading)
+            if (this.state.panelItem.expanded === null && this.state.panelItem.type === "platform") 
             {
-                this.loading = true;
+                this.setState({loading: true});
                 platformsPanelActionCreators.loadChildren(this.props.panelItem.type, this.props.panelItem);
-            }
-        }
-        else
-        {
-            if (this.state.panelItem.expanded)
-            {
-                platformsPanelActionCreators.expandAll(this.props.itemPath);
             }
             else
             {
-                platformsPanelActionCreators.toggleItem(this.props.itemPath);    
+                if (this.state.panelItem.expanded)
+                {
+                    platformsPanelActionCreators.expandAll(this.props.itemPath);
+                }
+                else
+                {
+                    platformsPanelActionCreators.toggleItem(this.props.itemPath);    
+                }
             }
+        }
+        else if (this.state.hasOwnProperty("loading")) // it's a platform and it's loading
+        {
+            if (this.state.loading || this.state.cancelButton) // if either loading or cancelButton is still
+            {                                                   // true, either way, the user wants to 
+                this.setState({loading: false});                // get out of the loading state, so turn
+                this.setState({cancelButton: false});           // the toggle button back to an arrow icon
+            }
+        }
+    },
+    _showCancel: function () {
+
+        if (this.state.hasOwnProperty("loading") && (this.state.loading === true))
+        {
+            this.setState({cancelButton: true});
+        }
+    },
+    _resumeLoad: function () {
+
+        if (this.state.hasOwnProperty("loading"))
+        {
+            this.setState({cancelButton: false});
         }
     },
     _checkItem: function (e) {
@@ -3194,9 +3290,21 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
             }
         }
 
-        var itemClasses;
-        var arrowClasses = ["arrowButton", "noRotate"];
+        var childClass;
+        var arrowClasses = [ "arrowButton", "noRotate" ];
 
+        if (this.state.hasOwnProperty("loading"))
+        {
+            if (this.state.cancelButton)
+            {
+                arrowClasses.push("cancelLoading");
+            }
+            else if (this.state.loading)
+            {
+                arrowClasses.push("loadingSpinner");
+            }
+        }
+        
         var ChartCheckbox;
 
         if (["point"].indexOf(panelItem.type) > -1)
@@ -3216,16 +3324,27 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
 
         var toolTipClasses = (this.state.showTooltip ? "tooltip_outer delayed-show-slow" : "tooltip_outer");
 
-        arrowClasses.push( ((panelItem.status === "GOOD") ? "status-good" :
+        if (!this.state.loading)
+        {
+            arrowClasses.push( ((panelItem.status === "GOOD") ? "status-good" :
                                 ( (panelItem.status === "BAD") ? "status-bad" : 
                                     "status-unknown")) );
+        }
 
         var arrowContent;
         var arrowContentStyle = {
             width: "14px"
         }
 
-        if (panelItem.status === "GOOD")
+        if (this.state.cancelButton)
+        {
+            arrowContent = React.createElement("span", {style: arrowContentStyle}, React.createElement("i", {className: "fa fa-remove"}));
+        }
+        else if (this.state.loading)
+        {
+            arrowContent = React.createElement("span", {style: arrowContentStyle}, React.createElement("i", {className: "fa fa-circle-o-notch fa-spin fa-fw"}));
+        }
+        else if (panelItem.status === "GOOD")
         {
             arrowContent = React.createElement("span", {style: arrowContentStyle}, "▶");
         } 
@@ -3273,14 +3392,28 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
                 }
 
                 arrowClasses.push("rotateDown");
-                itemClasses = "showItems";                    
+                childClass = "showItems";                    
             }          
         }
 
-        var itemClass = (!panelItem.hasOwnProperty("uuid") ? "item_type" : "item_label ");
+        var itemClasses = [];
+
+        if (!panelItem.hasOwnProperty("uuid"))
+        {
+            itemClasses.push("item_type");
+        }
+        else
+        {
+            itemClasses.push("item_label");
+        }
+
+        if (panelItem.type === "platform" && this.state.notInitialized)
+        {
+            itemClasses.push("not_initialized");
+        }
 
         var listItem = 
-                React.createElement("div", {className: itemClass}, 
+                React.createElement("div", {className: itemClasses.join(' ')}, 
                     panelItem.name
                 );
 
@@ -3293,7 +3426,9 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
                 React.createElement("div", {className: "platform-info"}, 
                     React.createElement("div", {className: arrowClasses.join(' '), 
                         onDoubleClick: this._expandAll, 
-                        onClick: this._toggleItem}, 
+                        onClick: this._handleArrowClick, 
+                        onMouseEnter: this._showCancel, 
+                        onMouseLeave: this._resumeLoad}, 
                         arrowContent
                     ), 
                     ChartCheckbox, 
@@ -3312,7 +3447,7 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
                         listItem
                     )
                 ), 
-                React.createElement("div", {className: itemClasses}, 
+                React.createElement("div", {className: childClass}, 
                     React.createElement("ul", {className: "platform-panel-list"}, 
                         children
                     )
@@ -3363,12 +3498,16 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
         {
             this.setState({expanded: expanded});
         }        
-
-        var platformsList = platformsPanelItemsStore.getChildren("platforms", null);
         
         if (expanded !== null)
         {
+            var platformsList = platformsPanelItemsStore.getChildren("platforms", null);
             this.setState({platforms: platformsList});
+        }
+        else
+        {
+            this.setState({filterValue: ""});
+            this.setState({filterStatus: ""});
         }
     },
     _onPanelItemsStoreChange: function () {
@@ -4240,12 +4379,14 @@ module.exports = keyMirror({
     RECEIVE_PLATFORM_STATUSES: null,
     TOGGLE_PLATFORMS_PANEL: null,
     CLOSE_PLATFORMS_PANEL: null,
+    RESET_PLATFORMS_PANEL: null,
 
     RECEIVE_AGENT_STATUSES: null,
     RECEIVE_DEVICE_STATUSES: null,
     RECEIVE_PERFORMANCE_STATS: null,
 
     START_LOADING_DATA: null,
+    END_LOADING_DATA: null,
 
     SHOW_CHARTS: null,
     ADD_TO_CHART: null,
@@ -4794,7 +4935,7 @@ chartStore.getPinnedCharts = function () {
 
     for (var key in _chartData)
     {
-        if (_chartData[key].hasOwnProperty("pinned") && _chartData[key].pinned === true)
+        if (_chartData[key].hasOwnProperty("pinned") && (_chartData[key].pinned === true) && (_chartData[key].data.length > 0))
         {
             pinnedCharts.push(_chartData[key]);
         }
@@ -4940,8 +5081,20 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
 
         case ACTION_TYPES.REMOVE_FROM_CHART:
             
-            removeSeries(action.panelItem.name, action.panelItem.uuid);
-            chartStore.emitChange();
+            if (_chartData.hasOwnProperty(action.panelItem.name))
+            {
+                removeSeries(action.panelItem.name, action.panelItem.uuid);
+
+                if (_chartData.hasOwnProperty(action.panelItem.name))
+                {
+                    if (_chartData[action.panelItem.name].length === 0)
+                    {
+                        delete _chartData[name];
+                    }
+                }
+
+                chartStore.emitChange();
+            }
 
             break;
 
@@ -5189,7 +5342,7 @@ var _badLabel = "Unhealthy";
 var _goodLabel = "Healthy";
 var _unknownLabel = "Unknown Status";
 
-var _loadingDataComplete = true;
+var _loadingDataComplete = {};
 
 var platformsPanelItemsStore = new Store();
 
@@ -5478,14 +5631,29 @@ platformsPanelItemsStore.getExpanded = function () {
     return _expanded;
 };
 
-platformsPanelItemsStore.getLoadingComplete = function () {
-    return _loadingDataComplete;
+platformsPanelItemsStore.getLoadingComplete = function (panelItem) {
+
+    var loadingComplete = null;
+
+    if (_loadingDataComplete.hasOwnProperty(panelItem.uuid))
+    {
+        loadingComplete = _loadingDataComplete[panelItem.uuid];
+    }
+
+    return loadingComplete;
 };
 
 platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
     switch (action.type) {
 
+        case ACTION_TYPES.RESET_PLATFORMS_PANEL:
+
+            _items.platforms = {};
+            _loadingDataComplete = {};
+            _expanded = false;
+
+            break;
         case ACTION_TYPES.FILTER_ITEMS:
 
             var filterTerm = action.filterTerm;
@@ -5527,7 +5695,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
         case ACTION_TYPES.START_LOADING_DATA:
 
-            _loadingDataComplete = false;
+            _loadingDataComplete[action.panelItem.uuid] = false;
 
             break;
 
@@ -5661,9 +5829,17 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                     break;
             }
 
-            _loadingDataComplete = true;
+            platformsPanelItemsStore.emitChange();
+            break;
+
+        case ACTION_TYPES.END_LOADING_DATA:
+
+            _loadingDataComplete[action.panelItem.uuid] = true;
+
+            updatePlatformStatus(action.panelItem.uuid);
 
             platformsPanelItemsStore.emitChange();
+
             break;
     }
 
@@ -5874,7 +6050,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                 deviceProps.path = JSON.parse(JSON.stringify(building.devices.path));
                 deviceProps.path.push(deviceProps.uuid);
                 deviceProps.status = device.health.status.toUpperCase();
-                deviceProps.statusLabel = getStatusLabel(deviceProps.health);
+                deviceProps.statusLabel = getStatusLabel(deviceProps.status);
                 deviceProps.context = device.health.context;
                 deviceProps.children = [];
                 deviceProps.type = "device";
@@ -5910,13 +6086,39 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
                     while (currentLevel < subDeviceLevel)
                     {
+                        var parentDeviceUuid = deviceParts[0];
+
+                        for (var i = 1; i <= currentLevel; i++)
+                        {
+                            parentDeviceUuid = parentDeviceUuid + "_" + deviceParts[i];
+                        }
+
                         parentDevice = parentDevice.devices;
-                        parentDevice = parentDevice[deviceParts[currentLevel]];
+                        parentDevice = parentDevice[parentDeviceUuid];
                         ++currentLevel;
                     }
 
-                    //We're now at the parent device. If we haven't added any
-                    // subdevices to it yet, initialize its "devices" child
+                    var deviceProps = {};
+                    deviceProps.name = deviceParts[subDeviceLevel];
+                    deviceProps.uuid = device.path.replace(/ \/ /g, '_');
+                    deviceProps.expanded = false;
+                    deviceProps.visible = true;
+                    deviceProps.path = JSON.parse(JSON.stringify(parentDevice.path));
+                    deviceProps.path.push("devices");
+                    deviceProps.path.push(deviceProps.uuid);
+                    deviceProps.status = device.health.status.toUpperCase();
+                    deviceProps.statusLabel = getStatusLabel(deviceProps.status);
+                    deviceProps.context = device.health.context;
+                    deviceProps.children = [];
+                    deviceProps.type = "device";
+                    deviceProps.sortOrder = 0;
+
+                    deviceProps.legendInfo = parentDevice.legendInfo + " > " + deviceProps.name;
+
+                    checkForPoints(deviceProps, device);
+
+                    //If we haven't added any subdevices to the parent device 
+                    // yet, initialize its "devices" child
                     if (parentDevice.children.indexOf("devices") < 0)
                     {
                         parentDevice.children.push("devices");
@@ -5930,29 +6132,18 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                         parentDevice.devices.children = [];
                         parentDevice.devices.type = "type";
                         parentDevice.devices.sortOrder = _devicesOrder;
-                    }
-
-                    var deviceProps = {};
-                    deviceProps.name = deviceParts[subDeviceLevel];
-                    deviceProps.uuid = device.path.replace(/ \/ /g, '_');
-                    deviceProps.expanded = false;
-                    deviceProps.visible = true;
-                    deviceProps.path = JSON.parse(JSON.stringify(parentDevice.devices.path));
-                    deviceProps.path.push(deviceProps.uuid);
-                    deviceProps.status = parentDevice.status;
-                    deviceProps.statusLabel = getStatusLabel(deviceProps.status);
-                    deviceProps.context = parentDevice.context;
-                    deviceProps.children = [];
-                    deviceProps.type = "device";
-                    deviceProps.sortOrder = 0;
-
-                    deviceProps.legendInfo = parentDevice.legendInfo + " > " + deviceProps.name;
-
-                    checkForPoints(deviceProps, device);
+                        parentDevice.devices.status = deviceProps.status;
+                        parentDevice.devices.statusLabel = getStatusLabel(deviceProps.status);
+                        parentDevice.devices.context = deviceProps.context;
+                    }                    
 
                     parentDevice.devices.children.push(deviceProps.uuid);
-                    parentDevice.devices[deviceProps.uuid] = deviceProps;  
+                    parentDevice.devices[deviceProps.uuid] = deviceProps; 
 
+                    if (parentDevice.devices.children.length > 1)
+                    {
+                        updateDeviceGroupStatus(parentDevice);
+                    }
                 }
               
                 break;
@@ -6013,59 +6204,6 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
         }
     }
 
-    // function loadDevices(platform)
-    // {
-    //     // var platform = _items["platforms"][action.platform.uuid];
-        
-    //     if (platform.devices)
-    //     {
-    //         if (platform.devices.length > 0)
-    //         {
-    //             // var agents = [];
-
-    //             // platform.agents.forEach(function (agent)) {
-    //             //     agents.push(agent);
-    //             // }
-
-    //             // platform.expanded = true;
-    //             // platform.agents = {};
-    //             // platform.agents.path = platform.path.slice(0);
-    //             // platform.agents.path.push("agents");
-    //             // platform.agents.name = "Agents";
-    //             // platform.agents.expanded = false;
-    //             // platform.agents.visible = true;
-    //             // platform.agents.children = [];
-    //             // platform.agents.type = "type";
-    //             // platform.agents.sortOrder = _agentsOrder;
-
-    //             // if (platform.children.indexOf("agents") < 0)
-    //             // {
-    //             //     platform.children.push("agents");
-    //             // }
-
-    //             // agents.forEach(function (agent)
-    //             // {
-    //             //     var agentProps = agent;
-    //             //     agentProps.expanded = false;
-    //             //     agentProps.visible = true;
-    //             //     agentProps.path = platform.agents.path.slice(0);
-    //             //     agentProps.path.push(agent.uuid);
-    //             //     // agent.status = "GOOD";
-    //             //     agentProps.children = [];
-    //             //     agentProps.type = "agent";
-    //             //     agentProps.sortOrder = 0;
-    //             //     platform.agents.children.push(agent.uuid); 
-    //             //     platform.agents[agent.uuid] = agentProps;
-    //             // });
-
-    //         }
-    //         else
-    //         {
-    //             delete platform.devices;
-    //         }
-    //     }
-    // }
-
     function getParentPath(parent)
     {
         var path = parent.path;
@@ -6085,6 +6223,71 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
         var pathStr = pathParts.join(" > ");
 
         return pathStr;
+    }
+
+    function updatePlatformStatus(uuid)
+    {
+        if (_items.platforms.hasOwnProperty(uuid))
+        {
+            var platform = JSON.parse(JSON.stringify(_items.platforms[uuid]));
+
+            if (_items.platforms[uuid].hasOwnProperty("agents"))
+            {
+                var agentsHealth = _items.platforms[uuid].agents.status; 
+                platform.status = checkStatuses(agentsHealth, platform);
+            }
+
+            if (platform.status === "GOOD" || platform.status === "UNKNOWN")
+            {
+                if (_items.platforms[uuid].hasOwnProperty("buildings"))
+                {
+                    var buildingsHealth = _items.platforms[uuid].buildings.status;
+                    platform.status = checkStatuses(buildingsHealth, platform);
+                }
+            }
+            
+            if (platform.status === "GOOD" || platform.status === "UNKNOWN")
+            {
+                if (_items.platforms[uuid].hasOwnProperty("points"))
+                {
+                    var pointsHealth = _items.platforms[uuid].points.status;  
+                    platform.status = checkStatuses(pointsHealth, platform);  
+                }
+            }
+
+            if (platform.status !== _items.platforms[uuid].status)
+            {
+                _items.platforms[uuid].status = platform.status;
+                _items.platforms[uuid].statusLabel = getStatusLabel(platform.status);
+                _items.platforms[uuid].context = "Status problems found."
+            }
+        }        
+    }
+
+    function updateDeviceGroupStatus(parent)
+    {        
+        var parentDevice = JSON.parse(JSON.stringify(parent));
+
+        if (parentDevice.hasOwnProperty("devices"))
+        {
+            parentDevice.devices.children.forEach(function (uuid) {
+                var subDeviceHealth = checkStatuses(parentDevice.devices[uuid].status, parentDevice.devices);
+
+                if (subDeviceHealth !== parent.devices.status)
+                {
+                    parent.devices.status = subDeviceHealth;
+                    parent.devices.statusLabel = getStatusLabel(subDeviceHealth);
+                }
+            });            
+        }    
+
+        var deviceGroupHealth = checkStatuses(parent.devices.status, parentDevice);
+        if (deviceGroupHealth !== parent.status)
+        {
+            parent.status = deviceGroupHealth;
+            parent.statusLabel = getStatusLabel(deviceGroupHealth);
+            parent.context = "Status problems found."
+        }
     }
 
     function checkStatuses(health, item)
@@ -6163,6 +6366,10 @@ platformsPanelStore.dispatchToken = dispatcher.register(function (action) {
             break;
         case ACTION_TYPES.CLOSE_PLATFORMS_PANEL:  
             _expanded = false;
+            platformsPanelStore.emitChange();
+            break;
+        case ACTION_TYPES.RESET_PLATFORMS_PANEL:  
+            _expanded = null;
             platformsPanelStore.emitChange();
             break;
     }
@@ -6248,14 +6455,17 @@ platformsStore.getHistorianRunning = function (platform) {
 
     if (platform)
     {
-        var historian = platform.agents.find(function (agent) {     
-            return agent.name.toLowerCase().indexOf("historian") > -1;
-        });
-
-        if (historian)
+        if (platform.hasOwnProperty("agents"))
         {
-            historianRunning = ((historian.process_id !== null) && (historian.return_code === null));
-        }
+            var historian = platform.agents.find(function (agent) {     
+                return agent.name.toLowerCase().indexOf("historian") > -1;
+            });
+
+            if (historian)
+            {
+                historianRunning = ((historian.process_id !== null) && (historian.return_code === null));
+            }
+        }        
     }
 
     return historianRunning;

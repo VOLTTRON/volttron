@@ -3,7 +3,11 @@
 var ACTION_TYPES = require('../constants/action-types');
 var dispatcher = require('../dispatcher');
 var authorizationStore = require('../stores/authorization-store');
+var platformChartStore = require('../stores/platform-chart-store');
+var platformsStore = require('../stores/platforms-store');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
+var platformsPanelActionCreators = require('../action-creators/platforms-panel-action-creators');
+var platformActionCreators = require('../action-creators/platform-action-creators');
 var rpc = require('../lib/rpc');
 
 var platformChartActionCreators = {
@@ -56,7 +60,32 @@ var platformChartActionCreators = {
                         item: item
                     });
                 })
-                .catch(rpc.Error, handle401);
+                .catch(rpc.Error, function (error) {
+
+                    var message = "Error updating chart: " + error.message;
+
+                    if (error.code === -32602)
+                    {
+                        if (error.message === "historian unavailable")
+                        {
+                            message = "Error updating chart: The historian agent is unavailable.";
+                        }
+                    }
+                    else
+                    {
+                        var platform = platformsStore.getPlatform(item.parentUuid);
+                        var historianRunning = platformsStore.getHistorianRunning(platform);
+
+                        if (!historianRunning)
+                        {
+                            message = "Error updating chart: The historian agent is unavailable.";
+                        }
+                    }
+
+                    statusIndicatorActionCreators.openStatusIndicator("error", message);
+
+                    handle401(error);
+                });
 		});
 
 	},
@@ -91,29 +120,60 @@ var platformChartActionCreators = {
                     type: ACTION_TYPES.ADD_TO_CHART,
                     panelItem: panelItem
                 });
+
+                var savedCharts = platformChartStore.getPinnedCharts();
+                var inSavedChart = savedCharts.find(function (chart) {
+                    return chart.chartKey === panelItem.name;
+                });
+
+                if (inSavedChart)
+                {
+                    platformActionCreators.saveCharts(savedCharts);
+                }
             })
             .catch(rpc.Error, function (error) {
 
-                var message = error.message;
+                var message = "Error loading chart: " + error.message;
 
                 if (error.code === -32602)
                 {
                     if (error.message === "historian unavailable")
                     {
-                        message = "Data could not be fetched. The historian agent is unavailable."
+                        message = "Error loading chart: The historian agent is unavailable.";
+                    }
+                }
+                else
+                {
+                    var platform = platformsStore.getPlatform(panelItem.parentUuid);
+                    var historianRunning = platformsStore.getHistorianRunning(platform);
+
+                    if (!historianRunning)
+                    {
+                        message = "Error loading chart: The historian agent is unavailable.";
                     }
                 }
 
                 statusIndicatorActionCreators.openStatusIndicator("error", message);
+                platformsPanelActionCreators.checkItem(panelItem.path, false);
                 handle401(error);
             });
     },
     removeFromChart: function(panelItem) {
 
+        var savedCharts = platformChartStore.getPinnedCharts();
+        var inSavedChart = savedCharts.find(function (chart) {
+            return chart.chartKey === panelItem.name;
+        });
+
         dispatcher.dispatch({
             type: ACTION_TYPES.REMOVE_FROM_CHART,
             panelItem: panelItem
-        });
+        });        
+
+        if (inSavedChart)
+        {
+            platformActionCreators.saveCharts();
+        }
 
     },
     removeChart: function(chartName) {
@@ -122,7 +182,6 @@ var platformChartActionCreators = {
             type: ACTION_TYPES.REMOVE_CHART,
             name: chartName
         });
-
     }
 };
 
