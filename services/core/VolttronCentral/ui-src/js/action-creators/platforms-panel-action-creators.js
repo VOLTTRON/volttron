@@ -70,10 +70,8 @@ var platformsPanelActionCreators = {
                     
                 })                     
                 .catch(rpc.Error, function (error) {
-
-                    statusIndicatorActionCreators.openStatusIndicator("error", "Error loading devices in side panel: " + error.message);
-                    handle401(error);
                     endLoadingData(platform);
+                    handle401(error, "Error loading devices in side panel: " + error.message);
                 });    
 
         }
@@ -96,10 +94,8 @@ var platformsPanelActionCreators = {
                     loadPerformanceStats(platform);
                 })                     
                 .catch(rpc.Error, function (error) {
-
-                    statusIndicatorActionCreators.openStatusIndicator("error", "Error loading agents in side panel: " + error.message);
-                    handle401(error);
                     endLoadingData(platform);
+                    handle401(error, "Error loading agents in side panel: " + error.message);
                 });    
         }       
 
@@ -158,9 +154,8 @@ var platformsPanelActionCreators = {
                                 }
                             }
 
-                            statusIndicatorActionCreators.openStatusIndicator("error", message);
-                            handle401(error);
                             endLoadingData(parent);
+                            handle401(error, message);
                         });   
             } 
         }
@@ -209,19 +204,18 @@ var platformsPanelActionCreators = {
     }    
 }
 
-
-
-
-function handle401(error) {
-    if (error.code && error.code === 401) {
+function handle401(error, message) {
+    if ((error.code && error.code === 401) || (error.response && error.response.status === 401)) {
         dispatcher.dispatch({
             type: ACTION_TYPES.RECEIVE_UNAUTHORIZED,
             error: error,
         });
 
         platformManagerActionCreators.clearAuthorization();
-
-        statusIndicatorActionCreators.openStatusIndicator("error", error.message);
+    }
+    else
+    {
+        statusIndicatorActionCreators.openStatusIndicator("error", message);
     }
 };
 

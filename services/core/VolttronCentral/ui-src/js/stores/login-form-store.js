@@ -10,7 +10,7 @@ var _lastError = null;
 var loginFormStore = new Store();
 
 loginFormStore.getLastError = function () {
-    return _lastError;
+    return null;
 };
 
 loginFormStore.dispatchToken = dispatcher.register(function (action) {

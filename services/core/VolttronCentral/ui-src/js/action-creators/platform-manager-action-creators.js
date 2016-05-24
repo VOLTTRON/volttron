@@ -36,14 +36,13 @@ var platformManagerActionCreators = {
 
                 var message = error.message;
 
-                if (error.message === "Server returned 401 status")
+                if (error.response.status === 401)
                 {
-                    message = "Login failed: Invalid credentials.";
+                    message = "Invalid username/password specified.";
                 }
 
                 statusIndicatorActionCreators.openStatusIndicator("error", message);
-
-                handle401(error);
+                handle401(error, error.message);
             })
     },
     clearAuthorization: function () {
@@ -80,10 +79,7 @@ var platformManagerActionCreators = {
                 });
             })
             .catch(rpc.Error, function (error) {
-
-                statusIndicatorActionCreators.openStatusIndicator("error", error.message);
-
-                handle401(error);
+                handle401(error, error.message);
             });
     },
     registerPlatform: function (name, address) {
@@ -135,14 +131,8 @@ var platformManagerActionCreators = {
                         break;
                 }
 
-                statusIndicatorActionCreators.openStatusIndicator("error", message);
-
-                handle401(error);
+                handle401(error, message);
             });
-
-            // dispatcher.dispatch({
-            //     type: ACTION_TYPES.CLOSE_STATUS,
-            // });
     },
     registerInstance: function (name, address) {
         var authorization = authorizationStore.getAuthorization();
@@ -181,13 +171,14 @@ var platformManagerActionCreators = {
                 switch (error.code)
                 {
                     case -32600:
-                        message = "The address was invalid."
+                        message = "The platform was not registered: Invalid address."
+                        break;
+                    case -32002:
+                        message = "The platform was not registered: " + error.message;
                         break;
                 }
 
-                statusIndicatorActionCreators.openStatusIndicator("error", message);
-
-                handle401(error);
+                handle401(error, message);
             });
     },
     deregisterPlatform: function (platform) {
@@ -217,24 +208,23 @@ var platformManagerActionCreators = {
                     type: ACTION_TYPES.DEREGISTER_PLATFORM_ERROR,
                     error: error,
                 });
-
-                statusIndicatorActionCreators.openStatusIndicator("error", error.message);
-
-                handle401(error);
+                handle401(error, error.message);
             });
     },
 };
 
-function handle401(error) {
-    if (error.code && error.code === 401) {
+function handle401(error, message) {
+    if ((error.code && error.code === 401) || (error.response && error.response.status === 401)) {
         dispatcher.dispatch({
             type: ACTION_TYPES.RECEIVE_UNAUTHORIZED,
             error: error,
         });
 
         platformManagerActionCreators.clearAuthorization();
-
-        statusIndicatorActionCreators.openStatusIndicator("error", error.message);
+    }
+    else
+    {
+        statusIndicatorActionCreators.openStatusIndicator("error", message);
     }
 }
 

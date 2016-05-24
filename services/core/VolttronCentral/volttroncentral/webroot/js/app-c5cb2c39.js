@@ -69,9 +69,12 @@ router.run(function (Handler) {
     );
 
     authorizationStore.addChangeListener(function () {
-        if (authorizationStore.getAuthorization() && router.isActive('/login')) {
+        if (authorizationStore.getAuthorization() && router.isActive('/login')) 
+        {
             router.replaceWith(_afterLoginPath);
-        } else if (!authorizationStore.getAuthorization() && !router.isActive('/login')) {
+        } 
+        else if (!authorizationStore.getAuthorization() && !router.isActive('/login')) 
+        {
             router.replaceWith('/login');
         }
     });
@@ -79,12 +82,12 @@ router.run(function (Handler) {
     platformChartsStore.addChangeListener(function () {
         if (platformChartsStore.showCharts() && authorizationStore.getAuthorization())
         {
-            console.log("current path: " + router.getCurrentPath());
+            // console.log("current path: " + router.getCurrentPath());
             if (!router.isActive('charts'))
             {
-                console.log("replace with /platform-charts");
-                // router.replaceWith('/platform-charts');
-                window.location.href = "index.html#/platform-charts";
+                // console.log("replace with /platform-charts");
+                router.replaceWith('/platform-charts');
+                // window.location.href = "index.html#/platform-charts";
             }
         }
 
@@ -238,17 +241,11 @@ var platformActionCreators = {
                         });
                     })            
                     .catch(rpc.Error, function (error) {
-
-                        statusIndicatorActionCreators.openStatusIndicator("error", "Error loading agents: " + error.message);
-
-                        handle401(error);
+                        handle401(error, "Error loading agents: " + error.message);
                     });
             })            
             .catch(rpc.Error, function (error) {
-
-                statusIndicatorActionCreators.openStatusIndicator("error", "Error loading agents: " + error.message);
-
-                handle401(error);
+                handle401(error, "Error loading agents: " + error.message);
             });
     },
     startAgent: function (platform, agent) {
@@ -271,10 +268,7 @@ var platformActionCreators = {
                 agent.return_code = status.return_code;
             })                        
             .catch(rpc.Error, function (error) {
-
-                statusIndicatorActionCreators.openStatusIndicator("error", "Error starting agent: " + error.message);
-
-                handle401(error);
+                handle401(error, "Error starting agent: " + error.message);
             })
             .finally(function () {
                 agent.actionPending = false;
@@ -305,10 +299,7 @@ var platformActionCreators = {
                 agent.return_code = status.return_code;
             })                      
             .catch(rpc.Error, function (error) {
-
-                statusIndicatorActionCreators.openStatusIndicator("error", "Error stopping agent: " + error.message);
-
-                handle401(error);
+                handle401(error, "Error stopping agent: " + error.message);
             })
             .finally(function () {
                 agent.actionPending = false;
@@ -345,11 +336,6 @@ var platformActionCreators = {
             .then(function (result) {
                 
                 if (result.error) {
-                    // dispatcher.dispatch({
-                    //     type: ACTION_TYPES.RECEIVE_PLATFORM_ERROR,
-                    //     platform: platform,
-                    //     error: result.error,
-                    // });
                     statusIndicatorActionCreators.openStatusIndicator("error", "Error removing agent: " + result.error);
                 }
                 else
@@ -358,10 +344,7 @@ var platformActionCreators = {
                 }
             })                      
             .catch(rpc.Error, function (error) {
-
-                statusIndicatorActionCreators.openStatusIndicator("error", "Error removing agent: " + error.message);
-
-                handle401(error);
+                handle401(error, "Error removing agent: " + error.message);
             });
     },
     installAgents: function (platform, files) {
@@ -384,11 +367,6 @@ var platformActionCreators = {
                 });
 
                 if (errors.length) {
-                    // dispatcher.dispatch({
-                    //     type: ACTION_TYPES.RECEIVE_PLATFORM_ERROR,
-                    //     platform: platform,
-                    //     error: errors.join('\n'),
-                    // });
                     statusIndicatorActionCreators.openStatusIndicator("error", "Error installing agents: " + errors.join('\n'));
                 }
 
@@ -397,10 +375,7 @@ var platformActionCreators = {
                 }
             })                      
             .catch(rpc.Error, function (error) {
-
-                statusIndicatorActionCreators.openStatusIndicator("error", "Error installing agents: " + error.message);
-
-                handle401(error);
+                handle401(error, "Error installing agents: " + error.message);
             });
     },    
     loadCharts: function (platform) {
@@ -430,19 +405,13 @@ var platformActionCreators = {
                             });
                         })
                         .catch(rpc.Error, function (error) {
-
-                            statusIndicatorActionCreators.openStatusIndicator("error", "Error loading charts: " + error.message);
-
-                            handle401(error);
+                            handle401(error, "Error loading charts: " + error.message);
                         });
                         
                     }
             })
             .catch(rpc.Error, function (error) {
-
-                statusIndicatorActionCreators.openStatusIndicator("error", "Error loading charts: " + error.message);
-
-                handle401(error);
+                handle401(error, "Error loading charts: " + error.message);
             });
 
 
@@ -469,10 +438,7 @@ var platformActionCreators = {
                 });
             })                      
             .catch(rpc.Error, function (error) {
-
-                statusIndicatorActionCreators.openStatusIndicator("error", "Error getting topic: " + error.message);
-
-                handle401(error);
+                handle401(error, "Error getting topic: " + error.message);
             });
     },
     saveCharts: function (chartsToSave) {
@@ -489,10 +455,7 @@ var platformActionCreators = {
 
             })
             .catch(rpc.Error, function (error) {
-
-                statusIndicatorActionCreators.openStatusIndicator("error", "Error saving charts: " + error.message);
-
-                handle401(error);
+                handle401(error, "Error saving charts: " + error.message);
             });
     },
     saveChart: function (newChart) {
@@ -509,10 +472,7 @@ var platformActionCreators = {
 
             })
             .catch(rpc.Error, function (error) {
-
-                statusIndicatorActionCreators.openStatusIndicator("error", "Error saving chart: " + error.message);
-
-                handle401(error);
+                handle401(error, "Error saving chart: " + error.message);
             });
     },
     deleteChart: function (chartToDelete) {
@@ -534,22 +494,23 @@ var platformActionCreators = {
 
             })
             .catch(rpc.Error, function (error) {
-
-                statusIndicatorActionCreators.openStatusIndicator("error", "Error deleting chart: " + error.message);
-
-                handle401(error);
+                handle401(error, "Error deleting chart: " + error.message);
             });
     },
 };
 
-function handle401(error) {
-    if (error.code && error.code === 401) {
+function handle401(error, message) {
+    if ((error.code && error.code === 401) || (error.response && error.response.status === 401)) {
         dispatcher.dispatch({
             type: ACTION_TYPES.RECEIVE_UNAUTHORIZED,
             error: error,
         });
 
         platformActionCreators.clearAuthorization();
+    }
+    else
+    {
+        statusIndicatorActionCreators.openStatusIndicator("error", message);
     }
 }
 
@@ -594,9 +555,7 @@ var platformChartActionCreators = {
 
 		var authorization = authorizationStore.getAuthorization();
 
-		series.forEach(function (item) {
-            var authorization = authorizationStore.getAuthorization();
-
+		series.forEach(function (item) {            
             new rpc.Exchange({
                 method: 'platforms.uuid.' + item.parentUuid + '.historian.query',
                 params: {
@@ -641,9 +600,7 @@ var platformChartActionCreators = {
                         }
                     }
 
-                    statusIndicatorActionCreators.openStatusIndicator("error", message);
-
-                    handle401(error);
+                    handle401(error, message);
                 });
 		});
 
@@ -712,9 +669,8 @@ var platformChartActionCreators = {
                     }
                 }
 
-                statusIndicatorActionCreators.openStatusIndicator("error", message);
                 platformsPanelActionCreators.checkItem(panelItem.path, false);
-                handle401(error);
+                handle401(error, message);
             });
     },
     removeFromChart: function(panelItem) {
@@ -737,24 +693,25 @@ var platformChartActionCreators = {
     },
     removeChart: function(chartName) {
 
-        console.log("platformChartActionCreators: removeChart, send dispatch");
         dispatcher.dispatch({
             type: ACTION_TYPES.REMOVE_CHART,
             name: chartName
         });
-        console.log("platformChartActionCreators: removeChart, after dispatch");
-
     }
 };
 
-function handle401(error) {
-    if (error.code && error.code === 401) {
+function handle401(error, message) {
+    if ((error.code && error.code === 401) || (error.response && error.response.status === 401)) {
         dispatcher.dispatch({
             type: ACTION_TYPES.RECEIVE_UNAUTHORIZED,
             error: error,
         });
 
         platformManagerActionCreators.clearAuthorization();
+    }
+    else
+    {
+        statusIndicatorActionCreators.openStatusIndicator("error", message);
     }
 };
 
@@ -800,14 +757,13 @@ var platformManagerActionCreators = {
 
                 var message = error.message;
 
-                if (error.message === "Server returned 401 status")
+                if (error.response.status === 401)
                 {
-                    message = "Login failed: Invalid credentials.";
+                    message = "Invalid username/password specified.";
                 }
 
                 statusIndicatorActionCreators.openStatusIndicator("error", message);
-
-                handle401(error);
+                handle401(error, error.message);
             })
     },
     clearAuthorization: function () {
@@ -844,10 +800,7 @@ var platformManagerActionCreators = {
                 });
             })
             .catch(rpc.Error, function (error) {
-
-                statusIndicatorActionCreators.openStatusIndicator("error", error.message);
-
-                handle401(error);
+                handle401(error, error.message);
             });
     },
     registerPlatform: function (name, address) {
@@ -899,14 +852,8 @@ var platformManagerActionCreators = {
                         break;
                 }
 
-                statusIndicatorActionCreators.openStatusIndicator("error", message);
-
-                handle401(error);
+                handle401(error, message);
             });
-
-            // dispatcher.dispatch({
-            //     type: ACTION_TYPES.CLOSE_STATUS,
-            // });
     },
     registerInstance: function (name, address) {
         var authorization = authorizationStore.getAuthorization();
@@ -945,13 +892,14 @@ var platformManagerActionCreators = {
                 switch (error.code)
                 {
                     case -32600:
-                        message = "The address was invalid."
+                        message = "The platform was not registered: Invalid address."
+                        break;
+                    case -32002:
+                        message = "The platform was not registered: " + error.message;
                         break;
                 }
 
-                statusIndicatorActionCreators.openStatusIndicator("error", message);
-
-                handle401(error);
+                handle401(error, message);
             });
     },
     deregisterPlatform: function (platform) {
@@ -981,24 +929,23 @@ var platformManagerActionCreators = {
                     type: ACTION_TYPES.DEREGISTER_PLATFORM_ERROR,
                     error: error,
                 });
-
-                statusIndicatorActionCreators.openStatusIndicator("error", error.message);
-
-                handle401(error);
+                handle401(error, error.message);
             });
     },
 };
 
-function handle401(error) {
-    if (error.code && error.code === 401) {
+function handle401(error, message) {
+    if ((error.code && error.code === 401) || (error.response && error.response.status === 401)) {
         dispatcher.dispatch({
             type: ACTION_TYPES.RECEIVE_UNAUTHORIZED,
             error: error,
         });
 
         platformManagerActionCreators.clearAuthorization();
-
-        statusIndicatorActionCreators.openStatusIndicator("error", error.message);
+    }
+    else
+    {
+        statusIndicatorActionCreators.openStatusIndicator("error", message);
     }
 }
 
@@ -1078,10 +1025,8 @@ var platformsPanelActionCreators = {
                     
                 })                     
                 .catch(rpc.Error, function (error) {
-
-                    statusIndicatorActionCreators.openStatusIndicator("error", "Error loading devices in side panel: " + error.message);
-                    handle401(error);
                     endLoadingData(platform);
+                    handle401(error, "Error loading devices in side panel: " + error.message);
                 });    
 
         }
@@ -1104,10 +1049,8 @@ var platformsPanelActionCreators = {
                     loadPerformanceStats(platform);
                 })                     
                 .catch(rpc.Error, function (error) {
-
-                    statusIndicatorActionCreators.openStatusIndicator("error", "Error loading agents in side panel: " + error.message);
-                    handle401(error);
                     endLoadingData(platform);
+                    handle401(error, "Error loading agents in side panel: " + error.message);
                 });    
         }       
 
@@ -1166,9 +1109,8 @@ var platformsPanelActionCreators = {
                                 }
                             }
 
-                            statusIndicatorActionCreators.openStatusIndicator("error", message);
-                            handle401(error);
                             endLoadingData(parent);
+                            handle401(error, message);
                         });   
             } 
         }
@@ -1217,19 +1159,18 @@ var platformsPanelActionCreators = {
     }    
 }
 
-
-
-
-function handle401(error) {
-    if (error.code && error.code === 401) {
+function handle401(error, message) {
+    if ((error.code && error.code === 401) || (error.response && error.response.status === 401)) {
         dispatcher.dispatch({
             type: ACTION_TYPES.RECEIVE_UNAUTHORIZED,
             error: error,
         });
 
         platformManagerActionCreators.clearAuthorization();
-
-        statusIndicatorActionCreators.openStatusIndicator("error", error.message);
+    }
+    else
+    {
+        statusIndicatorActionCreators.openStatusIndicator("error", message);
     }
 };
 
@@ -2743,7 +2684,6 @@ module.exports = PlatformChart;
 'use strict';
 
 var React = require('react');
-var Router = require('react-router');
 var PlatformChart = require('./platform-chart');
 var modalActionCreators = require('../action-creators/modal-action-creators');
 var platformActionCreators = require('../action-creators/platform-action-creators');
@@ -2835,7 +2775,7 @@ var PlatformCharts = React.createClass({displayName: "PlatformCharts",
 module.exports = PlatformCharts;
 
 
-},{"../action-creators/modal-action-creators":4,"../action-creators/platform-action-creators":5,"../action-creators/platform-manager-action-creators":7,"../action-creators/status-indicator-action-creators":9,"../stores/platform-chart-store":47,"../stores/platforms-store":51,"./platform-chart":23,"react":undefined,"react-router":undefined}],25:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":4,"../action-creators/platform-action-creators":5,"../action-creators/platform-manager-action-creators":7,"../action-creators/status-indicator-action-creators":9,"../stores/platform-chart-store":47,"../stores/platforms-store":51,"./platform-chart":23,"react":undefined}],25:[function(require,module,exports){
 'use strict';
 
 // var $ = require('jquery');
@@ -4442,6 +4382,7 @@ function RpcError(error) {
     this.code = error.code;
     this.message = error.message;
     this.data = error.data;
+    this.response = error.response;
 }
 RpcError.prototype = Object.create(Error.prototype);
 RpcError.prototype.constructor = RpcError;
@@ -4860,7 +4801,7 @@ var _lastError = null;
 var loginFormStore = new Store();
 
 loginFormStore.getLastError = function () {
-    return _lastError;
+    return null;
 };
 
 loginFormStore.dispatchToken = dispatcher.register(function (action) {

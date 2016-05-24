@@ -68,9 +68,12 @@ router.run(function (Handler) {
     );
 
     authorizationStore.addChangeListener(function () {
-        if (authorizationStore.getAuthorization() && router.isActive('/login')) {
+        if (authorizationStore.getAuthorization() && router.isActive('/login')) 
+        {
             router.replaceWith(_afterLoginPath);
-        } else if (!authorizationStore.getAuthorization() && !router.isActive('/login')) {
+        } 
+        else if (!authorizationStore.getAuthorization() && !router.isActive('/login')) 
+        {
             router.replaceWith('/login');
         }
     });

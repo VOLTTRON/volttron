@@ -35,9 +35,7 @@ var platformChartActionCreators = {
 
 		var authorization = authorizationStore.getAuthorization();
 
-		series.forEach(function (item) {
-            var authorization = authorizationStore.getAuthorization();
-
+		series.forEach(function (item) {            
             new rpc.Exchange({
                 method: 'platforms.uuid.' + item.parentUuid + '.historian.query',
                 params: {
@@ -82,9 +80,7 @@ var platformChartActionCreators = {
                         }
                     }
 
-                    statusIndicatorActionCreators.openStatusIndicator("error", message);
-
-                    handle401(error);
+                    handle401(error, message);
                 });
 		});
 
@@ -153,9 +149,8 @@ var platformChartActionCreators = {
                     }
                 }
 
-                statusIndicatorActionCreators.openStatusIndicator("error", message);
                 platformsPanelActionCreators.checkItem(panelItem.path, false);
-                handle401(error);
+                handle401(error, message);
             });
     },
     removeFromChart: function(panelItem) {
@@ -185,14 +180,18 @@ var platformChartActionCreators = {
     }
 };
 
-function handle401(error) {
-    if (error.code && error.code === 401) {
+function handle401(error, message) {
+    if ((error.code && error.code === 401) || (error.response && error.response.status === 401)) {
         dispatcher.dispatch({
             type: ACTION_TYPES.RECEIVE_UNAUTHORIZED,
             error: error,
         });
 
         platformManagerActionCreators.clearAuthorization();
+    }
+    else
+    {
+        statusIndicatorActionCreators.openStatusIndicator("error", message);
     }
 };
 
