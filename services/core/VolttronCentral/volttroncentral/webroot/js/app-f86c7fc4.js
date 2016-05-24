@@ -86,7 +86,7 @@ router.run(function (Handler) {
             if (!router.isActive('charts'))
             {
                 // console.log("replace with /platform-charts");
-                router.replaceWith('/platform-charts');
+                router.transitionTo('/platform-charts');
                 // window.location.href = "index.html#/platform-charts";
             }
         }
@@ -184,6 +184,7 @@ var dispatcher = require('../dispatcher');
 var rpc = require('../lib/rpc');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
 var platformChartActionCreators = require('../action-creators/platform-chart-action-creators');
+var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
 
 var platformActionCreators = {
     loadPlatform: function (platform) {
@@ -506,7 +507,7 @@ function handle401(error, message) {
             error: error,
         });
 
-        platformActionCreators.clearAuthorization();
+        platformManagerActionCreators.clearAuthorization();
     }
     else
     {
@@ -517,7 +518,7 @@ function handle401(error, message) {
 module.exports = platformActionCreators;
 
 
-},{"../action-creators/platform-chart-action-creators":6,"../action-creators/status-indicator-action-creators":9,"../constants/action-types":33,"../dispatcher":34,"../lib/rpc":37,"../stores/authorization-store":42,"../stores/platform-chart-store":47,"../stores/platforms-store":51}],6:[function(require,module,exports){
+},{"../action-creators/platform-chart-action-creators":6,"../action-creators/platform-manager-action-creators":7,"../action-creators/status-indicator-action-creators":9,"../constants/action-types":33,"../dispatcher":34,"../lib/rpc":37,"../stores/authorization-store":42,"../stores/platform-chart-store":47,"../stores/platforms-store":51}],6:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -527,6 +528,7 @@ var platformChartStore = require('../stores/platform-chart-store');
 var platformsStore = require('../stores/platforms-store');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
 var platformsPanelActionCreators = require('../action-creators/platforms-panel-action-creators');
+var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
 var platformActionCreators = require('../action-creators/platform-action-creators');
 var rpc = require('../lib/rpc');
 
@@ -718,7 +720,7 @@ function handle401(error, message) {
 module.exports = platformChartActionCreators;
 
 
-},{"../action-creators/platform-action-creators":5,"../action-creators/platforms-panel-action-creators":8,"../action-creators/status-indicator-action-creators":9,"../constants/action-types":33,"../dispatcher":34,"../lib/rpc":37,"../stores/authorization-store":42,"../stores/platform-chart-store":47,"../stores/platforms-store":51}],7:[function(require,module,exports){
+},{"../action-creators/platform-action-creators":5,"../action-creators/platform-manager-action-creators":7,"../action-creators/platforms-panel-action-creators":8,"../action-creators/status-indicator-action-creators":9,"../constants/action-types":33,"../dispatcher":34,"../lib/rpc":37,"../stores/authorization-store":42,"../stores/platform-chart-store":47,"../stores/platforms-store":51}],7:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -803,21 +805,23 @@ var platformManagerActionCreators = {
                 handle401(error, error.message);
             });
     },
-    registerPlatform: function (name, address) {
+    registerPlatform: function (name, address, method) {
         var authorization = authorizationStore.getAuthorization();
 
-        dispatcher.dispatch({
-            type: ACTION_TYPES.CLOSE_MODAL,
-        });
+        var rpcMethod;
 
-        dispatcher.dispatch({
-            type: ACTION_TYPES.OPEN_STATUS,
-            message: "Registering platform " + name + "...",
-            status: "success"
-        });
+        switch (method)
+        {
+            case "discovery":
+                rpcMethod = "register_instance";
+                break;
+            case "advanced":
+                rpcMethod = "register_platform";
+                break;
+        }
 
         new rpc.Exchange({
-            method: 'register_platform',
+            method: rpcMethod,
             authorization: authorization,
             params: {
                 identity: 'platform.agent',
@@ -827,59 +831,15 @@ var platformManagerActionCreators = {
         }).promise
             .then(function (result) {
                 dispatcher.dispatch({
-                    type: ACTION_TYPES.CLOSE_STATUS,
-                });
-
-                platformManagerActionCreators.loadPlatforms();
-
-                statusIndicatorActionCreators.openStatusIndicator("success", "Platform " + name + " was deregistered.");
-
-            })
-            .catch(rpc.Error, function (error) {
-                dispatcher.dispatch({
-                    type: ACTION_TYPES.REGISTER_PLATFORM_ERROR,
-                    error: error,
-                });
-
-                modalActionCreators.closeModal();
-
-                var message = error.message;
-
-                switch (error.code)
-                {
-                    case -32600:
-                        message = "The platform was not registered: Invalid address."
-                        break;
-                }
-
-                handle401(error, message);
-            });
-    },
-    registerInstance: function (name, address) {
-        var authorization = authorizationStore.getAuthorization();
-
-        new rpc.Exchange({
-            method: 'register_instance',
-            authorization: authorization,
-            params: {
-                display_name: name,
-                discovery_address: address,
-            },
-        }).promise
-            .then(function () {
-                dispatcher.dispatch({
                     type: ACTION_TYPES.CLOSE_MODAL,
                 });
 
                 statusIndicatorActionCreators.openStatusIndicator("success", "Platform " + name + " was registered.");
-
-                platformManagerActionCreators.loadPlatforms();
-                platformsPanelActionCreators.loadPanelPlatforms();
-
+        
+                platformManagerActionCreators.loadPlatforms();                
 
             })
             .catch(rpc.Error, function (error) {
-
                 dispatcher.dispatch({
                     type: ACTION_TYPES.REGISTER_PLATFORM_ERROR,
                     error: error,
@@ -896,6 +856,9 @@ var platformManagerActionCreators = {
                         break;
                     case -32002:
                         message = "The platform was not registered: " + error.message;
+                        break;
+                    case -32000:
+                        message = "The platform was not registered: An unknown error occurred.";
                         break;
                 }
 
@@ -922,7 +885,6 @@ var platformManagerActionCreators = {
                 statusIndicatorActionCreators.openStatusIndicator("success", "Platform " + platformName + " was deregistered.");
 
                 platformManagerActionCreators.loadPlatforms();
-                platformsPanelActionCreators.loadPanelPlatforms();
             })
             .catch(rpc.Error, function (error) {
                 dispatcher.dispatch({
@@ -959,6 +921,7 @@ var ACTION_TYPES = require('../constants/action-types');
 var authorizationStore = require('../stores/authorization-store');
 var platformsPanelItemsStore = require('../stores/platforms-panel-items-store');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
+var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
 var dispatcher = require('../dispatcher');
 var rpc = require('../lib/rpc');
 
@@ -1177,7 +1140,7 @@ function handle401(error, message) {
 module.exports = platformsPanelActionCreators;
 
 
-},{"../action-creators/status-indicator-action-creators":9,"../constants/action-types":33,"../dispatcher":34,"../lib/rpc":37,"../stores/authorization-store":42,"../stores/platforms-panel-items-store":49}],9:[function(require,module,exports){
+},{"../action-creators/platform-manager-action-creators":7,"../action-creators/status-indicator-action-creators":9,"../constants/action-types":33,"../dispatcher":34,"../lib/rpc":37,"../stores/authorization-store":42,"../stores/platforms-panel-items-store":49}],9:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -2024,34 +1987,11 @@ module.exports = LoginForm;
 'use strict';
 
 var React = require('react');
-var $ = require('jquery');
 
 var modalActionCreators = require('../action-creators/modal-action-creators');
 
 var Modal = React.createClass({displayName: "Modal",
-    mixins: [
-        require('react-onclickoutside')
-    ],
-    componentDidMount: function () {
-        window.addEventListener('keydown', this._closeModal);
-        this._focusDisabled = $('input,select,textarea,button,a', React.findDOMNode(this.refs.main)).attr('tabIndex', -1);
-    },
-    componentWillUnmount: function () {
-        window.removeEventListener('keydown', this._closeModal);
-        if (this._focusDisabled) {
-            this._focusDisabled.removeAttr('tabIndex');
-            delete this._focusDisabled;
-        }
-    },
-    handleClickOutside: function () {
-        modalActionCreators.closeModal();
-    },
-    _closeModal: function (e) {
-        if (e.keyCode === 27) {
-            modalActionCreators.closeModal();
-        }
-    },
-	_onClick: function (e) {
+    _onClick: function (e) {
 		if (e.target === e.currentTarget) {
 			modalActionCreators.closeModal();
 		}
@@ -2070,7 +2010,7 @@ var Modal = React.createClass({displayName: "Modal",
 module.exports = Modal;
 
 
-},{"../action-creators/modal-action-creators":4,"jquery":undefined,"react":undefined,"react-onclickoutside":undefined}],21:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":4,"react":undefined}],21:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2235,30 +2175,40 @@ var PlatformChart = React.createClass({displayName: "PlatformChart",
     },
     _removeChart: function () {
 
-        var deleteChart = function () {
-            modalActionCreators.closeModal();
+        // var deleteChart = function () {
+        //     modalActionCreators.closeModal();
 
-            this.props.chart.series.forEach(function (series) {
-                if (series.hasOwnProperty("path"))
-                {
-                    platformsPanelActionCreators.checkItem(series.path, false);
-                }
-            });
+        //     this.props.chart.series.forEach(function (series) {
+        //         if (series.hasOwnProperty("path"))
+        //         {
+        //             platformsPanelActionCreators.checkItem(series.path, false);
+        //         }
+        //     });
 
-            platformChartActionCreators.removeChart(this.props.chartKey);
-            platformActionCreators.saveCharts();
-        }
+        //     platformChartActionCreators.removeChart(this.props.chartKey);
+        //     platformActionCreators.saveCharts();
+        // }
 
-        modalActionCreators.openModal(
-            React.createElement(ConfirmForm, {
-                promptTitle: "Delete chart", 
-                preText: "Remove ", 
-                promptText: this.props.chartKey, 
-                postText: " chart from here and from Dashboard?", 
-                confirmText: "Delete", 
-                onConfirm: deleteChart.bind(this)}
-            )
-        );
+        // modalActionCreators.openModal(
+        //     <ConfirmForm
+        //         promptTitle="Delete chart"
+        //         preText="Remove "
+        //         promptText={this.props.chartKey}
+        //         postText=" chart from here and from Dashboard?"
+        //         confirmText="Delete"
+        //         onConfirm={deleteChart.bind(this)}>
+        //     </ConfirmForm>
+        // );
+
+        this.props.chart.series.forEach(function (series) {
+            if (series.hasOwnProperty("path"))
+            {
+                platformsPanelActionCreators.checkItem(series.path, false);
+            }
+        });
+
+        platformChartActionCreators.removeChart(this.props.chartKey);
+        platformActionCreators.saveCharts();
     },
     render: function () {
         var chartData = this.props.chart; 
@@ -2778,7 +2728,7 @@ module.exports = PlatformCharts;
 },{"../action-creators/modal-action-creators":4,"../action-creators/platform-action-creators":5,"../action-creators/platform-manager-action-creators":7,"../action-creators/status-indicator-action-creators":9,"../stores/platform-chart-store":47,"../stores/platforms-store":51,"./platform-chart":23,"react":undefined}],25:[function(require,module,exports){
 'use strict';
 
-// var $ = require('jquery');
+var $ = require('jquery');
 var React = require('react');
 var Router = require('react-router');
 
@@ -2812,29 +2762,29 @@ var PlatformManager = React.createClass({displayName: "PlatformManager",
         modalStore.addChangeListener(this._onStoreChange);
         platformsPanelStore.addChangeListener(this._onStoreChange);
         statusIndicatorStore.addChangeListener(this._onStoreChange);
-        // this._doModalBindings();
+        this._doModalBindings();
     },
-    // componentDidUpdate: function () {
-    //     // this._doModalBindings();
-    // },
-    // _doModalBindings: function () {
-        // if (this.state.modalContent) {
-        //     // window.addEventListener('keydown', this._closeModal);
-        //     this._focusDisabled = $('input,select,textarea,button,a', React.findDOMNode(this.refs.main)).attr('tabIndex', -1);
-        // } else {
-        //     // window.removeEventListener('keydown', this._closeModal);
-        //     if (this._focusDisabled) {
-        //         this._focusDisabled.removeAttr('tabIndex');
-        //         delete this._focusDisabled;
-        //     }
-        // }
-    // },
+    componentDidUpdate: function () {
+        this._doModalBindings();
+    },
+    _doModalBindings: function () {
+        if (this.state.modalContent) {
+            window.addEventListener('keydown', this._closeModal);
+            this._focusDisabled = $('input,select,textarea,button,a', React.findDOMNode(this.refs.main)).attr('tabIndex', -1);
+        } else {
+            window.removeEventListener('keydown', this._closeModal);
+            if (this._focusDisabled) {
+                this._focusDisabled.removeAttr('tabIndex');
+                delete this._focusDisabled;
+            }
+        }
+    },
     componentWillUnmount: function () {
         authorizationStore.removeChangeListener(this._onStoreChange);
         consoleStore.removeChangeListener(this._onStoreChange);
         modalStore.removeChangeListener(this._onStoreChange);
         statusIndicatorStore.removeChangeListener(this._onStoreChange);
-        // this._modalCleanup();
+        this._modalCleanup();
     },
     _onStoreChange: function () {
         this.setState(getStateFromStores());
@@ -2842,11 +2792,11 @@ var PlatformManager = React.createClass({displayName: "PlatformManager",
     _onToggleClick: function () {
         consoleActionCreators.toggleConsole();
     },
-    // _closeModal: function (e) {
-    //     if (e.keyCode === 27) {
-    //         modalActionCreators.closeModal();
-    //     }
-    // },
+    _closeModal: function (e) {
+        if (e.keyCode === 27) {
+            modalActionCreators.closeModal();
+        }
+    },
     render: function () {
         var classes = ['platform-manager'];
         var modal;
@@ -2926,7 +2876,7 @@ function getStateFromStores() {
 module.exports = PlatformManager;
 
 
-},{"../action-creators/console-action-creators":2,"../action-creators/modal-action-creators":4,"../action-creators/platform-manager-action-creators":7,"../stores/authorization-store":42,"../stores/console-store":43,"../stores/modal-store":46,"../stores/platforms-panel-store":50,"../stores/status-indicator-store":52,"./console":13,"./modal":20,"./navigation":21,"./platforms-panel":28,"./status-indicator":32,"react":undefined,"react-router":undefined}],26:[function(require,module,exports){
+},{"../action-creators/console-action-creators":2,"../action-creators/modal-action-creators":4,"../action-creators/platform-manager-action-creators":7,"../stores/authorization-store":42,"../stores/console-store":43,"../stores/modal-store":46,"../stores/platforms-panel-store":50,"../stores/status-indicator-store":52,"./console":13,"./modal":20,"./navigation":21,"./platforms-panel":28,"./status-indicator":32,"jquery":undefined,"react":undefined,"react-router":undefined}],26:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -3805,6 +3755,35 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
     _onStoresChange: function () {
         this.setState(getStateFromStores());
     },
+    _onKeyDown: function (e) {
+        // if (e.keyCode === 9) //tab key
+        // {
+        //     var inputs = e.currentTarget.parentNode.parentNode.querySelectorAll("input");
+
+        //     var index = -1;
+
+        //     for (var i = 0; i < inputs.length; i++)
+        //     {
+        //         if (inputs[i] === e.currentTarget)
+        //         {
+        //             index = i;
+        //             break;
+        //         }
+        //     }
+            
+        //     if (index > -1)
+        //     {
+        //         if (i < inputs.length - 1)
+        //         {
+        //             inputs[index + 1].focus();
+        //         }
+        //         else
+        //         {
+        //             inputs[0].focus();
+        //         }
+        //     }
+        // }
+    },
     _onNameChange: function (e) {
         this.setState({ name: e.target.value });
     },
@@ -3828,19 +3807,9 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
         this.setState({ method: (this.state.method === "discovery" ? "advanced" : "discovery") });
     },
     _onCancelClick: modalActionCreators.closeModal,
-    _onSubmitDiscovery: function () {
-
-        platformManagerActionCreators.registerInstance(
-            this.state.name, 
-            this.state.discovery_address);
-        
-    },
-    _onSubmitAdvanced: function () {
-
-        platformManagerActionCreators.registerPlatform(
-            this.state.name,             
-            this._formatAddress());
-        
+    _onSubmit: function () {
+        var address = (this.state.method === "disovery" ? this.state.discovery_address : this._formatAddress());
+        platformManagerActionCreators.registerPlatform(this.state.name, address, this.state.method);
     },
     _formatAddress: function () {
 
@@ -3874,8 +3843,6 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
         switch (this.state.method)
         {
             case "discovery":
-                submitMethod = this._onSubmitDiscovery;
-
                 registerForm = (
                     React.createElement("div", null, 
                         React.createElement("div", {className: "tableDiv"}, 
@@ -3883,9 +3850,10 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
                                 React.createElement("div", {className: "cellDiv firstCell"}, 
                                     React.createElement("label", {className: "formLabel"}, "Name"), 
                                     React.createElement("input", {
-                                        className: "form__control form__control--block", 
+                                        className: "form__control form__control--block inputField", 
                                         type: "text", 
                                         onChange: this._onNameChange, 
+                                        onKeyDown: this._onKeyDown.bind(this), 
                                         value: this.state.name, 
                                         autoFocus: true, 
                                         required: true}
@@ -3895,9 +3863,10 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
                                     width: "70%"}, 
                                     React.createElement("label", {className: "formLabel"}, "Address"), 
                                     React.createElement("input", {
-                                        className: "form__control form__control--block", 
+                                        className: "form__control form__control--block inputField", 
                                         type: "text", 
                                         onChange: this._onAddressChange, 
+                                        onKeyDown: this._onKeyDown.bind(this), 
                                         value: this.state.discovery_address, 
                                         required: true}
                                     )
@@ -3937,8 +3906,6 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
                 )
                 break;
             case "advanced":
-
-                submitMethod = this._onSubmitAdvanced;
 
                 registerForm = (
                     React.createElement("div", null, 
@@ -4072,7 +4039,7 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
         }
 
         return (
-            React.createElement("form", {className: "register-platform-form", onSubmit: submitMethod}, 
+            React.createElement("form", {className: "register-platform-form", onSubmit: this._onSubmit}, 
                 React.createElement("h1", null, "Register platform"), 
                 this.state.error && (
                     React.createElement("div", {className: "error"}, this.state.error.message)
@@ -5284,8 +5251,15 @@ var _goodLabel = "Healthy";
 var _unknownLabel = "Unknown Status";
 
 var _loadingDataComplete = {};
+var _lastCheck = false;
 
 var platformsPanelItemsStore = new Store();
+
+platformsPanelItemsStore.getLastCheck = function ()
+{
+    return _lastCheck;
+}
+
 
 platformsPanelItemsStore.findTopicInTree = function (topic)
 {
@@ -5593,6 +5567,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             _items.platforms = {};
             _loadingDataComplete = {};
             _expanded = false;
+            _lastCheck = false;
 
             break;
         case ACTION_TYPES.FILTER_ITEMS:
@@ -5600,6 +5575,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             var filterTerm = action.filterTerm;
             var filterStatus = action.filterStatus;
             platformsPanelItemsStore.loadFilteredItems(filterTerm, filterStatus);
+            _lastCheck = false;
 
             platformsPanelItemsStore.emitChange();
 
@@ -5611,6 +5587,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             var expanded = (item.expanded !== null ? !item.expanded : true);
 
             expandAllChildren(item, expanded);
+            _lastCheck = false;
 
             platformsPanelItemsStore.emitChange();
 
@@ -5620,6 +5597,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
             var item = platformsPanelItemsStore.getItem(action.itemPath);
             item.expanded = !item.expanded;
+            _lastCheck = false;
 
             platformsPanelItemsStore.emitChange();
 
@@ -5630,6 +5608,8 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             var item = platformsPanelItemsStore.getItem(action.itemPath);
             item.checked = action.checked;
 
+            _lastCheck = action.checked;
+
             platformsPanelItemsStore.emitChange();
 
             break;
@@ -5637,6 +5617,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
         case ACTION_TYPES.START_LOADING_DATA:
 
             _loadingDataComplete[action.panelItem.uuid] = false;
+            _lastCheck = false;
 
             break;
 
@@ -5680,7 +5661,8 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
             platformsToRemove.forEach(function (uuid) {
                 delete _items.platforms[uuid];
-            });            
+            });     
+            _lastCheck = false;       
             
             platformsPanelItemsStore.emitChange();
             break;
@@ -5692,6 +5674,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             {
                 insertAgents(platform, action.agents);
             }
+            _lastCheck = false;
 
             // platformsPanelItemsStore.emitChange();
             break;
@@ -5703,6 +5686,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             {
                 insertDevices(platform, action.devices);
             }
+            _lastCheck = false;
 
             // platformsPanelItemsStore.emitChange();
             break;
@@ -5769,6 +5753,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
                     break;
             }
+            _lastCheck = false;
 
             platformsPanelItemsStore.emitChange();
             break;
@@ -5778,6 +5763,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             _loadingDataComplete[action.panelItem.uuid] = true;
 
             updatePlatformStatus(action.panelItem.uuid);
+            _lastCheck = false;
 
             platformsPanelItemsStore.emitChange();
 

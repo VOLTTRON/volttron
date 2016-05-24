@@ -8,6 +8,7 @@ var dispatcher = require('../dispatcher');
 var rpc = require('../lib/rpc');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
 var platformChartActionCreators = require('../action-creators/platform-chart-action-creators');
+var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
 
 var platformActionCreators = {
     loadPlatform: function (platform) {
@@ -330,7 +331,7 @@ function handle401(error, message) {
             error: error,
         });
 
-        platformActionCreators.clearAuthorization();
+        platformManagerActionCreators.clearAuthorization();
     }
     else
     {

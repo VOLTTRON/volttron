@@ -4,6 +4,7 @@ var ACTION_TYPES = require('../constants/action-types');
 var authorizationStore = require('../stores/authorization-store');
 var platformsPanelItemsStore = require('../stores/platforms-panel-items-store');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
+var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
 var dispatcher = require('../dispatcher');
 var rpc = require('../lib/rpc');
 

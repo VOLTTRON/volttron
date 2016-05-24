@@ -85,7 +85,7 @@ router.run(function (Handler) {
             if (!router.isActive('charts'))
             {
                 // console.log("replace with /platform-charts");
-                router.replaceWith('/platform-charts');
+                router.transitionTo('/platform-charts');
                 // window.location.href = "index.html#/platform-charts";
             }
         }

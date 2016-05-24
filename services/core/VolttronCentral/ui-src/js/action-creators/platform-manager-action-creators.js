@@ -82,21 +82,23 @@ var platformManagerActionCreators = {
                 handle401(error, error.message);
             });
     },
-    registerPlatform: function (name, address) {
+    registerPlatform: function (name, address, method) {
         var authorization = authorizationStore.getAuthorization();
 
-        dispatcher.dispatch({
-            type: ACTION_TYPES.CLOSE_MODAL,
-        });
+        var rpcMethod;
 
-        dispatcher.dispatch({
-            type: ACTION_TYPES.OPEN_STATUS,
-            message: "Registering platform " + name + "...",
-            status: "success"
-        });
+        switch (method)
+        {
+            case "discovery":
+                rpcMethod = "register_instance";
+                break;
+            case "advanced":
+                rpcMethod = "register_platform";
+                break;
+        }
 
         new rpc.Exchange({
-            method: 'register_platform',
+            method: rpcMethod,
             authorization: authorization,
             params: {
                 identity: 'platform.agent',
@@ -106,59 +108,15 @@ var platformManagerActionCreators = {
         }).promise
             .then(function (result) {
                 dispatcher.dispatch({
-                    type: ACTION_TYPES.CLOSE_STATUS,
-                });
-
-                platformManagerActionCreators.loadPlatforms();
-
-                statusIndicatorActionCreators.openStatusIndicator("success", "Platform " + name + " was deregistered.");
-
-            })
-            .catch(rpc.Error, function (error) {
-                dispatcher.dispatch({
-                    type: ACTION_TYPES.REGISTER_PLATFORM_ERROR,
-                    error: error,
-                });
-
-                modalActionCreators.closeModal();
-
-                var message = error.message;
-
-                switch (error.code)
-                {
-                    case -32600:
-                        message = "The platform was not registered: Invalid address."
-                        break;
-                }
-
-                handle401(error, message);
-            });
-    },
-    registerInstance: function (name, address) {
-        var authorization = authorizationStore.getAuthorization();
-
-        new rpc.Exchange({
-            method: 'register_instance',
-            authorization: authorization,
-            params: {
-                display_name: name,
-                discovery_address: address,
-            },
-        }).promise
-            .then(function () {
-                dispatcher.dispatch({
                     type: ACTION_TYPES.CLOSE_MODAL,
                 });
 
                 statusIndicatorActionCreators.openStatusIndicator("success", "Platform " + name + " was registered.");
-
-                platformManagerActionCreators.loadPlatforms();
-                platformsPanelActionCreators.loadPanelPlatforms();
-
+        
+                platformManagerActionCreators.loadPlatforms();                
 
             })
             .catch(rpc.Error, function (error) {
-
                 dispatcher.dispatch({
                     type: ACTION_TYPES.REGISTER_PLATFORM_ERROR,
                     error: error,
@@ -175,6 +133,9 @@ var platformManagerActionCreators = {
                         break;
                     case -32002:
                         message = "The platform was not registered: " + error.message;
+                        break;
+                    case -32000:
+                        message = "The platform was not registered: An unknown error occurred.";
                         break;
                 }
 
@@ -201,7 +162,6 @@ var platformManagerActionCreators = {
                 statusIndicatorActionCreators.openStatusIndicator("success", "Platform " + platformName + " was deregistered.");
 
                 platformManagerActionCreators.loadPlatforms();
-                platformsPanelActionCreators.loadPanelPlatforms();
             })
             .catch(rpc.Error, function (error) {
                 dispatcher.dispatch({

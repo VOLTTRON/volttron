@@ -49,19 +49,9 @@ var RegisterPlatformForm = React.createClass({
         this.setState({ method: (this.state.method === "discovery" ? "advanced" : "discovery") });
     },
     _onCancelClick: modalActionCreators.closeModal,
-    _onSubmitDiscovery: function () {
-
-        platformManagerActionCreators.registerInstance(
-            this.state.name, 
-            this.state.discovery_address);
-        
-    },
-    _onSubmitAdvanced: function () {
-
-        platformManagerActionCreators.registerPlatform(
-            this.state.name,             
-            this._formatAddress());
-        
+    _onSubmit: function () {
+        var address = (this.state.method === "disovery" ? this.state.discovery_address : this._formatAddress());
+        platformManagerActionCreators.registerPlatform(this.state.name, address, this.state.method);
     },
     _formatAddress: function () {
 
@@ -95,8 +85,6 @@ var RegisterPlatformForm = React.createClass({
         switch (this.state.method)
         {
             case "discovery":
-                submitMethod = this._onSubmitDiscovery;
-
                 registerForm = (
                     <div>
                         <div className="tableDiv">
@@ -104,7 +92,7 @@ var RegisterPlatformForm = React.createClass({
                                 <div className="cellDiv firstCell">
                                     <label className="formLabel">Name</label>
                                     <input
-                                        className="form__control form__control--block"
+                                        className="form__control form__control--block inputField"
                                         type="text"
                                         onChange={this._onNameChange}
                                         value={this.state.name}
@@ -116,7 +104,7 @@ var RegisterPlatformForm = React.createClass({
                                     width="70%">
                                     <label className="formLabel">Address</label>
                                     <input
-                                        className="form__control form__control--block"
+                                        className="form__control form__control--block inputField"
                                         type="text"
                                         onChange={this._onAddressChange}
                                         value={this.state.discovery_address}
@@ -158,8 +146,6 @@ var RegisterPlatformForm = React.createClass({
                 )
                 break;
             case "advanced":
-
-                submitMethod = this._onSubmitAdvanced;
 
                 registerForm = (
                     <div>
@@ -293,7 +279,7 @@ var RegisterPlatformForm = React.createClass({
         }
 
         return (
-            <form className="register-platform-form" onSubmit={submitMethod}>
+            <form className="register-platform-form" onSubmit={this._onSubmit}>
                 <h1>Register platform</h1>
                 {this.state.error && (
                     <div className="error">{this.state.error.message}</div>
