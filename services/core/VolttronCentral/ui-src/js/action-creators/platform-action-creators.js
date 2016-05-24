@@ -15,12 +15,6 @@ var platformActionCreators = {
         platformActionCreators.loadAgents(platform);
         platformActionCreators.loadCharts(platform);
     },
-    clearPlatformError: function (platform) {
-        dispatcher.dispatch({
-            type: ACTION_TYPES.CLEAR_PLATFORM_ERROR,
-            platform: platform,
-        });
-    },
     loadAgents: function (platform) {
         var authorization = authorizationStore.getAuthorization();
 
@@ -241,30 +235,6 @@ var platformActionCreators = {
 
 
         
-    },
-    getTopicData: function (platform, topic) {
-        var authorization = authorizationStore.getAuthorization();
-
-        new rpc.Exchange({
-            method: 'platforms.uuid.' + platform.uuid + '.historian.query',
-            params: {
-                topic: topic,
-                count: 20,
-                order: 'LAST_TO_FIRST',
-            },
-            authorization: authorization,
-        }).promise
-            .then(function (result) {
-                dispatcher.dispatch({
-                    type: ACTION_TYPES.RECEIVE_PLATFORM_TOPIC_DATA,
-                    platform: platform,
-                    topic: topic,
-                    data: result.values,
-                });
-            })                      
-            .catch(rpc.Error, function (error) {
-                handle401(error, "Error getting topic: " + error.message);
-            });
     },
     saveCharts: function (chartsToSave) {
         var authorization = authorizationStore.getAuthorization();

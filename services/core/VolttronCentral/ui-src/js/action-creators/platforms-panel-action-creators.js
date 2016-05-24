@@ -16,19 +16,19 @@ var platformsPanelActionCreators = {
         });
     },
 
-    closePanel: function() {
+    // closePanel: function() {
 
-        dispatcher.dispatch({
-            type: ACTION_TYPES.CLOSE_PLATFORMS_PANEL,
-        });
-    },
+    //     dispatcher.dispatch({
+    //         type: ACTION_TYPES.CLOSE_PLATFORMS_PANEL,
+    //     });
+    // },
 
-    resetPanel: function() {
+    // resetPanel: function() {
 
-        dispatcher.dispatch({
-            type: ACTION_TYPES.RESET_PLATFORMS_PANEL,
-        });
-    },
+    //     dispatcher.dispatch({
+    //         type: ACTION_TYPES.RESET_PLATFORMS_PANEL,
+    //     });
+    // },
 
     loadChildren: function(type, parent)
     {

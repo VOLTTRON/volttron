@@ -41,10 +41,10 @@ var platformManagerActionCreators = {
                     message = "Invalid username/password specified.";
                 }
 
-                statusIndicatorActionCreators.openStatusIndicator("error", message);
-                handle401(error, error.message);
-            })
-    },
+                statusIndicatorActionCreators.openStatusIndicator("error", message); //This is needed because the 401 status will keep the status 
+                handle401(error, error.message);                                    // indicator from being shown. This is the one time we
+            })                                                                      // show bad status for not authorized. Other times, we
+    },                                                                              // just log them out.
     clearAuthorization: function () {
         dispatcher.dispatch({
             type: ACTION_TYPES.CLEAR_AUTHORIZATION,
@@ -117,11 +117,7 @@ var platformManagerActionCreators = {
 
             })
             .catch(rpc.Error, function (error) {
-                dispatcher.dispatch({
-                    type: ACTION_TYPES.REGISTER_PLATFORM_ERROR,
-                    error: error,
-                });
-
+                
                 modalActionCreators.closeModal();
 
                 var message = error.message;
@@ -163,11 +159,7 @@ var platformManagerActionCreators = {
 
                 platformManagerActionCreators.loadPlatforms();
             })
-            .catch(rpc.Error, function (error) {
-                dispatcher.dispatch({
-                    type: ACTION_TYPES.DEREGISTER_PLATFORM_ERROR,
-                    error: error,
-                });
+            .catch(rpc.Error, function (error) {                
                 handle401(error, error.message);
             });
     },

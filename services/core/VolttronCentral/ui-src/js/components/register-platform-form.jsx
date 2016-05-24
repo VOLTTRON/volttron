@@ -4,11 +4,10 @@ var React = require('react');
 
 var modalActionCreators = require('../action-creators/modal-action-creators');
 var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
-var platformRegistrationStore = require('../stores/platform-registration-store');
 
 var RegisterPlatformForm = React.createClass({
     getInitialState: function () {
-        var state = getStateFromStores();
+        var state = {};
         
         state.method = 'discovery';
 
@@ -16,15 +15,6 @@ var RegisterPlatformForm = React.createClass({
         state.protocol = 'tcp';
 
         return state;
-    },
-    componentDidMount: function () {
-        platformRegistrationStore.addChangeListener(this._onStoresChange);
-    },
-    componentWillUnmount: function () {
-        platformRegistrationStore.removeChangeListener(this._onStoresChange);
-    },
-    _onStoresChange: function () {
-        this.setState(getStateFromStores());
     },
     _onNameChange: function (e) {
         this.setState({ name: e.target.value });
@@ -281,18 +271,11 @@ var RegisterPlatformForm = React.createClass({
         return (
             <form className="register-platform-form" onSubmit={this._onSubmit}>
                 <h1>Register platform</h1>
-                {this.state.error && (
-                    <div className="error">{this.state.error.message}</div>
-                )}
                 {registerForm}
 
             </form>
         );
     },
 });
-
-function getStateFromStores() {
-    return { error: platformRegistrationStore.getLastDeregisterError() };
-}
 
 module.exports = RegisterPlatformForm;
