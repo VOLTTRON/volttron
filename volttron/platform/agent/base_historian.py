@@ -368,7 +368,6 @@ class BaseHistorian(Agent):
         return output_topic
 
     def _capture_record_data(self, peer, sender, bus, topic, headers, message):
-#         _log.debug('Capture record data {}'.format(message))
         # Anon the topic if necessary.
         topic = self._get_topic(topic)
         timestamp_string = headers.get(headers_mod.DATE, None)
@@ -410,7 +409,6 @@ class BaseHistorian(Agent):
         _log.debug(
             "Queuing {topic} from {source} for publish".format(topic=topic,
                                                                source=source))
-#         _log.debug(data)
         for point, item in data.iteritems():
             #             ts_path = location + '/' + point
             if 'Readings' not in item or 'Units' not in item:
@@ -491,15 +489,12 @@ class BaseHistorian(Agent):
         timestamp = get_aware_utc_now()
         if timestamp_string is not None:
             timestamp, my_tz = process_timestamp(timestamp_string, topic)
-#         _log.debug("### In capture_data timestamp str {} ".format(timestamp))
         try:
-#             _log.debug("### In capture_data Actual message {} ".format(message))
             # 2.0 agents compatability layer makes sender == pubsub.compat so
             # we can do the proper thing when it is here
             if sender == 'pubsub.compat':
                 # message = jsonapi.loads(message[0])
                 message = compat.unpack_legacy_message(headers, message)
-#                 _log.debug("### message after compat {}".format(message))
 
             if isinstance(message, dict):
                 values = message
@@ -544,7 +539,6 @@ class BaseHistorian(Agent):
         # Anon the topic if necessary.
         topic = self._get_topic(topic)
         timestamp_string = headers.get('time')
-        _log.debug("TIMESTMAMP_STRING: {}".format(timestamp_string))
         if timestamp_string is None:
             _log.error(
                 "message for {topic} missing timetamp".format(topic=topic))
