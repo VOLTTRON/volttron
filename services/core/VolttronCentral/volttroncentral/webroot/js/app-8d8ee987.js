@@ -779,25 +779,31 @@ var platformManagerActionCreators = {
         var authorization = authorizationStore.getAuthorization();
 
         var rpcMethod;
+        var params = {};
 
         switch (method)
         {
             case "discovery":
-                rpcMethod = "register_instance";
+                rpcMethod = 'register_instance';
+                params = {
+                    display_name: name,
+                    discovery_address: address
+                }
                 break;
             case "advanced":
-                rpcMethod = "register_platform";
+                rpcMethod = 'register_platform';
+                params = {
+                    identity: 'platform.agent',
+                    agentId: name,
+                    address: address
+                }
                 break;
         }
 
         new rpc.Exchange({
             method: rpcMethod,
             authorization: authorization,
-            params: {
-                identity: 'platform.agent',
-                agentId: name,
-                address: address,
-            },
+            params: params,
         }).promise
             .then(function (result) {
                 dispatcher.dispatch({
@@ -3695,7 +3701,7 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
     },
     _onCancelClick: modalActionCreators.closeModal,
     _onSubmit: function () {
-        var address = (this.state.method === "disovery" ? this.state.discovery_address : this._formatAddress());
+        var address = (this.state.method === "discovery" ? this.state.discovery_address : this._formatAddress());
         platformManagerActionCreators.registerPlatform(this.state.name, address, this.state.method);
     },
     _formatAddress: function () {

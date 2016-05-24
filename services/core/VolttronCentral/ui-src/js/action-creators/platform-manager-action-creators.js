@@ -86,25 +86,31 @@ var platformManagerActionCreators = {
         var authorization = authorizationStore.getAuthorization();
 
         var rpcMethod;
+        var params = {};
 
         switch (method)
         {
             case "discovery":
-                rpcMethod = "register_instance";
+                rpcMethod = 'register_instance';
+                params = {
+                    display_name: name,
+                    discovery_address: address
+                }
                 break;
             case "advanced":
-                rpcMethod = "register_platform";
+                rpcMethod = 'register_platform';
+                params = {
+                    identity: 'platform.agent',
+                    agentId: name,
+                    address: address
+                }
                 break;
         }
 
         new rpc.Exchange({
             method: rpcMethod,
             authorization: authorization,
-            params: {
-                identity: 'platform.agent',
-                agentId: name,
-                address: address,
-            },
+            params: params,
         }).promise
             .then(function (result) {
                 dispatcher.dispatch({
