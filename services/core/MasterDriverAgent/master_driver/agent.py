@@ -217,6 +217,18 @@ class MasterDriverAgent(Agent):
         return self.instances[path].get_point(point_name, **kwargs)
     
     @RPC.export
+    def set_multiple_points(self, path, point_names_values, **kwargs):
+        results = {}
+
+        for point_name, value in point_names_values:
+            try:
+                self.instances[path].set_point(point_name, value, **kwargs)
+            except Exception as e:
+                results[path + '/' + point_name] = repr(e)
+
+        return results
+
+    @RPC.export
     def set_point(self, path, point_name, value, **kwargs):
         return self.instances[path].set_point(point_name, value, **kwargs)
     
@@ -233,19 +245,11 @@ class MasterDriverAgent(Agent):
     @RPC.export
     def revert_device(self, path, **kwargs):
         self.instances[path].revert_all(**kwargs)
-                
-            
-    
-
-
 
 
 def main(argv=sys.argv):
     '''Main method called to start the agent.'''
-    #try:
     utils.vip_main(master_driver_agent)
-    #except Exception:
-    #    _log.exception('unhandled exception')
 
 
 if __name__ == '__main__':

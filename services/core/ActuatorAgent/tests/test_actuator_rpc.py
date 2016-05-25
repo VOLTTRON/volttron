@@ -1757,3 +1757,101 @@ def test_set_error_read_only_point(publish_agent, cancel_schedules):
     except RemoteError as e:
         assert e.message == "IOError('Trying to write to a point configured " \
                             "read only: OutsideAirTemperature1')"
+
+@pytest.mark.actuator
+def test_set_multiple_points(publish_agent, cancel_schedules):
+    agentid = TEST_AGENT
+    taskid0 = 'task_point_on_device_0'
+    taskid1 = 'task_point_on_device_1'
+    cancel_schedules.append({'agentid': agentid, 'taskid': taskid0})
+    cancel_schedules.append({'agentid': agentid, 'taskid': taskid1})
+
+    start = str(datetime.now())
+    end = str(datetime.now() + timedelta(seconds=2))
+
+    msg = [
+        ['fakedriver0', start, end]
+    ]
+    result = publish_agent.vip.rpc.call(
+        PLATFORM_ACTUATOR,
+        REQUEST_NEW_SCHEDULE,
+        agentid,
+        taskid0,
+        PRIORITY_LOW,
+        msg).get(timeout=10)
+    assert result['result'] == SUCCESS
+
+    msg = [
+        ['fakedriver1', start, end]
+    ]
+    result = publish_agent.vip.rpc.call(
+        PLATFORM_ACTUATOR,
+        REQUEST_NEW_SCHEDULE,
+        agentid,
+        taskid1,
+        PRIORITY_LOW,
+        msg).get(timeout=10)
+    assert result['result'] == SUCCESS
+
+    result = publish_agent.vip.rpc.call(
+        'platform.actuator',
+        'set_multiple_points',
+        agentid,
+        [('fakedriver0/SampleWritableFloat1', 42),
+         ('fakedriver1/SampleWritableFloat1', 42)]).get(timeout=10)
+
+    assert result == {}
+
+
+@pytest.mark.actuator
+def test_set_multiple_raises_lock_error(publish_agent, cancel_schedules):
+    agentid = TEST_AGENT
+
+    try:
+        result = publish_agent.vip.rpc.call(
+            'platform.actuator',
+            'set_multiple_points',
+            agentid,
+            [('fakedriver0/SampleWritableFloat1', 42)]).get(timeout=10)
+
+        pytest.fail('Expecting LockError. Code returned: {}'.format(result))
+    except Exception as e:
+        assert e.exc_info['exc_type'] == 'actuator.agent.LockError'
+        assert e.message == \
+            "caller ({}) does not lock for device {}".format(TEST_AGENT, 'fakedriver0')
+
+
+@pytest.mark.actuator
+def test_set_multiple_captures_errors(publish_agent, cancel_schedules):
+    agentid = TEST_AGENT
+    taskid = 'task_point_on_device_0'
+    cancel_schedules.append({'agentid': agentid, 'taskid': taskid})
+
+    start = str(datetime.now())
+    end = str(datetime.now() + timedelta(seconds=2))
+
+    msg = [
+        ['fakedriver0', start, end]
+    ]
+    result = publish_agent.vip.rpc.call(
+        PLATFORM_ACTUATOR,
+        REQUEST_NEW_SCHEDULE,
+        agentid,
+        taskid,
+        PRIORITY_LOW,
+        msg).get(timeout=10)
+    assert result['result'] == SUCCESS
+
+    result = publish_agent.vip.rpc.call(
+        'platform.actuator',
+        'set_multiple_points',
+        agentid,
+        [('fakedriver0/OutsideAirTemperature1', 42)]).get(timeout=10)
+
+    try:
+        r = result['fakedriver0/OutsideAirTemperature1']
+        assert r == "IOError('Trying to write to a point configured read only: OutsideAirTemperature1',)"
+    except KeyError:
+        pytest.fail('read only point did not raise an exception')
+
+    assert True
