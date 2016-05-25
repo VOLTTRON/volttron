@@ -4,8 +4,6 @@ var ACTION_TYPES = require('../constants/action-types');
 var authorizationStore = require('../stores/authorization-store');
 var dispatcher = require('../dispatcher');
 var platformActionCreators = require('../action-creators/platform-action-creators');
-var platformsPanelActionCreators = require('../action-creators/platforms-panel-action-creators');
-var modalActionCreators = require('../action-creators/modal-action-creators');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
 var rpc = require('../lib/rpc');
 
@@ -124,20 +122,22 @@ var platformManagerActionCreators = {
             })
             .catch(rpc.Error, function (error) {
                 
-                modalActionCreators.closeModal();
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.CLOSE_MODAL,
+                });
 
                 var message = error.message;
 
                 switch (error.code)
                 {
                     case -32600:
-                        message = "The platform was not registered: Invalid address."
+                        message = "Platform " + name + " was not registered: Invalid address."
                         break;
                     case -32002:
-                        message = "The platform was not registered: " + error.message;
+                        message = "Platform " + name + " was not registered: " + error.message;
                         break;
                     case -32000:
-                        message = "The platform was not registered: An unknown error occurred.";
+                        message = "Platform " + name + " was not registered: An unknown error occurred.";
                         break;
                 }
 
@@ -165,8 +165,10 @@ var platformManagerActionCreators = {
 
                 platformManagerActionCreators.loadPlatforms();
             })
-            .catch(rpc.Error, function (error) {                
-                handle401(error, error.message);
+            .catch(rpc.Error, function (error) { 
+                var message = "Platform " + platformName + " was not deregistered: " + error.message;
+
+                handle401(error, message);
             });
     },
 };

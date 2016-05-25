@@ -10,7 +10,8 @@ var RegisterPlatformForm = React.createClass({
         return {};
     },
     _onCancelClick: modalActionCreators.closeModal,
-    _onSubmit: function () {
+    _onSubmit: function (e) {
+        e.preventDefault();
         platformManagerActionCreators.deregisterPlatform(this.props.platform);
     },
     render: function () {

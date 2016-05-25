@@ -4,7 +4,6 @@ var ACTION_TYPES = require('../constants/action-types');
 var authorizationStore = require('../stores/authorization-store');
 var platformsPanelItemsStore = require('../stores/platforms-panel-items-store');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
-var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
 var dispatcher = require('../dispatcher');
 var rpc = require('../lib/rpc');
 
@@ -15,20 +14,6 @@ var platformsPanelActionCreators = {
             type: ACTION_TYPES.TOGGLE_PLATFORMS_PANEL,
         });
     },
-
-    // closePanel: function() {
-
-    //     dispatcher.dispatch({
-    //         type: ACTION_TYPES.CLOSE_PLATFORMS_PANEL,
-    //     });
-    // },
-
-    // resetPanel: function() {
-
-    //     dispatcher.dispatch({
-    //         type: ACTION_TYPES.RESET_PLATFORMS_PANEL,
-    //     });
-    // },
 
     loadChildren: function(type, parent)
     {
@@ -72,7 +57,7 @@ var platformsPanelActionCreators = {
                 })                     
                 .catch(rpc.Error, function (error) {
                     endLoadingData(platform);
-                    handle401(error, "Unable to load devices in side panel: " + error.message);
+                    handle401(error, "Unable to load devices for platform " + platform.name + " in side panel: " + error.message);
                 });    
 
         }
@@ -96,7 +81,7 @@ var platformsPanelActionCreators = {
                 })                     
                 .catch(rpc.Error, function (error) {
                     endLoadingData(platform);
-                    handle401(error, "Unable to load agents in side panel: " + error.message);
+                    handle401(error, "Unable to load agents for platform " + platform.name + " in side panel: " + error.message);
                 });    
         }       
 
@@ -151,7 +136,7 @@ var platformsPanelActionCreators = {
                             {
                                 if (error.message === "historian unavailable")
                                 {
-                                    message = "Data could not be fetched. The historian agent is unavailable."
+                                    message = "Data could not be fetched for platform " + parent.name + ". The historian agent is unavailable."
                                 }
                             }
 
@@ -212,7 +197,9 @@ function handle401(error, message) {
             error: error,
         });
 
-        platformManagerActionCreators.clearAuthorization();
+        dispatcher.dispatch({
+            type: ACTION_TYPES.CLEAR_AUTHORIZATION,
+        });
     }
     else
     {

@@ -64,40 +64,40 @@ var PlatformChart = React.createClass({
     },
     _removeChart: function () {
 
-        // var deleteChart = function () {
-        //     modalActionCreators.closeModal();
+        var deleteChart = function () {
+            modalActionCreators.closeModal();
 
-        //     this.props.chart.series.forEach(function (series) {
-        //         if (series.hasOwnProperty("path"))
-        //         {
-        //             platformsPanelActionCreators.checkItem(series.path, false);
-        //         }
-        //     });
+            this.props.chart.series.forEach(function (series) {
+                if (series.hasOwnProperty("path"))
+                {
+                    platformsPanelActionCreators.checkItem(series.path, false);
+                }
+            });
 
-        //     platformChartActionCreators.removeChart(this.props.chartKey);
-        //     platformActionCreators.saveCharts();
-        // }
+            platformChartActionCreators.removeChart(this.props.chartKey);
+            platformActionCreators.saveCharts();
+        }
 
-        // modalActionCreators.openModal(
-        //     <ConfirmForm
-        //         promptTitle="Delete chart"
-        //         preText="Remove "
-        //         promptText={this.props.chartKey}
-        //         postText=" chart from here and from Dashboard?"
-        //         confirmText="Delete"
-        //         onConfirm={deleteChart.bind(this)}>
-        //     </ConfirmForm>
-        // );
+        modalActionCreators.openModal(
+            <ConfirmForm
+                promptTitle="Delete chart"
+                preText="Remove "
+                promptText={this.props.chartKey}
+                postText=" chart from here and from Dashboard?"
+                confirmText="Delete"
+                onConfirm={deleteChart.bind(this)}>
+            </ConfirmForm>
+        );
 
-        this.props.chart.series.forEach(function (series) {
-            if (series.hasOwnProperty("path"))
-            {
-                platformsPanelActionCreators.checkItem(series.path, false);
-            }
-        });
+        // this.props.chart.series.forEach(function (series) {
+        //     if (series.hasOwnProperty("path"))
+        //     {
+        //         platformsPanelActionCreators.checkItem(series.path, false);
+        //     }
+        // });
 
-        platformChartActionCreators.removeChart(this.props.chartKey);
-        platformActionCreators.saveCharts();
+        // platformChartActionCreators.removeChart(this.props.chartKey);
+        // platformActionCreators.saveCharts();
     },
     render: function () {
         var chartData = this.props.chart; 

@@ -39,7 +39,8 @@ var RegisterPlatformForm = React.createClass({
         this.setState({ method: (this.state.method === "discovery" ? "advanced" : "discovery") });
     },
     _onCancelClick: modalActionCreators.closeModal,
-    _onSubmit: function () {
+    _onSubmit: function (e) {
+        e.preventDefault();
         var address = (this.state.method === "discovery" ? this.state.discovery_address : this._formatAddress());
         platformManagerActionCreators.registerPlatform(this.state.name, address, this.state.method);
     },

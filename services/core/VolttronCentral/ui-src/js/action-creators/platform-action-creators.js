@@ -7,8 +7,6 @@ var platformChartStore = require('../stores/platform-chart-store');
 var dispatcher = require('../dispatcher');
 var rpc = require('../lib/rpc');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
-var platformChartActionCreators = require('../action-creators/platform-chart-action-creators');
-var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
 
 var platformActionCreators = {
     loadPlatform: function (platform) {
@@ -18,11 +16,15 @@ var platformActionCreators = {
     loadAgents: function (platform) {
         var authorization = authorizationStore.getAuthorization();
 
+        console.log("loading agents for " + platform.name);
+
         new rpc.Exchange({
             method: 'platforms.uuid.' + platform.uuid + '.list_agents',
             authorization: authorization,
         }).promise
             .then(function (agentsList) {
+                console.log("received agents for " + platform.name + ", agents length: " + agentsList.length);
+                    
                 platform.agents = agentsList;
 
                 dispatcher.dispatch({
@@ -60,11 +62,11 @@ var platformActionCreators = {
                         });
                     })            
                     .catch(rpc.Error, function (error) {
-                        handle401(error, "Unable to load agents: " + error.message);
+                        handle401(error, "Unable to load agents for platform " + platform.name + ": " + error.message);
                     });
             })            
             .catch(rpc.Error, function (error) {
-                handle401(error, "Unable to load agents: " + error.message);
+                handle401(error, "Unable to load agents for platform " + platform.name + ": " + error.message);
             });
     },
     startAgent: function (platform, agent) {
@@ -87,7 +89,7 @@ var platformActionCreators = {
                 agent.return_code = status.return_code;
             })                        
             .catch(rpc.Error, function (error) {
-                handle401(error, "Unable to start agent: " + error.message);
+                handle401(error, "Unable to start agent " + agent.name + ": " + error.message);
             })
             .finally(function () {
                 agent.actionPending = false;
@@ -118,7 +120,7 @@ var platformActionCreators = {
                 agent.return_code = status.return_code;
             })                      
             .catch(rpc.Error, function (error) {
-                handle401(error, "Unable to start agent: " + error.message);
+                handle401(error, "Unable to start agent " + agent.name + ": " + error.message);
             })
             .finally(function () {
                 agent.actionPending = false;
@@ -155,7 +157,7 @@ var platformActionCreators = {
             .then(function (result) {
                 
                 if (result.error) {
-                    statusIndicatorActionCreators.openStatusIndicator("error", "Unable to remove agent: " + result.error);
+                    statusIndicatorActionCreators.openStatusIndicator("error", "Unable to remove agent " + agent.name + ": " + result.error);
                 }
                 else
                 {
@@ -163,7 +165,7 @@ var platformActionCreators = {
                 }
             })                      
             .catch(rpc.Error, function (error) {
-                handle401(error, "Unable to remove agent: " + error.message);
+                handle401(error, "Unable to remove agent " + agent.name + ": " + error.message);
             });
     },
     installAgents: function (platform, files) {
@@ -186,7 +188,7 @@ var platformActionCreators = {
                 });
 
                 if (errors.length) {
-                    statusIndicatorActionCreators.openStatusIndicator("error", "Unable to install agents: " + errors.join('\n'));
+                    statusIndicatorActionCreators.openStatusIndicator("error", "Unable to install agents for platform " + platform.name + ": " + errors.join('\n'));
                 }
 
                 if (errors.length !== files.length) {
@@ -194,7 +196,7 @@ var platformActionCreators = {
                 }
             })                      
             .catch(rpc.Error, function (error) {
-                handle401(error, "Unable to install agents: " + error.message);
+                handle401(error, "Unable to install agents for platform " + platform.name + ": " + error.message);
             });
     },    
     loadCharts: function (platform) {
@@ -224,13 +226,13 @@ var platformActionCreators = {
                             });
                         })
                         .catch(rpc.Error, function (error) {
-                            handle401(error, "Unable to load charts: " + error.message);
+                            handle401(error, "Unable to load charts for platform " + platform.name + ": " + error.message);
                         });
                         
                     }
             })
             .catch(rpc.Error, function (error) {
-                handle401(error, "Unable to load charts: " + error.message);
+                handle401(error, "Unable to load charts for platform " + platform.name + ": " + error.message);
             });
 
 
@@ -301,7 +303,9 @@ function handle401(error, message) {
             error: error,
         });
 
-        platformManagerActionCreators.clearAuthorization();
+        dispatcher.dispatch({
+            type: ACTION_TYPES.CLEAR_AUTHORIZATION,
+        });
     }
     else
     {

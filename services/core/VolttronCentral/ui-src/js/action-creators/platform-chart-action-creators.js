@@ -7,7 +7,6 @@ var platformChartStore = require('../stores/platform-chart-store');
 var platformsStore = require('../stores/platforms-store');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
 var platformsPanelActionCreators = require('../action-creators/platforms-panel-action-creators');
-var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
 var platformActionCreators = require('../action-creators/platform-action-creators');
 var rpc = require('../lib/rpc');
 
@@ -188,7 +187,9 @@ function handle401(error, message) {
             error: error,
         });
 
-        platformManagerActionCreators.clearAuthorization();
+        dispatcher.dispatch({
+            type: ACTION_TYPES.CLEAR_AUTHORIZATION,
+        });
     }
     else
     {
