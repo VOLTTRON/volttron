@@ -215,22 +215,14 @@ class MasterDriverAgent(Agent):
     @RPC.export
     def get_point(self, path, point_name, **kwargs):
         return self.instances[path].get_point(point_name, **kwargs)
-    
-    @RPC.export
-    def set_multiple_points(self, path, point_names_values, **kwargs):
-        results = {}
-
-        for point_name, value in point_names_values:
-            try:
-                self.instances[path].set_point(point_name, value, **kwargs)
-            except Exception as e:
-                results[path + '/' + point_name] = repr(e)
-
-        return results
 
     @RPC.export
     def set_point(self, path, point_name, value, **kwargs):
         return self.instances[path].set_point(point_name, value, **kwargs)
+
+    @RPC.export
+    def set_multiple_points(self, path, point_names_values, **kwargs):
+        return self.instances[path].set_multiple_points(point_names_values, **kwargs)
     
     @RPC.export
     def heart_beat(self):
