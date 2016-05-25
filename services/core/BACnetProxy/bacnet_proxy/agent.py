@@ -147,7 +147,7 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
         self.iocb = {}
         
         self.install_task()
-        
+
     def process_task(self):
         while True:
             try: 
@@ -203,7 +203,7 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
         # find the request
         iocb = self.iocb.get(invoke_key, None)
         if iocb is None:
-            iocb.set_exception(RuntimeError("no matching request for confirmation"))
+            _log.error("no matching request for confirmation")
             return
         del self.iocb[invoke_key]
 
@@ -262,7 +262,7 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
                         error_obj = readResult.propertyAccessError
                         
                         msg = 'ERROR DURRING SCRAPE (Class: {0} Code: {1})'
-                        print msg.format(error_obj.errorClass, error_obj.errorCode)
+                        _log.error(msg.format(error_obj.errorClass, error_obj.errorCode))
                         
                     else:
                         # here is the value
@@ -284,21 +284,23 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
                             value = propertyValue.cast_out(datatype)
                             if issubclass(datatype, Enumerated):
                                 value = datatype(value).get_long()
-                                
-                            if issubclass(datatype, Array):
-                                if issubclass(datatype.subtype, Choice):
-                                    new_value = []
-                                    for item in value.value[1:]:
-                                        result = item.dict_contents().values()
-                                        if result[0] != ():
-                                            new_value.append(result[0])
-                                        else:
-                                            new_value.append(None)
-                                    value = new_value
-                                else:
-                                    value = [x.cast_out(datatype.subtype) for x in value.value[1:]]
+
+                            try:
+                                if issubclass(datatype, Array):
+                                    if issubclass(datatype.subtype, Choice):
+                                        new_value = []
+                                        for item in value.value[1:]:
+                                            result = item.dict_contents().values()
+                                            if result[0] != ():
+                                                new_value.append(result[0])
+                                            else:
+                                                new_value.append(None)
+                                        value = new_value
+                            except StandardError as e:
+                                _log.exception(e)
+                                iocb.set_exception(e)
                         
-                        result_dict[objectIdentifier[0], objectIdentifier[1], propertyIdentifier] = value
+                        result_dict[objectIdentifier[0], objectIdentifier[1], propertyIdentifier, propertyArrayIndex] = value
             
             iocb.set(result_dict)
             
@@ -312,8 +314,13 @@ class BACnet_application(BIPSimpleApplication, RecurringTask):
                 #Bail with out an error.
                 return
 
-            self.i_am_callback(str(apdu.pduSource), device_instance, apdu.maxAPDULengthAccepted.value,
-                               str(apdu.segmentationSupported), apdu.vendorID.value)
+            _log.debug("Calling IAm callback.")
+
+            self.i_am_callback(str(apdu.pduSource),
+                               device_instance,
+                               apdu.maxAPDULengthAccepted,
+                               str(apdu.segmentationSupported),
+                               apdu.vendorID)
 
         # forward it along
         BIPSimpleApplication.indication(self, apdu)
@@ -401,14 +408,18 @@ class BACnetProxyAgent(Agent):
             vendorIdentifier=ven_id,
             )
         
-        # build a bit string that knows about the bit names and leave it empty. We respond to NOTHING.
+        # build a bit string that knows about the bit names.
         pss = ServicesSupported()
+        pss['whoIs'] = 1
+        pss['iAm'] = 1
     
         # set the property value to be just the bits
         this_device.protocolServicesSupported = pss.value
 
-        def i_am_callback(device_address, device_id, max_apdu_len, seg_supported, vendor_id):
-            async_call.send(None, self.i_am,  device_address, device_id, max_apdu_len, seg_supported, vendor_id)
+        def i_am_callback(address, device_id, max_apdu_len, seg_supported, vendor_id):
+            async_call.send(None, self.i_am, address, device_id, max_apdu_len, seg_supported, vendor_id)
+
+        #i_am_callback('foo', 'bar', 'baz', 'foobar', 'foobaz')
         
         self.this_application = BACnet_application(i_am_callback, this_device, address)
       
@@ -421,7 +432,7 @@ class BACnetProxyAgent(Agent):
     def i_am(self, address, device_id, max_apdu_len, seg_supported, vendor_id):
         """Called by the BACnet application when a WhoIs is received.
         Publishes the IAm to the pubsub."""
-        _log.debug("WhoIs received: Address: {} Device ID: {}"
+        _log.debug("IAm received: Address: {} Device ID: {}"
                    " Max APDU: {} Segmentation: {} Vendor: {}".format(address,
                                                                       device_id,
                                                                       max_apdu_len,
@@ -538,19 +549,24 @@ class BACnetProxyAgent(Agent):
         # back on the the names
         reverse_point_map = {}
         
-        #TODO Support rading an index of an Array.
-        
         #Used to group properties together for the request.
         object_property_map = defaultdict(list)
         
         for name, properties in point_map.iteritems():
-            object_type, instance_number, property_name = properties
+            if len(properties) == 3:
+                object_type, instance_number, property_name = properties
+                property_index = None
+            elif len(properties) == 4:
+                object_type, instance_number, property_name, property_index = properties
+            else:
+                _log.error("skipping {} in request to {}: incorrect number of parameters".format(name, target_address))
             reverse_point_map[object_type,
                               instance_number,
-                              property_name] = name
+                              property_name,
+                              property_index] = name
                               
             object_property_map[object_type,
-                                instance_number].append(property_name)
+                                instance_number].append((property_name, property_index))
                                 
         result_dict={}
         finished = False
@@ -566,8 +582,10 @@ class BACnetProxyAgent(Agent):
                     break
                 obj_type, obj_inst = obj_data
                 prop_ref_list = []
-                for prop in properties:
+                for prop, prop_index in properties:
                     prop_ref = PropertyReference(propertyIdentifier=prop)
+                    if prop_index is not None:
+                        prop_ref.propertyArrayIndex = prop_index
                     prop_ref_list.append(prop_ref)
                     count += 1
                 read_access_spec = ReadAccessSpecification(objectIdentifier=(obj_type, obj_inst),
