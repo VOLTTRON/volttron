@@ -1,5 +1,5 @@
 Platform Historian
-=====
+==================
 
 A platform historian is a `"friendly named" <VIP-Known-Identities>`__
 historian on a VOLTTRON instance. It always has the identity (see

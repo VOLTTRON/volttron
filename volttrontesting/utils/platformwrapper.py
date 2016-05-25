@@ -1,26 +1,26 @@
 import ConfigParser as configparser
+from contextlib import closing
 import json
+import logging
 import os
 import shutil
-import logging
+import sys
+import tempfile
+import time
+
+import gevent
 from gevent.fileobject import FileObject
 import gevent.subprocess as subprocess
 from gevent.subprocess import Popen
-import sys
-import time
-import tempfile
-import unittest
 from subprocess import CalledProcessError
 
 from os.path import dirname
-from contextlib import closing
-from StringIO import StringIO
 
 import zmq
 from zmq.utils import jsonapi
 
-import gevent
 
+from volttron.platform.auth import AuthFile, AuthEntry
 from volttron.platform.agent.utils import strip_comments
 from volttron.platform.messaging import topics
 from volttron.platform.main import start_volttron_process
@@ -30,7 +30,7 @@ from volttron.platform.aip import AIPplatform
 #from volttron.platform.control import client, server
 from volttron.platform import packaging
 from volttron.platform.agent import utils
-from volttron.platform import keystore
+from volttron.platform.keystore import KeyStore
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -46,12 +46,12 @@ except ImportError:
     auth = None
     certs = None
 
-#Filenames for the config files which are created during setup and then
-#passed on the command line
+# Filenames for the config files which are created during setup and then
+# passed on the command line
 TMP_PLATFORM_CONFIG_FILENAME = "config"
 TMP_SMAP_CONFIG_FILENAME = "test-smap.ini"
 
-#Used to fill in TWISTED_CONFIG template
+# Used to fill in TWISTED_CONFIG template
 TEST_CONFIG_FILE = 'base-platform-test.json'
 
 PLATFORM_CONFIG_UNRESTRICTED = """
@@ -66,7 +66,6 @@ mobility-address = {mobility-address}
 control-socket = {tmpdir}/run/control
 resource-monitor = {resource-monitor}
 """
-
 
 
 TWISTED_CONFIG = """
@@ -98,42 +97,100 @@ if os.environ.get('CI', None) is None:
     VCTRL = os.path.join(VOLTTRON_ROOT, "env/bin/volttron-ctl")
     TWISTED_START = os.path.join(VOLTTRON_ROOT, "env/bin/twistd")
 else:
-    VSTART ="volttron"
+    VSTART = "volttron"
     VCTRL = "volttron-ctl"
     TWISTED_START = "twistd"
 
 SEND_AGENT = "send"
 
 RUN_DIR = 'run'
-PUBLISH_TO = RUN_DIR+'/publish'
-SUBSCRIBE_TO = RUN_DIR+'/subscribe'
+PUBLISH_TO = RUN_DIR + '/publish'
+SUBSCRIBE_TO = RUN_DIR + '/subscribe'
+
 
 class PlatformWrapperError(Exception):
     pass
 
+
 class PlatformWrapper:
+
     def __init__(self):
         '''Initializes a new volttron environment
 
-        Creates a temporary VOLTTRON_HOME directory with a packaged directory for
-        agents that are built.
+        Creates a temporary VOLTTRON_HOME directory with a packaged
+        directory for agents that are built.
         '''
-        self.volttron_home = tempfile.mkdtemp()
-        self.packaged_dir = os.path.join(self.volttron_home, "packaged")
-        os.makedirs(self.packaged_dir)
+        self.__volttron_home = tempfile.mkdtemp()
+        self.__packaged_dir = os.path.join(self.volttron_home, "packaged")
+        os.makedirs(self.__packaged_dir)
         self.env = os.environ.copy()
         self.env['VOLTTRON_HOME'] = self.volttron_home
 
+        # TODO: does changing os.environ affect the environment external to
+        # this script?
+        os.environ['VOLTTRON_HOME'] = self.volttron_home
+
+        # By default no web server should be started.
+        self.__bind_web_address = None
+
         self._p_process = None
         self._t_process = None
-        self.publickey = self.generate_key()
+        self.__publickey = KeyStore().public()
         self._started_pids = []
+        self.__local_vip_address = None
+        self.__vip_address = None
         self.encrypt = False
         print('Creating Platform Wrapper at: {}'.format(self.volttron_home))
 
+    @property
+    def bind_web_address(self):
+        return self.__bind_web_address
+
+    @property
+    def local_vip_address(self):
+        return self.__local_vip_address
+
+    @property
+    def packaged_dir(self):
+        return self.__packaged_dir
+
+    @property
+    def publickey(self):
+        return self.__publickey
+
+    @property
+    def vip_address(self):
+        return self.__vip_address
+
+    @property
+    def volttron_home(self):
+        return self.__volttron_home
+
+    def allow_all_connections(self):
+        """ Add a CURVE:.* entry to the auth.json file.
+        """
+        entry = AuthEntry(credentials="/CURVE:.*/")
+        authfile = AuthFile(self.volttron_home + "/auth.json")
+        authfile.add(entry)
+
     def build_agent(self, address=None, should_spawn=True, identity=None,
                     publickey=None, secretkey=None, serverkey=None, **kwargs):
+        """ Build an agent connnected to the passed bus.
+
+        By default the current instance that this class wraps will be the
+        vip address of the agent.
+
+        :param address:
+        :param should_spawn:
+        :param identity:
+        :param publickey:
+        :param secretkey:
+        :param serverkey:
+        :return:
+        """
         _log.debug('BUILD GENERIC AGENT')
+
+        use_ipc = kwargs.pop('use_ipc', False)
         if self.encrypt:
             if serverkey is None:
                 serverkey=self.publickey
@@ -145,7 +202,12 @@ class PlatformWrapper:
                 secretkey=keys.secret()
 
         if address is None:
-            address = self.vip_address[0]
+            if use_ipc:
+                print('Using IPC vip-address')
+                address = "ipc://@" + self.volttron_home + "/run/vip.socket"
+            else:
+                print('Using vip-address ' + self.vip_address)
+                address = self.vip_address
 
         agent = Agent(address=address, identity=identity, publickey=publickey,
                       secretkey=secretkey, serverkey=serverkey, **kwargs)
@@ -153,24 +215,20 @@ class PlatformWrapper:
 
         # Automatically add agent's credentials to auth.json file
         if publickey:
-            self._append_allow_curve_key(publickey)
+            print('Adding publickey to auth.json')
+            gevent.spawn(self._append_allow_curve_key, publickey)
+            gevent.sleep(0.1)
 
         if should_spawn:
             print('platformwrapper.build_agent spawning')
             event = gevent.event.Event()
-            gevent.spawn(agent.core.run, event)#.join(0)
+            gevent.spawn(agent.core.run, event)  # .join(0)
             event.wait(timeout=2)
 
             hello = agent.vip.hello().get(timeout=.3)
             print('Got hello response {}'.format(hello))
         agent.publickey = publickey
         return agent
-
-    def generate_key(self):
-        key = ''.join(zmq.curve_keypair())
-        with open(os.path.join(self.volttron_home, 'curve.key'), 'w') as fd:
-            fd.write(key)
-        return encode_key(key[:40]) # public key
 
     def _read_auth_file(self):
         auth_path = os.path.join(self.volttron_home, 'auth.json')
@@ -188,14 +246,9 @@ class PlatformWrapper:
         return auth, auth_path
 
     def _append_allow_curve_key(self, publickey):
-        auth, auth_path = self._read_auth_file()
-        cred = 'CURVE:{}'.format(publickey)
-        allow = auth['allow']
-        if not any(record['credentials'] == cred for record in allow):
-            allow.append({'credentials': cred})
-
-        with open(auth_path, 'w+') as fd:
-            json.dump(auth, fd)
+        entry = AuthEntry(credentials="CURVE:{}".format(publickey))
+        authfile = AuthFile(self.volttron_home + "/auth.json")
+        authfile.add(entry)
 
     def add_capabilities(self, publickey, capabilities):
         if isinstance(capabilities, basestring):
@@ -203,7 +256,8 @@ class PlatformWrapper:
         auth, auth_path = self._read_auth_file()
         cred = 'CURVE:{}'.format(publickey)
         allow = auth['allow']
-        entry = next((item for item in allow if item['credentials'] == cred), {})
+        entry = next((item for item in allow if item[
+                     'credentials'] == cred), {})
         caps = entry.get('capabilities', [])
         entry['capabilities'] = list(set(caps + capabilities))
 
@@ -212,39 +266,34 @@ class PlatformWrapper:
 
     def set_auth_dict(self, auth_dict):
         if auth_dict:
-            with open(os.path.join(self.volttron_home, 'auth.json'), 'w') as fd:
-                fd.write(json.dumps(auth_dict))
+            with open(os.path.join(self.volttron_home, 'auth.json'), 'w') as f:
+                f.write(json.dumps(auth_dict))
 
     def startup_platform(self, vip_address, auth_dict=None, use_twistd=False,
-        mode=UNRESTRICTED, encrypt=False):
-        # if not isinstance(vip_address, list):
-        #     self.vip_address = [vip_address]
-        # else:
-        #     self.vip_address = vip_address
+                         mode=UNRESTRICTED, encrypt=False,
+                         bind_web_address=None):
 
-        self.vip_address = [vip_address]
+        self.vip_address = vip_address
         self.encrypt = encrypt
         self.mode = mode
+        self.bind_web_address = bind_web_address
+
         enable_logging = os.environ.get('ENABLE_LOGGING', False)
         debug_mode = os.environ.get('DEBUG_MODE', False)
         self.skip_cleanup = os.environ.get('SKIP_CLEANUP', False)
         if debug_mode:
             self.skip_cleanup = True
             enable_logging = True
-        print("In start up platform enable_logging is {} ".format(enable_logging))
-        assert self.mode in MODES, 'Invalid platform mode set: '+str(mode)
+        print("In start up platform enable_logging is {} ".
+              format(enable_logging))
+        assert self.mode in MODES, 'Invalid platform mode set: ' + str(mode)
         opts = None
 
         # see main.py for how we handle pub sub addresses.
         ipc = 'ipc://{}{}/run/'.format(
             '@' if sys.platform.startswith('linux') else '',
             self.volttron_home)
-
-        if not encrypt:
-            # Remove connection encryption
-            with open(os.path.join(self.volttron_home, 'curve.key'), 'w'):
-                pass
-
+        self.local_vip_address = ipc + 'vip.socket'
         self.set_auth_dict(auth_dict)
 
         self.opts = {'verify_agents': False,
@@ -253,8 +302,9 @@ class PlatformWrapper:
                      'vip_local_address': ipc + 'vip.socket',
                      'publish_address': ipc + 'publish',
                      'subscribe_address': ipc + 'subscribe',
+                     'bind_web_address': bind_web_address,
                      'developer_mode': not encrypt,
-                     'log': os.path.join(self.volttron_home,'volttron.log'),
+                     'log': os.path.join(self.volttron_home, 'volttron.log'),
                      'log_config': None,
                      'monitor': True,
                      'autostart': True,
@@ -264,10 +314,11 @@ class PlatformWrapper:
         pconfig = os.path.join(self.volttron_home, 'config')
         config = {}
 
-        parser =  configparser.ConfigParser()
+        parser = configparser.ConfigParser()
         parser.add_section('volttron')
         parser.set('volttron', 'vip-address', vip_address)
-
+        if bind_web_address:
+            parser.set('volttron', 'bind-web-address', bind_web_address)
         if self.mode == UNRESTRICTED:
             if RESTRICTED_AVAILABLE:
                 config['mobility'] = False
@@ -277,25 +328,24 @@ class PlatformWrapper:
                 cfg.write(PLATFORM_CONFIG_UNRESTRICTED.format(**config))
                 parser.write(cfg)
 
-
         elif self.mode == RESTRICTED:
             if not RESTRICTED_AVAILABLE:
                 raise ValueError("restricted is not available.")
 
-            certsdir = os.path.join(os.path.expanduser(self.env['VOLTTRON_HOME']),
-                                    'certificates')
+            certsdir = os.path.join(os.path.expanduser(
+                self.env['VOLTTRON_HOME']), 'certificates')
 
             print ("certsdir", certsdir)
             self.certsobj = certs.Certs(certsdir)
 
-
             with closing(open(pconfig, 'wb')) as cfg:
                 cfg.write(PLATFORM_CONFIG_RESTRICTED.format(**config))
-            opts = type('Options', (), {'resource-monitor':False,
+            opts = type('Options', (), {'resource-monitor': False,
                                         'verify_agents': True,
                                         'volttron_home': self.volttron_home})()
         else:
-            raise PlatformWrapperError("Invalid platform mode specified: {}".format(mode))
+            raise PlatformWrapperError(
+                "Invalid platform mode specified: {}".format(mode))
 
         log = os.path.join(self.env['VOLTTRON_HOME'], 'volttron.log')
         if enable_logging:
@@ -317,17 +367,13 @@ class PlatformWrapper:
         # # make sure we don't return too quickly.
         gevent.sleep(0.2)
 
-        #os.environ['VOLTTRON_HOME'] = self.opts['volttron_home']
-        #self._p_process = Process(target=start_volttron_process, args=(self.opts,))
-        #self._p_process.daemon = True
-        #self._p_process.start()
-
         gevent.sleep(0.2)
         self.use_twistd = use_twistd
 
-        #TODO: Revise this to start twistd with platform.
+        # TODO: Revise this to start twistd with platform.
         if self.use_twistd:
-            tconfig = os.path.join(self.volttron_home, TMP_SMAP_CONFIG_FILENAME)
+            tconfig = os.path.join(
+                self.volttron_home, TMP_SMAP_CONFIG_FILENAME)
 
             with closing(open(tconfig, 'w')) as cfg:
                 cfg.write(TWISTED_CONFIG.format(**config))
@@ -335,7 +381,8 @@ class PlatformWrapper:
             tparams = [TWISTED_START, "-n", "smap", tconfig]
             self._t_process = subprocess.Popen(tparams, env=self.env)
             time.sleep(5)
-            #self._t_process = subprocess.Popen(["twistd", "-n", "smap", "test-smap.ini"])
+            #self._t_process = subprocess.Popen(["twistd", "-n", "smap",
+            #                                    "test-smap.ini"])
 
     def is_running(self):
         print("PROCESS IS RUNNING: {}".format(self._p_process))
@@ -344,51 +391,24 @@ class PlatformWrapper:
     def twistd_is_running(self):
         return self._t_process is not None
 
-    # def publish(self, topic, data):
-    #     '''Publish data to a zmq context.
-    #
-    #     The publisher is goint to use the platform that is contained within
-    #     this wrapper to write data to.
-    #     '''
-    #     if not self.zmq_context:
-    #         self.zmq_context = zmq.Context()
-    #     print("binding publisher to: ", self.env['AGENT_PUB_ADDR'])
-    #     pub = zmq.Socket(self.zmq_context, zmq.PUB)
-    #     pub.bind(self.env['AGENT_PUB_ADDR'])
-    #     pub.send_multipart([topic, data])
-
-    # def fillout_file(self, filename, template, config_file):
-    #
-    #     try:
-    #         config = json.loads(open(config_file, 'r').read())
-    #     except Exception as e:
-    #         sys.stderr.write (str(e))
-    #         raise PlatformWrapperError("Could not load configuration file for tests")
-    #
-    #     config['tmpdir'] = self.tmpdir
-    #
-    #     outfile = os.path.join(self.tmpdir, filename)
-    #     with closing(open(outfile, 'w')) as cfg:
-    #         cfg.write(template.format(**config))
-    #
-    #     return outfile
-
     def direct_sign_agentpackage_creator(self, package):
         assert (RESTRICTED), "Auth not available"
         print ("wrapper.certsobj", self.certsobj.cert_dir)
-        assert(auth.sign_as_creator(package, 'creator', certsobj=self.certsobj)), "Signing as {} failed.".format('creator')
-
+        assert(auth.sign_as_creator(package, 'creator', certsobj=self.certsobj)
+               ), "Signing as {} failed.".format('creator')
 
     def direct_sign_agentpackage_admin(self, package):
         assert (RESTRICTED), "Auth not available"
-        assert(auth.sign_as_admin(package, 'admin', certsobj=self.certsobj)), "Signing as {} failed.".format('admin')
+        assert(auth.sign_as_admin(package, 'admin', certsobj=self.certsobj)
+               ), "Signing as {} failed.".format('admin')
 
-
-    def direct_sign_agentpackage_initiator(self, package, config_file, contract):
+    def direct_sign_agentpackage_initiator(self, package, config_file,
+                                           contract):
         assert (RESTRICTED), "Auth not available"
-        files = {"config_file":config_file,"contract":contract}
+        files = {"config_file": config_file, "contract": contract}
         assert(auth.sign_as_initiator(package, 'initiator', files=files,
-                                      certsobj=self.certsobj)), "Signing as {} failed.".format('initiator')
+                                      certsobj=self.certsobj)), (
+            "Signing as {} failed.".format('initiator'))
 
     def _aip(self):
         opts = type('Options', (), self.opts)
@@ -403,7 +423,7 @@ class PlatformWrapper:
         if start:
             print('STARTING', wheel_file)
             status = self.start_agent(auuid)
-            #aip.start_agent(auuid)
+            # aip.start_agent(auuid)
             #status = aip.agent_status(auuid)
             print('STATUS NOW:', status)
             assert status > 0
@@ -411,7 +431,7 @@ class PlatformWrapper:
         return auuid
 
     def install_agent(self, agent_wheel=None, agent_dir=None, config_file=None,
-        start=True):
+                      start=True):
         '''Install and optionally start an agent on the platform.
 
             This function allows installation from an agent wheel or an
@@ -442,8 +462,9 @@ class PlatformWrapper:
             else:
                 if isinstance(config_file, dict):
                     from os.path import join, basename
-                    temp_config=join(self.volttron_home, basename(agent_dir) + "_config_file")
-                    with open(temp_config,"w") as fp:
+                    temp_config = join(self.volttron_home, basename(
+                        agent_dir) + "_config_file")
+                    with open(temp_config, "w") as fp:
                         fp.write(json.dumps(config_file))
                     config_file = temp_config
             print('Building agent package')
@@ -475,7 +496,6 @@ class PlatformWrapper:
 
         self._started_pids.append(pid)
         return int(pid)
-
 
     def stop_agent(self, agent_uuid):
         # Confirm agent running
@@ -529,8 +549,8 @@ class PlatformWrapper:
         wheel_path = packaging.create_package(agent_dir,
                                               self.packaged_dir)
         packaging.add_files_to_package(wheel_path, {
-                'config_file':os.path.join('./', config_file)
-            })
+            'config_file': os.path.join('./', config_file)
+        })
 
         return wheel_path
 
@@ -565,8 +585,6 @@ class PlatformWrapper:
 #         return uuid
 # #         conn.call.start_agent()
 
-
-
     # def direct_build_install_run_agent(self, agent_dir, config_file):
     #     agent_uuid = self.direct_build_install_agent(agent_dir, config_file)
     #     self.direct_start_agent(agent_uuid)
@@ -577,8 +595,8 @@ class PlatformWrapper:
     #     self.direct_start_agent(agent_uuid)
     #     return agent_uuid
 
-
-    def confirm_agent_running(self, agent_name, max_retries=5, timeout_seconds=2):
+    def confirm_agent_running(self, agent_name, max_retries=5,
+                              timeout_seconds=2):
         running = False
         retries = 0
         while (not running and retries < max_retries):
@@ -588,18 +606,17 @@ class PlatformWrapper:
                 status_name = status[0][1]
                 assert status_name == agent_name
 
-                assert len(status[0][2]) == 2, 'Unexpected agent status message'
+                assert len(
+                    status[0][2]) == 2, 'Unexpected agent status message'
                 status_agent_status = status[0][2][1]
                 running = not isinstance(status_agent_status, int)
             retries += 1
             time.sleep(timeout_seconds)
         return running
 
-
     # def direct_stop_agent(self, agent_uuid):
     #     result = self.conn.call.stop_agent(agent_uuid)
     #     print result
-
 
     def shutdown_platform(self):
         '''Stop platform here
@@ -613,10 +630,10 @@ class PlatformWrapper:
             pid = self._started_pids.pop()
             print('ending pid: {}'.format(pid))
             try:
-                os.kill(pid,signal.SIGTERM)
+                os.kill(pid, signal.SIGTERM)
             except:
                 print('could not kill: {} '.format(pid))
-        if self._p_process != None:
+        if self._p_process is not None:
             try:
                 gevent.sleep(0.2)
                 self._p_process.terminate()
@@ -626,9 +643,7 @@ class PlatformWrapper:
         else:
             print "platform process was null"
 
-
-
-        if self.use_twistd and self._t_process != None:
+        if self.use_twistd and self._t_process is not None:
             self._t_process.kill()
             self._t_process.wait()
         elif self.use_twistd:
@@ -646,5 +661,6 @@ def mergetree(src, dst, symlinks=False, ignore=None):
         if os.path.isdir(s):
             mergetree(s, d, symlinks, ignore)
         else:
-            if not os.path.exists(d) or os.stat(src).st_mtime - os.stat(dst).st_mtime > 1:
+            if (not os.path.exists(d)
+                    or os.stat(src).st_mtime - os.stat(dst).st_mtime > 1):
                 shutil.copy2(s, d)

@@ -25,10 +25,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 The views and conclusions contained in the software and documentation are those
 of the authors and should not be interpreted as representing official policies, 
 either expressed or implied, of the FreeBSD Project.
-'''
-from bacpypes.bsll import Result
 
-'''
 This material was prepared as an account of work sponsored by an 
 agency of the United States Government.  Neither the United States 
 Government nor the United States Department of Energy, nor Battelle,
@@ -51,9 +48,7 @@ PACIFIC NORTHWEST NATIONAL LABORATORY
 operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 under Contract DE-AC05-76RL01830
 '''
-
 import random
-
 from volttron.platform.agent import utils
 from master_driver.interfaces import BaseInterface, BaseRegister, BasicRevert
 from csv import DictReader
@@ -63,61 +58,83 @@ import logging
 import sys
 
 # set DRIVER_PATH to path to your specific driver agent
-#DRIVER_PATH = "/home/volttron/volttron/applications/pnnl/GridAgentDrivers"
+#DRIVER_PATH = "/home/volttron/volttron/examples/GridAgentDrivers"
 DRIVER_PATH = "/home/volttron/GridAgents/VolttronAgents/Drivers"
 sys.path.insert( 0, DRIVER_PATH )
 from heaters.agent  import HeaterDriver
 #from meters.agent   import MeterDriver
 #from vehicles.agent import VehicleDriver
+#from hvac.agent     import ThermostatDriver
 
 __author1__   = 'Carl Miller <carl.miller@pnnl.gov>'
 __copyright__ = 'Copyright (c) 2016, Battelle Memorial Institute'
 __license__   = 'FreeBSD'
+__version__   = '0.0.5'
 
 _log = logging.getLogger(__name__)
 
 # UDI - Universal Driver Interface
 class Interface(BasicRevert, BaseInterface):
+    # 
+    #  __init__
     def __init__(self, **kwargs):
         super(Interface, self).__init__(**kwargs)
-        self.device_type = None
-        self.unit = None
         self.agent = None
 
+    # config_dict: 'filename'.config, specified in the 'master-driver.agent' file.
+    # registry_config_str: points csv file
     def configure(self, config_dict, registry_config_str):
-       
-        self.device_type = config_dict['device_type']
+        try:
+            device_type = config_dict['device_type']
         
-        if(self.device_type == "heater" ):
-            self.agent = HeaterDriver(DRIVER_PATH+"/heaters/heater.cfg", config_dict['device_id'] )
-        elif( self.device_type  == "meter" ):
-            self.agent = MeterDriver( config_dict['device_id'] )
-        elif( self.device_type  == "vehicle" ):
-            self.agent = VehicleDriver( DRIVER_PATH+"/vehicles/vehicles.ini", \
-                                        config_dict['device_id'], config_dict['unit_num'] )
+            if(device_type     == "heater" ):
+                #self.agent = HeaterDriver(DRIVER_PATH+"/heaters/heater.cfg", config_dict['device_id'] )
+                self.agent = HeaterDriver(None, config_dict['device_id'] )
+            elif( device_type  == "meter" ):
+                self.agent = MeterDriver(      config_dict['device_id'] )
+            elif( device_type  == "vehicle" ):
+                self.agent = VehicleDriver( DRIVER_PATH+"/vehicles/vehicles.ini", \
+                                               config_dict['device_id'], config_dict['unit_num'] )                             
+            elif( device_type  == "thermostat" ):
+                self.agent = ThermostatDriver( config_dict['device_id'], config_dict['unit_num'] )
+            else:
+                _log.fatal("Unsupported Device Type: '{}'".format(self.device_type))
+                sys.exit(-1)
+                
+            self.parse_config(self.agent, device_type, config_dict, registry_config_str)
+            
+            event = gevent.event.Event()
+            gevent.spawn(self.agent.core.run, event)
+            event.wait(timeout=5)
+            
+        except KeyError as e:
+            _log.fatal("configure Failed accessing Key({}) in configuration file: {}".format(e,config_dict))
+            sys.exit(1)
         
-        self.parse_config(self.agent, config_dict, registry_config_str)
-        
-        event = gevent.event.Event()
-        gevent.spawn(self.agent.core.run, event)
-        event.wait(timeout=5)
-        
+        except Exception as e:
+            _log.fatal("configure Failed({}) using configuration file: {}".format(e,config_dict))
+            sys.exit(1)
+    #  get_point
     def get_point(self, point_name):
         register = self.get_register_by_name(point_name)
         self.agent.GetPoint( register )
  
         return register._value
-    #def set_point(self, point_name, value):
-    #    _log.debug('Setting point {}->{}'.format(point_name, value))
-    #    self._set_point(point_name, value)
+    
+    #  _set_point
     def _set_point(self, point_name, value):
         register = self.get_register_by_name(point_name)
         if register.read_only:
-            raise IOError("Trying to write to a point configured read only: " + point_name)
+            raise IOError("Trying to write to a point configured read only: {}" .format(point_name) )
+
+        '''
         if( self.agent.SetPoint( register, value ) ):
             register._value = register.reg_type(value)
-
+            self.point_map[point_name]._value = register._value
         return register._value
+        '''
+        self.agent.SetPoint( register, value )
+        return value
 
     # this gets called periodically via DriverAgent::periodic_read()
     #    ( on behalf of MasterDriverAgent )
@@ -131,14 +148,16 @@ class Interface(BasicRevert, BaseInterface):
 
         return result
     
-    def parse_config(self, agent, config_dict, reg_config_str):
+    # 
+    #  parse_config
+    def parse_config(self, agent, device_type, config_dict, reg_config_str):
         if reg_config_str is None:
             return
 
-        config_str = utils.strip_comments(reg_config_str).lstrip()
-        _log.debug('Configure with {} and config_str {}'.format(config_dict, config_str))
+        config_str = (utils.strip_comments(reg_config_str).lstrip()).rstrip()
+        #_log.debug('Configuring {} Driver with {} and config_str {}'.format(device_type, config_dict, config_str))
          
         f = StringIO(config_str)
         regDict = DictReader(f)
         
-        self.agent.ConfigureAgent(self, config_dict, regDict )
+        agent.ConfigureAgent(self, config_dict, regDict )

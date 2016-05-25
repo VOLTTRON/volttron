@@ -1,5 +1,5 @@
 MultiBuilding Agent
-====
+===================
 
 This agent has been superseded by the VIP functionality introduced in 3.0 and should be considered deprecated. However it is still a usable agent.
 

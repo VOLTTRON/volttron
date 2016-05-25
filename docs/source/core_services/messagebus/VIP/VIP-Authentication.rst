@@ -1,5 +1,5 @@
 VIP Authentication
-=====
+==================
 
 
 `VIP <VIP>`__ (VOLTTRON Interconnect Protocol) authentication is

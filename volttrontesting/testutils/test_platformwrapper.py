@@ -65,6 +65,7 @@ from volttron.platform.vip.agent import Agent, PubSub, Core
 from volttron.platform.vip.socket import encode_key
 from volttrontesting.utils.platformwrapper import PlatformWrapper
 
+
 @pytest.mark.wrapper
 def test_can_connect_to_instance(volttron_instance):
     assert volttron_instance is not None
@@ -76,6 +77,7 @@ def test_can_connect_to_instance(volttron_instance):
     agent.core.stop()
     assert response[0] == message
 
+
 @pytest.mark.wrapper
 def test_can_install_listener(volttron_instance):
     clear_messages()
@@ -84,19 +86,22 @@ def test_can_install_listener(volttron_instance):
     assert vi.is_running()
 
     auuid = vi.install_agent(agent_dir="examples/ListenerAgent",
-        start=False)
+                             start=False)
     assert auuid is not None
     started = vi.start_agent(auuid)
     print('STARTED: ', started)
     listening = vi.build_agent()
     listening.vip.pubsub.subscribe(peer='pubsub',
-        prefix='heartbeat/ListenerAgent', callback=onmessage)
-    # sleep for 10 seconds and at least one heartbeat should have been published
+                                   prefix='heartbeat/ListenerAgent',
+                                   callback=onmessage)
+    # sleep for 10 seconds and at least one heartbeat should have been
+    # published
     # because it's set to 5 seconds.
     time_start = time.time()
 
     print('Awaiting heartbeat response.')
-    while not messages_contains_prefix('heartbeat/ListenerAgent') and time.time() < time_start + 10:
+    while not messages_contains_prefix(
+            'heartbeat/ListenerAgent') and time.time() < time_start + 10:
         gevent.sleep(0.2)
 
     assert messages_contains_prefix('heartbeat/ListenerAgent')
@@ -106,6 +111,7 @@ def test_can_install_listener(volttron_instance):
     removed = vi.remove_agent(auuid)
     print('REMOVED: ', removed)
 
+
 @pytest.mark.wrapper
 def test_can_stop_vip_heartbeat(volttron_instance):
     clear_messages()
@@ -114,12 +120,14 @@ def test_can_stop_vip_heartbeat(volttron_instance):
     assert vi.is_running()
 
     agent = vi.build_agent(heartbeat_autostart=True, heartbeat_period=5)
-    agent.vip.pubsub.subscribe(peer='pubsub', prefix='heartbeat/Agent', callback=onmessage)
+    agent.vip.pubsub.subscribe(peer='pubsub', prefix='heartbeat/Agent',
+                               callback=onmessage)
 
     # Make sure heartbeat is recieved
     time_start = time.time()
     print('Awaiting heartbeat response.')
-    while not messages_contains_prefix('heartbeat/Agent') and time.time() < time_start + 10:
+    while not messages_contains_prefix(
+            'heartbeat/Agent') and time.time() < time_start + 10:
         gevent.sleep(0.2)
 
     assert messages_contains_prefix('heartbeat/Agent')
@@ -129,10 +137,12 @@ def test_can_stop_vip_heartbeat(volttron_instance):
     agent.vip.heartbeat.stop()
     clear_messages()
     time_start = time.time()
-    while not messages_contains_prefix('heartbeat/Agent') and time.time() < time_start + 10:
+    while not messages_contains_prefix(
+            'heartbeat/Agent') and time.time() < time_start + 10:
         gevent.sleep(0.2)
 
     assert not messages_contains_prefix('heartbeat/Agent')
+
 
 @pytest.mark.wrapper
 def test_can_ping_pubsub(volttron_instance):
@@ -143,21 +153,25 @@ def test_can_ping_pubsub(volttron_instance):
     resp = agent.vip.ping('pubsub', 'hello').get(timeout=5)
     print('PUBSUB RESP: ', resp)
 
+
 @pytest.mark.wrapper
 def test_can_call_rpc_method(volttron_instance):
     config = dict(agentid="Central Platform", report_status_period=15)
-    agent_uuid = volttron_instance.install_agent(agent_dir='services/core/Platform',
-                                                  config_file=config,
-                                                  start=True)
+    agent_uuid = volttron_instance.install_agent(
+        agent_dir='services/core/VolttronCentralPlatform',
+        config_file=config,
+        start=True)
     assert agent_uuid is not None
     assert volttron_instance.is_agent_running(agent_uuid)
 
     agent = volttron_instance.build_agent()
 
-    agent_list = agent.vip.rpc.call('platform.agent', method='list_agents').get(timeout=5)
+    agent_list = agent.vip.rpc.call('platform.agent',
+                                    method='list_agents').get(timeout=5)
 
     print('The agent list is: {}'.format(agent_list))
     assert agent_list is not None
+
 
 @pytest.mark.wrapper
 def test_can_remove_agent(volttron_instance):
@@ -166,30 +180,36 @@ def test_can_remove_agent(volttron_instance):
     assert volttron_instance.is_running()
 
     # Install ListenerAgent as the agent to be removed.
-    agent_uuid = volttron_instance.install_agent(agent_dir="examples/ListenerAgent", start=False)
+    agent_uuid = volttron_instance.install_agent(
+        agent_dir="examples/ListenerAgent", start=False)
     assert agent_uuid is not None
     started = volttron_instance.start_agent(agent_uuid)
     assert started is not None
     assert volttron_instance.agent_status(agent_uuid) is not None
 
-    #Now attempt removal
+    # Now attempt removal
     volttron_instance.remove_agent(agent_uuid)
 
-    #Confirm that it has been removed.
+    # Confirm that it has been removed.
     assert volttron_instance.agent_status(agent_uuid) is None
 
 
 messages = {}
+
+
 def onmessage(peer, sender, bus, topic, headers, message):
     messages[topic] = {'headers': headers, 'message': message}
+
 
 def clear_messages():
     global messages
     messages = {}
 
+
 def messages_contains_prefix(prefix):
     global messages
     return any(map(lambda x: x.startswith(prefix), messages.keys()))
+
 
 @pytest.mark.wrapper
 def test_can_publish(volttron_instance):
@@ -197,65 +217,73 @@ def test_can_publish(volttron_instance):
     clear_messages()
     vi = volttron_instance
     agent = vi.build_agent()
-#    gevent.sleep(0)
+    #    gevent.sleep(0)
     agent.vip.pubsub.subscribe(peer='pubsub', prefix='test/world',
-        callback=onmessage).get(timeout=5)
+                               callback=onmessage).get(timeout=5)
 
     agent_publisher = vi.build_agent()
-#    gevent.sleep(0)
+    #    gevent.sleep(0)
     agent_publisher.vip.pubsub.publish(peer='pubsub', topic='test/world',
-        message='got data')
+                                       message='got data')
     # sleep so that the message bus can actually do some work before we
     # eveluate the global messages.
     gevent.sleep(0.1)
     assert messages['test/world']['message'] == 'got data'
 
+
 def test_can_ping_router(volttron_instance):
     vi = volttron_instance
     agent = vi.build_agent()
     resp = agent.vip.ping('', 'router?').get(timeout=4)
-    #resp = agent.vip.hello().get(timeout=1)
-    print("HELLO RESPONSE!",resp)
+    # resp = agent.vip.hello().get(timeout=1)
+    print("HELLO RESPONSE!", resp)
+
 
 @pytest.mark.wrapper
 def test_can_install_listener_on_two_platforms(get_volttron_instances):
     volttron_instance1, volttron_instance2 = get_volttron_instances(2)
     global messages
     clear_messages()
-    auuid = volttron_instance1.install_agent(agent_dir="examples/ListenerAgent",
+    auuid = volttron_instance1.install_agent(
+        agent_dir="examples/ListenerAgent",
         start=False)
     assert auuid is not None
     started = volttron_instance1.start_agent(auuid)
     print('STARTED: ', started)
     listening = volttron_instance1.build_agent()
     listening.vip.pubsub.subscribe(peer='pubsub',
-        prefix='heartbeat/ListenerAgent', callback=onmessage)
+                                   prefix='heartbeat/ListenerAgent',
+                                   callback=onmessage)
 
-    # sleep for 10 seconds and at least one heartbeat should have been published
+    # sleep for 10 seconds and at least one heartbeat should have been
+    # published
     # because it's set to 5 seconds.
     time_start = time.time()
 
-
-
     clear_messages()
-    auuid2 = volttron_instance2.install_agent(agent_dir="examples/ListenerAgent",
+    auuid2 = volttron_instance2.install_agent(
+        agent_dir="examples/ListenerAgent",
         start=True)
     assert auuid2 is not None
     started2 = volttron_instance2.start_agent(auuid2)
     print('STARTED: ', started2)
     listening = volttron_instance2.build_agent()
     listening.vip.pubsub.subscribe(peer='pubsub',
-        prefix='heartbeat/ListenerAgent', callback=onmessage)
+                                   prefix='heartbeat/ListenerAgent',
+                                   callback=onmessage)
 
-    # sleep for 10 seconds and at least one heartbeat should have been published
+    # sleep for 10 seconds and at least one heartbeat should have been
+    # published
     # because it's set to 5 seconds.
     time_start = time.time()
 
     print('Awaiting heartbeat response.')
-    while not messages_contains_prefix('heartbeat/ListenerAgent') and time.time() < time_start + 10:
+    while not messages_contains_prefix(
+            'heartbeat/ListenerAgent') and time.time() < time_start + 10:
         gevent.sleep(0.2)
 
     assert messages_contains_prefix('heartbeat/ListenerAgent')
+
 
 # def test_can_ping_control(volttron_instance2):
 #     agent = volttron_instance2.build_agent()
@@ -303,7 +331,7 @@ def test_can_install_listener_on_two_platforms(get_volttron_instances):
 #     print(response)
 #     agent.core.stop()
 #
-#     agent = PlatormTestAgent(address=volttron_instance.vip_address[0],
+#     agent = PlatormTestAgent(address=volttron_instance.vip_address,
 #                              identity='Listener Found')
 #     task = gevent.spawn(agent.core.run)
 #     gevent.sleep(10)

@@ -53,13 +53,13 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-
 # }}}
-'''
-pytest test cases for actuator agent(3.0). Tests functionality using pubsub
-methods. Tests are run with both volttron 2.0 agents and volttron 3.0
-publish agents against 3.0 actuator agents
-'''
+
+"""
+Pytest test cases for testing actuator agent using pubsub calls. Tests 3.0
+actuator agent with both 2.0 and 3.0 publish agents
+"""
+
 from datetime import datetime, timedelta
 
 import gevent
@@ -83,6 +83,19 @@ publish_agent_v2 = None
 
 @pytest.fixture(scope="function")
 def cancel_schedules(request, publish_agent):
+    """
+    Fixture used to clean up after every test case.
+    Fixture used to clean up after every test case. Cancels any active
+    schedules used for a test case so that the same device and time slot
+    can
+    be used for the next test case
+    :param request: pytest request object
+    :param publish_agent: instance Agent class for doing the rpc calls
+    :return: Array object that the test methods populates with list of
+    tasks
+    that needs to be cancelled after test. Will contain list of dictionary
+    objects of the format ({'agentid': agentid, 'taskid': taskid})
+    """
     cleanup_parameters = []
 
     def cleanup():
@@ -107,6 +120,15 @@ def cancel_schedules(request, publish_agent):
 
 @pytest.fixture(scope="function")
 def revert_devices(request, publish_agent):
+    """
+    Cleanup method to revert points on device after test run
+    :param request: pytest request object
+    :param publish_agent: instance Agent class for doing the rpc calls
+    :return: Array object that the test methods populates with list of
+    points
+    that needs to be reverted after test. Will contain list of dictionary
+    objects of the format ({'agentid': agentid, 'device': point_to_revert})
+    """
     cleanup_parameters = []
 
     def cleanup():
@@ -133,6 +155,18 @@ def revert_devices(request, publish_agent):
 @pytest.fixture(scope="module",
                 params=['volttron_2', 'volttron_3'])
 def publish_agent(request, volttron_instance):
+    """
+    Fixture used for setting up the environment.
+    1. Creates fake driver configs
+    2. Starts the master driver agent with the created fake driver agents
+    3. Starts the actuator agent
+    4. Creates an instance Agent class for publishing and returns it
+
+    :param request: pytest request object
+    :param volttron_instance1: instance of volttron in which test cases
+    are run
+    :return: an instance of fake agent used for publishing
+    """
     global actuator_uuid, publish_agent_v2
     # Create master driver config and 4 fake devices each with 6 points
     process = Popen(['python', 'config_builder.py', '--count=4',
@@ -201,6 +235,13 @@ def publish_agent(request, volttron_instance):
 
 
 def publish(publish_agent, topic, header, message):
+    """
+
+    :param publish_agent: 3.0 agent to use for publishing
+    :param topic: topic to publish to
+    :param header: header to publish
+    :param message: message to publish
+    """
     global publish_agent_v2
     if publish_agent_v2 is None:
         publish_agent.vip.pubsub.publish('pubsub',
@@ -1826,6 +1867,7 @@ def test_set_value_float(publish_agent, cancel_schedules, revert_devices):
     result_message = publish_agent.callback.call_args[0][5]
     assert result_header['requesterID'] == agentid
     assert result_message == 0.2
+
 
 @pytest.mark.actuator_pubsub
 def test_revert_point(publish_agent, cancel_schedules):

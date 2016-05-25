@@ -1,5 +1,5 @@
 Required Sofware: Linux
------------------------
+-------------------------
 
 The following packages will need to be installed if they are not
 already:

@@ -55,7 +55,6 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-import python_2_7_3_sqlite3 as sql_old
 from dateutil.parser import parse
 from  volttron.platform.agent.utils import fix_sqlite3_datetime 
 import pytest
@@ -65,6 +64,7 @@ import sqlite3 as sql
 def test_sqlite_fixes():
     """This is all in a single test so we don't have to muck around with 
     reloading modules."""
+    import python_2_7_3_sqlite3 as sql_old
     conn = sql_old.connect(':memory:', detect_types=sql_old.PARSE_DECLTYPES|sql_old.PARSE_COLNAMES)
     
     cur = conn.cursor()

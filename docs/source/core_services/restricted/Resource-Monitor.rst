@@ -1,5 +1,9 @@
 Reource Monitor
-=====
+<<<<<<< HEAD
+=================
+=======
+===============
+>>>>>>> 997b115c2dc835cca24d3568b1e49a1063bc9e97
 
 The `VOLTTRON™ Restricted <Volttron-Restricted>`__ additions provide
 additional protection against an agent consuming too many resources to
