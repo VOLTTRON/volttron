@@ -22,8 +22,8 @@ forwarder_config = {
     "services_topic_list": [
         "devices", "record", "analysis", "actuators", "datalogger"
     ],
-    "topic_text_replace": [
-        {"from": "PNNL/SEB", "to": "PNNL/BUILDING1"}
+    "topic_replace_list": [
+        {"from": "PNNL/BUILDING_1", "to": "PNNL/BUILDING1_ANON"}
     ]
 }
 sqlite_config = {
@@ -86,18 +86,13 @@ def sqlhistorian(request, volttron_instance2):
         start=True)
     print("sqlite historian agent id: ", agent_uuid)
 
-    def stop_agent():
-        print("In teardown method of module")
-        volttron_instance2.stop_agent(agent_uuid)
-
-    request.addfinalizer(stop_agent)
 
 
 @pytest.fixture(scope="module")
 def forwarder(request, volttron_instance1, volttron_instance2):
     global forwarder_uuid
     # 1. Update destination address in forwarder configuration
-    forwarder_config["destination-vip"] = volttron_instance2.vip_address[0]
+    forwarder_config["destination-vip"] = volttron_instance2.vip_address
     # 1: Install historian agent
     # Install and start sqlhistorian agent in instance2
     forwarder_uuid = volttron_instance1.install_agent(
@@ -123,8 +118,8 @@ def test_devices_topic(publish_agent, query_agent):
     """
     Test if devices topic message is getting forwarded to historian running on
     another instance. Test if topic name substitutions happened.
-    Publish to 'devices/PNNL/SEB/Device/all' in volttron_instance1 and query
-    for topic 'devices/PNNL/BUILDING1/Device/all' in volttron_instance2
+    Publish to 'devices/PNNL/BUILDING_1/Device/all' in volttron_instance1 and query
+    for topic 'devices/PNNL/BUILDING1_ANON/Device/all' in volttron_instance2
 
     @param publish_agent: Fake agent used to publish messages to bus in
     volttron_instance1. Calling this fixture makes sure all the dependant
@@ -147,15 +142,15 @@ def test_devices_topic(publish_agent, query_agent):
     headers = {
         headers_mod.DATE: time1
     }
-    publish(publish_agent, 'devices/PNNL/SEB/Device/all', headers, all_message)
+    publish(publish_agent, 'devices/PNNL/BUILDING_1/Device/all', headers, all_message)
     gevent.sleep(1)
 
     # Verify topic name replacement by querying the replaced topic name
-    # PNNL/SEB should be replaced with PNNL/BUILDING1
+    # PNNL/BUILDING_1 should be replaced with PNNL/BUILDING1_ANON
     result = query_agent.vip.rpc.call(
         'platform.historian',
         'query',
-        topic='PNNL/BUILDING1/Device/OutsideAirTemperature',
+        topic='PNNL/BUILDING1_ANON/Device/OutsideAirTemperature',
         start=time1,
         count=20,
         order="LAST_TO_FIRST").get(timeout=10)
@@ -272,9 +267,9 @@ def test_analysis_topic(publish_agent, query_agent):
     Test if devices topic message is getting forwarded to historian running on
     another instance. Test if topic name substitutions happened.
     Publish to topic
-    'analysis/PNNL/SEB/Device/MixedAirTemperature' in volttron_instance1 and
+    'analysis/PNNL/BUILDING_1/Device/MixedAirTemperature' in volttron_instance1 and
     query for topic
-    'PNNL/BUILDING1/Device/MixedAirTemperature' in volttron_instance2
+    'PNNL/BUILDING1_ANON/Device/MixedAirTemperature' in volttron_instance2
 
     @param publish_agent: Fake agent used to publish messages to bus in
     volttron_instance1. Calling this fixture makes sure all the dependant
@@ -311,7 +306,7 @@ def test_analysis_topic(publish_agent, query_agent):
         headers_mod.DATE: now
     }
     # Publish messages
-    publish(publish_agent, 'analysis/PNNL/SEB/Device/MixedAirTemperature',
+    publish(publish_agent, 'analysis/PNNL/BUILDING_1/Device/MixedAirTemperature',
             headers, all_message)
     gevent.sleep(0.5)
 
@@ -320,7 +315,7 @@ def test_analysis_topic(publish_agent, query_agent):
     result = query_agent.vip.rpc.call(
         'platform.historian',
         'query',
-        topic='PNNL/BUILDING1/Device/MixedAirTemperature',
+        topic='PNNL/BUILDING1_ANON/Device/MixedAirTemperature',
         start=now,
         order="LAST_TO_FIRST").get(timeout=10)
     print('Query Result', result)
@@ -339,9 +334,9 @@ def test_analysis_topic_no_header(publish_agent, query_agent):
     Test if devices topic message is getting forwarded to historian running on
     another instance. Test if topic name substitutions happened.
     Publish to topic
-    'analysis/PNNL/SEB/Device/MixedAirTemperature' in volttron_instance1 and
+    'analysis/PNNL/BUILDING_1/Device/MixedAirTemperature' in volttron_instance1 and
     query for topic
-    'PNNL/BUILDING1/Device/MixedAirTemperature' in volttron_instance2
+    'PNNL/BUILDING1_ANON/Device/MixedAirTemperature' in volttron_instance2
 
     @param publish_agent: Fake agent used to publish messages to bus in
     volttron_instance1. Calling this fixture makes sure all the dependant
@@ -376,7 +371,7 @@ def test_analysis_topic_no_header(publish_agent, query_agent):
     print("now is ", now)
 
     # Publish messages
-    publish(publish_agent, 'analysis/PNNL/SEB/Device/MixedAirTemperature',
+    publish(publish_agent, 'analysis/PNNL/BUILDING_1/Device/MixedAirTemperature',
             None, all_message)
     gevent.sleep(0.5)
 
@@ -385,7 +380,7 @@ def test_analysis_topic_no_header(publish_agent, query_agent):
     result = query_agent.vip.rpc.call(
         'platform.historian',
         'query',
-        topic='PNNL/BUILDING1/Device/MixedAirTemperature',
+        topic='PNNL/BUILDING1_ANON/Device/MixedAirTemperature',
         start=now,
         order="LAST_TO_FIRST").get(timeout=10)
     print('Query Result', result)
@@ -400,9 +395,9 @@ def test_log_topic(publish_agent, query_agent):
     Test if log topic message is getting forwarded to historian running on
     another instance. Test if topic name substitutions happened.
     Publish to topic
-    'datalogger/PNNL/SEB/Device' in volttron_instance1 and
+    'datalogger/PNNL/BUILDING_1/Device' in volttron_instance1 and
     query for topic
-    'datalogger/PNNL/BUILDING1/Device/MixedAirTemperature' in
+    'datalogger/PNNL/BUILDING1_ANON/Device/MixedAirTemperature' in
     volttron_instance2
     Expected result:
      Record should get entered into database with current time at time of
@@ -442,7 +437,7 @@ def test_log_topic(publish_agent, query_agent):
     print("time in header is ", future_time)
 
     # Publish messages
-    publish(publish_agent, "datalogger/PNNL/SEB/Device", headers, message)
+    publish(publish_agent, "datalogger/PNNL/BUILDING_1/Device", headers, message)
     gevent.sleep(1)
 
     # Query the historian
@@ -450,7 +445,7 @@ def test_log_topic(publish_agent, query_agent):
         'platform.historian',
         'query',
         start=current_time,
-        topic="datalogger/PNNL/BUILDING1/Device/MixedAirTemperature",
+        topic="datalogger/PNNL/BUILDING1_ANON/Device/MixedAirTemperature",
         order="LAST_TO_FIRST").get(timeout=10)
     print('Query Result', result)
     assert (len(result['values']) == 1)
@@ -464,9 +459,9 @@ def test_log_topic_no_header(publish_agent, query_agent):
     Test if log topic message is getting forwarded to historian running on
     another instance. Test if topic name substitutions happened.
     Publish to topic
-    'datalogger/PNNL/SEB/Device' in volttron_instance1 and
+    'datalogger/PNNL/BUILDING_1/Device' in volttron_instance1 and
     query for topic
-    'datalogger/PNNL/BUILDING1/Device/MixedAirTemperature' in
+    'datalogger/PNNL/BUILDING1_ANON/Device/MixedAirTemperature' in
     volttron_instance2
 
     @param publish_agent: Fake agent used to publish messages to bus in
@@ -492,14 +487,14 @@ def test_log_topic_no_header(publish_agent, query_agent):
                                        'type': 'float'}}
     gevent.sleep(1)  # sleep so that there is no side effect from earlier test
     # Publish messages
-    publish(publish_agent, "datalogger/PNNL/SEB/Device", None, message)
+    publish(publish_agent, "datalogger/PNNL/BUILDING_1/Device", None, message)
     gevent.sleep(0.5)
 
     # Query the historian
     result = query_agent.vip.rpc.call(
         'platform.historian',
         'query',
-        topic="datalogger/PNNL/BUILDING1/Device/MixedAirTemperature",
+        topic="datalogger/PNNL/BUILDING1_ANON/Device/MixedAirTemperature",
         start=current_time,
         order="LAST_TO_FIRST").get(timeout=10)
     print('Query Result', result)
@@ -596,9 +591,9 @@ def test_topic_not_forwarded(publish_agent, query_agent, volttron_instance1,
     Test if devices topic message is getting forwarded to historian running on
     another instance. Test if topic name substitutions happened.
     Publish to topic
-    'datalogger/PNNL/SEB/Device' in volttron_instance1 and
+    'datalogger/PNNL/BUILDING_1/Device' in volttron_instance1 and
     query for topic
-    'datalogger/PNNL/BUILDING1/Device/MixedAirTemperature' in
+    'datalogger/PNNL/BUILDING1_ANON/Device/MixedAirTemperature' in
     volttron_instance2
 
     @param publish_agent: Fake agent used to publish messages to bus in
@@ -622,12 +617,12 @@ def test_topic_not_forwarded(publish_agent, query_agent, volttron_instance1,
 
         print("\n** test_log_topic **")
         new_config = {"agentid": "forwarder",
-                      "destination-vip": volttron_instance2.vip_address[0],
+                      "destination-vip": volttron_instance2.vip_address,
                       "custom_topic_list": [],
                       "services_topic_list":
                           ["devices", "record", "analysis"],
-                      "topic_text_replace":
-                          [{"from": "PNNL/SEB", "to": "PNNL/BUILDING1"}]}
+                      "topic_replace_list":
+                          [{"from": "PNNL/BUILDING_1", "to": "PNNL/BUILDING1_ANON"}]}
 
         forwarder_uuid = volttron_instance1.install_agent(
             agent_dir="services/core/ForwardHistorian",
@@ -652,14 +647,14 @@ def test_topic_not_forwarded(publish_agent, query_agent, volttron_instance1,
         # now = '2015-12-02T00:00:00'
 
         # Publish messages
-        publish(publish_agent, "datalogger/PNNL/SEB/Device", None, message)
+        publish(publish_agent, "datalogger/PNNL/BUILDING_1/Device", None, message)
         gevent.sleep(1)
 
         # Query the historian
         result = query_agent.vip.rpc.call(
             'platform.historian',
             'query',
-            topic="datalogger/PNNL/BUILDING1/Device/MixedAirTemperature",
+            topic="datalogger/PNNL/BUILDING1_ANON/Device/MixedAirTemperature",
             start=now,
             count=20,
             order="LAST_TO_FIRST").get(timeout=10)
@@ -668,7 +663,7 @@ def test_topic_not_forwarded(publish_agent, query_agent, volttron_instance1,
 
     finally:
         volttron_instance1.stop_agent(forwarder_uuid)
-        forwarder_config["destination-vip"] = volttron_instance2.vip_address[0]
+        forwarder_config["destination-vip"] = volttron_instance2.vip_address
         # 1: Install historian agent
         # Install and start sqlhistorian agent in instance2
         forwarder_uuid = volttron_instance1.install_agent(

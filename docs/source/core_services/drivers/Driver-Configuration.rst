@@ -44,6 +44,12 @@ in the VOLTTRON repository in ``examples/configurations/drivers/master-driver.ag
 .. _driver-configuration-file:
 Driver Configuration File
 -------------------------
+
+.. note::
+
+    The terms `register` and `point` are used interchangeably in the documentation and
+    in the configuration setting names. They have the same meaning.
+
 Each device configuration has the following form:
 
 .. code-block:: json
@@ -74,7 +80,7 @@ These settings are optional:
 
 These settings are used to create the topic that this device will be referenced by following the VOLTTRON convention of {campus}/{building}/{unit}. This will also be the topic published on when then device is periodically scraped for it's current state.
 
-While all of the settings are optional at least one is required.
+While all of the settings are optional at least one is required:
 
     - **campus** - Campus portion of the device topic. (Optional)
     - **building** - Building portion of the device topic. (Optional)
@@ -86,9 +92,89 @@ making an RPC call would be
 
     ``pnnl/isb1/vav1``
 
-Device state publishes to the message bus for this device will start with
 
-    ``devices/pnnl/isb1/vav1``
+Device State Publishes
+**********************
+
+By default the value of each register on a device is published 4 different ways when the device state is published.
+Consider the following settings in a Driver Configuration File:
+
+.. code-block:: json
+
+    {
+        "driver_config": {"device_address": "10.1.1.5",
+                          "device_id": 500},
+
+        "driver_type": "bacnet",
+        "registry_config":"/home/volttron-user/configs/vav.csv",
+        "campus": "pnnl",
+        "building": "isb1",
+        "unit": "vav1",
+    }
+
+In the `vav.csv` file is a register with the name ``temperature``. For these examples
+the current value of the register on the device happens to be 75.2 and the meta data
+is
+
+.. code-block:: python
+
+    {"units": "F"}
+
+When the driver publishes the device state the following 2 things will be published for this register:
+
+    A "depth first" publish to the topic ``devices/pnnl/isb1/vav1/temperature``
+    with the following message:
+
+        .. code-block:: python
+
+            [75.2, {"units": "F"}]
+
+    A "breadth first" publish to the topic ``devices/temperature/vav1/isb1/pnnl``
+    with the following message:
+
+        .. code-block:: python
+
+            [75.2, {"units": "F"}]
+
+Also these two publishes happen once for all registers:
+
+    A "depth first" publish to the topic ``devices/pnnl/isb1/vav1/all``
+    with the following message:
+
+        .. code-block:: python
+
+            [{"temperature": 75.2, ...}, {"temperature":{"units": "F"}, ...}]
+
+    A "breadth first" publish to the topic ``devices/all/vav1/isb1/pnnl``
+    with the following message:
+
+        .. code-block:: python
+
+            [{"temperature": 75.2, ...}, {"temperature":{"units": "F"}, ...}]
+
+Scalability Settings
+********************
+
+In order to improve the scalability of the platform unneeded device state publishes for a device can be turned off.
+All of the following setting are optional and default to `True`:
+
+    - **publish_depth_first_all** - Enable device state publishes to the topic
+      ``devices/<campus>/<building>/<unit>/<path>/all``
+    - **publish_breadth_first_all** - Enable device state publishes to the topic
+      ``devices/all/<path>/<unit>/<building>/<campus>``
+    - **publish_depth_first** - Enable device state publishes to the topic
+      ``devices/<campus>/<building>/<unit>/<path>/<point_name>`` for each register on the device.
+    - **publish_breadth_first** - Enable device state publishes to the topic
+      ``devices/all/<path>/<unit>/<building>/<campus>`` for each register on the device.
+
+It is common practice to set **publish_breadth_first_all**, **publish_depth_first**, and
+**publish_breadth_first** to `False` unless they are specifically needed by an agent running on
+the platform.
+
+
+.. note::
+
+    All Historian Agents require **publish_depth_first_all** to be set to `True` in order to capture data.
 
 Registry Configuration File
 ---------------------------

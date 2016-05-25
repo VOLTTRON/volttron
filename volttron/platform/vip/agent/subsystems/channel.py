@@ -103,7 +103,7 @@ class Channel(SubsystemBase):
                 logit = (0 < _log.level <= logging.DEBUG)
                 message = chan_sock.recv_multipart(copy=False)
                 if logit:
-                    _log.debug('recv on out %r', [bytes(x) for x in message])
+                    _log.debug('recv {} bytes of data'.format(len(message)))
                 if not message:
                     continue
                 ident = bytes(message[0])
@@ -117,7 +117,8 @@ class Channel(SubsystemBase):
                     continue
                 message[0] = name
                 if logit:
-                    _log.debug('send on out %r', [bytes(x) for x in message])
+                    _log.debug('send on out {} bytes of data'
+                               .format(len(message)))
                 vip_sock.send_vip(peer, 'channel', message, copy=False)
         core.onstart.connect(start, self)
 

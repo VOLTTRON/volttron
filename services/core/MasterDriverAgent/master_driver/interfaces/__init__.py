@@ -64,7 +64,7 @@ from the following platform features:
 - Existing Agents can interact with the device via the Actuator Agent without any code changes.
 - Configuration follows the standard form of other devices. Existing and future tools
     for configuring devices on the platform will work with the new device driver.
-- Historians will automatically capture data published by the Master Driver Agent.
+- Historians will automatically capture data published by the new device driver.
 - Device data can be graphed in VOLTTRON Central in real time.
 - If the device can receive a heartbeat signal the driver framework can be configured to
    automatically send a heartbeat signal.

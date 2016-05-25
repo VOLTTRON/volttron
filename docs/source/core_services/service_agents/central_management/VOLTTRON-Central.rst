@@ -4,11 +4,11 @@ VOLTTRON Central Management Agent
 Agent Introduction
 ==================
 
-The VOLTTRON Central Agent is responsible for controlling multiple
-VOLTTRON instances through a single interfaces. The VOLTTRON instances
-can be either local or remote. VOLTTRON Central provides a web based
-interface to our JSON based web api. Both the web api and the interface
-are serviced through the VOLTTRON Central agent. There is a `VOLTTRON
+The VOLTTRON Central Agent (VCM) is responsible for controlling multiple
+VOLTTRON instances through a single interfaces.  The VOLTTRON instances
+can be either local or remote.  VCM leverages an internal VOLTTRON web server
+providing a interface to our JSON-RPC based web api.  Both the web api and
+the interface are served through the VCM agent. There is a `VOLTTRON
 Central Demo <VOLTTRON-Central-Demo>`__ that will allow you to quickly
 setup and see the current offerings of the interface. VOLTTRON Central
 will allow you to
@@ -19,9 +19,37 @@ will allow you to
 -  Create dynamic graphs from the historians based upon points.
 -  Execute functions on remote platforms.
 
-Configuration
--------------
+Instance Configuration
+======================
 
+In order for any web agent to be enabled, there must be a port configured to
+serve the content.  The easiest way to do this is to create a config file in
+the root of your VOLTTRON_HOME directory. (to do this automatically see `
+VOLTTRON Config<VOLTTRON-Config>`__)
+
+The following is an example of the configuration file
+
+::
+
+    [volttron]
+    vip-addres=tcp://127.0.0.1:22916
+    bind-web-address=http://127.0.0.1:8080
+
+** Note the above configuration will open a discoverable port for the volttron
+   instance.  In addition, the opening of this web address allows you to serve
+   both static as well as dynamic pages.
+
+Verify that the instance is serving properly by pointing your web browser to
+
+::
+
+    http://127.0.0.1:8080/discovery/
+
+This is the required information for a VolttronCentralPlatform to be able to
+be managed.
+
+VOLTTRON Central Manager Configuration
+======================================
 The following is the default configuration file for VOLTTRON Central
 
 ::
@@ -31,18 +59,8 @@ The following is the default configuration file for VOLTTRON Central
         # it does not need to be unique.
         "agentid": "volttron central",
         
-        # Must be unique on a given instance of VOLTTRON
-        "vip_identity": "volttron.central",
-        
-        # Tornado server settings.  These options are passed to the
-        # tornado webserver during agent start up.
-        "server" : {
-            "host": "127.0.0.1",
-            "port": 8080,
-            "debug": "False"
-        },
-        
         # Authentication for users is handled through a naive password algorithm
+        # Note in the following example the user and password are identical.
         # import hashlib
         # hashlib.sha512(password).hexdigest() where password is the plain text password.
         "users" : {
@@ -74,7 +92,7 @@ The following is the default configuration file for VOLTTRON Central
     }
 
 Agent Execution
----------------
+===============
 
 To start VOLTTRON Central first make sure the `VOLTTRON instance is
 running <Eclipse-Dev-Environment#execute-volttron-platform-from-shell>`__.

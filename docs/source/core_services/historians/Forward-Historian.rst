@@ -18,6 +18,14 @@ point towards the foreign Volttron instance.
         "destination-vip": "ipc://@/home/volttron/.volttron/run/vip.socket"
     }
 
+Adding the configuration option below will limit the backup cache
+to *n* gigabytes. This will keep your hard drive from filling up if
+the agent is disconnected from its target for a long time.
+
+::
+
+   "backup_storage_limit_gb": n
+
 See Also
 ~~~~~~~~
 
