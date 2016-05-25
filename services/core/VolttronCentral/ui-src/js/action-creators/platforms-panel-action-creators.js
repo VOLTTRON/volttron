@@ -72,7 +72,7 @@ var platformsPanelActionCreators = {
                 })                     
                 .catch(rpc.Error, function (error) {
                     endLoadingData(platform);
-                    handle401(error, "Error loading devices in side panel: " + error.message);
+                    handle401(error, "Unable to load devices in side panel: " + error.message);
                 });    
 
         }
@@ -96,7 +96,7 @@ var platformsPanelActionCreators = {
                 })                     
                 .catch(rpc.Error, function (error) {
                     endLoadingData(platform);
-                    handle401(error, "Error loading agents in side panel: " + error.message);
+                    handle401(error, "Unable to load agents in side panel: " + error.message);
                 });    
         }       
 

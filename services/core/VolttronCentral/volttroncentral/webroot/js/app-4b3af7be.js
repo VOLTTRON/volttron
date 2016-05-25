@@ -5,7 +5,7 @@ var React = require('react');
 var Router = require('react-router');
 
 var authorizationStore = require('./stores/authorization-store');
-var platformChartsStore = require('./stores/platform-chart-store');
+var platformsPanelItemsStore = require('./stores/platforms-panel-items-store');
 var Dashboard = require('./components/dashboard');
 var LoginForm = require('./components/login-form');
 var PageNotFound = require('./components/page-not-found');
@@ -79,8 +79,8 @@ router.run(function (Handler) {
         }
     });
 
-    platformChartsStore.addChangeListener(function () {
-        if (platformChartsStore.showCharts() && authorizationStore.getAuthorization())
+    platformsPanelItemsStore.addChangeListener(function () {
+        if (platformsPanelItemsStore.getLastCheck() && authorizationStore.getAuthorization())
         {
             // console.log("current path: " + router.getCurrentPath());
             if (!router.isActive('charts'))
@@ -97,7 +97,7 @@ router.run(function (Handler) {
 });
 
 
-},{"./components/dashboard":16,"./components/login-form":19,"./components/page-not-found":22,"./components/platform":26,"./components/platform-charts":24,"./components/platform-manager":25,"./components/platforms":29,"./stores/authorization-store":42,"./stores/platform-chart-store":46,"react":undefined,"react-router":undefined}],2:[function(require,module,exports){
+},{"./components/dashboard":16,"./components/login-form":19,"./components/page-not-found":22,"./components/platform":26,"./components/platform-charts":24,"./components/platform-manager":25,"./components/platforms":29,"./stores/authorization-store":42,"./stores/platforms-panel-items-store":47,"react":undefined,"react-router":undefined}],2:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -236,11 +236,11 @@ var platformActionCreators = {
                         });
                     })            
                     .catch(rpc.Error, function (error) {
-                        handle401(error, "Error loading agents: " + error.message);
+                        handle401(error, "Unable to load agents: " + error.message);
                     });
             })            
             .catch(rpc.Error, function (error) {
-                handle401(error, "Error loading agents: " + error.message);
+                handle401(error, "Unable to load agents: " + error.message);
             });
     },
     startAgent: function (platform, agent) {
@@ -263,7 +263,7 @@ var platformActionCreators = {
                 agent.return_code = status.return_code;
             })                        
             .catch(rpc.Error, function (error) {
-                handle401(error, "Error starting agent: " + error.message);
+                handle401(error, "Unable to start agent: " + error.message);
             })
             .finally(function () {
                 agent.actionPending = false;
@@ -294,7 +294,7 @@ var platformActionCreators = {
                 agent.return_code = status.return_code;
             })                      
             .catch(rpc.Error, function (error) {
-                handle401(error, "Error stopping agent: " + error.message);
+                handle401(error, "Unable to start agent: " + error.message);
             })
             .finally(function () {
                 agent.actionPending = false;
@@ -331,7 +331,7 @@ var platformActionCreators = {
             .then(function (result) {
                 
                 if (result.error) {
-                    statusIndicatorActionCreators.openStatusIndicator("error", "Error removing agent: " + result.error);
+                    statusIndicatorActionCreators.openStatusIndicator("error", "Unable to remove agent: " + result.error);
                 }
                 else
                 {
@@ -339,7 +339,7 @@ var platformActionCreators = {
                 }
             })                      
             .catch(rpc.Error, function (error) {
-                handle401(error, "Error removing agent: " + error.message);
+                handle401(error, "Unable to remove agent: " + error.message);
             });
     },
     installAgents: function (platform, files) {
@@ -362,7 +362,7 @@ var platformActionCreators = {
                 });
 
                 if (errors.length) {
-                    statusIndicatorActionCreators.openStatusIndicator("error", "Error installing agents: " + errors.join('\n'));
+                    statusIndicatorActionCreators.openStatusIndicator("error", "Unable to install agents: " + errors.join('\n'));
                 }
 
                 if (errors.length !== files.length) {
@@ -370,7 +370,7 @@ var platformActionCreators = {
                 }
             })                      
             .catch(rpc.Error, function (error) {
-                handle401(error, "Error installing agents: " + error.message);
+                handle401(error, "Unable to install agents: " + error.message);
             });
     },    
     loadCharts: function (platform) {
@@ -400,13 +400,13 @@ var platformActionCreators = {
                             });
                         })
                         .catch(rpc.Error, function (error) {
-                            handle401(error, "Error loading charts: " + error.message);
+                            handle401(error, "Unable to load charts: " + error.message);
                         });
                         
                     }
             })
             .catch(rpc.Error, function (error) {
-                handle401(error, "Error loading charts: " + error.message);
+                handle401(error, "Unable to load charts: " + error.message);
             });
 
 
@@ -426,7 +426,7 @@ var platformActionCreators = {
 
             })
             .catch(rpc.Error, function (error) {
-                handle401(error, "Error saving charts: " + error.message);
+                handle401(error, "Unable to save charts: " + error.message);
             });
     },
     saveChart: function (newChart) {
@@ -443,7 +443,7 @@ var platformActionCreators = {
 
             })
             .catch(rpc.Error, function (error) {
-                handle401(error, "Error saving chart: " + error.message);
+                handle401(error, "Unable to save chart: " + error.message);
             });
     },
     deleteChart: function (chartToDelete) {
@@ -465,7 +465,7 @@ var platformActionCreators = {
 
             })
             .catch(rpc.Error, function (error) {
-                handle401(error, "Error deleting chart: " + error.message);
+                handle401(error, "Unable to delete chart: " + error.message);
             });
     },
 };
@@ -552,13 +552,13 @@ var platformChartActionCreators = {
                 })
                 .catch(rpc.Error, function (error) {
 
-                    var message = "Error updating chart: " + error.message;
+                    var message = "Unable to update chart: " + error.message;
 
                     if (error.code === -32602)
                     {
                         if (error.message === "historian unavailable")
                         {
-                            message = "Error updating chart: The historian agent is unavailable.";
+                            message = "Unable to update chart: The historian agent is unavailable.";
                         }
                     }
                     else
@@ -568,7 +568,7 @@ var platformChartActionCreators = {
 
                         if (!historianRunning)
                         {
-                            message = "Error updating chart: The historian agent is unavailable.";
+                            message = "Unable to update chart: The historian agent is unavailable.";
                         }
                     }
 
@@ -621,13 +621,13 @@ var platformChartActionCreators = {
             })
             .catch(rpc.Error, function (error) {
 
-                var message = "Error loading chart: " + error.message;
+                var message = "Unable to load chart: " + error.message;
 
                 if (error.code === -32602)
                 {
                     if (error.message === "historian unavailable")
                     {
-                        message = "Error loading chart: The historian agent is unavailable.";
+                        message = "Unable to load chart: The historian agent is not available.";
                     }
                 }
                 else
@@ -637,7 +637,7 @@ var platformChartActionCreators = {
 
                     if (!historianRunning)
                     {
-                        message = "Error loading chart: The historian agent is unavailable.";
+                        message = "Unable to load chart: The historian agent is not available.";
                     }
                 }
 
@@ -957,7 +957,7 @@ var platformsPanelActionCreators = {
                 })                     
                 .catch(rpc.Error, function (error) {
                     endLoadingData(platform);
-                    handle401(error, "Error loading devices in side panel: " + error.message);
+                    handle401(error, "Unable to load devices in side panel: " + error.message);
                 });    
 
         }
@@ -981,7 +981,7 @@ var platformsPanelActionCreators = {
                 })                     
                 .catch(rpc.Error, function (error) {
                     endLoadingData(platform);
-                    handle401(error, "Error loading agents in side panel: " + error.message);
+                    handle401(error, "Unable to load agents in side panel: " + error.message);
                 });    
         }       
 
@@ -5041,8 +5041,14 @@ var _goodLabel = "Healthy";
 var _unknownLabel = "Unknown Status";
 
 var _loadingDataComplete = {};
+var _lastCheck = false;
 
 var platformsPanelItemsStore = new Store();
+
+platformsPanelItemsStore.getLastCheck = function (topic)
+{
+    return _lastCheck;
+}
 
 platformsPanelItemsStore.findTopicInTree = function (topic)
 {
@@ -5350,6 +5356,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             _items.platforms = {};
             _loadingDataComplete = {};
             _expanded = false;
+            _lastCheck = false;
 
             break;
         case ACTION_TYPES.FILTER_ITEMS:
@@ -5357,6 +5364,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             var filterTerm = action.filterTerm;
             var filterStatus = action.filterStatus;
             platformsPanelItemsStore.loadFilteredItems(filterTerm, filterStatus);
+            _lastCheck = false;
 
             platformsPanelItemsStore.emitChange();
 
@@ -5368,6 +5376,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             var expanded = (item.expanded !== null ? !item.expanded : true);
 
             expandAllChildren(item, expanded);
+            _lastCheck = false;
 
             platformsPanelItemsStore.emitChange();
 
@@ -5377,6 +5386,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
             var item = platformsPanelItemsStore.getItem(action.itemPath);
             item.expanded = !item.expanded;
+            _lastCheck = false;
 
             platformsPanelItemsStore.emitChange();
 
@@ -5386,6 +5396,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
             var item = platformsPanelItemsStore.getItem(action.itemPath);
             item.checked = action.checked;
+            _lastCheck = action.checked;
 
             platformsPanelItemsStore.emitChange();
 
@@ -5394,6 +5405,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
         case ACTION_TYPES.START_LOADING_DATA:
 
             _loadingDataComplete[action.panelItem.uuid] = false;
+            _lastCheck = false;
 
             break;
 
@@ -5527,6 +5539,8 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                     break;
             }
 
+            _lastCheck = false;
+
             platformsPanelItemsStore.emitChange();
             break;
 
@@ -5535,6 +5549,8 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             _loadingDataComplete[action.panelItem.uuid] = true;
 
             updatePlatformStatus(action.panelItem.uuid);
+            
+            _lastCheck = false;
 
             platformsPanelItemsStore.emitChange();
 

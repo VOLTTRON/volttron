@@ -61,13 +61,13 @@ var platformChartActionCreators = {
                 })
                 .catch(rpc.Error, function (error) {
 
-                    var message = "Error updating chart: " + error.message;
+                    var message = "Unable to update chart: " + error.message;
 
                     if (error.code === -32602)
                     {
                         if (error.message === "historian unavailable")
                         {
-                            message = "Error updating chart: The historian agent is unavailable.";
+                            message = "Unable to update chart: The historian agent is unavailable.";
                         }
                     }
                     else
@@ -77,7 +77,7 @@ var platformChartActionCreators = {
 
                         if (!historianRunning)
                         {
-                            message = "Error updating chart: The historian agent is unavailable.";
+                            message = "Unable to update chart: The historian agent is unavailable.";
                         }
                     }
 
@@ -130,13 +130,13 @@ var platformChartActionCreators = {
             })
             .catch(rpc.Error, function (error) {
 
-                var message = "Error loading chart: " + error.message;
+                var message = "Unable to load chart: " + error.message;
 
                 if (error.code === -32602)
                 {
                     if (error.message === "historian unavailable")
                     {
-                        message = "Error loading chart: The historian agent is unavailable.";
+                        message = "Unable to load chart: The historian agent is not available.";
                     }
                 }
                 else
@@ -146,7 +146,7 @@ var platformChartActionCreators = {
 
                     if (!historianRunning)
                     {
-                        message = "Error loading chart: The historian agent is unavailable.";
+                        message = "Unable to load chart: The historian agent is not available.";
                     }
                 }
 
