@@ -16,15 +16,11 @@ var platformActionCreators = {
     loadAgents: function (platform) {
         var authorization = authorizationStore.getAuthorization();
 
-        console.log("loading agents for " + platform.name);
-
         new rpc.Exchange({
             method: 'platforms.uuid.' + platform.uuid + '.list_agents',
             authorization: authorization,
         }).promise
             .then(function (agentsList) {
-                console.log("received agents for " + platform.name + ", agents length: " + agentsList.length);
-                    
                 platform.agents = agentsList;
 
                 dispatcher.dispatch({
@@ -120,7 +116,7 @@ var platformActionCreators = {
                 agent.return_code = status.return_code;
             })                      
             .catch(rpc.Error, function (error) {
-                handle401(error, "Unable to start agent " + agent.name + ": " + error.message);
+                handle401(error, "Unable to stop agent " + agent.name + ": " + error.message);
             })
             .finally(function () {
                 agent.actionPending = false;
