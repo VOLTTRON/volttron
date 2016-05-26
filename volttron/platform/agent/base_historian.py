@@ -264,24 +264,29 @@ class BaseHistorianAgent(Agent):
     to the user specific situation.
 
     This base historian will cache all received messages to a local database
-    before publishing it to the historian.  This allows recovery for unexpected
-    happenings before the successful writing of data to the historian.
+    before publishing it to the historian.  This allows recovery for
+    unexpected happenings before the successful writing of data to the
+    historian.
     """
 
     def __init__(self,
                  retry_period=300.0,
                  submit_size_limit=1000,
                  max_time_publishing=30,
+                 backup_storage_limit_gb=None,
+                 topic_replace_list=None,
                  **kwargs):
+
+        super(BaseHistorianAgent, self).__init__(**kwargs)
         # This should resemble a dictionary that has key's from and to which
         # will be replaced within the topics before it's stored in the
         # cache database
-        self._topic_replace_list = kwargs.pop("topic_replace_list", None)
-        _log.debug('Topic list to replace is: {}'.format(self._topic_replace_list))
-        # a chache of mappings betwhen what comes in and the anonymizing
-        # topic that goes out.
-        
-	super(BaseHistorianAgent, self).__init__(**kwargs)
+        self._topic_replace_list = topic_replace_list
+
+        _log.info('Topic string replace list: {}'
+                  .format(self._topic_replace_list))
+
+        self._backup_storage_limit_gb = backup_storage_limit_gb
         self._started = False
         self._retry_period = retry_period
         self._submit_size_limit = submit_size_limit
@@ -362,7 +367,8 @@ class BaseHistorianAgent(Agent):
 
         return output_topic
 
-    def _capture_record_data(self, peer, sender, bus, topic, headers, message):
+    def _capture_record_data(self, peer, sender, bus, topic, headers,
+                             message):
         _log.debug('Capture record data {}'.format(message))
         # Anon the topic if necessary.
         topic = self._get_topic(topic)
@@ -437,7 +443,8 @@ class BaseHistorianAgent(Agent):
                                    'readings': readings,
                                    'meta': meta})
 
-    def _capture_device_data(self, peer, sender, bus, topic, headers, message):
+    def _capture_device_data(self, peer, sender, bus, topic, headers,
+                             message):
         """Capture device data and submit it to be published by a historian.
 
         Filter out only the */all topics for publishing to the historian.
@@ -488,7 +495,8 @@ class BaseHistorianAgent(Agent):
             timestamp, my_tz = process_timestamp(timestamp_string, topic)
         _log.debug("### In capture_data timestamp str {} ".format(timestamp))
         try:
-            _log.debug("### In capture_data Actual message {} ".format(message))
+            _log.debug(
+                "### In capture_data Actual message {} ".format(message))
             # 2.0 agents compatability layer makes sender == pubsub.compat so
             # we can do the proper thing when it is here
             if sender == 'pubsub.compat':
@@ -584,7 +592,7 @@ class BaseHistorianAgent(Agent):
 
         _log.debug("Starting process loop.")
 
-        backupdb = BackupDatabase(self._event_queue)
+        backupdb = BackupDatabase(self, self._backup_storage_limit_gb)
 
         # Sets up the concrete historian
         self.historian_setup()
@@ -719,15 +727,20 @@ class BaseHistorianAgent(Agent):
 
 class BackupDatabase:
     """
-    A creates and manages backup cache for the :py:class:`BaseHistorianAgent` class.
+    A creates and manages backup cache for the
+    :py:class:`BaseHistorianAgent` class.
 
-    Historian implementors do not need to use this class. It is for internal use only.
+    Historian implementors do not need to use this class. It is for internal
+    use only.
     """
-    def __init__(self, success_queue):
+
+    def __init__(self, owner, backup_storage_limit_gb):
         # The topic cache is only meant as a local lookup and should not be
         # accessed via the implemented historians.
         self._backup_cache = {}
         self._meta_data = defaultdict(dict)
+        self._owner = weakref.ref(owner)
+        self._backup_storage_limit_gb = backup_storage_limit_gb
         self._setupdb()
 
     def backup_new_data(self, new_publish_list):
@@ -738,6 +751,21 @@ class BackupDatabase:
         _log.debug("Backing up unpublished values.")
         c = self._connection.cursor()
 
+        if self._backup_storage_limit_gb is not None:
+
+            def page_count():
+                c.execute("PRAGMA page_count")
+                return c.fetchone()[0]
+
+            while page_count() >= self.max_pages:
+                self._owner().vip.pubsub.publish('pubsub', 'backupdb/nomore')
+                c.execute(
+                    '''DELETE FROM outstanding
+                    WHERE ROWID IN
+                    (SELECT ROWID FROM outstanding
+                    ORDER BY ROWID ASC LIMIT 100)''')
+
+
         for item in new_publish_list:
             source = item['source']
             topic = item['topic']
@@ -747,7 +775,8 @@ class BackupDatabase:
             topic_id = self._backup_cache.get(topic)
 
             if topic_id is None:
-                c.execute('''INSERT INTO topics values (?,?)''', (None, topic))
+                c.execute('''INSERT INTO topics values (?,?)''',
+                          (None, topic))
                 c.execute('''SELECT last_insert_rowid()''')
                 row = c.fetchone()
                 topic_id = row[0]
@@ -760,7 +789,7 @@ class BackupDatabase:
                 if current_meta_value != value:
                     c.execute('''INSERT OR REPLACE INTO metadata
                                  values(?, ?, ?, ?)''',
-                                (source, topic_id, name, value))
+                              (source, topic_id, name, value))
                     meta_dict[name] = value
 
             for timestamp, value in values:
@@ -775,7 +804,8 @@ class BackupDatabase:
 
         self._connection.commit()
 
-    def remove_successfully_published(self, successful_publishes, submit_size):
+    def remove_successfully_published(self, successful_publishes,
+                                      submit_size):
         """
         Removes the reported successful publishes from the backup database.
         If None is found in `successful_publishes` we assume that everything
@@ -846,6 +876,13 @@ class BackupDatabase:
             detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
 
         c = self._connection.cursor()
+
+        if self._backup_storage_limit_gb is not None:
+            c.execute('''PRAGMA page_size''')
+            page_size = c.fetchone()[0]
+            max_storage_bytes = self._backup_storage_limit_gb * 1024 ** 3
+            self.max_pages = max_storage_bytes / page_size
+
         c.execute("SELECT name FROM sqlite_master WHERE type='table' "
                   "AND name='outstanding';")
 
