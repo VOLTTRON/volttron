@@ -215,23 +215,25 @@ the same date over again.
 
 from __future__ import absolute_import, print_function
 
+from abc import abstractmethod
+from dateutil.parser import parse
 import logging
+import re
 import sqlite3
 from Queue import Queue, Empty
 from collections import defaultdict
 from datetime import datetime, timedelta
 import threading
 from threading import Thread
+import weakref
 
 import pytz
-import re
-from abc import abstractmethod
-from dateutil.parser import parse
+from zmq.utils import jsonapi
+
 from volttron.platform.agent.utils import process_timestamp, \
     fix_sqlite3_datetime, get_aware_utc_now
 from volttron.platform.messaging import topics, headers as headers_mod
 from volttron.platform.vip.agent import *
-from zmq.utils import jsonapi
 from volttron.platform.vip.agent import compat
 
 _log = logging.getLogger(__name__)
