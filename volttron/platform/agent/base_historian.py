@@ -60,37 +60,41 @@
 Historian Development
 =====================
 
-Support for storing and retrieving historical device and analysis data published to the message bus
-is handled with Historian Agents. If a new type of data store or a new way of storing data
-is desired a new type of Historian Agent should created.
+Support for storing and retrieving historical device and analysis data
+published to the message bus is handled with Historian Agents. If a new type
+of data store or a new way of storing data is desired a new type of Historian
+Agent should created.
 
 Historian Agents are implemented by subclassing :py:class:`BaseHistorian`.
 
-Agents that need short term storage of device data should subscribe to device data and
-use internal data structures for storage. Agents which need long
-term Historical data that predates the startup of the Agent should interact with a Historian Agent
-in order to obtain that data as needed.
+Agents that need short term storage of device data should subscribe to device
+data and use internal data structures for storage. Agents which need long
+term Historical data that predates the startup of the Agent should interact
+with a Historian Agent in order to obtain that data as needed.
 
-While it is possible to create an Agent from scratch which handles gathering and
-storing device data it will miss out on the benefits of creating a proper Historian Agent that
-subclassing :py:class:`BaseHistorian`. The :py:class:`BaseHistorian` class provides the following
-features:
+While it is possible to create an Agent from scratch which handles gathering
+and storing device data it will miss out on the benefits of creating a proper
+Historian Agent that subclassing :py:class:`BaseHistorian`. The
+:py:class:`BaseHistorian` class provides the following features:
 
 - A separate thread for all communication with a data store removing the need
   to use or implement special libraries to work with gevent.
 - Automatically subscribe to and process device publishes.
 - Automatically backup data retrieved off the message bus to a disk cache.
-  Cached data will only be removed once it is successfully published to a data store.
-- Existing Agents that publish analytical data for storage or query for historical data
-  will be able to use the new Historian without any code changes.
+  Cached data will only be removed once it is successfully published to a data
+  store.
+- Existing Agents that publish analytical data for storage or query for
+  historical data will be able to use the new Historian without any code
+  changes.
 - Data can be graphed in VOLTTRON Central.
 
 Creating a New Historian
 ------------------------
 
-To create a new Historian create a new Agent that subclasses :py:class:`BaseHistorian`.
-:py:class:`BaseHistorian` inherits from :py:class:`volttron.platform.vip.agent.Agent` so including
-it in the class parents is not needed.
+To create a new Historian create a new Agent that subclasses
+:py:class:`BaseHistorian`. :py:class:`BaseHistorian` inherits from
+:py:class:`volttron.platform.vip.agent.Agent` so including it in the class
+parents is not needed.
 
 The new Agent must implement the following methods:
 
@@ -102,53 +106,64 @@ While not required this method may be overridden as needed:
 - :py:meth:`BaseHistorianAgent.historian_setup`
 
 
-Optionally a Historian Agent can inherit from :py:class:`BaseHistorianAgent` instead of :py:class:`BaseHistorian`
-if support for querying data is not needed for the data store. If this route is taken then VOLTTRON Central
-will not be able to graph data from the store. It is possible to run more than one Historian agent at a time
-to store data in more than one place. If needed one can be used to allow querying while another is
-used to put data in the desired store that does not allow querying.
+Optionally a Historian Agent can inherit from :py:class:`BaseHistorianAgent`
+instead of :py:class:`BaseHistorian` if support for querying data is not
+needed for the data store. If this route is taken then VOLTTRON Central
+will not be able to graph data from the store. It is possible to run more than
+one Historian agent at a time to store data in more than one place. If needed
+one can be used to allow querying while another is used to put data in the
+desired store that does not allow querying.
 
 Historian Execution Flow
 ------------------------
 
-At startup the :py:class:`BaseHistorian` class starts a new thread to handle all data caching
-and publishing (the publishing thread). The main thread then subscribes to all Historian related topics on the
-message bus. Whenever subscribed data comes in it is published to a Queue to be be processed by
-the publishing thread as soon as possible.
+At startup the :py:class:`BaseHistorian` class starts a new thread to handle
+all data caching and publishing (the publishing thread). The main thread then
+subscribes to all Historian related topics on the message bus. Whenever
+subscribed data comes in it is published to a Queue to be be processed by the
+publishing thread as soon as possible.
 
-At startup the publishing thread calls :py:meth:`BaseHistorianAgent.historian_setup` to give
-the implemented Historian a chance to setup any connections in the thread.
+At startup the publishing thread calls
+:py:meth:`BaseHistorianAgent.historian_setup` to give the implemented
+Historian a chance to setup any connections in the thread.
 
 The process thread then enters the following logic loop:
 ::
 
-    Wait for data to appear in the Queue. Proceed if data appears or a `retry_period` time elapses.
+    Wait for data to appear in the Queue. Proceed if data appears or a
+    `retry_period` time elapses.
     If new data appeared in Queue:
         Save new data to cache.
     While data is in cache:
-        Publish data to store by calling :py:meth:`BaseHistorianAgent.publish_to_historian`.
+        Publish data to store by calling
+            :py:meth:`BaseHistorianAgent.publish_to_historian`.
         If no data was published:
             Go back to start and check Queue for data.
         Remove published data from cache.
         If we have been publishing for `max_time_publishing`:
             Go back to start and check Queue for data.
 
-The logic will also forgo waiting the `retry_period` for new data to appear when checking for new data
-if publishing has been successful and there is still data in the cache to be publish.
+The logic will also forgo waiting the `retry_period` for new data to appear
+when checking for new data if publishing has been successful and there is
+still data in the cache to be publish.
 
 Storing Data
 ------------
 
-The :py:class:`BaseHistorian` will call :py:meth:`BaseHistorianAgent.publish_to_historian`
-as the time series data becomes available. Data is batched in a groups up to `submit_size_limit`.
+The :py:class:`BaseHistorian` will call
+:py:meth:`BaseHistorianAgent.publish_to_historian` as the time series data
+becomes available. Data is batched in a groups up to `submit_size_limit`.
 
-After processing the list or individual items in the list :py:meth:`BaseHistorianAgent.publish_to_historian`
-must call :py:meth:`BaseHistorianAgent.report_handled` to report an individual point of data
-was published or :py:meth:`BaseHistorianAgent.report_all_handled` to report that everything
-from the batch was successfully published. This tells the :py:class:`BaseHistorianAgent` class
-what to remove from the cache and if any publishing was successful.
+After processing the list or individual items in the list
+:py:meth:`BaseHistorianAgent.publish_to_historian` must call
+:py:meth:`BaseHistorianAgent.report_handled` to report an individual point
+of data was published or :py:meth:`BaseHistorianAgent.report_all_handled` to
+report that everything from the batch was successfully published. This tells
+the :py:class:`BaseHistorianAgent` class what to remove from the cache and if
+any publishing was successful.
 
-The `to_publish_list` argument of :py:meth:`BaseHistorianAgent.publish_to_historian` is a list of records that
+The `to_publish_list` argument of
+:py:meth:`BaseHistorianAgent.publish_to_historian` is a list of records that
 takes the following form:
 
 .. code-block:: python
@@ -172,23 +187,28 @@ takes the following form:
         ...
     ]
 
-As records are published to the data store :py:meth:`BaseHistorianAgent.publish_to_historian` must call
-:py:meth:`BaseHistorianAgent.report_handled` with the record or list of records that was published or
-:py:meth:`BaseHistorianAgent.report_all_handled` if everything was published.
+As records are published to the data store
+:py:meth:`BaseHistorianAgent.publish_to_historian` must call
+:py:meth:`BaseHistorianAgent.report_handled` with the record or list of
+records that was published or :py:meth:`BaseHistorianAgent.report_all_handled`
+if everything was published.
 
 Querying Data
 -------------
 
-When an request is made to query data the :py:meth:`BaseQueryHistorianAgent.query_historian` method is called.
-When a request is made for the list of topics in the store :py:meth:`BaseQueryHistorianAgent.query_topic_list`
+When an request is made to query data the
+:py:meth:`BaseQueryHistorianAgent.query_historian` method is called.
+When a request is made for the list of topics in the store
+:py:meth:`BaseQueryHistorianAgent.query_topic_list`
 will be called.
 
 Other Notes
 -----------
 
-Implemented Historians must be tolerant to receiving the same data for submission twice.
-While very rare, it is possible for a Historian to be forcibly shutdown after data is published
-but before it is removed from the cache. When restarted the :py:class:`BaseHistorian` will submit
+Implemented Historians must be tolerant to receiving the same data for
+submission twice.  While very rare, it is possible for a Historian to be
+forcibly shutdown after data is published but before it is removed from the
+cache. When restarted the :py:class:`BaseHistorian` will submit
 the same date over again.
 
 """
