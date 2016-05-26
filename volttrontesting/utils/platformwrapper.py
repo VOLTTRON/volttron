@@ -338,8 +338,8 @@ class PlatformWrapper:
                 'subscribe_address': ipc + 'subscribe',
                 'bind_web_address': bind_web_address,
                 'developer_mode': not encrypt,
-                # 'log': os.path.join(self.volttron_home,'volttron.log'),
-                # 'log_config': None,
+                'log': os.path.join(self.volttron_home,'volttron.log'),
+                'log_config': None,
                 'monitor': True,
                 'autostart': True,
                 'log_level': logging.DEBUG,
@@ -644,7 +644,7 @@ class PlatformWrapper:
         wheel_path = packaging.create_package(agent_dir,
                                               self.packaged_dir)
         packaging.add_files_to_package(wheel_path, {
-                'config_file':os.path.join('./', config_file)
+                'config_file': os.path.join('./', config_file)
             })
 
         return wheel_path
