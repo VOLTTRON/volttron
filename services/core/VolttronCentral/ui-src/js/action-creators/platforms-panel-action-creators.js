@@ -15,20 +15,6 @@ var platformsPanelActionCreators = {
         });
     },
 
-    closePanel: function() {
-
-        dispatcher.dispatch({
-            type: ACTION_TYPES.CLOSE_PLATFORMS_PANEL,
-        });
-    },
-
-    resetPanel: function() {
-
-        dispatcher.dispatch({
-            type: ACTION_TYPES.RESET_PLATFORMS_PANEL,
-        });
-    },
-
     loadChildren: function(type, parent)
     {
         if (type === "platform")
@@ -70,10 +56,8 @@ var platformsPanelActionCreators = {
                     
                 })                     
                 .catch(rpc.Error, function (error) {
-
-                    statusIndicatorActionCreators.openStatusIndicator("error", "Error loading devices in side panel: " + error.message);
-                    handle401(error);
                     endLoadingData(platform);
+                    handle401(error, "Unable to load devices for platform " + platform.name + " in side panel: " + error.message);
                 });    
 
         }
@@ -96,10 +80,8 @@ var platformsPanelActionCreators = {
                     loadPerformanceStats(platform);
                 })                     
                 .catch(rpc.Error, function (error) {
-
-                    statusIndicatorActionCreators.openStatusIndicator("error", "Error loading agents in side panel: " + error.message);
-                    handle401(error);
                     endLoadingData(platform);
+                    handle401(error, "Unable to load agents for platform " + platform.name + " in side panel: " + error.message);
                 });    
         }       
 
@@ -154,13 +136,12 @@ var platformsPanelActionCreators = {
                             {
                                 if (error.message === "historian unavailable")
                                 {
-                                    message = "Data could not be fetched. The historian agent is unavailable."
+                                    message = "Data could not be fetched for platform " + parent.name + ". The historian agent is unavailable."
                                 }
                             }
 
-                            statusIndicatorActionCreators.openStatusIndicator("error", message);
-                            handle401(error);
                             endLoadingData(parent);
+                            handle401(error, message);
                         });   
             } 
         }
@@ -209,19 +190,20 @@ var platformsPanelActionCreators = {
     }    
 }
 
-
-
-
-function handle401(error) {
-    if (error.code && error.code === 401) {
+function handle401(error, message) {
+    if ((error.code && error.code === 401) || (error.response && error.response.status === 401)) {
         dispatcher.dispatch({
             type: ACTION_TYPES.RECEIVE_UNAUTHORIZED,
             error: error,
         });
 
-        platformManagerActionCreators.clearAuthorization();
-
-        statusIndicatorActionCreators.openStatusIndicator("error", error.message);
+        dispatcher.dispatch({
+            type: ACTION_TYPES.CLEAR_AUTHORIZATION,
+        });
+    }
+    else
+    {
+        statusIndicatorActionCreators.openStatusIndicator("error", message);
     }
 };
 

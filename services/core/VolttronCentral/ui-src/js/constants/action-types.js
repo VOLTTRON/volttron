@@ -21,18 +21,11 @@ module.exports = keyMirror({
     RECEIVE_UNAUTHORIZED: null,
     CLEAR_AUTHORIZATION: null,
 
-    REGISTER_PLATFORM_ERROR: null,
-    DEREGISTER_PLATFORM_ERROR: null,
-
     RECEIVE_PLATFORMS: null,
     RECEIVE_PLATFORM: null,
-    RECEIVE_PLATFORM_ERROR: null,
-    CLEAR_PLATFORM_ERROR: null,
 
     RECEIVE_PLATFORM_STATUSES: null,
     TOGGLE_PLATFORMS_PANEL: null,
-    CLOSE_PLATFORMS_PANEL: null,
-    RESET_PLATFORMS_PANEL: null,
 
     RECEIVE_AGENT_STATUSES: null,
     RECEIVE_DEVICE_STATUSES: null,
@@ -61,7 +54,5 @@ module.exports = keyMirror({
     TOGGLE_TAPTIP: null,
     HIDE_TAPTIP: null,
 
-
-    RECEIVE_PLATFORM_TOPIC_DATA: null,
     RECEIVE_CHART_TOPICS: null
 });
