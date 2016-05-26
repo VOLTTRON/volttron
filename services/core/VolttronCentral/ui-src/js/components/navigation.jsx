@@ -19,8 +19,8 @@ var Navigation = React.createClass({
         this.setState(getStateFromStores());
     },
     _onLogOutClick: function () {
-        platformsPanelActionCreators.closePanel();
-        platformsPanelActionCreators.resetPanel();
+        // platformsPanelActionCreators.closePanel();
+        // platformsPanelActionCreators.resetPanel();
         platformManagerActionCreators.clearAuthorization();
     },
     render: function () {

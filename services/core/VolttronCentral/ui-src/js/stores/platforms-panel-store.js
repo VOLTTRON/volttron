@@ -20,11 +20,7 @@ platformsPanelStore.dispatchToken = dispatcher.register(function (action) {
             (_expanded === null ? _expanded = true : _expanded = !_expanded);
             platformsPanelStore.emitChange();
             break;
-        case ACTION_TYPES.CLOSE_PLATFORMS_PANEL:  
-            _expanded = false;
-            platformsPanelStore.emitChange();
-            break;
-        case ACTION_TYPES.RESET_PLATFORMS_PANEL:  
+        case ACTION_TYPES.CLEAR_AUTHORIZATION:  
             _expanded = null;
             platformsPanelStore.emitChange();
             break;

@@ -35,9 +35,7 @@ var platformChartActionCreators = {
 
 		var authorization = authorizationStore.getAuthorization();
 
-		series.forEach(function (item) {
-            var authorization = authorizationStore.getAuthorization();
-
+		series.forEach(function (item) {            
             new rpc.Exchange({
                 method: 'platforms.uuid.' + item.parentUuid + '.historian.query',
                 params: {
@@ -62,13 +60,13 @@ var platformChartActionCreators = {
                 })
                 .catch(rpc.Error, function (error) {
 
-                    var message = "Error updating chart: " + error.message;
+                    var message = "Unable to update chart: " + error.message;
 
                     if (error.code === -32602)
                     {
                         if (error.message === "historian unavailable")
                         {
-                            message = "Error updating chart: The historian agent is unavailable.";
+                            message = "Unable to update chart: The historian agent is unavailable.";
                         }
                     }
                     else
@@ -78,13 +76,11 @@ var platformChartActionCreators = {
 
                         if (!historianRunning)
                         {
-                            message = "Error updating chart: The historian agent is unavailable.";
+                            message = "Unable to update chart: The historian agent is unavailable.";
                         }
                     }
 
-                    statusIndicatorActionCreators.openStatusIndicator("error", message);
-
-                    handle401(error);
+                    handle401(error, message);
                 });
 		});
 
@@ -133,13 +129,13 @@ var platformChartActionCreators = {
             })
             .catch(rpc.Error, function (error) {
 
-                var message = "Error loading chart: " + error.message;
+                var message = "Unable to load chart: " + error.message;
 
                 if (error.code === -32602)
                 {
                     if (error.message === "historian unavailable")
                     {
-                        message = "Error loading chart: The historian agent is unavailable.";
+                        message = "Unable to load chart: The historian agent is not available.";
                     }
                 }
                 else
@@ -149,13 +145,12 @@ var platformChartActionCreators = {
 
                     if (!historianRunning)
                     {
-                        message = "Error loading chart: The historian agent is unavailable.";
+                        message = "Unable to load chart: The historian agent is not available.";
                     }
                 }
 
-                statusIndicatorActionCreators.openStatusIndicator("error", message);
                 platformsPanelActionCreators.checkItem(panelItem.path, false);
-                handle401(error);
+                handle401(error, message);
             });
     },
     removeFromChart: function(panelItem) {
@@ -185,14 +180,20 @@ var platformChartActionCreators = {
     }
 };
 
-function handle401(error) {
-    if (error.code && error.code === 401) {
+function handle401(error, message) {
+    if ((error.code && error.code === 401) || (error.response && error.response.status === 401)) {
         dispatcher.dispatch({
             type: ACTION_TYPES.RECEIVE_UNAUTHORIZED,
             error: error,
         });
 
-        platformManagerActionCreators.clearAuthorization();
+        dispatcher.dispatch({
+            type: ACTION_TYPES.CLEAR_AUTHORIZATION,
+        });
+    }
+    else
+    {
+        statusIndicatorActionCreators.openStatusIndicator("error", message);
     }
 };
 

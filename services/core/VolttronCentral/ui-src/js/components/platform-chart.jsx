@@ -88,6 +88,16 @@ var PlatformChart = React.createClass({
                 onConfirm={deleteChart.bind(this)}>
             </ConfirmForm>
         );
+
+        // this.props.chart.series.forEach(function (series) {
+        //     if (series.hasOwnProperty("path"))
+        //     {
+        //         platformsPanelActionCreators.checkItem(series.path, false);
+        //     }
+        // });
+
+        // platformChartActionCreators.removeChart(this.props.chartKey);
+        // platformActionCreators.saveCharts();
     },
     render: function () {
         var chartData = this.props.chart; 

@@ -6,7 +6,8 @@ var modalActionCreators = require('../action-creators/modal-action-creators');
 
 var ConfirmForm = React.createClass({
     _onCancelClick: modalActionCreators.closeModal,
-    _onSubmit: function () {
+    _onSubmit: function (e) {
+        e.preventDefault();
         this.props.onConfirm();
     },
     render: function () {

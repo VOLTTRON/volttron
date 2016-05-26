@@ -26,10 +26,6 @@ chartStore.getPinnedCharts = function () {
     return JSON.parse(JSON.stringify(pinnedCharts));
 };
 
-chartStore.getLastError = function (uuid) {
-    return _lastErrors[uuid] || null;
-};
-
 chartStore.getData = function () {
     return JSON.parse(JSON.stringify(_chartData));
 }

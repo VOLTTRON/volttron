@@ -1,7 +1,6 @@
 'use strict';
 
 var React = require('react');
-var Router = require('react-router');
 var PlatformChart = require('./platform-chart');
 var modalActionCreators = require('../action-creators/modal-action-creators');
 var platformActionCreators = require('../action-creators/platform-action-creators');
