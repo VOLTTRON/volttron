@@ -1,6 +1,6 @@
 'use strict';
 
-// var $ = require('jquery');
+var $ = require('jquery');
 var React = require('react');
 var Router = require('react-router');
 
@@ -34,29 +34,29 @@ var PlatformManager = React.createClass({
         modalStore.addChangeListener(this._onStoreChange);
         platformsPanelStore.addChangeListener(this._onStoreChange);
         statusIndicatorStore.addChangeListener(this._onStoreChange);
-        // this._doModalBindings();
+        this._doModalBindings();
     },
-    // componentDidUpdate: function () {
-    //     // this._doModalBindings();
-    // },
-    // _doModalBindings: function () {
-        // if (this.state.modalContent) {
-        //     // window.addEventListener('keydown', this._closeModal);
-        //     this._focusDisabled = $('input,select,textarea,button,a', React.findDOMNode(this.refs.main)).attr('tabIndex', -1);
-        // } else {
-        //     // window.removeEventListener('keydown', this._closeModal);
-        //     if (this._focusDisabled) {
-        //         this._focusDisabled.removeAttr('tabIndex');
-        //         delete this._focusDisabled;
-        //     }
-        // }
-    // },
+    componentDidUpdate: function () {
+        this._doModalBindings();
+    },
+    _doModalBindings: function () {
+        if (this.state.modalContent) {
+            window.addEventListener('keydown', this._closeModal);
+            this._focusDisabled = $('input,select,textarea,button,a', React.findDOMNode(this.refs.main)).attr('tabIndex', -1);
+        } else {
+            window.removeEventListener('keydown', this._closeModal);
+            if (this._focusDisabled) {
+                this._focusDisabled.removeAttr('tabIndex');
+                delete this._focusDisabled;
+            }
+        }
+    },
     componentWillUnmount: function () {
         authorizationStore.removeChangeListener(this._onStoreChange);
         consoleStore.removeChangeListener(this._onStoreChange);
         modalStore.removeChangeListener(this._onStoreChange);
         statusIndicatorStore.removeChangeListener(this._onStoreChange);
-        // this._modalCleanup();
+        this._modalCleanup();
     },
     _onStoreChange: function () {
         this.setState(getStateFromStores());
@@ -64,11 +64,11 @@ var PlatformManager = React.createClass({
     _onToggleClick: function () {
         consoleActionCreators.toggleConsole();
     },
-    // _closeModal: function (e) {
-    //     if (e.keyCode === 27) {
-    //         modalActionCreators.closeModal();
-    //     }
-    // },
+    _closeModal: function (e) {
+        if (e.keyCode === 27) {
+            modalActionCreators.closeModal();
+        }
+    },
     render: function () {
         var classes = ['platform-manager'];
         var modal;

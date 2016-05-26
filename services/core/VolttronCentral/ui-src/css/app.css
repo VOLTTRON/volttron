@@ -211,7 +211,7 @@ br + .form__control-help {
     max-height: 75%;
     max-width: 75%;
     box-sizing: border-box;
-    overflow: auto;
+    overflow-y: auto;
     text-align: left;
     border-radius: 0.3333rem;
     background-color: #fff;
@@ -239,7 +239,7 @@ br + .form__control-help {
     border-radius: 0.3333rem;
     background-color: #fff;
     box-shadow: 0 0.1rem 0.2rem rgba(0,0,0,0.3);
-    z-index: 100;
+    z-index: 101;
     opacity: .7;
 }
 
@@ -485,6 +485,8 @@ br + .form__control-help {
     cursor: pointer;
     font-size: 12px;
     display: inline-block;
+    width: 14px;
+    text-align: center;
 
     -webkit-touch-callout: none;
     -webkit-user-select: none;
@@ -492,6 +494,14 @@ br + .form__control-help {
     -moz-user-select: none;
     -ms-user-select: none;
     user-select: none;
+}
+
+.loadingSpinner {
+    color: #1BCDF5;
+}
+
+.cancelLoading {
+    color: red;
 }
 
 .rotateRight {
@@ -551,6 +561,10 @@ br + .form__control-help {
     -moz-transition: height 2s; /* Firefox 4 */
     -webkit-transition: height 2s; /* Safari and Chrome */
     -o-transition: height 2s; /* Opera */
+}
+
+.not_initialized {
+    color: gray;
 }
 
 @keyframes agent-reveal { 
@@ -622,6 +636,24 @@ br + .form__control-help {
   -moz-osx-font-smoothing: grayscale;
 }
 
+.fa-2x {
+  font-size: 2em;
+}
+.fa-3x {
+  font-size: 3em;
+}
+.fa-4x {
+  font-size: 4em;
+}
+.fa-5x {
+  font-size: 5em;
+}
+
+.fa-fw {
+  width: 1.28571429em;
+  text-align: center;
+}
+
 .fa-minus-circle:before {
   content: "\f056";
 }
@@ -660,6 +692,61 @@ br + .form__control-help {
 
 .fa-hourglass:before {
   content: "\f254";
+}
+
+.fa-remove:before,
+.fa-close:before,
+.fa-times:before {
+  content: "\f00d";
+}
+
+.fa-circle-o-notch:before {
+  content: "\f1ce";
+}
+
+.fa-spinner:before {
+    content: "\f110";
+}
+
+.fa-spin {
+  -webkit-animation: fa-spin 2s infinite linear;
+  animation: fa-spin 2s infinite linear;
+}
+.fa-pulse {
+  -webkit-animation: fa-spin 1s infinite steps(8);
+  animation: fa-spin 1s infinite steps(8);
+}
+@-webkit-keyframes fa-spin {
+  0% {
+    -webkit-transform: rotate(0deg);
+    transform: rotate(0deg);
+  }
+  100% {
+    -webkit-transform: rotate(359deg);
+    transform: rotate(359deg);
+  }
+}
+@keyframes fa-spin {
+  0% {
+    -webkit-transform: rotate(0deg);
+    transform: rotate(0deg);
+  }
+  100% {
+    -webkit-transform: rotate(359deg);
+    transform: rotate(359deg);
+  }
+}
+.fa-rotate-90 {
+  filter: progid:DXImageTransform.Microsoft.BasicImage(rotation=1);
+  -webkit-transform: rotate(90deg);
+  -ms-transform: rotate(90deg);
+  transform: rotate(90deg);
+}
+.fa-rotate-180 {
+  filter: progid:DXImageTransform.Microsoft.BasicImage(rotation=2);
+  -webkit-transform: rotate(180deg);
+  -ms-transform: rotate(180deg);
+  transform: rotate(180deg);
 }
 
 /*.tooltip_show {
@@ -1192,6 +1279,30 @@ a.view__item:hover::before {
     right: 1.5rem;
 }
 
+.combobox-control {
+    position: relative;
+}
+
+.combobox-menu {
+    width: 400px;
+    z-index: 100;
+
+    border: 1px solid black;
+
+    position: absolute;
+    top: 24px;
+    left: 0px;
+}
+
+.combobox-item {
+    width: 100%;
+
+    background-color: white;
+}
+
+.combobox-item:hover {
+    background-color: #90C3D4;
+}
 
 /* our nvd3-related styles */
 
@@ -1219,6 +1330,24 @@ a.view__item:hover::before {
 
 .pinned-chart {
     /*transform: rotate(0deg);*/
+}
+
+.remove-chart {
+    position: absolute;
+    right: 0px;
+    top: 30%;
+    color: grey;
+    cursor: pointer;
+    width: 18px;
+    height: 18px;
+    box-sizing: border-box;
+    line-height: 15px;
+    font-size: 15px;
+}
+
+.remove-chart:hover { 
+    border: solid 1px #7D7D7D;
+    border-radius: 2px;
 }
 
 /* end nvd3-related styles */

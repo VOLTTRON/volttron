@@ -1,6 +1,6 @@
 <html>
 <head>
-    <script language="javascript" src="http://code.jquery.com/jquery-2.1.4.min.js"></script>
+    <script language="javascript" src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
     <style type="text/css">
         input {
             width: 400px;
@@ -26,6 +26,7 @@ Discovery Address: <input type="text" id="discovery_address" /><br />
 Setting Key: <input type="text" id="setting_key" /><br/>
 Setting Value: <input type="text" id="setting_value" />
 <button id="set_setting">Save Value</button>
+<button id="set_null_setting">Save Null Value (remove key)</button>
 <button id="get_setting">Get Value</button>
 <button id="get_setting_keys">Get Keys</button>
 
@@ -37,7 +38,6 @@ Setting Value: <input type="text" id="setting_value" />
 VIP Identity: <input type="text" id="vip_identity" value="platform.agent" /><br />
 Agent id: <input type="text" id="agent_id" value="platform.agent" /><br/>
 VIP Address: <input type="text" id="vip_address" placeholder="VIP Address where VIP Identity is located" /><br/>
-<button id="register">Register Platform</button><br />
 Platform UUID: <input type="text" id="platform_uuid" placeholder="Platform uuid to remove" /><br/>
 <button id="unregister">Unregister VIP Address</button><br />
 
@@ -66,7 +66,6 @@ Topic: <input id="historian_topic" placeholder="Historian topic to query" /><br/
     function exec_discovery(address, name) {
         $('#discovery_address').val(address);
         $('#platform_name').val(name);
-        $('#register_instance').click()
     }
 
     function do_request_platform_method(method) {
@@ -96,7 +95,7 @@ Topic: <input id="historian_topic" placeholder="Historian topic to query" /><br/
         });
     }
 
-    function do_request_vc_method(method, callback=null) {
+    function do_request_vc_method(method, callback) {
         var req_method = method;
         var token = $('#token').val();
         var pdata = {
@@ -113,7 +112,7 @@ Topic: <input id="historian_topic" placeholder="Historian topic to query" /><br/
             dataType: 'json',
             success: function(data){
                 $('#output_data').val(JSON.stringify(data));
-                if (callback){
+                if (typeof callback === "function"){
                     callback(data);
                 }
             },
@@ -130,13 +129,13 @@ Topic: <input id="historian_topic" placeholder="Historian topic to query" /><br/
             alert('Invalid topic!');
         }
 
-        var platform_uuid = $('#agent_platform_uuid').val();
-        if (!platform_uuid){
-            alert('Invalid platform uuid');
-            return;
-        }
+        <!--var platform_uuid = $('#agent_platform_uuid').val();-->
+        <!--if (!platform_uuid){-->
+            <!--alert('Invalid platform uuid');-->
+            <!--return;-->
+        <!--}-->
 
-        var req_method = 'platform.uuid.'+platform_uuid+'.historian.query';
+        var req_method = 'platform.historian.query';
         var token = $('#token').val();
         var pdata = {
                  jsonrpc: '2.0',
@@ -161,7 +160,7 @@ Topic: <input id="historian_topic" placeholder="Historian topic to query" /><br/
         });
     }
 
-    function do_request(method, data=null, callback=null) {
+    function do_request(method, data, callback) {
 
         var token = $('#token').val();
         var pdata = {
@@ -182,7 +181,7 @@ Topic: <input id="historian_topic" placeholder="Historian topic to query" /><br/
             data: JSON.stringify(pdata),
             dataType: 'json',
             success: function(data){
-                if (callback) {
+                if (typeof callback === "function") {
                     callback(data);
                 }
                 $('#output_data').val(JSON.stringify(data));
@@ -203,6 +202,15 @@ Topic: <input id="historian_topic" placeholder="Historian topic to query" /><br/
         do_request('set_setting', data)
     });
 
+    $('#set_null_setting').click(function(){
+        var data = {
+            key: $('#setting_key').val(),
+            value: null
+        }
+        do_request('set_setting', data)
+    });
+
+
     $('#get_setting').click(function(){
         var data = {
             key: $('#setting_key').val()
@@ -218,14 +226,29 @@ Topic: <input id="historian_topic" placeholder="Historian topic to query" /><br/
 
     $('#register1').click(function(){
         exec_discovery('http://127.0.0.2:8080', 'platform 1');
+        data = {
+            display_name:'platform 1',
+            discovery_address:'http://127.0.0.2:8080'
+        }
+        do_request('register_instance', data);
     });
 
     $('#register2').click(function(){
-        exec_discovery('http://127.0.0.3:8080', 'platform 1');
+        exec_discovery('http://127.0.0.3:8080', 'platform 2');
+        data = {
+            display_name:'platform 2',
+            discovery_address:'http://127.0.0.3:8080'
+        }
+        do_request('register_instance', data);
     });
 
     $('#register3').click(function(){
-        exec_discovery('http://127.0.0.4:8080', 'platform 1');
+        exec_discovery('http://127.0.0.4:8080', 'platform 3');
+        data = {
+            display_name:'platform 3',
+            discovery_address:'http://127.0.0.4:8080'
+        }
+        do_request('register_instance', data);
     });
 
     $('#list_agents').click(function(){
@@ -267,7 +290,7 @@ Topic: <input id="historian_topic" placeholder="Historian topic to query" /><br/
     });
 
     $('#get_topic_list').click(function(){
-        do_request_vc_method('historian.get_topic_list');
+        do_request('historian.get_topic_list');
     });
 
     $('#get_devices').click(function(){
@@ -275,7 +298,12 @@ Topic: <input id="historian_topic" placeholder="Historian topic to query" /><br/
     });
 
     $('#query_historian').click(function(){
-        do_historian_query();
+        var data = {
+            "topic": $("#historian_topic").val(),
+            "count": 20,
+            "order": "LAST_TO_FIRST"
+        }
+        do_request('historian.query', data);
     });
 
     $('#get_auth').click(function(){

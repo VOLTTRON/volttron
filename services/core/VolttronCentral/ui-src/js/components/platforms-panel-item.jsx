@@ -19,6 +19,13 @@ var PlatformsPanelItem = React.createClass({
         state.panelItem = this.props.panelItem;
         state.children = this.props.panelChildren;
 
+        if (this.props.panelItem.type === "platform")
+        {
+            state.notInitialized = true;
+            state.loading = false;
+            state.cancelButton = false;
+        }
+
         return state;
     },
     componentDidMount: function () {
@@ -32,35 +39,75 @@ var PlatformsPanelItem = React.createClass({
         var panelItem = platformsPanelItemsStore.getItem(this.props.itemPath);
         var panelChildren = platformsPanelItemsStore.getChildren(this.props.panelItem, this.props.itemPath);
 
-        var loadingComplete = platformsPanelItemsStore.getLoadingComplete();
+        var loadingComplete = platformsPanelItemsStore.getLoadingComplete(this.props.panelItem);
 
-        if (loadingComplete)
+        if (loadingComplete === true || loadingComplete === null)
         {
             this.setState({panelItem: panelItem});
             this.setState({children: panelChildren});
             this.setState({checked: panelItem.checked});
+
+            if (this.props.panelItem.type === "platform")
+            {
+                if (loadingComplete === true)
+                {
+                    this.setState({loading: false});
+                    this.setState({notInitialized: false});
+                }
+                else if (loadingComplete === null)
+                {
+                    this.setState({loading: false});
+                    this.setState({notInitialized: true});
+                }
+            }
         }
     },
-    _expandAll : function () {
+    _expandAll: function () {
         
         platformsPanelActionCreators.expandAll(this.props.itemPath);
     },
-    _toggleItem: function () {
-
-        if (this.state.panelItem.expanded === null)
+    _handleArrowClick: function () {
+        
+        if (!this.state.loading) // If not loading, treat it as just a regular toggle button
         {
-            platformsPanelActionCreators.loadChildren(this.props.panelItem.type, this.props.panelItem);
-        }
-        else
-        {
-            if (this.state.panelItem.expanded)
+            if (this.state.panelItem.expanded === null && this.state.panelItem.type === "platform") 
             {
-                platformsPanelActionCreators.expandAll(this.props.itemPath);
+                this.setState({loading: true});
+                platformsPanelActionCreators.loadChildren(this.props.panelItem.type, this.props.panelItem);
             }
             else
             {
-                platformsPanelActionCreators.toggleItem(this.props.itemPath);    
+                if (this.state.panelItem.expanded)
+                {
+                    platformsPanelActionCreators.expandAll(this.props.itemPath);
+                }
+                else
+                {
+                    platformsPanelActionCreators.toggleItem(this.props.itemPath);    
+                }
             }
+        }
+        else if (this.state.hasOwnProperty("loading")) // it's a platform and it's loading
+        {
+            if (this.state.loading || this.state.cancelButton) // if either loading or cancelButton is still
+            {                                                   // true, either way, the user wants to 
+                this.setState({loading: false});                // get out of the loading state, so turn
+                this.setState({cancelButton: false});           // the toggle button back to an arrow icon
+            }
+        }
+    },
+    _showCancel: function () {
+
+        if (this.state.hasOwnProperty("loading") && (this.state.loading === true))
+        {
+            this.setState({cancelButton: true});
+        }
+    },
+    _resumeLoad: function () {
+
+        if (this.state.hasOwnProperty("loading"))
+        {
+            this.setState({cancelButton: false});
         }
     },
     _checkItem: function (e) {
@@ -107,9 +154,21 @@ var PlatformsPanelItem = React.createClass({
             }
         }
 
-        var itemClasses;
-        var arrowClasses = ["arrowButton", "noRotate"];
+        var childClass;
+        var arrowClasses = [ "arrowButton", "noRotate" ];
 
+        if (this.state.hasOwnProperty("loading"))
+        {
+            if (this.state.cancelButton)
+            {
+                arrowClasses.push("cancelLoading");
+            }
+            else if (this.state.loading)
+            {
+                arrowClasses.push("loadingSpinner");
+            }
+        }
+        
         var ChartCheckbox;
 
         if (["point"].indexOf(panelItem.type) > -1)
@@ -129,16 +188,27 @@ var PlatformsPanelItem = React.createClass({
 
         var toolTipClasses = (this.state.showTooltip ? "tooltip_outer delayed-show-slow" : "tooltip_outer");
 
-        arrowClasses.push( ((panelItem.status === "GOOD") ? "status-good" :
+        if (!this.state.loading)
+        {
+            arrowClasses.push( ((panelItem.status === "GOOD") ? "status-good" :
                                 ( (panelItem.status === "BAD") ? "status-bad" : 
                                     "status-unknown")) );
+        }
 
         var arrowContent;
         var arrowContentStyle = {
             width: "14px"
         }
 
-        if (panelItem.status === "GOOD")
+        if (this.state.cancelButton)
+        {
+            arrowContent = <span style={arrowContentStyle}><i className="fa fa-remove"></i></span>;
+        }
+        else if (this.state.loading)
+        {
+            arrowContent = <span style={arrowContentStyle}><i className="fa fa-circle-o-notch fa-spin fa-fw"></i></span>;
+        }
+        else if (panelItem.status === "GOOD")
         {
             arrowContent = <span style={arrowContentStyle}>&#9654;</span>;
         } 
@@ -186,14 +256,28 @@ var PlatformsPanelItem = React.createClass({
                 }
 
                 arrowClasses.push("rotateDown");
-                itemClasses = "showItems";                    
+                childClass = "showItems";                    
             }          
         }
 
-        var itemClass = (!panelItem.hasOwnProperty("uuid") ? "item_type" : "item_label ");
+        var itemClasses = [];
+
+        if (!panelItem.hasOwnProperty("uuid"))
+        {
+            itemClasses.push("item_type");
+        }
+        else
+        {
+            itemClasses.push("item_label");
+        }
+
+        if (panelItem.type === "platform" && this.state.notInitialized)
+        {
+            itemClasses.push("not_initialized");
+        }
 
         var listItem = 
-                <div className={itemClass}>
+                <div className={itemClasses.join(' ')}>
                     {panelItem.name}
                 </div>;
 
@@ -206,7 +290,9 @@ var PlatformsPanelItem = React.createClass({
                 <div className="platform-info">
                     <div className={arrowClasses.join(' ')}
                         onDoubleClick={this._expandAll}
-                        onClick={this._toggleItem}>
+                        onClick={this._handleArrowClick}
+                        onMouseEnter={this._showCancel}
+                        onMouseLeave={this._resumeLoad}>
                         {arrowContent}
                     </div>  
                     {ChartCheckbox}                  
@@ -225,7 +311,7 @@ var PlatformsPanelItem = React.createClass({
                         {listItem}
                     </div>
                 </div>
-                <div className={itemClasses}>
+                <div className={childClass}>
                     <ul className="platform-panel-list">
                         {children}
                     </ul>
