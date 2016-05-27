@@ -38,7 +38,6 @@ Setting Value: <input type="text" id="setting_value" />
 VIP Identity: <input type="text" id="vip_identity" value="platform.agent" /><br />
 Agent id: <input type="text" id="agent_id" value="platform.agent" /><br/>
 VIP Address: <input type="text" id="vip_address" placeholder="VIP Address where VIP Identity is located" /><br/>
-<button id="register">Register Platform</button><br />
 Platform UUID: <input type="text" id="platform_uuid" placeholder="Platform uuid to remove" /><br/>
 <button id="unregister">Unregister VIP Address</button><br />
 
@@ -67,7 +66,6 @@ Topic: <input id="historian_topic" placeholder="Historian topic to query" /><br/
     function exec_discovery(address, name) {
         $('#discovery_address').val(address);
         $('#platform_name').val(name);
-        $('#register_instance').click()
     }
 
     function do_request_platform_method(method) {
@@ -228,14 +226,29 @@ Topic: <input id="historian_topic" placeholder="Historian topic to query" /><br/
 
     $('#register1').click(function(){
         exec_discovery('http://127.0.0.2:8080', 'platform 1');
+        data = {
+            display_name:'platform 1',
+            discovery_address:'http://127.0.0.2:8080'
+        }
+        do_request('register_instance', data);
     });
 
     $('#register2').click(function(){
-        exec_discovery('http://127.0.0.3:8080', 'platform 1');
+        exec_discovery('http://127.0.0.3:8080', 'platform 2');
+        data = {
+            display_name:'platform 2',
+            discovery_address:'http://127.0.0.3:8080'
+        }
+        do_request('register_instance', data);
     });
 
     $('#register3').click(function(){
-        exec_discovery('http://127.0.0.4:8080', 'platform 1');
+        exec_discovery('http://127.0.0.4:8080', 'platform 3');
+        data = {
+            display_name:'platform 3',
+            discovery_address:'http://127.0.0.4:8080'
+        }
+        do_request('register_instance', data);
     });
 
     $('#list_agents').click(function(){

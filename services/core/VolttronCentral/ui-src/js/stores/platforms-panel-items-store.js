@@ -22,8 +22,14 @@ var _goodLabel = "Healthy";
 var _unknownLabel = "Unknown Status";
 
 var _loadingDataComplete = {};
+var _lastCheck = false;
 
 var platformsPanelItemsStore = new Store();
+
+platformsPanelItemsStore.getLastCheck = function (topic)
+{
+    return _lastCheck;
+}
 
 platformsPanelItemsStore.findTopicInTree = function (topic)
 {
@@ -326,11 +332,12 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
     switch (action.type) {
 
-        case ACTION_TYPES.RESET_PLATFORMS_PANEL:
+        case ACTION_TYPES.CLEAR_AUTHORIZATION:
 
             _items.platforms = {};
             _loadingDataComplete = {};
             _expanded = false;
+            _lastCheck = false;
 
             break;
         case ACTION_TYPES.FILTER_ITEMS:
@@ -338,6 +345,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             var filterTerm = action.filterTerm;
             var filterStatus = action.filterStatus;
             platformsPanelItemsStore.loadFilteredItems(filterTerm, filterStatus);
+            _lastCheck = false;
 
             platformsPanelItemsStore.emitChange();
 
@@ -349,6 +357,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             var expanded = (item.expanded !== null ? !item.expanded : true);
 
             expandAllChildren(item, expanded);
+            _lastCheck = false;
 
             platformsPanelItemsStore.emitChange();
 
@@ -358,6 +367,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
             var item = platformsPanelItemsStore.getItem(action.itemPath);
             item.expanded = !item.expanded;
+            _lastCheck = false;
 
             platformsPanelItemsStore.emitChange();
 
@@ -367,6 +377,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
             var item = platformsPanelItemsStore.getItem(action.itemPath);
             item.checked = action.checked;
+            _lastCheck = action.checked;
 
             platformsPanelItemsStore.emitChange();
 
@@ -375,6 +386,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
         case ACTION_TYPES.START_LOADING_DATA:
 
             _loadingDataComplete[action.panelItem.uuid] = false;
+            _lastCheck = false;
 
             break;
 
@@ -508,6 +520,8 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                     break;
             }
 
+            _lastCheck = false;
+
             platformsPanelItemsStore.emitChange();
             break;
 
@@ -516,6 +530,8 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             _loadingDataComplete[action.panelItem.uuid] = true;
 
             updatePlatformStatus(action.panelItem.uuid);
+            
+            _lastCheck = false;
 
             platformsPanelItemsStore.emitChange();
 
