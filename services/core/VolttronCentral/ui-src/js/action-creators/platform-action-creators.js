@@ -195,100 +195,119 @@ var platformActionCreators = {
                 handle401(error, "Unable to install agents for platform " + platform.name + ": " + error.message);
             });
     },    
-    loadCharts: function (platform) {
+    handleChartsForUser: function (callback) {
         var authorization = authorizationStore.getAuthorization();
+        var user = authorizationStore.getUsername();
 
-        new rpc.Exchange({
-            method: 'get_setting_keys',
-            params: { key: 'charts' },
-            authorization: authorization,
-        }).promise
-            .then(function (valid_keys) {
-            
-                if (valid_keys.indexOf("charts") > -1)
-                {                    
-                    new rpc.Exchange({
-                        method: 'get_setting',
-                        params: { key: 'charts' },
-                        authorization: authorization,
-                    }).promise
-                        .then(function (charts) {
-                        
-                            var notifyRouter = false;
-
-                            dispatcher.dispatch({
-                                type: ACTION_TYPES.LOAD_CHARTS,
-                                charts: charts,
-                            });
-                        })
-                        .catch(rpc.Error, function (error) {
-                            handle401(error, "Unable to load charts for platform " + platform.name + ": " + error.message);
-                        });
-                        
-                    }
-            })
-            .catch(rpc.Error, function (error) {
-                handle401(error, "Unable to load charts for platform " + platform.name + ": " + error.message);
-            });
-
-
+        if (user)
+        {
+            callback(authorization, user);
+        }
+    },
+    loadCharts: function (platform) {
         
+        var doLoadCharts = function (authorization, user)
+        {
+            new rpc.Exchange({
+                method: 'get_setting_keys',
+                authorization: authorization,
+            }).promise
+                .then(function (valid_keys) {
+                
+                    if (valid_keys.indexOf(user) > -1)
+                    {                    
+                        new rpc.Exchange({
+                            method: 'get_setting',
+                            params: { key: user },
+                            authorization: authorization,
+                        }).promise
+                            .then(function (charts) {
+                            
+                                var notifyRouter = false;
+
+                                dispatcher.dispatch({
+                                    type: ACTION_TYPES.LOAD_CHARTS,
+                                    charts: charts,
+                                });
+                            })
+                            .catch(rpc.Error, function (error) {
+                                handle401(error, "Unable to load charts for platform " + this.name + ": " + error.message);
+                            });
+                            
+                        }
+                })
+                .catch(rpc.Error, function (error) {
+                    handle401(error, "Unable to load charts for platform " + this.name + ": " + error.message);
+                });
+        }.bind(platform);
+
+        platformActionCreators.handleChartsForUser(doLoadCharts);
     },
     saveCharts: function (chartsToSave) {
-        var authorization = authorizationStore.getAuthorization();
+        
+        var doSaveCharts = function (authorization, user) { 
+            var savedCharts = (this ? this : platformChartStore.getPinnedCharts());
 
-        var savedCharts = (chartsToSave ? chartsToSave : platformChartStore.getPinnedCharts());
+            new rpc.Exchange({
+                method: 'set_setting',
+                params: { key: user, value: savedCharts },
+                authorization: authorization,
+            }).promise
+                .then(function () {
 
-        new rpc.Exchange({
-            method: 'set_setting',
-            params: { key: 'charts', value: savedCharts },
-            authorization: authorization,
-        }).promise
-            .then(function () {
+                })
+                .catch(rpc.Error, function (error) {
+                    handle401(error, "Unable to save charts: " + error.message);
+                });
+        }.bind(chartsToSave);
 
-            })
-            .catch(rpc.Error, function (error) {
-                handle401(error, "Unable to save charts: " + error.message);
-            });
+        platformActionCreators.handleChartsForUser(doSaveCharts);
     },
     saveChart: function (newChart) {
-        var authorization = authorizationStore.getAuthorization();
+        
+        var doSaveChart = function (authorization, user) { 
+            var newCharts = [this];
 
-        var newCharts = [newChart];
+            new rpc.Exchange({
+                method: 'set_setting',
+                params: { key: 'charts', value: newCharts },
+                authorization: authorization,
+            }).promise
+                .then(function () {
 
-        new rpc.Exchange({
-            method: 'set_setting',
-            params: { key: 'charts', value: newCharts },
-            authorization: authorization,
-        }).promise
-            .then(function () {
+                })
+                .catch(rpc.Error, function (error) {
+                    handle401(error, "Unable to save chart: " + error.message);
+                });
+        }.bind(newChart);
 
-            })
-            .catch(rpc.Error, function (error) {
-                handle401(error, "Unable to save chart: " + error.message);
-            });
+        platformActionCreators.handleChartsForUser(doSaveChart);
     },
     deleteChart: function (chartToDelete) {
-        var authorization = authorizationStore.getAuthorization();
+        
+        var doDeleteChart = function (authorization, user) {
 
-        var savedCharts = platformChartStore.getPinnedCharts();
+            var savedCharts = platformChartStore.getPinnedCharts();
 
-        var newCharts = savedCharts.filter(function (chart) {
+            var newCharts = savedCharts.filter(function (chart) {
 
-            return (chart.chartKey !== chartToDelete);
-        });
-
-        new rpc.Exchange({
-            method: 'set_setting',
-            params: { key: 'charts', value: newCharts },
-            authorization: authorization,
-        }).promise
-            .then(function () {
-
-            })
-            .catch(rpc.Error, function (error) {
-                handle401(error, "Unable to delete chart: " + error.message);
+                return (chart.chartKey !== this);
             });
+
+            new rpc.Exchange({
+                method: 'set_setting',
+                params: { key: 'charts', value: newCharts },
+                authorization: authorization,
+            }).promise
+                .then(function () {
+
+                })
+                .catch(rpc.Error, function (error) {
+                    handle401(error, "Unable to delete chart: " + error.message);
+                });
+        }.find(chartToDelete);
+
+        platformActionCreators.handleChartsForUser(doDeleteChart);
     },
 };
 

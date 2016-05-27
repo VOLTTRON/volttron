@@ -371,100 +371,119 @@ var platformActionCreators = {
                 handle401(error, "Unable to install agents for platform " + platform.name + ": " + error.message);
             });
     },    
-    loadCharts: function (platform) {
+    handleChartsForUser: function (callback) {
         var authorization = authorizationStore.getAuthorization();
+        var user = authorizationStore.getUsername();
 
-        new rpc.Exchange({
-            method: 'get_setting_keys',
-            params: { key: 'charts' },
-            authorization: authorization,
-        }).promise
-            .then(function (valid_keys) {
-            
-                if (valid_keys.indexOf("charts") > -1)
-                {                    
-                    new rpc.Exchange({
-                        method: 'get_setting',
-                        params: { key: 'charts' },
-                        authorization: authorization,
-                    }).promise
-                        .then(function (charts) {
-                        
-                            var notifyRouter = false;
-
-                            dispatcher.dispatch({
-                                type: ACTION_TYPES.LOAD_CHARTS,
-                                charts: charts,
-                            });
-                        })
-                        .catch(rpc.Error, function (error) {
-                            handle401(error, "Unable to load charts for platform " + platform.name + ": " + error.message);
-                        });
-                        
-                    }
-            })
-            .catch(rpc.Error, function (error) {
-                handle401(error, "Unable to load charts for platform " + platform.name + ": " + error.message);
-            });
-
-
+        if (user)
+        {
+            callback(authorization, user);
+        }
+    },
+    loadCharts: function (platform) {
         
+        var doLoadCharts = function (authorization, user)
+        {
+            new rpc.Exchange({
+                method: 'get_setting_keys',
+                authorization: authorization,
+            }).promise
+                .then(function (valid_keys) {
+                
+                    if (valid_keys.indexOf(user) > -1)
+                    {                    
+                        new rpc.Exchange({
+                            method: 'get_setting',
+                            params: { key: user },
+                            authorization: authorization,
+                        }).promise
+                            .then(function (charts) {
+                            
+                                var notifyRouter = false;
+
+                                dispatcher.dispatch({
+                                    type: ACTION_TYPES.LOAD_CHARTS,
+                                    charts: charts,
+                                });
+                            })
+                            .catch(rpc.Error, function (error) {
+                                handle401(error, "Unable to load charts for platform " + this.name + ": " + error.message);
+                            });
+                            
+                        }
+                })
+                .catch(rpc.Error, function (error) {
+                    handle401(error, "Unable to load charts for platform " + this.name + ": " + error.message);
+                });
+        }.bind(platform);
+
+        platformActionCreators.handleChartsForUser(doLoadCharts);
     },
     saveCharts: function (chartsToSave) {
-        var authorization = authorizationStore.getAuthorization();
+        
+        var doSaveCharts = function (authorization, user) { 
+            var savedCharts = (this ? this : platformChartStore.getPinnedCharts());
 
-        var savedCharts = (chartsToSave ? chartsToSave : platformChartStore.getPinnedCharts());
+            new rpc.Exchange({
+                method: 'set_setting',
+                params: { key: user, value: savedCharts },
+                authorization: authorization,
+            }).promise
+                .then(function () {
 
-        new rpc.Exchange({
-            method: 'set_setting',
-            params: { key: 'charts', value: savedCharts },
-            authorization: authorization,
-        }).promise
-            .then(function () {
+                })
+                .catch(rpc.Error, function (error) {
+                    handle401(error, "Unable to save charts: " + error.message);
+                });
+        }.bind(chartsToSave);
 
-            })
-            .catch(rpc.Error, function (error) {
-                handle401(error, "Unable to save charts: " + error.message);
-            });
+        platformActionCreators.handleChartsForUser(doSaveCharts);
     },
     saveChart: function (newChart) {
-        var authorization = authorizationStore.getAuthorization();
+        
+        var doSaveChart = function (authorization, user) { 
+            var newCharts = [this];
 
-        var newCharts = [newChart];
+            new rpc.Exchange({
+                method: 'set_setting',
+                params: { key: 'charts', value: newCharts },
+                authorization: authorization,
+            }).promise
+                .then(function () {
 
-        new rpc.Exchange({
-            method: 'set_setting',
-            params: { key: 'charts', value: newCharts },
-            authorization: authorization,
-        }).promise
-            .then(function () {
+                })
+                .catch(rpc.Error, function (error) {
+                    handle401(error, "Unable to save chart: " + error.message);
+                });
+        }.bind(newChart);
 
-            })
-            .catch(rpc.Error, function (error) {
-                handle401(error, "Unable to save chart: " + error.message);
-            });
+        platformActionCreators.handleChartsForUser(doSaveChart);
     },
     deleteChart: function (chartToDelete) {
-        var authorization = authorizationStore.getAuthorization();
+        
+        var doDeleteChart = function (authorization, user) {
 
-        var savedCharts = platformChartStore.getPinnedCharts();
+            var savedCharts = platformChartStore.getPinnedCharts();
 
-        var newCharts = savedCharts.filter(function (chart) {
+            var newCharts = savedCharts.filter(function (chart) {
 
-            return (chart.chartKey !== chartToDelete);
-        });
-
-        new rpc.Exchange({
-            method: 'set_setting',
-            params: { key: 'charts', value: newCharts },
-            authorization: authorization,
-        }).promise
-            .then(function () {
-
-            })
-            .catch(rpc.Error, function (error) {
-                handle401(error, "Unable to delete chart: " + error.message);
+                return (chart.chartKey !== this);
             });
+
+            new rpc.Exchange({
+                method: 'set_setting',
+                params: { key: 'charts', value: newCharts },
+                authorization: authorization,
+            }).promise
+                .then(function () {
+
+                })
+                .catch(rpc.Error, function (error) {
+                    handle401(error, "Unable to delete chart: " + error.message);
+                });
+        }.find(chartToDelete);
+
+        platformActionCreators.handleChartsForUser(doDeleteChart);
     },
 };
 
@@ -581,7 +600,7 @@ var platformChartActionCreators = {
         var authorization = authorizationStore.getAuthorization();
 
         new rpc.Exchange({
-            method: 'platforms.uuid.' + panelItem.parentUuid + '.historian.query',
+            method: 'historian.query',
             params: {
                 topic: panelItem.topic,
                 count: 20,
@@ -721,6 +740,7 @@ var platformManagerActionCreators = {
                 dispatcher.dispatch({
                     type: ACTION_TYPES.RECEIVE_AUTHORIZATION,
                     authorization: result,
+                    name: username
                 });
             })
             .then(platformManagerActionCreators.initialize)
@@ -856,6 +876,11 @@ var platformManagerActionCreators = {
                 });
 
                 statusIndicatorActionCreators.openStatusIndicator("success", "Platform " + platformName + " was deregistered.");
+
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.REMOVE_PLATFORM_CHARTS,
+                    platform: platform
+                });
 
                 platformManagerActionCreators.loadPlatforms();
             })
@@ -1704,7 +1729,10 @@ var platformChartStore = require('../stores/platform-chart-store');
 var PlatformChart = require('./platform-chart');
 
 var Dashboard = React.createClass({displayName: "Dashboard",
-    getInitialState: getStateFromStores,
+    getInitialState: function () {
+        var state = getStateFromStores();
+        return state;
+    },
     componentDidMount: function () {
         platformChartStore.addChangeListener(this._onStoreChange);
     },
@@ -2566,22 +2594,13 @@ module.exports = PlatformChart;
 
 var React = require('react');
 var PlatformChart = require('./platform-chart');
-var modalActionCreators = require('../action-creators/modal-action-creators');
-var platformActionCreators = require('../action-creators/platform-action-creators');
-var platformsStore = require('../stores/platforms-store');
 var chartStore = require('../stores/platform-chart-store');
-var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
-var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
 
 var PlatformCharts = React.createClass({displayName: "PlatformCharts",
     getInitialState: function () {
 
-        var vc = platformsStore.getVcInstance();
-
         var state = {
-            platform: vc,
             chartData: chartStore.getData(),
-            historianRunning: platformsStore.getHistorianRunning(vc),
             modalContent: null
         };
 
@@ -2589,35 +2608,12 @@ var PlatformCharts = React.createClass({displayName: "PlatformCharts",
     },
     componentDidMount: function () {
         chartStore.addChangeListener(this._onChartStoreChange);
-        platformsStore.addChangeListener(this._onPlatformStoreChange);
-
-        if (!this.state.platform)
-        {
-            platformManagerActionCreators.loadPlatforms();
-        }
     },
     componentWillUnmount: function () {
         chartStore.removeChangeListener(this._onChartStoreChange);
-        platformsStore.removeChangeListener(this._onPlatformStoreChange);
     },
     _onChartStoreChange: function () {
         this.setState({chartData: chartStore.getData()});
-    },
-    _onPlatformStoreChange: function () {
-
-        var platform = this.state.platform;
-
-        if (!platform)
-        {
-            platform = platformsStore.getVcInstance();
-
-            if (platform)
-            {
-                this.setState({platform: platform});
-            }
-        }
-
-        this.setState({historianRunning: platformsStore.getHistorianRunning(platform)});
     },
     render: function () {
 
@@ -2656,7 +2652,7 @@ var PlatformCharts = React.createClass({displayName: "PlatformCharts",
 module.exports = PlatformCharts;
 
 
-},{"../action-creators/modal-action-creators":4,"../action-creators/platform-action-creators":5,"../action-creators/platform-manager-action-creators":7,"../action-creators/status-indicator-action-creators":9,"../stores/platform-chart-store":46,"../stores/platforms-store":49,"./platform-chart":23,"react":undefined}],25:[function(require,module,exports){
+},{"../stores/platform-chart-store":46,"./platform-chart":23,"react":undefined}],25:[function(require,module,exports){
 'use strict';
 
 var $ = require('jquery');
@@ -4175,6 +4171,7 @@ module.exports = keyMirror({
     REFRESH_CHART: null,
     REMOVE_CHART: null,
     LOAD_CHARTS: null,
+    REMOVE_PLATFORM_CHARTS: null,
 
     EXPAND_ALL: null,
     TOGGLE_ITEM: null,
@@ -4413,6 +4410,7 @@ var dispatcher = require('../dispatcher');
 var Store = require('../lib/store');
 
 var _authorization = sessionStorage.getItem('authorization');
+var _username = sessionStorage.getItem('username');
 
 var authorizationStore = new Store();
 
@@ -4420,11 +4418,17 @@ authorizationStore.getAuthorization = function () {
     return _authorization;
 };
 
+authorizationStore.getUsername = function () {
+    return _username;
+};
+
 authorizationStore.dispatchToken = dispatcher.register(function (action) {
     switch (action.type) {
         case ACTION_TYPES.RECEIVE_AUTHORIZATION:
             _authorization = action.authorization;
+            _username = action.name;
             sessionStorage.setItem('authorization', _authorization);
+            sessionStorage.setItem('username', _username);
             authorizationStore.emitChange();
             break;
 
@@ -4434,7 +4438,9 @@ authorizationStore.dispatchToken = dispatcher.register(function (action) {
 
         case ACTION_TYPES.CLEAR_AUTHORIZATION:
             _authorization = null;
+            _username = null;
             sessionStorage.removeItem('authorization');
+            sessionStorage.removeItem('username');
             authorizationStore.emitChange();
             break;
     }
@@ -4675,6 +4681,8 @@ var chartStore = new Store();
 chartStore.getPinnedCharts = function () {
     var pinnedCharts = [];
 
+    var user = authorizationStore.getUsername();
+
     for (var key in _chartData)
     {
         if (_chartData[key].hasOwnProperty("pinned") && (_chartData[key].pinned === true) && (_chartData[key].data.length > 0))
@@ -4912,6 +4920,32 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
 
                 chartStore.emitChange();
             }
+
+            break;
+
+        case ACTION_TYPES.REMOVE_PLATFORM_CHARTS:
+
+            var filteredCharts = {};
+
+            for (var key in _chartData)
+            {
+                var filteredSeries = _chartData[key].series.filter(function (series) {
+                    return (series.parentPath.indexOf(this.uuid) < 0);
+                }, action.platform);
+
+                if (filteredSeries.length !== 0)
+                {
+                    filteredCharts[key] = filteredSeries;
+                }
+            }
+
+            _chartData = filteredCharts;
+
+            break;
+
+        case ACTION_TYPES.CLEAR_AUTHORIZATION: 
+
+            _chartData = {};
 
             break;
     }

@@ -27,6 +27,7 @@ var platformManagerActionCreators = {
                 dispatcher.dispatch({
                     type: ACTION_TYPES.RECEIVE_AUTHORIZATION,
                     authorization: result,
+                    name: username
                 });
             })
             .then(platformManagerActionCreators.initialize)
@@ -162,6 +163,11 @@ var platformManagerActionCreators = {
                 });
 
                 statusIndicatorActionCreators.openStatusIndicator("success", "Platform " + platformName + " was deregistered.");
+
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.REMOVE_PLATFORM_CHARTS,
+                    platform: platform
+                });
 
                 platformManagerActionCreators.loadPlatforms();
             })

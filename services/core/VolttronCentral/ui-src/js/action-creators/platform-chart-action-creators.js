@@ -90,7 +90,7 @@ var platformChartActionCreators = {
         var authorization = authorizationStore.getAuthorization();
 
         new rpc.Exchange({
-            method: 'platforms.uuid.' + panelItem.parentUuid + '.historian.query',
+            method: 'historian.query',
             params: {
                 topic: panelItem.topic,
                 count: 20,

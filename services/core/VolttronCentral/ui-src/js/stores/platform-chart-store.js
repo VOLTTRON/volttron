@@ -15,6 +15,8 @@ var chartStore = new Store();
 chartStore.getPinnedCharts = function () {
     var pinnedCharts = [];
 
+    var user = authorizationStore.getUsername();
+
     for (var key in _chartData)
     {
         if (_chartData[key].hasOwnProperty("pinned") && (_chartData[key].pinned === true) && (_chartData[key].data.length > 0))
@@ -252,6 +254,32 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
 
                 chartStore.emitChange();
             }
+
+            break;
+
+        case ACTION_TYPES.REMOVE_PLATFORM_CHARTS:
+
+            var filteredCharts = {};
+
+            for (var key in _chartData)
+            {
+                var filteredSeries = _chartData[key].series.filter(function (series) {
+                    return (series.parentPath.indexOf(this.uuid) < 0);
+                }, action.platform);
+
+                if (filteredSeries.length !== 0)
+                {
+                    filteredCharts[key] = filteredSeries;
+                }
+            }
+
+            _chartData = filteredCharts;
+
+            break;
+
+        case ACTION_TYPES.CLEAR_AUTHORIZATION: 
+
+            _chartData = {};
 
             break;
     }
