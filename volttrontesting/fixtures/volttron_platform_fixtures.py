@@ -157,7 +157,7 @@ def volttron_instance(request):
     @return: volttron platform instance
     """
     wrapper = None
-    address = get_rand_ip_and_port()
+    address = get_rand_vip()
     if request.param == 'encrypted':
         print("building instance 1 (using encryption)")
         wrapper = build_wrapper(address, encrypt=True)

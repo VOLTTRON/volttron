@@ -193,10 +193,10 @@ class PlatformWrapper:
         use_ipc = kwargs.pop('use_ipc', False)
         if self.encrypt:
             if serverkey is None:
-                serverkey=self.publickey
+                serverkey=self.__publickey
             if publickey is None:
-                keyfile = tempfile.mktemp("agent", ".keys", self.volttron_home)
-                keys = keystore.KeyStore(keyfile)
+                keyfile = tempfile.mktemp(".keys", "agent", self.volttron_home)
+                keys = KeyStore(keyfile)
                 keys.generate()
                 publickey=keys.public()
                 secretkey=keys.secret()
