@@ -645,7 +645,7 @@ class BaseHistorianAgent(Agent):
 
                 backupdb.remove_successfully_published(
                     self._successful_published, self._submit_size_limit)
-
+                self._successful_published = set()
                 now = datetime.utcnow()
                 if now - start_time > self._max_time_publishing:
                     wait_for_input = False
