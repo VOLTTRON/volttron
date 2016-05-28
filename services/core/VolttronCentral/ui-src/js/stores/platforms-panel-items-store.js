@@ -154,22 +154,30 @@ platformsPanelItemsStore.getItem = function (itemPath)
 platformsPanelItemsStore.getChildren = function (parent, parentPath) {
 
     var itemsList = [];
-    var item = _items;
+    var item = _items;    
 
     if (parentPath !== null) // for everything but the top level, drill down to the parent
     {
+        var validPath = true;
+
         for (var i = 0; i < parentPath.length; i++)
         {
             if (item.hasOwnProperty(parentPath[i]))
             {
                 item = item[parentPath[i]];
             }
+            else
+            {
+                validPath = false;
+            }
         }
-    
-          
-        for (var i = 0; i < item.children.length; i++)
-        {           
-            itemsList.push(item[item.children[i]]);
+              
+        if (validPath)
+        {
+            for (var i = 0; i < item.children.length; i++)
+            {           
+                itemsList.push(item[item.children[i]]);            
+            }
         }
             
     }

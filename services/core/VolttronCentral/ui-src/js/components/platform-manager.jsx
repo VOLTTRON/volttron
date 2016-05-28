@@ -140,8 +140,7 @@ function getStateFromStores() {
         loggedIn: !!authorizationStore.getAuthorization(),
         modalContent: modalStore.getModalContent(),
         expanded: platformsPanelStore.getExpanded(),
-        status: statusIndicatorStore.getStatus(),
-        statusMessage: statusIndicatorStore.getStatusMessage(),
+        status: statusIndicatorStore.getStatus()
     };
 }
 

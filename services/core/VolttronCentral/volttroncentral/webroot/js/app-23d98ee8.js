@@ -234,11 +234,11 @@ var platformActionCreators = {
                         });
                     })            
                     .catch(rpc.Error, function (error) {
-                        handle401(error, "Unable to load agents for platform " + platform.name + ": " + error.message);
+                        handle401(error, "Unable to load agents for platform " + platform.name + ": " + error.message, platform.name);
                     });
             })            
             .catch(rpc.Error, function (error) {
-                handle401(error, "Unable to load agents for platform " + platform.name + ": " + error.message);
+                handle401(error, "Unable to load agents for platform " + platform.name + ": " + error.message, platform.name);
             });
     },
     startAgent: function (platform, agent) {
@@ -261,7 +261,7 @@ var platformActionCreators = {
                 agent.return_code = status.return_code;
             })                        
             .catch(rpc.Error, function (error) {
-                handle401(error, "Unable to start agent " + agent.name + ": " + error.message);
+                handle401(error, "Unable to start agent " + agent.name + ": " + error.message, agent.name);
             })
             .finally(function () {
                 agent.actionPending = false;
@@ -292,7 +292,7 @@ var platformActionCreators = {
                 agent.return_code = status.return_code;
             })                      
             .catch(rpc.Error, function (error) {
-                handle401(error, "Unable to stop agent " + agent.name + ": " + error.message);
+                handle401(error, "Unable to stop agent " + agent.name + ": " + error.message, agent.name);
             })
             .finally(function () {
                 agent.actionPending = false;
@@ -329,7 +329,7 @@ var platformActionCreators = {
             .then(function (result) {
                 
                 if (result.error) {
-                    statusIndicatorActionCreators.openStatusIndicator("error", "Unable to remove agent " + agent.name + ": " + result.error);
+                    statusIndicatorActionCreators.openStatusIndicator("error", "Unable to remove agent " + agent.name + ": " + result.error, agent.name);
                 }
                 else
                 {
@@ -337,7 +337,7 @@ var platformActionCreators = {
                 }
             })                      
             .catch(rpc.Error, function (error) {
-                handle401(error, "Unable to remove agent " + agent.name + ": " + error.message);
+                handle401(error, "Unable to remove agent " + agent.name + ": " + error.message, agent.name);
             });
     },
     installAgents: function (platform, files) {
@@ -360,7 +360,7 @@ var platformActionCreators = {
                 });
 
                 if (errors.length) {
-                    statusIndicatorActionCreators.openStatusIndicator("error", "Unable to install agents for platform " + platform.name + ": " + errors.join('\n'));
+                    statusIndicatorActionCreators.openStatusIndicator("error", "Unable to install agents for platform " + platform.name + ": " + errors.join('\n'), platform.name);
                 }
 
                 if (errors.length !== files.length) {
@@ -368,7 +368,7 @@ var platformActionCreators = {
                 }
             })                      
             .catch(rpc.Error, function (error) {
-                handle401(error, "Unable to install agents for platform " + platform.name + ": " + error.message);
+                handle401(error, "Unable to install agents for platform " + platform.name + ": " + error.message, platform.name);
             });
     },    
     handleChartsForUser: function (callback) {
@@ -407,13 +407,13 @@ var platformActionCreators = {
                                 });
                             })
                             .catch(rpc.Error, function (error) {
-                                handle401(error, "Unable to load charts for platform " + this.name + ": " + error.message);
+                                handle401(error, "Unable to load charts for platform " + this.name + ": " + error.message, this.name);
                             });
                             
                         }
                 })
                 .catch(rpc.Error, function (error) {
-                    handle401(error, "Unable to load charts for platform " + this.name + ": " + error.message);
+                    handle401(error, "Unable to load charts for platform " + this.name + ": " + error.message, this.name);
                 });
         }.bind(platform);
 
@@ -446,7 +446,7 @@ var platformActionCreators = {
 
             new rpc.Exchange({
                 method: 'set_setting',
-                params: { key: 'charts', value: newCharts },
+                params: { key: user, value: newCharts },
                 authorization: authorization,
             }).promise
                 .then(function () {
@@ -472,7 +472,7 @@ var platformActionCreators = {
 
             new rpc.Exchange({
                 method: 'set_setting',
-                params: { key: 'charts', value: newCharts },
+                params: { key: user, value: newCharts },
                 authorization: authorization,
             }).promise
                 .then(function () {
@@ -485,9 +485,80 @@ var platformActionCreators = {
 
         platformActionCreators.handleChartsForUser(doDeleteChart);
     },
+    removeSavedPlatformCharts: function (platform) {
+
+        var authorization = authorizationStore.getAuthorization();
+
+        // first get all the keys (i.e., users) that charts are saved under
+        new rpc.Exchange({
+            method: 'get_setting_keys',
+            authorization: authorization,
+        }).promise
+            .then(function (valid_keys) {
+            
+                // then get the charts for each user
+                valid_keys.forEach(function (key) {
+
+                    new rpc.Exchange({
+                        method: 'get_setting',
+                        params: { key: key },
+                        authorization: authorization,
+                    }).promise
+                        .then(function (charts) {
+
+                            // for each saved chart, keep the chart if it has any series that don't belong
+                            // to the deregistered platform
+                            var filteredCharts = charts.filter(function (chart) {
+
+                                var keeper = true;
+
+                                var filteredSeries = chart.series.filter(function (series) {
+                                    return (series.path.indexOf(this.uuid) < 0);
+                                }, this);
+
+                                // keep the chart if there are any series that don't belong to the deregistered platform,
+                                // but leave out the series that do belong to the deregistered platform
+                                if (filteredSeries.length !== 0)
+                                {
+                                    chart.series = filteredSeries;
+                                }
+                                else
+                                {
+                                    keeper = false;
+                                }
+
+                                return keeper;
+                            }, platform);
+                        
+                            // now save the remaining charts. Even if there are none, do the save, because that's what deletes 
+                            // the rejects.
+                            new rpc.Exchange({
+                                method: 'set_setting',
+                                params: { key: key, value: filteredCharts },
+                                authorization: authorization,
+                            }).promise
+                                .then(function () {
+                                    
+                                })
+                                .catch(rpc.Error, function (error) {
+                                    handle401(error, "Error removing deregistered platform's charts from saved charts (e0): " + error.message);
+                                });
+                        })
+                        .catch(rpc.Error, function (error) {
+                            handle401(error, "Error removing deregistered platform's charts from saved charts (e1): " + error.message);
+                        });
+                        
+                    
+                });
+            })
+            .catch(rpc.Error, function (error) {
+                handle401(error, "Error removing deregistered platform's charts from saved charts (e2): " + error.message);
+            });
+    },
+
 };
 
-function handle401(error, message) {
+function handle401(error, message, highlight, orientation) {
     if ((error.code && error.code === 401) || (error.response && error.response.status === 401)) {
         dispatcher.dispatch({
             type: ACTION_TYPES.RECEIVE_UNAUTHORIZED,
@@ -500,7 +571,7 @@ function handle401(error, message) {
     }
     else
     {
-        statusIndicatorActionCreators.openStatusIndicator("error", message);
+        statusIndicatorActionCreators.openStatusIndicator("error", message, highlight, orientation);
     }
 }
 
@@ -571,12 +642,14 @@ var platformChartActionCreators = {
                 .catch(rpc.Error, function (error) {
 
                     var message = "Unable to update chart: " + error.message;
+                    var orientation;
 
                     if (error.code === -32602)
                     {
                         if (error.message === "historian unavailable")
                         {
                             message = "Unable to update chart: The historian agent is unavailable.";
+                            orientation = "center";
                         }
                     }
                     else
@@ -587,10 +660,11 @@ var platformChartActionCreators = {
                         if (!historianRunning)
                         {
                             message = "Unable to update chart: The historian agent is unavailable.";
+                            orientation = "center";
                         }
                     }
 
-                    handle401(error, message);
+                    handle401(error, message, null, orientation);
                 });
 		});
 
@@ -640,12 +714,14 @@ var platformChartActionCreators = {
             .catch(rpc.Error, function (error) {
 
                 var message = "Unable to load chart: " + error.message;
+                var orientation;
 
                 if (error.code === -32602)
                 {
                     if (error.message === "historian unavailable")
                     {
                         message = "Unable to load chart: The historian agent is not available.";
+                        orientation = "center";
                     }
                 }
                 else
@@ -656,11 +732,12 @@ var platformChartActionCreators = {
                     if (!historianRunning)
                     {
                         message = "Unable to load chart: The historian agent is not available.";
+                        orientation = "center";
                     }
                 }
 
                 platformsPanelActionCreators.checkItem(panelItem.path, false);
-                handle401(error, message);
+                handle401(error, message, null, orientation);
             });
     },
     removeFromChart: function(panelItem) {
@@ -690,7 +767,7 @@ var platformChartActionCreators = {
     }
 };
 
-function handle401(error, message) {
+function handle401(error, message, highlight, orientation) {
     if ((error.code && error.code === 401) || (error.response && error.response.status === 401)) {
         dispatcher.dispatch({
             type: ACTION_TYPES.RECEIVE_UNAUTHORIZED,
@@ -703,9 +780,9 @@ function handle401(error, message) {
     }
     else
     {
-        statusIndicatorActionCreators.openStatusIndicator("error", message);
+        statusIndicatorActionCreators.openStatusIndicator("error", message, highlight, orientation);
     }
-};
+}
 
 module.exports = platformChartActionCreators;
 
@@ -753,10 +830,10 @@ var platformManagerActionCreators = {
                     message = "Invalid username/password specified.";
                 }
 
-                statusIndicatorActionCreators.openStatusIndicator("error", message); //This is needed because the 401 status will keep the status 
-                handle401(error, error.message);                                    // indicator from being shown. This is the one time we
-            })                                                                      // show bad status for not authorized. Other times, we
-    },                                                                              // just log them out.
+                statusIndicatorActionCreators.openStatusIndicator("error", message, null, "center"); //This is needed because the 401 status  
+                handle401(error, error.message);                                    // will keep the statusindicator from being shown. This is 
+            })                                                                      // the one time we show bad status for not authorized. Other 
+    },                                                                              // times, we just log them out.
     clearAuthorization: function () {
         dispatcher.dispatch({
             type: ACTION_TYPES.CLEAR_AUTHORIZATION,
@@ -770,6 +847,16 @@ var platformManagerActionCreators = {
             authorization: authorization,
         }).promise
             .then(function (platforms) {
+
+                platforms = platforms.map(function (platform, index) {
+
+                    if (platform.name === null || platform.name === "" || typeof platform.name === undefined)
+                    {
+                        platform.name = "Unnamed Platform " + (index + 1);
+                    }
+
+                    return platform;
+                });
 
                 var managerPlatforms = JSON.parse(JSON.stringify(platforms));
                 var panelPlatforms = JSON.parse(JSON.stringify(platforms));
@@ -829,7 +916,7 @@ var platformManagerActionCreators = {
                     type: ACTION_TYPES.CLOSE_MODAL,
                 });
 
-                statusIndicatorActionCreators.openStatusIndicator("success", "Platform " + name + " was registered.");
+                statusIndicatorActionCreators.openStatusIndicator("success", "Platform " + name + " was registered.", name, "center");
         
                 platformManagerActionCreators.loadPlatforms();                
 
@@ -840,22 +927,22 @@ var platformManagerActionCreators = {
                     type: ACTION_TYPES.CLOSE_MODAL,
                 });
 
-                var message = error.message;
+                var message = "Platform " + name + " was not registered: " + error.message;
+                var orientation;
 
                 switch (error.code)
                 {
                     case -32600:
-                        message = "Platform " + name + " was not registered: Invalid address."
-                        break;
-                    case -32002:
-                        message = "Platform " + name + " was not registered: " + error.message;
+                        message = "Platform " + name + " was not registered: Invalid address.";
+                        orientation = "center"
                         break;
                     case -32000:
                         message = "Platform " + name + " was not registered: An unknown error occurred.";
+                        orientation = "center"
                         break;
                 }
 
-                handle401(error, message);
+                handle401(error, message, name, orientation);
             });
     },
     deregisterPlatform: function (platform) {
@@ -870,29 +957,31 @@ var platformManagerActionCreators = {
                 platform_uuid: platform.uuid
             },
         }).promise
-            .then(function (platform) {
+            .then(function (result) {
                 dispatcher.dispatch({
                     type: ACTION_TYPES.CLOSE_MODAL,
                 });
 
-                statusIndicatorActionCreators.openStatusIndicator("success", "Platform " + platformName + " was deregistered.");
+                statusIndicatorActionCreators.openStatusIndicator("success", "Platform " + platformName + " was deregistered.", platformName, "center");
 
                 dispatcher.dispatch({
                     type: ACTION_TYPES.REMOVE_PLATFORM_CHARTS,
                     platform: platform
                 });
 
+                platformActionCreators.removeSavedPlatformCharts(platform);
+
                 platformManagerActionCreators.loadPlatforms();
             })
             .catch(rpc.Error, function (error) { 
                 var message = "Platform " + platformName + " was not deregistered: " + error.message;
 
-                handle401(error, message);
+                handle401(error, message, platformName);
             });
     },
 };
 
-function handle401(error, message) {
+function handle401(error, message, highlight, orientation) {
     if ((error.code && error.code === 401) || (error.response && error.response.status === 401)) {
         dispatcher.dispatch({
             type: ACTION_TYPES.RECEIVE_UNAUTHORIZED,
@@ -903,7 +992,7 @@ function handle401(error, message) {
     }
     else
     {
-        statusIndicatorActionCreators.openStatusIndicator("error", message);
+        statusIndicatorActionCreators.openStatusIndicator("error", message, highlight, orientation);
     }
 }
 
@@ -970,7 +1059,7 @@ var platformsPanelActionCreators = {
                 })                     
                 .catch(rpc.Error, function (error) {
                     endLoadingData(platform);
-                    handle401(error, "Unable to load devices for platform " + platform.name + " in side panel: " + error.message);
+                    handle401(error, "Unable to load devices for platform " + platform.name + " in side panel: " + error.message, platform.name);
                 });    
 
         }
@@ -994,7 +1083,7 @@ var platformsPanelActionCreators = {
                 })                     
                 .catch(rpc.Error, function (error) {
                     endLoadingData(platform);
-                    handle401(error, "Unable to load agents for platform " + platform.name + " in side panel: " + error.message);
+                    handle401(error, "Unable to load agents for platform " + platform.name + " in side panel: " + error.message, platform.name);
                 });    
         }       
 
@@ -1054,7 +1143,7 @@ var platformsPanelActionCreators = {
                             }
 
                             endLoadingData(parent);
-                            handle401(error, message);
+                            handle401(error, message, parent.name, "center");
                         });   
             } 
         }
@@ -1103,7 +1192,7 @@ var platformsPanelActionCreators = {
     }    
 }
 
-function handle401(error, message) {
+function handle401(error, message, highlight, orientation) {
     if ((error.code && error.code === 401) || (error.response && error.response.status === 401)) {
         dispatcher.dispatch({
             type: ACTION_TYPES.RECEIVE_UNAUTHORIZED,
@@ -1116,9 +1205,9 @@ function handle401(error, message) {
     }
     else
     {
-        statusIndicatorActionCreators.openStatusIndicator("error", message);
+        statusIndicatorActionCreators.openStatusIndicator("error", message, highlight, orientation);
     }
-};
+}
 
 module.exports = platformsPanelActionCreators;
 
@@ -1130,11 +1219,14 @@ var ACTION_TYPES = require('../constants/action-types');
 var dispatcher = require('../dispatcher');
 
 var actionStatusCreators = {
-	openStatusIndicator: function (status, message) {
+	openStatusIndicator: function (status, message, highlight, align) {
+
 		dispatcher.dispatch({
 			type: ACTION_TYPES.OPEN_STATUS,
 			status: status,
 			message: message,
+			highlight: highlight,
+			align: align
 		});
 	},
 	closeStatusIndicator: function () {
@@ -2795,8 +2887,7 @@ function getStateFromStores() {
         loggedIn: !!authorizationStore.getAuthorization(),
         modalContent: modalStore.getModalContent(),
         expanded: platformsPanelStore.getExpanded(),
-        status: statusIndicatorStore.getStatus(),
-        statusMessage: statusIndicatorStore.getStatusMessage(),
+        status: statusIndicatorStore.getStatus()
     };
 }
 
@@ -3659,6 +3750,7 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
         var state = {};
         
         state.method = 'discovery';
+        state.registering = false;
 
         state.name = state.discovery_address = state.ipaddress = state.serverKey = state.publicKey = state.secretKey = '';
         state.protocol = 'tcp';
@@ -3687,10 +3779,15 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
     _toggleMethod: function (e) {
         this.setState({ method: (this.state.method === "discovery" ? "advanced" : "discovery") });
     },
-    _onCancelClick: modalActionCreators.closeModal,
+    _onCancelClick: function (e) {
+        this.setState({registering: false});
+        modalActionCreators.closeModal();
+    },
     _onSubmit: function (e) {
         e.preventDefault();
         var address = (this.state.method === "discovery" ? this.state.discovery_address : this._formatAddress());
+
+        this.setState({registering: true});
         platformManagerActionCreators.registerPlatform(this.state.name, address, this.state.method);
     },
     _formatAddress: function () {
@@ -3721,6 +3818,17 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
         var registerForm;
 
         var submitMethod;
+
+        var progress;
+
+        if (this.state.registering)
+        {
+            var progressStyle = {
+                textAlign: "center",
+                width: "100%"
+            }
+            progress = React.createElement("div", {style: progressStyle}, React.createElement("progress", null));
+        }
 
         switch (this.state.method)
         {
@@ -3753,6 +3861,8 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
                                 )
                             )
                         ), 
+
+                        progress, 
                         
                         React.createElement("div", {className: "tableDiv"}, 
                             React.createElement("div", {className: "rowDiv"}, 
@@ -3882,6 +3992,8 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
                                 )
                             )
                         ), 
+
+                        progress, 
                         
                         React.createElement("div", {className: "tableDiv"}, 
                             React.createElement("div", {className: "rowDiv"}, 
@@ -3922,7 +4034,6 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
             React.createElement("form", {className: "register-platform-form", onSubmit: this._onSubmit}, 
                 React.createElement("h1", null, "Register platform"), 
                 registerForm
-
             )
         );
     },
@@ -4002,7 +4113,7 @@ var statusIndicatorStore = require('../stores/status-indicator-store');
 var StatusIndicator = React.createClass({displayName: "StatusIndicator",
 
 	getInitialState: function () {
-        var state = getStateFromStores();
+        var state = statusIndicatorStore.getStatusMessage();
 
         state.errors = (state.status === "error");
         state.fadeOut = false;
@@ -4085,9 +4196,40 @@ var StatusIndicator = React.createClass({displayName: "StatusIndicator",
 			height: "2rem"
 		}
 
-        var textStyle = {
-            fontWeight: "bold"
+        var messageStyle = {
+            padding: "0px 20px"
         }
+
+        var statusMessage = (React.createElement("b", null, this.state.statusMessage));
+
+        if (this.state.hasOwnProperty("highlight"))
+        {
+            var highlight = this.state.highlight;
+            var wholeMessage = this.state.statusMessage;
+
+            var startIndex = wholeMessage.indexOf(highlight);
+
+            if (startIndex > -1)
+            {
+                var newMessage = [];
+
+                if (startIndex === 0)
+                {
+                    newMessage.push(React.createElement("b", null, wholeMessage.substring(0, highlight.length)));
+                    newMessage.push(React.createElement("span", null, wholeMessage.substring(highlight.length)));
+                }
+                else
+                {
+                    newMessage.push(React.createElement("span", null, wholeMessage.substring(0, startIndex)));
+                    newMessage.push(React.createElement("b", null, wholeMessage.substring(startIndex, startIndex + highlight.length)));
+                    newMessage.push(React.createElement("span", null, wholeMessage.substring(startIndex + highlight.length)));
+                }
+
+                statusMessage = newMessage;
+            }
+        }
+
+        messageStyle.textAlign = (this.state.hasOwnProperty("align") ? this.state.align : "left");
 
 		return (
 		
@@ -4097,7 +4239,7 @@ var StatusIndicator = React.createClass({displayName: "StatusIndicator",
         	}, 
 				React.createElement("div", {style: colorStyle}), 
 				React.createElement("br", null), 
-				React.createElement("span", {style: textStyle}, this.state.statusMessage), 
+				React.createElement("div", {style: messageStyle}, statusMessage), 
                 React.createElement("div", {style: spacerStyle}), 
                 React.createElement("div", {style: buttonDivStyle}, 
 	                React.createElement("button", {
@@ -4108,19 +4250,12 @@ var StatusIndicator = React.createClass({displayName: "StatusIndicator",
 	                    "Close"
 	                )
                 )
-			)
-        
+			)       
 			
 		);
 	},
 });
 
-function getStateFromStores() {
-    return {
-        status: statusIndicatorStore.getStatus(),
-        statusMessage: statusIndicatorStore.getStatusMessage(),
-    };
-}
 
 module.exports = StatusIndicator;
 
@@ -5201,22 +5336,30 @@ platformsPanelItemsStore.getItem = function (itemPath)
 platformsPanelItemsStore.getChildren = function (parent, parentPath) {
 
     var itemsList = [];
-    var item = _items;
+    var item = _items;    
 
     if (parentPath !== null) // for everything but the top level, drill down to the parent
     {
+        var validPath = true;
+
         for (var i = 0; i < parentPath.length; i++)
         {
             if (item.hasOwnProperty(parentPath[i]))
             {
                 item = item[parentPath[i]];
             }
+            else
+            {
+                validPath = false;
+            }
         }
-    
-          
-        for (var i = 0; i < item.children.length; i++)
-        {           
-            itemsList.push(item[item.children[i]]);
+              
+        if (validPath)
+        {
+            for (var i = 0; i < item.children.length; i++)
+            {           
+                itemsList.push(item[item.children[i]]);            
+            }
         }
             
     }
@@ -6235,11 +6378,29 @@ var Store = require('../lib/store');
 
 var _statusMessage = null;
 var _status = null;
+var _highlight = null;
+var _align = null;
 
 var statusIndicatorStore = new Store();
 
 statusIndicatorStore.getStatusMessage = function () {
-    return _statusMessage;
+
+    var status = {
+        statusMessage: _statusMessage,
+        status: _status
+    };
+
+    if (_highlight)
+    {
+        status.highlight = _highlight;
+    }
+
+    if (_align)
+    {
+        status.align = _align;
+    }
+
+    return status;
 };
 
 statusIndicatorStore.getStatus = function () {
@@ -6251,12 +6412,14 @@ statusIndicatorStore.dispatchToken = dispatcher.register(function (action) {
         case ACTION_TYPES.OPEN_STATUS:
             _statusMessage = action.message;
             _status = action.status;
+            _highlight = action.highlight;
+            _align = action.align;
 
             statusIndicatorStore.emitChange();
             break;
 
         case ACTION_TYPES.CLOSE_STATUS:
-            _statusMessage = null;
+            _statusMessage = {};
             _status = null;
             statusIndicatorStore.emitChange();
             break;

@@ -61,12 +61,14 @@ var platformChartActionCreators = {
                 .catch(rpc.Error, function (error) {
 
                     var message = "Unable to update chart: " + error.message;
+                    var orientation;
 
                     if (error.code === -32602)
                     {
                         if (error.message === "historian unavailable")
                         {
                             message = "Unable to update chart: The historian agent is unavailable.";
+                            orientation = "center";
                         }
                     }
                     else
@@ -77,10 +79,11 @@ var platformChartActionCreators = {
                         if (!historianRunning)
                         {
                             message = "Unable to update chart: The historian agent is unavailable.";
+                            orientation = "center";
                         }
                     }
 
-                    handle401(error, message);
+                    handle401(error, message, null, orientation);
                 });
 		});
 
@@ -130,12 +133,14 @@ var platformChartActionCreators = {
             .catch(rpc.Error, function (error) {
 
                 var message = "Unable to load chart: " + error.message;
+                var orientation;
 
                 if (error.code === -32602)
                 {
                     if (error.message === "historian unavailable")
                     {
                         message = "Unable to load chart: The historian agent is not available.";
+                        orientation = "center";
                     }
                 }
                 else
@@ -146,11 +151,12 @@ var platformChartActionCreators = {
                     if (!historianRunning)
                     {
                         message = "Unable to load chart: The historian agent is not available.";
+                        orientation = "center";
                     }
                 }
 
                 platformsPanelActionCreators.checkItem(panelItem.path, false);
-                handle401(error, message);
+                handle401(error, message, null, orientation);
             });
     },
     removeFromChart: function(panelItem) {
@@ -180,7 +186,7 @@ var platformChartActionCreators = {
     }
 };
 
-function handle401(error, message) {
+function handle401(error, message, highlight, orientation) {
     if ((error.code && error.code === 401) || (error.response && error.response.status === 401)) {
         dispatcher.dispatch({
             type: ACTION_TYPES.RECEIVE_UNAUTHORIZED,
@@ -193,8 +199,8 @@ function handle401(error, message) {
     }
     else
     {
-        statusIndicatorActionCreators.openStatusIndicator("error", message);
+        statusIndicatorActionCreators.openStatusIndicator("error", message, highlight, orientation);
     }
-};
+}
 
 module.exports = platformChartActionCreators;

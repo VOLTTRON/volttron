@@ -58,11 +58,11 @@ var platformActionCreators = {
                         });
                     })            
                     .catch(rpc.Error, function (error) {
-                        handle401(error, "Unable to load agents for platform " + platform.name + ": " + error.message);
+                        handle401(error, "Unable to load agents for platform " + platform.name + ": " + error.message, platform.name);
                     });
             })            
             .catch(rpc.Error, function (error) {
-                handle401(error, "Unable to load agents for platform " + platform.name + ": " + error.message);
+                handle401(error, "Unable to load agents for platform " + platform.name + ": " + error.message, platform.name);
             });
     },
     startAgent: function (platform, agent) {
@@ -85,7 +85,7 @@ var platformActionCreators = {
                 agent.return_code = status.return_code;
             })                        
             .catch(rpc.Error, function (error) {
-                handle401(error, "Unable to start agent " + agent.name + ": " + error.message);
+                handle401(error, "Unable to start agent " + agent.name + ": " + error.message, agent.name);
             })
             .finally(function () {
                 agent.actionPending = false;
@@ -116,7 +116,7 @@ var platformActionCreators = {
                 agent.return_code = status.return_code;
             })                      
             .catch(rpc.Error, function (error) {
-                handle401(error, "Unable to stop agent " + agent.name + ": " + error.message);
+                handle401(error, "Unable to stop agent " + agent.name + ": " + error.message, agent.name);
             })
             .finally(function () {
                 agent.actionPending = false;
@@ -153,7 +153,7 @@ var platformActionCreators = {
             .then(function (result) {
                 
                 if (result.error) {
-                    statusIndicatorActionCreators.openStatusIndicator("error", "Unable to remove agent " + agent.name + ": " + result.error);
+                    statusIndicatorActionCreators.openStatusIndicator("error", "Unable to remove agent " + agent.name + ": " + result.error, agent.name);
                 }
                 else
                 {
@@ -161,7 +161,7 @@ var platformActionCreators = {
                 }
             })                      
             .catch(rpc.Error, function (error) {
-                handle401(error, "Unable to remove agent " + agent.name + ": " + error.message);
+                handle401(error, "Unable to remove agent " + agent.name + ": " + error.message, agent.name);
             });
     },
     installAgents: function (platform, files) {
@@ -184,7 +184,7 @@ var platformActionCreators = {
                 });
 
                 if (errors.length) {
-                    statusIndicatorActionCreators.openStatusIndicator("error", "Unable to install agents for platform " + platform.name + ": " + errors.join('\n'));
+                    statusIndicatorActionCreators.openStatusIndicator("error", "Unable to install agents for platform " + platform.name + ": " + errors.join('\n'), platform.name);
                 }
 
                 if (errors.length !== files.length) {
@@ -192,7 +192,7 @@ var platformActionCreators = {
                 }
             })                      
             .catch(rpc.Error, function (error) {
-                handle401(error, "Unable to install agents for platform " + platform.name + ": " + error.message);
+                handle401(error, "Unable to install agents for platform " + platform.name + ": " + error.message, platform.name);
             });
     },    
     handleChartsForUser: function (callback) {
@@ -231,13 +231,13 @@ var platformActionCreators = {
                                 });
                             })
                             .catch(rpc.Error, function (error) {
-                                handle401(error, "Unable to load charts for platform " + this.name + ": " + error.message);
+                                handle401(error, "Unable to load charts for platform " + this.name + ": " + error.message, this.name);
                             });
                             
                         }
                 })
                 .catch(rpc.Error, function (error) {
-                    handle401(error, "Unable to load charts for platform " + this.name + ": " + error.message);
+                    handle401(error, "Unable to load charts for platform " + this.name + ": " + error.message, this.name);
                 });
         }.bind(platform);
 
@@ -270,7 +270,7 @@ var platformActionCreators = {
 
             new rpc.Exchange({
                 method: 'set_setting',
-                params: { key: 'charts', value: newCharts },
+                params: { key: user, value: newCharts },
                 authorization: authorization,
             }).promise
                 .then(function () {
@@ -296,7 +296,7 @@ var platformActionCreators = {
 
             new rpc.Exchange({
                 method: 'set_setting',
-                params: { key: 'charts', value: newCharts },
+                params: { key: user, value: newCharts },
                 authorization: authorization,
             }).promise
                 .then(function () {
@@ -309,9 +309,80 @@ var platformActionCreators = {
 
         platformActionCreators.handleChartsForUser(doDeleteChart);
     },
+    removeSavedPlatformCharts: function (platform) {
+
+        var authorization = authorizationStore.getAuthorization();
+
+        // first get all the keys (i.e., users) that charts are saved under
+        new rpc.Exchange({
+            method: 'get_setting_keys',
+            authorization: authorization,
+        }).promise
+            .then(function (valid_keys) {
+            
+                // then get the charts for each user
+                valid_keys.forEach(function (key) {
+
+                    new rpc.Exchange({
+                        method: 'get_setting',
+                        params: { key: key },
+                        authorization: authorization,
+                    }).promise
+                        .then(function (charts) {
+
+                            // for each saved chart, keep the chart if it has any series that don't belong
+                            // to the deregistered platform
+                            var filteredCharts = charts.filter(function (chart) {
+
+                                var keeper = true;
+
+                                var filteredSeries = chart.series.filter(function (series) {
+                                    return (series.path.indexOf(this.uuid) < 0);
+                                }, this);
+
+                                // keep the chart if there are any series that don't belong to the deregistered platform,
+                                // but leave out the series that do belong to the deregistered platform
+                                if (filteredSeries.length !== 0)
+                                {
+                                    chart.series = filteredSeries;
+                                }
+                                else
+                                {
+                                    keeper = false;
+                                }
+
+                                return keeper;
+                            }, platform);
+                        
+                            // now save the remaining charts. Even if there are none, do the save, because that's what deletes 
+                            // the rejects.
+                            new rpc.Exchange({
+                                method: 'set_setting',
+                                params: { key: key, value: filteredCharts },
+                                authorization: authorization,
+                            }).promise
+                                .then(function () {
+                                    
+                                })
+                                .catch(rpc.Error, function (error) {
+                                    handle401(error, "Error removing deregistered platform's charts from saved charts (e0): " + error.message);
+                                });
+                        })
+                        .catch(rpc.Error, function (error) {
+                            handle401(error, "Error removing deregistered platform's charts from saved charts (e1): " + error.message);
+                        });
+                        
+                    
+                });
+            })
+            .catch(rpc.Error, function (error) {
+                handle401(error, "Error removing deregistered platform's charts from saved charts (e2): " + error.message);
+            });
+    },
+
 };
 
-function handle401(error, message) {
+function handle401(error, message, highlight, orientation) {
     if ((error.code && error.code === 401) || (error.response && error.response.status === 401)) {
         dispatcher.dispatch({
             type: ACTION_TYPES.RECEIVE_UNAUTHORIZED,
@@ -324,7 +395,7 @@ function handle401(error, message) {
     }
     else
     {
-        statusIndicatorActionCreators.openStatusIndicator("error", message);
+        statusIndicatorActionCreators.openStatusIndicator("error", message, highlight, orientation);
     }
 }
 
