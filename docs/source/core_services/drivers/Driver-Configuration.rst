@@ -15,6 +15,7 @@ Once configured the Master Driver Agent is configured and deployed in a manner s
 
 The Master Driver Agent along with Historian Agents replace the functionality of sMap from VOLTTRON 2.0 and thus sMap is no longer a requirement for VOLTTRON.
 
+.. _MasterDriverConfig:
 Master Driver Agent Configuration
 ---------------------------------
 The Master Driver Agent configuration consists of a list of device configuration files to load at startup. 
@@ -189,6 +190,7 @@ The following is a simple example of a MODBUS registry confugration file:
     CO2Stpt,ReturnAirCO2Stpt,PPM,1000.00 (default),>f,TRUE,1011,1000,Setpoint to enable demand control ventilation 
     HeatCall2,HeatCall2,On / Off,on/off,BOOL,FALSE,1114,,Status indicator of heating stage 2 need
 
+.. _MODBUS-config:
 MODBUS Driver Configuration
 ---------------------------
 Currently VOLTTRON only supports the MODBUS over TCP/IP protocol.
@@ -270,6 +272,7 @@ The following is an example of a MODBUS registry confugration file:
 A sample MODBUS registry file can be found `here <https://raw.githubusercontent.com/VOLTTRON/volttron/c57569bd9e71eb32afefe8687201d674651913ed/examples/configurations/drivers/catalyst371.csv>`_ or 
 in the VOLTTRON repository in ``examples/configurations/drivers/catalyst371.csv``
 
+.. _BACnet-driver-config:
 BACnet Driver Configuration
 ---------------------------
 Communicating with BACnet devices requires that the BACnet Proxy Agent is configured and running. All device communication happens through this agent.

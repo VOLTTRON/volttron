@@ -8,10 +8,10 @@ functionality this example will walk through and being familiar with the
 concepts will be useful.
 
 Full versions of the files discussed below are at:
-`TestAgent <TestAgent>`__
+:doc:`TestAgent <TestAgent>`
 
 Additional details about the commands used in this walkthrough are at:
-`AgentManagement <AgentManagement>`__
+:doc:`AgentManagement <../../core_services/AgentManagement>`
 
 Create Folders
 ~~~~~~~~~~~~~~
