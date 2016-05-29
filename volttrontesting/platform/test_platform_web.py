@@ -9,6 +9,7 @@ import os
 logging.basicConfig(level=logging.DEBUG)
 from volttrontesting.utils.build_agent import build_agent, build_agent_with_key
 
+
 def _build_web_dir(vhome):
     """ Creates a web directory that can be served.
 
@@ -39,6 +40,7 @@ def _build_web_dir(vhome):
         f.write(html)
 
     return webdir, html
+
 
 @pytest.mark.web
 def test_can_discover_key(volttron_instance1_web):
