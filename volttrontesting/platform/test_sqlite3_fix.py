@@ -60,7 +60,7 @@ from  volttron.platform.agent.utils import fix_sqlite3_datetime
 import pytest
 import sqlite3 as sql
 
-#@pytest.mark.dev
+
 def test_sqlite_fixes():
     """This is all in a single test so we don't have to muck around with 
     reloading modules."""
@@ -78,7 +78,7 @@ def test_sqlite_fixes():
     
     cur.execute("insert into test(ts) values (?)", (now,))
     
-    #Verify that our private copy of sqlite3 from 2.7.3 does indeed break.    
+   # Verify that our private copy of sqlite3 from 2.7.3 does indeed break.
     try:
         cur.execute("select * from test")
         print "Did not raise expected exception"
@@ -113,8 +113,8 @@ def test_sqlite_fixes():
     
     assert test_now == now
     assert test_now_tz == now_tz
-    
-#@pytest.mark.dev
+
+
 def test_sqlite_fix_current():
     now_string = '2015-12-17 00:00:00.000005Z'
     now = parse(now_string)
@@ -122,7 +122,7 @@ def test_sqlite_fix_current():
     now_string_tz = '2015-12-17 00:00:00Z'
     now_tz = parse(now_string_tz)
     
-    #Patch the global sqlite3
+    # Patch the global sqlite3
     fix_sqlite3_datetime()
     
     conn = sql.connect(':memory:', detect_types=sql.PARSE_DECLTYPES|sql.PARSE_COLNAMES)

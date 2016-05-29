@@ -9,6 +9,7 @@ from volttron.platform import jsonrpc
 from volttron.platform import keystore
 from volttrontesting.utils.utils import poll_gevent_sleep
 
+
 def build_agent(platform, identity):
     '''Build an agent, configure its keys and return the agent.'''
     keys = keystore.KeyStore(os.path.join(platform.volttron_home,
@@ -21,6 +22,7 @@ def build_agent(platform, identity):
     # Make publickey easily accessible for these tests
     agent.publickey = keys.public()
     return agent
+
 
 def build_two_test_agents(platform):
     '''Returns two agents for testing authorization
@@ -40,6 +42,7 @@ def build_two_test_agents(platform):
 
     return agent1, agent2
 
+
 @pytest.mark.auth
 def test_unauthorized_rpc_call1(volttron_instance1_encrypt):
     '''
@@ -52,6 +55,7 @@ def test_unauthorized_rpc_call1(volttron_instance1_encrypt):
     with pytest.raises(jsonrpc.RemoteError):
         agent2.vip.rpc.call(agent1.core.identity, 'foo', 42).get(timeout=1)
 
+
 @pytest.mark.auth
 def test_authorized_rpc_call1(volttron_instance1_encrypt):
     '''
@@ -63,6 +67,7 @@ def test_authorized_rpc_call1(volttron_instance1_encrypt):
     gevent.sleep(.1)
     result = agent2.vip.rpc.call(agent1.core.identity, 'foo', 42).get(timeout=2)
     assert result == 42
+
 
 @pytest.mark.auth
 def test_unauthorized_rpc_call2(volttron_instance1_encrypt):
@@ -82,6 +87,7 @@ def test_unauthorized_rpc_call2(volttron_instance1_encrypt):
     with pytest.raises(jsonrpc.RemoteError):
         agent2.vip.rpc.call(agent1.core.identity, 'foo', 42).get(timeout=1)
 
+
 @pytest.mark.auth
 def test_authorized_rpc_call2(volttron_instance1_encrypt):
     '''
@@ -98,6 +104,7 @@ def test_authorized_rpc_call2(volttron_instance1_encrypt):
     gevent.sleep(.1)
     result = agent2.vip.rpc.call(agent1.core.identity, 'foo', 42).get(timeout=2)
     assert result == 42
+
 
 def build_two_agents_pubsub_agents(volttron_instance1_encrypt, topic='foo'):
     """ Return two agents for testing protected pubsub
@@ -118,12 +125,14 @@ def build_two_agents_pubsub_agents(volttron_instance1_encrypt, topic='foo'):
     agent1.vip.pubsub.subscribe('pubsub', topic, callback=got_msg).get(timeout=1)
     return agent1, agent2, topic, msgs
 
+
 @pytest.mark.auth
 def test_pubsub_not_protected(volttron_instance1_encrypt):
     '''Tests pubsub without any topic protection '''
     agent1, agent2, topic, msgs = build_two_agents_pubsub_agents(volttron_instance1_encrypt)
     agent2.vip.pubsub.publish('pubsub', topic, message='hello agent').get(timeout=1)
     assert poll_gevent_sleep(2, lambda: len(msgs) > 0 and msgs[0] == 'hello agent')
+
 
 def build_protected_pubsub(instance, topic, capabilities, topic_regex=None,
                           add_capabilities=False):
@@ -147,6 +156,7 @@ def build_protected_pubsub(instance, topic, capabilities, topic_regex=None,
             'instance': instance, 'messages': msgs,
             'capabilities': capabilities}
 
+
 def pubsub_unauthorized(volttron_instance1_encrypt, topic='foo', regex=None, peer='pubsub'):
     '''
     Tests pubsub with a protected topic and the agents are not authorized to
@@ -159,6 +169,7 @@ def pubsub_unauthorized(volttron_instance1_encrypt, topic='foo', regex=None, pee
     topic = setup['topic']
     with pytest.raises(jsonrpc.RemoteError):
         agent2.vip.pubsub.publish(peer, topic, message='hello').get(timeout=1)
+
 
 def pubsub_authorized(volttron_instance1_encrypt, topic='foo', regex=None, peer='pubsub'):
     '''
@@ -175,36 +186,44 @@ def pubsub_authorized(volttron_instance1_encrypt, topic='foo', regex=None, peer=
     agent2.vip.pubsub.publish(peer, topic, message='hello agent').get(timeout=1)
     assert poll_gevent_sleep(2, lambda: 'hello agent' in msgs)
 
+
 @pytest.mark.auth
 def test_pubsub_unauthorized(volttron_instance1_encrypt):
     pubsub_unauthorized(volttron_instance1_encrypt)
+
 
 @pytest.mark.auth
 def test_pubsub_authorized(volttron_instance1_encrypt):
     pubsub_authorized(volttron_instance1_encrypt)
 
+
 @pytest.mark.auth
 def test_pubsub_unauthorized_none_peer(volttron_instance1_encrypt):
     pubsub_unauthorized(volttron_instance1_encrypt, peer=None)
 
+
 @pytest.mark.auth
 def test_pubsub_authorized_none_peer(volttron_instance1_encrypt):
     pubsub_authorized(volttron_instance1_encrypt, peer=None)
+
 
 @pytest.mark.auth
 def test_pubsub_unauthorized_regex1(volttron_instance1_encrypt):
     pubsub_unauthorized(volttron_instance1_encrypt,
                         topic='foo', regex='/foo*/')
 
+
 @pytest.mark.auth
 def test_pubsub_authorized_regex1(volttron_instance1_encrypt):
     pubsub_authorized(volttron_instance1_encrypt,
                       topic='foo', regex='/foo*/')
 
+
 @pytest.mark.auth
 def test_pubsub_unauthorized_regex2(volttron_instance1_encrypt):
     pubsub_unauthorized(volttron_instance1_encrypt,
                         topic='foo/bar', regex='/foo\/.*/')
+
 
 @pytest.mark.auth
 def test_pubsub_authorized_regex2(volttron_instance1_encrypt):
