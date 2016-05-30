@@ -1,3 +1,4 @@
+.. _PlatformCommands:
 Platform Commands
 -----------------
 

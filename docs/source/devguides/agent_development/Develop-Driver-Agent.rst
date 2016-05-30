@@ -1,3 +1,5 @@
+.. _Develop-Driver-Agent:
+
 Driver Development
 ==================
 
@@ -116,8 +118,8 @@ Here is an example taken from the :ref:`BACnet <BACnet-driver-config>` driver:
         self.proxy_address = config_dict.get("proxy_address", "platform.bacnet_proxy")
         self.ping_target(self.target_address) #Establish routing to the device if needed.
 
-And here is the parse\_config method (See `BACnet Registry
-Configuration <BACnet-Driver#registry-configuration%20for%20an%20example%20configuration%20file>`__:
+And here is the parse\_config method (See :ref:`BACnet Registry
+Configuration <BACnet-Registry-Configuration-File>`:
 
 ::
 
