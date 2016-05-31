@@ -123,33 +123,32 @@ class DuctStaticRcx(object):
         self.dx_table = {}
 
     def duct_static(self, current_time, stcpr_stpt_data, stcpr_data,
-                    zn_dmpr_data, low_dx_cond, high_dx_cond, dx_result,
-                    validate):
+                    zn_dmpr_data, low_dx_cond, high_dx_cond, dx_result):
         """Check duct static pressure RCx pre-requisites and assemble the
 
         duct static pressure analysis data set.
         """
+        dx_status = 0
         if check_date(current_time, self.timestamp_arr):
+            dx_status = 0
             self.reinitialize()
-            return dx_result
+            return dx_status, dx_result
 
         if low_dx_cond:
             dx_result.log(self.low_msg.format(current_time), logging.DEBUG)
-            return dx_result
+            return dx_status, dx_result
         if high_dx_cond:
             dx_result.log(self.high_msg.format(current_time), logging.DEBUG)
-            return dx_result
+            return dx_status, dx_result
 
-        file_key = create_table_key(VALIDATE_FILE_TOKEN, current_time)
-        data = validation_builder(validate, STCPR_VALIDATE, DATA)
         run_status = check_run_status(self.timestamp_arr, current_time, self.no_req_data)
 
         if run_status is None:
             dx_result.log('Current analysis data set has insufficient data '
                           'to produce a valid diagnostic result.')
             self.reinitialize()
-            return dx_result
-
+            return dx_status, dx_result
+        dx_status = 1
         if run_status:
             self.table_key = create_table_key(self.analysis, self.timestamp_arr[-1])
             avg_stcpr_stpt, dx_table = setpoint_control_check(self.stcpr_stpt_arr,
@@ -162,8 +161,7 @@ class DuctStaticRcx(object):
             dx_result = self.low_stcpr_dx(dx_result, avg_stcpr_stpt)
             dx_result = self.high_stcpr_dx(dx_result, avg_stcpr_stpt)
             dx_result.insert_table_row(self.table_key, self.dx_table)
-            self.data.update({STCPR_VALIDATE + DATA + ST: 1})
-            dx_result.insert_table_row(self.file_key, self.data)
+            dx_status = 2
             self.reinitialize()
 
         self.stcpr_stpt_arr.append(mean(stcpr_data))
@@ -171,12 +169,7 @@ class DuctStaticRcx(object):
         self.zn_dmpr_arr.append(mean(zn_dmpr_data))
         self.timestamp_arr.append(current_time)
 
-        if self.data:
-            self.data.update({STCPR_VALIDATE + DATA + ST: 0})
-            dx_result.insert_table_row(self.file_key, self.data)
-        self.data = data
-        self.file_key = file_key
-        return dx_result
+        return dx_status, dx_result
 
     def low_stcpr_dx(self, dx_result, avg_stcpr_stpt):
         """Diagnostic to identify and correct low duct static pressure

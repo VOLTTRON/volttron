@@ -129,7 +129,7 @@ class SupplyTempRcx(object):
         self.dx_table = {}
 
     def sat_rcx(self, current_time, sat_data, sat_stpt_data,
-                zone_rht_data, zone_dmpr_data, dx_result, validate):
+                zone_rht_data, zone_dmpr_data, dx_result):
         """Manages supply-air diagnostic data sets.
 
         Args:
@@ -146,26 +146,28 @@ class SupplyTempRcx(object):
 
         Returns:
             Results object (dx_result) to Application.
+            Status of diagnostic (dx_status)
 
         """
+        dx_status = 1
         if check_date(current_time, self.timestamp_arr):
             self.reinitialize()
-            return dx_result
+            dx_status = 0
+            return dx_status, dx_result
 
-        file_key = create_table_key(VALIDATE_FILE_TOKEN, current_time)
         tot_rht = sum(1 if val > self.rht_on_thr else 0 for val in zone_rht_data)
         count_rht = len(zone_rht_data)
         tot_dmpr = sum(1 if val > self.high_dmpr_thr else 0 for val in zone_dmpr_data)
         count_damper = len(zone_dmpr_data)
 
-        data = validation_builder(validate, SA_VALIDATE, DATA)
         run_status = check_run_status(self.timestamp_arr, current_time, self.no_req_data)
 
         if run_status is None:
             dx_result.log('Current analysis data set has insufficient data '
                           'to produce a valid diagnostic result.')
             self.reinitialize()
-            return dx_result
+            dx_status = 0
+            return dx_status, dx_result
 
         if run_status:
             self.table_key = create_table_key(self.analysis, self.timestamp_arr[-1])
@@ -178,10 +180,8 @@ class SupplyTempRcx(object):
             self.dx_table.update(dx_table)
             dx_result = self.low_sat(dx_result, avg_sat_stpt)
             dx_result = self.high_sat(dx_result, avg_sat_stpt)
-
             dx_result.insert_table_row(self.table_key, self.dx_table)
-            self.data.update({SA_VALIDATE + DATA + ST: 1})
-            dx_result.insert_table_row(self.file_key, self.data)
+            dx_status = 2
             self.reinitialize()
 
         self.satemp_arr.append(mean(sat_data))
@@ -190,12 +190,8 @@ class SupplyTempRcx(object):
         self.percent_rht.append(tot_rht/count_rht)
         self.percent_dmpr.append(tot_dmpr/count_damper)
         self.timestamp_arr.append(current_time)
-        if self.data:
-            self.data.update({SA_VALIDATE + DATA + ST: 0})
-            dx_result.insert_table_row(self.file_key, self.data)
-        self.data = data
-        self.file_key = file_key
-        return dx_result
+
+        return dx_status, dx_result
 
     def low_sat(self, dx_result, avg_sat_stpt):
         """Diagnostic to identify and correct low supply-air temperature

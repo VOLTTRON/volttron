@@ -135,9 +135,9 @@ class SchedResetRcx(object):
         self.timestamp = [start_new_analysis_time]
 
     def sched_rcx_alg(self, current_time, stcpr_data, stcpr_stpt_data,
-                      sat_stpt_data, fan_stat_data, dx_result,
-                      sched_val):
+                      sat_stpt_data, fan_stat_data, dx_result):
         """Check schedule status and unit operational status."""
+        dx_status = 1
         fan_status = None
         schedule = self.schedule[current_time.weekday()]
         run_diagnostic = False
@@ -161,7 +161,6 @@ class SchedResetRcx(object):
         start_new_analysis_stcpr_stpt = mean(sat_stpt_data)
         self.timestamp.append(current_time)
 
-        data = validation_builder(sched_val, SCHED_VALIDATE, DATA)
         reset_key = create_table_key(self.reset_file_name_id, self.timestamp[0])
         schedule_key = create_table_key(self.sched_file_name_id, self.timestamp[0])
         file_key = create_table_key(VALIDATE_FILE_TOKEN, current_time)
@@ -169,24 +168,25 @@ class SchedResetRcx(object):
             dx_result = self.unocc_fan_operation(dx_result)
             if len(self.stcpr_stpt_arr) >= self.no_req_data:
                 dx_result = self.no_static_pr_reset(dx_result)
+                dx_status += 1
             if len(self.sat_stpt_arr) >= self.no_req_data:
                 dx_result = self.no_sat_stpt_reset(dx_result)
+                dx_status += 2
             if self.dx_table:
                 dx_result.insert_table_row(reset_key, self.dx_table)
-            data.update({SCHED_VALIDATE + DATA + ST: 1})
+            
             self.reinitialize(start_new_analysis_time, start_new_analysis_sat_stpt,
                               start_new_analysis_stcpr_stpt, stcpr_data, fan_status)
         elif run_diagnostic:
             dx_msg = 61.2
             dx_table = {SCHED_RCX + DX:  dx_msg}
             dx_result.insert_table_row(schedule_key, dx_table)
-            data.update({SCHED_VALIDATE + DATA + ST: 2})
+            
             self.reinitialize(start_new_analysis_time, start_new_analysis_sat_stpt,
                               start_new_analysis_stcpr_stpt, stcpr_data, fan_status)
-        else:
-            data.update({SCHED_VALIDATE + DATA + ST: 0})
-        dx_result.insert_table_row(file_key, data)
-        return dx_result
+            dx_status = 0
+
+        return dx_status, dx_result
 
     def unocc_fan_operation(self, dx_result):
         """If the AHU/RTU is operating during unoccupied periods inform the
