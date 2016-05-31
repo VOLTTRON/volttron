@@ -53,40 +53,93 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-# }}}
+#}}}
+
+import sys
+import argparse
+from csv import DictWriter
 
 import logging
-import os
+import argparse
 
 import gevent
-
+import os
+from volttron.platform.vip.agent import Agent, PubSub
+from volttron.platform.messaging import topics
 from volttron.platform.agent import utils
-from volttron.platform.vip.agent import Agent
+
+
+from pprint import pprint
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 
+if "VOLTTRON_HOME" not in os.environ:
+    os.environ["VOLTTRON_HOME"] = '`/.volttron'
 
-def build_agent(address=None, identity=None, publickey=None, secretkey=None,
-                timeout=10, serverkey=None, **kwargs):
-    """ Builds a dynamic agent connected to the specifiedd address.
+class BACnetInteraction(Agent):
+    def __init__(self, callback, *args):
+        super(BACnetInteraction, self).__init__(*args)
+        self.callbacks = {}
+    def send_iam(self, low_device_id=None, high_device_id=None, address=None):
+        self.vip.rpc.call("platform.bacnet_proxy", "who_is",
+                           low_device_id=low_device_id,
+                           high_device_id=high_device_id,
+                           target_address=address).get(timeout=5.0)
 
-    All key parameters should have been encoded with
-    :py:meth:`volttron.platform.vip.socket.encode_key`
+    @PubSub.subscribe('pubsub', topics.BACNET_I_AM)
+    def iam_handler(self, peer, sender, bus,  topic, headers, message):
+        pprint(message)
 
-    :param str address: VIP address to connect to
-    :param str identity: Agent's identity
-    :param str publickey: Agent's Base64-encoded CURVE public key
-    :param str secretkey: Agent's Base64-encoded CURVE secret key
-    :param str serverkey: Server's Base64-encoded CURVE public key
-    :param int timeout: Seconds to wait for agent to start
-    :param kwargs: Any Agent specific parameters
-    :return: Agent that has been started
-    :rtype: Agent
-    """
-    agent = Agent(address=address, identity=identity, publickey=publickey,
-                  secretkey=secretkey, serverkey=serverkey)
-    event = gevent.event.Event()
-    gevent.spawn(agent.core.run, event)
-    event.wait(timeout=timeout)
-    return agent
+agent = BACnetInteraction("bacnet_interaction")
+gevent.spawn(agent.core.run).join(0)
+
+"""
+Simple utility to scrape device registers and write them to a configuration file.
+"""
+
+
+
+def main():
+    # parse the command line arguments
+    arg_parser = argparse.ArgumentParser(description=__doc__)
+
+    arg_parser.add_argument("--address",
+                            help="Target only device(s) at <address> for request")
+
+
+    arg_parser.add_argument("--range", type=int, nargs=2, metavar=('LOW', 'HIGH'),
+                            help="Lower and upper limit on device ID in results")
+
+    arg_parser.add_argument("--timeout", type=int, metavar=('SECONDS'),
+                            help="Time, in seconds, to wait for responses. Default: %(default)s",
+                            default=5)
+    
+    args = arg_parser.parse_args()
+
+    _log.debug("initialization")
+    _log.debug("    - args: %r", args)
+
+
+    _log.debug("starting build")
+
+    kwargs = {'address': args.address}
+
+    if args.range is not None:
+        kwargs['low_device_id'] = int(args.range[0])
+        kwargs['high_device_id'] = int(args.range[1])
+
+    agent.send_iam(**kwargs)
+
+    gevent.sleep(args.timeout)
+        
+try:
+    main()
+except Exception, e:
+    _log.exception("an error has occurred: %s", e)
+finally:
+    _log.debug("finally")
+    
+
+    
+
