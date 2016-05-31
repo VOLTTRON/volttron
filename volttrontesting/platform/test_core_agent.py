@@ -10,8 +10,8 @@ from volttron.platform.messaging.health import STATUS_GOOD, STATUS_BAD, \
 
 
 @pytest.mark.agent
-def test_agent_status_set_when_created(volttron_instance1):
-    agent = volttron_instance1.build_agent()
+def test_agent_status_set_when_created(volttron_instance):
+    agent = volttron_instance.build_agent()
     assert agent.vip.health.get_status() is not None
     assert isinstance(agent.vip.health.get_status(), str)
     l = json.loads(agent.vip.health.get_status())
@@ -20,10 +20,10 @@ def test_agent_status_set_when_created(volttron_instance1):
 
 
 @pytest.mark.agent
-def test_agent_status_changes(volttron_instance1):
+def test_agent_status_changes(volttron_instance):
     unknown_message = "This is unknown"
     bad_message = "Bad kitty"
-    agent = volttron_instance1.build_agent()
+    agent = volttron_instance.build_agent()
     agent.vip.health.set_status(STATUS_UNKNOWN, unknown_message)
     r = json.loads(agent.vip.health.get_status())
     assert unknown_message == r['context']
@@ -36,8 +36,8 @@ def test_agent_status_changes(volttron_instance1):
 
 
 @pytest.mark.agent
-def test_agent_last_update_increases(volttron_instance1):
-    agent = volttron_instance1.build_agent()
+def test_agent_last_update_increases(volttron_instance):
+    agent = volttron_instance.build_agent()
     s = json.loads(agent.vip.health.get_status())
     dt = dateparse(s['last_updated'], fuzzy=True)
     agent.vip.health.set_status(STATUS_UNKNOWN, 'Unknown now!')

@@ -87,7 +87,7 @@ def publish_agent(request, volttron_instance):
     4. Creates an instance Agent class for publishing and returns it
 
     :param request: pytest request object
-    :param volttron_instance1: instance of volttron in which test cases are run
+    :param volttron_instance: instance of volttron in which test cases are run
     :return: an instance of fake agent used for publishing
     """
     # Create master driver config and 2 fake devices each with 6 points
