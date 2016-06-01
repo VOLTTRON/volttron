@@ -7,6 +7,7 @@ import threading
 from zmq.utils import jsonapi
 
 from volttron.platform.agent import utils
+from volttron.platform.dbutils import sqlutils
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -144,3 +145,45 @@ class DbDriver(object):
          metadata is not required (The caller will normalize this to {} for you)
         """
         pass
+
+    @abstractmethod
+    def create_aggregate_stmt(self, type, period):
+        pass
+
+
+    def create_aggregate_table(self, type, period):
+        """
+        :param period:
+        :param type:
+        :return:
+        """
+        if not self.__connect():
+            print ("connect to database failed.......")
+            return False
+        table_name = type + '''_''' + sqlutils.format_agg_time(period)
+        self.__cursor.execute(
+                 self.create_aggregate_stmt(table_name))
+        self.__cursor.execute('''CREATE INDEX IF NOT EXISTS idx_''' +
+                              table_name +
+                              ''' ON ''' + table_name + '''(ts ASC);''')
+        self.commit()
+        return True
+
+    @abstractmethod
+    def insert_aggregate_stmt(self, type, period):
+        pass
+
+    def insert_aggregate(self, type, period, ts, topic_id, data):
+        """
+        :param type:
+        :param period:
+        :return:
+        """
+        if not self.__connect():
+            print("connect to database failed.......")
+            return False
+        table_name = type + '''_''' + sqlutils.format_agg_time(period)
+        result = self.__cursor.execute(
+            self.insert_aggregate_stmt(table_name),(ts, topic_id, jsonapi.dumps(data)))
+        self.commit()
+        return True

@@ -65,6 +65,8 @@ from zmq.utils import jsonapi
 
 from basedb import DbDriver
 from volttron.platform.agent import utils
+from volttron.platform.dbutils import sqlutils
+from datetime import datetime
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -100,9 +102,14 @@ class SqlLiteFuncts(DbDriver):
         self.topics_table = tables_def['topics_table']
         self.meta_table = tables_def['meta_table']
 
+        if 'detect_types' not in connect_params.keys():
+            connect_params['detect_types'] = \
+                sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+
+        print ("detect types is {}".format(connect_params['detect_types']))
         conn = sqlite3.connect(
             self.__database,
-            detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+            detect_types = sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
         )
         cursor = conn.cursor()
         cursor.execute('''CREATE TABLE IF NOT EXISTS ''' + self.data_table +
@@ -128,9 +135,7 @@ class SqlLiteFuncts(DbDriver):
         
         connect_params['database'] = self.__database
         
-        if 'detect_types' not in connect_params.keys():
-            connect_params['detect_types'] = \
-                sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
+
         
         print (connect_params)
         super(SqlLiteFuncts, self).__init__('sqlite3', **connect_params)
@@ -203,7 +208,7 @@ class SqlLiteFuncts(DbDriver):
 
         c = sqlite3.connect(
             self.__database,
-            detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
+            detect_types=self.__connect_params['detect_types'])
         rows = c.execute(real_query, args)
 
         values = [(utils.format_timestamp(ts),
@@ -238,3 +243,16 @@ class SqlLiteFuncts(DbDriver):
             id_map[n.lower()] = t
             name_map[n.lower()] = n
         return id_map, name_map
+
+    def create_aggregate_stmt(self, table_name):
+        #period = sqlutils.parse_time_period(period)
+        stmt = "CREATE TABLE IF NOT EXISTS " + table_name + \
+               " (ts timestamp NOT NULL, topic_id INTEGER NOT NULL, " \
+                      "value_string TEXT NOT NULL, UNIQUE(ts, topic_id))"
+        print(stmt)
+        return stmt
+
+    def insert_aggregate_stmt(self, table_name):
+        return '''INSERT OR REPLACE INTO ''' + table_name + \
+               ''' values(?, ?, ?)'''
+

@@ -55,14 +55,13 @@
 # }}}
 from __future__ import absolute_import, print_function
 
-from collections import defaultdict
-import inspect
 import logging
 import sys
 import threading
 
 from volttron.platform.agent import utils
 from volttron.platform.agent.base_historian import BaseHistorian
+from volttron.platform.dbutils import sqlutils
 from volttron.platform.vip.agent import *
 
 __version__ = "3.5.0"
@@ -76,11 +75,7 @@ def historian(config_path, **kwargs):
 
     config = utils.load_config(config_path)
     connection = config.get('connection', None)
-    default_table_def = {"table_prefix": "",
-                         "data_table": "data",
-                         "topics_table": "topics",
-                         "meta_table": "meta"}
-    tables_def = config.get('tables_def', default_table_def)
+
     assert connection is not None
     database_type = connection.get('type', None)
     assert database_type is not None
@@ -97,20 +92,7 @@ def historian(config_path, **kwargs):
     if topic_replace_list:
         _log.debug("topic replace list is: {}".format(topic_replace_list))
 
-    mod_name = database_type + "functs"
-    mod_name_path = "sqlhistorian.db.{}".format(mod_name)
-    loaded_mod = __import__(mod_name_path, fromlist=[mod_name])
-    
-    for name, cls in inspect.getmembers(loaded_mod):
-        # assume class is not the root dbdriver
-        if inspect.isclass(cls) and name != 'DbDriver':
-            DbFuncts = cls
-            break
-    try:
-        _log.debug('Historian using module: ' + DbFuncts.__name__)
-    except NameError:
-        functerror = 'Invalid module named ' + mod_name_path + "."
-        raise Exception(functerror)
+    DbFuncts = sqlutils.getDBFuncts(database_type)
 
     class SQLHistorian(BaseHistorian):
         """This is a simple example of a historian agent that writes stuff
@@ -131,16 +113,7 @@ def historian(config_path, **kwargs):
             """
             super(SQLHistorian, self).__init__(
                 topic_replace_list=topic_replace_list, **kwargs)
-
-            if tables_def['table_prefix']:
-                tables_def['data_table'] = tables_def['table_prefix'] + \
-                    "_" + tables_def['data_table']
-                tables_def['topics_table'] = tables_def['table_prefix'] + \
-                                             "_" + tables_def['topics_table']
-                tables_def['meta_table'] = tables_def['table_prefix'] + \
-                                           "_" + tables_def['meta_table']
-
-            tables_def.pop('table_prefix', None)
+            tables_def = sqlutils.get_table_def(config)
             self.reader = DbFuncts(connection['params'], tables_def)
             self.writer = DbFuncts(connection['params'], tables_def)
             self.topic_id_map = {}
