@@ -78,7 +78,7 @@ FAILURE = 'FAILURE'
 
 
 @pytest.fixture(scope="module")
-def publish_agent(request, volttron_instance1):
+def publish_agent(request, volttron_instance):
     """
     Fixture used for setting up the environment.
     1. Creates fake driver configs
@@ -87,14 +87,14 @@ def publish_agent(request, volttron_instance1):
     4. Creates an instance Agent class for publishing and returns it
 
     :param request: pytest request object
-    :param volttron_instance1: instance of volttron in which test cases are run
+    :param volttron_instance: instance of volttron in which test cases are run
     :return: an instance of fake agent used for publishing
     """
     # Create master driver config and 2 fake devices each with 6 points
     process = Popen(['python', 'config_builder.py', '--count=4',
                      '--publish-only-depth-all', 'fake',
                      'fake_unit_testing.csv', 'null'],
-                    env=volttron_instance1.env,
+                    env=volttron_instance.env,
                     cwd='scripts/scalability-testing',
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE)
@@ -104,7 +104,7 @@ def publish_agent(request, volttron_instance1):
 
     # Start the master driver agent which would intern start the fake driver
     #  using the configs created above
-    master_uuid = volttron_instance1.install_agent(
+    master_uuid = volttron_instance.install_agent(
         agent_dir="services/core/MasterDriverAgent",
         config_file="scripts/scalability-testing/configs/master-driver.agent",
         start=True)
@@ -114,21 +114,21 @@ def publish_agent(request, volttron_instance1):
     # Start the actuator agent through which publish agent should communicate
     # to fake device. Start the master driver agent which would intern start
     # the fake driver using the configs created above
-    actuator_uuid = volttron_instance1.install_agent(
+    actuator_uuid = volttron_instance.install_agent(
         agent_dir="services/core/ActuatorAgent",
         config_file="services/core/ActuatorAgent/tests/actuator.config",
         start=True)
     print("agent id: ", actuator_uuid)
 
     # 3: Start a fake agent to publish to message bus
-    publish_agent = volttron_instance1.build_agent()
+    publish_agent = volttron_instance.build_agent()
 
     # 4: add a tear down method to stop sqlhistorian agent and the fake agent
     #  \that published to message bus
     def stop_agent():
         print("In teardown method of module")
-        volttron_instance1.stop_agent(actuator_uuid)
-        volttron_instance1.stop_agent(master_uuid)
+        volttron_instance.stop_agent(actuator_uuid)
+        volttron_instance.stop_agent(master_uuid)
         publish_agent.core.stop()
 
     request.addfinalizer(stop_agent)

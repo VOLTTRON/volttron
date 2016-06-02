@@ -21,7 +21,6 @@ from zmq.utils import jsonapi
 
 
 from volttron.platform.auth import AuthFile, AuthEntry
-from volttron.platform.keystore import KeyStore
 from volttron.platform.agent.utils import strip_comments
 from volttron.platform.messaging import topics
 from volttron.platform.main import start_volttron_process
@@ -157,6 +156,7 @@ class PlatformWrapper:
         self._started_pids = []
         self.__local_vip_address = None
         self.__vip_address = None
+        self.encrypt = False
         self.logit('Creating platform wrapper')
 
     def logit(self, message):
@@ -194,8 +194,7 @@ class PlatformWrapper:
         authfile.add(entry)
 
     def build_agent(self, address=None, should_spawn=True, identity=None,
-                    publickey=None, secretkey=None, serverkey=None,
-                    generatekeys=False, **kwargs):
+                    publickey=None, secretkey=None, serverkey=None, **kwargs):
         """ Build an agent connnected to the passed bus.
 
         By default the current instance that this class wraps will be the
@@ -212,6 +211,17 @@ class PlatformWrapper:
         self.logit("Building generic agent.")
 
         use_ipc = kwargs.pop('use_ipc', False)
+        if self.encrypt:
+            if serverkey is None:
+                serverkey=self.__publickey
+            if publickey is None:
+                self.logit('generating new public secret key pair')
+                keyfile = tempfile.mktemp(".keys", "agent", self.volttron_home)
+                keys = KeyStore(keyfile)
+                keys.generate()
+                publickey=keys.public()
+                secretkey=keys.secret()
+
         if address is None:
             if use_ipc:
                 self.logit('Using IPC vip-address')
@@ -219,14 +229,6 @@ class PlatformWrapper:
             else:
                 self.logit('Using vip-address '+self.vip_address)
                 address = self.vip_address
-
-        if generatekeys:
-            self.logit('generating new public secret key pair')
-            tf = tempfile.NamedTemporaryFile()
-            ks = KeyStore(tf.name)
-            ks.generate()
-            publickey = ks.public()
-            secretkey = ks.secret()
 
         if publickey and not serverkey:
             self.logit('using instance serverkey: {}'.format(self.publickey))
@@ -250,7 +252,7 @@ class PlatformWrapper:
 
             hello = agent.vip.hello().get(timeout=.3)
             self.logit('Got hello response {}'.format(hello))
-
+        agent.publickey = publickey
         return agent
 
     def _read_auth_file(self):
@@ -297,6 +299,7 @@ class PlatformWrapper:
                          bind_web_address=None):
 
         self.vip_address = vip_address
+        self.encrypt = encrypt
         self.mode = mode
         self.bind_web_address = bind_web_address
 
