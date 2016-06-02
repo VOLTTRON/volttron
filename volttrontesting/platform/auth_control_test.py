@@ -40,8 +40,8 @@ def auth_list_json(platform):
 
 
 def entry_to_input_string(domain='', address='', user_id='', capabilities='',
-                          roles='', groups='', credentials='', comments='',
-                          enabled=''):
+                          roles='', groups='', mechanism='', credentials='',
+                          comments='', enabled=''):
     inputs = []
     inputs.append(domain)
     inputs.append(address)
@@ -49,8 +49,10 @@ def entry_to_input_string(domain='', address='', user_id='', capabilities='',
     inputs.append(','.join(capabilities))
     inputs.append(','.join(roles))
     inputs.append(','.join(groups))
-    inputs.append(credentials)
+    inputs.append(mechanism)
+    inputs.append(credentials or '')
     inputs.append(comments)
+
     if isinstance(enabled, bool):
         enabled = 'True' if enabled else 'False'
     inputs.append(enabled)

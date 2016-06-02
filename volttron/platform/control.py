@@ -653,14 +653,14 @@ def list_auth(opts, indices=None):
 
 def _ask_for_auth_fields(domain=None, address=None, user_id=None,
                          capabilities=None, roles=None, groups=None,
-                         credentials='NULL', comments=None, enabled=True,
-                         **kwargs):
+                         mechanism='NULL', credentials=None, comments=None,
+                         enabled=True, **kwargs):
     class Asker(object):
         def __init__(self):
             self._fields = collections.OrderedDict()
 
         def add(self, name, default=None, note=None, callback=lambda x: x,
-                validate=lambda x: (True, '')):
+                validate=lambda x,y: (True, '')):
             self._fields[name] = {'note': note, 'default': default,
                                   'callback': callback, 'validate': validate}
 
@@ -686,7 +686,7 @@ def _ask_for_auth_fields(domain=None, address=None, user_id=None,
                     if response == 'clear':
                         if _ask_yes_no('Do you want to clear this field?'):
                             response = None
-                    valid, msg = validate(response)
+                    valid, msg = validate(response, self._fields)
                     if not valid:
                         _stderr.write('{}\n'.format(msg))
 
@@ -706,15 +706,23 @@ def _ask_for_auth_fields(domain=None, address=None, user_id=None,
             return {'true': True, 'false': False}[response.lower()]
         return response
 
-    def is_true_or_false(x):
+    def is_true_or_false(x, fields):
         if x is not None:
             if isinstance(x, bool) or x.lower() in ['true', 'false']:
                 return True, None
         return False, 'Please enter True or False'
 
-    def valid_creds(creds):
+    def valid_creds(creds, fields):
         try:
-            AuthEntry.valid_credentials(creds)
+            mechanism = fields['mechanism']['response']
+            AuthEntry.valid_credentials(creds, mechanism=mechanism)
+        except AuthException as e:
+            return False, e.message
+        return True, None
+
+    def valid_mech(mech, fields):
+        try:
+            AuthEntry.valid_mechanism(mech)
         except AuthException as e:
             return False, e.message
         return True, None
@@ -729,6 +737,7 @@ def _ask_for_auth_fields(domain=None, address=None, user_id=None,
               comma_split)
     asker.add('groups', groups, 'delimit multiple entries with comma',
               comma_split)
+    asker.add('mechanism', mechanism, validate=valid_mech)
     asker.add('credentials', credentials, validate=valid_creds)
     asker.add('comments', comments)
     asker.add('enabled', enabled, callback=to_true_or_false,
@@ -745,7 +754,7 @@ def add_auth(opts):
         auth_file.add(entry, overwrite=False)
         _stdout.write('added entry {}\n'.format(entry))
     except AuthException as err:
-        _stderr.write('ERROR: %s\n' % err.msg)
+        _stderr.write('ERROR: %s\n' % err.message)
 
 
 def _ask_yes_no(question, default='yes'):
@@ -791,7 +800,7 @@ def remove_auth(opts):
             msg = msg = 'removed entry at index {}'
         _stdout.write(msg + '\n')
     except AuthException as err:
-        _stderr.write('ERROR: %s\n' % err.msg)
+        _stderr.write('ERROR: %s\n' % err.message)
 
 
 def update_auth(opts):
@@ -809,7 +818,7 @@ def update_auth(opts):
     except IndexError:
         _stderr.write('ERROR: invalid index %s\n' % opts.index)
     except AuthException as err:
-        _stderr.write('ERROR: %s\n' % err.msg)
+        _stderr.write('ERROR: %s\n' % err.message)
 
 
 # XXX: reimplement over VIP
