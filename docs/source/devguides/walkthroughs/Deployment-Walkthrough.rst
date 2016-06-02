@@ -59,12 +59,10 @@ Using :ref:`scripts <scripts>` will help simplify this project.
 Configuring Platform
 ----------------------
  
-Instructions assume a historian is running on VC and drivers are already setup on the data collector. If you need instructions for that or any other assumptions, let me know and I’ll update.
- 
- 
+
 On VC:
 
-- Run volttron-cfg
+- Run :ref:`volttron-cfg<VOLTTRON-Config>`
 - Setup as VOLTTRON Central.
 - Set appropriate ip, port, etc for this machine 
 - Pick to install a platform historian (defaults to sqlite)
@@ -76,6 +74,10 @@ On the data collector:
 =======================
  
 Setup :ref:`drivers <VOLTTRON-Drivers>`
+-----------------------------------------
+
+For a simple case, follow instructions to install a :ref:`Fake Driver`<Fake-Driver>` 
+for testing purposes. For an actual deployment against real devices see the following:
 
 -  Create a :ref:`Master Driver Agent <Master-Driver-Agent>` to coordinate
    drivers for the devices controlled by this platform.
@@ -85,10 +87,15 @@ Setup :ref:`drivers <VOLTTRON-Drivers>`
    :ref:`BACnet drivers <BACnet-Driver>` to communicate through
 
  
+ Setup the Forwarder
+ -----------------------
+ Now that data is being published to the bus, a :ref:`Forward Historian<Forward-Historian>` can be
+ configured to send this data to the VC instance for storage.
+ 
 - Use: volttron-ctl keypair   to generate a keypair
 - cat VOLTTRON_HOME/keypair to get the public and secret keys
 - Create a config directory in the main project directory
-- Setup a :ref:`<ForwardHistorian>`
+- Setup a :ref:`Forward Historian<ForwardHistorian>`
 
   - cp services/core/ForwardHistorian/config config/forwarder.config
   - Edit forwarder.config using the VC’s VIP address, the public server key, and the keypair
@@ -114,14 +121,16 @@ Start a listener agent on VC, you should see data from the data collector appear
 In the log for VC, check for credentials success for the ip of data collector.
 
 
-On VOLTTRON Central platform
-============================
+Registering the collection platform
+=====================================
 
--  Setup :ref:`VOLTTRON Central <VOLTTRON-Central>`
+- In a browser, go to the url for your VC instance.
+- Click on Register Platforms
+- Enter a name for the collection platform and the ip configured http://<ip>:<discovery port>
+- Open the tree upper left of the UI and find your platform.
 
--  Register Platform
--  VC and target must have each other in auth.json
--  Edit VC config to make externally facing
+
+
 
 Troubleshooting:
 ================

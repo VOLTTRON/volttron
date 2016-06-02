@@ -6,7 +6,7 @@ Building VOLTTRON
 The VOLTTRON project includes a bootstrap script which automatically
 downloads dependencies and builds VOLTTRON. The script also creates a
 Python virtual environment for use by the project which can be activated
-after bootsraping with ". env/bin/activate". This activated Python
+after bootstrapping with ". env/bin/activate". This activated Python
 virtual environment should be used for subsequent bootstraps whenever
 there are significant changes. The system's Python need only be used on
 the initial bootstrap.
@@ -26,8 +26,7 @@ work with the master branch of the repository:
     #installing required packages for volttron central or the platform agent.
     python2.7 bootstrap.py
 
-For other options see: :ref:`Getting
-VOLTTRON <VOLTTRON-Source-Options>`
+For other options see: :ref:`Getting VOLTTRON <VOLTTRON-Source-Options>`
 
 Note: Some packages (especially numpy) can be very verbose when they
 install. Please wait for the wall of text to finish.
