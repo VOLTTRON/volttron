@@ -5,12 +5,14 @@ var Router = require('react-router');
 
 var authorizationStore = require('./stores/authorization-store');
 var platformsPanelItemsStore = require('./stores/platforms-panel-items-store');
+var devicesStore = require('./stores/devices-store');
 var Dashboard = require('./components/dashboard');
 var LoginForm = require('./components/login-form');
 var PageNotFound = require('./components/page-not-found');
 var Platform = require('./components/platform');
 var PlatformManager = require('./components/platform-manager');
 var Platforms = require('./components/platforms');
+var Devices = require('./components/devices');
 var PlatformCharts = require('./components/platform-charts');
 
 var _afterLoginPath = '/dashboard';
@@ -53,6 +55,7 @@ var routes = (
         <Router.Route name="dashboard" path="dashboard" handler={checkAuth(Dashboard)} />
         <Router.Route name="platforms" path="platforms" handler={checkAuth(Platforms)} />
         <Router.Route name="platform" path="platforms/:uuid" handler={checkAuth(Platform)} />
+        <Router.Route name="devices" path="devices" handler={checkAuth(Devices)} />
         <Router.Route name="charts" path="platform-charts" handler={checkAuth(PlatformCharts)} />
         <Router.NotFoundRoute handler={checkAuth(PageNotFound)} />
         <Router.DefaultRoute handler={AfterLogin} />
@@ -90,6 +93,13 @@ router.run(function (Handler) {
             }
         }
 
+    });
+
+    devicesStore.addChangeListener(function () {        
+        if (!router.isActive('devices'))
+        {
+            router.transitionTo('/devices');
+        }
     });
 
 

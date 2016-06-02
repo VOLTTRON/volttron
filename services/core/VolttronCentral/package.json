@@ -12,6 +12,7 @@
     "vinyl-source-stream": "^1.0.0"
   },
   "dependencies": {
+    "babyparse": "^0.4.5",
     "bluebird": "^2.9.14",
     "codemirror": "^4.13.0",
     "d3": "^3.5.5",

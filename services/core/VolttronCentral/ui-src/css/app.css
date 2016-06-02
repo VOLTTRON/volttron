@@ -479,7 +479,7 @@ br + .form__control-help {
     cursor: pointer;
 }
 
-.arrowButton {
+.arrowButton, .panelItemButton {
     float: left;
     margin-right: 5px;
     cursor: pointer;
@@ -700,6 +700,50 @@ br + .form__control-help {
   content: "\f00d";
 }
 
+.fa-plus:before {
+    content: "\f067";
+}
+
+.fa-minus:before {
+    content: "\f068";
+}
+
+.fa-clone:before {
+    content: "\f24d";
+}
+
+.fa-bars:before {
+    content: "\f0c9";
+}
+
+.fa-edit:before {
+    content: "\f044";
+}
+
+.fa-step-forward:before {
+    content: "\f051";
+}
+
+.fa-fast-forward:before {
+    content: "\f050";
+}
+
+.fa-pencil:before {
+    content: "\f040";
+}
+
+.fa-cog:before {
+    content: "\f013";
+}
+
+.fa-cogs:before {
+  content: "\f085";
+}
+
+.fa-filter:before {
+    content: "\f0b0";
+}
+
 .fa-circle-o-notch:before {
   content: "\f1ce";
 }
@@ -807,6 +851,10 @@ br + .form__control-help {
     display: inline-block;
 }
 
+.floatLeft {
+    float: left;
+}
+
 .displayBlock {
     display: block;
 }
@@ -824,6 +872,9 @@ br + .form__control-help {
 
 .centeredDiv {
     text-align: center;
+    position: relative;
+    top: 50%;
+    transform: translateY(-50%);
 }
 
 .status-good {
@@ -1993,4 +2044,218 @@ Interactive Layer
 }
 .nvd3 line.nv-guideline {
     stroke: #ccc;
+}
+
+.fixed-table-container {
+    width: 100%;
+    height: 60vh;
+    /* above is decorative or flexible */
+    position: relative; /* could be absolute or relative */
+    padding-top: 30px; /* height of header */
+    overflow-x: auto;
+}
+
+.fixed-table-container-inner {
+    overflow-x: hidden;
+    overflow-y: auto;
+    height: 100%;
+}
+
+.header-background {
+    height: 30px; /* height of header */
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+}
+
+.registryConfigTable {
+    background-color: white;
+    width: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+.th-inner {
+    position: absolute;
+    top: 0;
+    line-height: 30px; /* height of header */
+    text-align: left;
+    padding-left: 5px;
+    margin-left: -5px;
+}
+
+.filter_box {
+    margin: 15px 5px 15px 40px;
+}
+
+.focusedCell:focus {
+    border: 2px #9DDEF5 solid;
+}
+
+.opSelector { 
+    padding: 10px; 
+    margin:-5px -20px -5px -5px; 
+}
+
+.opList { 
+    width: 100%; 
+    list-style-type: none;
+    padding-left: 0px;
+    margin: 0px;
+    overflow: hidden;
+    line-height: 20px;
+}
+
+.opListItem {
+    height: 18px;
+    width: 100%;
+    font-weight: normal;
+    padding-left: 10px; 
+    box-sizing: border-box;  
+    cursor: pointer; 
+}
+
+.opListItem.remove {
+    border-bottom: none;
+    border-bottom-right-radius: 5px;
+    border-bottom-left-radius: 5px;
+}
+
+.opListItem.edit { 
+    border-top-right-radius: 5px;
+border-top-left-radius: 5px;
+}
+
+.opListItem.add, .clone, .edit {
+    border-bottom: 1px black solid;
+}
+
+.opListItem:hover { 
+     background-color: aquamarine; 
+}
+
+.cog_button, 
+.filter_button, 
+.add_point_button, 
+.remove_point_button {
+    display: inline-block;
+    margin: 0px 1px;
+    cursor: pointer;
+    width: 15px;
+    height: 18px;
+    padding: 2px 2px;
+    color: #878787;
+    transform: translateY(25%);
+}
+
+.edit_column_button {
+    visibility: hidden;
+}
+
+th.plain,
+td.plain {
+    border-left: none;
+    border-bottom: none;
+}
+
+.detectDevicesContainer {
+    width: 600px;
+    margin-left: 80px;
+}
+
+.devicesFoundContainer, .configDeviceContainer {
+    width: 800px;
+    margin-left: 80px;
+}
+
+.detectDevicesBox {    
+    padding: 60px 20px;
+    margin-top: 20px;
+    margin-bottom: 20px;
+    border: 1px solid black;
+}
+
+.devicesFoundBox {    
+    padding: 60px 20px;
+    margin-top: 20px;
+    margin-bottom: 20px;
+    border: 1px solid black;
+}
+
+/*.configDeviceBox {    
+    padding: 60px 100px;
+    margin-top: 20px;
+    margin-bottom: 20px;
+    border: 1px solid black;
+}*/
+
+.uneditableAttributes {
+    padding: 20px 140px 0px 140px;
+    margin-top: 20px;
+}
+
+.uneditableAttributes > table > tbody > tr > td {
+    height: 10px;
+    line-height: 1;
+    padding-left: 60px;
+    padding-right: 0px;
+}
+
+.uneditableAttributes > table > tbody > tr:first-child > td {
+    padding-top: 20px;
+}
+
+.uneditableAttributes > table > tbody > tr:not(:first-child) > td {
+    padding-top: 5px;
+}
+
+.uneditableAttributes > table > tbody > tr:last-child > td {
+    padding-bottom: 20px;
+}
+.uneditableAttributes > table > tbody > tr:not(:last-child) > td {
+    padding-bottom: 0px;
+}
+
+.detectDevicesContainer > div > table > tbody > tr > td:first-child {
+    width: 40%;
+}
+
+.detectDevicesContainer > div > table > tbody > tr > td:last-child {
+    width: 60%;
+}
+
+.table_label {
+    font-weight: bold;
+}
+
+td.buffer_row {
+    height: 80px;
+    vertical-align: top;
+}
+
+.uploadButton {
+    position: absolute;
+    opacity: 0;
+    -moz-opactiy: 0;
+    top: 0;
+    right: 0;
+    z-index: 99;
+    cursor: pointer;
+}
+
+.buttonWrapper {
+    position: relative;
+    cursor: pointer;
+    overflow: hidden;
+    height: 20px;
+    width: 66px;
+    text-align: center;
+    -webkit-appearance: button;
+    background-color: buttonface;
+    border: 2px outset buttonface;
+}
+
+.buttonWrapper > div {
+    line-height: 20px;
 }

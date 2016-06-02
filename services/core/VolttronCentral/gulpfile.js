@@ -85,6 +85,7 @@ function vendor() {
     })
         .require([
             { file: 'bluebird/js/browser/bluebird.min', expose: 'bluebird' },
+            { file: 'babyparse/babyparse.js', expose: 'babyparse' },
             { file: 'd3/d3', expose: 'd3' },
             'events',
             'flux',

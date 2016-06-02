@@ -118,8 +118,8 @@ var PlatformsPanel = React.createClass({
                 break;
         }
 
-        var tooltipX = 60;
-        var tooltipY = 190;
+        var tooltipX = 80;
+        var tooltipY = 220;
 
         var filterGoodIcon = (
             <div className="status-good">

@@ -6,6 +6,9 @@ var Router = require('react-router');
 var platformsPanelItemsStore = require('../stores/platforms-panel-items-store');
 var platformsPanelActionCreators = require('../action-creators/platforms-panel-action-creators');
 var platformChartActionCreators = require('../action-creators/platform-chart-action-creators');
+var controlButtonActionCreators = require('../action-creators/control-button-action-creators');
+var devicesActionCreators = require('../action-creators/devices-action-creators');
+var ControlButton = require('./control-button');
 
 
 var PlatformsPanelItem = React.createClass({
@@ -139,6 +142,18 @@ var PlatformsPanelItem = React.createClass({
         this.setState({tooltipX: evt.clientX - 60});
         this.setState({tooltipY: evt.clientY - 70});
     },
+    _onDeviceMethodChange: function (evt) {
+
+        var deviceMethod = evt.target.value;
+
+        this.setState({deviceMethod: deviceMethod});
+
+        if (deviceMethod)
+        {
+            devicesActionCreators.addDevices(this.state.panelItem, deviceMethod);
+            controlButtonActionCreators.hideTaptip("addDevicesButton");
+        }
+    },
     render: function () {
         var panelItem = this.state.panelItem;
         var itemPath = this.props.itemPath;
@@ -167,6 +182,54 @@ var PlatformsPanelItem = React.createClass({
             {
                 arrowClasses.push("loadingSpinner");
             }
+        }
+
+        var DevicesButton;
+
+        if (["platform"].indexOf(panelItem.type) > -1)
+        {
+            var taptipX = 20;
+            var taptipY = 100;
+
+            var tooltipX = 20;
+            var tooltipY = 70;
+
+            var devicesSelect = (
+                <select
+                    onChange={this._onDeviceMethodChange}
+                    value={this.state.deviceMethod}
+                    autoFocus
+                    required
+                >
+                    <option value="">-- Select method --</option>
+                    <option value="scanForDevices">Scan for Devices</option>
+                    <option value="addDevicesManually">Add Devices Manually</option>
+                </select>
+            );
+
+            var devicesTaptip = { 
+                "title": "Add Devices Method", 
+                "content": devicesSelect,
+                "xOffset": taptipX,
+                "yOffset": taptipY
+            };
+            
+            var devicesTooltip = {
+                "content": "Add Devices",
+                "xOffset": tooltipX,
+                "yOffset": tooltipY
+            };
+
+            DevicesButton = (
+                <ControlButton 
+                    name="addDevicesButton"
+                    taptip={devicesTaptip} 
+                    tooltip={devicesTooltip}
+                    controlclass="panelItemButton"
+                    nocentering={true}
+                    floatleft={true}
+                    fontAwesomeIcon="cogs"></ControlButton>
+            );
         }
         
         var ChartCheckbox;
@@ -294,7 +357,8 @@ var PlatformsPanelItem = React.createClass({
                         onMouseEnter={this._showCancel}
                         onMouseLeave={this._resumeLoad}>
                         {arrowContent}
-                    </div>  
+                    </div>
+                    {DevicesButton}  
                     {ChartCheckbox}                  
                     <div className={toolTipClasses}
                         style={tooltipStyle}>

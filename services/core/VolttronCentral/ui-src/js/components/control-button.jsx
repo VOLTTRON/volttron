@@ -197,14 +197,12 @@ var ControlButton = React.createClass({
 		        top: this.state.taptipY + "px"
 		    };
 
-            //TODO: add this to repository
             if (this.props.taptip.styles)
             {
                 this.props.taptip.styles.forEach(function (styleToAdd) {
                     taptipStyle[styleToAdd.key] = styleToAdd.value;
                 });
             }
-            //end TODO
 
 		    var tapTipClasses = "taptip_outer";
 
@@ -243,8 +241,14 @@ var ControlButton = React.createClass({
 
         var controlButtonClass = (this.props.controlclass ? this.props.controlclass : "control_button");
 
+        var centering = (this.props.hasOwnProperty("nocentering") && (this.props.nocentering === true) ?
+                            "" : "centeredDiv");
+
+        var outerClasses = (this.props.hasOwnProperty("floatleft") && (this.props.floatleft === true) ?
+                            "floatLeft" : "inlineBlock");
+
         return (
-            <div className="inlineBlock">
+            <div className={outerClasses}>
             	{taptip}
             	{tooltip}
                 <div className={controlButtonClass}
@@ -252,7 +256,7 @@ var ControlButton = React.createClass({
                     onMouseEnter={tooltipShow}
                     onMouseLeave={tooltipHide}
                     style={selectedStyle}>
-                    <div className="centeredDiv">
+                    <div className={centering}>
                         {buttonIcon}
                     </div>
                 </div>                  

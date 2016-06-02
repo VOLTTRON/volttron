@@ -49,10 +49,23 @@ module.exports = keyMirror({
     CHECK_ITEM: null,
     FILTER_ITEMS: null,
 
+    ADD_DEVICES: null,
+    SCAN_FOR_DEVICES: null,
+    CANCEL_SCANNING: null,
+    LIST_DETECTED_DEVICES: null,
+    CONFIGURE_DEVICE: null,
+    EDIT_REGISTRY: null,
+    LOAD_REGISTRY: null,
+    GENERATE_REGISTRY: null,
+    CANCEL_REGISTRY: null,
+    SAVE_REGISTRY: null,
+
     // ADD_CONTROL_BUTTON: null,
     // REMOVE_CONTROL_BUTTON: null,
     TOGGLE_TAPTIP: null,
     HIDE_TAPTIP: null,
+    SHOW_TAPTIP: null,
+    CLEAR_BUTTON: null,
 
     RECEIVE_CHART_TOPICS: null
 });
