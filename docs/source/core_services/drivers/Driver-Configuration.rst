@@ -1,5 +1,8 @@
 .. _Driver-Configuration:
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 ====================
 Driver Configuration
 ====================
@@ -227,6 +230,8 @@ Here is an example device configuration file:
 A sample MODBUS configuration file can be found `here <https://raw.githubusercontent.com/VOLTTRON/volttron/c57569bd9e71eb32afefe8687201d674651913ed/examples/configurations/drivers/modbus1.config>`_ or 
 in the VOLTTRON repository in ``examples/configurations/drivers/modbus1.config``
 
+
+.. _MODBUS-Driver:
 MODBUS Registry Configuration File
 **********************************
 
@@ -274,7 +279,7 @@ The following is an example of a MODBUS registry confugration file:
 A sample MODBUS registry file can be found `here <https://raw.githubusercontent.com/VOLTTRON/volttron/c57569bd9e71eb32afefe8687201d674651913ed/examples/configurations/drivers/catalyst371.csv>`_ or 
 in the VOLTTRON repository in ``examples/configurations/drivers/catalyst371.csv``
 
-.. _BACnet-driver-config:
+.. _BACnet-Driver:
 BACnet Driver Configuration
 ---------------------------
 Communicating with BACnet devices requires that the BACnet Proxy Agent is configured and running. All device communication happens through this agent.
