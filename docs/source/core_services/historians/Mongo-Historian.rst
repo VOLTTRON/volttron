@@ -1,3 +1,5 @@
+.. _Mongo-Historian:
+
 ===============
 Mongo Historian
 ===============

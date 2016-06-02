@@ -152,7 +152,8 @@ var platformActionCreators = {
         }).promise
             .then(function (result) {
                 
-                if (result.error) {
+                if (result.error) 
+                {
                     statusIndicatorActionCreators.openStatusIndicator("error", "Unable to remove agent " + agent.name + ": " + result.error, agent.name);
                 }
                 else
@@ -183,7 +184,8 @@ var platformActionCreators = {
                     }
                 });
 
-                if (errors.length) {
+                if (errors.length) 
+                {
                     statusIndicatorActionCreators.openStatusIndicator("error", "Unable to install agents for platform " + platform.name + ": " + errors.join('\n'), platform.name);
                 }
 
@@ -232,8 +234,7 @@ var platformActionCreators = {
                             })
                             .catch(rpc.Error, function (error) {
                                 handle401(error, "Unable to load charts for platform " + this.name + ": " + error.message, this.name);
-                            });
-                            
+                            });                            
                         }
                 })
                 .catch(rpc.Error, function (error) {
@@ -290,7 +291,6 @@ var platformActionCreators = {
             var savedCharts = platformChartStore.getPinnedCharts();
 
             var newCharts = savedCharts.filter(function (chart) {
-
                 return (chart.chartKey !== this);
             });
 

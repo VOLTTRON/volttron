@@ -126,8 +126,7 @@ var platformManagerActionCreators = {
                     type: ACTION_TYPES.CLOSE_MODAL,
                 });
 
-                statusIndicatorActionCreators.openStatusIndicator("success", "Platform " + name + " was registered.", name, "center");
-        
+                statusIndicatorActionCreators.openStatusIndicator("success", "Platform " + name + " was registered.", name, "center");        
                 platformManagerActionCreators.loadPlatforms();                
 
             })
@@ -173,7 +172,6 @@ var platformManagerActionCreators = {
                 });
 
                 statusIndicatorActionCreators.openStatusIndicator("success", "Platform " + platformName + " was deregistered.", platformName, "center");
-
                 dispatcher.dispatch({
                     type: ACTION_TYPES.REMOVE_PLATFORM_CHARTS,
                     platform: platform
@@ -192,7 +190,7 @@ var platformManagerActionCreators = {
 };
 
 function handle401(error, message, highlight, orientation) {
-    if ((error.code && error.code === 401) || (error.response && error.response.status === 401)) {
+   if ((error.code && error.code === 401) || (error.response && error.response.status === 401)) {
         dispatcher.dispatch({
             type: ACTION_TYPES.RECEIVE_UNAUTHORIZED,
             error: error,

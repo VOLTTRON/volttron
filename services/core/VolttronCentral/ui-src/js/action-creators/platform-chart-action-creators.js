@@ -157,7 +157,7 @@ var platformChartActionCreators = {
 
                 platformsPanelActionCreators.checkItem(panelItem.path, false);
                 handle401(error, message, null, orientation);
-            });
+           });
     },
     removeFromChart: function(panelItem) {
 
@@ -187,7 +187,7 @@ var platformChartActionCreators = {
 };
 
 function handle401(error, message, highlight, orientation) {
-    if ((error.code && error.code === 401) || (error.response && error.response.status === 401)) {
+   if ((error.code && error.code === 401) || (error.response && error.response.status === 401)) {
         dispatcher.dispatch({
             type: ACTION_TYPES.RECEIVE_UNAUTHORIZED,
             error: error,

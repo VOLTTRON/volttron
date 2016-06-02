@@ -1,18 +1,16 @@
-Reource Monitor
-<<<<<<< HEAD
-=================
-=======
-===============
->>>>>>> 997b115c2dc835cca24d3568b1e49a1063bc9e97
+.. _Resource-Monitor:
 
-The `VOLTTRON™ Restricted <Volttron-Restricted>`__ additions provide
+Reource Monitor
+=================
+
+The :ref:`VOLTTRON™ Restricted <Volttron-Restricted>` additions provide
 additional protection against an agent consuming too many resources to
 the point of the host system becoming unresponsive or unstable. The
 resource monitor uses Linux control groups (or cgroups) to limit the CPU
 cycles and memory an individual agent may consume, preventing its
 possible overconsumption from adversely affecting other agents and
 services on the system. The execution requirements of an agent are set
-when `provisioning an agent <Agent-Signing>`__ for service.
+when :ref:`provisioning an agent <Agent-Signing>` for service.
 
 When a request is made to move an agent to a new platform, part of the
 validation of the agent includes checking its execution requirements

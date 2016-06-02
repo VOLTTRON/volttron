@@ -60,99 +60,113 @@
 Historian Development
 =====================
 
-Support for storing and retrieving historical device and analysis data published to the message bus
-is handled with Historian Agents. If a new type of data store or a new way of storing data
-is desired a new type of Historian Agent should be created.
+Support for storing and retrieving historical device and analysis data
+published to the message bus is handled with Historian Agents. If a new type
+of data store or a new way of storing data is desired a new type of Historian
+Agent should created.
 
 Historian Agents are implemented by subclassing :py:class:`BaseHistorian`.
 
-Agents that need short term storage of device data should subscribe to device data and
-use internal data structures for storage. Agents which need long
-term Historical data that predates the startup of the Agent should interact with a Historian Agent
-in order to obtain that data as needed.
+Agents that need short term storage of device data should subscribe to device
+data and use internal data structures for storage. Agents which need long
+term Historical data that predates the startup of the Agent should interact
+with a Historian Agent in order to obtain that data as needed.
 
-While it is possible to create an Agent from scratch which handles gathering and
-storing device data it will miss out on the benefits of creating a proper Historian Agent that
-subclasses :py:class:`BaseHistorian`. The :py:class:`BaseHistorian` class provides the following
-features:
+While it is possible to create an Agent from scratch which handles gathering
+and storing device data it will miss out on the benefits of creating a proper
+Historian Agent that subclassing :py:class:`BaseHistorian`. The
+:py:class:`BaseHistorian` class provides the following features:
 
 - A separate thread for all communication with a data store removing the need
   to use or implement special libraries to work with gevent.
 - Automatically subscribe to and process device publishes.
 - Automatically backup data retrieved off the message bus to a disk cache.
-  Cached data will only be removed once it is successfully published to a data store.
-- Existing Agents that publish analytical data for storage or query for historical data
-  will be able to use the new Historian without any code changes.
+  Cached data will only be removed once it is successfully published to a data
+  store.
+- Existing Agents that publish analytical data for storage or query for
+  historical data will be able to use the new Historian without any code
+  changes.
 - Data can be graphed in VOLTTRON Central.
 
 Creating a New Historian
 ------------------------
 
-To create a new Historian create a new Agent that subclasses :py:class:`BaseHistorian`.
-:py:class:`BaseHistorian` inherits from :py:class:`volttron.platform.vip.agent.Agent` so including
-it in the class parents is not needed.
+To create a new Historian create a new Agent that subclasses
+:py:class:`BaseHistorian`. :py:class:`BaseHistorian` inherits from
+:py:class:`volttron.platform.vip.agent.Agent` so including it in the class
+parents is not needed.
 
-The new Agent must implement the following method:
+The new Agent must implement the following methods:
 
-- :py:meth:`BaseHistorian.publish_to_historian`
-
-Optionally the following methods may be implemented to support querying:
-
-- :py:meth:`BaseHistorian.query_topic_list`
-- :py:meth:`BaseHistorian.query_historian`
-
-:py:meth:`BaseHistorian.query_topic_list` and :py:meth:`BaseHistorian.query_historian`
-will raise :py:exc:`exceptions.NotImplementedError`.
+- :py:meth:`BaseHistorianAgent.publish_to_historian`
+- :py:meth:`BaseQueryHistorianAgent.query_topic_list`
+- :py:meth:`BaseQueryHistorianAgent.query_historian`
 
 While not required this method may be overridden as needed:
-- :py:meth:`BaseHistorian.historian_setup`
+- :py:meth:`BaseHistorianAgent.historian_setup`
 
+
+Optionally a Historian Agent can inherit from :py:class:`BaseHistorianAgent`
+instead of :py:class:`BaseHistorian` if support for querying data is not
+needed for the data store. If this route is taken then VOLTTRON Central
+will not be able to graph data from the store. It is possible to run more than
+one Historian agent at a time to store data in more than one place. If needed
+one can be used to allow querying while another is used to put data in the
+desired store that does not allow querying.
 
 Historian Execution Flow
 ------------------------
 
-At startup the :py:class:`BaseHistorian` class starts a new thread to handle all data caching
-and publishing (the publishing thread). The main thread then subscribes to all Historian related topics on the
-message bus. Whenever subscribed data comes in it is published to a Queue to be be processed by
-the publishing thread as soon as possible.
+At startup the :py:class:`BaseHistorian` class starts a new thread to handle
+all data caching and publishing (the publishing thread). The main thread then
+subscribes to all Historian related topics on the message bus. Whenever
+subscribed data comes in it is published to a Queue to be be processed by the
+publishing thread as soon as possible.
 
-At startup the publishing thread calls :py:meth:`BaseHistorian.historian_setup` to give
-the implemented Historian a chance to setup any connections in the thread.
+At startup the publishing thread calls
+:py:meth:`BaseHistorianAgent.historian_setup` to give the implemented
+Historian a chance to setup any connections in the thread.
 
 The process thread then enters the following logic loop:
 ::
 
-    Wait for data to appear in the Queue. Proceed if data appears or a `retry_period` time elapses.
+    Wait for data to appear in the Queue. Proceed if data appears or a
+    `retry_period` time elapses.
     If new data appeared in Queue:
         Save new data to cache.
     While data is in cache:
-        Publish data to store by calling :py:meth:`BaseHistorian.publish_to_historian`.
+        Publish data to store by calling
+            :py:meth:`BaseHistorianAgent.publish_to_historian`.
         If no data was published:
             Go back to start and check Queue for data.
         Remove published data from cache.
         If we have been publishing for `max_time_publishing`:
             Go back to start and check Queue for data.
 
-The logic will also forgo waiting the `retry_period` for new data to appear when checking for new data
-if publishing has been successful and there is still data in the cache to be publish.
+The logic will also forgo waiting the `retry_period` for new data to appear
+when checking for new data if publishing has been successful and there is
+still data in the cache to be publish.
 
 Storing Data
 ------------
 
-The :py:class:`BaseHistorian` will call :py:meth:`BaseHistorian.publish_to_historian`
-as the time series data becomes available. Data is batched in a groups up to `submit_size_limit`.
+The :py:class:`BaseHistorian` will call
+:py:meth:`BaseHistorianAgent.publish_to_historian` as the time series data
+becomes available. Data is batched in a groups up to `submit_size_limit`.
 
-After processing the list or individual items in the list :py:meth:`BaseHistorian.publish_to_historian`
-must call :py:meth:`BaseHistorian.report_handled` to report an individual point of data
-was published or :py:meth:`BaseHistorian.report_all_handled` to report that everything
-from the batch was successfully published. This tells the :py:class:`BaseHistorian` class
-what to remove from the cache and if any publishing was successful.
+After processing the list or individual items in the list
+:py:meth:`BaseHistorianAgent.publish_to_historian` must call
+:py:meth:`BaseHistorianAgent.report_handled` to report an individual point
+of data was published or :py:meth:`BaseHistorianAgent.report_all_handled` to
+report that everything from the batch was successfully published. This tells
+the :py:class:`BaseHistorianAgent` class what to remove from the cache and if
+any publishing was successful.
 
-The `to_publish_list` argument of :py:meth:`BaseHistorian.publish_to_historian` is a list of records that
+The `to_publish_list` argument of
+:py:meth:`BaseHistorianAgent.publish_to_historian` is a list of records that
 takes the following form:
 
 .. code-block:: python
-
     [
         {
             '_id': 1,
@@ -173,51 +187,54 @@ takes the following form:
         ...
     ]
 
-As records are published to the data store :py:meth:`BaseHistorian.publish_to_historian` must call
-:py:meth:`BaseHistorian.report_handled` with the record or list of records that was published or
-:py:meth:`BaseHistorian.report_all_handled` if everything was published.
+As records are published to the data store
+:py:meth:`BaseHistorianAgent.publish_to_historian` must call
+:py:meth:`BaseHistorianAgent.report_handled` with the record or list of
+records that was published or :py:meth:`BaseHistorianAgent.report_all_handled`
+if everything was published.
 
 Querying Data
 -------------
 
-When an request is made to query data the :py:meth:`BaseHistorian.query_historian` method is called.
-When a request is made for the list of topics in the store :py:meth:`BaseHistorian.query_topic_list`
+When an request is made to query data the
+:py:meth:`BaseQueryHistorianAgent.query_historian` method is called.
+When a request is made for the list of topics in the store
+:py:meth:`BaseQueryHistorianAgent.query_topic_list`
 will be called.
 
 Other Notes
 -----------
 
-Implemented Historians must be tolerant to receiving the same data for submission twice.
-While very rare, it is possible for a Historian to be forcibly shutdown after data is published
-but before it is removed from the cache. When restarted the :py:class:`BaseHistorian` will submit
-the same data over again.
+Implemented Historians must be tolerant to receiving the same data for
+submission twice.  While very rare, it is possible for a Historian to be
+forcibly shutdown after data is published but before it is removed from the
+cache. When restarted the :py:class:`BaseHistorian` will submit
+the same date over again.
 
 """
 
 from __future__ import absolute_import, print_function
 
+from abc import abstractmethod
+from dateutil.parser import parse
 import logging
+import re
 import sqlite3
-import weakref
 from Queue import Queue, Empty
 from collections import defaultdict
 from datetime import datetime, timedelta
 import threading
 from threading import Thread
+import weakref
 
 import pytz
-import re
-from abc import abstractmethod, ABCMeta
-from dateutil.parser import parse
+from zmq.utils import jsonapi
+
 from volttron.platform.agent.utils import process_timestamp, \
     fix_sqlite3_datetime, get_aware_utc_now
 from volttron.platform.messaging import topics, headers as headers_mod
 from volttron.platform.vip.agent import *
-from zmq.utils import jsonapi
 from volttron.platform.vip.agent import compat
-
-from gevent.event import AsyncResult
-from volttron.platform.async import AsyncCall
 
 _log = logging.getLogger(__name__)
 
@@ -227,25 +244,8 @@ ALL_REX = re.compile('.*/all$')
 # Register a better datetime parser in sqlite3.
 fix_sqlite3_datetime()
 
-#Callback for a query.
-class QueryCallback:
 
-    def __init__(self, query_type, asynccall, *args, **kwargs):
-        # requests and responses
-        self.query_type = query_type
-        self.args = args
-        self.kwargs = kwargs
-        self.query_result = AsyncResult()
-        self.query_callback = asynccall
-
-    def send_results(self, results):
-        self.query_callback.send(None, self.query_result.set, results)
-
-    def send_exception(self, exception):
-        self.query_callback.send(None, self.query_result.set_exception, exception)
-
-
-class BaseHistorian(Agent):
+class BaseHistorianAgent(Agent):
     """This is the base agent for historian Agents.
     It automatically subscribes to all device publish topics.
 
@@ -264,35 +264,35 @@ class BaseHistorian(Agent):
     to the user specific situation.
 
     This base historian will cache all received messages to a local database
-    before publishing it to the historian.  This allows recovery for unexpected
-    happenings before the successful writing of data to the historian.
+    before publishing it to the historian.  This allows recovery for
+    unexpected happenings before the successful writing of data to the
+    historian.
     """
-    __metaclass__ = ABCMeta
 
     def __init__(self,
                  retry_period=300.0,
                  submit_size_limit=1000,
-                 max_time_publishing=3.0,
+                 max_time_publishing=30,
                  backup_storage_limit_gb=None,
                  topic_replace_list=None,
                  **kwargs):
-        super(BaseHistorian, self).__init__(**kwargs)
-        self._backup_storage_limit_gb = backup_storage_limit_gb
+
+        super(BaseHistorianAgent, self).__init__(**kwargs)
         # This should resemble a dictionary that has key's from and to which
         # will be replaced within the topics before it's stored in the
         # cache database
         self._topic_replace_list = topic_replace_list
-        _log.debug(
-            'Topic list to replace is: {}'.format(self._topic_replace_list))
-        # a chache of mappings betwhen what comes in and the anonymizing
-        # topic that goes out.
-        self._topic_replace_map = {}
+
+        _log.info('Topic string replace list: {}'
+                  .format(self._topic_replace_list))
+
+        self._backup_storage_limit_gb = backup_storage_limit_gb
         self._started = False
         self._retry_period = retry_period
         self._submit_size_limit = submit_size_limit
         self._max_time_publishing = timedelta(seconds=max_time_publishing)
         self._successful_published = set()
-        self._async_call = AsyncCall()
+        self._topic_replace_map = {}
         self._event_queue = Queue()
         self._process_thread = Thread(target=self._process_loop)
         self._process_thread.daemon = True  # Don't wait on thread to exit.
@@ -367,7 +367,8 @@ class BaseHistorian(Agent):
 
         return output_topic
 
-    def _capture_record_data(self, peer, sender, bus, topic, headers, message):
+    def _capture_record_data(self, peer, sender, bus, topic, headers,
+                             message):
         _log.debug('Capture record data {}'.format(message))
         # Anon the topic if necessary.
         topic = self._get_topic(topic)
@@ -442,7 +443,8 @@ class BaseHistorian(Agent):
                                    'readings': readings,
                                    'meta': meta})
 
-    def _capture_device_data(self, peer, sender, bus, topic, headers, message):
+    def _capture_device_data(self, peer, sender, bus, topic, headers,
+                             message):
         """Capture device data and submit it to be published by a historian.
 
         Filter out only the */all topics for publishing to the historian.
@@ -493,7 +495,8 @@ class BaseHistorian(Agent):
             timestamp, my_tz = process_timestamp(timestamp_string, topic)
         _log.debug("### In capture_data timestamp str {} ".format(timestamp))
         try:
-            _log.debug("### In capture_data Actual message {} ".format(message))
+            _log.debug(
+                "### In capture_data Actual message {} ".format(message))
             # 2.0 agents compatability layer makes sender == pubsub.compat so
             # we can do the proper thing when it is here
             if sender == 'pubsub.compat':
@@ -589,7 +592,7 @@ class BaseHistorian(Agent):
 
         _log.debug("Starting process loop.")
 
-        backupdb = BackupDatabase(self._event_queue, self, self._backup_storage_limit_gb)
+        backupdb = BackupDatabase(self, self._backup_storage_limit_gb)
 
         # Sets up the concrete historian
         self.historian_setup()
@@ -605,50 +608,23 @@ class BaseHistorian(Agent):
             backupdb.get_outstanding_to_publish(self._submit_size_limit))
 
         while True:
-            new_to_publish = []
-            new_queries = []
             try:
                 _log.debug("Reading from/waiting for queue.")
-                event = self._event_queue.get(wait_for_input, self._retry_period)
-                if isinstance(event, QueryCallback):
-                    new_queries.append(event)
-                else:
-                    new_to_publish.append(event)
+                new_to_publish = [
+                    self._event_queue.get(wait_for_input, self._retry_period)]
             except Empty:
                 _log.debug("Queue wait timed out. Falling out.")
+                new_to_publish = []
 
             if new_to_publish:
                 _log.debug("Checking for queue build up.")
                 while True:
                     try:
-                        event = self._event_queue.get_nowait()
-                        if isinstance(event, QueryCallback):
-                            new_queries.append(event)
-                        else:
-                            new_to_publish.append(event)
+                        new_to_publish.append(self._event_queue.get_nowait())
                     except Empty:
                         break
 
             backupdb.backup_new_data(new_to_publish)
-
-            for query_callback in new_queries:
-
-                _log.debug("Processing query request: {qtype} {a} {p}".format(qtype=query_callback.query_type,
-                                                                               a=query_callback.args,
-                                                                               p=query_callback.kwargs))
-
-                try:
-                    if query_callback.query_type == "query":
-                        results = self.query_historian(*query_callback.args, **query_callback.kwargs)
-                    elif query_callback.query_type == "topic_list":
-                        results = self.query_topic_list()
-                    else:
-                        raise RuntimeError("Invalid Query type: " + str(query_callback.query_type))
-
-                    query_callback.send_results(results)
-                except StandardError as e:
-                    query_callback.send_exception(e)
-
 
             wait_for_input = True
             start_time = datetime.utcnow()
@@ -673,7 +649,7 @@ class BaseHistorian(Agent):
 
                 backupdb.remove_successfully_published(
                     self._successful_published, self._submit_size_limit)
-
+                self._successful_published = set()
                 now = datetime.utcnow()
                 if now - start_time > self._max_time_publishing:
                     wait_for_input = False
@@ -682,11 +658,11 @@ class BaseHistorian(Agent):
 
     def report_handled(self, record):
         """
-        Call this from :py:meth:`BaseHistorian.publish_to_historian` to report a record or
+        Call this from :py:meth:`BaseHistorianAgent.publish_to_historian` to report a record or
         list of records has been successfully published and should be removed from the cache.
 
         :param record: Record or list of records to remove from cache.
-        :type record: python:dict or python:list
+        :type record: dict or list
         """
         if isinstance(record, list):
             for x in record:
@@ -696,8 +672,8 @@ class BaseHistorian(Agent):
 
     def report_all_handled(self):
         """
-            Call this from :py:meth:`BaseHistorian.publish_to_historian` to report that all records
-             passed to :py:meth:`BaseHistorian.publish_to_historian` have been successfully published
+            Call this from :py:meth:`BaseHistorianAgent.publish_to_historian` to report that all records
+             passed to :py:meth:`BaseHistorianAgent.publish_to_historian` have been successfully published
              and should be removed from the cache.
         """
         self._successful_published.add(None)
@@ -708,12 +684,11 @@ class BaseHistorian(Agent):
         Main publishing method for historian Agents.
 
         :param to_publish_list: List of records
-        :type to_publish_list: python:list
+        :type to_publish_list: list
 
         to_publish_list takes the following form:
 
         .. code-block:: python
-
             [
                 {
                     '_id': 1,
@@ -739,192 +714,41 @@ class BaseHistorian(Agent):
         the "meta" dictionary are the only values that are relevant. This is the way the cache
         treats meta data.
 
-        Once one or more records are published either :py:meth:`BaseHistorian.report_handled` or
-        :py:meth:`BaseHistorian.report_handled` must be called to report records as being published.
+        Once one or more records are published either :py:meth:`BaseHistorianAgent.report_handled` or
+        :py:meth:`BaseHistorianAgent.report_handled` must be called to report records as being published.
         """
 
     def historian_setup(self):
+        """Optional setup routine, run in the processing thread before
+           main processing loop starts. Gives the Historian a chance to setup
+           connections in the publishing thread.
         """
-        Optional setup routine, run in the processing thread before
-        main processing loop starts. Gives the Historian a chance to setup
-        connections in the publishing/query thread.
-        """
-
-    @RPC.export
-    def query(self, topic=None, start=None, end=None, skip=0,
-              count=None, order="FIRST_TO_LAST"):
-        """RPC call
-
-        Call this method to query an Historian for time series data.
-
-        :param topic: Topic to query for.
-        :param start: Start time of the query. Defaults to None which is the beginning of time.
-        :param end: End time of the query.  Defaults to None which is the end of time.
-        :param skip: Skip this number of results.
-        :param count: Limit results to this value.
-        :param order: How to order the results, either "FIRST_TO_LAST" or "LAST_TO_FIRST"
-        :type topic: str
-        :type start: str
-        :type end: str
-        :type skip: int
-        :type count: int
-        :type order: str
-
-        :return: Results of the query
-        :rtype: python:dict
-
-        Return values will have the following form:
-
-        .. code-block:: python
-
-            {
-                "values": [(<timestamp string1>: value1),
-                           (<timestamp string2>: value2),
-                            ...],
-                "metadata": {"key1": value1,
-                             "key2": value2,
-                             ...}
-            }
-
-        The string arguments can be either the output from
-        :py:func:`volttron.platform.agent.utils.format_timestamp` or the special string "now".
-
-        Times relative to "now" may be specified with a relative time string using
-        the Unix "at"-style specifications. For instance "now -1h" will specify one hour ago.
-        "now -1d -1h -20m" would specify 25 hours and 20 minutes ago.
-
-        """
-
-        if topic is None:
-            raise TypeError('"Topic" required')
-
-        if start is not None:
-            try:
-                start = parse(start)
-            except TypeError:
-                start = time_parser.parse(start)
-
-        if end is not None:
-            try:
-                end = parse(end)
-            except TypeError:
-                end = time_parser.parse(end)
-
-        kwargs = dict(start=start,
-                      end=end,
-                      skip=skip,
-                      count=count,
-                      order=order)
-
-        query_callback = QueryCallback("query", self._async_call,
-                                       topic,
-                                       **kwargs)
-
-        _log.debug("Queuing query request: {qtype} {topic} {p}".format(qtype="query", topic=topic, p=kwargs))
-
-        self._event_queue.put(query_callback)
-        results = query_callback.query_result.get(10.0)
-
-        #results = self.query_historian(topic, start, end, skip, count, order)
-
-        metadata = results.get("metadata", None)
-        values = results.get("values", None)
-        if values is not None and metadata is None:
-            results['metadata'] = {}
-        return results
-
-    @RPC.export
-    def get_topic_list(self):
-        """RPC call
-
-        :return: List of topics in the data store.
-        :rtype: python:list
-        """
-
-        query_callback = QueryCallback("topic_list", self._async_call)
-
-        _log.debug("Queuing query request: {qtype}".format(qtype="topic_list"))
-
-        self._event_queue.put(query_callback)
-        results = query_callback.query_result.get(10.0)
-
-        return results
-
-    def query_topic_list(self):
-        """
-        This function is called by :py:meth:`BaseHistorian.get_topic_list`
-        to actually topic list from the data store.
-
-        :return: List of topics in the data store.
-        :rtype: python:list
-        """
-        raise NotImplementedError("This historian does not support querying the topic list.")
-
-    def query_historian(self, topic, start=None, end=None, skip=0, count=None,
-                        order=None):
-        """
-        This function is called by :py:meth:`BaseHistorian.query`
-        to actually query the data store
-        and must return the results of a query in the form:
-
-        .. code-block:: python
-
-            {
-            "values": [(timestamp1: value1),
-                        (timestamp2: value2),
-                        ...],
-             "metadata": {"key1": value1,
-                          "key2": value2,
-                          ...}
-            }
-
-        Timestamps must be strings formatted by
-        :py:func:`volttron.platform.agent.utils.format_timestamp`.
-
-        "metadata" is not required. The caller will normalize this to {} for you if it is missing.
-
-        :param topic: Topic to query for.
-        :param start: Start of query timestamp as a datetime.
-        :param end: End of query timestamp as a datetime.
-        :param skip: Skip this number of results.
-        :param count: Limit results to this value.
-        :param order: How to order the results, either "FIRST_TO_LAST" or "LAST_TO_FIRST"
-        :type topic: str
-        :type start: datetime
-        :type end: datetime
-        :type skip: int
-        :type count: int
-        :type order: str
-
-        :return: Results of the query
-        :rtype: python:dict
-
-        """
-        raise NotImplementedError("This historian does not support querying data.")
 
 
 class BackupDatabase:
     """
-    Creates and manages backup cache for the :py:class:`BaseHistorian` class.
+    A creates and manages backup cache for the
+    :py:class:`BaseHistorianAgent` class.
 
-    Historian implementors do not need to use this class. It is for internal use only.
+    Historian implementors do not need to use this class. It is for internal
+    use only.
     """
-    def __init__(self, success_queue, owner, backup_storage_limit_gb):
+
+    def __init__(self, owner, backup_storage_limit_gb):
         # The topic cache is only meant as a local lookup and should not be
         # accessed via the implemented historians.
-        self._owner = weakref.ref(owner)
-        self._backup_storage_limit_gb = backup_storage_limit_gb
         self._backup_cache = {}
         self._meta_data = defaultdict(dict)
+        self._owner = weakref.ref(owner)
+        self._backup_storage_limit_gb = backup_storage_limit_gb
         self._setupdb()
 
     def backup_new_data(self, new_publish_list):
         """
         :param new_publish_list: A list of records to cache to disk.
-        :type new_publish_list: python:list
+        :type new_publish_list: list
         """
         _log.debug("Backing up unpublished values.")
-
         c = self._connection.cursor()
 
         if self._backup_storage_limit_gb is not None:
@@ -941,6 +765,7 @@ class BackupDatabase:
                     (SELECT ROWID FROM outstanding
                     ORDER BY ROWID ASC LIMIT 100)''')
 
+
         for item in new_publish_list:
             source = item['source']
             topic = item['topic']
@@ -950,7 +775,8 @@ class BackupDatabase:
             topic_id = self._backup_cache.get(topic)
 
             if topic_id is None:
-                c.execute('''INSERT INTO topics values (?,?)''', (None, topic))
+                c.execute('''INSERT INTO topics values (?,?)''',
+                          (None, topic))
                 c.execute('''SELECT last_insert_rowid()''')
                 row = c.fetchone()
                 topic_id = row[0]
@@ -963,7 +789,7 @@ class BackupDatabase:
                 if current_meta_value != value:
                     c.execute('''INSERT OR REPLACE INTO metadata
                                  values(?, ?, ?, ?)''',
-                                (source, topic_id, name, value))
+                              (source, topic_id, name, value))
                     meta_dict[name] = value
 
             for timestamp, value in values:
@@ -978,7 +804,8 @@ class BackupDatabase:
 
         self._connection.commit()
 
-    def remove_successfully_published(self, successful_publishes, submit_size):
+    def remove_successfully_published(self, successful_publishes,
+                                      submit_size):
         """
         Removes the reported successful publishes from the backup database.
         If None is found in `successful_publishes` we assume that everything
@@ -986,7 +813,7 @@ class BackupDatabase:
 
         :param successful_publishes: List of records that was published.
         :param submit_size: Number of things requested from previous call to :py:meth:`get_outstanding_to_publish`.
-        :type successful_publishes: python:list
+        :type successful_publishes: list
         :type submit_size: int
         """
 
@@ -1015,7 +842,7 @@ class BackupDatabase:
         :param size_limit: Max number of records to retrieve.
         :type size_limit: int
         :returns: List of records for publication.
-        :rtype: python:list
+        :rtype: list
         """
         _log.debug("Getting oldest outstanding to publish.")
         c = self._connection.cursor()
@@ -1053,7 +880,7 @@ class BackupDatabase:
         if self._backup_storage_limit_gb is not None:
             c.execute('''PRAGMA page_size''')
             page_size = c.fetchone()[0]
-            max_storage_bytes = self._backup_storage_limit_gb * 1024**3
+            max_storage_bytes = self._backup_storage_limit_gb * 1024 ** 3
             self.max_pages = max_storage_bytes / page_size
 
         c.execute("SELECT name FROM sqlite_master WHERE type='table' "
@@ -1061,7 +888,6 @@ class BackupDatabase:
 
         if c.fetchone() is None:
             _log.debug("Configuring backup BD for the first time.")
-
             self._connection.execute('''PRAGMA auto_vacuum = FULL''')
             self._connection.execute('''CREATE TABLE outstanding
                                         (id INTEGER PRIMARY KEY,
@@ -1105,6 +931,149 @@ class BackupDatabase:
         self._connection.commit()
 
 
+class BaseQueryHistorianAgent(Agent):
+    """This is the base agent for historian Agents that support querying of
+    their data stores.
+    """
+
+    @RPC.export
+    def query(self, topic=None, start=None, end=None, skip=0,
+              count=None, order="FIRST_TO_LAST"):
+        """RPC call
+
+        Call this method to query an Historian for time series data.
+
+        :param topic: Topic to query for.
+        :param start: Start time of the query. Defaults to None which is the beginning of time.
+        :param end: End time of the query.  Defaults to None which is the end of time.
+        :param skip: Skip this number of results.
+        :param count: Limit results to this value.
+        :param order: How to order the results, either "FIRST_TO_LAST" or "LAST_TO_FIRST"
+        :type topic: str
+        :type start: str
+        :type end: str
+        :type skip: int
+        :type count: int
+        :type order: str
+
+        :return: Results of the query
+        :rtype: dict
+
+        Return values will have the following form:
+
+        .. code-block:: python
+
+            {
+                "values": [(<timestamp string1>: value1),
+                           (<timestamp string2>: value2),
+                            ...],
+                "metadata": {"key1": value1,
+                             "key2": value2,
+                             ...}
+            }
+
+        The string arguments can be either the output from
+        :py:func:`volttron.platform.agent.utils.format_timestamp` or the special string "now".
+
+        Times relative to "now" may be specified with a relative time string using
+        the Unix "at"-style specifications. For instance "now -1h" will specify one hour ago.
+        "now -1d -1h -20m" would specify 25 hours and 20 minutes ago.
+
+        """
+
+        if topic is None:
+            raise TypeError('"Topic" required')
+
+        if start is not None:
+            try:
+                start = parse(start)
+            except TypeError:
+                start = time_parser.parse(start)
+
+        if end is not None:
+            try:
+                end = parse(end)
+            except TypeError:
+                end = time_parser.parse(end)
+
+        if start:
+            _log.debug("start={}".format(start))
+
+        results = self.query_historian(topic, start, end, skip, count, order)
+        metadata = results.get("metadata", None)
+        values = results.get("values", None)
+        if values is not None and metadata is None:
+            results['metadata'] = {}
+        return results
+
+    @RPC.export
+    def get_topic_list(self):
+        """RPC call
+
+        :return: List of topics in the data store.
+        :rtype: list
+        """
+        return self.query_topic_list()
+
+    @abstractmethod
+    def query_topic_list(self):
+        """
+        This function is called by :py:meth:`BaseQueryHistorianAgent.get_topic_list`
+        to actually topic list from the data store.
+
+        :return: List of topics in the data store.
+        :rtype: list
+        """
+
+    @abstractmethod
+    def query_historian(self, topic, start=None, end=None, skip=0, count=None,
+                        order=None):
+        """
+        This function is called by :py:meth:`BaseQueryHistorianAgent.query`
+        to actually query the data store
+        and must return the results of a query in the form:
+
+        .. code-block:: python
+
+            {
+            "values": [(timestamp1: value1),
+                        (timestamp2: value2),
+                        ...],
+             "metadata": {"key1": value1,
+                          "key2": value2,
+                          ...}
+            }
+         
+        Timestamps must be strings formatted by
+        :py:func:`volttron.platform.agent.utils.format_timestamp`.
+
+        "metadata" is not required. The caller will normalize this to {} for you if it is missing.
+
+        :param topic: Topic to query for.
+        :param start: Start of query timestamp as a datetime.
+        :param end: End of query timestamp as a datetime.
+        :param skip: Skip this number of results.
+        :param count: Limit results to this value.
+        :param order: How to order the results, either "FIRST_TO_LAST" or "LAST_TO_FIRST"
+        :type topic: str
+        :type start: datetime
+        :type end: datetime
+        :type skip: int
+        :type count: int
+        :type order: str
+
+        :return: Results of the query
+        :rtype: dict
+
+        """
+
+
+class BaseHistorian(BaseHistorianAgent, BaseQueryHistorianAgent):
+    def __init__(self, **kwargs):
+        _log.debug('Constructor of BaseHistorian thread: {}'.format(
+            threading.currentThread().getName()
+        ))
+        super(BaseHistorian, self).__init__(**kwargs)
 
 
 # The following code is

@@ -1,3 +1,5 @@
+.. _sMAP-Historian:
+
 sMAP Historian
 ==============
 

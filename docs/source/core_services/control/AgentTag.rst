@@ -1,3 +1,5 @@
+.. _AgentTag:
+
 Tagging Agents
 ==============
 
