@@ -21,8 +21,7 @@ var statusIndicatorStore = require('../stores/status-indicator-store');
 var PlatformManager = React.createClass({
     mixins: [Router.Navigation, Router.State],
     getInitialState: function () {
-        var state = getStateFromStores(); 
-        // state.expanded = false;
+        var state = getStateFromStores();
 
         return state;
     },

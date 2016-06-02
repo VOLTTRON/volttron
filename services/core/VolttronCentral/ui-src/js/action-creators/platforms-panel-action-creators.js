@@ -15,80 +15,17 @@ var platformsPanelActionCreators = {
         });
     },
 
-    closePanel: function() {
-
-        dispatcher.dispatch({
-            type: ACTION_TYPES.CLOSE_PLATFORMS_PANEL,
-        });
-    },
-
     loadChildren: function(type, parent)
     {
         if (type === "platform")
         {
             dispatcher.dispatch({
-                type: ACTION_TYPES.START_LOADING_DATA
+                type: ACTION_TYPES.START_LOADING_DATA,
+                panelItem: parent 
             });
 
             loadPanelDevices(parent);
-        }        
-
-        function loadPerformanceStats(parent) {
-
-            if (parent.type === "platform")
-            {
-                var authorization = authorizationStore.getAuthorization();
-
-                //TODO: use service to get performance for a single platform
-
-                new rpc.Exchange({
-                    method: 'list_performance',
-                    authorization: authorization,
-                    }).promise
-                        .then(function (result) {
-                            
-                            var platformPerformance = result.find(function (item) {
-                                return item["platform.uuid"] === parent.uuid;
-                            });
-
-                            var pointsList = [];
-
-                            if (platformPerformance)
-                            {
-                                var points = platformPerformance.performance.points;
-
-                                points.forEach(function (point) {
-
-                                    pointsList.push({
-                                        "topic": platformPerformance.performance.topic + "/" + point,
-                                        "name": point.replace("/", " / ")
-                                    });
-                                });                                
-                            }
-
-                            dispatcher.dispatch({
-                                type: ACTION_TYPES.RECEIVE_PERFORMANCE_STATS,
-                                parent: parent,
-                                points: pointsList
-                            });
-                        })
-                        .catch(rpc.Error, function (error) {
-                            
-                            var message = error.message;
-
-                            if (error.code === -32602)
-                            {
-                                if (error.message === "historian unavailable")
-                                {
-                                    message = "Data could not be fetched. The historian agent is unavailable."
-                                }
-                            }
-
-                            statusIndicatorActionCreators.openStatusIndicator("error", message);
-                            handle401(error);
-                        });   
-            } 
-        }
+        } 
 
         function loadPanelDevices(platform) {
             var authorization = authorizationStore.getAuthorization();
@@ -117,8 +54,11 @@ var platformsPanelActionCreators = {
 
                     loadPanelAgents(platform);
                     
-                })
-                .catch(rpc.Error, handle401);    
+                })                     
+                .catch(rpc.Error, function (error) {
+                    endLoadingData(platform);
+                    handle401(error, "Unable to load devices for platform " + platform.name + " in side panel: " + error.message);
+                });    
 
         }
 
@@ -138,15 +78,81 @@ var platformsPanelActionCreators = {
                     });
 
                     loadPerformanceStats(platform);
-                })
-                .catch(rpc.Error, handle401);    
+                })                     
+                .catch(rpc.Error, function (error) {
+                    endLoadingData(platform);
+                    handle401(error, "Unable to load agents for platform " + platform.name + " in side panel: " + error.message);
+                });    
+        }       
+
+        function loadPerformanceStats(parent) {
+
+            if (parent.type === "platform")
+            {
+                var authorization = authorizationStore.getAuthorization();
+
+                //TODO: use service to get performance for a single platform
+
+                new rpc.Exchange({
+                    method: 'list_performance',
+                    authorization: authorization,
+                    }).promise
+                        .then(function (result) {
+                            
+                            var platformPerformance = result.find(function (item) {
+                                return item["platform.uuid"] === parent.uuid;
+                            });
+
+                            var pointsList = [];
+
+                            if (platformPerformance)
+                            {
+                                var points = platformPerformance.performance.points;
+
+                                points.forEach(function (point) {
+
+                                    var pointName = (point === "percent" ? "cpu / percent" : point.replace("/", " / "));
+
+                                    pointsList.push({
+                                        "topic": platformPerformance.performance.topic + "/" + point,
+                                        "name": pointName
+                                    });
+                                });                                
+                            }
+
+                            dispatcher.dispatch({
+                                type: ACTION_TYPES.RECEIVE_PERFORMANCE_STATS,
+                                parent: parent,
+                                points: pointsList
+                            });
+
+                            endLoadingData(parent);
+                        })
+                        .catch(rpc.Error, function (error) {
+                            
+                            var message = error.message;
+
+                            if (error.code === -32602)
+                            {
+                                if (error.message === "historian unavailable")
+                                {
+                                    message = "Data could not be fetched for platform " + parent.name + ". The historian agent is unavailable."
+                                }
+                            }
+
+                            endLoadingData(parent);
+                            handle401(error, message);
+                        });   
+            } 
         }
-            // dispatcher.dispatch({
-            //     type: ACTION_TYPES.RECEIVE_AGENT_STATUSES,
-            //     platform: platform
-            // });
-        // }
-    
+
+        function endLoadingData(panelItem)
+        {
+            dispatcher.dispatch({
+                type: ACTION_TYPES.END_LOADING_DATA,
+                panelItem: panelItem
+            });
+        }    
     },
 
     loadFilteredItems: function (filterTerm, filterStatus)
@@ -181,79 +187,23 @@ var platformsPanelActionCreators = {
             itemPath: itemPath,
             checked: checked
         });
-    },
-
-    addToChart: function(panelItem) {
-
-        var authorization = authorizationStore.getAuthorization();
-
-        new rpc.Exchange({
-            method: 'platforms.uuid.' + panelItem.parentUuid + '.historian.query',
-            params: {
-                topic: panelItem.topic,
-                count: 20,
-                order: 'LAST_TO_FIRST',
-            },
-            authorization: authorization,
-        }).promise
-            .then(function (result) {
-                panelItem.data = result.values;
-
-                panelItem.data.forEach(function (datum) {
-                    datum.name = panelItem.name;
-                    datum.parent = panelItem.parentPath;
-                    datum.uuid = panelItem.uuid;
-                });
-
-                dispatcher.dispatch({
-                    type: ACTION_TYPES.SHOW_CHARTS
-                });
-
-                dispatcher.dispatch({
-                    type: ACTION_TYPES.ADD_TO_CHART,
-                    panelItem: panelItem
-                });
-            })
-            .catch(rpc.Error, function (error) {
-                
-                var message = error.message;
-
-                if (error.code === -32602)
-                {
-                    if (error.message === "historian unavailable")
-                    {
-                        message = "Data could not be fetched. The historian agent is unavailable."
-                    }
-                }
-
-                statusIndicatorActionCreators.openStatusIndicator("error", message);
-                handle401(error);
-            });
-    },
-
-    removeFromChart: function(panelItem) {
-
-        dispatcher.dispatch({
-            type: ACTION_TYPES.REMOVE_FROM_CHART,
-            panelItem: panelItem
-        });  
-
-    }
+    }    
 }
 
-
-
-
-function handle401(error) {
-    if (error.code && error.code === 401) {
+function handle401(error, message) {
+    if ((error.code && error.code === 401) || (error.response && error.response.status === 401)) {
         dispatcher.dispatch({
             type: ACTION_TYPES.RECEIVE_UNAUTHORIZED,
             error: error,
         });
 
-        platformManagerActionCreators.clearAuthorization();
-
-        statusIndicatorActionCreators.openStatusIndicator("error", error.message);
+        dispatcher.dispatch({
+            type: ACTION_TYPES.CLEAR_AUTHORIZATION,
+        });
+    }
+    else
+    {
+        statusIndicatorActionCreators.openStatusIndicator("error", message);
     }
 };
 

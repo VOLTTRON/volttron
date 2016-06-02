@@ -21,7 +21,8 @@ var RemoveAgentForm = React.createClass({
         this.setState(state);
     },
     _onCancelClick: modalActionCreators.closeModal,
-    _onSubmit: function () {
+    _onSubmit: function (e) {
+        e.preventDefault();
         platformActionCreators.removeAgent(this.props.platform, this.props.agent);
     },
     render: function () {

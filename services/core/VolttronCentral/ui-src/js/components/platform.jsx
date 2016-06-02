@@ -4,11 +4,8 @@ var React = require('react');
 var Router = require('react-router');
 
 var AgentRow = require('./agent-row');
-var Chart = require('./chart');
-var EditChartForm = require('./edit-chart-form');
-var ConfirmForm = require('./confirm-form');
-var modalActionCreators = require('../action-creators/modal-action-creators');
 var platformActionCreators = require('../action-creators/platform-action-creators');
+var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
 var platformsStore = require('../stores/platforms-store');
 
 var Platform = React.createClass({
@@ -21,28 +18,9 @@ var Platform = React.createClass({
     },
     componentWillUnmount: function () {
         platformsStore.removeChangeListener(this._onStoresChange);
-        if (this.state.error) {
-            platformActionCreators.clearPlatformError(this.state.platform);
-        }
     },
     _onStoresChange: function () {
         this.setState(getStateFromStores(this));
-    },
-    _onEditChartClick: function (platform, chart) {
-        modalActionCreators.openModal(<EditChartForm platform={platform} chart={chart} />);
-    },
-    _onDeleteChartClick: function (platform, chart) {
-        modalActionCreators.openModal(
-            <ConfirmForm
-                promptTitle="Delete chart"
-                promptText={'Delete ' + chart.type + ' chart for ' + chart.topic + '?'}
-                confirmText="Delete"
-                onConfirm={platformActionCreators.deleteChart.bind(null, platform, chart)}
-            />
-        );
-    },
-    _onAddChartClick: function (platform) {
-        modalActionCreators.openModal(<EditChartForm platform={platform} />);
     },
     _onFileChange: function (e) {
         if (!e.target.files.length) { return; }
@@ -86,7 +64,7 @@ var Platform = React.createClass({
                 </div>
             );
         }
-        
+
         var agents;
         
         if (!platform.agents) {
@@ -131,14 +109,12 @@ var Platform = React.createClass({
 
         return (
             <div className="platform-view">
-                {this.state.error && (
-                    <div className="view__error error">{this.state.error}</div>
-                )}
                 <h2>
                     <Router.Link to="platforms">Platforms</Router.Link>
                     &nbsp;/&nbsp;
                     {platform.name} ({platform.uuid})
                 </h2>
+
                 
                 <br/>
                 <br/>
@@ -152,9 +128,9 @@ var Platform = React.createClass({
 });
 
 function getStateFromStores(component) {
+
     return {
-        platform: platformsStore.getPlatform(component.getParams().uuid),
-        error: platformsStore.getLastError(component.getParams().uuid),
+        platform: platformsStore.getPlatform(component.getParams().uuid)
     };
 }
 

@@ -81,6 +81,7 @@ UNABLE_TO_REGISTER_INSTANCE = -32002
 DISCOVERY_ERROR = -32003
 UNABLE_TO_UNREGISTER_INSTANCE = -32004
 UNAVAILABLE_PLATFORM = -32005
+UNAVAILABLE_AGENT = -32006
 
 def json_validate_request(jsonrequest):
     assert jsonrequest.get('id', None)

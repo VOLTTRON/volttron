@@ -14,14 +14,11 @@ var PlatformsPanel = React.createClass({
     getInitialState: function () {
         var state = {};
         state.platforms = [];     
-        state.expanded = getExpandedFromStore();
+        state.expanded = platformsPanelStore.getExpanded();
         state.filterValue = "";
         state.filterStatus = "";
 
         return state;
-    },
-    componentWillMount: function () {
-        
     },
     componentDidMount: function () {
         platformsPanelStore.addChangeListener(this._onPanelStoreChange);
@@ -32,21 +29,28 @@ var PlatformsPanel = React.createClass({
         platformsPanelItemsStore.removeChangeListener(this._onPanelItemsStoreChange);
     },
     _onPanelStoreChange: function () {
-        var expanded = getExpandedFromStore();
+        var expanded = platformsPanelStore.getExpanded();
 
-        this.setState({expanded: expanded});
-
-        var platformsList = getPlatformsFromStore();
+        if (expanded !== this.state.expanded)
+        {
+            this.setState({expanded: expanded});
+        }        
         
         if (expanded !== null)
         {
+            var platformsList = platformsPanelItemsStore.getChildren("platforms", null);
             this.setState({platforms: platformsList});
+        }
+        else
+        {
+            this.setState({filterValue: ""});
+            this.setState({filterStatus: ""});
         }
     },
     _onPanelItemsStoreChange: function () {
         if (this.state.expanded !== null)
         {
-            this.setState({platforms: getPlatformsFromStore()});
+            this.setState({platforms: platformsPanelItemsStore.getChildren("platforms", null)});
         }
     },
     _onFilterBoxChange: function (e) {
@@ -242,18 +246,6 @@ var PlatformsPanel = React.createClass({
         );
     },
 });
-
-function getPlatformsFromStore() {
-    return platformsPanelItemsStore.getChildren("platforms", null);
-};
-
-function getExpandedFromStore() {
-    return platformsPanelStore.getExpanded();
-};
-
-function getFilteredPlatforms(filterTerm, filterStatus, platforms) {
-    return platformsPanelItemsStore.getFilteredItems(filterTerm, filterStatus, platforms);
-}
 
 
 module.exports = PlatformsPanel;

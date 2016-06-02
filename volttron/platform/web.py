@@ -113,11 +113,13 @@ class DiscoveryInfo(object):
         :param discovery_address: An http(s) address with volttron running.
         :return:
         """
-        parsed = urlparse(discovery_address)
 
-        assert parsed.scheme
-        assert not parsed.path
         try:
+            parsed = urlparse(discovery_address)
+
+            assert parsed.scheme
+            assert not parsed.path
+
             real_url = urljoin(discovery_address, "/discovery/")
             _log.info('Connecting to: {}'.format(real_url))
             response = requests.get(real_url)
@@ -126,6 +128,11 @@ class DiscoveryInfo(object):
                 raise DiscoveryError(
                     "Invalid discovery response from {}".format(real_url)
                 )
+        except AttributeError as e:
+            raise DiscoveryError(
+                "Invalid discovery_address passed {}"
+                .format(discovery_address)
+            )
         except (ConnectionError, NewConnectionError) as e:
             raise DiscoveryError(
                 "Connection to {} not available".format(real_url)
@@ -362,7 +369,10 @@ class MasterWebService(Agent):
                             if res['error']['code'] == UNAUTHORIZED:
                                 start_response('401 Unauthorized', [
                                     ('Content-Type', 'text/html')])
-                                return [b'<h1>Unauthorized</h1>']
+                                message = res['error']['message']
+                                code = res['error']['code']
+                                return [b'<h1>{}</h1>\n<h2>CODE:{}</h2>'
+                                            .format(message, code)]
                     start_response('200 OK',
                                    [('Content-Type', 'application/json')])
                     _log.debug('RESPONSE WEB: {}'.format(res))

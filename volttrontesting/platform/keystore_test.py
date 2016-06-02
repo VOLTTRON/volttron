@@ -1,3 +1,4 @@
+import json
 import os
 import tempfile
 
@@ -9,7 +10,7 @@ host_pair1 = {'addr': 'tcp://127.0.0.1:1234', 'key': 'ABCDEFG'}
 host_pair2 = {'addr': 'tcp://192.168.0.2:1234', 'key': '123456789'}
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def keystore_instance1(tmpdir_factory):
     path = str(tmpdir_factory.mktemp('keys').join('keys.json'))
     print('KEYSTORE PATH:', path)
@@ -89,3 +90,17 @@ def test_known_hosts_update_entry(known_hosts_instance1):
 
     known_hosts_instance1.add(host_pair1['addr'], new_key)
     assert known_hosts_instance1.serverkey(host_pair1['addr']) == new_key
+
+
+@pytest.mark.keystore
+def test_invalid_unicode_key(keystore_instance1):
+    """
+    Bypass KeyStore API and directly edit key to make it unicode.
+    The keys should always be ASCII characters. This is a precaution
+    against a corrupted key store.
+    """
+    with open(keystore_instance1.filename) as fp:
+        keystore_json = json.load(fp)
+    keystore_json['public'] = u'\u0100'
+    keystore_instance1.update(keystore_json)
+    assert keystore_instance1.public() is None

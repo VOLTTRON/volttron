@@ -71,6 +71,7 @@ from volttron.platform.agent import utils
 from volttron.platform.messaging import topics, headers as headers_mod
 from volttron.platform.messaging.health import (STATUS_BAD,
                                                 STATUS_GOOD, Status)
+
 FORWARD_TIMEOUT_KEY = 'FORWARD_TIMEOUT_KEY'
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -84,8 +85,9 @@ def historian(config_path, **kwargs):
     topic_replace_list = config.get('topic_replace_list', [])
     destination_vip = config.get('destination-vip')
     identity = config.get('identity', kwargs.pop('identity', None))
-    include_destination_in_header = config.get('include_destination_in_header',
-                                               False)
+    include_destination_in_header = config.get(
+        'include_destination_in_header',
+        False)
 
     backup_storage_limit_gb = config.get('backup_storage_limit_gb', None)
     origin = config.get('origin', None)
@@ -98,6 +100,7 @@ def historian(config_path, **kwargs):
     class ForwardHistorian(BaseHistorian):
         '''This historian forwards data to another platform.
         '''
+
         def __init__(self, **kwargs):
             # will be available in both threads.
             self._topic_replace_map = {}
@@ -111,6 +114,7 @@ def historian(config_path, **kwargs):
             Subscribes to the platform message bus on the actuator, record,
             datalogger, and device topics to capture data.
             '''
+
             def subscriber(subscription, callback_method):
                 _log.debug("subscribing to {}".format(subscription))
                 self.vip.pubsub.subscribe(peer='pubsub',
@@ -194,11 +198,12 @@ def historian(config_path, **kwargs):
             next_dest = urlparse(destination_vip)
             current_time = self.timestamp()
             last_time = self._last_timeout
-            _log.debug('Lasttime: {} currenttime: {}'.format(last_time, current_time))
-            timeout_occurred=False
+            _log.debug('Lasttime: {} currenttime: {}'.format(last_time,
+                                                             current_time))
+            timeout_occurred = False
             if self._last_timeout:
                 # if we failed we need to wait 60 seconds before we go on.
-                if self.timestamp() < self._last_timeout+ 60:
+                if self.timestamp() < self._last_timeout + 60:
                     _log.debug('Not allowing send < 60 seconds from failure')
                     return
             if not self._target_platform:
@@ -235,10 +240,11 @@ def historian(config_path, **kwargs):
                 #     headers['Destination'] = [next_dest.scheme +
                 #                               '://'+
                 #                               next_dest.hostname]
-                #else:
+                # else:
                 #    headers['Destination'].append(next_dest.hostname)
-		if timeout_occurred:
-                    _log.error('A timeout has occured so breaking out of publishing')
+                if timeout_occurred:
+                    _log.error(
+                        'A timeout has occured so breaking out of publishing')
                     break
                 with gevent.Timeout(30):
                     try:
@@ -246,10 +252,10 @@ def historian(config_path, **kwargs):
                                                                headers,
                                                                payload))
                         self._target_platform.vip.pubsub.publish(
-                                peer='pubsub',
-                                topic=topic,
-                                headers=headers,
-                                message=payload['message']).get()
+                            peer='pubsub',
+                            topic=topic,
+                            headers=headers,
+                            message=payload['message']).get()
                     except gevent.Timeout:
                         _log.debug("Timout occurred email should send!")
                         timeout_occurred = True
@@ -276,22 +282,23 @@ def historian(config_path, **kwargs):
                 self.vip.health.send_alert(FORWARD_TIMEOUT_KEY,
                                            status)
 
-
         def historian_setup(self):
             try:
-                _log.debug("Setting up to forward to {}".format(destination_vip))
+                _log.debug(
+                    "Setting up to forward to {}".format(destination_vip))
                 event = gevent.event.Event()
                 agent = Agent(address=destination_vip)
-                agent.core.onstart.connect(lambda *a, **kw: event.set(), event)
+                agent.core.onstart.connect(lambda *a, **kw: event.set(),
+                                           event)
                 gevent.spawn(agent.core.run)
                 event.wait(timeout=10)
                 self._target_platform = agent
             except gevent.Timeout:
                 self.vip.health.set_status(
-                            STATUS_BAD, "Timeout in setup of agent")
+                    STATUS_BAD, "Timeout in setup of agent")
                 status = Status.from_json(self.vip.health.get_status())
                 self.vip.health.send_alert(FORWARD_TIMEOUT_KEY,
-                                               status)
+                                           status)
 
     ForwardHistorian.__name__ = 'ForwardHistorian'
     return ForwardHistorian(identity=identity,
