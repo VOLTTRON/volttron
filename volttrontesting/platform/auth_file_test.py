@@ -66,6 +66,7 @@ from volttron.platform import jsonrpc
 from volttron.platform.auth import (AuthEntry, AuthFile, AuthFileIndexError,
                                     AuthFileEntryAlreadyExists,
                                     AuthEntryInvalid)
+from volttrontesting.platform.auth_control_test import assert_auth_entries_same
 
 
 @pytest.fixture(scope='function')
@@ -217,3 +218,45 @@ def test_groups_and_roles(auth_file_platform_tuple):
     entry = results[0]
     assert set(entry.capabilities) == set(['cap_a_1', 'cap_a_2', 'cap_b_1',
                                            'cap_c_1'])
+
+
+@pytest.mark.auth
+def test_upgrade_file_verison_0_to_1(tmpdir_factory):
+    mechanism = "CURVE"
+    publickey = "A" * 43
+    version0 = {
+        "allow": [
+            {
+                "domain": "vip",
+                "address": "127.0.0.1",
+                "user_id": "user123",
+                "enabled": True,
+                "comments": "This is a test entry",
+                "capabilities": ["can_publish_temperature"],
+                "roles": [],
+                "groups": [],
+                "credentials": mechanism + ":" + publickey
+            }
+        ],
+        "roles": {
+            "manager": ["can_managed_platform"]
+        },
+        "groups": {
+            "admin": ["reader", "writer"]
+        }
+    }
+
+    filename = str(tmpdir_factory.mktemp('auth_test').join('auth.json'))
+    with open(filename, 'w') as fp:
+        fp.write(json.dumps(version0, indent=2))
+
+    upgraded = AuthFile(filename)
+    entries, groups, roles = upgraded.read()
+    assert groups == version0['groups']
+    assert roles == version0['roles']
+    assert len(entries) == 1
+
+    expected = version0['allow'][0]
+    expected["credentials"] = publickey
+    expected["mechanism"] = mechanism
+    assert_auth_entries_same(expected, vars(entries[0]))

@@ -393,7 +393,7 @@ class AuthEntry(object):
                 self.mechanism == mechanism and
                 (self.mechanism == 'NULL' or
                  (len(self.credentials) > 0 and
-                 self.credentials.match(credentials[0]))))
+                  self.credentials.match(credentials[0]))))
 
     def __str__(self):
         return (u'domain={0.domain!r}, address={0.address!r}, '
@@ -422,7 +422,7 @@ class AuthEntry(object):
     @staticmethod
     def valid_mechanism(mechanism):
         """Raises AuthEntryInvalid if mechanism is invalid"""
-        if not mechanism in ('NULL', 'PLAIN', 'CURVE'):
+        if mechanism not in ('NULL', 'PLAIN', 'CURVE'):
             raise AuthEntryInvalid(
                 'mechanism must be either "NULL", "PLAIN" or "CURVE"')
 
@@ -438,14 +438,24 @@ class AuthFile(object):
                 os.environ.get('VOLTTRON_HOME', '~/.volttron'))
             auth_file = os.path.join(auth_file_dir, 'auth.json')
         self.auth_file = auth_file
+        self._check_for_upgrade()
 
-    def read(self):
-        """
-        Gets the allowed entries, groups, and roles from the auth file.
+    @property
+    def version(self):
+        return {'major': 1, 'minor': 0}
 
-        :returns: tuple of allow-entries-list, groups-dict, roles-dict
-        :rtype: tuple
-        """
+    def _check_for_upgrade(self):
+        allow_list, groups, roles, version = self._read()
+        if version != self.version:
+            if version['major'] <= self.version['major']:
+                self._upgrade(allow_list, groups, roles, version)
+            else:
+                _log.error('This version of VOLTTRON cannot parse {}. '
+                           'Please upgrade VOLTTRON or move or delete '
+                           'this file.'.format(self.auth_file))
+
+    def _read(self):
+        auth_data = {}
         try:
             create_file_if_missing(self.auth_file)
             with open(self.auth_file) as fil:
@@ -457,16 +467,78 @@ class AuthFile(object):
                               'preserved', self.auth_file)
                 if data:
                     auth_data = jsonapi.loads(data)
-                else:
-                    auth_data = {}
         except Exception:
             _log.exception('error loading %s', self.auth_file)
-            return [], {}, {}
 
+        allow_list = auth_data.get('allow', [])
         groups = auth_data.get('groups', {})
         roles = auth_data.get('roles', {})
-        entries = self._get_entries(auth_data, groups, roles)
+        version = auth_data.get('version', {'major': 0, 'minor': 0})
+        return allow_list, groups, roles, version
+
+    def read(self):
+        """
+        Gets the allowed entries, groups, and roles from the auth file.
+
+        :returns: tuple of allow-entries-list, groups-dict, roles-dict
+        :rtype: tuple
+        """
+        allow_list, groups, roles, _ = self._read()
+        entries = self._get_entries(allow_list)
+        self._use_groups_and_roles(entries, groups, roles)
         return entries, groups, roles
+
+    def _upgrade(self, allow_list, groups, roles, version):
+
+        def warn_invalid(entry, msg=''):
+            _log.warn('Invalid entry {} in auth file {}. {}'
+                      .format(entry, self.auth_file, msg))
+
+        def upgrade_0_to_1():
+            new_allow_list = []
+            for entry in allow_list:
+                try:
+                    credentials = entry['credentials']
+                except KeyError:
+                    warn_invalid(entry)
+                    continue
+                if isregex(credentials):
+                    msg = 'Cannot upgrade entries with regex credentials'
+                    warn_invalid(entry, msg)
+                    continue
+                if credentials == 'NULL':
+                    mechanism = 'NULL'
+                    credentials = None
+                else:
+                    match = re.match(r'^(PLAIN|CURVE):(.*)', credentials)
+                    if match is None:
+                        msg = 'Expected NULL, PLAIN, or CURVE credentials'
+                        warn_invalid(entry, msg)
+                        continue
+                    try:
+                        mechanism = match.group(1)
+                        credentials = match.group(2)
+                    except IndexError:
+                        warn_invalid(entry, 'Unexpected credential format')
+                        continue
+                new_allow_list.append({
+                    "domain": entry['domain'],
+                    "address": entry['address'],
+                    "mechanism": mechanism,
+                    "credentials": credentials,
+                    "user_id": entry['user_id'],
+                    "groups": entry['groups'],
+                    "roles": entry['roles'],
+                    "capabilities": entry['capabilities'],
+                    "comments": entry['comments'],
+                    "enabled": entry['enabled']
+                })
+            return new_allow_list
+
+        if version['major'] == 0:
+            allow_list = upgrade_0_to_1()
+        entries = self._get_entries(allow_list)
+        self._write(entries, groups, roles)
 
     def read_allow_entries(self):
         """
@@ -488,10 +560,9 @@ class AuthFile(object):
         return [entry for entry in self.read_allow_entries()
                 if str(entry.credentials) == credentials]
 
-    def _get_entries(self, auth_data, groups, roles):
-        allowed = auth_data.get('allow', [])
+    def _get_entries(self, allow_list):
         entries = []
-        for file_entry in allowed:
+        for file_entry in allow_list:
             try:
                 entry = AuthEntry(**file_entry)
             except TypeError:
@@ -501,21 +572,21 @@ class AuthFile(object):
                 _log.warn('invalid entry %r in auth file %s (%s)',
                           file_entry, self.auth_file, e.message)
             else:
-                self._use_groups_and_roles(entry, groups, roles)
                 entries.append(entry)
         return entries
 
-    def _use_groups_and_roles(self, entry, groups, roles):
-        """Add capabilities to entry based on groups and roles"""
-        entry_roles = entry.roles
-        # Each group is a list of roles
-        for group in entry.groups:
-            entry_roles += groups.get(group, [])
-        capabilities = []
-        # Each role is a list of capabilities
-        for role in entry_roles:
-            capabilities += roles.get(role, [])
-        entry.add_capabilities(list(set(capabilities)))
+    def _use_groups_and_roles(self, entries, groups, roles):
+        """Add capabilities to each entry based on groups and roles"""
+        for entry in entries:
+            entry_roles = entry.roles
+            # Each group is a list of roles
+            for group in entry.groups:
+                entry_roles += groups.get(group, [])
+            capabilities = []
+            # Each role is a list of capabilities
+            for role in entry_roles:
+                capabilities += roles.get(role, [])
+            entry.add_capabilities(list(set(capabilities)))
 
     def _check_if_exists(self, entry):
         """Raises AuthFileEntryAlreadyExists if entry is already in file"""
@@ -554,9 +625,8 @@ class AuthFile(object):
             else:
                 raise err
         else:
-            entries, groups, roles = self._read_entries_as_list()
-            entry_dict = vars(auth_entry)
-            entries.append(entry_dict)
+            entries, groups, roles = self.read()
+            entries.append(auth_entry)
             self._write(entries, groups, roles)
 
     def remove_by_index(self, index):
@@ -583,7 +653,7 @@ class AuthFile(object):
         """
         indices = list(set(indices))
         indices.sort(reverse=True)
-        entries, groups, roles = self._read_entries_as_list()
+        entries, groups, roles = self.read()
         for index in indices:
             try:
                 del entries[index]
@@ -599,7 +669,7 @@ class AuthFile(object):
             if not isinstance(value, list):
                 raise ValueError('each value of the {} dict must be '
                                  'a list'.format(param_name))
-        entries, groups, roles = self._read_entries_as_list()
+        entries, groups, roles = self.read()
         if is_group:
             groups = groups_or_roles
         else:
@@ -640,19 +710,17 @@ class AuthFile(object):
         .. warning:: Calling with out-of-range index will raise
                      AuthFileIndexError
         """
-        entries, groups, roles = self._read_entries_as_list()
+        entries, groups, roles = self.read()
         try:
-            entries[index] = vars(auth_entry)
+            entries[index] = auth_entry
         except IndexError:
             raise AuthFileIndexError(index)
         self._write(entries, groups, roles)
 
-    def _read_entries_as_list(self):
-        entries, groups, roles = self.read()
-        return [vars(x) for x in entries], groups, roles
-
     def _write(self, entries, groups, roles):
-        auth = {'groups': groups, 'roles': roles, 'allow': entries}
+        auth = {'allow': [vars(x) for x in entries], 'groups': groups,
+                'roles': roles, 'version': self.version}
+
         with open(self.auth_file, 'w') as fp:
             fp.write(jsonapi.dumps(auth, indent=2))
 
