@@ -53,11 +53,12 @@
 
 #}}}
 
-from master_driver.interfaces import BaseInterface, BaseRegister, BasicRevert
+import logging
+import requests
 from csv import DictReader
 from StringIO import StringIO
 
-import requests
+from master_driver.interfaces import BaseInterface, BaseRegister, BasicRevert
 
 _log = logging.getLogger(__name__)
 
@@ -84,7 +85,7 @@ class Interface(BasicRevert, BaseInterface):
 
     def get_point(self, point_name, **kwargs):
         register = self.get_register_by_name(point_name)
-        point_address = '/'.join(self.device_address, register.path)
+        point_address = '/'.join([self.device_address, register.path])
 
         r = requests.get(point_address)
         if r.status_code != HTTP_STATUS_OK:
@@ -94,21 +95,21 @@ class Interface(BasicRevert, BaseInterface):
 
     def _set_point(self, point_name, value, **kwargs):
         register = self.get_register_by_name(point_name)
-        point_address = '/'.join(self.device_address, register.path)
+        point_address = '/'.join([self.device_address, register.path])
 
         if register.read_only:
             raise IOError("Trying to write to a point configured read only: " + point_name)
 
-        r = requests.put(point_address, value)
+        r = requests.post(point_address, value)
         if r.status_code != HTTP_STATUS_OK:
             _log.error('could not set point, device returned code {}'.format(r.status_code))
 
         return r.text
 
     def _scrape_all(self):
-        result = {}
+        results = {}
         for point in self.point_map.keys():
-            result[point] = self.get_point(point)
+            results[point] = self.get_point(point)
         return results
 
     def parse_config(self, config_string):
@@ -130,7 +131,6 @@ class Interface(BasicRevert, BaseInterface):
 
             register = Register(
                 read_only,
-                point_name,
                 volttron_point_name,
                 units,
                 description,
