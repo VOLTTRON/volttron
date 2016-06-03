@@ -565,7 +565,7 @@ class ActuatorAgent(Agent):
     def _heart_beat(self):
         _log.debug("sending heartbeat")
         try:
-            self.vip.rpc.call(self.driver_vip_identity, 'heart_beat').get()
+            self.vip.rpc.call(self.driver_vip_identity, 'heart_beat').get(timeout=5.0)
         except Unreachable:
             _log.warning("Master driver is not running")
         except Exception as e:

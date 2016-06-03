@@ -46,10 +46,10 @@ config_wh = {
 }
 
 @pytest.mark.drivenagent
-def test_drivenmatlabagent(volttron_instance1):
+def test_drivenmatlabagent(volttron_instance):
     print("** Setting up test_drivenagent module **")
     
-    wrapper = volttron_instance1
+    wrapper = volttron_instance
     
     #Write config files for master driver
     process = Popen(['python', 'config_builder.py', 
@@ -62,14 +62,14 @@ def test_drivenmatlabagent(volttron_instance1):
                      'fake', 
                      '../../applications/pnnl/FakeDrivenMatlabAgent/tests/test_fake.csv', 
                      'null'], 
-                    env=volttron_instance1.env, cwd='scripts/scalability-testing',
+                    env=volttron_instance.env, cwd='scripts/scalability-testing',
                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     result = process.wait()
     print result
     assert result == 0
      
     #Actuator Agent
-    agent_uuid = volttron_instance1.install_agent(
+    agent_uuid = volttron_instance.install_agent(
         agent_dir="services/core/ActuatorAgent",
         config_file="services/core/ActuatorAgent/actuator-deploy.service",
         start=True)
@@ -78,7 +78,7 @@ def test_drivenmatlabagent(volttron_instance1):
     actuator_agent = wrapper.build_agent()
      
     #Driven Matlab Agent
-    agent_uuid = volttron_instance1.install_agent(
+    agent_uuid = volttron_instance.install_agent(
         agent_dir="applications/pnnl/FakeDrivenMatlabAgent",
         config_file=config_wh,
         start=True)
@@ -87,7 +87,7 @@ def test_drivenmatlabagent(volttron_instance1):
     driven_agent = wrapper.build_agent()
      
     #Fake Master Driver
-    agent_uuid = volttron_instance1.install_agent(
+    agent_uuid = volttron_instance.install_agent(
         agent_dir="services/core/MasterDriverAgent",
         config_file="applications/pnnl/FakeDrivenMatlabAgent/tests/master-driver.agent",
         start=True)

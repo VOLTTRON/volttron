@@ -154,7 +154,7 @@ def revert_devices(request, publish_agent):
 # Repeat test for volttron 2.0 agent and volttron 3.0 agents
 @pytest.fixture(scope="module",
                 params=['volttron_2', 'volttron_3'])
-def publish_agent(request, volttron_instance1):
+def publish_agent(request, volttron_instance):
     """
     Fixture used for setting up the environment.
     1. Creates fake driver configs
@@ -163,7 +163,7 @@ def publish_agent(request, volttron_instance1):
     4. Creates an instance Agent class for publishing and returns it
 
     :param request: pytest request object
-    :param volttron_instance1: instance of volttron in which test cases
+    :param volttron_instance: instance of volttron in which test cases
     are run
     :return: an instance of fake agent used for publishing
     """
@@ -172,7 +172,7 @@ def publish_agent(request, volttron_instance1):
     process = Popen(['python', 'config_builder.py', '--count=4',
                      '--publish-only-depth-all',
                      'fake', 'fake_unit_testing.csv', 'null'],
-                    env=volttron_instance1.env,
+                    env=volttron_instance.env,
                     cwd='scripts/scalability-testing',
                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     result = process.wait()
@@ -181,7 +181,7 @@ def publish_agent(request, volttron_instance1):
 
     # Start the master driver agent which would intern start the fake driver
     # using the configs created above
-    master_uuid = volttron_instance1.install_agent(
+    master_uuid = volttron_instance.install_agent(
         agent_dir="services/core/MasterDriverAgent",
         config_file="scripts/scalability-testing/configs/master-driver.agent",
         start=True)
@@ -191,20 +191,20 @@ def publish_agent(request, volttron_instance1):
     # Start the actuator agent through which publish agent should communicate
     # to fake device. Start the master driver agent which would intern start
     # the fake driver using the configs created above
-    actuator_uuid = volttron_instance1.install_agent(
+    actuator_uuid = volttron_instance.install_agent(
         agent_dir="services/core/ActuatorAgent",
         config_file="services/core/ActuatorAgent/tests/actuator.config",
         start=True)
     print("agent id: ", actuator_uuid)
 
-    listener_uuid = volttron_instance1.install_agent(
+    listener_uuid = volttron_instance.install_agent(
         agent_dir="examples/ListenerAgent",
         config_file="examples/ListenerAgent/config",
         start=True)
     print("agent id: ", listener_uuid)
 
     # 3: Start a fake agent to publish to message bus
-    fake_publish_agent = volttron_instance1.build_agent()
+    fake_publish_agent = volttron_instance.build_agent()
     # Mock callback methods attach actuate method to fake_publish_agent as
     # it needs to be a class method for the call back to work
     # fake_publish_agent.callback =
@@ -218,7 +218,7 @@ def publish_agent(request, volttron_instance1):
         callback=fake_publish_agent.callback).get()
     if request.param == 'volttron_2':
         publish_agent_v2 = PublishMixin(
-            volttron_instance1.opts['publish_address'])
+            volttron_instance.opts['publish_address'])
     else:
         publish_agent_v2 = None
 
@@ -226,8 +226,8 @@ def publish_agent(request, volttron_instance1):
     # and the fake agent that published to message bus
     def stop_agent():
         print("In teardown method of module")
-        volttron_instance1.stop_agent(actuator_uuid)
-        volttron_instance1.stop_agent(master_uuid)
+        volttron_instance.stop_agent(actuator_uuid)
+        volttron_instance.stop_agent(master_uuid)
         fake_publish_agent.core.stop()
 
     request.addfinalizer(stop_agent)
@@ -330,14 +330,14 @@ def test_schedule_response(publish_agent):
 
 
 @pytest.mark.actuator_pubsub
-def test_schedule_announce(publish_agent, volttron_instance1):
+def test_schedule_announce(publish_agent, volttron_instance):
     """ Tests the schedule announcements of actuator.
 
     Waits for two announcements and checks if the right parameters
     are sent to call back method.
     :param publish_agent: fixture invoked to setup all agents necessary and
     returns an instance of Agent object used for publishing
-    :param volttron_instance1: Volttron instance on which test is run
+    :param volttron_instance: Volttron instance on which test is run
     """
     print ("\n**** test_schedule_announce ****")
     global actuator_uuid, publish_agent_v2
@@ -345,8 +345,8 @@ def test_schedule_announce(publish_agent, volttron_instance1):
     if publish_agent_v2 is not None:
         pytest.skip('No difference between 2.0 and 3.0 agent. Skip for 2.0')
     # Use a actuator that publishes frequently
-    volttron_instance1.stop_agent(actuator_uuid)
-    actuator_uuid = volttron_instance1.install_agent(
+    volttron_instance.stop_agent(actuator_uuid)
+    actuator_uuid = volttron_instance.install_agent(
         agent_dir="services/core/ActuatorAgent",
         config_file="services/core/ActuatorAgent/tests/actuator2.config",
         start=True)
@@ -415,9 +415,9 @@ def test_schedule_announce(publish_agent, volttron_instance1):
             REQUEST_CANCEL_SCHEDULE,
             TEST_AGENT,
             'task_schedule_announce').get(timeout=10)
-        volttron_instance1.stop_agent(actuator_uuid)
+        volttron_instance.stop_agent(actuator_uuid)
         print ("creating instance of actuator with larger publish frequency")
-        actuator_uuid = volttron_instance1.install_agent(
+        actuator_uuid = volttron_instance.install_agent(
             agent_dir="services/core/ActuatorAgent",
             config_file="services/core/ActuatorAgent/tests/actuator.config",
             start=True)
