@@ -5,9 +5,28 @@
         "params": {
             "host": "localhost",
             "port": 3306,
-            "database": "historian",
+            "database": "test_historian",
             "user": "historian",
             "passwd": "historian"
         }
-    }
+    },
+    "tables_def": {
+        "table_prefix": "prefix",
+        "data_table": "data_table",
+        "topics_table": "topics_table",
+        "meta_table": "meta_table"
+    },
+    "aggregation_period": "2m",
+    "aggregate_details":[
+        {
+        "topic_name": "device1/out_temp",
+        "aggregation_type": "average",
+        "min_count": 2
+        },
+        {
+        "topic_name": "device1/in_temp",
+        "aggregation_type": "average",
+        "min_count": 2
+        }
+    ]
 }

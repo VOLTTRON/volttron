@@ -61,6 +61,8 @@ import sys
 
 from volttron.platform.vip.agent import Agent, Core
 from volttron.platform.agent import utils
+from volttron.platform.dbutils import sqlutils
+
 
 
 utils.setup_logging()
@@ -85,6 +87,27 @@ class AggregationPeriodAgent(Agent):
         super(AggregationPeriodAgent, self).__init__(**kwargs)
         self.config = utils.load_config(config_path)
         self._agent_id = self.config['agentid']
+        connection = self.config.get('connection', None)
+
+        # 1. Check connection to db
+        assert connection is not None
+        database_type = connection.get('type', None)
+        assert database_type is not None
+        params = connection.get('params', None)
+        assert params is not None
+
+        DbFuncts = sqlutils.getDBFuncts(database_type)
+        tables_def = sqlutils.get_table_def(self.config)
+        self.dbfuncts = DbFuncts(connection['params'], tables_def)
+
+        # 2. Validate aggregate collection params
+
+    @Core.receiver('onstart')
+    def _on_start(self, sender, **kwargs):
+        self.core.periodic(120, self.collect_aggregate_data)
+
+    def collect_aggregate_data(self):
+        _log.debug("current time {}".format(datetime.utcnow()))
 
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''
@@ -92,6 +115,7 @@ def main(argv=sys.argv):
         utils.vip_main(AggregationPeriodAgent)
     except Exception as e:
         _log.exception('unhandled exception')
+
 
 
 if __name__ == '__main__':

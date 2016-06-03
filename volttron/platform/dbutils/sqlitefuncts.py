@@ -208,7 +208,7 @@ class SqlLiteFuncts(DbDriver):
 
         c = sqlite3.connect(
             self.__database,
-            detect_types=self.__connect_params['detect_types'])
+            detect_types= sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
         rows = c.execute(real_query, args)
 
         values = [(utils.format_timestamp(ts),

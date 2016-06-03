@@ -1,4 +1,3 @@
-
 import inspect
 import logging
 from volttron.platform.agent import utils
@@ -24,9 +23,10 @@ def get_table_def(config):
 
 def getDBFuncts(database_type):
     mod_name = database_type + "functs"
-    mod_name_path = "volttron.platform.agent.dbutils.{}".format(
+    mod_name_path = "volttron.platform.dbutils.{}".format(
         mod_name)
     loaded_mod = __import__(mod_name_path, fromlist=[mod_name])
+    #loaded_mod = importlib.import_module(name=mod_name_path)
     for name, cls in inspect.getmembers(loaded_mod):
         # assume class is not the root dbdriver
         if inspect.isclass(cls) and name != 'DbDriver':

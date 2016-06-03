@@ -1,11 +1,29 @@
 {
     "agentid": "hourly-aggregator-sqlite",
+    "identity": "platform.historian",
     "connection": {
-            "type": "sqlite",
-            "params": {
-                "database": "~/.volttron/data/historian.sqlite",
-                "detect_types": "sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES"
-            }
-    }
-
+        "type": "sqlite",
+        "params": {
+            "database": "test.sqlite"
+        }
+    },
+    "tables_def": {
+        "table_prefix": "prefix",
+        "data_table": "data_table",
+        "topics_table": "topics_table",
+        "meta_table": "meta_table"
+    },
+    "aggregation_period": "2m",
+    "aggregate_details":[
+        {
+        "topic_name": "device1/out_temp",
+        "aggregation_type": "average",
+        "min_count": 2
+        },
+        {
+        "topic_name": "device1/in_temp",
+        "aggregation_type": "average",
+        "min_count": 2
+        }
+    ]
 }
