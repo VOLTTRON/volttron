@@ -259,21 +259,34 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
 
         case ACTION_TYPES.REMOVE_PLATFORM_CHARTS:
 
-            var filteredCharts = {};
+            var seriesToCut = [];
 
-            for (var key in _chartData)
+            for (var name in _chartData)
             {
-                var filteredSeries = _chartData[key].series.filter(function (series) {
-                    return (series.parentPath.indexOf(this.uuid) < 0);
-                }, action.platform);
+                _chartData[name].series.forEach(function (series) {
 
-                if (filteredSeries.length !== 0)
-                {
-                    filteredCharts[key] = filteredSeries;
-                }
+                    if (series.path.indexOf(this.uuid) > -1)
+                    {
+                        seriesToCut.push({name: series.name, uuid: series.uuid});
+                    }
+
+                }, action.platform);
             }
 
-            _chartData = filteredCharts;
+            seriesToCut.forEach(function (series) {
+                removeSeries(series.name, series.uuid);
+
+                if (_chartData[series.name].series.length === 0)
+                {
+                    delete _chartData[series.name];
+                }
+
+            }, action.platform);
+
+            if (seriesToCut.length)
+            {
+                chartStore.emitChange();
+            }
 
             break;
 

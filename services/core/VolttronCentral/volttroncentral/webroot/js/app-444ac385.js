@@ -511,9 +511,22 @@ var platformActionCreators = {
                             var filteredCharts = charts.filter(function (chart) {
 
                                 var keeper = true;
+                                var seriesToRemove;
 
                                 var filteredSeries = chart.series.filter(function (series) {
-                                    return (series.path.indexOf(this.uuid) < 0);
+                                    var seriesToKeep = (series.path.indexOf(this.uuid) < 0);
+
+                                    // also have to remove any data associated with the removed series
+                                    if (!seriesToKeep)
+                                    {
+                                        var filteredData = chart.data.filter(function (datum) {
+                                            return (datum.uuid !== this.uuid);
+                                        }, series);
+
+                                        chart.data = filteredData;
+                                    }
+
+                                    return seriesToKeep;
                                 }, this);
 
                                 // keep the chart if there are any series that don't belong to the deregistered platform,
@@ -961,13 +974,13 @@ var platformManagerActionCreators = {
                     type: ACTION_TYPES.CLOSE_MODAL,
                 });
 
+                platformActionCreators.removeSavedPlatformCharts(platform);
+
                 statusIndicatorActionCreators.openStatusIndicator("success", "Platform " + platformName + " was deregistered.", platformName, "center");
                 dispatcher.dispatch({
                     type: ACTION_TYPES.REMOVE_PLATFORM_CHARTS,
                     platform: platform
                 });
-
-                platformActionCreators.removeSavedPlatformCharts(platform);
 
                 platformManagerActionCreators.loadPlatforms();
             })
@@ -5058,21 +5071,34 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
 
         case ACTION_TYPES.REMOVE_PLATFORM_CHARTS:
 
-            var filteredCharts = {};
+            var seriesToCut = [];
 
-            for (var key in _chartData)
+            for (var name in _chartData)
             {
-                var filteredSeries = _chartData[key].series.filter(function (series) {
-                    return (series.parentPath.indexOf(this.uuid) < 0);
-                }, action.platform);
+                _chartData[name].series.forEach(function (series) {
 
-                if (filteredSeries.length !== 0)
-                {
-                    filteredCharts[key] = filteredSeries;
-                }
+                    if (series.path.indexOf(this.uuid) > -1)
+                    {
+                        seriesToCut.push({name: series.name, uuid: series.uuid});
+                    }
+
+                }, action.platform);
             }
 
-            _chartData = filteredCharts;
+            seriesToCut.forEach(function (series) {
+                removeSeries(series.name, series.uuid);
+
+                if (_chartData[series.name].series.length === 0)
+                {
+                    delete _chartData[series.name];
+                }
+
+            }, action.platform);
+
+            if (seriesToCut.length)
+            {
+                chartStore.emitChange();
+            }
 
             break;
 
@@ -5618,7 +5644,9 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
             platformsToRemove.forEach(function (uuid) {
                 delete _items.platforms[uuid];
-            });            
+            });       
+
+            _lastCheck = false;
             
             platformsPanelItemsStore.emitChange();
             break;

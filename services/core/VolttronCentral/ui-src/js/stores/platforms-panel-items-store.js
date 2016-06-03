@@ -438,7 +438,9 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
             platformsToRemove.forEach(function (uuid) {
                 delete _items.platforms[uuid];
-            });            
+            });       
+
+            _lastCheck = false;
             
             platformsPanelItemsStore.emitChange();
             break;

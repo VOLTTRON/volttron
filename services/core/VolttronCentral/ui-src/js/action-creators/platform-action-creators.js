@@ -335,9 +335,22 @@ var platformActionCreators = {
                             var filteredCharts = charts.filter(function (chart) {
 
                                 var keeper = true;
+                                var seriesToRemove;
 
                                 var filteredSeries = chart.series.filter(function (series) {
-                                    return (series.path.indexOf(this.uuid) < 0);
+                                    var seriesToKeep = (series.path.indexOf(this.uuid) < 0);
+
+                                    // also have to remove any data associated with the removed series
+                                    if (!seriesToKeep)
+                                    {
+                                        var filteredData = chart.data.filter(function (datum) {
+                                            return (datum.uuid !== this.uuid);
+                                        }, series);
+
+                                        chart.data = filteredData;
+                                    }
+
+                                    return seriesToKeep;
                                 }, this);
 
                                 // keep the chart if there are any series that don't belong to the deregistered platform,

@@ -171,13 +171,13 @@ var platformManagerActionCreators = {
                     type: ACTION_TYPES.CLOSE_MODAL,
                 });
 
+                platformActionCreators.removeSavedPlatformCharts(platform);
+
                 statusIndicatorActionCreators.openStatusIndicator("success", "Platform " + platformName + " was deregistered.", platformName, "center");
                 dispatcher.dispatch({
                     type: ACTION_TYPES.REMOVE_PLATFORM_CHARTS,
                     platform: platform
                 });
-
-                platformActionCreators.removeSavedPlatformCharts(platform);
 
                 platformManagerActionCreators.loadPlatforms();
             })
