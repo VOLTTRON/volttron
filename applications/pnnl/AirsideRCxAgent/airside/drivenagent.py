@@ -367,7 +367,7 @@ def driven_agent(config_path, **kwargs):
                             to_publish[topic_without_point][1][kbase] = {
                                 'tz': 'US/Pacific',
                                 'type': datatype,
-                                'units': 'float',
+                                'units': 'Number',
                                 }
 
                 for equipment, _analysis in to_publish.items():
