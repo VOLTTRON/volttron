@@ -366,7 +366,7 @@ def test_encryption():
     addr = 'tcp://127.0.0.1:55055'
     pub, sec = curve_keypair()
     publickey, secretkey = encode_key(pub), encode_key(sec)
-    auth = {'allow': [{'credentials': 'CURVE:{}'.format(publickey)}]}
+    auth = {'allow': [{'credentials': publickey}]}
 
     plat = PlatformWrapper()
     plat.startup_platform(vip_address=addr, auth_dict=auth, encrypt=True)

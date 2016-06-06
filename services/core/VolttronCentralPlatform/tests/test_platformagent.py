@@ -161,7 +161,7 @@ def test_agent_can_be_managed(pa_instance):
     # ks = KeyStore(tf.name)
     # ks.generate()
     #
-    # entry = AuthEntry(credentials="CURVE:{}".format(ks.public()))
+    # entry = AuthEntry(credentials=ks.public())
     # authfile = AuthFile(os.path.join(pa_wrapper.volttron_home, "auth.json"))
     # authfile.add(entry)
     # gevent.sleep(0.1)
