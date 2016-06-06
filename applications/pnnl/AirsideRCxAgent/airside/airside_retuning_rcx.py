@@ -56,6 +56,15 @@ from volttron.platform.agent.driven import Results, AbstractDrivenAgent
 from diagnostics.satemp_rcx import SupplyTempRcx
 from diagnostics.stcpr_rcx import DuctStaticRcx
 from diagnostics.reset_sched_rcx import SchedResetRcx
+DX = '/diagnostic message'
+STCPR_NAME = 'StcPr_ACCx_State'
+SATEMP_NAME = 'Satemp_ACCx_State'
+SCHED_NAME = 'Sched_ACCx_State'
+ST = 'state'
+DATA = '/data/'
+
+def create_table_key(table_name, timestamp):
+    return '&'.join([table_name, timestamp.strftime('%m-%d-%y %H:%M')])
 
 
 class Application(AbstractDrivenAgent):
@@ -173,128 +182,129 @@ class Application(AbstractDrivenAgent):
                           sat_reset_threshold, analysis))
 
     def run(self, cur_time, points):
-        device_dict = {}
-        dx_result = Results()
-        fan_status_data = []
-        supply_fan_off = False
-        low_dx_cond = False
-        high_dx_cond = False
+        validate_topic = create_table_key('validate', cur_time)
+        validate_data = {SATEMP_NAME: 0, STCPR_NAME: 0, SCHED_NAME: 0}
+        try:
+            device_dict = {}
+            dx_result = Results()
+            fan_status_data = []
+            supply_fan_off = False
+            low_dx_cond = False
+            high_dx_cond = False
 
-        for key, value in points.items():
-            point_device = [_name.lower() for _name in key.split('&')]
-            if point_device[0] not in device_dict:
-                device_dict[point_device[0]] = [(point_device[1], value)]
-            else:
-                device_dict[point_device[0]].append((point_device[1], value))
+            for key, value in points.items():
+                point_device = [_name.lower() for _name in key.split('&')]
+                if point_device[0] not in device_dict:
+                    device_dict[point_device[0]] = [(point_device[1], value)]
+                else:
+                    device_dict[point_device[0]].append((point_device[1], value))
 
-        if self.fan_status_name in device_dict:
-            fan_status = device_dict[self.fan_status_name]
-            fan_status = [point[1] for point in fan_status]
-            fan_status = [status for status in fan_status if status is not None]
-            if fan_status_data:
-                fan_status_data.append(min(fan_status))
-                if not int(fan_status_data[0]):
-                    supply_fan_off = True
-                    self.warm_up_flag = True
+            if self.fan_status_name in device_dict:
+                fan_status = device_dict[self.fan_status_name]
+                fan_status = [point[1] for point in fan_status]
+                fan_status = [status for status in fan_status if status is not None]
+                if fan_status_data:
+                    fan_status_data.append(min(fan_status))
+                    if not int(fan_status_data[0]):
+                        supply_fan_off = True
+                        self.warm_up_flag = True
 
-        if self.fansp_name in device_dict:
-            fan_speed = device_dict[self.fansp_name]
-            fan_speed = mean([point[1] for point in fan_speed])
-            if self.fan_status_name is None:
-                if not int(fan_speed):
-                    supply_fan_off = True
-                    self.warm_up_flag = True
-                fan_status_data.append(bool(int(fan_speed)))
+            if self.fansp_name in device_dict:
+                fan_speed = device_dict[self.fansp_name]
+                fan_speed = mean([point[1] for point in fan_speed])
+                if self.fan_status_name is None:
+                    if not int(fan_speed):
+                        supply_fan_off = True
+                        self.warm_up_flag = True
+                    fan_status_data.append(bool(int(fan_speed)))
 
-            if fan_speed > self.high_sf_threshold:
-                low_dx_cond = True
-            elif fan_speed < self.low_sf_threshold:
-                high_dx_cond = True
+                if fan_speed > self.high_sf_threshold:
+                    low_dx_cond = True
+                elif fan_speed < self.low_sf_threshold:
+                    high_dx_cond = True
 
-        stc_pr_data = []
-        stcpr_sp_data = []
-        zn_dmpr_data = []
-        satemp_data = []
-        rht_data = []
-        sat_stpt_data = []
-        validate = {}
-        sched_val = {}
+            stc_pr_data = []
+            stcpr_sp_data = []
+            zn_dmpr_data = []
+            satemp_data = []
+            rht_data = []
+            sat_stpt_data = []
+            validate = {}
+            sched_val = {}
 
-        def validate_builder(value_tuple, point_name):
-            value_list = []
-            for item in value_tuple:
-                tag = item[0] + '/' + point_name
-                validate.update({tag: item[1]})
-                value_list.append(item[1])
-            return value_list
+            def data_builder(value_tuple, point_name):
+                value_list = []
+                for item in value_tuple:
+                    value_list.append(item[1])
+                return value_list
 
-        for key, value in device_dict.items():
-            data_name = key
-            if value is None:
-                continue
-            if data_name == self.duct_stp_stpt_name:
-                stcpr_sp_data = validate_builder(value, data_name)
-                sched_val.update(validate)
-            elif data_name == self.sat_stpt_name:
-                sat_stpt_data = validate_builder(value, data_name)
-                sched_val.update(validate)
-            elif data_name == self.duct_stp_name:
-                sched_val.update(validate)
-                stc_pr_data = validate_builder(value, data_name)
-                sched_val.update(validate)
-            elif data_name == self.sa_temp_name:
-                satemp_data = validate_builder(value, data_name)
-                sched_val.update(validate)
-            elif data_name == self.zone_reheat_name:
-                rht_data = validate_builder(value, data_name)
-            elif data_name == self.zone_damper_name:
-                zn_dmpr_data = validate_builder(value, data_name)
+            for key, value in device_dict.items():
+                data_name = key
+                if value is None:
+                    continue
+                if data_name == self.duct_stp_stpt_name:
+                    stcpr_sp_data = data_builder(value, data_name)
+                elif data_name == self.sat_stpt_name:
+                    sat_stpt_data = data_builder(value, data_name)
+                elif data_name == self.duct_stp_name:
+                    stc_pr_data = data_builder(value, data_name)
+                elif data_name == self.sa_temp_name:
+                    satemp_data = data_builder(value, data_name)
+                elif data_name == self.zone_reheat_name:
+                    rht_data = data_builder(value, data_name)
+                elif data_name == self.zone_damper_name:
+                    zn_dmpr_data = data_builder(value, data_name)
 
-        missing_data = []
-        if not satemp_data:
-            missing_data.append(self.sa_temp_name)
-        if not rht_data:
-            missing_data.append(self.zone_reheat_name)
-        if not sat_stpt_data:
-            dx_result.log('Supply-air temperature set point data is '
-                          'missing. This will limit the effectiveness of '
-                          'the supply-air temperature diagnostics.')
-        if not stc_pr_data:
-            missing_data.append(self.duct_stp_name)
-        if not stcpr_sp_data:
-            dx_result.log('Duct static pressure set point data is '
-                          'missing. This will limit the effectiveness of '
-                          'the duct static pressure diagnostics.')
-        if not zn_dmpr_data:
-            missing_data.append(self.zone_damper_name)
-        if not fan_status:
-            missing_data.append(self.fan_status_name)
-        if missing_data:
-            raise Exception('Missing required data: {}'.format(missing_data))
+            missing_data = []
+            if not satemp_data:
+                missing_data.append(self.sa_temp_name)
+            if not rht_data:
+                missing_data.append(self.zone_reheat_name)
+            if not sat_stpt_data:
+                dx_result.log('Supply-air temperature set point data is '
+                              'missing. This will limit the effectiveness of '
+                              'the supply-air temperature diagnostics.')
+            if not stc_pr_data:
+                missing_data.append(self.duct_stp_name)
+            if not stcpr_sp_data:
+                dx_result.log('Duct static pressure set point data is '
+                              'missing. This will limit the effectiveness of '
+                              'the duct static pressure diagnostics.')
+            if not zn_dmpr_data:
+                missing_data.append(self.zone_damper_name)
+            if not fan_status:
+                missing_data.append(self.fan_status_name)
+            if missing_data:
+                raise Exception('Missing required data: {}'.format(missing_data))
+                return dx_result
+            dx_status, dx_result = (
+                self.sched_occ_dx.sched_rcx_alg(cur_time, stc_pr_data,
+                                                stcpr_sp_data, sat_stpt_data,
+                                                fan_status, dx_result))
+            validate_data.update({SCHED_NAME: dx_status})
+
+            if supply_fan_off:
+                dx_result.log('Supply fan is off. Data will not be used for '
+                              'retuning diagnostics.')
+                return dx_result
+            if self.warm_up_flag:
+                self.warm_up_flag = False
+                self.warm_up_start = cur_time
+                return dx_result
+            time_check = td(minutes=self.warm_up_time)
+            if (self.warm_up_start is not None and
+                    (cur_time - self.warm_up_start) < time_check):
+                dx_result.log('Unit is in warm-up. Data will not be analyzed.')
+                return dx_result
+            dx_status, dx_result = (
+                self.static_dx.duct_static(cur_time, stcpr_sp_data, stc_pr_data,
+                                           zn_dmpr_data, low_dx_cond, high_dx_cond,
+                                           dx_result))
+            validate_data.update({STCPR_NAME: dx_status})
+            dx_status, dx_result = (
+                self.sat_dx.sat_rcx(cur_time, satemp_data, sat_stpt_data, rht_data,
+                                    zn_dmpr_data, dx_result))
+            validate_data.update({SATEMP_NAME: dx_status})
             return dx_result
-        dx_result = (
-            self.sched_occ_dx.sched_rcx_alg(cur_time, stc_pr_data,
-                                            stcpr_sp_data, sat_stpt_data,
-                                            fan_status, dx_result,
-                                            sched_val))
-        if supply_fan_off:
-            dx_result.log('Supply fan is off. Data will not be used for '
-                          'retuning diagnostics.')
-            return dx_result
-        if self.warm_up_flag:
-            self.warm_up_flag = False
-            self.warm_up_start = cur_time
-            return dx_result
-        time_check = td(minutes=self.warm_up_time)
-        if (self.warm_up_start is not None and
-                (cur_time - self.warm_up_start) < time_check):
-            dx_result.log('Unit is in warm-up. Data will not be analyzed.')
-            return dx_result
-        dx_result = (
-            self.static_dx.duct_static(cur_time, stcpr_sp_data, stc_pr_data,
-                                       zn_dmpr_data, low_dx_cond, high_dx_cond,
-                                       dx_result, validate))
-        dx_result = (
-            self.sat_dx.sat_rcx(cur_time, satemp_data, sat_stpt_data, rht_data,
-                                zn_dmpr_data, dx_result, validate))
-        return dx_result
+        finally:
+            dx_result.insert_table_row(validate_topic, validate_data)
