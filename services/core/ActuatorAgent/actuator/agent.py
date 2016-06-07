@@ -456,6 +456,8 @@ __docformat__ = 'reStructuredText'
 
 
 import datetime
+import pytz
+from dateutil.tz import tzlocal
 import sys
 import logging
 import collections
@@ -597,7 +599,7 @@ class ActuatorAgent(Agent):
         self.core.periodic(self.heartbeat_interval, self._heart_beat)
 
     def _setup_schedule(self):
-        now = datetime.datetime.now()
+        now = utils.get_aware_utc_now()
         self._schedule_manager = ScheduleManager(self.preempt_grace_time, now=now,
                                                  state_file_name=self.schedule_state_file)
 
@@ -609,7 +611,7 @@ class ActuatorAgent(Agent):
         # This is specifically for when this is running in a VM that gets suspeded and then resumed.
         # If we don't make this check a resumed VM will publish one event per minute of
         # time the VM was suspended for. 
-        test_now = datetime.datetime.now()
+        test_now = utils.get_aware_utc_now()
         if test_now - now > datetime.timedelta(minutes=3):
             now = test_now
 
@@ -1106,7 +1108,7 @@ class ActuatorAgent(Agent):
             The return values are described in `New Task Response`_.
         """
                      
-        now = datetime.datetime.now()
+        now = utils.get_aware_utc_now()
 
         topic = topics.ACTUATOR_SCHEDULE_RESULT()
         headers = self._get_headers(requester_id, task_id=task_id)
@@ -1115,7 +1117,22 @@ class ActuatorAgent(Agent):
         try:
             if requests and isinstance(requests[0], basestring):
                 requests = [requests]
-            requests = [[r[0].strip('/'),utils.parse_timestamp_string(r[1]),utils.parse_timestamp_string(r[2])] for r in requests]
+
+            tmp_requests = requests
+            requests = []
+            for r in tmp_requests:
+                device, start, end = r
+
+                device = device.strip('/')
+                start = utils.parse_timestamp_string(start)
+                end = utils.parse_timestamp_string(end)
+
+                if start.tzinfo is None:
+                    start = start.replace(tzinfo=tzlocal())
+                if end.tzinfo is None:
+                    end = end.replace(tzinfo=tzlocal())
+
+                requests.append([device, start, end])
 
         except StandardError as ex:
             return self._handle_unknown_schedule_error(ex, headers, requests)
@@ -1176,7 +1193,7 @@ class ActuatorAgent(Agent):
         The return values are described in `Cancel Task Response`_.
         
         """
-        now = datetime.datetime.now()
+        now = utils.get_aware_utc_now()
         headers = self._get_headers(requester_id, task_id=task_id)
         headers['type'] = SCHEDULE_ACTION_CANCEL
 
@@ -1201,7 +1218,7 @@ class ActuatorAgent(Agent):
         if time is not None:
             headers['time'] = time
         else:
-            utcnow = datetime.datetime.utcnow()
+            utcnow = utils.get_aware_utc_now()
             headers = {'time': utils.format_timestamp(utcnow)}
         if requester is not None:
             headers['requesterID'] = requester

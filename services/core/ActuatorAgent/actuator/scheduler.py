@@ -56,7 +56,7 @@
 #}}}
 
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 from collections import defaultdict, namedtuple
 from copy import deepcopy
 from cPickle import dump, load
@@ -141,6 +141,7 @@ class Task(object):
     def populate_schedule(self, requests):
         for request in requests:
             device, start, end = request
+
             time_slice = TimeSlice(start, end)
             if not isinstance(device, str):
                 raise ValueError('Device not string.')
@@ -314,7 +315,7 @@ class ScheduleManager(object):
         self.grace_time = timedelta(seconds=grace_time)
         self.state_file_name = state_file_name
         if now is None:
-            now = datetime.now()
+            now = utils.get_aware_utc_now()
         self.load_state(now)
         
     def load_state(self, now):
@@ -344,7 +345,7 @@ class ScheduleManager(object):
         
     def request_slots(self, agent_id, id_, requests, priority, now=None):
         if now is None:
-            now = datetime.now()
+            now = utils.get_aware_utc_now()
         self._cleanup(now)
         
         if id_ in self.tasks:
