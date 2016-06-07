@@ -330,6 +330,14 @@ br + .form__control-help {
     margin: 0 0 0 0.35em;
 }
 
+.logo__funding {
+    font-family: "Ubuntu Mono";
+    letter-spacing: 0.1em;
+    margin-right: -0.1em;
+    color: #456069;
+    font-size: 1.5rem;
+}
+
 .logo__beta {
     font-family: "Montserrat";
     font-weight: bold;
@@ -372,7 +380,7 @@ br + .form__control-help {
     width: 100%;
     text-align: center;
     position: absolute;
-    top: 38.2%;
+    top: 32.2%;
     font-size: 2.5rem;
     margin-top: -6.5rem;
 }
@@ -856,7 +864,7 @@ br + .form__control-help {
 
 .login-form {
     position: absolute;
-    top: 38.2%;
+    top: 42.2%;
     left: 0;
     right: 0;
     height: 16rem;

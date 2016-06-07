@@ -2004,7 +2004,8 @@ var Navigation = React.createClass({displayName: "Navigation",
                     React.createElement("span", {className: "logo__name"}, "VOLTTRON"), 
                     React.createElement("span", {className: "logo__tm"}, "™"), 
                     React.createElement("span", {className: "logo__central"}, " Central"), 
-                    React.createElement("span", {className: "logo__beta"}, "BETA")
+                    React.createElement("span", {className: "logo__beta"}, "BETA"), 
+                    React.createElement("span", {className: "logo__funding"}, "Funded by DOE EERE BTO")
                 ), 
                 navItems
             )
