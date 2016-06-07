@@ -256,3 +256,71 @@ class SqlLiteFuncts(DbDriver):
         return '''INSERT OR REPLACE INTO ''' + table_name + \
                ''' values(?, ?, ?)'''
 
+    def query_aggregate(self, topic_id, agg_type, start=None, end=None):
+        """
+        This function should return the results of a aggregation query
+        @param topic_id:
+        @param agg_type:
+        @param start:
+        @param end:
+        @return:
+        """
+        if isinstance(agg_type, str):
+            if agg_type.upper() not in ['AVG', 'MIN', 'MAX', 'COUNT', 'SUM']:
+                raise ValueError("Invalid aggregation type {}".format(agg_type))
+        query = '''SELECT ''' \
+                + agg_type + '''(value_string), count(value_string) FROM ''' \
+                + self.data_table + ''' {where}'''
+
+        where_clauses = ["WHERE topic_id = ?"]
+        args = [topic_id]
+
+        if start is not None:
+            start_str = start.isoformat(' ')
+            where_clauses.append("ts >= ?")
+            if start_str[-6:] != "+00:00":
+                start_str += "+00:00"
+            args.append(start_str)
+
+        if end is not None:
+            end_str = end.isoformat(' ')
+            where_clauses.append("ts < ?")
+            if end_str[-6:] != "+00:00":
+                end_str += "+00:00"
+            args.append(end_str)
+
+        where_statement = ' AND '.join(where_clauses)
+
+        real_query = query.format(where=where_statement)
+        _log.debug("Real Query: " + real_query)
+        _log.debug("args: " + str(args))
+
+        c = sqlite3.connect(
+            self.__database,
+            detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
+        rows = c.execute(real_query, args)
+        for agg, count in rows:
+            _log.debug("results got {}, {}".format(agg,count))
+        return agg, count
+
+if __name__ == '__main__':
+    con ={
+            "database": '/tmp/tmpgLzWr3/historian.sqlite'
+    }
+    tables_def = {
+        "table_prefix": "prefix",
+        "data_table": "data_table",
+        "topics_table": "topics_table",
+        "meta_table": "meta_table"
+    }
+
+    functs = SqlLiteFuncts(con, tables_def)
+    functs.query_aggregate('device1/in_temp',
+                           'sum',
+                           datetime.strptime(
+                               '2016-06-05 22:47:02.417604+00:00',
+                               "%Y-%m-%d %H:%M:%S.%f+00:00"),
+                           datetime.strptime(
+                               '2016-06-05 22:49:02.417604+00:00',
+                               "%Y-%m-%d %H:%M:%S.%f+00:00")
+                           )

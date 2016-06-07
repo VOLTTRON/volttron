@@ -39,5 +39,5 @@ def getDBFuncts(database_type):
         raise Exception(functerror)
     return DbFuncts
 
-def format_agg_time(time_period):
+def format_agg_time_period(time_period):
     return time_period

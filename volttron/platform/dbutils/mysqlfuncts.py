@@ -195,3 +195,62 @@ class MySqlFuncts(DbDriver):
         _log.debug(id_map)
         _log.debug(name_map)
         return id_map, name_map
+
+    def create_aggregate_stmt(self, table_name):
+        # period = sqlutils.parse_time_period(period)
+        stmt = "CREATE TABLE IF NOT EXISTS " + table_name + \
+               " (ts timestamp NOT NULL, topic_id INTEGER NOT NULL, " \
+               "value_string TEXT NOT NULL, UNIQUE(ts, topic_id))"
+        print(stmt)
+        return stmt
+
+    def insert_aggregate_stmt(self, table_name):
+        return '''INSERT OR REPLACE INTO ''' + table_name + \
+               ''' values(?, ?, ?)'''
+
+    def query_aggregate(self, topic_id, agg_type, start=None, end=None):
+        """
+        This function should return the results of a aggregation query
+        @param topic_id:
+        @param agg_type:
+        @param start:
+        @param end:
+        @return:
+        """
+        if isinstance(agg_type, str):
+            if agg_type.upper() not in ['AVG', 'MIN', 'MAX', 'COUNT', 'SUM']:
+                raise ValueError(
+                    "Invalid aggregation type {}".format(agg_type))
+        query = '''SELECT ''' \
+                + agg_type + '''(value_string), count(value_string) FROM ''' \
+                + self.data_table + ''' {where}'''
+
+        where_clauses = ["WHERE topic_id = %s"]
+        args = [topic_id]
+
+        if start is not None:
+            where_clauses.append("ts >= %s")
+            if self.MICROSECOND_SUPPORT:
+                args.append(start)
+            else:
+                start_str = start.isoformat()
+                args.append(start_str[:start_str.rfind('.')])
+
+        if end is not None:
+            where_clauses.append("ts < %s")
+            if self.MICROSECOND_SUPPORT:
+                args.append(end)
+            else:
+                end_str = end.isoformat()
+                args.append(end_str[:end_str.rfind('.')])
+
+        where_statement = ' AND '.join(where_clauses)
+
+        real_query = query.format(where=where_statement)
+        _log.debug("Real Query: " + real_query)
+        _log.debug("args: " + str(args))
+
+        rows = self.select(real_query, args)
+        for agg, count in rows:
+            _log.debug("results got {}, {}".format(agg, count))
+        return agg, count

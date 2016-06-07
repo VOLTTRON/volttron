@@ -20,12 +20,12 @@
     "aggregate_details":[
         {
         "topic_name": "device1/out_temp",
-        "aggregation_type": "average",
+        "aggregation_type": "avg",
         "min_count": 2
         },
         {
         "topic_name": "device1/in_temp",
-        "aggregation_type": "average",
+        "aggregation_type": "avg",
         "min_count": 2
         }
     ]

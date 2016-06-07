@@ -14,15 +14,15 @@
         "meta_table": "meta_table"
     },
     "aggregation_period": "2m",
-    "aggregate_details":[
+    "points":[
         {
         "topic_name": "device1/out_temp",
-        "aggregation_type": "average",
+        "aggregation_type": "avg",
         "min_count": 2
         },
         {
         "topic_name": "device1/in_temp",
-        "aggregation_type": "average",
+        "aggregation_type": "avg",
         "min_count": 2
         }
     ]

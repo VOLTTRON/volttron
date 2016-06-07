@@ -55,7 +55,7 @@
 
 from __future__ import absolute_import
 
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 import sys
 
@@ -89,7 +89,7 @@ class AggregationPeriodAgent(Agent):
         self._agent_id = self.config['agentid']
         connection = self.config.get('connection', None)
 
-        # 1. Check connection to db
+        # 1. Check connection to db instantiate db functions class
         assert connection is not None
         database_type = connection.get('type', None)
         assert database_type is not None
@@ -100,14 +100,113 @@ class AggregationPeriodAgent(Agent):
         tables_def = sqlutils.get_table_def(self.config)
         self.dbfuncts = DbFuncts(connection['params'], tables_def)
 
-        # 2. Validate aggregate collection params
+        # 2. load topic name and topic id.
+        self.topic_id_map, name_map = self.dbfuncts.get_topic_map()
+
+        # 3. Validate aggregation details in config
+        self.period = sqlutils.format_agg_time_period(
+            self.config['aggregation_period'])
+        for data in self.config['points']:
+            if data['topic_name'] is None or self.topic_id_map[data[
+                'topic_name'].lower()] is None:
+                raise ValueError("Invalid topic name " + data['topic_name'])
+            if data['aggregation_type'].upper() not in ['AVG', 'MIN', 'MAX',
+                                                 'COUNT', 'SUM']:
+                raise ValueError("Invalid aggregation type {}"
+                                 .format(data['aggregation_type']))
+            if data.get('min_count',0) < 0:
+                raise ValueError("Invalid min_count ({}). min_count should be "
+                                 "an integer grater than 0".
+                                 format(data['min_count']))
+
 
     @Core.receiver('onstart')
     def _on_start(self, sender, **kwargs):
+        for data in self.config['points']:
+            self.dbfuncts.create_aggregate_table(data['aggregation_type'],
+                                                 self.period)
         self.core.periodic(120, self.collect_aggregate_data)
 
+
     def collect_aggregate_data(self):
-        _log.debug("current time {}".format(datetime.utcnow()))
+        current = datetime.utcnow()
+        _log.debug("current time {}".format(current))
+        period_int = int(self.period[:-1])
+        unit = self.period[-1:]
+        end_time = current
+        if unit == 'm':
+            start_time =  end_time - timedelta(minutes=period_int)
+        elif unit == 'h':
+            start_time = end_time - timedelta(hours=period_int)
+        elif unit == 'd':
+            start_time = end_time - timedelta(days=period_int)
+        elif unit == 'w':
+            start_time = end_time - timedelta(weeks=period_int)
+        elif unit == 'M':
+            start_time = end_time - timedelta(days=30)
+
+        if self.config['x']:
+            if unit == 'h':
+                start_time = start_time.replace(minute=0,
+                                                second=0,
+                                                microsecond=0)
+                end_time = end_time.replace(minute=0,
+                                            second=0,
+                                            microsecond=0)
+            elif unit == 'd' or unit == 'w':
+                start_time = start_time.replace(hour=0,
+                                             minute=0,
+                                             second=0,
+                                             microsecond=0)
+                end_time = end_time.replace(hour=0,
+                                             minute=0,
+                                             second=0,
+                                             microsecond=0)
+            elif unit == 'M':
+                end_time = current.replace(day=1,
+                                            hour=0,
+                                            minute=0,
+                                            second=0,
+                                            microsecond=0)
+                #get last day of previous month
+                start_time = end_time - timedelta(days=1)
+                #move to first day of previous month
+                start_time = start_time.replace(day=1,
+                                                hour=0,
+                                                minute=0,
+                                                second=0,
+                                                microsecond=0)
+
+        _log.debug("After  compute period = {} start_time {} end_time {} ".
+            format(self.period, start_time, end_time))
+
+        for data in self.config['points']:
+            topic_id = self.topic_id_map[data['topic_name'].lower()]
+            agg, count = self.dbfuncts.query_aggregate(
+                            topic_id,
+                            data['aggregation_type'],
+                            start_time,
+                            end_time)
+            if count == 0:
+                _log.warn("No records found for topic {topic} "
+                          "between {start_time} and {end_time}".
+                          format(topic=data['topic_name'],
+                                 start_time=start_time,
+                                 end_time=end_time))
+            elif count < data.get('min_count',0):
+                _log.warn("Skipping recording of aggregate data for {topic} "
+                          "between {start_time} and {end_time} as number of "
+                          "records is less than minimum allowed("
+                          "{count})".format(topic=data['topic_name'],
+                                            start_time=start_time,
+                                            end_time=end_time,
+                                            count=data.get('min_count', 0)))
+            else:
+                self.dbfuncts.insert_aggregate(data['aggregation_type'],
+                                               self.period,
+                                               end_time,
+                                               topic_id,
+                                               agg)
 
 def main(argv=sys.argv):
     '''Main method called by the eggsecutable.'''

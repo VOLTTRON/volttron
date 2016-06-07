@@ -40,18 +40,19 @@ sqlite_platform = {
         "table_prefix": "prefix",
         "data_table": "data_table",
         "topics_table": "topics_table",
-        "meta_table": "meta_table",
+        "meta_table": "meta_table"
     },
     "aggregation_period": "2m",
-    "aggregate_details":[
+    "x":True,
+    "points":[
         {
         "topic_name": "device1/out_temp",
-        "aggregation_type": "average",
+        "aggregation_type": "sum",
         "min_count": 2
         },
         {
         "topic_name": "device1/in_temp",
-        "aggregation_type": "average",
+        "aggregation_type": "sum",
         "min_count": 2
         }
     ]
@@ -81,15 +82,16 @@ mysql_platform = {
         "meta_table": "meta_table",
     },
     "aggregation_period": "2m",
-    "aggregate_details":[
+    "x":False,
+    "points":[
         {
         "topic_name": "device1/out_temp",
-        "aggregation_type": "average",
+        "aggregation_type": "sum",
         "min_count": 2
         },
         {
         "topic_name": "device1/in_temp",
-        "aggregation_type": "average",
+        "aggregation_type": "sum",
         "min_count": 2
         }
     ]
@@ -125,26 +127,30 @@ def publish_agent(request, volttron_instance):
 # Fixtures for setup and teardown of sqlhistorian agent and aggregation agent
 @pytest.fixture(scope="module",
                 params=[
-                    # pytest.mark.skipif(
-                    #     not HAS_MYSQL_CONNECTOR,
-                    #     reason='No mysql client available.')(mysql_platform),
+                    #pytest.mark.skipif(
+                    #      not HAS_MYSQL_CONNECTOR,
+                    #      reason='No mysql client available.')(mysql_platform)
                     sqlite_platform
                 ])
-def aggregate_agent(request, volttron_instance):
+def aggregate_agent(request, volttron_instance1):
     global db_connection, data_table, \
         topics_table, meta_table
     print("** Setting up test_sqlhistorian module **")
-    # Make database connection
-    agent_uuid = volttron_instance.install_agent(
-        agent_dir="services/core/AggregationPeriodAgent",
-        config_file=request.param,
-        start=True)
-    print("agent id: ", agent_uuid)
 
+    # Fix sqlite db path
     print("request param", request.param)
     if request.param['connection']['type'] == 'sqlite':
         request.param['connection']['params']['database'] = \
-            volttron_instance.volttron_home + "/historian.sqlite"
+            volttron_instance1.volttron_home + "/historian.sqlite"
+
+
+    # Make database connection
+    agent_uuid = volttron_instance1.install_agent(
+        agent_dir="services/core/AggregationPeriodAgent",
+        config_file=request.param,
+        start=False)
+    print("agent id: ", agent_uuid)
+
 
 
     # figure out db table names from config
@@ -185,8 +191,8 @@ def aggregate_agent(request, volttron_instance):
         if db_connection:
             db_connection.close()
             print("closed connection to db")
-        if volttron_instance.is_running():
-            volttron_instance.stop_agent(agent_uuid)
+        if volttron_instance1.is_running():
+            volttron_instance1.stop_agent(agent_uuid)
 
     request.addfinalizer(stop_agent)
     return agent_uuid
@@ -248,8 +254,10 @@ def connect_mysql(request):
     cursor = db_connection.cursor()
     cursor.execute("DELETE FROM " + data_table)
     cursor.execute("DELETE FROM " + topics_table)
-    cursor.execute("INSERT INTO TOPICS VALUES(1,'device1/out_temp')")
-    cursor.execute("INSERT INTO TOPICS VALUES(2,'device1/in_temp')")
+    cursor.execute("INSERT INTO " + topics_table +
+                   " VALUES(1,'device1/out_temp')")
+    cursor.execute("INSERT INTO " + topics_table +
+               " VALUES(2,'device1/in_temp')")
     db_connection.commit()
 
 
@@ -261,10 +269,29 @@ def connect_sqlite(request):
     print "successfully connected to sqlite"
     MICROSECOND_SUPPORT = True
     cursor = db_connection.cursor()
-    cursor.execute("DELETE FROM " + data_table)
-    cursor.execute("DELETE FROM " + topics_table)
-    cursor.execute("INSERT INTO TOPICS VALUES(1,'device1/out_temp')")
-    cursor.execute("INSERT INTO TOPICS VALUES(2,'device1/in_temp')")
+    cursor.execute(
+        'CREATE TABLE IF NOT EXISTS ' + data_table +
+        ' (ts timestamp NOT NULL,\
+         topic_id INTEGER NOT NULL, \
+         value_string TEXT NOT NULL, \
+         UNIQUE(ts, topic_id))')
+
+
+    cursor.execute(
+        'CREATE TABLE IF NOT EXISTS ' + topics_table +
+        ' (topic_id INTEGER PRIMARY KEY, \
+         topic_name TEXT NOT NULL, \
+         UNIQUE(topic_name))')
+
+    cursor.execute(
+        'CREATE TABLE IF NOT EXISTS ' + meta_table +
+        '(topic_id INTEGER PRIMARY KEY, \
+          metadata TEXT NOT NULL);'
+    )
+    cursor.execute("INSERT INTO "+ topics_table +
+                   " VALUES(1,'device1/out_temp')")
+    cursor.execute("INSERT INTO "+ topics_table +
+                   " VALUES(2,'device1/in_temp')")
     db_connection.commit()
 
 #
@@ -294,40 +321,48 @@ def connect_sqlite(request):
 def publish_test_data(start_time, start_reading, count):
     global db_connection, data_table
     cursor = db_connection.cursor()
-
+    reading = start_reading
+    time = start_time
+    print ("publishing test data starttime is {} utcnow is {}".format(
+        start_time, datetime.utcnow()))
+    print ("publishing test data value string {} at {}".format(reading,
+                                                               datetime.now()))
+    insert_stmt = "INSERT INTO " + data_table + " VALUES (%s, %s, %s)"
+    if isinstance(db_connection, sqlite3.Connection):
+        insert_stmt = "INSERT INTO " + data_table + " VALUES (?, ?, ?)"
     for i in range(0, count):
-        reading = start_reading + i
-        cursor.execute("INSERT INTO "+ data_table + " VALUES (1, "
-                       + reading + ")" )
-        cursor.execute("INSERT INTO " + data_table + " VALUES (2, "
-                       + reading + ")")
-    cursor.commit()
+        cursor.execute(insert_stmt, (time, 1, reading))
+        cursor.execute(insert_stmt, (time, 2, reading))
+        reading = reading + 1
+        time = time + timedelta(minutes=1)
+
+    db_connection.commit()
 
 @pytest.mark.dev
-def test_basic_function(aggregate_agent,volttron_instance):
+def test_basic_function(aggregate_agent,volttron_instance1):
     """
 
     @param aggregate_agent:
     @return:
     """
     global query_points, db_connection
-    # print('HOME', volttron_instance1.volttron_home)
 
 
-    # Publish fake data. The format mimics the format used by VOLTTRON drivers.
-    # Make some random readings
-    oat_reading = random.uniform(30, 100)
-    damper_reading = random.uniform(0, 100)
+    # Publish fake data.
+    start_time = datetime.utcnow() - timedelta(minutes=2)
+    publish_test_data(start_time, 0, 5)
+    gevent.sleep(1)
+    volttron_instance1.start_agent(aggregate_agent)
+    gevent.sleep(4*60) #sleep till we see two rows in aggregate table
+    rows = db_connection.execute("SELECT value_string from sum_2m where "
+                                 "topic_id =1")
+    assert rows[0] == 3
+    assert rows[1] == 7
+
+    rows = db_connection.execute("SELECT value_string from sum_2m where "
+                                 "topic_id =2")
+    assert rows[0] == 3
+    assert rows[1] == 7
 
 
-    # Create timestamp
-    start_time = datetime.utcnow() - timedelta(seconds=3)
-    start_reading = random.uniform(30, 100)
-    publish_test_data(start_time, start_reading, 3)
-    volttron_instance.start_agent(aggregate_agent)
-    # assert (len(result['values']) == 1)
-    # (now_date, now_time) = now.split(" ")
-    # assert_timestamp(result['values'][0][0], now_date, now_time)
-    # assert (result['values'][0][1] == damper_reading)
-    # assert set(result['metadata'].items()) == set(percent_meta.items())
 

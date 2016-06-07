@@ -7,7 +7,6 @@ import threading
 from zmq.utils import jsonapi
 
 from volttron.platform.agent import utils
-from volttron.platform.dbutils import sqlutils
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -160,7 +159,7 @@ class DbDriver(object):
         if not self.__connect():
             print ("connect to database failed.......")
             return False
-        table_name = type + '''_''' + sqlutils.format_agg_time(period)
+        table_name = type + '''_''' + period
         self.__cursor.execute(
                  self.create_aggregate_stmt(table_name))
         self.__cursor.execute('''CREATE INDEX IF NOT EXISTS idx_''' +
@@ -182,8 +181,12 @@ class DbDriver(object):
         if not self.__connect():
             print("connect to database failed.......")
             return False
-        table_name = type + '''_''' + sqlutils.format_agg_time(period)
+        table_name = type + '''_''' + period
         result = self.__cursor.execute(
             self.insert_aggregate_stmt(table_name),(ts, topic_id, jsonapi.dumps(data)))
         self.commit()
         return True
+
+    @abstractmethod
+    def query_aggregate(self, topic_name, agg_type, start=None, end=None):
+        pass
