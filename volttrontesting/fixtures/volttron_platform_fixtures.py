@@ -17,6 +17,14 @@ def print_log(volttron_home):
                 print('NO LOG FILE AVAILABLE.')
 
 
+@pytest.fixture
+def randomize_ip_and_port():
+    # ip = "127.0.0.{}".format(randint(1, 254))
+    # port = get_rand_port(ip)
+    # get_n_volttron_instances.instances
+    return get_rand_ip_and_port
+
+
 def get_rand_ip_and_port():
     ip = "127.0.0.{}".format(randint(1, 254))
     port = get_rand_port(ip)
@@ -186,12 +194,20 @@ def get_volttron_instances(request):
     parameterized you test method will be run twice once with unencrypted
     volttron instances and once with encrypted instances. The fixture also
     takes care of shutting down all the instances at the end
+
     Example Usage:
+
     def test_function_that_uses_n_instances(request, get_volttron_instances):
-        instances = get_volttron_instances(3)
+        param, instances = get_volttron_instances(3)
+
+        if param != 'encrypted':
+            pytest.skipif('Only available during encrypted round')
+
     @param request: pytest request object
-    @return: a function that can used to get any number of volttron instnaces
-    for testing.
+    @return: tuple:
+        The current param value (useful for skipping if context is either
+        encrypted or not) and a function that can used to get any number of
+        volttron instances for testing.
     """
 
     def get_n_volttron_instances(n):
@@ -206,8 +222,9 @@ def get_volttron_instances(request):
             else:
                 wrapper = build_wrapper(address)
             instances.append(wrapper)
+        get_n_volttron_instances.param = request.param
         get_n_volttron_instances.instances = instances
-        return instances
+        return request.param, instances
 
     def cleanup():
         for i in range(0, get_n_volttron_instances.count):
