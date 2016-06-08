@@ -145,10 +145,8 @@ class ControlService(BaseAgent):
 
     @RPC.export
     def restart_agent(self, uuid):
-        if not isinstance(uuid, basestring):
-            raise TypeError("expected a string for 'uuid'; got {!r}".format(
-                type(uuid).__name__))
-        self._aip.restart_agent(uuid)
+        self.stop_agent(uuid)
+        self.start_agent(uuid)
 
     @RPC.export
     def shutdown(self):
