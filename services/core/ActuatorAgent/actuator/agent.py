@@ -458,6 +458,7 @@ __docformat__ = 'reStructuredText'
 import datetime
 import sys
 import logging
+import collections
 
 from volttron.platform.vip.agent import Agent, Core, RPC, Unreachable, compat
 from volttron.platform.messaging import topics
@@ -810,6 +811,46 @@ class ActuatorAgent(Agent):
             raise LockError("caller ({}) does not have this lock".format(requester_id))
 
         return result
+
+    @RPC.export
+    def set_multiple_points(self, requester_id, topics_values, **kwargs):
+        """RPC method
+
+        Set multiple points on multiple devices. Makes a single
+        RPC call to the master driver per device.
+
+        :param requester_id: Identifier given when requesting schedule.
+        :param topics_values: List of (topic, value) tuples
+        :param \*\*kwargs: Any driver specific parameters
+
+        :returns: Dictionary of points to exceptions raised.
+                  If all points were set successfully an empty
+                  dictionary will be returned.
+
+        .. warning:: calling without previously scheduling *all* devices
+                     and not within the time allotted will raise a LockError
+        """
+
+        devices = collections.defaultdict(list)
+        for topic, value in topics_values:
+            topic = topic.strip('/')
+            device, point_name = topic.rsplit('/', 1)
+            devices[device].append((point_name, value))
+
+        for device in devices:
+            if not self._check_lock(device, requester_id):
+                raise LockError("caller ({}) does not lock for device {}".format(requester_id, device))
+
+        results = {}
+        for device, point_names_values in devices.iteritems():
+            r = self.vip.rpc.call(self.driver_vip_identity,
+                                  'set_multiple_points',
+                                  device,
+                                  point_names_values,
+                                  **kwargs).get()
+            results.update(r)
+
+        return results
     
     def handle_revert_point(self, peer, sender, bus, topic, headers, message):
         """
@@ -1171,8 +1212,6 @@ class ActuatorAgent(Agent):
     def _push_result_topic_pair(self, prefix, point, headers, value):
         topic = normtopic('/'.join([prefix, point]))
         self.vip.pubsub.publish('pubsub', topic, headers, message=value)
-
-    
 
 
 def main():

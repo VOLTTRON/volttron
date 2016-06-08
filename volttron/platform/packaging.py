@@ -342,6 +342,7 @@ def _create_cert_ui(cn):
                   'CN': 'Common Name'}
     output_items = {}
     sys.stdout.write("Please enter the following for certificate creation:\n")
+    # TODO Add country code verification. cryptography package doesn't do it
     for item in input_order:
         cmd = '\t{} - {}({}): '.format(item, input_help[item],
                                               input_defaults[item])

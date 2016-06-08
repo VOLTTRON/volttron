@@ -73,9 +73,10 @@ import uuid
 import gevent
 from gevent.fileobject import FileObject
 import zmq
-from zmq import curve_keypair, green
+from zmq import green
 # Create a context common to the green and non-green zmq modules.
-green.Context._instance = green.Context.shadow(zmq.Context.instance().underlying)
+green.Context._instance = green.Context.shadow(
+    zmq.Context.instance().underlying)
 from zmq.utils import jsonapi
 
 from . import aip
@@ -85,7 +86,7 @@ from . import vip
 from .vip.agent import Agent, Core
 from .vip.agent.compat import CompatPubSub
 from .vip.router import *
-from .vip.socket import encode_key, Address
+from .vip.socket import decode_key, encode_key, Address
 from .vip.tracking import Tracker
 from .auth import AuthService
 from .control import ControlService
@@ -93,6 +94,7 @@ from .web import MasterWebService
 from .agent import utils
 from .agent.known_identities import MASTER_WEB
 from .vip.agent.subsystems.pubsub import ProtectedPubSubTopics
+from .keystore import KeyStore
 
 try:
     import volttron.restricted
@@ -244,6 +246,7 @@ class Monitor(threading.Thread):
 class FramesFormatter(object):
     def __init__(self, frames):
         self.frames = frames
+
     def __repr__(self):
         return str([bytes(f) for f in self.frames])
     __str__ = __repr__
@@ -466,47 +469,24 @@ def start_volttron_process(opts):
         _log.warning('developer mode enabled; '
                      'authentication and encryption are disabled!')
     else:
-        keyfile = os.path.join(opts.volttron_home, 'curve.key')
-        _log.debug('using key file %s', keyfile)
-        try:
-            st = os.stat(keyfile)
-        except OSError as exc:
-            if exc.errno != errno.ENOENT:
-                parser.error(str(exc))
-            # Key doesn't exist, so create it securely
-            _log.info('generating missing key file')
-            try:
-                fd = os.open(keyfile, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
-            except OSError as exc:
-                parser.error(str(exc))
-            try:
-                key = ''.join(curve_keypair())
-                os.write(fd, key)
-            finally:
-                os.close(fd)
-        else:
-            if st.st_mode & (stat.S_IRWXG | stat.S_IRWXO):
-                _log.warning('insecure mode on key file')
-            if not st.st_size:
-                _log.warning('empty key file; VIP encryption is disabled!')
-                key = ''
-            else:
-                # Allow two extra bytes in case someone opened the file with
-                # a text editor and it appended '\n' or '\r\n'.
-                if not 80 <= st.st_size <= 82:
-                    _log.warning('key file is wrong size; connections may fail')
-                with open(keyfile) as infile:
-                    key = infile.read(80)
-        publickey = key[:40]
+        keystore = KeyStore()
+        _log.debug('using key-store file %s', keystore.filename)
+        if not keystore.isvalid():
+            _log.warning('key store is invalid; connections may fail')
+        st = os.stat(keystore.filename)
+        if st.st_mode & (stat.S_IRWXG | stat.S_IRWXO):
+            _log.warning('insecure mode on key file')
+        publickey = decode_key(keystore.public())
         if publickey:
             _log.info('public key: %s', encode_key(publickey))
-        secretkey = key[40:]
+        secretkey = decode_key(keystore.secret())
 
     # The following line doesn't appear to do anything, but it creates
     # a context common to the green and non-green zmq modules.
     zmq.Context.instance()   # DO NOT REMOVE LINE!!
 
     tracker = Tracker()
+
     # Main loops
     def router(stop):
         try:
@@ -541,17 +521,23 @@ def start_volttron_process(opts):
         if not thread.isAlive():
             sys.exit()
 
-        protected_topics_file = os.path.join(opts.volttron_home, 'protected_topics.json')
+        protected_topics_file = os.path.join(opts.volttron_home,
+                                             'protected_topics.json')
         _log.debug('protected topics file %s', protected_topics_file)
 
         # Launch additional services and wait for them to start before
         # auto-starting agents
         services = [
-            ControlService(opts.aip, address=address, identity='control', tracker=tracker, heartbeat_autostart=True),
-            PubSubService(protected_topics_file, address=address, identity='pubsub', heartbeat_autostart=True),
-            CompatPubSub(address=address, identity='pubsub.compat',
-                         publish_address=opts.publish_address,
-                         subscribe_address=opts.subscribe_address),
+            ControlService(
+                opts.aip, address=address, identity='control', tracker=tracker,
+                heartbeat_autostart=True),
+            PubSubService(
+                protected_topics_file, address=address, identity='pubsub',
+                heartbeat_autostart=True),
+            CompatPubSub(
+                address=address, identity='pubsub.compat',
+                publish_address=opts.publish_address,
+                subscribe_address=opts.subscribe_address),
             MasterWebService(
                 serverkey=publickey, identity=MASTER_WEB,
                 address=address,
@@ -689,10 +675,12 @@ def main(argv=sys.argv):
                 super(RestrictedAction, self).__init__(
                     option_strings, dest=argparse.SUPPRESS, nargs=0,
                     const=const, help=help)
+
             def __call__(self, parser, namespace, values, option_string=None):
                 namespace.verify_agents = self.const
                 namespace.resource_monitor = self.const
                 #namespace.mobility = self.const
+
         restrict = parser.add_argument_group('restricted options')
         restrict.add_argument(
             '--restricted', action=RestrictedAction, inverse='--no-restricted',
@@ -755,6 +743,7 @@ def main(argv=sys.argv):
     logging.getLogger().setLevel(logging.NOTSET)
     opts = parser.parse_args(args)
     start_volttron_process(opts)
+
 
 def _main():
     '''Entry point for scripts.'''

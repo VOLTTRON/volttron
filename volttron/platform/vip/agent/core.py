@@ -192,6 +192,7 @@ class BasicCore(object):
             return
         del self._owner
         periodics = []
+
         def setup(member):   # pylint: disable=redefined-outer-name
             periodics.extend(
                 periodic.get(member) for periodic in annotations(
@@ -310,6 +311,7 @@ class BasicCore(object):
         result = gevent.event.AsyncResult()
         async = result.hub.loop.async()
         results = [None, None]
+
         def receiver():
             async.stop()
             exc, value = results
@@ -318,6 +320,7 @@ class BasicCore(object):
             else:
                 result.set_exception(exc)
         async.start(receiver)
+
         def worker():
             try:
                 results[:] = [None, func(*args, **kwargs)]
@@ -341,6 +344,7 @@ class BasicCore(object):
 
     def spawn_in_thread(self, func, *args, **kwargs):
         result = gevent.event.AsyncResult()
+
         def wrapper():
             try:
                 self.send(result.set, func(*args, **kwargs))
@@ -382,6 +386,7 @@ class BasicCore(object):
     def schedule(cls, deadline, *args, **kwargs):   # pylint: disable=no-self-argument
         if hasattr(deadline, 'timetuple'):
             deadline = time.mktime(deadline.timetuple())
+
         def decorate(method):
             annotate(method, list, 'core.schedule', (deadline, args, kwargs))
             return method
@@ -434,7 +439,8 @@ class Core(BasicCore):
                 with open(os.path.join(installed_path, 'IDENTITY'), 'w') as fp:
                     fp.write(self.identity)
             else:
-                _log.debug('IDENTITY FILE EXISTS FOR {}'.format(self.agent_uuid))
+                _log.debug('IDENTITY FILE EXISTS FOR {}'
+                    .format(self.agent_uuid))
 
         self.socket = None
         self.subsystems = {'error': self.handle_error}
@@ -456,7 +462,7 @@ class Core(BasicCore):
             url[3] += add_param(url[3], 'publickey', publickey)
             url[3] += add_param(url[3], 'secretkey', secretkey)
             url[3] += add_param(url[3], 'serverkey', serverkey)
-            self.address = urlparse.urlunsplit(url)
+            self.address = str(urlparse.urlunsplit(url))
 
     def _get_keys(self):
         publickey, secretkey, _ = self._get_keys_from_addr()
@@ -473,8 +479,8 @@ class Core(BasicCore):
             if not os.environ.get('VOLTTRON_HOME'):
                 raise ValueError('VOLTTRON_HOME must be specified.')
             keystore_dir = os.path.join(
-                    os.environ.get('VOLTTRON_HOME'), 'keystores',
-                    self.identity)
+                os.environ.get('VOLTTRON_HOME'), 'keystores',
+                self.identity)
             if not os.path.exists(keystore_dir):
                 os.makedirs(keystore_dir)
         else:
@@ -521,6 +527,7 @@ class Core(BasicCore):
 
         # pre-start
         state = type('HelloState', (), {'count': 0, 'ident': None})
+
         def hello():
             state.ident = ident = b'connect.hello.%d' % state.count
             state.count += 1
