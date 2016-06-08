@@ -395,17 +395,7 @@ class BaseInterface(object):
 
         :param kwargs: Any interface specific parameters.
         """
-
-    def set_multiple_points(self, path, point_names_values, **kwargs):
-        results = {}
-
-        for point_name, value in point_names_values:
-            try:
-                self.set_point(point_name, value, **kwargs)
-            except Exception as e:
-                results[path + '/' + point_name] = repr(e)
-
-        return results
+    
 
 
 class RevertTracker(object):
@@ -651,4 +641,7 @@ class BasicRevert(object):
         _log.debug("Reverting {} to {}".format(point_name, value))
         
         self._set_point(point_name, value)   
-        self._tracker.clear_dirty_point(point_name)
+        self._tracker.clear_dirty_point(point_name) 
+        
+        
+        

@@ -61,7 +61,6 @@
 
 
 import json
-import logging
 import os
 import urlparse
 
@@ -71,13 +70,11 @@ from .agent.utils import create_file_if_missing
 from .vip.socket import encode_key
 from volttron.platform import get_home
 
-_log = logging.getLogger(__name__)
-
 
 class BaseJSONStore(object):
     '''JSON-file-backed store for dictionaries'''
 
-    def __init__(self, filename, permissions=0o600):
+    def __init__(self, filename, permissions=0o660):
         self.filename = filename
         self.permissions = permissions
         create_file_if_missing(filename)
@@ -106,7 +103,7 @@ class BaseJSONStore(object):
 
 
 class KeyStore(BaseJSONStore):
-    """Handle generation, storage, and retrival of CURVE key pairs"""
+    '''Handle generation, storage, and retrival of keys'''
 
     def __init__(self, filename=None):
         if filename is None:
@@ -116,40 +113,17 @@ class KeyStore(BaseJSONStore):
             self.generate()
 
     def generate(self):
-        """Generate new key pair"""
         public, secret = curve_keypair()
         self.store({'public': encode_key(public),
                     'secret': encode_key(secret)})
 
-    def _get_key(self, keyname):
-        """Get key and make sure it's type is str (not unicode)
-
-        The json module returns all strings as unicode type, but base64
-        decode expects str type as input. The conversion from unicode
-        type to str type is safe in this case, because encode_key
-        returns str type (ASCII characters only).
-        """
-        key = self.load().get(keyname, None)
-        if key:
-            try:
-                key = str(key)
-            except UnicodeEncodeError:
-                _log.warning(
-                    'Non-ASCII character found for key {} in {}'
-                    .format(keyname, self.filename))
-                key = None
-        return key
-
     def public(self):
-        """Return encoded public key"""
-        return self._get_key('public')
+        return self.load().get('public', None)
 
     def secret(self):
-        """Return encoded secret key"""
-        return self._get_key('secret')
+        return self.load().get('secret', None)
 
     def isvalid(self):
-        """Check if key pair is valid"""
         return self.public() and self.secret()
 
 
