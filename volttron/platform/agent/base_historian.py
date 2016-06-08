@@ -411,7 +411,6 @@ class BaseHistorianAgent(Agent):
         _log.debug(
             "Queuing {topic} from {source} for publish".format(topic=topic,
                                                                source=source))
-        _log.debug(data)
         for point, item in data.iteritems():
             #             ts_path = location + '/' + point
             if 'Readings' not in item or 'Units' not in item:
@@ -493,7 +492,6 @@ class BaseHistorianAgent(Agent):
         timestamp = get_aware_utc_now()
         if timestamp_string is not None:
             timestamp, my_tz = process_timestamp(timestamp_string, topic)
-        _log.debug("### In capture_data timestamp str {} ".format(timestamp))
         try:
             _log.debug(
                 "### In capture_data Actual message {} ".format(message))
@@ -502,7 +500,6 @@ class BaseHistorianAgent(Agent):
             if sender == 'pubsub.compat':
                 # message = jsonapi.loads(message[0])
                 message = compat.unpack_legacy_message(headers, message)
-                _log.debug("### message after compat {}".format(message))
 
             if isinstance(message, dict):
                 values = message
@@ -547,7 +544,6 @@ class BaseHistorianAgent(Agent):
         # Anon the topic if necessary.
         topic = self._get_topic(topic)
         timestamp_string = headers.get('time')
-        _log.debug("TIMESTMAMP_STRING: {}".format(timestamp_string))
         if timestamp_string is None:
             _log.error(
                 "message for {topic} missing timetamp".format(topic=topic))
@@ -1043,7 +1039,7 @@ class BaseQueryHistorianAgent(Agent):
                           "key2": value2,
                           ...}
             }
-         
+
         Timestamps must be strings formatted by
         :py:func:`volttron.platform.agent.utils.format_timestamp`.
 
