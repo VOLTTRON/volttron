@@ -416,10 +416,6 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                 platformItem.type = "platform";
                 platformItem.visible = true;
                 platformItem.expanded = null;
-                // platformItem.name = (platform.name === null ? platform.uuid : platform.name);
-
-                // loadAgents(platform);                
-                // loadDevices(platform);
             });
 
             var platformsToRemove = [];
@@ -453,7 +449,6 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                 insertAgents(platform, action.agents);
             }
 
-            // platformsPanelItemsStore.emitChange();
             break;
         case ACTION_TYPES.RECEIVE_DEVICE_STATUSES:
 
@@ -464,7 +459,6 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                 insertDevices(platform, action.devices);
             }
 
-            // platformsPanelItemsStore.emitChange();
             break;
         case ACTION_TYPES.RECEIVE_PERFORMANCE_STATS:
             
@@ -496,8 +490,6 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
                         action.points.forEach(function (point)
                         {
-                            //TODO: add UUID to points rpc?
-
                             var pointProps = point;
                             pointProps.expanded = false;
                             pointProps.visible = true;
@@ -634,11 +626,6 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             buildingProps.devices.children = [];
             buildingProps.devices.type = "type";
             buildingProps.devices.sortOrder = _devicesOrder;
-
-
-            //TODO: add building points
-            // buildingProps.children.push("points");
-            // buildingProps.points = [];
 
             platform.buildings.children.push(buildingProps.uuid);
             platform.buildings[buildingProps.uuid] = buildingProps;            

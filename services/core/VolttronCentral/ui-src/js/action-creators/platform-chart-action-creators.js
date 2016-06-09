@@ -37,7 +37,7 @@ var platformChartActionCreators = {
 
 		series.forEach(function (item) {            
             new rpc.Exchange({
-                method: 'platforms.uuid.' + item.parentUuid + '.historian.query',
+                method: 'historian.query',
                 params: {
                     topic: item.topic,
                     count: 20,

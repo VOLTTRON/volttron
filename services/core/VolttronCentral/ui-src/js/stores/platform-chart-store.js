@@ -129,8 +129,6 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
             {
                 if (action.panelItem.hasOwnProperty("data"))
                 {
-                    // _chartData[action.panelItem.name] = JSON.parse(JSON.stringify(action.panelItem.data));
-                    
                     var chartObj = {
                         refreshInterval: (action.panelItem.hasOwnProperty("refreshInterval") ? action.panelItem.refreshInterval :15000),
                         pinned: (action.panelItem.hasOwnProperty("pinned") ? action.panelItem.pinned : false),
@@ -372,7 +370,6 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
                 if (skey === "0" && typeof value === 'string' &&
                     Date.parse(value + 'Z')) {
                     value = Date.parse(value + 'Z');
-                    // initialState.xDates = true;
                 }
 
                 newItem[skey] = value;    

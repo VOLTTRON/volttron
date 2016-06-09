@@ -21,8 +21,6 @@ function checkAuth(Component) {
         statics: {
             willTransitionTo: function (transition) {
                 if (transition.path !== '/login') {
-                    // _afterLoginPath = transition.path;
-
                     if (!authorizationStore.getAuthorization()) {
                         transition.redirect('/login');
                     }
@@ -82,12 +80,9 @@ router.run(function (Handler) {
     platformsPanelItemsStore.addChangeListener(function () {
         if (platformsPanelItemsStore.getLastCheck() && authorizationStore.getAuthorization())
         {
-            // console.log("current path: " + router.getCurrentPath());
             if (!router.isActive('charts'))
             {
-                // console.log("replace with /platform-charts");
                 router.transitionTo('/platform-charts');
-                // window.location.href = "index.html#/platform-charts";
             }
         }
 
@@ -631,7 +626,7 @@ var platformChartActionCreators = {
 
 		series.forEach(function (item) {            
             new rpc.Exchange({
-                method: 'platforms.uuid.' + item.parentUuid + '.historian.query',
+                method: 'historian.query',
                 params: {
                     topic: item.topic,
                     count: 20,
@@ -1699,14 +1694,12 @@ var ControlButton = React.createClass({displayName: "ControlButton",
 		        top: this.state.taptipY + "px"
 		    };
 
-            //TODO: add this to repository
             if (this.props.taptip.styles)
             {
                 this.props.taptip.styles.forEach(function (styleToAdd) {
                     taptipStyle[styleToAdd.key] = styleToAdd.value;
                 });
             }
-            //end TODO
 
 		    var tapTipClasses = "taptip_outer";
 
@@ -2094,8 +2087,6 @@ var Navigation = React.createClass({displayName: "Navigation",
         this.setState(getStateFromStores());
     },
     _onLogOutClick: function () {
-        // platformsPanelActionCreators.closePanel();
-        // platformsPanelActionCreators.resetPanel();
         platformManagerActionCreators.clearAuthorization();
     },
     render: function () {
@@ -2261,16 +2252,6 @@ var PlatformChart = React.createClass({displayName: "PlatformChart",
                 onConfirm: deleteChart.bind(this)}
             )
         );
-
-        // this.props.chart.series.forEach(function (series) {
-        //     if (series.hasOwnProperty("path"))
-        //     {
-        //         platformsPanelActionCreators.checkItem(series.path, false);
-        //     }
-        // });
-
-        // platformChartActionCreators.removeChart(this.props.chartKey);
-        // platformActionCreators.saveCharts();
     },
     render: function () {
         var chartData = this.props.chart; 
@@ -4758,7 +4739,6 @@ controlButtonStore.dispatchToken = dispatcher.register(function (action) {
                 if (_controlButtons[action.name].hasOwnProperty("showTaptip"))
                 {
                     _controlButtons[action.name].showTaptip = false;
-                    // delete _controlButtons[action.name];   
                 }
             }
 
@@ -4941,8 +4921,6 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
             {
                 if (action.panelItem.hasOwnProperty("data"))
                 {
-                    // _chartData[action.panelItem.name] = JSON.parse(JSON.stringify(action.panelItem.data));
-                    
                     var chartObj = {
                         refreshInterval: (action.panelItem.hasOwnProperty("refreshInterval") ? action.panelItem.refreshInterval :15000),
                         pinned: (action.panelItem.hasOwnProperty("pinned") ? action.panelItem.pinned : false),
@@ -5184,7 +5162,6 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
                 if (skey === "0" && typeof value === 'string' &&
                     Date.parse(value + 'Z')) {
                     value = Date.parse(value + 'Z');
-                    // initialState.xDates = true;
                 }
 
                 newItem[skey] = value;    
@@ -5622,10 +5599,6 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                 platformItem.type = "platform";
                 platformItem.visible = true;
                 platformItem.expanded = null;
-                // platformItem.name = (platform.name === null ? platform.uuid : platform.name);
-
-                // loadAgents(platform);                
-                // loadDevices(platform);
             });
 
             var platformsToRemove = [];
@@ -5659,7 +5632,6 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                 insertAgents(platform, action.agents);
             }
 
-            // platformsPanelItemsStore.emitChange();
             break;
         case ACTION_TYPES.RECEIVE_DEVICE_STATUSES:
 
@@ -5670,7 +5642,6 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
                 insertDevices(platform, action.devices);
             }
 
-            // platformsPanelItemsStore.emitChange();
             break;
         case ACTION_TYPES.RECEIVE_PERFORMANCE_STATS:
             
@@ -5702,8 +5673,6 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 
                         action.points.forEach(function (point)
                         {
-                            //TODO: add UUID to points rpc?
-
                             var pointProps = point;
                             pointProps.expanded = false;
                             pointProps.visible = true;
@@ -5840,11 +5809,6 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
             buildingProps.devices.children = [];
             buildingProps.devices.type = "type";
             buildingProps.devices.sortOrder = _devicesOrder;
-
-
-            //TODO: add building points
-            // buildingProps.children.push("points");
-            // buildingProps.points = [];
 
             platform.buildings.children.push(buildingProps.uuid);
             platform.buildings[buildingProps.uuid] = buildingProps;            
