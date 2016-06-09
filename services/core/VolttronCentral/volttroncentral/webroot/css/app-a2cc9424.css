@@ -331,9 +331,10 @@ br + .form__control-help {
 }
 
 .logo__funding {
-    font-family: "Ubuntu Mono";
+    font-family: "Ubuntu Mono", "Liberation Sans Narrow", "Garuda", "NanumGothic", sans-serif;
     letter-spacing: 0.1em;
-    margin-right: -0.1em;
+    margin-right: .7em;
+    margin-left: .7em;
     color: #456069;
     font-size: 1.5rem;
 }
