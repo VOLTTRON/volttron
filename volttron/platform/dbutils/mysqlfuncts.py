@@ -196,17 +196,26 @@ class MySqlFuncts(DbDriver):
         _log.debug(name_map)
         return id_map, name_map
 
-    def create_aggregate_stmt(self, table_name):
-        # period = sqlutils.parse_time_period(period)
+
+    def create_aggregate_table(self, agg_type, period):
+        """
+
+        @param agg_type:
+        @param period:
+        @return:
+        """
+        table_name = agg_type + '''_''' + period
         stmt = "CREATE TABLE IF NOT EXISTS " + table_name + \
                " (ts timestamp NOT NULL, topic_id INTEGER NOT NULL, " \
-               "value_string TEXT NOT NULL, UNIQUE(ts, topic_id))"
-        print(stmt)
-        return stmt
+               "value_string TEXT NOT NULL, UNIQUE(ts, topic_id)," \
+               "INDEX (ts ASC))"
+        return self.execute_stmt(stmt)
+
 
     def insert_aggregate_stmt(self, table_name):
-        return '''INSERT OR REPLACE INTO ''' + table_name + \
-               ''' values(?, ?, ?)'''
+        return '''REPLACE INTO ''' + table_name + \
+               ''' values(%s, %s, %s)'''
+
 
     def query_aggregate(self, topic_id, agg_type, start=None, end=None):
         """
@@ -251,6 +260,4 @@ class MySqlFuncts(DbDriver):
         _log.debug("args: " + str(args))
 
         rows = self.select(real_query, args)
-        for agg, count in rows:
-            _log.debug("results got {}, {}".format(agg, count))
-        return agg, count
+        return rows[0][0], rows[0][1]

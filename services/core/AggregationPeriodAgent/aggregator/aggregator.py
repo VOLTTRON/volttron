@@ -70,20 +70,20 @@ _log = logging.getLogger(__name__)
 __version__ = '4.0'
 
 class AggregationPeriodAgent(Agent):
-    '''
+    """
     Agent to aggeregate data in historian based on a specific time period.
     Different instance of this agent is needed to aggregate data over different
     time period.
-    '''
+    """
 
     def __init__(self, config_path, **kwargs):
-        '''
+        """
         Validate configuration, create connection to platform historian, create
         aggregate tables if necessary and set up a periodic call to
         aggregate data
         :param config_path: configuration file path
         :param kwargs:
-        '''
+        """
         super(AggregationPeriodAgent, self).__init__(**kwargs)
         self.config = utils.load_config(config_path)
         self._agent_id = self.config['agentid']
@@ -145,7 +145,7 @@ class AggregationPeriodAgent(Agent):
         elif unit == 'M':
             start_time = end_time - timedelta(days=30)
 
-        if self.config['x']:
+        if self.config.get('use_calendar_time_periods', False):
             if unit == 'h':
                 start_time = start_time.replace(minute=0,
                                                 second=0,
@@ -209,7 +209,7 @@ class AggregationPeriodAgent(Agent):
                                                agg)
 
 def main(argv=sys.argv):
-    '''Main method called by the eggsecutable.'''
+    """Main method called by the eggsecutable."""
     try:
         utils.vip_main(AggregationPeriodAgent)
     except Exception as e:

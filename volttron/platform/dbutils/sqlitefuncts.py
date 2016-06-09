@@ -92,7 +92,7 @@ class SqlLiteFuncts(DbDriver):
                 if db_dir == '':
                     db_dir = './data'
                     self.__database = os.path.join(db_dir, self.__database)
-                    
+
                 os.makedirs(db_dir)
             except OSError as exc:
                 if exc.errno != errno.EEXIST or not os.path.isdir(db_dir):
@@ -132,11 +132,11 @@ class SqlLiteFuncts(DbDriver):
                                  metadata TEXT NOT NULL)''')
         conn.commit()
         conn.close()
-        
-        connect_params['database'] = self.__database
-        
 
-        
+        connect_params['database'] = self.__database
+
+
+
         print (connect_params)
         super(SqlLiteFuncts, self).__init__('sqlite3', **connect_params)
 
@@ -223,7 +223,7 @@ class SqlLiteFuncts(DbDriver):
     def insert_data_query(self):
         return '''INSERT OR REPLACE INTO ''' + self.data_table + \
                ''' values(?, ?, ?)'''
-    
+
     def insert_topic_query(self):
         return '''INSERT INTO ''' + self.topics_table + \
             ''' (topic_name) values (?)'''
@@ -244,13 +244,31 @@ class SqlLiteFuncts(DbDriver):
             name_map[n.lower()] = n
         return id_map, name_map
 
-    def create_aggregate_stmt(self, table_name):
+    def create_aggregate_table(self, agg_type, period):
+        """
+
+        @param agg_type:
+        @param period:
+        @return:
+        """
+        table_name = agg_type + '''_''' + period
+
         #period = sqlutils.parse_time_period(period)
         stmt = "CREATE TABLE IF NOT EXISTS " + table_name + \
                " (ts timestamp NOT NULL, topic_id INTEGER NOT NULL, " \
-                      "value_string TEXT NOT NULL, UNIQUE(ts, topic_id))"
-        print(stmt)
-        return stmt
+                      "value_string TEXT NOT NULL, UNIQUE(ts, topic_id)); "
+        c = sqlite3.connect(
+            self.__database,
+            detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
+        c.execute(stmt)
+
+        stmt  = "CREATE INDEX IF NOT EXISTS idx_" + table_name + " ON " + \
+               table_name + "(ts ASC);"
+
+        c.execute(stmt)
+        c.commit()
+        return True
+
 
     def insert_aggregate_stmt(self, table_name):
         return '''INSERT OR REPLACE INTO ''' + table_name + \

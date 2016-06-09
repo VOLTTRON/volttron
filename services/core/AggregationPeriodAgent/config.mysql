@@ -17,6 +17,7 @@
         "meta_table": "meta_table"
     },
     "aggregation_period": "2m",
+    "use_calendar_time_periods":False
     "aggregate_details":[
         {
         "topic_name": "device1/out_temp",

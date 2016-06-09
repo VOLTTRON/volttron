@@ -25,11 +25,10 @@ try:
 except:
     HAS_MYSQL_CONNECTOR = False
 
-
 # table_defs with prefix
 sqlite_platform = {
-    "agentid": "sqlhistorian-sqlite-3",
-    "identity": "platform.historian",
+    "agentid": "aggregate-sqlite",
+    "identity": "aggregate-hist-sqlite",
     "connection": {
         "type": "sqlite",
         "params": {
@@ -43,17 +42,17 @@ sqlite_platform = {
         "meta_table": "meta_table"
     },
     "aggregation_period": "2m",
-    "x":True,
-    "points":[
+    "use_calendar_time_periods": True,
+    "points": [
         {
-        "topic_name": "device1/out_temp",
-        "aggregation_type": "sum",
-        "min_count": 2
+            "topic_name": "device1/out_temp",
+            "aggregation_type": "sum",
+            "min_count": 2
         },
         {
-        "topic_name": "device1/in_temp",
-        "aggregation_type": "sum",
-        "min_count": 2
+            "topic_name": "device1/in_temp",
+            "aggregation_type": "sum",
+            "min_count": 2
         }
     ]
 }
@@ -63,8 +62,8 @@ sqlite_platform = {
 
 # table_defs with prefix
 mysql_platform = {
-    "agentid": "sqlhistorian-mysql-3",
-    "identity": "platform.historian",
+    "agentid": "aggregate-mysql",
+    "identity": "aggregate-hist-mysql",
     "connection": {
         "type": "mysql",
         "params": {
@@ -82,17 +81,17 @@ mysql_platform = {
         "meta_table": "meta_table",
     },
     "aggregation_period": "2m",
-    "x":False,
-    "points":[
+    "use_calendar_time_periods": False,
+    "points": [
         {
-        "topic_name": "device1/out_temp",
-        "aggregation_type": "sum",
-        "min_count": 2
+            "topic_name": "device1/out_temp",
+            "aggregation_type": "sum",
+            "min_count": 2
         },
         {
-        "topic_name": "device1/in_temp",
-        "aggregation_type": "sum",
-        "min_count": 2
+            "topic_name": "device1/in_temp",
+            "aggregation_type": "sum",
+            "min_count": 2
         }
     ]
 }
@@ -124,12 +123,13 @@ def publish_agent(request, volttron_instance):
     request.addfinalizer(stop_agent)
     return agent
 
+
 # Fixtures for setup and teardown of sqlhistorian agent and aggregation agent
 @pytest.fixture(scope="module",
                 params=[
-                    #pytest.mark.skipif(
-                    #      not HAS_MYSQL_CONNECTOR,
-                    #      reason='No mysql client available.')(mysql_platform)
+                    pytest.mark.skipif(
+                        not HAS_MYSQL_CONNECTOR,
+                        reason='No mysql client available.')(mysql_platform),
                     sqlite_platform
                 ])
 def aggregate_agent(request, volttron_instance1):
@@ -143,15 +143,12 @@ def aggregate_agent(request, volttron_instance1):
         request.param['connection']['params']['database'] = \
             volttron_instance1.volttron_home + "/historian.sqlite"
 
-
     # Make database connection
     agent_uuid = volttron_instance1.install_agent(
         agent_dir="services/core/AggregationPeriodAgent",
         config_file=request.param,
         start=False)
     print("agent id: ", agent_uuid)
-
-
 
     # figure out db table names from config
     # Set this hear so that cleanup fixture can use it
@@ -183,16 +180,15 @@ def aggregate_agent(request, volttron_instance1):
         pytest.fail(msg="Invalid database type specified " +
                         request.param['connection']['type'])
 
-
     # 3: add a tear down method to stop sqlhistorian agent and the fake
     # agent that published to message bus
     def stop_agent():
-        print("In teardown method of sqlagent")
+        print("In teardown method of aggregate agent")
         if db_connection:
             db_connection.close()
             print("closed connection to db")
         if volttron_instance1.is_running():
-            volttron_instance1.stop_agent(agent_uuid)
+            volttron_instance1.remove_agent(agent_uuid)
 
     request.addfinalizer(stop_agent)
     return agent_uuid
@@ -201,7 +197,7 @@ def aggregate_agent(request, volttron_instance1):
 def connect_mysql(request):
     global db_connection, MICROSECOND_SUPPORT, data_table, \
         topics_table, meta_table
-    print "connect to mysql"
+    print ("connect to mysql")
     db_connection = mysql.connect(**request.param['connection']['params'])
     cursor = db_connection.cursor()
     cursor.execute("SELECT version()")
@@ -257,16 +253,16 @@ def connect_mysql(request):
     cursor.execute("INSERT INTO " + topics_table +
                    " VALUES(1,'device1/out_temp')")
     cursor.execute("INSERT INTO " + topics_table +
-               " VALUES(2,'device1/in_temp')")
+                   " VALUES(2,'device1/in_temp')")
     db_connection.commit()
 
 
 def connect_sqlite(request):
     global db_connection, MICROSECOND_SUPPORT
     database_path = request.param['connection']['params']['database']
-    print "connecting to sqlite path " + database_path
+    print ("connecting to sqlite path " + database_path)
     db_connection = sqlite3.connect(database_path)
-    print "successfully connected to sqlite"
+    print ("successfully connected to sqlite")
     MICROSECOND_SUPPORT = True
     cursor = db_connection.cursor()
     cursor.execute(
@@ -275,7 +271,6 @@ def connect_sqlite(request):
          topic_id INTEGER NOT NULL, \
          value_string TEXT NOT NULL, \
          UNIQUE(ts, topic_id))')
-
 
     cursor.execute(
         'CREATE TABLE IF NOT EXISTS ' + topics_table +
@@ -288,11 +283,12 @@ def connect_sqlite(request):
         '(topic_id INTEGER PRIMARY KEY, \
           metadata TEXT NOT NULL);'
     )
-    cursor.execute("INSERT INTO "+ topics_table +
+    cursor.execute("INSERT INTO " + topics_table +
                    " VALUES(1,'device1/out_temp')")
-    cursor.execute("INSERT INTO "+ topics_table +
+    cursor.execute("INSERT INTO " + topics_table +
                    " VALUES(2,'device1/in_temp')")
     db_connection.commit()
+
 
 #
 # @pytest.fixture()
@@ -333,36 +329,46 @@ def publish_test_data(start_time, start_reading, count):
     for i in range(0, count):
         cursor.execute(insert_stmt, (time, 1, reading))
         cursor.execute(insert_stmt, (time, 2, reading))
-        reading = reading + 1
+        reading += 1
         time = time + timedelta(minutes=1)
 
     db_connection.commit()
 
+
 @pytest.mark.dev
-def test_basic_function(aggregate_agent,volttron_instance1):
+def test_basic_function(aggregate_agent, volttron_instance1):
     """
 
     @param aggregate_agent:
+    @param volttron_instance1:
     @return:
     """
-    global query_points, db_connection
-
+    global db_connection
 
     # Publish fake data.
     start_time = datetime.utcnow() - timedelta(minutes=2)
     publish_test_data(start_time, 0, 5)
-    gevent.sleep(1)
+    gevent.sleep(0.5)
+    cursor = db_connection.cursor()
+    if isinstance(db_connection, mysql.connection.MySQLConnection):
+        cursor.execute("DELETE FROM sum_2m")
+        db_connection.commit()
     volttron_instance1.start_agent(aggregate_agent)
-    gevent.sleep(4*60) #sleep till we see two rows in aggregate table
-    rows = db_connection.execute("SELECT value_string from sum_2m where "
-                                 "topic_id =1")
-    assert rows[0] == 3
-    assert rows[1] == 7
-
-    rows = db_connection.execute("SELECT value_string from sum_2m where "
-                                 "topic_id =2")
-    assert rows[0] == 3
-    assert rows[1] == 7
-
+    #gevent.sleep(2)
+    gevent.sleep(5 * 60)  # sleep till we see two rows in aggregate table
+    cursor = db_connection.cursor()
+    cursor.execute("SELECT value_string from sum_2m "
+                   "WHERE topic_id =1")
+    rows = cursor.fetchall()
+    print ("result is {}".format(rows))
+    assert float(rows[0][0]) == 3.0
+    assert float(rows[1][0]) == 7.0
 
 
+    cursor = db_connection.cursor()
+    cursor.execute("SELECT value_string from sum_2m where "
+                                   "topic_id =2")
+    rows = cursor.fetchall()
+    print ("result is {}".format(rows))
+    assert float(rows[0][0]) == 3.0
+    assert float(rows[1][0]) == 7.0

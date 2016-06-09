@@ -134,6 +134,22 @@ class DbDriver(object):
         conn.close()
         return rows
 
+    def execute_stmt(self, stmt):
+        try:
+            conn = self.__dbmodule.connect(**self.__connect_params)
+        except Exception as e:
+            _log.warning(e.__class__.__name__ + "couldn't connect to database")
+            conn = None
+
+        if conn is None:
+            return []
+
+        cursor = conn.cursor()
+        cursor.execute(stmt)
+        conn.commit()
+        conn.close()
+        return True
+
     @abstractmethod
     def query(self, topic, start=None, end=None, skip=0,
                             count=None, order="FIRST_TO_LAST"):
@@ -146,44 +162,32 @@ class DbDriver(object):
         pass
 
     @abstractmethod
-    def create_aggregate_stmt(self, type, period):
+    def create_aggregate_table(self, agg_type, period):
         pass
-
-
-    def create_aggregate_table(self, type, period):
-        """
-        :param period:
-        :param type:
-        :return:
-        """
-        if not self.__connect():
-            print ("connect to database failed.......")
-            return False
-        table_name = type + '''_''' + period
-        self.__cursor.execute(
-                 self.create_aggregate_stmt(table_name))
-        self.__cursor.execute('''CREATE INDEX IF NOT EXISTS idx_''' +
-                              table_name +
-                              ''' ON ''' + table_name + '''(ts ASC);''')
-        self.commit()
-        return True
 
     @abstractmethod
-    def insert_aggregate_stmt(self, type, period):
+    def insert_aggregate_stmt(self, table_name):
         pass
 
-    def insert_aggregate(self, type, period, ts, topic_id, data):
+    def insert_aggregate(self, agg_type, period, ts, topic_id, data):
         """
-        :param type:
-        :param period:
-        :return:
+
+        @param agg_type:
+        @param period:
+        @param ts:
+        @param topic_id:
+        @param data:
+        @return:
         """
         if not self.__connect():
             print("connect to database failed.......")
             return False
-        table_name = type + '''_''' + period
+        table_name = agg_type + '''_''' + period
+        _log.debug("Inserting value {} into aggregate table {}".format(
+            jsonapi.dumps(data), table_name))
         result = self.__cursor.execute(
-            self.insert_aggregate_stmt(table_name),(ts, topic_id, jsonapi.dumps(data)))
+            self.insert_aggregate_stmt(table_name),
+            (ts, topic_id, jsonapi.dumps(data)))
         self.commit()
         return True
 
