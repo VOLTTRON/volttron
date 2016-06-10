@@ -160,7 +160,7 @@ class MySqlFuncts(DbDriver):
         if rows:
             values = [(utils.format_timestamp(ts.replace(tzinfo=pytz.UTC)),
                        jsonapi.loads(
-                value)) for ts, value in rows]
+                           value)) for ts, value in rows]
         else:
             values = {}
 
@@ -171,7 +171,7 @@ class MySqlFuncts(DbDriver):
 
     def insert_data_query(self):
         return '''REPLACE INTO ''' + self.data_table + \
-            '''  values(%s, %s, %s)'''
+               '''  values(%s, %s, %s)'''
 
     def insert_topic_query(self):
         return '''INSERT INTO ''' + self.topics_table + ''' (topic_name)
@@ -181,7 +181,7 @@ class MySqlFuncts(DbDriver):
         return '''UPDATE ''' + self.topics_table + ''' SET topic_name = %s
             WHERE topic_id = %s'''
 
-    #@property
+    # @property
     def get_topic_map(self):
         _log.debug("in get_topic_map")
         q = "SELECT topic_id, topic_name FROM " + self.topics_table + ";"
@@ -196,8 +196,7 @@ class MySqlFuncts(DbDriver):
         _log.debug(name_map)
         return id_map, name_map
 
-
-    def create_aggregate_table(self, agg_type, period):
+    def create_aggregate_store(self, agg_type, period):
         """
 
         @param agg_type:
@@ -211,13 +210,11 @@ class MySqlFuncts(DbDriver):
                "INDEX (ts ASC))"
         return self.execute_stmt(stmt)
 
-
     def insert_aggregate_stmt(self, table_name):
         return '''REPLACE INTO ''' + table_name + \
                ''' values(%s, %s, %s)'''
 
-
-    def query_aggregate(self, topic_id, agg_type, start=None, end=None):
+    def collect_aggregate(self, topic_id, agg_type, start=None, end=None):
         """
         This function should return the results of a aggregation query
         @param topic_id:

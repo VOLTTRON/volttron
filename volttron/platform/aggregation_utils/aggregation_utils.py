@@ -57,7 +57,28 @@ Utility methods for different aggregate historians
 """
 from datetime import datetime, timedelta
 
-def compute_aggregation_frequency(period, calendar_periods):
+def format_aggregation_time_period(time_period):
+    period = int(time_period[:-1])
+    unit = time_period[-1:]
+    if unit == 'm':
+        if period >= 60 and period % 60 == 0:
+            period /= 60
+            unit = 'h'
+    if unit == 'h':
+        if period >= 24 and period % 24 == 0:
+            period /= 24
+            unit = 'd'
+    if unit == 'd':
+        if period >= 7 and period % 7 == 0:
+            period /= 7
+            unit = 'w'
+    # elif unit == 'w':
+    #     start_time = end_time - timedelta(weeks=period_int)
+    # elif unit == 'M':
+    #     start_time = end_time - timedelta(days=30)
+    return time_period
+
+def compute_aggregation_frequency_seconds(period, use_calendar_periods):
     """
     Return aggregate collection frequency in seconds. This can be used
     to call the aggregate collection method periodically using
@@ -79,7 +100,7 @@ def compute_aggregation_frequency(period, calendar_periods):
     elif unit == 'w':
         return period_int * 7 * 24 * 60 * 60
     elif unit == 'M':
-        if calendar_periods:
+        if use_calendar_periods:
             # collect more frequently than needed so that
             # we don't miss collecting February in case we
             # start collecting on say Jan 31
@@ -104,6 +125,10 @@ def compute_aggregation_timeslice(period, use_calender_time_periods):
         start_time = end_time - timedelta(weeks=period_int)
     elif unit == 'M':
         start_time = end_time - timedelta(days=30)
+    else:
+        raise ValueError("Invalid unit {} provided for aggregation_period. "
+                         "Unit should be m/h/d/w/M".format(unit))
+
     if use_calender_time_periods:
         if unit == 'h':
             start_time = start_time.replace(minute=0,

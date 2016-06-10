@@ -1,6 +1,7 @@
 {
     "agentid": "aggregate-mysql",
     "identity": "aggregate-hist-mysql",
+    # configuration from mysql historian - START
     "connection": {
         "type": "mysql",
         "params": {
@@ -17,12 +18,27 @@
         "topics_table": "topics_table",
         "meta_table": "meta_table",
     },
+    # configuration from mysql historian - END
+
+    # can be minutes(m), hours(h), weeks(w), or months(M)
+
     "aggregation_period": "2m",
+
+    # Should aggregation period align to calendar time periods. Default False
+    # Example,
+    # if "aggregation_period":"1h" and "use_calendar_time_periods": False
+    # example periods: 10.15-11.15, 11.15-12.15, 12.15-13.15 etc.
+    # if "aggregation_period":"1h" and "use_calendar_time_periods": True
+    # example periods: 10.00-11.00, 11.00-12.00, 12.00-13.00 etc.
+
     "use_calendar_time_periods": False,
+
+    # topics to be aggregated
     "points": [
         {
             "topic_name": "device1/out_temp",
             "aggregation_type": "sum",
+            #minimum required records in the period for aggregate to be recorded
             "min_count": 2
         },
         {

@@ -7,25 +7,31 @@
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 #
-# 1. Redistributions of source code must retain the above copyright notice, this
+# 1. Redistributions of source code must retain the above copyright notice,
+# this
 #    list of conditions and the following disclaimer.
 # 2. Redistributions in binary form must reproduce the above copyright notice,
 #    this list of conditions and the following disclaimer in the documentation
 #    and/or other materials provided with the distribution.
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND
 # ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-# ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+# LIABLE FOR
+# ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES
 # (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
 # LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 # ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# The views and conclusions contained in the software and documentation are those
-# of the authors and should not be interpreted as representing official policies,
+# The views and conclusions contained in the software and documentation are
+# those
+# of the authors and should not be interpreted as representing official
+# policies,
 # either expressed or implied, of the FreeBSD Project.
 #
 
@@ -51,7 +57,7 @@
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 
-#}}}
+# }}}
 
 from __future__ import absolute_import
 
@@ -63,10 +69,10 @@ from volttron.platform.agent import utils
 from volttron.platform.dbutils import sqlutils
 from volttron.platform.aggregation_utils import aggregation_utils
 
-
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 __version__ = '4.0'
+
 
 class AggregateHistorian(Agent):
     """
@@ -103,28 +109,27 @@ class AggregateHistorian(Agent):
         self.topic_id_map, name_map = self.dbfuncts.get_topic_map()
 
         # 3. Validate aggregation details in config
-        self.period = sqlutils.format_agg_time_period(
+        self.period = aggregation_utils.format_aggregation_time_period(
             self.config['aggregation_period'])
         for data in self.config['points']:
             if data['topic_name'] is None or self.topic_id_map[data[
                 'topic_name'].lower()] is None:
                 raise ValueError("Invalid topic name " + data['topic_name'])
             if data['aggregation_type'].upper() not in ['AVG', 'MIN', 'MAX',
-                                                 'COUNT', 'SUM']:
+                                                        'COUNT', 'SUM']:
                 raise ValueError("Invalid aggregation type {}"
                                  .format(data['aggregation_type']))
-            if data.get('min_count',0) < 0:
+            if data.get('min_count', 0) < 0:
                 raise ValueError("Invalid min_count ({}). min_count should be "
                                  "an integer grater than 0".
                                  format(data['min_count']))
 
-
     @Core.receiver('onstart')
     def _on_start(self, sender, **kwargs):
         for data in self.config['points']:
-            self.dbfuncts.create_aggregate_table(data['aggregation_type'],
+            self.dbfuncts.create_aggregate_store(data['aggregation_type'],
                                                  self.period)
-        frequency = aggregation_utils.compute_aggregation_frequency(
+        frequency = aggregation_utils.compute_aggregation_frequency_seconds(
             self.period, self.config.get('use_calendar_time_periods', False))
         self.core.periodic(frequency, self.collect_aggregate_data)
 
@@ -136,18 +141,18 @@ class AggregateHistorian(Agent):
                    format(self.period, start_time, end_time))
         for data in self.config['points']:
             topic_id = self.topic_id_map[data['topic_name'].lower()]
-            agg, count = self.dbfuncts.query_aggregate(
-                            topic_id,
-                            data['aggregation_type'],
-                            start_time,
-                            end_time)
+            agg, count = self.dbfuncts.collect_aggregate(
+                topic_id,
+                data['aggregation_type'],
+                start_time,
+                end_time)
             if count == 0:
                 _log.warn("No records found for topic {topic} "
                           "between {start_time} and {end_time}".
                           format(topic=data['topic_name'],
                                  start_time=start_time,
                                  end_time=end_time))
-            elif count < data.get('min_count',0):
+            elif count < data.get('min_count', 0):
                 _log.warn("Skipping recording of aggregate data for {topic} "
                           "between {start_time} and {end_time} as number of "
                           "records is less than minimum allowed("
@@ -163,14 +168,12 @@ class AggregateHistorian(Agent):
                                                agg)
 
 
-
 def main(argv=sys.argv):
     """Main method called by the eggsecutable."""
     try:
         utils.vip_main(AggregateHistorian)
     except Exception as e:
         _log.exception('unhandled exception')
-
 
 
 if __name__ == '__main__':
