@@ -3009,7 +3009,9 @@ var Platform = React.createClass({displayName: "Platform",
                 React.createElement("br", null), 
                 React.createElement("br", null), 
                 React.createElement("h3", null, "Agents"), 
-                agents, 
+                React.createElement("div", {className: "agents-container"}, 
+                    agents
+                ), 
                 React.createElement("h3", null, "Install agents"), 
                 React.createElement("input", {type: "file", multiple: true, onChange: this._onFileChange})
             )

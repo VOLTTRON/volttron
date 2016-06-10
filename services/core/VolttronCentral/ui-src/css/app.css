@@ -459,6 +459,12 @@ br + .form__control-help {
     width: 100%;
 }
 
+.agents-container {
+    max-height: 50%;
+    width: 100%;
+    overflow: auto;
+}
+
 .extend-panel {
     width: 100%;
     font-size: 15px;
