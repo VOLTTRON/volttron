@@ -77,11 +77,28 @@ def validation_builder(validate, dx_name, data_tag):
     return data
 
 
-def check_run_status(timestamp_array, current_time, no_required_data):
-    if timestamp_array and timestamp_array[-1].hour != current_time.hour:
+def check_run_status(timestamp_array, current_time, no_required_data, minimum_diagnostic_time=None):
+    """The diagnostics run at a regular interval (some minimum elapsed amount of time) and have a
+       minimum data count requirement (each time series of data must contain some minimum number
+       of points).
+       ARGS:
+            timestamp_array(list(datetime)): ordered array of timestamps associated with building
+                data.
+            no_required_data(integer):  The minimum number of measurements for each time series used
+                in the analysis.
+    """
+    def minimum_data():
         if len(timestamp_array) < no_required_data:
             return None
         return True
+    if minimum_diagnostic_time is not None:
+        sampling_interval = (timestamp_array[-1] - timestamp_array[0])/len(timestamp_array)
+        required_time = (timestamp_array[-1] - timestamp_array[0]) + sampling_interval
+        if required_time >= minimum_diagnostic_time:
+             return minimum_data()
+        return False
+    if timestamp_array and timestamp_array[-1].hour != current_time.hour:
+        return minimum_data()
     return False
 
 
