@@ -431,16 +431,29 @@ class Core(BasicCore):
         self.publickey = publickey
         self.secretkey = secretkey
 
+        #If we are an installed agent load our identity from the IDENTITY file.
+        #For backwards compatibility create identity file if it
+        #does not exist.
         if self.agent_uuid:
             installed_path = os.path.join(
                 os.environ['VOLTTRON_HOME'], 'agents', self.agent_uuid)
-            if not os.path.exists(os.path.join(installed_path, 'IDENTITY')):
+            identity_path = os.path.join(installed_path, 'IDENTITY')
+            if not os.path.exists(identity_path):
                 _log.debug('CREATING IDENTITY FILE')
-                with open(os.path.join(installed_path, 'IDENTITY'), 'w') as fp:
+                with open(identity_path, 'wb') as fp:
                     fp.write(self.identity)
             else:
                 _log.debug('IDENTITY FILE EXISTS FOR {}'
                     .format(self.agent_uuid))
+
+            with open(identity_path, 'rb') as fp:
+                self.identity = fp.read()
+
+        if self.identity is not None:
+            _log.debug('VIP ID SET TO {}'.format(self.identity))
+        else:
+            _log.debug('VIP ID SET BY ROUTER')
+
 
         self.socket = None
         self.subsystems = {'error': self.handle_error}
