@@ -95,6 +95,7 @@ var AgentRow = React.createClass({
 
         return (
             <tr>
+                <td>{agent.tag}</td>
                 <td>{agent.name}</td>
                 <td>{agent.uuid}</td>
                 <td>{status}</td>

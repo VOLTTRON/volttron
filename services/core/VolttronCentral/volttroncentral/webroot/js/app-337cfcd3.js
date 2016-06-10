@@ -1343,6 +1343,7 @@ var AgentRow = React.createClass({displayName: "AgentRow",
 
         return (
             React.createElement("tr", null, 
+                React.createElement("td", null, agent.tag), 
                 React.createElement("td", null, agent.name), 
                 React.createElement("td", null, agent.uuid), 
                 React.createElement("td", null, status), 
@@ -2971,6 +2972,7 @@ var Platform = React.createClass({displayName: "Platform",
                     React.createElement("thead", null, 
                         React.createElement("tr", null, 
                             React.createElement("th", null, "Tag"), 
+                            React.createElement("th", null, "Name"), 
                             React.createElement("th", null, "UUID"), 
                             React.createElement("th", null, "Status"), 
                             React.createElement("th", null, "Action")

@@ -81,6 +81,7 @@ var Platform = React.createClass({
                     <thead>
                         <tr>
                             <th>Tag</th>
+                            <th>Name</th>
                             <th>UUID</th>
                             <th>Status</th>
                             <th>Action</th>
