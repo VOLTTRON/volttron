@@ -1,0 +1,30 @@
+{
+    "agentid": "aggregate-sqlite",
+    "identity": "aggregate-hist-sqlite",
+    "connection": {
+        "type": "sqlite",
+        "params": {
+            "database": 'test.sqlite'
+        }
+    },
+    "tables_def": {
+        "table_prefix": "prefix",
+        "data_table": "data_table",
+        "topics_table": "topics_table",
+        "meta_table": "meta_table"
+    },
+    "aggregation_period": "2m",
+    "use_calendar_time_periods": True,
+    "points": [
+        {
+            "topic_name": "device1/out_temp",
+            "aggregation_type": "sum",
+            "min_count": 2
+        },
+        {
+            "topic_name": "device1/in_temp",
+            "aggregation_type": "sum",
+            "min_count": 2
+        }
+    ]
+}

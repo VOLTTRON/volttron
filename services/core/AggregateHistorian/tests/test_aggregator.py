@@ -145,7 +145,7 @@ def aggregate_agent(request, volttron_instance1):
 
     # Make database connection
     agent_uuid = volttron_instance1.install_agent(
-        agent_dir="services/core/AggregationPeriodAgent",
+        agent_dir="services/core/AggregateHistorian",
         config_file=request.param,
         start=False)
     print("agent id: ", agent_uuid)
@@ -335,7 +335,7 @@ def publish_test_data(start_time, start_reading, count):
     db_connection.commit()
 
 
-@pytest.mark.dev
+@pytest.mark.aggregator
 def test_basic_function(aggregate_agent, volttron_instance1):
     """
 

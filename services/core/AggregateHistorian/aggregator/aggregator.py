@@ -55,21 +55,20 @@
 
 from __future__ import absolute_import
 
-from datetime import datetime, timedelta
 import logging
 import sys
 
 from volttron.platform.vip.agent import Agent, Core
 from volttron.platform.agent import utils
 from volttron.platform.dbutils import sqlutils
-
+from volttron.platform.aggregation_utils import aggregation_utils
 
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
 __version__ = '4.0'
 
-class AggregationPeriodAgent(Agent):
+class AggregateHistorian(Agent):
     """
     Agent to aggeregate data in historian based on a specific time period.
     Different instance of this agent is needed to aggregate data over different
@@ -84,7 +83,7 @@ class AggregationPeriodAgent(Agent):
         :param config_path: configuration file path
         :param kwargs:
         """
-        super(AggregationPeriodAgent, self).__init__(**kwargs)
+        super(AggregateHistorian, self).__init__(**kwargs)
         self.config = utils.load_config(config_path)
         self._agent_id = self.config['agentid']
         connection = self.config.get('connection', None)
@@ -125,61 +124,16 @@ class AggregationPeriodAgent(Agent):
         for data in self.config['points']:
             self.dbfuncts.create_aggregate_table(data['aggregation_type'],
                                                  self.period)
-        self.core.periodic(120, self.collect_aggregate_data)
-
+        frequency = aggregation_utils.compute_aggregation_frequency(
+            self.period, self.config.get('use_calendar_time_periods', False))
+        self.core.periodic(frequency, self.collect_aggregate_data)
 
     def collect_aggregate_data(self):
-        current = datetime.utcnow()
-        _log.debug("current time {}".format(current))
-        period_int = int(self.period[:-1])
-        unit = self.period[-1:]
-        end_time = current
-        if unit == 'm':
-            start_time =  end_time - timedelta(minutes=period_int)
-        elif unit == 'h':
-            start_time = end_time - timedelta(hours=period_int)
-        elif unit == 'd':
-            start_time = end_time - timedelta(days=period_int)
-        elif unit == 'w':
-            start_time = end_time - timedelta(weeks=period_int)
-        elif unit == 'M':
-            start_time = end_time - timedelta(days=30)
-
-        if self.config.get('use_calendar_time_periods', False):
-            if unit == 'h':
-                start_time = start_time.replace(minute=0,
-                                                second=0,
-                                                microsecond=0)
-                end_time = end_time.replace(minute=0,
-                                            second=0,
-                                            microsecond=0)
-            elif unit == 'd' or unit == 'w':
-                start_time = start_time.replace(hour=0,
-                                             minute=0,
-                                             second=0,
-                                             microsecond=0)
-                end_time = end_time.replace(hour=0,
-                                             minute=0,
-                                             second=0,
-                                             microsecond=0)
-            elif unit == 'M':
-                end_time = current.replace(day=1,
-                                            hour=0,
-                                            minute=0,
-                                            second=0,
-                                            microsecond=0)
-                #get last day of previous month
-                start_time = end_time - timedelta(days=1)
-                #move to first day of previous month
-                start_time = start_time.replace(day=1,
-                                                hour=0,
-                                                minute=0,
-                                                second=0,
-                                                microsecond=0)
+        end_time, start_time = aggregation_utils.compute_aggregation_timeslice(
+            self.period, self.config.get('use_calendar_time_periods', False))
 
         _log.debug("After  compute period = {} start_time {} end_time {} ".
-            format(self.period, start_time, end_time))
-
+                   format(self.period, start_time, end_time))
         for data in self.config['points']:
             topic_id = self.topic_id_map[data['topic_name'].lower()]
             agg, count = self.dbfuncts.query_aggregate(
@@ -208,10 +162,12 @@ class AggregationPeriodAgent(Agent):
                                                topic_id,
                                                agg)
 
+
+
 def main(argv=sys.argv):
     """Main method called by the eggsecutable."""
     try:
-        utils.vip_main(AggregationPeriodAgent)
+        utils.vip_main(AggregateHistorian)
     except Exception as e:
         _log.exception('unhandled exception')
 

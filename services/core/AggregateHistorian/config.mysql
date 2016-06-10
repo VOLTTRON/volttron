@@ -1,5 +1,6 @@
 {
-    "agentid": "hourly-aggregator-mysql",
+    "agentid": "aggregate-mysql",
+    "identity": "aggregate-hist-mysql",
     "connection": {
         "type": "mysql",
         "params": {
@@ -14,20 +15,20 @@
         "table_prefix": "prefix",
         "data_table": "data_table",
         "topics_table": "topics_table",
-        "meta_table": "meta_table"
+        "meta_table": "meta_table",
     },
     "aggregation_period": "2m",
-    "use_calendar_time_periods":False
-    "aggregate_details":[
+    "use_calendar_time_periods": False,
+    "points": [
         {
-        "topic_name": "device1/out_temp",
-        "aggregation_type": "avg",
-        "min_count": 2
+            "topic_name": "device1/out_temp",
+            "aggregation_type": "sum",
+            "min_count": 2
         },
         {
-        "topic_name": "device1/in_temp",
-        "aggregation_type": "avg",
-        "min_count": 2
+            "topic_name": "device1/in_temp",
+            "aggregation_type": "sum",
+            "min_count": 2
         }
     ]
 }
