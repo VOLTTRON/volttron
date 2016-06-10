@@ -200,7 +200,7 @@ class MasterWebService(Agent):
             if not entries:
                 _log.debug(
                     'Adding default curve credentials for discoverability.')
-                authfile.add(AuthEntry(credentials="/CURVE:.*/"))
+                authfile.add(AuthEntry(credentials="/.*/"))
 
         self.serverkey = serverkey
         self.registeredroutes = []
@@ -218,7 +218,7 @@ class MasterWebService(Agent):
         if not mimetypes.inited:
             mimetypes.init()
 
-        authentry = AuthEntry(credentials="/CURVE:.*/")
+        authentry = AuthEntry(credentials="/.*/")
         authfile = AuthFile()
         authfile.add(authentry)
 
@@ -300,9 +300,7 @@ class MasterWebService(Agent):
         assert len(vcpublickey) == 43
 
         authfile = AuthFile()
-        authentry = AuthEntry(
-            credentials="CURVE:{}".format(vcpublickey)
-        )
+        authentry = AuthEntry(credentials=vcpublickey)
 
         authfile.add(authentry)
         start_response('200 OK',

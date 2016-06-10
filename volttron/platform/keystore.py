@@ -116,7 +116,7 @@ class KeyStore(BaseJSONStore):
             self.generate()
 
     def generate(self):
-        """Generate new key pair"""
+        """Generate new encoded CURVE key pair"""
         public, secret = curve_keypair()
         self.store({'public': encode_key(public),
                     'secret': encode_key(secret)})
