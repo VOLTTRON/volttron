@@ -241,7 +241,9 @@ def test_can_ping_router(volttron_instance):
 
 @pytest.mark.wrapper
 def test_can_install_listener_on_two_platforms(get_volttron_instances):
-    (_, volttron_instance1), (_,volttron_instance2) = get_volttron_instances(2)
+    first, second = get_volttron_instances(2)
+    _, volttron_instance1 = first
+    _,volttron_instance2 = second
     global messages
     clear_messages()
     auuid = volttron_instance1.install_agent(
