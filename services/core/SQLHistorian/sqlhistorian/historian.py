@@ -92,7 +92,7 @@ def historian(config_path, **kwargs):
     if topic_replace_list:
         _log.debug("topic replace list is: {}".format(topic_replace_list))
 
-    DbFuncts = sqlutils.getDBFuncts(database_type)
+    DbFuncts = sqlutils.get_dbfuncts_class(database_type)
 
     class SQLHistorian(BaseHistorian):
         """This is a simple example of a historian agent that writes stuff

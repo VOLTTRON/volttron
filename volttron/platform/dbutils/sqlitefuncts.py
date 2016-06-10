@@ -57,16 +57,14 @@
 
 import errno
 import logging
-import os
 import sqlite3
 import threading
+from datetime import datetime
 
-from zmq.utils import jsonapi
-
+import os
 from basedb import DbDriver
 from volttron.platform.agent import utils
-from volttron.platform.dbutils import sqlutils
-from datetime import datetime
+from zmq.utils import jsonapi
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -313,7 +311,7 @@ class SqlLiteFuncts(DbDriver):
         c = sqlite3.connect(
             self.__database,
             detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
-        cursor= c.execute(real_query, args)
+        cursor = c.execute(real_query, args)
         (agg, count) = cursor.fetchone()
         _log.debug("results got {}, {}".format(agg, count))
         return agg, count
@@ -331,7 +329,7 @@ if __name__ == '__main__':
     }
 
     functs = SqlLiteFuncts(con, tables_def)
-    functs.query_aggregate('device1/in_temp',
+    functs.collect_aggregate('device1/in_temp',
                            'sum',
                            datetime.strptime(
                                '2016-06-05 22:47:02.417604+00:00',

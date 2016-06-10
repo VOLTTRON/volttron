@@ -4,19 +4,12 @@
 # 2. test database and test user should exist
 # 3. Test user should have all privileges on test database
 # 4. Refer to the dictionary object mysql_platform for the server configuration
-import random
 import sqlite3
 from datetime import datetime, timedelta
 
 import gevent
 import pytest
 import re
-from volttron.platform.messaging import headers as headers_mod
-from volttron.platform.messaging import topics
-from volttron.platform.agent import utils
-from volttron.platform.jsonrpc import RemoteError
-from volttron.platform.agent import PublishMixin
-from volttron.platform.vip.agent import Agent
 
 try:
     import mysql.connector as mysql
@@ -158,11 +151,11 @@ def aggregate_agent(request, volttron_instance1):
         meta_table = 'meta'
     elif request.param['tables_def']['table_prefix']:
         data_table = request.param['tables_def']['table_prefix'] + "_" + \
-                     request.param['tables_def']['data_table']
+            request.param['tables_def']['data_table']
         topics_table = request.param['tables_def']['table_prefix'] + "_" + \
-                       request.param['tables_def']['topics_table']
+            request.param['tables_def']['topics_table']
         meta_table = request.param['tables_def']['table_prefix'] + "_" + \
-                     request.param['tables_def']['meta_table']
+            request.param['tables_def']['meta_table']
     else:
         data_table = request.param['tables_def']['data_table']
         topics_table = request.param['tables_def']['topics_table']
@@ -354,7 +347,7 @@ def test_basic_function(aggregate_agent, volttron_instance1):
         cursor.execute("DELETE FROM sum_2m")
         db_connection.commit()
     volttron_instance1.start_agent(aggregate_agent)
-    #gevent.sleep(2)
+    # gevent.sleep(2)
     gevent.sleep(5 * 60)  # sleep till we see two rows in aggregate table
     cursor = db_connection.cursor()
     cursor.execute("SELECT value_string from sum_2m "
@@ -364,10 +357,9 @@ def test_basic_function(aggregate_agent, volttron_instance1):
     assert float(rows[0][0]) == 3.0
     assert float(rows[1][0]) == 7.0
 
-
     cursor = db_connection.cursor()
     cursor.execute("SELECT value_string from sum_2m where "
-                                   "topic_id =2")
+                   "topic_id =2")
     rows = cursor.fetchall()
     print ("result is {}".format(rows))
     assert float(rows[0][0]) == 3.0

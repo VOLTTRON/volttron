@@ -64,10 +64,10 @@ from __future__ import absolute_import
 import logging
 import sys
 
-from volttron.platform.vip.agent import Agent, Core
 from volttron.platform.agent import utils
-from volttron.platform.dbutils import sqlutils
 from volttron.platform.aggregation_utils import aggregation_utils
+from volttron.platform.dbutils import sqlutils
+from volttron.platform.vip.agent import Agent, Core
 
 utils.setup_logging()
 _log = logging.getLogger(__name__)
@@ -101,9 +101,9 @@ class AggregateHistorian(Agent):
         params = connection.get('params', None)
         assert params is not None
 
-        DbFuncts = sqlutils.getDBFuncts(database_type)
+        dbfuncts_class = sqlutils.get_dbfuncts_class(database_type)
         tables_def = sqlutils.get_table_def(self.config)
-        self.dbfuncts = DbFuncts(connection['params'], tables_def)
+        self.dbfuncts = dbfuncts_class(connection['params'], tables_def)
 
         # 2. load topic name and topic id.
         self.topic_id_map, name_map = self.dbfuncts.get_topic_map()
@@ -113,7 +113,7 @@ class AggregateHistorian(Agent):
             self.config['aggregation_period'])
         for data in self.config['points']:
             if data['topic_name'] is None or self.topic_id_map[data[
-                'topic_name'].lower()] is None:
+                    'topic_name'].lower()] is None:
                 raise ValueError("Invalid topic name " + data['topic_name'])
             if data['aggregation_type'].upper() not in ['AVG', 'MIN', 'MAX',
                                                         'COUNT', 'SUM']:
@@ -173,7 +173,7 @@ def main(argv=sys.argv):
     try:
         utils.vip_main(AggregateHistorian)
     except Exception as e:
-        _log.exception('unhandled exception')
+        _log.exception('unhandled exception' + e.message)
 
 
 if __name__ == '__main__':
