@@ -233,7 +233,10 @@ def publish_agent(request, volttron_instance):
     request.addfinalizer(stop_agent)
     return fake_publish_agent
 
-
+# def callback(self, peer, sender, bus, topic, headers, message):
+#     print("*************In callback")
+#     print ("topic:", topic, 'header:', headers, 'message:', message)
+#
 def publish(publish_agent, topic, header, message):
     """
 
