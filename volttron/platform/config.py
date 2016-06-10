@@ -773,7 +773,7 @@ def _main():
             '[/127.*/] ', None, '/127.*/')
         ip_allowed_to_discover = prompt_response(t)
         AuthFile().add(AuthEntry(address=ip_allowed_to_discover,
-                                 credentials='/CURVE:.*/'))
+                                 credentials='/.*/'))
 
         t = ('\nIs this instance a volttron central (Y/N)? [N] ', y_or_n, 'N')
         do_install_vc = prompt_response(t) in y

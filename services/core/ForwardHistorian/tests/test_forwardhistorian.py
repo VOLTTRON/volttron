@@ -179,8 +179,7 @@ def forwarder(request, volttron_instances):
 
         # add public key of instance1 to instance2 auth file
         authfile = AuthFile(volttron_instance2.volttron_home + "/auth.json")
-        entry = AuthEntry(
-            credentials="CURVE:{}".format(ks.public()))
+        entry = AuthEntry(credentials=ks.public())
         authfile.add(entry)
 
         # setup destination address to include keys

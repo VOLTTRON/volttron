@@ -715,7 +715,7 @@ class VolttronCentralAgent(Agent):
 
         # Add the pa's public key so it can connect back to us.
         auth_file = AuthFile()
-        auth_entry = AuthEntry(credentials="CURVE:{}".format(result),
+        auth_entry = AuthEntry(credentials=result,
                                capabilities=['managing']
                                )
         auth_file.add(auth_entry)
