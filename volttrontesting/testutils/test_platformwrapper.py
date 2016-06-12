@@ -67,6 +67,16 @@ from volttrontesting.utils.platformwrapper import PlatformWrapper
 
 
 @pytest.mark.wrapper
+def test_can_add_vc_to_instance(get_volttron_instances):
+    wrapper = get_volttron_instances(1)
+    agent_count = len(wrapper.list_agents())
+    vc_uuid = wrapper.add_vc()
+    assert vc_uuid
+    assert agent_count+1 == len(wrapper.list_agents())
+    assert wrapper.is_agent_running(vc_uuid)
+
+
+@pytest.mark.wrapper
 def test_can_connect_to_instance(volttron_instance):
     assert volttron_instance is not None
     assert volttron_instance.is_running()
@@ -242,18 +252,17 @@ def test_can_ping_router(volttron_instance):
 @pytest.mark.wrapper
 def test_can_install_listener_on_two_platforms(get_volttron_instances):
 
-    param, (volttron_instance1,
-            volttron_instance2) = get_volttron_instances(2)
+    wrapper1, wrapper2 = get_volttron_instances(2)
 
     global messages
     clear_messages()
-    auuid = volttron_instance1.install_agent(
+    auuid = wrapper1.install_agent(
         agent_dir="examples/ListenerAgent",
         start=False)
     assert auuid is not None
-    started = volttron_instance1.start_agent(auuid)
+    started = wrapper1.start_agent(auuid)
     print('STARTED: ', started)
-    listening = volttron_instance1.build_agent()
+    listening = wrapper1.build_agent()
     listening.vip.pubsub.subscribe(peer='pubsub',
                                    prefix='heartbeat/ListenerAgent',
                                    callback=onmessage)
@@ -264,13 +273,13 @@ def test_can_install_listener_on_two_platforms(get_volttron_instances):
     time_start = time.time()
 
     clear_messages()
-    auuid2 = volttron_instance2.install_agent(
+    auuid2 = wrapper2.install_agent(
         agent_dir="examples/ListenerAgent",
         start=True)
     assert auuid2 is not None
-    started2 = volttron_instance2.start_agent(auuid2)
+    started2 = wrapper2.start_agent(auuid2)
     print('STARTED: ', started2)
-    listening = volttron_instance2.build_agent()
+    listening = wrapper2.build_agent()
     listening.vip.pubsub.subscribe(peer='pubsub',
                                    prefix='heartbeat/ListenerAgent',
                                    callback=onmessage)
