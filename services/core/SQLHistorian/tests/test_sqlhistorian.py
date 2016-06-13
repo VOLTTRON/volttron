@@ -1163,10 +1163,10 @@ def test_analysis_topic(request, sqlhistorian, publish_agent, query_agent,
     Expected result: record with timestamp == start time
 
     :param request: pytest request object
-    :param publish_agent: instance of volttron 2.0/3.0agent used to publish
+    :param publish_agent: instance of volttron 2.0/3.0 agent used to publish
     :param query_agent: instance of fake volttron 3.0 agent used to query
     using rpc
-    :param sqlhistorian: instance of the sql historian tested
+    :param sqlhistorian: instance of the sqlhistorian tested
     :param clean: teardown function
     """
     # skip if this test case need not repeated for this specific sqlhistorian
@@ -1201,12 +1201,17 @@ def test_analysis_topic(request, sqlhistorian, publish_agent, query_agent,
     headers = {
         headers_mod.DATE: now
     }
+
     # Publish messages
-    publish(publish_agent, 'analysis/Building/LAB/Device/MixedAirTemperature',
+    publish(publish_agent, 'analysis/Building/LAB/Device',
             headers, all_message)
     gevent.sleep(0.5)
-
-    # pytest.set_trace()
+    abc = dict(peer='platform.historian', method='query',
+                                      topic=query_points['mixed_point'],
+                                      start=now,
+                                      end=now,
+                                      count=20,
+                                      order="LAST_TO_FIRST")
     # Query the historian
     result = query_agent.vip.rpc.call('platform.historian',
                                       'query',
