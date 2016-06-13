@@ -198,7 +198,7 @@ def get_volttron_instances(request):
     Example Usage:
 
     def test_function_that_uses_n_instances(request, get_volttron_instances):
-        param, (instance1, instance2, instance3) = get_volttron_instances(3)
+        instance1, instance2, instance3 = get_volttron_instances(3)
 
         if param != 'encrypted':
             pytest.skipif('Only available during encrypted round')
