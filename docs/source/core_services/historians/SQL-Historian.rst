@@ -1,3 +1,5 @@
+.. _SQL-Historian:
+
 SQL Historian
 =============
 

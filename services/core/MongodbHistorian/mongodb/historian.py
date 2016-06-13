@@ -117,7 +117,6 @@ def historian(config_path, **kwargs):
             self._topic_name_map = {}
             self._topic_meta = {}
 
-        
         def _get_mongo_client(self, connection_params):
 
             database_name = connection_params['database']
@@ -184,7 +183,7 @@ def historian(config_path, **kwargs):
                     _log.debug('Updating topic: {}'.format(topic))
 
                     result = db[self._topic_collection].update_one(
-                        {'_id':ObjectId(topic_id)},
+                        {'_id': ObjectId(topic_id)},
                         {'$set': {'topic_name': topic}})
                     assert result.matched_count
                     self._topic_name_map[topic_lower] = topic
@@ -199,19 +198,21 @@ def historian(config_path, **kwargs):
                     self._topic_meta[topic_id] = meta
 
                 # Reformat to a filter tha bulk inserter.
-                bulk_publish.append(ReplaceOne({'ts':ts, 'topic_id': topic_id},
-                    {'ts': ts, 'topic_id': topic_id, 'value': value}, upsert=True))
+                bulk_publish.append(
+                    ReplaceOne({'ts': ts, 'topic_id': topic_id},
+                               {'ts': ts, 'topic_id': topic_id,
+                                'value': value}, upsert=True))
 
-#                bulk_publish.append(InsertOne(
-#                    {'ts': ts, 'topic_id': topic_id, 'value': value}))
+            #                bulk_publish.append(InsertOne(
+            #                    {'ts': ts, 'topic_id': topic_id, 'value': value}))
 
-	    try:
+            try:
                 # http://api.mongodb.org/python/current/api/pymongo/collection.html#pymongo.collection.Collection.bulk_write
                 result = db[self._data_collection].bulk_write(bulk_publish)
             except BulkWriteError as bwe:
                 _log.error("{}".format(bwe.details))
-           
-            else:           # No write errros here when
+
+            else:  # No write errros here when
                 if not result.bulk_api_result['writeErrors']:
                     self.report_all_handled()
                 else:
