@@ -24,10 +24,6 @@ platformsPanelStore.dispatchToken = dispatcher.register(function (action) {
             _expanded = null;
             platformsPanelStore.emitChange();
             break;
-        case ACTION_TYPES.RESET_PLATFORMS_PANEL:  
-            _expanded = null;
-            platformsPanelStore.emitChange();
-            break;
     }
 });
 

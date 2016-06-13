@@ -24,8 +24,8 @@ Instance Configuration
 
 In order for any web agent to be enabled, there must be a port configured to
 serve the content.  The easiest way to do this is to create a config file in
-the root of your VOLTTRON_HOME directory. (to do this automatically see `
-VOLTTRON Config<VOLTTRON-Config>`__)
+the root of your VOLTTRON_HOME directory. (to do this automatically see :ref:`
+VOLTTRON Config<VOLTTRON-Config>`)
 
 The following is an example of the configuration file
 

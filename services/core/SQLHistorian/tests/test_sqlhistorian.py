@@ -1,9 +1,68 @@
-# pytest test cases for SQLHistorian
-# For mysql test's to succeed
-# 1. MySql server should be running
-# 2. test database and test user should exist
-# 3. Test user should have all privileges on test database
-# 4. Refer to the dictionary object mysql_platform for the server configuration
+# -*- coding: utf-8 -*- {{{
+# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
+
+# Copyright (c) 2015, Battelle Memorial Institute
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in
+#    the documentation and/or other materials provided with the
+#    distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+# The views and conclusions contained in the software and documentation
+# are those of the authors and should not be interpreted as representing
+# official policies, either expressed or implied, of the FreeBSD
+# Project.
+#
+# This material was prepared as an account of work sponsored by an
+# agency of the United States Government.  Neither the United States
+# Government nor the United States Department of Energy, nor Battelle,
+# nor any of their employees, nor any jurisdiction or organization that
+# has cooperated in the development of these materials, makes any
+# warranty, express or implied, or assumes any legal liability or
+# responsibility for the accuracy, completeness, or usefulness or any
+# information, apparatus, product, software, or process disclosed, or
+# represents that its use would not infringe privately owned rights.
+#
+# Reference herein to any specific commercial product, process, or
+# service by trade name, trademark, manufacturer, or otherwise does not
+# necessarily constitute or imply its endorsement, recommendation, or
+# favoring by the United States Government or any agency thereof, or
+# Battelle Memorial Institute. The views and opinions of authors
+# expressed herein do not necessarily state or reflect those of the
+# United States Government or any agency thereof.
+#
+# PACIFIC NORTHWEST NATIONAL LABORATORY
+# operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
+# under Contract DE-AC05-76RL01830
+
+# }}}
+'''
+pytest test cases for SQLHistorian
+For mysql test's to succeed
+ 1. MySql server should be running
+ 2. test database and test user should exist
+ 3. Test user should have all privileges on test database
+ 4. Refer to the dictionary object mysql_platform for the server configuration
+'''
 import random
 import sqlite3
 from datetime import datetime, timedelta
@@ -20,7 +79,7 @@ from volttron.platform.vip.agent import Agent
 
 try:
     import mysql.connector as mysql
-
+    from mysql.connector import errorcode
     HAS_MYSQL_CONNECTOR = True
 except:
     HAS_MYSQL_CONNECTOR = False
@@ -152,18 +211,18 @@ meta_table = 'meta'
 
 @pytest.fixture(scope="module",
                 params=['volttron_2', 'volttron_3'])
-def publish_agent(request, volttron_instance1):
+def publish_agent(request, volttron_instance):
     # 1: Start a fake agent to publish to message bus
     print("**In setup of publish_agent volttron is_running {}".format(
-        volttron_instance1.is_running))
+        volttron_instance.is_running))
     agent = None
     if request.param == 'volttron_2':
         if agent is None or not isinstance(PublishMixin, agent):
             agent = PublishMixin(
-                volttron_instance1.opts['publish_address'])
+                volttron_instance.opts['publish_address'])
     else:
         if agent is None or isinstance(PublishMixin, agent):
-            agent = volttron_instance1.build_agent()
+            agent = volttron_instance.build_agent()
 
     # 2: add a tear down method to stop sqlhistorian agent and the fake
     # agent that published to message bus
@@ -177,9 +236,9 @@ def publish_agent(request, volttron_instance1):
 
 
 @pytest.fixture(scope="module")
-def query_agent(request, volttron_instance1):
+def query_agent(request, volttron_instance):
     # 1: Start a fake agent to query the sqlhistorian in volttron_instance2
-    agent = volttron_instance1.build_agent()
+    agent = volttron_instance.build_agent()
 
     # 2: add a tear down method to stop sqlhistorian agent and the fake
     # agent that published to message bus
@@ -207,7 +266,7 @@ def query_agent(request, volttron_instance1):
                     sqlite_platform2,
                     sqlite_platform3
                 ])
-def sqlhistorian(request, volttron_instance1):
+def sqlhistorian(request, volttron_instance):
     global db_connection, data_table, \
         topics_table, meta_table
     print("** Setting up test_sqlhistorian module **")
@@ -215,11 +274,11 @@ def sqlhistorian(request, volttron_instance1):
     print("request param", request.param)
     if request.param['connection']['type'] == 'sqlite':
         request.param['connection']['params']['database'] = \
-            volttron_instance1.volttron_home + "/historian.sqlite"
+            volttron_instance.volttron_home + "/historian.sqlite"
 
     # 1: Install historian agent
     # Install and start sqlhistorian agent
-    agent_uuid = volttron_instance1.install_agent(
+    agent_uuid = volttron_instance.install_agent(
         agent_dir="services/core/SQLHistorian",
         config_file=request.param,
         start=True)
@@ -262,9 +321,8 @@ def sqlhistorian(request, volttron_instance1):
         if db_connection:
             db_connection.close()
             print("closed connection to db")
-        if volttron_instance1.is_running():
-            volttron_instance1.stop_agent(agent_uuid)
-
+        if volttron_instance.is_running():
+            volttron_instance.stop_agent(agent_uuid)
     request.addfinalizer(stop_agent)
     return request.param
 
@@ -398,7 +456,7 @@ def test_basic_function(request, sqlhistorian, publish_agent, query_agent,
     :param clean: teardown function
     """
     global query_points, ALL_TOPIC, db_connection
-    # print('HOME', volttron_instance1.volttron_home)
+    # print('HOME', volttron_instance.volttron_home)
     print("\n** test_basic_function for {}**".format(
         request.keywords.node.name))
 
@@ -495,7 +553,7 @@ def test_exact_timestamp(request, sqlhistorian, publish_agent, query_agent,
 
     global query_points, ALL_TOPIC
 
-    # print('HOME', volttron_instance1.volttron_home)
+    # print('HOME', volttron_instance.volttron_home)
     print("\n** test_exact_timestamp for for {}**".format(
         request.keywords.node.name))
     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
@@ -560,7 +618,7 @@ def test_exact_timestamp_with_z(request, sqlhistorian, publish_agent,
     skip_custom_tables(sqlhistorian)
 
     global query_points, ALL_TOPIC
-    # print('HOME', volttron_instance1.volttron_home)
+    # print('HOME', volttron_instance.volttron_home)
     print("\n** test_exact_timestamp_with_z for {}**".format(
         request.keywords.node.name))
     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
@@ -626,7 +684,7 @@ def test_query_start_time(request, sqlhistorian, publish_agent, query_agent,
     skip_custom_tables(sqlhistorian)
 
     global query_points, ALL_TOPIC
-    # print('HOME', volttron_instance1.volttron_home)
+    # print('HOME', volttron_instance.volttron_home)
     print("\n** test_query_start_time for {}**".format(
         request.keywords.node.name))
     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
@@ -695,7 +753,7 @@ def test_query_start_time_with_z(request, sqlhistorian, publish_agent,
     skip_custom_tables(sqlhistorian)
 
     global query_points, ALL_TOPIC
-    # print('HOME', volttron_instance1.volttron_home)
+    # print('HOME', volttron_instance.volttron_home)
     print("\n** test_query_start_time_with_z for {}**".format(
         request.keywords.node.name))
     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
@@ -760,7 +818,7 @@ def test_query_end_time(request, sqlhistorian, publish_agent, query_agent,
     skip_custom_tables(sqlhistorian)
 
     global query_points, ALL_TOPIC, db_connection
-    # print('HOME', volttron_instance1.volttron_home)
+    # print('HOME', volttron_instance.volttron_home)
     print("\n** test_query_end_time for {}**".format(
         request.keywords.node.name))
 
@@ -832,7 +890,7 @@ def test_query_end_time_with_z(request, sqlhistorian, publish_agent,
     skip_custom_tables(sqlhistorian)
 
     global query_points, ALL_TOPIC
-    # print('HOME', volttron_instance1.volttron_home)
+    # print('HOME', volttron_instance.volttron_home)
     print("\n** test_query_end_time_with_z for {}**".format(
         request.keywords.node.name))
     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
@@ -904,7 +962,7 @@ def test_zero_timestamp(request, sqlhistorian, publish_agent, query_agent,
     skip_custom_tables(sqlhistorian)
 
     global query_points, ALL_TOPIC
-    # print('HOME', volttron_instance1.volttron_home)
+    # print('HOME', volttron_instance.volttron_home)
     print("\n** test_zero_timestamp for {}**".format(
         request.keywords.node.name))
     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
@@ -986,7 +1044,7 @@ def test_topic_name_case_change(request, sqlhistorian, publish_agent,
     skip_custom_tables(sqlhistorian)
 
     global query_points, ALL_TOPIC, db_connection
-    # print('HOME', volttron_instance1.volttron_home)
+    # print('HOME', volttron_instance.volttron_home)
     print("\n** test_topic_name_case_change for {}**".format(
         request.keywords.node.name))
     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
@@ -1067,7 +1125,7 @@ def test_invalid_query(request, sqlhistorian, publish_agent, query_agent,
     skip_custom_tables(sqlhistorian)
 
     global query_points, ALL_TOPIC
-    # print('HOME', volttron_instance1.volttron_home)
+    # print('HOME', volttron_instance.volttron_home)
     print("\n** test_invalid_query for {}**".format(
         request.keywords.node.name))
     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
@@ -1133,7 +1191,7 @@ def test_invalid_time(request, sqlhistorian, publish_agent, query_agent,
     skip_custom_tables(sqlhistorian)
 
     global query_points, ALL_TOPIC
-    # print('HOME', volttron_instance1.volttron_home)
+    # print('HOME', volttron_instance.volttron_home)
     print("\n** test_invalid_time for {}**".format(
         request.keywords.node.name))
 
@@ -1173,7 +1231,7 @@ def test_analysis_topic(request, sqlhistorian, publish_agent, query_agent,
     skip_custom_tables(sqlhistorian)
 
     global query_points
-    # print('HOME', volttron_instance1.volttron_home)
+    # print('HOME', volttron_instance.volttron_home)
     print("\n** test_analysis_topic for {}**".format(
         request.keywords.node.name))
     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
@@ -1243,7 +1301,7 @@ def test_record_topic_query(request, sqlhistorian, publish_agent, query_agent,
     # skip if this test case need not repeated for this specific sqlhistorian
     skip_custom_tables(sqlhistorian)
 
-    # print('HOME', volttron_instance1.volttron_home)
+    # print('HOME', volttron_instance.volttron_home)
     print("\n** test_exact_timestamp for {}**".format(
         request.keywords.node.name))
     # Publish int data
@@ -1301,7 +1359,7 @@ def test_log_topic(request, sqlhistorian, publish_agent, query_agent, clean):
     skip_custom_tables(sqlhistorian)
 
     global query_points
-    # print('HOME', volttron_instance1.volttron_home)
+    # print('HOME', volttron_instance.volttron_home)
     print("\n** test_log_topic for {}**".format(request.keywords.node.name))
     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
     # Make some random readings
@@ -1359,7 +1417,7 @@ def test_log_topic_no_header(request, sqlhistorian, publish_agent, query_agent,
     skip_custom_tables(sqlhistorian)
 
     global query_points
-    # print('HOME', volttron_instance1.volttron_home)
+    # print('HOME', volttron_instance.volttron_home)
     print("\n** test_log_topic for {}**".format(request.keywords.node.name))
     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
     # Make some random readings
@@ -1411,7 +1469,7 @@ def test_log_topic_timestamped_readings(request, sqlhistorian, publish_agent,
     skip_custom_tables(sqlhistorian)
 
     global query_points
-    # print('HOME', volttron_instance1.volttron_home)
+    # print('HOME', volttron_instance.volttron_home)
     print("\n** test_log_topic for {}**".format(request.keywords.node.name))
     # Publish fake data. The format mimics the format used by VOLTTRON drivers.
     # Make some random readings

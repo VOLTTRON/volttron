@@ -215,14 +215,10 @@ class MasterDriverAgent(Agent):
     @RPC.export
     def get_point(self, path, point_name, **kwargs):
         return self.instances[path].get_point(point_name, **kwargs)
-
+    
     @RPC.export
     def set_point(self, path, point_name, value, **kwargs):
         return self.instances[path].set_point(point_name, value, **kwargs)
-
-    @RPC.export
-    def set_multiple_points(self, path, point_names_values, **kwargs):
-        return self.instances[path].set_multiple_points(point_names_values, **kwargs)
     
     @RPC.export
     def heart_beat(self):
@@ -237,11 +233,19 @@ class MasterDriverAgent(Agent):
     @RPC.export
     def revert_device(self, path, **kwargs):
         self.instances[path].revert_all(**kwargs)
+                
+            
+    
+
+
 
 
 def main(argv=sys.argv):
     '''Main method called to start the agent.'''
+    #try:
     utils.vip_main(master_driver_agent)
+    #except Exception:
+    #    _log.exception('unhandled exception')
 
 
 if __name__ == '__main__':

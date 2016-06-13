@@ -1,3 +1,4 @@
+.. _PlatformConfiguration:
 VOLTTRON Environment
 ====================
 
