@@ -748,8 +748,6 @@ class PlatformWrapper:
         else:
             self.logit("platform process was null")
 
-
-
         if self.use_twistd and self._t_process != None:
             self._t_process.kill()
             self._t_process.wait()

@@ -403,7 +403,7 @@ def test_analysis_topic(publish_agent, query_agent):
         headers_mod.DATE: now
     }
     # Publish messages
-    publish(publish_agent, 'analysis/PNNL/BUILDING_1/Device/MixedAirTemperature',
+    publish(publish_agent, 'analysis/PNNL/BUILDING_1/Device',
             headers, all_message)
     gevent.sleep(0.5)
 
@@ -468,7 +468,7 @@ def test_analysis_topic_no_header(publish_agent, query_agent):
     print("now is ", now)
 
     # Publish messages
-    publish(publish_agent, 'analysis/PNNL/BUILDING_1/Device/MixedAirTemperature',
+    publish(publish_agent, 'analysis/PNNL/BUILDING_1/Device',
             None, all_message)
     gevent.sleep(0.5)
 

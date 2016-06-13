@@ -21,13 +21,13 @@ mongo_platform = {
 }
 
 
-
 @pytest.fixture
 def mongo_connection_string():
     mongo_conn_str = 'mongodb://{user}:{passwd}@{host}:{port}/{database}'
     params = mongo_connection_params()
     mongo_conn_str = mongo_conn_str.format(**params)
     return mongo_conn_str
+
 
 @pytest.fixture
 def mongo_agent_config():
