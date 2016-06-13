@@ -53,7 +53,6 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-
 # }}}
 import gevent
 import pytest
@@ -64,6 +63,16 @@ from zmq import curve_keypair
 from volttron.platform.vip.agent import Agent, PubSub, Core
 from volttron.platform.vip.socket import encode_key
 from volttrontesting.utils.platformwrapper import PlatformWrapper
+
+
+@pytest.mark.wrapper
+def test_can_add_vc_to_instance(get_volttron_instances):
+    wrapper = get_volttron_instances(1)[0]
+    agent_count = len(wrapper.list_agents())
+    vc_uuid = wrapper.add_vc()
+    assert vc_uuid
+    assert agent_count+1 == len(wrapper.list_agents())
+    assert wrapper.is_agent_running(vc_uuid)
 
 
 @pytest.mark.wrapper
@@ -242,18 +251,17 @@ def test_can_ping_router(volttron_instance):
 @pytest.mark.wrapper
 def test_can_install_listener_on_two_platforms(get_volttron_instances):
 
-    param, (volttron_instance1,
-            volttron_instance2) = get_volttron_instances(2)
+    wrapper1, wrapper2 = get_volttron_instances(2)
 
     global messages
     clear_messages()
-    auuid = volttron_instance1.install_agent(
+    auuid = wrapper1.install_agent(
         agent_dir="examples/ListenerAgent",
         start=False)
     assert auuid is not None
-    started = volttron_instance1.start_agent(auuid)
+    started = wrapper1.start_agent(auuid)
     print('STARTED: ', started)
-    listening = volttron_instance1.build_agent()
+    listening = wrapper1.build_agent()
     listening.vip.pubsub.subscribe(peer='pubsub',
                                    prefix='heartbeat/ListenerAgent',
                                    callback=onmessage)
@@ -264,13 +272,13 @@ def test_can_install_listener_on_two_platforms(get_volttron_instances):
     time_start = time.time()
 
     clear_messages()
-    auuid2 = volttron_instance2.install_agent(
+    auuid2 = wrapper2.install_agent(
         agent_dir="examples/ListenerAgent",
         start=True)
     assert auuid2 is not None
-    started2 = volttron_instance2.start_agent(auuid2)
+    started2 = wrapper2.start_agent(auuid2)
     print('STARTED: ', started2)
-    listening = volttron_instance2.build_agent()
+    listening = wrapper2.build_agent()
     listening.vip.pubsub.subscribe(peer='pubsub',
                                    prefix='heartbeat/ListenerAgent',
                                    callback=onmessage)
@@ -286,99 +294,3 @@ def test_can_install_listener_on_two_platforms(get_volttron_instances):
         gevent.sleep(0.2)
 
     assert messages_contains_prefix('heartbeat/ListenerAgent')
-
-
-# def test_can_ping_control(volttron_instance2):
-#     agent = volttron_instance2.build_agent()
-#     res = agent.vip.ping('aip', 'hello').get(timeout=5)
-#     assert res[0] == 'hello'
-
-# def test_can_publish_messages(volttron_instance):
-#     amessage = [None]
-#     def onmessage(peer, sender, bus, topic, headers, message):
-#         amessage[0] = message
-#
-#     agent_publisher = volttron_instance.build_agent()
-#     response = agent_publisher.vip.ping('', 'woot').get(timeout=3)
-#     assert response[0] == 'woot'
-#     agent_subscriber = volttron_instance.build_agent()
-#     response = agent_subscriber.vip.ping('', 'woot2').get(timeout=3)
-#     assert response[0] == 'woot2'
-#
-#     agent_subscriber.vip.pubsub.subscribe(peer='pubsub',
-#         prefix='test/data', callback=onmessage).get(timeout=5)
-#     themessage = 'I am a fish!'
-#     agent_publisher.vip.pubsub.publish(peer='pubsub',
-#         topic='test/data', message=themessage).get(timeout=5)
-#
-#     agent_subscriber.core.stop()
-#     agent_publisher.core.stop()
-#
-#     assert themessage == amessage[0]
-
-
-# def test_volttron_fixtures(volttron_instance, volttron_instance2):
-#     assert volttron_instance is not None
-#     assert volttron_instance2 is not None
-#     assert volttron_instance != volttron_instance2
-#     assert volttron_instance2.is_running()
-#     assert volttron_instance.is_running()
-#     print('VIP ADDRESS')
-#     print(volttron_instance.vip_address)
-#     ipc = "ipc://"+volttron_instance.volttron_home+"/run/vip.socket"
-#     agent = Agent(address='tcp://127.0.0.1:22916')
-#     gevent.spawn(agent.core.run)
-#     gevent.sleep(0)
-#     print('AFTER SLEEPING')
-#     response = agent.vip.hello('Hello World!').get(timeout=5)
-#     print(response)
-#     agent.core.stop()
-#
-#     agent = PlatormTestAgent(address=volttron_instance.vip_address,
-#                              identity='Listener Found')
-#     task = gevent.spawn(agent.core.run)
-#     gevent.sleep(10)
-#     response = agent.vip.ping('doah', 'hear me!').get(timeout=3)
-#     print("PINGING")
-#     print(response)
-#     agent.core.stop()
-#
-#
-#
-#
-#
-# def test_instance_enviornment(volttron_instance, volttron_instance2):
-#     assert volttron_instance.env['VOLTTRON_HOME'] != \
-#         volttron_instance2.env['VOLTTRON_HOME']
-#
-# def test_platform_startup(volttron_instance, volttron_instance2):
-#     assert volttron_instance.is_running()
-#     assert volttron_instance2.is_running()
-#     assert not volttron_instance.twistd_is_running()
-#     assert not volttron_instance2.twistd_is_running()
-#
-# def test_install_listener(volttron_instance, listener_agent_wheel):
-#     uuid = volttron_instance.install_agent(agent_dir='examples/ListenerAgent')
-#     assert uuid
-#     status = volttron_instance.agent_status(uuid)
-#     assert status != (None, None)
-#     assert volttron_instance.confirm_agent_running("listeneragent-3.0")
-
-@pytest.mark.wrapper
-def test_encryption():
-    addr = 'tcp://127.0.0.1:55055'
-    pub, sec = curve_keypair()
-    publickey, secretkey = encode_key(pub), encode_key(sec)
-    auth = {'allow': [{'credentials': publickey}]}
-
-    plat = PlatformWrapper()
-    plat.startup_platform(vip_address=addr, auth_dict=auth, encrypt=True)
-
-    agent_addr = '{}?serverkey={}&publickey={}&secretkey=' \
-                 '{}'.format(addr, plat.publickey, publickey, secretkey)
-
-    agent1 = plat.build_agent(agent_addr, identity='agent1')
-    peers = agent1.vip.peerlist.list().get(timeout=2)
-    plat.shutdown_platform()
-    print('PEERS: ', peers)
-    assert len(peers) > 0
