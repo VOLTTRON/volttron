@@ -19,7 +19,7 @@ from os.path import dirname
 import zmq
 from zmq.utils import jsonapi
 
-
+from agent_additions import add_vc_to_instance
 from volttron.platform.auth import AuthFile, AuthEntry
 from volttron.platform.agent.utils import strip_comments
 from volttron.platform.messaging import topics
@@ -274,6 +274,9 @@ class PlatformWrapper:
         entry = AuthEntry(credentials=publickey)
         authfile = AuthFile(self.volttron_home + "/auth.json")
         authfile.add(entry)
+
+    def add_vc(self):
+        return add_vc_to_instance(self)
 
     def add_capabilities(self, publickey, capabilities):
         if isinstance(capabilities, basestring):

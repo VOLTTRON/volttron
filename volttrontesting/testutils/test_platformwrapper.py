@@ -53,7 +53,6 @@
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-
 # }}}
 import gevent
 import pytest
@@ -68,7 +67,7 @@ from volttrontesting.utils.platformwrapper import PlatformWrapper
 
 @pytest.mark.wrapper
 def test_can_add_vc_to_instance(get_volttron_instances):
-    wrapper = get_volttron_instances(1)
+    wrapper = get_volttron_instances(1)[0]
     agent_count = len(wrapper.list_agents())
     vc_uuid = wrapper.add_vc()
     assert vc_uuid
