@@ -56,15 +56,15 @@
 # }}}
 
 import os as _os
+import hashlib
+import tempfile
+
 from gevent import subprocess
 from gevent.subprocess import Popen, check_call
+from zmq.utils import jsonapi
+
 from . import get_home
-
 from volttron.platform.auth import AuthEntry, AuthFile
-
-
-def expandall(string):
-    return _os.path.expanduser(_os.path.expandvars(string))
 
 
 def prompt_response(inputs):
@@ -89,14 +89,12 @@ def prompt_response(inputs):
 
 def _cmd(cmdargs):
     """ Executes the passed command.
-
-    Copies the environment in order to allow modifications in the actual
-    callee.
+.
     @:param: list:
         A list of arguments that should be passed to Popen.
     """
-    environ = _os.environ.copy()
-    process = Popen(cmdargs, env=environ, stdout=subprocess.PIPE,
+    print(cmdargs)
+    process = Popen(cmdargs, env=_os.environ, stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE)
     process.wait()
 
@@ -185,6 +183,59 @@ def _resolvable(uri, port):
         return False
     return True
 
+
+def _install_agent(autostart, agent_dir, config, tag):
+    if not isinstance(config, dict):
+        config_file = config
+    else:
+        cfg = tempfile.NamedTemporaryFile()
+        with open(cfg.name, 'w') as fout:
+            fout.write(jsonapi.dumps(config))
+        config_file = cfg.name
+    _cmd(['volttron-ctl', 'remove', '--tag', tag, '--force'])
+    _cmd(['scripts/core/pack_install.sh',
+          agent_dir, config_file, tag])
+    if autostart:
+         _cmd(['volttron-ctl', 'enable', '--tag', tag])
+
+
+def _install_vc(autostart):
+    t = ("Enter volttron central admin user name:",)
+    username = prompt_response(t)
+    t = ("Enter volttron central admin password:",)
+    password = prompt_response(t)
+    config = {
+        "users": {
+            username: {
+                "password": hashlib.sha512(password).hexdigest(),
+                "groups": [
+                    "admin"
+                ]
+            }
+        }
+    }
+
+    print("Installing volttron central(VC)")
+    _install_agent(autostart, "services/core/VolttronCentral", config, 'vc')
+
+
+def _install_platform_historian(autostart):
+    datafile = _os.path.join(get_home(), "data", "platform.historian.sqlite")
+    config = {
+        "agentid": "sqlhistorian-sqlite",
+        "identity": "platform.historian",
+        "connection": {
+            "type": "sqlite",
+            "params": {
+                "database": datafile
+            }
+        }
+    }
+    _install_agent(autostart, "services/core/SQLHistorian", config,
+                   "platform_historian")
+
+
+
 def _explain_discoverable():
     discoverability = """
 A platform is discoverable if it responds to an http request /discovery/.
@@ -205,11 +256,7 @@ def setup_instance():
     The function interactively sets up the instance for working with volttron
     central and the discovery service.
     """
-    volttron_home = _os.path.normpath(expandall(
-        _os.environ.get('VOLTTRON_HOME', '~/.volttron')))
-    _os.environ['VOLTTRON_HOME'] = volttron_home
-    if not _os.path.exists(volttron_home):
-        _os.makedirs(volttron_home, 0o755)
+    volttron_home = get_home()
 
     y_or_n = ('Y', 'N', 'y', 'n')
     y = ('Y', 'y')
@@ -223,101 +270,147 @@ def setup_instance():
             '\nPlease execute with VOLTRON_HOME=/your/path volttron-cfg to '
             'modify VOLTTRON_HOME.\n')
         return
-    t = ('\nIs this instance discoverable (Y/N)? [N] ', y_or_n, 'N')
-    _explain_discoverable()
-    is_discoverable = prompt_response(t) in y
 
-    if is_discoverable:
-        t = ('\nWhat is the external ipv4 address for this instance? '
-             '[127.0.0.1]: ', None, '127.0.0.1')
+    _os.environ['VOLTTRON_HOME'] = volttron_home
+    if not _os.path.exists(volttron_home):
+        _os.makedirs(volttron_home, 0o755)
+
+    # If yes then we know we at least want the platform agent installed.
+    t = ('Will this instance register with a volttron central? ('
+         'either locally or remotely) [Y]: ', y_or_n, 'Y')
+    connect_to_vc = prompt_response(t) in y
+
+    # Install volttron central?
+    t = ('Is this instance a volttron central? [N]: ', y_or_n, 'N')
+    is_vc = prompt_response(t) in y
+
+    if is_vc:
+        prompt = '''
+In order for external clients to connect to volttron central or the instance
+itself, the instance must bind to a tcp address.  If testing this can be an
+internal address such as 127.0.0.1.
+
+Note: the assumption is that the discovery address for volttron central and
+      the vip address will be the same.  If not one can change the address
+      in the config file after competing this configuration.
+
+Please enter the external ipv4 address for this instance? [127.0.0.1]: '''
+        t = (prompt, None, '127.0.0.1')
         external_ip = prompt_response(t)
-        t = ('What is the vip port this instance? [22916] ',)
-        vip_port = prompt_response(t)
-        if not vip_port:
-            vip_port = 22916
+    else:
+        prompt = 'Please enter the external ipv4 address for this instance? '\
+                 '[127.0.0.1]: '
+        t = (prompt, None, '127.0.0.1')
+        external_ip = prompt_response(t)
 
-        t = ('\nWhat is the port for discovery? [8080] ',)
-        external_port = prompt_response(t)
-        if not external_port:
-            external_port = 8080
-        t = (
-            '\nWhich IP addresses are allowed to discover this instance? '
-            '[/127.*/] ', None, '/127.*/')
+    vc_port = None
+    if is_vc:
+        t = ('What is the port for volttron central? [8080]: ', None, '8080')
+        vc_port = prompt_response(t)
+
+    t = ('What is the instance port for the vip address? [22916]: ', None,
+         '22916')
+    instance_port = prompt_response(t)
+
+    instance_name = 'Unnamed Instance'
+    if connect_to_vc:
+        t = ('Enter the name of this instance: ',)
+        instance_name = prompt_response(t)
+
+        t = ('Which IP addresses are allowed to discover this instance? '
+             '[/127.*/] ', None, '/127.*/')
         ip_allowed_to_discover = prompt_response(t)
-        AuthFile().add(AuthEntry(address=ip_allowed_to_discover,
+        AuthFile().add(AuthEntry(address=external_ip,
                                  credentials='/CURVE:.*/'))
 
-        t = ('\nIs this instance a volttron central (Y/N)? [N] ', y_or_n, 'N')
-        do_install_vc = prompt_response(t) in y
-        do_vc_autostart = True
-        do_platform_autostart = True
-        if do_install_vc:
-            t = ('\nShould volttron central autostart(Y/N)? [Y] ',
-                 y_or_n, 'Y')
-            do_vc_autostart = prompt_response(t) in y
+    do_vc_autostart = False
+    if is_vc:
+        t = ('Should volttron central autostart (Y/N)? [Y]: ', y_or_n, 'Y')
+        do_vc_autostart = prompt_response(t) in y
 
-            t = ('\nInclude volttron central platform agent on '
-                 'volttron central? [Y]', y_or_n, 'Y')
-            do_install_platform = prompt_response(t) in y
-        else:
-            do_install_platform = True
-            t = ('\nAddress of volttron central? [127.0.0.1]: ', None,
-                 '127.0.0.1')
-            vc_ipaddress = prompt_response(t)
+    do_platform_autostart = False
+    other_vc_address = None
+    other_vc_port = None
+    if connect_to_vc:
+        t = ('Should volttron central platform autostart (Y/N)? [Y]: ',
+             y_or_n, 'Y')
+        do_platform_autostart = prompt_response(t) in y
+
+        if not is_vc:
+            t = ('Address of the volttron central to connect to? '
+                 '[127.0.0.1]: ',
+                 None, '127.0.0.1')
+
+            other_vc_address = prompt_response(t)
             should_resolve = True
             first = True
-            t = ('Port of volttron central? [8080] ',)
-            vc_port = prompt_response(t)
-            if not vc_port:
-                vc_port = 8080
-            while not _resolvable(vc_ipaddress, vc_port) and should_resolve:
-                print("Couldn't resolve {}:{}".format(vc_ipaddress, vc_port))
+            t = ('Port of volttron central? [8080] ', None, '8080')
+            other_vc_port = prompt_response(t)
+
+            while not _resolvable(other_vc_address, other_vc_port) \
+                    and should_resolve:
+                print("Couldn't resolve {}:{}".format(other_vc_address,
+                                                      other_vc_port))
                 t2 = (
-                    '\nShould volttron central be resolvable now? [Y] ', y_or_n,
-                    'Y')
+                    '\nShould volttron central be resolvable now? [Y] ',
+                    y_or_n, 'Y')
                 if first:
                     should_resolve = prompt_response(t2) in ('y', 'Y')
                     first = False
 
                 if should_resolve:
                     t = ('\nAddress of volttron central? ',)
-                    vc_ipaddress = prompt_response(t)
+                    other_vc_address = prompt_response(t)
                     t = ('\nPort of volttron central? ',)
-                    vc_port = prompt_response(t)
+                    other_vc_port = prompt_response(t)
 
-        if do_install_platform:
-            t = ('\nShould platform agent autostart(Y/N)? [Y] ', y_or_n, 'Y')
-            do_platform_autostart = prompt_response(t) in y
+    external_vip_address = "tcp://{}:{}".format(external_ip,
+                                                instance_port)
 
-        external_uri = "tcp://{}:{}".format(external_ip, vip_port)
+    bind_web_address = None
+    if is_vc:
         bind_web_address = "http://{}:{}".format(external_ip,
-                                                 external_port)
-        try:
-            vc_web_address = "http://{}:{}".format(vc_ipaddress, vc_port)
-            _make_configuration(external_uri, bind_web_address,
-                                vc_web_address)
+                                                 vc_port)
 
-        # if vc_ipaddres isn't defined
-        # only happens on volttron central.
-        except UnboundLocalError:
-            _make_configuration(external_uri, bind_web_address)
+    vc_web_address = None
+    if connect_to_vc and not is_vc:
+        vc_web_address = "http://{}:{}".format(other_vc_address,
+                                               other_vc_port)
 
-        t = ('\nShould install sqlite platform historian? [N]', y_or_n, n)
-        do_install_platform_historian = prompt_response(t) in y
+    with open(_os.path.join(volttron_home, 'config'), 'w') as fout:
+        fout.write('[volttron]\n')
+        fout.write('vip-address={}\n'.format(external_vip_address))
+        if is_vc:
+            fout.write('bind-web-address={}\n'.format(bind_web_address))
+        if connect_to_vc and not is_vc:
+            fout.write('volttron-central-address={}|{}\n'.format(
+                instance_name,
+                vc_web_address
+            ))
 
-        do_historian_autostart = True
-        if do_install_platform_historian:
-            t = ('\nShould historian agent autostart(Y/N)? [Y] ', y_or_n, 'Y')
-            do_historian_autostart = prompt_response(t) in y
+    _start_platform()
 
-        # in order to install agents we need to start the platform.
-        _start_platform()
-        _install_agents((do_install_vc, do_vc_autostart),
-                        (do_install_platform, do_platform_autostart),
-                        (do_install_platform_historian,
-                         do_historian_autostart))
-        _shutdown_platform()
-        print('Finished configuration\n')
-        print('You can now start you volttron instance.\n')
-        print('If you need to change the instance configuration you can edit')
-        print('the config file at {}/{}\n'.format(volttron_home, 'config'))
+    if is_vc:
+        _install_vc(do_vc_autostart)
+
+    if connect_to_vc:
+        print('Installing volttron central platform (VCP)')
+        _install_agent(do_platform_autostart,
+                       'services/core/VolttronCentralPlatform',
+                       {"agentid": "volttroncentralplatform"}, "vcp")
+
+    t = ('\nShould install SQLITE platform historian? [N]', y_or_n, n)
+    install_platform_historian = prompt_response(t) in y
+
+    historian_autostart = False
+    if install_platform_historian:
+        t = ('\nShould historian agent autostart(Y/N)? [Y] ', y_or_n, 'Y')
+        historian_autostart = prompt_response(t) in y
+        _install_platform_historian(historian_autostart)
+
+    _shutdown_platform()
+    print('Finished configuration\n')
+    print('You can now start you volttron instance.\n')
+    print('If you need to change the instance configuration you can edit')
+    print('the config file at {}/{}\n'.format(volttron_home, 'config'))
+

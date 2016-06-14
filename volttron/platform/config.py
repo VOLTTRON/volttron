@@ -74,6 +74,11 @@ import shlex as _shlex
 import sys as _sys
 from . instance_setup import setup_instance
 
+
+def expandall(string):
+    return _os.path.expanduser(_os.path.expandvars(string))
+
+
 class TrackingString(str):
     '''String subclass that allows attaching source information.'''
 
