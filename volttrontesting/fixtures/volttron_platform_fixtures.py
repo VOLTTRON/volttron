@@ -194,7 +194,7 @@ def get_volttron_instances(request):
     for testing.
     """
 
-    def get_n_volttron_instances(n):
+    def get_n_volttron_instances(n, **kwargs):
         get_n_volttron_instances.count = n
         instances = []
         for i in range(0, n):
@@ -202,9 +202,9 @@ def get_volttron_instances(request):
             wrapper = None
             if request.param == 'encrypted':
                 print("building instance  (using encryption)")
-                wrapper = build_wrapper(address, encrypt=True)
+                wrapper = build_wrapper(address, encrypt=True, **kwargs)
             else:
-                wrapper = build_wrapper(address)
+                wrapper = build_wrapper(address, **kwargs)
             instances.append(wrapper)
         get_n_volttron_instances.instances = instances
         return instances

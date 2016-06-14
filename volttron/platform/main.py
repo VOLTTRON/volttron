@@ -254,7 +254,7 @@ class Router(BaseRouter):
 
     def __init__(self, local_address, addresses=(),
                  context=None, secretkey=None, default_user_id=None,
-                 monitor=False, tracker=None):
+                 monitor=False, tracker=None, volttron_central_address=None):
         super(Router, self).__init__(
             context=context, default_user_id=default_user_id)
         self.local_address = Address(local_address)
@@ -265,6 +265,7 @@ class Router(BaseRouter):
             self.logger.setLevel(logging.WARNING)
         self._monitor = monitor
         self._tracker = tracker
+        self._volttron_central_address = volttron_central_address
 
     def setup(self):
         sock = self.socket
@@ -327,6 +328,8 @@ class Router(BaseRouter):
                         value = [self.local_address.base]
                 elif name == b'local_address':
                     value = self.local_address.base
+                elif name == b'volttron-central-address':
+                    value = self._volttron_central_address
                 else:
                     value = None
             frames[6:] = [b'', jsonapi.dumps(value)]
@@ -390,6 +393,7 @@ def start_volttron_process(opts):
         opts.log = config.expandall(opts.log)
     if opts.log_config:
         opts.log_config = config.expandall(opts.log_config)
+    opts.volttron_central_address
     opts.publish_address = config.expandall(opts.publish_address)
     opts.subscribe_address = config.expandall(opts.subscribe_address)
     opts.vip_address = [config.expandall(addr) for addr in opts.vip_address]
@@ -507,12 +511,14 @@ def start_volttron_process(opts):
     zmq.Context.instance()   # DO NOT REMOVE LINE!!
 
     tracker = Tracker()
+
     # Main loops
     def router(stop):
         try:
             Router(opts.vip_local_address, opts.vip_address,
                    secretkey=secretkey, default_user_id=b'vip.service',
-                   monitor=opts.monitor, tracker=tracker).run()
+                   monitor=opts.monitor, tracker=tracker,
+                   volttron_central_address=opts.volttron_central_address).run()
         except Exception:
             _log.exception('Unhandled exception in router loop')
             raise

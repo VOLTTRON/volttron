@@ -241,9 +241,9 @@ class PlatformWrapper:
             gevent.spawn(self._append_allow_curve_key, publickey)
             gevent.sleep(0.1)
 
-
         if should_spawn:
             self.logit('platformwrapper.build_agent spawning')
+            self.logit('Agent connecting to: {}'.format(agent.core.address))
             event = gevent.event.Event()
             gevent.spawn(agent.core.run, event)#.join(0)
             event.wait(timeout=2)
@@ -298,7 +298,8 @@ class PlatformWrapper:
                 fd.write(json.dumps(auth_dict))
 
     def startup_platform(self, vip_address, auth_dict=None, use_twistd=False,
-        mode=UNRESTRICTED, encrypt=False, bind_web_address=None):
+                         mode=UNRESTRICTED, encrypt=False, bind_web_address=None,
+                         volttron_central_address=None):
         # if not isinstance(vip_address, list):
         #     self.vip_address = [vip_address]
         # else:
@@ -307,6 +308,7 @@ class PlatformWrapper:
         self.vip_address = vip_address
         self.mode = mode
         self.bind_web_address = bind_web_address
+        self.volttron_central_address = volttron_central_address
 
         enable_logging = os.environ.get('ENABLE_LOGGING', False)
         debug_mode = os.environ.get('DEBUG_MODE', False)
@@ -337,6 +339,7 @@ class PlatformWrapper:
                 'publish_address': ipc + 'publish',
                 'subscribe_address': ipc + 'subscribe',
                 'bind_web_address': bind_web_address,
+                'volttron_central_address': volttron_central_address,
                 'developer_mode': not encrypt,
                 'log': os.path.join(self.volttron_home,'volttron.log'),
                 'log_config': None,
@@ -353,6 +356,9 @@ class PlatformWrapper:
         parser.set('volttron', 'vip-address', vip_address)
         if bind_web_address:
             parser.set('volttron', 'bind-web-address', bind_web_address)
+        if volttron_central_address:
+            parser.set('volttron', 'volttron-central-address',
+                       volttron_central_address)
         if self.mode == UNRESTRICTED:
             if RESTRICTED_AVAILABLE:
                 config['mobility'] = False
