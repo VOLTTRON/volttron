@@ -598,4 +598,7 @@ _patch_argparse()
 
 
 def _main():
-    setup_instance()
+    try:
+        setup_instance()
+    except KeyboardInterrupt:
+        print('\n')
