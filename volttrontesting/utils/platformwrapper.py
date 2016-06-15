@@ -13,6 +13,7 @@ from gevent.fileobject import FileObject
 import gevent.subprocess as subprocess
 from gevent.subprocess import Popen
 from subprocess import CalledProcessError
+from volttron.platform.keystore import KeyStore
 
 from os.path import dirname
 
@@ -747,15 +748,13 @@ class PlatformWrapper:
         else:
             self.logit("platform process was null")
 
-
-
         if self.use_twistd and self._t_process != None:
             self._t_process.kill()
             self._t_process.wait()
         elif self.use_twistd:
             self.logit("twistd process was null")
-        # if not self.skip_cleanup:
-        #     shutil.rmtree(self.volttron_home, ignore_errors=True)
+        if not self.skip_cleanup:
+            shutil.rmtree(self.volttron_home, ignore_errors=True)
 
 
 def mergetree(src, dst, symlinks=False, ignore=None):
