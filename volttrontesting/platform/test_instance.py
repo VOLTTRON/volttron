@@ -3,6 +3,24 @@ from volttrontesting.fixtures.volttron_platform_fixtures import get_rand_ip_and_
 from volttron.platform.vip.agent.subsystems import query
 
 
+def test_can_get_bind_web_address():
+    vip_address = "tcp://{}".format(get_rand_ip_and_port())
+    wrapper = PlatformWrapper()
+    wrapper.startup_platform(vip_address)
+    agent = wrapper.build_agent()
+    q = query.Query(agent.core)
+
+    assert None is q.query(b'bind-web-address').get(timeout=2)
+    agent.core.stop(timeout=2)
+    wrapper.shutdown_platform()
+
+    bind_web_address = "http://{}".format(get_rand_ip_and_port())
+    wrapper.startup_platform(vip_address, bind_web_address=bind_web_address)
+    agent = wrapper.build_agent()
+    q = query.Query(agent.core)
+    assert bind_web_address == q.query(b'bind-web-address').get(timeout=2)
+
+
 def test_can_handle_platform_name_with_vc_address():
     vip_address = "tcp://{}".format(get_rand_ip_and_port())
     cfg_entry = "vc|http://{}".format(get_rand_ip_and_port())

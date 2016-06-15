@@ -255,7 +255,7 @@ class Router(BaseRouter):
     def __init__(self, local_address, addresses=(),
                  context=None, secretkey=None, default_user_id=None,
                  monitor=False, tracker=None, volttron_central_address=None,
-                 platform_name=None):
+                 platform_name=None, bind_web_address=None):
         super(Router, self).__init__(
             context=context, default_user_id=default_user_id)
         self.local_address = Address(local_address)
@@ -269,6 +269,7 @@ class Router(BaseRouter):
         self._tracker = tracker
         self._volttron_central_address = volttron_central_address
         self._platform_name = platform_name
+        self._bind_web_address = bind_web_address
 
     def setup(self):
         sock = self.socket
@@ -335,6 +336,8 @@ class Router(BaseRouter):
                     value = self._volttron_central_address
                 elif name == b'platform-name':
                     value = self._platform_name
+                elif name == b'bind-web-address':
+                    value = self._bind_web_address
                 else:
                     value = None
             frames[6:] = [b'', jsonapi.dumps(value)]
@@ -530,7 +533,8 @@ def start_volttron_process(opts):
                    secretkey=secretkey, default_user_id=b'vip.service',
                    monitor=opts.monitor, tracker=tracker,
                    volttron_central_address=opts.volttron_central_address,
-                   platform_name=opts.platform_name).run()
+                   platform_name=opts.platform_name,
+                   bind_web_address=opts.bind_web_address).run()
         except Exception:
             _log.exception('Unhandled exception in router loop')
             raise
