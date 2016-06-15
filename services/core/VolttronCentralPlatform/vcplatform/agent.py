@@ -242,13 +242,15 @@ class VolttronCentralPlatform(Agent):
 
         if self._platform_uuid:
             _log.info('Publishing new agent list.')
-
-            self._agent_connected_to_vc.vip.pubsub.publish(
-                'pubsub',
-                topic="platforms/{}/update_agent_list".format(
-                    self._platform_uuid),
-                message=self.list_agents()
-            )
+            if self._agent_connected_to_vc:
+                self._agent_connected_to_vc.vip.pubsub.publish(
+                    'pubsub',
+                    topic="platforms/{}/update_agent_list".format(
+                        self._platform_uuid),
+                    message=self.list_agents()
+                )
+            else:
+                _log.debug("Agent not connected to vc so not publishing list")
         else:
             _log.info('Not publishing new agent list '
                       '(no paltform_uuid specified')

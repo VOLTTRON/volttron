@@ -209,7 +209,7 @@ class PlatformWrapper:
         :return:
         """
         self.logit("Building generic agent.")
-
+        assert self.is_running()
         use_ipc = kwargs.pop('use_ipc', False)
         if address is None:
             if use_ipc:
@@ -308,8 +308,18 @@ class PlatformWrapper:
         self.vip_address = vip_address
         self.mode = mode
         self.bind_web_address = bind_web_address
-        self.volttron_central_address = volttron_central_address
 
+        self.platform_name = ''
+        self.volttron_central_address = volttron_central_address
+        self.logit('VC BEFORE: {}'.format(volttron_central_address))
+        if volttron_central_address:
+            if '|' in volttron_central_address:
+                self.platform_name, self.volttron_central_address = \
+                    volttron_central_address.split('|')
+        self.logit('VC AFTER: {}'.format(volttron_central_address))
+        self.logit('self.VC BEFORE: {}'.format(self.volttron_central_address))
+
+        self.logit('PLATFORM NAME IS: {}'.format(self.platform_name))
         enable_logging = os.environ.get('ENABLE_LOGGING', False)
         debug_mode = os.environ.get('DEBUG_MODE', False)
         self.skip_cleanup = os.environ.get('SKIP_CLEANUP', False)
@@ -340,6 +350,7 @@ class PlatformWrapper:
                 'subscribe_address': ipc + 'subscribe',
                 'bind_web_address': bind_web_address,
                 'volttron_central_address': volttron_central_address,
+                'platform_name': None,
                 'developer_mode': not encrypt,
                 'log': os.path.join(self.volttron_home,'volttron.log'),
                 'log_config': None,
@@ -348,6 +359,7 @@ class PlatformWrapper:
                 'log_level': logging.DEBUG,
                 'verboseness': logging.DEBUG}
 
+        print(self.opts)
         pconfig = os.path.join(self.volttron_home, 'config')
         config = {}
 
@@ -356,7 +368,7 @@ class PlatformWrapper:
         parser.set('volttron', 'vip-address', vip_address)
         if bind_web_address:
             parser.set('volttron', 'bind-web-address', bind_web_address)
-        if volttron_central_address:
+        if self.volttron_central_address:
             parser.set('volttron', 'volttron-central-address',
                        volttron_central_address)
         if self.mode == UNRESTRICTED:
@@ -378,7 +390,6 @@ class PlatformWrapper:
 
             print ("certsdir", certsdir)
             self.certsobj = certs.Certs(certsdir)
-
 
             with closing(open(pconfig, 'wb')) as cfg:
                 cfg.write(PLATFORM_CONFIG_RESTRICTED.format(**config))

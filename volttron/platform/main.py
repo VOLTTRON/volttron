@@ -254,7 +254,8 @@ class Router(BaseRouter):
 
     def __init__(self, local_address, addresses=(),
                  context=None, secretkey=None, default_user_id=None,
-                 monitor=False, tracker=None, volttron_central_address=None):
+                 monitor=False, tracker=None, volttron_central_address=None,
+                 platform_name=None):
         super(Router, self).__init__(
             context=context, default_user_id=default_user_id)
         self.local_address = Address(local_address)
@@ -263,9 +264,11 @@ class Router(BaseRouter):
         self.logger = logging.getLogger('vip.router')
         if self.logger.level == logging.NOTSET:
             self.logger.setLevel(logging.WARNING)
+            #self.logger.setLevel(logging.DEBUG)
         self._monitor = monitor
         self._tracker = tracker
         self._volttron_central_address = volttron_central_address
+        self._platform_name = platform_name
 
     def setup(self):
         sock = self.socket
@@ -330,6 +333,8 @@ class Router(BaseRouter):
                     value = self.local_address.base
                 elif name == b'volttron-central-address':
                     value = self._volttron_central_address
+                elif name == b'platform-name':
+                    value = self._platform_name
                 else:
                     value = None
             frames[6:] = [b'', jsonapi.dumps(value)]
@@ -393,7 +398,29 @@ def start_volttron_process(opts):
         opts.log = config.expandall(opts.log)
     if opts.log_config:
         opts.log_config = config.expandall(opts.log_config)
-    opts.volttron_central_address
+
+    # Configure logging
+    level = max(1, opts.verboseness)
+    if opts.monitor and level > logging.INFO:
+        level = logging.INFO
+    if opts.log is None:
+        log_to_file(sys.stderr, level)
+    elif opts.log == '-':
+        log_to_file(sys.stdout, level)
+    elif opts.log:
+        log_to_file(opts.log, level, handler_class=handlers.WatchedFileHandler)
+    else:
+        log_to_file(None, 100, handler_class=lambda x: logging.NullHandler())
+    if opts.log_config:
+        error = configure_logging(opts.log_config)
+        if error:
+            parser.error('{}: {}'.format(*error))
+    platform_name = None
+    _log.debug('')
+    if opts.volttron_central_address:
+        if '|' in opts.volttron_central_address:
+            platform_name, opts.volttron_central_address = opts.volttron_central_address.split('|')
+    opts.platform_name = platform_name
     opts.publish_address = config.expandall(opts.publish_address)
     opts.subscribe_address = config.expandall(opts.subscribe_address)
     opts.vip_address = [config.expandall(addr) for addr in opts.vip_address]
@@ -416,22 +443,6 @@ def start_volttron_process(opts):
         for name, value in sorted(vars(opts).iteritems()):
             print(name, repr(value))
         return
-    # Configure logging
-    level = max(1, opts.verboseness)
-    if opts.monitor and level > logging.INFO:
-        level = logging.INFO
-    if opts.log is None:
-        log_to_file(sys.stderr, level)
-    elif opts.log == '-':
-        log_to_file(sys.stdout, level)
-    elif opts.log:
-        log_to_file(opts.log, level, handler_class=handlers.WatchedFileHandler)
-    else:
-        log_to_file(None, 100, handler_class=lambda x: logging.NullHandler())
-    if opts.log_config:
-        error = configure_logging(opts.log_config)
-        if error:
-            parser.error('{}: {}'.format(*error))
 
     # Increase open files resource limit to max or 8192 if unlimited
     try:
@@ -518,7 +529,8 @@ def start_volttron_process(opts):
             Router(opts.vip_local_address, opts.vip_address,
                    secretkey=secretkey, default_user_id=b'vip.service',
                    monitor=opts.monitor, tracker=tracker,
-                   volttron_central_address=opts.volttron_central_address).run()
+                   volttron_central_address=opts.volttron_central_address,
+                   platform_name=opts.platform_name).run()
         except Exception:
             _log.exception('Unhandled exception in router loop')
             raise
@@ -744,6 +756,7 @@ def main(argv=sys.argv):
         # Used to contact volttron central when registering volttron central
         # platform agent.
         volttron_central_address=None,
+        platform_name=None,
         #allow_root=False,
         #allow_users=None,
         #allow_groups=None,
