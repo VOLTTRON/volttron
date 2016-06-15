@@ -14,7 +14,7 @@ var _data = {};
 var _backupData = {};
 var _registryFiles = {};
 var _backupFileName = {};
-
+var _platform;
 
 var _placeHolders = [ [
     {"key": "Point_Name", "value": "", "editable": true},
@@ -29,7 +29,7 @@ var _placeHolders = [ [
 
 
 devicesStore.getState = function () {
-    return { action: _action, view: _view, device: _device };
+    return { action: _action, view: _view, device: _device, platform: _platform };
 };
 
 devicesStore.getFilteredRegistryValues = function (device, filterStr) {
@@ -89,6 +89,10 @@ devicesStore.dispatchToken = dispatcher.register(function (action) {
     dispatcher.waitFor([authorizationStore.dispatchToken]);
 
     switch (action.type) {
+        case ACTION_TYPES.CONFIGURE_DEVICES:
+            _platform = action.platform;
+            devicesStore.emitChange();
+            break;
         case ACTION_TYPES.ADD_DEVICES:
         case ACTION_TYPES.CANCEL_SCANNING:
             _action = "get_scan_settings";

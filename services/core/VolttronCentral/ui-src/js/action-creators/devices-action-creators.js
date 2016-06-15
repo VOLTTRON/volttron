@@ -6,6 +6,13 @@ var dispatcher = require('../dispatcher');
 var rpc = require('../lib/rpc');
 
 var devicesActionCreators = {
+    configureDevices: function (platform, proxies) {
+        dispatcher.dispatch({
+            type: ACTION_TYPES.CONFIGURE_DEVICES,
+            platform: platform,
+            bacnetProxies: proxies
+        });
+    },
     addDevices: function (platform) {
         dispatcher.dispatch({
             type: ACTION_TYPES.ADD_DEVICES,

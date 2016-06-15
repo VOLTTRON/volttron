@@ -26,7 +26,7 @@ var PlatformsPanelItem = React.createClass({
         {
             state.notInitialized = true;
             state.loading = false;
-            state.cancelButton = false;
+            state.cancelButton = false;            
         }
 
         return state;
@@ -142,6 +142,9 @@ var PlatformsPanelItem = React.createClass({
         this.setState({tooltipX: evt.clientX - 60});
         this.setState({tooltipY: evt.clientY - 70});
     },
+    _onAddDevices: function (evt) {
+        devicesActionCreators.configureDevices(this.state.panelItem);
+    },
     _onDeviceMethodChange: function (evt) {
 
         var deviceMethod = evt.target.value;
@@ -203,12 +206,12 @@ var PlatformsPanelItem = React.createClass({
                 >
                     <option value="">-- Select method --</option>
                     <option value="scanForDevices">Scan for Devices</option>
-                    <option value="addDevicesManually">Add Devices Manually</option>
+                    <option value="addDevicesManually">Add Manually</option>
                 </select>
             );
 
             var devicesTaptip = { 
-                "title": "Add Devices Method", 
+                "title": "Add Devices", 
                 "content": devicesSelect,
                 "xOffset": taptipX,
                 "yOffset": taptipY
@@ -223,12 +226,12 @@ var PlatformsPanelItem = React.createClass({
             DevicesButton = (
                 <ControlButton 
                     name="addDevicesButton"
-                    taptip={devicesTaptip} 
                     tooltip={devicesTooltip}
                     controlclass="panelItemButton"
                     nocentering={true}
                     floatleft={true}
-                    fontAwesomeIcon="cogs"></ControlButton>
+                    fontAwesomeIcon="cogs"
+                    clickAction={this._onAddDevices}></ControlButton>
             );
         }
         

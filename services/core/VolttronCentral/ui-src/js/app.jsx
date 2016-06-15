@@ -13,6 +13,7 @@ var Platform = require('./components/platform');
 var PlatformManager = require('./components/platform-manager');
 var Platforms = require('./components/platforms');
 var Devices = require('./components/devices');
+var ConfigureDevices = require('./components/configure-devices');
 var PlatformCharts = require('./components/platform-charts');
 
 var _afterLoginPath = '/dashboard';
@@ -56,6 +57,7 @@ var routes = (
         <Router.Route name="platforms" path="platforms" handler={checkAuth(Platforms)} />
         <Router.Route name="platform" path="platforms/:uuid" handler={checkAuth(Platform)} />
         <Router.Route name="devices" path="devices" handler={checkAuth(Devices)} />
+        <Router.Route name="configure" path="configure-devices" handler={checkAuth(ConfigureDevices)} />
         <Router.Route name="charts" path="platform-charts" handler={checkAuth(PlatformCharts)} />
         <Router.NotFoundRoute handler={checkAuth(PageNotFound)} />
         <Router.DefaultRoute handler={AfterLogin} />
@@ -84,21 +86,18 @@ router.run(function (Handler) {
     platformsPanelItemsStore.addChangeListener(function () {
         if (platformsPanelItemsStore.getLastCheck() && authorizationStore.getAuthorization())
         {
-            // console.log("current path: " + router.getCurrentPath());
             if (!router.isActive('charts'))
             {
-                // console.log("replace with /platform-charts");
                 router.transitionTo('/platform-charts');
-                // window.location.href = "index.html#/platform-charts";
             }
         }
 
     });
 
     devicesStore.addChangeListener(function () {        
-        if (!router.isActive('devices'))
+        if (!router.isActive('configure'))
         {
-            router.transitionTo('/devices');
+            router.transitionTo('/configure-devices');
         }
     });
 

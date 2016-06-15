@@ -85,6 +85,33 @@ platformsStore.getHistorianRunning = function (platform) {
     return historianRunning;
 };
 
+platformsStore.getBacnetProxies = function (uuid)
+{
+    var bacnetProxies = [];
+
+    if (_platforms)
+    {
+        if (_platforms.length)
+        {
+            var foundPlatform = _platforms.find(function (platform) {
+                return platform.uuid === uuid;
+            });
+
+            if (foundPlatform)
+            {
+                if (foundPlatform.hasOwnProperty("agents"))
+                {
+                    bacnetProxies = foundPlatform.agents.filter(function (agent) {     
+                        return agent.name.toLowerCase().indexOf("bacnet_proxy") > -1;
+                    });
+                }
+            }
+        }
+    }    
+
+    return bacnetProxies;
+};
+
 platformsStore.dispatchToken = dispatcher.register(function (action) {
     dispatcher.waitFor([authorizationStore.dispatchToken]);
 
