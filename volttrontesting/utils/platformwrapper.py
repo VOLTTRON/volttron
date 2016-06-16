@@ -740,7 +740,7 @@ class PlatformWrapper:
     #     print result
 
 
-    def shutdown_platform(self):
+    def shutdown_platform(self, cleanup=True):
         '''Stop platform here
 
            This function will shutdown the platform and attempt to kill any
@@ -770,8 +770,10 @@ class PlatformWrapper:
             self._t_process.wait()
         elif self.use_twistd:
             self.logit("twistd process was null")
-        # if not self.skip_cleanup:
-        #     shutil.rmtree(self.volttron_home, ignore_errors=True)
+
+        if not self.skip_cleanup and cleanup:
+            self.logit("Doing cleanup for {}".format(self.volttron_home))
+            shutil.rmtree(self.volttron_home, ignore_errors=True)
 
 
 def mergetree(src, dst, symlinks=False, ignore=None):

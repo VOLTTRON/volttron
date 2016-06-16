@@ -27,9 +27,10 @@ def test_can_get_bind_web_address():
 
     assert None is q.query(b'bind-web-address').get(timeout=2)
     agent.core.stop(timeout=2)
-    wrapper.shutdown_platform()
+    wrapper.shutdown_platform(cleanup=False)
 
     bind_web_address = "http://{}".format(get_rand_ip_and_port())
+    print("WEB ADDRESS IS: {}".format(bind_web_address))
     wrapper.startup_platform(vip_address, bind_web_address=bind_web_address)
     agent = wrapper.build_agent()
     q = query.Query(agent.core)
