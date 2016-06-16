@@ -623,8 +623,8 @@ class VolttronCentralPlatform(Agent):
         _log.info('Manage request from address: {} serverkey: {}'.format(
             address, vcserverkey))
 
-        if self._managed:
-            raise AlreadyManagedError()
+        #if self._managed:
+        #    raise AlreadyManagedError()
 
         parsedaddress = urlparse.urlparse(address)
 

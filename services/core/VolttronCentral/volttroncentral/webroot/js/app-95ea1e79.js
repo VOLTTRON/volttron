@@ -1780,6 +1780,7 @@ var DevicesFound = require('./devices-found');
 var ConfigureDevice = require('./configure-device');
 var ConfigureRegistry = require('./configure-registry');
 var devicesStore = require('../stores/devices-store');
+var devicesActionCreators = require('../action-creators/devices-action-creators');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
 
 var ConfigureDevices = React.createClass({displayName: "ConfigureDevices",
@@ -1804,7 +1805,7 @@ var ConfigureDevices = React.createClass({displayName: "ConfigureDevices",
 
         var state = getStateFromStores();
 
-        if (!state.hasOwnProperty(selectedProxyUuid))
+        if (!state.hasOwnProperty("selectedProxyUuid"))
         {
             if (state.bacnetProxies.length)
             {
@@ -1817,11 +1818,11 @@ var ConfigureDevices = React.createClass({displayName: "ConfigureDevices",
 
         var deviceMethod = evt.target.value;
 
-        this.setState({deviceMethod: deviceMethod});
+        // this.setState({deviceMethod: deviceMethod});
 
         if (this.state.bacnetProxies.length)
         {
-            devicesActionCreators.addDevices(this.state.panelItem, deviceMethod);
+            // devicesActionCreators.addDevices(this.state.panelItem, deviceMethod);
             this.setState({ deviceMethod: deviceMethod });
         }
         else
@@ -1850,7 +1851,20 @@ var ConfigureDevices = React.createClass({displayName: "ConfigureDevices",
             )
         );
 
-        var proxySelect;
+        var proxySelect, proxySelectLabel;
+
+        var tableStyle = {
+            width: "40%"
+        }
+
+        var shortTdStyle = {
+            width: "15%",
+            lineHeight: "12px"
+        }
+
+        var longTdStyle = {
+            width: "25%"
+        }
 
         if (this.state.deviceMethod === "scanForDevices")
         {
@@ -1860,9 +1874,17 @@ var ConfigureDevices = React.createClass({displayName: "ConfigureDevices",
                 );
             });
 
+            tableStyle.width = "60%";
+            shortTdStyle.width = "5%";
+
+            var longerTdStyle = {
+                width: "40%",
+                minWidth: "130px"
+            }
+            proxySelectLabel = (React.createElement("td", {className: "plain", style: longerTdStyle}, React.createElement("b", null, "BACNet Proxy Agent: ")))
+
             proxySelect = (
-                React.createElement("div", null, 
-                    React.createElement("label", null, React.createElement("b", null, "BACNet Proxy Agent: ")), 
+                React.createElement("td", {className: "plain", style: longTdStyle}, 
                     React.createElement("select", {
                         onChange: this._onProxySelect, 
                         value: this.state.selectedProxyUuid, 
@@ -1875,15 +1897,31 @@ var ConfigureDevices = React.createClass({displayName: "ConfigureDevices",
             );
         }
 
-        
+        var buttonStyle = {
+            height: "21px"
+        }
+
+        var platformNameLength = platform.name.length * 6;
+
+        var platformNameStyle = {
+            width: "25%",
+            minWidth: platformNameLength
+        }
         
         return (
             React.createElement("div", {className: "view"}, 
                 React.createElement("h2", null, "Install Devices"), 
-                React.createElement("div", null, 
-                    React.createElement("label", null, React.createElement("b", null, "Instance: ")), React.createElement("label", null, platform.name), React.createElement("br", null), 
-                    React.createElement("label", null, React.createElement("b", null, " Method: ")), devicesSelect, React.createElement("br", null), 
-                    proxySelect
+                React.createElement("table", {style: tableStyle}, 
+                    React.createElement("tbody", null, 
+                        React.createElement("tr", null, 
+                            React.createElement("td", {className: "plain", style: shortTdStyle}, React.createElement("b", null, "Instance: ")), 
+                            React.createElement("td", {className: "plain", style: platformNameStyle}, platform.name), 
+                            React.createElement("td", {className: "plain", style: shortTdStyle}, React.createElement("b", null, "Method: ")), 
+                            React.createElement("td", {className: "plain", style: longTdStyle}, devicesSelect), 
+                            proxySelectLabel, proxySelect, 
+                            React.createElement("td", {className: "plain", style: shortTdStyle}, React.createElement("button", {style: buttonStyle}, "Go"))
+                        )
+                    )
                 )
                 
             )
@@ -1908,7 +1946,7 @@ function getStateFromStores() {
 
 module.exports = ConfigureDevices;
 
-},{"../action-creators/status-indicator-action-creators":10,"../stores/devices-store":55,"../stores/platforms-store":60,"./configure-device":13,"./configure-registry":15,"./detect-devices":25,"./devices-found":26,"react":undefined,"react-router":undefined}],15:[function(require,module,exports){
+},{"../action-creators/devices-action-creators":4,"../action-creators/status-indicator-action-creators":10,"../stores/devices-store":55,"../stores/platforms-store":60,"./configure-device":13,"./configure-registry":15,"./detect-devices":25,"./devices-found":26,"react":undefined,"react-router":undefined}],15:[function(require,module,exports){
 'use strict';
 
 var React = require('react');

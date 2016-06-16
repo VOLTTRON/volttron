@@ -9,6 +9,7 @@ var DevicesFound = require('./devices-found');
 var ConfigureDevice = require('./configure-device');
 var ConfigureRegistry = require('./configure-registry');
 var devicesStore = require('../stores/devices-store');
+var devicesActionCreators = require('../action-creators/devices-action-creators');
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
 
 var ConfigureDevices = React.createClass({
@@ -33,7 +34,7 @@ var ConfigureDevices = React.createClass({
 
         var state = getStateFromStores();
 
-        if (!state.hasOwnProperty(selectedProxyUuid))
+        if (!state.hasOwnProperty("selectedProxyUuid"))
         {
             if (state.bacnetProxies.length)
             {
@@ -46,11 +47,11 @@ var ConfigureDevices = React.createClass({
 
         var deviceMethod = evt.target.value;
 
-        this.setState({deviceMethod: deviceMethod});
+        // this.setState({deviceMethod: deviceMethod});
 
         if (this.state.bacnetProxies.length)
         {
-            devicesActionCreators.addDevices(this.state.panelItem, deviceMethod);
+            // devicesActionCreators.addDevices(this.state.panelItem, deviceMethod);
             this.setState({ deviceMethod: deviceMethod });
         }
         else
@@ -79,7 +80,20 @@ var ConfigureDevices = React.createClass({
             </select>
         );
 
-        var proxySelect;
+        var proxySelect, proxySelectLabel;
+
+        var tableStyle = {
+            width: "40%"
+        }
+
+        var shortTdStyle = {
+            width: "15%",
+            lineHeight: "12px"
+        }
+
+        var longTdStyle = {
+            width: "25%"
+        }
 
         if (this.state.deviceMethod === "scanForDevices")
         {
@@ -89,9 +103,17 @@ var ConfigureDevices = React.createClass({
                 );
             });
 
+            tableStyle.width = "60%";
+            shortTdStyle.width = "5%";
+
+            var longerTdStyle = {
+                width: "40%",
+                minWidth: "130px"
+            }
+            proxySelectLabel = (<td className="plain" style={longerTdStyle}><b>BACNet Proxy Agent: </b></td>)
+
             proxySelect = (
-                <div>
-                    <label><b>BACNet Proxy Agent: </b></label>
+                <td className="plain" style={longTdStyle}>
                     <select
                         onChange={this._onProxySelect}
                         value={this.state.selectedProxyUuid}
@@ -100,20 +122,36 @@ var ConfigureDevices = React.createClass({
                     >
                         {proxies}
                     </select>
-                </div>
+                </td>
             );
         }
 
-        
+        var buttonStyle = {
+            height: "21px"
+        }
+
+        var platformNameLength = platform.name.length * 6;
+
+        var platformNameStyle = {
+            width: "25%",
+            minWidth: platformNameLength
+        }
         
         return (
             <div className="view">
                 <h2>Install Devices</h2>
-                <div>
-                    <label><b>Instance: </b></label><label>{platform.name}</label><br/>
-                    <label><b> Method: </b></label>{devicesSelect}<br/>
-                    {proxySelect}                
-                </div>
+                <table style={tableStyle}>
+                    <tbody>
+                        <tr>
+                            <td className="plain" style={shortTdStyle}><b>Instance: </b></td>
+                            <td className="plain" style={platformNameStyle}>{platform.name}</td>
+                            <td className="plain" style={shortTdStyle}><b>Method: </b></td>
+                            <td className="plain" style={longTdStyle}>{devicesSelect}</td>
+                            {proxySelectLabel}{proxySelect}   
+                            <td className="plain" style={shortTdStyle}><button style={buttonStyle}>Go</button></td>             
+                        </tr>
+                    </tbody>
+                </table>
                 
             </div>
         );
