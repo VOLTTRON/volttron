@@ -59,6 +59,7 @@ import os as _os
 import hashlib
 import tempfile
 
+import psutil
 from gevent import subprocess
 from gevent.subprocess import Popen, check_call
 from zmq.utils import jsonapi
@@ -139,8 +140,11 @@ def _install_agents(install_vc, install_platform, install_historian):
 #         df.write(address_port)
 
 
-
-
+def _is_volttron_running():
+    for proc in psutil.process_iter():
+        if proc.name() == 'volttron':
+            return True
+    return False
 
 
 def _start_platform():
@@ -256,13 +260,23 @@ def setup_instance():
     The function interactively sets up the instance for working with volttron
     central and the discovery service.
     """
+    if _is_volttron_running():
+        print("""
+Please shutdown all local volttron instances before attempting to configure a
+volttron instance.  During the configuration process we will start your instance
+of volttron in order to install agents.  We don't want any current volttron
+instances to be confused by this.
+""")
+        return
+
+    # Start true configuration here.
     volttron_home = get_home()
 
     y_or_n = ('Y', 'N', 'y', 'n')
     y = ('Y', 'y')
     n = ('N', 'n')
     print('\nYour VOLTTRON_HOME currently set to: {}'.format(volttron_home))
-    t = ('\nIs this the volttron you are attempting to setup? [Y]',
+    t = ('\nIs this the volttron you are attempting to setup? [Y]: ',
          y_or_n,
          'Y')
     if not prompt_response(t) in y:
@@ -344,7 +358,7 @@ Please enter the external ipv4 address for this instance? [127.0.0.1]: '''
             other_vc_address = prompt_response(t)
             should_resolve = True
             first = True
-            t = ('Port of volttron central? [8080] ', None, '8080')
+            t = ('Port of volttron central? [8080]: ', None, '8080')
             other_vc_port = prompt_response(t)
 
             while not _resolvable(other_vc_address, other_vc_port) \
@@ -352,16 +366,16 @@ Please enter the external ipv4 address for this instance? [127.0.0.1]: '''
                 print("Couldn't resolve {}:{}".format(other_vc_address,
                                                       other_vc_port))
                 t2 = (
-                    '\nShould volttron central be resolvable now? [Y] ',
+                    '\nShould volttron central be resolvable now? [Y]: ',
                     y_or_n, 'Y')
                 if first:
                     should_resolve = prompt_response(t2) in ('y', 'Y')
                     first = False
 
                 if should_resolve:
-                    t = ('\nAddress of volttron central? ',)
+                    t = ('\nAddress of volttron central? []: ',)
                     other_vc_address = prompt_response(t)
-                    t = ('\nPort of volttron central? ',)
+                    t = ('\nPort of volttron central? []: ',)
                     other_vc_port = prompt_response(t)
 
     external_vip_address = "tcp://{}:{}".format(external_ip,
@@ -399,12 +413,12 @@ Please enter the external ipv4 address for this instance? [127.0.0.1]: '''
                        'services/core/VolttronCentralPlatform',
                        {"agentid": "volttroncentralplatform"}, "vcp")
 
-    t = ('\nShould install SQLITE platform historian? [N]', y_or_n, n)
+    t = ('\nShould install SQLITE platform historian? [N]: ', y_or_n, n)
     install_platform_historian = prompt_response(t) in y
 
     historian_autostart = False
     if install_platform_historian:
-        t = ('\nShould historian agent autostart(Y/N)? [Y] ', y_or_n, 'Y')
+        t = ('\nShould historian agent autostart(Y/N)? [Y]: ', y_or_n, 'Y')
         historian_autostart = prompt_response(t) in y
         _install_platform_historian(historian_autostart)
 
