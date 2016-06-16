@@ -69,6 +69,9 @@ import shutil
 import sys
 import tempfile
 import traceback
+import StringIO
+import uuid
+import base64
 
 import gevent
 import gevent.event
@@ -124,6 +127,13 @@ class ControlService(BaseAgent):
             raise TypeError("expected a string for 'uuid'; got {!r}".format(
                 type(uuid).__name__))
         return self._aip.agent_status(uuid)
+
+    @RPC.export
+    def agent_name(self, uuid):
+        if not isinstance(uuid, basestring):
+            raise TypeError("expected a string for 'uuid'; got {!r}".format(
+                type(uuid).__name__))
+        return self._aip.agent_name(uuid)
 
     @RPC.export
     def status_agents(self):
@@ -249,7 +259,7 @@ class ControlService(BaseAgent):
             try:
                 while True:
                     data = channel.recv()
-                    _log.debug(data)
+                    _log.debug("Received {} bytes of data".format(len(data)))
                     if data == 'done':
                         _log.debug('done receiving data')
                         break
@@ -332,17 +342,48 @@ def install_agent(opts):
         except ValueError:
             tag, filename = None, wheel
         try:
-            uuid = aip.install_agent(filename)
+            _log.debug('Creating channel for sending the agent.')
+            channel_name = str(uuid.uuid4())
+            channel = opts.connection.server.vip.channel('control',
+                                                          channel_name)
+            _log.debug('calling control install agent.')
+            agent_uuid = opts.connection.call_no_get('install_agent',
+                                                      filename,
+                                                      channel_name)
+            _log.debug('waiting for ready')
+            _log.debug('received {}'.format(channel.recv()))
+
+            with open(filename, 'rb') as wheel_file_data:
+                _log.debug('sending wheel to control.')
+                while True:
+                    data = wheel_file_data.read(8125)
+
+                    if not data:
+                        break
+                    channel.send(data)
+
+            _log.debug('sending done message.')
+            channel.send('done')
+            _log.debug('waiting for done')
+            _log.debug('closing channel')
+
+            agent_uuid = agent_uuid.get()
+
+            channel.close(linger=0)
+            del channel
+
             if tag:
-                aip.tag_agent(uuid, tag)
+                opts.connection.call('tag_agent',
+                                     agent_uuid,
+                                     tag)
         except Exception as exc:
             if opts.debug:
                 traceback.print_exc()
             _stderr.write(
                 '{}: error: {}: {}\n'.format(opts.command, exc, filename))
             return 10
-        name = aip.agent_name(uuid)
-        _stdout.write('Installed {} as {} {}\n'.format(filename, uuid, name))
+        name = opts.connection.call('agent_name', agent_uuid)
+        _stdout.write('Installed {} as {} {}\n'.format(filename, agent_uuid, name))
 
 
 def tag_agent(opts):
@@ -865,6 +906,10 @@ class Connection(object):
     def call(self, method, *args, **kwargs):
         return self.server.vip.rpc.call(
             self.peer, method, *args, **kwargs).get()
+
+    def call_no_get(self, method, *args, **kwargs):
+        return self.server.vip.rpc.call(
+            self.peer, method, *args, **kwargs)
 
     def notify(self, method, *args, **kwargs):
         return self.server.vip.rpc.notify(
