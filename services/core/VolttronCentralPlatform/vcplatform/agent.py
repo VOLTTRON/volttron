@@ -561,6 +561,7 @@ class VolttronCentralPlatform(Agent):
 
                 path = os.path.join(tmpdir, f['file_name'])
                 with open(path, 'wb') as fout:
+                    #Remove Java script encoding prefix.
                     fout.write(
                         base64.decodestring(f['file'].split('base64,')[1]))
 
