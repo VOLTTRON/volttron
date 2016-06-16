@@ -3,6 +3,21 @@ from volttrontesting.fixtures.volttron_platform_fixtures import get_rand_ip_and_
 from volttron.platform.vip.agent.subsystems import query
 
 
+def test_can_get_serverkey_from_router():
+    """
+    In order for this test to pass the wrapper must be in encrypted mode.
+    :return:
+    """
+    vip_address = "tcp://{}".format(get_rand_ip_and_port())
+    wrapper = PlatformWrapper()
+    wrapper.startup_platform(vip_address, encrypt=True)
+    agent = wrapper.build_agent()
+    q = query.Query(agent.core)
+
+    # This should never be none.
+    assert q.query(b'serverkey').get(timeout=2)
+    agent.core.stop(timeout=2)
+    wrapper.shutdown_platform()
 def test_can_get_bind_web_address():
     vip_address = "tcp://{}".format(get_rand_ip_and_port())
     wrapper = PlatformWrapper()

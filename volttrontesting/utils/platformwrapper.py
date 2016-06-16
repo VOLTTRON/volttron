@@ -156,10 +156,15 @@ class PlatformWrapper:
         self._started_pids = []
         self.__local_vip_address = None
         self.__vip_address = None
+        self.__encrypted = False
         self.logit('Creating platform wrapper')
 
     def logit(self, message):
         print('{}: {}'.format(self.volttron_home, message))
+
+    @property
+    def encrypted(self):
+        return self.__encrypted
 
     @property
     def bind_web_address(self):
@@ -219,7 +224,8 @@ class PlatformWrapper:
                 self.logit('Using vip-address '+self.vip_address)
                 address = self.vip_address
 
-        if generatekeys:
+        if generatekeys or (publickey is None and serverkey is None and
+                                    self.encrypted):
             self.logit('generating new public secret key pair')
             tf = tempfile.NamedTemporaryFile()
             ks = KeyStore(tf.name)
@@ -308,6 +314,7 @@ class PlatformWrapper:
         self.vip_address = vip_address
         self.mode = mode
         self.bind_web_address = bind_web_address
+        self.__encrypted = encrypt
 
         self.platform_name = ''
         self.volttron_central_address = volttron_central_address

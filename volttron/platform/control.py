@@ -76,6 +76,7 @@ import gevent.event
 from .agent import utils
 from .agent.known_identities import CONTROL_CONNECTION
 from .vip.agent import Agent as BaseAgent, Core, RPC
+from .vip.agent.subsystems.query import Query
 from . import aip as aipmod
 from . import config
 from .jsonrpc import RemoteError
@@ -113,6 +114,13 @@ class ControlService(BaseAgent):
         self.vip.rpc.export(self._tracker.enable, 'stats.enable')
         self.vip.rpc.export(self._tracker.disable, 'stats.disable')
         self.vip.rpc.export(lambda: self._tracker.stats, 'stats.get')
+
+    @RPC.export
+    def serverkey(self):
+        q = Query(self.core)
+        pk = q.query('serverkey').get(timeout=1)
+        del q
+        return pk
 
     @RPC.export
     def clear_status(self, clear_all=False):
@@ -856,6 +864,7 @@ class Connection(object):
         return self._server
 
     def call(self, method, *args, **kwargs):
+        print('METHOD IS: {}'.format(method))
         return self.server.vip.rpc.call(
             self.peer, method, *args, **kwargs).get()
 
@@ -888,6 +897,11 @@ def get_keys(opts):
     return {'publickey': publickey, 'secretkey': secretkey,
             'serverkey': serverkey}
 
+def show_serverkey(opts):
+    q = Query(opts.connection.server.core)
+    pk = q.query('serverkey').get(timeout=2)
+    del q
+    return pk
 
 def main(argv=sys.argv):
     # Refuse to run as root
@@ -1104,6 +1118,9 @@ def main(argv=sys.argv):
         nargs='?')
     stats.set_defaults(func=do_stats, op='status')
 
+    serverkey = add_parser('serverkey',
+                           help="show the serverkey for the instance")
+    serverkey.set_defaults(func=show_serverkey)
     auth_list = add_parser('auth-list', help='list authentication records')
     auth_list.set_defaults(func=list_auth)
 
@@ -1137,7 +1154,6 @@ def main(argv=sys.argv):
     if os.path.exists(conf) and 'SKIP_VOLTTRON_CONFIG' not in os.environ:
         args = ['--config', conf] + args
     opts = parser.parse_args(args)
-
     if opts.log:
         opts.log = config.expandall(opts.log)
     if opts.log_config:

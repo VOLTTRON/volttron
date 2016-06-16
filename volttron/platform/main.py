@@ -253,14 +253,16 @@ class Router(BaseRouter):
     '''Concrete VIP router.'''
 
     def __init__(self, local_address, addresses=(),
-                 context=None, secretkey=None, default_user_id=None,
-                 monitor=False, tracker=None, volttron_central_address=None,
-                 platform_name=None, bind_web_address=None):
+                 context=None, secretkey=None, publickey=None,
+                 default_user_id=None, monitor=False, tracker=None,
+                 volttron_central_address=None, platform_name=None,
+                 bind_web_address=None, volttron_central_serverkey=None):
         super(Router, self).__init__(
             context=context, default_user_id=default_user_id)
         self.local_address = Address(local_address)
         self.addresses = addresses = [Address(addr) for addr in addresses]
         self._secretkey = secretkey
+        self._publickey = publickey
         self.logger = logging.getLogger('vip.router')
         if self.logger.level == logging.NOTSET:
             self.logger.setLevel(logging.WARNING)
@@ -332,6 +334,9 @@ class Router(BaseRouter):
                         value = [self.local_address.base]
                 elif name == b'local_address':
                     value = self.local_address.base
+                # Allow the agents to know the serverkey.
+                elif name == b'serverkey':
+                    value = self._publickey
                 elif name == b'volttron-central-address':
                     value = self._volttron_central_address
                 elif name == b'platform-name':
@@ -530,8 +535,9 @@ def start_volttron_process(opts):
     def router(stop):
         try:
             Router(opts.vip_local_address, opts.vip_address,
-                   secretkey=secretkey, default_user_id=b'vip.service',
-                   monitor=opts.monitor, tracker=tracker,
+                   secretkey=secretkey, publickey=publickey,
+                   default_user_id=b'vip.service', monitor=opts.monitor,
+                   tracker=tracker,
                    volttron_central_address=opts.volttron_central_address,
                    platform_name=opts.platform_name,
                    bind_web_address=opts.bind_web_address).run()
