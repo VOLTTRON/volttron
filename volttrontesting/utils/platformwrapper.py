@@ -304,8 +304,9 @@ class PlatformWrapper:
                 fd.write(json.dumps(auth_dict))
 
     def startup_platform(self, vip_address, auth_dict=None, use_twistd=False,
-                         mode=UNRESTRICTED, encrypt=False, bind_web_address=None,
-                         volttron_central_address=None):
+                         mode=UNRESTRICTED, encrypt=False,
+                         bind_web_address=None, volttron_central_address=None,
+                         volttron_central_serverkey=None):
         # if not isinstance(vip_address, list):
         #     self.vip_address = [vip_address]
         # else:
@@ -325,7 +326,7 @@ class PlatformWrapper:
                     volttron_central_address.split('|')
         self.logit('VC AFTER: {}'.format(volttron_central_address))
         self.logit('self.VC BEFORE: {}'.format(self.volttron_central_address))
-
+        self.volttron_central_serverkey = volttron_central_serverkey
         self.logit('PLATFORM NAME IS: {}'.format(self.platform_name))
         enable_logging = os.environ.get('ENABLE_LOGGING', False)
         debug_mode = os.environ.get('DEBUG_MODE', False)
@@ -343,9 +344,10 @@ class PlatformWrapper:
             self.volttron_home)
         self.local_vip_address = ipc + 'vip.socket'
         if not encrypt:
-            # Remove connection encryption
-            with open(os.path.join(self.volttron_home, 'curve.key'), 'w'):
-                pass
+            if os.path.exists(os.path.join(self.volttron_home, 'curve.key')):
+                # Remove connection encryption
+                with open(os.path.join(self.volttron_home, 'curve.key'), 'w'):
+                    pass
 
         self.set_auth_dict(auth_dict)
 
@@ -357,6 +359,7 @@ class PlatformWrapper:
                 'subscribe_address': ipc + 'subscribe',
                 'bind_web_address': bind_web_address,
                 'volttron_central_address': volttron_central_address,
+                'volttron_central_serverkey': volttron_central_serverkey,
                 'platform_name': None,
                 'developer_mode': not encrypt,
                 'log': os.path.join(self.volttron_home,'volttron.log'),
@@ -386,7 +389,6 @@ class PlatformWrapper:
             with closing(open(pconfig, 'wb')) as cfg:
                 cfg.write(PLATFORM_CONFIG_UNRESTRICTED.format(**config))
                 parser.write(cfg)
-
 
         elif self.mode == RESTRICTED:
             if not RESTRICTED_AVAILABLE:
@@ -771,6 +773,8 @@ class PlatformWrapper:
         elif self.use_twistd:
             self.logit("twistd process was null")
 
+        self.logit('CLEANUP IS {} skipcleanup is {}'.format(cleanup,
+                                                       self.skip_cleanup))
         if not self.skip_cleanup and cleanup:
             self.logit("Doing cleanup for {}".format(self.volttron_home))
             shutil.rmtree(self.volttron_home, ignore_errors=True)

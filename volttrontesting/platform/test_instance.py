@@ -18,6 +18,20 @@ def test_can_get_serverkey_from_router():
     assert q.query(b'serverkey').get(timeout=2)
     agent.core.stop(timeout=2)
     wrapper.shutdown_platform()
+
+
+def test_can_get_vc_serverkey_from_router():
+    vip_address = "tcp://{}".format(get_rand_ip_and_port())
+    wrapper = PlatformWrapper()
+    wrapper.startup_platform(vip_address)
+    agent = wrapper.build_agent()
+    q = query.Query(agent.core)
+
+    assert None is q.query(b'volttron-central-serverkey').get(timeout=2)
+    agent.core.stop(timeout=2)
+    wrapper.shutdown_platform()
+
+
 def test_can_get_bind_web_address():
     vip_address = "tcp://{}".format(get_rand_ip_and_port())
     wrapper = PlatformWrapper()
@@ -27,6 +41,7 @@ def test_can_get_bind_web_address():
 
     assert None is q.query(b'bind-web-address').get(timeout=2)
     agent.core.stop(timeout=2)
+    print('DOING SHUTDOWN!')
     wrapper.shutdown_platform(cleanup=False)
 
     bind_web_address = "http://{}".format(get_rand_ip_and_port())
