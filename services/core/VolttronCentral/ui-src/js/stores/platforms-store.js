@@ -85,7 +85,7 @@ platformsStore.getHistorianRunning = function (platform) {
     return historianRunning;
 };
 
-platformsStore.getBacnetProxies = function (uuid)
+platformsStore.getRunningBacnetProxies = function (uuid)
 {
     var bacnetProxies = [];
 
@@ -101,8 +101,14 @@ platformsStore.getBacnetProxies = function (uuid)
             {
                 if (foundPlatform.hasOwnProperty("agents"))
                 {
-                    bacnetProxies = foundPlatform.agents.filter(function (agent) {     
-                        return agent.name.toLowerCase().indexOf("bacnet_proxy") > -1;
+                    bacnetProxies = foundPlatform.agents.filter(function (agent) {
+
+                        var runningProxy = ((agent.name.toLowerCase().indexOf("bacnet_proxy") > -1) &&
+                                            (agent.actionPending === false) && 
+                                            (agent.process_id !== null) &&
+                                            (agent.return_code === null));
+
+                        return runningProxy;
                     });
                 }
             }

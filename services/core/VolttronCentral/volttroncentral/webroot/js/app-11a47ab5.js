@@ -1818,16 +1818,14 @@ var ConfigureDevices = React.createClass({displayName: "ConfigureDevices",
 
         var deviceMethod = evt.target.value;
 
-        // this.setState({deviceMethod: deviceMethod});
-
         if (this.state.bacnetProxies.length)
         {
-            // devicesActionCreators.addDevices(this.state.panelItem, deviceMethod);
             this.setState({ deviceMethod: deviceMethod });
         }
         else
         {
-            statusIndicatorActionCreators.openStatusIndicator("error", "Can't scan for devices: A BACNet proxy agent must be installed for the platform.", null, "center");
+            statusIndicatorActionCreators.openStatusIndicator("error", 
+                "Can't scan for devices: A BACNet proxy agent for the platform must be installed and running.", null, "left");
         }
     },
     _onProxySelect: function (evt) {
@@ -1936,7 +1934,7 @@ function getStateFromStores() {
     
     if (deviceState.platform)
     {
-        deviceState.bacnetProxies = platformsStore.getBacnetProxies(deviceState.platform.uuid);
+        deviceState.bacnetProxies = platformsStore.getRunningBacnetProxies(deviceState.platform.uuid);
 
         deviceState.deviceMethod = (deviceState.bacnetProxies.length ? "scanForDevices" : "addDevicesManually");
     }
@@ -8625,7 +8623,7 @@ platformsStore.getHistorianRunning = function (platform) {
     return historianRunning;
 };
 
-platformsStore.getBacnetProxies = function (uuid)
+platformsStore.getRunningBacnetProxies = function (uuid)
 {
     var bacnetProxies = [];
 
@@ -8641,8 +8639,14 @@ platformsStore.getBacnetProxies = function (uuid)
             {
                 if (foundPlatform.hasOwnProperty("agents"))
                 {
-                    bacnetProxies = foundPlatform.agents.filter(function (agent) {     
-                        return agent.name.toLowerCase().indexOf("bacnet_proxy") > -1;
+                    bacnetProxies = foundPlatform.agents.filter(function (agent) {
+
+                        var runningProxy = ((agent.name.toLowerCase().indexOf("bacnet_proxy") > -1) &&
+                                            (agent.actionPending === false) && 
+                                            (agent.process_id !== null) &&
+                                            (agent.return_code === null));
+
+                        return runningProxy;
                     });
                 }
             }
