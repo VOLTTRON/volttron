@@ -272,7 +272,7 @@ class BaseSmapVolttron(driver.SmapDriver, PublishMixin):
             
             actuator_point = '/actuators/'+point
             
-            print 'Setting up actuator point:', actuator_point
+            print ('Setting up actuator point:', actuator_point)
             
             a = self.add_actuator(actuator_point, register.units, InterfaceBitActuator, 
                               setup={'point_name':point, 'interface': self.interface}) #, read_limit=1.0, write_limit=1.0)
@@ -288,7 +288,7 @@ class BaseSmapVolttron(driver.SmapDriver, PublishMixin):
             point = register.point_name
             actuator_point = '/actuators/'+point
             
-            print 'Setting up actuator point:', actuator_point
+            print ('Setting up actuator point:', actuator_point)
             
             if register.python_type is int:
                 act_class, data_type = (InterfaceIntActuator, 'long')
@@ -348,7 +348,7 @@ class BaseSmapVolttron(driver.SmapDriver, PublishMixin):
 
     
     def read_errback(self, failure):
-        print "Data scrape failed:", str(failure)
+        print ("Data scrape failed:", str(failure))
         return failure
  
     def read(self):

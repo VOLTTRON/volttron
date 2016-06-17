@@ -77,7 +77,7 @@ requirements = [
     'pymodbus>=1.2,<2',
     'setuptools',
     'simplejson>=3.3,<4',
-    'Smap==2.0.24c780d',
+    'smap',#'Smap==2.0.24c780d',
     'wheel>=0.24,<2',
 ]
 

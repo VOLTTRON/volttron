@@ -142,7 +142,7 @@ class DataLogger(driver.SmapDriver):
                         path = path_element
                     else:
                         path = path + "/" + path_element
-                    print 'Adding path:', path
+                    print ('Adding path:', path)
                     if self.get_collection(path) is None:
                         self.add_collection(path)
 

@@ -169,7 +169,7 @@ class WhoIsIAmConsoleCmd(ConsoleCmd):
             # give it to the application
             this_application.request(request)
 
-        except Exception, e:
+        except Exception as e:
             WhoIsIAmConsoleCmd._exception("exception: %r", e)
 
 #
@@ -239,7 +239,7 @@ try:
 
     run()
 
-except Exception, e:
+except Exception as e:
     _log.exception("an error has occurred: %s", e)
 finally:
     _log.debug("finally")
