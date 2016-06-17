@@ -390,8 +390,15 @@ br + .form__control-help {
     height: 90%;
     float: left;
     background-color: #f8f8f8;
-    overflow: auto;
+    overflow-y: auto;
+    overflow-x: hidden;
     border-right: 1px #ddd solid;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
 }
 
 .platform-link {
@@ -1129,6 +1136,23 @@ a.view__item:hover::before {
 .absolute_anchor {
     position: relative;
 }
+
+.resize-handle {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 3px;
+    background-color: #ddd;
+    
+    cursor: ew-resize;
+}
+
+.resize-handle:hover {
+    width: 3px;
+    background-color: #C7C7C7;
+}
+
 
 .view--list .view__item + .view__item {
     margin-top: 0.5em;

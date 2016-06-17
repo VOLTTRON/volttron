@@ -1343,7 +1343,6 @@ var AgentRow = React.createClass({displayName: "AgentRow",
 
         return (
             React.createElement("tr", null, 
-                React.createElement("td", null, agent.tag), 
                 React.createElement("td", null, agent.name), 
                 React.createElement("td", null, agent.uuid), 
                 React.createElement("td", null, status), 
@@ -2764,6 +2763,8 @@ var PlatformManager = React.createClass({displayName: "PlatformManager",
     getInitialState: function () {
         var state = getStateFromStores();
 
+        this.uninitialized = true;
+
         return state;
     },
     componentWillMount: function () {
@@ -2779,6 +2780,57 @@ var PlatformManager = React.createClass({displayName: "PlatformManager",
     },
     componentDidUpdate: function () {
         this._doModalBindings();
+
+        if (this.state.expanded)
+        {               
+            this.uninitialized = false;
+
+            var handle = document.querySelector(".resize-handle");
+
+            var onMouseDown = function (evt)
+            {
+                var exteriorPanel = this.parentNode;
+                var children = exteriorPanel.parentNode.childNodes;
+                var platformsPanel;
+
+                for (var i = 0; i < children.length; i++)
+                {
+                    if (children[i].classList.contains("platform-statuses"))
+                    {
+                        platformsPanel = children[i];
+                        break;
+                    }
+                }
+
+                var target = (evt.target.setCapture ? evt.target : document);
+
+                if (target.setCapture)
+                {
+                    target.setCapture();
+                }
+
+                var onMouseMove = function (evt)
+                {               
+                    var newWidth = Math.min(window.innerWidth, evt.clientX);
+                    
+                    platformsPanel.style.width = newWidth + "px";
+                    exteriorPanel.style.width = (window.innerWidth - newWidth - 100) + "px";
+                };                    
+
+                var onMouseUp = function (evt)
+                {
+                    target.removeEventListener("mousemove", onMouseMove);
+                    target.removeEventListener("mouseup", onMouseUp);
+                };                  
+
+                target.addEventListener("mousemove", onMouseMove);
+                target.addEventListener("mouseup", onMouseUp);
+
+                evt.preventDefault();
+            }
+
+            handle.addEventListener("mousedown", onMouseDown);
+        }
     },
     _doModalBindings: function () {
         if (this.state.modalContent) {
@@ -2852,6 +2904,17 @@ var PlatformManager = React.createClass({displayName: "PlatformManager",
             );
         }
 
+        var resizeHandle;
+
+        if (this.state.expanded === true)
+        {
+            resizeHandle = (
+                React.createElement("div", {className: "resize-handle"})
+            );
+
+            exteriorClasses.push("absolute_anchor");
+        }
+
         return (
             React.createElement("div", {className: classes.join(' ')}, 
                 statusIndicator, 
@@ -2860,6 +2923,7 @@ var PlatformManager = React.createClass({displayName: "PlatformManager",
                     React.createElement(Navigation, null), 
                     React.createElement(PlatformsPanel, null), 
                     React.createElement("div", {className: exteriorClasses.join(' ')}, 
+                        resizeHandle, 
                         React.createElement(Router.RouteHandler, null)
                     )
                 ), 
@@ -2971,7 +3035,6 @@ var Platform = React.createClass({displayName: "Platform",
                 React.createElement("table", null, 
                     React.createElement("thead", null, 
                         React.createElement("tr", null, 
-                            React.createElement("th", null, "Tag"), 
                             React.createElement("th", null, "Name"), 
                             React.createElement("th", null, "UUID"), 
                             React.createElement("th", null, "Status"), 
@@ -2981,8 +3044,8 @@ var Platform = React.createClass({displayName: "Platform",
                     React.createElement("tbody", null, 
                         platform.agents
                             .sort(function (a, b) {
-                                if (a.tag.toLowerCase() > b.tag.toLowerCase()) { return 1; }
-                                if (a.tag.toLowerCase() < b.tag.toLowerCase()) { return -1; }
+                                if (a.name.toLowerCase() > b.name.toLowerCase()) { return 1; }
+                                if (a.name.toLowerCase() < b.name.toLowerCase()) { return -1; }
                                 return 0;
                             })
                             .map(function (agent) {
@@ -3384,6 +3447,18 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
     componentDidMount: function () {
         platformsPanelStore.addChangeListener(this._onPanelStoreChange);
         platformsPanelItemsStore.addChangeListener(this._onPanelItemsStoreChange);
+
+        this.exteriorPanel = document.querySelector(".panel-exterior");
+        var children = this.exteriorPanel.parentNode.childNodes;
+        
+        for (var i = 0; i < children.length; i++)
+        {
+            if (children[i].classList.contains("platform-statuses"))
+            {
+                this.platformsPanel = children[i];
+                break;
+            }
+        }
     },
     componentWillUnmount: function () {
         platformsPanelStore.removeChangeListener(this._onPanelStoreChange);
@@ -3399,6 +3474,12 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
         
         if (expanded !== null)
         {
+            if (expanded === false)
+            {
+                this.platformsPanel.style.width = "";
+                this.exteriorPanel.style.width = "";
+            }
+
             var platformsList = platformsPanelItemsStore.getChildren("platforms", null);
             this.setState({platforms: platformsList});
         }
@@ -3406,6 +3487,8 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
         {
             this.setState({filterValue: ""});
             this.setState({filterStatus: ""});
+            this.platformsPanel.style.width = "";
+            this.exteriorPanel.style.width = "";
         }
     },
     _onPanelItemsStoreChange: function () {
@@ -3446,15 +3529,15 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
         var platforms;
         
         var classes = (this.state.expanded === null ? 
-                        "platform-statuses platform-collapsed" : 
+                        ["platform-statuses", "platform-collapsed"] : 
                         (this.state.expanded ? 
-                            "platform-statuses slow-open platform-expanded" :
-                            "platform-statuses slow-shut platform-collapsed")
+                            ["platform-statuses", "slow-open", "platform-expanded"] :
+                            ["platform-statuses", "slow-shut", "platform-collapsed"])
                         );
 
         var contentsStyle = { 
             display: (this.state.expanded ? "block" : "none"),
-            padding: "0px 20px 20px 10px",
+            padding: "0px 0px 20px 10px",
             clear: "right",
             width: "100%"
         };
@@ -3580,7 +3663,7 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
         }
 
         return (
-            React.createElement("div", {className: classes}, 
+            React.createElement("div", {className: classes.join(" ")}, 
                 React.createElement("div", {className: "extend-panel", 
                     onClick: this._togglePanel},  this.state.expanded ? '\u25c0' : '\u25b6'), 
                 React.createElement("div", {style: contentsStyle}, 

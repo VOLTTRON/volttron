@@ -80,7 +80,6 @@ var Platform = React.createClass({
                 <table>
                     <thead>
                         <tr>
-                            <th>Tag</th>
                             <th>Name</th>
                             <th>UUID</th>
                             <th>Status</th>
@@ -90,8 +89,8 @@ var Platform = React.createClass({
                     <tbody>
                         {platform.agents
                             .sort(function (a, b) {
-                                if (a.tag.toLowerCase() > b.tag.toLowerCase()) { return 1; }
-                                if (a.tag.toLowerCase() < b.tag.toLowerCase()) { return -1; }
+                                if (a.name.toLowerCase() > b.name.toLowerCase()) { return 1; }
+                                if (a.name.toLowerCase() < b.name.toLowerCase()) { return -1; }
                                 return 0;
                             })
                             .map(function (agent) {
