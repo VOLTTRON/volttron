@@ -844,7 +844,7 @@ def update_auth(opts):
 #                client.send_and_start_agent(file)
 
 
-class Connection(object):
+class ControlConnection(object):
     def __init__(self, address, peer='control', publickey=None,
                  secretkey=None,
                  serverkey=None):
@@ -1181,7 +1181,7 @@ def main(argv=sys.argv):
 
     opts.aip = aipmod.AIPplatform(opts)
     opts.aip.setup()
-    opts.connection = Connection(opts.vip_address, **get_keys(opts))
+    opts.connection = ControlConnection(opts.vip_address, **get_keys(opts))
 
     try:
         with gevent.Timeout(opts.timeout):
