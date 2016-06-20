@@ -1784,35 +1784,66 @@ var devicesActionCreators = require('../action-creators/devices-action-creators'
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
 
 var ConfigureDevices = React.createClass({displayName: "ConfigureDevices",
-    // mixins: [Router.State],
     getInitialState: function () {
-        var state = getStateFromStores();
+        var state = devicesStore.getState();
+    
+        state.bacnetProxies = platformsStore.getRunningBacnetProxies(state.platform.uuid);
+        state.deviceMethod = (state.bacnetProxies.length ? "scanForDevices" : "addDevicesManually");
         
         if (state.deviceMethod === "scanForDevices")
         {
             state.selectedProxyUuid = state.bacnetProxies[0].uuid;
         }
 
+        state.scanning = false;
+
         return state;
     },
     componentDidMount: function () {
-        devicesStore.addChangeListener(this._onStoresChange);
+        platformsStore.addChangeListener(this._onPlatformStoresChange);
+        devicesStore.addChangeListener(this._onDevicesStoresChange);
     },
     componentWillUnmount: function () {
-        devicesStore.removeChangeListener(this._onStoresChange);
+        platformsStore.removeChangeListener(this._onPlatformStoresChange);
+        devicesStore.removeChangeListener(this._onDevicesStoresChange);
     },
-    _onStoresChange: function () {
+    _onPlatformStoresChange: function () {
 
-        var state = getStateFromStores();
+        var bacnetProxies = platformsStore.getRunningBacnetProxies(this.state.platform.uuid);
+        
+        this.setState({ bacnetProxies: bacnetProxies });
 
-        if (!state.hasOwnProperty("selectedProxyUuid"))
+        if ((bacnetProxies.length < 1) && this.state.deviceMethod === "scanForDevices")
         {
-            if (state.bacnetProxies.length)
+            this.setState({ deviceMethod: "addDevicesManually" });
+        }
+    },
+    _onDevicesStoresChange: function () {
+
+        var deviceState = devicesStore.getState();
+
+        if (deviceState.platform.uuid !== this.state.platform.uuid)
+        {
+            deviceState.bacnetProxies = platformsStore.getRunningBacnetProxies(deviceState.platform.uuid);
+            deviceState.deviceMethod = (deviceState.bacnetProxies.length ? "scanForDevices" : "addDevicesManually");
+            
+            if (deviceState.deviceMethod === "scanForDevices")
             {
-                state.selectedProxyUuid = state.bacnetProxies[0].uuid;
+                deviceState.selectedProxyUuid = deviceState.bacnetProxies[0].uuid;
+            }
+
+            deviceState.scanning = false;
+
+            this.setState(deviceState);
+        }
+        else
+        {
+            for (key in deviceState)
+            {
+                this.setState({ key: deviceState[key] });
             }
         }
-        this.setState(state);
+
     },
     _onDeviceMethodChange: function (evt) {
 
@@ -1832,12 +1863,15 @@ var ConfigureDevices = React.createClass({displayName: "ConfigureDevices",
         var selectedProxyUuid = evt.target.value;
         this.setState({ selectedProxyUuid: selectedProxyUuid });
     },
+    _onClick: function (evt) {
+        this.setState({ scanning: true });
+    },
     render: function () {
 
         var view_component;
         var platform = this.state.platform;
 
-        var devicesSelect = (
+        var methodSelect = (
             React.createElement("select", {
                 onChange: this._onDeviceMethodChange, 
                 value: this.state.deviceMethod, 
@@ -1849,20 +1883,15 @@ var ConfigureDevices = React.createClass({displayName: "ConfigureDevices",
             )
         );
 
-        var proxySelect, proxySelectLabel;
+        var proxySelect;
 
-        var tableStyle = {
-            width: "40%"
+        var wideStyle = {
+            width: "100%"
         }
 
-        var shortTdStyle = {
-            width: "15%",
-            lineHeight: "12px"
-        }
-
-        var longTdStyle = {
-            width: "25%"
-        }
+        var fifthCell = {
+            width: "20px"
+        }        
 
         if (this.state.deviceMethod === "scanForDevices")
         {
@@ -1872,25 +1901,24 @@ var ConfigureDevices = React.createClass({displayName: "ConfigureDevices",
                 );
             });
 
-            tableStyle.width = "60%";
-            shortTdStyle.width = "5%";
-
-            var longerTdStyle = {
-                width: "40%",
-                minWidth: "130px"
-            }
-            proxySelectLabel = (React.createElement("td", {className: "plain", style: longerTdStyle}, React.createElement("b", null, "BACNet Proxy Agent: ")))
-
             proxySelect = (
-                React.createElement("td", {className: "plain", style: longTdStyle}, 
-                    React.createElement("select", {
-                        onChange: this._onProxySelect, 
-                        value: this.state.selectedProxyUuid, 
-                        autoFocus: true, 
-                        required: true
-                    }, 
-                        proxies
-                    )
+                React.createElement("tr", null, 
+                    React.createElement("td", {className: "plain"}, React.createElement("b", null, "BACNet Proxy Agent: ")), 
+
+                    React.createElement("td", {className: "plain", 
+                        colSpan: 4}, 
+                        React.createElement("select", {
+                            style: wideStyle, 
+                            onChange: this._onProxySelect, 
+                            value: this.state.selectedProxyUuid, 
+                            autoFocus: true, 
+                            required: true
+                        }, 
+                            proxies
+                        )
+                    ), 
+
+                    React.createElement("td", {className: "plain", style: fifthCell})
                 )
             );
         }
@@ -1905,23 +1933,82 @@ var ConfigureDevices = React.createClass({displayName: "ConfigureDevices",
             width: "25%",
             minWidth: platformNameLength
         }
+
+        var deviceRangeStyle = {
+            width: "70px"
+        }
+
+        var tdStyle = {
+            minWidth: "120px"
+        }
+
+        var scanOptions = (
+            React.createElement("div", {className: "detectDevicesContainer"}, 
+                React.createElement("div", {className: "detectDevicesBox"}, 
+                    React.createElement("table", null, 
+                        React.createElement("tbody", null, 
+                            proxySelect, 
+                            React.createElement("tr", null, 
+                                React.createElement("td", {className: "plain", style: tdStyle}, React.createElement("b", null, "Device ID Range")), 
+                                React.createElement("td", {className: "plain"}, "Start:"), 
+                                React.createElement("td", {className: "plain"}, 
+                                    React.createElement("input", {
+                                        type: "number", 
+                                        style: deviceRangeStyle, 
+                                        onChange: this._onDeviceStart, 
+                                        value: this.state.deviceStart})
+                                ), 
+                                React.createElement("td", {className: "plain"}, "End:"), 
+                                React.createElement("td", {className: "plain"}, 
+                                    React.createElement("input", {
+                                        type: "number", 
+                                        style: deviceRangeStyle, 
+                                        onChange: this._onDeviceEnd, 
+                                        value: this.state.deviceEnd})
+                                ), 
+                                React.createElement("td", {className: "plain"})
+                            ), 
+                            React.createElement("tr", null, 
+                                React.createElement("td", null, React.createElement("b", null, "Address")), 
+                                React.createElement("td", {className: "plain", 
+                                    colSpan: 4}, 
+                                    React.createElement("input", {
+                                        style: wideStyle, 
+                                        type: "text", 
+                                        onChange: this._onAddress, 
+                                        value: this.state.address})
+                                ), 
+                                React.createElement("td", {className: "plain", style: fifthCell})
+                            )
+                        )
+                    )
+                )
+            )
+        )
+
+        var scanOptionsStyle = {
+            float: "left",
+            marginRight: "10px"
+        }
+
+        var platformNameStyle = {
+            float: "left",
+            width: "100%"
+        }
         
         return (
             React.createElement("div", {className: "view"}, 
                 React.createElement("h2", null, "Install Devices"), 
-                React.createElement("table", {style: tableStyle}, 
-                    React.createElement("tbody", null, 
-                        React.createElement("tr", null, 
-                            React.createElement("td", {className: "plain", style: shortTdStyle}, React.createElement("b", null, "Instance: ")), 
-                            React.createElement("td", {className: "plain", style: platformNameStyle}, platform.name), 
-                            React.createElement("td", {className: "plain", style: shortTdStyle}, React.createElement("b", null, "Method: ")), 
-                            React.createElement("td", {className: "plain", style: longTdStyle}, devicesSelect), 
-                            proxySelectLabel, proxySelect, 
-                            React.createElement("td", {className: "plain", style: shortTdStyle}, React.createElement("button", {style: buttonStyle}, "Go"))
-                        )
-                    )
-                )
-                
+                React.createElement("div", {style: platformNameStyle}, 
+                    React.createElement("div", {style: scanOptionsStyle}, 
+                        React.createElement("b", null, "Instance: ")
+                    ), 
+                    React.createElement("div", {style: scanOptionsStyle}, platform.name)
+                ), 
+                React.createElement("div", {style: scanOptionsStyle}, React.createElement("b", null, "Method: ")), 
+                React.createElement("div", {style: scanOptionsStyle}, methodSelect), 
+                React.createElement("div", {style: scanOptionsStyle}, scanOptions), 
+                React.createElement("div", {style: scanOptionsStyle}, React.createElement("button", {style: buttonStyle, onClick: this._onClick}, "Go"))
             )
         );
     },

@@ -13,35 +13,66 @@ var devicesActionCreators = require('../action-creators/devices-action-creators'
 var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
 
 var ConfigureDevices = React.createClass({
-    // mixins: [Router.State],
     getInitialState: function () {
-        var state = getStateFromStores();
+        var state = devicesStore.getState();
+    
+        state.bacnetProxies = platformsStore.getRunningBacnetProxies(state.platform.uuid);
+        state.deviceMethod = (state.bacnetProxies.length ? "scanForDevices" : "addDevicesManually");
         
         if (state.deviceMethod === "scanForDevices")
         {
             state.selectedProxyUuid = state.bacnetProxies[0].uuid;
         }
 
+        state.scanning = false;
+
         return state;
     },
     componentDidMount: function () {
-        devicesStore.addChangeListener(this._onStoresChange);
+        platformsStore.addChangeListener(this._onPlatformStoresChange);
+        devicesStore.addChangeListener(this._onDevicesStoresChange);
     },
     componentWillUnmount: function () {
-        devicesStore.removeChangeListener(this._onStoresChange);
+        platformsStore.removeChangeListener(this._onPlatformStoresChange);
+        devicesStore.removeChangeListener(this._onDevicesStoresChange);
     },
-    _onStoresChange: function () {
+    _onPlatformStoresChange: function () {
 
-        var state = getStateFromStores();
+        var bacnetProxies = platformsStore.getRunningBacnetProxies(this.state.platform.uuid);
+        
+        this.setState({ bacnetProxies: bacnetProxies });
 
-        if (!state.hasOwnProperty("selectedProxyUuid"))
+        if ((bacnetProxies.length < 1) && this.state.deviceMethod === "scanForDevices")
         {
-            if (state.bacnetProxies.length)
+            this.setState({ deviceMethod: "addDevicesManually" });
+        }
+    },
+    _onDevicesStoresChange: function () {
+
+        var deviceState = devicesStore.getState();
+
+        if (deviceState.platform.uuid !== this.state.platform.uuid)
+        {
+            deviceState.bacnetProxies = platformsStore.getRunningBacnetProxies(deviceState.platform.uuid);
+            deviceState.deviceMethod = (deviceState.bacnetProxies.length ? "scanForDevices" : "addDevicesManually");
+            
+            if (deviceState.deviceMethod === "scanForDevices")
             {
-                state.selectedProxyUuid = state.bacnetProxies[0].uuid;
+                deviceState.selectedProxyUuid = deviceState.bacnetProxies[0].uuid;
+            }
+
+            deviceState.scanning = false;
+
+            this.setState(deviceState);
+        }
+        else
+        {
+            for (key in deviceState)
+            {
+                this.setState({ key: deviceState[key] });
             }
         }
-        this.setState(state);
+
     },
     _onDeviceMethodChange: function (evt) {
 
@@ -61,12 +92,15 @@ var ConfigureDevices = React.createClass({
         var selectedProxyUuid = evt.target.value;
         this.setState({ selectedProxyUuid: selectedProxyUuid });
     },
+    _onClick: function (evt) {
+        this.setState({ scanning: true });
+    },
     render: function () {
 
         var view_component;
         var platform = this.state.platform;
 
-        var devicesSelect = (
+        var methodSelect = (
             <select
                 onChange={this._onDeviceMethodChange}
                 value={this.state.deviceMethod}
@@ -78,20 +112,15 @@ var ConfigureDevices = React.createClass({
             </select>
         );
 
-        var proxySelect, proxySelectLabel;
+        var proxySelect;
 
-        var tableStyle = {
-            width: "40%"
+        var wideStyle = {
+            width: "100%"
         }
 
-        var shortTdStyle = {
-            width: "15%",
-            lineHeight: "12px"
-        }
-
-        var longTdStyle = {
-            width: "25%"
-        }
+        var fifthCell = {
+            width: "20px"
+        }        
 
         if (this.state.deviceMethod === "scanForDevices")
         {
@@ -101,26 +130,25 @@ var ConfigureDevices = React.createClass({
                 );
             });
 
-            tableStyle.width = "60%";
-            shortTdStyle.width = "5%";
-
-            var longerTdStyle = {
-                width: "40%",
-                minWidth: "130px"
-            }
-            proxySelectLabel = (<td className="plain" style={longerTdStyle}><b>BACNet Proxy Agent: </b></td>)
-
             proxySelect = (
-                <td className="plain" style={longTdStyle}>
-                    <select
-                        onChange={this._onProxySelect}
-                        value={this.state.selectedProxyUuid}
-                        autoFocus
-                        required
-                    >
-                        {proxies}
-                    </select>
-                </td>
+                <tr>
+                    <td className="plain"><b>BACNet Proxy Agent: </b></td>
+
+                    <td className="plain"
+                        colSpan={4}>
+                        <select
+                            style={wideStyle}
+                            onChange={this._onProxySelect}
+                            value={this.state.selectedProxyUuid}
+                            autoFocus
+                            required
+                        >
+                            {proxies}
+                        </select>
+                    </td>
+
+                    <td className="plain" style={fifthCell}></td>
+                </tr>
             );
         }
 
@@ -134,23 +162,82 @@ var ConfigureDevices = React.createClass({
             width: "25%",
             minWidth: platformNameLength
         }
+
+        var deviceRangeStyle = {
+            width: "70px"
+        }
+
+        var tdStyle = {
+            minWidth: "120px"
+        }
+
+        var scanOptions = (
+            <div className="detectDevicesContainer">
+                <div className="detectDevicesBox">
+                    <table>
+                        <tbody>
+                            {proxySelect}
+                            <tr>
+                                <td className="plain" style={tdStyle}><b>Device ID Range</b></td>
+                                <td className="plain">Start:</td>
+                                <td className="plain">
+                                    <input
+                                        type="number"
+                                        style={deviceRangeStyle}
+                                        onChange={this._onDeviceStart}
+                                        value={this.state.deviceStart}></input>
+                                </td>
+                                <td className="plain">End:</td>
+                                <td className="plain">
+                                    <input 
+                                        type="number"
+                                        style={deviceRangeStyle}
+                                        onChange={this._onDeviceEnd}
+                                        value={this.state.deviceEnd}></input>
+                                </td>
+                                <td className="plain"></td>
+                            </tr>
+                            <tr>
+                                <td><b>Address</b></td>
+                                <td className="plain"
+                                    colSpan={4}>
+                                    <input 
+                                        style={wideStyle}
+                                        type="text"
+                                        onChange={this._onAddress}
+                                        value={this.state.address}></input>
+                                </td>
+                                <td className="plain" style={fifthCell}></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>                
+            </div>
+        )
+
+        var scanOptionsStyle = {
+            float: "left",
+            marginRight: "10px"
+        }
+
+        var platformNameStyle = {
+            float: "left",
+            width: "100%"
+        }
         
         return (
             <div className="view">
                 <h2>Install Devices</h2>
-                <table style={tableStyle}>
-                    <tbody>
-                        <tr>
-                            <td className="plain" style={shortTdStyle}><b>Instance: </b></td>
-                            <td className="plain" style={platformNameStyle}>{platform.name}</td>
-                            <td className="plain" style={shortTdStyle}><b>Method: </b></td>
-                            <td className="plain" style={longTdStyle}>{devicesSelect}</td>
-                            {proxySelectLabel}{proxySelect}   
-                            <td className="plain" style={shortTdStyle}><button style={buttonStyle}>Go</button></td>             
-                        </tr>
-                    </tbody>
-                </table>
-                
+                <div style={platformNameStyle}>
+                    <div style={scanOptionsStyle}>
+                        <b>Instance: </b>
+                    </div>
+                    <div style={scanOptionsStyle}>{platform.name}</div>
+                </div>
+                <div style={scanOptionsStyle}><b>Method: </b></div>
+                <div style={scanOptionsStyle}>{methodSelect}</div>  
+                <div style={scanOptionsStyle}>{scanOptions}</div>
+                <div style={scanOptionsStyle}><button style={buttonStyle} onClick={this._onClick}>Go</button></div>
             </div>
         );
     },

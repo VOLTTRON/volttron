@@ -2169,8 +2169,7 @@ td.plain {
 }
 
 .detectDevicesContainer {
-    width: 600px;
-    margin-left: 80px;
+    width: 450px;
 }
 
 .devicesFoundContainer, .configDeviceContainer {
@@ -2179,9 +2178,6 @@ td.plain {
 }
 
 .detectDevicesBox {    
-    padding: 60px 20px;
-    margin-top: 20px;
-    margin-bottom: 20px;
     border: 1px solid black;
 }
 
@@ -2224,14 +2220,6 @@ td.plain {
 }
 .uneditableAttributes > table > tbody > tr:not(:last-child) > td {
     padding-bottom: 0px;
-}
-
-.detectDevicesContainer > div > table > tbody > tr > td:first-child {
-    width: 40%;
-}
-
-.detectDevicesContainer > div > table > tbody > tr > td:last-child {
-    width: 60%;
 }
 
 .table_label {
