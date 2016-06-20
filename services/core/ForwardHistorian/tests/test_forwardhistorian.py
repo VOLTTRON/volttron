@@ -179,8 +179,7 @@ def forwarder(request, volttron_instances):
 
         # add public key of instance1 to instance2 auth file
         authfile = AuthFile(volttron_instance2.volttron_home + "/auth.json")
-        entry = AuthEntry(
-            credentials="CURVE:{}".format(ks.public()))
+        entry = AuthEntry(credentials=ks.public())
         authfile.add(entry)
 
         # setup destination address to include keys
@@ -404,7 +403,7 @@ def test_analysis_topic(publish_agent, query_agent):
         headers_mod.DATE: now
     }
     # Publish messages
-    publish(publish_agent, 'analysis/PNNL/BUILDING_1/Device/MixedAirTemperature',
+    publish(publish_agent, 'analysis/PNNL/BUILDING_1/Device',
             headers, all_message)
     gevent.sleep(0.5)
 
@@ -469,7 +468,7 @@ def test_analysis_topic_no_header(publish_agent, query_agent):
     print("now is ", now)
 
     # Publish messages
-    publish(publish_agent, 'analysis/PNNL/BUILDING_1/Device/MixedAirTemperature',
+    publish(publish_agent, 'analysis/PNNL/BUILDING_1/Device',
             None, all_message)
     gevent.sleep(0.5)
 

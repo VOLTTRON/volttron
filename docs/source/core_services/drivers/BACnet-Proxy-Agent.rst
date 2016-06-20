@@ -1,3 +1,5 @@
+.. _BACnet-Proxy-Agent:
+
 ==================
 BACnet Proxy Agent
 ==================

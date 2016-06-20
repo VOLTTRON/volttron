@@ -1,3 +1,5 @@
+.. _Analytics-Historian:
+
 Analytics Historian
 ===================
 

@@ -1,5 +1,6 @@
-Introduction
-------------
+.. _Forward-Historian:
+Forward Historian
+===================
 
 The forward historian can be found in the core services directory. Use
 it to send information to another Volttron instance.
@@ -29,4 +30,5 @@ the agent is disconnected from its target for a long time.
 See Also
 ~~~~~~~~
 
-`Historians <historians>`__
+`Historians <historians>`_
+:ref:`Historians <historians>`
