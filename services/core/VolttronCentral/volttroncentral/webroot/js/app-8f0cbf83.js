@@ -2253,13 +2253,13 @@ var EditChartForm = React.createClass({displayName: "EditChartForm",
         e.preventDefault();
 
         var selectedTopic = this.state.topics.find(function (topic) {
-            return topic.path === this.state.selectedTopic;
+            return topic.value === this.state.selectedTopic;
         }, this);
 
         if (selectedTopic)
         {
-            selectedTopic.uuid = selectedTopic.path;
-            selectedTopic.topic = selectedTopic.path;
+            selectedTopic.uuid = selectedTopic.value;
+            selectedTopic.topic = selectedTopic.value;
             selectedTopic.pinned = (this.state.pin ? true : false);
             selectedTopic.refreshInterval = this.state.refreshInterval;
             selectedTopic.chartType = this.state.chartType;
@@ -2322,14 +2322,14 @@ var EditChartForm = React.createClass({displayName: "EditChartForm",
         if (this.state.topics.length)
         {
             topicsSelector = (
-                React.createElement(ComboBox, {items: this.state.topics, itemskey: "key", itemsvalue: "path", itemslabel: "label", onselect: this._onTopicChange}
+                React.createElement(ComboBox, {items: this.state.topics, itemskey: "key", itemsvalue: "value", itemslabel: "label", onselect: this._onTopicChange}
                 )
             )
         }
 
         return (
             React.createElement("form", {className: "edit-chart-form", onSubmit: this._onSubmit}, 
-                React.createElement("h1", null, "Configure Chart"), 
+                React.createElement("h1", null, "Add Chart"), 
                 this.state.error && (
                     React.createElement("div", {className: "error"}, this.state.error.message)
                 ), 
@@ -3257,7 +3257,7 @@ var PlatformCharts = React.createClass({displayName: "PlatformCharts",
                             className: "button", 
                             onClick: this._onAddChartClick.bind(null, this.state.platform)
                         }, 
-                            "Configure Chart"
+                            "Add Chart"
                         )
                     ), 
                     React.createElement("h2", null, "Charts"), 

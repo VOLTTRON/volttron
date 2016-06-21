@@ -98,7 +98,7 @@ var PlatformCharts = React.createClass({
                             className="button"
                             onClick={this._onAddChartClick.bind(null, this.state.platform)}
                         >
-                            Configure Chart
+                            Add Chart
                         </button>
                     </div>
                     <h2>Charts</h2>

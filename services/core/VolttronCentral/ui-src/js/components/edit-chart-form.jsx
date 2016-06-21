@@ -67,13 +67,13 @@ var EditChartForm = React.createClass({
         e.preventDefault();
 
         var selectedTopic = this.state.topics.find(function (topic) {
-            return topic.path === this.state.selectedTopic;
+            return topic.value === this.state.selectedTopic;
         }, this);
 
         if (selectedTopic)
         {
-            selectedTopic.uuid = selectedTopic.path;
-            selectedTopic.topic = selectedTopic.path;
+            selectedTopic.uuid = selectedTopic.value;
+            selectedTopic.topic = selectedTopic.value;
             selectedTopic.pinned = (this.state.pin ? true : false);
             selectedTopic.refreshInterval = this.state.refreshInterval;
             selectedTopic.chartType = this.state.chartType;
@@ -136,14 +136,14 @@ var EditChartForm = React.createClass({
         if (this.state.topics.length)
         {
             topicsSelector = (
-                <ComboBox items={this.state.topics} itemskey="key" itemsvalue="path" itemslabel="label" onselect={this._onTopicChange}>
+                <ComboBox items={this.state.topics} itemskey="key" itemsvalue="value" itemslabel="label" onselect={this._onTopicChange}>
                 </ComboBox>
             )
         }
 
         return (
             <form className="edit-chart-form" onSubmit={this._onSubmit}>
-                <h1>Configure Chart</h1>
+                <h1>Add Chart</h1>
                 {this.state.error && (
                     <div className="error">{this.state.error.message}</div>
                 )}
