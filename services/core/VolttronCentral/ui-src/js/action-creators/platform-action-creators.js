@@ -206,6 +206,90 @@ var platformActionCreators = {
             callback(authorization, user);
         }
     },
+    loadChartTopics: function (platform) {
+        var authorization = authorizationStore.getAuthorization();
+
+        new rpc.Exchange({
+            method: 'historian.get_topic_list',
+            authorization: authorization,
+        }).promise
+            .then(function (topics) {
+
+                var filteredTopics = [];
+
+                topics.forEach(function (topic, index) {
+
+                    if (topic.indexOf("datalogger/platform/status") < 0) // ignore -- they're local platform topics that are in
+                    {                                                      // the list twice, also at datalogger/platform/<uuid>
+                        var item = {};
+                        var topicParts = topic.split("/");
+
+                        if (topicParts.length > 2)
+                        {
+                            var name;
+                            var parentPath;
+                            var label;
+                            // var name;
+
+                            if (topic.indexOf("datalogger/platforms") > -1) // if a platform instance
+                            {
+                                var platformUuid = topicParts[2];
+                                var platform = platformsStore.getPlatform(platformUuid);
+                                parentPath = (platform ? platform.name : "Unknown Platform");
+                                label = topicParts[topicParts.length - 2] + "/" + topicParts[topicParts.length - 1] + " (" + parentPath + ")";
+                                name = topicParts[topicParts.length - 2] + " / " + topicParts[topicParts.length - 1]; // the name is the
+                                                                                                                    // last two path parts
+                            }                                                                                      // ex.: times_percent / idle
+                            else // else a device point
+                            {
+                                parentPath = topicParts[0];
+
+                                for (var i = 1; i < topicParts.length - 1; i++)
+                                {
+                                    parentPath = parentPath + " > " + topicParts[i];
+                                }
+
+                                label = topicParts[topicParts.length - 1] + " (" + parentPath + ")";
+                                name = topicParts[topicParts.length - 1]; // the name is the column name
+                            }
+
+                            item.path = topic;
+                            item.label = label;
+                            item.key = index;
+                            item.name = name;
+                            // item.uuid = this.state.selectedTopic;
+                            // item.topic = this.state.selectedTopic;
+                            // item.pinned = (this.state.pin ? true : false);
+                            item.parentPath = parentPath;
+                            // item.parentUuid = this.props.platform.uuid;
+
+                            filteredTopics.push(item);
+                        }
+                    }
+                });
+
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.RECEIVE_CHART_TOPICS,
+                    platform: platform,
+                    topics: filteredTopics
+                });
+            })
+            .catch(rpc.Error, function (error) {
+
+                var message = error.message;
+
+                if (error.code === -32602)
+                {
+                    if (error.message === "historian unavailable")
+                    {
+                        message = "Charts can't be added. The historian agent is unavailable."
+                    }
+                }
+
+                statusIndicatorActionCreators.openStatusIndicator("error", message);
+                handle401(error);
+            });
+    },
     loadCharts: function (platform) {
         
         var doLoadCharts = function (authorization, user)

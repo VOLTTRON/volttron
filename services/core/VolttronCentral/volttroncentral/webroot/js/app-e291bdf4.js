@@ -92,7 +92,7 @@ router.run(function (Handler) {
 });
 
 
-},{"./components/dashboard":16,"./components/login-form":19,"./components/page-not-found":22,"./components/platform":26,"./components/platform-charts":24,"./components/platform-manager":25,"./components/platforms":29,"./stores/authorization-store":42,"./stores/platforms-panel-items-store":47,"react":undefined,"react-router":undefined}],2:[function(require,module,exports){
+},{"./components/dashboard":17,"./components/login-form":21,"./components/page-not-found":24,"./components/platform":28,"./components/platform-charts":26,"./components/platform-manager":27,"./components/platforms":31,"./stores/authorization-store":44,"./stores/platforms-panel-items-store":49,"react":undefined,"react-router":undefined}],2:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -119,7 +119,7 @@ var consoleActionCreators = {
 module.exports = consoleActionCreators;
 
 
-},{"../constants/action-types":33,"../dispatcher":34,"../lib/rpc/exchange":36}],3:[function(require,module,exports){
+},{"../constants/action-types":35,"../dispatcher":36,"../lib/rpc/exchange":38}],3:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -145,7 +145,7 @@ var controlButtonActionCreators = {
 module.exports = controlButtonActionCreators;
 
 
-},{"../constants/action-types":33,"../dispatcher":34}],4:[function(require,module,exports){
+},{"../constants/action-types":35,"../dispatcher":36}],4:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -168,7 +168,7 @@ var modalActionCreators = {
 module.exports = modalActionCreators;
 
 
-},{"../constants/action-types":33,"../dispatcher":34}],5:[function(require,module,exports){
+},{"../constants/action-types":35,"../dispatcher":36}],5:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -376,6 +376,90 @@ var platformActionCreators = {
         {
             callback(authorization, user);
         }
+    },
+    loadChartTopics: function (platform) {
+        var authorization = authorizationStore.getAuthorization();
+
+        new rpc.Exchange({
+            method: 'historian.get_topic_list',
+            authorization: authorization,
+        }).promise
+            .then(function (topics) {
+
+                var filteredTopics = [];
+
+                topics.forEach(function (topic, index) {
+
+                    if (topic.indexOf("datalogger/platform/status") < 0) // ignore -- they're local platform topics that are in
+                    {                                                      // the list twice, also at datalogger/platform/<uuid>
+                        var item = {};
+                        var topicParts = topic.split("/");
+
+                        if (topicParts.length > 2)
+                        {
+                            var name;
+                            var parentPath;
+                            var label;
+                            // var name;
+
+                            if (topic.indexOf("datalogger/platforms") > -1) // if a platform instance
+                            {
+                                var platformUuid = topicParts[2];
+                                var platform = platformsStore.getPlatform(platformUuid);
+                                parentPath = (platform ? platform.name : "Unknown Platform");
+                                label = topicParts[topicParts.length - 2] + "/" + topicParts[topicParts.length - 1] + " (" + parentPath + ")";
+                                name = topicParts[topicParts.length - 2] + " / " + topicParts[topicParts.length - 1]; // the name is the
+                                                                                                                    // last two path parts
+                            }                                                                                      // ex.: times_percent / idle
+                            else // else a device point
+                            {
+                                parentPath = topicParts[0];
+
+                                for (var i = 1; i < topicParts.length - 1; i++)
+                                {
+                                    parentPath = parentPath + " > " + topicParts[i];
+                                }
+
+                                label = topicParts[topicParts.length - 1] + " (" + parentPath + ")";
+                                name = topicParts[topicParts.length - 1]; // the name is the column name
+                            }
+
+                            item.path = topic;
+                            item.label = label;
+                            item.key = index;
+                            item.name = name;
+                            // item.uuid = this.state.selectedTopic;
+                            // item.topic = this.state.selectedTopic;
+                            // item.pinned = (this.state.pin ? true : false);
+                            item.parentPath = parentPath;
+                            // item.parentUuid = this.props.platform.uuid;
+
+                            filteredTopics.push(item);
+                        }
+                    }
+                });
+
+                dispatcher.dispatch({
+                    type: ACTION_TYPES.RECEIVE_CHART_TOPICS,
+                    platform: platform,
+                    topics: filteredTopics
+                });
+            })
+            .catch(rpc.Error, function (error) {
+
+                var message = error.message;
+
+                if (error.code === -32602)
+                {
+                    if (error.message === "historian unavailable")
+                    {
+                        message = "Charts can't be added. The historian agent is unavailable."
+                    }
+                }
+
+                statusIndicatorActionCreators.openStatusIndicator("error", message);
+                handle401(error);
+            });
     },
     loadCharts: function (platform) {
         
@@ -586,7 +670,7 @@ function handle401(error, message, highlight, orientation) {
 module.exports = platformActionCreators;
 
 
-},{"../action-creators/status-indicator-action-creators":9,"../constants/action-types":33,"../dispatcher":34,"../lib/rpc":37,"../stores/authorization-store":42,"../stores/platform-chart-store":46,"../stores/platforms-store":49}],6:[function(require,module,exports){
+},{"../action-creators/status-indicator-action-creators":9,"../constants/action-types":35,"../dispatcher":36,"../lib/rpc":39,"../stores/authorization-store":44,"../stores/platform-chart-store":48,"../stores/platforms-store":51}],6:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -795,7 +879,7 @@ function handle401(error, message, highlight, orientation) {
 module.exports = platformChartActionCreators;
 
 
-},{"../action-creators/platform-action-creators":5,"../action-creators/platforms-panel-action-creators":8,"../action-creators/status-indicator-action-creators":9,"../constants/action-types":33,"../dispatcher":34,"../lib/rpc":37,"../stores/authorization-store":42,"../stores/platform-chart-store":46,"../stores/platforms-store":49}],7:[function(require,module,exports){
+},{"../action-creators/platform-action-creators":5,"../action-creators/platforms-panel-action-creators":8,"../action-creators/status-indicator-action-creators":9,"../constants/action-types":35,"../dispatcher":36,"../lib/rpc":39,"../stores/authorization-store":44,"../stores/platform-chart-store":48,"../stores/platforms-store":51}],7:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -1005,7 +1089,7 @@ function handle401(error, message, highlight, orientation) {
 module.exports = platformManagerActionCreators;
 
 
-},{"../action-creators/platform-action-creators":5,"../action-creators/status-indicator-action-creators":9,"../constants/action-types":33,"../dispatcher":34,"../lib/rpc":37,"../stores/authorization-store":42}],8:[function(require,module,exports){
+},{"../action-creators/platform-action-creators":5,"../action-creators/status-indicator-action-creators":9,"../constants/action-types":35,"../dispatcher":36,"../lib/rpc":39,"../stores/authorization-store":44}],8:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -1218,7 +1302,7 @@ function handle401(error, message, highlight, orientation) {
 module.exports = platformsPanelActionCreators;
 
 
-},{"../action-creators/status-indicator-action-creators":9,"../constants/action-types":33,"../dispatcher":34,"../lib/rpc":37,"../stores/authorization-store":42,"../stores/platforms-panel-items-store":47}],9:[function(require,module,exports){
+},{"../action-creators/status-indicator-action-creators":9,"../constants/action-types":35,"../dispatcher":36,"../lib/rpc":39,"../stores/authorization-store":44,"../stores/platforms-panel-items-store":49}],9:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -1245,7 +1329,7 @@ var actionStatusCreators = {
 module.exports = actionStatusCreators;
 
 
-},{"../constants/action-types":33,"../dispatcher":34}],10:[function(require,module,exports){
+},{"../constants/action-types":35,"../dispatcher":36}],10:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1355,7 +1439,188 @@ var AgentRow = React.createClass({displayName: "AgentRow",
 module.exports = AgentRow;
 
 
-},{"../action-creators/modal-action-creators":4,"../action-creators/platform-action-creators":5,"./remove-agent-form":31,"react":undefined}],11:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":4,"../action-creators/platform-action-creators":5,"./remove-agent-form":33,"react":undefined}],11:[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+
+var ComboBox = React.createClass({displayName: "ComboBox",
+    mixins: [
+        require('react-onclickoutside')
+    ],
+	getInitialState: function () {
+
+        var preppedItems = prepItems(this.props.itemskey, this.props.itemsvalue, this.props.itemslabel, this.props.items);
+
+        var state = {
+            selectedKey: "",
+            selectedLabel: "",
+            selectedValue: "",
+            inputValue: "",
+            hideMenu: true,
+            preppedItems: preppedItems,
+            itemsList: preppedItems
+        };
+
+        this.forceHide = false;
+
+        return state;
+    },
+    componentDidUpdate: function () {
+        if (this.forceHide)
+        {
+            React.findDOMNode(this.refs.comboInput).blur();
+            this.forceHide = false;
+        }
+    },
+    handleClickOutside: function () {
+        if (!this.state.hideMenu)
+        {
+            var validValue = this._validateValue(this.state.inputValue);
+            this.props.onselect(validValue);
+            this.setState({hideMenu: true});
+        }
+    },
+    _validateValue: function (inputValue) {
+
+        var validInput = this.props.items.find(function (item) {
+            return item.label === inputValue;
+        });
+
+        var validKey = (validInput ? validInput.key : "");
+        var validValue = (validInput ? validInput.value : "");
+        var validLabel = (validInput ? validInput.label : "");
+        
+        this.setState({selectedKey: validKey});
+        this.setState({selectedValue: validValue});
+        this.setState({selectedLabel: validLabel});
+
+        return validValue;
+    },
+    _onClick: function (e) {
+        this.setState({selectedKey: e.target.dataset.key});
+        this.setState({selectedLabel: e.target.dataset.label});
+        this.setState({selectedValue: e.target.dataset.value});
+        this.setState({inputValue: e.target.dataset.label});
+        this.setState({hideMenu: true});
+
+        this.props.onselect(e.target.dataset.value);
+    },
+    _onFocus: function () {
+        this.setState({hideMenu: false});
+    },
+    _onKeyup: function (e) {
+        if (e.keyCode === 13)
+        {
+            this.forceHide = true;
+            this.setState({hideMenu: true});
+
+            var validValue = this._validateValue(this.state.inputValue);
+            this.props.onselect(validValue);
+        }
+    },
+    _onChange: function (e) {
+
+        var inputValue = e.target.value;
+
+        var itemsList = filterItems(inputValue, this.state.preppedItems);
+
+        this.setState({itemsList: itemsList});
+
+        this.setState({inputValue: inputValue}); 
+                
+    },
+
+	render: function () {
+		
+        var menuStyle = {
+            display: (this.state.hideMenu ? 'none' : 'block')
+        };
+
+        var inputStyle = {
+            width: "390px"
+        };
+
+        var items = this.state.itemsList.map(function (item, index) {
+            return (
+                React.createElement("div", {className: "combobox-item"}, 
+                    React.createElement("div", {
+                        onClick: this._onClick, 
+                        "data-label": item.label, 
+                        "data-value": item.value, 
+                        "data-key": item.key}, item.label)
+                )
+            )
+        }, this);
+
+		return (
+		
+        	React.createElement("div", {className: "combobox-control"}, 
+                React.createElement("input", {
+                    style: inputStyle, 
+                    type: "text", 
+                    onFocus: this._onFocus, 
+                    onChange: this._onChange, 
+                    onKeyUp: this._onKeyup, 
+                    ref: "comboInput", 
+                    value: this.state.inputValue}), 
+
+                React.createElement("div", {className: "combobox-menu", style: menuStyle}, 
+				    items
+                )
+			)
+		);
+	},
+});
+
+function prepItems(itemsKey, itemsValue, itemsLabel, itemsList)
+{
+    var props = {
+        itemsKey: itemsKey,
+        itemsValue: itemsValue,
+        itemsLabel: itemsLabel
+    };
+
+    var list = itemsList.map(function (item, index) {
+
+        var preppedItem = {
+            key: (this.itemsKey ? item[this.itemsKey] : index),
+            value: (this.itemsValue ? item[this.itemsValue] : item),
+            label: (this.itemsLabel ? item[this.itemsLabel] : item)
+        };
+
+        return preppedItem;
+    }, props);
+
+    return JSON.parse(JSON.stringify(list));
+}
+
+function filterItems(filterTerm, itemsList)
+{
+    var listCopy = JSON.parse(JSON.stringify(itemsList));
+
+    var filteredItems = listCopy;
+
+    if (filterTerm)
+    {
+        filteredItems = [];
+
+        listCopy.forEach(function (item) {
+            if (item.label.toUpperCase().indexOf(filterTerm.toUpperCase()) > -1)
+            {
+                filteredItems.push(item);
+            }
+        });
+    }
+
+    return filteredItems;
+}
+
+
+module.exports = ComboBox;
+
+
+},{"react":undefined,"react-onclickoutside":undefined}],12:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1425,7 +1690,7 @@ function getStateFromStores() {
 module.exports = Composer;
 
 
-},{"../action-creators/console-action-creators":2,"../stores/console-store":43,"react":undefined}],12:[function(require,module,exports){
+},{"../action-creators/console-action-creators":2,"../stores/console-store":45,"react":undefined}],13:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1472,7 +1737,7 @@ var ConfirmForm = React.createClass({displayName: "ConfirmForm",
 module.exports = ConfirmForm;
 
 
-},{"../action-creators/modal-action-creators":4,"react":undefined}],13:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":4,"react":undefined}],14:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1494,7 +1759,7 @@ var Console = React.createClass({displayName: "Console",
 module.exports = Console;
 
 
-},{"./composer":11,"./conversation":15,"react":undefined}],14:[function(require,module,exports){
+},{"./composer":12,"./conversation":16,"react":undefined}],15:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1764,7 +2029,7 @@ var ControlButton = React.createClass({displayName: "ControlButton",
 
 module.exports = ControlButton;
 
-},{"../action-creators/control-button-action-creators":3,"../stores/control-button-store":44,"react":undefined,"react-onclickoutside":undefined,"react-router":undefined}],15:[function(require,module,exports){
+},{"../action-creators/control-button-action-creators":3,"../stores/control-button-store":46,"react":undefined,"react-onclickoutside":undefined,"react-router":undefined}],16:[function(require,module,exports){
 'use strict';
 
 var $ = require('jquery');
@@ -1815,7 +2080,7 @@ function getStateFromStores() {
 module.exports = Conversation;
 
 
-},{"../stores/console-store":43,"./exchange":18,"jquery":undefined,"react":undefined}],16:[function(require,module,exports){
+},{"../stores/console-store":45,"./exchange":20,"jquery":undefined,"react":undefined}],17:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1879,7 +2144,7 @@ function getStateFromStores() {
 module.exports = Dashboard;
 
 
-},{"../stores/platform-chart-store":46,"./platform-chart":23,"react":undefined,"react-router":undefined}],17:[function(require,module,exports){
+},{"../stores/platform-chart-store":48,"./platform-chart":25,"react":undefined,"react-router":undefined}],18:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1922,7 +2187,228 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
 module.exports = RegisterPlatformForm;
 
 
-},{"../action-creators/modal-action-creators":4,"../action-creators/platform-manager-action-creators":7,"react":undefined}],18:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":4,"../action-creators/platform-manager-action-creators":7,"react":undefined}],19:[function(require,module,exports){
+'use strict';
+
+var React = require('react');
+
+var modalActionCreators = require('../action-creators/modal-action-creators');
+var platformActionCreators = require('../action-creators/platform-action-creators');
+var platformChartActionCreators = require('../action-creators/platform-chart-action-creators');
+var platformsPanelActionCreators = require('../action-creators/platforms-panel-action-creators');
+var platformsPanelItemsStore = require('../stores/platforms-panel-items-store');
+var chartStore = require('../stores/platform-chart-store');
+var ComboBox = require('./combo-box');
+
+var EditChartForm = React.createClass({displayName: "EditChartForm",
+    getInitialState: function () {
+        var state = {};
+
+        for (var prop in this.props.chart) {
+            state[prop] = this.props.chart[prop];
+        }
+
+        state.topics = chartStore.getChartTopics(this.props.platform.uuid);
+
+        state.selectedTopic = "";
+
+        return state;
+    },
+    componentDidMount: function () {
+        chartStore.addChangeListener(this._onStoresChange);
+    },
+    componentWillUnmount: function () {
+        chartStore.removeChangeListener(this._onStoresChange);
+    },
+    _onStoresChange: function () {
+        this.setState({ topics: chartStore.getChartTopics(this.props.platform.uuid)});
+    },
+    _onPropChange: function (e) {
+        var state = {};
+
+        for (key in this.state)
+        {
+            state[key] = this.state[key];
+        }
+
+        var key = e.target.id;
+
+        switch (e.target.type) {
+        case 'checkbox':
+            state[key] = e.target.checked;
+            break;
+        case 'number':
+            state[key] = parseFloat(e.target.value);
+            break;
+        default:
+            state[key] = e.target.value;
+        }
+
+        this.setState(state);
+    },
+    _onTopicChange: function (value) {
+        this.setState({ selectedTopic: value });
+    },
+    _onCancelClick: function () {
+        modalActionCreators.closeModal();
+    },
+    _onSubmit: function (e) {
+
+        e.preventDefault();
+
+        var selectedTopic = this.state.topics.find(function (topic) {
+            return topic.path === this.state.selectedTopic;
+        }, this);
+
+        if (selectedTopic)
+        {
+            selectedTopic.uuid = selectedTopic.path;
+            selectedTopic.topic = selectedTopic.path;
+            selectedTopic.pinned = (this.state.pin ? true : false);
+            selectedTopic.refreshInterval = this.state.refreshInterval;
+            selectedTopic.chartType = this.state.chartType;
+            selectedTopic.parentUuid = this.props.platform.uuid;
+            selectedTopic.path = platformsPanelItemsStore.findTopicInTree(selectedTopic.topic);
+        }
+
+        var notifyRouter = false;
+
+        platformChartActionCreators.addToChart(selectedTopic, notifyRouter);
+
+        if (selectedTopic.path)
+        {
+            platformsPanelActionCreators.checkItem(selectedTopic.path, true);
+        }
+
+        if (selectedTopic.pinned)
+        {
+            platformChartActionCreators.pinChart(selectedTopic.name);
+            platformActionCreators.saveCharts();
+        }
+
+        modalActionCreators.closeModal();
+    },
+    render: function () {
+        var typeOptions;
+
+        switch (this.state.chartType) {
+        case 'line':
+            typeOptions = (
+                React.createElement("div", {className: "form__control-group"}, 
+                    React.createElement("label", null, "Y-axis range"), 
+                    React.createElement("label", {htmlFor: "min"}, "Min:"), " ", 
+                    React.createElement("input", {
+                        className: "form__control form__control--inline", 
+                        type: "number", 
+                        id: "min", 
+                        onChange: this._onPropChange, 
+                        value: this.state.min, 
+                        placeholder: "auto"}
+                    ), " ", 
+                    React.createElement("label", {htmlFor: "max"}, "Max:"), " ", 
+                    React.createElement("input", {
+                        className: "form__control form__control--inline", 
+                        type: "number", 
+                        id: "max", 
+                        onChange: this._onPropChange, 
+                        value: this.state.max, 
+                        placeholder: "auto"}
+                    ), React.createElement("br", null), 
+                    React.createElement("span", {className: "form__control-help"}, 
+                        "Omit either to determine from data"
+                    )
+                )
+            );
+        }
+
+        var topicsSelector;
+
+        if (this.state.topics.length)
+        {
+            topicsSelector = (
+                React.createElement(ComboBox, {items: this.state.topics, itemskey: "key", itemsvalue: "path", itemslabel: "label", onselect: this._onTopicChange}
+                )
+            )
+        }
+
+        return (
+            React.createElement("form", {className: "edit-chart-form", onSubmit: this._onSubmit}, 
+                React.createElement("h1", null, this.props.chart ? 'Edit' : 'Add', " Chart"), 
+                this.state.error && (
+                    React.createElement("div", {className: "error"}, this.state.error.message)
+                ), 
+                React.createElement("div", {className: "form__control-group"}, 
+                    React.createElement("label", {htmlFor: "topic"}, "Topic"), 
+                    topicsSelector
+                ), 
+                React.createElement("div", {className: "form__control-group"}, 
+                    React.createElement("label", null, "Dashboard"), 
+                    React.createElement("input", {
+                        className: "form__control form__control--inline", 
+                        type: "checkbox", 
+                        id: "pin", 
+                        onChange: this._onPropChange, 
+                        checked: this.state.pin}
+                    ), " ", 
+                    React.createElement("label", {htmlFor: "pin"}, "Pin to dashboard")
+                ), 
+                React.createElement("div", {className: "form__control-group"}, 
+                    React.createElement("label", {htmlFor: "refreshInterval"}, "Refresh interval (ms)"), 
+                    React.createElement("input", {
+                        className: "form__control form__control--inline", 
+                        type: "number", 
+                        id: "refreshInterval", 
+                        onChange: this._onPropChange, 
+                        value: this.state.refreshInterval, 
+                        min: "250", 
+                        step: "1", 
+                        placeholder: "disabled"}
+                    ), 
+                    React.createElement("span", {className: "form__control-help"}, 
+                        "Omit to disable"
+                    )
+                ), 
+                React.createElement("div", {className: "form__control-group"}, 
+                    React.createElement("label", {htmlFor: "chartType"}, "Chart type"), 
+                    React.createElement("select", {
+                        id: "chartType", 
+                        onChange: this._onPropChange, 
+                        value: this.state.chartType, 
+                        autoFocus: true, 
+                        required: true
+                    }, 
+                        React.createElement("option", {value: ""}, "-- Select type --"), 
+                        React.createElement("option", {value: "line"}, "Line"), 
+                        React.createElement("option", {value: "lineWithFocus"}, "Line with View Finder"), 
+                        React.createElement("option", {value: "stackedArea"}, "Stacked Area"), 
+                        React.createElement("option", {value: "cumulativeLine"}, "Cumulative Line")
+                    )
+                ), 
+                typeOptions, 
+                React.createElement("div", {className: "form__actions"}, 
+                    React.createElement("button", {
+                        className: "button button--secondary", 
+                        type: "button", 
+                        onClick: this._onCancelClick
+                    }, 
+                        "Cancel"
+                    ), 
+                    React.createElement("button", {
+                        className: "button", 
+                        disabled: !this.state.selectedTopic || !this.state.chartType
+                    }, 
+                        "Save"
+                    )
+                )
+            )
+        );
+    },
+});
+
+module.exports = EditChartForm;
+
+
+},{"../action-creators/modal-action-creators":4,"../action-creators/platform-action-creators":5,"../action-creators/platform-chart-action-creators":6,"../action-creators/platforms-panel-action-creators":8,"../stores/platform-chart-store":48,"../stores/platforms-panel-items-store":49,"./combo-box":11,"react":undefined}],20:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -1975,7 +2461,7 @@ var Exchange = React.createClass({displayName: "Exchange",
 module.exports = Exchange;
 
 
-},{"react":undefined}],19:[function(require,module,exports){
+},{"react":undefined}],21:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2038,7 +2524,7 @@ var LoginForm = React.createClass({displayName: "LoginForm",
 module.exports = LoginForm;
 
 
-},{"../action-creators/platform-manager-action-creators":7,"react":undefined,"react-router":undefined}],20:[function(require,module,exports){
+},{"../action-creators/platform-manager-action-creators":7,"react":undefined,"react-router":undefined}],22:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2065,7 +2551,7 @@ var Modal = React.createClass({displayName: "Modal",
 module.exports = Modal;
 
 
-},{"../action-creators/modal-action-creators":4,"react":undefined}],21:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":4,"react":undefined}],23:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2144,7 +2630,7 @@ function getStateFromStores() {
 module.exports = Navigation;
 
 
-},{"../action-creators/platform-manager-action-creators":7,"../action-creators/platforms-panel-action-creators":8,"../stores/authorization-store":42,"react":undefined,"react-router":undefined}],22:[function(require,module,exports){
+},{"../action-creators/platform-manager-action-creators":7,"../action-creators/platforms-panel-action-creators":8,"../stores/authorization-store":44,"react":undefined,"react-router":undefined}],24:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2162,7 +2648,7 @@ var PageNotFound = React.createClass({displayName: "PageNotFound",
 module.exports = PageNotFound;
 
 
-},{"react":undefined}],23:[function(require,module,exports){
+},{"react":undefined}],25:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -2674,31 +3160,77 @@ var GraphLineChart = React.createClass({displayName: "GraphLineChart",
 module.exports = PlatformChart;
 
 
-},{"../action-creators/modal-action-creators":4,"../action-creators/platform-action-creators":5,"../action-creators/platform-chart-action-creators":6,"../action-creators/platforms-panel-action-creators":8,"../stores/platform-chart-store":46,"./confirm-form":12,"./control-button":14,"d3":undefined,"moment":undefined,"nvd3":undefined,"react":undefined,"react-onclickoutside":undefined,"react-router":undefined}],24:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":4,"../action-creators/platform-action-creators":5,"../action-creators/platform-chart-action-creators":6,"../action-creators/platforms-panel-action-creators":8,"../stores/platform-chart-store":48,"./confirm-form":13,"./control-button":15,"d3":undefined,"moment":undefined,"nvd3":undefined,"react":undefined,"react-onclickoutside":undefined,"react-router":undefined}],26:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
 var PlatformChart = require('./platform-chart');
+var modalActionCreators = require('../action-creators/modal-action-creators');
+var platformActionCreators = require('../action-creators/platform-action-creators');
+var EditChartForm = require('./edit-chart-form');
+var platformsStore = require('../stores/platforms-store');
 var chartStore = require('../stores/platform-chart-store');
+var statusIndicatorActionCreators = require('../action-creators/status-indicator-action-creators');
+var platformManagerActionCreators = require('../action-creators/platform-manager-action-creators');
 
 var PlatformCharts = React.createClass({displayName: "PlatformCharts",
     getInitialState: function () {
 
+        var vc = platformsStore.getVcInstance();
+
         var state = {
+            platform: vc,
             chartData: chartStore.getData(),
-            modalContent: null
+            historianRunning: platformsStore.getHistorianRunning(vc)
         };
 
         return state;
     },
     componentDidMount: function () {
         chartStore.addChangeListener(this._onChartStoreChange);
+        platformsStore.addChangeListener(this._onPlatformStoreChange);
+
+        if (!this.state.platform)
+        {
+            platformManagerActionCreators.loadPlatforms();
+        }
     },
     componentWillUnmount: function () {
         chartStore.removeChangeListener(this._onChartStoreChange);
+        platformsStore.removeChangeListener(this._onPlatformStoreChange);
     },
     _onChartStoreChange: function () {
         this.setState({chartData: chartStore.getData()});
+    },
+    _onPlatformStoreChange: function () {
+
+        var platform = this.state.platform;
+
+        if (!platform)
+        {
+            platform = platformsStore.getVcInstance();
+
+            if (platform)
+            {
+                this.setState({platform: platform});
+            }
+        }
+
+        this.setState({historianRunning: platformsStore.getHistorianRunning(platform)});
+    },
+    _onAddChartClick: function (platform) {
+
+        if (this.state.historianRunning)
+        {
+            platformActionCreators.loadChartTopics(this.state.platform);
+
+            modalActionCreators.openModal(React.createElement(EditChartForm, {platform: this.state.platform}));
+        }
+        else
+        {
+            var message = "Charts can't be added. The historian agent is unavailable."
+            statusIndicatorActionCreators.openStatusIndicator("error", message);
+        }
     },
     render: function () {
 
@@ -2724,7 +3256,13 @@ var PlatformCharts = React.createClass({displayName: "PlatformCharts",
         return (
             React.createElement("div", {className: "view"}, 
                 React.createElement("div", {className: "absolute_anchor"}, 
-                    React.createElement("div", {className: "view__actions"}
+                    React.createElement("div", {className: "view__actions"}, 
+                        React.createElement("button", {
+                            className: "button", 
+                            onClick: this._onAddChartClick.bind(null, this.state.platform)
+                        }, 
+                            "Add chart"
+                        )
                     ), 
                     React.createElement("h2", null, "Charts"), 
                     platformCharts
@@ -2737,7 +3275,7 @@ var PlatformCharts = React.createClass({displayName: "PlatformCharts",
 module.exports = PlatformCharts;
 
 
-},{"../stores/platform-chart-store":46,"./platform-chart":23,"react":undefined}],25:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":4,"../action-creators/platform-action-creators":5,"../action-creators/platform-manager-action-creators":7,"../action-creators/status-indicator-action-creators":9,"../stores/platform-chart-store":48,"../stores/platforms-store":51,"./edit-chart-form":19,"./platform-chart":25,"react":undefined}],27:[function(require,module,exports){
 'use strict';
 
 var $ = require('jquery');
@@ -2952,7 +3490,7 @@ function getStateFromStores() {
 module.exports = PlatformManager;
 
 
-},{"../action-creators/console-action-creators":2,"../action-creators/modal-action-creators":4,"../action-creators/platform-manager-action-creators":7,"../stores/authorization-store":42,"../stores/console-store":43,"../stores/modal-store":45,"../stores/platforms-panel-store":48,"../stores/status-indicator-store":50,"./console":13,"./modal":20,"./navigation":21,"./platforms-panel":28,"./status-indicator":32,"jquery":undefined,"react":undefined,"react-router":undefined}],26:[function(require,module,exports){
+},{"../action-creators/console-action-creators":2,"../action-creators/modal-action-creators":4,"../action-creators/platform-manager-action-creators":7,"../stores/authorization-store":44,"../stores/console-store":45,"../stores/modal-store":47,"../stores/platforms-panel-store":50,"../stores/status-indicator-store":52,"./console":14,"./modal":22,"./navigation":23,"./platforms-panel":30,"./status-indicator":34,"jquery":undefined,"react":undefined,"react-router":undefined}],28:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -3094,7 +3632,7 @@ function getStateFromStores(component) {
 module.exports = Platform;
 
 
-},{"../action-creators/platform-action-creators":5,"../action-creators/status-indicator-action-creators":9,"../stores/platforms-store":49,"./agent-row":10,"react":undefined,"react-router":undefined}],27:[function(require,module,exports){
+},{"../action-creators/platform-action-creators":5,"../action-creators/status-indicator-action-creators":9,"../stores/platforms-store":51,"./agent-row":10,"react":undefined,"react-router":undefined}],29:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -3421,7 +3959,7 @@ var PlatformsPanelItem = React.createClass({displayName: "PlatformsPanelItem",
 module.exports = PlatformsPanelItem;
 
 
-},{"../action-creators/platform-chart-action-creators":6,"../action-creators/platforms-panel-action-creators":8,"../stores/platforms-panel-items-store":47,"react":undefined,"react-router":undefined}],28:[function(require,module,exports){
+},{"../action-creators/platform-chart-action-creators":6,"../action-creators/platforms-panel-action-creators":8,"../stores/platforms-panel-items-store":49,"react":undefined,"react-router":undefined}],30:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -3695,7 +4233,7 @@ var PlatformsPanel = React.createClass({displayName: "PlatformsPanel",
 module.exports = PlatformsPanel;
 
 
-},{"../action-creators/platforms-panel-action-creators":8,"../stores/platforms-panel-items-store":47,"../stores/platforms-panel-store":48,"./control-button":14,"./platforms-panel-item":27,"react":undefined,"react-router":undefined}],29:[function(require,module,exports){
+},{"../action-creators/platforms-panel-action-creators":8,"../stores/platforms-panel-items-store":49,"../stores/platforms-panel-store":50,"./control-button":15,"./platforms-panel-item":29,"react":undefined,"react-router":undefined}],31:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -3817,7 +4355,7 @@ function getStateFromStores() {
 module.exports = Platforms;
 
 
-},{"../action-creators/modal-action-creators":4,"../action-creators/status-indicator-action-creators":9,"../components/deregister-platform-confirmation":17,"../components/register-platform-form":30,"../components/status-indicator":32,"../stores/platforms-store":49,"react":undefined,"react-router":undefined}],30:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":4,"../action-creators/status-indicator-action-creators":9,"../components/deregister-platform-confirmation":18,"../components/register-platform-form":32,"../components/status-indicator":34,"../stores/platforms-store":51,"react":undefined,"react-router":undefined}],32:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -4122,7 +4660,7 @@ var RegisterPlatformForm = React.createClass({displayName: "RegisterPlatformForm
 module.exports = RegisterPlatformForm;
 
 
-},{"../action-creators/modal-action-creators":4,"../action-creators/platform-manager-action-creators":7,"react":undefined}],31:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":4,"../action-creators/platform-manager-action-creators":7,"react":undefined}],33:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -4182,7 +4720,7 @@ var RemoveAgentForm = React.createClass({displayName: "RemoveAgentForm",
 module.exports = RemoveAgentForm;
 
 
-},{"../action-creators/modal-action-creators":4,"../action-creators/platform-action-creators":5,"react":undefined}],32:[function(require,module,exports){
+},{"../action-creators/modal-action-creators":4,"../action-creators/platform-action-creators":5,"react":undefined}],34:[function(require,module,exports){
 'use strict';
 
 var React = require('react');
@@ -4340,7 +4878,7 @@ var StatusIndicator = React.createClass({displayName: "StatusIndicator",
 module.exports = StatusIndicator;
 
 
-},{"../action-creators/status-indicator-action-creators":9,"../stores/status-indicator-store":50,"react":undefined}],33:[function(require,module,exports){
+},{"../action-creators/status-indicator-action-creators":9,"../stores/status-indicator-store":52,"react":undefined}],35:[function(require,module,exports){
 'use strict';
 
 var keyMirror = require('react/lib/keyMirror');
@@ -4402,7 +4940,7 @@ module.exports = keyMirror({
 });
 
 
-},{"react/lib/keyMirror":undefined}],34:[function(require,module,exports){
+},{"react/lib/keyMirror":undefined}],36:[function(require,module,exports){
 'use strict';
 
 var Dispatcher = require('flux').Dispatcher;
@@ -4422,7 +4960,7 @@ dispatcher.dispatch = function (action) {
 module.exports = dispatcher;
 
 
-},{"../constants/action-types":33,"flux":undefined}],35:[function(require,module,exports){
+},{"../constants/action-types":35,"flux":undefined}],37:[function(require,module,exports){
 'use strict';
 
 function RpcError(error) {
@@ -4438,7 +4976,7 @@ RpcError.prototype.constructor = RpcError;
 module.exports = RpcError;
 
 
-},{}],36:[function(require,module,exports){
+},{}],38:[function(require,module,exports){
 'use strict';
 
 var uuid = require('node-uuid');
@@ -4526,7 +5064,7 @@ function RpcExchange(request, redactedParams) {
 module.exports = RpcExchange;
 
 
-},{"../../constants/action-types":33,"../../dispatcher":34,"../xhr":40,"./error":35,"node-uuid":undefined}],37:[function(require,module,exports){
+},{"../../constants/action-types":35,"../../dispatcher":36,"../xhr":42,"./error":37,"node-uuid":undefined}],39:[function(require,module,exports){
 'use strict';
 
 module.exports = {
@@ -4535,7 +5073,7 @@ module.exports = {
 };
 
 
-},{"./error":35,"./exchange":36}],38:[function(require,module,exports){
+},{"./error":37,"./exchange":38}],40:[function(require,module,exports){
 'use strict';
 
 var EventEmitter = require('events').EventEmitter;
@@ -4563,7 +5101,7 @@ Store.prototype.removeChangeListener = function (callback) {
 module.exports = Store;
 
 
-},{"events":undefined}],39:[function(require,module,exports){
+},{"events":undefined}],41:[function(require,module,exports){
 'use strict';
 
 function XhrError(message, response) {
@@ -4577,7 +5115,7 @@ XhrError.prototype.constructor = XhrError;
 module.exports = XhrError;
 
 
-},{}],40:[function(require,module,exports){
+},{}],42:[function(require,module,exports){
 'use strict';
 
 module.exports = {
@@ -4586,7 +5124,7 @@ module.exports = {
 };
 
 
-},{"./error":39,"./request":41}],41:[function(require,module,exports){
+},{"./error":41,"./request":43}],43:[function(require,module,exports){
 'use strict';
 
 var jQuery = require('jquery');
@@ -4617,7 +5155,7 @@ function XhrRequest(opts) {
 module.exports = XhrRequest;
 
 
-},{"./error":39,"bluebird":undefined,"jquery":undefined}],42:[function(require,module,exports){
+},{"./error":41,"bluebird":undefined,"jquery":undefined}],44:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -4664,7 +5202,7 @@ authorizationStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = authorizationStore;
 
 
-},{"../constants/action-types":33,"../dispatcher":34,"../lib/store":38}],43:[function(require,module,exports){
+},{"../constants/action-types":35,"../dispatcher":36,"../lib/store":40}],45:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -4757,7 +5295,7 @@ consoleStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = consoleStore;
 
 
-},{"../constants/action-types":33,"../dispatcher":34,"../lib/store":38,"../stores/authorization-store":42}],44:[function(require,module,exports){
+},{"../constants/action-types":35,"../dispatcher":36,"../lib/store":40,"../stores/authorization-store":44}],46:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -4844,7 +5382,7 @@ controlButtonStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = controlButtonStore;
 
 
-},{"../constants/action-types":33,"../dispatcher":34,"../lib/store":38,"../stores/authorization-store":42}],45:[function(require,module,exports){
+},{"../constants/action-types":35,"../dispatcher":36,"../lib/store":40,"../stores/authorization-store":44}],47:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -4877,7 +5415,7 @@ modalStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = modalStore;
 
 
-},{"../constants/action-types":33,"../dispatcher":34,"../lib/store":38}],46:[function(require,module,exports){
+},{"../constants/action-types":35,"../dispatcher":36,"../lib/store":40}],48:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -5268,7 +5806,7 @@ chartStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = chartStore;
 
 
-},{"../constants/action-types":33,"../dispatcher":34,"../lib/store":38,"../stores/authorization-store":42}],47:[function(require,module,exports){
+},{"../constants/action-types":35,"../dispatcher":36,"../lib/store":40,"../stores/authorization-store":44}],49:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -6304,7 +6842,7 @@ platformsPanelItemsStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = platformsPanelItemsStore;
 
 
-},{"../constants/action-types":33,"../dispatcher":34,"../lib/store":38,"../stores/platform-chart-store":46}],48:[function(require,module,exports){
+},{"../constants/action-types":35,"../dispatcher":36,"../lib/store":40,"../stores/platform-chart-store":48}],50:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -6337,7 +6875,7 @@ platformsPanelStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = platformsPanelStore;
 
 
-},{"../constants/action-types":33,"../dispatcher":34,"../lib/store":38}],49:[function(require,module,exports){
+},{"../constants/action-types":35,"../dispatcher":36,"../lib/store":40}],51:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -6447,7 +6985,7 @@ platformsStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = platformsStore;
 
 
-},{"../constants/action-types":33,"../dispatcher":34,"../lib/store":38,"./authorization-store":42}],50:[function(require,module,exports){
+},{"../constants/action-types":35,"../dispatcher":36,"../lib/store":40,"./authorization-store":44}],52:[function(require,module,exports){
 'use strict';
 
 var ACTION_TYPES = require('../constants/action-types');
@@ -6507,4 +7045,4 @@ statusIndicatorStore.dispatchToken = dispatcher.register(function (action) {
 module.exports = statusIndicatorStore;
 
 
-},{"../constants/action-types":33,"../dispatcher":34,"../lib/store":38}]},{},[1]);
+},{"../constants/action-types":35,"../dispatcher":36,"../lib/store":40}]},{},[1]);
