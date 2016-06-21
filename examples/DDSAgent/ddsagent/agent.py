@@ -1,4 +1,6 @@
-from volttron.platform.vip.agent import Agent, RPC
+import datetime
+from math import sin, cos, pi
+from volttron.platform.vip.agent import Agent, RPC, Core
 from volttron.platform.agent import utils
 
 # The 'connector' api has a hyphen in its name
@@ -23,6 +25,21 @@ class DDSAgent(Agent):
         connector = rti.Connector(participant_name, xml_config_path)
         self.writer = connector.getOutput(publisher_name)
         self.reader = connector.getInput(subscriber_name)
+
+    @Core.periodic(1)
+    def publish_demo(self):
+        sample = {"shapesize": 30,
+                  "color": "BLUE"}
+
+        center = 100
+        radius = 50
+        now = datetime.datetime.now()
+        radians = pi * float(now.second) / 15.0
+
+        sample['x'] = center + int(radius * cos(radians))
+        sample['y'] = center + int(radius * sin(radians))
+
+        self.write_to_dds(sample)
 
     @RPC.export
     def read_from_dds(self):
