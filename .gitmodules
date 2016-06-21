@@ -1,3 +1,6 @@
 [submodule "restricted/pnnl/volttron-restricted"]
 	path = restricted/pnnl/volttron-restricted
 	url = https://git.pnnl.gov/volttron/volttron-restricted
+[submodule "examples/DDSAgent/ddsagent/rticonnextdds-connector"]
+	path = examples/DDSAgent/ddsagent/rticonnextdds-connector
+	url = https://github.com/rticommunity/rticonnextdds-connector.git
