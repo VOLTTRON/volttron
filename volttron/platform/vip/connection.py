@@ -59,7 +59,7 @@ import logging
 
 import gevent
 
-from volttron.platform.control import Agent
+from volttron.platform.vip.agent import Agent
 from volttron.platform.web import build_vip_address_string
 
 _log = logging.getLogger(__name__)
@@ -80,10 +80,13 @@ class Connection(object):
         self.peer = peer
         if peer is None:
             _log.warn('Peer is non so must be passed in call method.')
-        full_address = build_vip_address_string(
-            vip_root=address, serverkey=serverkey, publickey=publickey,
-            secretkey=secretkey
-        )
+        if address.startswith('ipc'):
+            full_address = address
+        else:
+            full_address = build_vip_address_string(
+                vip_root=address, serverkey=serverkey, publickey=publickey,
+                secretkey=secretkey
+            )
         self._server = Agent(address=full_address)
         self._greenlet = None
 
@@ -116,7 +119,7 @@ class Connection(object):
 
     def call(self, method, *args, **kwargs):
         timeout = kwargs.pop('timeout', 30)
-        peer = kwargs.pop('peer')
+        peer = kwargs.pop('peer', None)
 
         if peer is not None:
             return self.server.vip.rpc.call(
