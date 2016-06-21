@@ -90,11 +90,10 @@ var EditChartForm = React.createClass({
             platformsPanelActionCreators.checkItem(selectedTopic.path, true);
         }
 
-        if (selectedTopic.pinned)
-        {
-            platformChartActionCreators.pinChart(selectedTopic.name);
-            platformActionCreators.saveCharts();
-        }
+        // if (selectedTopic.pinned)
+        // {
+        //     platformActionCreators.saveCharts();
+        // }
 
         modalActionCreators.closeModal();
     },
